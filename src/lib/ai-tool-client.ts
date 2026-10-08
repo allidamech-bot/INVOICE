@@ -7,6 +7,8 @@ import { buildCfoBrief, buildDealDeskDecision, formatCfoBrief, formatDealDeskDec
 import { handleAssistantLocalCommand } from './ai-personal-assistant.js';
 import { aiToolPlannerCatalog } from './ai-tool-orchestrator.js';
 import {requestedAiProductImport,requestedAiProductSkuGeneration} from './ai-product-source-import.js';
+import {reviseAiProductImportDraft,parseAiProductDraftCommand} from './ai-product-import-draft.js';
+import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -88,6 +90,47 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const sources=aiPlannerSourceFacts(input.context?.conversationSources);
   const hasSources=sources.length>0;
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  // An explicitly pending in-memory draft belongs to this company/thread only.
+  // No upload contents, model output or prior assistant replies may authorize edits.
+  if(!hasSources&&runtime.scope==='business'&&input.context?.pendingProductImport){
+    const batch=input.context.pendingProductImport as AiProductSourceImportBatch;
+    const change=parseAiProductDraftCommand(input.message);
+    if(change){
+      try{
+        const revised=reviseAiProductImportDraft(scopedVault,batch,input.message);
+        const proposal={capability:'tool.execute' as const,tool:'product.importSource' as const,args:revised,
+          preview:revised.rows.map(row=>({...row.preview,fileName:row.fileName})),
+          label:'Review '+revised.rows.length+' staged products',
+          rationale:'Updated the unsaved product catalog. Check every row and price before approving a single save.'};
+        const answer=input.language==='ar'
+          ?'تم تعديل المسودة فقط، ولم يُحفظ أي صنف. راجع جميع الأصناف والأسعار والعملات وأكواد SKU قبل الموافقة. يمكنك إعطاء تعديل آخر أو اعتماد القائمة.'
+          :'Only the pending draft changed; no products were saved. Review all SKUs, prices and currencies before approval. You can make another edit or approve the list.';
+        return{answer,proposal,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+      }catch(error){
+        return{answer:(input.language==='ar'?'تعذر تعديل المسودة: ':'Draft edit rejected: ')+(error instanceof Error?error.message:String(error))+' — No products saved.',
+          proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+      }
+    }
+    if(requestedAiProductImport(input.message)||/^(?:سجلها|سجّلها|احفظها|اعتمدها|سجلهم|سجّلهم|احفظهم|save (?:it|them)|register (?:it|them))[\s.!؟]*$/iu.test(input.message.trim())){
+      const proposal={capability:'tool.execute' as const,tool:'product.importSource' as const,args:batch,
+        preview:batch.rows.map(row=>({...row.preview,fileName:row.fileName})),label:'Review '+batch.rows.length+' staged products',
+        rationale:'Previously staged catalog: inspect every row before approving its registration.'};
+      return{answer:input.language==='ar'?'المسودة جاهزة للمراجعة. لم يُسجَّل أي صنف بعد؛ اضغط موافقة للتسجيل أو اطلب تعديلًا آخر.':'Draft ready for review. No products were registered. Approve the list or request another edit.',
+        proposal,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+  }
+  // For a classified product-list upload, make a review-only proposal even
+  // when the user first asks to analyze the file. Nothing is registered without
+  // a separate explicit click, and incomplete extraction fails closed.
+  if(hasSources&&runtime.scope==='business'&&sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'source-review-1',tool:'product.importSource',args:{sources:input.context.conversationSources},reason:'Review attachment product rows; approval required before registration.'}]};
+    const execution=executeAiToolPlan(runtime,plan);
+    if(execution.proposal){
+      const count=execution.proposal.preview?.length||0;
+      return{answer:input.language==='ar'?'استخرجت '+count+' صنفًا للمراجعة فقط. لم أسجّل شيئًا. راجع البيانات، ثم يمكنك طلب تغيير التصنيف أو السعر أو إنشاء SKU قبل الموافقة.':'Prepared '+count+' extracted products for review only. Nothing was registered. You can change category, price or missing SKU before approving.',proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
+    }
+    return{answer:formatAnswer(plan,execution.results,input.language),proposal:null,plan,results:execution.results,plannedBy:'local'};
+  }
   // The user's own message must expressly request registration. Untrusted file
   // instructions never authorize a write, and source rows are not truncated here.
   if(hasSources&&runtime.scope==='business'&&requestedAiProductImport(input.message)){
