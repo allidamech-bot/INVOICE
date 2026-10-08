@@ -35,7 +35,33 @@ jobs:
       - name: Install Chromium QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
+          # Match the proven main CI mirror configuration: GitHub's Azure apt
+          # mirror can stall, causing this mandatory browser gate to time out.
+          for sources in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [ -f "$sources" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+              sudo sed -i 's|https://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+            fi
+          done
+          # Install required system dependencies exactly once. Never bypass
+          # Playwright/Chromium, and fail if setup does not complete.
+          if ! timeout --signal=TERM --kill-after=30s 480s npx playwright install-deps chromium; then
+            echo "Chromium system dependencies could not be installed."
+            exit 1
+          fi
+          ready=0
+          for attempt in 1 2 3; do
+            if timeout --signal=TERM --kill-after=15s 180s npx playwright install chromium; then
+              ready=1
+              break
+            fi
+            echo "Chromium download attempt $attempt failed; retrying."
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Required Chromium browser could not be installed."
+            exit 1
+          fi
       - name: Run mobile AI and Help browser QA
         run: |
           npx http-server . -p 4173 -c-1 > /tmp/lourex-batch3-server.log 2>&1 &
