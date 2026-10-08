@@ -21,6 +21,8 @@ export interface SupplierImportDraft {
   paymentTerms:string;
   notes:string;
   items:SupplierImportItem[];
+  sourceSheets?:Array<{name:string;itemCount:number}>;
+  skippedSheets?:string[];
 }
 
 type SupplierColumn='sku'|'descriptionEn'|'descriptionAr'|'quantity'|'unit'|'unitCost'|'currency';
@@ -140,26 +142,38 @@ export function extractSupplierDraftLocally(matrix:unknown[][]):SupplierImportDr
   if(!hasIdentity||!columns.includes('quantity')||!columns.includes('unitCost'))return null;
   const currencyColumn=columns.indexOf('currency');
   const headerCurrency=(matrix[head]??[]).map(currencyHint).find(Boolean)||'';
+  const explicitCurrency=currencyHint(metadata(matrix,['currency','invoice currency','عملة','العملة']));
+  if(explicitCurrency&&headerCurrency&&explicitCurrency!==headerCurrency)throw new Error(`Supplier import: document currency ${explicitCurrency} conflicts with table header ${headerCurrency}.`);
   const items:SupplierImportItem[]=[];
-  let detectedCurrency=headerCurrency;
-  for(const row of matrix.slice(head+1)){
+  let detectedCurrency=explicitCurrency||headerCurrency;
+  for(let index=head+1;index<matrix.length;index+=1){
+    const row=matrix[index]??[];
     if(!row.some(value=>clean(value)))continue;
+    // A repeated table heading is not a product line.
+    const fields=new Set(row.map(headerField).filter(Boolean));
+    if(fields.has('quantity')&&fields.has('unitCost')&&(fields.has('sku')||fields.has('descriptionEn')||fields.has('descriptionAr')))continue;
     const data:Partial<Record<SupplierColumn,string>>={};
-    columns.forEach((field,index)=>{if(field)data[field]=clean(row[index]);});
-    const quantity=safeDecimal(data.quantity);const unitCost=safeDecimal(data.unitCost);
-    const sku=(data.sku??'').trim();const descriptionEn=(data.descriptionEn??'').trim();const descriptionAr=(data.descriptionAr??'').trim();
-    if(!quantity||!unitCost||(!sku&&!descriptionEn&&!descriptionAr))continue;
-    if(currencyColumn>=0&&!detectedCurrency)detectedCurrency=currencyHint(row[currencyColumn]);
+    columns.forEach((field,column)=>{if(field)data[field]=clean(row[column]);});
+    const sku=(data.sku??'').trim(),descriptionEn=(data.descriptionEn??'').trim(),descriptionAr=(data.descriptionAr??'').trim();
+    const identity=[sku,descriptionEn,descriptionAr].map(normalized).filter(Boolean);
+    // Recognized invoice summary lines are not supplier items.
+    if(!sku&&identity.length>0&&identity.every(value=>/^(?:subtotal|grand total|total|vat|tax|freight|shipping|discount|الإجمالي|اجمالي|المجموع|الضريبة|الشحن)$/.test(value)))continue;
+    const quantity=safeDecimal(data.quantity),unitCost=safeDecimal(data.unitCost);
+    if(!quantity||!unitCost||(!sku&&!descriptionEn&&!descriptionAr))throw new Error(`Supplier import: row ${index+1} is incomplete (SKU/name, quantity and unit cost are required). Nothing was imported.`);
+    const columnCurrency=clean(data.currency);
+    const rowCurrency=currencyHint(columnCurrency)||currencyHint(data.unitCost);
+    if(columnCurrency&&!currencyHint(columnCurrency))throw new Error(`Supplier import: row ${index+1} has an unrecognized currency: ${columnCurrency.slice(0,32)}.`);
+    if(rowCurrency&&detectedCurrency&&rowCurrency!==detectedCurrency)throw new Error(`Supplier import: mixed currencies at row ${index+1} (${detectedCurrency} / ${rowCurrency}). Separate by currency before saving.`);
+    if(rowCurrency)detectedCurrency=rowCurrency;
     items.push({sku,descriptionEn,descriptionAr,quantity,unit:(data.unit??'').trim(),unitCost});
   }
   if(!items.length)return null;
-  const explicitCurrency=metadata(matrix,['currency','invoice currency','عملة','العملة']);
   return {
     supplierName:metadata(matrix,['supplier','supplier name','vendor','vendor name','المورد','اسم المورد']),
     supplierTaxId:metadata(matrix,['vat','vat number','tax id','tax number','الرقم الضريبي','رقم الضريبة']),
     documentNumber:metadata(matrix,['invoice number','invoice no','proforma number','proforma no','document number','رقم الفاتورة','رقم المستند']),
     date:isoDate(metadata(matrix,['date','invoice date','document date','التاريخ','تاريخ الفاتورة'])),
-    currency:currencyHint(explicitCurrency)||detectedCurrency,
+    currency:detectedCurrency,
     freight:safeDecimal(metadata(matrix,['freight','shipping','الشحن'])),
     duty:safeDecimal(metadata(matrix,['duty','customs','customs duty','الجمارك','الرسوم الجمركية'])),
     otherCosts:safeDecimal(metadata(matrix,['other costs','other charges','تكاليف أخرى','رسوم أخرى'])),
@@ -169,7 +183,32 @@ export function extractSupplierDraftLocally(matrix:unknown[][]):SupplierImportDr
   };
 }
 
-export function extractSupplierDraftFromSheets(sheets:Array<{matrix:unknown[][]}>):SupplierImportDraft|null{
-  for(const sheet of sheets){const draft=extractSupplierDraftLocally(sheet.matrix);if(draft)return draft;}
-  return null;
+export function extractSupplierDraftFromSheets(sheets:Array<{name?:string;matrix:unknown[][]}>):SupplierImportDraft|null{
+  const sources:Array<{name:string;draft:SupplierImportDraft}>=[];
+  const skipped:string[]=[];
+  for(let index=0;index<sheets.length;index+=1){
+    const sheet=sheets[index]!,name=sheet.name||`Sheet ${index+1}`;
+    if(headerIndex(sheet.matrix)<0){skipped.push(name);continue;}
+    let draft:SupplierImportDraft|null;
+    try{draft=extractSupplierDraftLocally(sheet.matrix);}
+    catch(error){throw new Error(`${name}: ${error instanceof Error?error.message:String(error)}`);}
+    if(!draft)throw new Error(`Supplier import: worksheet "${name}" has recognizable headers but no complete lines. No draft was saved.`);
+    sources.push({name,draft});
+  }
+  if(!sources.length)return null;
+  const first=sources[0]!.draft;
+  const merged:SupplierImportDraft={...first,items:[],sourceSheets:[],skippedSheets:skipped};
+  const fields:Array<keyof Omit<SupplierImportDraft,'items'|'notes'|'sourceSheets'|'skippedSheets'>>=[
+    'supplierName','supplierTaxId','documentNumber','date','currency','freight','duty','otherCosts','paymentTerms'
+  ];
+  for(const {name,draft} of sources){
+    for(const field of fields){
+      const value=draft[field].trim(),existing=merged[field].trim();
+      if(value&&existing&&value!==existing)throw new Error(`Supplier import: worksheet "${name}" conflicts on ${field} (${existing} / ${value}). Split the source documents before saving.`);
+      if(value&&!existing)merged[field]=value;
+    }
+    merged.items.push(...draft.items);
+    merged.sourceSheets!.push({name,itemCount:draft.items.length});
+  }
+  return merged;
 }
