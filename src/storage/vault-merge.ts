@@ -14,6 +14,7 @@ import { defaultWarehouseId, validateWarehouse, warehouseItemQuantity } from '..
 import { assertGoodsReceiptIntegrity } from '../lib/goods-receipt-flow.js';
 import { assertSupplierInvoiceIntegrity } from '../lib/supplier-invoice-flow.js';
 import { assertMatchedSupplierInvoicePostingIntegrity } from '../lib/supplier-invoice-posting.js';
+import { assertSalesOrderIntegrity } from '../lib/sales-order-flow.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -538,6 +539,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
+  assertSalesOrderIntegrity(documents,documentEvents);
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {
     ...latest,
