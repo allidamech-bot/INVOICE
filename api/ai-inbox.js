@@ -36,7 +36,7 @@ function cleanToolPlannerSources(raw){
     const confidence=Number(row.confidence);
     return{fileName:cleanText(row.fileName,180),documentType:cleanText(row.documentType,80),
       route:cleanText(row.route,40),confidence:Number.isFinite(confidence)?Math.max(0,Math.min(1,confidence)):0,
-      extracted:cleanText(row.extracted,2800),truncated:row.truncated===true};
+      extracted:cleanText(row.extracted,2800),truncated:row.truncated===true||String(row.extracted||'').length>2800};
   }).filter(row=>row.fileName);
 }
 async function handleToolPlan(body,response){
@@ -48,7 +48,7 @@ async function handleToolPlan(body,response){
   const schema={type:'OBJECT',properties:{version:{type:'NUMBER'},goal:{type:'STRING'},calls:{type:'ARRAY',items:{type:'OBJECT',properties:{id:{type:'STRING'},tool:{type:'STRING',enum:allowed},argsJson:{type:'STRING'},reason:{type:'STRING'}},required:['id','tool','argsJson','reason']}}},required:['version','goal','calls']};
   const routed=await routeAiStructured({taskType:'business_copilot',reasoningLevel:'standard',prompt,schema,timeoutMs:12_000,validate:value=>Boolean(cleanToolPlan(value,scope))});
   if(!routed.success){if(routed.errorCode==='AI_INVALID_RESULT'){sendJson(response,422,{code:'NO_TOOL_PLAN',message:'LOUREX could not form a safe tool plan.'});return;}const publicError=aiRouterPublicError(routed);sendJson(response,publicError.status,{code:publicError.code,message:'LOUREX tool planning is temporarily unavailable.'});return;}
-  const plan=cleanToolPlan(routed.data,scope);if(!plan){sendJson(response,422,{code:'NO_TOOL_PLAN',message:'LOUREX could not form a safe tool plan.'});return;}sendJson(response,200,{plan});
+  const plan=cleanToolPlan(routed.data,scope);if(!plan){sendJson(response,422,{code:'NO_TOOL_PLAN',message:'LOUREX could not form a safe tool plan.'});return;}if(sourceFacts.some(source=>source.truncated)&&plan.calls.some(call=>['product.bulkUpdate','product.updateMetadata','document.createDraft','document.updateDraft','customer.update','supplier.update','task.create'].includes(call.tool))){sendJson(response,422,{code:'TRUNCATED_ACTION_SOURCE',message:'Source contains more rows than the safe planning window. Review the complete file before any write.'});return;}sendJson(response,200,{plan});
 }
 
 export default async function handler(request,response){
