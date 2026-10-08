@@ -6,6 +6,7 @@ import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, valida
 import { buildCfoBrief, buildDealDeskDecision, formatCfoBrief, formatDealDeskDecision, isCfoIntent, isDealDeskIntent } from './ai-cfo-deal-desk.js';
 import { handleAssistantLocalCommand } from './ai-personal-assistant.js';
 import { aiToolPlannerCatalog } from './ai-tool-orchestrator.js';
+import {requestedAiProductImport} from './ai-product-source-import.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -87,6 +88,13 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const sources=aiPlannerSourceFacts(input.context?.conversationSources);
   const hasSources=sources.length>0;
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  // The user's own message must expressly request registration. Untrusted file
+  // instructions never authorize a write, and source rows are not truncated here.
+  if(hasSources&&runtime.scope==='business'&&requestedAiProductImport(input.message)){
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'source-registration-1',tool:'product.importSource',args:{sources:input.context.conversationSources},reason:'User explicitly asked to register the attached product list.'}]};
+    const execution=executeAiToolPlan(runtime,plan);
+    return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
+  }
   if(!hasSources&&runtime.scope!=='temporary'){
     const resumed=await resumeVaultSession();
     if(resumed){
