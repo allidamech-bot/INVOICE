@@ -57,6 +57,7 @@ async function audit(page,failures){
           const tab=page.locator('.ta-settings-nav [data-settings-tab="'+section+'"]');
           await tab.scrollIntoViewIfNeeded();
           await tab.click();
+          await page.waitForTimeout(170); // Wait for TailAdmin's scoped page swap before checking section contents.
           await page.locator('.ta-settings-content .ta-settings-page').first().waitFor();
           assert.equal(await tab.getAttribute('aria-selected'),'true',section+' navigation selection lost');
           assert.equal(await tab.getAttribute('aria-current'),'page',section+' active route not marked');
