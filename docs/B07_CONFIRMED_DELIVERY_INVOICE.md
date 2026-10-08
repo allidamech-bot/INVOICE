@@ -32,9 +32,13 @@ Status: **PR #642, runtime QA pending**. Baseline is `main` after #641, with no 
 
 The complete local signoff must be recorded against the final PR head with **Node.js 24.x**: `npm ci`, `npm install --no-save --package-lock=false playwright@1.55.0`, `npx playwright install chromium webkit`, `git fetch origin main`, then `node scripts/verify-local.mjs`. It must pass TypeScript, build, Node contracts, mobile Chromium/WebKit QA and security checks. Static source inspections and draft previews alone are **not** signoff.
 
+## Timeline rendering
+
+Delivery-invoice creation evidence remains a structured, immutable document event. The Commercial Flow and Document Lifecycle timelines render a localized human-readable description instead of exposing the serialized JSON payload. The underlying payload and merge checks remain unchanged.
+
 ## Evidence and follow-up
 
-- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (18 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
+- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (19 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
 - Changes: `sales-delivery-invoice.ts`, `sales-order-progress.ts`, serialized App mutation, DocumentsPage, SalesOrderReview and SalesDeliveryReview, vault merge and regression tests.
 - Static source contract audit completed; no full Node 24 / npm typecheck, build or Playwright run has been performed in this execution environment. **Do not merge #642 or claim functionality tested until real local QA is available.**
 - Local QA: on the final PR HEAD run `node scripts/verify-local.mjs` after installing Node 24, dependencies and Playwright Chromium/WebKit. See `docs/LOCAL_VERIFICATION_NO_ACTIONS.md`.
