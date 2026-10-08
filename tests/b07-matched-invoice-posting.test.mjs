@@ -142,7 +142,16 @@ test('Batch7: no more than one stock receipt or payable is accepted for one matc
   const right=postMatchedSupplierInvoice(vault,input(order,event)).vault;
   assert.equal(left.purchases.length,1);
   assert.equal(right.purchases.length,1);
-  assert.throws(()=>mergeVaultIntent(vault,left,right),/Duplicate or invalid supplier invoice posting evidence|Duplicate, missing or inconsistent supplier invoice inventory posting/);
+  // The existing purchase merge guard rejects the concurrent write first.
+  assert.throws(()=>mergeVaultIntent(vault,left,right),/Purchase changed on another device/);
+  // Also exercise the new independent ledger integrity guard, even if a
+  // future sync strategy bypasses the early purchase conflict guard.
+  const duplicatePostedEvents=right.documentEvents.filter(event=>
+    event.note.startsWith('@lourex:supplier-invoice:purchase-posted:v1:'));
+  const conflicting={...left,documentEvents:[...left.documentEvents,...duplicatePostedEvents],
+    inventoryMovements:[...left.inventoryMovements,...right.inventoryMovements]};
+  assert.throws(()=>assertMatchedSupplierInvoicePostingIntegrity(conflicting),
+    /Duplicate or invalid supplier invoice posting evidence/);
   const tampered={...left,purchases:left.purchases.map(x=>({...x,items:x.items.map((item,i)=>i===0?{...item,unitCost:'11'}:item)}))};
   assert.throws(()=>assertMatchedSupplierInvoicePostingIntegrity(tampered),/differs from the reviewed supplier invoice|differs from the approved invoice/);
   const missingAudit={...left,documentEvents:left.documentEvents.filter(e=>!e.note.startsWith('@lourex:supplier-invoice:purchase-posted:v1:'))};
