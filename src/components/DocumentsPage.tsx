@@ -3,6 +3,8 @@ import { linkedPurchaseOrders, purchaseOrderSource, purchaseOrderSourceEligible 
 import { acceptSupplierQuotation, type SupplierQuotationAcceptanceInput } from '../lib/supplier-quotation-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { SupplierQuotationReview } from './SupplierQuotationReview.js';
+import { confirmGoodsReceipt, type ConfirmGoodsReceiptInput } from '../lib/goods-receipt-flow.js';
+import { GoodsReceiptReview } from './GoodsReceiptReview.js';
 import { AiWorkflowTools } from './AiWorkflowTools.js';
 import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
@@ -259,6 +261,10 @@ export class DocumentsPage extends React.Component<Props,State>{
 
   private runAction=(action:()=>void)=>this.setState({menuId:''},action);
 
+  private confirmGoodsDelivery=async(input:ConfirmGoodsReceiptInput):Promise<void>=>{
+    await mutateVaultSafely(vault=>confirmGoodsReceipt(vault,input).vault);
+  };
+
   private acceptSupplierQuote=async(input:SupplierQuotationAcceptanceInput):Promise<void>=>{
     let orderId='';
     await mutateVaultSafely(vault=>{
@@ -433,6 +439,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           <CommercialFlowPanel document={doc} documents={this.props.documents} events={this.props.documentEvents} onOpenDocument={(related)=>this.setState({detailId:related.id,menuId:''})}/>
           {doc.kind==='rfq'?<SupplierQuotationReview rfq={doc} documents={this.props.documents} events={this.props.documentEvents} onAccept={this.acceptSupplierQuote} onOpenPurchaseOrder={(related)=>this.setState({detailId:related.id,menuId:''})}/>:null}
+          {doc.kind==='purchase-order'?<GoodsReceiptReview order={doc} events={this.props.documentEvents} onConfirm={this.confirmGoodsDelivery}/>:null}
 
           <section className="ta-doc-panel ta-doc-items-panel">
             <header><div><small>{t('Line items','بنود المستند')}</small><h2>{t('Items','الأصناف')}</h2></div><span className="ta-doc-count-badge">{itemCountLabel(doc.items.length)}</span></header>
