@@ -365,6 +365,9 @@ test('Batch 7 — internal invoice evidence remains intact but both history pane
   ]);
   assert.match(helper,/note\.startsWith\('@lourex:sales-order:delivery-invoice:v1:'\)/);
   assert.match(helper,/Invoice draft prepared from confirmed physical delivery/);
+  assert.match(helper,/Customer Sales Order accepted and recorded/);
+  assert.match(helper,/Physical delivery confirmed against Sales Order/);
+  assert.match(helper,/Delivery Note draft linked to accepted Sales Order/);
   assert.match(commercial,/documentEventDisplayNote\(event\.note\)/);
   assert.match(lifecycle,/documentEventDisplayNote\(event\.note\)/);
 });
