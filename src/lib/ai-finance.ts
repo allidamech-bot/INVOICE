@@ -312,6 +312,6 @@ export function buildAiFinanceContext(source:AiFinanceSource,query:string,asOf=t
     matchedCustomers:customers.matched,
     activeDocument:documentSummary(source,asOf),
     productLinePerformance:needsProductPerformance(query)?productPerformance(source,currentMonthStart,asOf):null,
-    limitations:['currency-separated-no-fx-conversion','unknown-product-performance-currency-remains-empty','profit-hidden-when-cost-incomplete','product-profitability-does-not-allocate-document-level-adjustments','supplier-payables-not-tracked','cash-bank-ledger-not-tracked']
+    limitations:['currency-separated-no-fx-conversion','unknown-product-performance-currency-remains-empty','profit-hidden-when-cost-incomplete','product-profitability-does-not-allocate-document-level-adjustments','invalid-internal-expense-withholds-product-line-profit','supplier-payables-not-tracked','cash-bank-ledger-not-tracked']
   };
 }
