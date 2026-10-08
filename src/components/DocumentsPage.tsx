@@ -1,5 +1,8 @@
 import { deliverySourceEligible, linkedDeliveries, deliverySource } from '../lib/delivery-flow.js';
 import { linkedPurchaseOrders, purchaseOrderSource, purchaseOrderSourceEligible } from '../lib/procurement-flow.js';
+import { acceptSupplierQuotation, type SupplierQuotationAcceptanceInput } from '../lib/supplier-quotation-flow.js';
+import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
+import { SupplierQuotationReview } from './SupplierQuotationReview.js';
 import { AiWorkflowTools } from './AiWorkflowTools.js';
 import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
@@ -256,6 +259,16 @@ export class DocumentsPage extends React.Component<Props,State>{
 
   private runAction=(action:()=>void)=>this.setState({menuId:''},action);
 
+  private acceptSupplierQuote=async(input:SupplierQuotationAcceptanceInput):Promise<void>=>{
+    let orderId='';
+    await mutateVaultSafely(vault=>{
+      const result=acceptSupplierQuotation(vault,input);
+      orderId=result.purchaseOrder.id;
+      return result.vault;
+    });
+    if(orderId)this.setState({detailId:orderId,menuId:''});
+  };
+
   private convertQuote=(doc:LourexDocument)=>{
     if(this.quoteConversions.has(doc.id))return;
     this.quoteConversions.add(doc.id);
@@ -419,6 +432,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           <section className="ta-doc-panel"><header><div><small>{t('Overview','نظرة عامة')}</small><h2>{t('Document details','بيانات المستند')}</h2></div></header><div className="ta-doc-facts"><div><small>{doc.kind==='purchase-order'?t('Order date','تاريخ الطلب'):t('Issue date','تاريخ الإصدار')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div><div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):(doc.kind==='proforma'||doc.kind==='proforma-invoice')?t('Valid until','صالح حتى'):t('Additional date','تاريخ إضافي')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div><div><small>{t('Currency','العملة')}</small><strong>{doc.currency}</strong></div><div><small>{t('Language','اللغة')}</small><strong>{doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):doc.language==='ar'?t('Arabic','العربية'):t('English','الإنجليزية')}</strong></div></div></section>
 
           <CommercialFlowPanel document={doc} documents={this.props.documents} events={this.props.documentEvents} onOpenDocument={(related)=>this.setState({detailId:related.id,menuId:''})}/>
+          {doc.kind==='rfq'?<SupplierQuotationReview rfq={doc} documents={this.props.documents} events={this.props.documentEvents} onAccept={this.acceptSupplierQuote} onOpenPurchaseOrder={(related)=>this.setState({detailId:related.id,menuId:''})}/>:null}
 
           <section className="ta-doc-panel ta-doc-items-panel">
             <header><div><small>{t('Line items','بنود المستند')}</small><h2>{t('Items','الأصناف')}</h2></div><span className="ta-doc-count-badge">{itemCountLabel(doc.items.length)}</span></header>
