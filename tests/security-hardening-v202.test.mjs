@@ -65,6 +65,6 @@ test('v202 publishes a fresh immutable PWA generation and precaches account secu
 
 test('v202 CI blocks high severity dependency findings and runs the LOUREX security gate',async()=>{
   const ci=await read('scripts/verify-local.mjs');
-  assert.match(ci,/npm audit --audit-level=high/);
-  assert.match(ci,/node scripts\/security-check\.mjs/);
+  assert.match(ci,/run\(npm,\['audit','--audit-level=high'\]\)/);
+  assert.match(ci,/run\(process\.execPath,\['scripts\/security-check\.mjs'\]\)/);
 });
