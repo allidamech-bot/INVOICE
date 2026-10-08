@@ -9,6 +9,7 @@ if(source.includes('__lourexNaturalLanguageOsBatch4Closeout'))throw new Error('A
 // The Stage 4 owner now implements complete cancellation itself. Keep this
 // closeout as a guard, not a second replacement of an obsolete implementation.
 if(!source.includes("__lourexAdvanceToolPresentation(instance,'dismissed')")||!source.includes("Remaining steps cancelled"))throw new Error('AI conversation Batch 4 closeout requires the hardened cancellation lifecycle.');
+if(!source.includes("status:'dismissed'"))throw new Error('AI conversation Batch 4 closeout requires cancelled steps to lose approval state.');
 
 const messageToken="if(tokens.has('lourex-ai-messages')){const card=__lourexToolActivityCard(instance);if(card)children.push(card);}";
 if(!source.includes(messageToken))throw new Error('AI conversation Batch 4 closeout could not find the tool activity placement.');
