@@ -236,6 +236,83 @@ const MANIFEST={
       }
     ]
   },
+  "specialized": [
+    {
+      "file": "tests/visual/run-ai-assistant-help-batch3.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-ai-conversation-final-batch5.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-ai-remediation-batch4-tools-routes-ux-v3.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-all-template-auto-contrast-v591.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-business-health-batch4.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-document-design-final-deep.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-inventory-planning-batch7.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-notification-center-batch5.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-roadmap-hardening-final.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-sales-pipeline-batch6.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-secure-share-batch11.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-tax-vat-batch10.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-v538-quote-editor-final-flow.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-v542-pagination-parity.cjs",
+      "seconds": 300,
+      "args": []
+    },
+    {
+      "file": "tests/visual/run-workspaces-batch15.cjs",
+      "seconds": 300,
+      "args": []
+    }
+  ],
   "legacy": {
     "legacy-mobile": [
       {
@@ -323,7 +400,42 @@ const CONTRACTS=[
   'tests/b07-matched-invoice-posting.test.mjs',
   'tests/b07-sales-order-acceptance.test.mjs',
   'tests/b07-sales-delivery-confirmation.test.mjs',
-  'tests/local-verification-no-actions.test.mjs'
+  'tests/local-verification-no-actions.test.mjs',
+  'tests/accounts-payable-batch9.test.mjs',
+  'tests/ai-assistant-help-batch3.test.mjs',
+  'tests/ai-conversation-batch4-consolidation.test.mjs',
+  'tests/ai-conversation-design-batch1.test.mjs',
+  'tests/ai-conversation-design-batch2.test.mjs',
+  'tests/ai-conversation-final-batch5.test.mjs',
+  'tests/ai-conversation-natural-os-batch4.test.mjs',
+  'tests/ai-conversation-owner-batch4.test.mjs',
+  'tests/ai-remediation-batch3-conversation-ux.test.mjs',
+  'tests/ai-remediation-batch4-tools-routes-ux.test.mjs',
+  'tests/ai-voice-ios-release-owner.test.mjs',
+  'tests/ai-voice-runtime-delivery-batch2.test.mjs',
+  'tests/batch5-editor-visual-flattening.test.mjs',
+  'tests/batch6-css-runtime-ownership-closeout.test.mjs',
+  'tests/business-health-batch4.test.mjs',
+  'tests/document-appearance-controls-v525.test.mjs',
+  'tests/document-design-controls-closeout.test.mjs',
+  'tests/document-design-final-deep-audit.test.mjs',
+  'tests/inventory-planning-batch7.test.mjs',
+  'tests/mobile-document-design-controls-v540.test.mjs',
+  'tests/notification-center-batch5.test.mjs',
+  'tests/notification-center-browser-batch5.test.mjs',
+  'tests/pdf-pagination-parity-v542.test.mjs',
+  'tests/pricing-price-lists-batch8.test.mjs',
+  'tests/quote-editor-final-lifecycle-v538.test.mjs',
+  'tests/roadmap-hardening-v473.test.mjs',
+  'tests/sales-pipeline-batch6.test.mjs',
+  'tests/secure-share-batch11.test.mjs',
+  'tests/setup-readiness-batch4.test.mjs',
+  'tests/tax-vat-batch10.test.mjs',
+  'tests/template-surface-contrast-v366.test.mjs',
+  'tests/template-surface-tokens-v366.test.mjs',
+  'tests/treasury-accounts-hardening-v474.test.mjs',
+  'tests/treasury-accounts-v474.test.mjs',
+  'tests/workspaces-batch15.test.mjs'
 ];
 const args=new Set(process.argv.slice(2));
 for(const arg of args)if(!['--quick','--legacy','--help'].includes(arg))throw Error('Unknown argument '+arg);
@@ -400,6 +512,7 @@ async function main(){
     try{
       if(!args.has('--quick')){
         runBrowserQa('stability',MANIFEST.stability);
+        runBrowserQa('specialized',MANIFEST.specialized);
         for(const [shard,suites] of Object.entries(MANIFEST.current))runBrowserQa(shard,suites);
       }
       if(args.has('--legacy')){
