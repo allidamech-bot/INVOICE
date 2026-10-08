@@ -9,7 +9,7 @@ import { matchSupplierInvoice, type MatchSupplierInvoiceInput } from '../lib/sup
 import { SupplierInvoiceReview } from './SupplierInvoiceReview.js';
 import { postMatchedSupplierInvoice, type PostMatchedSupplierInvoiceInput } from '../lib/supplier-invoice-posting.js';
 import { SupplierInvoicePostingReview } from './SupplierInvoicePostingReview.js';
-import { acceptSalesOrder, type AcceptSalesOrderInput } from '../lib/sales-order-flow.js';
+import { acceptSalesOrder, salesOrderForQuotation, type AcceptSalesOrderInput } from '../lib/sales-order-flow.js';
 import { SalesOrderReview } from './SalesOrderReview.js';
 import { confirmSalesDelivery, type ConfirmSalesDeliveryInput } from '../lib/sales-delivery-flow.js';
 import { SalesDeliveryReview } from './SalesDeliveryReview.js';
@@ -42,6 +42,7 @@ interface Props {
   onOpen:(doc:LourexDocument)=>void;
   onDuplicate:(doc:LourexDocument)=>void;
   onCreateDelivery?:(doc:LourexDocument)=>void;
+  onCreateDeliveryInvoice?:(doc:LourexDocument)=>void;
   onCreatePurchaseOrder?:(doc:LourexDocument)=>void;
   onConvert?:(doc:LourexDocument)=>void;
   onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
@@ -342,7 +343,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const canCreatePurchaseOrder=Boolean(this.props.onCreatePurchaseOrder&&purchaseOrderSourceEligible(doc));
     const canDeliver=Boolean(this.props.onCreateDelivery&&deliverySourceEligible(doc));
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
-    const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
+    const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice&&!salesOrderForQuotation(doc.id,this.props.documentEvents));
     const standardFinalInvoice=doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided';
     const canCollect=Boolean(this.props.onRecordPayment&&standardFinalInvoice&&invoicePaymentSummary(doc,this.props.payments,undefined,this.props.documents).status!=='paid');
     const canCredit=Boolean(this.props.onCreateCreditNote&&standardFinalInvoice);
@@ -443,7 +444,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const sourceInvoice=doc.creditForId?this.props.documents.find(item=>item.id===doc.creditForId):undefined;
     const creditNotes=doc.kind==='invoice'&&doc.role==='standard'?this.props.documents.filter(item=>item.role==='credit-note'&&item.creditForId===doc.id):[];
     const relatedDocuments=[linkedInvoice,sourceQuote,sourceInvoice,deliverySource(doc,this.props.documents,this.props.documentEvents),purchaseOrderSource(doc,this.props.documents,this.props.documentEvents),...linkedDeliveries(doc,this.props.documents,this.props.documentEvents),...linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents),...creditNotes].filter((item,index,array):item is LourexDocument=>Boolean(item&&item.id!==doc.id)&&array.findIndex(candidate=>candidate?.id===item?.id)===index);
-    const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
+    const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice&&!salesOrderForQuotation(doc.id,this.props.documentEvents));
 
     return <section className="ta-doc-detail-page">
       <div className="ta-doc-detail-toolbar">
@@ -470,7 +471,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           <CommercialFlowPanel document={doc} documents={this.props.documents} events={this.props.documentEvents} onOpenDocument={(related)=>this.setState({detailId:related.id,menuId:''})}/>
           {(doc.kind==='proforma'||doc.kind==='proforma-invoice')?<SalesOrderReview quotation={doc} events={this.props.documentEvents} onAccept={this.acceptCustomerSalesOrder}/>:null}
-          {doc.kind==='delivery-note'?<SalesDeliveryReview deliveryNote={doc} documents={this.props.documents} events={this.props.documentEvents} onConfirm={this.confirmCustomerDelivery}/>:null}
+          {doc.kind==='delivery-note'?<SalesDeliveryReview deliveryNote={doc} documents={this.props.documents} events={this.props.documentEvents} onConfirm={this.confirmCustomerDelivery} onCreateInvoice={this.props.onCreateDeliveryInvoice?()=>this.props.onCreateDeliveryInvoice?.(doc):undefined}/>:null}
           {doc.kind==='rfq'?<SupplierQuotationReview rfq={doc} documents={this.props.documents} events={this.props.documentEvents} onAccept={this.acceptSupplierQuote} onOpenPurchaseOrder={(related)=>this.setState({detailId:related.id,menuId:''})}/>:null}
           {doc.kind==='purchase-order'?<><GoodsReceiptReview order={doc} events={this.props.documentEvents} onConfirm={this.confirmGoodsDelivery}/><SupplierInvoiceReview order={doc} events={this.props.documentEvents} onMatch={this.matchSupplierBill}/><SupplierInvoicePostingReview order={doc} events={this.props.documentEvents} savedItems={this.props.savedItems} onPost={this.postMatchedSupplierBill}/></>:null}
 
