@@ -20,11 +20,12 @@ Status: **PR #642, runtime QA pending**. Baseline is `main` after #641, with no 
 - Accepted SO quotations cannot be directly converted into a whole-order invoice, bypassing partial delivery quantities.
 - Quotation-level discounts, shipping, other charges and internal overhead are **not** automatically duplicated across partial invoices. Existing source tax rate remains a draft starting point; human must review legal/tax applicability.
 - Existing authorization limits new invoice preparation and the repeat create/open action to roles capable of document issuance: owner, admin, sales and finance.
+- Delivery-linked invoices cannot be deleted, duplicated or directly voided, because the physical delivery evidence must remain traceable. Correct issued invoices through the existing Credit Note process; dedicated cancel/replacement is deferred to an explicitly audited future workflow.
 - Nothing in the operation automatically decrements stock, posts an inventory cost, creates a payment, settles VAT or publishes an invoice. It does not create a general ledger.
 
 ## Evidence and follow-up
 
-- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (11 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
+- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (12 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
 - Changes: `sales-delivery-invoice.ts`, serialized App mutation, DocumentsPage and SalesDeliveryReview, vault merge and regression tests.
 - Static source contract audit completed; no full Node 24 / npm typecheck, build or Playwright run has been performed in this execution environment. **Do not merge #642 or claim functionality tested until real local QA is available.**
 - Local QA: on the final PR HEAD run `node scripts/verify-local.mjs` after installing Node 24, dependencies and Playwright Chromium/WebKit. See `docs/LOCAL_VERIFICATION_NO_ACTIONS.md`.
