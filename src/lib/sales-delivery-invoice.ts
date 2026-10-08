@@ -142,7 +142,7 @@ export function assertDeliveryInvoiceIntegrity(documents:LourexDocument[],events
       fail('Concurrent invoices conflict for one delivered shipment.','تعارضت الفواتير المتزامنة لنفس الشحنة المسلّمة.');
     seenDeliveries.add(record.deliveryNoteId);seenInvoices.add(record.invoiceId);
     if(!invoice||event.documentNumber!==invoice.number||!isIsoDate(invoice.issueDate)
-      ||invoice.kind!=='invoice'||invoice.role!=='standard'
+      ||invoice.kind!=='invoice'||invoice.role!=='standard'||invoice.lifecycleStatus==='voided'
       ||invoice.number!==record.invoiceNumber||invoice.convertedFromId!==record.quotationId
       ||invoice.customerSnapshot?.sourceCustomerId!==record.customerId
       ||invoice.currency!==record.currency||invoice.items.length!==record.lines.length
