@@ -28,6 +28,9 @@ const MAX_BINARY_BYTES=2_600_000;
 const MAX_DOCUMENT_BYTES=12_000_000;
 const MAX_TEXT_CHARS=120_000;
 const MAX_EXTRACT_CHARS=12_000;
+// The product-list reader can return 120 complete rows. Keep the structured
+// payload available for local approval; never send the full list to the LLM planner.
+const MAX_PRODUCT_LIST_EXTRACT_CHARS=72_000;
 
 function id():string{return`conversation-source-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;}
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));return btoa(binary);}
@@ -102,7 +105,7 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   }else{
     try{
       const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
-      extracted=compactJson(extractedPayload(classification.route,body));
+      extracted=compactJson(extractedPayload(classification.route,body),classification.route==='product_list'?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
     }catch(error){
       if(signal?.aborted)throw error;
       onProgress?.('fallback');
