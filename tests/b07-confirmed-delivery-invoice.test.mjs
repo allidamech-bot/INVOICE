@@ -323,6 +323,13 @@ test('Batch 7 — unauthorized operators cannot use create/open to bypass invoic
   }
 });
 
+test('Batch 7 — commercial event timeline hides internal structured invoice evidence',async()=>{
+  const panel=await readFile(new URL('../src/components/CommercialFlowPanel.tsx',import.meta.url),'utf8');
+  assert.match(panel,/event\.note\.startsWith\('@lourex:sales-order:delivery-invoice:v1:'\)/);
+  assert.match(panel,/Invoice prepared from confirmed delivery/);
+  assert.match(panel,/تم تجهيز الفاتورة من تسليم مؤكد/);
+});
+
 test('Batch 7 — final issuance stays human reviewed and serialized, not an AI or automatic posting',async()=>{
   const [app,page,merge,source]=await Promise.all([
     readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8'),
