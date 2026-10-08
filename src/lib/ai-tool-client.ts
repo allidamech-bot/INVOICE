@@ -170,6 +170,10 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
     plan=validateAiToolPlan(payload?.plan,runtime.scope);
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
+    // Customer/supplier master mutations are permitted only from the strict
+    // local parser of the user's own command, never from model-generated plans.
+    if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
     // interpretation of an explicit user message, never by model or file text.
     if(plan.calls.some(call=>call.tool==='product.bulkUpdate'&&(Object.hasOwn(call.args,'transform')||Object.hasOwn(call.args,'groupPrice'))))
