@@ -71,6 +71,18 @@ export function explicitAiActionRequest(message:string):boolean{
   return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to)\b|(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|احذف|امسح|اعتمد)/iu.test(message);
 }
 
+/** When an explicit user action fails to plan, do not quietly replace the
+ * operation with conversational output that could suggest it was performed. */
+export function aiPlanningUnavailableResult(message:string,language:'en'|'ar',reason:'unavailable'|'invalid'|'limited'='unavailable'):AiToolOrchestrationResult{
+  const ar=language==='ar';
+  const answer=reason==='limited'
+    ?(ar?'تعذر تجهيز الإجراء لأن طلبات AI بلغت الحد المؤقت. لم أغيّر أي بيانات. حاول مجددًا لاحقًا أو استخدم القسم المختص مباشرة.':'The AI planner is temporarily rate limited. No data was changed. Try again later or use the relevant workspace directly.')
+    :reason==='invalid'
+      ?(ar?'لم أتمكن من إنشاء خطة آمنة وواضحة لهذا الإجراء. لم أغيّر أي بيانات. حدّد الأصناف أو المستندات والتعديلات المطلوبة، ثم أعد المحاولة.':'I could not form a valid, safe action plan. No data was changed. Specify the affected products or documents and the required edits, then retry.')
+      :(ar?'تعذر الاتصال بمخطط أوامر LOUREX. لم يتم إنشاء أي إجراء أو تعديل بيانات. أعد المحاولة أو استخدم القسم المختص مباشرة.':'The LOUREX action planner is unavailable. No action was prepared and no data was changed. Retry or use the relevant workspace directly.');
+  return{answer,proposal:null,plan:{version:1,goal:clean(message,240),calls:[]},results:[],plannedBy:'local'};
+}
+
 export async function orchestrateAiToolRequest(input:{message:string;vault:VaultPayload;context:any;language:'en'|'ar';signal?:AbortSignal;}):Promise<AiToolOrchestrationResult|null>{
   const sources=aiPlannerSourceFacts(input.context?.conversationSources);
   const hasSources=sources.length>0;
@@ -90,11 +102,23 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   }
   const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
   if(!plan){
-    if(!likelyToolIntent(input.message,input.context)&&!(hasSources&&explicitAiActionRequest(input.message)))return null;
+    // Explicit user commands must always reach the planner, including short
+    // Arabic commands such as "احفظ جميع الأصناف" with no attachment.
+    if(!likelyToolIntent(input.message,input.context)&&!explicitAiActionRequest(input.message))return null;
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
-    let payload:any;try{payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);}catch{return null;}
-    plan=validateAiToolPlan(payload?.plan,runtime.scope);if(!plan||!plan.calls.length)return null;
+    const actionRequested=explicitAiActionRequest(input.message);
+    let payload:any;
+    try{
+      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
+    }catch(error){
+      if(input.signal?.aborted)throw error;
+      if(!actionRequested)return null;
+      const limited=error instanceof Error&&/(?:rate.?limit|too many|429)/i.test(error.message);
+      return aiPlanningUnavailableResult(input.message,input.language,limited?'limited':'unavailable');
+    }
+    plan=validateAiToolPlan(payload?.plan,runtime.scope);
+    if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     if(hasSources){
       const allowed=new Map(aiToolPlannerCatalog(runtime.scope).map(def=>[def.id,def.class]));
       const writes=plan.calls.some(call=>allowed.get(call.tool)==='execute'||allowed.get(call.tool)==='high-impact');
@@ -103,7 +127,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       }
       // File contents cannot grant permission to edit data. Only the user's
       // explicit message can authorize a reviewable execution proposal.
-      if(writes&&!explicitAiActionRequest(input.message))return null;
+      if(writes&&!actionRequested)return null;
     }
   }
   plan=promoteDocumentCreationPlan(plan,input.message);
