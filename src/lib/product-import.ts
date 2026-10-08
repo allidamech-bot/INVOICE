@@ -8,6 +8,7 @@ export type ProductImportField='sku'|'descriptionEn'|'descriptionAr'|'hsCode'|'o
 
 export interface ProductImportPlanRow {
   rowNumber:number;
+  sourceName?:string;
   action:ProductImportAction;
   reason:string;
   item:SavedItem|null;
@@ -394,4 +395,39 @@ export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],d
 
 export function importableProducts(plan:ProductImportPlan):SavedItem[]{
   return plan.rows.filter(row=>(row.action==='create'||row.action==='update')&&row.item).map(row=>row.item as SavedItem);
+}
+
+/** Deterministic multi-sheet planning. Every selected worksheet is counted,
+ * duplicate products across sources become explicit errors, and no writes occur. */
+export function planProductImportBatch(
+  sources:Array<{name:string;matrix:unknown[][]}>,
+  existingItems:SavedItem[],
+  defaultCurrency:string,
+  updateExisting=true
+):ProductImportPlan{
+  if(!sources.length)throw new Error('Select at least one worksheet before reviewing an import.');
+  const rows:ProductImportPlanRow[]=[];
+  const fields=new Set<ProductImportField>();
+  const planned:SavedItem[]=[];
+  const seenIds=new Set<string>();
+  for(const source of sources){
+    const plan=planProductImport(source.matrix,existingItems,defaultCurrency,updateExisting);
+    if(!plan.rows.length)throw new Error(`Worksheet "${source.name}" has no product rows. Deselect it or correct its header before saving.`);
+    for(const field of plan.recognizedFields)fields.add(field);
+    for(const entry of plan.rows){
+      const row:ProductImportPlanRow={...entry,sourceName:source.name};
+      if((row.action==='create'||row.action==='update')&&row.item){
+        const duplicate=findSavedItemDuplicate(planned,row.item);
+        if(seenIds.has(row.item.id)||duplicate){
+          rows.push({...row,action:'error',item:null,reason:`Duplicate product across worksheets: ${source.name}. Nothing was imported.`});
+          continue;
+        }
+        seenIds.add(row.item.id);planned.push(row.item);
+      }
+      rows.push(row);
+    }
+  }
+  const counts={create:0,update:0,skip:0,error:0};
+  for(const row of rows)counts[row.action]+=1;
+  return{rows,recognizedFields:[...fields],counts};
 }
