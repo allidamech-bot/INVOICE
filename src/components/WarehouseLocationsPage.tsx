@@ -40,7 +40,7 @@ export function WarehouseLocationsPage(props:Props):any{
         if(!activeLocation(from)||!activeLocation(to))throw new Error(t('Stock location changed. Select active locations again.','تغير موقع المخزون. اختر مواقع نشطة من جديد.'));
         const movement=createWarehouseTransfer(item,from,to,quantity,undefined,note);
         const available=warehouseItemQuantity(item.id,from,vault.inventoryMovements,defaultId);
-        const required=decimalToScaled(movement.quantity,4);
+        const required=decimalToScaled(quantity,4);
         if(required>available)throw new Error(t('Transfer quantity exceeds available stock at the source location.','كمية التحويل تتجاوز المخزون المتاح في موقع المصدر.'));
         return {...vault,inventoryMovements:[...vault.inventoryMovements,movement]};
       });
