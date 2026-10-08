@@ -93,10 +93,10 @@ test('B05: out-of-range, zero, invalid percentages and missing prices fail witho
   v.savedItems[2].lastCurrency='';
   assert.throws(()=>prepareAiBulkProductTransform(v,{selector:'all',pricePercent:'5'}),/sale currency/);
 });
-test('B05: over-40 selections are rejected, not shortened silently',()=>{
+test('B05: over-120 selections are rejected, not shortened silently',()=>{
   const v=vault();
-  for(let i=0;i<40;i++)v.savedItems.push(product('extra-'+i,'X-'+i,'2.00'));
-  assert.throws(()=>prepareAiBulkProductTransform(v,{selector:'all',pricePercent:'5'}),/More than 40/);
+  for(let i=0;i<120;i++)v.savedItems.push(product('extra-'+i,'X-'+i,'2.00'));
+  assert.throws(()=>prepareAiBulkProductTransform(v,{selector:'all',pricePercent:'5'}),/More than 120/);
 });
 test('B05: prefix and company boundaries remain guarded',()=>{
   const v=vault();
