@@ -86,7 +86,7 @@ test('B06: duplicate email or name, unsupported fields, invalid email and forged
   assert.throws(()=>parseAiPartyMasterIntent('Add customer: Rival LLC; city: Paris; city: London'),/Repeated contact field/);
   const staged=prepareAiPartyMaster(v,parseAiPartyMasterIntent('Add customer: Rival LLC; city: Paris'));
   staged.after.creditLimit='99999';
-  assert.throws(()=>applyAiPartyMaster(v,staged),/Unapproved party field/);
+  assert.throws(()=>applyAiPartyMaster(v,staged),/Approved party preview changed/);
   const changedField=prepareAiPartyMaster(v,parseAiPartyMasterIntent('Add customer: Third LLC; city: Paris'));
   changedField.after.city='London';
   assert.throws(()=>applyAiPartyMaster(v,changedField),/preview changed/);
