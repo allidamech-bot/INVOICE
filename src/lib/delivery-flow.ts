@@ -46,20 +46,16 @@ export function createLinkedDeliveryDraft(vault:VaultPayload,sourceId:string):{v
   const base=createBlankDocument('delivery-note',numbered.number,vault.company);
   const balances=salesOrder?new Map(salesDeliveryBalances(salesOrder,vault.documentEvents).map(line=>[line.salesOrderLineId,line.remaining])):null;
   const committedItems=sourceQuotation?.items??source.items;
-  const linkedItems=committedItems.flatMap(item=>{
+  const linkedPairs=committedItems.flatMap(item=>{
     const remaining=balances?.get(item.id);
     if(salesOrder&&(!remaining||decimalToScaled(remaining,4)<=0n))return[];
-    return [{...item,id:makeId('item'),quantity:remaining??item.quantity,unitPrice:'',unitCost:''}];
+    return [{salesOrderLineId:item.id,deliveryItem:{...item,id:makeId('item'),quantity:remaining??item.quantity,unitPrice:'',unitCost:''}}];
   });
+  const linkedItems=linkedPairs.map(pair=>pair.deliveryItem);
   const mapping:SalesDeliveryMapping|undefined=salesOrder?{
     quotationId:salesOrder.quotationId,salesOrderNumber:salesOrder.salesOrderNumber,
-    lines:linkedItems.map(item=>({
-      salesOrderLineId:committedItems.find(sourceItem=>sourceItem.descriptionEn===item.descriptionEn
-        &&sourceItem.descriptionAr===item.descriptionAr&&sourceItem.unit===item.unit)?.id||'',
-      deliveryLineId:item.id
-    }))
+    lines:linkedPairs.map(pair=>({salesOrderLineId:pair.salesOrderLineId,deliveryLineId:pair.deliveryItem.id}))
   }:undefined;
-  if(mapping?.lines.some(line=>!line.salesOrderLineId))throw new Error(t('Cannot map delivery items to the Sales Order.','تعذر ربط أصناف التسليم بأمر البيع.'));
   const document:LourexDocument={...base,currency:source.currency,language:source.language,customerSnapshot:structuredClone(source.customerSnapshot),
     items:linkedItems,
     terms:{...base.terms,incoterm:source.terms.incoterm,packing:source.terms.packing,deliveryTime:source.terms.deliveryTime,portOfLoading:source.terms.portOfLoading,finalDestination:source.terms.finalDestination,countryOfOrigin:source.terms.countryOfOrigin,
