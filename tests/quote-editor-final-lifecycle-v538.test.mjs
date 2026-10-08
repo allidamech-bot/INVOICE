@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const runner=read('tests/visual/run-v538-quote-editor-final-flow.cjs');
 const fixture=read('tests/visual/v538-quote-editor-final-flow.html');
-const workflow=read('.github/workflows/quote-editor-final-lifecycle.yml');
+const workflow=read('scripts/verify-local.mjs');
 const pkg=JSON.parse(read('package.json'));
 const departureOwner=read('scripts/v539-editor-departure-single-owner.mjs');
 const reviewModal=read('src/components/DocumentReviewModal.tsx');
@@ -72,7 +72,9 @@ test('v538 uses the real EditorPage boundary inside the production #root > .app-
 });
 
 test('v538 lifecycle is enforced by its WebKit workflow',()=>{
-  assert.match(workflow,/node --test tests\/quote-editor-final-lifecycle-v538\.test\.mjs/);
-  assert.match(workflow,/npx playwright install --with-deps webkit/);
-  assert.match(workflow,/node tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
+  assert.match(workflow,/tests\/quote-editor-final-lifecycle-v538\.test\.mjs/);
+  assert.match(workflow,/assertBrowserReady/);
+  assert.match(workflow,/webkit/);
+  assert.match(workflow,/runBrowserQa\('specialized',MANIFEST\.specialized\)/);
+  assert.match(workflow,/tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
 });

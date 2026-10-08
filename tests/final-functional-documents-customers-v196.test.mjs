@@ -18,8 +18,8 @@ test('v196 Documents preserves the real quotation conversion promise until invoi
 });
 
 test('v196 browser gate double-clicks customer Quote and Invoice actions in English and Arabic',async()=>{
-  const [ci,runner]=await Promise.all([read('.github/workflows/ci.yml'),read('tests/visual/run-functional-customers-v196.cjs')]);
-  assert.match(ci,/node tests\/visual\/run-functional-customers-v196\.cjs/);
+  const [ci,runner]=await Promise.all([read('scripts/verify-local.mjs'),read('tests/visual/run-functional-customers-v196.cjs')]);
+  assert.match(ci,/tests\/visual\/run-functional-customers-v196\.cjs/);
   assert.match(runner,/button\.click\(\);button\.click\(\)/);
   assert.match(runner,/list quote action must be single-flight/);
   assert.match(runner,/profile invoice action must be single-flight/);

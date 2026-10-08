@@ -45,7 +45,7 @@ test('v217 surfaces divergence and keeps the conflict state stable until explici
 test('v217 save-trust UI is loaded by the page and immutable PWA generation',async()=>{
   const [html,sw,patch,css,ci]=await Promise.all([
     read('index.html'),read('public/sw.js'),read('scripts/pwa-cache-v205.mjs'),
-    read('src/styles/save-reliability-v217.css'),read('.github/workflows/ci.yml')
+    read('src/styles/save-reliability-v217.css'),read('scripts/verify-local.mjs')
   ]);
   assert.match(html,/save-reliability-v217\.css/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v217'/);

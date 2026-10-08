@@ -50,8 +50,8 @@ test('v197 Operations uses one synchronous mutation lane for suppliers purchases
 });
 
 test('v197 functional browser gate is wired into CI',async()=>{
-  const [ci,runner]=await Promise.all([read('.github/workflows/ci.yml'),read('tests/visual/run-functional-products-operations-v197.cjs')]);
-  assert.match(ci,/node tests\/visual\/run-functional-products-operations-v197\.cjs/);
+  const [ci,runner]=await Promise.all([read('scripts/verify-local.mjs'),read('tests/visual/run-functional-products-operations-v197.cjs')]);
+  assert.match(ci,/tests\/visual\/run-functional-products-operations-v197\.cjs/);
   assert.match(runner,/button\.click\(\);button\.click\(\)/);
   for(const marker of ['product save must be single-flight','product delete must be single-flight','product import must be single-flight','purchase post must be single-flight','inventory movement must be single-flight','Arabic operations retry must release the mutation lock'])assert.ok(runner.includes(marker),marker);
 });

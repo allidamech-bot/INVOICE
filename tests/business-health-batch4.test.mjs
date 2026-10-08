@@ -86,8 +86,10 @@ test('Business Health stays inside Home and routes every repair to a canonical w
 });
 
 test('Batch 4 mobile browser QA covers bilingual attention and ready states',async()=>{
-  const [workflow,runner,fixture]=await Promise.all([read('.github/workflows/batch4-business-health.yml'),read('tests/visual/run-business-health-batch4.cjs'),read('tests/visual/business-health-batch4.html')]);
-  assert.match(workflow,/Run mobile Business Health browser QA/);
+  const [workflow,runner,fixture]=await Promise.all([read('scripts/verify-local.mjs'),read('tests/visual/run-business-health-batch4.cjs'),read('tests/visual/business-health-batch4.html')]);
+  assert.match(workflow,/runBrowserQa\('specialized',MANIFEST\.specialized\)/);
+  assert.match(workflow,/tests\/business-health-batch4\.test\.mjs/);
+  assert.match(workflow,/tests\/visual\/run-business-health-batch4\.cjs/);
   assert.match(runner,/viewport:\{width:390,height:844\}/);
   assert.match(runner,/mobile-en/);assert.match(runner,/mobile-ar/);assert.match(runner,/mobile-ready-en/);assert.match(runner,/mobile-ready-ar/);
   assert.match(runner,/height>=44/);

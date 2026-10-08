@@ -64,8 +64,12 @@ test('latest quotation remains available beyond the twelve recent-document previ
  quote.lifecycleStatus='voided';assert.equal(buildCustomer360(customer,[quote,...invoices],[],[]).latestQuotation,null);
 });
 
-test('historical diagnostics are opt-in while current quality gates remain required',async()=>{
- const workflow=await readFile(new URL('../.github/workflows/ci.yml',import.meta.url),'utf8');
- for(const job of ['legacy-browser-baseline','legacy-baseline'])assert.match(workflow,new RegExp(`${job}:\\n    if:.*workflow_dispatch.*inputs\\.legacy_diagnostics`));
- assert.match(workflow,/default: false/);assert.match(workflow,/needs:\s*\n\s*- verify\n\s*- browser-qa/);
+test('historical diagnostics stay opt-in while local security and browser gates are mandatory',async()=>{
+ const local=await readFile(new URL('../scripts/verify-local.mjs',import.meta.url),'utf8');
+ assert.match(local,/--legacy/);
+ assert.match(local,/runLocalChecks\(\)/);
+ assert.match(local,/runBrowserQa/);
+ assert.match(local,/NON-BLOCKING historical unit baseline failed/);
+ assert.match(local,/if\(!args\.has\('--quick'\)\)/);
+ assert.match(local,/process\.exitCode=1/);
 });

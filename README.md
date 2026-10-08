@@ -60,13 +60,13 @@ Backup creates one encrypted `.lourex-backup` file containing the complete vault
 
 ## Development
 
-Requirements: Node.js 20+.
+Requirements: Node.js 24.x.
 
 ```bash
-npm install
-npm run typecheck
-npm test
-npm run build
+npm ci
+npm install --no-save --package-lock=false playwright@1.55.0
+npx playwright install chromium webkit
+node scripts/verify-local.mjs
 ```
 
 The production build is written to `dist/`.
@@ -98,4 +98,8 @@ public/
 
 ## Verification
 
-`npm test` builds the production application and runs regression coverage for fixed-precision financial calculations, independent numbering, document snapshots, conversion/duplication, long-document pagination, encrypted storage, PIN verification, encrypted backup/restore, cloud ownership/integrity, PWA caching, iOS PDF behavior, RTL/LTR output, all template identifiers, mobile editor behavior and concurrent local writes.
+`node scripts/verify-local.mjs` is the mandatory **local** replacement for the retired GitHub Actions workflows. It runs the high-severity dependency audit, LOUREX security gate, TypeScript, production build, current Batch 7 and changed PR contract tests, plus Chromium/WebKit mobile, iPad, document and workspace browser QA.
+
+Run `node scripts/verify-local.mjs --legacy` to include historical, non-blocking diagnostics; `--quick` is development-only and **not sufficient** for merge approval. No GitHub-hosted CI check will appear on Pull Requests, so the final PR head must be verified and signed off manually.
+
+See [local verification and PR signoff](docs/LOCAL_VERIFICATION_NO_ACTIONS.md) for setup and complete instructions.

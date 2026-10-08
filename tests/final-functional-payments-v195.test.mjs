@@ -20,7 +20,7 @@ test('v195 payment browser workflow covers duplicate intent, retry, credit balan
   const [runner,fixture,ci]=await Promise.all([
     read('tests/visual/run-functional-payments.cjs'),
     read('tests/visual/functional-payments.html'),
-    read('.github/workflows/ci.yml')
+    read('scripts/verify-local.mjs')
   ]);
   for(const marker of [
     'payment-save-single-flight',
@@ -34,7 +34,7 @@ test('v195 payment browser workflow covers duplicate intent, retry, credit balan
   assert.match(runner,/rapid Delete clicks must create one destructive request/);
   assert.match(fixture,/normalizePaymentRecord/);
   assert.match(fixture,/invoicePaymentSummary/);
-  assert.match(ci,/node tests\/visual\/run-functional-payments\.cjs/);
+  assert.match(ci,/tests\/visual\/run-functional-payments\.cjs/);
 });
 
 test('v195 remains preserved after later immutable PWA generations advance',async()=>{

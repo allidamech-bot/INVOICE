@@ -27,7 +27,7 @@ test('v190 Settings QA exercises the real modal in English and Arabic responsive
   const [fixture,runner,workflow]=await Promise.all([
     read('tests/visual/obsidian-settings.html'),
     read('tests/visual/run-obsidian-settings.cjs'),
-    read('.github/workflows/ci.yml')
+    read('scripts/verify-local.mjs')
   ]);
   assert.match(fixture,/SettingsModal/);
   assert.match(runner,/\['en','ar'\]/);
