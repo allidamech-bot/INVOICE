@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {emptyVault,customerSnapshotFrom} from '../dist/src/lib/defaults.js';
 import {createBlankDocument,validateDocument} from '../dist/src/lib/documents.js';
+import {createCreditNoteDraft} from '../dist/src/lib/document-lifecycle.js';
 import {validatedCommercialTrackingEvent} from '../dist/src/lib/commercial-flow.js';
 import {acceptSalesOrder} from '../dist/src/lib/sales-order-flow.js';
 import {createLinkedDeliveryDraft} from '../dist/src/lib/delivery-flow.js';
@@ -231,6 +232,40 @@ test('Batch 7 — read-only SO progress separates physical quantities, invoice d
   assert.equal(paid.currency,'USD');
 });
 
+test('Batch 7 — SO progress counts separate partial invoices and leaves drafts outside AR',()=>{
+  const {vault,quote,order}=setup();
+  const first=confirmed(vault,quote,['4','1'],'POD-SUM-1');
+  const invoiced=createConfirmedDeliveryInvoiceDraft(first.vault,first.note.id);
+  const second=confirmed(invoiced.vault,quote,['8','5'],'POD-SUM-2');
+  const draftSecond=createConfirmedDeliveryInvoiceDraft(second.vault,second.note.id);
+  const issuedFirst={...invoiced.invoice,status:'final'};
+  const docs=draftSecond.vault.documents.map(doc=>doc.id===issuedFirst.id?issuedFirst:doc);
+  const progress=salesOrderInvoiceProgress(order,docs,draftSecond.vault.documentEvents,[]);
+  assert.equal(progress.confirmedDeliveries,2);
+  assert.equal(progress.unbilledDeliveries,0);
+  assert.equal(progress.invoiceDrafts,1);
+  assert.equal(progress.invoicesIssued,1);
+  assert.deepEqual(progress.lines.map(row=>row.remaining),['0','0']);
+  assert.equal(progress.netIssued,'65.00');
+  assert.equal(progress.outstanding,'65.00');
+  assert.equal(progress.currency,'USD');
+});
+
+test('Batch 7 — credit notes reduce AR without miscounting confirmed physical deliveries',()=>{
+  const {vault,quote,order}=setup();
+  const physical=confirmed(vault,quote,['4','1'],'POD-CREDIT');
+  const draft=createConfirmedDeliveryInvoiceDraft(physical.vault,physical.note.id);
+  const invoice={...draft.invoice,status:'final'};
+  const credit={...createCreditNoteDraft(invoice,'CRN-2026-B07','65.00'),status:'final'};
+  const docs=[...draft.vault.documents.map(doc=>doc.id===invoice.id?invoice:doc),credit];
+  const progress=salesOrderInvoiceProgress(order,docs,draft.vault.documentEvents,[]);
+  assert.equal(progress.confirmedDeliveries,1);
+  assert.equal(progress.invoicesIssued,1);
+  assert.equal(progress.credits,'65.00');
+  assert.equal(progress.netIssued,'0.00');
+  assert.equal(progress.outstanding,'0.00');
+  assert.equal(progress.collected,'0.00');
+});
 test('Batch 7 — sales order summary uses scoped financial data without changing the receivables owner',async()=>{
   const [orderPanel,page,source]=await Promise.all([
     readFile(new URL('../src/components/SalesOrderReview.tsx',import.meta.url),'utf8'),
