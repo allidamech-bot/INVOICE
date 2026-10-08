@@ -90,7 +90,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   }
   const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
   if(!plan){
-    if(!hasSources&&!likelyToolIntent(input.message,input.context))return null;
+    if(!likelyToolIntent(input.message,input.context)&&!(hasSources&&explicitAiActionRequest(input.message)))return null;
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
     let payload:any;try{payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);}catch{return null;}
