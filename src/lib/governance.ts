@@ -1,11 +1,11 @@
 import type { ApprovalAction, ApprovalPolicyRecord, ApprovalRequestRecord, TeamMemberRecord, TeamRole, VaultPayload } from '../types.js';
 import { makeId } from './id.js';
 
-export type GovernanceCapability='issue-document'|'post-purchase'|'reverse-purchase'|'approve'|'approve-supplier-quote'|'record-goods-receipt'|'match-supplier-invoice'|'accept-sales-order'|'confirm-sales-delivery';
+export type GovernanceCapability='issue-document'|'post-purchase'|'reverse-purchase'|'approve'|'approve-supplier-quote'|'record-goods-receipt'|'match-supplier-invoice'|'accept-sales-order'|'confirm-sales-delivery'|'issue-sales-stock';
 
 const ROLE_CAPABILITIES:Record<TeamRole,GovernanceCapability[]>={
-  owner:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery'],
-  admin:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery'],
+  owner:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery','issue-sales-stock'],
+  admin:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery','issue-sales-stock'],
   finance:['issue-document','approve','match-supplier-invoice'],
   sales:['issue-document','accept-sales-order','confirm-sales-delivery'],
   purchasing:['post-purchase','reverse-purchase','approve-supplier-quote','record-goods-receipt'],

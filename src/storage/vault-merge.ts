@@ -17,6 +17,7 @@ import { assertMatchedSupplierInvoicePostingIntegrity } from '../lib/supplier-in
 import { assertSalesOrderIntegrity } from '../lib/sales-order-flow.js';
 import { assertSalesDeliveryIntegrity } from '../lib/sales-delivery-flow.js';
 import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity } from '../lib/sales-delivery-invoice.js';
+import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, isSalesDeliveryStockIssue } from '../lib/sales-delivery-stock.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -335,9 +336,11 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     const cost=text(movement.unitCost).trim();
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Inventory movement unit cost must be zero or greater.');
     if(movement.sourceId){
+      if(movement.type==='issue'&&isSalesDeliveryStockIssue(movement))continue;
       if(movement.type!=='adjustment')throw new Error('Only an adjustment can reverse a prior manual inventory movement.');
       const source=movements.find(item=>item.id===movement.sourceId);
       if(!source||!inventoryMovementIsManual(source))throw new Error('Manual inventory reversal is linked to an invalid source movement.');
+      if(isSalesDeliveryStockIssue(source))throw new Error('Confirmed delivery stock issues cannot be reversed as generic manual adjustments.');
       if(source.itemId!==movement.itemId||movementQuantity(source)!==-quantity)throw new Error('Manual inventory reversal must exactly offset its source movement.');
       const reversals=movements.filter(item=>item.type==='adjustment'&&item.sourceId===source.id);
       if(reversals.length!==1)throw new Error('This manual inventory movement has already been reversed.');
@@ -539,12 +542,14 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
+  assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
   assertSalesOrderIntegrity(documents,documentEvents);
   assertSalesDeliveryIntegrity(documents,documentEvents);
   assertDeliveryInvoiceIntegrity(documents,documentEvents);
+  assertSalesDeliveryStockIntegrity({documents,documentEvents,inventoryMovements,savedItems,warehouses,appSettings:latest.appSettings});
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {
     ...latest,
