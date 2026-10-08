@@ -13,7 +13,7 @@ npx playwright install chromium webkit
 node scripts/verify-local.mjs
 ```
 
-On Linux install Playwright system libraries with `npx playwright install-deps chromium webkit` if missing.
+A local signoff may take significantly longer than the former parallel hosted matrix because all required suites now run serially. On Linux install Playwright system libraries with `npx playwright install-deps chromium webkit` if missing.
 Playwright is installed without changing package.json or the lockfile. It is NOT uploaded as a GitHub artifact.
 
 ## Mandatory before merge
