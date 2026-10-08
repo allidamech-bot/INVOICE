@@ -93,6 +93,8 @@ test('B05: deterministic tool proposal stages a single approval; protected plan 
   assert.equal(result.proposal?.tool,'product.bulkUpdate');
   assert.equal(result.proposal?.preview?.length,2);
   assert.equal(JSON.stringify(v),before);
+  const split=executeAiToolPlan(runtime,{...plan,calls:[...plan.calls,{id:'a2',tool:'task.create',args:{title:'Another action'},reason:'Separate write'}]});
+  assert.equal(split.proposal,null,'Bulk approval must never become a partially applied sequential plan.');
   const missing=executeAiToolPlan(runtime,{...plan,calls:[{...plan.calls[0],args:{updates:[...entries(),{name:'not found',patch:{sku:'NO'}}]}}]});
   assert.equal(missing.proposal,null);
   assert.equal(missing.results[0].ok,false);
@@ -114,6 +116,7 @@ test('B05: planner and UI expose the bounded tool and complete review',async()=>
   const ui=await readFile('scripts/ai-conversation-owner-stage4-tools.mjs','utf8');
   assert.match(api,/product\.bulkUpdate/);
   assert.match(api,/UNTRUSTED ATTACHMENT FACTS/);
+  assert.match(api,/TRUNCATED_ACTION_SOURCE/);
   assert.match(tool,/runtime\.scope!=='business'/);
   assert.match(ui,/__lourexBulkProductPreview/);
   assert.match(ui,/row\.before/);
