@@ -118,7 +118,20 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
   if(negativeItems)evidenceRows.push(evidence('inventory-negative','inventory','operations.inventoryBalances',`${negativeItems} inventory item(s) have a negative recorded quantity.`,'action-needed','',String(negativeItems),negativeItems));
   if(zeroItems)evidenceRows.push(evidence('inventory-zero','inventory','operations.inventoryBalances',`${zeroItems} inventory item(s) have zero recorded quantity.`,'watch','',String(zeroItems),zeroItems));
   if(business.daily.invalidOperations)evidenceRows.push(evidence('operations-invalid','company-health','operations.operationsIntegritySummary',`${business.daily.invalidOperations} accounting operation(s) failed deterministic integrity checks.`,'action-needed','',String(business.daily.invalidOperations),business.daily.invalidOperations));
-  if(business.daily.missingCostItems)evidenceRows.push(evidence('missing-costs','company-health','reports.profitability',`${business.daily.missingCostItems} item line(s) are missing cost data in today’s deterministic brief.`,'watch','',String(business.daily.missingCostItems),business.daily.missingCostItems));
+  // An invalid internal expense can withhold gross profit even when no item
+  // unit cost is missing. Trust the deterministic completeness flag, not just
+  // the missing-item count, before declaring financial health.
+  const incompleteProfitCurrencies=finance.monthToDate.filter(row=>!row.profitComplete).map(row=>row.currency);
+  const incompleteProfitEvidence=business.daily.missingCostItems>0||incompleteProfitCurrencies.length>0;
+  if(incompleteProfitEvidence){
+    const currencyDetail=incompleteProfitCurrencies.length
+      ?`Month-to-date gross profit is withheld for ${incompleteProfitCurrencies.join(', ')} due to incomplete cost evidence.`
+      :'';
+    const dailyDetail=business.daily.missingCostItems
+      ?`${business.daily.missingCostItems} item line(s) are missing costs in today's brief.`
+      :'';
+    evidenceRows.push(evidence('missing-costs','company-health','ai-finance.monthToDate',`${currencyDetail} ${dailyDetail}`.trim(),'watch','',String(incompleteProfitCurrencies.length),incompleteProfitCurrencies.length));
+  }
   const unreconciled=activityByCurrency.reduce((sum,row)=>sum+row.unreconciled,0);if(unreconciled)evidenceRows.push(evidence('treasury-unreconciled','treasury','treasury.treasuryProjection',`${unreconciled} treasury movement(s) are unreconciled.`,'watch','',String(unreconciled),unreconciled));
   if(business.suppliers.costAlerts.length)evidenceRows.push(evidence('purchase-cost-alerts','purchasing','ai-business.suppliers.costAlerts',`${business.suppliers.costAlerts.length} deterministic supplier cost alert(s) are active.`,'watch','',String(business.suppliers.costAlerts.length),business.suppliers.costAlerts.length));
 
@@ -128,7 +141,7 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
   const overdueReceivableEvidence=finance.receivables.filter(row=>amountPositive(row.overdue)).map(row=>`receivable-${row.currency}`);if(overdueReceivableEvidence.length)signals.push({code:'overdue-receivables',area:'receivables',severity:'watch',summary:'Overdue customer receivables are present.',evidenceIds:overdueReceivableEvidence});
   const overduePayableEvidence=payables.filter(row=>amountPositive(row.overdue)).map(row=>`payable-${row.currency}`);if(overduePayableEvidence.length)signals.push({code:'overdue-payables',area:'payables',severity:'watch',summary:'Overdue supplier payables are present.',evidenceIds:overduePayableEvidence});
   if(unreconciled)signals.push({code:'unreconciled-treasury',area:'treasury',severity:'watch',summary:'Treasury contains unreconciled movements.',evidenceIds:['treasury-unreconciled']});
-  if(business.daily.missingCostItems)signals.push({code:'missing-profit-costs',area:'company-health',severity:'watch',summary:'Some profitability outputs are incomplete because cost data is missing.',evidenceIds:['missing-costs']});
+  if(incompleteProfitEvidence)signals.push({code:'missing-profit-costs',area:'company-health',severity:'watch',summary:'Some profitability outputs are withheld because cost evidence is missing or invalid.',evidenceIds:['missing-costs']});
   if(business.suppliers.costAlerts.length)signals.push({code:'supplier-cost-alerts',area:'purchasing',severity:'watch',summary:'Supplier cost changes crossed deterministic alert rules.',evidenceIds:['purchase-cost-alerts']});
   if(zeroItems)signals.push({code:'zero-recorded-stock',area:'inventory',severity:'watch',summary:'Some items have zero recorded stock.',evidenceIds:['inventory-zero']});
   const status:AdvisorHealthStatus=signals.some(row=>row.severity==='action-needed')?'Action Needed':signals.length?'Watch':'Healthy';
@@ -137,11 +150,18 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
     ...finance.monthToDate.map(row=>row.currency),...finance.receivables.map(row=>row.currency),...payables.map(row=>row.currency),...spend.map(row=>row.currency),...treasuryCurrencies
   ].filter(Boolean))).sort();
   const missingData:AdvisorMissingData[]=[];
-  if(business.daily.missingCostItems)missingData.push({area:'company-health',code:'missing-cost-data',detail:'Profitability is incomplete where item cost data is missing.'});
+  if(incompleteProfitEvidence)missingData.push({area:'company-health',code:'missing-cost-data',detail:'Gross profit is unavailable where item costs or internal expense evidence is missing or invalid.'});
   if(!vault.treasuryAccounts.length&&(customerPaymentsAsOf.length||supplierPaymentsAsOf.length||expensesAsOf.length||treasuryEntriesAsOf.length))missingData.push({area:'treasury',code:'treasury-accounts-not-configured',detail:'Financial activity exists but no treasury cash/bank account is configured.'});
   if(currencies.length>1&&!latestRates.length)missingData.push({area:'fx',code:'no-recorded-fx-rates',detail:'Multiple currencies are present but no valid recorded FX rate is available. LOUREX will keep currencies separate.'});
   if(unallocatedMovements)missingData.push({area:'treasury',code:'unallocated-treasury-movements',detail:`${unallocatedMovements} cash movement(s) are not allocated to a treasury account.`});
 
+  // Keep evidence for health warnings even when many ordinary currency,
+  // account or inventory rows would otherwise consume the 32-row budget.
+  const requiredEvidence=new Set(signals.flatMap(signal=>signal.evidenceIds));
+  const prioritizedEvidence=[
+    ...evidenceRows.filter(row=>requiredEvidence.has(row.id)),
+    ...evidenceRows.filter(row=>!requiredEvidence.has(row.id))
+  ].slice(0,32);
   return{
     version:2,basis:'deterministic-advisor-data-v2',available:true,asOf,responseContract:RESPONSE_CONTRACT,
     sales:{today:finance.today.slice(0,12),monthToDate:finance.monthToDate.slice(0,12),comparison:finance.comparisons.monthToDateVsPreviousMonth.slice(0,12)},
@@ -151,7 +171,7 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
     purchasing:{byCurrency:spend,postedPurchases:purchasesAsOf.filter(row=>row.status==='posted'&&purchaseAccountingIsValid(row)).length,draftPurchases:purchasesAsOf.filter(row=>row.status==='draft').length,reversedPurchases:purchasesAsOf.filter(row=>row.status==='reversed').length,costAlerts:business.suppliers.costAlerts.slice(0,12),supplierComparisons:business.suppliers.itemComparisons.slice(0,12)},
     fx:{policy:'recorded-rates-only-no-automatic-conversion',latestRates,recordedPairs:[...seenPairs].slice(0,20)},
     pipeline:{stages:pipeline.stages,openValues:pipeline.openValues,nextActions,wonCount:pipeline.wonCount,lostCount:pipeline.lostCount},
-    health:{status,score:null,signals},evidence:evidenceRows.slice(0,32),missingData,
+    health:{status,score:null,signals},evidence:prioritizedEvidence,missingData,
     limitations:['currencies-remain-separate-by-default','no-cross-currency-total-without-deterministic-fx-result','recorded-fx-rates-are-evidence-not-model-arithmetic-authority','health-is-qualitative-not-a-numeric-score','inventory-has-no-invented-reorder-threshold','pipeline-values-remain-separated-by-currency','ai-explains-deterministic-results-and-does-not-recalculate-accounting']
   };
 }
