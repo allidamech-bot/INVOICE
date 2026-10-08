@@ -51,6 +51,18 @@ export function assertDeliveryInvoiceLedgerContinuity(
 ):void{
   const byId=(events:DocumentEventRecord[])=>new Map(events.map(event=>[event.id,event]));
   const intendedById=byId(intended),latestById=byId(latest);
+  // Multiple event records sharing an ID can be collapsed by mergeRecords.
+  // Never let an unrelated same-ID record erase a delivery invoice proof.
+  for(const dataset of [base,intended,latest]){
+    const seen=new Map<string,DocumentEventRecord>();
+    for(const event of dataset){
+      const previous=seen.get(event.id);
+      if(previous&&(links([previous,event]).length>0)
+        &&JSON.stringify(previous)!==JSON.stringify(event))
+        fail('Conflicting duplicate IDs would erase delivery invoice evidence.','قد يؤدي تكرار معرفات الأحداث المتعارضة إلى محو إثبات فاتورة التسليم.');
+      seen.set(event.id,event);
+    }
+  }
   for(const event of links(base)){
     const wanted=intendedById.get(event.id),remote=latestById.get(event.id);
     if(!wanted||!remote||JSON.stringify(wanted)!==JSON.stringify(event)
