@@ -58,12 +58,17 @@ export class SalesOrderReview extends React.Component<Props,State>{
           <span>{t('Customer reference','مرجع العميل')}: <bdi>{order.customerReference||'—'}</bdi></span>
           <span>{t('Ordered','تاريخ الطلب')}: <bdi>{order.orderDate}</bdi> · {t('Requested delivery','التسليم المطلوب')}: <bdi>{order.requestedDeliveryDate}</bdi></span>
           <span>{t('Accepted quote','العرض المقبول')}: <bdi>{formatMoney(order.grandTotal,order.currency)}</bdi></span>
-          {progress.lines.map((line,i)=><span key={line.salesOrderLineId}>
-            {i+1}. {isArabic()?(order.lines[i]?.descriptionAr||order.lines[i]?.descriptionEn):(order.lines[i]?.descriptionEn||order.lines[i]?.descriptionAr)}
-            {' · '}{t('Ordered','المطلوب')} <bdi>{line.ordered}</bdi>
-            {' · '}{t('Delivered','المسلّم')} <bdi>{line.delivered}</bdi>
-            {' · '}{t('Remaining','المتبقي')} <bdi>{line.remaining}</bdi> {order.lines[i]?.unit}
-          </span>)}
+          <details style={{minWidth:0}}>
+            <summary style={{cursor:'pointer',paddingBlock:8}}>{t('Delivery quantities by item','كميات التسليم حسب الصنف')} ({progress.lines.length})</summary>
+            <div style={{display:'grid',gap:8,paddingBlock:8}}>
+              {progress.lines.map((line,i)=><span key={line.salesOrderLineId}>
+                {i+1}. {isArabic()?(order.lines[i]?.descriptionAr||order.lines[i]?.descriptionEn):(order.lines[i]?.descriptionEn||order.lines[i]?.descriptionAr)}
+                {' · '}{t('Ordered','المطلوب')} <bdi>{line.ordered}</bdi>
+                {' · '}{t('Delivered','المسلّم')} <bdi>{line.delivered}</bdi>
+                {' · '}{t('Remaining','المتبقي')} <bdi>{line.remaining}</bdi> {order.lines[i]?.unit}
+              </span>)}
+            </div>
+          </details>
           <span>{t('Confirmed delivery notes','سندات التسليم المؤكدة')}: <bdi>{progress.confirmedDeliveries}</bdi>
             {' · '}{t('No invoice draft','دون مسودة فاتورة')}: <bdi>{progress.unbilledDeliveries}</bdi>
           </span>
