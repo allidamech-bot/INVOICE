@@ -91,6 +91,15 @@ function validSecurity(value:any):value is SecurityMetadata{
   if(!base||value.version===1)return base;
   return Boolean(validBase64Bytes(value.pinWrapIv,12,12)&&validBase64Bytes(value.pinWrapCipher,48,128)&&Number.isInteger(value.recoveryIterations)&&value.recoveryIterations>=10_000&&value.recoveryIterations<=2_000_000&&validBase64Bytes(value.recoverySalt,16,64)&&validBase64Bytes(value.recoveryWrapIv,12,12)&&validBase64Bytes(value.recoveryWrapCipher,48,128));
 }
+/** Deterministic field comparison avoids treating a changed PIN/recovery wrap as
+ * identical merely because the encrypted business payload stayed unchanged. */
+export function cloudSecurityMatches(a:SecurityMetadata,b:SecurityMetadata):boolean{
+  const keys:Array<keyof SecurityMetadata>=[
+    'id','version','iterations','salt','verifierIv','verifierCipher',
+    'pinWrapIv','pinWrapCipher','recoveryIterations','recoverySalt','recoveryWrapIv','recoveryWrapCipher'
+  ];
+  return keys.every(key=>a[key]===b[key]);
+}
 function validMeta(data:any):data is CloudVaultMeta{
   return Boolean(data&&data.format===CLOUD_FORMAT&&data.version===1&&typeof data.revision==='string'&&data.revision.length>0&&data.revision.length<160&&typeof data.updatedAt==='string'&&!Number.isNaN(Date.parse(data.updatedAt))&&Number.isInteger(data.schemaVersion)&&data.schemaVersion>0&&data.schemaVersion<100&&validBase64Bytes(data.iv,12,12)&&Number.isInteger(data.cipherLength)&&data.cipherLength>0&&data.cipherLength<=MAX_CIPHER_LENGTH&&typeof data.cipherSha256==='string'&&/^[0-9a-f]{64}$/i.test(data.cipherSha256)&&Number.isInteger(data.chunkCount)&&data.chunkCount>=1&&data.chunkCount<=MAX_CHUNKS&&validSecurity(data.security));
 }
@@ -253,7 +262,7 @@ export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedV
   if(!security||!vault)throw new Error('There is no LOUREX account data to save.');
   const localHash=await sha256(vault.cipher);
   if(previous&&previous.schemaVersion>APP_SCHEMA_VERSION)return 'remote-changed';
-  const securityUnchanged=previous?JSON.stringify(previous.security)===JSON.stringify(security):false;
+  const securityUnchanged=previous?cloudSecurityMatches(previous.security,security):false;
   if(previous&&previous.cipherSha256===localHash&&securityUnchanged){writeSyncAnchor(uid,previous);return 'same';}
   if(previous){
     const anchor=readSyncAnchor(uid);
@@ -285,7 +294,11 @@ export async function refreshCloudVaultForUnlock(uid:string):Promise<'same'|'pul
   if(remote.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data requires a newer LOUREX version. Update the app before unlocking.');
   if(local){
     const hash=await sha256(local.cipher);
-    if(hash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
+    if(hash===remote.cipherSha256){
+      const localSecurity=await getSecurity();
+      if(!localSecurity||!cloudSecurityMatches(localSecurity,remote.security))return 'diverged';
+      writeSyncAnchor(uid,remote);return 'same';
+    }
     const anchor=readSyncAnchor(uid);
     if(!anchor)return 'diverged';
     const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
@@ -320,7 +333,11 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   }
   if(!local||!remote)return 'empty';
   const localHash=await sha256(local.cipher);
-  if(localHash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
+  if(localHash===remote.cipherSha256){
+    const localSecurity=await getSecurity();
+    if(!localSecurity||!cloudSecurityMatches(localSecurity,remote.security))return 'diverged';
+    writeSyncAnchor(uid,remote);return 'same';
+  }
   const anchor=readSyncAnchor(uid);
   if(!anchor)return 'diverged';
   const localChanged=localHash!==anchor.cipherSha256;
