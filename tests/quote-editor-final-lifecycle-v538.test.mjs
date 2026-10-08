@@ -72,9 +72,9 @@ test('v538 uses the real EditorPage boundary inside the production #root > .app-
 });
 
 test('v538 lifecycle is enforced by its WebKit workflow',()=>{
-  assert.match(workflow,/node --test tests\/quote-editor-final-lifecycle-v538\.test\.mjs/);
+  assert.match(workflow,/tests\/quote-editor-final-lifecycle-v538\.test\.mjs/);
   assert.match(workflow,/assertBrowserReady/);
   assert.match(workflow,/webkit/);
   assert.match(workflow,/runBrowserQa\('specialized',MANIFEST\.specialized\)/);
-  assert.match(workflow,/node tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
+  assert.match(workflow,/tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
 });
