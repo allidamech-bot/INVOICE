@@ -435,6 +435,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       ...(doc.kind==='purchase-order'?[]:[[t('Validity','الصلاحية'),doc.terms.validity]])
     ].filter(([,value])=>Boolean(value));
     const canOutput=doc.status==='final';
+    const canCollect=Boolean(this.props.onRecordPayment&&collection&&collection.status!=='paid');
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedDelivery=linkedDeliveries(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
     const linkedPurchaseOrder=linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
@@ -455,6 +456,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           {linkedInvoice?<Button icon="invoice" onClick={()=>this.setState({detailId:linkedInvoice.id,menuId:''})}>{t(`Open ${linkedInvoice.number}`,`فتح ${linkedInvoice.number}`)}</Button>:canConvert?<Button icon="invoice" onClick={()=>this.convertQuote(doc)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
           {canDeliver?<Button icon="file" onClick={()=>this.props.onCreateDelivery?.(doc)}>{linkedDelivery?t(`Open delivery ${linkedDelivery.number}`,`فتح التسليم ${linkedDelivery.number}`):t('Create delivery draft','إنشاء مسودة تسليم')}</Button>:null}
           {canCreatePurchaseOrder?<Button icon="file" onClick={()=>this.props.onCreatePurchaseOrder?.(doc)}>{linkedPurchaseOrder?t(`Open PO ${linkedPurchaseOrder.number}`,`فتح أمر الشراء ${linkedPurchaseOrder.number}`):t('Create Purchase Order','إنشاء أمر شراء')}</Button>:null}
+          {canCollect?<Button icon="wallet" onClick={()=>this.props.onRecordPayment?.(doc)}>{t('Record payment','تسجيل دفعة')}</Button>:null}
           {canOutput?<><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}
           {secureShareEligible(doc)?<Button icon="lock" onClick={()=>this.setState({secureShareId:doc.id})}>{t('Secure Share','مشاركة آمنة')}</Button>:null}
           <div className="ta-doc-detail-more ta-doc-actions"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
@@ -466,6 +468,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <div className="ta-doc-detail-total"><small>{priceOptional?t('Non-financial','غير مالي'):doc.kind==='purchase-order'?t('Order Total','إجمالي الطلب'):t('Total','الإجمالي')}</small><strong><bdi>{priceOptional?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi></strong><div><span className={`ta-doc-status status-${visualState}`}>{currentStatus}</span>{commercialStatus&&commercialStatusLabel(commercialStatus,isArabic())!==statusLabel(doc,state)?<span className={`lx-commercial-status status-${commercialStatus}`}>{commercialStatusLabel(commercialStatus,isArabic())}</span>:null}{collection?<span className={`ta-doc-payment payment-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
       </header>
 
+          {doc.kind==='invoice'&&collection?<div className="ta-doc-facts"><div><small>{t('Outstanding','المتبقي للتحصيل')}</small><strong><bdi>{formatMoney(collection.remaining,doc.currency)}</bdi></strong></div></div>:null}
       <div className="ta-doc-detail-columns">
         <main className="ta-doc-detail-main">
           <section className="ta-doc-panel"><header><div><small>{t('Overview','نظرة عامة')}</small><h2>{t('Document details','بيانات المستند')}</h2></div></header><div className="ta-doc-facts"><div><small>{doc.kind==='purchase-order'?t('Order date','تاريخ الطلب'):t('Issue date','تاريخ الإصدار')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div><div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):(doc.kind==='proforma'||doc.kind==='proforma-invoice')?t('Valid until','صالح حتى'):t('Additional date','تاريخ إضافي')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div><div><small>{t('Currency','العملة')}</small><strong>{doc.currency}</strong></div><div><small>{t('Language','اللغة')}</small><strong>{doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):doc.language==='ar'?t('Arabic','العربية'):t('English','الإنجليزية')}</strong></div></div></section>
