@@ -1,5 +1,5 @@
 import type { SavedItem } from '../types.js';
-import { importableProducts, planProductImport, productImportTemplateCsv, type ProductImportField, type ProductImportPlan } from '../lib/product-import.js';
+import { importableProducts, planProductImportBatch, productImportTemplateCsv, type ProductImportField, type ProductImportPlan } from '../lib/product-import.js';
 import { analyzeProductImport, applyProductImportMapping, suggestedProductImportMap, type ProductImportAnalysis, type ProductImportColumnMap, type ProductImportConfidence, type ProductImportMappingReason } from '../lib/product-import-intelligence.js';
 import { ambiguousProductImportColumns, mergeProductImportAiMapping, requestProductImportAiMapping } from '../lib/product-import-ai.js';
 import { readSpreadsheetFile, type SpreadsheetSheet } from '../lib/spreadsheet-reader.js';
@@ -22,6 +22,8 @@ interface State {
   fileName:string;
   sheets:SpreadsheetSheet[];
   sheetIndex:number;
+  selectedSheets:number[];
+  sheetMappings:Record<number,ProductImportColumnMap>;
   matrix:Matrix;
   analysis:ProductImportAnalysis|null;
   mapping:ProductImportColumnMap;
@@ -53,6 +55,8 @@ const FIELD_OPTIONS:Array<{value:ProductImportField;en:string;ar:string}>=[
 ];
 
 const MAX_SPREADSHEET_BYTES=12*1024*1024;
+const MAX_IMPORT_FILES=4;
+const MAX_BATCH_BYTES=24*1024*1024;
 
 function fieldLabel(field:ProductImportField|null):string{
   if(!field)return t('Not imported — choose a field','لن يُستورد — اختر حقلًا');
@@ -131,7 +135,7 @@ export class ProductImportModal extends React.Component<Props,State>{
   private applyInFlight=false;
   private aiAbort:AbortController|null=null;
 
-  state:State={stage:'pick',fileName:'',sheets:[],sheetIndex:0,matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[]};
+  state:State={stage:'pick',fileName:'',sheets:[],sheetIndex:0,selectedSheets:[],sheetMappings:{},matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[]};
 
   componentDidUpdate(prev:Props):void{
     if(this.props.open&&!prev.open)this.reset();
@@ -149,7 +153,7 @@ export class ProductImportModal extends React.Component<Props,State>{
   private reset=()=>{
     this.cancelPending();
     this.applyInFlight=false;
-    this.setState({stage:'pick',fileName:'',sheets:[],sheetIndex:0,matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[]});
+    this.setState({stage:'pick',fileName:'',sheets:[],sheetIndex:0,selectedSheets:[],sheetMappings:{},matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[]});
   };
 
   private close=()=>{
@@ -169,43 +173,68 @@ export class ProductImportModal extends React.Component<Props,State>{
   private chooseSheet=(sheetIndex:number)=>{
     try{
       const next=this.analyzeSheet(this.state.sheets,sheetIndex);
+      const existing=this.state.sheetMappings[sheetIndex];
       this.aiAbort?.abort();
-      this.setState({...next,sheetIndex,plan:null,stage:'mapping',error:'',aiLoading:false,aiModel:'',aiIndexes:[]});
+      this.setState({...next,mapping:existing??next.mapping,sheetIndex,plan:null,stage:'mapping',error:'',aiLoading:false,aiModel:'',aiIndexes:[]});
     }catch(error){this.setState({sheetIndex,error:error instanceof Error?error.message:String(error)});}
   };
 
-  private buildPlan=(matrix:Matrix,analysis:ProductImportAnalysis,mapping:ProductImportColumnMap,updateExisting:boolean):ProductImportPlan=>
-    planProductImport(applyProductImportMapping(matrix,analysis,mapping),this.props.items,this.props.currency,updateExisting);
+  private buildPlan=(updateExisting:boolean):ProductImportPlan=>{
+    const {sheets,selectedSheets,sheetMappings,analysis,mapping,sheetIndex}=this.state;
+    if(!selectedSheets.length)throw new Error(t('Select a worksheet to import.','اختر ورقة عمل للاستيراد.'));
+    const sources=selectedSheets.map(index=>{
+      const sheet=sheets[index];
+      if(!sheet)throw new Error(t('Selected worksheet is unavailable.','ورقة العمل المحددة غير متاحة.'));
+      const currentAnalysis=index===sheetIndex&&analysis?analysis:analyzeProductImport(sheet.matrix);
+      if(currentAnalysis.headerIndex<0)throw new Error(t(`Worksheet ${sheet.name} has no usable product header. Deselect it or correct its columns.`,`ورقة ${sheet.name} لا تحتوي رؤوس أصناف صالحة. ألغ تحديدها أو صحح الأعمدة.`));
+      const currentMapping=index===sheetIndex?mapping:(sheetMappings[index]??suggestedProductImportMap(currentAnalysis));
+      return{name:sheet.name,matrix:applyProductImportMapping(sheet.matrix,currentAnalysis,currentMapping)};
+    });
+    return planProductImportBatch(sources,this.props.items,this.props.currency,updateExisting);
+  };
 
   private enterPreview=()=>{
-    const {matrix,analysis,mapping,updateExisting}=this.state;
-    if(!analysis)return;
-    try{this.setState({plan:this.buildPlan(matrix,analysis,mapping,updateExisting),stage:'preview',error:''});}
+    try{this.setState({plan:this.buildPlan(this.state.updateExisting),stage:'preview',error:''});}
     catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}
   };
 
-  private chooseFile=async(file:File|null)=>{
-    if(!file||this.applyInFlight)return;
-    if(file.size>MAX_SPREADSHEET_BYTES){
-      this.setState({stage:'pick',error:t('This spreadsheet is larger than 12 MB. Split it into smaller files so it can be reviewed safely on this device.','حجم الجدول أكبر من 12 ميجابايت. قسّمه إلى ملفات أصغر لتتم مراجعته بأمان على هذا الجهاز.')});
-      if(this.fileInput)this.fileInput.value='';
-      return;
+  private chooseFiles=async(files:File[])=>{
+    if(!files.length||this.applyInFlight)return;
+    if(files.length>MAX_IMPORT_FILES){
+      this.setState({stage:'pick',error:t('Select at most four Excel/CSV files.','اختر أربعة ملفات Excel/CSV كحد أقصى.')});return;
+    }
+    if(files.reduce((total,file)=>total+file.size,0)>MAX_BATCH_BYTES||files.some(file=>file.size>MAX_SPREADSHEET_BYTES)){
+      this.setState({stage:'pick',error:t('Each spreadsheet must be 12 MB or less and the batch 24 MB or less.','يجب ألا يتجاوز كل جدول 12 MB وإجمالي الدفعة 24 MB.')});return;
     }
     const generation=++this.fileReadGeneration;
     this.aiAbort?.abort();
-    this.setState({stage:'reading',error:'',fileName:file.name,sheets:[],matrix:[],analysis:null,mapping:[],plan:null,aiLoading:false,aiModel:'',aiIndexes:[]});
+    this.setState({stage:'reading',error:'',fileName:files.map(file=>file.name).join(' · '),sheets:[],selectedSheets:[],sheetMappings:{},matrix:[],analysis:null,mapping:[],plan:null,aiLoading:false,aiModel:'',aiIndexes:[]});
     try{
-      const sheets=await readSpreadsheetFile(file);
-      if(generation!==this.fileReadGeneration||!this.props.open)return;
-      const sheetIndex=bestSheet(sheets);
-      const next=this.analyzeSheet(sheets,sheetIndex);
-      this.setState({...next,sheets,sheetIndex,plan:null,stage:'mapping',error:''});
+      const flattened:SpreadsheetSheet[]=[];
+      for(const file of files){
+        const sheets=await readSpreadsheetFile(file);
+        if(generation!==this.fileReadGeneration||!this.props.open)return;
+        for(const sheet of sheets)flattened.push({...sheet,name:`${file.name} / ${sheet.name}`});
+      }
+      const usable=flattened.map((sheet,index)=>({index,analysis:analyzeProductImport(sheet.matrix)}))
+        .filter(row=>row.analysis.headerIndex>=0&&row.analysis.recognizedFields.length>0);
+      if(!usable.length)throw new Error(t('No product worksheets with recognized headers were found.','لم يتم العثور على أوراق أصناف ذات عناوين معروفة.'));
+      const sheetIndex=bestSheet(flattened),focus=usable.some(row=>row.index===sheetIndex)?sheetIndex:usable[0]!.index;
+      const next=this.analyzeSheet(flattened,focus);
+      const sheetMappings:Record<number,ProductImportColumnMap>={};
+      for(const row of usable)sheetMappings[row.index]=suggestedProductImportMap(row.analysis);
+      this.setState({...next,mapping:sheetMappings[focus]!,sheets:flattened,selectedSheets:usable.map(row=>row.index),sheetMappings,sheetIndex:focus,plan:null,stage:'mapping',error:''});
     }catch(error){
       if(generation!==this.fileReadGeneration||!this.props.open)return;
-      this.setState({stage:'pick',sheets:[],matrix:[],analysis:null,mapping:[],plan:null,error:error instanceof Error?error.message:t('Unable to read this file.','تعذر قراءة الملف.')});
+      this.setState({stage:'pick',sheets:[],selectedSheets:[],sheetMappings:{},matrix:[],analysis:null,mapping:[],plan:null,error:error instanceof Error?error.message:t('Unable to read these files.','تعذر قراءة الملفات.')});
     }finally{
       if(generation===this.fileReadGeneration&&this.fileInput)this.fileInput.value='';
     }
+  };
+
+  private toggleSheet=(index:number,checked:boolean)=>{
+    const selectedSheets=checked?[...this.state.selectedSheets,index].sort((a,b)=>a-b):this.state.selectedSheets.filter(row=>row!==index);
+    this.setState({selectedSheets,plan:null,error:''});
   };
 
   private changeMapping=(columnIndex:number,value:string)=>{
@@ -213,12 +242,13 @@ export class ProductImportModal extends React.Component<Props,State>{
     const mapping=[...this.state.mapping];
     if(field){for(let index=0;index<mapping.length;index+=1){if(index!==columnIndex&&mapping[index]===field)mapping[index]=null;}}
     mapping[columnIndex]=field;
-    this.setState({mapping,plan:null,error:'',aiIndexes:this.state.aiIndexes.filter(index=>index!==columnIndex)});
+    this.setState({mapping,sheetMappings:{...this.state.sheetMappings,[this.state.sheetIndex]:mapping},plan:null,error:'',aiIndexes:this.state.aiIndexes.filter(index=>index!==columnIndex)});
   };
 
   private restoreSmartMapping=()=>{
     const analysis=this.state.analysis;if(!analysis)return;
-    this.setState({mapping:suggestedProductImportMap(analysis),plan:null,error:'',aiModel:'',aiIndexes:[]});
+    const mapping=suggestedProductImportMap(analysis);
+    this.setState({mapping,sheetMappings:{...this.state.sheetMappings,[this.state.sheetIndex]:mapping},plan:null,error:'',aiModel:'',aiIndexes:[]});
   };
 
   private useAi=async()=>{
@@ -234,7 +264,7 @@ export class ProductImportModal extends React.Component<Props,State>{
       if(controller.signal.aborted||!this.props.open)return;
       const accepted=result.mappings.filter(entry=>entry.field&&entry.confidence!=='low').map(entry=>entry.index);
       const merged=mergeProductImportAiMapping(analysis,mapping,result.mappings);
-      this.setState({mapping:merged,plan:null,aiModel:result.model,aiIndexes:accepted,error:''});
+      this.setState({mapping:merged,sheetMappings:{...this.state.sheetMappings,[this.state.sheetIndex]:merged},plan:null,aiModel:result.model,aiIndexes:accepted,error:''});
     }catch(error){
       if(!controller.signal.aborted)this.setState({error:t(`AI assistance is unavailable. ${error instanceof Error?error.message:''}`,`مساعدة الذكاء الاصطناعي غير متاحة حاليًا. ${error instanceof Error?error.message:''}`)});
     }finally{
@@ -243,9 +273,8 @@ export class ProductImportModal extends React.Component<Props,State>{
   };
 
   private toggleUpdates=(updateExisting:boolean)=>{
-    const {matrix,analysis,mapping}=this.state;
-    if(!matrix.length||!analysis||this.state.stage!=='preview'){this.setState({updateExisting});return;}
-    try{this.setState({plan:this.buildPlan(matrix,analysis,mapping,updateExisting),updateExisting,error:''});}
+    if(this.state.stage!=='preview'){this.setState({updateExisting});return;}
+    try{this.setState({plan:this.buildPlan(updateExisting),updateExisting,error:''});}
     catch(error){this.setState({updateExisting,error:error instanceof Error?error.message:String(error)});}
   };
 
@@ -264,13 +293,13 @@ export class ProductImportModal extends React.Component<Props,State>{
   };
 
   render():any{
-    const {plan,stage,analysis,mapping,sheets,sheetIndex}=this.state;
+    const {plan,stage,analysis,mapping,sheets,sheetIndex,selectedSheets}=this.state;
     const previewRows=plan?.rows.slice(0,20)??[];
     const mappedCount=mapping.filter(Boolean).length;
     const ambiguousCount=analysis?ambiguousProductImportColumns(analysis,mapping).length:0;
     const selectedSheet=sheets[sheetIndex];
     const renderActions=()=>stage==='mapping'&&analysis?
-      <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'pick',sheets:[],matrix:[],analysis:null,mapping:[],plan:null,error:'',aiModel:'',aiIndexes:[]})}>{t('Back','رجوع')}</Button><Button variant="primary" icon="eye" disabled={mappedCount===0||this.state.aiLoading} onClick={this.enterPreview}>{t('Review import','مراجعة الاستيراد')}</Button></div>:
+      <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'pick',sheets:[],selectedSheets:[],sheetMappings:{},matrix:[],analysis:null,mapping:[],plan:null,error:'',aiModel:'',aiIndexes:[]})}>{t('Back','رجوع')}</Button><Button variant="primary" icon="eye" disabled={mappedCount===0||selectedSheets.length===0||this.state.aiLoading} onClick={this.enterPreview}>{t('Review import','مراجعة الاستيراد')}</Button></div>:
       stage==='preview'&&plan?
         <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'mapping',plan:null,error:''})}>{t('Column mapping','تعيين الأعمدة')}</Button><Button variant="primary" icon="upload" disabled={plan.counts.error>0||plan.counts.create+plan.counts.update===0} onClick={()=>void this.apply()}>{plan.counts.error>0?t('Fix file errors first','أصلح أخطاء الملف أولًا'):t(`Confirm import of ${plan.counts.create+plan.counts.update}`,`تأكيد استيراد ${plan.counts.create+plan.counts.update}`)}</Button></div>:
         stage==='done'?<div className="product-import-footer"><span/><Button variant="primary" icon="check" onClick={this.close}>{t('Done','تم')}</Button></div>:undefined;
@@ -281,8 +310,8 @@ export class ProductImportModal extends React.Component<Props,State>{
         {footer?<div className="product-import-mobile-actions" aria-label={t('Import actions','إجراءات الاستيراد')}>{renderActions()}</div>:null}
         {stage==='pick'?<>
           <div className="product-import-hero"><div className="product-import-icon"><Icon name="upload" size={28}/></div><div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('LOUREX reads the spreadsheet locally first. Gemini is optional and sees only ambiguous headings before you review and confirm.','يقرأ LOUREX الجدول محليًا أولًا. Gemini اختياري ولا يرى إلا العناوين الغامضة قبل المراجعة والتأكيد.')}</p></div></div>
-          <button type="button" className="product-import-dropzone" onClick={()=>this.fileInput?.click()}><Icon name="upload" size={23}/><strong>{t('Choose Excel or CSV file','اختر ملف Excel أو CSV')}</strong><span>.xlsx · .xls · .csv</span></button>
-          <input ref={(node:any)=>{this.fileInput=node;}} className="product-import-file-input" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(event:any)=>void this.chooseFile(event.target.files?.[0]??null)}/>
+          <button type="button" className="product-import-dropzone" onClick={()=>this.fileInput?.click()}><Icon name="upload" size={23}/><strong>{t('Choose up to 4 Excel or CSV files','اختر حتى 4 ملفات Excel أو CSV')}</strong><span>.xlsx · .xls · .csv</span></button>
+          <input ref={(node:any)=>{this.fileInput=node;}} className="product-import-file-input" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" multiple onChange={(event:any)=>void this.chooseFiles(Array.from(event.target.files??[]) as File[])}/>
           <div className="product-import-template-bar"><div><strong>{t('Need the correct columns?','تحتاج الأعمدة الصحيحة؟')}</strong><span>{t('Download the LOUREX CSV template with separate sale-price and purchase-cost fields.','حمّل قالب LOUREX الذي يفصل سعر البيع عن تكلفة الشراء.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>
         </>:null}
 
@@ -290,7 +319,7 @@ export class ProductImportModal extends React.Component<Props,State>{
 
         {stage==='mapping'&&analysis?<>
           <div className="product-import-mapping-head"><div className="product-import-file-summary"><span className="product-import-file-icon"><Icon name="file"/></span><div><strong><bdi dir="auto">{this.state.fileName}</bdi></strong><small>{t(`Header row ${analysis.headerIndex+1} · ${analysis.columns.length} columns · ${selectedSheet?.nonEmptyRows??0} non-empty rows`,`صف العناوين ${analysis.headerIndex+1} · ${analysis.columns.length} أعمدة · ${selectedSheet?.nonEmptyRows??0} صفوف غير فارغة`)}</small></div></div><div className="product-import-mapping-actions"><Button icon="refresh" onClick={this.restoreSmartMapping}>{t('Local mapping','الربط المحلي')}</Button><Button variant="primary" icon="items" disabled={this.state.aiLoading||ambiguousCount===0} onClick={()=>void this.useAi()}>{this.state.aiLoading?t('Analyzing…','جارٍ التحليل…'):t(`AI assist (${ambiguousCount})`,`مساعدة AI (${ambiguousCount})`)}</Button></div></div>
-          {sheets.length>1?<label className="product-import-sheet-picker"><span>{t('Worksheet','ورقة العمل')}</span><select className="input" value={sheetIndex} onChange={(event:any)=>this.chooseSheet(Number(event.target.value))}>{sheets.map((sheet,index)=><option key={`${sheet.name}-${index}`} value={index}>{sheet.name} · {sheet.nonEmptyRows} {t('rows','صفوف')}</option>)}</select></label>:null}
+          {sheets.length>1?<><label className="product-import-sheet-picker"><span>{t('Worksheet to map','الورقة المطلوب ربطها')}</span><select className="input" value={sheetIndex} onChange={(event:any)=>this.chooseSheet(Number(event.target.value))}>{sheets.map((sheet,index)=><option key={`${sheet.name}-${index}`} value={index}>{sheet.name} · {sheet.nonEmptyRows} {t('rows','صفوف')}</option>)}</select></label><div className="product-import-sheet-picker" role="group" aria-label={t('Included worksheets','الأوراق المشمولة')}><span>{t(`${selectedSheets.length} of ${sheets.length} worksheets included — review each before saving.`,`${selectedSheets.length} من أصل ${sheets.length} ورقة مشمولة — راجع كل ورقة قبل الحفظ.`)}</span>{sheets.map((sheet,index)=><label key={`${sheet.name}-include-${index}`}><input type="checkbox" checked={selectedSheets.includes(index)} onChange={(event:any)=>this.toggleSheet(index,Boolean(event.target.checked))}/><bdi dir="auto">{sheet.name}</bdi></label>)}</div></>:null}
           <div className="product-import-intelligence-banner"><span className="product-import-intelligence-icon"><Icon name={ambiguousCount?'items':'check'}/></span><div><p className="eyebrow">{t('Local mapping first · AI optional','ربط محلي أولًا · AI اختياري')}</p><strong>{this.state.aiModel?t(`AI suggestions applied · ${this.state.aiModel}`,`تم تطبيق اقتراحات AI · ${this.state.aiModel}`):t(`${mappedCount} mapped · ${ambiguousCount} need attention`,`${mappedCount} مربوط · ${ambiguousCount} يحتاج انتباه`)}</strong><small>{t('Local high-confidence mappings stay protected. Prices, costs and quantities are never invented; unmapped columns stay out.','تبقى التعيينات المحلية عالية الثقة محمية. لا يتم اختراع الأسعار أو التكاليف أو الكميات، وتبقى الأعمدة غير المربوطة خارج الاستيراد.')}</small></div></div>
           <div className="product-import-mapping-list">{analysis.columns.map(column=>{const selected=mapping[column.index]??null;const fromAi=this.state.aiIndexes.includes(column.index);const resolved=Boolean(selected);const unsupportedNote=!resolved?unsupportedColumnNote(column.header):'';return <div className={`product-import-mapping-row confidence-${column.confidence} ${resolved?'is-resolved':'is-unresolved'}`} key={column.index}><div className="product-import-source-column"><span className="product-import-column-number">{column.index+1}</span><div><strong><bdi dir="auto">{column.header}</bdi>{fromAi?<span className="product-import-ai-mark">AI</span>:null}</strong><small><bdi dir="auto">{column.samples.length?column.samples.slice(0,2).join(' · '):t('No sample values','لا توجد قيم نموذجية')}</bdi></small></div></div><div className="product-import-map-arrow">→</div><div className="product-import-map-control"><select className="input product-import-map-select" value={selected??''} onChange={(event:any)=>this.changeMapping(column.index,event.target.value)} aria-label={t(`Map ${column.header}`,`ربط ${column.header}`)}><option value="">{fieldLabel(null)}</option>{FIELD_OPTIONS.map(option=><option key={option.value} value={option.value} disabled={mapping.some((mapped,index)=>index!==column.index&&mapped===option.value)}>{t(option.en,option.ar)}</option>)}</select><div className="product-import-confidence-line"><span className={`product-import-confidence ${fromAi?'medium':resolved?column.confidence:'unmapped'}`}>{confidenceLabel(column.confidence,selected,fromAi)}</span><small>{fromAi?t('AI suggestion — review before import','اقتراح AI — راجعه قبل الاستيراد'):unsupportedNote||mappingReason(column.reason)}</small></div></div></div>;})}</div>
           <div className="product-import-mapping-note"><Icon name="lock"/><span>{t('Nothing has been saved. Sale price and purchase cost remain separate; stock and accounting are never changed by this catalog import.','لم يتم حفظ أي شيء بعد. يبقى سعر البيع منفصلًا عن تكلفة الشراء، ولا يغيّر استيراد الكتالوج المخزون أو المحاسبة.')}</span></div>
@@ -301,7 +330,7 @@ export class ProductImportModal extends React.Component<Props,State>{
           <div className="product-import-counts"><div className="is-create"><strong>{plan.counts.create}</strong><span>{t('New','جديد')}</span></div><div className="is-update"><strong>{plan.counts.update}</strong><span>{t('Updates','تحديث')}</span></div><div className="is-skip"><strong>{plan.counts.skip}</strong><span>{t('Skipped','متخطى')}</span></div><div className={`is-error ${plan.counts.error?'has-value':''}`}><strong>{plan.counts.error}</strong><span>{t('Errors','أخطاء')}</span></div></div>
           {plan.counts.error?<div className="product-import-alert" role="alert"><Icon name="lock"/><div><strong>{t('Import is locked until file errors are fixed','الاستيراد متوقف حتى يتم إصلاح أخطاء الملف')}</strong></div></div>:null}
           <div className="product-import-preview-note">{t(`Previewing ${previewRows.length} of ${plan.rows.length} parsed rows. Nothing is saved until confirmation.`,`معاينة ${previewRows.length} من أصل ${plan.rows.length} صفًا محللًا. لن يُحفظ شيء قبل التأكيد.`)}</div>
-          <div className="product-import-table-wrap"><table className="product-import-table"><thead><tr><th>#</th><th>{t('Status','الحالة')}</th><th>SKU</th><th>{t('Product','الصنف')}</th><th>{t('Sale price','سعر البيع')}</th><th>{t('Purchase cost','تكلفة الشراء')}</th><th>{t('Imported details','التفاصيل المستوردة')}</th><th>{t('Why','السبب')}</th></tr></thead><tbody>{previewRows.map(row=><tr key={`${row.rowNumber}-${row.action}`} className={`row-${row.action}`}><td data-label="#">{row.rowNumber}</td><td data-label={t('Status','الحالة')}><span className={`import-action-badge ${row.action}`}>{actionLabel(row.action)}</span></td><td data-label="SKU"><code><bdi dir="ltr">{row.item?.sku||'—'}</bdi></code></td><td data-label={t('Product','الصنف')}><strong><bdi dir="auto">{productName(row.item)}</bdi></strong></td><td data-label={t('Sale price','سعر البيع')}>{row.item?.lastUnitPrice?<span><bdi dir="ltr">{row.item.lastUnitPrice} {row.item.lastCurrency}</bdi></span>:'—'}</td><td data-label={t('Purchase cost','تكلفة الشراء')}>{row.item?.lastUnitCost?<span><bdi dir="ltr">{row.item.lastUnitCost} {row.item.lastCostCurrency||row.item.lastCurrency}</bdi></span>:'—'}</td><td data-label={t('Imported details','التفاصيل المستوردة')}><small><bdi dir="auto">{productDetails(row.item)}</bdi></small></td><td data-label={t('Why','السبب')}><span>{row.reason}</span></td></tr>)}</tbody></table></div>
+          <div className="product-import-table-wrap"><table className="product-import-table"><thead><tr><th>#</th><th>{t('Status','الحالة')}</th><th>SKU</th><th>{t('Product','الصنف')}</th><th>{t('Sale price','سعر البيع')}</th><th>{t('Purchase cost','تكلفة الشراء')}</th><th>{t('Imported details','التفاصيل المستوردة')}</th><th>{t('Why','السبب')}</th></tr></thead><tbody>{previewRows.map(row=><tr key={`${row.sourceName||'sheet'}-${row.rowNumber}-${row.action}`} className={`row-${row.action}`}><td data-label="#"><small><bdi dir="auto">{row.sourceName||''}</bdi></small> {row.rowNumber}</td><td data-label={t('Status','الحالة')}><span className={`import-action-badge ${row.action}`}>{actionLabel(row.action)}</span></td><td data-label="SKU"><code><bdi dir="ltr">{row.item?.sku||'—'}</bdi></code></td><td data-label={t('Product','الصنف')}><strong><bdi dir="auto">{productName(row.item)}</bdi></strong></td><td data-label={t('Sale price','سعر البيع')}>{row.item?.lastUnitPrice?<span><bdi dir="ltr">{row.item.lastUnitPrice} {row.item.lastCurrency}</bdi></span>:'—'}</td><td data-label={t('Purchase cost','تكلفة الشراء')}>{row.item?.lastUnitCost?<span><bdi dir="ltr">{row.item.lastUnitCost} {row.item.lastCostCurrency||row.item.lastCurrency}</bdi></span>:'—'}</td><td data-label={t('Imported details','التفاصيل المستوردة')}><small><bdi dir="auto">{productDetails(row.item)}</bdi></small></td><td data-label={t('Why','السبب')}><span>{row.reason}</span></td></tr>)}</tbody></table></div>
         </>:null}
 
         {stage==='importing'?<div className="product-import-progress" role="status"><span className="product-import-progress-icon"><Icon name="upload"/></span><div><p className="eyebrow">{t('Confirmed import','استيراد مؤكد')}</p><h3>{t('Saving one secure catalog update…','حفظ تحديث آمن واحد للكتالوج…')}</h3><small>{t('Please keep this window open until the save finishes.','أبقِ هذه النافذة مفتوحة حتى يكتمل الحفظ.')}</small></div></div>:null}
