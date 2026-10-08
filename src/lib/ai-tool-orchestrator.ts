@@ -10,6 +10,7 @@ import { prepareAiBulkProductUpdate } from './ai-product-bulk-update.js';
 import {prepareAiProductSourceImport} from './ai-product-source-import.js';
 import {parseAiBulkProductTransformIntent,prepareAiBulkProductTransform} from './ai-product-bulk-transforms.js';
 import {parseAiProductGroupPriceIntent,prepareAiProductGroupPrice} from './ai-product-group-price.js';
+import {parseAiPartyMasterIntent,prepareAiPartyMaster} from './ai-party-master.js';
 
 export type AiToolClass='read'|'calculate'|'prepare'|'execute'|'high-impact';
 export type AiToolId=
@@ -18,14 +19,14 @@ export type AiToolId=
   |'document.get'|'purchase.get'|'finance.getSummary'|'treasury.getSnapshot'|'reports.getMetrics'|'inventory.getStatus'|'search.records'
   |'pricing.margin'|'pricing.markup'|'pricing.targetPrice'|'landedCost.calculate'|'scenario.calculate'|'fx.convertUsingRecordedRate'|'receivables.aging'|'breakEven.calculate'|'inventory.coverage'
   |'quotation.prepare'|'invoice.prepare'|'customer.prepare'|'supplier.prepare'|'purchase.prepare'|'reminder.prepare'|'message.prepare'|'report.prepare'
-  |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'navigation.open'|'task.create'
+  |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'navigation.open'|'task.create'
   |'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
 
 export interface AiToolDefinition{id:AiToolId;class:AiToolClass;description:string;approval:boolean;mutation:boolean;maxResultChars:number;}
 export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;reason:string;}
 export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
 export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
-export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
+export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
 export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;}
 
 const DEFS:AiToolDefinition[]=[
@@ -62,7 +63,9 @@ const DEFS:AiToolDefinition[]=[
   ['document.createDraft','execute','Create a LOUREX draft only after visible approval.',true,true,3000],
   ['document.updateDraft','execute','Update an existing LOUREX draft only after visible approval.',true,true,3000],
   ['customer.update','execute','Update customer master data after visible approval.',true,true,2500],
+  ['customer.master','execute','Review an exact new or existing customer master record before one guarded save.',true,true,3000],
   ['supplier.update','execute','Update supplier master data after visible approval.',true,true,2500],
+  ['supplier.master','execute','Review an exact new or existing supplier master record before one guarded save.',true,true,3000],
   ['product.updateMetadata','execute','Update product metadata after visible approval.',true,true,2500],
   ['product.bulkUpdate','execute','Stage bounded exact matched product SKU, price or category edits for one reviewable approval.',true,true,3200],
   ['product.importSource','execute','Stage all verified rows from attached product catalogs for explicit review and atomic registration.',true,true,3200],
@@ -172,6 +175,13 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
   const args=safeObject(call.args);
   if(call.tool==='navigation.open'){const target=clean(args.target,30);if(!['home','documents','customers','receivables','reports','items','operations'].includes(target))return null;return{capability:'workspace.navigate',target,label:clean(args.label,80)||`Open ${target}`,rationale:call.reason||'Requested navigation.'};}
   if(call.tool==='product.updateMetadata'){const item=findProduct(runtime,args);if(!item)return null;const patch=safeObject(args.patch);return{capability:'item.updateMetadata',itemId:item.id,relatedItemId:'',patch,label:clean(args.label,80)||'Update product',rationale:call.reason||'Prepared product metadata update.'};}
+  if(call.tool==='customer.master'||call.tool==='supplier.master'){
+    if(runtime.scope!=='business')throw new Error('Party changes require Business scope.');
+    const intent=args.intent as any;
+    if(!intent||intent.party!==(call.tool==='customer.master'?'customer':'supplier'))throw new Error('Invalid party action type.');
+    const batch=prepareAiPartyMaster(runtime.vault,intent);
+    return{capability:'tool.execute',tool:call.tool,args:batch,preview:[batch.preview],label:(batch.mode==='create'?'Create ':'Update ')+batch.party, rationale:'Review the exact customer/supplier contact information before one approved local save.'};
+  }
   if(call.tool==='product.importSource'){if(runtime.scope!=='business')throw new Error('Product registration requires Business scope.');const batch=prepareAiProductSourceImport(runtime.vault,args.sources,{generateMissingSku:args.generateMissingSku===true});return{capability:'tool.execute',tool:'product.importSource',args:batch,preview:batch.rows.map(row=>({...row.preview,fileName:row.fileName})),label:'Review '+batch.rows.length+' extracted products',rationale:'These rows were extracted from your attachments. Verify every description, price, currency and SKU before approving creation.'};}
   if(call.tool==='product.bulkUpdate'){if(runtime.scope!=='business')throw new Error('Bulk product edits require Business scope.');const batch=Object.hasOwn(args,'groupPrice')?prepareAiProductGroupPrice(runtime.vault,args.groupPrice):Object.hasOwn(args,'transform')?prepareAiBulkProductTransform(runtime.vault,args.transform):prepareAiBulkProductUpdate(runtime.vault,args.updates);return{capability:'tool.execute',tool:'product.bulkUpdate',args:batch,preview:batch.rows.map(row=>row.preview),label:'Review '+batch.rows.length+' product changes',rationale:'Review every old and new value before approving one atomic catalog update.'};}
   if(call.tool==='document.createDraft'){const kind=clean(args.kind,30)==='invoice'?'invoice':'proforma',customer=documentCustomerMatch(runtime,args),customerDraft=customer?null:documentCustomerDraft(args);return{capability:'document.createDraft',kind,customerId:customer?.id||'',customerDraft,currency:currency(args.currency)||runtime.vault.company.defaultCurrency||'USD',language:clean(args.language,12)==='ar'?'ar':clean(args.language,12)==='bilingual'?'bilingual':'en',items:documentDraftItems(args),incoterm:clean(args.incoterm,80),paymentTerms:clean(args.paymentTerms,120),deliveryTime:clean(args.deliveryTime,120),validity:clean(args.validity,100),remarks:clean(args.remarks,500),notes:clean(args.notes,500),label:clean(args.label,80)||'Create draft',rationale:call.reason||'Prepared draft creation.'};}
@@ -193,7 +203,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
  * prerequisite/read/high-impact step fails, do not offer a subset of actions:
  * those approvals would silently turn a multi-step request into partial work. */
 export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{
-  if(plan.calls.some(call=>call.tool==='product.bulkUpdate'||call.tool==='product.importSource')&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
+  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
   const results=plan.calls.map(call=>executeAiToolCall(runtime,call));
   const blockedHighImpact=results.some(row=>row.class==='high-impact');
   const hasExecutable=results.some(row=>row.class==='execute');
@@ -214,6 +224,8 @@ export function deterministicAiToolPlan(message:string,runtime:AiToolRuntime):Ai
   if(runtime.scope==='personal')return null;const q=lower(message),entity=runtime.context?.assistantRuntime?.entity;
   const call=(tool:AiToolId,args:Record<string,unknown>,reason:string):AiToolPlan=>({version:1,goal:clean(message,240),calls:[{id:'local-1',tool,args,reason}]});
   if(runtime.scope==='business'){
+    const partyIntent=parseAiPartyMasterIntent(message);
+    if(partyIntent)return call(partyIntent.party==='customer'?'customer.master':'supplier.master',{intent:partyIntent},'Explicit user-only party creation/update with full contact preview.');
     const groupPrice=parseAiProductGroupPriceIntent(message);
     if(groupPrice)return call('product.bulkUpdate',{groupPrice},'Review every named weight-specific product price change before one approval.');
     const transform=parseAiBulkProductTransformIntent(message);
