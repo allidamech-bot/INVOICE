@@ -33,6 +33,7 @@ interface State {
   aiLoading:boolean;
   aiModel:string;
   aiIndexes:number[];
+  tradePriceAcknowledged:boolean;
 }
 
 const FIELD_OPTIONS:Array<{value:ProductImportField;en:string;ar:string}>=[
@@ -127,11 +128,12 @@ function actionLabel(action:string):string{
 
 export class ProductImportModal extends React.Component<Props,State>{
   private fileInput:HTMLInputElement|null=null;
+  private readonly tradeTerms=/\b(?:EXW|FOB|CIF|CFR|DAP|DDP|FCA|FAS)\b/i;
   private fileReadGeneration=0;
   private applyInFlight=false;
   private aiAbort:AbortController|null=null;
 
-  state:State={stage:'pick',fileName:'',sheets:[],sheetIndex:0,matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[]};
+  state:State={stage:'pick',fileName:'',sheets:[],sheetIndex:0,matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[],tradePriceAcknowledged:false};
 
   componentDidUpdate(prev:Props):void{
     if(this.props.open&&!prev.open)this.reset();
@@ -149,7 +151,7 @@ export class ProductImportModal extends React.Component<Props,State>{
   private reset=()=>{
     this.cancelPending();
     this.applyInFlight=false;
-    this.setState({stage:'pick',fileName:'',sheets:[],sheetIndex:0,matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[]});
+    this.setState({stage:'pick',fileName:'',sheets:[],sheetIndex:0,matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0,aiLoading:false,aiModel:'',aiIndexes:[],tradePriceAcknowledged:false});
   };
 
   private close=()=>{
@@ -170,16 +172,26 @@ export class ProductImportModal extends React.Component<Props,State>{
     try{
       const next=this.analyzeSheet(this.state.sheets,sheetIndex);
       this.aiAbort?.abort();
-      this.setState({...next,sheetIndex,plan:null,stage:'mapping',error:'',aiLoading:false,aiModel:'',aiIndexes:[]});
+      this.setState({...next,sheetIndex,plan:null,stage:'mapping',error:'',aiLoading:false,aiModel:'',aiIndexes:[],tradePriceAcknowledged:false});
     }catch(error){this.setState({sheetIndex,error:error instanceof Error?error.message:String(error)});}
   };
 
   private buildPlan=(matrix:Matrix,analysis:ProductImportAnalysis,mapping:ProductImportColumnMap,updateExisting:boolean):ProductImportPlan=>
     planProductImport(applyProductImportMapping(matrix,analysis,mapping),this.props.items,this.props.currency,updateExisting);
 
+  private tradePriceColumns=(analysis:ProductImportAnalysis|null,mapping:ProductImportColumnMap):Array<{header:string;field:'lastUnitPrice'|'lastUnitCost'}>=>{
+    if(!analysis)return [];
+    return analysis.columns.flatMap(column=>{
+      const field=mapping[column.index];
+      if((field==='lastUnitPrice'||field==='lastUnitCost')&&this.tradeTerms.test(column.header))return [{header:column.header,field}];
+      return [];
+    });
+  };
+
   private enterPreview=()=>{
     const {matrix,analysis,mapping,updateExisting}=this.state;
     if(!analysis)return;
+    if(this.tradePriceColumns(analysis,mapping).length&&!this.state.tradePriceAcknowledged){this.setState({error:t('Confirm whether Incoterm prices are buying costs or selling prices before preview.','أكد ما إذا كانت أسعار شروط التسليم تكلفة شراء أم سعر بيع قبل المعاينة.')});return;}
     try{this.setState({plan:this.buildPlan(matrix,analysis,mapping,updateExisting),stage:'preview',error:''});}
     catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}
   };
@@ -193,13 +205,13 @@ export class ProductImportModal extends React.Component<Props,State>{
     }
     const generation=++this.fileReadGeneration;
     this.aiAbort?.abort();
-    this.setState({stage:'reading',error:'',fileName:file.name,sheets:[],matrix:[],analysis:null,mapping:[],plan:null,aiLoading:false,aiModel:'',aiIndexes:[]});
+    this.setState({stage:'reading',error:'',fileName:file.name,sheets:[],matrix:[],analysis:null,mapping:[],plan:null,aiLoading:false,aiModel:'',aiIndexes:[],tradePriceAcknowledged:false});
     try{
       const sheets=await readSpreadsheetFile(file);
       if(generation!==this.fileReadGeneration||!this.props.open)return;
       const sheetIndex=bestSheet(sheets);
       const next=this.analyzeSheet(sheets,sheetIndex);
-      this.setState({...next,sheets,sheetIndex,plan:null,stage:'mapping',error:''});
+      this.setState({...next,sheets,sheetIndex,plan:null,stage:'mapping',error:'',tradePriceAcknowledged:false});
     }catch(error){
       if(generation!==this.fileReadGeneration||!this.props.open)return;
       this.setState({stage:'pick',sheets:[],matrix:[],analysis:null,mapping:[],plan:null,error:error instanceof Error?error.message:t('Unable to read this file.','تعذر قراءة الملف.')});
@@ -213,12 +225,12 @@ export class ProductImportModal extends React.Component<Props,State>{
     const mapping=[...this.state.mapping];
     if(field){for(let index=0;index<mapping.length;index+=1){if(index!==columnIndex&&mapping[index]===field)mapping[index]=null;}}
     mapping[columnIndex]=field;
-    this.setState({mapping,plan:null,error:'',aiIndexes:this.state.aiIndexes.filter(index=>index!==columnIndex)});
+    this.setState({mapping,plan:null,error:'',aiIndexes:this.state.aiIndexes.filter(index=>index!==columnIndex),tradePriceAcknowledged:false});
   };
 
   private restoreSmartMapping=()=>{
     const analysis=this.state.analysis;if(!analysis)return;
-    this.setState({mapping:suggestedProductImportMap(analysis),plan:null,error:'',aiModel:'',aiIndexes:[]});
+    this.setState({mapping:suggestedProductImportMap(analysis),plan:null,error:'',aiModel:'',aiIndexes:[],tradePriceAcknowledged:false});
   };
 
   private useAi=async()=>{
@@ -234,7 +246,7 @@ export class ProductImportModal extends React.Component<Props,State>{
       if(controller.signal.aborted||!this.props.open)return;
       const accepted=result.mappings.filter(entry=>entry.field&&entry.confidence!=='low').map(entry=>entry.index);
       const merged=mergeProductImportAiMapping(analysis,mapping,result.mappings);
-      this.setState({mapping:merged,plan:null,aiModel:result.model,aiIndexes:accepted,error:''});
+      this.setState({mapping:merged,plan:null,aiModel:result.model,aiIndexes:accepted,error:'',tradePriceAcknowledged:false});
     }catch(error){
       if(!controller.signal.aborted)this.setState({error:t(`AI assistance is unavailable. ${error instanceof Error?error.message:''}`,`مساعدة الذكاء الاصطناعي غير متاحة حاليًا. ${error instanceof Error?error.message:''}`)});
     }finally{
@@ -254,6 +266,7 @@ export class ProductImportModal extends React.Component<Props,State>{
   private apply=async()=>{
     const plan=this.state.plan;
     if(this.applyInFlight||!plan||plan.counts.error>0)return;
+    if(this.tradePriceColumns(this.state.analysis,this.state.mapping).length&&!this.state.tradePriceAcknowledged){this.setState({error:t('Confirm Incoterm buying/selling price interpretation before importing.','أكد تفسير سعر الشراء أو البيع لشروط التسليم قبل الاستيراد.')});return;}
     const products=importableProducts(plan);
     if(!products.length){this.setState({stage:'done',total:0,imported:0});return;}
     this.applyInFlight=true;
@@ -268,11 +281,13 @@ export class ProductImportModal extends React.Component<Props,State>{
     const previewRows=plan?.rows.slice(0,20)??[];
     const mappedCount=mapping.filter(Boolean).length;
     const ambiguousCount=analysis?ambiguousProductImportColumns(analysis,mapping).length:0;
+    const tradePriceColumns=this.tradePriceColumns(analysis,mapping);
+    const tradeRequiresReview=tradePriceColumns.length>0&&!this.state.tradePriceAcknowledged;
     const selectedSheet=sheets[sheetIndex];
     const renderActions=()=>stage==='mapping'&&analysis?
-      <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'pick',sheets:[],matrix:[],analysis:null,mapping:[],plan:null,error:'',aiModel:'',aiIndexes:[]})}>{t('Back','رجوع')}</Button><Button variant="primary" icon="eye" disabled={mappedCount===0||this.state.aiLoading} onClick={this.enterPreview}>{t('Review import','مراجعة الاستيراد')}</Button></div>:
+      <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'pick',sheets:[],matrix:[],analysis:null,mapping:[],plan:null,error:'',aiModel:'',aiIndexes:[]})}>{t('Back','رجوع')}</Button><Button variant="primary" icon="eye" disabled={mappedCount===0||this.state.aiLoading||tradeRequiresReview} onClick={this.enterPreview}>{t('Review import','مراجعة الاستيراد')}</Button></div>:
       stage==='preview'&&plan?
-        <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'mapping',plan:null,error:''})}>{t('Column mapping','تعيين الأعمدة')}</Button><Button variant="primary" icon="upload" disabled={plan.counts.error>0||plan.counts.create+plan.counts.update===0} onClick={()=>void this.apply()}>{plan.counts.error>0?t('Fix file errors first','أصلح أخطاء الملف أولًا'):t(`Confirm import of ${plan.counts.create+plan.counts.update}`,`تأكيد استيراد ${plan.counts.create+plan.counts.update}`)}</Button></div>:
+        <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'mapping',plan:null,error:''})}>{t('Column mapping','تعيين الأعمدة')}</Button><Button variant="primary" icon="upload" disabled={plan.counts.error>0||plan.counts.create+plan.counts.update===0||tradeRequiresReview} onClick={()=>void this.apply()}>{plan.counts.error>0?t('Fix file errors first','أصلح أخطاء الملف أولًا'):t(`Confirm import of ${plan.counts.create+plan.counts.update}`,`تأكيد استيراد ${plan.counts.create+plan.counts.update}`)}</Button></div>:
         stage==='done'?<div className="product-import-footer"><span/><Button variant="primary" icon="check" onClick={this.close}>{t('Done','تم')}</Button></div>:undefined;
     const footer=renderActions();
 
@@ -293,6 +308,8 @@ export class ProductImportModal extends React.Component<Props,State>{
           {sheets.length>1?<label className="product-import-sheet-picker"><span>{t('Worksheet','ورقة العمل')}</span><select className="input" value={sheetIndex} onChange={(event:any)=>this.chooseSheet(Number(event.target.value))}>{sheets.map((sheet,index)=><option key={`${sheet.name}-${index}`} value={index}>{sheet.name} · {sheet.nonEmptyRows} {t('rows','صفوف')}</option>)}</select></label>:null}
           <div className="product-import-intelligence-banner"><span className="product-import-intelligence-icon"><Icon name={ambiguousCount?'items':'check'}/></span><div><p className="eyebrow">{t('Local mapping first · AI optional','ربط محلي أولًا · AI اختياري')}</p><strong>{this.state.aiModel?t(`AI suggestions applied · ${this.state.aiModel}`,`تم تطبيق اقتراحات AI · ${this.state.aiModel}`):t(`${mappedCount} mapped · ${ambiguousCount} need attention`,`${mappedCount} مربوط · ${ambiguousCount} يحتاج انتباه`)}</strong><small>{t('Local high-confidence mappings stay protected. Prices, costs and quantities are never invented; unmapped columns stay out.','تبقى التعيينات المحلية عالية الثقة محمية. لا يتم اختراع الأسعار أو التكاليف أو الكميات، وتبقى الأعمدة غير المربوطة خارج الاستيراد.')}</small></div></div>
           <div className="product-import-mapping-list">{analysis.columns.map(column=>{const selected=mapping[column.index]??null;const fromAi=this.state.aiIndexes.includes(column.index);const resolved=Boolean(selected);const unsupportedNote=!resolved?unsupportedColumnNote(column.header):'';return <div className={`product-import-mapping-row confidence-${column.confidence} ${resolved?'is-resolved':'is-unresolved'}`} key={column.index}><div className="product-import-source-column"><span className="product-import-column-number">{column.index+1}</span><div><strong><bdi dir="auto">{column.header}</bdi>{fromAi?<span className="product-import-ai-mark">AI</span>:null}</strong><small><bdi dir="auto">{column.samples.length?column.samples.slice(0,2).join(' · '):t('No sample values','لا توجد قيم نموذجية')}</bdi></small></div></div><div className="product-import-map-arrow">→</div><div className="product-import-map-control"><select className="input product-import-map-select" value={selected??''} onChange={(event:any)=>this.changeMapping(column.index,event.target.value)} aria-label={t(`Map ${column.header}`,`ربط ${column.header}`)}><option value="">{fieldLabel(null)}</option>{FIELD_OPTIONS.map(option=><option key={option.value} value={option.value} disabled={mapping.some((mapped,index)=>index!==column.index&&mapped===option.value)}>{t(option.en,option.ar)}</option>)}</select><div className="product-import-confidence-line"><span className={`product-import-confidence ${fromAi?'medium':resolved?column.confidence:'unmapped'}`}>{confidenceLabel(column.confidence,selected,fromAi)}</span><small>{fromAi?t('AI suggestion — review before import','اقتراح AI — راجعه قبل الاستيراد'):unsupportedNote||mappingReason(column.reason)}</small></div></div></div>;})}</div>
+          {tradePriceColumns.length>0?<div className="product-import-alert" role="group" aria-label={t('Trade price mapping confirmation','تأكيد ربط أسعار شروط التسليم')}><Icon name="lock"/><div><strong>{t('Check EXW / FOB / CIF price meaning before import','تحقق من معنى أسعار EXW / FOB / CIF قبل الاستيراد')}</strong><p>{t('Trade terms alone do not prove a supplier cost or customer sale. Confirm each source heading against its destination field:', 'شروط التسليم وحدها لا تثبت أنها تكلفة مورد أو سعر بيع عميل. راجع عنوان كل عمود مع الحقل الذي سيُستورد إليه:')} <bdi dir="auto">{tradePriceColumns.map(row=>`${row.header} → ${row.field==='lastUnitCost'?t('Purchase cost','تكلفة الشراء'):t('Sale price','سعر البيع')}`).join(' · ')}</bdi></p><Toggle checked={this.state.tradePriceAcknowledged} onChange={tradePriceAcknowledged=>this.setState({tradePriceAcknowledged,error:''})} label={t('I verified these trade-price mappings against the source.','تحققت من ربط أسعار شروط التسليم مع المصدر.')}/></div></div>:null}
+          {sheets.length>1?<p className="product-import-preview-note">{t('Only the selected worksheet is imported in this workflow. Other worksheets must be reviewed and imported separately.','يتم استيراد ورقة العمل المحددة فقط في هذا المسار. يجب مراجعة الأوراق الأخرى واستيرادها بشكل منفصل.')}</p>:null}
           <div className="product-import-mapping-note"><Icon name="lock"/><span>{t('Nothing has been saved. Sale price and purchase cost remain separate; stock and accounting are never changed by this catalog import.','لم يتم حفظ أي شيء بعد. يبقى سعر البيع منفصلًا عن تكلفة الشراء، ولا يغيّر استيراد الكتالوج المخزون أو المحاسبة.')}</span></div>
         </>:null}
 
