@@ -79,7 +79,7 @@ function dataFields(row:Customer|Supplier):Record<string,string>{
 }
 function createRecord(batch:AiPartyMasterBatch):Customer|Supplier{
   const empty=Object.fromEntries(keys.map(key=>[key,''])) as Record<EditableField,string>;
-  const ar=/[\u0600-\u06ff]/u.test(batch.after.name);
+  const ar=/[\u0600-\u06ff]/u.test(batch.after.name||'');
   const base={id:batch.recordId,workspaceId:batch.workspaceId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...empty,...batch.after};
   if(batch.party==='customer')return{...base,companyNameEn:ar?'':batch.after.name,companyNameAr:ar?batch.after.name:'',addressEn:'',addressAr:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'',paymentTermPresetId:'',paymentDueDays:'',creditLimit:'',creditCurrency:''} as Customer;
   return{...base,nameEn:ar?'':batch.after.name,nameAr:ar?batch.after.name:'',address:'',vatTaxNumber:'',commercialRegistration:'',defaultCurrency:''} as Supplier;
@@ -90,7 +90,7 @@ function assertNotDuplicated(rows:Array<Customer|Supplier>,party:PartyType,name:
     throw new Error('Duplicate party name or email in the current company. No changes made.');
 }
 function batchPreview(batch:AiPartyMasterBatch):AiPartyMasterBatch['preview']{
-  return{itemId:batch.recordId,name:batch.after.name,before:batch.before,after:batch.after};
+  return{itemId:batch.recordId,name:batch.after.name||'',before:batch.before,after:batch.after};
 }
 export function prepareAiPartyMaster(vault:VaultPayload,intent:AiPartyMasterIntent):AiPartyMasterBatch{
   if(!intent||!['customer','supplier'].includes(intent.party)||!['create','update'].includes(intent.mode))
@@ -106,8 +106,8 @@ export function prepareAiPartyMaster(vault:VaultPayload,intent:AiPartyMasterInte
   }else if(rows.some(row=>names(row,intent.party).some(value=>value&&normalizeName(value)===normalizeName(name)))){
     throw new Error('Party already exists. Choose an exact update command instead.');
   }
-  const before=record?{name:displayName(record,intent.party),...dataFields(record)}:{};
-  const after={...before,...(record?{}:{name}),...fields};
+  const before:Record<string,string>=record?{name:displayName(record,intent.party),...dataFields(record)}:{};
+  const after:Record<string,string>={...before,...(record?{}:{name}),...fields};
   if(record&&Object.entries(fields).every(([key,value])=>before[key]===value))throw new Error('No effective contact changes to review.');
   assertNotDuplicated(rows,intent.party,record?displayName(record,intent.party):name,record?.id||'',after.email||'');
   const batch:AiPartyMasterBatch={party:intent.party,mode:intent.mode,workspaceId,recordId:record?.id||makeId(intent.party),beforeUpdatedAt:record?.updatedAt||'',before,after,preview:{itemId:'',name:'',before:{},after:{}}};
