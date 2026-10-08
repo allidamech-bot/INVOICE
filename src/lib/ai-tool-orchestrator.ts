@@ -6,6 +6,7 @@ import { supplierPayablesByCurrency } from './payables.js';
 import { treasuryAccountBalance, treasuryProjection, treasuryTotals } from './treasury-ledger.js';
 import { fxRateMatchForDate, convertWithFxMatch } from './fx-rates.js';
 import { todayIso } from './id.js';
+import { prepareAiBulkProductUpdate } from './ai-product-bulk-update.js';
 
 export type AiToolClass='read'|'calculate'|'prepare'|'execute'|'high-impact';
 export type AiToolId=
@@ -14,14 +15,14 @@ export type AiToolId=
   |'document.get'|'purchase.get'|'finance.getSummary'|'treasury.getSnapshot'|'reports.getMetrics'|'inventory.getStatus'|'search.records'
   |'pricing.margin'|'pricing.markup'|'pricing.targetPrice'|'landedCost.calculate'|'scenario.calculate'|'fx.convertUsingRecordedRate'|'receivables.aging'|'breakEven.calculate'|'inventory.coverage'
   |'quotation.prepare'|'invoice.prepare'|'customer.prepare'|'supplier.prepare'|'purchase.prepare'|'reminder.prepare'|'message.prepare'|'report.prepare'
-  |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'product.updateMetadata'|'navigation.open'|'task.create'
+  |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'product.updateMetadata'|'product.bulkUpdate'|'navigation.open'|'task.create'
   |'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
 
 export interface AiToolDefinition{id:AiToolId;class:AiToolClass;description:string;approval:boolean;mutation:boolean;maxResultChars:number;}
 export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;reason:string;}
 export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
 export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
-export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'product.updateMetadata'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
+export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'product.updateMetadata'|'product.bulkUpdate'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
 export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;}
 
 const DEFS:AiToolDefinition[]=[
@@ -60,6 +61,7 @@ const DEFS:AiToolDefinition[]=[
   ['customer.update','execute','Update customer master data after visible approval.',true,true,2500],
   ['supplier.update','execute','Update supplier master data after visible approval.',true,true,2500],
   ['product.updateMetadata','execute','Update product metadata after visible approval.',true,true,2500],
+  ['product.bulkUpdate','execute','Stage up to 40 exact matched product SKU, price or category edits for one reviewable approval.',true,true,3200],
   ['navigation.open','execute','Navigate to a LOUREX workspace after approval.',true,false,1000],
   ['task.create','execute','Create an encrypted assistant task after visible approval.',true,true,2500],
   ['document.finalize','high-impact','Finalize a business document.',true,true,800],
@@ -166,6 +168,7 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
   const args=safeObject(call.args);
   if(call.tool==='navigation.open'){const target=clean(args.target,30);if(!['home','documents','customers','receivables','reports','items','operations'].includes(target))return null;return{capability:'workspace.navigate',target,label:clean(args.label,80)||`Open ${target}`,rationale:call.reason||'Requested navigation.'};}
   if(call.tool==='product.updateMetadata'){const item=findProduct(runtime,args);if(!item)return null;const patch=safeObject(args.patch);return{capability:'item.updateMetadata',itemId:item.id,relatedItemId:'',patch,label:clean(args.label,80)||'Update product',rationale:call.reason||'Prepared product metadata update.'};}
+  if(call.tool==='product.bulkUpdate'){if(runtime.scope!=='business')throw new Error('Bulk product edits require Business scope.');const batch=prepareAiBulkProductUpdate(runtime.vault,args.updates);return{capability:'tool.execute',tool:'product.bulkUpdate',args:batch,preview:batch.rows.map(row=>row.preview),label:'Review '+batch.rows.length+' product changes',rationale:'Review every old and new value before approving one atomic catalog update.'};}
   if(call.tool==='document.createDraft'){const kind=clean(args.kind,30)==='invoice'?'invoice':'proforma',customer=documentCustomerMatch(runtime,args),customerDraft=customer?null:documentCustomerDraft(args);return{capability:'document.createDraft',kind,customerId:customer?.id||'',customerDraft,currency:currency(args.currency)||runtime.vault.company.defaultCurrency||'USD',language:clean(args.language,12)==='ar'?'ar':clean(args.language,12)==='bilingual'?'bilingual':'en',items:documentDraftItems(args),incoterm:clean(args.incoterm,80),paymentTerms:clean(args.paymentTerms,120),deliveryTime:clean(args.deliveryTime,120),validity:clean(args.validity,100),remarks:clean(args.remarks,500),notes:clean(args.notes,500),label:clean(args.label,80)||'Create draft',rationale:call.reason||'Prepared draft creation.'};}
   if(call.tool==='document.updateDraft'){const target=findDocument(runtime,args);if(!target||target.status!=='draft'||target.lifecycleStatus==='voided')return null;return{capability:'document.updateDraft',documentId:target.id,language:args.language,addItems:Array.isArray(args.addItems)?args.addItems.slice(0,20):[],itemEdits:Array.isArray(args.itemEdits)?args.itemEdits.slice(0,30):[],termsPatch:safeObject(args.termsPatch),notes:typeof args.notes==='string'?clean(args.notes,500):undefined,label:clean(args.label,80)||'Update draft',rationale:call.reason||'Prepared draft update.'};}
   if(['customer.update','supplier.update','task.create'].includes(call.tool))return{capability:'tool.execute',tool:call.tool,args,label:clean(args.label,80)||call.tool,rationale:call.reason||'Prepared safe LOUREX action.'} as AiToolExecutionProposal;
@@ -175,7 +178,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
   const def=DEF_BY_ID.get(call.tool);if(!def)return{id:call.id,tool:call.tool,ok:false,class:'read',data:null,summary:'Unknown tool.',source:'tool-registry'};
   if(runtime.scope==='personal'&&!['message.prepare','reminder.prepare','task.create'].includes(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Business tools are unavailable in Personal scope.',source:'scope-guard'};
   if(HIGH_IMPACT.has(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'High-impact financial actions are never executed by LOUREX AI. Open the relevant workspace and complete the protected workflow manually.',source:'high-impact-guard'};
-  if(EXECUTE.has(call.tool)){const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}
+  if(EXECUTE.has(call.tool)){try{const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'approval-preflight'};}}
   try{let data:unknown;
     if(call.tool==='customer.getSummary')data=readCustomerSummary(runtime,call.args);else if(call.tool==='customer.getReceivables')data=readCustomerReceivables(runtime,call.args);else if(call.tool==='customer.getHistory')data=readCustomerHistory(runtime,call.args);else if(call.tool==='supplier.getSummary')data=readSupplierSummary(runtime,call.args);else if(call.tool==='product.getSummary')data=readProductSummary(runtime,call.args);else if(call.tool==='product.getCostHistory'){const item=findProduct(runtime,call.args);if(!item)throw new Error('Product was not found in the active workspace.');data={itemId:item.id,name:itemName(item),history:costHistory(runtime,item)};}else if(call.tool==='document.get')data=readDocument(runtime,call.args);else if(call.tool==='purchase.get')data=readPurchase(runtime,call.args);else if(call.tool==='finance.getSummary')data=runtime.context?.advisorV2??runtime.context?.finance??{};else if(call.tool==='treasury.getSnapshot')data=treasurySnapshot(runtime);else if(call.tool==='reports.getMetrics')data={finance:runtime.context?.finance??{},business:runtime.context?.business?.daily??{},health:runtime.context?.advisorV2?.health??{},missingData:runtime.context?.advisorV2?.missingData??[]};else if(call.tool==='inventory.getStatus')data=inventoryStatus(runtime,call.args);else if(call.tool==='search.records')data=searchRecords(runtime,call.args);else if(def.class==='calculate')data=calculation(call.tool,runtime,call.args);else if(PREPARE.has(call.tool))data=prepare(call.tool,runtime,call.args);else throw new Error('Tool is not implemented.');
     return{id:call.id,tool:call.tool,ok:true,class:def.class,data:fit(data,def.maxResultChars),summary:`${call.tool} completed deterministically.`,source:'lourex-local-engine'};
@@ -185,6 +188,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
  * prerequisite/read/high-impact step fails, do not offer a subset of actions:
  * those approvals would silently turn a multi-step request into partial work. */
 export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{
+  if(plan.calls.some(call=>call.tool==='product.bulkUpdate')&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
   const results=plan.calls.map(call=>executeAiToolCall(runtime,call));
   const blockedHighImpact=results.some(row=>row.class==='high-impact');
   const hasExecutable=results.some(row=>row.class==='execute');
