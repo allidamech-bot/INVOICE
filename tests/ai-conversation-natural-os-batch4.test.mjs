@@ -29,14 +29,18 @@ test('multi-step execute requests remain proposals and never mutate during plann
 
 test('high-impact financial calls never enter an approval plan',async()=>{
   const {executeAiToolPlan}=await import('../dist/src/lib/ai-tool-orchestrator.js');
-  const {runtime}=await businessRuntime();
+  const {vault,runtime}=await businessRuntime();
+  const before=JSON.stringify(vault);
   const execution=executeAiToolPlan(runtime,{version:1,goal:'Record payment and create a follow-up',calls:[
     {id:'protected',tool:'payment.record',args:{amount:'100'},reason:'Financial mutation.'},
     {id:'safe-proposal',tool:'task.create',args:{scope:'business',title:'Review payment'},reason:'Review task.'}
   ]});
   assert.equal(execution.blockedHighImpact,true);
   assert.equal(execution.results[0]?.class,'high-impact');
-  assert.equal(execution.proposal?.capability,'tool.execute');
+  assert.equal(execution.proposal,null,'One protected step must block the entire multi-step proposal.');
+  assert.equal(execution.results[1]?.ok,false,'Safe steps must not be offered separately after a failed preflight.');
+  assert.equal(execution.results[1]?.source,'plan-preflight-guard');
+  assert.equal(JSON.stringify(vault),before,'Blocked plans must not change persisted business data.');
 });
 
 test('Batch 4 tool owner preserves plans and explicit approvals',async()=>{
