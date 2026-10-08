@@ -176,7 +176,11 @@ export function assertDeliveryInvoiceIntegrity(documents:LourexDocument[],events
     const proof=confirmedSalesDeliveries(delivery.id,events);
     const context=deliverySalesOrderContext(delivery,documents,events);
     if(proof.length!==1||!context||proof[0]!.reference!==record.deliveryReference
-      ||proof[0]!.quotationId!==record.quotationId||context.order.salesOrderNumber!==record.salesOrderNumber)
+      ||proof[0]!.quotationId!==record.quotationId||context.order.salesOrderNumber!==record.salesOrderNumber
+      ||record.customerId!==proof[0]!.customerId||record.customerId!==context.order.customerId
+      ||record.currency!==proof[0]!.currency||record.currency!==context.order.currency
+      ||record.deliveryNoteUpdatedAt!==proof[0]!.deliveryNoteUpdatedAt
+      ||event.currency!==record.currency)
       fail('Invoice has no matching physical-delivery evidence.','الفاتورة تفتقد إثبات تسليم فعلي مطابق.');
     if(invoice.issueDate<proof[0]!.deliveredDate)
       fail('Invoice issue date cannot precede confirmed delivery.','تاريخ إصدار الفاتورة لا يمكن أن يسبق التسليم المؤكد.');
