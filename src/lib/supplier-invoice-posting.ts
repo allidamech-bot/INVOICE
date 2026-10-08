@@ -132,6 +132,20 @@ export function assertMatchedSupplierInvoicePostingIntegrity(vault:Pick<VaultPay
   const orders=new Map(vault.documents.filter(doc=>doc.kind==='purchase-order').map(doc=>[doc.id,doc]));
   const matchEvents=new Map(vault.documentEvents.filter(event=>event.type==='audit'&&event.note.startsWith(MATCH_MARKER))
     .map(event=>[event.id,event]));
+  // Check the entire audit batch for duplicate posting identities first. This
+  // prevents a conflicting stock ledger from hiding a second posting receipt.
+  const preflightMatches=new Set<string>(),preflightPurchases=new Set<string>();
+  for(const event of postingEvents){
+    let evidence:SupplierInvoicePostingEvidence;
+    try{evidence=JSON.parse(event.note.slice(POST_MARKER.length)) as SupplierInvoicePostingEvidence;}
+    catch{fail('Supplier invoice posting evidence is corrupted.','سجل ترحيل فاتورة المورد تالف.');}
+    if(!evidence||!evidence.supplierInvoiceMatchEventId||!evidence.purchaseId||!evidence.purchaseOrderId
+      ||evidence.purchaseId!==purchaseIdForMatch(evidence.supplierInvoiceMatchEventId)
+      ||preflightMatches.has(evidence.supplierInvoiceMatchEventId)||preflightPurchases.has(evidence.purchaseId))
+      fail('Duplicate or invalid supplier invoice posting evidence.','سجل ترحيل فاتورة المورد مكرر أو غير صالح.');
+    preflightMatches.add(evidence.supplierInvoiceMatchEventId);
+    preflightPurchases.add(evidence.purchaseId);
+  }
   const byMatch=new Set<string>(),byPurchase=new Set<string>();
   for(const event of postingEvents){
     let row:SupplierInvoicePostingEvidence;
