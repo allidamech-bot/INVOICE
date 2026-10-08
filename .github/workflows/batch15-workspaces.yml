@@ -48,7 +48,30 @@ jobs:
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          # Use the official Ubuntu mirror, consistent with the main CI browser
+          # gates. The default Azure mirror can stall apt for many minutes.
+          for sources in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [ -f "$sources" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+            fi
+          done
+          if ! timeout --signal=TERM --kill-after=30s 900s npx playwright install-deps chromium webkit; then
+            echo 'Workspace QA browser dependencies failed to install.'
+            exit 1
+          fi
+          installed=0
+          for attempt in 1 2 3; do
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
+              installed=1
+              break
+            fi
+            echo "Workspace browser install attempt $attempt failed."
+            sleep 2
+          done
+          if [ "$installed" -ne 1 ]; then
+            echo 'Workspace QA Chromium/WebKit installation failed.'
+            exit 1
+          fi
       - name: Workspace responsive browser QA
         run: |
           npx http-server . -p 4173 -c-1 > /tmp/lourex-batch15.log 2>&1 &

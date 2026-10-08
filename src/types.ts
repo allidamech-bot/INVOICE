@@ -158,6 +158,9 @@ export interface PurchaseRecord extends WorkspaceScopeFields {
   postedAt: string;
   reversedAt: string;
   reverseReason: string;
+  /** Set only by the approved Batch 7 supplier invoice posting flow. */
+  sourceSupplierInvoiceEventId?: string;
+  sourcePurchaseOrderId?: string;
   createdAt: string;
   updatedAt: string;
 }
