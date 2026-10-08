@@ -255,13 +255,30 @@ function incomingObject(row:unknown[],headers:Array<ProductImportField|null>,hea
   });
   if(!result.lastCurrency){
     const priceIndex=headers.findIndex(field=>field==='lastUnitPrice');
-    if(priceIndex>=0)result.lastCurrency=currencyHint(headerRow[priceIndex]);
+    if(priceIndex>=0)result.lastCurrency=currencyHint(row[priceIndex])||currencyHint(headerRow[priceIndex]);
   }
   if(!result.lastCostCurrency){
     const costIndex=headers.findIndex(field=>field==='lastUnitCost');
-    if(costIndex>=0)result.lastCostCurrency=currencyHint(headerRow[costIndex]);
+    if(costIndex>=0)result.lastCostCurrency=currencyHint(row[costIndex])||currencyHint(headerRow[costIndex]);
   }
   return result;
+}
+
+/** Do not silently reinterpret a catalog value when its heading, price cell and
+ * explicit row currency disagree. Each row can still use its own valid currency. */
+function moneyCurrencyConflict(raw:unknown[],headerRow:unknown[],headers:Array<ProductImportField|null>,incoming:Partial<Record<ProductImportField,string>>):string{
+  for(const [field,currencyField,label] of [
+    ['lastUnitPrice','lastCurrency','Sale price'],
+    ['lastUnitCost','lastCostCurrency','Purchase cost']
+  ] as const){
+    const index=headers.indexOf(field);
+    if(index<0||!cell(raw[index]))continue;
+    const declared=cell(incoming[currencyField]).trim().toUpperCase();
+    if(declared&&!/^[A-Z]{3}$/.test(declared))return `${label} currency must be a three-letter code.`;
+    const hints=[currencyHint(headerRow[index]),currencyHint(raw[index]),currencyHint(declared)].filter(Boolean);
+    if(new Set(hints).size>1)return `${label} has conflicting currencies in the heading, cell or currency column.`;
+  }
+  return '';
 }
 
 function mergeImported(existing:SavedItem,incoming:Partial<Record<ProductImportField,string>>,now:string):SavedItem{
@@ -334,6 +351,8 @@ export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],d
     if(!raw.some(value=>cell(value)!==''))return;
     const rowNumber=headerIndex+rowOffset+2;
     const incoming=incomingObject(raw,headers,headerRow);
+    const moneyConflict=moneyCurrencyConflict(raw,headerRow,headers,incoming);
+    if(moneyConflict){rows.push({rowNumber,action:'error',reason:moneyConflict,item:null,matchedId:''});return;}
     const sku=normalizeSavedItemSku(incoming.sku??'');
     if(sku&&seenFileSkus.has(sku)){
       rows.push({rowNumber,action:'error',reason:'Duplicate SKU inside the import file.',item:null,matchedId:''});
