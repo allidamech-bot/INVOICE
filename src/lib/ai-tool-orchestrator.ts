@@ -181,7 +181,25 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
     return{id:call.id,tool:call.tool,ok:true,class:def.class,data:fit(data,def.maxResultChars),summary:`${call.tool} completed deterministically.`,source:'lourex-local-engine'};
   }catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'lourex-local-engine'};}
 }
-export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{const results=plan.calls.map(call=>executeAiToolCall(runtime,call));const proposals=results.filter(row=>row.class==='execute'&&row.ok).map(row=>row.data).filter(Boolean);return{results,proposal:proposals.length===1?proposals[0]:proposals.length?{capability:'tool.plan',steps:proposals,label:'Review action plan',rationale:plan.goal||'Multiple actions require approval.'}:null,blockedHighImpact:results.some(row=>row.class==='high-impact')};}
+/** Prepare the whole plan before presenting any approval. If even one
+ * prerequisite/read/high-impact step fails, do not offer a subset of actions:
+ * those approvals would silently turn a multi-step request into partial work. */
+export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{
+  const results=plan.calls.map(call=>executeAiToolCall(runtime,call));
+  const blockedHighImpact=results.some(row=>row.class==='high-impact');
+  const hasExecutable=results.some(row=>row.class==='execute');
+  const failures=results.filter(row=>!row.ok);
+  if(hasExecutable&&failures.length){
+    const blockers=failures.map(row=>row.tool).join(', ').slice(0,250);
+    return{results:results.map(row=>row.class==='execute'&&row.ok?{
+      ...row,ok:false,data:null,
+      summary:`Plan preflight failed (${blockers}). No actions have been approved or applied. Correct the failed steps and retry the complete plan.`,
+      source:'plan-preflight-guard'
+    }:row),proposal:null,blockedHighImpact};
+  }
+  const proposals=results.filter(row=>row.class==='execute'&&row.ok).map(row=>row.data).filter(Boolean);
+  return{results,proposal:proposals.length===1?proposals[0]:proposals.length?{capability:'tool.plan',steps:proposals,label:'Review action plan',rationale:plan.goal||'Multiple actions require approval.'}:null,blockedHighImpact};
+}
 
 export function deterministicAiToolPlan(message:string,runtime:AiToolRuntime):AiToolPlan|null{
   if(runtime.scope==='personal')return null;const q=lower(message),entity=runtime.context?.assistantRuntime?.entity;
