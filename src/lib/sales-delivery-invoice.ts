@@ -43,6 +43,9 @@ function parseLink(event:DocumentEventRecord):InvoiceDeliveryEvidence|null{
     return value;
   }catch{return null;}
 }
+export function isDeliveryLinkedInvoice(invoiceId:string,events:DocumentEventRecord[]):boolean{
+  return links(events).some(event=>event.documentId===invoiceId);
+}
 export function linkedDeliveryInvoice(deliveryNoteId:string,documents:LourexDocument[],events:DocumentEventRecord[]):LourexDocument|undefined{
   const matches=links(events).filter(event=>event.relatedDocumentId===deliveryNoteId);
   if(!matches.length)return undefined;
