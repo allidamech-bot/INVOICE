@@ -159,9 +159,11 @@ export function extractSupplierDraftLocally(matrix:unknown[][]):SupplierImportDr
     // Recognized invoice summary lines are not supplier items.
     if(!sku&&identity.length>0&&identity.every(value=>/^(?:subtotal|grand total|total|vat|tax|freight|shipping|discount|الإجمالي|اجمالي|المجموع|الضريبة|الشحن)$/.test(value)))continue;
     const quantity=safeDecimal(data.quantity),unitCost=safeDecimal(data.unitCost);
-    if(!quantity||!unitCost||(!sku&&!descriptionEn&&!descriptionAr))throw new Error(`Supplier import: row ${index+1} is incomplete (SKU/name, quantity and unit cost are required). Nothing was imported.`);
+    if(!quantity||Number(quantity)<=0||!unitCost||(!sku&&!descriptionEn&&!descriptionAr))throw new Error(`Supplier import: row ${index+1} is incomplete (SKU/name, quantity and unit cost are required). Nothing was imported.`);
     const columnCurrency=clean(data.currency);
-    const rowCurrency=currencyHint(columnCurrency)||currencyHint(data.unitCost);
+    const columnCurrencyHint=currencyHint(columnCurrency),costCurrencyHint=currencyHint(data.unitCost);
+    if(columnCurrencyHint&&costCurrencyHint&&columnCurrencyHint!==costCurrencyHint)throw new Error(`Supplier import: row ${index+1} has conflicting currency in the column and unit cost (${columnCurrencyHint} / ${costCurrencyHint}).`);
+    const rowCurrency=columnCurrencyHint||costCurrencyHint;
     if(columnCurrency&&!currencyHint(columnCurrency))throw new Error(`Supplier import: row ${index+1} has an unrecognized currency: ${columnCurrency.slice(0,32)}.`);
     if(rowCurrency&&detectedCurrency&&rowCurrency!==detectedCurrency)throw new Error(`Supplier import: mixed currencies at row ${index+1} (${detectedCurrency} / ${rowCurrency}). Separate by currency before saving.`);
     if(rowCurrency)detectedCurrency=rowCurrency;
@@ -187,7 +189,8 @@ export function extractSupplierDraftLocally(matrix:unknown[][]):SupplierImportDr
  * Used by workbooks and multi-file review; nothing is committed here. */
 export function combineSupplierImportDrafts(sources:Array<{name:string;draft:SupplierImportDraft}>):SupplierImportDraft{
   if(!sources.length)throw new Error('No supplier import sources were provided.');
-  const merged:SupplierImportDraft={...sources[0]!.draft,items:[],sourceSheets:[],skippedSheets:[]};
+  const merged:SupplierImportDraft={...sources[0]!.draft,items:[],notes:'',sourceSheets:[],skippedSheets:[]};
+  const sourceNotes:Array<{name:string;note:string}>=[];
   const fields:Array<keyof Omit<SupplierImportDraft,'items'|'notes'|'sourceSheets'|'skippedSheets'>>=[
     'supplierName','supplierTaxId','documentNumber','date','currency','freight','duty','otherCosts','paymentTerms'
   ];
@@ -199,10 +202,12 @@ export function combineSupplierImportDrafts(sources:Array<{name:string;draft:Sup
       if(value&&!existing)merged[field]=value;
     }
     merged.items.push(...draft.items);
+    if(draft.notes.trim())sourceNotes.push({name,note:draft.notes.trim()});
     if(draft.sourceSheets?.length)merged.sourceSheets!.push(...draft.sourceSheets.map(row=>({name:`${name} / ${row.name}`,itemCount:row.itemCount})));
     else merged.sourceSheets!.push({name,itemCount:draft.items.length});
     merged.skippedSheets!.push(...(draft.skippedSheets??[]).map(sheet=>`${name} / ${sheet}`));
   }
+  merged.notes=sourceNotes.length===1?sourceNotes[0]!.note:sourceNotes.map(({name,note})=>`[${name}] ${note}`).join('\n');
   return merged;
 }
 
