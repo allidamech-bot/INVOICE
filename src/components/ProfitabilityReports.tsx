@@ -1,9 +1,9 @@
 import type { Customer, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier } from '../types.js';
 import { categoryProfitabilityRows, invoiceProfitabilityRows, productProfitabilityRows, supplierProfitabilityRows, type ProfitabilityDimensionRow } from '../lib/profitability-dimensions.js';
-import { customerPerformanceReport } from '../lib/reports.js';
+import { customerPerformanceReport, financialDocuments } from '../lib/reports.js';
 import { formatMoney } from '../lib/money.js';
 import { t } from '../lib/i18n.js';
-import { todayIso } from '../lib/id.js';
+import { isIsoDate, todayIso } from '../lib/id.js';
 import { Input, Select } from './UI.js';
 
 interface Props {customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];suppliers:Supplier[];purchases:PurchaseRecord[];items:SavedItem[];}
@@ -17,7 +17,7 @@ function how(dimension:Dimension):string{
   return t('Category comes from the saved-product category. Unmatched invoice lines remain Uncategorized rather than being guessed.','الفئة مأخوذة من فئة الصنف المحفوظ. بنود الفاتورة غير المطابقة تبقى بلا تصنيف بدل التخمين.');
 }
 function normalizeRows(dimension:Dimension,props:Props,from:string,to:string):ProfitabilityDimensionRow[]{
-  const docs=props.documents.filter(doc=>!doc.issueDate||((!from||doc.issueDate>=from)&&(!to||doc.issueDate<=to)));
+  const docs=financialDocuments(props.documents).filter(doc=>isIsoDate(doc.issueDate)&&(!from||doc.issueDate>=from)&&(!to||doc.issueDate<=to));
   if(dimension==='product')return productProfitabilityRows(docs,props.items);
   if(dimension==='invoice')return invoiceProfitabilityRows(docs);
   if(dimension==='supplier')return supplierProfitabilityRows(docs,props.items,props.purchases,props.suppliers);
