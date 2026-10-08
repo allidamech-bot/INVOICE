@@ -16,18 +16,20 @@ LOUREX already implements a deterministic Advisor V2, a CFO brief, and a context
 - Prioritize records referenced by health signals before applying the existing bounded 32-evidence budget.
 - Contextual `Explain report` questions include only bounded complete JSON rows, separate currencies, and an explicit cost-evidence label. A gross-profit field is forcibly blank when `profitComplete` is false; the assistant must not infer withheld margins or make financial postings.
 - CFO remediation recommendations now cover invalid *internal expense* values, not only missing product unit costs.
+- Withhold AI product-line gross profit and margin when an originating invoice contains invalid internal expenses, without falsely increasing the missing-item count. Flag the unallocated document evidence.
 - Correct the editor's misleading known-cost subtotal display when an internal expense is invalid; show a repair message instead of an unverified cost, and flag missing/invalid cost evidence in the year-to-date guidance and monthly report labels.
 - Preserve the existing CFO UI, read-only assistant, separate currencies, no implicit FX, protected posting and personal/redacted scope.
 
 ## Tests and release requirements
 
-`tests/b08-cfo-report-context.test.mjs` adds 6 tests for:
+`tests/b08-cfo-report-context.test.mjs` adds 7 tests for:
 1. CFO warning despite zero missing item unit costs when recorded internal expenses are invalid.
 2. Personal scope redaction with invalid-cost finance evidence.
 3. Bounded explain-report context never leaking a withheld profit value.
 4. Multi-currency omission being explicit and source JSON never being truncated mid-object.
 5. Health-referenced evidence receiving priority before the 32-row cap.
 6. Invalid internal expenses cannot appear as a trusted editor cost; management/YTD reports use accurate warnings.
+7. AI product-line performance also withholds item margin when the originating invoice has invalid internal expenses.
 
 An isolated execution of the source-extracted contextual-report function, including the existing Batch 4 fixture, passed. **This does not substitute for the full repository build, automated tests, or Chromium/WebKit QA.**
 
