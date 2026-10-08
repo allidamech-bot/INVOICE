@@ -23,7 +23,7 @@ export function ProfitabilityCenter(props:Props):any{
 
   const guidance=summaries.flatMap(row=>{
     const items:Array<{id:string;severity:'attention'|'danger'|'good';title:string;body:string}>=[];
-    if(row.missingCostItems>0)items.push({id:`${row.currency}:cost`,severity:'attention',title:t('Complete missing cost data','أكمل بيانات التكلفة الناقصة'),body:t(`${row.missingCostItems} cost entries are missing in ${row.currency}. Profit and margin should not be used for decisions until those costs are completed.`,`${row.missingCostItems} تكلفة ناقصة بعملة ${row.currency}. لا ينبغي الاعتماد على الربح والهامش في القرار حتى تكتمل هذه التكاليف.`)});
+    if(!row.profitComplete)items.push({id:`${row.currency}:cost`,severity:'attention',title:t('Review incomplete cost evidence','راجع بيانات التكلفة غير المكتملة'),body:row.missingCostItems>0?t(`${row.missingCostItems} item costs are missing in ${row.currency}. Profit and margin must not be used until repaired.`,`${row.missingCostItems} تكلفة صنف ناقصة بعملة ${row.currency}. لا يجوز الاعتماد على الربح والهامش قبل تصحيحها.`):t(`Gross profit is withheld for ${row.currency} because internal expense evidence is missing or invalid. Review internal shipping and other costs.`,`الربح الإجمالي محجوب لعملة ${row.currency} بسبب بيانات مصاريف داخلية ناقصة أو غير صالحة. راجع الشحن والمصاريف الأخرى.`)});
     if(row.profitComplete&&numeric(row.grossProfit)<0)items.push({id:`${row.currency}:loss`,severity:'danger',title:t('Gross loss requires review','الخسارة الإجمالية تحتاج مراجعة'),body:t(`Recorded ${row.currency} sales are producing a gross loss. Review selling prices, item costs and freight/other internal costs before issuing similar business.`,`المبيعات المسجلة بعملة ${row.currency} تنتج خسارة إجمالية. راجع أسعار البيع وتكاليف الأصناف والشحن والتكاليف الداخلية قبل إصدار أعمال مشابهة.`)});
     if(numeric(row.overdue)>0)items.push({id:`${row.currency}:overdue`,severity:'attention',title:t('Overdue receivables need collection action','المستحقات المتأخرة تحتاج إجراء تحصيل'),body:t(`${formatMoney(row.overdue,row.currency)} is overdue. Prioritize collection follow-up without confusing overdue receivables with revenue or profit.`,`${formatMoney(row.overdue,row.currency)} متأخر. أعطِ أولوية لمتابعة التحصيل دون الخلط بين المستحقات المتأخرة والإيراد أو الربح.`)});
     if(row.profitComplete&&numeric(row.grossProfit)>=0&&numeric(row.overdue)===0&&row.missingCostItems===0&&row.issuedInvoices>0)items.push({id:`${row.currency}:healthy`,severity:'good',title:t('Core profitability data is decision-ready','بيانات الربحية الأساسية جاهزة للقرار'),body:t(`The ${row.currency} view has complete cost data, no recorded gross loss and no overdue balance in the selected year-to-date period.`,`عرض ${row.currency} لديه بيانات تكلفة مكتملة ولا توجد خسارة إجمالية مسجلة أو رصيد متأخر ضمن الفترة من بداية السنة.`)});
@@ -32,6 +32,7 @@ export function ProfitabilityCenter(props:Props):any{
 
   const missingCosts=summaries.reduce((sum,row)=>sum+row.missingCostItems,0);
   const lossCurrencies=summaries.filter(row=>row.profitComplete&&numeric(row.grossProfit)<0).length;
+  const incompleteCurrencies=summaries.filter(row=>!row.profitComplete).length;
   const overdueCurrencies=summaries.filter(row=>numeric(row.overdue)>0).length;
   const completeCurrencies=summaries.filter(row=>row.profitComplete).length;
 
@@ -49,7 +50,7 @@ export function ProfitabilityCenter(props:Props):any{
       <article className="ta-report-kpi"><header><span>{t('Currencies','العملات')}</span></header><div className="ta-report-kpi-primary"><div><strong>{summaries.length}</strong><span>{t('Tracked separately','متتبعة بشكل منفصل')}</span></div></div></article>
       <article className="ta-report-kpi"><header><span>{t('Cost-complete','تكلفة مكتملة')}</span></header><div className="ta-report-kpi-primary"><div><strong>{completeCurrencies}/{summaries.length||0}</strong><span>{t('Decision-ready currencies','عملات جاهزة للقرار')}</span></div></div></article>
       <article className="ta-report-kpi"><header><span>{t('Missing costs','تكاليف ناقصة')}</span></header><div className="ta-report-kpi-primary"><div><strong>{missingCosts}</strong><span>{t('Item cost entries','قيود تكلفة أصناف')}</span></div></div></article>
-      <article className="ta-report-kpi"><header><span>{t('Exceptions','الاستثناءات')}</span></header><div className="ta-report-kpi-primary"><div><strong>{lossCurrencies+overdueCurrencies}</strong><span>{t('Loss / overdue signals','إشارات خسارة / تأخير')}</span></div></div></article>
+      <article className="ta-report-kpi"><header><span>{t('Exceptions','الاستثناءات')}</span></header><div className="ta-report-kpi-primary"><div><strong>{lossCurrencies+overdueCurrencies+incompleteCurrencies}</strong><span>{t('Loss / overdue / cost signals','إشارات خسارة / تأخير / تكلفة')}</span></div></div></article>
     </section>
 
     {summaries.length?<section className="ta-report-kpi-grid lx-profitability-currency-grid">{summaries.map(row=><article className="ta-report-kpi" key={row.currency}>
