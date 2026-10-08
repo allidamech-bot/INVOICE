@@ -1,5 +1,6 @@
 import type {DocumentEventRecord, LourexDocument, VaultPayload} from '../types.js';
 import {convertToInvoice, nextDocumentNumber, validateDocument} from './documents.js';
+import {applyPaymentTermPreset,paymentTermPresetById,paymentTermPresetByLabel} from './commercial-controls.js';
 import {createDocumentEvent} from './document-lifecycle.js';
 import {isIsoDate, makeId} from './id.js';
 import {assertGovernancePermission} from './governance.js';
@@ -99,7 +100,10 @@ export function createConfirmedDeliveryInvoiceDraft(vault:VaultPayload,deliveryN
     return{...source,id:makeId('item'),quantity:line.quantity};
   });
   const numbered=nextDocumentNumber(vault,'invoice');
-  const base=convertToInvoice(quotation,numbered.number);
+  const converted=convertToInvoice(quotation,numbered.number);
+  const paymentPreset=paymentTermPresetById(vault.company,converted.paymentTermPresetId)
+    ||paymentTermPresetByLabel(vault.company,converted.terms.paymentTerms);
+  const base=paymentPreset?applyPaymentTermPreset(converted,paymentPreset):converted;
   const reference=quotation.language==='ar'
     ?'فاتورة مقابل سند التسليم المؤكد '+delivery.number+' ('+proof.reference+')'
     :quotation.language==='bilingual'
