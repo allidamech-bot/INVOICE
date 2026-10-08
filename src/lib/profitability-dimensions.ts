@@ -73,16 +73,26 @@ export function categoryProfitabilityRows(documents:LourexDocument[],items:Saved
   for(const row of lineAllocations(documents,items)){const category=(row.saved?.category||'').trim()||'Uncategorized';add(map,category.toLowerCase(),category,row.doc.currency,row.doc.id,row.revenue,row.cost,row.missing,row.saved?'':'Unmatched lines are kept as Uncategorized.');}
   return output(map);
 }
-function supplierForLine(row:LineAllocation,purchases:PurchaseRecord[],suppliers:Supplier[]):{id:string;label:string}|null{
+function supplierForLine(row:LineAllocation,purchases:PurchaseRecord[],suppliers:Supplier[],sourceDocuments:LourexDocument[]):{id:string;label:string}|null{
   if(!row.saved)return null;
-  const purchase=[...purchases].filter(p=>p.status==='posted'&&isIsoDate(p.date)&&p.date<=row.doc.issueDate
+  let attributionDate=row.doc.issueDate;
+  if(row.doc.role==='credit-note'){
+    // A credit reverses the original sale. A supplier purchased later must not
+    // inherit the reversal solely because the credit was issued in a new month.
+    const original=sourceDocuments.find(doc=>doc.id===row.doc.creditForId&&doc.kind==='invoice'
+      &&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'
+      &&sameEvidenceScope(doc,row.doc));
+    if(!original||!isIsoDate(original.issueDate)||original.issueDate>row.doc.issueDate)return null;
+    attributionDate=original.issueDate;
+  }
+  const purchase=[...purchases].filter(p=>p.status==='posted'&&isIsoDate(p.date)&&p.date<=attributionDate
     &&sameEvidenceScope(p,row.doc)&&sameEvidenceScope(p,row.saved!)
     &&Boolean(p.supplierSnapshot?.sourceSupplierId?.trim())&&p.items.some(line=>line.savedItemId===row.saved!.id))
     .sort((a,b)=>b.date.localeCompare(a.date)||b.postedAt.localeCompare(a.postedAt))[0];
   const id=purchase?.supplierSnapshot?.sourceSupplierId;if(!id)return null;const live=suppliers.find(s=>s.id===id&&sameEvidenceScope(s,purchase)),label=live?.nameEn||live?.nameAr||purchase?.supplierSnapshot?.nameEn||purchase?.supplierSnapshot?.nameAr||'Supplier';return{id,label};
 }
-export function supplierProfitabilityRows(documents:LourexDocument[],items:SavedItem[],purchases:PurchaseRecord[],suppliers:Supplier[]):ProfitabilityDimensionRow[]{
+export function supplierProfitabilityRows(documents:LourexDocument[],items:SavedItem[],purchases:PurchaseRecord[],suppliers:Supplier[],sourceDocuments:LourexDocument[]=documents):ProfitabilityDimensionRow[]{
   const map=new Map<string,{id:string;label:string;currency:string;bucket:Bucket}>();
-  for(const row of lineAllocations(documents,items)){const supplier=supplierForLine(row,purchases,suppliers);add(map,supplier?.id||'unattributed',supplier?.label||'Unattributed',row.doc.currency,row.doc.id,row.revenue,row.cost,row.missing,supplier?'Attributed from the latest posted purchase for the matched product on or before the invoice date.':'No qualifying posted purchase evidence; supplier is intentionally left unattributed.');}
+  for(const row of lineAllocations(documents,items)){const supplier=supplierForLine(row,purchases,suppliers,sourceDocuments);add(map,supplier?.id||'unattributed',supplier?.label||'Unattributed',row.doc.currency,row.doc.id,row.revenue,row.cost,row.missing,supplier?'Attributed from the latest posted purchase for the matched product on or before the invoice date.':'No qualifying posted purchase evidence; supplier is intentionally left unattributed.');}
   return output(map);
 }
