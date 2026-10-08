@@ -6,7 +6,10 @@ import { createEncryptedBackup, decryptBackup } from '../crypto/crypto.js';
 export function backupPasswordIssue(password:string,pin=''):string{
   if(password.length<12)return 'Backup password must have at least 12 characters.';
   if(password.length>128)return 'Backup password must not exceed 128 characters.';
-  if(new Set(password).size<4||/^\d+$/.test(password))return 'Use a strong backup passphrase, not a numeric PIN or repeated characters.';
+  const counts=new Map<string,number>();
+  for(const char of password)counts.set(char,(counts.get(char)??0)+1);
+  const highlyRepetitive=Math.max(0,...counts.values())>password.length*0.6;
+  if(new Set(password).size<4||/^\d+$/.test(password)||highlyRepetitive)return 'Use a strong backup passphrase, not a numeric PIN or repeated characters.';
   if(pin&&password===pin)return 'The backup password must be different from the device PIN.';
   return '';
 }
