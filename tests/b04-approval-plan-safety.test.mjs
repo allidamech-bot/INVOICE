@@ -7,8 +7,9 @@ const script=await readFile('scripts/ai-conversation-owner-stage4-tools.mjs','ut
 function functionSource(name){
   const start=script.indexOf('function '+name+'(');
   assert.ok(start>=0,'Missing generated runtime function '+name);
-  const end=script.indexOf('\\nfunction ',start);
-  assert.ok(end>start,'Missing function boundary for '+name);
+  const boundaries=[script.indexOf('\\nfunction ',start),script.indexOf('\\nasync function ',start)].filter(position=>position>start);
+  const end=Math.min(...boundaries);
+  assert.ok(Number.isFinite(end),'Missing function boundary for '+name);
   return script.slice(script.slice(start-6,start)==='async '?start-6:start,end);
 }
 function harness(executor=async()=>({summary:'Applied',id:'rec-1'})){
