@@ -1,0 +1,6 @@
+{
+  "name": "LOUREX B08 — Node 24 local-only QA (Codespaces)",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
+  "postCreateCommand": "bash scripts/b08-codespaces-qa.sh",
+  "remoteUser": "node"
+}
