@@ -246,6 +246,22 @@ test('Batch 7 — confirmed delivery invoice evidence is append-only under offli
   assert.doesNotThrow(()=>mergeVaultIntent(created.vault,created.vault,created.vault));
 });
 
+test('Batch 7 — concurrent non-link event ID cannot overwrite remote invoice proof',()=>{
+  const {vault,quote}=setup();
+  const physical=confirmed(vault,quote,['4','1'],'POD-CONFLICT');
+  const final=createConfirmedDeliveryInvoiceDraft(physical.vault,physical.note.id);
+  const marker='@lourex:sales-order:delivery-invoice:v1:';
+  const invoiceEvent=final.vault.documentEvents.find(event=>event.note.startsWith(marker));
+  assert.ok(invoiceEvent);
+  const other={...invoiceEvent,documentId:quote.id,documentNumber:quote.number,
+    type:'audit',note:'Unrelated device update',relatedDocumentId:'',relatedDocumentNumber:''};
+  const conflicting={...physical.vault,documentEvents:[...physical.vault.documentEvents,other]};
+  assert.throws(()=>assertDeliveryInvoiceLedgerContinuity(
+    physical.vault.documentEvents,conflicting.documentEvents,final.vault.documentEvents
+  ),/event ID collides/);
+  assert.throws(()=>mergeVaultIntent(physical.vault,conflicting,final.vault),/event ID collides/);
+});
+
 test('Batch 7 — only authorized owner/admin/sales/finance operators may prepare an invoice',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
   const owner=defaultOwnerMember();
