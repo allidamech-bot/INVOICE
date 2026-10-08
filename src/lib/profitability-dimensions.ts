@@ -2,6 +2,7 @@ import type { LourexDocument, PurchaseRecord, SavedItem, Supplier } from '../typ
 import { calculateTotals, decimalToScaled, isNonNegativeDecimalInput, lineTotal } from './money.js';
 import { calculateProfitability } from './profitability.js';
 import { findSavedItemMatch } from './saved-items.js';
+import { isIsoDate } from './id.js';
 
 export type ProfitabilityDimension='invoice'|'product'|'supplier'|'category';
 export interface ProfitabilityDimensionRow {
@@ -15,6 +16,12 @@ function centsString(value:bigint):string{const sign=value<0n?'-':'';const abs=v
 function marginString(profit:bigint,revenue:bigint):string{if(revenue===0n)return'0.00';const basis=profit*1_000_000n/revenue,sign=basis<0n?'-':'',abs=basis<0n?-basis:basis;return `${sign}${abs/10_000n}.${((abs%10_000n)/100n).toString().padStart(2,'0')}`;}
 function roundDivide(value:bigint,divisor:bigint):bigint{if(divisor===0n)return 0n;const sign=(value<0n)!==(divisor<0n)?-1n:1n,a=value<0n?-value:value,b=divisor<0n?-divisor:divisor;return ((a+b/2n)/b)*sign;}
 function eligible(doc:LourexDocument):boolean{return doc.kind==='invoice'&&doc.status==='final'&&doc.lifecycleStatus!=='voided';}
+// Financial attribution requires positive evidence that two records share a
+// workspace AND branch. Missing legacy scope is only compatible with other
+// unscoped legacy records; it must not silently authorize cross-branch links.
+function sameEvidenceScope(a:{workspaceId?:string;branchId?:string},b:{workspaceId?:string;branchId?:string}):boolean{
+  return (a.workspaceId||'')===(b.workspaceId||'')&&(a.branchId||'')===(b.branchId||'');
+}
 function rowKey(id:string,currency:string):string{return `${id}\u0000${currency}`;}
 function add(map:Map<string,{id:string;label:string;currency:string;bucket:Bucket}>,id:string,label:string,currency:string,docId:string,revenue:bigint,cost:bigint|null,missing:number,note=''):void{
   const key=rowKey(id,currency),existing=map.get(key)??{id,label,currency,bucket:{netSales:0n,totalCost:0n,grossProfit:0n,complete:true,missing:0,documents:new Set<string>(),note}};
@@ -34,6 +41,7 @@ function lineAllocations(documents:LourexDocument[],items:SavedItem[]):LineAlloc
   for(const doc of documents.filter(eligible)){
     const totals=calculateTotals(doc.items,doc.adjustments),profit=calculateProfitability(doc),netRevenue=cents(profit.netRevenue),sign=doc.role==='credit-note'?-1n:1n;
     const raw=doc.items.map(item=>cents(lineTotal(item.quantity,item.unitPrice))),rawTotal=raw.reduce((sum,value)=>sum+value,0n);
+    const scopedItems=items.filter(saved=>sameEvidenceScope(saved,doc));
     let allocatedRevenue=0n,allocatedOverhead=0n;const overhead=cents(profit.shippingCost)+cents(profit.otherCost);
     doc.items.forEach((item,index)=>{
       const last=index===doc.items.length-1;
@@ -48,7 +56,7 @@ function lineAllocations(documents:LourexDocument[],items:SavedItem[]):LineAlloc
       if(validLineCost&&profit.invalidInternalCostFields===0){
         const q=decimalToScaled(item.quantity,4),u=decimalToScaled(unitCost!,12);itemCost=roundDivide(q*u,100_000_000_000_000n)*sign+share;
       }else if(!validLineCost)missing=1;
-      rows.push({doc,item,saved:findSavedItemMatch(items,item),revenue,cost:itemCost,missing});
+      rows.push({doc,item,saved:findSavedItemMatch(scopedItems,item),revenue,cost:itemCost,missing});
     });
     void totals;
   }
@@ -67,8 +75,11 @@ export function categoryProfitabilityRows(documents:LourexDocument[],items:Saved
 }
 function supplierForLine(row:LineAllocation,purchases:PurchaseRecord[],suppliers:Supplier[]):{id:string;label:string}|null{
   if(!row.saved)return null;
-  const purchase=[...purchases].filter(p=>p.status==='posted'&&p.date<=row.doc.issueDate&&p.items.some(line=>line.savedItemId===row.saved!.id)).sort((a,b)=>b.date.localeCompare(a.date)||b.postedAt.localeCompare(a.postedAt))[0];
-  const id=purchase?.supplierSnapshot?.sourceSupplierId;if(!id)return null;const live=suppliers.find(s=>s.id===id),label=live?.nameEn||live?.nameAr||purchase?.supplierSnapshot?.nameEn||purchase?.supplierSnapshot?.nameAr||'Supplier';return{id,label};
+  const purchase=[...purchases].filter(p=>p.status==='posted'&&isIsoDate(p.date)&&p.date<=row.doc.issueDate
+    &&sameEvidenceScope(p,row.doc)&&sameEvidenceScope(p,row.saved!)
+    &&Boolean(p.supplierSnapshot?.sourceSupplierId?.trim())&&p.items.some(line=>line.savedItemId===row.saved!.id))
+    .sort((a,b)=>b.date.localeCompare(a.date)||b.postedAt.localeCompare(a.postedAt))[0];
+  const id=purchase?.supplierSnapshot?.sourceSupplierId;if(!id)return null;const live=suppliers.find(s=>s.id===id&&sameEvidenceScope(s,purchase)),label=live?.nameEn||live?.nameAr||purchase?.supplierSnapshot?.nameEn||purchase?.supplierSnapshot?.nameAr||'Supplier';return{id,label};
 }
 export function supplierProfitabilityRows(documents:LourexDocument[],items:SavedItem[],purchases:PurchaseRecord[],suppliers:Supplier[]):ProfitabilityDimensionRow[]{
   const map=new Map<string,{id:string;label:string;currency:string;bucket:Bucket}>();
