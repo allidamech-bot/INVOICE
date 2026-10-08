@@ -123,3 +123,36 @@ export function confirmGoodsReceipt(vault:VaultPayload,input:ConfirmGoodsReceipt
   const event=createDocumentEvent(order,'audit',GRN_MARKER+JSON.stringify(receipt));
   return {vault:{...vault,documentEvents:[...vault.documentEvents,event]},receipt};
 }
+
+/** Fail closed if two offline devices merge independently valid receipts that exceed a PO. */
+export function assertGoodsReceiptIntegrity(documents:LourexDocument[],events:DocumentEventRecord[]):void{
+  const receiptEvents=events.filter(event=>event.type==='audit'&&event.note.startsWith(GRN_MARKER));
+  if(!receiptEvents.length)return;
+  const orders=new Map(documents.filter(doc=>doc.kind==='purchase-order').map(doc=>[doc.id,doc]));
+  const affected=new Set(receiptEvents.map(event=>event.documentId));
+  for(const orderId of affected){
+    const order=orders.get(orderId);
+    if(!order)error('A received Purchase Order was removed during merge. Restore it before syncing.','حُذف أمر شراء له محاضر استلام أثناء الدمج. استعده قبل المزامنة.');
+    const receipts=confirmedGoodsReceipts(orderId,events);
+    const refs=new Set<string>();
+    const lines=new Map(order.items.map(item=>[item.id,item]));
+    for(const receipt of receipts){
+      const normalizedRef=receipt.reference.trim().toLowerCase();
+      if(refs.has(normalizedRef))error('Duplicate goods receipt reference found while syncing.','اكتُشف تكرار مرجع الاستلام أثناء المزامنة.');
+      refs.add(normalizedRef);
+      if(receipt.purchaseOrderNumber!==order.number||receipt.supplierId!==order.supplierSnapshot?.sourceSupplierId)
+        error('Goods receipt supplier or Purchase Order identity changed.','تغيرت هوية المورد أو أمر الشراء المرتبط بمحضر الاستلام.');
+      const lineIds=new Set<string>();
+      for(const line of receipt.lines){
+        const source=lines.get(line.purchaseOrderLineId);
+        if(!source||line.unit!==source.unit||lineIds.has(line.purchaseOrderLineId))
+          error('Goods receipt has duplicated or mismatched PO lines.','يتضمن الاستلام بنودًا مكررة أو غير متطابقة مع أمر الشراء.');
+        lineIds.add(line.purchaseOrderLineId);
+      }
+    }
+    for(const balance of goodsReceiptBalances(order,events)){
+      if(scaled(balance.remaining)<0n)
+        error('Concurrent receipts exceed ordered quantity. Reconcile before syncing.','تتجاوز الاستلامات المتزامنة الكمية المطلوبة. راجعها قبل المزامنة.');
+    }
+  }
+}
