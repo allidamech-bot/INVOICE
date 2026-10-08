@@ -207,6 +207,9 @@ test('Batch 7 — final issuance stays human reviewed and serialized, not an AI 
   assert.match(page,/onCreateDeliveryInvoice/);
   assert.match(page,/invoiceSourceDelivery\(doc\.id,this\.props\.documents,this\.props\.documentEvents\)/);
   assert.match(page,/item\.convertedFromId===doc\.id/);
+  assert.match(page,/collection\.remaining/);
+  assert.match(page,/canCollect\?<Button icon="wallet"/);
+  assert.match(page,/onRecordPayment\?\.\(doc\)/);
   assert.match(merge,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
   assert.match(app,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
   assert.doesNotMatch(source,/postPurchase|savePayment|inventoryMovements:\[/);
