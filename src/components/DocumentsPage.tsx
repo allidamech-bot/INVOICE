@@ -11,6 +11,8 @@ import { postMatchedSupplierInvoice, type PostMatchedSupplierInvoiceInput } from
 import { SupplierInvoicePostingReview } from './SupplierInvoicePostingReview.js';
 import { acceptSalesOrder, type AcceptSalesOrderInput } from '../lib/sales-order-flow.js';
 import { SalesOrderReview } from './SalesOrderReview.js';
+import { confirmSalesDelivery, type ConfirmSalesDeliveryInput } from '../lib/sales-delivery-flow.js';
+import { SalesDeliveryReview } from './SalesDeliveryReview.js';
 import { AiWorkflowTools } from './AiWorkflowTools.js';
 import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord, SavedItem } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
@@ -278,6 +280,10 @@ export class DocumentsPage extends React.Component<Props,State>{
     if(approvalPending)throw new Error(t('Approval request saved. Approve in Settings → Access, then return to post this invoice.','تم حفظ طلب الموافقة. اعتمده من الإعدادات ← الوصول، ثم عد لترحيل الفاتورة.'));
   };
 
+  private confirmCustomerDelivery=async(input:ConfirmSalesDeliveryInput):Promise<void>=>{
+    await mutateVaultSafely(vault=>confirmSalesDelivery(vault,input).vault);
+  };
+
   private acceptCustomerSalesOrder=async(input:AcceptSalesOrderInput):Promise<void>=>{
     await mutateVaultSafely(vault=>acceptSalesOrder(vault,input).vault);
   };
@@ -464,6 +470,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           <CommercialFlowPanel document={doc} documents={this.props.documents} events={this.props.documentEvents} onOpenDocument={(related)=>this.setState({detailId:related.id,menuId:''})}/>
           {(doc.kind==='proforma'||doc.kind==='proforma-invoice')?<SalesOrderReview quotation={doc} events={this.props.documentEvents} onAccept={this.acceptCustomerSalesOrder}/>:null}
+          {doc.kind==='delivery-note'?<SalesDeliveryReview deliveryNote={doc} documents={this.props.documents} events={this.props.documentEvents} onConfirm={this.confirmCustomerDelivery}/>:null}
           {doc.kind==='rfq'?<SupplierQuotationReview rfq={doc} documents={this.props.documents} events={this.props.documentEvents} onAccept={this.acceptSupplierQuote} onOpenPurchaseOrder={(related)=>this.setState({detailId:related.id,menuId:''})}/>:null}
           {doc.kind==='purchase-order'?<><GoodsReceiptReview order={doc} events={this.props.documentEvents} onConfirm={this.confirmGoodsDelivery}/><SupplierInvoiceReview order={doc} events={this.props.documentEvents} onMatch={this.matchSupplierBill}/><SupplierInvoicePostingReview order={doc} events={this.props.documentEvents} savedItems={this.props.savedItems} onPost={this.postMatchedSupplierBill}/></>:null}
 
