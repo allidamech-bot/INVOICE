@@ -97,6 +97,8 @@ export function createConfirmedDeliveryInvoiceDraft(vault:VaultPayload,deliveryN
       ?'Invoice for confirmed Delivery Note '+delivery.number+' ('+proof.reference+') / فاتورة مقابل سند التسليم المؤكد'
       :'Invoice for confirmed Delivery Note '+delivery.number+' ('+proof.reference+')';
   const invoice:LourexDocument={...base,items:invoiceLines,
+    // Full-order overhead costs are not automatically copied into every partial invoice.
+    internalCosts:{shippingCost:'0.00',otherCost:'0.00'},
     adjustments:{...base.adjustments,discountEnabled:false,discountMode:'fixed',discountValue:'0.00',
       shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00'},
     terms:{...base.terms,remarks:[base.terms.remarks,reference].filter(Boolean).join('\n')}};
