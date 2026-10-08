@@ -48,6 +48,37 @@ export async function exportBackup(pin: string, vault: VaultPayload): Promise<vo
   downloadFallback(file);
 }
 
+/** Validate the decrypted vault before migration, which intentionally supplies
+ * defaults for older versions. In a current-schema backup, a missing collection
+ * indicates corruption rather than a legitimately old data model. */
+const CURRENT_VAULT_COLLECTIONS=[
+  'customers','suppliers','purchases','supplierPayments','expenses','inventoryMovements',
+  'treasuryAccounts','treasuryEntries','treasuryReconciliations','fxRates','warehouses',
+  'workspaces','branches','teamMembers','approvalPolicies','approvalRequests','recurringWorkflows',
+  'documents','documentEvents','documentRevisions','payments','savedItems'
+] as const;
+
+export function assertRestorableBackupVault(value:unknown):asserts value is VaultPayload{
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Backup data is incomplete. The existing workspace was not changed.');
+  const raw=value as Record<string,unknown>;
+  if(!Number.isSafeInteger(raw.schemaVersion)||Number(raw.schemaVersion)<1||Number(raw.schemaVersion)>APP_SCHEMA_VERSION)
+    throw new Error('This backup uses an unsupported data version. Update LOUREX before restoring to avoid losing records.');
+  const isObject=(item:unknown)=>Boolean(item&&typeof item==='object'&&!Array.isArray(item));
+  if(!isObject(raw.company)||!isObject(raw.appSettings))
+    throw new Error('Backup data is incomplete. The existing workspace was not changed.');
+  if(!Array.isArray(raw.customers))throw new Error('Backup collection "customers" is missing or invalid. The existing workspace was not changed.');
+  if(!Array.isArray(raw.documents))throw new Error('Backup collection "documents" is missing or invalid. The existing workspace was not changed.');
+  const required=Number(raw.schemaVersion)>=21;
+  for(const key of CURRENT_VAULT_COLLECTIONS){
+    const rows=raw[key];
+    if(rows===undefined&&!required)continue; // Older schemas may predate this collection.
+    if(!Array.isArray(rows)||rows.some(row=>!isObject(row)))
+      throw new Error(`Backup collection "${key}" is missing or invalid. The existing workspace was not changed.`);
+  }
+  if(!Array.isArray(raw.workspaces)&&required)throw new Error('Backup workspaces are missing.');
+  if(!Array.isArray(raw.branches)&&required)throw new Error('Backup branches are missing.');
+}
+
 export async function readBackup(file: File, pin: string): Promise<VaultPayload> {
   if (file.size > 50 * 1024 * 1024) throw new Error('Backup file is too large.');
   let parsed: unknown;
@@ -56,11 +87,6 @@ export async function readBackup(file: File, pin: string): Promise<VaultPayload>
   const candidate=parsed as Partial<EncryptedBackupFile>;
   if(candidate.format!=='LOUREX_BACKUP'||candidate.version!==1)throw new Error('This is not a valid LOUREX backup.');
   const restored=await decryptBackup(pin,candidate as EncryptedBackupFile);
-  if(!restored||typeof restored!=='object'||Array.isArray(restored)
-    ||!restored.company||typeof restored.company!=='object'||!restored.appSettings||typeof restored.appSettings!=='object'
-    ||!Array.isArray(restored.documents)||!Array.isArray(restored.customers))
-    throw new Error('Backup data is incomplete. The existing workspace was not changed.');
-  if(!Number.isSafeInteger(restored.schemaVersion)||restored.schemaVersion<1||restored.schemaVersion>APP_SCHEMA_VERSION)
-    throw new Error('This backup uses an unsupported data version. Update LOUREX before restoring to avoid losing records.');
+  assertRestorableBackupVault(restored);
   return restored;
 }
