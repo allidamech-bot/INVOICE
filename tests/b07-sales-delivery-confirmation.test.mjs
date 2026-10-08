@@ -185,6 +185,11 @@ test('Batch7 delivery: legacy invoiced delivery without Sales Order still copies
   const base=emptyVault();
   const quote=createBlankDocument('proforma','QUO-2026-990',base.company);
   quote.status='final';
+  quote.customerSnapshot=customerSnapshotFrom({
+    id:'legacy-customer',companyNameEn:'Legacy Client',companyNameAr:'عميل سابق',
+    contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',
+    vatTaxNumber:'',commercialRegistration:''
+  });
   quote.items=[{...quote.items[0],id:'legacy-quote-line',descriptionEn:'Product',descriptionAr:'منتج',
     quantity:'20',unit:'Box',unitPrice:'10'}];
   const invoice={...convertToInvoice(quote,'INV-2026-990'),status:'final',
