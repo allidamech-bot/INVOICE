@@ -107,6 +107,20 @@ test('Batch 7 — linked invoice quantities, price, customer, currency, product 
   }
   assert.throws(()=>assertDeliveryInvoiceIntegrity(r.vault.documents.filter(x=>x.id!==original.id),r.vault.documentEvents),/invoice source|invoice link|invoice|Invoice/);
 });
+test('Batch 7 — invoice issue date and immutable event document numbers remain tied to delivered evidence',()=>{
+  const {vault,quote}=setup(),a=confirmed(vault,quote);
+  const created=createConfirmedDeliveryInvoiceDraft(a.vault,a.note.id);
+  const older={...created.invoice,issueDate:'2020-01-01'};
+  assert.throws(()=>assertDeliveryInvoiceIntegrity(
+    created.vault.documents.map(x=>x.id===older.id?older:x),created.vault.documentEvents
+  ),/issue date cannot precede confirmed delivery/);
+  const corruptedEvent={...created.vault,documentEvents:created.vault.documentEvents.map(e=>
+    e.documentId===created.invoice.id&&e.note.startsWith('@lourex:sales-order:delivery-invoice:v1:')
+      ?{...e,relatedDocumentNumber:'WRONG-DN'}:e)};
+  assert.throws(()=>assertDeliveryInvoiceIntegrity(corruptedEvent.documents,corruptedEvent.documentEvents),
+    /Issued Delivery Note source has changed/);
+});
+
 test('Batch 7 — duplicate offline invoices for one confirmed note fail merge',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
   const left=createConfirmedDeliveryInvoiceDraft(a.vault,a.note.id).vault;
