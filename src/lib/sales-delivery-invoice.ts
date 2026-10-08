@@ -46,6 +46,13 @@ function parseLink(event:DocumentEventRecord):InvoiceDeliveryEvidence|null{
 export function isDeliveryLinkedInvoice(invoiceId:string,events:DocumentEventRecord[]):boolean{
   return links(events).some(event=>event.documentId===invoiceId);
 }
+export function invoiceSourceDelivery(invoiceId:string,documents:LourexDocument[],events:DocumentEventRecord[]):LourexDocument|undefined{
+  const event=links(events).find(item=>item.documentId===invoiceId);
+  if(!event)return undefined;
+  const record=parseLink(event);
+  if(!record)fail('Invoice delivery source is invalid.','مرجع سند تسليم الفاتورة غير صالح.');
+  return documents.find(doc=>doc.id===record.deliveryNoteId);
+}
 export function linkedDeliveryInvoice(deliveryNoteId:string,documents:LourexDocument[],events:DocumentEventRecord[]):LourexDocument|undefined{
   const matches=links(events).filter(event=>event.relatedDocumentId===deliveryNoteId);
   if(!matches.length)return undefined;
