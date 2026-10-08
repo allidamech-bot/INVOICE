@@ -17,10 +17,10 @@ test('v242 overrides the legacy light Operations phone tab strip with semantic w
 
 test('v279 makes the mobile Operations tab palette a semantic real-browser regression gate',async()=>{
   const [workflow,runner]=await Promise.all([
-    read('.github/workflows/ci.yml'),
+    read('scripts/verify-local.mjs'),
     read('tests/visual/run-operations-mobile-tabs-v242.cjs')
   ]);
-  assert.match(workflow,/node tests\/visual\/run-operations-mobile-tabs-v242\.cjs/);
+  assert.match(workflow,/tests\/visual\/run-operations-mobile-tabs-v242\.cjs/);
   assert.match(runner,/--ds-workspace/);
   assert.match(runner,/--ds-line/);
   assert.match(runner,/--ds-selected/);

@@ -6,11 +6,11 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('Batch 2 mobile EN/AR browser QA is blocking in business-current',async()=>{
   const [ci,runner,fixture]=await Promise.all([
-    read('.github/workflows/ci.yml'),
+    read('scripts/verify-local.mjs'),
     read('tests/visual/run-relationship-360-batch2.cjs'),
     read('tests/visual/relationship-360-batch2.html')
   ]);
-  assert.match(ci,/business-current[\s\S]*run_qa 180 node tests\/visual\/run-relationship-360-batch2\.cjs/);
+  assert.match(ci,/business-current[\s\S]*tests\/visual\/run-relationship-360-batch2\.cjs/);
   assert.match(runner,/viewport:\{width:390,height:844\}/);
   assert.match(runner,/mobile-en/);
   assert.match(runner,/mobile-ar/);

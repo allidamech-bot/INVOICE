@@ -32,8 +32,8 @@ test('v339 keeps iPad landscape Draft on one scroll owner above the old 1180px c
 });
 
 test('v339 CI executes the real 1194x834 WebKit Draft gate',async()=>{
-  const [workflow,runner]=await Promise.all([read('.github/workflows/ci.yml'),read('tests/visual/run-v339-ipad-landscape-draft.cjs')]);
-  assert.match(workflow,/node tests\/visual\/run-v339-ipad-landscape-draft\.cjs/);
+  const [workflow,runner]=await Promise.all([read('scripts/verify-local.mjs'),read('tests/visual/run-v339-ipad-landscape-draft.cjs')]);
+  assert.match(workflow,/tests\/visual\/run-v339-ipad-landscape-draft\.cjs/);
   assert.match(runner,/viewport:\{width:1194,height:834\}/);
   assert.match(runner,/platform[^\n]*MacIntel/);
   assert.match(runner,/maxTouchPoints/);

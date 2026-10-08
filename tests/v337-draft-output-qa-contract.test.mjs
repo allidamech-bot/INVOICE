@@ -35,9 +35,10 @@ test('Draft output visual runner covers WebKit, Chromium, EN/AR, screen and prin
 });
 
 test('CI cannot silently drop the Draft A4 output regression pass',async()=>{
-  const ci=await read('.github/workflows/ci.yml');
-  const install=ci.indexOf('npx playwright install --with-deps chromium webkit');
-  const run=ci.indexOf('node tests/visual/run-v337-draft-output.cjs');
-  const upload=ci.indexOf('name: Upload visual QA evidence');
-  assert.ok(install>=0&&run>install&&upload>run,'Draft output QA must run after WebKit installation and before evidence upload');
+  const ci=await read('scripts/verify-local.mjs');
+  assert.match(ci,/assertBrowserReady/);
+  assert.match(ci,/run-v337-draft-output\\.cjs/);
+  assert.match(ci,/visual-qa-output/);
+  assert.match(ci,/runBrowserQa/);
+  assert.match(ci,/process.exitCode=1/);
 });

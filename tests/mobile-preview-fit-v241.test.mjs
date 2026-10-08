@@ -19,10 +19,10 @@ test('v241 width-fits narrow-phone A4 preview without shrinking printable docume
 
 test('v241 makes preview-edge containment a required Browser Visual QA check',async()=>{
   const [workflow,runner]=await Promise.all([
-    read('.github/workflows/ci.yml'),
+    read('scripts/verify-local.mjs'),
     read('tests/visual/run-mobile-preview-fit-v241.cjs')
   ]);
-  assert.match(workflow,/node tests\/visual\/run-mobile-preview-fit-v241\.cjs/);
+  assert.match(workflow,/tests\/visual\/run-mobile-preview-fit-v241\.cjs/);
   assert.match(runner,/A4 preview clips the left edge/);
   assert.match(runner,/A4 preview clips the right edge/);
   assert.match(runner,/A4 preview is not width-fit/);

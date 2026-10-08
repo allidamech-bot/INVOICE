@@ -60,13 +60,13 @@ Backup creates one encrypted `.lourex-backup` file containing the complete vault
 
 ## Development
 
-Requirements: Node.js 20+.
+Requirements: Node.js 24.x.
 
 ```bash
-npm install
-npm run typecheck
-npm test
-npm run build
+npm ci
+npm install --no-save --package-lock=false playwright@1.55.0
+npx playwright install chromium webkit
+node scripts/verify-local.mjs
 ```
 
 The production build is written to `dist/`.
@@ -98,4 +98,7 @@ public/
 
 ## Verification
 
-`npm test` builds the production application and runs regression coverage for fixed-precision financial calculations, independent numbering, document snapshots, conversion/duplication, long-document pagination, encrypted storage, PIN verification, encrypted backup/restore, cloud ownership/integrity, PWA caching, iOS PDF behavior, RTL/LTR output, all template identifiers, mobile editor behavior and concurrent local writes.
+`node scripts/verify-local.mjs` runs mandatory local checks, security, production build and Chromium/WebKit regressions including fixed-precision financial calculations, independent numbering, document snapshots, conversion/duplication, long-document pagination, encrypted storage, PIN verification, encrypted backup/restore, cloud ownership/integrity, PWA caching, iOS PDF behavior, RTL/LTR output, all template identifiers, mobile editor behavior and concurrent local writes.
+
+
+For local setup, optional historical diagnostics and manual PR verification, see [the local QA runbook](docs/LOCAL_VERIFICATION_NO_ACTIONS.md).

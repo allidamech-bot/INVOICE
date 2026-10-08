@@ -166,9 +166,9 @@ test('Commercial flow visual layer loads before the final reliability bridge and
 
 test('Batch 1 mobile browser QA is part of the blocking current business shard',async()=>{
   const [ci,runner,fixture]=await Promise.all([
-    read('.github/workflows/ci.yml'),read('tests/visual/run-commercial-flow-batch1.cjs'),read('tests/visual/commercial-flow-batch1.html')
+    read('scripts/verify-local.mjs'),read('tests/visual/run-commercial-flow-batch1.cjs'),read('tests/visual/commercial-flow-batch1.html')
   ]);
-  assert.match(ci,/run_qa 180 node tests\/visual\/run-commercial-flow-batch1\.cjs/);
+  assert.match(ci,/tests\/visual\/run-commercial-flow-batch1\.cjs/);
   assert.match(runner,/viewport:\{width:390,height:844\}/);
   assert.match(runner,/Mark Sent/);
   assert.match(runner,/تسجيل الرفض/);
