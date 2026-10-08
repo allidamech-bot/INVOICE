@@ -63,7 +63,7 @@ test('B04: network failure for an action gives a clear retry instruction',async(
 
 test('B04: non-action read/chat fallback retains existing natural-language behavior',async()=>{
   await withPlannerReply(ok({plan:{version:1,goal:'lookup',calls:[]}}),async()=>{
-    const result=await request('What is the inventory status?');
+    const result=await request('Compare customer options for a new loyalty campaign');
     assert.equal(result,null);
   });
 });
