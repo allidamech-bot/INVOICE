@@ -16,6 +16,8 @@ export interface ConversationAttachmentSource{
   extracted:string;
 }
 export interface ConversationAttachmentAnalysis{source:ConversationAttachmentSource;file:File;}
+export type ConversationAttachmentPhase='reading'|'classifying'|'extracting'|'fallback'|'complete';
+export type ConversationAttachmentProgress=(phase:ConversationAttachmentPhase)=>void;
 
 type AiPayload={kind:'text'|'file';mimeType:string;text?:string;data?:string};
 
@@ -81,14 +83,19 @@ async function genericExtraction(fileName:string,payload:AiPayload,signal?:Abort
   return compactJson(body?.source??null);
 }
 
-export async function analyzeConversationAttachment(file:File,signal?:AbortSignal):Promise<ConversationAttachmentAnalysis>{
+export async function analyzeConversationAttachment(file:File,signal?:AbortSignal,onProgress?:ConversationAttachmentProgress):Promise<ConversationAttachmentAnalysis>{
+  onProgress?.('reading');
   const payload=await conversationAttachmentPayload(file);
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  onProgress?.('classifying');
   let classification:ConversationAttachmentClassification={route:'unknown',documentType:'unknown',confidence:0,reason:'LOUREX Inbox could not classify this source reliably; general read-only extraction was used.'};
   try{
     const classificationBody=await requestAiJson('/api/ai-inbox',{fileName:file.name,...payload},signal,30_000);
     const raw=classificationBody?.classification??{};const route=(['customer','supplier','supplier_purchase','quote_request','product_list','unknown'].includes(String(raw.route))?String(raw.route):'unknown') as ConversationAttachmentRoute;
     classification={route,documentType:boundedText(raw.documentType,80)||'unknown',confidence:Math.max(0,Math.min(1,Number(raw.confidence)||0)),reason:boundedText(raw.reason,300)};
   }catch(error){if(signal?.aborted)throw error;}
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  onProgress?.('extracting');
   let extracted='';const endpoint=extractionEndpoint(classification.route);
   if(!endpoint){
     extracted=await genericExtraction(file.name,payload,signal);
@@ -98,11 +105,14 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
       extracted=compactJson(extractedPayload(classification.route,body));
     }catch(error){
       if(signal?.aborted)throw error;
+      onProgress?.('fallback');
       extracted=await genericExtraction(file.name,payload,signal);
       classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
     }
   }
   if(!extracted&&payload.kind==='text')extracted=boundedText(payload.text,MAX_EXTRACT_CHARS);
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  onProgress?.('complete');
   return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),size:file.size,route:classification.route,documentType:classification.documentType,confidence:classification.confidence,reason:classification.reason,extracted}};
 }
 
