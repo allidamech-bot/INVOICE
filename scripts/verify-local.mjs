@@ -457,6 +457,11 @@ function gitFiles(){
   if(result.status!==0||result.error)throw Error('Missing origin/main comparison. Fetch latest origin/main; never skip changed PR tests.');
   return result.stdout.split(/\r?\n/).filter(f=>/^tests\/[^/]+\.test\.mjs$/.test(f));
 }
+function assertCleanWorkingTree(){
+  const check=spawnSync('git',['status','--porcelain'],{cwd:ROOT,encoding:'utf8',windowsHide:true});
+  if(check.error||check.status!==0)throw Error('Git status unavailable; local signoff must run in a valid checked-out repository.');
+  if(check.stdout.trim())throw Error('Working tree has uncommitted changes; commit and review the final PR HEAD before signoff.');
+}
 function assertNoActions(){
   const dir=path.join(ROOT,'.github','workflows');
   const files=existsSync(dir)?readdirSync(dir).filter(f=>/\.ya?ml$/.test(f)):[];
@@ -495,13 +500,14 @@ function runLocalChecks(){
   if(Number(process.versions.node.split('.')[0])!==24)throw Error('Node.js 24.x is required');
   if(!existsSync(path.join(ROOT,'node_modules','typescript')))throw Error('Missing dependencies: run npm ci');
   assertNoActions();
+  if(!args.has('--quick'))assertCleanWorkingTree();
   run(npm,['audit','--audit-level=high']);
   run(process.execPath,['scripts/security-check.mjs']);
   run(npm,['run','typecheck']);
   run(npm,['run','build']);
   const tests=[...new Set([...CONTRACTS,...gitFiles()])].sort();
   for(const file of tests)if(!existsSync(path.join(ROOT,file)))throw Error('Mandatory contract missing: '+file);
-  run(process.execPath,['--test',...tests],900000);
+  run(process.execPath,['--test','--test-concurrency=2',...tests],900000);
 }
 async function main(){
   if(args.has('--quick'))console.warn('DEVELOPMENT ONLY: --quick skips mandatory browser QA; not a merge signoff.');
