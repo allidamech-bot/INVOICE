@@ -98,3 +98,16 @@ test('B08.3: prioritized CFO health evidence remains ahead of bulk account and c
   assert.match(code,/health:\{status,score:null,signals\},evidence:prioritizedEvidence,missingData/);
   assert.doesNotMatch(code,/health:\{status,score:null,signals\},evidence:evidenceRows\.slice\(0,32\)/);
 });
+
+test('B08.3: invalid cost evidence never appears as a trusted cost in editing or year-to-date guidance',async()=>{
+  const [panel,center,reports]=await Promise.all([
+    readFile('src/components/ProfitabilityPanel.tsx','utf8'),
+    readFile('src/components/ProfitabilityCenter.tsx','utf8'),
+    readFile('src/components/ReportsPage.tsx','utf8')
+  ]);
+  assert.match(panel,/summary\.invalidInternalCostFields\?'—':formatMoney\(summary\.totalCost/);
+  assert.match(panel,/Correct invalid internal expenses first/);
+  assert.match(center,/if\(!row\.profitComplete\)items\.push/);
+  assert.match(center,/internal expense evidence is missing or invalid/);
+  assert.match(reports,/Cost evidence incomplete/);
+});
