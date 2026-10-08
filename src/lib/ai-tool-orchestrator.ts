@@ -115,7 +115,18 @@ function documentCustomerMatch(runtime:AiToolRuntime,args:Record<string,unknown>
   return rows.length===1?rows[0]:null;
 }
 function documentDraftItems(args:Record<string,unknown>):Record<string,string>[]{
-  if(!Array.isArray(args.items))return[];return args.items.slice(0,20).map(value=>safeObject(value)).map(row=>({savedItemId:clean(row.savedItemId,120),descriptionEn:clean(row.descriptionEn||row.description||row.name,160),descriptionAr:clean(row.descriptionAr,160),quantity:clean(row.quantity,24),unit:clean(row.unit,40),unitPrice:clean(row.unitPrice||row.price,24)})).filter(row=>Boolean(row.savedItemId||row.descriptionEn||row.descriptionAr));
+  if(!Array.isArray(args.items))return[];
+  if(args.items.length>20)throw new Error('Document has over 20 rows. No rows were omitted; split or review the complete source first.');
+  const rows=args.items.map(value=>{
+    if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid document row. No rows were silently dropped.');
+    const row=safeObject(value);
+    const savedItemId=clean(row.savedItemId,120);
+    const descriptionEn=clean(row.descriptionEn||row.description||row.name,160);
+    const descriptionAr=clean(row.descriptionAr,160);
+    if(!savedItemId&&!descriptionEn&&!descriptionAr)throw new Error('An item lacks its source-supported identity. No rows were silently dropped.');
+    return{savedItemId,descriptionEn,descriptionAr,quantity:clean(row.quantity,24),unit:clean(row.unit,40),unitPrice:clean(row.unitPrice??row.price,24)};
+  });
+  return rows;
 }
 function findDocument(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.documentId,120)||relevantEntity(runtime,'document');const number=clean(args.number||args.query||args.documentId,100);return runtime.vault.documents.find(row=>(id&&(row.id===id||lower(row.number)===lower(id)))||(number&&lower(row.number)===lower(number)))??null;}
 function findPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.purchaseId,120)||relevantEntity(runtime,'purchase');const number=clean(args.number||args.query,100);return runtime.vault.purchases.find(row=>(id&&row.id===id)||(number&&lower(row.number)===lower(number)))??null;}
@@ -185,7 +196,27 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
   if(call.tool==='product.importSource'){if(runtime.scope!=='business')throw new Error('Product registration requires Business scope.');const batch=prepareAiProductSourceImport(runtime.vault,args.sources,{generateMissingSku:args.generateMissingSku===true});return{capability:'tool.execute',tool:'product.importSource',args:batch,preview:batch.rows.map(row=>({...row.preview,fileName:row.fileName})),label:'Review '+batch.rows.length+' extracted products',rationale:'These rows were extracted from your attachments. Verify every description, price, currency and SKU before approving creation.'};}
   if(call.tool==='product.bulkUpdate'){if(runtime.scope!=='business')throw new Error('Bulk product edits require Business scope.');const batch=Object.hasOwn(args,'groupPrice')?prepareAiProductGroupPrice(runtime.vault,args.groupPrice):Object.hasOwn(args,'transform')?prepareAiBulkProductTransform(runtime.vault,args.transform):prepareAiBulkProductUpdate(runtime.vault,args.updates);return{capability:'tool.execute',tool:'product.bulkUpdate',args:batch,preview:batch.rows.map(row=>row.preview),label:'Review '+batch.rows.length+' product changes',rationale:'Review every old and new value before approving one atomic catalog update.'};}
   if(call.tool==='document.createDraft'){const kind=clean(args.kind,30)==='invoice'?'invoice':'proforma',customer=documentCustomerMatch(runtime,args),customerDraft=customer?null:documentCustomerDraft(args);return{capability:'document.createDraft',kind,customerId:customer?.id||'',customerDraft,currency:currency(args.currency)||runtime.vault.company.defaultCurrency||'USD',language:clean(args.language,12)==='ar'?'ar':clean(args.language,12)==='bilingual'?'bilingual':'en',items:documentDraftItems(args),incoterm:clean(args.incoterm,80),paymentTerms:clean(args.paymentTerms,120),deliveryTime:clean(args.deliveryTime,120),validity:clean(args.validity,100),remarks:clean(args.remarks,500),notes:clean(args.notes,500),label:clean(args.label,80)||'Create draft',rationale:call.reason||'Prepared draft creation.'};}
-  if(call.tool==='document.updateDraft'){const target=findDocument(runtime,args);if(!target||target.status!=='draft'||target.lifecycleStatus==='voided')return null;return{capability:'document.updateDraft',documentId:target.id,language:args.language,addItems:Array.isArray(args.addItems)?args.addItems.slice(0,20):[],itemEdits:Array.isArray(args.itemEdits)?args.itemEdits.slice(0,30):[],termsPatch:safeObject(args.termsPatch),notes:typeof args.notes==='string'?clean(args.notes,500):undefined,label:clean(args.label,80)||'Update draft',rationale:call.reason||'Prepared draft update.'};}
+  if(call.tool==='document.updateDraft'){
+    if((args.addItems!==undefined&&!Array.isArray(args.addItems))||(args.itemEdits!==undefined&&!Array.isArray(args.itemEdits)))
+      throw new Error('Invalid draft edit arrays. No edits were omitted.');
+    if((Array.isArray(args.addItems)&&args.addItems.length>20)||(Array.isArray(args.itemEdits)&&args.itemEdits.length>30))
+      throw new Error('Document edit exceeds safe review limits. No edits were omitted.');
+    const target=findDocument(runtime,args);
+    if(!target||target.status!=='draft'||target.lifecycleStatus==='voided')return null;
+    const addItems=documentDraftItems({items:args.addItems||[]});
+    const itemEdits=Array.isArray(args.itemEdits)?args.itemEdits.map(value=>{
+      if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid draft item edit. No edits were omitted.');
+      return value;
+    }):[];
+    const validIds=new Set(target.items.map((item:{id:string})=>item.id));
+    const editedIds=new Set<string>();
+    for(const item of itemEdits){
+      const edit=safeObject(item),id=clean(edit.itemId,120);
+      if(!id||!validIds.has(id)||editedIds.has(id))throw new Error('Missing or duplicated draft line identity. No edits were omitted.');
+      editedIds.add(id);
+    }
+    return{capability:'document.updateDraft',documentId:target.id,language:args.language,addItems,itemEdits,termsPatch:safeObject(args.termsPatch),notes:typeof args.notes==='string'?clean(args.notes,500):undefined,label:clean(args.label,80)||'Update draft',rationale:call.reason||'Prepared draft update.'};
+  }
   if(['customer.update','supplier.update','task.create'].includes(call.tool))return{capability:'tool.execute',tool:call.tool,args,label:clean(args.label,80)||call.tool,rationale:call.reason||'Prepared safe LOUREX action.'} as AiToolExecutionProposal;
   return null;
 }
