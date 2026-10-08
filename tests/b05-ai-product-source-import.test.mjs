@@ -22,6 +22,9 @@ test('B05: only explicit user instructions authorize registering source products
   assert.equal(requestedAiProductImport('What is in this catalog?'),false);
   assert.equal(requestedAiProductImport('List every product and price'),false);
   assert.equal(requestedAiProductImport('أعطني أسعار المنتجات'),false);
+  assert.equal(requestedAiProductImport('Do not save any products; just list them'),false);
+  assert.equal(requestedAiProductImport('لا تسجل المنتجات، اعرض فقط'),false);
+  assert.equal(requestedAiProductImport('Preview only; do not register products'),false);
 });
 test('B05: product list stages every source row for review without mutation',()=>{
   const v=vault(),before=JSON.stringify(v);
