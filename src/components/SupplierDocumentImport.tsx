@@ -3,7 +3,7 @@ import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { buildAiSupplierPurchaseDraft } from '../lib/ai-supplier-purchase-draft.js';
-import { extractSupplierDraftFromSheets, type SupplierImportDraft } from '../lib/supplier-document-import.js';
+import { combineSupplierImportDrafts, extractSupplierDraftFromSheets, type SupplierImportDraft } from '../lib/supplier-document-import.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { Button, Icon, Modal } from './UI.js';
@@ -11,6 +11,8 @@ import { Button, Icon, Modal } from './UI.js';
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_SPREADSHEET_BYTES=12_000_000;
 const MAX_TEXT_CHARS=120_000;
+const MAX_IMPORT_FILES=4;
+const MAX_BATCH_BYTES=24_000_000;
 
 type ImportStage='idle'|'reading'|'extracting'|'ai'|'ready'|'saving'|'saved'|'error';
 type AiPayload={kind:'text'|'file';mimeType:string;text?:string;data?:string};
@@ -48,7 +50,7 @@ function stageCopy(stage:ImportStage):{title:string;detail:string}{
 
 export class SupplierDocumentImport extends React.Component<Props,State>{
   private input:HTMLInputElement|null=null;
-  private pendingFile:File|null=null;
+  private pendingFiles:File[]=[];
   private requestGeneration=0;
   private requestAbort:AbortController|null=null;
   private requestInFlight=false;
@@ -69,7 +71,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
 
   private openPicker=()=>{
     this.cancelRequest();
-    this.pendingFile=null;
+    this.pendingFiles=[];
     this.setState({open:true,stage:'idle',error:'',fileName:'',draft:null,model:''},()=>this.input?.click());
   };
 
@@ -79,46 +81,68 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
     this.setState({open:false,stage:'idle',error:'',draft:null,fileName:'',model:''});
   };
 
-  private requestAi=async(file:File,payload:AiPayload,generation:number)=>{
+  private requestAi=async(file:File,payload:AiPayload,generation:number):Promise<SupplierImportDraft|null>=>{
     const controller=new AbortController();this.requestAbort=controller;
     this.setState({stage:'ai'});
     try{
       const body=await requestAiJson('/api/supplier-document-ai',{fileName:file.name,...payload},controller.signal);
+      if(generation!==this.requestGeneration||controller.signal.aborted)return null;
       if(!body?.draft?.items?.length)throw new Error(t('No reliable purchase lines were found.','لم يتم العثور على بنود شراء موثوقة.'));
-      if(generation!==this.requestGeneration||controller.signal.aborted)return;
-      this.setState({draft:body.draft as SupplierImportDraft,model:String(body.model||'LOUREX AI'),stage:'ready',error:''});
-    }catch(error){
-      if(generation!==this.requestGeneration)return;
-      const timedOut=controller.signal.aborted;
-      this.setState({stage:'error',error:timedOut?t('Analysis took too long. Check the connection and retry; nothing was saved.','استغرق التحليل وقتًا طويلًا. تحقق من الاتصال وأعد المحاولة؛ لم يتم حفظ شيء.'):error instanceof Error?error.message:String(error),draft:null});
+      return body.draft as SupplierImportDraft;
     }finally{
       if(this.requestAbort===controller)this.requestAbort=null;
     }
   };
 
-  private choose=async(file:File|null)=>{
-    if(!file||this.requestInFlight||this.saveInFlight)return;
-    this.pendingFile=file;
+  private chooseFiles=async(files:File[])=>{
+    if(!files.length||this.requestInFlight||this.saveInFlight)return;
+    if(files.length>MAX_IMPORT_FILES){
+      this.setState({stage:'error',error:t('Choose at most four related supplier files at a time. Nothing was saved.','اختر أربعة ملفات مورد مترابطة كحد أقصى. لم يُحفظ شيء.'),draft:null});
+      return;
+    }
+    if(files.reduce((total,file)=>total+file.size,0)>MAX_BATCH_BYTES){
+      this.setState({stage:'error',error:t('The selected files exceed the 24 MB safe batch limit. Split the import.','الملفات تتجاوز حد الدفعة الآمن 24 MB. قسّم الاستيراد.'),draft:null});
+      return;
+    }
+    this.pendingFiles=files;
     const generation=++this.requestGeneration;
     this.requestInFlight=true;
-    this.setState({stage:'reading',error:'',draft:null,fileName:file.name,model:''});
+    this.setState({stage:'reading',error:'',draft:null,fileName:files.map(file=>file.name).join(' · '),model:''});
+    const parsed:Array<{name:string;draft:SupplierImportDraft}>=[];
+    let usedAi=false;
     try{
-      const name=file.name.toLowerCase();
-      if(name.endsWith('.csv')||name.endsWith('.txt')||name.endsWith('.xlsx')||name.endsWith('.xls')){
-        if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('This spreadsheet is too large for reliable mobile import. Reduce it below 12 MB.','حجم الجدول كبير للاستيراد الموثوق على الهاتف. خفّضه لأقل من 12 MB.'));
-        const sheets=await readSpreadsheetFile(file);
+      for(let index=0;index<files.length;index+=1){
+        const file=files[index]!;
         if(generation!==this.requestGeneration)return;
-        await new Promise<void>(resolve=>this.setState({stage:'extracting'},resolve));
-        const localDraft=extractSupplierDraftFromSheets(sheets);
-        if(localDraft){this.setState({draft:localDraft,model:t('Local spreadsheet parser','محلل الجدول المحلي'),stage:'ready',error:''});return;}
-        const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);
-        if(!text.trim())throw new Error(t('The workbook does not contain readable purchase data.','ملف Excel لا يحتوي بيانات شراء قابلة للقراءة.'));
-        await this.requestAi(file,{kind:'text',mimeType:'text/csv',text},generation);
-      }else{
-        const payload=await binaryPayload(file);
+        this.setState({stage:'reading',fileName:`${index+1}/${files.length} — ${file.name}`});
+        const name=file.name.toLowerCase();
+        let extracted:SupplierImportDraft|null=null;
+        if(name.endsWith('.csv')||name.endsWith('.txt')||name.endsWith('.xlsx')||name.endsWith('.xls')){
+          if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t(`${file.name} exceeds the 12 MB spreadsheet limit.`,`يتجاوز الملف ${file.name} حد Excel البالغ 12 MB.`));
+          const sheets=await readSpreadsheetFile(file);
+          if(generation!==this.requestGeneration)return;
+          await new Promise<void>(resolve=>this.setState({stage:'extracting'},resolve));
+          extracted=extractSupplierDraftFromSheets(sheets);
+          if(!extracted){
+            const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS+1);
+            if(!text.trim())throw new Error(t('The workbook has no readable purchase lines.','ملف Excel لا يحتوي بنود شراء قابلة للقراءة.'));
+            if(text.length>MAX_TEXT_CHARS)throw new Error(t('The workbook exceeds the safe AI extraction limit. Use a structured Excel table or split the file.','ملف Excel يتجاوز الحد الآمن لتحليل AI. استخدم جدولًا منظمًا أو قسّم الملف.'));
+            extracted=await this.requestAi(file,{kind:'text',mimeType:'text/csv',text},generation);
+            usedAi=true;
+          }
+        }else{
+          const payload=await binaryPayload(file);
+          if(generation!==this.requestGeneration)return;
+          extracted=await this.requestAi(file,payload,generation);
+          usedAi=true;
+        }
         if(generation!==this.requestGeneration)return;
-        await this.requestAi(file,payload,generation);
+        if(!extracted)throw new Error(t('The file could not be fully extracted. Nothing was saved.','تعذر استخراج الملف بالكامل. لم يُحفظ شيء.'));
+        parsed.push({name:file.name,draft:extracted});
       }
+      const draft=combineSupplierImportDrafts(parsed);
+      if(generation!==this.requestGeneration)return;
+      this.setState({draft,model:usedAi?t('Local + LOUREX AI review','مراجعة محلية وAI'):t('Local spreadsheet parser','محلل الجدول المحلي'),stage:'ready',error:'',fileName:files.map(file=>file.name).join(' · ')});
     }catch(error){
       if(generation===this.requestGeneration)this.setState({stage:'error',error:error instanceof Error?error.message:String(error),draft:null});
     }finally{
@@ -127,7 +151,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
     }
   };
 
-  private retry=()=>{if(this.pendingFile&&!this.requestInFlight)void this.choose(this.pendingFile);};
+  private retry=()=>{if(this.pendingFiles.length&&!this.requestInFlight)void this.chooseFiles(this.pendingFiles);};
 
   private saveDraft=async()=>{
     const extracted=this.state.draft;
@@ -151,12 +175,14 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
       <Button icon="upload" onClick={this.openPicker}>{t('Import Supplier Document','استيراد مستند مورد')}</Button>
       <Modal portal open={this.state.open} title={t('Supplier Document → Purchase Draft','مستند مورد ← مسودة شراء')} size="lg" onClose={this.close} footer={footer}>
         <div className={`supplier-import-shell stage-${this.state.stage}`} data-supplier-import-stage={this.state.stage} aria-busy={this.busy()}>
-          <input ref={(node:any)=>{this.input=node;}} className="supplier-import-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,application/pdf,image/png,image/jpeg,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" onChange={(event:any)=>void this.choose(event.target.files?.[0]??null)}/>
-          {this.state.stage==='idle'?<div className="supplier-import-start"><span className="supplier-import-icon"><Icon name="upload"/></span><div><p className="eyebrow">{t('Review-first purchasing','مشتريات تبدأ بالمراجعة')}</p><h3>{t('Create a purchase draft from a supplier file','أنشئ مسودة شراء من ملف المورد')}</h3><p>{t('Excel and CSV are parsed locally first. PDF and images use LOUREX AI. Nothing reaches inventory or accounting until the draft is reviewed and posted from Operations.','يتم تحليل Excel وCSV محليًا أولًا. تستخدم ملفات PDF والصور ذكاء LOUREX. لا يصل شيء إلى المخزون أو المحاسبة حتى تُراجع المسودة وتُرحّل من العمليات.')}</p></div><Button icon="upload" onClick={()=>this.input?.click()}>{t('Choose File','اختر ملفًا')}</Button></div>:null}
+          <input ref={(node:any)=>{this.input=node;}} className="supplier-import-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,application/pdf,image/png,image/jpeg,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple onChange={(event:any)=>void this.chooseFiles(Array.from(event.target.files??[]) as File[])}/>
+          {this.state.stage==='idle'?<div className="supplier-import-start"><span className="supplier-import-icon"><Icon name="upload"/></span><div><p className="eyebrow">{t('Review-first purchasing','مشتريات تبدأ بالمراجعة')}</p><h3>{t('Create a purchase draft from related supplier files','أنشئ مسودة شراء من ملفات المورد المترابطة')}</h3><p>{t('Select up to four files for the same supplier document. Every worksheet and file is checked; conflicting currencies or incomplete lines block the draft. No inventory or accounting is posted.','اختر حتى أربعة ملفات لنفس مستند المورد. يتم فحص كل ورقة وكل ملف؛ اختلاف العملات أو نقص البنود يمنع إنشاء المسودة. لا يُرحّل أي مخزون أو حسابات.')}</p></div><Button icon="upload" onClick={()=>this.input?.click()}>{t('Choose files (up to 4)','اختر ملفات (حتى 4)')}</Button></div>:null}
           {this.busy()?<div className="supplier-import-progress" role="status"><span className="supplier-import-icon"><Icon name={this.state.stage==='ai'?'items':'file'}/></span><div><p className="eyebrow">{progress.title}</p><h3><bdi dir="auto">{this.state.fileName}</bdi></h3><p>{progress.detail}</p><div className="supplier-import-steps" aria-label={t('Import progress','تقدم الاستيراد')}><span className={['reading','extracting','ai','saving'].includes(this.state.stage)?'complete':''}>{t('File selected','تم اختيار الملف')}</span><span className={['extracting','ai','saving'].includes(this.state.stage)?'complete':''}>{t('Local extraction','استخراج محلي')}</span><span className={this.state.stage==='ai'?'active':this.state.stage==='saving'?'complete':''}>{t('AI if needed','AI عند الحاجة')}</span><span className={this.state.stage==='saving'?'active':''}>{t('Draft review','مراجعة المسودة')}</span></div></div></div>:null}
-          {this.state.stage==='error'?<div className="supplier-import-error-state"><span className="supplier-import-icon is-error"><Icon name="x"/></span><div><p className="eyebrow">{t('Import stopped safely','توقف الاستيراد بأمان')}</p><h3>{t('No purchase draft was saved','لم يتم حفظ مسودة شراء')}</h3><p className="inline-error" role="alert">{this.state.error}</p></div><div className="supplier-import-retry-actions"><Button onClick={()=>this.input?.click()}>{t('Choose another file','اختر ملفًا آخر')}</Button><Button variant="primary" icon="refresh" disabled={!this.pendingFile} onClick={this.retry}>{t('Retry','إعادة المحاولة')}</Button></div></div>:null}
+          {this.state.stage==='error'?<div className="supplier-import-error-state"><span className="supplier-import-icon is-error"><Icon name="x"/></span><div><p className="eyebrow">{t('Import stopped safely','توقف الاستيراد بأمان')}</p><h3>{t('No purchase draft was saved','لم يتم حفظ مسودة شراء')}</h3><p className="inline-error" role="alert">{this.state.error}</p></div><div className="supplier-import-retry-actions"><Button onClick={()=>this.input?.click()}>{t('Choose another file','اختر ملفًا آخر')}</Button><Button variant="primary" icon="refresh" disabled={!this.pendingFiles.length} onClick={this.retry}>{t('Retry','إعادة المحاولة')}</Button></div></div>:null}
           {draft&&this.state.stage==='ready'?<div className="supplier-import-review">
             <div className="supplier-import-review-head"><div><p className="eyebrow">{t('Draft ready for review','المسودة جاهزة للمراجعة')}</p><h3><bdi dir="auto">{draft.supplierName||t('Supplier not identified','لم يتم تحديد المورد')}</bdi></h3><small><bdi dir="auto">{[draft.documentNumber,draft.date,draft.currency].filter(Boolean).join(' · ')||t('Complete missing header details in Operations','أكمل بيانات الرأس الناقصة في العمليات')}</bdi></small></div><span>{this.state.model}</span></div>
+            {draft.sourceSheets?.length?<p className="supplier-import-sources" role="status">{t(`${draft.items.length} verified rows from ${draft.sourceSheets.length} source section(s).`,`${draft.items.length} بندًا تم التحقق منها من ${draft.sourceSheets.length} قسم مصدر.`)} <bdi dir="auto">{draft.sourceSheets.map(source=>`${source.name} (${source.itemCount})`).join(' · ')}</bdi></p>:null}
+            {draft.skippedSheets?.length?<p className="supplier-import-sources">{t('Non-table worksheets skipped (review the source):','أوراق غير جدولية لم تُستورد (راجع المصدر):')} <bdi dir="auto">{draft.skippedSheets.join(' · ')}</bdi></p>:null}
             <div className="supplier-import-items">{draft.items.slice(0,40).map((item,index)=><div key={`${item.sku}-${index}`} className="supplier-import-item"><span><strong><bdi dir="auto">{item.descriptionEn||item.descriptionAr||item.sku}</bdi></strong><small><bdi dir="auto">{[item.sku,item.quantity,item.unit].filter(Boolean).join(' · ')}</bdi></small></span><bdi dir="ltr">{item.unitCost} {draft.currency}</bdi></div>)}</div>
             {draft.items.length>40?<small className="supplier-import-more">{t(`${draft.items.length-40} more lines will be included in the draft.`,`سيتم تضمين ${draft.items.length-40} بندًا إضافيًا في المسودة.`)}</small>:null}
             <div className="supplier-import-costs"><strong>{t('Extra costs','التكاليف الإضافية')}</strong><span>{t('Freight','الشحن')}: <bdi dir="ltr">{draft.freight||'—'}</bdi></span><span>{t('Duty','الجمارك')}: <bdi dir="ltr">{draft.duty||'—'}</bdi></span><span>{t('Other','أخرى')}: <bdi dir="ltr">{draft.otherCosts||'—'}</bdi></span></div>
