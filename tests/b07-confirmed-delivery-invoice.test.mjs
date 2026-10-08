@@ -9,7 +9,7 @@ import {acceptSalesOrder} from '../dist/src/lib/sales-order-flow.js';
 import {createLinkedDeliveryDraft} from '../dist/src/lib/delivery-flow.js';
 import {confirmSalesDelivery} from '../dist/src/lib/sales-delivery-flow.js';
 import {
-  createConfirmedDeliveryInvoiceDraft, linkedDeliveryInvoice, invoiceSourceDelivery, assertDeliveryInvoiceIntegrity
+  createConfirmedDeliveryInvoiceDraft, linkedDeliveryInvoice, invoiceSourceDelivery, assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity
 } from '../dist/src/lib/sales-delivery-invoice.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {todayIso,addDaysIso} from '../dist/src/lib/id.js';
@@ -189,6 +189,27 @@ test('Batch 7 — final partial-delivery invoice uses canonical receivables with
   const secondPayment=normalizePaymentRecord(issuedSecond,[firstPayment,balancePayment],
     payment('payment-205','205.00',issuedSecond),documents);
   assert.equal(invoicePaymentSummary(issuedSecond,[firstPayment,balancePayment,secondPayment],at,documents).status,'paid');
+});
+
+test('Batch 7 — confirmed delivery invoice evidence is append-only under offline sync',()=>{
+  const {vault,quote}=setup();
+  const receipt=confirmed(vault,quote,['4','1'],'POD-LEDGER');
+  const created=createConfirmedDeliveryInvoiceDraft(receipt.vault,receipt.note.id);
+  const events=created.vault.documentEvents;
+  const link=events.find(event=>event.documentId===created.invoice.id
+    &&event.note.startsWith('@lourex:sales-order:delivery-invoice:v1:'));
+  assert.ok(link);
+  const deleted=events.filter(event=>event.id!==link.id);
+  const rewritten=events.map(event=>event.id===link.id
+    ?{...event,note:event.note.replace('POD-LEDGER','POD-REWRITTEN')}:event);
+  assert.throws(()=>assertDeliveryInvoiceLedgerContinuity(events,deleted,events),/append-only/);
+  assert.throws(()=>assertDeliveryInvoiceLedgerContinuity(events,rewritten,events),/append-only/);
+  assert.throws(()=>assertDeliveryInvoiceLedgerContinuity(events,events,deleted),/append-only/);
+  assert.throws(()=>assertDeliveryInvoiceLedgerContinuity(events,events,rewritten),/append-only/);
+  assert.throws(()=>mergeVaultIntent(created.vault,{...created.vault,documentEvents:deleted},created.vault),/append-only/);
+  assert.throws(()=>mergeVaultIntent(created.vault,{...created.vault,documentEvents:rewritten},created.vault),/append-only/);
+  assert.throws(()=>mergeVaultIntent(created.vault,created.vault,{...created.vault,documentEvents:deleted}),/append-only/);
+  assert.doesNotThrow(()=>mergeVaultIntent(created.vault,created.vault,created.vault));
 });
 
 test('Batch 7 — only authorized owner/admin/sales/finance operators may prepare an invoice',()=>{
