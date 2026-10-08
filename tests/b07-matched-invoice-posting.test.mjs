@@ -148,10 +148,12 @@ test('Batch7: no more than one stock receipt or payable is accepted for one matc
   // future sync strategy bypasses the early purchase conflict guard.
   const duplicatePostedEvents=right.documentEvents.filter(event=>
     event.note.startsWith('@lourex:supplier-invoice:purchase-posted:v1:'));
-  const conflicting={...left,documentEvents:[...left.documentEvents,...duplicatePostedEvents],
-    inventoryMovements:[...left.inventoryMovements,...right.inventoryMovements]};
-  assert.throws(()=>assertMatchedSupplierInvoicePostingIntegrity(conflicting),
+  const duplicateAudit={...left,documentEvents:[...left.documentEvents,...duplicatePostedEvents]};
+  assert.throws(()=>assertMatchedSupplierInvoicePostingIntegrity(duplicateAudit),
     /Duplicate or invalid supplier invoice posting evidence/);
+  const duplicateStock={...left,inventoryMovements:[...left.inventoryMovements,...right.inventoryMovements]};
+  assert.throws(()=>assertMatchedSupplierInvoicePostingIntegrity(duplicateStock),
+    /Duplicate, missing or inconsistent supplier invoice inventory posting/);
   const tampered={...left,purchases:left.purchases.map(x=>({...x,items:x.items.map((item,i)=>i===0?{...item,unitCost:'11'}:item)}))};
   assert.throws(()=>assertMatchedSupplierInvoicePostingIntegrity(tampered),/differs from the reviewed supplier invoice|differs from the approved invoice/);
   const missingAudit={...left,documentEvents:left.documentEvents.filter(e=>!e.note.startsWith('@lourex:supplier-invoice:purchase-posted:v1:'))};
