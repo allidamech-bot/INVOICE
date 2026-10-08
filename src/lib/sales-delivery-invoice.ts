@@ -201,18 +201,21 @@ export function assertDeliveryInvoiceIntegrity(documents:LourexDocument[],events
       fail('Invoice issue date cannot precede confirmed delivery.','تاريخ إصدار الفاتورة لا يمكن أن يسبق التسليم المؤكد.');
     if(record.lines.length!==proof[0]!.lines.length)
       fail('Invoice must include every confirmed delivery line.','يجب أن تشمل الفاتورة جميع بنود التسليم المؤكد.');
+    const sourceLines=new Map(context.quotation.items.map(item=>[item.id,item]));
     const orderLines=new Map(context.order.lines.map(line=>[line.quotationLineId,line]));
     const mapped=new Map(proof[0]!.lines.map(line=>[line.salesOrderLineId,line]));
     const seenLines=new Set<string>();
     for(let i=0;i<record.lines.length;i++){
       const ref=record.lines[i]!,item=invoice.items[i],accepted=orderLines.get(ref.salesOrderLineId);
-      const confirmed=mapped.get(ref.salesOrderLineId);
-      if(!item||!accepted||!confirmed||seenLines.has(ref.salesOrderLineId)
+      const confirmed=mapped.get(ref.salesOrderLineId),sourceItem=sourceLines.get(ref.salesOrderLineId);
+      if(!item||!accepted||!confirmed||!sourceItem||seenLines.has(ref.salesOrderLineId)
         ||item.id!==ref.invoiceLineId||confirmed.deliveryLineId!==ref.deliveryLineId
         ||scaled(ref.quantity)!==scaled(confirmed.quantity)
         ||scaled(item.quantity)!==scaled(confirmed.quantity)
         ||item.unit!==accepted.unit||item.descriptionEn!==accepted.descriptionEn
         ||item.descriptionAr!==accepted.descriptionAr
+        ||item.hsCode!==sourceItem.hsCode||item.origin!==sourceItem.origin
+        ||item.packing!==sourceItem.packing
         ||scaled(item.unitPrice)!==scaled(accepted.unitPrice))
         fail('Invoice quantities, products or prices differ from confirmed delivery / accepted order.','كميات أو أصناف أو أسعار الفاتورة تختلف عن التسليم المؤكد وأمر البيع المعتمد.');
       seenLines.add(ref.salesOrderLineId);
