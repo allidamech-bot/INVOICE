@@ -12,6 +12,7 @@ import {
 } from '../dist/src/lib/sales-delivery-invoice.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {todayIso} from '../dist/src/lib/id.js';
+import {defaultOwnerMember} from '../dist/src/lib/governance.js';
 
 function setup(){
   const v=emptyVault(),now=new Date().toISOString();
@@ -114,6 +115,21 @@ test('Batch 7 — duplicate offline invoices for one confirmed note fail merge',
   assert.throws(()=>assertDeliveryInvoiceIntegrity(combinedDocuments,combinedEvents),/Concurrent invoices conflict/);
   assert.throws(()=>mergeVaultIntent(a.vault,left,right));
 });
+
+test('Batch 7 — only authorized owner/admin/sales/finance operators may prepare an invoice',()=>{
+  const {vault,quote}=setup(),a=confirmed(vault,quote);
+  const owner=defaultOwnerMember();
+  for(const role of ['viewer','purchasing','sales','finance','owner','admin']){
+    const operator={...owner,id:role,role,displayName:role};
+    const scoped={...a.vault,teamMembers:[owner,operator],
+      appSettings:{...a.vault.appSettings,activeTeamMemberId:role}};
+    if(['viewer','purchasing'].includes(role))
+      assert.throws(()=>createConfirmedDeliveryInvoiceDraft(scoped,a.note.id),/does not have permission/);
+    else
+      assert.equal(createConfirmedDeliveryInvoiceDraft(scoped,a.note.id).invoice.status,'draft');
+  }
+});
+
 test('Batch 7 — final issuance stays human reviewed and serialized, not an AI or automatic posting',async()=>{
   const [app,page,merge,source]=await Promise.all([
     readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8'),
