@@ -5,6 +5,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult, type AiToolId } from './ai-tool-orchestrator.js';
 import { buildCfoBrief, buildDealDeskDecision, formatCfoBrief, formatDealDeskDecision, isCfoIntent, isDealDeskIntent } from './ai-cfo-deal-desk.js';
 import { handleAssistantLocalCommand } from './ai-personal-assistant.js';
+import { aiToolPlannerCatalog } from './ai-tool-orchestrator.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -48,29 +49,62 @@ export function promoteDocumentCreationPlan(plan:AiToolPlan,message:string):AiTo
   return{...plan,calls};
 }
 
+/** Attachments are untrusted data; never pass their contents as user
+ * instructions. A truncated source may be analyzed, but not turned into a
+ * write proposal whose omitted rows the user has not reviewed. */
+const PLANNER_SOURCE_CHARS=2800;
+export interface AiPlannerSourceFact{fileName:string;documentType:string;route:string;confidence:number;extracted:string;truncated:boolean;}
+export function aiPlannerSourceFacts(sources:unknown):AiPlannerSourceFact[]{
+  if(!Array.isArray(sources))return [];
+  return sources.slice(0,4).filter(row=>row&&typeof row==='object').map(row=>{
+    const item=row as Record<string,unknown>;
+    const extracted=String(item.extracted??'');
+    const confidence=Number(item.confidence);
+    return{
+      fileName:clean(item.fileName,180),documentType:clean(item.documentType,80),
+      route:clean(item.route,40),confidence:Number.isFinite(confidence)?Math.max(0,Math.min(1,confidence)):0,
+      extracted:extracted.slice(0,PLANNER_SOURCE_CHARS),truncated:extracted.length>PLANNER_SOURCE_CHARS
+    };
+  }).filter(row=>Boolean(row.fileName));
+}
+export function explicitAiActionRequest(message:string):boolean{
+  return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to)\b|(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|احذف|امسح|اعتمد)/iu.test(message);
+}
+
 export async function orchestrateAiToolRequest(input:{message:string;vault:VaultPayload;context:any;language:'en'|'ar';signal?:AbortSignal;}):Promise<AiToolOrchestrationResult|null>{
-  if(input.context?.conversationSources?.length)return null;
+  const sources=aiPlannerSourceFacts(input.context?.conversationSources);
+  const hasSources=sources.length>0;
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
-  if(runtime.scope!=='temporary'){
+  if(!hasSources&&runtime.scope!=='temporary'){
     const resumed=await resumeVaultSession();
     if(resumed){
       const local=await handleAssistantLocalCommand(resumed.key,{message:input.message,scope:runtime.scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,language:input.language,threadId:clean(input.context?.assistantRuntime?.threadId,120)});
       if(local){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};return{answer:local.answer,proposal:local.proposal,plan,results:[],plannedBy:'local'};}
     }
   }
-  if(isCfoIntent(input.message)){
+  if(!hasSources&&isCfoIntent(input.message)){
     const brief=buildCfoBrief(input.context?.advisorV2);if(brief){
       if(!brief.available){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};return{answer:formatCfoBrief(brief,input.language),proposal:null,plan,results:[],plannedBy:'local'};}
       const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'cfo-local-1',tool:'finance.getSummary',args:{},reason:'Build the CFO brief from deterministic Advisor V2 evidence.'}]};const execution=executeAiToolPlan(runtime,plan);return{answer:formatCfoBrief(brief,input.language),proposal:null,plan,results:execution.results,plannedBy:'local'};
     }
   }
-  const dealDesk=isDealDeskIntent(input.message);let plan=deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
+  const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
   if(!plan){
-    if(!likelyToolIntent(input.message,input.context))return null;
+    if(!likelyToolIntent(input.message,input.context)&&!(hasSources&&explicitAiActionRequest(input.message)))return null;
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
-    let payload:any;try{payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)}},input.signal,15_000);}catch{return null;}
+    let payload:any;try{payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);}catch{return null;}
     plan=validateAiToolPlan(payload?.plan,runtime.scope);if(!plan||!plan.calls.length)return null;
+    if(hasSources){
+      const allowed=new Map(aiToolPlannerCatalog(runtime.scope).map(def=>[def.id,def.class]));
+      const writes=plan.calls.some(call=>allowed.get(call.tool)==='execute'||allowed.get(call.tool)==='high-impact');
+      if(writes&&sources.some(source=>source.truncated)){
+        return{answer:input.language==='ar'?'الملفات المرفقة أكبر من الحد الآمن لتنفيذ عملية كاملة. افتح استيراد الملفات لمراجعة كل الصفوف قبل الحفظ. لم يُنفّذ أي تغيير.':'The attachments contain more data than the safe action-planning limit. Use the full file importer to review every row. No changes were made.',proposal:null,plan:{version:1,calls:[],goal:clean(input.message,240)},results:[],plannedBy:'local'};
+      }
+      // File contents cannot grant permission to edit data. Only the user's
+      // explicit message can authorize a reviewable execution proposal.
+      if(writes&&!explicitAiActionRequest(input.message))return null;
+    }
   }
   plan=promoteDocumentCreationPlan(plan,input.message);
   const execution=executeAiToolPlan(runtime,plan);const answer=dealDesk?formatDealDeskDecision(buildDealDeskDecision(plan,execution.results),input.language):formatAnswer(plan,execution.results,input.language);return{answer,proposal:execution.proposal,plan,results:execution.results,plannedBy};
