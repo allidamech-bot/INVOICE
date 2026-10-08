@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {defaultCompany} from '../dist/src/lib/defaults.js';
-import {financialDocuments} from '../dist/src/lib/reports.js';
+import {financialDocuments,financialReportByCurrency} from '../dist/src/lib/reports.js';
+import {calculateProfitability} from '../dist/src/lib/profitability.js';
 import {invoiceProfitabilityRows,productProfitabilityRows} from '../dist/src/lib/profitability-dimensions.js';
 
 function invoice(){
@@ -91,4 +92,39 @@ test('B08: reversed credit-note allocation preserves signed cost and overhead pe
   assert.equal(second.grossProfit,'-60.00');
   assert.equal(rows.reduce((sum,row)=>sum+Number(row.totalCost),0),-60);
   assert.equal(rows.reduce((sum,row)=>sum+Number(row.grossProfit),0),-140);
+});
+
+test('B08: malformed internal shipping cannot silently become zero and produce a trusted margin',()=>{
+  const doc=invoice();
+  doc.items[0].unitCost='10.00';
+  doc.internalCosts={shippingCost:'-2.50',otherCost:'0.00'};
+  const profit=calculateProfitability(doc);
+  assert.equal(profit.invalidInternalCostFields,1);
+  assert.equal(profit.missingCostItems,0);
+  assert.equal(profit.complete,false);
+  assert.equal(profit.marginPercent,'');
+  const dimensions=productProfitabilityRows([doc],[]);
+  assert.equal(dimensions.length,2);
+  for(const row of dimensions){
+    assert.equal(row.profitComplete,false);
+    assert.equal(row.grossProfit,'');
+    assert.equal(row.totalCost,'');
+  }
+  const summary=financialReportByCurrency([doc],[],'2026-01-01','2026-01-31')[0];
+  assert.equal(summary.netSales,'200.00');
+  assert.equal(summary.profitComplete,false);
+  assert.equal(summary.missingCostItems,0);
+  assert.equal(summary.grossProfit,'');
+  assert.equal(summary.marginPercent,'');
+});
+
+test('B08: blank historical expense fields retain the accepted zero-cost semantics',()=>{
+  const doc=invoice();
+  doc.items[0].unitCost='10.00';
+  doc.internalCosts={shippingCost:' ',otherCost:''};
+  const profit=calculateProfitability(doc);
+  assert.equal(profit.invalidInternalCostFields,0);
+  assert.equal(profit.complete,true);
+  assert.equal(profit.totalCost,'40.00');
+  assert.equal(profit.grossProfit,'160.00');
 });
