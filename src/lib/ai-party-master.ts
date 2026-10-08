@@ -119,7 +119,6 @@ export function applyAiPartyMaster(vault:VaultPayload,batch:AiPartyMasterBatch):
   if(!batch||!['customer','supplier'].includes(batch.party)||!['create','update'].includes(batch.mode)||!batch.recordId||batch.recordId.length>140)
     throw new Error('Invalid party approval.');
   if((vault.appSettings.activeWorkspaceId||'default')!==batch.workspaceId)throw new Error('Active company changed. No party record was saved.');
-  if(JSON.stringify(batch.preview)!==JSON.stringify(batchPreview(batch)))throw new Error('Approved party preview changed. Review again.');
   if(!batch.after||typeof batch.after.name!=='string')throw new Error('Approved party name is missing.');
   const fields:Record<string,unknown>={};
   for(const [key,value] of Object.entries(batch.after)){
@@ -128,6 +127,7 @@ export function applyAiPartyMaster(vault:VaultPayload,batch:AiPartyMasterBatch):
     fields[key]=value;
   }
   const cleaned=assertFields(fields);
+  if(JSON.stringify(batch.preview)!==JSON.stringify(batchPreview(batch)))throw new Error('Approved party preview changed. Review again.');
   const rows=rowsOf(vault,batch.party);
   const current=rows.find(row=>row.id===batch.recordId);
   const inWorkspace=rows.filter(row=>companyScope(row)===batch.workspaceId);
