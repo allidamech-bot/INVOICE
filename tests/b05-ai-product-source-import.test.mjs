@@ -42,7 +42,7 @@ test('B05: product list stages every source row for review without mutation',()=
   assert.equal(saved.savedItems[1].descriptionEn,'Date cookies');
   assert.equal(v.savedItems.length,0);
 });
-test('B05: 50 extracted rows are all staged and registered atomically, no 40-row cut',()=>{
+test('B05: 50 extracted rows are all staged and registered atomically, no 40-row cut',async()=>{
   const v=vault(),items=Array.from({length:50},(_,i)=>item('SKU-'+i,'Product '+i));
   const batch=prepareAiProductSourceImport(v,[file(items)]);
   assert.equal(batch.rows.length,50);
@@ -50,6 +50,9 @@ test('B05: 50 extracted rows are all staged and registered atomically, no 40-row
   assert.equal(after.savedItems.length,50);
   assert.equal(new Set(after.savedItems.map(row=>row.id)).size,50);
   assert.equal(AI_PRODUCT_SOURCE_IMPORT_MAX,120);
+  const extractor=await readFile('src/lib/ai-conversation-attachments.ts','utf8');
+  assert.match(extractor,/MAX_PRODUCT_LIST_EXTRACT_CHARS=72_000/);
+  assert.match(extractor,/classification\.route==='product_list'\?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS/);
 });
 test('B05: duplicate SKU across attachments, duplicate name and existing products abort every row',()=>{
   const v=vault();
