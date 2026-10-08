@@ -1,5 +1,6 @@
 import type { EncryptedBackupFile, VaultPayload } from '../types.js';
 import { createEncryptedBackup, decryptBackup } from '../crypto/crypto.js';
+import { APP_SCHEMA_VERSION } from './defaults.js';
 
 /** A separate, high-entropy export password is safer than the 4–12 digit
  * device-unlock PIN. Imported v1 backups remain decryptable with their legacy PIN. */
@@ -59,5 +60,7 @@ export async function readBackup(file: File, pin: string): Promise<VaultPayload>
     ||!restored.company||typeof restored.company!=='object'||!restored.appSettings||typeof restored.appSettings!=='object'
     ||!Array.isArray(restored.documents)||!Array.isArray(restored.customers))
     throw new Error('Backup data is incomplete. The existing workspace was not changed.');
+  if(!Number.isSafeInteger(restored.schemaVersion)||restored.schemaVersion<1||restored.schemaVersion>APP_SCHEMA_VERSION)
+    throw new Error('This backup uses an unsupported data version. Update LOUREX before restoring to avoid losing records.');
   return restored;
 }
