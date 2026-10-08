@@ -13,6 +13,7 @@ import {
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {todayIso} from '../dist/src/lib/id.js';
 import {defaultOwnerMember} from '../dist/src/lib/governance.js';
+import {normalizePaymentRecord,invoicePaymentSummary,assertInvoicePaymentInvariant} from '../dist/src/lib/payments.js';
 
 function setup(){
   const v=emptyVault(),now=new Date().toISOString();
@@ -114,6 +115,44 @@ test('Batch 7 — duplicate offline invoices for one confirmed note fail merge',
   const combinedEvents=[...left.documentEvents,...right.documentEvents.filter(x=>x.note.startsWith('@lourex:sales-order:delivery-invoice:v1:'))];
   assert.throws(()=>assertDeliveryInvoiceIntegrity(combinedDocuments,combinedEvents),/Concurrent invoices conflict/);
   assert.throws(()=>mergeVaultIntent(a.vault,left,right));
+});
+
+
+test('Batch 7 — final partial-delivery invoice uses canonical receivables without double collection',()=>{
+  const {vault,quote}=setup();
+  const first=confirmed(vault,quote,['4','1'],'POD-PAY-1');
+  const invoiceOne=createConfirmedDeliveryInvoiceDraft(first.vault,first.note.id);
+  const second=confirmed(invoiceOne.vault,quote,['8','5'],'POD-PAY-2');
+  const invoiceTwo=createConfirmedDeliveryInvoiceDraft(second.vault,second.note.id);
+  const draft=invoiceOne.invoice,issued={...draft,status:'final'};
+  const issuedSecond={...invoiceTwo.invoice,status:'final'};
+  const documents=invoiceTwo.vault.documents.map(doc=>doc.id===issued.id?issued:doc.id===issuedSecond.id?issuedSecond:doc);
+  const at=todayIso();
+  const payment=(id,amount,invoice=issued)=>({
+    id,invoiceId:invoice.id,invoiceNumber:invoice.number,
+    customerId:invoice.customerSnapshot.sourceCustomerId,customerNameEn:'Riyadh FMCG',customerNameAr:'',
+    currency:invoice.currency,amount,date:at,method:'bank-transfer',reference:id,notes:'',
+    createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()
+  });
+  assert.throws(()=>normalizePaymentRecord(draft,[],payment('premature','1'),documents),
+    /Payments can only be recorded against an active final invoice/);
+  assert.deepEqual([invoicePaymentSummary(issued,[],at,documents).total,
+    invoicePaymentSummary(issuedSecond,[],at,documents).total],['65.00','205.00']);
+  const firstPayment=normalizePaymentRecord(issued,[],payment('payment-20','20.00'),documents);
+  const partial=invoicePaymentSummary(issued,[firstPayment],at,documents);
+  assert.equal(partial.status,'partially-paid');
+  assert.equal(partial.remaining,'45.00');
+  assert.throws(()=>normalizePaymentRecord(issued,[firstPayment],payment('excess','45.01'),documents),
+    /cannot exceed the remaining invoice balance/);
+  const balancePayment=normalizePaymentRecord(issued,[firstPayment],payment('payment-45','45.00'),documents);
+  assert.equal(invoicePaymentSummary(issued,[firstPayment,balancePayment],at,documents).status,'paid');
+  assert.equal(invoicePaymentSummary(issuedSecond,[firstPayment,balancePayment],at,documents).status,'unpaid');
+  assert.equal(invoicePaymentSummary(issuedSecond,[firstPayment,balancePayment],at,documents).remaining,'205.00');
+  assert.doesNotThrow(()=>assertInvoicePaymentInvariant(issued,[firstPayment,balancePayment],documents));
+  assert.doesNotThrow(()=>assertDeliveryInvoiceIntegrity(documents,invoiceTwo.vault.documentEvents));
+  const secondPayment=normalizePaymentRecord(issuedSecond,[firstPayment,balancePayment],
+    payment('payment-205','205.00',issuedSecond),documents);
+  assert.equal(invoicePaymentSummary(issuedSecond,[firstPayment,balancePayment,secondPayment],at,documents).status,'paid');
 });
 
 test('Batch 7 — only authorized owner/admin/sales/finance operators may prepare an invoice',()=>{
