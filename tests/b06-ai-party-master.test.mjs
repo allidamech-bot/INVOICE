@@ -86,7 +86,7 @@ test('B06: duplicate email or name, unsupported fields, invalid email and forged
   assert.throws(()=>parseAiPartyMasterIntent('Add customer: Rival LLC; city: Paris; city: London'),/Repeated contact field/);
   const staged=prepareAiPartyMaster(v,parseAiPartyMasterIntent('Add customer: Rival LLC; city: Paris'));
   staged.after.creditLimit='99999';
-  assert.throws(()=>applyAiPartyMaster(v,staged),/preview changed/);
+  assert.throws(()=>applyAiPartyMaster(v,staged),/Unapproved party field/);
   assert.equal(v.customers.length,1);
 });
 test('B06: stale, ambiguous, company changes and multi-action plans cannot accidentally save',()=>{
