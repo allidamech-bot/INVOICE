@@ -143,6 +143,29 @@ test('Batch 7 — invoice issue date and immutable event document numbers remain
     /Issued Delivery Note source has changed/);
 });
 
+test('Batch 7 — delivery-linked invoice provenance cannot redirect customer or currency',()=>{
+  const {vault,quote}=setup(),receipt=confirmed(vault,quote,['4','1'],'POD-IDENTITY');
+  const created=createConfirmedDeliveryInvoiceDraft(receipt.vault,receipt.note.id);
+  const marker='@lourex:sales-order:delivery-invoice:v1:';
+  const event=created.vault.documentEvents.find(item=>item.documentId===created.invoice.id&&item.note.startsWith(marker));
+  assert.ok(event);
+  const payload=JSON.parse(event.note.slice(marker.length));
+  const rewrite=(patch,invoicePatch={},eventPatch={})=>{
+    const docs=created.vault.documents.map(doc=>doc.id===created.invoice.id?{...doc,...invoicePatch}:doc);
+    const events=created.vault.documentEvents.map(item=>item.id===event.id?
+      {...item,note:marker+JSON.stringify({...payload,...patch}),...eventPatch}:item);
+    return[docs,events];
+  };
+  const [wrongCustomerDocs,wrongCustomerEvents]=rewrite({customerId:'wrong-customer'},{
+    customerSnapshot:{...created.invoice.customerSnapshot,sourceCustomerId:'wrong-customer'}
+  });
+  assert.throws(()=>assertDeliveryInvoiceIntegrity(wrongCustomerDocs,wrongCustomerEvents),/matching physical-delivery evidence/);
+  const [wrongCurrencyDocs,wrongCurrencyEvents]=rewrite({currency:'EUR'},{currency:'EUR'},{currency:'EUR'});
+  assert.throws(()=>assertDeliveryInvoiceIntegrity(wrongCurrencyDocs,wrongCurrencyEvents),/matching physical-delivery evidence/);
+  const [normalDocs,badEventCurrency]=rewrite({}, {}, {currency:'EUR'});
+  assert.throws(()=>assertDeliveryInvoiceIntegrity(normalDocs,badEventCurrency),/matching physical-delivery evidence/);
+});
+
 test('Batch 7 — duplicate offline invoices for one confirmed note fail merge',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
   const left=createConfirmedDeliveryInvoiceDraft(a.vault,a.note.id).vault;
