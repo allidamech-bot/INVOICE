@@ -323,11 +323,16 @@ test('Batch 7 — unauthorized operators cannot use create/open to bypass invoic
   }
 });
 
-test('Batch 7 — commercial event timeline hides internal structured invoice evidence',async()=>{
-  const panel=await readFile(new URL('../src/components/CommercialFlowPanel.tsx',import.meta.url),'utf8');
-  assert.match(panel,/event\.note\.startsWith\('@lourex:sales-order:delivery-invoice:v1:'\)/);
-  assert.match(panel,/Invoice prepared from confirmed delivery/);
-  assert.match(panel,/تم تجهيز الفاتورة من تسليم مؤكد/);
+test('Batch 7 — internal invoice evidence remains intact but both history panels display a readable label',async()=>{
+  const [helper,commercial,lifecycle]=await Promise.all([
+    readFile(new URL('../src/lib/document-event-display.ts',import.meta.url),'utf8'),
+    readFile(new URL('../src/components/CommercialFlowPanel.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../src/components/DocumentLifecyclePanel.tsx',import.meta.url),'utf8')
+  ]);
+  assert.match(helper,/note\.startsWith\('@lourex:sales-order:delivery-invoice:v1:'\)/);
+  assert.match(helper,/Invoice draft prepared from confirmed physical delivery/);
+  assert.match(commercial,/documentEventDisplayNote\(event\.note\)/);
+  assert.match(lifecycle,/documentEventDisplayNote\(event\.note\)/);
 });
 
 test('Batch 7 — final issuance stays human reviewed and serialized, not an AI or automatic posting',async()=>{
