@@ -1,6 +1,7 @@
-import type { DocumentEventRecord, LourexDocument } from '../types.js';
+import type { DocumentEventRecord, LourexDocument, PaymentRecord } from '../types.js';
 import { acceptedSalesOrders, type AcceptSalesOrderInput } from '../lib/sales-order-flow.js';
 import { commercialTrackingFromEvents } from '../lib/commercial-flow.js';
+import { salesOrderInvoiceProgress } from '../lib/sales-order-progress.js';
 import { todayIso } from '../lib/id.js';
 import { formatMoney } from '../lib/money.js';
 import { isArabic, t } from '../lib/i18n.js';
@@ -9,6 +10,8 @@ import { Button, Field, Input, Textarea } from './UI.js';
 interface Props{
   quotation:LourexDocument;
   events:DocumentEventRecord[];
+  documents:LourexDocument[];
+  payments:PaymentRecord[];
   onAccept:(input:AcceptSalesOrderInput)=>Promise<void>;
 }
 interface State{
@@ -48,13 +51,38 @@ export class SalesOrderReview extends React.Component<Props,State>{
     return <section className="ta-doc-panel" aria-label={t('Sales Order acceptance','اعتماد أمر البيع')}>
       <header><div><small>{t('Sales • Batch 7','المبيعات • الدفعة السابعة')}</small><h2>{t('Sales Order','أمر البيع')}</h2></div><span className="ta-doc-count-badge">{orders.length}</span></header>
       <p>{t('Convert a customer-accepted quotation into a traceable Sales Order commitment without changing the existing invoice or financial ledger.','حوّل عرض السعر الذي قبله العميل إلى أمر بيع موثق دون تغيير الفواتير أو الحسابات الموجودة.')}</p>
-      {orders.map(order=><div key={order.salesOrderNumber} className="ta-doc-facts" style={{display:'grid',gap:8,marginBlock:12}}>
-        <strong><bdi>{order.salesOrderNumber}</bdi></strong>
-        <span>{t('Customer reference','مرجع العميل')}: <bdi>{order.customerReference||'—'}</bdi></span>
-        <span>{t('Ordered','تاريخ الطلب')}: <bdi>{order.orderDate}</bdi> · {t('Requested delivery','التسليم المطلوب')}: <bdi>{order.requestedDeliveryDate}</bdi></span>
-        <span>{formatMoney(order.grandTotal,order.currency)} · {order.lines.length} {t('lines','بنود')}</span>
-        <small>{t('Accepted / pending delivery • No stock, invoice or payment has been posted.','مقبول / بانتظار التسليم • لم يُرحّل مخزون أو فاتورة أو دفعة.')}</small>
-      </div>)}
+      {orders.map(order=>{
+        const progress=salesOrderInvoiceProgress(order,this.props.documents,events,this.props.payments);
+        return <div key={order.salesOrderNumber} className="ta-doc-facts" style={{display:'grid',gap:8,marginBlock:12}}>
+          <strong><bdi>{order.salesOrderNumber}</bdi></strong>
+          <span>{t('Customer reference','مرجع العميل')}: <bdi>{order.customerReference||'—'}</bdi></span>
+          <span>{t('Ordered','تاريخ الطلب')}: <bdi>{order.orderDate}</bdi> · {t('Requested delivery','التسليم المطلوب')}: <bdi>{order.requestedDeliveryDate}</bdi></span>
+          <span>{t('Accepted quote','العرض المقبول')}: <bdi>{formatMoney(order.grandTotal,order.currency)}</bdi></span>
+          <details style={{minWidth:0}}>
+            <summary style={{cursor:'pointer',paddingBlock:8}}>{t('Delivery quantities by item','كميات التسليم حسب الصنف')} ({progress.lines.length})</summary>
+            <div style={{display:'grid',gap:8,paddingBlock:8}}>
+              {progress.lines.map((line,i)=><span key={line.salesOrderLineId}>
+                {i+1}. {isArabic()?(order.lines[i]?.descriptionAr||order.lines[i]?.descriptionEn):(order.lines[i]?.descriptionEn||order.lines[i]?.descriptionAr)}
+                {' · '}{t('Ordered','المطلوب')} <bdi>{line.ordered}</bdi>
+                {' · '}{t('Delivered','المسلّم')} <bdi>{line.delivered}</bdi>
+                {' · '}{t('Remaining','المتبقي')} <bdi>{line.remaining}</bdi> {order.lines[i]?.unit}
+              </span>)}
+            </div>
+          </details>
+          <span>{t('Confirmed delivery notes','سندات التسليم المؤكدة')}: <bdi>{progress.confirmedDeliveries}</bdi>
+            {' · '}{t('No invoice draft','دون مسودة فاتورة')}: <bdi>{progress.unbilledDeliveries}</bdi>
+          </span>
+          <span>{t('Invoice drafts (not receivables)','مسودات الفواتير (ليست مستحقات)')}: <bdi>{progress.invoiceDrafts}</bdi>
+            {' · '}{t('Issued invoices','فواتير صادرة')}: <bdi>{progress.invoicesIssued}</bdi>
+          </span>
+          <span>{t('Issued net of credits','صافي الفواتير بعد الإشعارات الدائنة')}: <bdi>{formatMoney(progress.netIssued,progress.currency)}</bdi>
+            {' · '}{t('Credits','الإشعارات الدائنة')}: <bdi>{formatMoney(progress.credits,progress.currency)}</bdi>
+            {' · '}{t('Collected','المحصّل')}: <bdi>{formatMoney(progress.collected,progress.currency)}</bdi>
+            {' · '}{t('Outstanding','المتبقي للتحصيل')}: <bdi>{formatMoney(progress.outstanding,progress.currency)}</bdi>
+          </span>
+          <small>{t('Confirmed deliveries and invoicing are tracked separately from collections. Amounts are per issued invoice, not a second ledger or a direct comparison to the quote total.','التسليمات والفواتير والتحصيلات مراحل منفصلة. المبالغ محسوبة من الفواتير الصادرة فقط، وليست دفترًا ماليًا ثانيًا أو مقارنة مباشرة بإجمالي العرض.')}</small>
+        </div>;
+      })}
       {!orders.length&&!eligible?<p>{t('Mark the issued quotation as Accepted in Commercial Flow before recording its Sales Order.','سجّل قبول عرض السعر الصادر في المسار التجاري قبل اعتماد أمر البيع.')}</p>:null}
       {eligible&&!orders.length?<div style={{display:'grid',gap:12,marginBlock:12}}>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,210px),1fr))',gap:10}}>

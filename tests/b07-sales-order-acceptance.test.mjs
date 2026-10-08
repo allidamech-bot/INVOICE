@@ -64,7 +64,12 @@ test('Batch7 sales: Sales Order links to delivery draft without creating stock o
   assert.equal(result.document.kind,'delivery-note');
   assert.match(result.document.terms.remarks,/SO-QUO-2026-0056/);
   const event=result.vault.documentEvents.find(x=>x.documentId===result.document.id&&x.type==='created');
-  assert.match(event.note,/@lourex:sales-order:delivery-draft:v1:SO-QUO-2026-0056/);
+  assert.match(event.note,/^@lourex:sales-order:delivery-draft:v2:/);
+  const mapping=JSON.parse(event.note.slice('@lourex:sales-order:delivery-draft:v2:'.length));
+  assert.equal(mapping.quotationId,quote.id);
+  assert.equal(mapping.salesOrderNumber,'SO-QUO-2026-0056');
+  assert.deepEqual(mapping.lines.map(row=>row.salesOrderLineId),quote.items.map(item=>item.id));
+  assert.deepEqual(mapping.lines.map(row=>row.deliveryLineId),result.document.items.map(item=>item.id));
   assert.equal(event.relatedDocumentId,quote.id);
   assert.equal(deliverySource(result.document,result.vault.documents,result.vault.documentEvents).id,quote.id);
   assert.equal(linkedDeliveries(quote,result.vault.documents,result.vault.documentEvents).length,1);
@@ -144,15 +149,18 @@ test('Batch7 sales: malformed acceptance or customer reassignment is rejected du
   assert.throws(()=>assertSalesOrderIntegrity(noSource,accepted.documentEvents),/source quotation changed or is missing/);
 });
 
-test('Batch7 sales: invoice conversion preserves frozen Sales Order quote provenance',async()=>{
+test('Batch7 sales: accepted SO blocks full-order quote conversion and preserves delivery-only billing',async()=>{
   const {vault,quote}=fixture();
   const accepted=acceptSalesOrder(vault,input(quote)).vault;
-  const invoice=convertToInvoice(quote,'INV-2026-111');
-  const issued={...accepted,documents:[...accepted.documents,invoice]};
-  assert.doesNotThrow(()=>assertSalesOrderIntegrity(issued.documents,issued.documentEvents));
+  assert.doesNotThrow(()=>assertSalesOrderIntegrity(accepted.documents,accepted.documentEvents));
+  const linked=createLinkedDeliveryDraft(accepted,quote.id);
+  assert.equal(linked.document.kind,'delivery-note');
+  assert.deepEqual(linked.document.items.map(line=>line.quantity),quote.items.map(line=>line.quantity));
   const app=await readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8');
-  assert.match(app,/const savedSource=committedOrder\?source:/);
-  assert.match(app,/if\(committedOrder\)assertSalesOrderIntegrity\(current\.documents,current\.documentEvents\)/);
+  assert.match(app,/const committedOrder=salesOrderForQuotation\(source\.id,current\.documentEvents\)/);
+  assert.match(app,/if\(committedOrder\)throw new Error/);
+  assert.match(app,/Invoice confirmed Delivery Notes instead of the entire order/);
+  assert.match(app,/createConfirmedDeliveryInvoiceDraft\(scoped,delivery\.id\)/);
   assert.match(app,/salesOrderForQuotation\(doc\.id,vault\.documentEvents\)/);
   assert.match(app,/salesOrderForQuotation\(source\.id,vault\.documentEvents\)/);
   assert.match(app,/salesOrderForQuotation\(current\.id,vault\.documentEvents\)/);

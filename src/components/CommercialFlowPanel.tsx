@@ -2,6 +2,7 @@ import type { DocumentEventRecord, LourexDocument } from '../types.js';
 import { buildCommercialFlowSnapshot, commercialStatusLabel, commercialTrackingEventKind, commercialTrackingEventPayload, type CommercialTrackingEventKind, isQuoteLikeDocument, validatedCommercialTrackingEvent } from '../lib/commercial-flow.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
+import { documentEventDisplayNote } from '../lib/document-event-display.js';
 import { documentKindLabel } from '../lib/document-kinds.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { Button, Icon, Input, Modal, Textarea } from './UI.js';
@@ -41,7 +42,7 @@ function eventLabel(event:DocumentEventRecord):string{
 }
 
 function eventNote(event:DocumentEventRecord):string{
-  return commercialTrackingEventKind(event)?commercialTrackingEventPayload(event):event.note;
+  return commercialTrackingEventKind(event)?commercialTrackingEventPayload(event):documentEventDisplayNote(event.note);
 }
 
 export function CommercialFlowPanel({document,documents,events,onOpenDocument,onCommercialEvent}:Props):any{
@@ -53,11 +54,19 @@ export function CommercialFlowPanel({document,documents,events,onOpenDocument,on
   if(!isQuoteLikeDocument(document)&&!document.convertedFromId)return null;
   const snapshot=buildCommercialFlowSnapshot(document,documents,events,null);
   const arabic=isArabic();
-  const status=commercialStatusLabel(snapshot.status,arabic);
   const quoteLike=isQuoteLikeDocument(document);
+  const hasSalesOrder=quoteLike&&events.some(event=>event.documentId===document.id
+    &&event.type==='audit'&&event.note.startsWith('@lourex:sales-order:accepted:v1:'));
+  const relatedInvoices=quoteLike?documents.filter(item=>item.kind==='invoice'&&item.role==='standard'
+    &&item.convertedFromId===document.id&&item.lifecycleStatus!=='voided'):[];
+  const draftInvoices=relatedInvoices.filter(item=>item.status==='draft').length;
+  const issuedInvoices=relatedInvoices.filter(item=>item.status==='final').length;
+  const status=hasSalesOrder?t('Sales Order accepted','أمر بيع معتمد'):commercialStatusLabel(snapshot.status,arabic);
   const canTrack=Boolean(quoteLike&&document.status==='final'&&document.lifecycleStatus!=='voided'&&!snapshot.linkedInvoice);
   const terminal=snapshot.status==='accepted'||snapshot.status==='rejected'||snapshot.status==='converted';
-  const statusHint=snapshot.statusSource==='conversion'
+  const statusHint=hasSalesOrder
+    ?t('Accepted order: confirmed delivery, invoice drafts and collections are tracked separately.','طلب معتمد: تتم متابعة التسليم المؤكد ومسودات الفواتير والتحصيل بشكل منفصل.')
+    :snapshot.statusSource==='conversion'
     ?t('Based on an actual linked invoice.','مبني على فاتورة مرتبطة فعلية.')
     :snapshot.statusSource==='date'
       ?t('Derived from the recorded valid-until date.','مشتق من تاريخ الصلاحية المسجل.')
@@ -98,7 +107,9 @@ export function CommercialFlowPanel({document,documents,events,onOpenDocument,on
     {quoteLike?<div className="lx-commercial-summary">
       <div><small>{t('Commercial status','الحالة التجارية')}</small><strong>{status}</strong><span>{statusHint}</span></div>
       <div><small>{t('Valid until','صالح حتى')}</small><strong>{snapshot.expiresAt?displayDate(snapshot.expiresAt,getUiLanguage()):'—'}</strong><span>{snapshot.expiresAt?t('Recorded on the quotation','مسجل على عرض السعر'):t('No expiry date recorded','لا يوجد تاريخ صلاحية مسجل')}</span></div>
-      <div><small>{t('Linked invoice','الفاتورة المرتبطة')}</small><strong>{snapshot.linkedInvoice?.number||'—'}</strong><span>{snapshot.linkedInvoice?t('Conversion is confirmed by the linked record.','تم تأكيد التحويل من السجل المرتبط.'):t('No invoice conversion recorded yet.','لا يوجد تحويل لفاتورة مسجل حتى الآن.')}</span></div>
+      <div><small>{t('Linked invoices','الفواتير المرتبطة')}</small><strong><bdi>{relatedInvoices.length}</bdi></strong><span>{relatedInvoices.length
+        ?t(`Drafts: ${draftInvoices} · Issued: ${issuedInvoices}`,`مسودات: ${draftInvoices} · صادرة: ${issuedInvoices}`)
+        :t('No linked invoices yet.','لا توجد فواتير مرتبطة بعد.')}</span></div>
       <div><small>{t('Secure portal viewed','تمت المشاهدة الآمنة')}</small><strong>{snapshot.tracking.viewedAt?displayDate(snapshot.tracking.viewedAt.slice(0,10),getUiLanguage()):'—'}</strong><span>{snapshot.tracking.lastComment?t('Customer comment recorded','تم تسجيل تعليق العميل'):t('Trustworthy view evidence appears only after the secure portal opens.','يظهر إثبات المشاهدة الموثوق فقط بعد فتح البوابة الآمنة.')}</span></div>
     </div>:null}
 

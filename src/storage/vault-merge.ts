@@ -16,6 +16,7 @@ import { assertSupplierInvoiceIntegrity } from '../lib/supplier-invoice-flow.js'
 import { assertMatchedSupplierInvoicePostingIntegrity } from '../lib/supplier-invoice-posting.js';
 import { assertSalesOrderIntegrity } from '../lib/sales-order-flow.js';
 import { assertSalesDeliveryIntegrity } from '../lib/sales-delivery-flow.js';
+import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity } from '../lib/sales-delivery-invoice.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -537,11 +538,13 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
+  assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
   assertSalesOrderIntegrity(documents,documentEvents);
   assertSalesDeliveryIntegrity(documents,documentEvents);
+  assertDeliveryInvoiceIntegrity(documents,documentEvents);
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {
     ...latest,

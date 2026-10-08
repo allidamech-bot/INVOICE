@@ -12,6 +12,7 @@ interface Props{
   documents:LourexDocument[];
   events:DocumentEventRecord[];
   onConfirm:(input:ConfirmSalesDeliveryInput)=>Promise<void>;
+  onCreateInvoice?:()=>void;
 }
 interface State{
   reference:string;
@@ -63,6 +64,10 @@ export class SalesDeliveryReview extends React.Component<Props,State>{
         <span>{t('Delivered on','تاريخ التسليم')}: <bdi>{proof.deliveredDate}</bdi></span>
         <span>{proof.lines.map(line=>`${line.quantity} ${line.unit}`).join(' · ')}</span>
       </div>)}
+      {proofs.length===1&&this.props.onCreateInvoice?<div style={{display:'grid',gap:8,marginBlock:12}}>
+        <p>{t('Prepare an invoice draft for exactly these confirmed quantities. Review prices, VAT, discounts and shipping before issuance. Nothing is posted or collected automatically.','جهّز مسودة فاتورة للكميات المؤكدة فقط. راجع الأسعار والضريبة والخصومات والشحن قبل الإصدار. لا تُرحّل أي مبالغ أو تحصيلات تلقائيًا.')}</p>
+        <Button icon="invoice" variant="primary" onClick={()=>this.props.onCreateInvoice?.()}>{t('Create / open invoice draft','إنشاء / فتح مسودة فاتورة')}</Button>
+      </div>:null}
       <div style={{display:'grid',gap:8,marginBlock:12}}>
         {balances.map((balance,i)=>{
           const item=order.lines[i];
