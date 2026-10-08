@@ -73,7 +73,9 @@ async function audit(page,failures){
           }else if(section==='workspaces'){
             assert.match((await page.locator('.ta-settings-page').first().innerText()),lang==='ar'?/مساحات العمل|الشركات|الفروع/:/Workspace|Companies|Branches/i);
           }else if(section==='commercial'){
-            assert.ok(await page.locator('.ta-settings-card').count()>=3,'Commercial settings cards missing');
+            const headings=(await page.locator('.ta-settings-page h4').allTextContents()).map(x=>x.trim());
+            for(const key of (lang==='ar'?['الحسابات البنكية','شروط الدفع','سياسة التسعير']:['Bank accounts','Payment terms','Pricing policy']))
+              assert.ok(headings.includes(key),'Commercial category missing: '+key);
             const text=await page.locator('.ta-settings-page').first().innerText();
             assert.match(text,lang==='ar'?/شروط الدفع/:/Payment terms/);
             assert.ok(await page.getByRole('button',{name:lang==='ar'?'إضافة بنك':'Add Bank'}).count()===1,'Bank management missing');
