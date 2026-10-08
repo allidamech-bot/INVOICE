@@ -174,7 +174,8 @@ export function validatedInventoryPlanningDeleteEvent(vault:Pick<VaultPayload,'s
 function balanceByItem(movements:InventoryMovementRecord[]):Map<string,bigint>{
   const balances=new Map<string,bigint>();
   for(const movement of movements){
-    if(!inventoryMovementAccountingIsValid(movement))continue;
+    // Transfers only move stock between warehouses. Never count them as new company stock.
+    if(!inventoryMovementAccountingIsValid(movement)||movement.type==='transfer')continue;
     balances.set(movement.itemId,(balances.get(movement.itemId)??0n)+scaled(movement.quantity));
   }
   return balances;

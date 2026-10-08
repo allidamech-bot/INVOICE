@@ -4,13 +4,13 @@ import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from '../l
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { assertSupplierPaymentInvariant } from '../lib/payables.js';
-import { inventoryMovementIsManual, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
+import { inventoryMovementAccountingIsValid, inventoryMovementIsManual, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
 import { assertRecurringWorkflow } from '../lib/recurring-workflows.js';
 import { assertTreasuryAccount, assertTreasuryEntry } from '../lib/treasury-ledger.js';
 import { assertFxRate } from '../lib/fx-rates.js';
-import { validateWarehouse } from '../lib/warehouses.js';
+import { defaultWarehouseId, validateWarehouse, warehouseItemQuantity } from '../lib/warehouses.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -319,7 +319,7 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
   for(const movement of intended.inventoryMovements){
     if(baseIds.has(movement.id))continue;
     touched.add(movement.itemId);
-    if(movement.type==='purchase'||movement.type==='purchase-reversal')continue;
+    if(movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='transfer')continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
     if(!savedItems.some(item=>item.id===movement.itemId))throw new Error('Inventory movement is linked to a missing saved item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
@@ -339,6 +339,29 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
   }
   return touched;
 }
+// Validate new internal transfers at the same authoritative ledger snapshot used
+// by the encrypted write queue; multiple transfers in one intent consume balance
+// in order. This complements (not replaces) the immutable ledger checks.
+function guardNewWarehouseTransfers(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,warehouses:VaultPayload['warehouses'],savedItems:SavedItem[]):void{
+  if(intended.inventoryMovements===base.inventoryMovements)return;
+  const beforeIds=new Set(base.inventoryMovements.map(movement=>movement.id));
+  const latestIds=new Set(latest.inventoryMovements.map(movement=>movement.id));
+  const ledger=[...latest.inventoryMovements];
+  const workspaceId=latest.appSettings.activeWorkspaceId,branchId=latest.appSettings.activeBranchId;
+  const defaultId=defaultWarehouseId(branchId);
+  for(const movement of intended.inventoryMovements){
+    if(beforeIds.has(movement.id)||movement.type!=='transfer')continue;
+    if(latestIds.has(movement.id))throw new Error('Warehouse transfer already exists. Refresh Stock Locations.');
+    if(!inventoryMovementAccountingIsValid(movement))throw new Error('Warehouse transfer details are invalid.');
+    if(!savedItems.some(item=>item.id===movement.itemId))throw new Error('Warehouse transfer product is unavailable.');
+    for(const locationId of [movement.fromWarehouseId,movement.toWarehouseId]){
+      if(!warehouses.some(row=>row.id===locationId&&row.workspaceId===workspaceId&&row.branchId===branchId&&row.active))throw new Error('Warehouse transfer location is no longer active.');
+    }
+    if(movementQuantity(movement)>warehouseItemQuantity(movement.itemId,movement.fromWarehouseId!,ledger,defaultId))throw new Error('Transfer quantity exceeds the latest available stock at its source.');
+    ledger.push(movement);
+  }
+}
+
 function guardSavedItemInventoryRemoval(base:VaultPayload,intended:VaultPayload,purchases:PurchaseRecord[],movements:InventoryMovementRecord[]):void{
   if(intended.savedItems===base.savedItems)return;
   const intendedIds=new Set(intended.savedItems.map(item=>item.id));
@@ -400,6 +423,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     }
     guardPurchaseState(merged,purchases,movements,savedItems);
   }
+  guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
   const touchedItems=guardNewManualMovements(base,intended,movements,savedItems);
   for(const id of affectedPurchases){const purchase=purchases.find(item=>item.id===id);for(const line of purchase?.items??[])if(line.savedItemId)touchedItems.add(line.savedItemId);}
   for(const itemId of touchedItems){
@@ -448,6 +472,24 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   return next;
 }
 
+// A payment already allocated to an active cash/bank entry cannot be edited or
+// deleted independently. Void/correct its treasury allocation first, preserving
+// the financial audit trail and preventing orphaned source references.
+function guardAllocatedPaymentChanges<T extends {id:string}>(
+  base:T[],intended:T[],entries:VaultPayload['treasuryEntries'],
+  sourceType:'customer-payment'|'supplier-payment',label:string
+):void{
+  if(intended===base)return;
+  const wanted=new Map(intended.map(row=>[row.id,row]));
+  for(const before of base){
+    const after=wanted.get(before.id);
+    if(after&&sameRecord(before,after))continue;
+    if(entries.some(entry=>!entry.voidedAt&&entry.sourceType===sourceType&&entry.sourceId===before.id)){
+      throw new Error(`${label} has an active linked treasury entry. Void or correct that entry before changing the payment.`);
+    }
+  }
+}
+
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
@@ -483,6 +525,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
   guardConcurrentRecordChanges(base.supplierPayments,intended.supplierPayments,latest.supplierPayments,'Supplier payment','Reopen Supplier Payables before saving or deleting the payment.');
   const supplierPayments=mergeRecords(base.supplierPayments,intended.supplierPayments,latest.supplierPayments);
+  guardAllocatedPaymentChanges(base.payments,intended.payments,treasuryEntries,'customer-payment','Customer payment');
+  guardAllocatedPaymentChanges(base.supplierPayments,intended.supplierPayments,treasuryEntries,'supplier-payment','Supplier payment');
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
   guardFinancialSettlementChanges(base,intended,documents,payments);
