@@ -100,8 +100,11 @@ export function postMatchedSupplierInvoice(vault:VaultPayload,input:PostMatchedS
     sourceSupplierInvoiceEventId:sourceEvent.id,sourcePurchaseOrderId:order.id};
   if(amount(purchaseTotals(draft).landedTotal)!==amount(invoice.total))
     fail('Posting total differs from the reviewed supplier invoice.','إجمالي الترحيل يختلف عن فاتورة المورد المطابقة.');
+  // Bind each approval to the exact, user-selected catalog mapping. A changed
+  // mapping requires a fresh approval rather than reusing the prior decision.
+  const approvalVersion=`${sourceEvent.at}|${input.savedItemIds.join('|')}`;
   const gate=approvalGate(vault,{action:'post-purchase',entityType:'purchase',entityId:draft.id,
-    entityLabel:`${order.number} / ${invoice.invoiceReference}`,entityUpdatedAt:sourceEvent.at});
+    entityLabel:`${order.number} / ${invoice.invoiceReference}`,entityUpdatedAt:approvalVersion});
   if(!gate.allowed)return{vault:gate.vault,posted:false,purchase:null,approvalPending:true};
   const posted=postPurchase(draft,vault.savedItems,vault.inventoryMovements);
   if(amount(purchaseTotals(posted.purchase).landedTotal)!==amount(invoice.total)
