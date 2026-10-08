@@ -35,7 +35,7 @@ The complete local signoff must be recorded against the final PR head with **Nod
 
 ## Timeline rendering
 
-Delivery-invoice creation evidence remains a structured, immutable document event. The Commercial Flow and Document Lifecycle timelines render a localized human-readable description instead of exposing the serialized JSON payload. The underlying payload and merge checks remain unchanged.
+Delivery-invoice creation evidence remains a structured, immutable document event. The Commercial Flow and Document Lifecycle timelines render localized human-readable descriptions for accepted Sales Orders, linked delivery drafts, confirmed physical deliveries and invoices instead of exposing serialized JSON payloads. The underlying payload and merge checks remain unchanged.
 
 ## Evidence and follow-up
 
