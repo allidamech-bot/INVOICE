@@ -144,6 +144,20 @@ test('Batch7 sales: malformed acceptance or customer reassignment is rejected du
   assert.throws(()=>assertSalesOrderIntegrity(noSource,accepted.documentEvents),/source quotation changed or is missing/);
 });
 
+test('Batch7 sales: invoice conversion preserves frozen Sales Order quote provenance',async()=>{
+  const {vault,quote}=fixture();
+  const accepted=acceptSalesOrder(vault,input(quote)).vault;
+  const invoice=convertToInvoice(quote,'INV-2026-111');
+  const issued={...accepted,documents:[...accepted.documents,invoice]};
+  assert.doesNotThrow(()=>assertSalesOrderIntegrity(issued.documents,issued.documentEvents));
+  const app=await readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8');
+  assert.match(app,/const savedSource=committedOrder\?source:/);
+  assert.match(app,/if\(committedOrder\)assertSalesOrderIntegrity\(current\.documents,current\.documentEvents\)/);
+  assert.match(app,/salesOrderForQuotation\(doc\.id,vault\.documentEvents\)/);
+  assert.match(app,/salesOrderForQuotation\(source\.id,vault\.documentEvents\)/);
+  assert.match(app,/salesOrderForQuotation\(current\.id,vault\.documentEvents\)/);
+});
+
 test('Batch7 sales: UI saves through protected serialized vault bridge with explicit consent',async()=>{
   const page=await readFile(new URL('../src/components/DocumentsPage.tsx',import.meta.url),'utf8');
   const panel=await readFile(new URL('../src/components/SalesOrderReview.tsx',import.meta.url),'utf8');
