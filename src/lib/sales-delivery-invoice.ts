@@ -182,6 +182,14 @@ export function assertDeliveryInvoiceIntegrity(documents:LourexDocument[],events
       ||record.deliveryNoteUpdatedAt!==proof[0]!.deliveryNoteUpdatedAt
       ||event.currency!==record.currency)
       fail('Invoice has no matching physical-delivery evidence.','الفاتورة تفتقد إثبات تسليم فعلي مطابق.');
+    const acceptedCustomer=context.quotation.customerSnapshot;
+    const invoicedCustomer=invoice.customerSnapshot;
+    if(!acceptedCustomer||!invoicedCustomer
+      ||invoicedCustomer.companyNameEn!==acceptedCustomer.companyNameEn
+      ||invoicedCustomer.companyNameAr!==acceptedCustomer.companyNameAr
+      ||invoicedCustomer.vatTaxNumber!==acceptedCustomer.vatTaxNumber
+      ||invoicedCustomer.commercialRegistration!==acceptedCustomer.commercialRegistration)
+      fail('Invoiced customer legal identity differs from the accepted Sales Order.','الهوية القانونية للعميل بالفاتورة تختلف عن أمر البيع المعتمد.');
     if(invoice.issueDate<proof[0]!.deliveredDate)
       fail('Invoice issue date cannot precede confirmed delivery.','تاريخ إصدار الفاتورة لا يمكن أن يسبق التسليم المؤكد.');
     if(record.lines.length!==proof[0]!.lines.length)
