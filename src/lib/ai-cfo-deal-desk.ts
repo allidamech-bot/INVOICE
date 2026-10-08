@@ -53,7 +53,7 @@ function actionFor(code:string):{action:string;effect:string}{
     'overdue-receivables':{action:'Prioritize the highest overdue customer balances and prepare collection follow-ups.',effect:'Improves collection focus and working-capital visibility.'},
     'overdue-payables':{action:'Review overdue supplier obligations by currency and due date.',effect:'Reduces supplier-service and cash-planning risk.'},
     'unreconciled-treasury':{action:'Reconcile outstanding treasury movements before making cash-position decisions.',effect:'Improves reliability of cash and bank visibility.'},
-    'missing-profit-costs':{action:'Complete missing product cost data before using profitability outputs for pricing decisions.',effect:'Prevents incomplete gross-profit evidence from driving pricing.'},
+    'missing-profit-costs':{action:'Verify missing item unit costs and invalid or missing internal expense records before using gross-profit figures for pricing decisions.',effect:'Prevents unsupported gross-profit and margin estimates from driving pricing.'},
     'supplier-cost-alerts':{action:'Review material supplier cost movements against observed supplier alternatives.',effect:'Surfaces sourcing and repricing decisions earlier.'},
     'zero-recorded-stock':{action:'Review zero-stock items against open demand and purchasing plans.',effect:'Highlights replenishment priorities without inventing demand.'}
   };
