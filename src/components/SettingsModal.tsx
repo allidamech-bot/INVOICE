@@ -254,7 +254,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const {backupPin,backupPassword,backupPasswordConfirm}=this.state;
     const issue=backupPasswordIssue(backupPassword,backupPin);
     if(issue){this.setState({error:issue});return;}
-    if(!/^\\d{4,12}$/.test(backupPin)){this.setState({error:t('Enter the current device PIN to authorize the backup.','أدخل رمز PIN الحالي للجهاز للسماح بالنسخ.')});return;}
+    if(!/^\d{4,12}$/.test(backupPin)){this.setState({error:t('Enter the current device PIN to authorize the backup.','أدخل رمز PIN الحالي للجهاز للسماح بالنسخ.')});return;}
     if(backupPassword!==backupPasswordConfirm){this.setState({error:t('Backup password confirmation does not match.','تأكيد كلمة مرور النسخة الاحتياطية غير مطابق.')});return;}
     this.setState({busy:true,error:'',message:''});
     try{
