@@ -11,6 +11,7 @@ import { saveVault } from '../storage/vault.js';
 import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js';
 import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
 import { applyWorkspaceScope, mergeScopedVault, scopeVaultForExternalMutation } from '../lib/workspaces.js';
+import { mergeVaultIntent } from '../storage/vault-merge.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
@@ -47,11 +48,10 @@ class AdaptiveCloudApp extends BaseApp {
       instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),delay);
     };
 
-    // AI actions and supplier-import drafts live below BaseApp and historically
-    // wrote a full vault snapshot directly. That could race a normal App.persist
-    // autosave and let either stale snapshot overwrite the other. Run those
-    // mutations inside the exact same write tail, against the newest queued vault,
-    // while preserving their review-draft semantics (no extra validation layer).
+    // AI actions and supplier-import drafts share BaseApp's authoritative
+    // encrypted write tail AND its domain invariant validator. Mutations must
+    // pass the same customer/supplier/product/payment/inventory guards as manual
+    // edits before any encrypted snapshot can be committed.
     registerVaultMutationBridge(async mutation=>{
       const operation=instance.vaultWriteTail.catch(()=>null).then(async (queued:any)=>{
         await instance.waitForProtectedDataOperation();
@@ -61,7 +61,8 @@ class AdaptiveCloudApp extends BaseApp {
         if(!latestFull)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));
         const latest=scopeVaultForExternalMutation(latestFull);
         const intended=applyWorkspaceScope(latest,mutation(latest));
-        const next=mergeScopedVault(latestFull,appendAuditEventsForVaultDiff(latest,intended));
+        const validated=mergeVaultIntent(latest,intended,latest);
+        const next=mergeScopedVault(latestFull,appendAuditEventsForVaultDiff(latest,validated));
         const encrypted=await saveVault(key,next);
         instance.latestEncryptedVault=encrypted;
         if(instance.state.unlocked&&instance.state.key===key){
