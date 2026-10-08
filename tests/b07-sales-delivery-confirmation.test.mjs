@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { emptyVault,customerSnapshotFrom } from '../dist/src/lib/defaults.js';
-import { createBlankDocument,validateDocument } from '../dist/src/lib/documents.js';
+import { createBlankDocument,validateDocument,convertToInvoice } from '../dist/src/lib/documents.js';
 import { validatedCommercialTrackingEvent } from '../dist/src/lib/commercial-flow.js';
 import { acceptSalesOrder } from '../dist/src/lib/sales-order-flow.js';
 import { createLinkedDeliveryDraft,linkedDeliveries } from '../dist/src/lib/delivery-flow.js';
@@ -179,4 +179,21 @@ test('Batch7 delivery: UI confirmation is explicit, vault write serialized, conf
   assert.match(panel,/this\.state\.confirmed/);
   assert.match(app,/confirmedSalesDeliveries\(doc\.id,vault\.documentEvents\)/);
   assert.match(merge,/assertSalesDeliveryIntegrity\(documents,documentEvents\)/);
+});
+
+test('Batch7 delivery: legacy invoiced delivery without Sales Order still copies invoice quantities',()=>{
+  const base=emptyVault();
+  const quote=createBlankDocument('proforma','QUO-2026-990',base.company);
+  quote.status='final';
+  quote.items=[{...quote.items[0],id:'legacy-quote-line',descriptionEn:'Product',descriptionAr:'منتج',
+    quantity:'20',unit:'Box',unitPrice:'10'}];
+  const invoice={...convertToInvoice(quote,'INV-2026-990'),status:'final',
+    items:[{...quote.items[0],id:'legacy-invoice-line',quantity:'4'}]};
+  const vault={...base,documents:[quote,invoice]};
+  const draft=createLinkedDeliveryDraft(vault,invoice.id);
+  assert.equal(draft.created,true);
+  assert.equal(draft.document.items[0].quantity,'4','legacy invoice, not quotation, determines delivery quantity');
+  assert.equal(draft.document.items[0].descriptionEn,'Product');
+  assert.equal(confirmedSalesDeliveries(draft.document.id,draft.vault.documentEvents).length,0);
+  assert.equal(draft.vault.inventoryMovements.length,0);
 });
