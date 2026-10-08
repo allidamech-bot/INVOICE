@@ -41,6 +41,9 @@ function eventLabel(event:DocumentEventRecord):string{
 }
 
 function eventNote(event:DocumentEventRecord):string{
+  // Persist structured evidence unchanged, but never expose its internal JSON in the customer-facing timeline.
+  if(event.note.startsWith('@lourex:sales-order:delivery-invoice:v1:'))
+    return t('Invoice prepared from confirmed delivery.','تم تجهيز الفاتورة من تسليم مؤكد.');
   return commercialTrackingEventKind(event)?commercialTrackingEventPayload(event):event.note;
 }
 
