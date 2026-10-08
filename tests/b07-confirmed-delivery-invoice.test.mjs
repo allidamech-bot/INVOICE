@@ -17,7 +17,7 @@ import {defaultOwnerMember} from '../dist/src/lib/governance.js';
 import {normalizePaymentRecord,invoicePaymentSummary,assertInvoicePaymentInvariant} from '../dist/src/lib/payments.js';
 import {salesOrderInvoiceProgress} from '../dist/src/lib/sales-order-progress.js';
 
-function setup(defaultPaymentTermPresetId=''){
+function setup(defaultPaymentTermPresetId='',firstLineOverrides={}){
   const v=emptyVault(),now=new Date().toISOString();
   if(defaultPaymentTermPresetId)v.company.commercial.defaultPaymentTermPresetId=defaultPaymentTermPresetId;
   const customer={id:'customer-inv-01',companyNameEn:'Riyadh FMCG',companyNameAr:'شركة الرياض',
@@ -27,7 +27,7 @@ function setup(defaultPaymentTermPresetId=''){
   const quote=createBlankDocument('proforma','QUO-2026-INVOICE-01',v.company);
   quote.status='final';quote.currency='USD';quote.customerSnapshot=customerSnapshotFrom(customer);
   quote.items=[
-    {...quote.items[0],id:'cookie-line',descriptionEn:'Cookies',descriptionAr:'بسكويت',quantity:'12',unit:'Carton',unitPrice:'10'},
+    {...quote.items[0],id:'cookie-line',descriptionEn:'Cookies',descriptionAr:'بسكويت',quantity:'12',unit:'Carton',unitPrice:'10',...firstLineOverrides},
     {...quote.items[0],id:'candy-line',descriptionEn:'Candy',descriptionAr:'حلوى',quantity:'6',unit:'Carton',unitPrice:'25'}
   ];
   assert.deepEqual(validateDocument(quote),{});
@@ -178,8 +178,7 @@ test('Batch 7 — customer legal name and VAT registration remain tied to accept
 });
 
 test('Batch 7 — customs HS classification, origin and packing remain faithful to accepted sale',()=>{
-  const {vault,quote}=setup();
-  quote.items[0].hsCode='1905.31';quote.items[0].origin='Türkiye';quote.items[0].packing='12 bags x 50 g';
+  const {vault,quote}=setup('',{hsCode:'1905.31',origin:'Türkiye',packing:'12 bags x 50 g'});
   const physical=confirmed(vault,quote,['4','1'],'POD-CUSTOMS');
   const created=createConfirmedDeliveryInvoiceDraft(physical.vault,physical.note.id);
   assert.equal(created.invoice.items[0].hsCode,'1905.31');
