@@ -1,6 +1,6 @@
 import type { Customer, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier } from '../types.js';
 import { categoryProfitabilityRows, invoiceProfitabilityRows, productProfitabilityRows, supplierProfitabilityRows, type ProfitabilityDimensionRow } from '../lib/profitability-dimensions.js';
-import { customerPerformanceReport, financialDocuments } from '../lib/reports.js';
+import { customerPerformanceReport, financialDocuments, normalizeReportPeriod } from '../lib/reports.js';
 import { formatMoney } from '../lib/money.js';
 import { t } from '../lib/i18n.js';
 import { isIsoDate, todayIso } from '../lib/id.js';
@@ -17,12 +17,13 @@ function how(dimension:Dimension):string{
   return t('Category comes from the saved-product category. Unmatched invoice lines remain Uncategorized rather than being guessed.','الفئة مأخوذة من فئة الصنف المحفوظ. بنود الفاتورة غير المطابقة تبقى بلا تصنيف بدل التخمين.');
 }
 function normalizeRows(dimension:Dimension,props:Props,from:string,to:string):ProfitabilityDimensionRow[]{
-  const docs=financialDocuments(props.documents).filter(doc=>isIsoDate(doc.issueDate)&&(!from||doc.issueDate>=from)&&(!to||doc.issueDate<=to));
+  const period=normalizeReportPeriod(from,to);
+  const docs=financialDocuments(props.documents).filter(doc=>isIsoDate(doc.issueDate)&&(!period.from||doc.issueDate>=period.from)&&doc.issueDate<=period.to);
   if(dimension==='product')return productProfitabilityRows(docs,props.items);
   if(dimension==='invoice')return invoiceProfitabilityRows(docs);
   if(dimension==='supplier')return supplierProfitabilityRows(docs,props.items,props.purchases,props.suppliers);
   if(dimension==='category')return categoryProfitabilityRows(docs,props.items);
-  return customerPerformanceReport(props.customers,props.documents,props.payments,from,to).map(row=>({id:row.customerId||row.customerName,label:row.customerName,currency:row.currency,netSales:row.netSales,totalCost:row.totalCost,grossProfit:row.grossProfit,marginPercent:row.marginPercent,profitComplete:row.profitComplete,missingCostItems:row.missingCostItems,documents:row.issuedInvoices,note:''}));
+  return customerPerformanceReport(props.customers,props.documents,props.payments,period.from,period.to).map(row=>({id:row.customerId||row.customerName,label:row.customerName,currency:row.currency,netSales:row.netSales,totalCost:row.totalCost,grossProfit:row.grossProfit,marginPercent:row.marginPercent,profitComplete:row.profitComplete,missingCostItems:row.missingCostItems,documents:row.issuedInvoices,note:''}));
 }
 export function ProfitabilityReports(props:Props):any{
   const [dimension,setDimension]=React.useState<Dimension>('product'),[from,setFrom]=React.useState(startYear()),[to,setTo]=React.useState(todayIso()),[currency,setCurrency]=React.useState('ALL'),[query,setQuery]=React.useState('');
