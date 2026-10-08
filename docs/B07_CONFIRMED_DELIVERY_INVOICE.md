@@ -30,6 +30,7 @@ Status: **PR #642, runtime QA pending**. Baseline is `main` after #641, with no 
 - Product line HS classification, country of origin and packing cannot drift from the accepted quotation when the invoice is linked to physical delivery.
 - The accepted Sales Order review now shows delivered/remaining quantities per SKU line, confirmed deliveries, invoices in draft/final state, issued net receivables, credits, collections and outstanding balances from canonical payments. Draft invoices are **not** receivables. The per-item detail is collapsed by default to preserve phone-screen density.
 - Delivery-linked invoices cannot be deleted, duplicated or directly voided, because the physical delivery evidence must remain traceable. Correct issued invoices through the existing Credit Note process; dedicated cancel/replacement is deferred to an explicitly audited future workflow.
+- Issued delivery-linked invoices also cannot enter document revision mode, which would otherwise temporarily remove them from issued receivables. Backend denies revision and both desktop/mobile editor controls and document lifecycle void actions are hidden.
 - Nothing in the operation automatically decrements stock, posts an inventory cost, creates a payment, settles VAT or publishes an invoice. It does not create a general ledger.
 
 ### Release verification contract
@@ -46,7 +47,7 @@ Delivery-invoice creation evidence remains a structured, immutable document even
 
 ## Evidence and follow-up
 
-- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (25 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
+- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (26 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
 - Changes: `sales-delivery-invoice.ts`, `sales-order-progress.ts`, serialized App mutation, DocumentsPage, SalesOrderReview and SalesDeliveryReview, vault merge and regression tests.
 - Static source contract audit completed; no full Node 24 / npm typecheck, build or Playwright run has been performed in this execution environment. **Do not merge #642 or claim functionality tested until real local QA is available.**
 - Local QA: on the final PR HEAD run `node scripts/verify-local.mjs` after installing Node 24, dependencies and Playwright Chromium/WebKit. See `docs/LOCAL_VERIFICATION_NO_ACTIONS.md`.
