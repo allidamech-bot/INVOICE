@@ -305,6 +305,8 @@ test('Batch 7 — sales order summary uses scoped financial data without changin
     readFile(new URL('../src/lib/sales-order-progress.ts',import.meta.url),'utf8')
   ]);
   assert.match(orderPanel,/salesOrderInvoiceProgress\(order,this\.props\.documents,events,this\.props\.payments\)/);
+  assert.match(orderPanel,/<details style=\{\{minWidth:0\}\}>/);
+  assert.match(orderPanel,/Delivery quantities by item/);
   assert.match(page,/SalesOrderReview quotation=\{doc\} events=\{this\.props\.documentEvents\} documents=\{this\.props\.documents\} payments=\{this\.props\.payments\}/);
   assert.match(source,/invoicePaymentSummary\(invoice,payments,undefined,documents\)/);
   assert.doesNotMatch(source,/saveVault|mutateVaultSafely|postPurchase|savePayment|localStorage/);
