@@ -31,7 +31,7 @@ test('B05: user file analysis stages a complete read-only preview, then three co
  assert.equal(first.proposal.args.rows[0].item.category,'Confectionery','old preview stays immutable');
  const step2=await result('Set Snickers 50g price to 12.50 USD',v,step1.proposal.args);
  assert.equal(step2.proposal.preview.length,4);
- assert.deepEqual(step2.proposal.args.rows.map(row=>row.item.lastUnitPrice),['12.5','12.5','11','7']);
+ assert.deepEqual(step2.proposal.args.rows.map(row=>row.item.lastUnitPrice),['12.50','12.50','11','7']);
  const step3=await result('أضف SKU لكل الأصناف الناقصة',v,step2.proposal.args);
  assert.equal(step3.proposal.preview.length,4);
  assert.equal(step3.proposal.args.rows[1].item.sku,'SKU-0001');
@@ -42,7 +42,7 @@ test('B05: user file analysis stages a complete read-only preview, then three co
  assert.equal(count,1);
  assert.match(commit.summary,/4 extracted products registered/);
  assert.deepEqual(current.savedItems.map(item=>item.sku),['SN-50','SKU-0001','SN-150','MARS-50']);
- assert.deepEqual(current.savedItems.map(item=>item.lastUnitPrice),['12.5','12.5','11','7']);
+ assert.deepEqual(current.savedItems.map(item=>item.lastUnitPrice),['12.50','12.50','11','7']);
  assert(current.savedItems.every(item=>item.category==='Snacks'));
 });
 test('B05: concise save-them follow-up reopens full review instead of writing automatically',async()=>{
