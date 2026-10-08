@@ -9,7 +9,7 @@ function functionSource(name){
   assert.ok(start>=0,'Missing generated runtime function '+name);
   const end=script.indexOf('\\nfunction ',start);
   assert.ok(end>start,'Missing function boundary for '+name);
-  return script.slice(start,end);
+  return script.slice(script.slice(start-6,start)==='async '?start-6:start,end);
 }
 function harness(executor=async()=>({summary:'Applied',id:'rec-1'})){
   const names=[
