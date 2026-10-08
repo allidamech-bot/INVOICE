@@ -76,9 +76,9 @@ export function createConfirmedDeliveryInvoiceDraft(vault:VaultPayload,deliveryN
   const proofs=confirmedSalesDeliveries(delivery.id,vault.documentEvents);
   if(proofs.length!==1)
     fail('Confirm actual delivery quantities before preparing an invoice.','أكد الكميات المسلّمة فعليًا قبل تجهيز الفاتورة.');
+  assertGovernancePermission(vault,'issue-document');
   const existing=linkedDeliveryInvoice(delivery.id,vault.documents,vault.documentEvents);
   if(existing)return{vault,invoice:existing,created:false};
-  assertGovernancePermission(vault,'issue-document');
   const proof=proofs[0]!,context=deliverySalesOrderContext(delivery,vault.documents,vault.documentEvents);
   if(!context)fail('Accepted Sales Order source is unavailable.','مصدر أمر البيع المعتمد غير متاح.');
   const {order,quotation}=context;
