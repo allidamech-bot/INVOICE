@@ -111,7 +111,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
           proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
       }
     }
-    if(requestedAiProductImport(input.message)){
+    if(requestedAiProductImport(input.message)||/^(?:سجلها|سجّلها|احفظها|اعتمدها|سجلهم|سجّلهم|احفظهم|save (?:it|them)|register (?:it|them))[\s.!؟]*$/iu.test(input.message.trim())){
       const proposal={capability:'tool.execute' as const,tool:'product.importSource' as const,args:batch,
         preview:batch.rows.map(row=>({...row.preview,fileName:row.fileName})),label:'Review '+batch.rows.length+' staged products',
         rationale:'Previously staged catalog: inspect every row before approving its registration.'};
