@@ -91,3 +91,27 @@ test('B08.2: same-name catalog products in different workspaces select the scope
   assert.equal(row.id,'supplier-correct');
   assert.equal(productProfitabilityRows([d],[unrelated,correct])[0].id,'widget-1');
 });
+
+test('B08.2: credit notes use their source invoice date, not the later credit issue date, for supplier provenance',()=>{
+  const source=invoice();source.id='original-invoice';source.issueDate='2026-01-20';
+  const credit=invoice();credit.id='credit-document';credit.role='credit-note';
+  credit.issueDate='2026-03-05';credit.creditForId=source.id;
+  const old=purchase('old','supplier-original','2026-01-05');
+  const newSupplier=purchase('new','supplier-later','2026-02-20');
+  const suppliers=[supplier('supplier-original'),supplier('supplier-later')];
+  const row=supplierProfitabilityRows([credit],[item()],[old,newSupplier],suppliers,[source,credit])[0];
+  assert.equal(row.id,'supplier-original');
+  assert.equal(row.netSales,'-100.00');
+  assert.equal(row.grossProfit,'-60.00');
+});
+
+test('B08.2: credit note without a valid in-scope original invoice remains unattributed',()=>{
+  const credit=invoice();credit.role='credit-note';credit.issueDate='2026-03-05';
+  credit.creditForId='original-invoice';
+  const p=purchase('current','supplier-current','2026-02-20');
+  const live=[supplier('supplier-current')];
+  assert.equal(supplierProfitabilityRows([credit],[item()],[p],live)[0].label,'Unattributed');
+  const foreignOriginal=invoice();
+  foreignOriginal.id=credit.creditForId;foreignOriginal.issueDate='2026-01-20';foreignOriginal.branchId='other-branch';
+  assert.equal(supplierProfitabilityRows([credit],[item()],[p],live,[foreignOriginal,credit])[0].label,'Unattributed');
+});
