@@ -177,6 +177,22 @@ test('Batch 7 — customer legal name and VAT registration remain tied to accept
   }
 });
 
+test('Batch 7 — customs HS classification, origin and packing remain faithful to accepted sale',()=>{
+  const {vault,quote}=setup();
+  quote.items[0].hsCode='1905.31';quote.items[0].origin='Türkiye';quote.items[0].packing='12 bags x 50 g';
+  const physical=confirmed(vault,quote,['4','1'],'POD-CUSTOMS');
+  const created=createConfirmedDeliveryInvoiceDraft(physical.vault,physical.note.id);
+  assert.equal(created.invoice.items[0].hsCode,'1905.31');
+  assert.equal(created.invoice.items[0].origin,'Türkiye');
+  assert.equal(created.invoice.items[0].packing,'12 bags x 50 g');
+  for(const changed of [{hsCode:'9999.99'},{origin:'Unknown'},{packing:'Different package'}]){
+    const docs=created.vault.documents.map(doc=>doc.id===created.invoice.id?
+      {...doc,items:doc.items.map((item,i)=>i===0?{...item,...changed}:item)}:doc);
+    assert.throws(()=>assertDeliveryInvoiceIntegrity(docs,created.vault.documentEvents),
+      /Invoice quantities, products or prices differ/);
+  }
+});
+
 test('Batch 7 — duplicate offline invoices for one confirmed note fail merge',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
   const left=createConfirmedDeliveryInvoiceDraft(a.vault,a.note.id).vault;
