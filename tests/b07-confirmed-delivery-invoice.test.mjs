@@ -429,6 +429,20 @@ test('Batch 7 — internal invoice evidence remains intact but both history pane
   assert.match(lifecycle,/documentEventDisplayNote\(event\.note\)/);
 });
 
+test('Batch 7 — issued delivery invoices cannot be revised out of receivables',async()=>{
+  const [app,editor,documents]=await Promise.all([
+    readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../src/components/EditorPageCore.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../src/components/DocumentsPage.tsx',import.meta.url),'utf8')
+  ]);
+  assert.match(app,/An issued delivery-linked invoice cannot be revised/);
+  assert.match(editor,/!isDeliveryLinkedInvoice\(d\.id,this\.props\.documentEvents\?\?\[\]\)/);
+  assert.match(editor,/revisionAllowed\?<Button icon="edit"/);
+  assert.match(editor,/revisionAllowed\?<Button icon="edit" variant="primary"/);
+  assert.match(editor,/revisionAllowed\?<Button icon="edit" onClick=\{\(\)=>this\.setState\(\{unlockConfirm:true\}\)\}/);
+  assert.match(documents,/!isDeliveryLinkedInvoice\(doc\.id,this\.props\.documentEvents\)\?<button type="button" onClick=\{\(\)=>this\.props\.onDuplicate\(doc\)\}/);
+});
+
 test('Batch 7 — final issuance stays human reviewed and serialized, not an AI or automatic posting',async()=>{
   const [app,page,merge,source]=await Promise.all([
     readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8'),
