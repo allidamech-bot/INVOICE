@@ -53,7 +53,10 @@ export async function conversationAttachmentPayload(file:File):Promise<AiPayload
   }
   if(name.endsWith('.xlsx')||name.endsWith('.xls')||name.endsWith('.csv')){
     if(file.size>MAX_DOCUMENT_BYTES)throw new Error('Spreadsheet must be 12 MB or smaller.');
-    const sheets=await readSpreadsheetFile(file);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);
+    const sheets=await readSpreadsheetFile(file);
+    if(sheets.length>12)throw new Error('Spreadsheet has more than 12 worksheets. Use the full Product Import workflow to review every sheet.');
+    const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS+1);
+    if(text.length>MAX_TEXT_CHARS)throw new Error('Spreadsheet text exceeds the safe AI source limit. Use full-file Product Import; no rows have been registered.');
     if(!text.trim())throw new Error('Spreadsheet has no readable business data.');
     return{kind:'text',mimeType:'text/csv',text};
   }
