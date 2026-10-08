@@ -1,14 +1,14 @@
 import type { ApprovalAction, ApprovalPolicyRecord, ApprovalRequestRecord, TeamMemberRecord, TeamRole, VaultPayload } from '../types.js';
 import { makeId } from './id.js';
 
-export type GovernanceCapability='issue-document'|'post-purchase'|'reverse-purchase'|'approve'|'approve-supplier-quote';
+export type GovernanceCapability='issue-document'|'post-purchase'|'reverse-purchase'|'approve'|'approve-supplier-quote'|'record-goods-receipt';
 
 const ROLE_CAPABILITIES:Record<TeamRole,GovernanceCapability[]>={
   owner:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote'],
   admin:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote'],
   finance:['issue-document','approve'],
   sales:['issue-document'],
-  purchasing:['post-purchase','reverse-purchase','approve-supplier-quote'],
+  purchasing:['post-purchase','reverse-purchase','approve-supplier-quote','record-goods-receipt'],
   viewer:[]
 };
 
