@@ -198,6 +198,11 @@ const MANIFEST={
     ],
     "tailadmin-current": [
       {
+        "file": "tests/visual/run-obsidian-settings.cjs",
+        "seconds": 180,
+        "args": []
+      },
+      {
         "file": "tests/visual/run-tailadmin-v320.cjs",
         "seconds": 180,
         "args": []
