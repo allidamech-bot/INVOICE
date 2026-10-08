@@ -102,6 +102,7 @@ test('B06 closeout: pending quote preview and blockers survive tool-planner fail
  assert.match(owner,/const pendingDocumentReview=pendingDocumentProposal\?this.state.review:null/);
  assert.match(owner,/review:proposal\?review:pendingDocumentReview/);
  assert.match(owner,/proposal:pendingDocumentProposal,review:pendingDocumentReview/);
+ assert.match(owner,/proposal:pendingDocumentProposal,review:pendingDocumentReview,messages:/);
 });
 test('B06 closeout: 15-line sales quotation remains reviewable and guarded as one complete plan',()=>{
  const proposal={...base(),items:Array.from({length:15},(_,i)=>({savedItemId:'',descriptionEn:'Product '+(i+1),descriptionAr:'',quantity:'2',unit:'CTN',unitPrice:'3.50'}))};
