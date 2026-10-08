@@ -127,7 +127,7 @@ export function acceptSupplierQuotation(
   const quotation:AcceptedSupplierQuotation={
     rfqId:rfq.id,purchaseOrderId:po.id,reference,supplierId,currency:rfq.currency,
     acceptedAt,acceptedByMemberId:actor.id,validUntil,notes,
-    lines:rfq.items.map((line,i)=>({rfqItemId:line.id,quantity:line.quantity,unit:line.unit,unitPrice:unitPrices[i]}))
+    lines:rfq.items.map((line,i)=>({rfqItemId:line.id,quantity:line.quantity,unit:line.unit,unitPrice:priceFor(i)}))
   };
   const event=createDocumentEvent(rfq,'audit',QUOTE_MARKER+JSON.stringify(quotation),updated);
   const documents=sourced.vault.documents.map(doc=>doc.id===updated.id?updated:doc);
