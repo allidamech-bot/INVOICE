@@ -93,10 +93,23 @@ test('B05: out-of-range, zero, invalid percentages and missing prices fail witho
   v.savedItems[2].lastCurrency='';
   assert.throws(()=>prepareAiBulkProductTransform(v,{selector:'all',pricePercent:'5'}),/sale currency/);
 });
-test('B05: over-40 selections are rejected, not shortened silently',()=>{
+test('B05: exactly 120 products are reviewed and saved atomically with accurate totals',()=>{
   const v=vault();
-  for(let i=0;i<40;i++)v.savedItems.push(product('extra-'+i,'X-'+i,'2.00'));
-  assert.throws(()=>prepareAiBulkProductTransform(v,{selector:'all',pricePercent:'5'}),/More than 40/);
+  for(let i=0;i<116;i++)v.savedItems.push(product('batch-'+i,'SKU-B-'+i,'2.00'));
+  const untouched=JSON.stringify(v);
+  const batch=prepareAiBulkProductTransform(v,{selector:'all',pricePercent:'5'});
+  assert.equal(batch.rows.length,120);
+  assert.equal(batch.rows[119].preview.after.lastUnitPrice,'2.10');
+  assert.equal(JSON.stringify(v),untouched);
+  const saved=applyAiBulkProductUpdate(v,batch);
+  assert.equal(saved.savedItems.filter(item=>item.workspaceId==='default').length,120);
+  assert.equal(saved.savedItems[119].lastUnitPrice,'2.10');
+  assert.equal(saved.savedItems.at(-1).lastUnitPrice,'2.10');
+});
+test('B05: over-120 selections are rejected, not shortened silently',()=>{
+  const v=vault();
+  for(let i=0;i<120;i++)v.savedItems.push(product('extra-'+i,'X-'+i,'2.00'));
+  assert.throws(()=>prepareAiBulkProductTransform(v,{selector:'all',pricePercent:'5'}),/More than 120/);
 });
 test('B05: prefix and company boundaries remain guarded',()=>{
   const v=vault();

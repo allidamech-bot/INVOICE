@@ -44,7 +44,7 @@ export function prepareAiBulkProductTransform(vault:VaultPayload,input:unknown):
   const selected=current.filter(item=>!item.archived&&(transform.selector==='all'||!normalizeSavedItemSku(item.sku||'')));
   if(!selected.length)throw new Error('No active products match the requested transformation.');
   if(selected.length>AI_BULK_PRODUCT_LIMIT)
-    throw new Error('More than 40 products match. Nothing was changed. Review smaller explicit batches.');
+    throw new Error('More than 120 products match. Nothing was changed. Review smaller explicit batches.');
   const used=new Set(current.map(item=>normalizeSavedItemSku(item.sku||'')).filter(Boolean));
   let counter=1;
   const updates=selected.map(item=>{

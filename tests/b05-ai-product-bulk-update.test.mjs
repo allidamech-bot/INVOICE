@@ -60,8 +60,8 @@ test('B05: rejects unauthorized fields, price errors, missing currency and dupli
   v.savedItems[0].lastCurrency='';
   assert.throws(()=>prepareAiBulkProductUpdate(v,[{sku:'OLD-1',patch:{lastUnitPrice:'7'}}]),/currency/);
   assert.throws(()=>prepareAiBulkProductUpdate(v,[{sku:'OLD-1',patch:{category:''}}]),/Category/);
-  assert.throws(()=>prepareAiBulkProductUpdate(v,[]),/1–40/);
-  assert.equal(AI_BULK_PRODUCT_LIMIT,40);
+  assert.throws(()=>prepareAiBulkProductUpdate(v,[]),/1–120/);
+  assert.equal(AI_BULK_PRODUCT_LIMIT,120);
 });
 test('B05: approvals are optimistic-concurrency checked atomically before any save',()=>{
   const v=vault(),batch=prepareAiBulkProductUpdate(v,entries());
