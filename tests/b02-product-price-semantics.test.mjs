@@ -66,7 +66,7 @@ test('B02: the product UI requires explicit approval for EXW/FOB/CIF mapping and
   const source=await readFile('src/components/ProductImportModal.tsx','utf8');
   assert.match(source,/tradePriceAcknowledged:boolean/);
   assert.match(source,/private tradePriceColumns=/);
-  assert.match(source,/tradePriceColumns\.length&&!this\.state\.tradePriceAcknowledged/);
+  assert.match(source,/this\.tradePriceColumns\(analysis,mapping\)\.length&&!this\.state\.tradePriceAcknowledged/);
   assert.match(source,/disabled=\{mappedCount===0\|\|this\.state\.aiLoading\|\|tradeRequiresReview\}/);
   assert.match(source,/Check EXW \/ FOB \/ CIF price meaning before import/);
   assert.match(source,/Only the selected worksheet is imported in this workflow/);
