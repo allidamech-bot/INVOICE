@@ -45,6 +45,14 @@ test('B05: user file analysis stages a complete read-only preview, then three co
  assert.deepEqual(current.savedItems.map(item=>item.lastUnitPrice),['12.5','12.5','11','7']);
  assert(current.savedItems.every(item=>item.category==='Snacks'));
 });
+test('B05: concise save-them follow-up reopens full review instead of writing automatically',async()=>{
+ const v=vault(),batch=prepareAiProductSourceImport(v,[file()]);
+ const reply=await result('سجلها',v,batch);
+ assert.equal(reply.proposal.tool,'product.importSource');
+ assert.equal(reply.proposal.preview.length,4);
+ assert.equal(v.savedItems.length,0);
+ assert.match(reply.answer,/موافقة/);
+});
 test('B05: exact SKU edits update one row only and avoid ambiguous name matching',()=>{
  const v=vault(),base=prepareAiProductSourceImport(v,[file()]);
  const update=reviseAiProductImportDraft(v,base,'Set price of SKU MARS-50 to 20 USD');
