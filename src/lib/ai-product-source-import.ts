@@ -1,12 +1,13 @@
 import type {SavedItem,VaultPayload} from '../types.js';
 import {makeId} from './id.js';
 import {isNonNegativeDecimalInput,normalizeDecimalInput} from './money.js';
-import {findSavedItemDuplicate} from './saved-items.js';
+import {findSavedItemDuplicate,normalizeSavedItemSku} from './saved-items.js';
 
 export const AI_PRODUCT_SOURCE_IMPORT_MAX=120;
 export interface AiProductSourceFact{fileName:string;route:string;confidence:number;extracted:string;}
 export interface AiProductSourceImportRow{fileName:string;item:SavedItem;preview:{itemId:string;name:string;sku:string;before:Record<string,string>;after:Record<string,string>};}
 export interface AiProductSourceImportBatch{workspaceId:string;rows:AiProductSourceImportRow[];}
+export interface AiProductSourceImportOptions{generateMissingSku?:boolean;skuPrefix?:string;}
 function str(value:unknown,max=200):string{
   if(typeof value!=='string'||value.length>max*3)throw new Error('Product source contains an invalid or oversized text value.');
   return value.normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
@@ -58,8 +59,13 @@ export function requestedAiProductImport(message:string):boolean{
   const product=/(?:product|items?|catalog|list|all of them|them|الأصناف|اصناف|المنتجات|منتجات|الكتالوج|القائمة|كلها|جميعها|هم)/iu.test(text);
   return action&&product;
 }
+export function requestedAiProductSkuGeneration(message:string):boolean{
+  const text=String(message||'').normalize('NFKC').toLowerCase().trim();
+  if(text.length>500||!text||/(?:do not|don't|without|no\s+sku|لا\s*(?:تضف|تولد|تنشئ)|بدون\s*sku)/iu.test(text))return false;
+  return /(?:assign|generate|create|add|fill)\s+(?:missing\s+)?(?:skus?|product\s+codes?)|(?:اضف|أضف|ولد|ولّد|أنشئ|انشئ|حط|سوي|اعمل)\s*(?:(?:لهم|عليهم|للأصناف|للمنتجات|لكل\s*(?:الأصناف|المنتجات|صنف))\s*)?(?:sku|كود|اكواد|أكواد|رمز)/iu.test(text);
+}
 /** Entire list is staged, or the entire request fails. Never shorten rows to fit a tool result. */
-export function prepareAiProductSourceImport(vault:VaultPayload,rawSources:unknown):AiProductSourceImportBatch{
+export function prepareAiProductSourceImport(vault:VaultPayload,rawSources:unknown,options:AiProductSourceImportOptions={}):AiProductSourceImportBatch{
   if(!Array.isArray(rawSources)||!rawSources.length||rawSources.length>4)throw new Error('Expected 1–4 attached product sources.');
   const workspaceId=vault.appSettings.activeWorkspaceId||'default';
   const active=vault.savedItems.filter(item=>workspace(item)===workspaceId);
@@ -86,6 +92,20 @@ export function prepareAiProductSourceImport(vault:VaultPayload,rawSources:unkno
       const item=itemFromSource(record,sourceCurrency,workspaceId);
       rows.push({fileName,item,preview:preview(item)});
       if(rows.length>AI_PRODUCT_SOURCE_IMPORT_MAX)throw new Error('Combined files exceed 120 products. Nothing was imported.');
+    }
+  }
+  if(options.generateMissingSku){
+    const prefix=options.skuPrefix??'SKU';
+    if(!/^[A-Z0-9]{1,12}$/.test(prefix))throw new Error('Invalid SKU generation prefix.');
+    const used=new Set([...active,...rows.map(row=>row.item)].map(item=>normalizeSavedItemSku(item.sku||'')).filter(Boolean));
+    let counter=1;
+    for(const row of rows){
+      if(normalizeSavedItemSku(row.item.sku||''))continue;
+      let sku='';do{
+        if(counter>999999)throw new Error('Source product SKU sequence exhausted.');
+        sku=prefix+'-'+String(counter++).padStart(4,'0');
+      }while(used.has(normalizeSavedItemSku(sku)));
+      used.add(normalizeSavedItemSku(sku));row.item.sku=sku;row.preview=preview(row.item);
     }
   }
   assertUnique(rows.map(row=>row.item),active);
