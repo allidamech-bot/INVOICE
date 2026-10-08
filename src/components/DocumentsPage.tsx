@@ -501,7 +501,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           {relatedDocuments.length?<section className="ta-doc-panel ta-doc-action-panel"><header><div><small>{t('Links','الروابط')}</small><h2>{t('Related documents','المستندات المرتبطة')}</h2></div></header>{relatedDocuments.map(related=><button type="button" key={related.id} onClick={()=>this.setState({detailId:related.id,menuId:''})}><Icon name={related.kind==='invoice'?'invoice':'proforma'}/><span>{kindLabel(related)} · {related.number}</span></button>)}</section>:null}
 
-          <section className="ta-doc-panel ta-doc-action-panel"><header><div><small>{t('Actions','الإجراءات')}</small><h2>{t('More actions','إجراءات إضافية')}</h2></div></header><button type="button" onClick={()=>this.props.onDuplicate(doc)}><Icon name="copy"/><span>{t('Duplicate document','نسخ المستند')}</span></button>{canDelete?<button type="button" className="is-danger" onClick={()=>this.props.onDelete(doc)}><Icon name="trash"/><span>{t('Delete draft','حذف المسودة')}</span></button>:null}</section>
+          <section className="ta-doc-panel ta-doc-action-panel"><header><div><small>{t('Actions','الإجراءات')}</small><h2>{t('More actions','إجراءات إضافية')}</h2></div></header>{!isDeliveryLinkedInvoice(doc.id,this.props.documentEvents)?<button type="button" onClick={()=>this.props.onDuplicate(doc)}><Icon name="copy"/><span>{t('Duplicate document','نسخ المستند')}</span></button>:null}{canDelete?<button type="button" className="is-danger" onClick={()=>this.props.onDelete(doc)}><Icon name="trash"/><span>{t('Delete draft','حذف المسودة')}</span></button>:null}</section>
         </aside>
       </div>
       {this.renderActionPortal()}
