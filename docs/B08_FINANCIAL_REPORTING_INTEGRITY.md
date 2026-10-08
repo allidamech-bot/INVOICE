@@ -14,6 +14,7 @@ Scope: **management profitability reporting only**. No change to commercial post
 `tests/b08-profitability-report-integrity.test.mjs`:
 - missing-cost line cannot transfer its proportional overhead to a costed product;
 - missing-cost order independence, completed aggregate totals;
+- signed cost and internal overhead allocations for a reversed credit note;
 - accounted credit notes retain their source match across period boundaries; orphan and invalid-date credits excluded;
 - screen uses canonical source filter before period validation.
 
