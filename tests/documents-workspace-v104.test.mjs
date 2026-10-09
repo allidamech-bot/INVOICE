@@ -22,7 +22,7 @@ test('v104 keeps advanced filters compact on mobile and leaves printable output 
   assert.match(css,/v104 — faster, calmer Documents workspace interactions/);
   assert.match(css,/premium-documents-toolbar\.filters-open \.documents-filter-stack/);
   assert.match(css,/documents-search-shortcut/);
-  assert.match(css,/ta-doc-register-meta/);
+  assert.match(css,/documents-results-bar/);
   assert.match(css,/@media print\{/);
   assert.match(css,/\.app-ui \.documents-page,/);
 });
