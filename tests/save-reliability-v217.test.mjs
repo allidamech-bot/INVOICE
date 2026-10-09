@@ -16,43 +16,68 @@ test('v217 protects dirty document edits during hard navigation and component de
   assert.match(editor,/componentWillUnmount\(\):void\{this\.flushPendingSnapshot\(\)/);
 });
 
-test('v217 distinguishes local queue cloud confirmation failure and conflict states',async()=>{
+test('save status distinguishes local, queued, offline, server-confirmed and conflict without an actionable sync badge',async()=>{
   const [app,shell]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx')]);
   assert.match(app,/type CloudSyncState='local'\|'queued'\|'syncing'\|'synced'\|'offline'\|'error'\|'conflict'/);
-  for(const label of ['Saved locally','Cloud pending','Syncing','Saved to cloud','Offline · Local safe','Sync failed','Sync conflict'])assert.ok(app.includes(label),label);
-  assert.match(shell,/saveLabel=[\s\S]{0,100}this\.props\.cloudLabel/);
-  assert.match(shell,/const detail=this\.props\.cloudMessage/);
-  assert.match(shell,/title=\{detail\|\|label\}/);
-  assert.match(shell,/cloud-conflict-banner/);
+  const label=app.slice(app.indexOf('private cloudHeaderLabel='),app.indexOf('private openCreditNoteLauncher='));
+  for(const expected of ['Saved locally','Cloud pending','Syncing','Saved to cloud','Offline · Local safe','Sync failed','Sync conflict'])assert.ok(label.includes(expected),expected);
+  const status=shell.slice(shell.indexOf('private syncStatus='),shell.indexOf('private conflictBanner='));
+  assert.match(status,/const label=this\.props\.cloudLabel/);
+  assert.match(status,/const detail=this\.props\.cloudMessage/);
+  assert.match(status,/role="status" aria-live="polite"/);
+  assert.match(status,/title=\{detail\|\|label\}/);
+  assert.doesNotMatch(status,/onClick=/,'save status remains passive rather than implying a cloud operation');
+  const conflict=shell.slice(shell.indexOf('private conflictBanner='),shell.indexOf('render():any'));
+  assert.match(conflict,/cloudState==='conflict'/);
+  assert.match(conflict,/className="ta-conflict-banner" role="alert"/);
+  assert.match(conflict,/onClick=\{this\.props\.onCloud\}/);
 });
 
-test('v217 surfaces divergence and keeps the conflict state stable until explicit recovery',async()=>{
+test('cloud divergence is blocked from background overwrite and requires confirmation before either recovery choice',async()=>{
   const [app,cloud,freshness,modal]=await Promise.all([
-    read('src/app/App.tsx'),read('src/cloud/firebase.ts'),read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx')
+    read('src/app/App.tsx'),read('src/cloud/firebase.ts'),
+    read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx')
   ]);
-  assert.match(freshness,/lourex-cloud-conflict/);
   assert.match(app,/window\.addEventListener\('lourex-cloud-conflict',this\.handleCloudConflict\)/);
-  assert.match(app,/handleCloudConflict=[\s\S]*clearTimeout\(this\.cloudTimer\)[\s\S]*cloudSyncQueued=false/);
-  assert.match(app,/if\(this\.state\.cloudSyncState==='conflict'\)return/);
-  assert.match(app,/resolveCloudConflictWithLocal/);
-  assert.match(app,/resolveCloudConflictWithCloud/);
+  const conflict=app.slice(app.indexOf('private handleCloudConflict='),app.indexOf('private announceRemoteCloudUpdate='));
+  assert.match(conflict,/clearTimeout\(this\.cloudTimer\)/);
+  assert.match(conflict,/this\.cloudSyncQueued=false/);
+  assert.match(conflict,/cloudSyncState:'conflict'/);
+  const flush=app.slice(app.indexOf('private flushCloudSync='),app.indexOf('private attachCloudUser=')>0?app.indexOf('private attachCloudUser='):app.indexOf('private cloudSignIn='));
+  assert.match(flush,/if\(this\.state\.cloudSyncState==='conflict'\)return/);
+  assert.match(flush,/if\(result==='remote-changed'\)\{this\.announceRemoteCloudUpdate\(\);return;\}/);
+  const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
+  assert.match(push,/if\(!anchor\)return 'remote-changed'/);
+  assert.match(push,/if\(remoteChanged\)return 'remote-changed'/);
+  assert.doesNotMatch(push,/installCloudVault/);
   assert.match(cloud,/await publishVault\(uid,security,local,remote\)/);
-  assert.match(modal,/confirmConflict:'keep-local'\|'use-cloud'/);
-  assert.match(modal,/This Device Copy/);
-  assert.match(modal,/Cloud Copy/);
+  assert.doesNotMatch(freshness,/await (?:installCloudVault|reconcileCloudVault)\(/);
+  assert.match(modal,/confirmConflict:'keep-local'\|'use-cloud'\|''/);
+  assert.match(modal,/if\(this\.props\.cloudState!=='conflict'\)/);
+  assert.match(modal,/Keep This Device Copy/);
+  assert.match(modal,/Use Cloud Copy/);
+  assert.match(modal,/this\.setState\(\{confirmConflict:'keep-local'\}\)/);
+  assert.match(modal,/this\.setState\(\{confirmConflict:'use-cloud'\}\)/);
+  assert.match(modal,/Confirm choice/);
+  assert.match(modal,/if\(choice==='keep-local'\)await this\.props\.onKeepLocal\(\);else await this\.props\.onRestore\(\)/);
 });
 
-test('v217 save-trust UI is loaded by the page and immutable PWA generation',async()=>{
-  const [html,sw,patch,css,ci]=await Promise.all([
-    read('index.html'),read('public/sw.js'),read('scripts/pwa-cache-v205.mjs'),
-    read('src/styles/save-reliability-v217.css'),read('scripts/verify-local.mjs')
+test('current save status and cloud-conflict UI remain bundled offline, without reviving retired standalone layers',async()=>{
+  const [html,sw,build,css,modal,appShell]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('scripts/build.mjs'),
+    read('src/styles/tailadmin-shell-v320.css'),
+    read('src/components/CloudAccountModal.tsx'),read('src/components/AppShell.tsx')
   ]);
-  assert.match(html,/save-reliability-v217\.css/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v217'/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v216'.*legacy marker/);
+  assert.match(html,/href="\.\/styles\/tailadmin-shell-v320\.css/);
+  assert.match(html,/runtime-safety-v334\.js/);
+  assert.match(sw,/v217 save reliability/);
   assert.match(sw,/save-reliability-v217\.css/);
-  assert.match(css,/\.cloud-conflict-banner/);
-  assert.match(css,/\.cloud-conflict-recovery/);
-  assert.doesNotMatch(css,/\.invoice-page/);
-  assert.match(ci,/run-save-reliability-v217\.cjs/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/replace\([^;\n]*app\.bundle\.css/);
+  assert.match(css,/\.ta-conflict-banner/);
+  assert.match(css,/\.ta-status-dot/);
+  assert.match(modal,/className="ta-cloud-conflict" role="alert"/);
+  assert.match(appShell,/className="ta-conflict-banner" role="alert"/);
+  assert.doesNotMatch(css,/\.invoice-page/,'cloud status styling must not alter the A4 invoice layer');
 });
+
