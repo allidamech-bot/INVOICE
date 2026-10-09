@@ -1,3 +1,4 @@
+import { currentCloudIdToken } from '../cloud/firebase.js';
 import { t } from './i18n.js';
 
 function clamp(value:number,minimum:number,maximum:number):number{return Math.max(minimum,Math.min(maximum,value));}
@@ -253,7 +254,8 @@ async function removeLogoBackgroundWithAi(src:string):Promise<string>{
   if(blob.size>4*1024*1024)throw new Error(t('The logo is too large for AI background removal. Use a file smaller than 4 MB.','حجم الشعار كبير جدًا لإزالة الخلفية بالذكاء الاصطناعي. استخدم ملفًا أصغر من 4 ميجابايت.'));
   const controller=new AbortController(),timeout=window.setTimeout(()=>controller.abort(),35000);
   try{
-    const response=await fetch('/api/remove-background',{method:'POST',headers:{'Content-Type':blob.type,'X-Requested-With':'LOUREX-Invoice'},body:blob,signal:controller.signal,cache:'no-store'});
+    const token=await currentCloudIdToken();
+    const response=await fetch('/api/remove-background',{method:'POST',headers:{'Content-Type':blob.type,'X-Requested-With':'LOUREX-Invoice',Authorization:`Bearer ${token}`},body:blob,signal:controller.signal,cache:'no-store'});
     if(!response.ok){
       let code='';
       try{const payload=await response.json() as {code?:string};code=payload.code||'';}catch{}
