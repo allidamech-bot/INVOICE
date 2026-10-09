@@ -24,6 +24,7 @@ type Props =
 
 type RecoveryState='idle'|'checking'|'blocked'|'error'|'ready';
 const CLOUD_INSTALL_RELOAD_KEY='lourex-cloud-install-reload-v317';
+const ACCOUNT_RECOVERY_BUDGET_MS=12_000;
 
 function diag(type:string,detail=''):void{try{(window as any).__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
 function markReload(reason:string):void{try{(window as any).__LOUREX_MARK_NAVIGATION__?.(reason,'mode=reload source=AuthScreenSelector');}catch{}}
@@ -67,7 +68,7 @@ export function AuthScreenSelector(props: Props): any {
   // LOUREX is account-first: an authenticated account session is required before
   // setup or unlock. Data movement itself stays automatic and has no sync UI.
   const cloudUser=currentCloudUser();
-  const [recoveryState,setRecoveryState]=React.useState<RecoveryState>('idle');
+  const [recoveryState,setRecoveryState]=React.useState<RecoveryState>(cloudUser&&props.mode==='setup'?'checking':'idle');
   const [recoveryRetry,setRecoveryRetry]=React.useState(0);
 
   React.useEffect(()=>{
@@ -77,6 +78,15 @@ export function AuthScreenSelector(props: Props): any {
       return;
     }
     let cancelled=false;
+    const controller=new AbortController();
+    // Firebase reads cannot always be cancelled; never let a late answer restore
+    // an encrypted vault after the user is shown a recoverable timeout state.
+    const timeout=window.setTimeout(()=>{
+      cancelled=true;
+      controller.abort();
+      diag('auth-recovery-timeout','cloud verification exceeded safe budget');
+      setRecoveryState('error');
+    },ACCOUNT_RECOVERY_BUDGET_MS);
     setRecoveryState('checking');
     diag('auth-recovery-stage','stage=checking mode=setup automaticReload=no');
     void (async()=>{
@@ -93,7 +103,7 @@ export function AuthScreenSelector(props: Props): any {
         // Safari still returned to Setup, stop instead of installing/reloading again.
         if(cloudInstallAlreadyReloaded(cloudUser.uid)){diag('auth-recovery-stage','stage=repeat-install-blocked');setRecoveryState('error');return;}
         diag('auth-recovery-stage','stage=install-cloud-start');
-        const installed=await installCloudVault(cloudUser.uid);
+        const installed=await installCloudVault(cloudUser.uid,false,controller.signal);
         if(cancelled)return;
         if(installed){
           diag('auth-recovery-stage','stage=install-cloud-success automaticReload=no');
@@ -109,8 +119,8 @@ export function AuthScreenSelector(props: Props): any {
         diag('auth-recovery-error',`name=${String(error?.name||'Error')} code=${String(error?.code||'unknown')}`);
         if(!cancelled)setRecoveryState('error');
       }
-    })();
-    return()=>{cancelled=true;};
+    })().finally(()=>window.clearTimeout(timeout));
+    return()=>{cancelled=true;controller.abort();window.clearTimeout(timeout);};
   },[cloudUser?.uid,props.mode,recoveryRetry]);
 
   if (!cloudUser) {
