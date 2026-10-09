@@ -1,3 +1,4 @@
+import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=24000;
@@ -15,7 +16,7 @@ function deploymentHosts(){return [process.env.VERCEL_PROJECT_PRODUCTION_URL,pro
 const BUILTIN_PUBLIC_APP_HOSTS=['invoice-three-puce.vercel.app'];
 function publicAppHosts(){return [...BUILTIN_PUBLIC_APP_HOSTS,...String(process.env.LOUREX_PUBLIC_APP_HOSTS||'').split(',')].map(value=>String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'')).filter(Boolean);}
 function sameOriginRequest(request){const requestedWith=String(request.headers['x-requested-with']||'').trim();const fetchSite=String(request.headers['sec-fetch-site']||'').trim().toLowerCase();if(requestedWith!=='LOUREX-Invoice')return false;const origin=String(request.headers.origin||'').trim();if(!origin)return fetchSite==='same-origin';try{const parsed=new URL(origin);if(parsed.protocol!=='https:')return false;const originHost=parsed.host.toLowerCase();const trustedHosts=new Set([...requestHosts(request),...deploymentHosts(),...publicAppHosts()]);if(trustedHosts.has(originHost))return true;return fetchSite==='same-origin';}catch{return false;}}
-function requestIp(request){return String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim()||String(request.socket?.remoteAddress||'unknown');}
+function requestIp(request){if(request.aiVerifiedUid)return `uid:${request.aiVerifiedUid}`;return String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim()||String(request.socket?.remoteAddress||'unknown');}
 function rateAllowed(request){const now=Date.now(),key=requestIp(request),existing=rateBuckets.get(key);const bucket=!existing||now-existing.startedAt>=RATE_WINDOW_MS?{startedAt:now,count:0}:existing;bucket.count+=1;rateBuckets.set(key,bucket);if(rateBuckets.size>500){for(const [entryKey,value] of rateBuckets){if(now-value.startedAt>=RATE_WINDOW_MS)rateBuckets.delete(entryKey);}}return bucket.count<=RATE_MAX;}
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 function cleanColumns(value){if(!Array.isArray(value)||value.length<1||value.length>MAX_COLUMNS)return null;const seen=new Set();const result=[];for(const entry of value){const index=Number(entry?.index);const header=String(entry?.header||'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,160);if(!Number.isInteger(index)||index<0||seen.has(index)||!header)return null;seen.add(index);const samples=Array.isArray(entry?.samples)?entry.samples.slice(0,MAX_SAMPLES).map(sample=>String(sample??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,MAX_SAMPLE_CHARS)).filter(Boolean):[];result.push({index,header,samples});}return result;}
@@ -24,6 +25,7 @@ function cleanMappings(parsed,allowedIndexes){if(!Array.isArray(parsed?.mappings
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST for AI product mapping.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'AI mapping requests must come from this LOUREX Invoice deployment.'});return;}
+  if(!await requireAiFirebaseAuth(request,response))return;
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'AI mapping is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid AI mapping request.'});return;}
   const columns=cleanColumns(body?.columns);if(!columns){sendJson(response,400,{code:'INVALID_COLUMNS',message:'No valid ambiguous columns were supplied.'});return;}

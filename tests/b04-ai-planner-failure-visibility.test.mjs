@@ -5,15 +5,17 @@ import {emptyVault} from '../dist/src/lib/defaults.js';
 
 const context={screen:'items',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}};
 async function withPlannerReply(reply,run){
-  const existingFetch=globalThis.fetch,existingWindow=globalThis.window;
+  const existingFetch=globalThis.fetch,existingWindow=globalThis.window,existingFirebase=globalThis.firebase;
+  globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};
   let calls=0;
+  globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'test-user',getIdToken:async()=> 'signed-fixture-token'}})};
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(_url,options)=>{
     calls+=1;
     return typeof reply==='function'?await reply(options):reply;
   };
   try{return await run(()=>calls);}
-  finally{globalThis.fetch=existingFetch;globalThis.window=existingWindow;}
+  finally{globalThis.fetch=existingFetch;globalThis.window=existingWindow;globalThis.firebase=existingFirebase;}
 }
 const request=(message,options={})=>orchestrateAiToolRequest({
   message,context,vault:emptyVault(),language:options.language??'en',signal:options.signal

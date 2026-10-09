@@ -7,11 +7,14 @@ function textFile(text='SKU A1, quantity 15, unit cost 2.50 USD'){
   return {name:'supplier-quote.txt',type:'text/plain',size:text.length,text:async()=>text};
 }
 async function withResponses(handler,run){
-  const originalFetch=globalThis.fetch,originalWindow=globalThis.window;
+  const originalFetch=globalThis.fetch,originalWindow=globalThis.window,originalFirebase=globalThis.firebase;
+  globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(url,options)=>({ok:true,json:async()=>handler(url,JSON.parse(options.body))});
+  const {currentCloudIdToken}=await import('../dist/src/cloud/firebase.js');
+  assert.equal(await currentCloudIdToken(),'signed-test-token','attachment fixture needs an authenticated account');
   try{return await run();}
-  finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;}
+  finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;globalThis.firebase=originalFirebase;}
 }
 
 test('B04: a text attachment reports real reading, classification and extraction stages in order',async()=>{
@@ -29,7 +32,8 @@ test('B04: a text attachment reports real reading, classification and extraction
 
 test('B04: alternate extraction is labeled as a fallback, not falsely shown as success',async()=>{
   const phases=[];
-  const originalFetch=globalThis.fetch,originalWindow=globalThis.window;
+  const originalFetch=globalThis.fetch,originalWindow=globalThis.window,originalFirebase=globalThis.firebase;
+  globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(url,options)=>{
     const request=JSON.parse(options.body);
@@ -42,7 +46,7 @@ test('B04: alternate extraction is labeled as a fallback, not falsely shown as s
     const analysis=await analyzeConversationAttachment(textFile(),undefined,phase=>phases.push(phase));
     assert.deepEqual(phases,['reading','classifying','extracting','fallback','complete']);
     assert.match(analysis.source.reason,/general read-only source extraction was used/);
-  }finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;}
+  }finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;globalThis.firebase=originalFirebase;}
 });
 
 test('B04: cancellation during local file reading never shows completion',async()=>{

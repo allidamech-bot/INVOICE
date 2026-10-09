@@ -1,0 +1,63 @@
+name: LOUREX Final AI Authentication QA
+on:
+  push:
+    branches:
+      - fix/final-ai-security-closeout-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lourex-final-ai-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Build without deployment
+        run: npm run build
+      - name: AI endpoint authentication and company scope regressions (each test isolated)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            tests/audit-ai-firebase-auth.test.mjs \
+            tests/audit-ai-client-token-safety.test.mjs \
+            tests/audit-ai-branch-isolation.test.mjs \
+            tests/audit-ai-product-scope.test.mjs \
+            tests/audit-ai-pwa-cache-contract.test.mjs \
+            tests/audit-account-auth-loss-watchdog.test.mjs \
+            tests/account-data-isolation-v215.test.mjs; do
+            echo "::group::$file"
+            timeout --signal=TERM 40s node --test "$file"
+            echo "::endgroup::"
+          done
+      - name: Historic AI behavior regressions using signed Firebase fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            tests/ai-origin-canonical-v570.test.mjs \
+            tests/ai-reliability-batch5.test.mjs \
+            tests/ai-review-safety-contract.test.mjs \
+            tests/b04-ai-planner-failure-visibility.test.mjs \
+            tests/b04-attachment-progress.test.mjs \
+            tests/b04-source-aware-tool-planner.test.mjs \
+            tests/live-ai-origin-decision-v574.test.mjs \
+            tests/live-ai-public-origin-v573.test.mjs; do
+            echo "::group::$file"
+            timeout --signal=TERM 40s node --test "$file"
+            echo "::endgroup::"
+          done
+      - name: Complete suite, without waivers
+        run: timeout --signal=TERM 180s node --test --test-concurrency=2 tests/*.test.mjs
