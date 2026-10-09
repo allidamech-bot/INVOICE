@@ -16,3 +16,34 @@
   @media(max-width:980px){.ta-settings-shell{grid-template-columns:210px minmax(0,1fr)}.ta-settings-content{padding:20px}.ta-account-logo-grid{grid-template-columns:1fr}.ta-settings-artwork-grid{grid-template-columns:1fr}}
   @media(max-width:720px){.ta-settings-shell{display:block;min-height:0;margin:0}.ta-settings-sidebar{position:sticky;top:0;z-index:3;padding:10px;border-inline-end:0;border-bottom:1px solid var(--ft-line)}.ta-settings-sidebar-head{display:none}.ta-settings-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;overflow:visible}.ta-settings-nav button{width:100%;min-width:0;min-height:48px;padding:7px 9px;touch-action:manipulation}.ta-settings-nav-icon{width:32px;height:32px}.ta-settings-nav strong{font-size:12px}.ta-settings-nav small{display:none}.ta-settings-content{padding:15px 12px calc(24px + env(safe-area-inset-bottom,0px));scroll-behavior:auto}.ta-settings-page-header{flex-direction:column;gap:10px}.ta-settings-page-header h3{font-size:21px;line-height:29px}.ta-settings-page-action,.ta-settings-page-action .btn{width:100%}.ta-settings-card>header{align-items:flex-start;flex-direction:column}.ta-settings-card>header>div:last-child,.ta-settings-card>header>div:last-child .btn{width:100%}.ta-settings-card-body{padding:14px}.ta-settings-card .form-grid.two{grid-template-columns:1fr}.ta-settings-card .span-2{grid-column:auto!important}.ta-numbering-preview{grid-template-columns:1fr}.ta-recovery-status{align-items:flex-start;flex-wrap:wrap}.ta-recovery-status .btn{width:100%;min-height:44px;margin-top:5px}}
 }
+
+
+/* Company logo manual touch editor: bounded body portal, not document paper. */
+@media screen {
+  .logo-touch-editor-overlay{position:fixed;inset:0;z-index:1600;display:grid;place-items:center;box-sizing:border-box;padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));background:rgba(0,0,0,.68);overscroll-behavior:contain}
+  .logo-touch-editor-sheet{display:flex;flex-direction:column;gap:12px;box-sizing:border-box;width:min(100%,640px);max-height:min(92dvh,860px);overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--ft-line,#475569);border-radius:16px;padding:16px;background:var(--ft-surface,#fff);color:var(--ft-text,#1e293b);box-shadow:0 20px 60px rgba(0,0,0,.28)}
+  .logo-touch-editor-sheet header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .logo-touch-editor-heading{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .logo-touch-editor-heading strong{font-size:17px;color:var(--ft-text-strong,#0f172a)}
+  .logo-touch-editor-subtitle,.logo-touch-editor-hint{font-size:12px;line-height:1.6;color:var(--ft-muted,#64748b);overflow-wrap:anywhere}
+  .logo-touch-editor-canvas-wrap{display:grid;place-items:center;min-height:128px;max-height:42dvh;overflow:auto;border:1px dashed var(--ft-line,#475569);border-radius:10px;background:var(--ft-surface-2,#f1f5f9)}
+  .logo-touch-editor-canvas-wrap canvas{display:block;max-width:100%;max-height:40dvh;object-fit:contain;touch-action:none;cursor:crosshair}
+  .logo-touch-editor-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+  .logo-touch-editor-switch,.logo-touch-editor-utility,.logo-touch-editor-sheet footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .logo-touch-editor-sheet button{min-height:44px;min-width:44px;max-width:100%;padding:8px 12px;border:1px solid var(--ft-line,#475569);border-radius:8px;background:var(--ft-surface-2,#f1f5f9);color:var(--ft-text,#1e293b);font:inherit;touch-action:manipulation;cursor:pointer}
+  .logo-touch-editor-sheet button:focus-visible,.logo-touch-editor-slider input:focus-visible{outline:2px solid var(--ft-accent,#315da8);outline-offset:2px}
+  .logo-touch-editor-sheet button.active,.logo-touch-editor-sheet .logo-touch-editor-apply{background:var(--ft-accent,#315da8);border-color:var(--ft-accent,#315da8);color:#fff}
+  .logo-touch-editor-sheet button:disabled{opacity:.5;cursor:not-allowed}
+  .logo-touch-editor-close{flex-shrink:0;font-size:22px!important;line-height:1}
+  .logo-touch-editor-slider{display:grid;gap:7px;font-size:12px;min-width:0}
+  .logo-touch-editor-slider input{width:100%;min-height:28px;accent-color:var(--ft-accent,#315da8)}
+  .logo-touch-editor-sheet footer{justify-content:flex-end;padding-top:10px;border-top:1px solid var(--ft-line,#475569)}
+}
+@media screen and (max-width:600px){
+  .logo-touch-editor-overlay{place-items:end center;padding:8px 8px max(8px,env(safe-area-inset-bottom,0px))}
+  .logo-touch-editor-sheet{width:100%;max-height:min(92dvh,800px);border-radius:14px;padding:12px;gap:8px}
+  .logo-touch-editor-canvas-wrap{max-height:35dvh}
+  .logo-touch-editor-canvas-wrap canvas{max-height:33dvh}
+  .logo-touch-editor-switch>*{flex:1 1 0}
+  .logo-touch-editor-sheet footer>*{flex:1 1 0}
+}
