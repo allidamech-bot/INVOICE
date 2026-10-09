@@ -69,7 +69,8 @@ test('every provider-backed LOUREX AI route requires verified Firebase ID token'
   }
   const requestSource=await readFile(new URL('../src/lib/ai-request.ts',import.meta.url),'utf8');
   const logoSource=await readFile(new URL('../src/lib/logo-rebuild.ts',import.meta.url),'utf8');
-  for(const [label,source] of [['shared AI requests',requestSource],['logo AI upload',logoSource]]){
+  const mappingSource=await readFile(new URL('../src/lib/product-import-ai.ts',import.meta.url),'utf8');
+  for(const [label,source] of [['shared AI requests',requestSource],['logo AI upload',logoSource],['product mapping AI',mappingSource]]){
     assert.match(source,/const idToken=await cloudAiIdToken\(\)/,label);
     assert.match(source,/Authorization:`Bearer \$\{idToken\}`/,label);
   }
