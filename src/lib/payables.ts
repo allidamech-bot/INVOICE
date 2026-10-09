@@ -29,6 +29,8 @@ function liabilityCents(purchase:PurchaseRecord):bigint{return decimalToScaled(p
 function paymentKnownOnOrBefore(payment:SupplierPaymentRecord,asOf:string):boolean{
   if(!asOf)return true;
   if(payment.date>asOf)return false;
+  // The void changes the current balance but not the history before it.
+  if(payment.voidedAt){const voidDay=payment.voidedAt.slice(0,10);if(!isIsoDate(voidDay)||voidDay<=asOf)return false;}
   // Backdated payment entered later must not rewrite a previously closed report.
   const createdDate=payment.createdAt?.slice(0,10)||'';
   return !createdDate||(isIsoDate(createdDate)&&createdDate<=asOf);
@@ -126,6 +128,7 @@ export function createSupplierPayment(purchase:PurchaseRecord,supplier:Supplier|
 export function normalizeSupplierPayment(purchase:PurchaseRecord,supplier:Supplier|null,payments:SupplierPaymentRecord[],payment:SupplierPaymentRecord):SupplierPaymentRecord{
   if(purchase.status!=='posted')throw new Error('Supplier payments require an active posted purchase.');
   const supplierId=purchaseSupplierId(purchase);
+  if(payment.voidedAt)throw new Error('A voided supplier payment cannot be reposted or edited. Record a new payment.');
   if(payment.purchaseId!==purchase.id)throw new Error('Supplier payment purchase link is invalid.');
   if(payment.supplierId!==supplierId)throw new Error('Supplier payment supplier does not match the purchase.');
   const currency=cleanCurrency(purchase.currency);
@@ -134,10 +137,18 @@ export function normalizeSupplierPayment(purchase:PurchaseRecord,supplier:Suppli
   if(!METHODS.has(payment.method))throw new Error('Supplier payment method is invalid.');
   if(!isDecimalInput(payment.amount)||decimalToScaled(payment.amount,2)<=0n)throw new Error('Supplier payment amount must be greater than zero.');
   const total=liabilityCents(purchase);
-  const paidExcludingCurrent=payments.filter(item=>item.purchaseId===purchase.id&&item.id!==payment.id).reduce((sum,item)=>sum+paymentCents(item),0n);
+  const paidExcludingCurrent=payments.filter(item=>item.purchaseId===purchase.id&&item.id!==payment.id&&!item.voidedAt).reduce((sum,item)=>sum+paymentCents(item),0n);
   const amount=decimalToScaled(payment.amount,2);
   if(paidExcludingCurrent+amount>total)throw new Error('Supplier payment cannot exceed the remaining purchase balance.');
   return{...payment,purchaseNumber:purchase.number,supplierId,supplierNameEn:supplier?.nameEn||purchase.supplierSnapshot?.nameEn||payment.supplierNameEn||'',supplierNameAr:supplier?.nameAr||purchase.supplierSnapshot?.nameAr||payment.supplierNameAr||'',currency,amount:centsString(amount),reference:payment.reference.trim(),notes:payment.notes.trim(),updatedAt:nowIso()};
+}
+
+export function voidSupplierPayment(payment:SupplierPaymentRecord,reason:string):SupplierPaymentRecord{
+  if(payment.voidedAt)throw new Error('Supplier payment is already voided.');
+  const clean=reason.trim();if(!clean)throw new Error('A reason is required to void a supplier payment.');
+  const at=nowIso();
+  if(!isIsoDate(payment.date)||!isDecimalInput(payment.amount)||decimalToScaled(payment.amount,2)<=0n)throw new Error('Original supplier payment is invalid.');
+  return {...payment,voidedAt:at,voidReason:clean,updatedAt:at};
 }
 
 export function assertSupplierPaymentInvariant(purchases:PurchaseRecord[],suppliers:Supplier[],payments:SupplierPaymentRecord[]):void{
@@ -148,6 +159,12 @@ export function assertSupplierPaymentInvariant(purchases:PurchaseRecord[],suppli
     if(!payment.id||ids.has(payment.id))throw new Error('Supplier payment IDs must be unique.');ids.add(payment.id);
     const purchase=purchaseMap.get(payment.purchaseId);if(!purchase)throw new Error('Supplier payment is linked to a missing purchase.');
     const supplier=supplierMap.get(payment.supplierId)??null;
+    if(payment.voidedAt){
+      const voidDay=payment.voidedAt.slice(0,10);
+      if(!isIsoDate(voidDay)||voidDay<((payment.createdAt||'').slice(0,10))||!payment.voidReason?.trim())throw new Error('Supplier payment cancellation audit metadata is invalid.');
+      if(!isIsoDate(payment.date)||!isDecimalInput(payment.amount)||decimalToScaled(payment.amount,2)<=0n||cleanCurrency(payment.currency)!==cleanCurrency(purchase.currency))throw new Error('Cancelled supplier payment history is invalid.');
+      continue;
+    }
     normalizeSupplierPayment(purchase,supplier,payments,payment);
   }
 }
