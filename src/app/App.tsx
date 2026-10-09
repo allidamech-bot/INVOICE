@@ -198,8 +198,10 @@ export class App extends React.Component<{},State> {
     this.resetAutoLock();
   };
   private handleAccountTransitionRequest=(event:Event)=>{
-    const uid=String((event as CustomEvent<{uid?:string}>).detail?.uid??'').trim();
-    if(!uid||this.accountTransitionRunning)return;
+    const detail=(event as CustomEvent<{uid?:string;signedOut?:boolean}>).detail;
+    const uid=String(detail?.uid??'').trim();
+    const signedOut=detail?.signedOut===true;
+    if((!uid&&!signedOut)||this.accountTransitionRunning)return;
     this.accountTransitionRunning=true;
     void (async()=>{
       try{
@@ -207,17 +209,25 @@ export class App extends React.Component<{},State> {
         this.cloudSyncQueued=false;
         await this.drainVaultWrites();
         await this.waitForCloudIdle();
+        // The old account's CryptoKey must be revoked before changing IndexedDB.
         await suspendSession();
-        setActiveAccountUid(uid);
-        await activateAccountStorage(uid);
+        setActiveAccountUid(uid||null);
+        await activateAccountStorage(uid||null);
         await suspendSession();
         this.latestEncryptedVault=null;
         this.vaultWriteTail=Promise.resolve(null);
         await new Promise<void>(resolve=>this.setState({loading:true,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,cloudModal:false,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''},resolve));
-        await this.initialize();
+        if(!signedOut)await this.initialize();
       }catch(error){
         this.setState({loading:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,newMenu:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(error)});
       }finally{
+        if(signedOut){
+          // Even if cloud writes or IndexedDB fail, never leave a usable PIN key.
+          await suspendSession();
+          setActiveAccountUid(null);
+          try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
+          window.location.reload();
+        }
         this.accountTransitionRunning=false;
         window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid}}));
       }
