@@ -1,3 +1,4 @@
+import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=420000;
@@ -40,6 +41,7 @@ function deep(message){const text=message.toLowerCase();return['compare','risk',
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'POST required.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'AI_ORIGIN_REJECTED',message:'LOUREX conversation source request origin was rejected.'});return;}
+  if(!await requireAiFirebaseAuth(request,response))return;
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX conversation request.'});return;}
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'Attach at least one analyzed business source and include a question.'});return;}
