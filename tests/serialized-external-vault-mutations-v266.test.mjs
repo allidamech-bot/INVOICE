@@ -12,8 +12,17 @@ test('v266 external mutations run inside the App vault write tail',async()=>{
 
   assert.match(index,/registerVaultMutationBridge\(async mutation=>\{/);
   assert.match(index,/instance\.vaultWriteTail\.catch\(\(\)=>null\)\.then\(async \(queued:any\)=>\{/);
-  assert.match(index,/const latest=queued\?\?instance\.state\.vault/);
-  assert.match(index,/const next=mutation\(latest\)/);
+  assert.match(index,/await instance\.waitForProtectedDataOperation\(\)/);
+  assert.match(index,/const latestFull=queued\?\?instance\.state\.vault/);
+  assert.match(index,/const latest=scopeVaultForExternalMutation\(latestFull\)/);
+  assert.match(index,/const intended=applyWorkspaceScope\(latest,mutation\(latest\)\)/);
+  assert.match(index,/const validated=mergeVaultIntent\(latest,intended,latest\)/);
+  assert.match(index,/const next=mergeScopedVault\(latestFull,appendAuditEventsForVaultDiff\(latest,validated\)\)/);
+  const mutationPath=index.slice(index.indexOf('const latestFull=queued??instance.state.vault'),index.indexOf('const encrypted=await saveVault(key,next)'));
+  assert.ok(mutationPath.indexOf('scopeVaultForExternalMutation')<mutationPath.indexOf('mergeVaultIntent'));
+  assert.ok(mutationPath.indexOf('mergeVaultIntent')<mutationPath.indexOf('mergeScopedVault'));
+  assert.ok(mutationPath.indexOf('appendAuditEventsForVaultDiff')>mutationPath.indexOf('mergeVaultIntent'));
+  assert.doesNotMatch(mutationPath,/const next=mutation\(latest\)/,'external tools must not write unvalidated vault mutations');
   assert.match(index,/const encrypted=await saveVault\(key,next\)/);
   assert.match(index,/instance\.latestEncryptedVault=encrypted/);
   assert.match(index,/instance\.setState\(\{vault:next\}/);
