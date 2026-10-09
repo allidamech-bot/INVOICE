@@ -18,8 +18,8 @@ const compiled=ts.transpileModule(extracted,{compilerOptions:{
   module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022
 }}).outputText;
 
-function fixture(){
-  let callback,authenticatedUser={uid:'A'},selectedUid='A',nextTimerId=0;
+function fixture(initialScope='A'){
+  let callback,authenticatedUser={uid:'A'},selectedUid=initialScope,nextTimerId=0;
   const timers=new Map(),events=[],listeners=new Map();
   class FakeEvent{constructor(type,options){this.type=type;this.detail=options?.detail;}}
   const window={
@@ -75,4 +75,10 @@ test('a direct Firebase UID change forces an account transition instead of reusi
   f.emit({uid:'B'});
   assert.deepEqual(f.events,['B']);
   assert.equal(f.pending,0);
+});
+
+test('a late Firebase login from the signed-out gateway initializes the new account UI',()=>{
+  const f=fixture(null);
+  f.emit({uid:'A'});
+  assert.deepEqual(f.events,['A'],'public-scoped React cannot retain a stale workspace after sign-in');
 });
