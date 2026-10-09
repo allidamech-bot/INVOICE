@@ -8,6 +8,7 @@ async function withPlannerReply(reply,run){
   const existingFetch=globalThis.fetch,existingWindow=globalThis.window,existingFirebase=globalThis.firebase;
   globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};
   let calls=0;
+  globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'test-user',getIdToken:async()=> 'signed-fixture-token'}})};
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(_url,options)=>{
     calls+=1;

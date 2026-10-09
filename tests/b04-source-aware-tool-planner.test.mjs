@@ -17,6 +17,8 @@ const withFakePlanner=async(plan,run)=>{
     payloads.push(JSON.parse(options.body));
     return{ok:true,json:async()=>({plan})};
   };
+  const {currentCloudIdToken}=await import('../dist/src/cloud/firebase.js');
+  assert.equal(await currentCloudIdToken(),'signed-test-token','planning fixture requires a verified signed-in account');
   try{return await run(payloads);}
   finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;globalThis.firebase=originalFirebase;}
 };

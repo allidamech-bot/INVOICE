@@ -11,6 +11,8 @@ async function withResponses(handler,run){
   globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(url,options)=>({ok:true,json:async()=>handler(url,JSON.parse(options.body))});
+  const {currentCloudIdToken}=await import('../dist/src/cloud/firebase.js');
+  assert.equal(await currentCloudIdToken(),'signed-test-token','attachment fixture needs an authenticated account');
   try{return await run();}
   finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;globalThis.firebase=originalFirebase;}
 }
