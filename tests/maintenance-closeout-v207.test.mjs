@@ -4,38 +4,47 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v207 replaces the raw browser file control with one localized accessible artwork picker',async()=>{
-  const [settings,css]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/styles/maintenance-closeout-v207.css')]);
+test('current artwork picker is localized, accessible and visibly keyboard-focusable',async()=>{
+  const [settings,css]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/styles/tailadmin-settings-v320.css')]);
   assert.match(settings,/Replace image','استبدال الصورة/);
   assert.match(settings,/Choose image','اختيار صورة/);
-  assert.match(settings,/className="asset-file-input" type="file" aria-label=\{chooseText\}/);
-  assert.match(settings,/className="asset-file-trigger" aria-hidden="true"/);
-  assert.match(css,/\.asset-file-input\{[\s\S]*clip-path:inset\(50%\)!important/);
-  assert.match(css,/\.asset-upload-label:focus-within \.asset-file-trigger/);
+  assert.match(settings,/<label className="ta-settings-asset-upload">/);
+  assert.match(settings,/<input type="file" aria-label=\{chooseText\} disabled=\{this\.state\.busy\|\|this\.state\.cleaningAssets\}/);
+  assert.match(settings,/accept="image\/png,image\/webp,image\/jpeg"/);
+  assert.match(settings,/className="ta-settings-asset-trigger" aria-hidden="true"/);
+  assert.match(css,/\.ta-settings-asset-upload input\{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none\}/);
+  assert.match(css,/\.ta-settings-asset-upload:focus-within\{outline:2px solid var\(--ft-accent\);outline-offset:3px\}/);
+  assert.match(css,/\.ta-settings-asset-trigger\{grid-column:2;min-height:44px/);
 });
 
-test('v207 separates company identity from artwork controls in both reading directions',async()=>{
-  const css=await read('src/styles/maintenance-closeout-v207.css');
-  assert.match(css,/\.account-profile-logo-grid\{[\s\S]*display:grid!important[\s\S]*gap:14px!important/);
-  assert.match(css,/\.account-profile-summary\{[\s\S]*flex-direction:column!important[\s\S]*gap:6px!important/);
-  assert.match(css,/@media\(max-width:720px\)[\s\S]*\.account-profile-logo-grid\{grid-template-columns:minmax\(0,1fr\)!important/);
+test('current account identity and artwork remain separate in both reading directions',async()=>{
+  const [settings,css]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/styles/tailadmin-settings-v320.css')]);
+  assert.match(settings,/className="ta-account-logo-grid"/);
+  assert.match(settings,/className="ta-account-summary"/);
+  assert.match(settings,/className="ta-settings-artwork-grid"/);
+  assert.match(css,/\.ta-account-logo-grid\{display:grid;grid-template-columns:minmax\(280px,\.8fr\) minmax\(0,1\.2fr\);gap:18px/);
+  assert.match(css,/\.ta-account-summary\{min-width:0;padding:16px/);
+  assert.match(css,/\.ta-settings-artwork-grid\{display:grid;grid-template-columns:1fr 1fr;gap:14px/);
+  assert.match(css,/@media\(max-width:980px\)[\s\S]*\.ta-account-logo-grid\{grid-template-columns:1fr\}/);
 });
 
-test('v207 purchase actions no longer cover mobile form fields',async()=>{
-  const [css,visual]=await Promise.all([read('src/styles/maintenance-closeout-v207.css'),read('tests/visual/run-obsidian-financial.cjs')]);
-  assert.match(css,/\.purchase-editor \.operations-editor-actions\{[\s\S]*position:static!important[\s\S]*background:transparent!important/);
+test('current purchase editor keeps controls scrollable above its action row on mobile',async()=>{
+  const [css,visual]=await Promise.all([read('src/styles/tailadmin-operations-v320.css'),read('tests/visual/run-obsidian-financial.cjs')]);
+  assert.match(css,/\.ta-ops-editor-scroll\{min-height:0;overflow:auto;padding:16px\}/);
+  assert.match(css,/\.ta-ops-editor-actions\{display:flex;justify-content:flex-end;gap:8px;padding:13px 16px;border-top:1px solid var\(--ft-line\);background:var\(--ft-surface\)\}/);
   assert.match(visual,/purchase action bar covers editable fields/);
   assert.match(visual,/\.purchase-editor fieldset input/);
 });
 
-test('v207 remains app-only, loads last before protected document output, and publishes a fresh PWA generation',async()=>{
-  const [css,index,patch]=await Promise.all([read('src/styles/maintenance-closeout-v207.css'),read('index.html'),read('scripts/pwa-cache-v205.mjs')]);
+test('current settings are screen-only, bundled for offline use, and print-isolated',async()=>{
+  const [css,index,build,sw]=await Promise.all([read('src/styles/tailadmin-settings-v320.css'),read('index.html'),read('scripts/build.mjs'),read('public/sw.js')]);
   assert.match(css,/@media screen/);
-  assert.doesNotMatch(css,/invoice-page|invoice-pages|@media print/);
-  const layer='./styles/maintenance-closeout-v207.css',print='./styles/document-premium-redesign-v141.css';
-  assert.ok(index.includes(layer)&&index.indexOf(layer)<index.indexOf(print));
-  assert.match(patch,/const CACHE = 'lourex-invoice-v207'/);
-  assert.match(patch,/lourex-invoice-v206/);
+  assert.doesNotMatch(css,/\.invoice-page|\.invoice-pages|@media print/);
+  assert.match(index,/href="\.\/styles\/tailadmin-settings-v320\.css/);
+  assert.match(index,/href="\.\/styles\/tailadmin-reliability-bridge-v320\.css/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/sw=sw\.replace\(/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v314'/);
 });
 
 test('v207 reacts to account sign-out without a permanent high-frequency polling loop',async()=>{
