@@ -39,8 +39,10 @@ test('cloud scheduling preserves explicit requests and always protects the activ
 });
 
 test('service worker includes the current cloud coalescing runtime without an obsolete cache-generation assertion',async()=>{
-  const [patch,sw,distSw]=await Promise.all([read('scripts/pwa-cache-v205.mjs'),read('public/sw.js'),read('dist/sw.js')]);
-  for(const content of [patch,sw,distSw])assert.ok(content.includes('./src/cloud/coalescing.js'),'cloud coalescing module must be precached');
+  // public/sw.js is a source template; the build patches its immutable asset graph.
+  // Assert the actual shipped worker and its build-time generator, not the unbuilt template.
+  const [patch,distSw]=await Promise.all([read('scripts/pwa-cache-v205.mjs'),read('dist/sw.js')]);
+  for(const content of [patch,distSw])assert.ok(content.includes('./src/cloud/coalescing.js'),'built offline runtime must precache cloud coalescing');
   const active=[...distSw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
   assert.equal(active.length,1,'built PWA must have exactly one active application cache generation');
   assert.ok(Number(active[0][1])>=228,'the current cache must not regress behind the cloud scheduling release');
