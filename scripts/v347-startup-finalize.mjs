@@ -18,12 +18,12 @@ if(!html.includes(themeBootstrap))throw new Error('v351: canonical external them
 const legacyLightBoot='html[data-ui-theme="light"]{--boot-bg:#f9fafb;--boot-text:#101828;--boot-track:#e4e7ec;--boot-accent:#465fff}';
 const canonicalLightBoot='html[data-ui-theme="light"]{--boot-bg:#f4f7fb;--boot-text:#102235;--boot-track:#c3d1dc;--boot-accent:#129da1}';
 const legacyDarkBoot='html[data-ui-theme="dark"]{--boot-bg:#0c111d;--boot-text:#f9fafb;--boot-track:#344054;--boot-accent:#7592ff}';
-const canonicalDarkBoot='html[data-ui-theme="dark"]{--boot-bg:#0a1826;--boot-text:#f7fbff;--boot-track:#353535;--boot-accent:#7399E3}';
+const canonicalDarkBoot='html[data-ui-theme="dark"]{--boot-bg:#0D0D0D;--boot-text:#f7fbff;--boot-track:#353535;--boot-accent:#7399E3}';
 html=html
-  .replace('<meta name="theme-color" content="#0c111d" />','<meta name="theme-color" content="#0a1826" />')
+  .replace('<meta name="theme-color" content="#0c111d" />','<meta name="theme-color" content="#0D0D0D" />')
   .replace(legacyLightBoot,canonicalLightBoot)
   .replace(legacyDarkBoot,canonicalDarkBoot)
-  .replaceAll('var(--boot-bg,#0c111d)','var(--boot-bg,#0a1826)')
+  .replaceAll('var(--boot-bg,#0c111d)','var(--boot-bg,#0D0D0D)')
   .replaceAll('var(--boot-track,#344054)','var(--boot-track,#353535)')
   .replaceAll('var(--boot-accent,#7592ff)','var(--boot-accent,#7399E3)');
 if(!html.includes(canonicalLightBoot)||!html.includes(canonicalDarkBoot))throw new Error('v351: canonical source boot palette is missing.');
@@ -98,9 +98,9 @@ await writeFile(runtimePath,runtime);
 /* Source document-entry still supports older copied builds; the generated file
    must resolve boot repainting to the canonical v351 canvas. */
 let entry=await readFile(entryPath,'utf8');
-entry=entry.replaceAll("const bootBackground=dark?'#0c111d':'#f9fafb';","const bootBackground=dark?'#0a1826':'#f4f7fb';");
+entry=entry.replaceAll("const bootBackground=dark?'#0c111d':'#f9fafb';","const bootBackground=dark?'#0D0D0D':'#f4f7fb';");
 if(entry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas colors remain.');
-if(!entry.includes("const bootBackground=dark?'#0a1826':'#f4f7fb';"))throw new Error('v351: canonical document-entry boot canvas contract is missing.');
+if(!entry.includes("const bootBackground=dark?'#0D0D0D':'#f4f7fb';"))throw new Error('v351: canonical document-entry boot canvas contract is missing.');
 await writeFile(entryPath,entry);
 
 /* Finalize the Service Worker after all normal precache passes. */
@@ -124,7 +124,7 @@ if(finalHtml.includes('<script id="lourex-theme-bootstrap">'))throw new Error('v
 if(!finalHtml.includes(themeBootstrap))throw new Error('v351: external theme bootstrap is not wired with the current cache key.');
 if(!finalHtml.includes(canonicalLightBoot)||!finalHtml.includes(canonicalDarkBoot))throw new Error('v351: canonical first-paint boot palette is missing from production HTML.');
 if(finalHtml.includes(legacyLightBoot)||finalHtml.includes(legacyDarkBoot))throw new Error('v351: legacy first-paint boot palette remains in production HTML.');
-if(!finalHtml.includes('<meta name="theme-color" content="#0a1826" />'))throw new Error('v351: production theme-color meta is not canonical.');
+if(!finalHtml.includes('<meta name="theme-color" content="#0D0D0D" />'))throw new Error('v351: production theme-color meta is not canonical.');
 if(!finalHtml.includes(runtimeNoAutoReload))throw new Error('v482: production HTML is missing no-auto-reload runtime guard.');
 if(finalHtml.indexOf(runtimeNoAutoReload)<=finalHtml.indexOf(runtimeSafety)||finalHtml.indexOf(runtimeNoAutoReload)>=finalHtml.indexOf(newDocumentEntry))throw new Error('v482: final runtime guard order is invalid.');
 if(!finalHtml.includes(storageCleanup)||finalHtml.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: storage cleanup cache key is not canonical.');
