@@ -50,7 +50,8 @@ test('v215 direct UID replacement goes through a guarded account transition befo
   const watcher=index.slice(index.indexOf('function startAccountSignOutWatcher'),index.indexOf('async function start()'));
   const transition=app.slice(app.indexOf('private handleAccountTransitionRequest'),app.indexOf('private handleOnline'));
   assert.match(watcher,/const selectedStorageUid=activeAccountStorageUid\(\)/);
-  assert.match(watcher,/if\(selectedStorageUid&&selectedStorageUid!==user\.uid\)/);
+  assert.match(watcher,/if\(selectedStorageUid!==user\.uid\)/);
+  assert.doesNotMatch(watcher,/if\(!selectedStorageUid\)\{[\s\S]*?await activateAccountStorage\(user\.uid\)/,'late login must not swap IndexedDB without reinitializing React');
   assert.match(watcher,/lourex-account-transition-request/);
   assert.match(watcher,/detail:\{uid:targetUid\}/);
   assert.match(transition,/await this\.drainVaultWrites\(\);[\s\S]*await this\.waitForCloudIdle\(\);/);
