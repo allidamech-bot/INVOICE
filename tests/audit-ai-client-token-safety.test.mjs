@@ -15,6 +15,8 @@ test('Firebase token refresh rejects a request after switching account identity'
     resolveToken('old-token');
     await assert.rejects(pending,/account changed/i);
     assert.equal(await currentCloudIdToken(),'new-token');
+    session.currentUser={uid:'',getIdToken:async()=> 'must-not-send'};
+    await assert.rejects(currentCloudIdToken(),/session ended/i);
   }finally{globalThis.firebase=previous;}
 });
 
