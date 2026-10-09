@@ -228,7 +228,7 @@ jobs:
       - name: Test inventory mobile, RTL, iPad WebKit and overlay release
         shell: bash
         run: |
-          npx http-server dist -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-browser-qa.log 2>&1 &
+          npx http-server . -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-browser-qa.log 2>&1 &
           for i in {1..40}; do
             if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then break; fi
             sleep 1
