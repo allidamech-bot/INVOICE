@@ -233,7 +233,7 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 }
 
 function startAccountSignOutWatcher():void{
-  subscribeCloudUser(user=>{
+  const handleAuthChange=(user:ReturnType<typeof currentCloudUser>):void=>{
     if(user){
       clearPendingAuthLoss();
       const selectedStorageUid=activeAccountStorageUid();
@@ -250,6 +250,9 @@ function startAccountSignOutWatcher():void{
           if(detail?.uid!==targetUid)return;
           signOutTransitionRunning=false;
           window.removeEventListener('lourex-account-transition-complete',complete as EventListener);
+          // The Firebase identity might change while old writes drain.
+          const latest=currentCloudUser();
+          if(latest?.uid!==targetUid)handleAuthChange(latest);
         }) as EventListener;
         window.addEventListener('lourex-account-transition-complete',complete);
         window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:targetUid}}));
@@ -276,11 +279,15 @@ function startAccountSignOutWatcher():void{
         if((event as CustomEvent<{uid?:string|null}>).detail?.uid!==null)return;
         signOutTransitionRunning=false;
         window.removeEventListener('lourex-account-transition-complete',complete as EventListener);
+        // Do not lose a new login received during pending sign-out.
+        const latest=currentCloudUser();
+        if(latest)handleAuthChange(latest);
       }) as EventListener;
       window.addEventListener('lourex-account-transition-complete',complete);
       window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:null}}));
     },AUTH_RESTORATION_GRACE_MS);
-  });
+  };
+  subscribeCloudUser(handleAuthChange);
 }
 
 async function start():Promise<void>{
