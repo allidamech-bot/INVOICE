@@ -65,6 +65,10 @@ jobs:
           git config user.email 'qa@invalid.local'
           for branch in fix/audit-workspace-payables-asof-20261009 fix/audit-ai-verified-auth-20261009; do
             git fetch origin "$branch:refs/remotes/origin/$branch"
+            if [[ "$branch" == "fix/audit-ai-verified-auth-20261009" ]] && [[ "$(git rev-parse "origin/$branch")" != "ae6500ca69a6cdde88fdd3992872fc59bddf76fb" ]]; then
+              echo 'AI PR changed after manual review of its account-transition hunks; re-audit required.'
+              exit 1
+            fi
             if ! git merge --no-ff --no-edit "origin/$branch"; then
               conflicts="$(git diff --name-only --diff-filter=U)"
               while IFS= read -r file; do
@@ -73,9 +77,19 @@ jobs:
                     # Both independent PRs install the same diagnostic workflow.
                     git checkout --ours "$file"; git add "$file" ;;
                   tests/account-data-isolation-v215.test.mjs|tests/account-required-after-logout-v188.test.mjs)
-                    # PR660 replaces obsolete source-shape assertions with the
-                    # stronger confirmed-logout and cross-account safety contracts.
-                    # Its executable behavior tests are also run in this job.
+                    # PR660 replaces obsolete source-shape assertions with stronger
+                    # executable auth and account transition behavior regressions.
+                    git checkout --ours "$file"; git add "$file" ;;
+                  src/app/App.tsx|src/app/index.tsx)
+                    # At the reviewed pinned AI commit, PR653 touches these two
+                    # files ONLY in the older auth transition/logout implementation.
+                    # Retain the newer PR660 fail-closed implementation together
+                    # with all already-merged PR652 finance changes. AI endpoint
+                    # changes elsewhere are still merged and exercised below.
+                    if [[ "$branch" != "fix/audit-ai-verified-auth-20261009" ]]; then
+                      echo "Unexpected application conflict before AI branch: $file"
+                      exit 1
+                    fi
                     git checkout --ours "$file"; git add "$file" ;;
                   *)
                     echo "Unresolved application/source conflict: $file"
