@@ -151,8 +151,10 @@ test('first-run onboarding requires one LOUREX account plus a separate local PIN
     'uncertain cloud recovery must fail closed instead of creating a new PIN');
   assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
-  assert.match(css, /account-entry-tabs/);
-  assert.match(css, /setup-account-badge/);
+  assert.match(css, /\\.ta-auth-tabs\\{display:grid/);
+  assert.match(account, /className="ta-auth-tabs" role="tablist"/);
+  assert.match(css, /\\.ta-setup-card\\{/);
+  assert.match(css, /\\.ta-setup-pin-grid\\{/);
 });
 
 test('offline service worker precaches the complete application module graph and current runtime', async () => {
