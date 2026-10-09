@@ -54,3 +54,19 @@ test('supplier balances, account list and statements exclude future and late-pos
   assert.equal(statement.entries[0].reference,purchase.number);
   assert.equal(supplierPayablesByCurrency(purchases,[],'2026-10-21')[0].purchases,'4000.00');
 });
+
+test('late-entered backdated supplier payment never changes an earlier payable snapshot',()=>{
+  const {supplier,purchase,earlier}=fixture();
+  const backdated={...earlier,id:'payment-entered-later',date:'2026-10-03',
+    createdAt:'2026-10-20T12:00:00.000Z',amount:'350'};
+  const payments=[earlier,backdated];
+  const historic=purchasePayableSummary(purchase,payments,'2026-10-09');
+  assert.equal(historic.paid,'200.00');
+  assert.equal(historic.remaining,'800.00');
+  const historicStatement=supplierStatement(supplier.id,[purchase],payments,'2026-10-09')[0];
+  assert.equal(historicStatement.entries.length,2);
+  assert.equal(historicStatement.remaining,'800.00');
+  const current=purchasePayableSummary(purchase,payments,'2026-10-21');
+  assert.equal(current.paid,'550.00');
+  assert.equal(current.remaining,'450.00');
+});
