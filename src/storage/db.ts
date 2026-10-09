@@ -296,7 +296,7 @@ export async function putPublicPreferences(preferences: Omit<PublicPreferencesRe
 }
 export async function getCloudAccount(): Promise<CloudAccountRecord | null> { return getRecord<CloudAccountRecord>('cloud-account'); }
 export async function putCloudAccount(uid:string,email:string): Promise<void> {
-  if(activeStorageUid&&activeStorageUid!==uid)throw new Error('Local account storage does not match the authenticated account.');
+  if(activeStorageUid!==uid)throw new Error('Local account storage does not match the authenticated account.');
   const existing=await getCloudAccount();
   const now=new Date().toISOString();
   await putRecord({id:'cloud-account',uid,email,linkedAt:existing?.uid===uid?existing.linkedAt:now,updatedAt:now});
