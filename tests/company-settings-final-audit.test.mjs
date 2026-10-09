@@ -91,7 +91,7 @@ test('company save validates optional email without changing historical document
 test('stale artwork work cannot overwrite a closed or reopened settings session',async()=>{
   const source=await read('src/components/SettingsModal.tsx');
   assert.match(source,/private assetPreparationId=0/);
-  assert.match(source,/if\(!this\.props\.open&&prev\.open\)this\.assetPreparationId\+=1/);
+  assert.match(source,/if\(!this\.props\.open&&prev\.open\)\{this\.assetPreparationId\+=1;this\.closeRequestedDuringBusy=false;\}/);
   const operationStarts=source.match(/const preparationId=\+\+this\.assetPreparationId/g)||[];
   const staleGuards=source.match(/if\(!this\.props\.open\|\|preparationId!==this\.assetPreparationId\)return;/g)||[];
   assert.ok(operationStarts.length>=3,'open preparation, upload, and rebuild should each get a fresh operation id');
