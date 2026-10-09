@@ -127,6 +127,15 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
+
+// The Firebase client refreshes expiring ID tokens. Do not persist or log them.
+export async function cloudAiIdToken():Promise<string>{
+  const user=auth().currentUser;
+  if(!user?.uid||typeof user.getIdToken!=='function')throw new Error('Sign in to your LOUREX account before using AI.');
+  const token=await user.getIdToken();
+  if(typeof token!=='string'||!token)throw new Error('Unable to verify your LOUREX session. Sign in again.');
+  return token;
+}
 export function subscribeCloudUser(onChange:(user:CloudUser|null)=>void):()=>void{
   try{
     const off=auth().onAuthStateChanged((user:any)=>onChange(userFrom(user)),()=>undefined);
