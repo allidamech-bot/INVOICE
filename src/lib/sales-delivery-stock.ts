@@ -58,7 +58,7 @@ export function postSalesDeliveryStock(vault:VaultPayload,input:PostSalesDeliver
     fail('Select one catalog item for every delivered line.','اختر صنفًا من المخزون لكل بند مسلّم.');
   const context=deliverySalesOrderContext(delivery,vault.documents,vault.documentEvents);
   if(!context)fail('Accepted Sales Order is missing.','أمر البيع المعتمد غير موجود.');
-  const remaining=new Map<string,bigint>(),now=new Date().toISOString();
+  const remaining=new Map<string,bigint>(),usedCatalogItems=new Set<string>(),now=new Date().toISOString();
   const movements=proof.lines.map((line,i)=>{
     const chosen=input.savedItemIds[i]?.trim()||'';
     const item=vault.savedItems.find(row=>row.id===chosen&&!row.archived);
@@ -68,6 +68,9 @@ export function postSalesDeliveryStock(vault:VaultPayload,input:PostSalesDeliver
       fail('Map each delivered line to a distinct active catalog item.','اربط كل بند مسلّم بصنف مخزني نشط ومختلف.');
     if(item.workspaceId&&item.workspaceId!==workspaceId||item.branchId&&item.branchId!==branchId)
       fail('The catalog item belongs to another workspace or branch.','الصنف يعود إلى مساحة عمل أو فرع مختلف.');
+    if(usedCatalogItems.has(chosen))
+      fail('Each delivered line must use a distinct catalog item.','يجب ربط كل بند مسلّم بصنف مخزني مختلف.');
+    usedCatalogItems.add(chosen);
     if(!item.sku?.trim())fail('Assign a SKU to the selected inventory item before posting.','أضف SKU للصنف المخزني قبل ترحيل الصرف.');
     if(item.unit.trim().toLowerCase()!==line.unit.trim().toLowerCase()
       ||docLine.unit!==line.unit||orderLine.unit!==line.unit
