@@ -93,14 +93,25 @@ jobs:
           git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
           if ! git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009; then
             conflicts="$(git diff --name-only --diff-filter=U)"
-            # Both independent PRs created the same QA workflow file. Keep the
-            # current job definition, but reject ALL source/test merge conflicts.
-            if [[ "$conflicts" != ".github/workflows/lourex-free-premerge.yml" ]]; then
-              printf 'UNRESOLVED SOURCE CONFLICTS: %s\\n' "$conflicts"
-              exit 1
-            fi
-            git checkout --ours .github/workflows/lourex-free-premerge.yml
-            git add .github/workflows/lourex-free-premerge.yml
+            # Resolve only two explicitly audited integration-only collisions:
+            # keep this workflow and use the stronger UID-scoped security PR tests.
+            # Any other conflicted source or test must fail, never be silently kept.
+            while IFS= read -r conflict; do
+              case "$conflict" in
+                ".github/workflows/lourex-free-premerge.yml")
+                  git checkout --ours -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                "tests/ai-financial-copilot-v264.test.mjs")
+                  git checkout --theirs -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                *)
+                  printf 'UNRESOLVED SOURCE CONFLICT: %s\\n' "$conflict"
+                  exit 1
+                  ;;
+              esac
+            done <<< "$conflicts"
           fi
           test -z "$(git diff --name-only --diff-filter=U)"
           git status --short
@@ -159,14 +170,25 @@ jobs:
           git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
           if ! git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009; then
             conflicts="$(git diff --name-only --diff-filter=U)"
-            # Both independent PRs created the same QA workflow file. Keep the
-            # current job definition, but reject ALL source/test merge conflicts.
-            if [[ "$conflicts" != ".github/workflows/lourex-free-premerge.yml" ]]; then
-              printf 'UNRESOLVED SOURCE CONFLICTS: %s\\n' "$conflicts"
-              exit 1
-            fi
-            git checkout --ours .github/workflows/lourex-free-premerge.yml
-            git add .github/workflows/lourex-free-premerge.yml
+            # Resolve only two explicitly audited integration-only collisions:
+            # keep this workflow and use the stronger UID-scoped security PR tests.
+            # Any other conflicted source or test must fail, never be silently kept.
+            while IFS= read -r conflict; do
+              case "$conflict" in
+                ".github/workflows/lourex-free-premerge.yml")
+                  git checkout --ours -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                "tests/ai-financial-copilot-v264.test.mjs")
+                  git checkout --theirs -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                *)
+                  printf 'UNRESOLVED SOURCE CONFLICT: %s\\n' "$conflict"
+                  exit 1
+                  ;;
+              esac
+            done <<< "$conflicts"
           fi
           test -z "$(git diff --name-only --diff-filter=U)"
           git status --short
