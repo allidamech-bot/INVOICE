@@ -102,3 +102,31 @@ test('AI approval cannot modify another branch, another company, a final documen
   assert.throws(()=>approve('issued'),/Only active drafts/);
   assert.throws(()=>approve('voided'),/Only active drafts/);
 });
+
+
+test('pending AI document follow-ups cannot resurrect drafts from a previously selected branch',async()=>{
+  const [{emptyVault},{scopeVault},copilot]=await Promise.all([
+    import('../dist/src/lib/defaults.js'),
+    import('../dist/src/lib/workspaces.js'),
+    read('src/components/AiCopilot.tsx')
+  ]);
+  const vault=emptyVault();
+  vault.appSettings.activeWorkspaceId='default';
+  vault.appSettings.activeBranchId='main';
+  vault.documents=[
+    {id:'old-branch-draft',workspaceId:'default',branchId:'branch-B',status:'draft',kind:'proforma'},
+    {id:'current-draft',workspaceId:'default',branchId:'main',status:'draft',kind:'proforma'}
+  ];
+  const scoped=scopeVault(vault);
+  assert.deepEqual(scoped.documents.map(row=>row.id),['current-draft']);
+  assert.equal(scoped.documents.find(row=>row.id==='old-branch-draft'),undefined);
+  const start=copilot.indexOf("if(pendingDocumentProposal?.capability==='document.updateDraft'&&!context.drafting.activeDocument)");
+  const end=copilot.indexOf('    if(pendingDocumentProposal){',start);
+  assert.ok(start>0&&end>start);
+  const fallback=copilot.slice(start,end);
+  assert.match(fallback,/const scoped=scopeVault\(resumed\.vault\)/);
+  assert.match(fallback,/const target=scoped\.documents\.find\(doc=>doc\.id===pendingDocumentProposal\.documentId\)/);
+  assert.match(fallback,/if\(!target\)\{[\s\S]*proposal:null,review:null[\s\S]*return;/);
+  assert.match(fallback,/draftReference\(scoped,message,target\)/);
+  assert.doesNotMatch(fallback,/resumed\.vault\.documents\.find\(/);
+});
