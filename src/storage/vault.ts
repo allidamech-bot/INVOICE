@@ -290,7 +290,9 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   (['customers','suppliers','savedItems','fxRates'] as const).forEach(key=>restoreScope(key,false));
   (['purchases','supplierPayments','expenses','inventoryMovements','treasuryAccounts','treasuryEntries','treasuryReconciliations','warehouses','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const).forEach(key=>restoreScope(key,true));
 
-  const rawWorkspaces=Array.isArray((vault as any).workspaces)?(vault as any).workspaces:[];
+  // Before v20 the top-level company/numbering was authoritative. A later
+  // default-workspace placeholder must never overwrite that legacy data.
+  const rawWorkspaces=sourceVersion>=20&&Array.isArray((vault as any).workspaces)?(vault as any).workspaces:[];
   migrated.workspaces=rawWorkspaces.map((workspace:any,index:number)=>({
     id:stringValue(workspace?.id,index===0?'default':''),name:stringValue(workspace?.name,workspace?.company?.nameEn||workspace?.company?.nameAr||`Workspace ${index+1}`),
     company:{...defaults.company,...structuredClone(workspace?.company&&typeof workspace.company==='object'?workspace.company:{})},
