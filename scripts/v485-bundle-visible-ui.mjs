@@ -310,7 +310,7 @@ const documentStudioFinalGuard=`
    inherit a second visual system from older owners. */
 @media screen {
   html body #root .app-ui :is(.screen-editor,.editor-screen){
-    --lrx-editor-accent:#315fad;
+    --lrx-editor-accent:var(--ft-accent,#315DA8);
   }
 
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-primary{
