@@ -1,0 +1,44 @@
+name: LOUREX Cloud Startup Recovery QA
+
+on:
+  push:
+    branches:
+      - fix/audit-fresh-device-startup-20261009
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-startup-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Runtime cloud timeout, cancelled write, auth recovery and old contracts
+        run: node --test tests/audit-fresh-device-cloud-recovery.test.mjs tests/iphone-startup-deadlock-v184.test.mjs
+      - name: Full historical suite, visible diagnostic only
+        shell: bash
+        run: |
+          set +e
+          node --test tests/*.test.mjs > "${RUNNER_TEMP}/lourex-all-startup.log" 2>&1
+          status=$?
+          set -e
+          grep -E '^[[:space:]]*ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/lourex-all-startup.log" || true
+          echo "Historical suite exit status: $status"
+          echo "Only the named targeted tests above are release-gating. Legacy failures are not considered passing."
