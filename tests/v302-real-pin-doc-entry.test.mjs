@@ -21,37 +21,65 @@ test('v302 requires a user PIN after account authentication and on every new run
   assert.match(session,/resumeAccountSession[\s\S]*runtimePinAuthorized=false[\s\S]*return false/);
 });
 
-test('v302 makes image and PDF attachments discoverable inside the document editor',async()=>{
-  const [attachments,entry]=await Promise.all([
+test('editor provides accessible multi-file image, PDF and supplier document uploads without legacy injection',async()=>{
+  const [attachments,entry,core,types]=await Promise.all([
     read('src/components/DocumentAttachmentsSection.tsx'),
-    read('public/document-entry-v302.js')
+    read('public/document-entry-v302.js'),
+    read('src/components/EditorPageCore.tsx'),
+    read('src/types.ts')
   ]);
   assert.match(attachments,/id="document-attachments"/);
-  assert.match(attachments,/accept="image\/\*,application\/pdf,\.pdf"/);
-  assert.match(attachments,/Add image \/ PDF/);
-  assert.match(entry,/v302-attachments-shortcut/);
-  assert.match(entry,/document-attachments/);
-  assert.match(entry,/add\.click\(\)/);
+  assert.match(attachments,/className="attachment-add-button"/);
+  assert.match(attachments,/onClick=\{\(\)=>this\.input\?\.click\(\)\}/);
+  assert.match(attachments,/type="file" accept="[^"]*application\/pdf/);
+  assert.match(attachments,/multiple onChange=\{this\.add\}/);
+  assert.match(attachments,/MAX_FILE_BYTES/);
+  assert.match(attachments,/MAX_TOTAL_BYTES/);
+  assert.match(attachments,/MAX_FILES/);
+  assert.match(core,/<DocumentAttachmentsSection document=\{d\} onChange=\{next=>this\.mutate\(\(\)=>next\)\}/);
+  assert.match(types,/attachments\?: DocumentAttachment\[\]/);
+  assert.match(entry,/function removeLegacyInjectedControls\(\)/);
+  assert.match(entry,/\.v302-direct-document-actions,\.v302-attachments-shortcut/);
+  assert.doesNotMatch(entry,/function injectAttachmentsShortcut/);
 });
 
-test('v302 exposes quotation, invoice and purchase order as direct home actions',async()=>{
-  const entry=await read('public/document-entry-v302.js');
-  assert.match(entry,/directAction\('proforma',0,'New Quotation','عرض سعر جديد'/);
-  assert.match(entry,/directAction\('invoice',1,'New Invoice','فاتورة جديدة'/);
-  assert.match(entry,/directAction\('purchase-order',2,'Purchase Order','طلب شراء'/);
-  assert.match(entry,/Supplier order & delivery terms/);
-});
-
-test('v302 loading surface owns the full dynamic viewport without white seams',async()=>{
-  const [css,html]=await Promise.all([
-    read('src/styles/security-documents-closeout-v302.css'),
-    read('index.html')
+test('native creation menus expose quotation, invoice and purchase order with dedicated document kinds',async()=>{
+  const [shell,entry,kinds]=await Promise.all([
+    read('src/components/AppShell.tsx'),
+    read('public/document-entry-v302.js'),
+    read('src/lib/document-kinds.ts')
   ]);
-  assert.match(css,/#root>\.loading-screen[\s\S]*position:fixed!important[\s\S]*inset:0!important/);
-  assert.match(css,/height:100dvh!important/);
-  assert.match(css,/background:#061820!important/);
-  assert.match(html,/security-documents-closeout-v302\.css\?v=302/);
-  assert.match(html,/document-entry-v302\.js\?v=302/);
+  for(const kind of ['proforma','invoice','purchase-order']){
+    assert.ok(shell.includes("onClick={()=>this.createDocument('"+kind+"')}"),kind+' must have a real click action');
+  }
+  assert.match(shell,/private createDocument=\(kind:DocumentKind\)=>\{/);
+  assert.match(shell,/this\.props\.onNew\(kind\)/);
+  assert.match(shell,/aria-label=\{t\('New Document','مستند جديد'\)\}/);
+  assert.match(entry,/const menuKinds=\[[^\]]*'purchase-order'/);
+  assert.match(entry,/function normalizeCreateMenuKinds\(\)/);
+  assert.match(entry,/function rememberNativeDocumentKind\(event\)/);
+  assert.match(kinds,/kind:'purchase-order'[\s\S]*titleEn:'PURCHASE ORDER'/);
+  assert.match(kinds,/kind:'proforma'[\s\S]*titleEn:'QUOTATION'/);
+  assert.match(kinds,/kind:'invoice'[\s\S]*titleEn:'COMMERCIAL INVOICE'/);
+});
+
+test('current boot owns full dynamic viewport and theme palette before React mounts',async()=>{
+  const [css,html,sw]=await Promise.all([
+    read('src/styles/security-documents-closeout-v302.css'),
+    read('index.html'),
+    read('public/sw.js')
+  ]);
+  assert.match(html,/id="lourex-boot-style"/);
+  assert.match(html,/html\[data-lourex-booting="true"\]/);
+  assert.match(html,/height:100dvh!important/);
+  assert.match(html,/#lourex-boot\.loading-screen\{position:fixed;inset:-2px;z-index:2147483000/);
+  assert.match(html,/background:var\(--boot-bg,#0a1826\)/);
+  assert.match(html,/data-ui-theme="dark"/);
+  assert.match(html,/data-ui-theme="light"/);
+  assert.match(css,/#root>\.loading-screen,[\s\S]*#lourex-boot\.loading-screen/);
+  assert.match(css,/min-height:calc\(100dvh \+ 224px\)!important/);
+  assert.match(sw,/LOCAL_CORE\.push\('\.\/styles\/security-documents-closeout-v302\.css'\)/);
+  assert.match(sw,/LOCAL_CORE\.push\('\.\/document-entry-v302\.js'\)/);
 });
 
 test('v302 installs a fresh PWA cache that contains the security and document-entry closeout assets',async()=>{
