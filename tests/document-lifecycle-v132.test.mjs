@@ -12,7 +12,8 @@ test('v132 adds encrypted document events revisions and dedicated credit note nu
   assert.ok(schemaVersion>=8,'document lifecycle requires schema v8 or later');
   assert.ok(defaults.includes('documentEvents: []'));
   assert.ok(defaults.includes('documentRevisions: []'));
-  assert.ok(merge.includes('documentEvents:mergeRecords'));
+  assert.match(merge,/const documentEvents=mergeRecords\(base\.documentEvents,intended\.documentEvents,latest\.documentEvents\)/);
+  assert.match(merge,/assertDeliveryInvoiceLedgerContinuity\(base\.documentEvents,intended\.documentEvents,latest\.documentEvents\)/);
   assert.ok(merge.includes('documentRevisions:mergeRecords'));
   assert.ok(vault.includes('document event'));
   assert.ok(vault.includes('document revision'));
@@ -26,7 +27,9 @@ test('v132 safe revision snapshots final before opening a draft revision',async(
   assert.ok(!core.includes("const doc={...structuredClone(this.state.doc),status:'draft'"));
   assert.ok(app.includes('createRevisionRecord(current)'));
   assert.ok(app.includes('beginRevisionDraft(current)'));
-  assert.ok(lifecycle.includes('snapshot:structuredClone(doc)'));
+  assert.match(lifecycle,/snapshot:cloneDocumentForRevision\(doc,false\)/);
+  assert.match(lifecycle,/attachmentAuditMetadata\(doc\.attachments\)/);
+  assert.match(lifecycle,/structuredClone\(\{\.\.\.doc,attachments:\[\]\}\)/);
   assert.ok(app.includes('restoreRevisionSnapshot'));
 });
 
@@ -56,7 +59,7 @@ test('v132 credit notes are linked capped and cannot accept payments',async()=>{
 test('v132 ships lifecycle UI offline and preserves prior cache compatibility markers',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   assert.ok(html.includes('document-lifecycle-v132.css'));
-  assert.ok(html.indexOf('document-lifecycle-v132.css')<html.indexOf('performance-polish-v100.css'));
+  assert.ok(html.indexOf('performance-polish-v100.css')<html.indexOf('document-lifecycle-v132.css'),'performance baseline loads before lifecycle-specific final controls');
   for(const asset of ['document-lifecycle-v132.css','DocumentLifecyclePanel.js','document-lifecycle.js'])assert.ok(sw.includes(asset),asset);
   assert.ok(sw.includes("const CACHE = 'lourex-invoice-v132'"));
   assert.ok(sw.includes("const CACHE = 'lourex-invoice-v131'"));
