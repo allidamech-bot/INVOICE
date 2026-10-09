@@ -4,23 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('canonical light-paper layer replaces the retired fully-dark contrast layer',async()=>{
-  const [html,css]=await Promise.all([
-    read('index.html'),
-    read('src/styles/document-premium-redesign-v141.css')
-  ]);
-  assert.doesNotMatch(html,/document-dark-contrast-v126\.css/);
-  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
-
-  for(const name of ['template-noir','template-midnight','template-blackivory','template-carbon']){
-    assert.match(css,new RegExp(name));
-  }
-  assert.match(css,/\.template-noir\{--paper:#fffdf8/);
-  assert.match(css,/\.template-midnight\{--paper:#fcfaf4/);
-  assert.match(css,/\.term-row>span/);
-  assert.match(css,/\.notes-block p/);
-  assert.match(css,/\.bank-block>div>span/);
-  assert.match(css,/\.continued-label/);
+test('canonical light-paper A4 layer remains active without retired dark override',async()=>{
+ const [html,css]=await Promise.all([read('index.html'),read('src/styles/document-premium-redesign-v141.css')]);
+ assert.equal(html.includes('document-dark-contrast-v126.css'),false);
+ assert.equal([...html.matchAll(/href="\.\/styles\/document-premium-redesign-v141\.css"/g)].length,1,'one canonical commercial paper owner');
+ assert.ok(html.includes('tailadmin-documents-v320.css'),'screen-only workspaces follow the canonical paper owner');
+ for(const id of ['noir','midnight','blackivory','carbon'])assert.match(css,new RegExp('\\.template-'+id+'\\{--paper:#(?:fff|fc|fb|fa)'));
+ for(const rule of ['.term-row>span','.notes-block p','.bank-block>div>span','.continued-label'])assert.ok(css.includes(rule),rule);
 });
 
 test('v126 preserves intentional light and accent surfaces',async()=>{
