@@ -48,3 +48,56 @@ jobs:
           if [[ "$exit_code" != "0" ]]; then
             echo "::warning::Existing failures remain; historical suite is not green."
           fi
+
+  combined-branch-security:
+    name: PR652 + PR653 + PR660 integration (no push or Production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Merge accounting and AI branches in local runner only
+        shell: bash
+        run: |
+          git config user.name 'LOUREX QA'
+          git config user.email 'qa@invalid.local'
+          for branch in fix/audit-workspace-payables-asof-20261009 fix/audit-ai-verified-auth-20261009; do
+            git fetch origin "$branch:refs/remotes/origin/$branch"
+            if ! git merge --no-ff --no-edit "origin/$branch"; then
+              conflicts="$(git diff --name-only --diff-filter=U)"
+              # The two branches own independent copies of the same CI file.
+              # Any conflict outside that non-production QA file is a blocker.
+              if [[ "$conflicts" != ".github/workflows/lourex-free-premerge.yml" ]]; then
+                echo "Source conflicts must be resolved on a feature branch: $conflicts"
+                exit 1
+              fi
+              git checkout --ours .github/workflows/lourex-free-premerge.yml
+              git add .github/workflows/lourex-free-premerge.yml
+              git commit --no-edit
+            fi
+          done
+          test -z "$(git diff --name-only --diff-filter=U)"
+          echo 'Three-branch local integration succeeded without pushing.'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install and typecheck combined candidate
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+      - name: Build combined production bundle locally (no deploy)
+        run: npm run build
+      - name: Run combined high-risk auth, accounting and AI tests
+        run: |
+          node --test --test-concurrency=2 \
+            tests/audit-confirmed-signout.test.mjs \
+            tests/audit-account-transition-runtime.test.mjs \
+            tests/account-data-isolation-v215.test.mjs \
+            tests/account-required-after-logout-v188.test.mjs \
+            tests/audit-supplier-payables-asof.test.mjs \
+            tests/audit-supplier-payment-void-merge.test.mjs \
+            tests/audit-treasury-void-history.test.mjs \
+            tests/audit-ai-firebase-auth.test.mjs \
+            tests/audit-ai-client-token-safety.test.mjs
