@@ -107,7 +107,12 @@ test('v264 client still builds finance facts locally while AI Core receives only
   const broker=sourceText('../src/lib/ai-finance.ts');
   const shell=sourceText('../src/components/AppShell.tsx');
   assert.match(copilot,/resumeVaultSession\(\)/);
-  assert.match(copilot,/buildAiFinanceContext\(financeSource,message\)/);
+  assert.match(copilot,/const scoped=scopeVault\(vault\)/,'all local accounting evidence must be filtered by current company and branch');
+  assert.match(copilot,/const scopedFinance:AiFinanceSource=/);
+  assert.match(copilot,/documents:scoped\.documents,payments:scoped\.payments,customers:scoped\.customers/);
+  assert.match(copilot,/finance:buildAiFinanceContext\(scopedFinance,message\)/);
+  assert.match(copilot,/const scopedActiveDocument=selected\?scoped\.documents\.find\(doc=>doc\.id===selected\.id\)\?\?null:null/);
+  assert.doesNotMatch(copilot,/buildAiFinanceContext\(financeSource,message\)/,'regression: unscoped decrypted vault must not enter assistant finance context');
   assert.match(copilot,/const context=buildAiContext\(/);
   assert.match(copilot,/const memory=this\.state\.messages\.slice\(-4\).*\.slice\(-520\)/s);
   assert.match(copilot,/const readOnlyMemory=capability==='workspace\.help'\|\|capability==='finance\.explain'\|\|capability==='business\.explain'\|\|capability==='pricing\.explain'\|\|capability==='document\.review'/);
