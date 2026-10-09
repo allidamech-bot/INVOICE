@@ -11,5 +11,5 @@ test('v337 runtime upgrades an already-marked stale stylesheet instead of trusti
   assert.match(runtime,/const existing=document\.querySelector\(`link\[\$\{marker\}\]`\)/);
   assert.match(runtime,/existing instanceof HTMLLinkElement/);
   assert.match(runtime,/if\(!stylesheetHrefMatches\(existing,href\)\)existing\.href=href/);
-  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=365-1/);
 });
