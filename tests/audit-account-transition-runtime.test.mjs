@@ -22,7 +22,7 @@ const body='class TestApp { accountTransitionRunning=false; cloudTimer=undefined
   source.slice(start,end)+' } exports.TestApp=TestApp;';
 const compiled=ts.transpileModule(body,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 
-function fixture({rejectSwitch=false}={}){
+function fixture({rejectSwitch=false,holdDrain=false}={}){
   const log=[];
   let resolveCompletion;
   const completed=new Promise(resolve=>resolveCompletion=resolve);
@@ -39,7 +39,14 @@ function fixture({rejectSwitch=false}={}){
   };
   vm.runInNewContext(compiled,context);
   const app=new context.exports.TestApp(log);
-  return {app,log,completed,Event:TestEvent};
+  let releaseDrain=()=>{};
+  if(holdDrain){
+    let release;
+    const drainGate=new Promise(resolve=>{release=resolve;});
+    app.drainVaultWrites=async()=>{log.push('drain');await drainGate;};
+    releaseDrain=()=>release();
+  }
+  return {app,log,completed,Event:TestEvent,releaseDrain};
 }
 
 test('confirmed sign-out releases old CryptoKey before switching to public DB and clears decrypted UI',async()=>{
@@ -77,4 +84,21 @@ test('a failed storage switch fails closed and cannot show the old account',asyn
   assert.equal(f.app.state.cloudSyncState,'error');
   assert.ok(f.log.filter(x=>x==='suspend').length>=2,'session revoked again on failure');
   assert.ok(!f.log.includes('initialize'),'must not initialize a different account after failed isolation');
+});
+
+
+test('account switch masks decrypted workspace immediately while old cloud writes finish',async()=>{
+  const f=fixture({holdDrain:true});
+  f.app.handleAccountTransitionRequest(new f.Event('transition',{detail:{uid:'account-B'}}));
+  assert.equal(f.app.state.loading,true,'account data must be hidden before any asynchronous drain');
+  assert.equal(f.app.state.unlocked,true,'key remains available only to finish queued writes before revocation');
+  assert.ok(!f.log.includes('uid:account-B'),'cannot change IndexedDB scope while old writes are pending');
+  assert.match(source,/if\(this\.state\.loading\)return <div className="loading-screen"/,
+    'loading state must render without business or account data');
+  f.releaseDrain();
+  await f.completed;
+  assert.equal(f.app.state.unlocked,false);
+  assert.equal(f.app.state.key,null);
+  assert.equal(f.app.state.vault,null);
+  assert.ok(f.log.indexOf('suspend')<f.log.indexOf('uid:account-B'));
 });
