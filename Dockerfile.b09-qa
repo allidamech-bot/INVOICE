@@ -1,0 +1,16 @@
+# Isolated Batch 9 QA-only image. NEVER deploys the LOUREX application.
+FROM mcr.microsoft.com/playwright:v1.55.0-noble
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CI=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl ca-certificates git \
+  && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+  && apt-get install -y --no-install-recommends nodejs \
+  && node --version \
+  && rm -rf /var/lib/apt/lists/*
+COPY scripts/b09-render-qa.sh /usr/local/bin/b09-render-qa.sh
+RUN chmod +x /usr/local/bin/b09-render-qa.sh
+RUN /usr/local/bin/b09-render-qa.sh
+# Marker-only web process required by Render; no app assets exposed.
+CMD ["node","-e","require('node:http').createServer((q,s)=>{s.writeHead(200,{'Content-Type':'text/plain'});s.end('LOUREX Batch 9 release QA only; this is not production.');}).listen(process.env.PORT||10000,'0.0.0.0')"]
