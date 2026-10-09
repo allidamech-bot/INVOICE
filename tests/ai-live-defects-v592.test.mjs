@@ -42,8 +42,12 @@ test('v592 saved draft updates resolve an explicit document number to the real d
 
 test('v592 draft context can target a saved document explicitly named in chat and update completion is tangible',async()=>{
   const copilot=await read('src/components/AiCopilot.tsx');
-  assert.match(copilot,/referencedDocument=!activeDocument\?vault\.documents\.find\(document=>document\.kind!=='draft'&&messageContainsText\(message,document\.number\)\)/);
-  assert.match(copilot,/const targetDocument=activeDocument\?\?referencedDocument/);
+  assert.match(copilot,/const inWorkspace=\(row:\{workspaceId\?:string\}\)=>\(row\.workspaceId\|\|'default'\)===activeWorkspace/,'only same-workspace records may be exposed as AI references');
+  assert.match(copilot,/referencedDocument=!activeDocument\?vault\.documents\.find\(document=>inWorkspace\(document\)&&document\.kind!=='draft'&&messageContainsText\(message,document\.number\)\)/);
+  assert.match(copilot,/const targetDocument=activeDocument&&inWorkspace\(activeDocument\)\?activeDocument:referencedDocument/);
+  assert.match(copilot,/const active=targetDocument&&targetDocument\.kind!=='draft'\?/,'never attach an unrelated free-form Draft to an AI document update');
+  assert.match(copilot,/mutateVaultSafely\(vault=>\{assertAiDocumentUpdateApproval\(vault,proposal\)/,'AI document updates remain approval-gated and encrypted');
+  assert.match(copilot,/current\.status!=='draft'\|\|current\.lifecycleStatus==='voided'/,'AI must not modify issued or voided documents');
   assert.match(copilot,/executeDocumentUpdateProposal=async\(proposal:AiDocumentUpdateProposal\):Promise<LourexDocument>/);
   assert.match(copilot,/Quotation draft updated and saved/);
   assert.match(copilot,/const artifact:AiDocumentArtifact=\{document,customerCreated:false\}/);
