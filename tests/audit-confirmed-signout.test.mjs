@@ -41,6 +41,7 @@ function fixture(initialScope='A'){
   context.exports.start();context.exports.prime();
   return {
     emit(user){authenticatedUser=user;callback(user);},
+    complete(uid){selectedUid=uid;window.dispatchEvent(new FakeEvent('lourex-account-transition-complete',{detail:{uid}}));},
     flush(){const items=[...timers.values()];timers.clear();for(const fn of items)fn();},
     get pending(){return timers.size;},
     get events(){return events.filter(x=>x.type==='lourex-account-transition-request').map(x=>x.detail.uid);},
@@ -81,4 +82,34 @@ test('a late Firebase login from the signed-out gateway initializes the new acco
   const f=fixture(null);
   f.emit({uid:'A'});
   assert.deepEqual(f.events,['A'],'public-scoped React cannot retain a stale workspace after sign-in');
+});
+
+test('rapid A to B to C account switch reconciles latest Firebase UID after B finishes',()=>{
+  const f=fixture('A');
+  f.emit({uid:'B'});
+  assert.deepEqual(f.events,['B']);
+  f.emit({uid:'C'});
+  assert.deepEqual(f.events,['B'],'B transition is still draining');
+  f.complete('B');
+  assert.deepEqual(f.events,['B','C'],'C must not be lost when B transition ends');
+});
+
+test('sign-out during a pending account switch is still enforced after the switch',()=>{
+  const f=fixture('A');
+  f.emit({uid:'B'});
+  f.emit(null);
+  assert.deepEqual(f.events,['B']);
+  f.complete('B');
+  assert.equal(f.pending,1,'confirmed Firebase loss must start grace window');
+  f.flush();
+  assert.deepEqual(f.events,['B',null],'outgoing B workspace must be revoked');
+});
+
+test('re-login during pending sign-out reinitializes authenticated account after public scope',()=>{
+  const f=fixture('A');
+  f.emit(null);f.flush();
+  assert.deepEqual(f.events,[null]);
+  f.emit({uid:'C'});
+  f.complete(null);
+  assert.deepEqual(f.events,[null,'C'],'new login cannot remain on signed-out gateway');
 });
