@@ -1,0 +1,25 @@
+name: LOUREX Document and Import Historical QA
+on:
+  push:
+    branches:
+      - fix/qa-document-import-contracts-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lourex-document-import-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Execute document and import regression tests
+        run: node --test --test-concurrency=2 tests/import-final-audit-v267.test.mjs tests/product-import-gemini-v262.test.mjs tests/css-stability-v57.test.mjs tests/critical-document-output-v119.test.mjs tests/dark-surface-continuity-v220.test.mjs
