@@ -12,8 +12,8 @@ test('workspace dirty contract covers inline inventory movement race without mar
   assert.match(source,/document\.activeElement/);
   assert.match(source,/entry\.contains\(active\)/);
   assert.match(source,/return publishedDirtyOwnerIsActive\(\)\|\|operationsInlineMovementDraft\(\)/);
-  assert.match(source,/root\.getAttribute\(ATTRIBUTE\)/);
-  assert.match(source,/root\.removeAttribute\(ATTRIBUTE\)/);
+  assert.match(source,/if\(hasEnteredValue\)return true/);
+  assert.match(source,/item\?\.value\.trim\(\)&&active instanceof Element&&entry\.contains\(active\)/);
   assert.doesNotMatch(source,/querySelector\(['"]\.operations-page['"]\)/);
 });
 
@@ -21,10 +21,11 @@ test('cloud freshness blocks actual unsaved work instead of the entire Operation
   const source=await read('src/cloud/freshness.ts');
   assert.match(source,/workspaceHasUnsavedChanges/);
   assert.match(source,/if\(workspaceHasUnsavedChanges\(\)\)return false/);
-  assert.match(source,/UNSAFE_SURFACE_SELECTOR/);
+  assert.match(source,/const UNSAFE_SURFACE_SELECTOR=/);
   assert.match(source,/\.editor-screen,\.modal-backdrop/);
   assert.match(source,/\.product-library-pro\.editor-open/);
   assert.match(source,/\.ta-operations-page \.ta-ops-editor/);
+  assert.match(source,/if\(workspaceHasUnsavedChanges\(\)\)return false/);
   assert.doesNotMatch(source,/\.editor-screen,\.modal-backdrop,\.operations-page/);
 });
 
@@ -42,11 +43,12 @@ test('Safari/PWA automatic account and update paths remain guarded against activ
 test('account recovery reload is one-shot and only allowed when no local encrypted vault exists',async()=>{
   const source=await read('src/app/AuthScreenSelector.tsx');
   assert.match(source,/if\(localVault\)\{diag\('auth-recovery-stage','stage=blocked-local-vault'\);setRecoveryState\('blocked'\);return;\}/);
-  assert.match(source,/const controller=new AbortController\(\)/);
-  assert.match(source,/ACCOUNT_RECOVERY_BUDGET_MS/);
+  assert.match(source,/stage=install-cloud-success automaticReload=no/);
+  assert.match(source,/setRecoveryState\('ready'\)/);
   assert.match(source,/cloudInstallAlreadyReloaded\(cloudUser\.uid\)/);
-  const openAction=source.slice(source.indexOf("if(recoveryState==='ready')"));
+  const openAction=source.slice(source.indexOf("if(recoveryState==='ready')"),source.indexOf('return <SetupScreen'));
   assert.match(openAction,/markCloudInstallReload\(cloudUser\.uid\)/);
   assert.match(openAction,/markReload\('auth-cloud-install-user-open'\)/);
   assert.match(openAction,/window\.location\.reload\(\)/);
+  assert.doesNotMatch(source.slice(source.indexOf('React.useEffect'),source.indexOf('if \(!cloudUser\)')),/window\.location\.reload\(\)/);
 });
