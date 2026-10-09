@@ -199,9 +199,15 @@ export class AiCopilot extends React.Component<Props,State>{
     const calculation=advisorCalculation(message,this.props.language==='ar'?'ar':'en');if(calculation){const assistant:AiMessage={id:id('assistant'),role:'assistant',text:calculation.summary};this.setState(state=>({busy:false,proposal:pendingDocumentProposal,review:pendingDocumentReview,messages:[...state.messages,assistant]}));this.addAudit('finance.explain','answered');this.pending=false;this.requestController=null;return;}
     try{const resumed=await resumeVaultSession();if(!this.currentRequest(generation,controller))return;if(!resumed)throw new Error(t('Unlock LOUREX before using LOUREX Advisor.','افتح قفل LOUREX قبل استخدام مستشار LOUREX.'));const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};const context=buildAiContext(this.props.screen,this.props.language,financeSource,resumed.vault,message,this.props.activeDocument??null);
     if(pendingDocumentProposal?.capability==='document.updateDraft'&&!context.drafting.activeDocument){
-      const activeWorkspace=resumed.vault.appSettings.activeWorkspaceId||'default';
-      const target=resumed.vault.documents.find(doc=>doc.id===pendingDocumentProposal.documentId&&(doc.workspaceId||'default')===activeWorkspace);
-      if(target)context.drafting.activeDocument=draftReference(resumed.vault,message,target).activeDocument;
+      // A remembered draft might belong to a branch that has since been switched.
+      // Never resurface it from the unscoped encrypted vault, even in a follow-up.
+      const scoped=scopeVault(resumed.vault);
+      const target=scoped.documents.find(doc=>doc.id===pendingDocumentProposal.documentId);
+      if(!target){
+        if(this.currentRequest(generation,controller))this.setState({busy:false,proposal:null,review:null,error:t('The draft is unavailable in the active company or branch. No changes were made.','المسودة غير متاحة في الشركة أو الفرع الحالي. لم يتم إجراء أي تعديل.')});
+        return;
+      }
+      context.drafting.activeDocument=draftReference(scoped,message,target).activeDocument;
     }
     if(pendingDocumentProposal){
       const activeWorkspace=resumed.vault.appSettings.activeWorkspaceId||'default';
