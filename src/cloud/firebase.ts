@@ -70,7 +70,9 @@ function inlineDraftWorkspaceOpen():boolean{
     const modal=document.querySelector('.modal-backdrop');
     // The explicit cloud restore/account flow must be allowed to perform the
     // replacement it was opened for. Other dialogs still block replacement.
-    return Boolean(modal&&!modal.querySelector('.cloud-account-panel,.cloud-auth-form'));
+    // Only the explicitly confirmed account-restore surface may replace the vault.
+    // Settings marks that surface as is-restoring after its state is committed.
+    return Boolean(modal&&!modal.querySelector('.cloud-account-panel,.cloud-auth-form,.ta-settings-shell.is-restoring'));
   }catch{return false;}
 }
 function splitCipher(cipher:string):string[]{
