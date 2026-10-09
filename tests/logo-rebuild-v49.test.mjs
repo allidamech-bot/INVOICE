@@ -54,7 +54,11 @@ test('AI logo workflow keeps the bounded touch editor available as a fallback ut
   assert.match(settings,/AI Remove Background/);
   assert.match(settings,/إزالة الخلفية بالذكاء الاصطناعي/);
   assert.match(settings,/rebuildLogoWithoutBackgroundDataUrl\(source\)/);
-  assert.match(rebuild,/openManualBackgroundEditor/);
+  assert.match(rebuild,/export async function openManualBackgroundEditor/);
+  assert.match(settings,/openManualBackgroundEditor\(source\)/);
+  assert.match(settings,/onClick=\{\(\)=>void this\.editLogoManually\(\)\}/);
+  assert.match(settings,/if\(!edited\|\|edited===source\)/,'cancel must not mutate the company logo');
+  assert.match(settings,/logoRebuiltDataUrl:edited,logoMode:'rebuild'/,'manual edits must remain a reviewable draft until explicit Save');
   assert.match(rebuild,/const maxDimension=1024/);
   assert.match(rebuild,/historyLimit=pixelCount>750_000\?4:pixelCount>400_000\?6:8/);
   assert.doesNotMatch(rebuild,/history\.length>12/);
