@@ -26,3 +26,42 @@ jobs:
           node --test tests/audit-confirmed-signout.test.mjs tests/audit-account-transition-runtime.test.mjs tests/account-required-after-logout-v188.test.mjs tests/account-data-isolation-v215.test.mjs
       - name: All historical tests, no suppression
         run: node --test --test-concurrency=2 tests/*.test.mjs
+
+      - name: Compare every failing test against unchanged main
+        if: always()
+        run: |
+          set -euo pipefail
+          node --test --test-concurrency=2 tests/*.test.mjs >/tmp/lourex-candidate.log 2>&1 || true
+          git fetch --no-tags origin main
+          git worktree add --detach /tmp/lourex-main FETCH_HEAD
+          (
+            cd /tmp/lourex-main
+            npm ci --no-audit --no-fund
+            npm run build
+            node --test --test-concurrency=2 tests/*.test.mjs >/tmp/lourex-main.log 2>&1 || true
+          )
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const getFailures=path=>{
+            const s=fs.readFileSync(path,'utf8');
+            const ix=s.lastIndexOf('✖ failing tests:');
+            if(ix<0)throw Error('Missing test failure summary: '+path);
+            return new Set(s.slice(ix).split('\n').filter(x=>x.startsWith('✖ ')).map(x=>x.replace(/ \([\d.]+ms\)$/,'')));
+          };
+          const readNum=(text,key)=>Number(text.match(new RegExp('ℹ '+key+' (\\d+)'))?.[1]??-1);
+          const original=fs.readFileSync('/tmp/lourex-main.log','utf8');
+          const candidate=fs.readFileSync('/tmp/lourex-candidate.log','utf8');
+          const baseline=getFailures('/tmp/lourex-main.log');
+          const current=getFailures('/tmp/lourex-candidate.log');
+          const newlyFailing=[...current].filter(x=>!baseline.has(x));
+          const message=[
+            '### Full-suite regression differential (none waived)',
+            'main: '+readNum(original,'pass')+' pass / '+readNum(original,'fail')+' fail',
+            'candidate: '+readNum(candidate,'pass')+' pass / '+readNum(candidate,'fail')+' fail',
+            'New failures: '+newlyFailing.length,
+            ...newlyFailing.slice(0,50)
+          ].join('\n');
+          console.log(message);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,message+'\n');
+          if(newlyFailing.length)process.exit(1);
+          NODE
