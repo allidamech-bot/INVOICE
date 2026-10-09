@@ -38,6 +38,8 @@ test('iPhone pre-render startup budgets are finite for existing and new-device v
     const sandbox={
       exports,
       navigator:{onLine:true},
+      STARTUP_CLOUD_BUDGET_MS:Number(existing[1]),
+      FRESH_DEVICE_CLOUD_BUDGET_MS:freshMs,
       getEncryptedVault:async()=>local,
       runAuthoritativeCloudStartup:()=>new Promise(()=>{}),
       markLateStartupCloudApplyUnsafe:()=>{marked++;},
