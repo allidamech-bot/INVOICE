@@ -24,12 +24,19 @@ test('document contextual actions close on outside press or Escape and mobile us
   const page=read('src/components/DocumentsPage.tsx');
   assert.match(page,/document\.addEventListener\('pointerdown',this\.handleOutsidePointer\)/);
   assert.match(page,/document\.removeEventListener\('pointerdown',this\.handleOutsidePointer\)/);
-  assert.match(page,/target\.closest\('[^']*\.mobile-actions[^']*\.mobile-document-action-portal'\)/);
-  assert.match(page,/event\.key==='Escape'/);
-  assert.match(page,/<button type="button" className="document-register-open"/);
+  assert.match(page,/target\.closest\('\.ta-doc-actions,\.ta-doc-detail-more,\.ta-doc-action-popover,\.ta-doc-mobile-action-portal'\)/,
+    'outside-click handling must treat the document.body portal as inside the active menu');
+  assert.match(page,/event\.key==='Escape'[\s\S]*?this\.closeMenu\(\)/,
+    'Escape must close the menu and restore its trigger focus');
+  assert.match(page,/<button type="button" className="ta-doc-row-open"/,
+    'document register must retain an explicit open action');
   assert.match(page,/private actionButtons=/);
-  assert.match(page,/ReactDOM\.createPortal\([\s\S]*?this\.actionButtons\(doc\)[\s\S]*?document\.body/);
-  assert.match(page,/mobile-document-action-backdrop[\s\S]*?onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/);
+  assert.match(page,/ReactDOM\.createPortal\(<div className="app-ui ta-doc-desktop-action-portal"[\s\S]*?this\.actionButtons\(doc\)[\s\S]*?document\.body\)/,
+    'desktop action menu must mount to the body with accessible role menu');
+  assert.match(page,/ReactDOM\.createPortal\(<div className="app-ui ta-doc-mobile-action-portal"[\s\S]*?className="ta-doc-mobile-action-sheet" role="menu"[\s\S]*?this\.actionButtons\(doc\)[\s\S]*?document\.body\)/,
+    'mobile action sheet must mount to the body and expose the same authorized actions');
+  assert.match(page,/className="ta-doc-action-backdrop"[\s\S]*?onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/,
+    'backdrop must dismiss the actions without triggering a business mutation');
 });
 
 test('customer editor warns before discarding unsaved changes',()=>{
