@@ -107,3 +107,20 @@ test('B07 closeout: posted supplier purchase, physical stock issue, invoice issu
  assert.equal(invoicePaymentSummary(final,[payment],at,docs).status,'paid');
  assert.equal(stock(draft.vault,'cookies',warehouseId),6,'collecting invoice must not change inventory twice');
 });
+
+
+test('B10 closeout: invalid phantom receipt cannot authorize a confirmed sales delivery stock issue',()=>{
+  const {delivered,input,warehouseId}=setup();
+  const validReceipt=delivered.inventoryMovements.find(m=>m.itemId==='cookies');
+  assert.ok(validReceipt);
+  const phantom={...validReceipt,id:'b10-phantom-stock',quantity:'100',sourceId:'',
+    fromWarehouseId:'',toWarehouseId:warehouseId};
+  const polluted={...delivered,inventoryMovements:[
+    ...delivered.inventoryMovements.filter(m=>m.itemId!=='cookies'),phantom
+  ]};
+  assert.equal(stock(polluted,'cookies',warehouseId),0,
+    'supplier receipt with missing source cannot fund a sales delivery');
+  assert.throws(()=>postSalesDeliveryStock(polluted,input),/Insufficient available stock/);
+  assert.equal(polluted.inventoryMovements.filter(m=>m.type==='issue').length,0,
+    'rejected delivery cannot mutate recorded inventory movements');
+});
