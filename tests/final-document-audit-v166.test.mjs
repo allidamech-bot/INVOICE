@@ -5,14 +5,20 @@ import { paginateItems } from '../dist/src/lib/documents.js';
 
 const read=path=>readFile(path,'utf8');
 
-test('new quote and invoice drafts are persisted immediately when the editor opens',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
-  assert.match(editor,/private ensureInitialDraftPersisted=\(\)=>/);
-  assert.match(editor,/this\.props\.documents\.some\(item=>item\.id===doc\.id\)/);
-  assert.match(editor,/this\.saveWithProtectedRetry\(structuredClone\(doc\),true\)/);
-  assert.match(editor,/componentDidMount\(\):void\{[\s\S]*this\.ensureInitialDraftPersisted\(\)/);
-  assert.match(editor,/prevProps\.document\.id!==this\.props\.document\.id[\s\S]*this\.ensureInitialDraftPersisted\(\)/);
-  assert.match(editor,/Unable to save the new draft locally/);
+test('new quotation, invoice and customer drafts are durably stored before the editor opens',async()=>{
+  const [app,editor]=await Promise.all([read('src/app/App.tsx'),read('src/components/EditorPage.tsx')]);
+  const create=app.slice(app.indexOf('private newDocument=async('),app.indexOf('private newDocumentForCustomer=async('));
+  const customer=app.slice(app.indexOf('private newDocumentForCustomer=async('),app.indexOf('private saveDocument=async('));
+  assert.match(create,/if\(this\.documentCreateBusy\|\|!confirmWorkspaceDeparture\(\)\)return/);
+  assert.match(create,/await reservation;await this\.persist\(\{\.\.\.vault,documents:\[\.\.\.vault\.documents,doc\]\}\)/);
+  assert.ok(create.indexOf('await this.persist(')<create.indexOf("this.setState({screen:'editor'"),
+    'draft must be stored before entering the editor');
+  assert.match(customer,/const prepared=applyCustomerCommercialDefaults/);
+  assert.match(customer,/await this\.persist\(\{\.\.\.vault,documents:\[\.\.\.vault\.documents,prepared\]\}\)/);
+  assert.ok(customer.indexOf('await this.persist(')<customer.indexOf("this.setState({screen:'editor'"),
+    'customer defaults must be saved before opening the document');
+  assert.doesNotMatch(editor,/ensureInitialDraftPersisted/,'opening an editor must not trigger a second implicit save loop');
+  assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/);
 });
 
 test('live A4 preview is mounted only where the desktop preview pane is actually visible',async()=>{
