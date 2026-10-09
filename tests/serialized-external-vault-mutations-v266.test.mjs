@@ -25,7 +25,8 @@ test('v266 external mutations run inside the App vault write tail',async()=>{
   assert.doesNotMatch(mutationPath,/const next=mutation\(latest\)/,'external tools must not write unvalidated vault mutations');
   assert.match(index,/const encrypted=await saveVault\(key,next\)/);
   assert.match(index,/instance\.latestEncryptedVault=encrypted/);
-  assert.match(index,/instance\.setState\(\{vault:next\}/);
+  assert.match(index,/if\(instance\.state\.unlocked&&instance\.state\.key===key\)\{/);
+  assert.match(index,/instance\.setState\(refreshedEditor\?\{vault:next,editorDoc:\{\.\.\.refreshedEditor\}\}:\{vault:next\},resolve\)/);
   assert.match(index,/instance\.scheduleCloudSync\(\)/);
   assert.match(index,/instance\.vaultWriteTail=operation/);
 
