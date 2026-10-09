@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
+import {buildInventoryPlanning} from '../dist/src/lib/inventory-planning.js';
 import {activateBranch,activateWorkspace,createBranch,createWorkspace} from '../dist/src/lib/workspaces.js';
 
 // The live React class is checked without mounting DOM or writing encrypted data.
@@ -48,4 +49,24 @@ test('live inventory planning reads only branch-specific reorder policies',()=>{
   const view=new InventoryPlanningLive({});
   assert.equal(view.loadSnapshot(vault).snapshot.rows[0].policy.reorderPoint,'5');
   assert.equal(view.loadSnapshot(activateBranch(vault,otherBranch)).snapshot.rows[0].policy.reorderPoint,'50');
+});
+
+test('historical inventory supplier provenance survives a subsequent purchase reversal',()=>{
+  const vault=emptyVault();
+  const itemId='historical-reversed-item';
+  const supplierId='historical-reversed-supplier';
+  vault.savedItems=[item(itemId,'default')];
+  vault.suppliers=[supplier(supplierId,'default')];
+  const purchase={id:'historical-reversed-purchase',number:'PUR-REV',
+    date:'2026-10-01',postedAt:'2026-10-01T10:00:00.000Z',
+    reversedAt:'2026-10-20T10:00:00.000Z',status:'reversed',
+    updatedAt:'2026-10-20T10:00:00.000Z',
+    supplierSnapshot:{sourceSupplierId:supplierId},items:[{savedItemId:itemId}]};
+  vault.purchases=[purchase];
+  const before=buildInventoryPlanning(vault,'2026-10-09');
+  assert.equal(before.rows[0].lastPurchase?.id,purchase.id);
+  assert.equal(before.rows[0].preferredSupplier?.id,supplierId);
+  const atReversal=buildInventoryPlanning(vault,'2026-10-20');
+  assert.equal(atReversal.rows[0].lastPurchase,null);
+  assert.equal(atReversal.rows[0].preferredSupplier,null);
 });
