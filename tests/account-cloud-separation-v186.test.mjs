@@ -47,5 +47,5 @@ test('current account and conflict styles are part of the loaded app-only visual
   assert.match(css,/\.ta-cloud-account/);
   assert.match(css,/\.ta-cloud-conflict/);
   assert.match(shell,/className="ta-topbar-account"/);
-  assert.match(shell,/className="ta-topbar-sync"/);
+  assert.match(shell,/this\.syncStatus\('ta-topbar-sync'\)/);
 });
