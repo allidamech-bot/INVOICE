@@ -217,7 +217,18 @@ jobs:
           ].join('\n');
           console.log(summary);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
-          if(readNum(main,'tests')<1||readNum(candidate,'tests')<1)process.exit(2);
+          const mainTests=readNum(main,'tests'),candidateTests=readNum(candidate,'tests');
+          const mainPass=readNum(main,'pass'),candidatePass=readNum(candidate,'pass');
+          const mainFail=readNum(main,'fail'),candidateFail=readNum(candidate,'fail');
+          if([mainTests,candidateTests,mainPass,candidatePass,mainFail,candidateFail].some(n=>n<0))process.exit(2);
+          if(candidateTests<mainTests){
+            console.error('Regression: candidate ran fewer tests than unchanged main.');
+            process.exit(1);
+          }
+          if(candidateFail>mainFail||candidatePass<mainPass){
+            console.error('Regression: more failed assertions or fewer passed tests than unchanged main.');
+            process.exit(1);
+          }
           if(added.length)process.exit(1);
           NODE
 
