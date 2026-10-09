@@ -65,12 +65,13 @@ export function supplierPaymentsForPurchase(purchase:PurchaseRecord,payments:Sup
 }
 
 export function purchasePayableSummary(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],today=todayIso()):PurchasePayableSummary{
-  const total=liabilityCents(purchase);
-  const linked=purchase.status==='posted'?supplierPaymentsForPurchase(purchase,payments).filter(payment=>paymentKnownOnOrBefore(payment,today)):[];
+  const effective=postedPurchaseAt(purchase,today);
+  const total=liabilityCents(effective);
+  const linked=effective.status==='posted'?supplierPaymentsForPurchase(effective,payments).filter(payment=>paymentKnownOnOrBefore(payment,today)):[];
   const paid=linked.reduce((sum,payment)=>sum+paymentCents(payment),0n);
-  const remaining=purchase.status==='posted'?(total>paid?total-paid:0n):purchase.status==='draft'?total:0n;
-  const days=purchase.status==='posted'&&remaining>0n?supplierDaysOverdue(purchase.dueDate,today):0;
-  const state:SupplierPayableState=purchase.status==='draft'?'draft':purchase.status==='reversed'?'reversed':remaining===0n?'paid':days>0?'overdue':paid>0n?'partial':'unpaid';
+  const remaining=effective.status==='posted'?(total>paid?total-paid:0n):effective.status==='draft'?total:0n;
+  const days=effective.status==='posted'&&remaining>0n?supplierDaysOverdue(effective.dueDate,today):0;
+  const state:SupplierPayableState=effective.status==='draft'?'draft':effective.status==='reversed'?'reversed':remaining===0n?'paid':days>0?'overdue':paid>0n?'partial':'unpaid';
   return{purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchaseSupplierId(purchase),currency:cleanCurrency(purchase.currency),date:purchase.date,dueDate:purchase.dueDate,total:centsString(total),paid:centsString(paid),remaining:centsString(remaining),state,daysOverdue:days,agingBucket:supplierAgingBucketFor(purchase.dueDate,today)};
 }
 
@@ -79,7 +80,7 @@ export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:S
   for(const purchase of purchases){
     if(!postedOnOrBefore(purchase,today))continue;
     if(supplierId&&purchaseSupplierId(purchase)!==supplierId)continue;
-    const summary=purchasePayableSummary(postedPurchaseAt(purchase,today),payments,today);
+    const summary=purchasePayableSummary(purchase,payments,today);
     const row=map.get(summary.currency)??{purchases:0n,paid:0n,remaining:0n,overdue:0n,aging:{current:0n,days1to30:0n,days31to60:0n,days61to90:0n,days90plus:0n},openPurchases:0,overduePurchases:0};
     const total=decimalToScaled(summary.total,2),paid=decimalToScaled(summary.paid,2),remaining=decimalToScaled(summary.remaining,2);
     row.purchases+=total;row.paid+=paid;row.remaining+=remaining;
