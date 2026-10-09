@@ -1,5 +1,5 @@
 import type { CompanySettings, ExpenseRecord, PaymentRecord, SupplierPaymentRecord, TreasuryAccountKind, TreasuryAccountRecord, TreasuryLedgerRecord, TreasuryLedgerType, TreasuryReconciliationRecord } from '../types.js';
-import { appendTreasuryEntry, assertTreasuryEntry, createTreasuryAccount, createTreasuryEntry, createTreasuryReconciliation, markTreasuryEntryReconciled, treasuryAccountBalance, treasuryLinkedSourceUsed, treasuryProjection, treasuryTotals, voidTreasuryEntry } from '../lib/treasury-ledger.js';
+import { appendTreasuryEntry, assertTreasuryEntry, createTreasuryAccount, createTreasuryEntry, createTreasuryReconciliation, treasuryAccountBalance, treasuryLinkedSourceUsed, treasuryProjection, treasuryTotals, voidTreasuryEntry } from '../lib/treasury-ledger.js';
 import { formatMoney } from '../lib/money.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
@@ -45,7 +45,7 @@ export function TreasuryLedgerPage(props:Props):any{
     await mutateVaultSafely(vault=>appendTreasuryEntry(vault,entry));setAmount('');setReference('');setNotes('');setSourceId('');
   },t('Unable to save treasury entry.','تعذر حفظ حركة الخزينة.'));
 
-  const toggleReconciled=(key:string,reconciled:boolean)=>void run(async()=>{if(key.startsWith('treasury:')){const id=key.slice('treasury:'.length);await mutateVaultSafely(vault=>({...vault,treasuryEntries:vault.treasuryEntries.map(entry=>entry.id===id?markTreasuryEntryReconciled(entry,!reconciled):entry)}));return;}await mutateVaultSafely(vault=>({...vault,treasuryReconciliations:reconciled?vault.treasuryReconciliations.filter(item=>item.movementKey!==key):[...vault.treasuryReconciliations,{...createTreasuryReconciliation(key),workspaceId:props.workspaceId,branchId:props.branchId}]}));},t('Unable to update reconciliation.','تعذر تحديث المطابقة.'));
+  const toggleReconciled=(key:string,reconciled:boolean)=>void run(async()=>{await mutateVaultSafely(vault=>({...vault,treasuryReconciliations:[...vault.treasuryReconciliations,{...createTreasuryReconciliation(key,'',!reconciled),workspaceId:props.workspaceId,branchId:props.branchId}]}));},t('Unable to update reconciliation.','تعذر تحديث المطابقة.'));
   const voidEntry=(id:string)=>void run(async()=>{const reason=(voidReasons[id]||'').trim();await mutateVaultSafely(vault=>({...vault,treasuryEntries:vault.treasuryEntries.map(entry=>entry.id===id?voidTreasuryEntry(entry,reason):entry)}));setVoidReasons(current=>({...current,[id]:''}));},t('Unable to void treasury entry.','تعذر إلغاء قيد الخزينة.'));
 
   return <section className="ta-finance-page lx-treasury-ledger">

@@ -512,6 +512,21 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before saving this entry.');
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
   for(const entry of treasuryEntries)assertTreasuryEntry(entry,treasuryAccounts);
+  // Reconciliation/Undo events are financial audit history; a later device must
+  // not erase or rewrite records that were previously saved.
+  const intendedReconciliationById=new Map(intended.treasuryReconciliations.map(row=>[row.id,row]));
+  for(const original of base.treasuryReconciliations){
+    const next=intendedReconciliationById.get(original.id);
+    if(!next)throw new Error('Treasury reconciliation history cannot be deleted.');
+    if(!sameRecord(original,next))throw new Error('Treasury reconciliation history is immutable.');
+  }
+  for(const row of intended.treasuryReconciliations){
+    if(!row.id||!row.movementKey?.trim()||!row.createdAt||!Number.isFinite(Date.parse(row.createdAt))||
+      (row.action&&row.action!=='reconcile'&&row.action!=='undo')||
+      (row.action==='undo'&&row.reconciledAt)||
+      (row.action!=='undo'&&(!row.reconciledAt||!Number.isFinite(Date.parse(row.reconciledAt)))))
+      throw new Error('Treasury reconciliation audit event is invalid.');
+  }
   guardConcurrentRecordChanges(base.treasuryReconciliations,intended.treasuryReconciliations,latest.treasuryReconciliations,'Treasury reconciliation','Reload Cash & Bank before reconciling this movement.');
   const treasuryReconciliations=mergeRecords(base.treasuryReconciliations,intended.treasuryReconciliations,latest.treasuryReconciliations);
   guardConcurrentRecordChanges(base.fxRates,intended.fxRates,latest.fxRates,'FX rate','Reload FX before saving this rate.');
