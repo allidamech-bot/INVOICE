@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - fix/qa-legacy-functional-regressions-20261009
+      - audit/consolidated-closeout-20261009
 
 permissions:
   contents: read
