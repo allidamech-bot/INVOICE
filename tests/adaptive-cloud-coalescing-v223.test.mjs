@@ -43,7 +43,10 @@ test('service worker includes the current cloud coalescing runtime without an ob
   assert.ok(patch.includes('./src/cloud/coalescing.js'),'the cache generator must include the cloud module');
   assert.ok(distSw.includes('./src/cloud/coalescing.js'),'the built service worker must precache the cloud module');
   assert.match(sw,/^const CACHE = 'lourex-invoice-v\d+';$/m,'the source service worker must declare its own active cache');
-  const active=[...distSw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  // Several old declarations survive exclusively inside release-history comments.
+  // Strip inert block comments before counting executable cache declarations.
+  const executableSw=distSw.replace(/\/\*[\s\S]*?\*\//g,'');
+  const active=[...executableSw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
   assert.equal(active.length,1,'built PWA must have exactly one active application cache generation');
   assert.ok(Number(active[0][1])>=228,'the current cache must not regress behind the cloud scheduling release');
   assert.match(distSw,/key!==CACHE&&key\.startsWith\(APP_CACHE_PREFIX\)/);
