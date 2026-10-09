@@ -10,7 +10,11 @@ test('v302 requires a user PIN after account authentication and on every new run
     read('src/storage/session.ts'),
     read('src/app/AuthScreenSelector.tsx')
   ]);
-  assert.match(selector,/if \(!currentCloudUser\(\)\)/);
+  assert.match(selector,/const cloudUser=currentCloudUser\(\)/);
+  assert.match(selector,/if \(!cloudUser\) \{[\s\S]*<AccountEntryScreen/);
+  assert.match(selector,/if \(props\.mode === 'unlock'\) \{[\s\S]*<UnlockScreen/);
+  assert.ok(selector.indexOf('if (!cloudUser)')<selector.indexOf("if (props.mode === 'unlock')"),'account gateway must gate PIN unlock');
+  assert.match(selector,/return <SetupScreen/);
   assert.match(auth,/Create PIN · 4–12 digits/);
   assert.match(auth,/PIN required on every app start/);
   assert.match(auth,/changePin\(this\.accountSecret,pin\)/);
