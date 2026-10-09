@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {todayIso} from '../dist/src/lib/id.js';
 import {createPurchase,createPurchaseItem,createSupplier} from '../dist/src/lib/operations.js';
 import {purchasePayableSummary,supplierAccounts,supplierPayablesByCurrency,supplierStatement} from '../dist/src/lib/payables.js';
 
@@ -90,4 +91,18 @@ test('reversal recorded after cutoff does not erase supplier debt from earlier r
   assert.equal(current.remaining,'0.00');
   assert.deepEqual(supplierPayablesByCurrency([reversed],[],'2026-10-21'),[]);
   assert.deepEqual(supplierStatement(supplier.id,[reversed],[],'2026-10-21'),[]);
+});
+
+test('payables table never shows future or not-yet-posted purchases absent from its totals',async()=>{
+  globalThis.React??={createElement:()=>({}),Component:class{constructor(props){this.props=props;}}};
+  const {SupplierPayablesPage}=await import('../dist/src/components/SupplierPayablesPage.js');
+  const today=todayIso(),future=new Date(Date.parse(today+'T12:00:00.000Z')+15*86400000).toISOString().slice(0,10);
+  const {supplier,purchase}=fixture();
+  const current={...purchase,id:'current-purchase',number:'PUR-CURRENT',date:today,postedAt:today+'T08:00:00.000Z'};
+  const futureDated={...purchase,id:'future-dated',number:'PUR-FUTURE',date:future,postedAt:today+'T08:00:00.000Z'};
+  const latePosted={...purchase,id:'late-posted',number:'PUR-LATE',date:'2026-01-01',postedAt:future+'T08:00:00.000Z'};
+  const purchases=[current,futureDated,latePosted];
+  const view=new SupplierPayablesPage({suppliers:[supplier],purchases,supplierPayments:[]});
+  assert.deepEqual(view.postedPurchases().map(row=>row.id),['current-purchase']);
+  assert.equal(supplierPayablesByCurrency(purchases,[],today)[0].purchases,'1000.00');
 });
