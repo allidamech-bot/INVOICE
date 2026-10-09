@@ -92,7 +92,8 @@ test('supplier payment cancellations preserve journal and treasury provenance',a
   assert.match(engine,/payment\.voidedAt\)/);
   assert.match(merge,/Supplier payment history cannot be deleted/);
   assert.match(merge,/A voided supplier payment cannot be restored or changed/);
-  assert.match(treasury,/if\(item\.voidedAt\|\|supplierLinks\.has\(item\.id\)\)continue/);
+  assert.match(treasury,/for\(const item of supplierPayments\)\{if\(asOf\?/,'as-of cash ledger must rebuild cancelled payment history');
+  assert.match(treasury,/Boolean\(item\.voidedAt\)/,'current cash ledger must exclude cancelled payments');
   assert.match(page,/Void supplier payment\?/);
 });
 
