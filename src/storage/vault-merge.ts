@@ -515,10 +515,12 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Reconciliation/Undo events are financial audit history; a later device must
   // not erase or rewrite records that were previously saved.
   const intendedReconciliationById=new Map(intended.treasuryReconciliations.map(row=>[row.id,row]));
+  const latestReconciliationById=new Map(latest.treasuryReconciliations.map(row=>[row.id,row]));
   for(const original of base.treasuryReconciliations){
     const next=intendedReconciliationById.get(original.id);
-    if(!next)throw new Error('Treasury reconciliation history cannot be deleted.');
-    if(!sameRecord(original,next))throw new Error('Treasury reconciliation history is immutable.');
+    const remote=latestReconciliationById.get(original.id);
+    if(!next||!remote)throw new Error('Treasury reconciliation history cannot be deleted.');
+    if(!sameRecord(original,next)||!sameRecord(original,remote))throw new Error('Treasury reconciliation history is immutable.');
   }
   for(const row of intended.treasuryReconciliations){
     if(!row.id||!row.movementKey?.trim()||!row.createdAt||!Number.isFinite(Date.parse(row.createdAt))||
