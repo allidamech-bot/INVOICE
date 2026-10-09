@@ -1,0 +1,24 @@
+name: LOUREX Final Integration Batch QA
+on:
+  push:
+    branches:
+      - audit/combined-final-qa-20261010
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused contracts and print semantics
+        run: node --test tests/template-qa.test.mjs tests/template-design-system-foundation.test.mjs tests/startup-watchdog-v321.test.mjs tests/security-hardening-v202.test.mjs tests/v312-business-document-suite.test.mjs tests/v326-foundation-recovery.test.mjs tests/v338-more-menu-scroll.test.mjs tests/v339-signout-editor-guard.test.mjs tests/mobile-pdf-v73.test.mjs tests/v338-editor-stability.test.mjs
+      - name: Full historical suite no exclusions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
