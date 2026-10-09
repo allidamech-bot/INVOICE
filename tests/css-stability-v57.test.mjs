@@ -23,13 +23,20 @@ test('every local stylesheet loaded by the app exists and is available offline',
   assert.ok(distSw.includes('./styles/app.bundle.css'),'production worker must cache the consolidated stylesheet bundle');
 });
 
-test('final editor layer stays isolated from printable document internals',async()=>{
-  const [html,css]=await Promise.all([read('index.html'),read('src/styles/editor-system.css')]);
-  assert.ok(html.indexOf('editor-system.css')>html.indexOf('document.css'));
-  assert.ok(html.indexOf('editor-system.css')>html.indexOf('templates-modern.css'));
-  assert.ok(html.indexOf('editor-system.css')>html.indexOf('templates-dark.css'));
-  assert.doesNotMatch(css,/\.a4[-_]|\.document-page|\.invoice-page/i);
+test('current editor layer is screen-only and the A4 owner remains separate',async()=>{
+  const [html,css,finish]=await Promise.all([
+    read('index.html'),
+    read('src/styles/tailadmin-editor-core-v320.css'),
+    read('src/styles/v332-critical-documents-deep-closeout.css')
+  ]);
+  const frame=html.indexOf('tailadmin-editor-frame-v320.css');
+  const core=html.indexOf('tailadmin-editor-core-v320.css');
+  const documentFinish=html.indexOf('v332-critical-documents-deep-closeout.css');
+  assert.ok(frame>0&&core>frame&&documentFinish>core,'editor frame/core and protected A4 finish must retain their intended source order');
+  assert.match(css,/@media screen/);
   assert.match(css,/\.app-ui \.editor-screen/);
+  assert.doesNotMatch(css,/\.a4[-_]|\.document-page|\.invoice-page/i,'the application editor must not modify the printable A4 document');
+  assert.match(finish,/\.invoice-page|\.doc-body|\.final-details/,'the canonical print-finish owner must retain its document rules');
 });
 
 test('v57 consolidation removes the superseded final override files from runtime references',async()=>{

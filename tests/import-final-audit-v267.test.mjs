@@ -89,7 +89,12 @@ test('v267 import UIs keep local-first mapping, bounded previews and explicit co
   assert.match(product,/sheets\.length>1/);
   assert.match(product,/plan\?\.rows\.slice\(0,20\)/);
   assert.match(product,/Confirm import of/);
-  assert.match(product,/larger than 12 MB/);
+  assert.match(product,/const MAX_SPREADSHEET_BYTES=12\*1024\*1024/);
+  assert.match(product,/const MAX_IMPORT_FILES=4/);
+  assert.match(product,/const MAX_BATCH_BYTES=24\*1024\*1024/);
+  assert.match(product,/files\.reduce\(\(total,file\)=>total\+file\.size,0\)>MAX_BATCH_BYTES/);
+  assert.match(product,/files\.some\(file=>file\.size>MAX_SPREADSHEET_BYTES\)/);
+  assert.match(product,/Each spreadsheet must be 12 MB or less and the batch 24 MB or less/);
   assert.match(product,/Stock belongs to Inventory/);
   assert.match(product,/stock and accounting are never changed/);
   assert.match(supplier,/extractSupplierDraftFromSheets/);
@@ -105,7 +110,8 @@ test('v267 import UIs keep local-first mapping, bounded previews and explicit co
   assert.match(ui,/window\.visualViewport/);
   assert.match(ui,/--modal-visual-height/);
   assert.match(ui,/--modal-browser-bottom-reserve/);
-  assert.match(ui,/display-mode: standalone/);
+  assert.match(ui,/const browserBottomReserve=0/);
+  assert.match(ui,/visualViewport already excludes Safari chrome and the on-screen keyboard/);
   assert.match(css,/height:calc\(var\(--modal-visual-height,100dvh\) - var\(--modal-browser-bottom-reserve,0px\)/);
   assert.match(css,/height:calc\(var\(--modal-visual-height,100dvh\)/);
   assert.match(css,/var\(--app-safe-bottom,0px\)/);

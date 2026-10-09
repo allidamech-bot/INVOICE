@@ -29,13 +29,17 @@ test('v220 gives every final-review state an Obsidian surface',async()=>{
   assert.doesNotMatch(css,/background:\s*(?:#fff|#f[0-9a-f]{5})/i);
 });
 
-test('v220 loads last in app chrome, stays out of print and ships offline',async()=>{
-  const [html,sw,patch]=await Promise.all([read('index.html'),read('public/sw.js'),read('scripts/pwa-cache-v205.mjs')]);
-  const layer=html.indexOf('./styles/dark-surface-continuity-v220.css');
-  assert.ok(layer>html.indexOf('./styles/save-reliability-v217.css'));
-  assert.ok(layer<html.indexOf('./styles/document-premium-redesign-v141.css'));
-  assert.match(sw,/v220 dark surface continuity/);
-  assert.match(sw,/LOCAL_CORE\.push\('\.\/styles\/dark-surface-continuity-v220\.css'\)/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v220'/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v219'.*legacy marker/);
+test('the current dark account and conflict surfaces are bundled offline without modifying print',async()=>{
+  const [html,sourceSw,distSw,css,bundle]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('dist/sw.js'),
+    read('src/styles/tailadmin-cloud-account-v320.css'),read('dist/styles/app.bundle.css')
+  ]);
+  assert.match(html,/tailadmin-cloud-account-v320\.css/);
+  assert.match(css,/@media screen/);
+  assert.match(css,/\.ta-cloud-conflict/);
+  assert.match(css,/\.ta-cloud-account/);
+  assert.doesNotMatch(css,/\.invoice-page|@media print/,'account recovery must never change A4 rendering');
+  assert.ok(sourceSw.includes('./styles/app.css'),'local/dev worker must preserve a stylesheet cache entry');
+  assert.match(distSw,/\.\/styles\/app\.bundle\.css/);
+  assert.match(bundle,/\.ta-cloud-conflict/);
 });
