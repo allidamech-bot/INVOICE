@@ -51,8 +51,14 @@ test('v118 customer quick-document transition never sets state after its page un
   assert.match(source,/componentWillUnmount\(\):void\{this\.mounted=false;/);
   assert.match(source,/catch\(e\)\{if\(this\.mounted\)this\.setState\(\{error:/);
   assert.match(source,/finally\{if\(this\.mounted\)this\.setState\(\{creatingDocument:''\}\);\}/);
-  assert.match(source,/Create this customer without typing the name again/);
-  assert.match(source,/Add your first customer/);
+  // Current directory pre-fills safe search names instead of displaying the
+  // obsolete empty-state marketing string.
+  assert.match(source,/private newCustomer=\(\)=>this\.beginEdit\(blankCustomer\(customerSearchSeed\(this\.state\.query\)\)\)/);
+  assert.match(source,/const customers=this\.filtered\(\),query=this\.state\.query\.trim\(\),suggestedName=customerSearchSeed\(query\)/);
+  assert.match(source,/suggestedName\?t\(/);
+  assert.match(source,/t\('Add Customer','إضافة عميل'\)/);
+  assert.match(source,/private createDocument=async\(kind:DocumentKind,customer:Customer\)/);
+  assert.match(source,/await this\.props\.onNewDocument\(kind,customer\)/);
 });
 
 test('v118 global search shortcuts cannot pull focus behind an open modal',async()=>{
