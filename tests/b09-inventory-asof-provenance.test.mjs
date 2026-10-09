@@ -106,3 +106,28 @@ test('B09.3: present-day stock planning still uses all recorded movements and th
   assert.equal(next.policy.targetStock,'7');
   assert.throws(()=>buildInventoryPlanning(vault,'2026-02-31'),/invalid/i);
 });
+
+test('B09 closeout: backdated stock recorded later cannot alter an earlier inventory/CFO snapshot',()=>{
+  const vault=fixture();
+  vault.inventoryMovements.push(
+    {id:'late-receipt',itemId:'b09.3-item',itemNameEn:'Snack Carton',itemNameAr:'',
+      sku:'B09-001',date:'2026-01-12',type:'purchase',quantity:'50',
+      unitCost:'1',currency:'USD',sourceId:'late-source',sourceNumber:'',
+      note:'',createdAt:day('2026-03-01')},
+    {id:'late-issue',itemId:'b09.3-item',itemNameEn:'Snack Carton',itemNameAr:'',
+      sku:'B09-001',date:'2026-01-18',type:'issue',quantity:'-3',
+      unitCost:'1',currency:'USD',sourceId:'late-delivery',sourceNumber:'',
+      note:'',createdAt:day('2026-03-01')}
+  );
+  const historical=row(vault,'2026-01-31');
+  assert.equal(historical.onHand,'6','Late backdated receipts and issues are not prior stock');
+  assert.equal(historical.averageDailyIssue,'0.1333','Late backdated issues are not prior demand');
+  const after=row(vault,'2026-03-31');
+  assert.equal(after.onHand,'55','Once recorded, both valid movements appear in the newer snapshot');
+});
+
+test('B09 closeout: malformed movement creation timestamps do not become historical stock evidence',()=>{
+  const vault=fixture();
+  vault.inventoryMovements[0].createdAt='not-a-date';
+  assert.equal(row(vault,'2026-01-31').onHand,'-4');
+});
