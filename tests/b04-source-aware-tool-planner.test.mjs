@@ -9,7 +9,8 @@ const source=(extracted='SKU B-001 | 50g | 1.20 USD')=>({
 });
 const context=(attachment)=>({screen:'items',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'},conversationSources:[attachment]});
 const withFakePlanner=async(plan,run)=>{
-  const originalFetch=globalThis.fetch,originalWindow=globalThis.window;
+  const originalFetch=globalThis.fetch,originalWindow=globalThis.window,originalFirebase=globalThis.firebase;
+  globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};
   const payloads=[];
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(_url,options)=>{
@@ -17,7 +18,7 @@ const withFakePlanner=async(plan,run)=>{
     return{ok:true,json:async()=>({plan})};
   };
   try{return await run(payloads);}
-  finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;}
+  finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;globalThis.firebase=originalFirebase;}
 };
 
 test('B04: extracted attachments enter bounded, non-mutating planning context',()=>{
