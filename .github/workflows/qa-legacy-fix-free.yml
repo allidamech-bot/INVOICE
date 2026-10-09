@@ -89,10 +89,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Combine all three feature branches without pushing
+      - name: Validate consolidated branch or assemble source-branch comparison
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_REF_NAME" == 'audit/consolidated-closeout-20261009' ]]; then
+            echo 'Testing the already assembled source union directly. Typecheck, focused regressions and the full historical suite remain mandatory below.'
+            git diff --check
+            exit 0
+          fi
           git fetch origin fix/audit-workspace-payables-asof-20261009:refs/remotes/origin/fix/audit-workspace-payables-asof-20261009
           git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
           git switch -c qa-three-way origin/fix/audit-workspace-payables-asof-20261009
