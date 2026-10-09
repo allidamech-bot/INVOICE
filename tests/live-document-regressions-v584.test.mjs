@@ -4,12 +4,20 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v584 editor final owner follows the application theme instead of fixed blue',async()=>{
-  const css=await read('src/styles/v485-visible-ui-corrections.css');
+test('v584 editor uses the live application accent in both authored and bundled visual owners',async()=>{
+  const [css,bundler]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('scripts/v485-bundle-visible-ui.mjs')
+  ]);
   assert.match(css,/v584 live document regression closeout/);
-  assert.match(css,/--lrx-editor-accent:var\(--boot-accent,#129da1\)/);
-  assert.match(css,/\.advanced-master-toggle\{[\s\S]*background:var\(--ft-surface-2\)!important;[\s\S]*border:1px solid var\(--ft-line-strong\)!important/);
-  assert.match(css,/\.btn-primary\{[\s\S]*background:var\(--lrx-editor-accent\)!important;[\s\S]*background-image:none!important/);
+  const owner=/--lrx-editor-accent:var\(--ft-accent,#315DA8\)/g;
+  assert.equal((css.match(owner)||[]).length,2,'both source editor owners must use the live theme accent');
+  assert.match(bundler,/--lrx-editor-accent:var\(--ft-accent,#315DA8\)/,
+    'final production bundler must not override the source accent with fixed blue');
+  assert.doesNotMatch(css,/--lrx-editor-accent:#315fad/);
+  assert.doesNotMatch(bundler,/--lrx-editor-accent:#315fad/);
+  assert.match(css,/\.advanced-master-toggle\{[\s\S]*?background:var\(--lx485-surface-3,#1d3651\)!important;[\s\S]*?border:1px solid var\(--lx485-line-strong/);
+  assert.match(css,/\.btn-primary\{[\s\S]*?background:var\(--lrx-editor-accent\)!important;[\s\S]*?background-image:none!important/);
 });
 
 test('v584 luxury identities are truly dark in renderer tokens and final printable owner',async()=>{
