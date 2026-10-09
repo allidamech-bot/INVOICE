@@ -32,8 +32,9 @@ test('Firebase signed user token is accepted only with valid signature, issuer, 
   assert.equal(await verifyFirebaseIdToken('Bearer '+token({sub:''}),now,certificates),null);
   assert.equal(await verifyFirebaseIdToken('Bearer '+token({}, {alg:'HS256'}),now,certificates),null);
   assert.equal(await verifyFirebaseIdToken('Bearer '+token({}, {kid:'unknown'}),now,certificates),null);
-  const altered=valid.slice(0,-4)+'AAAA';
-  assert.equal(await verifyFirebaseIdToken('Bearer '+altered,now,certificates),null);
+  const alteredParts=valid.split('.');
+  alteredParts[2]=alteredParts[2].slice(0,10)+(alteredParts[2][10]==='A'?'B':'A')+alteredParts[2].slice(11);
+  assert.equal(await verifyFirebaseIdToken('Bearer '+alteredParts.join('.'),now,certificates),null);
 });
 
 function request(){
