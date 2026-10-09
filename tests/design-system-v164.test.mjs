@@ -36,7 +36,7 @@ test('current runtime owns semantic app styling and retires superseded mobile sh
   for(const retired of ['design-system-v164.css','mobile-document-actions-v122.css','mobile-document-actions-v123.css','mobile-document-actions-v124.css']){
     assert.equal(html.includes(retired),false,`${retired} must not return to the active cascade`);
   }
-  assert.match(html,/mobile-document-actions-v125\\.css/);
+  assert.ok(html.includes('mobile-document-actions-v125.css'),'historical compatibility path remains cached');
 });
 
 test('current mobile document portal is mounted on body with accessible close and safe-area rules',async()=>{
@@ -45,12 +45,12 @@ test('current mobile document portal is mounted on body with accessible close an
     read('src/styles/tailadmin-documents-v320.css'),
     read('src/styles/mobile-document-actions-v125.css')
   ]);
-  assert.match(page,/ReactDOM\\.createPortal\\(<div className="app-ui ta-doc-mobile-action-portal"/);
-  assert.match(page,/ta-doc-mobile-action-sheet" role="menu"/);
-  assert.match(page,/ta-doc-action-backdrop" aria-label=/);
-  assert.match(page,/,document\\.body\\)/);
-  assert.match(css,/\\.ta-doc-mobile-action-portal/);
-  assert.match(css,/\\.ta-doc-mobile-action-sheet/);
-  assert.match(css,/env\\(safe-area-inset-bottom/);
-  assert.doesNotMatch(legacy,/\\.mobile-document-action-portal\\s*\\{/,'retired v125 stub must not reclaim portal geometry');
+  for(const token of [
+    'ReactDOM.createPortal(<div className="app-ui ta-doc-mobile-action-portal"',
+    'ta-doc-mobile-action-sheet" role="menu"',
+    'ta-doc-action-backdrop" aria-label=',
+    ',document.body)'
+  ])assert.ok(page.includes(token),`document portal must retain ${token}`);
+  for(const token of ['.ta-doc-mobile-action-portal','.ta-doc-mobile-action-sheet','env(safe-area-inset-bottom'])assert.ok(css.includes(token),`current portal CSS must retain ${token}`);
+  assert.equal(legacy.includes('.mobile-document-action-portal{'),false,'legacy v125 stub cannot reclaim portal geometry');
 });
