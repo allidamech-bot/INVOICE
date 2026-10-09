@@ -24,9 +24,9 @@ test('production shell has local matched React runtime, PWA and premium design l
   assert.match(html, /src\/app\/index\.js/);
   assert.match(html, /styles\/app\.bundle\.css/);
   assert.doesNotMatch(html, /styles\/premium\.css/);
-  assert.match(bundle, /\/\* --- premium\.css --- \*\//);
-  assert.match(bundle, /\/\* --- accounting-polish\.css --- \*\//);
-  assert.match(bundle, /\/\* --- v44-audit\.css --- \*\//);
+  assert.match(bundle, /\/\* --- tailadmin-finance-v320\.css --- \*\//);
+  assert.match(bundle, /\/\* --- tailadmin-overlays-v320\.css --- \*\//);
+  assert.match(bundle, /\/\* --- tailadmin-design-closeout-v323\.css --- \*\//);
   assert.match(bundle, /--radius-xl/);
   assert.match(bundle, /\.save-indicator\.state-saved/);
   assert.match(bundle, /@media \(max-width:720px\)/);
@@ -55,7 +55,9 @@ test('production shell redirects deployment URLs to the canonical Vercel project
 
 test('editor continuously autosaves incomplete drafts while explicit actions validate', async () => {
   const editor = await read('src/components/EditorPageCore.tsx');
-  assert.match(editor, /setTimeout\(\(\)=>void this\.save\(true\),450\)/);
+  assert.match(editor, /this\.autosaveTimer=window\.setTimeout\(\(\)=>void this\.save\(true\),this\.autosaveDelay\(\)\)/);
+  assert.match(editor, /if\(IOS_WEBKIT\)return bytes>=3\*1024\*1024\?2400/);
+  assert.match(editor, /if\(document\.visibilityState!=='hidden'/);
   assert.match(editor, /Saving locally/);
   assert.match(editor, /Saved locally/);
   assert.match(editor, /validateCurrent/);
@@ -75,7 +77,7 @@ test('editor remounts its local draft state when document identity changes', asy
 
 test('encrypted local vault requires the signed-in account before workspace unlock', async () => {
   const selector = await read('src/app/AuthScreenSelector.tsx');
-  const cloudGate = selector.indexOf('if (!currentCloudUser())');
+  const cloudGate = selector.indexOf('if (!cloudUser)');
   const unlockBranch = selector.indexOf("if (props.mode === 'unlock')");
   assert.ok(cloudGate >= 0, 'account gate missing');
   assert.ok(unlockBranch > cloudGate, 'account session must be checked before workspace unlock');
@@ -121,7 +123,7 @@ test('first-run onboarding requires one LOUREX account plus a separate local PIN
   const session = await read('src/storage/session.ts');
   const css = await read('dist/styles/app.bundle.css');
   assert.match(html, /styles\/app\.bundle\.css/);
-  assert.match(css, /\/\* --- auth-entry\.css --- \*\//);
+  assert.match(css, /\/\* --- tailadmin-cloud-account-v320\.css --- \*\//);
   assert.match(account, /Create your LOUREX account/);
   assert.match(account, /Sign In/);
   assert.match(account, /createCloudUser/);
@@ -129,18 +131,20 @@ test('first-run onboarding requires one LOUREX account plus a separate local PIN
   assert.match(account, /Confirm Password/);
   assert.match(auth, /Create PIN · 4–12 digits/);
   assert.match(auth, /Confirm PIN/);
-  assert.match(auth, /onFinish\(this\.state\.pin, this\.state\.company\)/);
-  assert.match(auth, /PIN required on every app start/);
+  assert.match(auth, /onFinish\(this\.state\.pin,this\.state\.company,this\.state\.recoveryCode\)/);
+  assert.match(auth, /if\(!this\.state\.recoverySaved\)/);
+  assert.match(auth, /Save your recovery key somewhere private before creating the workspace/);
   assert.match(auth, /getAccountVaultSecret\(user\.uid\)/);
   assert.match(auth, /changePin\(this\.accountSecret,pin\)/);
   assert.doesNotMatch(auth, /No separate access PIN is required/);
   assert.match(session, /let runtimePinAuthorized=false/);
   assert.match(session, /if\(!runtimePinAuthorized\)return null/);
-  assert.match(selector, /if \(!currentCloudUser\(\)\)/);
+  assert.match(selector, /const cloudUser=currentCloudUser\(\)/);
+  assert.match(selector, /if \(!cloudUser\)/);
   assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
   assert.match(css, /account-entry-tabs/);
-  assert.match(css, /setup-account-badge/);
+  assert.match(css, /ta-cloud-auth-form/);
 });
 
 test('offline service worker precaches the complete application module graph and current runtime', async () => {
