@@ -55,6 +55,8 @@ jobs:
           done
           printf 'Running %s focused test files\n' "${#files[@]}"
           node --test --test-concurrency=2 "${files[@]}"
+      - name: Free real-browser Chromium mobile and desktop smoke (no new packages)
+        run: node scripts/qa-free-chrome-smoke.mjs
       # The historical main branch already has 304 failing tests.
       # Always run and record them; the independent full-suite comparison job
       # fails the workflow if PR652+PR653 introduces even one new failure.
