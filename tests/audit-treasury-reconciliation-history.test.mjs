@@ -29,6 +29,24 @@ test('unallocated collection reconciliation, undo and redo retain the correct as
   assert.equal(get('',[],[first,undo,redo]).reconciled,true);
 });
 
+test('same-millisecond reconciliation events resolve consistently after cloud merge reordering',()=>{
+  const at='2026-10-09T12:00:00.000Z',key='collection:hist-customer-payment';
+  const reconcile=event('event-a',key,at,'reconcile');
+  const undo=event('event-z',key,at,'undo');
+  for(const events of [[undo,reconcile],[reconcile,undo]]){
+    assert.equal(get('2026-10-08',[],events).reconciled,false);
+    assert.equal(get('2026-10-09',[],events).reconciled,false,
+      'same-time conflicts must not depend on event array insertion order');
+  }
+});
+
+test('a reconciliation effective after cutoff cannot alter an earlier report even with an older creation timestamp',()=>{
+  const next=event('scheduled-event','collection:hist-customer-payment','2026-10-02T12:00:00.000Z','reconcile');
+  next.reconciledAt='2026-10-20T12:00:00.000Z';
+  assert.equal(get('2026-10-09',[],[next]).reconciled,false);
+  assert.equal(get('2026-10-21',[],[next]).reconciled,true);
+});
+
 test('legacy reconciliation records without action remain compatible',()=>{
   const record={...event('legacy','collection:hist-customer-payment','2026-10-02T08:00:00.000Z','reconcile')};
   delete record.action;
