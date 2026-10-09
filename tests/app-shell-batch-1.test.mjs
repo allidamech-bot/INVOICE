@@ -5,45 +5,55 @@ import { readFile } from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('batch 1 moves application navigation into one responsive shell',async()=>{
+test('the current desktop and mobile navigation share the authoritative AppShell',async()=>{
   const [app,shell,home]=await Promise.all([
-    read('src/app/App.tsx'),
-    read('src/components/AppShell.tsx'),
-    read('src/components/WorkspaceHome.tsx')
+    read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/WorkspaceHome.tsx')
   ]);
-  assert.match(app,/import \{ AppShell \}/);
-  assert.match(app,/import \{ WorkspaceHome \}/);
-  assert.match(app,/screen:'home'\|'documents'\|'customers'\|'receivables'\|'reports'\|'items'\|'operations'\|'editor'/);
-  assert.match(app,/<AppShell/);
-  assert.match(app,/<WorkspaceHome/);
+  assert.match(app,/import \{ AppShell \} from '\.\.\/components\/AppShell\.js'/);
+  assert.match(app,/import \{ WorkspaceHome \} from '\.\.\/components\/WorkspaceHome\.js'/);
+  assert.match(app,/<AppShell[\s\S]*<WorkspaceHome/);
   assert.doesNotMatch(app,/className="main-nav"/);
   assert.doesNotMatch(app,/header-lock-button/);
-  for(const token of ['workspace-sidebar','mobile-bottom-nav','mobile-more-sheet','shell-sync-status'])assert.ok(shell.includes(token),token);
-  for(const label of ["t('Home','الرئيسية')","t('Finance','المالية')","t('Business','الأعمال')","t('More','المزيد')"])assert.ok(shell.includes(label),label);
+  assert.ok(shell.includes('workspace-shell fintech-shell-v280 ta-shell'));
+  assert.match(shell,/<nav className="ta-sidebar-nav">/);
+  assert.match(shell,/<nav className="ta-mobile-nav" aria-label=\{t\('Mobile navigation','تنقل الجوال'\)\}>/);
+  assert.match(shell,/this\.syncStatus\('ta-topbar-sync'\)/);
+  assert.match(shell,/this\.syncStatus\('ta-sheet-sync'\)/);
+  for(const label of [
+    "t('Home','الرئيسية')","t('Products & Inventory','المنتجات والمخزون')",
+    "t('Finance & insights','المالية والتحليلات')","t('More','المزيد')"
+  ])assert.ok(shell.includes(label),label);
   assert.match(home,/New Document/);
 });
 
-test('batch 1 mobile navigation keeps five clear slots with a central create action',async()=>{
-  const shell=await read('src/components/AppShell.tsx');
-  const css=await read('src/styles/app-shell-v161.css');
-  assert.match(shell,/className="mobile-bottom-nav"/);
-  assert.match(shell,/className="mobile-create-button"/);
-  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
-  assert.match(css,/min-height:calc\(58px \+ env\(safe-area-inset-top\)\)/);
-  assert.match(css,/bottom:calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(css,/background:var\(--ds-shell\)/);
-  assert.match(css,/background:var\(--ds-selected\)/);
-  assert.doesNotMatch(css,/shell-create-button\.btn-primary\{background:linear-gradient/);
-  assert.doesNotMatch(css,/shell-brand-button\{[^}]*background:rgba\(255,255,255/);
+test('mobile dock retains five actionable slots and safe-area-contained create control',async()=>{
+  const [shell,css]=await Promise.all([read('src/components/AppShell.tsx'),read('src/styles/tailadmin-shell-v320.css')]);
+  const start=shell.indexOf('<nav className="ta-mobile-nav"');
+  const end=shell.indexOf('</nav>',start);
+  assert.ok(start>=0&&end>start,'current mobile navigation must exist');
+  const dock=shell.slice(start,end);
+  assert.equal([...dock.matchAll(/<button type="button"/g)].length,5,'Home, Documents, Create, Customers and More are independently actionable');
+  assert.match(dock,/className="ta-mobile-create" aria-haspopup="dialog"/);
+  assert.match(dock,/onClick=\{this\.openMobileQuickCreate\}/);
+  assert.match(dock,/aria-controls="ta-mobile-more"/);
+  assert.match(dock,/aria-expanded=\{this\.state\.moreOpen\}/);
+  assert.match(css,/@media \(max-width:900px\)/);
+  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)!important/);
+  assert.match(css,/env\(safe-area-inset-bottom,0px\)/);
+  assert.match(css,/\.app-ui \.ta-mobile-create \{/);
+  assert.doesNotMatch(css,/\.ta-mobile-create\s*\{[^}]*background:linear-gradient/);
 });
 
-test('batch 1 shell is last application layer while printable document redesign remains final',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const shell='./styles/app-shell-v161.css';
-  const document='./styles/document-premium-redesign-v141.css';
-  assert.ok(html.includes(shell));
-  assert.ok(html.indexOf(shell)<html.indexOf(document));
-  assert.ok(sw.includes(shell));
-  assert.ok(sw.includes('./src/components/AppShell.js'));
-  assert.ok(sw.includes('./src/components/WorkspaceHome.js'));
+test('shell styles ship with installed PWA without replacing document print layers',async()=>{
+  const [html,sw,css]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('src/styles/tailadmin-shell-v320.css')
+  ]);
+  assert.match(html,/\.\/styles\/tailadmin-shell-v320\.css\?v=/);
+  assert.match(html,/\.\/styles\/document-premium-redesign-v141\.css/);
+  assert.match(sw,/\.\/src\/components\/AppShell\.js/);
+  assert.match(sw,/\.\/src\/components\/WorkspaceHome\.js/);
+  assert.match(sw,/\.\/styles\/document\.css/);
+  assert.match(css,/\.app-ui \.ta-shell/);
+  assert.match(css,/\.app-ui \.ta-mobile-nav/);
+  assert.match(css,/@media \(max-width:900px\)/);
 });

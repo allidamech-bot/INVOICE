@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
 
 const read=path=>readFile(path,'utf8');
 function functionSource(source,start,next){
@@ -10,25 +11,28 @@ function functionSource(source,start,next){
   return source.slice(first,last);
 }
 
-test('inventory planning does not create company stock from internal transfers',async()=>{
+test('inventory planning excludes internal transfers and invalid or future-dated movements from historical stock',async()=>{
   const source=await read('src/lib/inventory-planning.ts');
-  const fn=functionSource(source,'function balanceByItem(', '\nfunction issueVelocityByItem(')
-    .replace('movements:InventoryMovementRecord[]','movements')
-    .replace('):Map<string,bigint>',')')
-    .replace('new Map<string,bigint>()','new Map()');
-  const balances=new Function('inventoryMovementAccountingIsValid','scaled',`${fn}; return balanceByItem;`)(
+  const fn=functionSource(source,'function movementKnownBy(','\nfunction issueVelocityByItem(');
+  const compiled=ts.transpileModule(fn,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
+  const balances=new Function('inventoryMovementAccountingIsValid','scaled','isIsoDate',compiled+';return balanceByItem;')(
     movement=>movement.valid!==false,
-    quantity=>BigInt(Math.round(Number(quantity)*10000))
+    quantity=>BigInt(Math.round(Number(quantity)*10000)),
+    value=>/^\d{4}-\d{2}-\d{2}$/.test(value)
   );
   const rows=[
-    {itemId:'sku1',quantity:'10',type:'opening'},
-    {itemId:'sku1',quantity:'4',type:'transfer',fromWarehouseId:'a',toWarehouseId:'b'},
-    {itemId:'sku1',quantity:'2',type:'transfer',fromWarehouseId:'b',toWarehouseId:'c'},
-    {itemId:'sku1',quantity:'-1',type:'issue'},
-    {itemId:'sku1',quantity:'100',type:'purchase',valid:false}
+    {itemId:'sku1',quantity:'10',type:'opening',date:'2026-10-01',createdAt:'2026-10-01T09:00:00Z'},
+    {itemId:'sku1',quantity:'4',type:'transfer',date:'2026-10-02',fromWarehouseId:'a',toWarehouseId:'b'},
+    {itemId:'sku1',quantity:'2',type:'transfer',date:'2026-10-03',fromWarehouseId:'b',toWarehouseId:'c'},
+    {itemId:'sku1',quantity:'-1',type:'issue',date:'2026-10-04',createdAt:'2026-10-04T12:00:00Z'},
+    {itemId:'sku1',quantity:'100',type:'purchase',date:'2026-10-05',valid:false},
+    {itemId:'sku1',quantity:'20',type:'purchase',date:'2026-10-05',createdAt:'2026-10-11T09:00:00Z'},
+    {itemId:'sku1',quantity:'9',type:'purchase',date:'2026-10-15',createdAt:'2026-10-05T09:00:00Z'}
   ];
-  assert.equal(balances(rows).get('sku1'),90000n);
-  assert.equal(balances(rows.slice(0,2)).get('sku1'),100000n);
+  assert.equal(balances(rows,'2026-10-09').get('sku1'),90000n,'as-of excludes transfers, invalid, later-posted and future-dated entries');
+  assert.equal(balances(rows.slice(0,3),'2026-10-09').get('sku1'),100000n,'two internal transfers must not create stock');
+  assert.equal(balances(rows,'2026-10-02').get('sku1'),100000n,'past cutoff remains historical');
+  assert.equal(balances(rows,'2026-10-12').get('sku1'),290000n,'backdated purchases become visible only after actual posting');
 });
 
 test('warehouse transfer and archive recheck latest queued vault, not UI props',async()=>{
