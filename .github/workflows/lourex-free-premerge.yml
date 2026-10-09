@@ -108,3 +108,91 @@ jobs:
           tests/b04-ai-planner-failure-visibility.test.mjs
           tests/b04-source-aware-tool-planner.test.mjs
           tests/ai-review-safety-contract.test.mjs
+
+  main-vs-combined-regressions:
+    name: Full test suite compared with main baseline (zero added failures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: In-memory merge of security branch into accounting branch
+        shell: bash
+        run: |
+          git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
+          if ! git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            # Both independent PRs created the same QA workflow file. Keep the
+            # current job definition, but reject ALL source/test merge conflicts.
+            if [[ "$conflicts" != ".github/workflows/lourex-free-premerge.yml" ]]; then
+              printf 'UNRESOLVED SOURCE CONFLICTS: %s\\n' "$conflicts"
+              exit 1
+            fi
+            git checkout --ours .github/workflows/lourex-free-premerge.yml
+            git add .github/workflows/lourex-free-premerge.yml
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git status --short
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build combined candidate
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+      - name: Run all tests on combined candidate and retain every failure
+        shell: bash
+        run: |
+          node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/candidate-tests.log" 2>&1 || true
+          grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/candidate-tests.log" || true
+      - name: Build and test main baseline under identical Node version
+        shell: bash
+        run: |
+          git worktree add --detach "${RUNNER_TEMP}/invoice-main-baseline" origin/main
+          cd "${RUNNER_TEMP}/invoice-main-baseline"
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+          node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/main-tests.log" 2>&1 || true
+          grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/main-tests.log" || true
+      - name: Reject regressions against main, report baseline failures explicitly
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const dir=process.env.RUNNER_TEMP;
+          const main=fs.readFileSync(dir+'/main-tests.log','utf8');
+          const candidate=fs.readFileSync(dir+'/candidate-tests.log','utf8');
+          function failed(content){
+            const initial=content.split('✖ failing tests:')[0];
+            const rows=initial.split(/\r?\n/).filter(x=>x.startsWith('✖ '));
+            const map=new Map();
+            for(const row of rows){
+              const key=row.replace(/\s+\([\d.]+ms\)$/,'').trim();
+              map.set(key,(map.get(key)||0)+1);
+            }
+            return map;
+          }
+          const base=failed(main),head=failed(candidate),added=[];
+          for(const [name,count] of head){
+            const increase=count-(base.get(name)||0);
+            for(let i=0;i<increase;i++)added.push(name);
+          }
+          const readNum=(log,key)=>Number(log.match(new RegExp('ℹ '+key+' (\\d+)'))?.[1]||-1);
+          const summary=[
+            '## LOUREX full-suite differential verification',
+            '| Measure | main baseline | combined PR652 + PR653 |',
+            '|---|---:|---:|',
+            ...['tests','pass','fail'].map(k=>'| '+k+' | '+readNum(main,k)+' | '+readNum(candidate,k)+' |'),
+            '',
+            '**Newly failing tests compared with main:** '+added.length,
+            ...(added.length?added.slice(0,80).map(x=>'- '+x):['None. Pre-existing failures remain visible and are not claimed to pass.'])
+          ].join('\n');
+          console.log(summary);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
+          if(readNum(main,'tests')<1||readNum(candidate,'tests')<1)process.exit(2);
+          if(added.length)process.exit(1);
+          NODE
