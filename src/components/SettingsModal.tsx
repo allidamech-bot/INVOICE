@@ -45,6 +45,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private assetPreparationId=0;
   private settingsContent:HTMLElement|null=null;
   private settingsTouchStart:{tab:State['tab'];x:number;y:number;at:number}|null=null;
+  private closeRequestedDuringBusy=false;
   private settingsPointerStart:{tab:State['tab'];x:number;y:number;pointerId:number;at:number}|null=null;
   private lastSettingsTouchActivation:{tab:State['tab'];at:number}|null=null;
   constructor(props:Props){
@@ -54,9 +55,10 @@ export class SettingsModal extends React.Component<Props,State> {
     this.state={scope:'settings',tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',backupPin:'',backupPassword:'',backupPasswordConfirm:'',restorePassword:'',restoreFile:null,confirmLocalRestore:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original',activityLogOpen:false};
   }
 
-  componentDidUpdate(prev:Props):void{
-    if(!this.props.open&&prev.open)this.assetPreparationId+=1;
+  componentDidUpdate(prev:Props,previousState:State):void{
+    if(!this.props.open&&prev.open){this.assetPreparationId+=1;this.closeRequestedDuringBusy=false;}
     if(this.props.open&&!prev.open){
+      this.closeRequestedDuringBusy=false;
       const scope=consumeSettingsScope();
       let requestedTab:State['tab']='company';
       try{if(sessionStorage.getItem('lourex-settings-tab')==='workspaces')requestedTab='workspaces';sessionStorage.removeItem('lourex-settings-tab');}catch{}
@@ -64,6 +66,10 @@ export class SettingsModal extends React.Component<Props,State> {
       const appSettings=structuredClone(this.props.appSettings);
       const preparationId=++this.assetPreparationId;
       this.setState({scope,tab:requestedTab,company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',backupPin:'',backupPassword:'',backupPasswordConfirm:'',restorePassword:'',restoreFile:null,confirmLocalRestore:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
+    }
+    if(this.props.open&&previousState.busy&&!this.state.busy&&this.closeRequestedDuringBusy){
+      this.closeRequestedDuringBusy=false;
+      this.requestClose();
     }
   }
 
@@ -104,7 +110,7 @@ export class SettingsModal extends React.Component<Props,State> {
     if(recent?.tab===tab&&Date.now()-recent.at<120)return;
     this.activateSettingsTabFromTouch(tab);
   };
-  private requestClose=()=>{if(this.state.busy)return;if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
+  private requestClose=()=>{if(this.state.busy){this.closeRequestedDuringBusy=true;this.setState({message:t('Finishing the current operation before closing…','جارٍ إكمال العملية الحالية قبل الإغلاق…'),error:''});return;}if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
   private discardAndClose=()=>this.setState({confirmClose:false},this.props.onClose);
   private setCompany=(key:keyof CompanySettings,value:any)=>this.setState({company:{...this.state.company,[key]:value},savedSection:null,message:'',error:''});
   private setBank=(key:keyof CompanySettings['bank'],value:string)=>this.setState({company:{...this.state.company,bank:{...this.state.company.bank,[key]:value}},savedSection:null,message:'',error:''});
