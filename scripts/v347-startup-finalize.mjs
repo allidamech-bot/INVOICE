@@ -99,6 +99,7 @@ await writeFile(runtimePath,runtime);
    must resolve boot repainting to the canonical v351 canvas. */
 let entry=await readFile(entryPath,'utf8');
 entry=entry.replaceAll("const bootBackground=dark?'#0c111d':'#f9fafb';","const bootBackground=dark?'#0D0D0D':'#f4f7fb';");
+entry=entry.replaceAll("const bootBackground=dark?'#0a1826':'#f4f7fb';","const bootBackground=dark?'#0D0D0D':'#f4f7fb';");
 if(entry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas colors remain.');
 if(!entry.includes("const bootBackground=dark?'#0D0D0D':'#f4f7fb';"))throw new Error('v351: canonical document-entry boot canvas contract is missing.');
 await writeFile(entryPath,entry);
