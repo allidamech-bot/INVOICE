@@ -6,10 +6,13 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('iPhone pre-render cloud work has a hard startup budget and cannot hold the boot shell forever',async()=>{
   const startup=await read('src/cloud/startup.ts');
-  assert.match(startup,/const STARTUP_CLOUD_BUDGET_MS=2_200/);
+  assert.match(startup,/const STARTUP_CLOUD_BUDGET_MS=450/);
+  assert.match(startup,/const FRESH_DEVICE_CLOUD_BUDGET_MS=6_000/);
+  assert.match(startup,/const budgetMs=localBeforeStartup\?STARTUP_CLOUD_BUDGET_MS:FRESH_DEVICE_CLOUD_BUDGET_MS/);
+  assert.doesNotMatch(startup,/if\(!localBeforeStartup\)\{\s*await cloudWork/);
   assert.match(startup,/const outcome=await Promise\.race\(\[/);
   assert.match(startup,/cloudWork\.then\(result=>\(\{kind:'done' as const,result\}\)\)/);
-  assert.match(startup,/window\.setTimeout\(\(\)=>resolve\(\{kind:'timeout'\}\),STARTUP_CLOUD_BUDGET_MS\)/);
+  assert.match(startup,/window\.setTimeout\(\(\)=>resolve\(\{kind:'timeout'\}\),budgetMs\)/);
   assert.match(startup,/if\(outcome\.kind==='done'\)return/);
 });
 
@@ -22,13 +25,17 @@ test('timed-out cloud work becomes background reconciliation and only reloads af
 
   const entry=await read('src/app/index.tsx');
   assert.match(entry,/window\.addEventListener\('lourex-cloud-applied'/);
-  assert.match(entry,/if\(reloadUnsafeWorkspaceOpen\(\)\)return/);
+  assert.match(entry,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{/);
+  assert.match(entry,/window\.addEventListener\('lourex-cloud-refresh-available',showCloudRefreshAvailable\)/);
+  assert.match(entry,/title\.textContent='Cloud changes available/);
 });
 
 test('bounded startup still uses guarded reconcile and never switches to direct destructive cloud install',async()=>{
   const startup=await read('src/cloud/startup.ts');
   assert.match(startup,/return await reconcileCloudVault\(user\.uid\)/);
-  assert.doesNotMatch(startup,/installCloudVault/);
+  assert.match(startup,/if\(!local\)\{[\s\S]*await installCloudVault\(user\.uid\)/);
+  assert.match(startup,/if\(linked&&linked\.uid!==user\.uid\)return 'skipped'/);
+  assert.match(startup,/markLateStartupCloudApplyUnsafe\(\)/);
   assert.match(startup,/linked&&linked\.uid!==user\.uid/);
 });
 
