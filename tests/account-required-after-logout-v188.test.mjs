@@ -19,18 +19,22 @@ test('v188 signed-out startup cannot resume an unlocked workspace without the au
   assert.doesNotMatch(session,/deleteRecord\('vault'\)|deleteRecord\('security'\)/);
 });
 
-test('v188 any Firebase account sign-out returns an unlocked workspace to the account gateway',async()=>{
-  const index=await read('src/app/index.tsx');
-  assert.match(index,/function startAccountSignOutWatcher\(\):void/);
-  assert.match(index,/subscribeCloudUser\(user=>\{/);
-  assert.match(index,/if\(user\)\{[\s\S]*setActiveAccountUid\(user\.uid\);[\s\S]*accountWasAuthenticated=true;[\s\S]*return;[\s\S]*\}/);
-  assert.match(index,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\)return;/);
-  assert.match(index,/signOutTransitionRunning=true/);
-  assert.doesNotMatch(index,/setInterval/);
-  const signedOut=index.slice(index.lastIndexOf('if(!accountWasAuthenticated||signOutTransitionRunning)return;'),index.indexOf('async function start()'));
-  assert.match(signedOut,/await suspendSession\(\);[\s\S]*setActiveAccountUid\(null\);[\s\S]*await activateAccountStorage\(null\);/);
-  assert.match(signedOut,/sessionStorage\.setItem\('lourex-auth-just-signed-out','1'\)/);
-  assert.match(signedOut,/window\.location\.reload\(\)/);
+test('v188 confirmed Firebase sign-out closes the encrypted workspace and returns to the account gateway',async()=>{
+  const [index,app]=await Promise.all([read('src/app/index.tsx'),read('src/app/App.tsx')]);
+  const watcher=index.slice(index.indexOf('function startAccountSignOutWatcher'),index.indexOf('async function start()'));
+  const handler=app.slice(app.indexOf('private handleAccountTransitionRequest='),app.indexOf('private handleOnline='));
+  assert.match(watcher,/subscribeCloudUser\(user=>\{/);
+  assert.match(watcher,/if\(signOutConfirmTimer!==undefined\)\{window\.clearTimeout\(signOutConfirmTimer\)/);
+  assert.match(watcher,/signOutConfirmTimer=window\.setTimeout\(\(\)=>\{/);
+  assert.match(watcher,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\|\|currentCloudUser\(\)\)return/);
+  assert.match(watcher,/lourex-account-transition-request[\s\S]*signedOut:true/);
+  assert.doesNotMatch(watcher,/setInterval/);
+  assert.match(handler,/const signedOut=detail\?\.signedOut===true/);
+  assert.match(handler,/await suspendSession\(\);[\s\S]*setActiveAccountUid\(uid\|\|null\);[\s\S]*await activateAccountStorage\(uid\|\|null\)/);
+  assert.match(handler,/if\(signedOut\)\{[\s\S]*await suspendSession\(\);[\s\S]*setActiveAccountUid\(null\);[\s\S]*window\.location\.reload\(\)/);
+  // Confirmed loss must revoke the previous session even if saving or IndexedDB fails.
+  assert.match(handler,/finally\{[\s\S]*if\(signedOut\)\{[\s\S]*await suspendSession\(\)/);
+  assert.match(handler,/if\(signedOut\)\{[\s\S]*window\.location\.reload\(\)/);
   assert.match(index,/startAccountSignOutWatcher\(\);/);
 });
 
