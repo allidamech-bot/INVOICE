@@ -129,7 +129,7 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
 export async function currentCloudIdToken():Promise<string>{
   const user=auth().currentUser;
-  if(!user||typeof user.getIdToken!=='function')throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
+  if(!user||typeof user.uid!=='string'||!user.uid||typeof user.getIdToken!=='function')throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
   const token=await user.getIdToken();
   // A pending token refresh must not authorize an AI request after sign-out
   // or after switching to a different LOUREX account.
