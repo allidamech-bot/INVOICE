@@ -10,8 +10,10 @@ test('settings and account dialogs always retain an exit path during slow operat
     read('src/components/CloudAccountModal.tsx'),
     read('src/styles/settings-account-v163.css')
   ]);
-  assert.match(settings,/private requestClose=\(\)=>\{if\(this\.hasUnsavedSettings\(\)\)/);
-  assert.doesNotMatch(settings,/requestClose=\(\)=>\{if\(this\.state\.busy\|\|this\.state\.cleaningAssets\)return/);
+  assert.match(settings,/private requestClose=\(\)=>\{if\(this\.state\.busy\)\{this\.closeRequestedDuringBusy=true/);
+  assert.match(settings,/if\(this\.hasUnsavedSettings\(\)\)\{this\.setState\(\{confirmClose:true\}\)/);
+  assert.match(settings,/previousState\.busy&&!this\.state\.busy&&this\.closeRequestedDuringBusy/);
+  assert.match(settings,/private discardAndClose=\(\)=>this\.setState\(\{confirmClose:false\},this\.props\.onClose\)/);
   assert.match(account,/private requestClose=\(\)=>this\.props\.onClose\(\);/);
   assert.match(css,/@media\(max-width:720px\),\(max-height:520px\) and \(pointer:coarse\)/);
   assert.match(css,/\.app-ui \.modal-backdrop\{[\s\S]*height:100dvh!important[\s\S]*env\(safe-area-inset-top\)/);
