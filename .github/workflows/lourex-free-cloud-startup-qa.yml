@@ -31,7 +31,7 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Runtime cloud timeout, cancelled write, auth recovery and old contracts
-        run: node --test tests/audit-fresh-device-cloud-recovery.test.mjs tests/iphone-startup-deadlock-v184.test.mjs tests/final-multidevice-sync.test.mjs tests/account-cloud-separation-v186.test.mjs
+        run: node --test tests/audit-fresh-device-cloud-recovery.test.mjs tests/iphone-startup-deadlock-v184.test.mjs tests/final-multidevice-sync.test.mjs tests/account-cloud-separation-v186.test.mjs tests/platform-mobile-hardening.test.mjs tests/v334-global-runtime-reliability.test.mjs
       - name: Full historical suite, visible diagnostic only
         shell: bash
         run: |
