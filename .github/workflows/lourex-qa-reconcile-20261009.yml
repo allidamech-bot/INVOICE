@@ -1,0 +1,24 @@
+name: LOUREX Reconciled Contracts QA
+on:
+  push:
+    branches:
+      - fix/qa-reconcile-cloud-rtl-20261009
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Run targeted RTL, cloud and login regression tests
+        run: node --test tests/account-settings-rtl-v205.test.mjs tests/adaptive-cloud-coalescing-v223.test.mjs tests/account-cloud-separation-v186.test.mjs tests/audit-confirmed-signout.test.mjs tests/audit-account-transition-runtime.test.mjs
+      - name: Run full suite with all failures visible
+        run: node --test --test-concurrency=2 tests/*.test.mjs
