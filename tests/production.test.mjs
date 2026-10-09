@@ -141,7 +141,14 @@ test('first-run onboarding requires one LOUREX account plus a separate local PIN
   assert.doesNotMatch(auth, /No separate access PIN is required/);
   assert.match(session, /let runtimePinAuthorized=false/);
   assert.match(session, /if\(!runtimePinAuthorized\)return null/);
-  assert.match(selector, /if \(!currentCloudUser\(\)\)/);
+  assert.match(selector, /const cloudUser=currentCloudUser\(\)/);
+  assert.match(selector, /if \(!cloudUser\) \{[\s\S]*return <AccountEntryScreen/);
+  assert.match(selector, /if\(localVault\)[\s\S]*setRecoveryState\('blocked'\)/,
+    'existing encrypted local data must block automatic overwrites');
+  assert.match(selector, /if\(cloudInstallAlreadyReloaded\(cloudUser\.uid\)\)[\s\S]*setRecoveryState\('error'\)/,
+    'repeated cloud installation must not loop through PIN setup');
+  assert.match(selector, /if\(!cancelled\)setRecoveryState\('error'\)/,
+    'uncertain cloud recovery must fail closed instead of creating a new PIN');
   assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
   assert.match(css, /account-entry-tabs/);
