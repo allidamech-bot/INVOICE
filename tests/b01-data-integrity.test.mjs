@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
 
 const read=path=>readFile(path,'utf8');
 function functionSource(source,start,next){
@@ -12,13 +13,15 @@ function functionSource(source,start,next){
 
 test('inventory planning does not create company stock from internal transfers',async()=>{
   const source=await read('src/lib/inventory-planning.ts');
-  const fn=functionSource(source,'function balanceByItem(', '\nfunction issueVelocityByItem(')
-    .replace('movements:InventoryMovementRecord[]','movements')
-    .replace('):Map<string,bigint>',')')
-    .replace('new Map<string,bigint>()','new Map()');
-  const balances=new Function('inventoryMovementAccountingIsValid','scaled',`${fn}; return balanceByItem;`)(
+  // Exercise the actual current TypeScript implementation, including
+  // posting-date guards, rather than stripping only an older function signature.
+  const fn=functionSource(source,'function movementKnownBy(', '\nfunction issueVelocityByItem(');
+  const executable=ts.transpileModule(fn,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+  const balances=new Function('inventoryMovementAccountingIsValid','scaled','isIsoDate',
+    `${executable}; return balanceByItem;`)(
     movement=>movement.valid!==false,
-    quantity=>BigInt(Math.round(Number(quantity)*10000))
+    quantity=>BigInt(Math.round(Number(quantity)*10000)),
+    value=>/^\d{4}-\d{2}-\d{2}$/.test(value)
   );
   const rows=[
     {itemId:'sku1',quantity:'10',type:'opening'},
@@ -27,8 +30,13 @@ test('inventory planning does not create company stock from internal transfers',
     {itemId:'sku1',quantity:'-1',type:'issue'},
     {itemId:'sku1',quantity:'100',type:'purchase',valid:false}
   ];
-  assert.equal(balances(rows).get('sku1'),90000n);
-  assert.equal(balances(rows.slice(0,2)).get('sku1'),100000n);
+  assert.equal(balances(rows,'2026-10-09').get('sku1'),90000n);
+  assert.equal(balances(rows.slice(0,2),'2026-10-09').get('sku1'),100000n);
+  // Future and backdated-but-recorded-later ledger entries must not alter
+  // a historical planning report.
+  const future={itemId:'sku1',quantity:'7',type:'opening',date:'2026-10-20'};
+  const enteredLater={itemId:'sku1',quantity:'4',type:'opening',date:'2026-10-01',createdAt:'2026-10-20T10:00:00.000Z'};
+  assert.equal(balances([...rows,future,enteredLater],'2026-10-09').get('sku1'),90000n);
 });
 
 test('warehouse transfer and archive recheck latest queued vault, not UI props',async()=>{
