@@ -40,11 +40,15 @@ test('v592 saved draft updates resolve an explicit document number to the real d
   assert.equal(result.proposal.addItems.length,1);
 });
 
-test('v592 draft context can target a saved document explicitly named in chat and update completion is tangible',async()=>{
+test('v592 named draft targeting is branch-isolated, and confirmed updates become saved artifacts',async()=>{
   const copilot=await read('src/components/AiCopilot.tsx');
-  assert.match(copilot,/referencedDocument=!activeDocument\?vault\.documents\.find\(document=>document\.kind!=='draft'&&messageContainsText\(message,document\.number\)\)/);
-  assert.match(copilot,/const targetDocument=activeDocument\?\?referencedDocument/);
+  // A cross-branch document number must never become an AI update target.
+  assert.match(copilot,/const inWorkspace=\(row:\{workspaceId\?:string\}\)=>\(row\.workspaceId\|\|'default'\)===activeWorkspace/);
+  assert.match(copilot,/const inBranch=\(row:\{workspaceId\?:string;branchId\?:string\}\)=>inWorkspace\(row\)&&\(row\.branchId\|\|'main'\)===activeBranch/);
+  assert.match(copilot,/const referencedDocument=!activeDocument\?vault\.documents\.find\(document=>inBranch\(document\)&&document\.kind!=='draft'&&messageContainsText\(message,document\.number\)\)\?\?null:null/);
+  assert.match(copilot,/const targetDocument=activeDocument&&inBranch\(activeDocument\)\?activeDocument:referencedDocument/);
   assert.match(copilot,/executeDocumentUpdateProposal=async\(proposal:AiDocumentUpdateProposal\):Promise<LourexDocument>/);
+  assert.match(copilot,/assertAiDocumentUpdateApproval\(vault,proposal\)/);
   assert.match(copilot,/Quotation draft updated and saved/);
   assert.match(copilot,/const artifact:AiDocumentArtifact=\{document,customerCreated:false\}/);
 });

@@ -32,13 +32,19 @@ test('v114 carries typed customer search into the quick-create form',async()=>{
   assert.match(core,/blankCustomer\(this\.state\.customerQuery\)/);
 });
 
-test('v114 keeps current-page semantics while manual header and settings lock controls stay retired',async()=>{
+test('v114 desktop and mobile navigation preserve current-page semantics and retire manual lock controls',async()=>{
   const [shell,cloudCss]=await Promise.all([read('src/components/AppShell.tsx'),read('src/styles/cloud.css')]);
+  assert.match(shell,/private navItem=\(screen:NavTarget,icon:NavIcon,label:string\)=>/);
   assert.match(shell,/aria-current=\{this\.props\.screen===screen\?'page':undefined\}/);
   assert.match(shell,/aria-current=\{this\.props\.screen==='documents'\?'page':undefined\}/);
   assert.match(shell,/aria-current=\{this\.props\.screen==='customers'\?'page':undefined\}/);
-  assert.match(shell,/this\.navButton\('items','items'/);
-  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button,\.settings-panel \.settings-section:has\(select option\[value="30"\]\)>\.btn\{display:none!important\}/);
+  assert.match(shell,/this\.navItem\('home','home'/);
+  assert.match(shell,/this\.navItem\('items','items'/);
+  assert.match(shell,/this\.navItem\('operations','backup'/);
+  assert.match(shell,/this\.navItem\('receivables','invoice'/);
+  assert.match(shell,/this\.navItem\('reports','chart'/);
+  assert.match(shell,/className="ta-mobile-nav" aria-label=\{t\('Mobile navigation','تنقل الجوال'\)\}/);
+  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button,[^\{]*\{display:none!important\}/);
 });
 
 test('v114 responsive layer keeps four actions usable and does not leak into printed invoices',async()=>{
@@ -52,13 +58,24 @@ test('v114 responsive layer keeps four actions usable and does not leak into pri
   assert.doesNotMatch(css,/\.invoice-page|\.items-table|\.doc-header|\.totals-block/);
 });
 
-test('v114 stylesheet is loaded before the performance layer and remains available offline',async()=>{
-  const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const ux='./styles/customer-ux-closeout-v114.css';
-  const perf='./styles/performance-polish-v100.css';
-  assert.ok(index.indexOf(ux)>-1&&index.indexOf(ux)<index.indexOf(perf));
-  assert.ok(sw.includes(ux));
-  assert.match(sw,/v114/);
-  assert.match(sw,/v113/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
+test('v114 customer/editor mobile controls remain in screen-only production cascade and offline shell',async()=>{
+  const [index,sw,build,core,css]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('scripts/build.mjs'),
+    read('src/components/EditorPageCore.tsx'),read('src/styles/tailadmin-shell-v320.css')
+  ]);
+  const tailadmin='./styles/tailadmin-shell-v320.css';
+  const finalBridge='./styles/tailadmin-reliability-bridge-v320.css';
+  assert.ok(index.includes(tailadmin),'the active responsive shell stylesheet is linked');
+  assert.ok(index.indexOf(tailadmin)<index.indexOf(finalBridge),'the final reliability owner follows the shell');
+  assert.doesNotMatch(index,/href="\.\/styles\/customer-ux-closeout-v114\.css/,'the retired visual owner cannot override the new shell');
+  assert.match(build,/const appBundleCss=styleParts\.join/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/sourceStyleNames\.at\(-1\)!=='tailadmin-reliability-bridge-v320\.css'/);
+  assert.match(sw,/\.\/index\.html/,'the offline service worker caches the shell entrypoint');
+  assert.match(css,/@media screen/);
+  assert.match(css,/\.app-ui \.ta-nav-item/);
+  assert.match(css,/min-height:44px!important/);
+  assert.doesNotMatch(css,/@media print|\.invoice-page\s*\{/,'the active shell does not style printed invoices');
+  assert.match(core,/mobile-action-buttons/);
+  assert.match(core,/mobile-editor-actionbar/);
 });

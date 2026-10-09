@@ -1,0 +1,36 @@
+name: LOUREX Scoped Draft and Customer Navigation QA
+on:
+  push:
+    branches:
+      - fix/qa-scoped-draft-customer-nav-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript correctness
+        run: npm run typecheck
+      - name: Build exact production candidate
+        run: npm run build
+      - name: Execute scoped AI, customer and navigation regressions
+        run: node --test tests/ai-live-defects-v592.test.mjs tests/customer-document-flow-v109.test.mjs tests/customer-ux-closeout-v114.test.mjs
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Full historical suite — every failure remains release-blocking
+        run: node --test --test-concurrency=2 tests/*.test.mjs
