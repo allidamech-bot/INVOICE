@@ -16,7 +16,7 @@ async function withPlannerReply(reply,run){
     return typeof reply==='function'?await reply(options):reply;
   };
   try{return await run(()=>calls);}
-  finally{globalThis.fetch=existingFetch;globalThis.window=existingWindow;}
+  finally{globalThis.fetch=existingFetch;globalThis.window=existingWindow;globalThis.firebase=existingFirebase;}
 }
 const request=(message,options={})=>orchestrateAiToolRequest({
   message,context,vault:emptyVault(),language:options.language??'en',signal:options.signal
