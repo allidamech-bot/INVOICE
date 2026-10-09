@@ -21,7 +21,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Company asset and product interaction contracts
-        run: node --test tests/company-settings-final-audit.test.mjs tests/interaction-presets-v116.test.mjs tests/final-qa-v118.test.mjs tests/full-site-audit-v159.test.mjs
+        run: node --test tests/company-settings-final-audit.test.mjs tests/interaction-presets-v116.test.mjs tests/final-qa-v118.test.mjs tests/full-site-audit-v159.test.mjs tests/performance-polish-v100.test.mjs
   historical-suite:
     runs-on: ubuntu-latest
     timeout-minutes: 25
