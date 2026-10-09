@@ -32,6 +32,9 @@ test('v188 confirmed Firebase sign-out closes the encrypted workspace and return
   assert.match(handler,/const signedOut=detail\?\.signedOut===true/);
   assert.match(handler,/await suspendSession\(\);[\s\S]*setActiveAccountUid\(uid\|\|null\);[\s\S]*await activateAccountStorage\(uid\|\|null\)/);
   assert.match(handler,/if\(signedOut\)\{[\s\S]*await suspendSession\(\);[\s\S]*setActiveAccountUid\(null\);[\s\S]*window\.location\.reload\(\)/);
+  // Confirmed loss must revoke the previous session even if saving or IndexedDB fails.
+  assert.match(handler,/finally\{[\s\S]*if\(signedOut\)\{[\s\S]*await suspendSession\(\)/);
+  assert.match(handler,/if\(signedOut\)\{[\s\S]*window\.location\.reload\(\)/);
   assert.match(index,/startAccountSignOutWatcher\(\);/);
 });
 
