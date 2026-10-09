@@ -7,8 +7,9 @@ const read=path=>readFile(path,'utf8');
 test('customer cards open a read profile before explicit editing',async()=>{
   const source=await read('src/components/CustomersPage.tsx');
   assert.match(source,/private openProfile=\(customer:Customer\)=>this\.setState\(\{viewingId:customer\.id,error:''\}\)/);
-  assert.match(source,/className="customer-card-main" onClick=\{\(\)=>this\.openProfile\(c\)\}/);
-  assert.doesNotMatch(source,/className="customer-card-main" onClick=\{\(\)=>this\.beginEdit\(c\)\}/);
+  assert.match(source,/className="ta-customer-row-main" onClick=\{\(\)=>this\.openProfile\(customer\)\}/);
+  assert.match(source,/data-customer-id=\{customer\.id\}/,'focus must return to the exact customer after profile closes');
+  assert.doesNotMatch(source,/className="ta-customer-row-main" onClick=\{\(\)=>this\.beginEdit\(customer\)\}/);
   assert.match(source,/private renderProfile=\(customer:Customer\)/);
   assert.match(source,/Customer profile/);
   assert.match(source,/Contact & address/);
@@ -23,7 +24,7 @@ test('customer profile keeps quote invoice edit and delete actions explicit',asy
   assert.match(source,/createDocument\('invoice',customer\)/);
   assert.match(source,/Edit customer/);
   assert.match(source,/Delete customer/);
-  assert.match(source,/viewingId:this\.state\.viewingId===c\.id\?'':this\.state\.viewingId/);
+  assert.match(source,/viewingId:this\.state\.viewingId===customer\.id\?'':this\.state\.viewingId/);
   assert.match(source,/event\.key==='Escape'&&this\.state\.viewingId/);
 });
 
@@ -33,12 +34,12 @@ test('phone and email searches never become accidental company names',async()=>{
   assert.match(source,/seed\.includes\('@'\)/);
   assert.match(source,/\^\[\+\\d\\s\(\)\.\-\]\{5,\}\$/);
   assert.match(source,/blankCustomer\(customerSearchSeed\(this\.state\.query\)\)/);
-  assert.match(source,/const suggestedName=customerSearchSeed\(query\)/);
+  assert.match(source,/suggestedName=customerSearchSeed\(query\)/);
 });
 
 test('customer discovery includes commercial terms and internal notes without changing stored shape',async()=>{
   const source=await read('src/components/CustomersPage.tsx');
-  assert.match(source,/c\.preferredCurrency,c\.creditCurrency,c\.paymentTerms,c\.notes/);
+  assert.match(source,/customer\.preferredCurrency,customer\.creditCurrency,customer\.paymentTerms,customer\.notes/);
   assert.match(source,/terms\.every\(term=>haystack\.includes\(term\)\)/);
   assert.doesNotMatch(source,/interface Customer \{/);
 });
