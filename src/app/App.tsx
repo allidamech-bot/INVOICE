@@ -203,6 +203,10 @@ export class App extends React.Component<{},State> {
     const uid=requested===null?null:String(requested).trim();
     if(uid==='')return;
     this.accountTransitionRunning=true;
+    // Mask the outgoing account immediately, including when a pending cloud
+    // operation takes time to settle. Preserve the key until queued local
+    // writes have drained; revoke it before activating another account scope.
+    this.setState({loading:true,newMenu:false,settingsOpen:false,cloudModal:false});
     void (async()=>{
       try{
         if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
