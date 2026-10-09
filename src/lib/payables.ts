@@ -33,7 +33,7 @@ function paymentKnownOnOrBefore(payment:SupplierPaymentRecord,asOf:string):boole
   const createdDate=payment.createdAt?.slice(0,10)||'';
   return !createdDate||(isIsoDate(createdDate)&&createdDate<=asOf);
 }
-function postedOnOrBefore(purchase:PurchaseRecord,asOf:string):boolean{
+export function postedOnOrBefore(purchase:PurchaseRecord,asOf:string):boolean{
   if(purchase.status!=='posted'&&purchase.status!=='reversed')return false;
   if(purchase.status==='reversed'){
     // A reversed purchase was still an outstanding liability before reversal.
