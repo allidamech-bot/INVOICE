@@ -1,4 +1,5 @@
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
+import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 
 const MAX_BODY_BYTES=12000;
 const RATE_WINDOW_MS=5*60*1000;
@@ -6,9 +7,12 @@ const RATE_MAX=24;
 const MODES=['company-policy','margin','markup','increase-percent','saved-sale-price','last-customer-price','no-change'];
 const rateBuckets=new Map();
 function sendJson(response,status,payload){response.statusCode=status;response.setHeader('Content-Type','application/json; charset=utf-8');response.setHeader('Cache-Control','no-store');response.setHeader('X-Content-Type-Options','nosniff');response.setHeader('Referrer-Policy','no-referrer');response.end(JSON.stringify(payload));}
-function forwardedHost(request){return String(request.headers['x-forwarded-host']||request.headers.host||'').split(',')[0]?.trim().toLowerCase()||'';}
-function sameOriginRequest(request){const origin=String(request.headers.origin||'').trim();if(!origin||String(request.headers['x-requested-with']||'').trim()!=='LOUREX-Invoice')return false;const host=forwardedHost(request);if(!host)return false;try{const parsed=new URL(origin);return parsed.protocol==='https:'&&parsed.host.toLowerCase()===host;}catch{return false;}}
-function requestIp(request){return String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim()||String(request.socket?.remoteAddress||'unknown');}
+function requestHosts(request){return [request.headers.host,request.headers['x-forwarded-host'],request.headers['x-original-host']].flatMap(value=>String(value||'').split(',')).map(value=>value.trim().toLowerCase()).filter(Boolean);}
+function deploymentHosts(){return [process.env.VERCEL_PROJECT_PRODUCTION_URL,process.env.VERCEL_URL,process.env.VERCEL_BRANCH_URL].flatMap(value=>String(value||'').split(',')).map(value=>value.trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'')).filter(Boolean);}
+const BUILTIN_PUBLIC_APP_HOSTS=['invoice-three-puce.vercel.app'];
+function publicAppHosts(){return [...BUILTIN_PUBLIC_APP_HOSTS,...String(process.env.LOUREX_PUBLIC_APP_HOSTS||'').split(',')].map(value=>String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'')).filter(Boolean);}
+function sameOriginRequest(request){const requestedWith=String(request.headers['x-requested-with']||'').trim();const fetchSite=String(request.headers['sec-fetch-site']||'').trim().toLowerCase();if(requestedWith!=='LOUREX-Invoice')return false;const origin=String(request.headers.origin||'').trim();if(!origin)return fetchSite==='same-origin';try{const parsed=new URL(origin);if(parsed.protocol!=='https:')return false;const originHost=parsed.host.toLowerCase();const trustedHosts=new Set([...requestHosts(request),...deploymentHosts(),...publicAppHosts()]);if(trustedHosts.has(originHost))return true;return fetchSite==='same-origin';}catch{return false;}}
+function requestIp(request){if(request.aiVerifiedUid)return `uid:${request.aiVerifiedUid}`;return String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim()||String(request.socket?.remoteAddress||'unknown');}
 function rateAllowed(request){const now=Date.now(),key=requestIp(request),existing=rateBuckets.get(key);const bucket=!existing||now-existing.startedAt>=RATE_WINDOW_MS?{startedAt:now,count:0}:existing;bucket.count+=1;rateBuckets.set(key,bucket);if(rateBuckets.size>500){for(const [entryKey,value] of rateBuckets){if(now-value.startedAt>=RATE_WINDOW_MS)rateBuckets.delete(entryKey);}}return bucket.count<=RATE_MAX;}
 async function readJson(request){let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 function cleanText(value,max=500){return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
@@ -18,6 +22,7 @@ function validPercentForMode(mode,value){const text=cleanPercent(value);if(!text
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Pricing intent requests must come from this LOUREX deployment.'});return;}
+  if(!await requireAiFirebaseAuth(request,response))return;
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'Pricing intent AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch{sendJson(response,400,{code:'INVALID_REQUEST',message:'Invalid pricing instruction.'});return;}
   const instruction=cleanText(body?.instruction,500);if(!instruction){sendJson(response,400,{code:'EMPTY_INSTRUCTION',message:'Enter a pricing instruction first.'});return;}
