@@ -2,6 +2,7 @@ import type { SavedItem, Supplier, VaultPayload } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
+import { scopeVault } from '../lib/workspaces.js';
 import { blankInventoryPlanningPolicy, buildInventoryPlanning, validatedInventoryPlanningDeleteEvent, validatedInventoryPlanningUpsertEvent, type InventoryPlanningPolicy, type InventoryPlanningRow, type InventoryPlanningSnapshot, type InventoryPlanStatus } from '../lib/inventory-planning.js';
 import { ensureInventoryPlanningStyles } from '../lib/inventory-planning-style.js';
 import { Button, ConfirmDialog, Field, Icon, Input, Modal, Select, Textarea } from './UI.js';
@@ -49,12 +50,15 @@ export class InventoryPlanningLive extends React.Component<Record<string,never>,
     window.removeEventListener('lourex-cloud-refresh-available',this.handleExternalRefresh);
   }
   private handleExternalRefresh=()=>void this.refresh();
-  private loadSnapshot=(vault:Pick<VaultPayload,'savedItems'|'suppliers'|'purchases'|'inventoryMovements'|'documentEvents'>)=>buildInventoryPlanning(vault);
+  private loadSnapshot=(vault:VaultPayload)=>{
+    const scoped=scopeVault(vault);
+    return{snapshot:buildInventoryPlanning(scoped),suppliers:scoped.suppliers};
+  };
   private refresh=async()=>{
     try{
       const session=await resumeVaultSession();
       if(!session){this.setState({loading:false,snapshot:null,suppliers:[],error:''});return;}
-      this.setState({loading:false,snapshot:this.loadSnapshot(session.vault),suppliers:session.vault.suppliers,error:''});
+      this.setState({loading:false,...this.loadSnapshot(session.vault),error:''});
     }catch(error){this.setState({loading:false,error:error instanceof Error?error.message:t('Unable to load Inventory Planning.','تعذر تحميل تخطيط المخزون.')});}
   };
   private edit=(row:InventoryPlanningRow)=>{
@@ -71,7 +75,7 @@ export class InventoryPlanningLive extends React.Component<Record<string,never>,
         const result=validatedInventoryPlanningUpsertEvent(vault,editing,this.state.originalUpdatedAt);
         return{...vault,documentEvents:[...vault.documentEvents,result.event]};
       });
-      this.setState({busy:false,editing:null,originalUpdatedAt:'',snapshot:this.loadSnapshot(next),suppliers:next.suppliers,error:''});
+      this.setState({busy:false,editing:null,originalUpdatedAt:'',...this.loadSnapshot(next),error:''});
     }catch(error){this.setState({busy:false,error:error instanceof Error?error.message:t('Unable to save inventory plan.','تعذر حفظ خطة المخزون.')});}
   };
   private reset=async()=>{
@@ -82,7 +86,7 @@ export class InventoryPlanningLive extends React.Component<Record<string,never>,
         const event=validatedInventoryPlanningDeleteEvent(vault,row.item.id,row.policy?.updatedAt??'');
         return{...vault,documentEvents:[...vault.documentEvents,event]};
       });
-      this.setState({busy:false,resetting:null,editing:null,originalUpdatedAt:'',snapshot:this.loadSnapshot(next),suppliers:next.suppliers,error:''});
+      this.setState({busy:false,resetting:null,editing:null,originalUpdatedAt:'',...this.loadSnapshot(next),error:''});
     }catch(error){this.setState({busy:false,resetting:null,error:error instanceof Error?error.message:t('Unable to reset inventory plan.','تعذر إعادة ضبط خطة المخزون.')});}
   };
   private visibleRows=():InventoryPlanningRow[]=>{

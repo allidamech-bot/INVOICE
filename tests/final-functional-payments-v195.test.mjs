@@ -31,7 +31,9 @@ test('v195 payment browser workflow covers duplicate intent, retry, credit balan
   ])assert.ok(runner.includes(marker),marker);
   assert.match(runner,/rapid Save Payment clicks must create one persistence request/);
   assert.match(runner,/over-collection attempt must not create a payment/);
-  assert.match(runner,/rapid Delete clicks must create one destructive request/);
+  assert.match(runner,/const dialog=page\.locator\('\.modal-backdrop'\)\.filter\(\{has:page\.locator\('\.modal-message'\)\}\)\.last\(\)/);
+  assert.match(runner,/await confirm\.evaluate\(button=>\{button\.click\(\);button\.click\(\);\}\)/);
+  assert.match(runner,/assert\.equal\(current\.deleteAttempts,1,'rapid LOUREX confirmation clicks must create one destructive request'\)/);
   assert.match(fixture,/normalizePaymentRecord/);
   assert.match(fixture,/invoicePaymentSummary/);
   assert.match(ci,/tests\/visual\/run-functional-payments\.cjs/);

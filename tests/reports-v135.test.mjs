@@ -119,8 +119,15 @@ test('v135 ships reports navigation print CSV and offline assets without combini
   assert.ok(logic.includes('financialPayments(documents,payments)'));
   assert.ok(logic.includes('receivableCustomerId'));
   assert.ok(!logic.includes('exchangeRate'));assert.ok(!logic.includes('fxRate'));assert.ok(!logic.includes('convertCurrency'));
-  assert.ok(html.includes('reports-v135.css'));assert.ok(html.indexOf('reports-v135.css')<html.indexOf('performance-polish-v100.css'));
-  for(const asset of ['reports-v135.css','ReportsPage.js','reports.js'])assert.ok(sw.includes(asset),asset);
+  assert.ok(html.includes('tailadmin-finance-v320.css'));
+  assert.ok(html.includes('tailadmin-finance-workspaces-v320.css'));
+  const [build,activeReportCss]=await Promise.all([read('scripts/build.mjs'),read('src/styles/tailadmin-finance-workspaces-v320.css')]);
+  assert.match(build,/const appBundleCss=styleParts\.join/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/sw=sw\.replace\(/);
+  assert.match(activeReportCss,/\.ta-reports-page/);
+  assert.match(activeReportCss,/@media print/);
+  for(const asset of ['reports-v135.css','ReportsPage.js','reports.js'])assert.ok(sw.includes(asset),'legacy PWA support must retain '+asset);
   assert.ok(/^const CACHE = 'lourex-invoice-v\d+';/m.test(sw));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v135'"));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v134'"));
   assert.ok(css.includes('printing-financial-report'));assert.ok(css.includes('@media print'));assert.ok(!css.includes('.app-ui .main-nav'),'reports no longer overrides shared navigation');assert.ok(recoveryCss.includes('.app-ui .main-nav button'),'legacy recovery layer remains beneath the new app shell');
 });

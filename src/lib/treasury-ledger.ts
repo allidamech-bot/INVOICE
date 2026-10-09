@@ -83,6 +83,7 @@ export function appendTreasuryEntry(vault:VaultPayload,entry:TreasuryLedgerRecor
     if(treasuryLinkedSourceUsed(vault.treasuryEntries,entry.sourceType,entry.sourceId))fail('This payment is already allocated to treasury.','تم تخصيص هذه الدفعة مسبقًا للخزينة.');
     const matches=entry.sourceType==='customer-payment'?vault.payments.filter(item=>item.id===entry.sourceId):vault.supplierPayments.filter(item=>item.id===entry.sourceId);
     const source=matches[0];
+    if(entry.sourceType==='supplier-payment'&&(source as SupplierPaymentRecord|undefined)?.voidedAt)fail('Voided supplier payments cannot be allocated to cash or bank.','لا يمكن تخصيص دفعة مورد ملغاة للخزينة.');
     if(matches.length!==1||!source||!inScope(source))fail('The linked payment is unavailable. Choose a payment again.','الدفعة المرتبطة غير متاحة. اختر الدفعة من جديد.');
     if(!positive(source.amount)||source.currency.trim().toUpperCase()!==entry.currency.trim().toUpperCase()||decimalToScaled(source.amount,2)!==decimalToScaled(entry.amount,2))fail('The payment amount or currency changed. Select it again and review before saving.','تغير مبلغ الدفعة أو عملتها. اخترها من جديد وراجعها قبل الحفظ.');
     if(entry.sourceType==='customer-payment'){
@@ -105,17 +106,38 @@ export function treasuryLinkedSourceUsed(entries:TreasuryLedgerRecord[],sourceTy
 }
 export function voidTreasuryEntry(entry:TreasuryLedgerRecord,reason:string):TreasuryLedgerRecord{const clean=reason.trim();if(!clean)throw new Error('Enter a reason before voiding this treasury entry.');if(entry.voidedAt)throw new Error('Treasury entry is already voided.');const now=new Date().toISOString();return{...entry,voidedAt:now,voidReason:clean,updatedAt:now};}
 export function markTreasuryEntryReconciled(entry:TreasuryLedgerRecord,reconciled:boolean):TreasuryLedgerRecord{if(entry.voidedAt)throw new Error('A voided treasury entry cannot be reconciled.');const now=new Date().toISOString();return{...entry,reconciledAt:reconciled?now:'',updatedAt:now};}
-export function treasuryAccountBalanceScaled(accountId:string,entries:TreasuryLedgerRecord[]):bigint{let total=0n;for(const entry of entries){if(entry.voidedAt)continue;const amount=decimalToScaled(entry.amount,2);if(entry.toAccountId===accountId)total+=amount;if(entry.fromAccountId===accountId)total-=amount;}return total;}
-export function treasuryAccountBalance(accountId:string,entries:TreasuryLedgerRecord[]):string{return moneyString(treasuryAccountBalanceScaled(accountId,entries));}
+export function treasuryAccountBalanceScaled(accountId:string,entries:TreasuryLedgerRecord[],asOf=''):bigint{let total=0n;for(const entry of entries){if(asOf){if(entry.date>asOf||(entry.createdAt&&entry.createdAt.slice(0,10)>asOf)||(entry.voidedAt&&entry.voidedAt.slice(0,10)<=asOf))continue;}else if(entry.voidedAt)continue;const amount=decimalToScaled(entry.amount,2);if(entry.toAccountId===accountId)total+=amount;if(entry.fromAccountId===accountId)total-=amount;}return total;}
+export function treasuryAccountBalance(accountId:string,entries:TreasuryLedgerRecord[],asOf=''):string{return moneyString(treasuryAccountBalanceScaled(accountId,entries,asOf));}
 
-export function createTreasuryReconciliation(movementKey:string,note=''):TreasuryReconciliationRecord{const now=new Date().toISOString();if(!movementKey.trim())throw new Error('Treasury movement key is required.');return{id:makeId('reconcile'),workspaceId:'',branchId:'',movementKey:movementKey.trim(),reconciledAt:now,note:note.trim(),createdAt:now,updatedAt:now};}
+export function createTreasuryReconciliation(movementKey:string,note='',reconciled=true):TreasuryReconciliationRecord{const now=new Date().toISOString();if(!movementKey.trim())throw new Error('Treasury movement key is required.');return{id:makeId('reconcile'),workspaceId:'',branchId:'',movementKey:movementKey.trim(),reconciledAt:reconciled?now:'',note:note.trim(),createdAt:now,updatedAt:now,action:reconciled?'reconcile':'undo'};}
 
-export function treasuryProjection(payments:PaymentRecord[],supplierPayments:SupplierPaymentRecord[],expenses:ExpenseRecord[],entries:TreasuryLedgerRecord[],reconciliations:TreasuryReconciliationRecord[],defaultCurrency='USD'):TreasuryProjectionRow[]{
-  const active=entries.filter(entry=>!entry.voidedAt),customerLinks=new Set(active.filter(entry=>entry.sourceType==='customer-payment').map(entry=>entry.sourceId)),supplierLinks=new Set(active.filter(entry=>entry.sourceType==='supplier-payment').map(entry=>entry.sourceId)),reconciled=new Map(reconciliations.map(item=>[item.movementKey,item])),rows:TreasuryProjectionRow[]=[];
-  const attach=(row:Omit<TreasuryProjectionRow,'reconciled'|'reconciledAt'>,entry?:TreasuryLedgerRecord)=>{const rec=reconciled.get(row.key);rows.push({...row,reconciled:Boolean(entry?.reconciledAt)||Boolean(rec),reconciledAt:entry?.reconciledAt||rec?.reconciledAt||''});};
-  for(const item of payments){if(customerLinks.has(item.id))continue;attach({key:`collection:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'collection',direction:'in',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.customerNameEn||item.customerNameAr||item.invoiceNumber,reference:item.reference||item.invoiceNumber,method:item.method,fromAccountId:'',toAccountId:''});}
-  for(const item of supplierPayments){if(supplierLinks.has(item.id))continue;attach({key:`supplier-payment:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'supplier-payment',direction:'out',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.supplierNameEn||item.supplierNameAr||item.purchaseNumber,reference:item.reference||item.purchaseNumber,method:item.method,fromAccountId:'',toAccountId:''});}
-  for(const item of expenses)attach({key:`expense:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'expense',direction:'out',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.description||item.category||'Expense',reference:item.reference,method:'other',fromAccountId:'',toAccountId:''});
+export function treasuryProjection(payments:PaymentRecord[],supplierPayments:SupplierPaymentRecord[],expenses:ExpenseRecord[],entries:TreasuryLedgerRecord[],reconciliations:TreasuryReconciliationRecord[],defaultCurrency='USD',asOf=''):TreasuryProjectionRow[]{
+  const active=entries.filter(entry=>asOf?entry.date<=asOf&&(!entry.createdAt||entry.createdAt.slice(0,10)<=asOf)&&(!entry.voidedAt||entry.voidedAt.slice(0,10)>asOf):!entry.voidedAt),customerLinks=new Set(active.filter(entry=>entry.sourceType==='customer-payment').map(entry=>entry.sourceId)),supplierLinks=new Set(active.filter(entry=>entry.sourceType==='supplier-payment').map(entry=>entry.sourceId)),reconciled=new Map<string,TreasuryReconciliationRecord>(),rows:TreasuryProjectionRow[]=[];
+  // Chronological append-only events preserve the state before a subsequent Undo.
+  // Earlier records without an action are treated as a historical reconciliation.
+  // A recorded-later but backdated event must not run before a truly earlier Undo.
+  const effectiveEventAt=(item:TreasuryReconciliationRecord):string=>{
+    const created=item.createdAt||'',reconciled=item.reconciledAt||'';
+    return created>=reconciled?created:reconciled;
+  };
+  for(const item of [...reconciliations].filter(item=>!asOf||(
+    (!item.createdAt||item.createdAt.slice(0,10)<=asOf)&&
+    (!item.reconciledAt||item.reconciledAt.slice(0,10)<=asOf)
+  )).sort((a,b)=>{
+    const aAt=effectiveEventAt(a),bAt=effectiveEventAt(b);
+    return aAt.localeCompare(bAt)||(a.id<b.id?-1:a.id>b.id?1:0);
+  }))reconciled.set(item.movementKey,item);
+  const attach=(row:Omit<TreasuryProjectionRow,'reconciled'|'reconciledAt'>,entry?:TreasuryLedgerRecord)=>{
+    const rec=reconciled.get(row.key),entryAt=entry?.reconciledAt||'',eventAt=rec?effectiveEventAt(rec):'';
+    const legacyVisible=Boolean(entryAt&&(!asOf||entryAt.slice(0,10)<=asOf));
+    const eventWins=Boolean(rec&&(!legacyVisible||eventAt>=entryAt));
+    const isReconciled=eventWins?rec?.action!=='undo':legacyVisible;
+    const reconciledAt=isReconciled?(eventWins?eventAt:entryAt):'';
+    rows.push({...row,reconciled:isReconciled,reconciledAt});
+  };
+  for(const item of payments){if(asOf&&(item.date>asOf||(item.createdAt&&item.createdAt.slice(0,10)>asOf)))continue;if(customerLinks.has(item.id))continue;attach({key:`collection:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'collection',direction:'in',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.customerNameEn||item.customerNameAr||item.invoiceNumber,reference:item.reference||item.invoiceNumber,method:item.method,fromAccountId:'',toAccountId:''});}
+  for(const item of supplierPayments){if(asOf?(item.date>asOf||(item.createdAt&&item.createdAt.slice(0,10)>asOf)||(item.voidedAt&&item.voidedAt.slice(0,10)<=asOf)):(Boolean(item.voidedAt)))continue;if(supplierLinks.has(item.id))continue;attach({key:`supplier-payment:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'supplier-payment',direction:'out',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.supplierNameEn||item.supplierNameAr||item.purchaseNumber,reference:item.reference||item.purchaseNumber,method:item.method,fromAccountId:'',toAccountId:''});}
+  for(const item of expenses.filter(row=>!asOf||(row.date<=asOf&&(!row.createdAt||row.createdAt.slice(0,10)<=asOf))))attach({key:`expense:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'expense',direction:'out',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.description||item.category||'Expense',reference:item.reference,method:'other',fromAccountId:'',toAccountId:''});
   for(const entry of active){const direction:TreasureDirection=entry.fromAccountId&&entry.toAccountId?'internal':entry.toAccountId?'in':'out';let label=entry.notes||entry.reference||entry.type;if(entry.sourceType==='customer-payment'){const item=payments.find(p=>p.id===entry.sourceId);label=item?.customerNameEn||item?.customerNameAr||item?.invoiceNumber||label;}else if(entry.sourceType==='supplier-payment'){const item=supplierPayments.find(p=>p.id===entry.sourceId);label=item?.supplierNameEn||item?.supplierNameAr||item?.purchaseNumber||label;}attach({key:`treasury:${entry.id}`,id:entry.id,date:entry.date,createdAt:entry.createdAt,source:entry.type,direction,currency:currency(entry.currency,defaultCurrency),amount:entry.amount,label,reference:entry.reference,method:'ledger',fromAccountId:entry.fromAccountId,toAccountId:entry.toAccountId},entry);}
   return rows.sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt)||a.key.localeCompare(b.key));
 }

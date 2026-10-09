@@ -13,7 +13,10 @@ test('v201 serializes editor output preparation across rapid PDF/share/print pre
   assert.match(editor,/private outputPromise:Promise<void>\|null=null/);
   assert.match(editor,/private printWithPreparedMode=\(doc:LourexDocument,mode:'print'\|'pdf'\|'share'\):Promise<void>=>\{/);
   assert.match(editor,/if\(this\.outputPromise\)return this\.outputPromise/);
-  assert.match(editor,/await this\.props\.onPrint\(doc,mode\)/);
+  // The current print pipeline creates an output-only copy without attachments
+  // to keep large camera/PDF blobs out of the A4 rendering path.
+  assert.match(editor,/const outputDocument=doc\.attachments\?\.length\?\{\.\.\.doc,attachments:\[\]\}:doc/);
+  assert.match(editor,/await this\.props\.onPrint\(outputDocument,mode\)/);
   assert.match(editor,/if\(this\.outputPromise===operation\)this\.outputPromise=null/);
 });
 

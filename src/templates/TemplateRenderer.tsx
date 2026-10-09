@@ -283,7 +283,7 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   // financial close whenever their text footprint is routine.
   // Match the exported A4 page decision to document-quality estimation.
   // An individual long trade location can exceed the final-page capacity.
-  const hardOverflow=detailsChars>1900||values.some(value=>value.length>560)||notes.length>1200;
+  const hardOverflow=detailsChars>1900||values.some(value=>value.length>520)||notes.length>1200;
   if(hardOverflow)return true;
   const exceptionalClosing=detailsChars>1300||values.some(value=>value.length>500)||notes.length>820||(score>=24&&detailsChars>900);
   if(!exceptionalClosing)return false;

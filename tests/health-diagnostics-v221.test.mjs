@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
 
 const health=await readFile(new URL('../public/health.html',import.meta.url),'utf8');
 const healthScript=await readFile(new URL('../public/health.js',import.meta.url),'utf8');
@@ -27,8 +28,59 @@ test('health diagnostics recognize current scoped databases without opening or r
   assert.doesNotMatch(healthScript,/cloud-account|safety-snapshot/);
 });
 
-test('health report describes privacy-safe scoped storage only',()=>{
-  assert.match(health,/never opens, decrypts or prints business data/i);
+test('health diagnostics retain privacy-scoped storage without accessing customer or invoice data',()=>{
+  assert.match(health,/It does not open or print decrypted business content/i);
+  assert.match(health,/لا يتم تسجيل أسماء العملاء أو المستندات أو المبالغ أو كلمات المرور أو PIN أو محتوى المرفقات/);
   assert.match(healthScript,/Encrypted local storage/);
-  assert.doesNotMatch(healthScript,/Encrypted vault.*Present/);
+  assert.match(healthScript,/indexedDB\.databases\(\)/);
+  assert.match(healthScript,/vault\.fingerprint!==scope\.fingerprint/);
+  assert.doesNotMatch(healthScript,/indexedDB\.open\(|transaction\(['"]records['"]\)|getEncryptedVault\(|decryptVault\(/);
+  assert.match(healthScript,/el\.querySelector\('\.value'\)\.textContent=row\.value/);
+  assert.match(healthScript,/document\.getElementById\('report'\)\.textContent=systemReportText\(\)/);
+});
+
+test('offline diagnostic runtime is precached and online freshness cannot serve stale CSP-blocked code',async()=>{
+  const [sw,build]=await Promise.all([
+    readFile(new URL('../public/sw.js',import.meta.url),'utf8'),
+    readFile(new URL('../scripts/build.mjs',import.meta.url),'utf8')
+  ]);
+  assert.match(sw,/"\.\/health\.html","\.\/health\.js"/);
+  assert.match(sw,/const FRESH_PATHS = new Set\(\[[^\]]*'\/health\.js'/);
+  assert.match(sw,/if\(event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)\)\{event\.respondWith\(networkFirst\(event\.request\)\);return;\}/);
+  const network=sw.slice(sw.indexOf('async function networkFirst('),sw.indexOf("self.addEventListener('install'"));
+  assert.match(network,/fetch\(request,\{cache:'no-store'\}\)/);
+  assert.match(network,/const cached=await cache\.match\(request\)/);
+  assert.match(network,/if\(cached\)return cached/);
+  assert.match(build,/await cp\('public','dist',\{recursive:true\}\)/);
+});
+
+test('health respects strict production CSP and applies light, dark and system preferences',async()=>{
+  const config=JSON.parse(await readFile(new URL('../vercel.json',import.meta.url),'utf8'));
+  const policy=config.headers.find(item=>item.headers?.some(header=>header.key==='Content-Security-Policy'))
+    ?.headers.find(header=>header.key==='Content-Security-Policy')?.value||'';
+  assert.match(policy,/script-src 'self'/);
+  assert.doesNotMatch(policy,/script-src [^;]*'unsafe-inline'/);
+  assert.doesNotMatch(health,/<script\s*(?:type=["']text\/javascript["'])?\s*>/i);
+  assert.match(health,/<script src="\.\/health\.js" defer><\/script>/);
+  assert.match(healthScript,/function applyDiagnosticTheme\(\)/);
+  const begin=healthScript.indexOf('function applyDiagnosticTheme()');
+  const end=healthScript.indexOf('\n  applyDiagnosticTheme();',begin);
+  assert.ok(begin>=0&&end>begin);
+  const extracted=healthScript.slice(begin,end);
+  const exercise=(saved,dark,throwOnStorage=false)=>{
+    const html={dataset:{},style:{}};
+    const meta={content:'',setAttribute(key,value){assert.equal(key,'content');this.content=value;}};
+    const context={
+      localStorage:{getItem(key){assert.equal(key,'lourex-ui-theme');if(throwOnStorage)throw new Error('storage blocked');return saved;}},
+      matchMedia:query=>{assert.equal(query,'(prefers-color-scheme: dark)');return{matches:dark};},
+      document:{documentElement:html,querySelector:selector=>selector==='meta[name="theme-color"]'?meta:null}
+    };
+    vm.runInNewContext(extracted+'\napplyDiagnosticTheme();',context);
+    return {theme:html.dataset.uiTheme,scheme:html.style.colorScheme,meta:meta.content};
+  };
+  assert.deepEqual(exercise('dark',false),{theme:'dark',scheme:'dark',meta:'#0D0D0D'});
+  assert.deepEqual(exercise('light',true),{theme:'light',scheme:'light',meta:'#f4f7fb'});
+  assert.deepEqual(exercise('system',true),{theme:'dark',scheme:'dark',meta:'#0D0D0D'});
+  assert.deepEqual(exercise('system',false),{theme:'light',scheme:'light',meta:'#f4f7fb'});
+  assert.deepEqual(exercise('',false,true),{theme:'light',scheme:'light',meta:'#f4f7fb'});
 });

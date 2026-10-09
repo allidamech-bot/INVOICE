@@ -74,9 +74,16 @@ test('B03: export PIN verification is independent of the backup encryption passw
 test('B03: backup read enforces size and basic vault shape after authentication, and reports share cancel',async()=>{
   const source=await readFile('src/lib/backup.ts','utf8');
   assert.match(source,/file\.size > 50 \* 1024 \* 1024/);
-  assert.match(source,/Array\.isArray\(restored\.documents\)/);
-  assert.match(source,/Array\.isArray\(restored\.customers\)/);
+  assert.match(source,/assertRestorableBackupVault\(restored\)/);
+  const {assertRestorableBackupVault}=await import('../dist/src/lib/backup.js');
+  const valid=emptyVault();
+  assert.doesNotThrow(()=>assertRestorableBackupVault(valid));
+  assert.throws(()=>assertRestorableBackupVault({...valid,documents:null}),/documents.*missing or invalid/);
+  assert.throws(()=>assertRestorableBackupVault({...valid,customers:undefined}),/customers.*missing or invalid/);
+  assert.throws(()=>assertRestorableBackupVault({...valid,schemaVersion:valid.schemaVersion+100}),/unsupported data version/);
+  assert.throws(()=>assertRestorableBackupVault({...valid,payments:null}),/payments.*missing or invalid/);
   assert.match(source,/Backup sharing was canceled\. No file has been saved/);
   assert.match(source,/Backup data is incomplete\. The existing workspace was not changed/);
-  assert.match(source,/restored\.schemaVersion>APP_SCHEMA_VERSION/);
+  assert.match(source,/raw\.schemaVersion/);
+  assert.match(source,/APP_SCHEMA_VERSION/);
 });

@@ -17,13 +17,26 @@ test('v483 prevents scoped company identity churn from feeding the editor save l
   assert.match(editor,/<EditorPageCore[^>]*\.\.\.props[^>]*company=\{company\}/s,'EditorPageCore does not receive the stabilized company object');
 });
 
-test('v483 no longer writes a new document merely because the editor opened',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
-  assert.doesNotMatch(editor,/ensureInitialDraftPersisted/,'new documents still perform implicit draft persistence on mount');
-  assert.doesNotMatch(editor,/initialDraftPersisted/,'legacy implicit-draft persistence state remains active');
-  assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/,'explicit editor persistence path was removed');
+test('v483 creates durable numbered and customer drafts before editor opens, with no mount write loop',async()=>{
+  const [app,editor]=await Promise.all([read('src/app/App.tsx'),read('src/components/EditorPage.tsx')]);
+  const create=app.slice(app.indexOf('private newDocument=async('),app.indexOf('private newDocumentForCustomer=async('));
+  const customer=app.slice(app.indexOf('private newDocumentForCustomer=async('),app.indexOf('private saveDocument=async('));
+  for(const section of [create,customer]){
+    assert.match(section,/if\(this\.documentCreateBusy\|\|!confirmWorkspaceDeparture\(\)\)return/);
+    assert.match(section,/this\.documentCreateBusy=true/);
+    assert.match(section,/await reservation/);
+    const saved=section.indexOf('await this.persist(');
+    const opened=section.indexOf("this.setState({screen:'editor'");
+    assert.ok(saved>=0&&opened>saved,'complete local persistence before rendering editor');
+    assert.match(section,/catch\(e\)\{document\.documentElement\.removeAttribute\('data-lourex-document-editor'\)/);
+    assert.match(section,/finally\{this\.documentCreateBusy=false;\}/);
+  }
+  assert.match(customer,/applyCustomerCommercialDefaults/);
+  assert.match(customer,/documents:\[\.\.\.vault\.documents,prepared\]/);
+  assert.match(create,/documents:\[\.\.\.vault\.documents,doc\]/);
+  assert.doesNotMatch(editor,/ensureInitialDraftPersisted|initialDraftPersistIds/,'mount must not duplicate a saved draft or reserve a second number');
+  assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/);
 });
-
 test('compact Documents geometry has one final owner after retiring v483',async()=>{
   const [pkg,css,bundle,standalone]=await Promise.all([
     read('package.json'),

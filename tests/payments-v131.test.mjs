@@ -37,12 +37,20 @@ test('v131 exposes full and partial receipt workflow with collection status',asy
   assert.ok(docs.includes('Overdue'));
 });
 
-test('v131 payment UI stays offline and performance layer remains last',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  assert.ok(html.includes('payments-v131.css'));
-  assert.ok(html.indexOf('payments-v131.css')<html.indexOf('performance-polish-v100.css'));
-  assert.ok(sw.includes('payments-v131.css'));
-  assert.ok(sw.includes('InvoicePaymentsPanel.js'));
-  assert.ok(sw.includes('lib/payments.js'));
-  assert.ok(sw.includes('lourex-invoice-v131'));
+test('payment UI is delivered in the current bundled offline shell without changing ledger invariants',async()=>{
+  const [html,sw,build,css]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('scripts/build.mjs'),read('src/styles/payments-v131.css')
+  ]);
+  assert.match(html,/href="\.\/styles\/payments-v131\.css"/);
+  assert.match(html,/href="\.\/styles\/tailadmin-finance-v320\.css/);
+  assert.ok(html.indexOf('performance-polish-v100.css')<html.indexOf('payments-v131.css'),
+    'current TailAdmin finance design overrides the earlier performance style');
+  assert.ok(html.indexOf('payments-v131.css')<html.indexOf('tailadmin-finance-v320.css'));
+  assert.match(build,/const appBundleCss=styleParts\.join/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/sw=sw\.replace\(/);
+  for(const asset of ['payments-v131.css','InvoicePaymentsPanel.js','lib/payments.js'])
+    assert.ok(sw.includes(asset),'source PWA compatibility includes '+asset);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v314'/);
+  assert.doesNotMatch(css,/\.invoice-page\s*\{/);
 });

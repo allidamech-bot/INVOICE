@@ -4,18 +4,20 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('batch 3 makes one editor command surface authoritative without touching A4 output',async()=>{
-  const [html,css,core]=await Promise.all([
-    read('index.html'),read('src/styles/editor-workspace-v162.css'),read('src/components/EditorPageCore.tsx')
+test('current document editor owns one command surface without modifying printable A4 output',async()=>{
+  const [html,css,frame,core]=await Promise.all([
+    read('index.html'),read('src/styles/tailadmin-editor-core-v320.css'),
+    read('src/styles/tailadmin-editor-frame-v320.css'),read('src/components/EditorPageCore.tsx')
   ]);
-  assert.match(html,/styles\/editor-workspace-v162\.css/);
-  assert.ok(html.indexOf('dashboard-documents.css')<html.indexOf('editor-workspace-v162.css'));
-  assert.ok(html.indexOf('editor-workspace-v162.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(css,/workspace-shell\.is-editor>\.workspace-topbar\{display:none!important\}/);
-  assert.match(css,/\.app-ui \.editor-topbar\{[\s\S]*grid-template-columns:minmax\(220px,1fr\) auto auto minmax\(0,max-content\)!important/);
+  assert.match(html,/href="\.\/styles\/tailadmin-editor-core-v320\.css/);
+  assert.match(html,/href="\.\/styles\/tailadmin-editor-frame-v320\.css/);
+  assert.ok(html.indexOf('tailadmin-editor-frame-v320.css')<html.indexOf('tailadmin-reliability-bridge-v320.css'));
+  assert.match(css,/@media screen/);
+  assert.match(frame,/@media screen/);
   assert.match(core,/className="editor-topbar"/);
-  assert.doesNotMatch(css,/\.invoice-page\s*\{/);
-  assert.doesNotMatch(css,/\.items-table\s*\{/);
+  assert.match(frame,/\.app-ui \.ta-editor-workspace/);
+  assert.doesNotMatch(css,/\.invoice-page\s*\{|\.items-table\s*\{/);
+  assert.doesNotMatch(frame,/@media print|\.invoice-page\s*\{|\.items-table\s*\{/);
 });
 
 test('batch 3 desktop editor reserves independent scrolling for form and A4 preview',async()=>{
@@ -33,7 +35,10 @@ test('batch 3 keeps the six-step form calm and prevents nested control overflow'
     read('src/styles/editor-workspace-v162.css'),read('src/components/EditorPageCore.tsx'),read('src/components/EditorPage.tsx')
   ]);
   for(const number of ['01','02','03','04','05','06'])assert.match(core,new RegExp(`>${number}<`));
-  assert.match(wrapper,/editor-section-navigator/);
+  assert.match(wrapper,/private renderSectionNavigator=\(\):any=>/);
+  assert.match(wrapper,/className="ta-editor-step-nav"/);
+  assert.match(wrapper,/className="ta-editor-step-list"/);
+  assert.match(wrapper,/this\.renderSectionNavigator\(\)/);
   assert.match(css,/\.app-ui \.editor-section\{[^}]*border-radius:0!important/);
   assert.match(css,/\.app-ui \.form-grid\.two\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
   assert.match(css,/\.app-ui \.item-pricing-grid\{[\s\S]*grid-template-columns:minmax\(90px,\.75fr\) minmax\(120px,\.9fr\) minmax\(150px,1\.15fr\)!important/);
@@ -57,7 +62,9 @@ test('batch 3 preserves save issue preview PDF share and offline contracts',asyn
   const [core,sw,css]=await Promise.all([
     read('src/components/EditorPageCore.tsx'),read('public/sw.js'),read('src/styles/editor-workspace-v162.css')
   ]);
-  assert.match(core,/window\.setTimeout\(\(\)=>void this\.save\(true\),450\)/);
+  assert.match(core,/private schedule=\(\)=>\{if\(this\.autosaveTimer\)clearTimeout\(this\.autosaveTimer\);this\.autosaveTimer=window\.setTimeout\(\(\)=>void this\.save\(true\),this\.autosaveDelay\(\)\);\}/);
+  assert.match(core,/private autosaveDelay=\(\)/);
+  assert.match(core,/attachmentBytes\(this\.state\.doc\)/);
   assert.match(core,/this\.openReview\('issue'\)/);
   assert.match(core,/this\.output\('pdf'\)/);
   assert.match(core,/this\.output\('share'\)/);

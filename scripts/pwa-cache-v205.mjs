@@ -79,9 +79,15 @@ const releaseMarkers=[
   '// lourex-invoice-v257: localized financial input and RTL numeric isolation refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
-const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));})()));";
-const criticalInstallTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));await self.skipWaiting();})()));";
-if(sw.includes(installTail))sw=sw.replace(installTail,criticalInstallTail);
-if(!sw.includes('await self.skipWaiting();'))throw new Error('Unable to enable critical service-worker activation.');
+// The v214 forced-activation migration is retired. Current encrypted drafts
+// require explicit user approval to activate an updated service worker.
+const installStart=sw.indexOf("self.addEventListener('install'");
+const messageStart=sw.indexOf("self.addEventListener('message'",installStart);
+if(installStart<0||messageStart<=installStart)throw new Error('Missing SW install/message boundaries.');
+const install=sw.slice(installStart,messageStart);
+if(/(?:await\s+)?self\.skipWaiting\(\)/.test(install))throw new Error('Unsafe forced service-worker activation detected.');
+if(!sw.includes("event.data?.type==='SKIP_WAITING'")||!sw.includes('void self.skipWaiting()')){
+  throw new Error('Explicit user-requested SW activation handler is missing.');
+}
 
 await writeFile(swPath,sw);

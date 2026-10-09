@@ -1,0 +1,310 @@
+name: LOUREX Free Pre-Merge Verification
+
+on:
+  push:
+    branches:
+      - fix/audit-workspace-payables-asof-20261009
+      - fix/audit-ai-verified-auth-20261009
+    paths-ignore:
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Node 24 · typecheck · build · integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript validation
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Focused accounting and AI integration regressions
+        shell: bash
+        run: |
+          files=()
+          for f in \
+            tests/number-reservation.test.mjs \
+            tests/document-language-v151.test.mjs \
+            tests/customers-workspace-v105.test.mjs \
+            tests/customers-final-audit.test.mjs \
+            tests/dashboard-documents-batch-2.test.mjs \
+            tests/ai-financial-copilot-v264.test.mjs \
+            tests/audit-supplier-payables-asof.test.mjs \
+            tests/audit-supplier-payment-void-merge.test.mjs \
+            tests/audit-treasury-void-history.test.mjs \
+            tests/audit-treasury-reconciliation-history.test.mjs \
+            tests/b03-manual-backup-recovery.test.mjs \
+            tests/legacy-document-migration.test.mjs \
+            tests/commercial-output-hardening-v167.test.mjs \
+            tests/final-details-pagination-v127.test.mjs \
+            tests/production.test.mjs \
+            tests/adaptive-cloud-coalescing-v223.test.mjs \
+            tests/audit-inventory-planning-scope.test.mjs \
+            tests/accounts-payable-batch9.test.mjs \
+            tests/audit-ai-firebase-auth.test.mjs \
+            tests/audit-ai-client-token-safety.test.mjs \
+            tests/ai-reliability-batch5.test.mjs \
+            tests/b04-attachment-progress.test.mjs \
+            tests/b04-ai-planner-failure-visibility.test.mjs \
+            tests/b04-source-aware-tool-planner.test.mjs
+          do
+            if [[ -f "$f" ]]; then files+=("$f"); fi
+          done
+          printf 'Running %s focused test files\n' "${#files[@]}"
+          node --test --test-concurrency=2 "${files[@]}"
+      - name: Free real-browser Chromium mobile and desktop smoke (no new packages)
+        run: node scripts/qa-free-chrome-smoke.mjs
+      # The historical main branch already has 304 failing tests.
+      # Always run and record them; the independent full-suite comparison job
+      # fails the workflow if PR652+PR653 introduces even one new failure.
+      - name: Entire historical Node suite (diagnostic; baseline failures visible)
+        continue-on-error: true
+        run: node --test --test-concurrency=2 tests/*.test.mjs
+
+  combined-integration:
+    if: github.ref == 'refs/heads/fix/audit-workspace-payables-asof-20261009'
+    name: Integrate PR652 + PR653 safely (no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: In-memory merge of security branch into accounting branch
+        shell: bash
+        run: |
+          git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
+          if ! git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            # Resolve only two explicitly audited integration-only collisions:
+            # keep this workflow and use the stronger UID-scoped security PR tests.
+            # Any other conflicted source or test must fail, never be silently kept.
+            while IFS= read -r conflict; do
+              case "$conflict" in
+                ".github/workflows/lourex-free-premerge.yml")
+                  git checkout --ours -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                "tests/ai-financial-copilot-v264.test.mjs")
+                  git checkout --theirs -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                "tests/google-sign-in-v209.test.mjs")
+                  # Keep the current executable UID-linking and CSP checks.
+                  git checkout --ours -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                *)
+                  printf 'UNRESOLVED SOURCE CONFLICT: %s\\n' "$conflict"
+                  exit 1
+                  ;;
+              esac
+            done <<< "$conflicts"
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git status --short
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locked install
+        run: npm ci --no-audit --no-fund
+      - name: Combined TypeScript check
+        run: npm run typecheck
+      - name: Combined production build
+        run: npm run build
+      - name: Combined accounting and AI regression tests
+        run: >
+          node --test --test-concurrency=2
+          tests/number-reservation.test.mjs
+          tests/document-language-v151.test.mjs
+          tests/customers-workspace-v105.test.mjs
+          tests/account-data-isolation-v215.test.mjs
+          tests/locked-account-unlock.test.mjs
+          tests/audit-supplier-payables-asof.test.mjs
+          tests/audit-supplier-payment-void-merge.test.mjs
+          tests/audit-treasury-void-history.test.mjs
+          tests/audit-treasury-reconciliation-history.test.mjs
+          tests/b03-manual-backup-recovery.test.mjs
+          tests/commercial-output-hardening-v167.test.mjs
+          tests/final-details-pagination-v127.test.mjs
+          tests/production.test.mjs
+          tests/adaptive-cloud-coalescing-v223.test.mjs
+          tests/audit-account-auth-loss-watchdog.test.mjs
+          tests/account-cloud-separation-v186.test.mjs
+          tests/account-required-after-logout-v188.test.mjs
+          tests/audit-inventory-planning-scope.test.mjs
+          tests/accounts-payable-batch9.test.mjs
+          tests/audit-ai-firebase-auth.test.mjs
+          tests/audit-ai-client-token-safety.test.mjs
+          tests/ai-reliability-batch5.test.mjs
+          tests/b04-attachment-progress.test.mjs
+          tests/b04-ai-planner-failure-visibility.test.mjs
+          tests/b04-source-aware-tool-planner.test.mjs
+          tests/ai-review-safety-contract.test.mjs
+
+  main-vs-combined-regressions:
+    if: github.ref == 'refs/heads/fix/audit-workspace-payables-asof-20261009'
+    name: Full test suite compared with main baseline (zero added failures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: In-memory merge of security branch into accounting branch
+        shell: bash
+        run: |
+          git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
+          if ! git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            # Resolve only two explicitly audited integration-only collisions:
+            # keep this workflow and use the stronger UID-scoped security PR tests.
+            # Any other conflicted source or test must fail, never be silently kept.
+            while IFS= read -r conflict; do
+              case "$conflict" in
+                ".github/workflows/lourex-free-premerge.yml")
+                  git checkout --ours -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                "tests/ai-financial-copilot-v264.test.mjs")
+                  git checkout --theirs -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                "tests/google-sign-in-v209.test.mjs")
+                  # Keep the current executable UID-linking and CSP checks.
+                  git checkout --ours -- "$conflict"
+                  git add -- "$conflict"
+                  ;;
+                *)
+                  printf 'UNRESOLVED SOURCE CONFLICT: %s\\n' "$conflict"
+                  exit 1
+                  ;;
+              esac
+            done <<< "$conflicts"
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git status --short
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build combined candidate
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+      - name: Run all tests on combined candidate and retain every failure
+        shell: bash
+        run: |
+          node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/candidate-tests.log" 2>&1 || true
+          grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/candidate-tests.log" || true
+      - name: Build and test main baseline under identical Node version
+        shell: bash
+        run: |
+          git worktree add --detach "${RUNNER_TEMP}/invoice-main-baseline" origin/main
+          cd "${RUNNER_TEMP}/invoice-main-baseline"
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+          node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/main-tests.log" 2>&1 || true
+          grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/main-tests.log" || true
+      - name: Reject regressions against main, report baseline failures explicitly
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const dir=process.env.RUNNER_TEMP;
+          const main=fs.readFileSync(dir+'/main-tests.log','utf8');
+          const candidate=fs.readFileSync(dir+'/candidate-tests.log','utf8');
+          function failed(content){
+            const initial=content.split('✖ failing tests:')[0];
+            const rows=initial.split(/\r?\n/).filter(x=>x.startsWith('✖ '));
+            const map=new Map();
+            for(const row of rows){
+              const key=row.replace(/\s+\([\d.]+ms\)$/,'').trim();
+              map.set(key,(map.get(key)||0)+1);
+            }
+            return map;
+          }
+          const base=failed(main),head=failed(candidate),added=[];
+          for(const [name,count] of head){
+            const increase=count-(base.get(name)||0);
+            for(let i=0;i<increase;i++)added.push(name);
+          }
+          const readNum=(log,key)=>Number(log.match(new RegExp('ℹ '+key+' (\\d+)'))?.[1]||-1);
+          const summary=[
+            '## LOUREX full-suite differential verification',
+            '| Measure | main baseline | combined PR652 + PR653 |',
+            '|---|---:|---:|',
+            ...['tests','pass','fail'].map(k=>'| '+k+' | '+readNum(main,k)+' | '+readNum(candidate,k)+' |'),
+            '',
+            '**Newly failing tests compared with main:** '+added.length,
+            ...(added.length?added.slice(0,80).map(x=>'- '+x):['None. Pre-existing failures remain visible and are not claimed to pass.'])
+          ].join('\n');
+          console.log(summary);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary+'\n');
+          const mainTests=readNum(main,'tests'),candidateTests=readNum(candidate,'tests');
+          const mainPass=readNum(main,'pass'),candidatePass=readNum(candidate,'pass');
+          const mainFail=readNum(main,'fail'),candidateFail=readNum(candidate,'fail');
+          if([mainTests,candidateTests,mainPass,candidatePass,mainFail,candidateFail].some(n=>n<0))process.exit(2);
+          if(candidateTests<mainTests){
+            console.error('Regression: candidate ran fewer tests than unchanged main.');
+            process.exit(1);
+          }
+          if(candidateFail>mainFail||candidatePass<mainPass){
+            console.error('Regression: more failed assertions or fewer passed tests than unchanged main.');
+            process.exit(1);
+          }
+          if(added.length)process.exit(1);
+          NODE
+
+  mobile-webkit-preview:
+    if: github.ref == 'refs/heads/fix/audit-workspace-payables-asof-20261009'
+    name: Free browser QA - Chromium mobile and WebKit
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build production candidate locally
+        run: npm run build
+      - name: Install transient test-only browsers
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Test inventory mobile, RTL, iPad WebKit and overlay release
+        shell: bash
+        run: |
+          npx http-server . -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-browser-qa.log 2>&1 &
+          for i in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          node tests/visual/run-inventory-planning-batch7.cjs
+          node tests/visual/run-responsive-batch1.cjs
+          node tests/visual/run-v339-ipad-portrait-draft.cjs
+          node tests/visual/run-v339-shell-overlay-release.cjs

@@ -53,9 +53,10 @@ export function assertAiDocumentCreateApproval(vault:VaultPayload,proposal:Draft
 /** Prevent silent cross-company, missing-item or invalid money edits. */
 export function assertAiDocumentUpdateApproval(vault:VaultPayload,proposal:UpdateApproval):void{
   const active=vault.appSettings.activeWorkspaceId||'default';
+  const activeBranch=vault.appSettings.activeBranchId||'main';
   if(!proposal||!proposal.documentId)throw new Error('Missing target document.');
   const document=vault.documents.find(row=>row.id===proposal.documentId);
-  if(!document||!scoped(document,active))throw new Error('Document is unavailable in the current company.');
+  if(!document||!scoped(document,active)||(document.branchId||'main')!==activeBranch)throw new Error('Document is unavailable in the current company or branch.');
   if(document.status!=='draft'||document.lifecycleStatus==='voided')throw new Error('Only active drafts can be changed by AI.');
   if(!Array.isArray(proposal.addItems)||!Array.isArray(proposal.itemEdits)||proposal.addItems.length>20||proposal.itemEdits.length>30)
     throw new Error('Document update contains too many line modifications.');

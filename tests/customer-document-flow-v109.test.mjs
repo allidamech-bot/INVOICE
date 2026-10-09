@@ -8,8 +8,8 @@ test('customer workspace exposes direct quote and invoice actions', async () => 
   const source = await read('src/components/CustomersPage.tsx');
   assert.match(source, /onNewDocument:\(kind:DocumentKind,customer:Customer\)=>Promise<void>/);
   assert.match(source, /createDocument=async\(kind:DocumentKind,customer:Customer\)/);
-  assert.match(source, /createDocument\('proforma',c\)/);
-  assert.match(source, /createDocument\('invoice',c\)/);
+  assert.match(source, /this\.createDocument\('proforma',customer\)/);
+  assert.match(source, /this\.createDocument\('invoice',customer\)/);
   assert.match(source, /creatingDocument/);
   assert.match(source, /customer-document-actions/);
 });
@@ -35,24 +35,20 @@ test('v109 styles keep customer actions touch-safe and responsive', async () => 
   assert.doesNotMatch(css, /\.items-table/);
 });
 
-test('v109 stylesheet remains app-only and precedes later visual and document output layers', async () => {
-  const [html, sw] = await Promise.all([read('index.html'), read('public/sw.js')]);
-  const v109 = './styles/customer-document-flow-v109.css';
-  const v100 = './styles/performance-polish-v100.css';
-  const documentLayer = './styles/document-premium-redesign-v141.css';
-  const v311VisualLayer = './styles/v311-quality-pass.css?v=311';
-  const currentVisualLayer = './styles/overlays-canonical-v314.css?v=314';
-  assert.ok(html.includes(v109));
-  assert.ok(sw.includes(v109));
-  assert.ok(html.indexOf(v109) < html.indexOf(v100));
-  assert.ok(html.indexOf(v109) < html.indexOf(documentLayer));
-  assert.ok(html.indexOf(v109) < html.indexOf(v311VisualLayer));
-  assert.ok(html.indexOf(v311VisualLayer) < html.indexOf(currentVisualLayer));
-  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(match => match[1]);
-  assert.ok(links.includes(documentLayer));
-  assert.ok(links.includes(v311VisualLayer));
-  assert.ok(links.includes(currentVisualLayer));
-  assert.equal(links.at(-1), currentVisualLayer);
-  assert.match(sw, /v103/);
-  assert.match(sw, /const CACHE = 'lourex-invoice-v101'/);
+test('customer actions ship through the current responsive app-only offline design, not the retired stylesheet owner',async()=>{
+  const [html,sw,build,css]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('scripts/build.mjs'),read('src/styles/tailadmin-customers-v320.css')
+  ]);
+  assert.match(html,/href="\.\/styles\/tailadmin-customers-v320\.css/);
+  assert.match(html,/href="\.\/styles\/tailadmin-reliability-bridge-v320\.css/);
+  assert.ok(html.indexOf('tailadmin-customers-v320.css')<html.indexOf('tailadmin-reliability-bridge-v320.css'));
+  assert.match(build,/const appBundleCss=styleParts\.join/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/sw=sw\.replace\(/);
+  assert.match(sw,/src\/components\/CustomersPage\.js/);
+  assert.match(sw,/src\/lib\/customers\.js|src\/components\/CustomersPage\.js/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v314'/);
+  assert.match(css,/\.app-ui \.ta-customers-page/);
+  assert.match(css,/@media screen/);
+  assert.doesNotMatch(css,/@media print|\.invoice-page\s*\{/);
 });
