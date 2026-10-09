@@ -6,6 +6,7 @@ import { AI_ARCHIVE_TAG, aiProductArchived, buildAiBusinessContext, type AiBusin
 import { buildProductPricingContext, type ProductPricingContext } from '../lib/product-pricing-intelligence.js';
 import { requestAiJson } from '../lib/ai-request.js';
 import { resumeVaultSession } from '../storage/vault.js';
+import { scopeVault } from '../lib/workspaces.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { createBlankDocument, nextDocumentNumber } from '../lib/documents.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
@@ -94,7 +95,24 @@ function draftReference(vault:VaultPayload,message:string,activeDocument?:Lourex
   return{customers,items,defaults,activeDocument:active};
 }
 
-export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,vault:VaultPayload,message:string,activeDocument?:LourexDocument|null):AiContextEnvelope{const business=buildAiBusinessContext(vault);return{version:5,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),finance:buildAiFinanceContext(financeSource,message),business,pricing:buildProductPricingContext(vault,message,business.asOf),drafting:draftReference(vault,message,activeDocument)};}
+export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,vault:VaultPayload,message:string,activeDocument?:LourexDocument|null):AiContextEnvelope{
+  // An unlocked account can hold several companies and branches in one encrypted
+  // vault. Never hand the assistant an unscoped financial/business snapshot.
+  const scoped=scopeVault(vault);
+  const selected=activeDocument??financeSource.activeDocument??null;
+  const scopedActiveDocument=selected?scoped.documents.find(doc=>doc.id===selected.id)??null:null;
+  const scopedFinance:AiFinanceSource={
+    documents:scoped.documents,payments:scoped.payments,customers:scoped.customers,
+    activeDocument:scopedActiveDocument
+  };
+  const business=buildAiBusinessContext(scoped);
+  return{
+    version:5,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),
+    finance:buildAiFinanceContext(scopedFinance,message),business,
+    pricing:buildProductPricingContext(scoped,message,business.asOf),
+    drafting:draftReference(scoped,message,scopedActiveDocument)
+  };
+}
 export function capabilityRequiresApproval(capability:AiCapabilityId):boolean{return AI_CAPABILITIES.find(item=>item.id===capability)?.requiresApproval!==false;}
 function safeMetadataPatch(value:any):AiItemProposal['patch']{
   if(!value||typeof value!=='object')return undefined;const patch:NonNullable<AiItemProposal['patch']>={};const fields:[keyof Omit<NonNullable<AiItemProposal['patch']>,'tags'>,number][]=[['sku',48],['descriptionEn',160],['descriptionAr',160],['hsCode',48],['origin',80],['packing',80],['unit',40],['category',80]];for(const [key,max] of fields){const cleaned=bounded(value[key],max);if(cleaned)patch[key]=cleaned as never;}if(Array.isArray(value.tags)){const cleanedTags:string[]=value.tags.map((tag:unknown)=>bounded(tag,40)).filter((tag:string)=>Boolean(tag)&&tag!==AI_ARCHIVE_TAG);patch.tags=Array.from(new Set<string>(cleanedTags)).slice(0,12);}return Object.keys(patch).length?patch:undefined;
