@@ -32,7 +32,9 @@ test('v338 More-menu fix remains scoped to the existing More dialog',async()=>{
 
   const css=await read('src/styles/v331-draft-scroll-recovery.css');
   const start=css.indexOf('/* LOUREX v338 — More menu only.');
-  const block=css.slice(start);
+  const end=css.indexOf('/* LOUREX v339 —',start);
+  assert.ok(end>start,'v338 More-only block must end before the unrelated iPadOS rules');
+  const block=css.slice(start,end);
   const scopedSelectors=[...block.matchAll(/html body \.app-ui ([^{]+)\{/g)].map(match=>match[1].trim());
   assert.ok(scopedSelectors.length>=3,'expected explicit More-menu scoped selectors');
   for(const selector of scopedSelectors){
