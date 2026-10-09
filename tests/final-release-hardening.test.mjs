@@ -36,7 +36,7 @@ test('cloud installation rechecks owner and dirty workspace after asynchronous d
   assert.match(guard,/data-lourex-workspace-dirty/);
   assert.match(guard,/\.editor-screen/);
   assert.match(guard,/\.modal-backdrop/);
-  assert.match(guard,/modal&&!\s*modal\.querySelector\('\.cloud-account-panel,\.cloud-auth-form'\)/);
+  assert.match(guard,/modal&&!\s*modal\.querySelector\('\.cloud-account-panel,\.cloud-auth-form,\.ta-settings-shell\.is-restoring'\)/);
   assert.doesNotMatch(guard,/document\.querySelector\('\.operations-page'\)/);
 
   const compiled=ts.default.transpileModule(source,{compilerOptions:{module:ts.default.ModuleKind.CommonJS,target:ts.default.ScriptTarget.ES2022}}).outputText;
@@ -115,7 +115,9 @@ test('v351 coarse-pointer controls retain a final 44px physical target floor wit
 test('PWA build monotonically advances its cache generation while retaining historical migration markers',async()=>{
   const [sw,refresh]=await Promise.all([read('public/sw.js'),read('scripts/v303-visual-cache-refresh.mjs')]);
   const release=Number(refresh.match(/const RELEASE_GENERATION=(\d+)/)?.[1]);
-  const current=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m)?.[1]);
+  const activeCacheLines=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  const current=Number(activeCacheLines.at(-1)?.[1]);
+  assert.ok(activeCacheLines.length>=2,'must preserve historical migration markers plus one live generation');
   assert.ok(Number.isInteger(release)&&release>=361,'the build must not regress to an obsolete visual generation');
   assert.ok(Number.isInteger(current)&&current>=314,'the currently checked-in service worker must be at least Batch 0');
   assert.ok(release>current,'build must issue a newer cache identity for changed assets');
