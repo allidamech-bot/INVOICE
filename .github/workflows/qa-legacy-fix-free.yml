@@ -31,6 +31,7 @@ jobs:
           node --test --test-name-pattern='B03: backup read enforces|quality pagination counts long neutral|highest-total sorting|English document identity never falls back' tests/b03-manual-backup-recovery.test.mjs tests/commercial-output-hardening-v167.test.mjs tests/audit-batch1.test.mjs tests/document-language-v151.test.mjs
           node --test --test-name-pattern='v215 a changed Firebase UID|v215 explicit account sign-out|v215 local cloud-account writes' tests/account-data-isolation-v215.test.mjs
           node --test tests/iphone-startup-deadlock-v184.test.mjs
+          node --test --test-name-pattern='cloud install revalidates account ownership' tests/final-release-hardening.test.mjs
 
   entire-suite:
     name: Entire Node test suite (all failures visible, not waived)
