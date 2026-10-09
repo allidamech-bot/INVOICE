@@ -4,19 +4,23 @@ import {readFile,readdir} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('No hosted GitHub Actions workflow can trigger on a Pull Request or use paid runners',async()=>{
+test('No approved public-repository workflow may use PR triggers, paid runners or production deployment',async()=>{
   const files=await readdir(new URL('.github/workflows/',root)).catch(error=>{
     if(error.code==='ENOENT')return [];throw error;
   });
   const yaml=files.filter(name=>/\.ya?ml$/.test(name));
-  assert.deepEqual(yaml,['lourex-free-premerge.yml']);
+  const approved=new Set(['lourex-free-premerge.yml','qa-legacy-fix-free.yml']);
+  assert.ok(yaml.length>=1,'Free QA workflows must be present');
+  assert.ok(yaml.every(name=>approved.has(name)),'Unapproved Actions workflow');
   for(const name of yaml){
     const workflow=await read('.github/workflows/'+name);
+    assert.match(workflow,/^\s*push:\s*$/m);
     assert.doesNotMatch(workflow,/^\s*pull_request\s*:/m);
     const runners=[...workflow.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map(row=>row[1].trim());
     assert.ok(runners.length>=1);
     assert.ok(runners.every(runner=>runner==='ubuntu-latest'));
     assert.doesNotMatch(workflow,/^\s*(?:deploy|environment|target)\s*:\s*production/m);
+    assert.doesNotMatch(workflow,/^\s*secrets\s*:/m);
   }
 });
 test('Local signoff blocks security, build and changed contract regressions',async()=>{

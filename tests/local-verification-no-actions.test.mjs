@@ -2,16 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readdir,readFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
-test('Only free public-repository audit Actions are allowed, without PR triggers or deployment',async()=>{
+test('Only approved free Ubuntu Actions may run; none can deploy or trigger on PR events',async()=>{
   const files=await readdir(new URL('.github/workflows/',root)).catch(e=>{if(e.code==='ENOENT')return [];throw e;});
   const workflows=files.filter(f=>/\.ya?ml$/.test(f));
-  assert.deepEqual(workflows,['lourex-free-premerge.yml']);
-  const content=await readFile(new URL('.github/workflows/lourex-free-premerge.yml',root),'utf8');
-  assert.match(content,/runs-on:\s*ubuntu-latest/);
-  assert.match(content,/node-version:\s*'24'/);
-  assert.match(content,/branches:\s*\n\s*- fix\/audit-workspace-payables-asof-20261009/);
-  assert.doesNotMatch(content,/^\s*pull_request\s*:/m);
-  assert.doesNotMatch(content,/^\s*(?:deploy|environment|target)\s*:\s*production/m);
+  const approved=new Set(['lourex-free-premerge.yml','qa-legacy-fix-free.yml']);
+  assert.ok(workflows.length>=1,'At least one active public-repository QA workflow is required');
+  assert.ok(workflows.every(name=>approved.has(name)),'Unreviewed CI workflow appeared');
+  for(const name of workflows){
+    const content=await readFile(new URL('.github/workflows/'+name,root),'utf8');
+    assert.match(content,/^\s*push:\s*$/m);
+    assert.match(content,/branches:\s*\n\s*-\s+fix\//);
+    assert.match(content,/node-version:\s*'24'/);
+    const runners=[...content.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map(row=>row[1].trim());
+    assert.ok(runners.length>0&&runners.every(runner=>runner==='ubuntu-latest'),'Paid or unknown runner detected: '+name);
+    assert.doesNotMatch(content,/^\s*pull_request\s*:/m);
+    assert.doesNotMatch(content,/^\s*(?:deploy|environment|target)\s*:\s*production/m);
+    assert.doesNotMatch(content,/^\s*secrets\s*:/m);
+  }
 });
 test('local signoff requires security, Batch 7 contracts and browser QA',async()=>{
   const content=await readFile(new URL('scripts/verify-local.mjs',root),'utf8');
