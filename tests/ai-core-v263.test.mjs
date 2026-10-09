@@ -49,10 +49,16 @@ test('AI client shares bounded derived contexts instead of serializing the raw v
   assert.match(copilot,/pricing:ProductPricingContext/);
   assert.match(copilot,/drafting:DraftReference/);
   assert.match(copilot,/resumeVaultSession\(\)/);
-  assert.match(copilot,/buildAiFinanceContext\(financeSource,message\)/);
-  assert.match(copilot,/buildAiBusinessContext\(vault\)/);
-  assert.match(copilot,/buildProductPricingContext\(vault,message,business\.asOf\)/);
-  assert.match(copilot,/draftReference\(vault,message,activeDocument\)/);
+  // All derived financial/business contexts must receive the active company and
+  // branch only; checking the old unscoped call was a privacy regression.
+  assert.match(copilot,/const scoped=scopeVault\(vault\)/);
+  assert.match(copilot,/const scopedActiveDocument=selected\?scoped\.documents\.find\(doc=>doc\.id===selected\.id\)\?\?null:null/);
+  assert.match(copilot,/documents:scoped\.documents,payments:scoped\.payments,customers:scoped\.customers/);
+  assert.match(copilot,/finance:buildAiFinanceContext\(scopedFinance,message\)/);
+  assert.match(copilot,/buildAiBusinessContext\(scoped\)/);
+  assert.match(copilot,/buildProductPricingContext\(scoped,message,business\.asOf\)/);
+  assert.match(copilot,/draftReference\(scoped,message,scopedActiveDocument\)/);
+  assert.doesNotMatch(copilot,/buildAiFinanceContext\(financeSource,message\)|buildAiBusinessContext\(vault\)|buildProductPricingContext\(vault,message,business\.asOf\)/);
   assert.doesNotMatch(copilot,/JSON\.stringify\(resumed\.vault\)/);
   assert.doesNotMatch(copilot,/body:JSON\.stringify\(\{message,vault/);
   assert.doesNotMatch(finance,/Supplier\[\]|PurchaseRecord\[\]|ExpenseRecord\[\]|InventoryMovementRecord\[\]/);
