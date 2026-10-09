@@ -31,7 +31,7 @@ function decodePart(part){
   try{const value=JSON.parse(Buffer.from(part,'base64url').toString('utf8'));return value&&typeof value==='object'&&!Array.isArray(value)?value:null;}catch{return null;}
 }
 
-export async function verifyFirebaseIdToken(authorization,nowSeconds=Math.floor(Date.now()/1000)){
+export async function verifyFirebaseIdToken(authorization,nowSeconds=Math.floor(Date.now()/1000),certificateProvider=firebaseSigningCerts){
   const match=typeof authorization==='string'?authorization.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i):null;
   if(!match||match[1].length>16000)return null;
   const [headerPart,payloadPart,signaturePart]=match[1].split('.');
@@ -41,7 +41,7 @@ export async function verifyFirebaseIdToken(authorization,nowSeconds=Math.floor(
   if(typeof claims.sub!=='string'||!claims.sub||claims.sub.length>128)return null;
   if(!Number.isSafeInteger(claims.exp)||claims.exp<=nowSeconds||!Number.isSafeInteger(claims.iat)||claims.iat>nowSeconds||claims.iat<=0)return null;
   if(!Number.isSafeInteger(claims.auth_time)||claims.auth_time>nowSeconds||claims.auth_time<=0)return null;
-  const certs=await firebaseSigningCerts();
+  const certs=await certificateProvider();
   if(!Object.hasOwn(certs,header.kid)||typeof certs[header.kid]!=='string')return null;
   const verifier=createVerify('RSA-SHA256');
   verifier.update(`${headerPart}.${payloadPart}`);
