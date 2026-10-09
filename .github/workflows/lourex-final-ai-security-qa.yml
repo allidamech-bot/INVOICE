@@ -42,5 +42,22 @@ jobs:
             timeout --signal=TERM 40s node --test "$file"
             echo "::endgroup::"
           done
+      - name: Historic AI behavior regressions using signed Firebase fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            tests/ai-origin-canonical-v570.test.mjs \
+            tests/ai-reliability-batch5.test.mjs \
+            tests/ai-review-safety-contract.test.mjs \
+            tests/b04-ai-planner-failure-visibility.test.mjs \
+            tests/b04-attachment-progress.test.mjs \
+            tests/b04-source-aware-tool-planner.test.mjs \
+            tests/live-ai-origin-decision-v574.test.mjs \
+            tests/live-ai-public-origin-v573.test.mjs; do
+            echo "::group::$file"
+            timeout --signal=TERM 40s node --test "$file"
+            echo "::endgroup::"
+          done
       - name: Complete suite, without waivers
         run: timeout --signal=TERM 180s node --test --test-concurrency=2 tests/*.test.mjs
