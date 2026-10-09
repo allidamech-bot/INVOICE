@@ -1,0 +1,27 @@
+name: LOUREX Frozen Full-Suite Integrity
+on:
+  push:
+    branches:
+      - audit/frozen-full-suite-20261009
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked production dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build from immutable source snapshot
+        run: npm run build
+      - name: Execute every historical test without exclusions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
