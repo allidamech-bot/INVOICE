@@ -42,3 +42,44 @@ jobs:
           grep -E '^[[:space:]]*ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/lourex-all-startup.log" || true
           echo "Historical suite exit status: $status"
           echo "Only the named targeted tests above are release-gating. Legacy failures are not considered passing."
+      - name: Fail on any newly broken historical test compared with main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin main
+          git worktree add --detach "$RUNNER_TEMP/lourex-main-baseline" FETCH_HEAD
+          (
+            cd "$RUNNER_TEMP/lourex-main-baseline"
+            npm ci --no-audit --no-fund
+            npm run build
+            set +e
+            node --test tests/*.test.mjs > "$RUNNER_TEMP/lourex-main-tests.log" 2>&1
+            status=$?
+            set -e
+            if [ "$status" -gt 1 ]; then
+              echo "The main baseline test harness crashed ($status), unable to compare."
+              exit 1
+            fi
+          )
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const folder=process.env.RUNNER_TEMP;
+          const main=readFileSync(folder+'/lourex-main-tests.log','utf8');
+          const candidate=readFileSync(folder+'/lourex-all-startup.log','utf8');
+          function failures(log){
+            const at=log.indexOf('✖ failing tests:');
+            if(at<0)return new Set();
+            return new Set([...log.slice(at).matchAll(/^✖ (.+?) \([\d.]+ms\)$/gm)].map(m=>m[1]));
+          }
+          function count(log,key){
+            const hits=[...log.matchAll(new RegExp('^ℹ '+key+' (\\d+)\\s*$','gm'))];
+            return hits.length?Number(hits.at(-1)[1]):0;
+          }
+          const baseline=failures(main),current=failures(candidate);
+          const newlyBroken=[...current].filter(title=>!baseline.has(title));
+          console.log('MAIN tests/pass/fail:',count(main,'tests'),count(main,'pass'),count(main,'fail'));
+          console.log('CANDIDATE tests/pass/fail:',count(candidate,'tests'),count(candidate,'pass'),count(candidate,'fail'));
+          console.log('Newly failing names:',newlyBroken.length);
+          for(const title of newlyBroken.slice(0,40))console.error('NEW FAILURE:',title);
+          if(count(main,'tests')<1||count(candidate,'tests')<1||newlyBroken.length)process.exit(1);
+          NODE
