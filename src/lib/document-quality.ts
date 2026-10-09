@@ -95,7 +95,10 @@ function usesSeparateDetailsPage(doc:LourexDocument):boolean{
   const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;
   const score=termsCount+(notes?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
 
-  const hardOverflow=detailsChars>1900||values.some(value=>value.length>700)||notes.length>1200;
+  // A single long port/destination/term can wrap across dozens of A4 lines even
+  // when the combined details character count remains below the old 1,900 limit.
+  // Reserve a dedicated closing page before the signature/total is pushed out.
+  const hardOverflow=detailsChars>1900||values.some(value=>value.length>560)||notes.length>1200;
   if(hardOverflow)return true;
 
   const exceptionalClosing=detailsChars>1300||values.some(value=>value.length>500)||notes.length>820||(score>=24&&detailsChars>900);
