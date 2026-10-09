@@ -73,12 +73,12 @@ try{
   const address=await waitUntil(async()=>{
     const lines=(await readFile(portFile,'utf8')).trim().split('\n');
     return lines[0]&&Number(lines[0])>0?Number(lines[0]):0;
-  },10000,'Chrome DevTools port');
+  },30000,'Chrome DevTools port');
   const targets=await waitUntil(async()=>{
     const response=await fetch('http://127.0.0.1:'+address+'/json/list');
     const pages=await response.json();
     return pages.find(page=>page.type==='page'&&page.webSocketDebuggerUrl);
-  },10000,'browser page target');
+  },30000,'browser page target');
   cdp=await openCdp(targets.webSocketDebuggerUrl);
   await cdp.call('Page.enable');
   await cdp.call('Runtime.enable');
