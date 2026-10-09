@@ -122,3 +122,30 @@ jobs:
             tests/audit-treasury-void-history.test.mjs \
             tests/audit-ai-firebase-auth.test.mjs \
             tests/audit-ai-client-token-safety.test.mjs
+      - name: Entire three-branch Node suite (must pass for final release)
+        shell: bash
+        run: |
+          set +e
+          node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/combined-three-pr-suite.log" 2>&1
+          exit_code=$?
+          set -e
+          echo "Full combined suite (PR652 + PR653 + PR660):"
+          grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/combined-three-pr-suite.log" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const log=fs.readFileSync(process.env.RUNNER_TEMP+'/combined-three-pr-suite.log','utf8');
+          const summary=['### Full combined suite (not a differential waiver)'];
+          for(const key of ['tests','pass','fail']){
+            const value=log.match(new RegExp('ℹ '+key+' (\\d+)'))?.[1]??'unknown';
+            summary.push('- '+key+': '+value);
+          }
+          const failures=log.split('✖ failing tests:')[1]||'';
+          const tests=failures.split(/\\r?\\n/).filter(line=>line.startsWith('✖ ')).map(line=>line.replace(/ \\([\\d.]+ms\\)$/,''));
+          summary.push('- Failure listings: '+tests.length,'');
+          summary.push(...tests.slice(0,80).map(line=>'- '+line));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary.join('\\n')+'\\n');
+          NODE
+          if [[ "$exit_code" != "0" ]]; then
+            echo "::error::Full three-branch suite is not green. This is a release blocker."
+            exit "$exit_code"
+          fi
