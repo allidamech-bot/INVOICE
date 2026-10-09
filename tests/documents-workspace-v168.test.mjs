@@ -1,19 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import {runInNewContext} from 'node:vm';
+import ts from 'typescript';
 
 const read=path=>readFile(path,'utf8');
 
 test('document search includes saved line-item and trade metadata',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
   assert.match(source,/doc\.items\.flatMap\(item=>\[item\.descriptionEn,item\.descriptionAr,item\.hsCode,item\.origin,item\.packing,item\.unit\]\)/);
-  assert.match(source,/Number, customer, item, HS code/);
-  assert.match(source,/رقم، عميل، صنف، HS Code/);
+  assert.match(source,/Search number, customer, item, HS code/);
+  assert.match(source,/ابحث بالرقم أو العميل أو الصنف أو HS Code/);
+  const start=source.indexOf('function documentSearchText('),end=source.indexOf('function statusLabel(',start);
+  const exports={};
+  const js=ts.transpileModule(source.slice(start,end),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+  runInNewContext(js+';exports.search=documentSearchText;', {exports,letterPlainText:()=>''});
+  const data={number:'PI-2026-0002',currency:'USD',items:[{descriptionEn:'Hazelnut Snack',descriptionAr:'بندق',hsCode:'190531',origin:'Turkey',packing:'24x50g',unit:'box'}],
+    customerSnapshot:{companyNameEn:'Acme Foods',companyNameAr:'شركة أكمي'},supplierSnapshot:null,
+    terms:{incoterm:'CIF',paymentTerms:'Advance',finalDestination:'Jeddah',countryOfOrigin:'Turkey',portOfLoading:'Mersin'},notes:'Priority'};
+  const haystack=exports.search(data);
+  for(const term of ['pi-2026-0002','hazelnut snack','190531','24x50g','turkey','acme foods','cif','mersin'])assert.ok(haystack.includes(term),term);
 });
 
 test('final cancelled or voided documents remain exportable as archival copies',async()=>{
   const [documents,renderer]=await Promise.all([read('src/components/DocumentsPage.tsx'),read('src/templates/TemplateRenderer.tsx')]);
-  assert.equal((documents.match(/const canOutput=doc\.status==='final';/g)||[]).length,2);
+  assert.match(documents,/const canOutput=doc.kind==='draft'\|\|doc.status==='final'/);
+  assert.match(documents,/doc.lifecycleStatus==='voided'\?t\('Open archive','فتح الأرشيف'\)/);
   assert.match(documents,/Open archive/);
   assert.match(documents,/فتح الأرشيف/);
   assert.match(renderer,/document-void-watermark/);
@@ -33,7 +45,7 @@ test('issued and cancelled filters are mutually consistent with overview counts'
 
 test('document detail uses kind-specific due, validity and requested-delivery wording',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.ok(source.includes("doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):t('Valid until','صالح حتى')"));
+  for(const marker of ["doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق')","doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب')","doc.kind==='proforma'||doc.kind==='proforma-invoice'","t('Valid until','صالح حتى')"])assert.ok(source.includes(marker),marker);
   assert.doesNotMatch(source,/Validity \/ due/);
 });
 
@@ -57,13 +69,15 @@ test('document detail links quote invoice and credit-note relationships',async()
 test('voided documents do not reuse the issued visual status class',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
   assert.match(source,/const visualState=doc\.lifecycleStatus==='voided'\?'voided':state/);
-  assert.equal((source.match(/document-status-pill status-\$\{visualState\}/g)||[]).length,2);
+  assert.match(source,/className=\{\x60ta-doc-status status-\$\{visualState\}\x60\}/);
+  assert.match(source,/const visualState=doc.lifecycleStatus==='voided'\?'voided':state/);
 });
 
 test('mobile document actions remain body-ported and dismissible',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.match(source,/mobile-document-action-portal/);
-  assert.match(source,/mobile-document-action-backdrop/);
+  assert.match(source,/ta-doc-mobile-action-portal/);
+  assert.match(source,/ta-doc-action-backdrop/);
+  assert.match(source,/role="menu" aria-label=\{t\('Document actions','إجراءات المستند'\)\}/);
   assert.match(source,/ReactDOM\.createPortal/);
   assert.match(source,/onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/);
 });
