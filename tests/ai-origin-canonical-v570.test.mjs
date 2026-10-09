@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import handler from '../api/ai-core.js';
 import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
-import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
-import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 
 function request(headers,body='{}'){
   const req=Readable.from([body]);
