@@ -44,6 +44,9 @@ jobs:
             tests/audit-treasury-void-history.test.mjs \
             tests/audit-treasury-reconciliation-history.test.mjs \
             tests/b03-manual-backup-recovery.test.mjs \
+            tests/legacy-document-migration.test.mjs \
+            tests/account-cloud-separation-v186.test.mjs \
+            tests/account-required-after-logout-v188.test.mjs \
             tests/commercial-output-hardening-v167.test.mjs \
             tests/final-details-pagination-v127.test.mjs \
             tests/production.test.mjs \
