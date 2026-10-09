@@ -3,13 +3,16 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {aiPlannerSourceFacts,explicitAiActionRequest,orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
+import {testFirebaseBearer} from './fixtures/firebase-ai-auth.mjs';
+const testFirebaseSession=()=>({apps:[{}],auth:()=>({currentUser:{uid:'lourex-test-user',getIdToken:async()=>testFirebaseBearer().slice(7)}})});
 
 const source=(extracted='SKU B-001 | 50g | 1.20 USD')=>({
   id:'upload-1',fileName:'sample.xlsx',route:'product_list',documentType:'price_list',confidence:0.92,extracted
 });
 const context=(attachment)=>({screen:'items',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'},conversationSources:[attachment]});
 const withFakePlanner=async(plan,run)=>{
-  const originalFetch=globalThis.fetch,originalWindow=globalThis.window;
+  const originalFetch=globalThis.fetch,originalWindow=globalThis.window,originalFirebase=globalThis.firebase;
+  globalThis.firebase=testFirebaseSession();
   const payloads=[];
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(_url,options)=>{
