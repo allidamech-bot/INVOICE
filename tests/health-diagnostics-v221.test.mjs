@@ -39,6 +39,21 @@ test('health diagnostics retain privacy-scoped storage without accessing custome
   assert.match(healthScript,/document\.getElementById\('report'\)\.textContent=systemReportText\(\)/);
 });
 
+test('offline diagnostic runtime is precached and online freshness cannot serve stale CSP-blocked code',async()=>{
+  const [sw,build]=await Promise.all([
+    readFile(new URL('../public/sw.js',import.meta.url),'utf8'),
+    readFile(new URL('../scripts/build.mjs',import.meta.url),'utf8')
+  ]);
+  assert.match(sw,/"\.\/health\.html","\.\/health\.js"/);
+  assert.match(sw,/const FRESH_PATHS = new Set\(\[[^\]]*'\/health\.js'/);
+  assert.match(sw,/if\(event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)\)\{event\.respondWith\(networkFirst\(event\.request\)\);return;\}/);
+  const network=sw.slice(sw.indexOf('async function networkFirst('),sw.indexOf("self.addEventListener('install'"));
+  assert.match(network,/fetch\(request,\{cache:'no-store'\}\)/);
+  assert.match(network,/const cached=await cache\.match\(request\)/);
+  assert.match(network,/if\(cached\)return cached/);
+  assert.match(build,/await cp\('public','dist',\{recursive:true\}\)/);
+});
+
 test('health respects strict production CSP and applies light, dark and system preferences',async()=>{
   const config=JSON.parse(await readFile(new URL('../vercel.json',import.meta.url),'utf8'));
   const policy=config.headers.find(item=>item.headers?.some(header=>header.key==='Content-Security-Policy'))
