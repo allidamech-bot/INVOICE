@@ -114,6 +114,17 @@ test('B09 end-to-end: draft never books revenue; final partial invoice books onc
   assert.equal(quantity(finalVault,'b09-cookies',warehouseId),60000n);
 });
 
+test('B09 duplicate SKU mapping: one catalog item cannot silently fulfill two different delivery lines',()=>{
+  const {confirmed,input}=setup();
+  const baseline=structuredClone(confirmed.inventoryMovements);
+  const mappedToSameSku={...input,savedItemIds:['b09-cookies','b09-cookies']};
+  assert.throws(()=>postSalesDeliveryStock(confirmed,mappedToSameSku),/distinct catalog item/);
+  assert.deepEqual(confirmed.inventoryMovements,baseline,'rejected mappings cannot issue stock');
+  const accepted=postSalesDeliveryStock(confirmed,input);
+  assert.equal(accepted.created,true,'valid explicit distinct mappings still work');
+  assert.equal(accepted.vault.inventoryMovements.filter(m=>m.type==='issue').length,2);
+});
+
 test('B09 collection: partial bank payment updates reports and AI without changing stock or duplicating sales',()=>{
   const {confirmed,note,input,warehouseId,customer}=setup();
   const stocked=postSalesDeliveryStock(confirmed,input).vault;
