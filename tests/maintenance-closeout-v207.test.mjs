@@ -19,14 +19,14 @@ test('current account logo and identity have responsive independent layout owner
   const css=await read('src/styles/tailadmin-settings-v320.css');
   assert.match(css,/\.ta-account-logo-grid\{display:grid;[^}]*gap:18px/);
   assert.match(css,/\.ta-account-summary\{[^}]*background:var\(--ft-surface-2\)/);
-  assert.match(css,/@media\(max-width:980px\)[^{]*\{[^}]*\.ta-account-logo-grid\{grid-template-columns:1fr\}/);
+  assert.match(css,/@media\(max-width:980px\)[\s\S]*\.ta-account-logo-grid\{grid-template-columns:1fr\}/);
 });
 
 test('current mobile purchasing actions do not overlay editable fields',async()=>{
   const [css,visual]=await Promise.all([read('src/styles/tailadmin-operations-v320.css'),read('tests/visual/run-obsidian-financial.cjs')]);
   assert.match(css,/\.ta-ops-editor-scroll\{min-height:0;overflow:auto/);
   assert.match(css,/\.ta-ops-editor-actions\{display:flex;[^}]*padding:13px 16px/);
-  assert.match(css,/@media\(max-width:1180px\)[^{]*\{[^}]*:is\(\.ta-ops-editor,\.ta-ops-editor-card\)\{position:static;max-height:none\}/);
+  assert.match(css,/@media\(max-width:1180px\)[\s\S]*:is\(\.ta-ops-editor,\.ta-ops-editor-card\)\{position:static;max-height:none\}/);
   assert.match(visual,/purchase action bar covers editable fields/);
   assert.match(visual,/\.purchase-editor fieldset input/);
 });
