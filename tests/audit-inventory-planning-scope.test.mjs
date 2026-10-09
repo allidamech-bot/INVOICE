@@ -70,3 +70,20 @@ test('historical inventory supplier provenance survives a subsequent purchase re
   assert.equal(atReversal.rows[0].lastPurchase,null);
   assert.equal(atReversal.rows[0].preferredSupplier,null);
 });
+
+test('historical supplier selection uses posting chronology rather than a later reversal update',()=>{
+  const vault=emptyVault();
+  const itemId='same-day-historical-item';
+  vault.savedItems=[item(itemId,'default')];
+  vault.suppliers=[supplier('early-supplier','default'),supplier('late-supplier','default')];
+  const early={id:'early-reversed',number:'PUR-EARLY',date:'2026-10-01',
+    status:'reversed',postedAt:'2026-10-01T08:00:00.000Z',reversedAt:'2026-10-20T09:00:00.000Z',
+    updatedAt:'2026-10-20T09:00:00.000Z',supplierSnapshot:{sourceSupplierId:'early-supplier'},items:[{savedItemId:itemId}]};
+  const late={id:'late-posted',number:'PUR-LATE',date:'2026-10-01',
+    status:'posted',postedAt:'2026-10-01T14:00:00.000Z',updatedAt:'2026-10-01T14:00:00.000Z',
+    supplierSnapshot:{sourceSupplierId:'late-supplier'},items:[{savedItemId:itemId}]};
+  vault.purchases=[early,late];
+  const snapshot=buildInventoryPlanning(vault,'2026-10-09');
+  assert.equal(snapshot.rows[0].lastPurchase?.id,'late-posted');
+  assert.equal(snapshot.rows[0].preferredSupplier?.id,'late-supplier');
+});
