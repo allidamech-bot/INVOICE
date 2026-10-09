@@ -12,8 +12,9 @@ test('context opens a bounded reviewable question without making a request',()=>
  copilot.openContext({detail:{screen:'items',question:'wrong workspace'}});assert.equal(copilot.state.open,false);
  copilot.openContext({detail:{screen:'customers',question:'Explain Northstar'}});assert.equal(copilot.state.input,'Explain Northstar');assert.equal(copilot.state.open,true);assert.equal(copilot.state.busy,false);assert.deepEqual(copilot.state.messages,[]);assert.equal(copilot.state.proposal,null);
  copilot.pending=true;copilot.openContext({detail:{screen:'customers',question:'replace active'}});assert.equal(copilot.state.input,'Explain Northstar');copilot.pending=false;
- copilot.openContext({detail:{screen:'customers',question:'x'.repeat(1200)}});assert.equal(copilot.state.input.length,1000);
- copilot.mounted=false;copilot.openContext({detail:{screen:'customers',question:'after unmount'}});assert.equal(copilot.state.input.length,1000);
+ copilot.openContext({detail:{screen:'customers',question:'x'.repeat(1200)}});assert.equal(copilot.state.input.length,1200,'valid multi-line commercial prompts must not be truncated at the retired 1000-character cap');
+ copilot.openContext({detail:{screen:'customers',question:'x'.repeat(8000)}});assert.equal(copilot.state.input.length,6000,'contextual AI must enforce the current bounded 6000-character limit');
+ copilot.mounted=false;copilot.openContext({detail:{screen:'customers',question:'after unmount'}});assert.equal(copilot.state.input.length,6000);
 });
 test('compact file entry reuses the existing typed inbox and makes no proposal',()=>{
  for(const route of ['quote_request','product_list']){const tool=new AiWorkflowTools({compact:true,defaultRoute:route});const button=tool.render().children[0];button.props.onClick();assert.equal(tool.state.forcedRoute,route);assert.equal(tool.state.view,'inbox');assert.equal(tool.state.stage,'idle');assert.equal(tool.state.quote,null);assert.equal(tool.state.supplier,null);}

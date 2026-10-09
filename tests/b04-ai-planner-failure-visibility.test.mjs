@@ -2,10 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {aiPlanningUnavailableResult,orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
+import {testFirebaseBearer} from './fixtures/firebase-ai-auth.mjs';
+const testFirebaseSession=()=>({apps:[{}],auth:()=>({currentUser:{uid:'lourex-test-user',getIdToken:async()=>testFirebaseBearer().slice(7)}})});
 
 const context={screen:'items',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}};
 async function withPlannerReply(reply,run){
-  const existingFetch=globalThis.fetch,existingWindow=globalThis.window;
+  const existingFetch=globalThis.fetch,existingWindow=globalThis.window,existingFirebase=globalThis.firebase;
+  globalThis.firebase=testFirebaseSession();
   let calls=0;
   globalThis.window={setTimeout,clearTimeout};
   globalThis.fetch=async(_url,options)=>{
@@ -13,7 +16,7 @@ async function withPlannerReply(reply,run){
     return typeof reply==='function'?await reply(options):reply;
   };
   try{return await run(()=>calls);}
-  finally{globalThis.fetch=existingFetch;globalThis.window=existingWindow;}
+  finally{globalThis.fetch=existingFetch;globalThis.window=existingWindow;globalThis.firebase=existingFirebase;}
 }
 const request=(message,options={})=>orchestrateAiToolRequest({
   message,context,vault:emptyVault(),language:options.language??'en',signal:options.signal
