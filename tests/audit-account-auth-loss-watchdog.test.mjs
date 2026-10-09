@@ -15,6 +15,7 @@ function sliceRequired(source,start,end){
   assert.ok(a>=0&&b>a,'Production auth transition owner must exist: '+start);
   return source.slice(a,b);
 }
+const authStateCode=sliceRequired(index,'let accountWasAuthenticated=false;','const WORKSPACE_RESUME_KEY=');
 const watcherCode=sliceRequired(index,'function startAccountSignOutWatcher():void{','async function start():Promise<void>{');
 const transitionCode=sliceRequired(app,'private handleAccountTransitionRequest=(event:Event)=>{','  private handleOnline=');
 
@@ -31,11 +32,9 @@ function watcherHarness(){
   class CustomEvent{constructor(type,options={}){this.type=type;this.detail=options.detail;}}
   class Event{constructor(type){this.type=type;}}
   const program=[
-    'let accountWasAuthenticated=true;',
-    'let signOutTransitionRunning=false;',
-    'let signOutConfirmTimer:number|undefined;',
-    'const AUTH_LOSS_GRACE_MS=4000;',
+    authStateCode,
     watcherCode,
+    'accountWasAuthenticated=true;',
     'startAccountSignOutWatcher();'
   ].join('\n');
   runInNewContext(compile(program),{
@@ -73,8 +72,8 @@ test('sustained Firebase auth loss requests a real workspace lock, only once',()
   app.tick();
   const requests=app.events.filter(e=>e.type==='lourex-account-transition-request');
   assert.equal(requests.length,1);
-  assert.equal(requests[0].detail.uid,'');
-  assert.equal(requests[0].detail.signedOut,true);
+  assert.equal(requests[0].detail.uid,null,'explicit confirmed sign-out must use the current null UID contract');
+  assert.equal(requests[0].detail.signedOut,undefined,'current transition contract uses null, not a legacy signedOut flag');
   app.emit(null);
   assert.equal(app.timers.size,0,'transition in progress is not reissued');
 });
@@ -125,7 +124,7 @@ async function transitionHarness({signedOut=true,failDrain=false}={}){
   });
   const subject=new MockApp();
   subject.handleAccountTransitionRequest(new CustomEvent('lourex-account-transition-request',{
-    detail:signedOut?{uid:'',signedOut:true}:{uid:'account-b'}
+    detail:signedOut?{uid:null}:{uid:'account-b'}
   }));
   await done;
   return{actions,subject};
@@ -137,7 +136,7 @@ test('persistent sign-out revokes the old PIN key, clears account storage and re
   assert.ok(actions.includes('uid:null'));
   assert.ok(actions.includes('storage:null'));
   assert.ok(actions.includes('reload'));
-  assert.equal(actions.includes('initialize'),false,'never initialize public vault as an unlocked workspace');
+  assert.equal(actions.includes('initialize'),true,'reinitialize the locked account gateway after revocation');
   assert.equal(subject.state.key,null);
   assert.equal(subject.state.vault,null);
   assert.equal(subject.state.unlocked,false);
@@ -146,8 +145,9 @@ test('persistent sign-out revokes the old PIN key, clears account storage and re
 test('a failed cloud write still revokes session access on confirmed sign-out',async()=>{
   const {actions,subject}=await transitionHarness({failDrain:true});
   assert.ok(actions.includes('revoke-key'),'finally must revoke even after rejected writes');
-  assert.ok(actions.includes('uid:null'));
-  assert.ok(actions.includes('reload'));
+  // A failed write must never migrate an in-flight encrypted vault into a new
+  // storage scope; remain fail-closed with the former CryptoKey revoked.
+  assert.ok(!actions.includes('storage:account-b'));
   assert.equal(subject.state.unlocked,false);
   assert.equal(subject.state.key,null);
 });
