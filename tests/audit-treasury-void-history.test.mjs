@@ -49,3 +49,19 @@ test('historical treasury filters later collections and later-entered expenses',
     currency:'USD',amount:'60.00',description:'Late bill'};
   assert.equal(treasuryProjection([collection],[],[expense],[],[],'USD','2026-10-09').length,0);
 });
+
+test('reconciliation entered after the reporting date cannot retroactively mark a prior treasury snapshot reconciled',()=>{
+  const collection={id:'audit-late-reconcile',date:'2026-10-02',createdAt:'2026-10-02T08:00:00.000Z',
+    currency:'USD',amount:'100.00',method:'bank-transfer',customerNameEn:'Audit Customer'};
+  const recordedLater={id:'reconciliation-entered-late',movementKey:'collection:audit-late-reconcile',
+    reconciledAt:'2026-10-03T10:00:00.000Z',createdAt:'2026-10-20T09:00:00.000Z'};
+  const historical=treasuryProjection([collection],[],[],[],[recordedLater],'USD','2026-10-09');
+  assert.equal(historical.length,1);
+  assert.equal(historical[0].reconciled,false,'later-entered reconciliation must not rewrite historical reporting');
+  assert.equal(treasuryProjection([collection],[],[],[],[recordedLater],'USD','2026-10-21')[0].reconciled,true);
+  const recordedEarlier={...recordedLater,createdAt:'2026-10-03T10:00:00.000Z'};
+  assert.equal(treasuryProjection([collection],[],[],[],[recordedEarlier],'USD','2026-10-09')[0].reconciled,true);
+  const changes=[recordedEarlier,recordedLater];
+  assert.equal(treasuryProjection([collection],[],[],[],changes,'USD','2026-10-09')[0].reconciled,true,
+    'a later record must not hide a reconciliation already recorded before the cutoff');
+});
