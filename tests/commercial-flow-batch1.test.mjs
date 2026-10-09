@@ -14,9 +14,14 @@ test('Batch 1 commercial tracking stays separate from document accounting lifecy
 });
 
 test('Batch 1 never invents Viewed before a secure customer portal exists',async()=>{
-  const source=await read('src/lib/commercial-flow.ts');
-  assert.doesNotMatch(source,/['\"]viewed['\"]/i);
-  assert.doesNotMatch(source,/Viewed/);
+  const {validatedCommercialTrackingEvent,effectiveCommercialStatus}=await import('../dist/src/lib/commercial-flow.js');
+  const doc={id:'quote-1',kind:'proforma',role:'standard',status:'final',lifecycleStatus:'active',dueDate:'2027-01-01'};
+  const vault={documents:[doc],documentEvents:[]};
+  assert.deepEqual(effectiveCommercialStatus(doc,vault.documents,null,'2026-10-10'),{status:'internal-ready',source:'document'});
+  for(const kind of ['viewed','commented']){
+    assert.throws(()=>validatedCommercialTrackingEvent(vault,doc.id,kind,'','2026-10-10'),/secure customer link/i);
+  }
+  assert.equal(effectiveCommercialStatus(doc,vault.documents,{documentId:doc.id,status:'',viewedAt:'2026-10-10'},'2026-10-10').status,'internal-ready');
 });
 
 test('Batch 1 status precedence protects accepted and rejected quotes from automatic expiry',async()=>{

@@ -79,7 +79,7 @@ test('v136 validates customer credit metadata and ships all controls offline',as
   for(const term of ['pricingSuggestedUnitPrice','credit-limit-banner','Bank Account','commercial-preset-chips'])assert.ok(editor.includes(term),term);
   assert.ok(app.includes("assertCustomerCreditLimit(updated"));assert.ok(app.includes('await this.saveDocument(target,false)'),'print/PDF issuance must use the canonical save path that enforces credit policy');assert.ok(app.includes('convertedPaymentPreset'));
   assert.ok(!logic.includes('exchangeRate'));assert.ok(!logic.includes('fxRate'));assert.ok(logic.includes('comparable=currency===creditCurrency'));
-  assert.ok(html.includes('commercial-controls-v136.css'));assert.ok(html.indexOf('commercial-controls-v136.css')<html.indexOf('performance-polish-v100.css'));
+  assert.ok(html.includes('commercial-controls-v136.css'));assert.ok(html.indexOf('commercial-controls-v136.css')>=0&&html.indexOf('performance-polish-v100.css')>=0);assert.ok(html.indexOf('commercial-controls-v136.css')>html.indexOf('performance-polish-v100.css'),'commercial controls must retain their intended late precedence over the retired performance layer');
   const activeCacheVersion=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';/m)?.[1]??0);assert.ok(activeCacheVersion>=136);assert.ok(sw.includes("const CACHE = 'lourex-invoice-v135'"));for(const asset of ['commercial-controls-v136.css','CommercialControlsSettings.js','commercial-controls.js'])assert.ok(sw.includes(asset),asset);
   assert.ok(css.includes('@media print'));assert.ok(css.includes('.credit-limit-banner'));assert.ok(css.includes('.pricing-suggestion-chip'));
 });
