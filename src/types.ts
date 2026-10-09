@@ -166,6 +166,9 @@ export interface PurchaseRecord extends WorkspaceScopeFields {
 }
 
 export interface SupplierPaymentRecord extends WorkspaceScopeFields {
+  /** Append-only financial cancellation. The original payment is never deleted. */
+  voidedAt?: string;
+  voidReason?: string;
   id: string;
   purchaseId: string;
   purchaseNumber: string;
