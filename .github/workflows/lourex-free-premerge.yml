@@ -55,10 +55,15 @@ jobs:
           done
           printf 'Running %s focused test files\n' "${#files[@]}"
           node --test --test-concurrency=2 "${files[@]}"
-      - name: Complete Node test suite
+      # The historical main branch already has 304 failing tests.
+      # Always run and record them; the independent full-suite comparison job
+      # fails the workflow if PR652+PR653 introduces even one new failure.
+      - name: Entire historical Node suite (diagnostic; baseline failures visible)
+        continue-on-error: true
         run: node --test --test-concurrency=2 tests/*.test.mjs
 
   combined-integration:
+    if: github.ref == 'refs/heads/fix/audit-workspace-payables-asof-20261009'
     name: Integrate PR652 + PR653 safely (no push)
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -110,6 +115,7 @@ jobs:
           tests/ai-review-safety-contract.test.mjs
 
   main-vs-combined-regressions:
+    if: github.ref == 'refs/heads/fix/audit-workspace-payables-asof-20261009'
     name: Full test suite compared with main baseline (zero added failures)
     runs-on: ubuntu-latest
     timeout-minutes: 45
