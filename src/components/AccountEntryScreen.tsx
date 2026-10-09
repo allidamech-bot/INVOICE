@@ -36,7 +36,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
 
   private languageSwitch=():any=><div className="ta-auth-utilities"><ThemeControl compact language={this.props.language}/><button type="button" className="ta-auth-language" disabled={this.state.busy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button></div>;
 
-  private setMode=(mode:'signin'|'create',focusTab=false)=>{clearPendingGoogleLink();this.setState({mode,error:'',message:'',password:'',confirm:'',googleLinkPending:false},()=>{if(focusTab)window.requestAnimationFrame(()=>document.getElementById(`account-tab-${mode}`)?.focus());});};
+  private setMode=(mode:'signin'|'create',focusTab=false)=>{if(this.state.busy)return;clearPendingGoogleLink();this.setState({mode,error:'',message:'',password:'',confirm:'',googleLinkPending:false},()=>{if(focusTab)window.requestAnimationFrame(()=>document.getElementById(`account-tab-${mode}`)?.focus());});};
   private modeKeyDown=(event:any):void=>{let mode:'signin'|'create'|null=null;if(event.key==='ArrowLeft'||event.key==='ArrowRight')mode=this.state.mode==='signin'?'create':'signin';else if(event.key==='Home')mode='signin';else if(event.key==='End')mode='create';if(!mode)return;event.preventDefault();this.setMode(mode,true);};
 
   private passwordError=(password:string):string=>{
