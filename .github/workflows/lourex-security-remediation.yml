@@ -33,6 +33,7 @@ jobs:
         run: |
           node --test \
             tests/audit-confirmed-signout.test.mjs \
+            tests/audit-account-transition-runtime.test.mjs \
             tests/account-required-after-logout-v188.test.mjs \
             tests/account-data-isolation-v215.test.mjs
       - name: Record unresolved historical suite failures without hiding them
