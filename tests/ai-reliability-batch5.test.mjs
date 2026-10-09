@@ -67,7 +67,7 @@ test('supplier/product malformed explicit values cannot silently become blank su
  }
 });
 test('client cancellation, body timeout and malformed responses clean up without returning success',async()=>{
- globalThis.window={setTimeout:(fn,ms)=>originalTimeout(fn,ms),clearTimeout};globalThis.firebase={apps:[{}],auth:()=>({currentUser:{getIdToken:async()=>testFirebaseBearer().slice(7)}})};const {requestAiJson}=await import('../dist/src/lib/ai-request.js');
+ globalThis.window={setTimeout:(fn,ms)=>originalTimeout(fn,ms),clearTimeout};globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'lourex-test-user',getIdToken:async()=>testFirebaseBearer().slice(7)}})};const {requestAiJson}=await import('../dist/src/lib/ai-request.js');
  globalThis.fetch=async()=>({ok:true,json:async()=>[]});await assert.rejects(requestAiJson('/fixture',{}),/unreadable/);
  globalThis.fetch=async(url,options)=>({ok:true,json:()=>new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}))});
  await assert.rejects(requestAiJson('/fixture',{},undefined,5),/timed out/);
