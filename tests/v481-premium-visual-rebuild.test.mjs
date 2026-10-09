@@ -37,7 +37,7 @@ test('v481 premium system provides one coherent dark/light mobile palette and co
   assert.match(css,/--ft-accent:var\(--lx481-primary\)!important/,'legacy utility accent is not bridged into v481');
   assert.match(css,/\.ta-mobile-nav\{[\s\S]*?border-radius:28px!important/,'premium floating mobile dock contract is missing');
   assert.match(css,/\.ta-dashboard-header\{[\s\S]*?min-height:196px!important/,'compact command-center hero contract is missing');
-  assert.match(css,/\.ta-kpi-card:nth-child\(2\).*?--lx481-tone:var\(--lx481-emerald\)/s,'semantic KPI differentiation is missing');
+  assert.match(css,/\.ta-kpi-card:nth-child\(2\).*?--lx481-tone:var\(--lx481-primary\)/s,'second KPI must use the currently approved primary accent');
   assert.match(css,/\.ta-kpi-card:nth-child\(3\).*?--lx481-tone:var\(--lx481-violet\)/s,'semantic violet KPI differentiation is missing');
   assert.match(css,/\.ta-kpi-card:nth-child\(4\).*?--lx481-tone:var\(--lx481-rose\)/s,'semantic rose KPI differentiation is missing');
   assert.match(css,/\.ta-empty-state,.ta-chart-empty,.ta-dashboard-empty/,'intentional empty-state treatment is missing');
