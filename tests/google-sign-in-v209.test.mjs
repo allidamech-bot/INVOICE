@@ -113,8 +113,14 @@ test('v216 keeps the critical stale-Firebase PWA activation path and preserves p
   assert.match(patch,/const CACHE = 'lourex-invoice-v215'.*legacy marker/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v214'.*legacy marker/);
   assert.match(patch,/\.\/src\/cloud\/google-auth\.js/);
-  assert.match(patch,/await self\.skipWaiting\(\)/);
-  assert.match(patch,/critical v214 service-worker activation/);
+  assert.match(patch,/v214 forced-activation migration is retired/);
+  assert.match(patch,/Explicit user-requested SW activation handler is missing/);
+  assert.doesNotMatch(patch,/await self\.skipWaiting\(\)/);
+  const sw=await read('dist/sw.js');
+  const install=sw.slice(sw.indexOf("self.addEventListener('install'"),sw.indexOf("self.addEventListener('message'"));
+  assert.doesNotMatch(install,/skipWaiting\(/,'service worker must wait for explicit user update action');
+  assert.match(sw,/event\.data\?\.type==='SKIP_WAITING'/);
+  assert.match(sw,/void self\.skipWaiting\(\)/);
 });
 
 test('service worker reloads only after explicit approval and never discards an active editor',async()=>{
