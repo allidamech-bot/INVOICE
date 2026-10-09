@@ -100,5 +100,11 @@ test('v216 keeps installed clients on the account-isolated storage runtime while
   assert.match(patch,/const CACHE = 'lourex-invoice-v215'.*legacy marker/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v214'.*legacy marker/);
   assert.match(patch,/security-boundary migration/);
-  assert.match(patch,/await self\.skipWaiting\(\)/);
+  // Preserve encrypted local work: service worker activation must be explicit.
+  const sw=await read('public/sw.js');
+  const install=sw.slice(sw.indexOf("self.addEventListener('install'"),sw.indexOf("self.addEventListener('message'"));
+  assert.match(patch,/Unsafe forced service-worker activation detected/);
+  assert.doesNotMatch(install,/(?:await\s+|void\s+)?self\.skipWaiting\(\)/);
+  assert.match(sw,/event\.data\?\.type==='SKIP_WAITING'/);
+  assert.match(sw,/void self\.skipWaiting\(\)/);
 });
