@@ -42,12 +42,18 @@ test('v338 guard is editor-scoped and does not reload or navigate the applicatio
   assert.match(runtime,/__LOUREX_EDITOR_STABILITY_V338__/);
 });
 
-test('startup watchdog can never auto-reload over an active editor or dirty workspace',async()=>{
-  const watchdog=await read('public/startup-watchdog-v321.js');
-  assert.match(watchdog,/function editingWorkspaceOpen\(\)/);
-  assert.match(watchdog,/data-lourex-document-editor/);
-  assert.match(watchdog,/data-lourex-workspace-dirty/);
-  assert.match(watchdog,/\.editor-screen/);
-  assert.match(watchdog,/if\(editingWorkspaceOpen\(\)\)\{clearAttempt\(\);return;\}/);
-  assert.match(watchdog,/await refreshStaticRuntime\(\);[\s\S]*if\(editingWorkspaceOpen\(\)\)\{clearAttempt\(\);return;\}[\s\S]*window\.location\.replace\(retryUrl\(\)\)/);
+test('startup watchdog never auto-reloads while an editor is active; retry requires user action',async()=>{
+ const watchdog=await read('public/startup-watchdog-v321.js');
+ assert.match(watchdog,/function editingWorkspaceOpen\(\)/);
+ assert.match(watchdog,/data-lourex-document-editor/);
+ assert.match(watchdog,/data-lourex-workspace-dirty/);
+ assert.match(watchdog,/\.editor-screen/);
+ assert.match(watchdog,/if\(editingWorkspaceOpen\(\)\|\|retry\.disabled\)return/);
+ assert.match(watchdog,/if\(editingWorkspaceOpen\(\)\|\|!bootStillVisible\(\)\)return/);
+ assert.match(watchdog,/markDiagnostic\('startup-watchdog-timeout','automaticReload=no'\)/);
+ assert.match(watchdog,/window\.location\.replace\(retryUrl\(\)\)/);
+ const retry=watchdog.indexOf("buildButton('Retry safely");
+ const navigation=watchdog.indexOf('window.location.replace(retryUrl())');
+ assert.ok(retry>0&&navigation>retry,'navigation must remain inside the explicit retry handler');
+ assert.doesNotMatch(watchdog,/setTimeout\([^;]*location\.replace/);
 });
