@@ -127,6 +127,13 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
+export async function currentCloudIdToken():Promise<string>{
+  const user=auth().currentUser;
+  if(!user||typeof user.getIdToken!=='function')throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
+  const token=await user.getIdToken();
+  if(typeof token!=='string'||!token)throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
+  return token;
+}
 export function subscribeCloudUser(onChange:(user:CloudUser|null)=>void):()=>void{
   try{
     const off=auth().onAuthStateChanged((user:any)=>onChange(userFrom(user)),()=>undefined);
