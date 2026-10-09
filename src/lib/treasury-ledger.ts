@@ -115,7 +115,13 @@ export function treasuryProjection(payments:PaymentRecord[],supplierPayments:Sup
   const active=entries.filter(entry=>asOf?entry.date<=asOf&&(!entry.createdAt||entry.createdAt.slice(0,10)<=asOf)&&(!entry.voidedAt||entry.voidedAt.slice(0,10)>asOf):!entry.voidedAt),customerLinks=new Set(active.filter(entry=>entry.sourceType==='customer-payment').map(entry=>entry.sourceId)),supplierLinks=new Set(active.filter(entry=>entry.sourceType==='supplier-payment').map(entry=>entry.sourceId)),reconciled=new Map<string,TreasuryReconciliationRecord>(),rows:TreasuryProjectionRow[]=[];
   // Chronological append-only events preserve the state before a subsequent Undo.
   // Earlier records without an action are treated as a historical reconciliation.
-  for(const item of [...reconciliations].filter(item=>!asOf||!item.createdAt||item.createdAt.slice(0,10)<=asOf).sort((a,b)=>(a.createdAt||a.reconciledAt).localeCompare(b.createdAt||b.reconciledAt)))reconciled.set(item.movementKey,item);
+  for(const item of [...reconciliations].filter(item=>!asOf||(
+    (!item.createdAt||item.createdAt.slice(0,10)<=asOf)&&
+    (!item.reconciledAt||item.reconciledAt.slice(0,10)<=asOf)
+  )).sort((a,b)=>{
+    const aAt=a.createdAt||a.reconciledAt,bAt=b.createdAt||b.reconciledAt;
+    return aAt.localeCompare(bAt)||(a.id<b.id?-1:a.id>b.id?1:0);
+  }))reconciled.set(item.movementKey,item);
   const attach=(row:Omit<TreasuryProjectionRow,'reconciled'|'reconciledAt'>,entry?:TreasuryLedgerRecord)=>{
     const rec=reconciled.get(row.key),entryAt=entry?.reconciledAt||'',eventAt=rec?.createdAt||rec?.reconciledAt||'';
     const legacyVisible=Boolean(entryAt&&(!asOf||entryAt.slice(0,10)<=asOf));
