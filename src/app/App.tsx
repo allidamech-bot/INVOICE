@@ -198,15 +198,23 @@ export class App extends React.Component<{},State> {
     this.resetAutoLock();
   };
   private handleAccountTransitionRequest=(event:Event)=>{
-    const uid=String((event as CustomEvent<{uid?:string}>).detail?.uid??'').trim();
-    if(!uid||this.accountTransitionRunning)return;
+    const requested=(event as CustomEvent<{uid?:string|null}>).detail?.uid;
+    if(requested===undefined||this.accountTransitionRunning)return;
+    const uid=requested===null?null:String(requested).trim();
+    if(uid==='')return;
     this.accountTransitionRunning=true;
+    // Mask the outgoing account immediately, including when a pending cloud
+    // operation takes time to settle. Preserve the key until queued local
+    // writes have drained; revoke it before activating another account scope.
+    this.setState({loading:true,newMenu:false,settingsOpen:false,cloudModal:false});
     void (async()=>{
       try{
         if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
         this.cloudSyncQueued=false;
         await this.drainVaultWrites();
         await this.waitForCloudIdle();
+        // The outgoing account's CryptoKey must be invalidated *before*
+        // changing the IndexedDB scope. Never erase the encrypted vault.
         await suspendSession();
         setActiveAccountUid(uid);
         await activateAccountStorage(uid);
@@ -216,6 +224,11 @@ export class App extends React.Component<{},State> {
         await new Promise<void>(resolve=>this.setState({loading:true,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,cloudModal:false,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''},resolve));
         await this.initialize();
       }catch(error){
+        // Fail closed: a rejected or interrupted account transition may not
+        // leave the previous decrypted workspace accessible.
+        await suspendSession();
+        this.latestEncryptedVault=null;
+        this.vaultWriteTail=Promise.resolve(null);
         this.setState({loading:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,newMenu:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(error)});
       }finally{
         this.accountTransitionRunning=false;

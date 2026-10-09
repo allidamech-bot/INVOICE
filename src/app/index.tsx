@@ -127,6 +127,12 @@ const App=AdaptiveCloudApp;
 
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
+let pendingAuthLossTimer:number|undefined;
+const AUTH_RESTORATION_GRACE_MS=2500;
+
+function clearPendingAuthLoss():void{
+  if(pendingAuthLossTimer!==undefined){window.clearTimeout(pendingAuthLossTimer);pendingAuthLossTimer=undefined;}
+}
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
 type RestorableWorkspace='home'|'documents'|'customers'|'items'|'operations'|'receivables'|'reports';
@@ -227,10 +233,14 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 }
 
 function startAccountSignOutWatcher():void{
-  subscribeCloudUser(user=>{
+  const handleAuthChange=(user:ReturnType<typeof currentCloudUser>):void=>{
     if(user){
+      clearPendingAuthLoss();
       const selectedStorageUid=activeAccountStorageUid();
-      if(selectedStorageUid&&selectedStorageUid!==user.uid){
+      // A late Firebase login from the public gateway must reinitialize React
+      // against the *new* account scope, not merely switch IndexedDB underneath
+      // the still-mounted public/previous workspace.
+      if(selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
         signOutTransitionRunning=true;
         accountWasAuthenticated=true;
@@ -240,22 +250,12 @@ function startAccountSignOutWatcher():void{
           if(detail?.uid!==targetUid)return;
           signOutTransitionRunning=false;
           window.removeEventListener('lourex-account-transition-complete',complete as EventListener);
+          // The Firebase identity might change while old writes drain.
+          const latest=currentCloudUser();
+          if(latest?.uid!==targetUid)handleAuthChange(latest);
         }) as EventListener;
         window.addEventListener('lourex-account-transition-complete',complete);
         window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:targetUid}}));
-        return;
-      }
-      if(!selectedStorageUid){
-        if(signOutTransitionRunning)return;
-        signOutTransitionRunning=true;
-        accountWasAuthenticated=true;
-        void (async()=>{
-          try{setActiveAccountUid(user.uid);await activateAccountStorage(user.uid);}
-          finally{
-            signOutTransitionRunning=false;
-            window.dispatchEvent(new Event('lourex-cloud-refresh-available'));
-          }
-        })();
         return;
       }
       setActiveAccountUid(user.uid);
@@ -264,14 +264,30 @@ function startAccountSignOutWatcher():void{
       return;
     }
 
-    // Firebase/Auth can briefly report null on Safari while restoring persistence
-    // or recovering connectivity. The application is local-first, so a transient
-    // null state must never clear the encrypted session or reload the page. Explicit
-    // sign-out controls already clear the session and navigate intentionally.
-    if(!accountWasAuthenticated||signOutTransitionRunning)return;
-    accountWasAuthenticated=false;
-    try{document.documentElement.dataset.lourexCloudSessionLost='true';}catch{}
-  });
+    // A transient null during Firebase persistence restoration must not discard
+    // unsaved work. A *confirmed* sign-out must revoke the unlocked vault instead
+    // of leaving another person's encrypted workspace visible indefinitely.
+    if(!accountWasAuthenticated||signOutTransitionRunning||pendingAuthLossTimer!==undefined)return;
+    pendingAuthLossTimer=window.setTimeout(()=>{
+      pendingAuthLossTimer=undefined;
+      if(currentCloudUser()||signOutTransitionRunning)return;
+      if(!activeAccountStorageUid()){accountWasAuthenticated=false;return;}
+      accountWasAuthenticated=false;
+      signOutTransitionRunning=true;
+      try{document.documentElement.dataset.lourexCloudSessionLost='true';}catch{}
+      const complete=((event:Event)=>{
+        if((event as CustomEvent<{uid?:string|null}>).detail?.uid!==null)return;
+        signOutTransitionRunning=false;
+        window.removeEventListener('lourex-account-transition-complete',complete as EventListener);
+        // Do not lose a new login received during pending sign-out.
+        const latest=currentCloudUser();
+        if(latest)handleAuthChange(latest);
+      }) as EventListener;
+      window.addEventListener('lourex-account-transition-complete',complete);
+      window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:null}}));
+    },AUTH_RESTORATION_GRACE_MS);
+  };
+  subscribeCloudUser(handleAuthChange);
 }
 
 async function start():Promise<void>{

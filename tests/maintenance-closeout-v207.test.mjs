@@ -42,7 +42,10 @@ test('v207 reacts to account sign-out without a permanent high-frequency polling
   const [index,cloud]=await Promise.all([read('src/app/index.tsx'),read('src/cloud/firebase.ts')]);
   assert.match(cloud,/export function subscribeCloudUser/);
   assert.match(cloud,/auth\(\)\.onAuthStateChanged/);
-  assert.match(index,/subscribeCloudUser\(user=>\{/);
+  assert.match(index,/const handleAuthChange=\(user:ReturnType<typeof currentCloudUser>\):void=>\{/);
+  assert.match(index,/subscribeCloudUser\(handleAuthChange\)/);
+  assert.match(index,/AUTH_RESTORATION_GRACE_MS=2500/);
+  assert.match(index,/clearPendingAuthLoss\(\)/);
   assert.doesNotMatch(index,/setInterval/);
 });
 
