@@ -27,12 +27,12 @@ test('production shell has local matched React runtime, PWA and premium design l
   assert.match(bundle, /\/\* --- tailadmin-finance-v320\.css --- \*\//);
   assert.match(bundle, /\/\* --- tailadmin-overlays-v320\.css --- \*\//);
   assert.match(bundle, /\/\* --- tailadmin-design-closeout-v323\.css --- \*\//);
-  assert.match(bundle, /--radius-xl/);
-  assert.match(bundle, /\.save-indicator\.state-saved/);
-  assert.match(bundle, /@media \(max-width:720px\)/);
-  assert.match(bundle, /--acct-blue/);
-  assert.match(bundle, /\.editor-validation-summary/);
-  assert.match(bundle, /\.section-has-error/);
+  assert.match(bundle, /--ft-accent/);
+  assert.match(bundle, /\.ta-cloud-continuity/);
+  assert.match(bundle, /@media screen/);
+  assert.match(bundle, /--ft-surface/);
+  assert.match(bundle, /\.ta-cloud-conflict/);
+  assert.match(bundle, /\.ta-ops-integrity/);
   assert.ok((await stat(new URL('dist/brand/lourex-logo.svg', root))).size > 1000);
 });
 
@@ -143,7 +143,7 @@ test('first-run onboarding requires one LOUREX account plus a separate local PIN
   assert.match(selector, /if \(!cloudUser\)/);
   assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
-  assert.match(css, /account-entry-tabs/);
+  assert.match(css, /ta-auth-tabs/);
   assert.match(css, /ta-cloud-auth-form/);
 });
 
