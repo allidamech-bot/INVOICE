@@ -31,6 +31,7 @@ jobs:
           node --test --test-name-pattern='English document identity never falls back' tests/document-language-v151.test.mjs
           node --test tests/iphone-startup-deadlock-v184.test.mjs
           node --test --test-name-pattern='cloud install revalidates account ownership' tests/final-release-hardening.test.mjs
+          node --test --test-name-pattern='first-run company logo uses the same bounded raster policy' tests/company-settings-final-audit.test.mjs
 
   entire-suite:
     name: Entire Node test suite (all failures visible, not waived)
@@ -118,3 +119,5 @@ jobs:
         run: |
           node --test --test-concurrency=2 tests/audit-supplier-payables-asof.test.mjs tests/audit-supplier-payment-void-merge.test.mjs tests/audit-treasury-reconciliation-history.test.mjs tests/audit-ai-firebase-auth.test.mjs tests/audit-ai-client-token-safety.test.mjs tests/audit-inventory-planning-scope.test.mjs tests/iphone-startup-deadlock-v184.test.mjs
           node --test --test-name-pattern='English document identity never falls back' tests/document-language-v151.test.mjs
+      - name: Full combined historical suite, exit nonzero until every remaining failure is resolved
+        run: node --test --test-concurrency=2 tests/*.test.mjs
