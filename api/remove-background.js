@@ -35,7 +35,7 @@ function sameOriginRequest(request){
   }catch{return false;}
 }
 
-function requestIp(request){
+function requestIp(request){if(request.aiVerifiedUid)return `uid:${request.aiVerifiedUid}`;
   const forwarded=String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim();
   return forwarded||String(request.socket?.remoteAddress||'unknown');
 }
