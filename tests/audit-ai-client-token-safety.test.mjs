@@ -42,9 +42,22 @@ test('AI JSON request does not send a cancelled request after a slow token refre
   }
 });
 
+test('pending Firebase token refresh aborts without waiting for the provider to answer',async()=>{
+  const {currentCloudIdToken}=await import('../dist/src/cloud/firebase.js');
+  const previous=globalThis.firebase;
+  const user={uid:'account-long-refresh',getIdToken:()=>new Promise(()=>{})};
+  globalThis.firebase={apps:[{}],auth:()=>({currentUser:user})};
+  try{
+    const controller=new AbortController();
+    const pending=currentCloudIdToken(controller.signal);
+    controller.abort();
+    await assert.rejects(pending,error=>error?.name==='AbortError');
+  }finally{globalThis.firebase=previous;}
+});
+
 test('all three AI client request paths check cancellation immediately after token refresh',async()=>{
   for(const path of ['src/lib/ai-request.ts','src/lib/product-import-ai.ts','src/lib/logo-rebuild.ts']){
     const source=await readFile(new URL('../'+path,import.meta.url),'utf8');
-    assert.match(source,/const token=await currentCloudIdToken\(\);\s*if\((?:controller\.signal|signal\?)\.aborted\)/,path);
+    assert.match(source,/const token=await currentCloudIdToken\((?:controller\.signal|signal)\);\s*if\((?:controller\.signal|signal\?)\.aborted\)/,path);
   }
 });
