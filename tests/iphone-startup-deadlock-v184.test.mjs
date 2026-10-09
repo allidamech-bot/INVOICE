@@ -24,7 +24,12 @@ test('timed-out cloud work becomes background reconciliation and only reloads af
 
   const entry=await read('src/app/index.tsx');
   assert.match(entry,/window\.addEventListener\('lourex-cloud-applied'/);
-  assert.match(entry,/if\(reloadUnsafeWorkspaceOpen\(\)\)return/);
+  // The resumed cloud copy is announced, but applying it must be a deliberate
+  // user action and cannot replace an open editor's unsaved changes.
+  assert.match(entry,/function showCloudRefreshAvailable\(\)/);
+  assert.match(entry,/reload\.addEventListener\('click'/);
+  assert.match(entry,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{/);
+  assert.match(entry,/rememberWorkspaceBeforeAutomaticReload\(\)/);
 });
 
 test('bounded startup guards an existing vault and restores only an empty account scope',async()=>{
@@ -40,9 +45,11 @@ test('bounded startup guards an existing vault and restores only an empty accoun
 
 test('v184 delivers the deadlock recovery to installed iPhone PWAs as a fresh immutable generation',async()=>{
   const sw=await read('public/sw.js');
-  const generation=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
-  assert.ok(generation,'the service worker must use an immutable versioned cache');
-  assert.ok(Number(generation[1])>=184,'the installed generation must not regress below the original recovery');
+  // Older cache signatures are intentionally preserved inside source comments.
+  // The final declaration is the active service-worker generation.
+  const generations=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  assert.ok(generations.length>0,'the service worker must use an immutable versioned cache');
+  assert.ok(Number(generations.at(-1)[1])>=184,'the active installed generation must not regress below the original recovery');
   assert.ok(sw.includes('./src/cloud/startup.js'));
   assert.ok(sw.includes('./src/app/index.js'));
 });
