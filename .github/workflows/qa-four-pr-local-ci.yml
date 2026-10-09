@@ -61,7 +61,10 @@ jobs:
           grep -q 'sourceVersion<20?' src/storage/vault.ts
           grep -q 'value.length>520' src/lib/document-quality.ts
           grep -q 'value.length>520' src/templates/TemplateRenderer.tsx
-          rm -rf .github/workflows
+          # The final candidate includes the reviewed free-only audit workflow.
+          # Remove ONLY this temporary integration runner's own YAML file.
+          rm -f .github/workflows/qa-four-pr-local-ci.yml
+          test -f .github/workflows/lourex-free-premerge.yml
           echo 'Combined in local runner; nothing pushed.'
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
