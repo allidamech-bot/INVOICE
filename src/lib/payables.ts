@@ -161,8 +161,8 @@ export function assertSupplierPaymentInvariant(purchases:PurchaseRecord[],suppli
     const supplier=supplierMap.get(payment.supplierId)??null;
     if(payment.voidedAt){
       const voidDay=payment.voidedAt.slice(0,10);
-      if(!isIsoDate(voidDay)||voidDay<((payment.createdAt||'').slice(0,10))||!payment.voidReason?.trim())throw new Error('Supplier payment cancellation audit metadata is invalid.');
-      if(!isIsoDate(payment.date)||!isDecimalInput(payment.amount)||decimalToScaled(payment.amount,2)<=0n||cleanCurrency(payment.currency)!==cleanCurrency(purchase.currency))throw new Error('Cancelled supplier payment history is invalid.');
+      if(!isIsoDate(voidDay)||!Number.isFinite(Date.parse(payment.voidedAt))||voidDay<((payment.createdAt||'').slice(0,10))||!payment.voidReason?.trim())throw new Error('Supplier payment cancellation audit metadata is invalid.');
+      if(payment.supplierId!==purchaseSupplierId(purchase)||!isIsoDate(payment.date)||!isDecimalInput(payment.amount)||decimalToScaled(payment.amount,2)<=0n||cleanCurrency(payment.currency)!==cleanCurrency(purchase.currency))throw new Error('Cancelled supplier payment history is invalid.');
       continue;
     }
     normalizeSupplierPayment(purchase,supplier,payments,payment);
