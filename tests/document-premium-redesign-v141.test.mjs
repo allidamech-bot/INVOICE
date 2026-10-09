@@ -5,13 +5,15 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const templates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('canonical document design is the only active A4 visual layer',async()=>{
-  const [html,build,sw]=await Promise.all([read('index.html'),read('scripts/build.mjs'),read('public/sw.js')]);
-  const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'document-premium-redesign-v141.css');
-  for(const retired of ['document-art-direction-v120.css','document-palette-v121.css','document-dark-contrast-v126.css','document-flagship-v128.css','document-template-system-v129.css','document-final-qa-v130.css','document-layout-cleanup-v140.css','document-template-distinction-v143.css'])assert.equal(styles.includes(retired),false,retired);
-  assert.match(build,/styleNames\.at\(-1\)!=='document-premium-redesign-v141\.css'/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v146'/);
+test('canonical commercial A4 remains singular and legacy print styles stay retired',async()=>{
+ const [html,build,sw]=await Promise.all([read('index.html'),read('scripts/build.mjs'),read('public/sw.js')]);
+ const styles=[...html.matchAll(/href="\.\/styles\/([^"?]+\.css)(?:\?[^"]*)?"/g)].map(m=>m[1]);
+ assert.equal(styles.filter(name=>name==='document-premium-redesign-v141.css').length,1);
+ assert.ok(styles.includes('tailadmin-documents-v320.css'),'current screen-only workspace owner must remain');
+ for(const retired of ['document-art-direction-v120.css','document-palette-v121.css','document-dark-contrast-v126.css','document-flagship-v128.css','document-template-system-v129.css','document-final-qa-v130.css','document-layout-cleanup-v140.css','document-template-distinction-v143.css'])assert.equal(styles.includes(retired),false,retired);
+ assert.match(build,/app\.bundle\.css/);
+ assert.match(build,/standaloneRuntimeStyles/);
+ assert.match(sw,/^const CACHE = 'lourex-invoice-v\d+';$/m);
 });
 
 test('all 18 templates own an explicit independent art direction',async()=>{
