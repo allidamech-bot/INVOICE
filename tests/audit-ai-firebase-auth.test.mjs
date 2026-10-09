@@ -73,6 +73,9 @@ test('signed Google Firebase token is accepted while wrong project, issuer and e
     await assert.rejects(verifyFirebaseIdToken(token().slice(0,-3)+'abc'),/Invalid Firebase ID token/);
     await assert.rejects(verifyFirebaseIdToken(token({}, {alg:'HS256'})),/Invalid Firebase ID token/);
     await assert.rejects(verifyFirebaseIdToken(token({}, {kid:'unknown-key'})),/Invalid Firebase ID token/);
+    const keyRequestsAfterUnknown=keyRequests;
+    await assert.rejects(verifyFirebaseIdToken(token({}, {kid:'unknown-key-again'})),/Invalid Firebase ID token/);
+    assert.equal(keyRequests,keyRequestsAfterUnknown,'unknown kid requests must not trigger repeated signing-key refreshes');
     const foreign=response();await core(request('Bearer '+token(),'https://untrusted.example'),foreign);
     assert.equal(foreign.statusCode,403);
   }finally{globalThis.fetch=previous;}
