@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+import ts from 'typescript';
 import { defaultCompany, customerSnapshotFrom } from '../dist/src/lib/defaults.js';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { documentDisplayValue, documentCurrency, hasDocumentLanguageMismatch } from '../dist/src/lib/document-language.js';
@@ -50,23 +52,38 @@ test('v151 renderer and offline shell use the central language isolation layer',
   assert.match(sw,/const CACHE = 'lourex-invoice-v151'/);
 });
 
-test('English document identity never falls back to Arabic-only names or addresses',async()=>{
+test('English document identity uses English-only text, without Arabic fallback; bilingual output preserves both',async()=>{
   const renderer=await readFile('src/templates/TemplateRenderer.tsx','utf8');
-  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
-  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
+  const section=renderer.slice(renderer.indexOf('function identityOutputValues('),renderer.indexOf('function identityPair('));
+  assert.ok(section.startsWith('function identityOutputValues('));
+  const ctx={documentDisplayValue};
+  vm.runInNewContext(ts.transpileModule(section,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+';this.identityOutputValues=identityOutputValues;',ctx);
+  const value=ctx.identityOutputValues;
+  assert.deepEqual(Array.from(value({language:'en'},'','اسم عربي فقط')),[],
+    'English print must not display an Arabic-only legal identity');
+  assert.deepEqual(Array.from(value({language:'en'},'English Company','اسم عربي')),['English Company']);
+  assert.deepEqual(Array.from(value({language:'bilingual'},'English Company','اسم عربي')),['English Company','اسم عربي']);
+  assert.deepEqual(Array.from(value({language:'ar'},'English Company','')),['English Company'],
+    'Arabic-mode historical fallback remains available');
+  assert.match(renderer,/return identityPair\(doc, doc\.companySnapshot\.nameEn, doc\.companySnapshot\.nameAr\)/);
+  assert.match(renderer,/return identityPair\(doc, c\?\.companyNameEn \?\? '', c\?\.companyNameAr \?\? ''\)/);
   assert.match(renderer,/if\(doc\.language==='en'\)return documentDisplayValue\(doc\.companySnapshot\.nameEn,'en'\)\|\|'LOUREX'/);
-  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)return doc\.companySnapshot\.nameEn\.trim\(\)\|\|doc\.companySnapshot\.nameAr\.trim\(\)/);
 });
 
-test('final review identity follows rendered document language and blocks only new issue when output identity is missing',async()=>{
+test('document review checks the identity visible in the chosen output language and only blocks issuing incomplete new documents',async()=>{
   const review=await readFile('src/components/DocumentReviewModal.tsx','utf8');
-  assert.doesNotMatch(review,/isArabic\(\)\?\(doc\.customerSnapshot/);
-  assert.match(review,/documentDisplayValue/);
-  assert.match(review,/function reviewIdentityName/);
-  assert.match(review,/if\(language==='en'\)return documentDisplayValue\(en,'en'\)/);
-  assert.match(review,/if\(language==='ar'\)return ar\|\|en/);
-  assert.match(review,/filter\(Boolean\)\.join\(' \/ '\)/);
-  assert.match(review,/const identityReady=Boolean\(customer&&company\)/);
+  const section=review.slice(review.indexOf('function reviewIdentityName('),review.indexOf('function reviewParty('));
+  assert.ok(section.startsWith('function reviewIdentityName('));
+  const ctx={documentDisplayValue};
+  vm.runInNewContext(ts.transpileModule(section,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText+';this.reviewIdentityName=reviewIdentityName;',ctx);
+  const name=ctx.reviewIdentityName;
+  assert.equal(name('en','','اسم عربي'),'','English legal identity must not silently use Arabic name');
+  assert.equal(name('en','Legal Buyer','اسم عربي'),'Legal Buyer');
+  assert.equal(name('ar','Legal Buyer',''),'Legal Buyer');
+  assert.equal(name('bilingual','Legal Buyer','اسم عربي'),'Legal Buyer / اسم عربي');
+  assert.match(review,/const party=reviewParty\(doc\)/);
+  assert.match(review,/const company=reviewIdentityName\(doc\.language,doc\.companySnapshot\.nameEn,doc\.companySnapshot\.nameAr\)/);
+  assert.match(review,/const identityReady=Boolean\(party\.name&&company\)/);
   assert.match(review,/const blocked=!final&&!identityReady/);
   assert.match(review,/disabled=\{working\|\|blocked\|\|mode==='issue'&&final\}/);
   assert.match(review,/Document identity incomplete/);
