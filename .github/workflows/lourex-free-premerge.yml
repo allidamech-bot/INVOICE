@@ -39,6 +39,9 @@ jobs:
         run: |
           files=()
           for f in \
+            tests/number-reservation.test.mjs \
+            tests/document-language-v151.test.mjs \
+            tests/customers-workspace-v105.test.mjs \
             tests/audit-supplier-payables-asof.test.mjs \
             tests/audit-supplier-payment-void-merge.test.mjs \
             tests/audit-treasury-void-history.test.mjs \
@@ -110,6 +113,11 @@ jobs:
       - name: Combined accounting and AI regression tests
         run: >
           node --test --test-concurrency=2
+          tests/number-reservation.test.mjs
+          tests/document-language-v151.test.mjs
+          tests/customers-workspace-v105.test.mjs
+          tests/account-data-isolation-v215.test.mjs
+          tests/locked-account-unlock.test.mjs
           tests/audit-supplier-payables-asof.test.mjs
           tests/audit-supplier-payment-void-merge.test.mjs
           tests/audit-treasury-void-history.test.mjs
