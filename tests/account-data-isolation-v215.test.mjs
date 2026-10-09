@@ -99,5 +99,25 @@ test('v216 keeps installed clients on the account-isolated storage runtime while
   assert.match(patch,/const CACHE = 'lourex-invoice-v215'.*legacy marker/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v214'.*legacy marker/);
   assert.match(patch,/security-boundary migration/);
-  assert.match(patch,/await self\.skipWaiting\(\)/);
+  // Activation is user-controlled: never force replacement of an editing PWA.
+  const worker=await read('public/sw.js');
+  const install=worker.indexOf("self.addEventListener('install'");
+  const message=worker.indexOf("self.addEventListener('message'",install);
+  const activate=worker.indexOf("self.addEventListener('activate'",message);
+  assert.ok(install>=0&&message>install&&activate>message,'service-worker install/message/activation handlers must exist');
+  assert.doesNotMatch(worker.slice(install,message),/(?:await\s+|void\s+)?self\.skipWaiting\s*\(/,'install cannot force activation over encrypted drafts');
+  assert.match(patch,/Unsafe forced service-worker activation detected/,'build rejects unsafe worker activation');
+  const handlers=new Map();
+  let activationRequests=0;
+  const self={
+    addEventListener:(name,handler)=>handlers.set(name,handler),
+    skipWaiting:()=>{activationRequests++;return Promise.resolve();}
+  };
+  vm.runInNewContext(worker.slice(message,activate),{self});
+  const onMessage=handlers.get('message');
+  assert.equal(typeof onMessage,'function');
+  for(const data of [undefined,{}, {type:'REFRESH'}, {type:'SKIP_WAITING_DISABLED'}])onMessage({data});
+  assert.equal(activationRequests,0,'unrelated events cannot activate a new service worker');
+  onMessage({data:{type:'SKIP_WAITING'}});
+  assert.equal(activationRequests,1,'explicit update approval requests activation once');
 });
