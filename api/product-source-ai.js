@@ -1,3 +1,4 @@
+import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {includesExplicitSourceCodes} from './_ai/source-lines.js';
 import {explicitSourceDecimal} from './_ai/numbers.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
@@ -26,6 +27,7 @@ function cleanResult(value){if(!value||typeof value!=='object'||!Array.isArray(v
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Product source analysis must come from this LOUREX deployment.'});return;}
+  if(!await requireAiFirebaseAuth(request,response))return;
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'Product Source AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid product source request.'});return;}
   const kind=body?.kind==='text'?'text':body?.kind==='file'?'file':'';const mimeType=cleanText(body?.mimeType,100);const fileName=cleanText(body?.fileName,180)||'Product source';const text=kind==='text'?String(body?.text||''):'';const data=kind==='file'?String(body?.data||''):'';
