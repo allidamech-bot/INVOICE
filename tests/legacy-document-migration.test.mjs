@@ -60,3 +60,31 @@ test('legacy saved documents are fully normalized before the editor opens', () =
   assert.doesNotThrow(() => getDocumentReadiness(doc));
   assert.doesNotThrow(() => documentQualityIssues(doc));
 });
+
+
+test('pre-v20 backups preserve top-level company identity even if a placeholder workspace is present',()=>{
+  const legacy=emptyVault();
+  legacy.schemaVersion=19;
+  legacy.company={...legacy.company,nameEn:'Historical Trading Co',
+    bank:{...legacy.company.bank,bankName:'Historical Bank',iban:'TR000000000000000000001',currency:'TRY'}};
+  legacy.appSettings.smartDefaults={...legacy.appSettings.smartDefaults,language:'ar'};
+  legacy.workspaces=[{...legacy.workspaces[0],company:{...legacy.workspaces[0].company,nameEn:''}}];
+  const migrated=migrateVault(legacy);
+  assert.equal(migrated.company.nameEn,'Historical Trading Co');
+  assert.equal(migrated.company.bank.bankName,'Historical Bank');
+  assert.equal(migrated.company.bank.iban,'TR000000000000000000001');
+  assert.equal(migrated.company.bank.currency,'TRY');
+  assert.equal(migrated.workspaces[0].company.nameEn,'Historical Trading Co');
+  assert.equal(migrated.workspaces[0].company.bank.bankName,'Historical Bank');
+  assert.equal(migrated.appSettings.smartDefaults.language,'ar');
+});
+
+test('v20 workspace-era backups still use the active workspace company as authority',()=>{
+  const legacy=emptyVault();
+  legacy.schemaVersion=20;
+  legacy.company.nameEn='Outdated projected company';
+  legacy.workspaces[0].company.nameEn='Active Workspace Company';
+  const migrated=migrateVault(legacy);
+  assert.equal(migrated.company.nameEn,'Active Workspace Company');
+  assert.equal(migrated.workspaces[0].company.nameEn,'Active Workspace Company');
+});
