@@ -11,6 +11,7 @@ import {prepareAiProductSourceImport} from './ai-product-source-import.js';
 import {parseAiBulkProductTransformIntent,prepareAiBulkProductTransform} from './ai-product-bulk-transforms.js';
 import {parseAiProductGroupPriceIntent,prepareAiProductGroupPrice} from './ai-product-group-price.js';
 import {parseAiPartyMasterIntent,prepareAiPartyMaster} from './ai-party-master.js';
+import {prepareApprovedPartyPatch} from './ai-approved-party-patch.js';
 
 export type AiToolClass='read'|'calculate'|'prepare'|'execute'|'high-impact';
 export type AiToolId=
@@ -217,7 +218,19 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
     }
     return{capability:'document.updateDraft',documentId:target.id,language:args.language,addItems,itemEdits,termsPatch:safeObject(args.termsPatch),notes:typeof args.notes==='string'?clean(args.notes,500):undefined,label:clean(args.label,80)||'Update draft',rationale:call.reason||'Prepared draft update.'};
   }
-  if(['customer.update','supplier.update','task.create'].includes(call.tool))return{capability:'tool.execute',tool:call.tool,args,label:clean(args.label,80)||call.tool,rationale:call.reason||'Prepared safe LOUREX action.'} as AiToolExecutionProposal;
+  if(call.tool==='customer.update'||call.tool==='supplier.update'){
+    if(runtime.scope!=='business')throw new Error('Customer/supplier changes require Business scope.');
+    const active=runtime.vault.appSettings.activeWorkspaceId||'default';
+    if(runtime.workspaceId&&runtime.workspaceId!==active)throw new Error('Active company changed. Review the customer/supplier again.');
+    const party=call.tool==='customer.update'?'customer':'supplier';
+    const id=clean(party==='customer'?args.customerId:args.supplierId,120);
+    if(!id)throw new Error('Choose the exact customer/supplier ID before approval.');
+    const batch=prepareApprovedPartyPatch(runtime.vault,party,id,args.patch);
+    return{capability:'tool.execute',tool:call.tool,args:batch,preview:[batch.preview],
+      label:clean(args.label,80)||'Review '+party+' changes',
+      rationale:'Recheck exact company, record revision and old/new fields when approval is applied.'};
+  }
+  if(call.tool==='task.create')return{capability:'tool.execute',tool:call.tool,args,label:clean(args.label,80)||call.tool,rationale:call.reason||'Prepared safe LOUREX action.'} as AiToolExecutionProposal;
   return null;
 }
 export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolResult{
