@@ -53,7 +53,7 @@ function openCdp(url){
   });
 }
 
-const profile=await mkdtemp(join(tmpdir(),'lourex-qa-chrome-'));
+const profiles=[];
 const childProcesses=[];
 let cdp;
 try{
@@ -63,17 +63,39 @@ try{
     const res=await fetch('http://127.0.0.1:4173/index.html');
     return res.ok;
   },10000,'local production build web server');
-  const chrome=spawn(browserBinary(),[
-    '--headless=new','--no-sandbox','--disable-dev-shm-usage',
-    '--disable-gpu','--no-first-run','--no-default-browser-check',
-    '--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'
-  ],{stdio:'ignore'});
-  childProcesses.push(chrome);
-  const portFile=join(profile,'DevToolsActivePort');
-  const address=await waitUntil(async()=>{
-    const lines=(await readFile(portFile,'utf8')).trim().split('\n');
-    return lines[0]&&Number(lines[0])>0?Number(lines[0]):0;
-  },30000,'Chrome DevTools port');
+  // Chromium sometimes fails to expose CDP on heavily loaded shared Ubuntu
+  // runners. Retry only process startup, never application or UI assertions.
+  // Keep stderr so CI distinguishes a crashed browser from a product regression.
+  const chromeBinary=browserBinary();
+  let address=0;
+  let launchError=new Error('Chrome could not launch');
+  for(let attempt=1;attempt<=2&&!address;attempt++){
+    const profile=await mkdtemp(join(tmpdir(),'lourex-qa-chrome-'));
+    profiles.push(profile);
+    const chrome=spawn(chromeBinary,[
+      '--headless=new','--no-sandbox','--disable-dev-shm-usage',
+      '--disable-gpu','--no-first-run','--no-default-browser-check',
+      '--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'
+    ],{stdio:['ignore','ignore','pipe']});
+    childProcesses.push(chrome);
+    let stderr='';
+    chrome.stderr?.on('data',chunk=>{stderr=(stderr+String(chunk)).slice(-4096);});
+    try{
+      const portFile=join(profile,'DevToolsActivePort');
+      const value=await waitUntil(async()=>{
+        if(chrome.exitCode!==null)return {exited:chrome.exitCode};
+        const lines=(await readFile(portFile,'utf8')).trim().split('\n');
+        return lines[0]&&Number(lines[0])>0?Number(lines[0]):0;
+      },30000,'Chrome DevTools port on attempt '+attempt);
+      if(typeof value!=='number')throw new Error('Chrome exited with code '+value.exited);
+      address=value;
+    }catch(error){
+      launchError=new Error(String(error instanceof Error?error.message:error)+'; browser exit='+String(chrome.exitCode)+'; stderr='+String(stderr||'[empty]'));
+      if(chrome.exitCode===null)chrome.kill('SIGTERM');
+      if(attempt<2)await sleep(1000);
+    }
+  }
+  if(!address)throw launchError;
   const targets=await waitUntil(async()=>{
     const response=await fetch('http://127.0.0.1:'+address+'/json/list');
     const pages=await response.json();
@@ -115,5 +137,5 @@ try{
   cdp?.close();
   for(const child of childProcesses.reverse())if(child.exitCode===null)child.kill('SIGTERM');
   await sleep(750);
-  await rm(profile,{recursive:true,force:true,maxRetries:12,retryDelay:250});
+  for(const profile of profiles)await rm(profile,{recursive:true,force:true,maxRetries:12,retryDelay:250});
 }
