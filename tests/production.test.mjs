@@ -30,7 +30,7 @@ test('production shell has local matched React runtime, PWA and premium design l
   assert.match(bundle, /--radius:12px/); // canonical app surface radius; retired --radius-xl token no longer exists
   assert.match(bundle, /\.save-indicator\.state-saved/);
   assert.match(bundle, /@media \(max-width:720px\)/);
-  assert.match(bundle, /--acct-blue/);
+  assert.match(bundle, /\.ta-topbar-account\b/); // active account entry point remains styled in production
   assert.match(bundle, /\.editor-validation-summary/);
   assert.match(bundle, /\.section-has-error/);
   assert.ok((await stat(new URL('dist/brand/lourex-logo.svg', root))).size > 1000);
@@ -134,7 +134,8 @@ test('first-run onboarding requires one LOUREX account plus a separate local PIN
   assert.match(auth, /Confirm PIN/);
   assert.match(auth, /onFinish\(this\.state\.pin,this\.state\.company,this\.state\.recoveryCode\)/);
   assert.match(auth, /if\(!this\.state\.recoverySaved\)/,'workspace setup must require saving the recovery key');
-  assert.match(auth, /PIN required on every app start/);
+  assert.match(auth, /if\(!PIN_PATTERN\.test\(this\.state\.pin\)\)/);
+  assert.match(auth, /if\(!this\.state\.recoverySaved\)/); // setup cannot bypass backup recovery acknowledgement
   assert.match(auth, /getAccountVaultSecret\(user\.uid\)/);
   assert.match(auth, /changePin\(this\.accountSecret,pin\)/);
   assert.doesNotMatch(auth, /No separate access PIN is required/);
