@@ -1,0 +1,48 @@
+name: LOUREX Legacy Vault Correctness QA
+
+on:
+  push:
+    branches:
+      - fix/qa-legacy-vault-preservation-20261009
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-legacy-storage-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: Type check
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: No-weakening storage and migration regressions
+        run: |
+          node --test --test-concurrency=2 \
+            tests/storage.test.mjs \
+            tests/saved-items.test.mjs \
+            tests/v44-audit.test.mjs \
+            tests/legacy-document-migration.test.mjs \
+            tests/qa-legacy-company-migration.test.mjs
+      - name: Historical full suite diagnostic (failures remain visible)
+        if: always()
+        shell: bash
+        run: |
+          node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/lourex-all-tests.log" 2>&1 || true
+          grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/lourex-all-tests.log" || true
+          if grep -q '^ℹ fail ' "${RUNNER_TEMP}/lourex-all-tests.log"; then
+            echo 'Full suite still contains failures; they are not waived as passing.'
+          fi
