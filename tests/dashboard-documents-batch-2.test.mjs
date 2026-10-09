@@ -6,11 +6,12 @@ const read=path=>readFile(path,'utf8');
 
 test('batch 2 home is an operational dashboard backed by existing accounting logic',async()=>{
   const [home,app]=await Promise.all([read('src/components/WorkspaceHome.tsx'),read('src/app/App.tsx')]);
-  for(const token of ['receivablesByCurrency','financialReportByCurrency','Sales','Collected','Outstanding','Overdue','Recent documents','Needs attention'])assert.ok(home.includes(token),token);
-  assert.ok(home.includes('formatMoney(row.outstanding,row.currency)'));
-  assert.ok(home.includes('formatMoney(row.netSales,row.currency)'));
-  assert.ok(home.includes('formatMoney(row.collected,row.currency)'));
-  assert.ok(home.includes('formatMoney(row.overdue,row.currency)'));
+  for(const token of ['receivablesByCurrency','financialReportByCurrency','Sales','Collected','Outstanding','Overdue','Recent documents','Needs your attention'])assert.ok(home.includes(token),token);
+  assert.ok(home.includes("moneyStack(monthly,'netSales')"));
+  assert.ok(home.includes("moneyStack(monthly,'collected')"));
+  assert.ok(home.includes("moneyStack(receivables,'outstanding')"));
+  assert.ok(home.includes("moneyStack(receivables,'overdue')"));
+  assert.ok(home.includes("formatMoney(row[key]||'0.00',row.currency)"),'each currency remains separate in the KPI renderer');
   assert.ok(app.includes('documents={vault.documents}'));
   assert.ok(app.includes('payments={vault.payments}'));
   assert.ok(app.includes('onOpenDocument={(doc)=>void this.openDocument(doc)}'));
@@ -19,19 +20,21 @@ test('batch 2 home is an operational dashboard backed by existing accounting log
 test('batch 2 documents provide richer search filters and one calm action surface',async()=>{
   const page=await read('src/components/DocumentsPage.tsx');
   for(const token of ['PaymentFilter','documentSearchText','paymentStatus','currency','partially-paid','overdue','Lowest total'])assert.ok(page.includes(token),token);
-  assert.ok(page.includes("placeholder={t('Number, customer, item, HS code…'"));
+  assert.ok(page.includes("placeholder={t('Search number, customer, item, HS code…'"));
   assert.ok(page.includes('item.descriptionEn'));
   assert.ok(page.includes('item.descriptionAr'));
   assert.ok(page.includes('item.hsCode'));
-  assert.ok(page.includes('document-action-popover'));
-  assert.ok(page.includes('mobile-document-action-portal'));
+  assert.ok(page.includes('ta-doc-action-popover'));
+  assert.ok(page.includes('ta-doc-mobile-action-portal'));
+  assert.ok(page.includes("ReactDOM.createPortal("),'document action menus must be body-ported for mobile overlay safety');
+  assert.ok(page.includes("aria-label={t('Close actions'"),'action portal must offer explicit dismissal');
   assert.ok(page.includes('icon="more"'));
   assert.ok(page.includes('Convert to Invoice'));
 });
 
 test('batch 2 document cards open a detail view before editing',async()=>{
   const page=await read('src/components/DocumentsPage.tsx');
-  for(const token of ['detailId','document-detail-page','Document overview','Commercial terms','document-detail-items','document-detail-payment','Remaining'])assert.ok(page.includes(token),token);
+  for(const token of ['detailId','ta-doc-detail-page','Document details','Commercial terms','ta-doc-items-list','ta-doc-payment-panel','Remaining'])assert.ok(page.includes(token),token);
   assert.ok(page.includes("onClick={()=>this.setState({detailId:doc.id,menuId:''})}"));
   assert.ok(page.includes("onConvert={(d)=>void this.convert(d)}")===false,'App wiring belongs in App.tsx, not page implementation');
 });
@@ -43,7 +46,9 @@ test('batch 2 styles are responsive app-only UI and remain offline-capable',asyn
   assert.ok(css.includes('@media print'));
   assert.ok(!css.includes('.invoice-page{'));
   assert.ok(!css.includes('.document-page{'));
-  assert.ok(index.includes('./styles/dashboard-documents.css'));
+  assert.ok(index.includes('./styles/tailadmin-dashboard-v320.css'));
+  assert.ok(index.includes('./styles/tailadmin-documents-v320.css'));
+  assert.ok(!index.includes('./styles/dashboard-documents.css'),'retired dashboard stylesheet must not override the canonical TailAdmin presentation');
   assert.ok(sw.includes('./styles/dashboard-documents.css'));
 });
 
