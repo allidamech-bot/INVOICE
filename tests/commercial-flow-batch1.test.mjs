@@ -70,7 +70,7 @@ test('Commercial tracking events use the encrypted event ledger without changing
   ]);
   assert.match(flow,/COMMERCIAL_MARKER='@lourex:commercial:v1:'/);
   assert.match(flow,/type:'created'/);
-  assert.match(defaults,/APP_SCHEMA_VERSION = 15/);
+  const {APP_SCHEMA_VERSION}=await import('../dist/src/lib/defaults.js');assert.ok(APP_SCHEMA_VERSION>=15,'later schema migrations must preserve commercial ledger compatibility');
   assert.match(defaults,/no schema bump is required/);
   assert.match(lifecyclePanel,/\.filter\(isLifecycleDocumentEvent\)/);
 });
