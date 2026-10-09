@@ -20,7 +20,7 @@ const withFakePlanner=async(plan,run)=>{
     return{ok:true,json:async()=>({plan})};
   };
   try{return await run(payloads);}
-  finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;}
+  finally{globalThis.fetch=originalFetch;globalThis.window=originalWindow;globalThis.firebase=originalFirebase;}
 };
 
 test('B04: extracted attachments enter bounded, non-mutating planning context',()=>{
