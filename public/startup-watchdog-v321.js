@@ -153,6 +153,13 @@
       retry.disabled=true;
       markDiagnostic('startup-recovery-user-retry','manual=yes');
       void refreshStaticRuntime().finally(function(){
+        // A document or data-entry editor may open while cache cleanup is pending.
+        // Re-evaluate the workspace immediately before explicit navigation.
+        if(editingWorkspaceOpen()||!bootStillVisible()){
+          retry.disabled=false;
+          markDiagnostic('startup-recovery-retry-deferred','editableWorkspace=yes navigation=no');
+          return;
+        }
         markNavigation('startup-recovery-user-retry','mode=replace source=startup-watchdog-v347');
         window.location.replace(retryUrl());
       });
