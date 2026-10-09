@@ -25,7 +25,8 @@ test('v591 final editor controls stay readable and cannot fall back to browser-n
     read('scripts/v485-bundle-visible-ui.mjs')
   ]);
   for(const source of [css,bundle]){
-    assert.match(source,/--lrx-editor-accent:#315fad/);
+    assert.match(source,/--lrx-editor-accent:var\(--ft-accent,#315DA8\)/,'editor must use the active application theme accent');
+    assert.doesNotMatch(source,/--lrx-editor-accent:#315fad/,'fixed blue may not override a user-selected theme');
     assert.match(source,/:is\(\.screen-editor,\.editor-screen\) \.btn\.btn-ghost\{[\s\S]*background:var\(--lx485-surface-3,#1d3651\)!important/);
     assert.match(source,/:is\(\.screen-editor,\.editor-screen\) \.icon-btn\{[\s\S]*background:transparent!important/);
     assert.match(source,/:is\(\.screen-editor,\.editor-screen\) \.advanced-master-toggle\{[\s\S]*appearance:none!important/);
