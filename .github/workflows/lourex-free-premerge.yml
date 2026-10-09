@@ -46,6 +46,7 @@ jobs:
             tests/b03-manual-backup-recovery.test.mjs \
             tests/commercial-output-hardening-v167.test.mjs \
             tests/final-details-pagination-v127.test.mjs \
+            tests/production.test.mjs \
             tests/adaptive-cloud-coalescing-v223.test.mjs \
             tests/audit-inventory-planning-scope.test.mjs \
             tests/accounts-payable-batch9.test.mjs \
@@ -115,6 +116,7 @@ jobs:
           tests/b03-manual-backup-recovery.test.mjs
           tests/commercial-output-hardening-v167.test.mjs
           tests/final-details-pagination-v127.test.mjs
+          tests/production.test.mjs
           tests/adaptive-cloud-coalescing-v223.test.mjs
           tests/audit-account-auth-loss-watchdog.test.mjs
           tests/audit-inventory-planning-scope.test.mjs
