@@ -45,3 +45,33 @@ jobs:
       - run: npm run build
       - name: Run all historical tests without suppressing failures
         run: node --test tests/*.test.mjs
+
+  browser-qa:
+    name: Real Chromium and WebKit regression coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Install browser test engines transiently
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Exercise mobile, tablet, RTL, PDF document and overlay paths
+        shell: bash
+        run: |
+          npx http-server . -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-free-browser.log 2>&1 &
+          for i in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          node tests/visual/run-responsive-batch1.cjs
+          node tests/visual/run-v339-ipad-portrait-draft.cjs
+          node tests/visual/run-v339-shell-overlay-release.cjs
