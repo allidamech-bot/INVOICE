@@ -131,6 +131,9 @@ export async function currentCloudIdToken():Promise<string>{
   const user=auth().currentUser;
   if(!user||typeof user.getIdToken!=='function')throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
   const token=await user.getIdToken();
+  // A pending token refresh must not authorize an AI request after sign-out
+  // or after switching to a different LOUREX account.
+  if(auth().currentUser?.uid!==user.uid)throw new Error('Your LOUREX account changed. Sign in again before using AI.');
   if(typeof token!=='string'||!token)throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
   return token;
 }
