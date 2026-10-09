@@ -37,6 +37,8 @@ test('Google account link requires verified existing password and preserves UID-
   assert.match(onFailure,/كلمة مرور LOUREX الحالية مرة واحدة لربط Google دون تغيير بياناتك/);
   assert.doesNotMatch(onFailure,/activateAccountStorage|enterAuthenticatedAccount|clearSession/);
   assert.match(account,/linkGoogleToExistingPasswordAccount/);
+  assert.match(account,/if\(this\.state\.googleLinkPending\)user=await linkGoogleToExistingPasswordAccount\(email,password\)/);
+  assert.match(google,/const originalUid=String\(existingUser\.uid\|\|''\)/);
   assert.match(google,/signInWithEmailAndPassword\(email\.trim\(\),password\)/);
   assert.match(google,/existingUser\.linkWithCredential\(pendingGoogleCredential\)/);
   assert.match(google,/user\.uid!==originalUid/);
@@ -99,7 +101,7 @@ test('current Google sign-in is accessible and visibly styled in mobile, dark an
   assert.match(account,/className="ta-google-button" disabled=\{this\.state\.busy\|\|!this\.state\.googleReady\}/);
   assert.match(account,/onClick=\{\(\)=>void this\.googleSignIn\(\)\}/);
   assert.match(account,/className="ta-auth-divider"/);
-  assert.match(ui,/\.ta-google-button\{min-height:46px!important/);
+  assert.match(ui,/\.ta-google-button\{min-height:46px!important;border-radius:11px!important;\}/);
   assert.match(dark,/data-ui-theme="dark"[\s\S]*\.ta-google-button/);
   assert.match(index,/tailadmin-design-closeout-v323\.css/);
   assert.match(index,/matte-black-dark-v360\.css/);
@@ -136,5 +138,7 @@ test('service worker reloads only after explicit approval and never discards an 
   assert.match(controller,/rememberWorkspaceBeforeAutomaticReload\(\)/);
   assert.match(controller,/window\.location\.replace\(window\.location\.href\)/);
   assert.doesNotMatch(controller,/safeSignedOutAuthGatewayForAutomaticReload\(\)/);
+  assert.match(entry,/function reloadUnsafeWorkspaceOpen\(\):boolean/);
+  assert.match(entry,/function updateNoticeDeferredForWorkspace\(\):void/);
 });
 
