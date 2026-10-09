@@ -90,6 +90,8 @@ test('12-second watchdog presents recovery options without reloading; only a use
   assert.equal(retry?.tag,'button');
   assert.equal(typeof retry?.listeners.click,'function');
   retry.listeners.click();
-  for(let i=0;i<6;i++)await Promise.resolve();
+  // One event-loop checkpoint also flushes the nested unregister/cache Promise.all
+  // chain and the final navigation promise. No action is permitted before click.
+  await new Promise(resolve=>setTimeout(resolve,0));
   assert.deepEqual(calls,{unregister:1,cacheDelete:1,replace:1});
 });
