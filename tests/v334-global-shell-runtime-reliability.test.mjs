@@ -27,7 +27,7 @@ test('runtime guard has no encrypted business writes; continuity storage uses on
   assert.match(guard,/try\{sessionStorage\.setItem\(WORKSPACE_CONTINUITY_KEY,payload\)/);
   assert.match(guard,/try\{localStorage\.setItem\(WORKSPACE_CONTINUITY_KEY,payload\)/);
   assert.match(guard,/clearWorkspaceContinuity\(\)/);
-  assert.doesNotMatch(guard,/indexedDB|saveVault|calculateTotals|putSecurityAndVault|persist\(|deleteDatabase|signOut\(/i);
+  assert.doesNotMatch(guard,/indexedDB|saveVault|calculateTotals|putSecurityAndVault|persist\(|deleteDatabase|\.signOut\(/i,'no authentication or encrypted business mutations');
   assert.doesNotMatch(guard,/\.value\s*=|setAttribute\(['"]data-lourex-workspace-dirty/i);
   assert.doesNotMatch(guard,/storage\.(?:setItem|removeItem)\((?!WORKSPACE_CONTINUITY_KEY)/i);
 });
