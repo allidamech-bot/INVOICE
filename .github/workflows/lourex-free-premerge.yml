@@ -57,3 +57,43 @@ jobs:
           node --test --test-concurrency=2 "${files[@]}"
       - name: Complete Node test suite
         run: node --test --test-concurrency=2 tests/*.test.mjs
+
+  combined-integration:
+    name: Integrate PR652 + PR653 safely (no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: In-memory merge of security branch into accounting branch
+        shell: bash
+        run: |
+          git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
+          git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009
+          git status --short
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locked install
+        run: npm ci --no-audit --no-fund
+      - name: Combined TypeScript check
+        run: npm run typecheck
+      - name: Combined production build
+        run: npm run build
+      - name: Combined accounting and AI regression tests
+        run: >
+          node --test --test-concurrency=2
+          tests/audit-supplier-payables-asof.test.mjs
+          tests/audit-supplier-payment-void-merge.test.mjs
+          tests/audit-treasury-void-history.test.mjs
+          tests/audit-inventory-planning-scope.test.mjs
+          tests/accounts-payable-batch9.test.mjs
+          tests/audit-ai-firebase-auth.test.mjs
+          tests/audit-ai-client-token-safety.test.mjs
+          tests/ai-reliability-batch5.test.mjs
+          tests/b04-attachment-progress.test.mjs
+          tests/b04-ai-planner-failure-visibility.test.mjs
+          tests/b04-source-aware-tool-planner.test.mjs
+          tests/ai-review-safety-contract.test.mjs
