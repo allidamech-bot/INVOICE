@@ -29,7 +29,11 @@ test('cloud install revalidates account ownership and workspace safety at the lo
   assert.match(between,/requireCurrentUid\(uid\)/);
   assert.match(between,/if\(inlineDraftWorkspaceOpen\(\)\)throw new Error/);
   const guard=cloud.slice(cloud.indexOf('function inlineDraftWorkspaceOpen'),cloud.indexOf('function splitCipher'));
-  assert.match(guard,/\.editor-screen,\.operations-page,\.product-library-pro\.editor-open/);
+  assert.match(guard,/data-lourex-document-editor/);
+  assert.match(guard,/data-lourex-workspace-dirty/);
+  assert.match(guard,/document\.querySelector\('\.editor-screen'\)/);
+  assert.doesNotMatch(guard,/document\.querySelector\('\.operations-page'\)/,
+    'simply browsing Operations must not block safe cloud replacement');
   assert.match(guard,/\.modal-backdrop/);
   assert.match(guard,/\.cloud-account-panel,\.cloud-auth-form/);
 });
