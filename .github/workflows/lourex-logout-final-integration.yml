@@ -1,0 +1,28 @@
+name: LOUREX Final Logout Integration Verification
+on:
+  push:
+    branches:
+      - fix/audit-logout-integration-20261009
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  comprehensive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locked install
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Authentication behavior regressions
+        run: |
+          node --test tests/audit-confirmed-signout.test.mjs tests/audit-account-transition-runtime.test.mjs tests/account-required-after-logout-v188.test.mjs tests/account-data-isolation-v215.test.mjs
+      - name: All historical tests, no suppression
+        run: node --test --test-concurrency=2 tests/*.test.mjs

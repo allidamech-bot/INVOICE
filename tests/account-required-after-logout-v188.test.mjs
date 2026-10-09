@@ -19,21 +19,25 @@ test('v188 signed-out startup cannot resume an unlocked workspace without the au
   assert.doesNotMatch(session,/deleteRecord\('vault'\)|deleteRecord\('security'\)/);
 });
 
-test('v188 any Firebase account sign-out returns an unlocked workspace to the account gateway',async()=>{
-  const index=await read('src/app/index.tsx');
-  assert.match(index,/function startAccountSignOutWatcher\(\):void/);
-  assert.match(index,/subscribeCloudUser\(user=>\{/);
-  assert.match(index,/if\(user\)\{[\s\S]*setActiveAccountUid\(user\.uid\);[\s\S]*accountWasAuthenticated=true;[\s\S]*return;[\s\S]*\}/);
-  assert.match(index,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\)return;/);
-  assert.match(index,/signOutTransitionRunning=true/);
-  assert.doesNotMatch(index,/setInterval/);
-  const signedOut=index.slice(index.lastIndexOf('if(!accountWasAuthenticated||signOutTransitionRunning)return;'),index.indexOf('async function start()'));
-  assert.match(signedOut,/await suspendSession\(\);[\s\S]*setActiveAccountUid\(null\);[\s\S]*await activateAccountStorage\(null\);/);
-  assert.match(signedOut,/sessionStorage\.setItem\('lourex-auth-just-signed-out','1'\)/);
-  assert.match(signedOut,/window\.location\.reload\(\)/);
+test('v188 a confirmed Firebase sign-out locks the account after a Safari-safe grace window',async()=>{
+  const [index,app,session]=await Promise.all([
+    read('src/app/index.tsx'),read('src/app/App.tsx'),read('src/storage/session.ts')
+  ]);
+  const watcher=index.slice(index.indexOf('function startAccountSignOutWatcher'),index.indexOf('async function start()'));
+  const transition=app.slice(app.indexOf('private handleAccountTransitionRequest'),app.indexOf('private handleOnline'));
+  assert.match(watcher,/subscribeCloudUser\(handleAuthChange\)/);
+  assert.match(watcher,/clearPendingAuthLoss\(\)/,'a recovered session cancels the pending loss');
+  assert.match(watcher,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\|\|pendingAuthLossTimer!==undefined\)return;/);
+  assert.match(watcher,/pendingAuthLossTimer=window\.setTimeout/);
+  assert.match(watcher,/if\(currentCloudUser\(\)\|\|signOutTransitionRunning\)return;/);
+  assert.match(watcher,/lourex-account-transition-request/);
+  assert.match(watcher,/detail:\{uid:null\}/,'confirmed loss requests an actual sign-out');
+  assert.match(transition,/await this\.drainVaultWrites\(\);[\s\S]*await this\.waitForCloudIdle\(\);[\s\S]*await suspendSession\(\);/);
+  assert.match(transition,/setActiveAccountUid\(uid\);[\s\S]*await activateAccountStorage\(uid\);/);
+  assert.match(transition,/unlocked:false,key:null,vault:null/);
+  assert.match(session,/runtimePinAuthorized=false;[\s\S]*removeMarker\(\);[\s\S]*deleteRecord\('session-key'\)/);
   assert.match(index,/startAccountSignOutWatcher\(\);/);
 });
-
 test('v188 logout guard remains present in later immutable PWA generations',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/v188 account-required logout/);
