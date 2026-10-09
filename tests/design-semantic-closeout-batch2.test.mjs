@@ -9,8 +9,8 @@ test('existing final owner provides complete semantic roles and scales without a
  assert.match(css,/--lx-ui-control-height:44px/);
  assert.match(css,/--lx-ui-font-arabic:var\(--lx485-arabic\)/);
  assert.match(css,/\.global-search-close\{[^}]*border-radius:var\(--lx-ui-radius-control\)/);
- assert.match(css,/#lourex-ai-panel\{z-index:var\(--lourex-z-ai,1220\)!important\}/);
- assert.match(css,/\.lourex-ai-backdrop\{z-index:calc\(var\(--lourex-z-ai,1220\) - 1\)!important\}/);
+ assert.match(css,/#lourex-ai-panel\{z-index:var\(--lourex-z-ai,1220\)!important;?\}/);
+ assert.match(css,/\.lourex-ai-backdrop\{z-index:calc\(var\(--lourex-z-ai,1220\) - 1\)!important;?\}/);
  assert.match(css,/\.modal-backdrop\{z-index:var\(--lourex-z-modal,1300\)!important/);
  assert.match(css,/z-index:var\(--lourex-z-editor-dock,900\)!important/);
  assert.doesNotMatch(css,/max-height:calc\(100dvh - 24px[^}]*border-radius:24px/,'superseded mobile modal height must not remain a competing declaration');
