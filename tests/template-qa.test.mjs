@@ -18,7 +18,8 @@ test('all 18 template identifiers stay aligned across type, selector, renderer a
 
 test('proforma, invoice and credit note share the same semantic renderer',async()=>{
   const [types,renderer,bridge]=await Promise.all([read('src/types.ts'),read('src/templates/TemplateRenderer.tsx'),read('public/ios-print-bridge.js')]);
-  assert.match(types,/DocumentKind\s*=\s*'proforma'\s*\|\s*'invoice'/);
+  assert.match(types,/DocumentKind\s*=\s*[^\n]*'proforma'[^\n]*'invoice'/,'core commercial kinds remain present in the expanded document union');
+  assert.match(types,/DocumentRole = 'standard' \| 'credit-note'/,'credit notes must retain the explicit accounting role');
   assert.match(renderer,/kind-\$\{doc\.kind\}/);
   assert.match(renderer,/doc\.role==='credit-note'/);
   assert.match(renderer,/data-kind=\{doc\.kind\}/);
@@ -62,7 +63,14 @@ test('signature, stamp, bank and dark-identity paper remain output-safe',async()
   assert.match(css,/\.signature-image/);
   assert.match(css,/\.stamp-image/);
   assert.match(css,/data-bank="iban"/);
-  for(const id of ['noir','midnight','blackivory','carbon'])assert.match(css,new RegExp(`\\.template-${id}\\{--paper:#(?:f|F)`),id);
+  const [finalOwner,appearance]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('src/lib/appearance.ts')
+  ]);
+  for(const [id,paper] of [['noir','#121212'],['midnight','#071824'],['blackivory','#14130f'],['carbon','#1b1d20']]){
+    assert.ok(appearance.includes(id+":'"+paper+"'"),id+' resolved palette must match the authored final PDF');
+    assert.match(finalOwner,new RegExp('\\.invoice-page\\.template-'+id+'\\s*\\{[\\s\\S]{0,200}?--paper:'+paper),id+' paper must stay genuinely dark');
+  }
   assert.match(assetCss,/signature/);
   assert.match(assetCss,/stamp/);
 });
