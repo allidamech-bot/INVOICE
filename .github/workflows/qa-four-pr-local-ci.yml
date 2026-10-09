@@ -46,9 +46,20 @@ jobs:
                 grep -q 'synchronizeActiveWorkspaceOnSave' src/storage/vault.ts
                 git add src/storage/vault.ts
                 git commit -m "QA only: use v20 guard plus active workspace save persistence"
-              elif [[ "$name" == "fix/qa-document-details-pagination-20261009" &&
-                      "$conflicts" == 
-            fi
+              elif [[ "$name" == "fix/qa-document-details-pagination-20261009" ]] &&
+                   [[ $(git diff --name-only --diff-filter=U | wc -l) -eq 2 ]] &&
+                   git diff --name-only --diff-filter=U | grep -qx 'src/lib/document-quality.ts' &&
+                   git diff --name-only --diff-filter=U | grep -qx 'src/templates/TemplateRenderer.tsx'; then
+                git checkout --ours src/lib/document-quality.ts src/templates/TemplateRenderer.tsx
+                grep -q 'value.length>520' src/lib/document-quality.ts
+                grep -q 'value.length>520' src/templates/TemplateRenderer.tsx
+                git add src/lib/document-quality.ts src/templates/TemplateRenderer.tsx
+                git commit -m "QA only: retain stronger A4 guards and add new tests"
+              else
+                echo "UNREVIEWED SOURCE MERGE CONFLICT:"
+                git diff --name-only --diff-filter=U
+                exit 1
+              fi
           done <<'BRANCHES'
           fix/audit-workspace-payables-asof-20261009 31086a34e2e43a243336c2404ce95e2dacc08633
           fix/audit-ai-verified-auth-20261009 8ea408669510a7add24a5c684726155fe892b56c
