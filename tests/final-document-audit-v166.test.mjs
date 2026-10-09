@@ -5,21 +5,28 @@ import { paginateItems } from '../dist/src/lib/documents.js';
 
 const read=path=>readFile(path,'utf8');
 
-test('new quote and invoice drafts are persisted immediately when the editor opens',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
-  assert.match(editor,/private ensureInitialDraftPersisted=\(\)=>/);
-  assert.match(editor,/this\.props\.documents\.some\(item=>item\.id===doc\.id\)/);
-  assert.match(editor,/this\.saveWithProtectedRetry\(structuredClone\(doc\),true\)/);
-  assert.match(editor,/componentDidMount\(\):void\{[\s\S]*this\.ensureInitialDraftPersisted\(\)/);
-  assert.match(editor,/prevProps\.document\.id!==this\.props\.document\.id[\s\S]*this\.ensureInitialDraftPersisted\(\)/);
-  assert.match(editor,/Unable to save the new draft locally/);
+test('new quotation, invoice and customer drafts are durably stored before the editor opens',async()=>{
+  const [app,editor]=await Promise.all([read('src/app/App.tsx'),read('src/components/EditorPage.tsx')]);
+  const create=app.slice(app.indexOf('private newDocument=async('),app.indexOf('private newDocumentForCustomer=async('));
+  const customer=app.slice(app.indexOf('private newDocumentForCustomer=async('),app.indexOf('private saveDocument=async('));
+  assert.match(create,/if\(this\.documentCreateBusy\|\|!confirmWorkspaceDeparture\(\)\)return/);
+  assert.match(create,/await reservation;await this\.persist\(\{\.\.\.vault,documents:\[\.\.\.vault\.documents,doc\]\}\)/);
+  assert.ok(create.indexOf('await this.persist(')<create.indexOf("this.setState({screen:'editor'"),
+    'draft must be stored before entering the editor');
+  assert.match(customer,/const prepared=applyCustomerCommercialDefaults/);
+  assert.match(customer,/await this\.persist\(\{\.\.\.vault,documents:\[\.\.\.vault\.documents,prepared\]\}\)/);
+  assert.ok(customer.indexOf('await this.persist(')<customer.indexOf("this.setState({screen:'editor'"),
+    'customer defaults must be saved before opening the document');
+  assert.doesNotMatch(editor,/ensureInitialDraftPersisted/,'opening an editor must not trigger a second implicit save loop');
+  assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/);
 });
 
 test('live A4 preview is mounted only where the desktop preview pane is actually visible',async()=>{
   const core=await read('src/components/EditorPageCore.tsx');
   assert.match(core,/window\.matchMedia\('\(min-width:1181px\)'\)/);
   assert.doesNotMatch(core,/window\.matchMedia\('\(min-width:901px\)'\)/);
-  assert.match(core,/private handlePreviewMedia=\(event:MediaQueryListEvent\)=>this\.setState\(state=>\(\{desktopPreview:event\.matches,previewDoc:event\.matches\?structuredClone\(state\.doc\):state\.previewDoc\}\)\)/);
+  assert.match(core,/private handlePreviewMedia=\(event:MediaQueryListEvent\)=>this\.setState\(state=>\(\{desktopPreview:event\.matches,previewDoc:event\.matches\?previewDocument\(state\.doc\):state\.previewDoc\}\)\)/);
+  assert.match(core,/return doc\.attachments\?\.length\?\{\.\.\.doc,attachments:\[\]\}:doc/);
   assert.match(core,/if\(!this\.state\.desktopPreview\)return/);
   assert.match(core,/TemplateRenderer document=\{this\.state\.previewDoc\} scale=\{0\.82\}/);
 });
@@ -27,9 +34,11 @@ test('live A4 preview is mounted only where the desktop preview pane is actually
 test('single-language legal identity fields honor output language without losing Arabic brand fallback',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/function identityPair\(doc: LourexDocument, en: string, ar: string\)/);
-  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
+  assert.match(renderer,/if\(doc\.language==='en'\)return englishFragment\(documentDisplayValue\(english,'en'\)\|\|'—'\)/);
+  assert.match(renderer,/function englishFragment\(value:string\)[\s\S]*lang="en" dir="ltr"/);
   assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
-  assert.match(renderer,/if\(doc\.language==='ar'\)return <span dir="auto">\{arabic\|\|english\|\|'—'\}<\/span>/);
+  assert.match(renderer,/if\(doc\.language==='ar'\)return arabicFragment\(arabic\|\|english\|\|'—'\)/);
+  assert.match(renderer,/function arabicFragment\(value:string\)[\s\S]*lang="ar" dir="rtl"/);
   assert.match(renderer,/function companyName[\s\S]*return identityPair\(doc, doc\.companySnapshot\.nameEn, doc\.companySnapshot\.nameAr\)/);
   assert.match(renderer,/function customerName[\s\S]*return identityPair\(doc, c\?\.companyNameEn \?\? '', c\?\.companyNameAr \?\? ''\)/);
   assert.match(renderer,/const addressVisible=identityOutputValues\(doc,addressEn,addressAr\)\.length>0/);
@@ -73,8 +82,9 @@ test('oversized item continuation rows keep unrelated cells blank instead of ren
   assert.match(renderer,/continuation\?packing:packing\|\|'—'/);
   assert.match(renderer,/continuation\?unit:unit\|\|'—'/);
   assert.match(renderer,/continuation\?'':item\.quantity/);
-  assert.match(renderer,/continuation\?'':item\.unitPrice/);
-  assert.match(renderer,/continuation\?'':lineTotal\(item\.quantity,item\.unitPrice\)/);
+  assert.match(renderer,/continuation\?'':documentPriceOptional\(doc\.kind\)\?'—':item\.unitPrice/);
+  assert.match(renderer,/continuation\?'':documentPriceOptional\(doc\.kind\)\?'—':lineTotal\(item\.quantity,item\.unitPrice\)/);
+  assert.match(renderer,/unitPrice:index===0\?item\.unitPrice:''/);
 });
 
 test('document runtime changes ship through the explicit-update PWA cache generation',async()=>{

@@ -81,7 +81,7 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
   if(scope==='personal')return redactedAdvisor(asOf);
 
   const purchasesAsOf=vault.purchases.filter(row=>datedOnOrBefore(row.date,asOf));
-  const supplierPaymentsAsOf=vault.supplierPayments.filter(row=>datedOnOrBefore(row.date,asOf));
+  const supplierPaymentsAsOf=vault.supplierPayments.filter(row=>datedOnOrBefore(row.date,asOf)&&(!row.createdAt||datedOnOrBefore(row.createdAt,asOf)));
   const expensesAsOf=vault.expenses.filter(row=>datedOnOrBefore(row.date,asOf));
   const inventoryMovementsAsOf=vault.inventoryMovements.filter(row=>datedOnOrBefore(row.date,asOf));
   const customerPaymentsAsOf=vault.payments.filter(row=>datedOnOrBefore(row.date,asOf));
@@ -89,9 +89,9 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
   const treasuryReconciliationsAsOf=vault.treasuryReconciliations.filter(row=>datedOnOrBefore(row.reconciledAt,asOf));
 
   const payables=supplierPayablesByCurrency(purchasesAsOf,supplierPaymentsAsOf,asOf);
-  const treasuryRows=treasuryProjection(customerPaymentsAsOf,supplierPaymentsAsOf,expensesAsOf,treasuryEntriesAsOf,treasuryReconciliationsAsOf,vault.company.defaultCurrency||'USD');
+  const treasuryRows=treasuryProjection(customerPaymentsAsOf,supplierPaymentsAsOf,expensesAsOf,treasuryEntriesAsOf,treasuryReconciliationsAsOf,vault.company.defaultCurrency||'USD',asOf);
   const treasuryCurrencies=Array.from(new Set([...vault.treasuryAccounts.map(row=>row.currency),...treasuryRows.map(row=>row.currency)].filter(Boolean))).sort();
-  const treasuryAccounts=vault.treasuryAccounts.slice(0,24).map(account=>({id:account.id,label:account.label,kind:account.kind,currency:account.currency,balance:treasuryAccountBalance(account.id,treasuryEntriesAsOf),active:account.active}));
+  const treasuryAccounts=vault.treasuryAccounts.slice(0,24).map(account=>({id:account.id,label:account.label,kind:account.kind,currency:account.currency,balance:treasuryAccountBalance(account.id,treasuryEntriesAsOf,asOf),active:account.active}));
   const activityByCurrency=treasuryCurrencies.slice(0,12).map(currency=>({currency,...treasuryTotals(treasuryRows,currency)}));
   const unallocatedMovements=treasuryRows.filter(row=>row.direction!=='internal'&&!row.fromAccountId&&!row.toAccountId).length;
 

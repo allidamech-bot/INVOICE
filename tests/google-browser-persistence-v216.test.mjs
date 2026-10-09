@@ -49,5 +49,10 @@ test('v216 recovery never deletes LOUREX account databases or encrypted vault da
   const patch=await read('scripts/pwa-cache-v205.mjs');
   assert.match(patch,/const CACHE = 'lourex-invoice-v216'/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v215'.*legacy marker/);
-  assert.match(patch,/await self\.skipWaiting\(\)/);
+  assert.match(patch,/Explicit user-requested SW activation handler is missing/);
+  assert.doesNotMatch(patch,/await self\.skipWaiting\(\)/);
+  const built=await read('dist/sw.js');
+  const install=built.slice(built.indexOf("self.addEventListener('install'"),built.indexOf("self.addEventListener('message'"));
+  assert.doesNotMatch(install,/(?:await\s+|void\s+)?self\.skipWaiting\(\)/,'install cannot activate while a document is unsaved');
+  assert.match(built,/event\.data\?\.type==='SKIP_WAITING'/);
 });

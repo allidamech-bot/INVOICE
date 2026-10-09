@@ -24,22 +24,39 @@ test('v209 preserves an existing LOUREX uid by linking Google only after passwor
   assert.match(google,/await instance\.signOut\(\)/);
 });
 
-test('v212 account gateway keeps safe-link recovery without starting redirect completion',async()=>{
+test('Google account link requires verified existing password and preserves UID-scoped local storage',async()=>{
   const account=await read('src/components/AccountEntryScreen.tsx');
+  const google=await read('src/cloud/google-auth.ts');
+  const onFailure=account.slice(account.indexOf('private applyGoogleFailure='),account.indexOf('private finishGoogleRedirect='));
+  const enter=account.slice(account.indexOf('private enterAuthenticatedAccount='),account.indexOf('private prepareGoogle='));
   assert.match(account,/Continue with Google/);
   assert.match(account,/المتابعة باستخدام Google/);
-  assert.match(account,/GoogleAccountLinkRequiredError/);
-  assert.match(account,/googleLinkPending/);
+  assert.match(onFailure,/error instanceof GoogleAccountLinkRequiredError/);
+  assert.match(onFailure,/googleLinkPending:true/);
+  assert.match(onFailure,/existing LOUREX password once to connect Google without changing your data/);
+  assert.match(onFailure,/كلمة مرور LOUREX الحالية مرة واحدة لربط Google دون تغيير بياناتك/);
+  assert.doesNotMatch(onFailure,/activateAccountStorage|enterAuthenticatedAccount|clearSession/);
   assert.match(account,/linkGoogleToExistingPasswordAccount/);
-  assert.match(account,/UID and cloud data stay unchanged/);
-  assert.match(account,/سيبقى حساب LOUREX ومعرّفه وبياناته السحابية دون تغيير/);
+  assert.match(account,/if\(this\.state\.googleLinkPending\)user=await linkGoogleToExistingPasswordAccount\(email,password\)/);
+  assert.match(google,/const originalUid=String\(existingUser\.uid\|\|''\)/);
+  assert.match(google,/signInWithEmailAndPassword\(email\.trim\(\),password\)/);
+  assert.match(google,/existingUser\.linkWithCredential\(pendingGoogleCredential\)/);
+  assert.match(google,/user\.uid!==originalUid/);
+  assert.match(enter,/setActiveAccountUid\(user\.uid\)/);
+  assert.match(enter,/await activateAccountStorage\(user\.uid\)/);
+  assert.ok(enter.indexOf('window.location.replace')>enter.indexOf('await activateAccountStorage(user.uid)'));
   assert.match(account,/\[LOUREX Google Auth\]/);
 });
 
-test('v212 production build keeps Firebase default authDomain and no longer applies same-origin patch',async()=>{
+test('Firebase authentication config keeps its own project and canonical auth domain',async()=>{
   const firebase=await read('src/cloud/firebase.ts');
+  const config=await read('src/cloud/firebase-config.ts');
   const pkg=JSON.parse(await read('package.json'));
-  assert.match(firebase,/authDomain:'lourex-invoice\.firebaseapp\.com'/);
+  assert.match(firebase,/import \{ LOUREX_FIREBASE_CONFIG \} from '\.\/firebase-config\.js'/);
+  assert.match(firebase,/const FIREBASE_CONFIG=LOUREX_FIREBASE_CONFIG/);
+  assert.match(config,/authDomain:'lourex-invoice\.firebaseapp\.com'/);
+  assert.match(config,/projectId:'lourex-invoice'/);
+  assert.doesNotMatch(config,/lou-rex\.com|lourex-bf110a8a/);
   assert.doesNotMatch(pkg.scripts.build,/firebase-auth-same-origin-v211\.mjs/);
 });
 
@@ -73,13 +90,23 @@ test('legacy Firebase auth helper proxy remains isolated for old v211 clients du
   assert.equal(hardened.source,'/((?!__/auth/).*)');
 });
 
-test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',async()=>{
-  const css=await read('src/styles/maintenance-closeout-v207.css');
-  assert.match(css,/\.google-auth-button\{/);
-  assert.match(css,/\.google-auth-mark\{/);
-  assert.match(css,/\.auth-provider-divider\{/);
-  assert.match(css,/\[dir='rtl'\] \.auth-account-card \.google-auth-button\{direction:rtl\}/);
-  assert.match(css,/@media\(max-width:720px\)[\s\S]*\.google-auth-button/);
+test('current Google sign-in is accessible and visibly styled in mobile, dark and RTL modes',async()=>{
+  const [account,ui,dark,index,i18n]=await Promise.all([
+    read('src/components/AccountEntryScreen.tsx'),
+    read('src/styles/tailadmin-design-closeout-v323.css'),
+    read('src/styles/matte-black-dark-v360.css'),
+    read('index.html'),
+    read('src/lib/i18n.ts')
+  ]);
+  assert.match(account,/className="ta-google-button" disabled=\{this\.state\.busy\|\|!this\.state\.googleReady\}/);
+  assert.match(account,/onClick=\{\(\)=>void this\.googleSignIn\(\)\}/);
+  assert.match(account,/className="ta-auth-divider"/);
+  assert.match(ui,/\.ta-google-button\{min-height:46px!important;border-radius:11px!important;\}/);
+  assert.match(dark,/data-ui-theme="dark"[\s\S]*\.ta-google-button/);
+  assert.match(index,/tailadmin-design-closeout-v323\.css/);
+  assert.match(index,/matte-black-dark-v360\.css/);
+  assert.match(i18n,/document\.documentElement\.dir = language === 'ar' \? 'rtl' : 'ltr'/);
+  assert.match(account,/المتابعة باستخدام Google/);
 });
 
 test('v216 keeps the critical stale-Firebase PWA activation path and preserves prior cache generations',async()=>{
@@ -88,15 +115,92 @@ test('v216 keeps the critical stale-Firebase PWA activation path and preserves p
   assert.match(patch,/const CACHE = 'lourex-invoice-v215'.*legacy marker/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v214'.*legacy marker/);
   assert.match(patch,/\.\/src\/cloud\/google-auth\.js/);
-  assert.match(patch,/await self\.skipWaiting\(\)/);
-  assert.match(patch,/critical v214 service-worker activation/);
+  assert.match(patch,/v214 forced-activation migration is retired/);
+  assert.match(patch,/Explicit user-requested SW activation handler is missing/);
+  assert.doesNotMatch(patch,/await self\.skipWaiting\(\)/);
+  const sw=await read('dist/sw.js');
+  const install=sw.slice(sw.indexOf("self.addEventListener('install'"),sw.indexOf("self.addEventListener('message'"));
+  assert.doesNotMatch(install,/skipWaiting\(/,'service worker must wait for explicit user update action');
+  assert.match(sw,/event\.data\?\.type==='SKIP_WAITING'/);
+  assert.match(sw,/void self\.skipWaiting\(\)/);
 });
 
-test('v214 auto-reloads only the safe signed-out auth gateway after worker activation',async()=>{
+test('service worker reloads only after explicit approval and never discards an active editor',async()=>{
   const entry=await read('src/app/index.tsx');
-  assert.match(entry,/safeSignedOutAuthGatewayForAutomaticReload/);
-  assert.match(entry,/!currentCloudUser\(\)/);
-  assert.match(entry,/document\.querySelector\('\.auth-page'\)/);
-  assert.match(entry,/if\(safeSignedOutAuthGatewayForAutomaticReload\(\)\)window\.location\.replace\(window\.location\.href\)/);
-  assert.match(entry,/reloadUnsafeWorkspaceOpen\(\)/);
+  const safety=entry.slice(entry.indexOf('function safeSignedOutAuthGatewayForAutomaticReload'),entry.indexOf("window.addEventListener('lourex-cloud-applied'"));
+  const controller=entry.slice(entry.indexOf("navigator.serviceWorker.addEventListener('controllerchange'"),entry.indexOf("void navigator.serviceWorker.register('./sw.js')"));
+  assert.match(safety,/!currentCloudUser\(\)/);
+  assert.match(safety,/!reloadUnsafeWorkspaceOpen\(\)/);
+  assert.match(safety,/\.ta-auth-page,\.auth-page/);
+  assert.match(controller,/const userRequestedReload=reloadForUpdate/);
+  assert.match(controller,/if\(!userRequestedReload\)return/);
+  assert.match(controller,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
+  assert.match(controller,/rememberWorkspaceBeforeAutomaticReload\(\)/);
+  assert.match(controller,/window\.location\.replace\(window\.location\.href\)/);
+  assert.doesNotMatch(controller,/safeSignedOutAuthGatewayForAutomaticReload\(\)/);
+  assert.match(entry,/function reloadUnsafeWorkspaceOpen\(\):boolean/);
+  assert.match(entry,/function updateNoticeDeferredForWorkspace\(\):void/);
+});
+
+test('v212 account gateway keeps safe-link recovery without starting redirect completion',async()=>{
+  const account=await read('src/components/AccountEntryScreen.tsx');
+  assert.match(account,/Continue with Google/);
+  assert.match(account,/المتابعة باستخدام Google/);
+  assert.match(account,/GoogleAccountLinkRequiredError/);
+  assert.match(account,/googleLinkPending/);
+  assert.match(account,/linkGoogleToExistingPasswordAccount/);
+  assert.match(account,/connect Google without changing your data/);
+  assert.match(account,/ربط Google دون تغيير بياناتك/);
+  assert.match(account,/if\(this\.state\.googleLinkPending\)user=await linkGoogleToExistingPasswordAccount\(email,password\)/);
+  const google=await read('src/cloud/google-auth.ts');
+  assert.match(google,/const originalUid=String\(existingUser\.uid\|\|''\)/);
+  assert.match(google,/!originalUid\|\|user\.uid!==originalUid/);
+  assert.match(google,/await existingUser\.linkWithCredential\(pendingGoogleCredential\)/);
+  assert.match(google,/catch\(error\)\{[\s\S]*await instance\.signOut\(\)/);
+  assert.match(account,/\[LOUREX Google Auth\]/);
+});
+
+test('v212 production build keeps Firebase default authDomain and no longer applies same-origin patch',async()=>{
+  const [firebase,config]=await Promise.all([read('src/cloud/firebase.ts'),read('src/cloud/firebase-config.ts')]);
+  const pkg=JSON.parse(await read('package.json'));
+  assert.match(firebase,/import \{ LOUREX_FIREBASE_CONFIG \} from '\.\/firebase-config\.js'/);
+  assert.match(firebase,/const FIREBASE_CONFIG=LOUREX_FIREBASE_CONFIG/);
+  assert.match(config,/authDomain:'lourex-invoice\.firebaseapp\.com'/);
+  assert.match(config,/projectId:'lourex-invoice'/);
+  assert.doesNotMatch(pkg.scripts.build,/firebase-auth-same-origin-v211\.mjs/);
+});
+
+test('v209 Google entry uses the active premium theme, mobile touch target and global RTL direction',async()=>{
+  const [page,css,dark,account,lang]=await Promise.all([
+    read('index.html'),
+    read('src/styles/tailadmin-design-closeout-v323.css'),
+    read('src/styles/matte-black-dark-v360.css'),
+    read('src/components/AccountEntryScreen.tsx'),
+    read('src/lib/i18n.ts')
+  ]);
+  assert.match(page,/tailadmin-design-closeout-v323\.css/);
+  assert.match(page,/matte-black-dark-v360\.css/);
+  assert.match(account,/className="ta-google-button"/);
+  assert.match(account,/Continue with Google/);
+  assert.match(account,/المتابعة باستخدام Google/);
+  assert.match(account,/disabled=\{this\.state\.busy\|\|!this\.state\.googleReady\}/);
+  assert.match(css,/\.ta-google-button\{min-height:46px!important;border-radius:11px!important;\}/);
+  assert.match(dark,/html\[data-ui-theme="dark"\] body \.ta-auth-page :is\(\.ta-google-button/);
+  assert.match(lang,/document\.documentElement\.dir = language === 'ar' \? 'rtl' : 'ltr'/);
+  assert.match(account,/this\.props\.language==='ar'\?'en':'ar'/);
+});
+
+test('v214 worker activation never reloads an editing workspace without an explicit user update',async()=>{
+  const entry=await read('src/app/index.tsx');
+  const controller=entry.slice(entry.indexOf("navigator.serviceWorker.addEventListener('controllerchange'"),entry.indexOf("void navigator.serviceWorker.register('./sw.js')"));
+  assert.ok(controller.length>100,'controllerchange handler must be present');
+  assert.match(controller,/const userRequestedReload=reloadForUpdate/);
+  assert.match(controller,/if\(!userRequestedReload\)return/);
+  assert.match(controller,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
+  assert.match(controller,/rememberWorkspaceBeforeAutomaticReload\(\)/);
+  assert.match(controller,/window\.location\.replace\(window\.location\.href\)/);
+  assert.doesNotMatch(controller,/safeSignedOutAuthGatewayForAutomaticReload\(\)/);
+  assert.match(entry,/function reloadUnsafeWorkspaceOpen\(\):boolean/);
+  assert.match(entry,/if\(isDocumentEditorOpen\(\)\)/);
+  assert.match(entry,/function updateNoticeDeferredForWorkspace\(\):void/);
 });

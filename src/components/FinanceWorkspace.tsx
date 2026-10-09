@@ -14,7 +14,7 @@ interface Props{
   suppliers:Supplier[];purchases:PurchaseRecord[];supplierPayments:SupplierPaymentRecord[];expenses:ExpenseRecord[];inventoryMovements:InventoryMovementRecord[];items:SavedItem[];defaultCurrency:string;
   treasuryAccounts:TreasuryAccountRecord[];treasuryEntries:TreasuryLedgerRecord[];treasuryReconciliations:TreasuryReconciliationRecord[];fxRates:FxRateRecord[];workspaceId:string;branchId:string;
   onSavePayment:(payment:PaymentRecord)=>Promise<void>;onDeletePayment:(payment:PaymentRecord)=>Promise<void>;
-  onSaveSupplierPayment:(payment:SupplierPaymentRecord)=>Promise<void>;onDeleteSupplierPayment:(payment:SupplierPaymentRecord)=>Promise<void>;
+  onSaveSupplierPayment:(payment:SupplierPaymentRecord)=>Promise<void>;onDeleteSupplierPayment:(payment:SupplierPaymentRecord,reason:string)=>Promise<void>;
   onSaveSupplier:(supplier:Supplier)=>Promise<void>;onDeleteSupplier:(supplier:Supplier)=>Promise<void>;
   onSavePurchase:(purchase:PurchaseRecord)=>Promise<void>;onDeletePurchase:(purchase:PurchaseRecord)=>Promise<void>;onPostPurchase:(purchase:PurchaseRecord)=>Promise<void>;onReversePurchase:(purchase:PurchaseRecord,reason:string)=>Promise<void>;
   onSaveExpense:(expense:ExpenseRecord)=>Promise<void>;onDeleteExpense:(expense:ExpenseRecord)=>Promise<void>;

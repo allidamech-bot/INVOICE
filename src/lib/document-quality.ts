@@ -98,7 +98,7 @@ function usesSeparateDetailsPage(doc:LourexDocument):boolean{
   // A single long port/destination/term can wrap across dozens of A4 lines even
   // when the combined details character count remains below the old 1,900 limit.
   // Reserve a dedicated closing page before the signature/total is pushed out.
-  const hardOverflow=detailsChars>1900||values.some(value=>value.length>560)||notes.length>1200;
+  const hardOverflow=detailsChars>1900||values.some(value=>value.length>520)||notes.length>1200;
   if(hardOverflow)return true;
 
   const exceptionalClosing=detailsChars>1300||values.some(value=>value.length>500)||notes.length>820||(score>=24&&detailsChars>900);

@@ -21,16 +21,16 @@ test('v278 global command palette owns the complete quick-create surface',()=>{
 });
 
 test('v278 Products & Inventory has explicit ownership for products, balances and movements',()=>{
-  assert.match(products,/type Tab='products'\|'inventory'\|'movements'/);
+  assert.match(products,/type Tab='products'\|'prices'\|'inventory'\|'planning'\|'locations'\|'movements'/,'price lists and warehouse planning belong alongside products and movements');
   assert.match(products,/Inventory Movements/);
   assert.match(products,/inventoryView="balances"/);
   assert.match(products,/inventoryView="movements"/);
   assert.match(products,/onInspectInventory/);
   assert.match(products,/onInspectPurchases/);
-  assert.match(productLibrary,/Stock History/);
+  assert.match(productLibrary,/Stock & adjustments/,'product details must retain a direct stock-ledger inspection action');
   assert.match(productLibrary,/Purchase History/);
-  assert.match(productLibrary,/product-more-details/);
-  assert.match(productLibrary,/More Details/);
+  assert.match(productLibrary,/ta-product-more/);
+  assert.match(productLibrary,/Catalog details/);
 });
 
 test('v278 Purchasing reuses canonical supplier, purchase and inventory engines',()=>{
@@ -39,13 +39,15 @@ test('v278 Purchasing reuses canonical supplier, purchase and inventory engines'
   assert.match(operations,/newPurchaseForSupplier/);
   assert.match(operations,/showSupplierPurchaseHistory/);
   assert.match(operations,/New Purchase/);
-  assert.match(operations,/Purchase History/);
+  assert.match(operations,/Historical purchases keep their own supplier snapshot/,'supplier history must retain saved purchase identities');
+  assert.match(operations,/search:supplierLabel\(supplier\)/,'supplier purchase history must filter the canonical purchase ledger');
   assert.match(operations,/createPurchase\(/);
   assert.match(operations,/inventoryBalances\(/);
 });
 
 test('v278 Finance is the single owner for receivables, collections, statements and expenses',()=>{
-  assert.match(finance,/Receivables & Collections/);
+  assert.match(finance,/Customer balances, collections & statements/);
+  assert.match(finance,/tab==='receivables'/,'Finance must include a real receivables panel');
   assert.match(finance,/lourex-create-expense/);
   assert.match(finance,/lourex-finance-payment/);
   assert.match(finance,/lourex-finance-statement/);
@@ -71,6 +73,7 @@ test('v278 App routes contextual actions to canonical domains and existing mutat
   assert.match(app,/onDeletePayment=\{this\.deletePayment\}/);
   assert.match(app,/lourex-finance-payment/);
   assert.match(app,/lourex-finance-statement/);
-  assert.match(app,/this\.createCreditNote\(doc\)/);
+  assert.match(app,/onCreateCreditNote=\{this\.launchCreditNote\}/,'document context must dispatch through the guarded credit-note mutation');
+  assert.match(app,/private launchCreditNote=\(source:LourexDocument\)=>\{void this\.createCreditNote\(source\)/);
   assert.doesNotMatch(app,/screen:'finance'/,'internal compatibility ids remain stable until a separately validated migration');
 });

@@ -166,6 +166,9 @@ export interface PurchaseRecord extends WorkspaceScopeFields {
 }
 
 export interface SupplierPaymentRecord extends WorkspaceScopeFields {
+  /** Append-only financial cancellation. The original payment is never deleted. */
+  voidedAt?: string;
+  voidReason?: string;
   id: string;
   purchaseId: string;
   purchaseNumber: string;
@@ -222,7 +225,7 @@ export interface TreasuryLedgerRecord extends WorkspaceScopeFields {
   id:string;type:TreasuryLedgerType;date:string;currency:string;amount:string;fromAccountId:string;toAccountId:string;sourceType:TreasurySourceType;sourceId:string;reference:string;notes:string;reconciledAt:string;voidedAt:string;voidReason:string;createdAt:string;updatedAt:string;
 }
 export interface TreasuryReconciliationRecord extends WorkspaceScopeFields {
-  id:string;movementKey:string;reconciledAt:string;note:string;createdAt:string;updatedAt:string;
+  id:string;movementKey:string;reconciledAt:string;note:string;createdAt:string;updatedAt:string;action?:'reconcile'|'undo';
 }
 export interface FxRateRecord extends WorkspaceScopeFields {
   id:string;date:string;fromCurrency:string;toCurrency:string;rate:string;sourceLabel:string;notes:string;createdAt:string;updatedAt:string;
