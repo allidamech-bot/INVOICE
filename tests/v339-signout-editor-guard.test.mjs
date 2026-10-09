@@ -16,7 +16,8 @@ test('v339 runtime safety blocks account/settings sign-out before reload handler
   assert.ok(guardAt>=0&&entryAt>guardAt,'runtime safety must register before the legacy sign-out boundary');
   assert.match(guard,/const SIGNOUT_BUTTON='\.settings-direct-signout-button,\.settings-signout-button,\.ta-cloud-account-actions button,\.ta-sheet-signout'/);
   assert.match(guard,/function signOutUnsafeWorkspaceOpen\(\)/);
-  assert.match(guard,/if\(!\(button instanceof HTMLButtonElement\)\|\|button\.disabled\|\|!signOutUnsafeWorkspaceOpen\(\)\)return/);
+  assert.match(guard,/if\(!\(button instanceof HTMLButtonElement\)\|\|button\.disabled\)return/);
+  assert.match(guard,/if\(signOutUnsafeWorkspaceOpen\(\)\)\{event\.preventDefault\(\);event\.stopImmediatePropagation\(\);explainBlockedSignOut\(button\);return;\}/);
   assert.match(guard,/event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);\s*explainBlockedSignOut\(button\)/);
   assert.match(guard,/data-lourex-document-editor/);
   assert.match(guard,/data-lourex-workspace-dirty/);
