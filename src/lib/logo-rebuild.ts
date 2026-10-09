@@ -255,6 +255,7 @@ async function removeLogoBackgroundWithAi(src:string):Promise<string>{
   const controller=new AbortController(),timeout=window.setTimeout(()=>controller.abort(),35000);
   try{
     const token=await currentCloudIdToken();
+    if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     const response=await fetch('/api/remove-background',{method:'POST',headers:{'Content-Type':blob.type,'X-Requested-With':'LOUREX-Invoice',Authorization:`Bearer ${token}`},body:blob,signal:controller.signal,cache:'no-store'});
     if(!response.ok){
       let code='';
