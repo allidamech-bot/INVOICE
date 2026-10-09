@@ -128,19 +128,21 @@ test('fixed-precision totals remain stable under 50 priced lines and commercial 
   assert.ok(Number(totals.grandTotal) > Number(totals.subtotal));
 });
 
-test('renderer keeps genuinely heavy final details on a dedicated page and hidden mobile preview deferred', async () => {
-  const renderer = await read('src/templates/TemplateRenderer.tsx');
-  assert.match(renderer, /shouldUseDetailsPage/);
-  assert.match(renderer, /complexClosing=score>=10\|\|detailsChars>700/);
-  assert.match(renderer, /hardOverflow=detailsChars>1400/);
-  assert.match(renderer, /lastWeight>allowedLastWeight/);
-  assert.match(renderer, /separateDetails \? \[\.\.\.itemPages, \[\] as DocumentItem\[\]\] : itemPages/);
-  assert.match(renderer, /finalPage=\{index === pages\.length - 1\}/);
-  assert.match(renderer, /DeferredMobilePreview/);
-  assert.match(renderer, /this\.state\.active\?renderDocument\(this\.props\)/);
-  assert.match(renderer, /deferred-mobile-preview/);
+test('renderer reserves genuinely heavy trade closing and defers hidden mobile A4 previews',async()=>{
+ const renderer=await read('src/templates/TemplateRenderer.tsx');
+ assert.match(renderer,/function shouldUseDetailsPage/);
+ assert.match(renderer,/hardOverflow=detailsChars>1900/);
+ assert.match(renderer,/values\.some\(value=>value\.length>520\)/);
+ assert.match(renderer,/notes\.length>1200/);
+ assert.match(renderer,/exceptionalClosing=detailsChars>1300/);
+ assert.match(renderer,/lastWeight>allowedLastWeight/);
+ assert.match(renderer,/const separateDetails=shouldUseDetailsPage\(doc\)/);
+ assert.match(renderer,/return separateDetails\?\[\.\.\.pages,\[\]\]:pages/);
+ assert.match(renderer,/finalPage=\{index===pages\.length-1\}/);
+ assert.match(renderer,/class DeferredMobilePreview/);
+ assert.match(renderer,/this\.state\.active\?renderDocument\(this\.props\)/);
+ assert.match(renderer,/deferred-mobile-preview/);
 });
-
 test('print and A4 guardrails remain isolated from application editor chrome under stress release', async () => {
   const appCss = await read('src/styles/app.css');
   const docCss = await read('src/styles/document.css');
