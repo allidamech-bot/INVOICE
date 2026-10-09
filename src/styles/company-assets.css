@@ -17,3 +17,35 @@
   background:transparent;
   object-fit:contain;
 }
+
+
+/* Functional fallback for the body-mounted logo background editor.
+   Scoped away from normal app panels and printable A4 documents. */
+@media screen{
+ .logo-touch-editor-overlay{position:fixed;inset:0;z-index:2147483150;display:flex;align-items:center;justify-content:center;overflow-y:auto;overscroll-behavior:contain;background:rgba(5,12,22,.78);padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+ .logo-touch-editor-overlay *{box-sizing:border-box}
+ .logo-touch-editor-sheet{width:min(600px,100%);max-height:calc(100dvh - 24px);margin:auto;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--ft-line,#304458);border-radius:16px;background:var(--ft-surface,#12263a);color:var(--ft-text,#e7eef7);font-family:Outfit,Inter,"Noto Sans Arabic",sans-serif;box-shadow:0 24px 80px rgba(0,0,0,.3)}
+ .logo-touch-editor-sheet>header,.logo-touch-editor-sheet>footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+ .logo-touch-editor-sheet>header strong{display:block;font-size:16px;color:var(--ft-text-strong,#fff)}
+ .logo-touch-editor-subtitle,.logo-touch-editor-hint{font-size:12px;line-height:1.55;color:var(--ft-muted,#b7c4d3)}
+ .logo-touch-editor-sheet button{min-width:44px;min-height:44px;padding:9px 13px;border:1px solid var(--ft-line,#304458);border-radius:10px;background:var(--ft-surface-2,#1d3651);color:var(--ft-text-strong,#f7fbff);font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+ .logo-touch-editor-sheet button:disabled{opacity:.45;cursor:not-allowed}
+ .logo-touch-editor-sheet button:focus-visible,.logo-touch-editor-sheet input:focus-visible{outline:3px solid var(--ft-accent,#7399e3);outline-offset:2px}
+ .logo-touch-editor-close{font-size:24px!important;line-height:1}
+ .logo-touch-editor-canvas-wrap{display:grid;place-items:center;min-height:125px;max-height:min(43dvh,420px);overflow:auto;padding:12px;border:1px solid var(--ft-line,#304458);border-radius:12px;background-color:#fff;background-image:conic-gradient(#e5e5e5 25%,#fff 0 50%,#e5e5e5 0 75%,#fff 0);background-size:20px 20px}
+ .logo-touch-editor-canvas{display:block;width:auto;height:auto;max-width:100%;max-height:min(40dvh,400px);touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+ .logo-touch-editor-controls{display:grid;gap:10px}
+ .logo-touch-editor-switch,.logo-touch-editor-utility{display:flex;flex-wrap:wrap;gap:8px}
+ .logo-touch-editor-switch button.active{background:var(--ft-accent,#7399e3);color:var(--ft-on-accent,#fff);border-color:var(--ft-accent,#7399e3)}
+ .logo-touch-editor-slider{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px}
+ .logo-touch-editor-slider input{flex:1 1 160px;min-width:100px;min-height:32px}
+ .logo-touch-editor-sheet>footer{margin-top:auto}
+ .logo-touch-editor-sheet>footer button{flex:1;min-width:0}
+ .logo-touch-editor-apply{background:var(--ft-accent,#7399e3)!important;color:var(--ft-on-accent,#fff)!important;border-color:var(--ft-accent,#7399e3)!important}
+}
+@media screen and (max-width:420px){
+ .logo-touch-editor-sheet{padding:12px;gap:9px}
+ .logo-touch-editor-canvas-wrap{max-height:35dvh;padding:8px}
+ .logo-touch-editor-canvas{max-height:32dvh}
+ .logo-touch-editor-sheet>footer{position:sticky;bottom:0;padding-top:4px;background:var(--ft-surface,#12263a)}
+}
