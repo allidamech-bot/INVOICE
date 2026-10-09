@@ -46,7 +46,8 @@ test('one oversized item is counted as multi-page and split only in document out
   assert.match(renderer,/if\(itemWeight\(doc,item\)<=OUTPUT_FRAGMENT_WEIGHT\)return\[item\]/);
   assert.match(renderer,/quantity:index===0\?item\.quantity:''/);
   assert.match(renderer,/unitPrice:index===0\?item\.unitPrice:''/);
-  assert.match(renderer,/const outputItems=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
+  assert.match(renderer,/const fragments=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
+  assert.match(renderer,/paginateItems\(fragments,false,firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
   assert.match(renderer,/continuation\?'':lineTotal\(item\.quantity,item\.unitPrice\)/);
   assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
 });
