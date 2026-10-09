@@ -40,7 +40,7 @@ test('stuck boot recovery is explicitly user-controlled and cannot delete the en
   assert.match(show,/if\(!bootStillVisible\(\)\|\|editingWorkspaceOpen\(\)\)return/);
   assert.match(show,/Retry safely/);
   assert.match(show,/Diagnostics/);
-  assert.match(show,/addEventListener\('click',handler\)/);
+  assert.match(watchdog,/addEventListener\('click',handler\)/);
   assert.match(show,/if\(editingWorkspaceOpen\(\)\|\|retry\.disabled\)return/);
   assert.match(show,/void refreshStaticRuntime\(\)\.finally/);
   assert.match(recover,/if\(editingWorkspaceOpen\(\)\|\|!bootStillVisible\(\)\)return/);
