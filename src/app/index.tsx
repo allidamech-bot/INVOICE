@@ -16,7 +16,15 @@ import { mergeVaultIntent } from '../storage/vault-merge.js';
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 const appRoot=root;
-const iosWebKit=(()=>{try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'');}catch{return false;}})();
+const iosWebKit=(()=>{
+  try{
+    const ua=String(navigator.userAgent||'');
+    const platform=String(navigator.platform||'');
+    const touchPoints=Number(navigator.maxTouchPoints||0);
+    // iPadOS Safari in Desktop Website mode reports MacIntel.
+    return /iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);
+  }catch{return false;}
+})();
 
 // BaseApp keeps the encryption/Firebase protocol unchanged. This runtime subclass
 // replaces runtime scheduling/safety hooks after BaseApp's own class fields have
