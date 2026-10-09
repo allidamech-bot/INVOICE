@@ -2,9 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readdir,readFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
-test('GitHub Actions workflow YAML is absent',async()=>{
+test('Only free public-repository audit Actions are allowed, without PR triggers or deployment',async()=>{
   const files=await readdir(new URL('.github/workflows/',root)).catch(e=>{if(e.code==='ENOENT')return [];throw e;});
-  assert.deepEqual(files.filter(f=>/\.ya?ml$/.test(f)),[]);
+  const workflows=files.filter(f=>/\.ya?ml$/.test(f));
+  assert.deepEqual(workflows,['lourex-free-premerge.yml']);
+  const content=await readFile(new URL('.github/workflows/lourex-free-premerge.yml',root),'utf8');
+  assert.match(content,/runs-on:\s*ubuntu-latest/);
+  assert.match(content,/node-version:\s*'24'/);
+  assert.match(content,/branches:\s*\n\s*- fix\/audit-workspace-payables-asof-20261009/);
+  assert.doesNotMatch(content,/^\s*pull_request\s*:/m);
+  assert.doesNotMatch(content,/^\s*(?:deploy|environment|target)\s*:\s*production/m);
 });
 test('local signoff requires security, Batch 7 contracts and browser QA',async()=>{
   const content=await readFile(new URL('scripts/verify-local.mjs',root),'utf8');
