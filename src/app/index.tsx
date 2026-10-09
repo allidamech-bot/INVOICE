@@ -127,6 +127,8 @@ const App=AdaptiveCloudApp;
 
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
+let signOutConfirmTimer:number|undefined;
+const AUTH_LOSS_GRACE_MS=4_000;
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
 type RestorableWorkspace='home'|'documents'|'customers'|'items'|'operations'|'receivables'|'reports';
@@ -229,6 +231,7 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 function startAccountSignOutWatcher():void{
   subscribeCloudUser(user=>{
     if(user){
+      if(signOutConfirmTimer!==undefined){window.clearTimeout(signOutConfirmTimer);signOutConfirmTimer=undefined;}
       const selectedStorageUid=activeAccountStorageUid();
       if(selectedStorageUid&&selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
@@ -264,13 +267,18 @@ function startAccountSignOutWatcher():void{
       return;
     }
 
-    // Firebase/Auth can briefly report null on Safari while restoring persistence
-    // or recovering connectivity. The application is local-first, so a transient
-    // null state must never clear the encrypted session or reload the page. Explicit
-    // sign-out controls already clear the session and navigate intentionally.
-    if(!accountWasAuthenticated||signOutTransitionRunning)return;
-    accountWasAuthenticated=false;
+    // Firebase can transiently report null on Safari while restoring persistence.
+    // A restored user cancels the grace timer. A sustained loss, including an
+    // external-tab sign-out, MUST invalidate the unlocked encrypted session.
+    if(!accountWasAuthenticated||signOutTransitionRunning||signOutConfirmTimer!==undefined)return;
     try{document.documentElement.dataset.lourexCloudSessionLost='true';}catch{}
+    signOutConfirmTimer=window.setTimeout(()=>{
+      signOutConfirmTimer=undefined;
+      if(!accountWasAuthenticated||signOutTransitionRunning||currentCloudUser())return;
+      accountWasAuthenticated=false;
+      signOutTransitionRunning=true;
+      window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:'',signedOut:true}}));
+    },AUTH_LOSS_GRACE_MS);
   });
 }
 
