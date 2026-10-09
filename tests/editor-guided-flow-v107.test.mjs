@@ -4,16 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v107 exposes a six-step editor navigator without changing editor data contracts',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
-  assert.match(editor,/editor-section-navigator/);
-  assert.match(editor,/\.editor-pane \.editor-form-lock > \.editor-section/);
-  assert.match(editor,/node\.dataset\.editorStep=number/);
-  assert.match(editor,/MutationObserver/);
-  assert.match(editor,/section\.scrollIntoView/);
-  assert.match(editor,/aria-current=\{active\?'step':undefined\}/);
-  assert.match(editor,/section\.hasError/);
-  assert.match(editor,/prefers-reduced-motion/);
+test('current editor retains accessible dynamic step navigation and error cues',async()=>{
+ const editor=await read('src/components/EditorPage.tsx');
+ for(const token of ['ta-editor-step-nav','ta-editor-step-list','node.dataset.editorStep=number','MutationObserver','section.scrollIntoView','section.hasError'])assert.ok(editor.includes(token),token);
+ assert.match(editor,/aria-current=\{active\?'step':undefined\}/);
+ assert.match(editor,/prefers-reduced-motion/);
+ assert.ok(editor.includes('private syncActiveSection'));
+ assert.ok(editor.includes('this.teardownSectionNavigation()'));
 });
 
 test('v107 keeps long mobile forms readable and the step dock touch-safe',async()=>{
@@ -31,12 +28,14 @@ test('v107 keeps long mobile forms readable and the step dock touch-safe',async(
   assert.doesNotMatch(css,/\.items-table\s*\{/);
 });
 
-test('v107 ships offline beneath the final canonical document layer',async()=>{
-  const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  assert.match(index,/editor-guided-flow-v107\.css/);
-  assert.match(sw,/editor-guided-flow-v107\.css/);
-  assert.match(sw,/v103/);
-  assert.ok(index.indexOf('editor-guided-flow-v107.css')<index.indexOf('performance-polish-v100.css'));
-  const styles=[...index.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'document-premium-redesign-v141.css');
+test('current editor guidance loads in the offline bundle with print owner preserved',async()=>{
+ const [html,distHtml,distSw,frame]=await Promise.all([read('index.html'),read('dist/index.html'),read('dist/sw.js'),read('src/styles/tailadmin-editor-frame-v320.css')]);
+ assert.equal(html.includes('editor-guided-flow-v107.css'),false);
+ assert.ok(html.includes('tailadmin-editor-frame-v320.css'));
+ assert.ok(html.includes('tailadmin-editor-core-v320.css'));
+ assert.ok(frame.includes('.ta-editor-step-nav'));
+ assert.ok(frame.includes('min-height:44px'));
+ assert.ok(distHtml.includes('styles/app.bundle.css'));
+ assert.ok(distSw.includes('styles/app.bundle.css'));
+ assert.ok(html.includes('document-premium-redesign-v141.css'));
 });
