@@ -53,8 +53,8 @@ jobs:
           const log=key=>fs.readFileSync(process.env.RUNNER_TEMP+'/'+key+'-tests.log','utf8');
           function failures(content){
             const initial=content.split('✖ failing tests:')[0],counts=new Map();
-            for(const row of initial.split(/\\r?\\n/).filter(line=>line.startsWith('✖ '))){
-              const name=row.replace(/\\s+\\([\\d.]+ms\\)$/,'').trim();
+            for(const row of initial.split(/\r?\n/).filter(line=>line.startsWith('✖ '))){
+              const name=row.replace(/\s+\([\d.]+ms\)$/,'').trim();
               counts.set(name,(counts.get(name)||0)+1);
             }
             return counts;
@@ -63,7 +63,7 @@ jobs:
           for(const [name,count] of candidate){
             for(let i=0;i<count-(base.get(name)||0);i++)added.push(name);
           }
-          const num=(logName,key)=>Number(log(logName).match(new RegExp('ℹ '+key+' (\\\\d+)'))?.[1]||-1);
+          const num=(logName,key)=>Number(log(logName).match(new RegExp('ℹ '+key+' (\\d+)'))?.[1]||-1);
           console.log('main: '+num('main','pass')+' pass / '+num('main','fail')+' fail');
           console.log('candidate: '+num('candidate','pass')+' pass / '+num('candidate','fail')+' fail');
           console.log('New failed test names: '+added.length);
