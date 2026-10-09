@@ -126,9 +126,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/combined-three-pr-suite.log" 2>&1
+          timeout --signal=TERM 120s node --test --test-concurrency=2 tests/*.test.mjs > "${RUNNER_TEMP}/combined-three-pr-suite.log" 2>&1
           exit_code=$?
           set -e
+          if [[ "$exit_code" == "124" ]]; then
+            echo "::error::Combined full suite exceeded 120 seconds: probable hanging test or open handle."
+            echo 'Last 80 lines before timeout:'
+            tail -n 80 "${RUNNER_TEMP}/combined-three-pr-suite.log"
+          fi
           echo "Full combined suite (PR652 + PR653 + PR660):"
           grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/combined-three-pr-suite.log" || true
           node --input-type=module <<'NODE'
