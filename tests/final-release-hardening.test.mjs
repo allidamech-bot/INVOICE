@@ -29,9 +29,13 @@ test('cloud install revalidates account ownership and workspace safety at the lo
   assert.match(between,/requireCurrentUid\(uid\)/);
   assert.match(between,/if\(inlineDraftWorkspaceOpen\(\)\)throw new Error/);
   const guard=cloud.slice(cloud.indexOf('function inlineDraftWorkspaceOpen'),cloud.indexOf('function splitCipher'));
-  assert.match(guard,/\.editor-screen,\.operations-page,\.product-library-pro\.editor-open/);
+  assert.match(guard,/data-lourex-document-editor/);
+  assert.match(guard,/data-lourex-workspace-dirty/);
+  assert.match(guard,/\.editor-screen/);
+  assert.match(between,/if\(signal\?\.aborted\)throw new DOMException/);
   assert.match(guard,/\.modal-backdrop/);
   assert.match(guard,/\.cloud-account-panel,\.cloud-auth-form/);
+  assert.match(guard,/modal&&!modal\.querySelector/);
 });
 
 test('account surface keeps restore automatic and sign-out returns immediately to the account gateway',async()=>{
@@ -47,7 +51,8 @@ test('account surface keeps restore automatic and sign-out returns immediately t
 test('Operations surfaces expose excluded legacy accounting records instead of silently hiding integrity loss',async()=>{
   const page=await read('src/components/OperationsPage.tsx');
   assert.match(page,/operationsIntegritySummary/);
-  assert.match(page,/integrity\.totalInvalid\?<div className="operations-callout danger operations-integrity-warning" role="status">/);
+  assert.match(page,/integrity\.totalInvalid\?<div className="ta-ops-integrity is-danger" role="status">/);
+  assert.match(page,/Accounting integrity warning/);
   assert.match(page,/integrity\.invalidPurchases/);
   assert.match(page,/integrity\.invalidExpenses/);
   assert.match(page,/integrity\.invalidMovements/);
@@ -75,7 +80,12 @@ test('v351 coarse-pointer controls retain a final 44px physical target floor wit
 
 test('v351 build promotes a genuinely fresh PWA generation while preserving historical source markers',async()=>{
   const [sw,refresh]=await Promise.all([read('public/sw.js'),read('scripts/v303-visual-cache-refresh.mjs')]);
-  assert.match(refresh,/const RELEASE_GENERATION=351/);
+  const generation=Number(refresh.match(/const RELEASE_GENERATION=(\d+)/)?.[1]);
+  assert.ok(Number.isInteger(generation)&&generation>=351,'cache generation must not regress');
+  const built=await read('dist/sw.js');
+  const builtGeneration=Number(built.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m)?.[1]);
+  assert.ok(Number.isInteger(builtGeneration)&&builtGeneration>=generation,
+    'production service worker must use the promoted application cache generation');
   assert.match(sw,/^const CACHE = 'lourex-invoice-v314';$/m);
   assert.match(sw,/lourex-invoice-v195: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);

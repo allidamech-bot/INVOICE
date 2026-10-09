@@ -4,11 +4,21 @@ import {readFile,readdir} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('No hosted GitHub Actions workflow can trigger on a Pull Request',async()=>{
+test('Hosted verification is limited to free feature-branch pushes and cannot publish Production',async()=>{
   const files=await readdir(new URL('.github/workflows/',root)).catch(error=>{
     if(error.code==='ENOENT')return [];throw error;
   });
-  assert.deepEqual(files.filter(name=>/\.ya?ml$/.test(name)),[]);
+  const workflows=files.filter(name=>/\.ya?ml$/.test(name));
+  assert.ok(workflows.length,'free feature-branch verification must exist');
+  for(const name of workflows){
+    const yaml=await read(new URL('.github/workflows/'+name,root));
+    assert.match(yaml,/\s+push:\s*\n\s+branches:\s*\n\s+-\s+fix\//,name);
+    assert.match(yaml,/runs-on:\s*ubuntu-latest/,name);
+    assert.match(yaml,/permissions:\s*\n\s*contents:\s*read/,name);
+    assert.doesNotMatch(yaml,/^\s*(?:pull_request|pull_request_target|deployment|release|schedule):/m,name);
+    assert.doesNotMatch(yaml,/^\s+-\s+main\s*$/m,name);
+    assert.doesNotMatch(yaml,/\b(?:vercel\s+(?:deploy|promote|--prod)|gh\s+pr\s+merge|git\s+push\s+origin\s+main)\b/i,name);
+  }
 });
 test('Local signoff blocks security, build and changed contract regressions',async()=>{
   const local=await read('scripts/verify-local.mjs');

@@ -6,6 +6,9 @@ import type { CloudSyncResult } from './firebase.js';
 // origin/device has no local vault to hydrate, so it must restore the account's
 // encrypted cloud workspace before React decides whether this is first-run setup.
 const STARTUP_CLOUD_BUDGET_MS=450;
+// Never leave a new device behind an unbounded boot screen while Firestore is slow.
+// The account recovery screen continues verification without allowing false setup.
+const FRESH_DEVICE_CLOUD_BUDGET_MS=6_000;
 const STARTUP_CLOUD_GUARD='startup-cloud-budget';
 type StartupCloudResult=CloudSyncResult|'skipped';
 
@@ -84,23 +87,20 @@ export async function hydrateAuthoritativeCloudBeforeApp():Promise<void>{
   // screen while the existing encrypted account workspace is still being restored.
   // There is no local state to delay, and rendering early is what caused the false
   // "Create PIN" flow on Preview/new devices.
-  if(!localBeforeStartup){
-    await cloudWork;
-    return;
-  }
-
+  const budgetMs=localBeforeStartup?STARTUP_CLOUD_BUDGET_MS:FRESH_DEVICE_CLOUD_BUDGET_MS;
   let timer:number|undefined;
   const outcome=await Promise.race([
     cloudWork.then(result=>({kind:'done' as const,result})),
     new Promise<{kind:'timeout'}>(resolve=>{
-      timer=window.setTimeout(()=>resolve({kind:'timeout'}),STARTUP_CLOUD_BUDGET_MS);
+      timer=window.setTimeout(()=>resolve({kind:'timeout'}),budgetMs);
     })
   ]);
   if(timer!==undefined)window.clearTimeout(timer);
   if(outcome.kind==='done')return;
 
   // Once React is allowed to mount, an in-flight startup pull must no longer be
-  // allowed to replace IndexedDB behind the in-memory application state. Reuse the
+  // allowed to replace IndexedDB behind the in-memory application state.
+  // This applies to an empty device as well: account recovery owns retries there. Reuse the
   // shared workspace-dirty commit-boundary guard until that startup request settles.
   // The guard is removed only if it still belongs to this startup flow, so a real
   // editor/draft marker that appears meanwhile is never cleared accidentally.

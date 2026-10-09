@@ -11,7 +11,9 @@ test('workspace dirty contract covers inline inventory movement race without mar
   assert.match(source,/input\[inputmode="decimal"\]/);
   assert.match(source,/document\.activeElement/);
   assert.match(source,/entry\.contains\(active\)/);
-  assert.match(source,/document\.documentElement\.hasAttribute\(ATTRIBUTE\)\|\|operationsInlineMovementDraft\(\)/);
+  assert.match(source,/return publishedDirtyOwnerIsActive\(\)\|\|operationsInlineMovementDraft\(\)/);
+  assert.match(source,/root\.getAttribute\(ATTRIBUTE\)/);
+  assert.match(source,/root\.removeAttribute\(ATTRIBUTE\)/);
   assert.doesNotMatch(source,/querySelector\(['"]\.operations-page['"]\)/);
 });
 
@@ -19,7 +21,10 @@ test('cloud freshness blocks actual unsaved work instead of the entire Operation
   const source=await read('src/cloud/freshness.ts');
   assert.match(source,/workspaceHasUnsavedChanges/);
   assert.match(source,/if\(workspaceHasUnsavedChanges\(\)\)return false/);
-  assert.match(source,/\.editor-screen,\.modal-backdrop,\.product-library-pro\.editor-open/);
+  assert.match(source,/UNSAFE_SURFACE_SELECTOR/);
+  assert.match(source,/\.editor-screen,\.modal-backdrop/);
+  assert.match(source,/\.product-library-pro\.editor-open/);
+  assert.match(source,/\.ta-operations-page \.ta-ops-editor/);
   assert.doesNotMatch(source,/\.editor-screen,\.modal-backdrop,\.operations-page/);
 });
 
@@ -36,7 +41,12 @@ test('Safari/PWA automatic account and update paths remain guarded against activ
 
 test('account recovery reload is one-shot and only allowed when no local encrypted vault exists',async()=>{
   const source=await read('src/app/AuthScreenSelector.tsx');
-  assert.match(source,/if\(localVault\)\{setRecoveryState\('blocked'\);return;\}/);
+  assert.match(source,/if\(localVault\)\{diag\('auth-recovery-stage','stage=blocked-local-vault'\);setRecoveryState\('blocked'\);return;\}/);
+  assert.match(source,/const controller=new AbortController\(\)/);
+  assert.match(source,/ACCOUNT_RECOVERY_BUDGET_MS/);
   assert.match(source,/cloudInstallAlreadyReloaded\(cloudUser\.uid\)/);
-  assert.match(source,/markCloudInstallReload\(cloudUser\.uid\);window\.location\.reload\(\)/);
+  const openAction=source.slice(source.indexOf("if(recoveryState==='ready')"));
+  assert.match(openAction,/markCloudInstallReload\(cloudUser\.uid\)/);
+  assert.match(openAction,/markReload\('auth-cloud-install-user-open'\)/);
+  assert.match(openAction,/window\.location\.reload\(\)/);
 });
