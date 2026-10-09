@@ -4,11 +4,20 @@ import {readFile,readdir} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('No hosted GitHub Actions workflow can trigger on a Pull Request',async()=>{
+test('No hosted GitHub Actions workflow can trigger on a Pull Request or use paid runners',async()=>{
   const files=await readdir(new URL('.github/workflows/',root)).catch(error=>{
     if(error.code==='ENOENT')return [];throw error;
   });
-  assert.deepEqual(files.filter(name=>/\.ya?ml$/.test(name)),[]);
+  const yaml=files.filter(name=>/\.ya?ml$/.test(name));
+  assert.deepEqual(yaml,['lourex-free-premerge.yml']);
+  for(const name of yaml){
+    const workflow=await read('.github/workflows/'+name);
+    assert.doesNotMatch(workflow,/^\s*pull_request\s*:/m);
+    const runners=[...workflow.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map(row=>row[1].trim());
+    assert.ok(runners.length>=1);
+    assert.ok(runners.every(runner=>runner==='ubuntu-latest'));
+    assert.doesNotMatch(workflow,/^\s*(?:deploy|environment|target)\s*:\s*production/m);
+  }
 });
 test('Local signoff blocks security, build and changed contract regressions',async()=>{
   const local=await read('scripts/verify-local.mjs');
