@@ -1,4 +1,24 @@
 (() => {
+  // Health has the same strict script-src CSP as the workspace. Apply persisted
+  // presentation preference from this external script, never inline HTML.
+  function applyDiagnosticTheme(){
+    let preference='system';
+    try{
+      const saved=localStorage.getItem('lourex-ui-theme');
+      if(saved==='light'||saved==='dark'||saved==='system')preference=saved;
+    }catch{}
+    let selected=preference;
+    if(selected==='system'){
+      try{selected=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+      catch{selected='dark';}
+    }
+    document.documentElement.dataset.uiTheme=selected;
+    document.documentElement.style.colorScheme=selected;
+    const meta=document.querySelector('meta[name="theme-color"]');
+    if(meta)meta.setAttribute('content',selected==='dark'?'#0D0D0D':'#f4f7fb');
+  }
+  applyDiagnosticTheme();
+
   const EXPECTED_OWNER='allidamech-bot',EXPECTED_REPO='INVOICE';
   const PUBLIC_DB_NAME='lourex-invoice-public',ACCOUNT_DB_PREFIX='lourex-invoice-account-';
   const DIAG_LOG_KEY='lourex-runtime-diagnostics-v340',DIAG_META_KEY='lourex-runtime-diagnostics-meta-v340',DIAG_SNAPSHOT_KEY='lourex-runtime-diagnostics-snapshot-v344';
