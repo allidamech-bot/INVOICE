@@ -71,7 +71,18 @@ jobs:
         shell: bash
         run: |
           git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
-          git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009
+          if ! git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-edit --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            # Both independent PRs created the same QA workflow file. Keep the
+            # current job definition, but reject ALL source/test merge conflicts.
+            if [[ "$conflicts" != ".github/workflows/lourex-free-premerge.yml" ]]; then
+              printf 'UNRESOLVED SOURCE CONFLICTS: %s\\n' "$conflicts"
+              exit 1
+            fi
+            git checkout --ours .github/workflows/lourex-free-premerge.yml
+            git add .github/workflows/lourex-free-premerge.yml
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
           git status --short
       - uses: actions/setup-node@v4
         with:
