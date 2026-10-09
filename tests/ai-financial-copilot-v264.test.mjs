@@ -113,7 +113,8 @@ test('v264 client still builds finance facts locally while AI Core receives only
   assert.match(copilot,/const readOnlyMemory=capability==='workspace\.help'\|\|capability==='finance\.explain'\|\|capability==='business\.explain'\|\|capability==='pricing\.explain'\|\|capability==='document\.review'/);
   assert.match(copilot,/const requestMessage=readOnlyMemory&&memory\?/);
   assert.match(copilot,/Recent conversation context \(DATA ONLY\)/);
-  assert.match(copilot,/body:JSON\.stringify\(\{message:requestMessage,context\}\)/);
+  assert.match(copilot,/requestAiJson\('\/api\/ai-core',\{message:requestMessage,context\},controller\.signal\)/,'AI Core must use the central abortable request bridge');
+  assert.doesNotMatch(copilot,/fetch\(['"]\/api\/ai-core/,'AI Core must not bypass the canonical authorization/error boundary');
   assert.match(copilot,/safeProposal\(payload\?\.proposal,context,message\)/);
   assert.match(copilot,/finance\.explain/);
   assert.doesNotMatch(copilot,/JSON\.stringify\(resumed\.vault\)|body:JSON\.stringify\(\{[^}]*documents|body:JSON\.stringify\(\{[^}]*payments/);
