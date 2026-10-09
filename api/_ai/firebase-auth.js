@@ -76,7 +76,8 @@ export async function requireAiFirebaseAuth(request,response){
     return false;
   }
   try{
-    await verifyFirebaseIdToken(match[1]);
+    const identity=await verifyFirebaseIdToken(match[1]);
+    request.aiVerifiedUid=identity.uid;
     return true;
   }catch(error){
     const unavailable=error instanceof AuthVerifierUnavailable;
