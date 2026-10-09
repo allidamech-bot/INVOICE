@@ -1,0 +1,29 @@
+name: LOUREX Final AI Authentication QA
+on:
+  push:
+    branches:
+      - fix/final-ai-security-closeout-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Build without deployment
+        run: npm run build
+      - name: AI endpoint authentication and company scope regressions
+        run: node --test tests/audit-ai-firebase-auth.test.mjs tests/audit-ai-client-token-safety.test.mjs tests/audit-ai-branch-isolation.test.mjs tests/audit-ai-product-scope.test.mjs tests/audit-ai-pwa-cache-contract.test.mjs tests/audit-account-auth-loss-watchdog.test.mjs tests/account-data-isolation-v215.test.mjs
+      - name: Complete suite, without waivers
+        run: node --test --test-concurrency=2 tests/*.test.mjs
