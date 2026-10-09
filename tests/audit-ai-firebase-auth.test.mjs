@@ -61,7 +61,7 @@ test('every provider-backed LOUREX AI route requires verified Firebase ID token'
   const endpoints=[
     'ai-core','ai-advisor-v2','ai-conversation-v3','ai-inbox',
     'customer-capture-ai','supplier-capture-ai','supplier-document-ai',
-    'product-source-ai','product-import-ai','quote-source-ai','remove-background'
+    'product-source-ai','product-import-ai','quote-source-ai','quote-pricing-intent','remove-background'
   ];
   for(const endpoint of endpoints){
     const source=await readFile(new URL(`../api/${endpoint}.js`,import.meta.url),'utf8');
