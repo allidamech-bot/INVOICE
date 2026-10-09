@@ -22,7 +22,16 @@ test('v482 runs after v481 and owns the real production cascade after v332',asyn
   assert.match(bundler,/narrowOwnerName='v482-narrow-readability\.css'/,'v482 build does not compose the narrow readability supplement');
   assert.match(bundler,/standalonePath='dist\/styles\/v482-mobile-ux-repair\.css'/,'v482 build does not emit the standalone stylesheet referenced by production');
   const expected=`${sourceCss.trim()}\n\n/* --- v482-narrow-readability.css --- */\n${narrowCss.trim()}`;
-  assert.equal(emittedCss.trim(),expected,'emitted standalone v482 stylesheet differs from the composed final owner');
+  assert.ok(emittedCss.trim().startsWith(expected),'composed base/narrow v482 content must remain the unchanged prefix of the emitted standalone owner');
+  const narrowMarker='/* --- v482-narrow-readability.css --- */';
+  const hierarchyMarker='/* --- v484-responsive-visual-hierarchy.css --- */';
+  const visibleMarker='/* --- v485-visible-ui-corrections.css --- */';
+  const indexes=[narrowMarker,hierarchyMarker,visibleMarker].map(marker=>emittedCss.indexOf(marker));
+  assert.ok(indexes.every(index=>index>=0)&&indexes[0]<indexes[1]&&indexes[1]<indexes[2],
+    'approved mobile owner order must progress from narrow readability through responsive hierarchy to visible UI');
+  assert.equal(emittedCss.indexOf(hierarchyMarker),emittedCss.lastIndexOf(hierarchyMarker),'responsive hierarchy must not duplicate');
+  assert.equal(emittedCss.indexOf(visibleMarker),emittedCss.lastIndexOf(visibleMarker),'final visual owner must not duplicate');
+
   assert.match(finalize,/v482MobileRepair='\.\/styles\/v482-mobile-ux-repair\.css\?v=482'/,'production standalone v482 stylesheet is not wired');
   assert.match(finalize,/app\.bundle\.css -> v331 -> v332 -> v482/,'production final owner order contract is missing');
   assert.match(finalize,/data-lourex-v482-mobile-ux="true"/,'production v482 owner marker is missing');

@@ -39,8 +39,11 @@ test('iPhone PDF save and share normalize Safari colors and preserve high-resolu
   assert.match(bridge, /replaceColorFunction/);
   assert.match(bridge, /display-p3/);
   assert.match(bridge, /srgb-linear/);
-  assert.match(bridge, /getComputedStyle\(node\)/);
-  assert.match(bridge, /normalizeUnsupportedColors\(stage\)/);
+  assert.match(bridge, /const computedStyleFor = \(node, pseudo = ''\) =>/);
+  assert.match(bridge, /view\.getComputedStyle\(node, pseudo \|\| null\)/);
+  assert.match(bridge, /normalizeComputedColorProperties\(node, computedStyleFor\(node\)\)/);
+  assert.match(bridge, /normalizeUnsupportedColors\(root\)/);
+  assert.match(bridge, /installPseudoColorOverrides\(root\)/,'pseudo-element colors must be normalized before Safari capture');
   assert.match(bridge, /SHARP_MEDIA_SELECTOR\s*=\s*'\.signature-image,\.stamp-image'/);
   assert.match(bridge, /collectSharpMedia/);
   assert.match(bridge, /visibility','hidden','important'/);
@@ -65,5 +68,8 @@ test('iPhone PDF save and share normalize Safari colors and preserve high-resolu
   assert.match(sw, /lourex-invoice-v\d+/);
   assert.match(sw, /html2canvas@1\.4\.1/);
   assert.match(sw, /jspdf@2\.5\.2/);
-  assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);
+  assert.match(sw, /FRESH_PATHS = new Set\(\[/);
+  for(const asset of ["'/ios-print-bridge.js'","'/pull-to-refresh.js'"]){
+    assert.ok(sw.includes(asset),asset+' must remain network-fresh in the PWA');
+  }
 });

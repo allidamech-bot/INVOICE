@@ -7,7 +7,7 @@ const read=path=>readFile(path,'utf8');
 test('v338 editor stability guard loads before executable application runtime',async()=>{
   const html=await read('index.html');
   const guard=html.indexOf('<script src="./editor-stability-v338.js?v=338"></script>');
-  const entry=html.indexOf('<script src="./document-entry-v302.js?v=337-3"></script>');
+  const entry=html.indexOf('<script src="./document-entry-v302.js?v=361"></script>');
   const app=html.indexOf('<script type="module" src="./src/app/index.js"></script>');
   assert.ok(guard>=0,'editor stability guard executable script missing');
   assert.ok(entry>guard,'document runtime must execute after editor stability guard');
@@ -42,12 +42,18 @@ test('v338 guard is editor-scoped and does not reload or navigate the applicatio
   assert.match(runtime,/__LOUREX_EDITOR_STABILITY_V338__/);
 });
 
-test('startup watchdog can never auto-reload over an active editor or dirty workspace',async()=>{
+test('startup watchdog never automatically navigates and rechecks unsaved editors after manual recovery',async()=>{
   const watchdog=await read('public/startup-watchdog-v321.js');
   assert.match(watchdog,/function editingWorkspaceOpen\(\)/);
   assert.match(watchdog,/data-lourex-document-editor/);
   assert.match(watchdog,/data-lourex-workspace-dirty/);
   assert.match(watchdog,/\.editor-screen/);
-  assert.match(watchdog,/if\(editingWorkspaceOpen\(\)\)\{clearAttempt\(\);return;\}/);
-  assert.match(watchdog,/await refreshStaticRuntime\(\);[\s\S]*if\(editingWorkspaceOpen\(\)\)\{clearAttempt\(\);return;\}[\s\S]*window\.location\.replace\(retryUrl\(\)\)/);
+  assert.match(watchdog,/function recoverIfNeeded\(\)\{\s*if\(editingWorkspaceOpen\(\)\|\|!bootStillVisible\(\)\)return;/);
+  assert.match(watchdog,/retry=buildButton\('Retry safely[\s\S]*?if\(editingWorkspaceOpen\(\)\|\|retry\.disabled\)return;/);
+  assert.match(watchdog,/refreshStaticRuntime\(\)\.finally\(function\(\)\{[\s\S]*?if\(editingWorkspaceOpen\(\)\|\|!bootStillVisible\(\)\)\{/);
+  assert.match(watchdog,/retry\.disabled=false;[\s\S]*?startup-recovery-retry-deferred/);
+  assert.match(watchdog,/markNavigation\('startup-recovery-user-retry'[\s\S]*?window\.location\.replace\(retryUrl\(\)\)/);
+  assert.match(watchdog,/window\.setTimeout\(recoverIfNeeded,CHECK_MS\)/);
+  assert.match(watchdog,/automaticReload=no/);
+  assert.doesNotMatch(watchdog,/window\.setInterval\(/,'periodic automatic recovery must not navigate');
 });

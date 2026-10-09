@@ -5,14 +5,14 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const editorCss='src/styles/editor-system.css';
 
-test('final editor system is loaded last and shipped by the PWA cache',async()=>{
-  const [html,sw,css]=await Promise.all([read('index.html'),read('public/sw.js'),read(editorCss)]);
-  const editorIndex=html.indexOf('editor-system.css');
-  const previousIndex=html.indexOf('v44-audit.css');
-  assert.ok(editorIndex>previousIndex,'editor system must remain the final application stylesheet');
-  assert.match(sw,/lourex-invoice-v\d+/);
-  assert.match(sw,/styles\/editor-system\.css/);
-  assert.ok(css.length<26000,'consolidated editor layer should remain focused');
+test('approved TailAdmin editor frame and core load in order with offline CSS bundling',async()=>{
+ const [html,distSw,frame,core]=await Promise.all([read('index.html'),read('dist/sw.js'),read('src/styles/tailadmin-editor-frame-v320.css'),read('src/styles/tailadmin-editor-core-v320.css')]);
+ const frameIndex=html.indexOf('tailadmin-editor-frame-v320.css'),coreIndex=html.indexOf('tailadmin-editor-core-v320.css');
+ assert.ok(frameIndex>=0&&coreIndex>frameIndex,'editor frame must precede editor core');
+ assert.ok(distSw.includes('styles/app.bundle.css'),'installed clients need the production CSS bundle');
+ assert.ok(frame.includes('.ta-editor-step-nav'));
+ assert.ok(core.includes('safe-area-inset-bottom'));
+ assert.doesNotMatch(frame,/\.invoice-page/);
 });
 
 test('mobile editor preserves touch usability and iOS safe areas',async()=>{

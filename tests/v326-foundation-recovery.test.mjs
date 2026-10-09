@@ -32,7 +32,9 @@ test('v326 mobile Create menu is structurally outside the bottom navigation stac
   const navMarkup=shell.slice(navStart,navEnd);
   assert.doesNotMatch(navMarkup,/createMenu\('ta-mobile-create-menu'/,'Create menu must not be nested inside the dock');
   assert.match(shell,/this\.props\.newMenu&&mobile\?this\.createMenu\('ta-mobile-create-menu','ta-create-menu-mobile'\):null/);
-  assert.match(navMarkup,/aria-controls="ta-mobile-create-menu"/,'dock Create trigger must still own menu semantics');
+  assert.match(navMarkup,/className="ta-mobile-create" aria-haspopup="dialog" aria-label=\{t\('Quick create or search'/,'mobile Create must remain an accessible dialog trigger');
+  assert.match(navMarkup,/onClick=\{this\.openMobileQuickCreate\}/,'mobile Create must open the approved command palette');
+  assert.match(shell,/window\.dispatchEvent\(new Event\('lourex-global-search-open'\)\)/,'mobile Create must dispatch the real global command action');
 });
 
 test('v326 keeps transient cloud placement out of page visual layers',async()=>{

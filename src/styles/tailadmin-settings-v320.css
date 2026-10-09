@@ -16,3 +16,85 @@
   @media(max-width:980px){.ta-settings-shell{grid-template-columns:210px minmax(0,1fr)}.ta-settings-content{padding:20px}.ta-account-logo-grid{grid-template-columns:1fr}.ta-settings-artwork-grid{grid-template-columns:1fr}}
   @media(max-width:720px){.ta-settings-shell{display:block;min-height:0;margin:0}.ta-settings-sidebar{position:sticky;top:0;z-index:3;padding:10px;border-inline-end:0;border-bottom:1px solid var(--ft-line)}.ta-settings-sidebar-head{display:none}.ta-settings-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;overflow:visible}.ta-settings-nav button{width:100%;min-width:0;min-height:48px;padding:7px 9px;touch-action:manipulation}.ta-settings-nav-icon{width:32px;height:32px}.ta-settings-nav strong{font-size:12px}.ta-settings-nav small{display:none}.ta-settings-content{padding:15px 12px calc(24px + env(safe-area-inset-bottom,0px));scroll-behavior:auto}.ta-settings-page-header{flex-direction:column;gap:10px}.ta-settings-page-header h3{font-size:21px;line-height:29px}.ta-settings-page-action,.ta-settings-page-action .btn{width:100%}.ta-settings-card>header{align-items:flex-start;flex-direction:column}.ta-settings-card>header>div:last-child,.ta-settings-card>header>div:last-child .btn{width:100%}.ta-settings-card-body{padding:14px}.ta-settings-card .form-grid.two{grid-template-columns:1fr}.ta-settings-card .span-2{grid-column:auto!important}.ta-numbering-preview{grid-template-columns:1fr}.ta-recovery-status{align-items:flex-start;flex-wrap:wrap}.ta-recovery-status .btn{width:100%;min-height:44px;margin-top:5px}}
 }
+
+/* Accessibility and geometry owner for the manual logo-cleanup fallback.
+   The editor is appended to document.body, outside the Settings dialog. */
+@media screen {
+  .logo-touch-editor-overlay {
+    position:fixed;inset:0;z-index:var(--lourex-z-critical,1500);
+    display:grid;place-items:center;
+    padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px))
+      max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));
+    background:rgba(4,11,20,.76);
+    overflow:hidden;overscroll-behavior:contain;
+  }
+  .logo-touch-editor-overlay,
+  .logo-touch-editor-overlay * {box-sizing:border-box}
+  .logo-touch-editor-sheet {
+    display:flex;flex-direction:column;gap:14px;
+    width:min(680px,100%);max-height:calc(100dvh - 24px);min-height:0;
+    overflow-y:auto;overscroll-behavior:contain;
+    padding:20px;border:1px solid var(--ft-line,#33465d);
+    border-radius:18px;background:var(--ft-surface,#13243a);
+    color:var(--ft-text-strong,#f7fbff);
+    box-shadow:0 24px 64px rgba(0,0,0,.34);
+  }
+  .logo-touch-editor-sheet>header,
+  .logo-touch-editor-sheet>footer {display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .logo-touch-editor-heading {display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+  .logo-touch-editor-heading strong {font-size:18px;line-height:1.3}
+  .logo-touch-editor-subtitle,.logo-touch-editor-hint {color:var(--ft-muted,#a9bad0);font-size:12px;line-height:1.5}
+  .logo-touch-editor-close,
+  .logo-touch-editor-controls button,
+  .logo-touch-editor-sheet>footer button {
+    min-width:44px;min-height:44px;padding:9px 13px;border-radius:10px;
+    border:1px solid var(--ft-line-strong,#445c78);
+    background:var(--ft-surface-2,#203450);color:var(--ft-text-strong,#f7fbff);
+    cursor:pointer;touch-action:manipulation;
+  }
+  .logo-touch-editor-close {font-size:22px;line-height:1;flex:0 0 44px;padding:0}
+  .logo-touch-editor-canvas-wrap {
+    display:grid;place-items:center;min-height:150px;max-height:48dvh;
+    padding:12px;overflow:hidden;border:1px solid var(--ft-line,#33465d);
+    border-radius:12px;background-color:var(--ft-workspace,#0a1826);
+    background-image:linear-gradient(45deg,rgba(120,140,160,.12) 25%,transparent 25%),
+      linear-gradient(-45deg,rgba(120,140,160,.12) 25%,transparent 25%);
+    background-size:20px 20px;
+  }
+  .logo-touch-editor-canvas {
+    display:block;width:auto;height:auto;max-width:100%;max-height:calc(48dvh - 24px);
+    object-fit:contain;touch-action:none;user-select:none;-webkit-user-select:none;
+    cursor:crosshair;
+  }
+  .logo-touch-editor-controls {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:end}
+  .logo-touch-editor-switch,.logo-touch-editor-utility {display:flex;gap:7px;flex-wrap:wrap}
+  .logo-touch-editor-switch button,.logo-touch-editor-utility button {flex:1 1 auto}
+  .logo-touch-editor-controls button.active {
+    background:var(--ft-accent,#7399e3);border-color:var(--ft-accent,#7399e3);
+    color:var(--ft-on-accent,#0d0d0d);
+  }
+  .logo-touch-editor-controls button:disabled {opacity:.5;cursor:not-allowed}
+  .logo-touch-editor-slider {display:flex;min-width:0;flex-direction:column;gap:7px;font-size:12px}
+  .logo-touch-editor-slider input {width:100%;min-height:44px;accent-color:var(--ft-accent,#7399e3)}
+  .logo-touch-editor-utility {grid-column:1/-1}
+  .logo-touch-editor-hint {margin:0}
+  .logo-touch-editor-sheet>footer {position:sticky;bottom:-20px;padding:10px 0 4px;background:var(--ft-surface,#13243a)}
+  .logo-touch-editor-sheet>footer button {flex:1}
+  .logo-touch-editor-apply {
+    background:var(--ft-accent,#7399e3)!important;
+    border-color:var(--ft-accent,#7399e3)!important;
+    color:var(--ft-on-accent,#0d0d0d)!important;
+  }
+  .logo-touch-editor-sheet :is(button,input):focus-visible {
+    outline:2px solid var(--ft-accent,#7399e3);outline-offset:2px;
+  }
+  @media (max-width:540px) {
+    .logo-touch-editor-sheet {gap:10px;padding:14px;border-radius:14px;max-height:calc(100dvh - 16px)}
+    .logo-touch-editor-heading strong {font-size:16px}
+    .logo-touch-editor-controls {grid-template-columns:minmax(0,1fr)}
+    .logo-touch-editor-utility {grid-column:auto}
+    .logo-touch-editor-canvas-wrap {max-height:38dvh}
+    .logo-touch-editor-canvas {max-height:calc(38dvh - 24px)}
+    .logo-touch-editor-sheet>footer {bottom:-14px}
+  }
+}

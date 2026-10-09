@@ -4,20 +4,18 @@ import { readFile } from 'node:fs/promises';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('mobile document actions still render through document.body after v124 runtime retirement',async()=>{
-  const source=await read('src/components/DocumentsPage.tsx');
-  const css=await read('src/styles/mobile-document-actions-v125.css');
-  const html=await read('index.html');
-  const globals=await read('src/react-global.d.ts');
-
-  assert.match(source,/ReactDOM\.createPortal\([\s\S]*?document\.body/);
-  assert.match(source,/mobile-document-action-portal/);
-  assert.match(source,/target\.closest\('[^']*\.mobile-actions[^']*\.mobile-document-action-portal'\)/);
-  assert.doesNotMatch(source,/mobile-actions[^\n]*\?\s*<div className="action-menu"/);
-  assert.match(css,/\.mobile-document-action-portal[\s\S]*?position:fixed!important/);
-  assert.match(css,/\.mobile-document-action-sheet,[\s\S]*?right:12px!important[\s\S]*?left:12px!important/);
-  assert.match(css,/safe-area-inset-bottom/);
-  assert.doesNotMatch(html,/mobile-document-actions-v124\.css/);
-  assert.match(html,/mobile-document-actions-v125\.css/);
-  assert.match(globals,/createPortal\(element: any, container: Element \| DocumentFragment\)/);
+test('current responsive document actions render body portal with Escape and backdrop dismissal',async()=>{
+ const [source,css,html,globals]=await Promise.all([read('src/components/DocumentsPage.tsx'),read('src/styles/tailadmin-documents-v320.css'),read('index.html'),read('src/react-global.d.ts')]);
+ assert.match(source,/ReactDOM\.createPortal\([\s\S]*?document\.body/);
+ assert.ok(source.includes('ta-doc-mobile-action-portal'));
+ assert.ok(source.includes("target.closest('.ta-doc-actions,.ta-doc-detail-more,.ta-doc-action-popover,.ta-doc-mobile-action-portal')"));
+ assert.match(source,/event\.key==='Escape'/);
+ assert.ok(source.includes('ta-doc-action-backdrop" aria-label='));
+ assert.ok(source.includes("onClick={()=>this.setState({menuId:''})}"));
+ assert.match(css,/\.app-ui\.ta-doc-mobile-action-portal \{ position:fixed!important/);
+ assert.match(css,/\.app-ui \.ta-doc-mobile-action-sheet \{ position:absolute!important/);
+ assert.match(css,/safe-area-inset-bottom/);
+ assert.doesNotMatch(html,/mobile-document-actions-v124\.css/);
+ assert.match(html,/tailadmin-documents-v320\.css/);
+ assert.match(globals,/createPortal\(element: any, container: Element \| DocumentFragment\)/);
 });

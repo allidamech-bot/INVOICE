@@ -28,8 +28,8 @@ test('v337 runtime promotes the current recovery stylesheet after TailAdmin owne
   const promote=runtime.indexOf('promoteTailAdminOwners();');
   const draft=runtime.indexOf('promoteDraftRecovery();');
   assert.ok(promote>=0&&draft>promote);
-  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  assert.doesNotMatch(runtime,/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/);
+  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=365-1/);
+  assert.doesNotMatch(runtime,/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2|337-3)/);
 });
 
 test('v337 scroll recovery does not change Draft save PDF share behavior',async()=>{

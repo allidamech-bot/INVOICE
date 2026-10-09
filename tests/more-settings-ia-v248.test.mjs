@@ -6,13 +6,13 @@ const read=path=>readFile(path,'utf8');
 
 test('v248 keeps More as a navigation hub with accurate final destinations',async()=>{
   const shell=await read('src/components/AppShell.tsx');
-  assert.match(shell,/Your business, finance, reports and settings/);
-  assert.match(shell,/Company identity, logo, legal profile and account access/);
+  assert.match(shell,/Operations, finance, account and settings/);
+  assert.match(shell,/Identity, business profile and account access/);
   assert.match(shell,/Products & Inventory/);
   assert.match(shell,/Suppliers and purchase workflow/);
   assert.match(shell,/Receivables, collections and expenses/);
-  assert.match(shell,/Business and financial analysis/);
-  assert.match(shell,/Workspace, documents, commercial and security/);
+  assert.match(shell,/Period analysis and profitability/);
+  assert.match(shell,/Business, documents, security and data/);
   assert.doesNotMatch(shell,/Suppliers, purchases, expenses and inventory/,'More must not restore the retired mixed Operations destination');
   assert.match(shell,/this\.requestSettingsScope\('account'\)/);
   assert.match(shell,/this\.requestSettingsScope\('settings'\)/);
@@ -37,7 +37,7 @@ test('v248 Workspace owns interface language and workspace-wide currency only',a
 test('v248 Documents owns output artwork, document defaults and numbering',async()=>{
   const settings=await read('src/components/SettingsModal.tsx');
   const documents=settings.slice(settings.indexOf('private documentSettings'),settings.indexOf('private securitySettings'));
-  for(const token of ['Document artwork','Signature','Stamp','Default Document Language','Default Validity','Default Footer Text','Default Notes','Numbering','Proforma Prefix','Invoice Prefix'])assert.ok(documents.includes(token),token);
+  for(const token of ['Document artwork','Signature','Stamp','Default Document Language','Default Validity','Default Footer Text','Default Notes','Numbering','Quotation Prefix','Invoice Prefix'])assert.ok(documents.includes(token),token);
   for(const misplaced of ['Default Payment Terms','Default Incoterm','Default Delivery Time','Bank Name','Tax presets'])assert.ok(!documents.includes(misplaced),`Documents must not own ${misplaced}`);
 });
 

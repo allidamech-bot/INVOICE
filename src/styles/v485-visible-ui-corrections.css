@@ -1062,7 +1062,7 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   /* The document editor follows the same application accent as first paint:
      teal in light mode, blue in dark mode. No fixed v485 blue may leak into
      editor actions or the advanced-options toggle. */
-  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:#315fad;}
+  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:var(--ft-accent,#315DA8);}
   html body #root .app-ui :is(.screen-editor,.editor-screen) :is(
     .editor-actions,.mobile-editor-actionbar,.draft-mobile-actionbar,.template-preference-bar
   ) .btn-primary{
@@ -1173,7 +1173,7 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
 /* v589 source parity — the build appends the same final document-studio owner
    after Batch 5 flattening. Keep dev/source rendering aligned with dist. */
 @media screen {
-  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:#315fad;}
+  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:var(--ft-accent,#315DA8);}
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-primary{background:var(--lrx-editor-accent)!important;background-image:none!important;border-color:var(--lrx-editor-accent)!important;color:#fff!important;box-shadow:none!important;}
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-secondary,
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){background:var(--lx485-surface-3,#1d3651)!important;background-image:none!important;border:1px solid var(--lx485-line-strong,rgba(145,190,247,.34))!important;color:var(--lx485-text-2,#cbd8e8)!important;box-shadow:none!important;}

@@ -11,10 +11,10 @@ test('v339 runtime safety blocks account/settings sign-out before reload handler
     read('public/document-entry-v302.js'),
     read('src/components/CloudAccountModal.tsx')
   ]);
-  const guardAt=html.indexOf('runtime-safety-v334.js?v=334');
-  const entryAt=html.indexOf('document-entry-v302.js?v=337-3');
+  const guardAt=html.indexOf('runtime-safety-v334.js?v=344');
+  const entryAt=html.indexOf('document-entry-v302.js?v=361');
   assert.ok(guardAt>=0&&entryAt>guardAt,'runtime safety must register before the legacy sign-out boundary');
-  assert.match(guard,/const SIGNOUT_BUTTON='\.settings-direct-signout-button,\.settings-signout-button,\.ta-cloud-account-actions button'/);
+  assert.match(guard,/const SIGNOUT_BUTTON='\.settings-direct-signout-button,\.settings-signout-button,\.ta-cloud-account-actions button,\.ta-sheet-signout'/,'sign-out guard must include the current More-sheet action as well as account/settings entry points');
   assert.match(guard,/function signOutUnsafeWorkspaceOpen\(\)/);
   assert.match(guard,/if\(!\(button instanceof HTMLButtonElement\)\|\|button\.disabled\|\|!signOutUnsafeWorkspaceOpen\(\)\)return/);
   assert.match(guard,/event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);\s*explainBlockedSignOut\(button\)/);

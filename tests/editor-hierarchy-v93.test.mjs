@@ -4,11 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('editor hierarchy refinement remains loaded and ships offline in later releases',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  assert.match(html,/\.\/styles\/editor-hierarchy-v93\.css/);
-  assert.match(sw,/lourex-invoice-v\d+/);
-  assert.match(sw,/\.\/styles\/editor-hierarchy-v93\.css/);
+test('approved editor hierarchy loads through current bundled owners',async()=>{
+ const [html,distHtml,distSw]=await Promise.all([read('index.html'),read('dist/index.html'),read('dist/sw.js')]);
+ assert.ok(html.includes('tailadmin-editor-frame-v320.css'));
+ assert.ok(html.includes('tailadmin-editor-core-v320.css'));
+ assert.equal(html.includes('editor-hierarchy-v93.css'),false);
+ assert.ok(distHtml.includes('styles/app.bundle.css'));
+ assert.ok(distSw.includes('styles/app.bundle.css'));
 });
 
 test('editor hierarchy refinement flattens nested controls without touching printable pages',async()=>{
