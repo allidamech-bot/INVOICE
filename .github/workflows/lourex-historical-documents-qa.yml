@@ -19,6 +19,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Actual document-quality and A4 regression coverage
-        run: node --test tests/document-ux-v82.test.mjs tests/document-workflow-production-audit.test.mjs tests/document-language-v151.test.mjs
+        run: node --test tests/document-ux-v82.test.mjs tests/document-workflow-production-audit.test.mjs tests/document-language-v151.test.mjs tests/document-lifecycle-v132.test.mjs
       - name: Full suite, unfiltered
         run: node --test --test-concurrency=2 tests/*.test.mjs
