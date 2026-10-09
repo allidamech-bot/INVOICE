@@ -28,8 +28,8 @@ test('the verified public production alias is accepted even when Vercel invokes 
     'x-forwarded-for':'127.0.0.10'
   });
   assert.notEqual(response.statusCode,403);
-  assert.equal(response.statusCode,400);
-  assert.equal(response.body?.code,'INVALID_CONTEXT');
+  assert.equal(response.statusCode,401);
+  assert.equal(response.body?.code,'AI_AUTH_REQUIRED');
 });
 
 test('an unrelated vercel.app origin is not trusted by suffix alone',async()=>{
