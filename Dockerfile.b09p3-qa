@@ -1,0 +1,16 @@
+# LOUREX B09.3: isolated QA image only. No production application is deployed.
+FROM mcr.microsoft.com/playwright:v1.55.0-noble
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CI=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git \
+  && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+  && apt-get install -y --no-install-recommends nodejs \
+  && node --version \
+  && rm -rf /var/lib/apt/lists/*
+COPY scripts/b09p3-render-qa.sh /usr/local/bin/b09p3-render-qa.sh
+RUN chmod +x /usr/local/bin/b09p3-render-qa.sh
+# Cache busts on every tracked source/test change.
+COPY . /tmp/b09p3-reviewed-source/
+RUN /usr/local/bin/b09p3-render-qa.sh
+CMD ["node","-e","require('node:http').createServer((q,s)=>{s.writeHead(200,{'Content-Type':'text/plain'});s.end('LOUREX B09.3 QA passed; not the production application');}).listen(process.env.PORT||10000,'0.0.0.0')"]

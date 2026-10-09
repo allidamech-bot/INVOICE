@@ -171,11 +171,11 @@ export function validatedInventoryPlanningDeleteEvent(vault:Pick<VaultPayload,'s
   return planningEvent(itemId,name,updatedAt,{kind:'delete',itemId,updatedAt});
 }
 
-function balanceByItem(movements:InventoryMovementRecord[]):Map<string,bigint>{
+function balanceByItem(movements:InventoryMovementRecord[],asOf:string):Map<string,bigint>{
   const balances=new Map<string,bigint>();
   for(const movement of movements){
     // Transfers only move stock between warehouses. Never count them as new company stock.
-    if(!inventoryMovementAccountingIsValid(movement)||movement.type==='transfer')continue;
+    if(!inventoryMovementAccountingIsValid(movement)||movement.type==='transfer'||movement.date>asOf)continue;
     balances.set(movement.itemId,(balances.get(movement.itemId)??0n)+scaled(movement.quantity));
   }
   return balances;
@@ -191,20 +191,30 @@ function issueVelocityByItem(movements:InventoryMovementRecord[],asOf:string,loo
   for(const [itemId,total] of totals)daily.set(itemId,total/BigInt(Math.max(1,lookbackDays)));
   return daily;
 }
-function lastPostedPurchaseForItem(purchases:PurchaseRecord[],itemId:string):PurchaseRecord|null{
-  return purchases.filter(row=>row.status==='posted'&&row.items.some(line=>line.savedItemId===itemId)).sort((a,b)=>b.date.localeCompare(a.date)||b.updatedAt.localeCompare(a.updatedAt))[0]??null;
+function lastPostedPurchaseForItem(purchases:PurchaseRecord[],itemId:string,asOf:string):PurchaseRecord|null{
+  // A historical planning snapshot must not reference later purchases, even when backdated.
+  return purchases.filter(row=>row.status==='posted'&&isIsoDate(row.date)&&row.date<=asOf
+    &&(!row.postedAt||(isIsoDate(row.postedAt.slice(0,10))&&row.postedAt.slice(0,10)<=asOf))
+    &&row.items.some(line=>line.savedItemId===itemId))
+    .sort((a,b)=>b.date.localeCompare(a.date)||b.updatedAt.localeCompare(a.updatedAt))[0]??null;
 }
-function inferredSupplier(purchases:PurchaseRecord[],suppliers:Supplier[],itemId:string,preferredSupplierId:string):{supplier:Supplier|null;purchase:PurchaseRecord|null}{
-  if(preferredSupplierId){const preferred=suppliers.find(row=>row.id===preferredSupplierId)??null;return{supplier:preferred,purchase:lastPostedPurchaseForItem(purchases,itemId)};}
-  const purchase=lastPostedPurchaseForItem(purchases,itemId),supplierId=purchase?.supplierSnapshot?.sourceSupplierId??'';
+function inferredSupplier(purchases:PurchaseRecord[],suppliers:Supplier[],itemId:string,preferredSupplierId:string,asOf:string):{supplier:Supplier|null;purchase:PurchaseRecord|null}{
+  const purchase=lastPostedPurchaseForItem(purchases,itemId,asOf);
+  if(preferredSupplierId){
+    const preferred=suppliers.find(row=>row.id===preferredSupplierId)??null;
+    return{supplier:preferred,purchase};
+  }
+  const supplierId=purchase?.supplierSnapshot?.sourceSupplierId??'';
   return{supplier:suppliers.find(row=>row.id===supplierId)??null,purchase};
 }
 
 export function buildInventoryPlanning(vault:Pick<VaultPayload,'savedItems'|'suppliers'|'purchases'|'inventoryMovements'|'documentEvents'>,asOf=todayIso(),lookbackDays=90):InventoryPlanningSnapshot{
   if(!isIsoDate(asOf))throw new Error('Inventory planning date is invalid.');
   const windowDays=Math.max(1,Math.min(365,Math.trunc(lookbackDays)||90));
-  const policies=new Map(inventoryPlanningPoliciesFromEvents(vault.documentEvents).map(policy=>[policy.itemId,policy]));
-  const balances=balanceByItem(vault.inventoryMovements),velocity=issueVelocityByItem(vault.inventoryMovements,asOf,windowDays);
+  // Apply one as-of boundary to stock, planning policy and purchase provenance.
+  const knownEvents=vault.documentEvents.filter(event=>isIsoDate(event.at.slice(0,10))&&event.at.slice(0,10)<=asOf);
+  const policies=new Map(inventoryPlanningPoliciesFromEvents(knownEvents).map(policy=>[policy.itemId,policy]));
+  const balances=balanceByItem(vault.inventoryMovements,asOf),velocity=issueVelocityByItem(vault.inventoryMovements,asOf,windowDays);
   const rows=vault.savedItems.filter(item=>!item.archived).map(item=>{
     const policy=policies.get(item.id)??null,onHandScaled=balances.get(item.id)??0n,averageDailyScaled=velocity.get(item.id)??0n;
     const reorderScaled=policy?.reorderPoint?scaled(policy.reorderPoint):0n,safetyScaled=policy?.safetyStock?scaled(policy.safetyStock):0n;
@@ -215,7 +225,7 @@ export function buildInventoryPlanning(vault:Pick<VaultPayload,'savedItems'|'sup
     const suggestedScaled=needsOrder&&targetScaled>onHandScaled?targetScaled-onHandScaled:0n;
     const status:InventoryPlanStatus=onHandScaled<=0n?'critical':!configured?'unconfigured':needsOrder?'reorder':'healthy';
     const daysCover=averageDailyScaled>0n&&onHandScaled>0n?Number(onHandScaled)/Number(averageDailyScaled):null;
-    const linked=inferredSupplier(vault.purchases,vault.suppliers,item.id,policy?.preferredSupplierId??'');
+    const linked=inferredSupplier(vault.purchases,vault.suppliers,item.id,policy?.preferredSupplierId??'',asOf);
     return{item,policy,status,onHand:fixed4(onHandScaled),onHandScaled,averageDailyIssue:fixed4(averageDailyScaled),leadTimeDemand:fixed4(leadDemandScaled),reorderTrigger:fixed4(reorderTriggerScaled),suggestedOrder:fixed4(suggestedScaled),daysCover,preferredSupplier:linked.supplier,lastPurchase:linked.purchase};
   }).sort((a,b)=>{
     const rank:Record<InventoryPlanStatus,number>={critical:0,reorder:1,healthy:2,unconfigured:3};
