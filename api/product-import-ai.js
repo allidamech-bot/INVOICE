@@ -1,3 +1,4 @@
+import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=24000;
@@ -24,6 +25,7 @@ function cleanMappings(parsed,allowedIndexes){if(!Array.isArray(parsed?.mappings
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST for AI product mapping.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'AI mapping requests must come from this LOUREX Invoice deployment.'});return;}
+  if(!await requireAiFirebaseAuth(request,response))return;
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'AI mapping is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid AI mapping request.'});return;}
   const columns=cleanColumns(body?.columns);if(!columns){sendJson(response,400,{code:'INVALID_COLUMNS',message:'No valid ambiguous columns were supplied.'});return;}
