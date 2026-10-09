@@ -11,6 +11,10 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 COPY scripts/b09-render-qa.sh /usr/local/bin/b09-render-qa.sh
 RUN chmod +x /usr/local/bin/b09-render-qa.sh
+# Every repository file participates in the cache key. Without this COPY,
+# Docker reuses a prior green RUN layer when only tests/business code change.
+# Never accept CACHED for an unverified PR HEAD.
+COPY . /tmp/b09-reviewed-source/
 RUN /usr/local/bin/b09-render-qa.sh
 # Marker-only web process required by Render; no app assets exposed.
 CMD ["node","-e","require('node:http').createServer((q,s)=>{s.writeHead(200,{'Content-Type':'text/plain'});s.end('LOUREX Batch 9 release QA only; this is not production.');}).listen(process.env.PORT||10000,'0.0.0.0')"]
