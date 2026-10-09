@@ -10,7 +10,7 @@ export async function requestAiJson(endpoint:string,payload:unknown,signal?:Abor
   signal?.addEventListener('abort',cancel,{once:true});
   const timer=window.setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);
   try{
-    const token=await currentCloudIdToken();
+    const token=await currentCloudIdToken(controller.signal);
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice',Authorization:`Bearer ${token}`},body:JSON.stringify(payload),signal:controller.signal});
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
