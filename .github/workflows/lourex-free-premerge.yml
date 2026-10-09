@@ -50,6 +50,7 @@ jobs:
             tests/account-cloud-separation-v186.test.mjs \
             tests/ai-premium-conversation-batch3.test.mjs \
             tests/contextual-ai-batch4.test.mjs \
+            tests/v339-signout-editor-guard.test.mjs \
             tests/ai-reliability-batch5.test.mjs \
             tests/b04-attachment-progress.test.mjs \
             tests/b04-ai-planner-failure-visibility.test.mjs \
