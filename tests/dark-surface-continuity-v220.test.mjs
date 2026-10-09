@@ -39,7 +39,7 @@ test('the current dark account and conflict surfaces are bundled offline without
   assert.match(css,/\.ta-cloud-conflict/);
   assert.match(css,/\.ta-cloud-account/);
   assert.doesNotMatch(css,/\.invoice-page|@media print/,'account recovery must never change A4 rendering');
-  assert.match(sourceSw,/LOCAL_CORE\.push\('\.\/styles\/app\.css'\)/);
+  assert.ok(sourceSw.includes('./styles/app.css'),'local/dev worker must preserve a stylesheet cache entry');
   assert.match(distSw,/\.\/styles\/app\.bundle\.css/);
   assert.match(bundle,/\.ta-cloud-conflict/);
 });

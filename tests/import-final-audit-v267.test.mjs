@@ -110,7 +110,8 @@ test('v267 import UIs keep local-first mapping, bounded previews and explicit co
   assert.match(ui,/window\.visualViewport/);
   assert.match(ui,/--modal-visual-height/);
   assert.match(ui,/--modal-browser-bottom-reserve/);
-  assert.match(ui,/display-mode: standalone/);
+  assert.match(ui,/const browserBottomReserve=0/);
+  assert.match(ui,/visualViewport already excludes Safari chrome and the on-screen keyboard/);
   assert.match(css,/height:calc\(var\(--modal-visual-height,100dvh\) - var\(--modal-browser-bottom-reserve,0px\)/);
   assert.match(css,/height:calc\(var\(--modal-visual-height,100dvh\)/);
   assert.match(css,/var\(--app-safe-bottom,0px\)/);
