@@ -8,7 +8,10 @@ test('a stale device fast-forwards only with a verified anchor and fails closed 
   const cloud=await read('src/cloud/firebase.ts');
   assert.match(cloud,/if\(!anchor\)return 'diverged'/);
   assert.match(cloud,/if\(localChanged&&remoteChanged\)return 'diverged'/);
-  assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  const reconcile=cloud.slice(cloud.indexOf('export async function reconcileCloudVault'));
+  assert.match(reconcile,/if\(remoteChanged\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(reconcile,/const startup=Boolean\(document\.querySelector\('\.loading-screen'\)\)/);
+  assert.doesNotMatch(reconcile,/if\(remoteChanged\)\{\s*await installCloudVault/);
   assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
   assert.match(push,/if\(!anchor\)return 'remote-changed'/);
@@ -20,10 +23,15 @@ test('a stale device fast-forwards only with a verified anchor and fails closed 
 test('cross-device updates use Firestore realtime events and automatic account reconcile',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/subscribeCloudVaultChanges/);
-  assert.match(freshness,/reconcileCloudVault/);
-  assert.match(freshness,/result==='pulled'/);
-  assert.match(freshness,/window\.location\.reload\(\)/);
-  assert.match(freshness,/5_000/);
+  assert.match(freshness,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
+  assert.match(freshness,/if\(!appIsSafeToApply\(\)\)return/);
+  assert.match(freshness,/window\.dispatchEvent\(new Event\('lourex-cloud-refresh-available'\)\)/);
+  assert.doesNotMatch(freshness,/await reconcileCloudVault\(|window\.location\.reload\(\)/,
+    'remote changes must be announced without silently replacing the active workspace');
+  const entry=await read('src/app/index.tsx');
+  assert.match(entry,/window\.addEventListener\('lourex-cloud-refresh-available',showCloudRefreshAvailable\)/);
+  assert.match(entry,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{/);
+  assert.match(entry,/reload\.addEventListener\('click'/);
 });
 
 test('missing local account link is repaired for the already authenticated account',async()=>{
