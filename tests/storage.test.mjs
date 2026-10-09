@@ -94,6 +94,8 @@ test('trusted device session resumes the encrypted vault across browser sessions
   const setup = await setupVault('8642', emptyVault());
   const next = structuredClone(setup.vault);
   next.company.nameEn = 'LOUREX TEST';
+  // Schema v20+ preserves the active workspace as the authoritative company.
+  next.workspaces[0].company.nameEn = 'LOUREX TEST';
   await saveVault(setup.key, next);
   assert.equal(await establishSession(setup.key), true);
   assert.ok(localStorage.getItem('lourex-invoice-session-v1'));
@@ -102,6 +104,7 @@ test('trusted device session resumes the encrypted vault across browser sessions
   const resumed = await resumeVaultSession();
   assert.ok(resumed);
   assert.equal(resumed.vault.company.nameEn, 'LOUREX TEST');
+  assert.equal(resumed.vault.workspaces[0].company.nameEn, 'LOUREX TEST', 'authoritative workspace company must survive session resume');
   assert.equal(resumed.vault.appSettings.autoLockMinutes, 15);
   touchSession(10_000);
   assert.equal(isSessionExpired(10_000, 0, 10_000 + 365 * 24 * 60 * 60_000), false);
