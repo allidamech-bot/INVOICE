@@ -63,7 +63,10 @@ test('current service worker retains every compiled JS module and app CSS for of
   assert.match(sw,/if\(event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)\)\{event\.respondWith\(networkFirst\(event\.request\)\);return;\}/);
   assert.match(sw,/event\.respondWith\(cacheFirst\(event\.request\)\)/);
   assert.match(sw,/cache\.put\(event\.request,response\.clone\(\)\)/);
-  assert.doesNotMatch(sw,/self\.addEventListener\('install'[\s\S]*?await self\.skipWaiting\(\)/);
+  const install=sw.slice(sw.indexOf("self.addEventListener('install'"),sw.indexOf("self.addEventListener('message'"));
+  assert.ok(install.startsWith("self.addEventListener('install'"),'service worker install handler missing');
+  assert.doesNotMatch(install,/skipWaiting\(/,'install must not force-activate a worker while edits are open');
+  assert.match(sw,/event\.data\?\.type==='SKIP_WAITING'/,'updates must require an explicit activation request');
 });
 
 test('realtime cloud freshness checks exact user scope and only notifies outside active edits',async()=>{
