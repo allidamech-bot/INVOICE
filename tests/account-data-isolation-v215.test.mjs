@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
+import ts from 'typescript';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
@@ -29,11 +31,30 @@ test('v215 legacy migration adopts data only when the durable cloud-account owne
   assert.match(db,/MIGRATION_MARKER_PREFIX/);
 });
 
-test('v215 local cloud-account writes refuse a UID that differs from the selected local account scope',async()=>{
+test('v215 cloud-account writes are executable and deny public and cross-account storage',async()=>{
   const db=await read('src/storage/db.ts');
-  assert.match(db,/if\(activeStorageUid&&activeStorageUid!==uid\)throw new Error\('Local account storage does not match the authenticated account\.'\)/);
-  assert.match(db,/export async function clearDatabase\(\): Promise<void> \{[\s\S]*const name=scopedDbName\(\)/);
-  assert.match(db,/indexedDB\.deleteDatabase\(name\)/,'reset must delete only the scoped IndexedDB database');
+  const from=db.indexOf('export async function putCloudAccount(');
+  const until=db.indexOf('export async function clearCloudAccount()',from);
+  const implementation=db.slice(from,until);
+  assert.ok(from>=0&&until>from,'exercise the actual production persistence function');
+  const compiled=ts.transpileModule(implementation,{compilerOptions:{
+    module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022
+  }}).outputText;
+  for(const selectedUid of [null,'other-account','my-account']){
+    const writes=[];
+    const context={exports:{},activeStorageUid:selectedUid,
+      getCloudAccount:async()=>null,putRecord:async record=>writes.push(record)};
+    vm.runInNewContext(compiled,context);
+    const attempt=context.exports.putCloudAccount('my-account','user@example.test');
+    if(selectedUid==='my-account'){
+      await attempt;
+      assert.equal(writes.length,1,'matching UID can persist its own account metadata');
+      assert.equal(writes[0].uid,'my-account');
+    }else{
+      await assert.rejects(attempt,/Local account storage does not match the authenticated account/);
+      assert.deepEqual(writes,[], 'public DB and other UID may never receive account ownership data');
+    }
+  }
 });
 
 test('v215 selects the UID storage boundary before any account session or cloud reconciliation',async()=>{
