@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {todayIso} from '../dist/src/lib/id.js';
 import {createPurchase,createPurchaseItem,createSupplier} from '../dist/src/lib/operations.js';
-import {purchasePayableSummary,supplierAccounts,supplierPayablesByCurrency,supplierStatement} from '../dist/src/lib/payables.js';
+import {purchasePayableSummary,supplierAccounts,supplierPayablesByCurrency,supplierStatement,voidSupplierPayment,normalizeSupplierPayment,assertSupplierPaymentInvariant} from '../dist/src/lib/payables.js';
+import {treasuryProjection} from '../dist/src/lib/treasury-ledger.js';
 
 function fixture(){
   const supplier={...createSupplier(),nameEn:'Audit Supplier',defaultCurrency:'USD'};
@@ -105,4 +106,28 @@ test('payables table never shows future or not-yet-posted purchases absent from 
   const view=new SupplierPayablesPage({suppliers:[supplier],purchases,supplierPayments:[]});
   assert.deepEqual(view.postedPurchases().map(row=>row.id),['current-purchase']);
   assert.equal(supplierPayablesByCurrency(purchases,[],today)[0].purchases,'1000.00');
+});
+
+test('voiding a supplier payment retains earlier balances but excludes it from current payables and treasury',()=>{
+  const {supplier,purchase}=fixture();
+  const original={id:'audit-voided-payment',purchaseId:purchase.id,purchaseNumber:purchase.number,
+    supplierId:supplier.id,supplierNameEn:supplier.nameEn,supplierNameAr:'',currency:'USD',
+    amount:'200.00',date:'2026-10-02',method:'bank-transfer',reference:'PAY-TEST',notes:'',
+    createdAt:'2026-10-02T10:00:00.000Z',updatedAt:'2026-10-02T10:00:00.000Z'};
+  const voided=voidSupplierPayment(original,'Incorrect payment reference');
+  assert.equal(voided.id,original.id);
+  assert.equal(voided.amount,original.amount);
+  assert.ok(voided.voidedAt&&voided.voidReason);
+  assert.equal(purchasePayableSummary(purchase,[voided],'2026-10-08').paid,'200.00');
+  assert.equal(supplierStatement(supplier.id,[purchase],[voided],'2026-10-08')[0].entries.length,2);
+  assert.equal(purchasePayableSummary(purchase,[voided],voided.voidedAt.slice(0,10)).paid,'0.00');
+  assert.equal(supplierStatement(supplier.id,[purchase],[voided],voided.voidedAt.slice(0,10))[0].entries.length,1);
+  assert.equal(treasuryProjection([],[voided],[],[],[]).length,0);
+  assert.doesNotThrow(()=>assertSupplierPaymentInvariant([purchase],[supplier],[voided]));
+  const corrected=normalizeSupplierPayment(purchase,supplier,[voided],{...original,id:'audit-corrected-payment',amount:'1000.00',voidedAt:'',voidReason:''});
+  assert.equal(corrected.amount,'1000.00','cancelled payment must not count toward the active purchase limit');
+  assert.throws(()=>normalizeSupplierPayment(purchase,supplier,[voided],voided),/voided/i);
+  assert.throws(()=>voidSupplierPayment(voided,'void twice'),/already voided/);
+  const reversed={...purchase,status:'reversed',reversedAt:'2026-10-21T12:00:00.000Z'};
+  assert.doesNotThrow(()=>assertSupplierPaymentInvariant([reversed],[supplier],[voided]));
 });
