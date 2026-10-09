@@ -9,10 +9,11 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 test('iPhone pre-render startup budgets are finite for existing and new-device vaults',async()=>{
   const startup=await read('src/cloud/startup.ts');
   const existing=startup.match(/const STARTUP_CLOUD_BUDGET_MS=(\d+)/);
-  const fresh=startup.match(/const FRESH_DEVICE_CLOUD_BUDGET_MS=(\d+)/);
+  const fresh=startup.match(/const FRESH_DEVICE_CLOUD_BUDGET_MS=([\d_]+)/);
   assert.ok(existing&&fresh,'both startup budgets must be explicit');
   assert.ok(Number(existing[1])>0&&Number(existing[1])<=2200,'existing local work must mount promptly');
-  assert.ok(Number(fresh[1])>=Number(existing[1])&&Number(fresh[1])<=6000,'new-device verification must be bounded');
+  const freshMs=Number(fresh[1].replaceAll('_',''));
+  assert.ok(freshMs>=Number(existing[1])&&freshMs<=6000,'new-device verification must be bounded');
   assert.match(startup,/const budgetMs=localBeforeStartup\?STARTUP_CLOUD_BUDGET_MS:FRESH_DEVICE_CLOUD_BUDGET_MS/);
   assert.match(startup,/const outcome=await Promise\.race\(\[/);
   assert.match(startup,/cloudWork\.then\(result=>\(\{kind:'done' as const,result\}\)\)/);
@@ -26,7 +27,7 @@ test('iPhone pre-render startup budgets are finite for existing and new-device v
   const compiled=ts.transpileModule(startup.slice(start),{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
   }).outputText;
-  for(const [local,expectedBudget] of [[{cipher:'local'},Number(existing[1])],[null,Number(fresh[1])]]){
+  for(const [local,expectedBudget] of [[{cipher:'local'},Number(existing[1])],[null,freshMs]]){
     const timerCalls=[];
     let marked=0,clearedGuard=0;
     const exports={};
