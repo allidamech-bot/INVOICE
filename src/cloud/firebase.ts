@@ -1,5 +1,5 @@
 import type { EncryptedVaultRecord, SecurityMetadata } from '../types.js';
-import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
+import { activeAccountStorageUid, getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
 import { MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
 import { APP_SCHEMA_VERSION } from '../lib/defaults.js';
 import { LOUREX_FIREBASE_CONFIG } from './firebase-config.js';
@@ -36,7 +36,7 @@ function db():any{ensureFirebase();return firebase.firestore();}
 function userFrom(raw:any):CloudUser|null{return raw?{uid:String(raw.uid),email:String(raw.email||'')}:null;}
 function vaultCollection(uid:string):any{return db().collection('users').doc(uid).collection('vault');}
 function historyCollection(uid:string):any{return db().collection('users').doc(uid).collection('vaultHistory');}
-function requireCurrentUid(uid:string):void{const current=auth().currentUser;if(!current||current.uid!==uid)throw new Error('Cloud session is not available for this account.');}
+function requireCurrentUid(uid:string):void{const current=auth().currentUser;if(!current||current.uid!==uid||activeAccountStorageUid()!==uid)throw new Error('Cloud session is not available for this account or local storage scope.');}
 function markRecentAuth():void{try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}}
 function syncAnchorKey(uid:string):string{return `lourex-cloud-anchor:${uid}`;}
 function deviceIdKey():string{return 'lourex-device-id';}
@@ -70,7 +70,9 @@ function inlineDraftWorkspaceOpen():boolean{
     const modal=document.querySelector('.modal-backdrop');
     // The explicit cloud restore/account flow must be allowed to perform the
     // replacement it was opened for. Other dialogs still block replacement.
-    return Boolean(modal&&!modal.querySelector('.cloud-account-panel,.cloud-auth-form'));
+    // Only the explicitly confirmed account-restore surface may replace the vault.
+    // Settings marks that surface as is-restoring after its state is committed.
+    return Boolean(modal&&!modal.querySelector('.cloud-account-panel,.cloud-auth-form,.ta-settings-shell.is-restoring'));
   }catch{return false;}
 }
 function splitCipher(cipher:string):string[]{
@@ -127,6 +129,28 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
+export async function currentCloudIdToken(signal?:AbortSignal):Promise<string>{
+  const user=auth().currentUser;
+  if(!user||typeof user.uid!=='string'||!user.uid||typeof user.getIdToken!=='function')throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  let abort=()=>{};
+  // Cancel promptly even if a Firebase network token refresh is still pending.
+  const cancelled=signal?new Promise<never>((_resolve,reject)=>{
+    abort=()=>reject(new DOMException('Cancelled','AbortError'));
+    signal.addEventListener('abort',abort,{once:true});
+    if(signal.aborted)abort();
+  }):null;
+  try{
+    const token=await (cancelled?Promise.race([user.getIdToken(),cancelled]):user.getIdToken());
+    if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+    // A pending refresh must not authorize a request after a switch of account.
+    if(auth().currentUser?.uid!==user.uid)throw new Error('Your LOUREX account changed. Sign in again before using AI.');
+    if(typeof token!=='string'||!token)throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
+    return token;
+  }finally{
+    signal?.removeEventListener('abort',abort);
+  }
+}
 export function subscribeCloudUser(onChange:(user:CloudUser|null)=>void):()=>void{
   try{
     const off=auth().onAuthStateChanged((user:any)=>onChange(userFrom(user)),()=>undefined);
@@ -216,12 +240,15 @@ async function publishVault(uid:string,security:SecurityMetadata,vault:Encrypted
   if(previous&&previous.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data comes from a newer LOUREX version. Update the app before replacing that cloud copy.');
   if(vault.schemaVersion>APP_SCHEMA_VERSION)throw new Error('This LOUREX build cannot publish data from a newer schema version.');
   if(vault.cipher.length>MAX_CIPHER_LENGTH)throw new Error('Account data is too large for cloud storage. Remove oversized images and try again.');
+  requireCurrentUid(uid);
   const cipherSha256=await sha256(vault.cipher);const chunks=splitCipher(vault.cipher);const revision=revisionId();
+  requireCurrentUid(uid);
   const meta:CloudVaultMeta={format:CLOUD_FORMAT,version:1,revision,updatedAt:vault.updatedAt,schemaVersion:vault.schemaVersion,iv:vault.iv,cipherLength:vault.cipher.length,cipherSha256,chunkCount:chunks.length,security,parentRevision:previous?.revision||'',deviceId:currentDeviceId()};
   await archivePreviousRevision(uid,previous);
+  requireCurrentUid(uid);
   try{
     if(chunks.length===1)await commitSingleChunkIfUnchanged(uid,meta,previous,chunks[0]??'');
-    else{await writeChunks(uid,revision,chunks);await commitMetaIfUnchanged(uid,meta,previous);}
+    else{await writeChunks(uid,revision,chunks);requireCurrentUid(uid);await commitMetaIfUnchanged(uid,meta,previous);}
   }catch(error){if(chunks.length>1)await cleanupRevision(uid,revision,chunks.length);throw error;}
   writeSyncAnchor(uid,meta);if(previous&&previous.revision!==revision)void pruneCloudHistory(uid);return meta;
 }
@@ -261,8 +288,10 @@ export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedV
   requireCurrentUid(uid);
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Internet connection is required to save account data.');
   const [security,storedVault,previous]=await Promise.all([getSecurity(),localSnapshot?Promise.resolve(localSnapshot):getEncryptedVault(),getCloudVaultMeta(uid)]);const vault=storedVault;
+  requireCurrentUid(uid);
   if(!security||!vault)throw new Error('There is no LOUREX account data to save.');
   const localHash=await sha256(vault.cipher);
+  requireCurrentUid(uid);
   if(previous&&previous.schemaVersion>APP_SCHEMA_VERSION)return 'remote-changed';
   const securityUnchanged=previous?cloudSecurityMatches(previous.security,security):false;
   if(previous&&previous.cipherSha256===localHash&&securityUnchanged){writeSyncAnchor(uid,previous);return 'same';}
