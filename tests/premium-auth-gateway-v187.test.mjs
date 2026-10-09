@@ -4,25 +4,26 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v187 signed-out account entry is a dedicated premium LOUREX gateway',async()=>{
+test('v187 signed-out account entry preserves accessible bilingual TailAdmin gateway and trust signals',async()=>{
   const [screen,css]=await Promise.all([
     read('src/components/AccountEntryScreen.tsx'),
-    read('src/styles/auth-entry.css')
+    read('src/styles/tailadmin-auth-v320.css')
   ]);
-  assert.match(screen,/auth-account-page/);
-  assert.match(screen,/auth-account-frame/);
-  assert.match(screen,/auth-account-story/);
-  assert.match(screen,/auth-story-trust/);
-  assert.match(screen,/auth-account-card/);
-  assert.match(screen,/premium-auth-primary/);
-  assert.match(screen,/Forgot password\?/);
-  assert.match(screen,/lourex-auth-just-signed-out/);
-  assert.match(css,/\.auth-account-page\{[\s\S]*min-height:100dvh/);
-  assert.match(css,/\.auth-account-frame\{[\s\S]*grid-template-columns/);
-  assert.match(css,/\.auth-account-story\{[\s\S]*linear-gradient/);
-  assert.match(css,/\.auth-account-card\.account-first-card\{[\s\S]*background:linear-gradient/);
-  assert.match(css,/@media\(max-width:600px\)/);
-  assert.match(css,/\[dir="rtl"\] \.auth-account-page/);
+  for(const marker of ['ta-auth-page','ta-auth-frame','ta-auth-aside','ta-auth-main','ta-auth-card','ta-auth-primary','ta-auth-security','Forgot password?','lourex-auth-just-signed-out']){
+    assert.ok(screen.includes(marker),marker);
+  }
+  assert.match(screen,/className="ta-auth-tabs" role="tablist"/);
+  assert.match(screen,/aria-selected=\{!create\}/);
+  assert.match(screen,/aria-selected=\{create\}/);
+  assert.match(screen,/role="tabpanel"/);
+  assert.match(screen,/type="password" autoComplete=/);
+  assert.match(css,/\.ta-auth-page\{[\s\S]*min-height:100dvh/);
+  assert.match(css,/\.ta-auth-page\{[\s\S]*background:var\(--ft-workspace\)/);
+  assert.match(css,/\.ta-auth-frame\{[\s\S]*display:grid;grid-template-columns/);
+  assert.match(css,/\.ta-auth-aside\{[\s\S]*background:linear-gradient/);
+  assert.match(css,/\.ta-auth-card\{[\s\S]*display:flex/);
+  assert.match(css,/\.ta-auth-language\{min-height:44px/);
+  assert.match(css,/@media\(max-width:900px\)/);
 });
 
 test('v187 account sign-out closes the unlocked workspace before returning to login',async()=>{
