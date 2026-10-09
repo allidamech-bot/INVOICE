@@ -2,9 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readdir,readFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
-test('GitHub Actions workflow YAML is absent',async()=>{
+test('GitHub QA uses only safe read-only free branch runners, never production deployment',async()=>{
   const files=await readdir(new URL('.github/workflows/',root)).catch(e=>{if(e.code==='ENOENT')return [];throw e;});
-  assert.deepEqual(files.filter(f=>/\.ya?ml$/.test(f)),[]);
+  const workflows=files.filter(f=>/\.ya?ml$/.test(f));
+  assert.ok(workflows.length>=1,'free branch QA must remain available');
+  for(const file of workflows){
+    const yaml=await readFile(new URL('.github/workflows/'+file,root),'utf8');
+    assert.match(yaml,/runs-on:\s*ubuntu-latest/,file);
+    assert.match(yaml,/permissions:\s*\n\s*contents:\s*read/,file);
+    assert.match(yaml,/\s+push:\s*\n\s+branches:\s*\n\s+-\s+fix\//,file);
+    assert.doesNotMatch(yaml,/^\s*(?:pull_request|pull_request_target|deployment|release|schedule):/m,file);
+    assert.doesNotMatch(yaml,/^\s+-\s+main\s*$/m,file);
+    assert.doesNotMatch(yaml,/\b(?:vercel\s+(?:deploy|promote|--prod)|gh\s+pr\s+merge|git\s+push\s+origin\s+main)\b/i,file);
+    assert.doesNotMatch(yaml,/\b(?:secrets\.|environment:\s*production)/i,file);
+  }
 });
 test('local signoff requires security, Batch 7 contracts and browser QA',async()=>{
   const content=await readFile(new URL('scripts/verify-local.mjs',root),'utf8');
