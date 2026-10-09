@@ -11,7 +11,13 @@ test('customer workspace exposes direct quote and invoice actions', async () => 
   assert.match(source, /this\.createDocument\('proforma',customer\)/);
   assert.match(source, /this\.createDocument\('invoice',customer\)/);
   assert.match(source, /creatingDocument/);
-  assert.match(source, /customer-document-actions/);
+  // Both profile toolbar and the dedicated customer action panel expose
+  // quote/invoice creation. Busy guards avoid double-creating documents.
+  assert.match(source,/className="ta-customer-profile-toolbar"/);
+  assert.match(source,/className="ta-customer-panel ta-customer-action-panel"/);
+  assert.match(source,/disabled=\{this\.state\.busy\|\|creatingAny\} onClick=\{\(\)=>void this\.createDocument\('proforma',customer\)\}/);
+  assert.match(source,/disabled=\{this\.state\.busy\|\|creatingAny\} onClick=\{\(\)=>void this\.createDocument\('invoice',customer\)\}/);
+  assert.match(source,/this\.state\.creatingDocument\|\|this\.state\.busy/);
 });
 
 test('app reserves the normal number and snapshots the selected customer', async () => {
