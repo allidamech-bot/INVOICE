@@ -46,18 +46,26 @@ test('v249 production build publishes the runtime marker, recovery guard and fre
   assert.match(sw,/lourex-invoice-v249: desktop startup recovery refresh/);
 });
 
-test('v249 browser gate exercises real laptop-width desktop navigation in both directions',async()=>{
+test('v249 browser gate exercises current desktop sidebar, Create, Account and RTL rails',async()=>{
   const runner=await read('tests/visual/run-functional-navigation-auth-v200.cjs');
   for(const marker of [
     'width:1366,height:768',
-    '.workspace-sidebar',
-    '.shell-create-button',
-    '#desktop-new-document-menu',
-    '.shell-settings-row',
-    '.shell-account-row',
-    '.shell-account-button',
-    'Desktop sidebar must be visible at laptop width',
+    '.ta-sidebar',
+    '.ta-sidebar-nav .ta-nav-item',
+    '.ta-create-button',
+    '#ta-desktop-create-menu',
+    '.ta-sidebar-utility',
+    '.ta-sidebar-account',
+    '.ta-topbar-account',
+    'Desktop TailAdmin sidebar must be visible at laptop width',
+    'Desktop Settings must request the Settings scope',
+    'Desktop sidebar Account must request the Account scope',
+    'Desktop top-bar Account must remain functional',
     'Arabic desktop sidebar must occupy the right rail',
     'English desktop sidebar must occupy the left rail'
   ])assert.ok(runner.includes(marker),marker);
+  assert.match(runner,/sidebar\.left>=geometry\.content\.right-1/);
+  assert.match(runner,/sidebar\.right<=geometry\.content\.left\+1/);
+  assert.match(runner,/\.ta-mobile-nav/);
+  assert.match(runner,/await page\.screenshot/);
 });
