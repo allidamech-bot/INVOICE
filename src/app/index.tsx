@@ -127,6 +127,12 @@ const App=AdaptiveCloudApp;
 
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
+let pendingAuthLossTimer:number|undefined;
+const AUTH_RESTORATION_GRACE_MS=2500;
+
+function clearPendingAuthLoss():void{
+  if(pendingAuthLossTimer!==undefined){window.clearTimeout(pendingAuthLossTimer);pendingAuthLossTimer=undefined;}
+}
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
 type RestorableWorkspace='home'|'documents'|'customers'|'items'|'operations'|'receivables'|'reports';
@@ -229,6 +235,7 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 function startAccountSignOutWatcher():void{
   subscribeCloudUser(user=>{
     if(user){
+      clearPendingAuthLoss();
       const selectedStorageUid=activeAccountStorageUid();
       if(selectedStorageUid&&selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
@@ -264,13 +271,25 @@ function startAccountSignOutWatcher():void{
       return;
     }
 
-    // Firebase/Auth can briefly report null on Safari while restoring persistence
-    // or recovering connectivity. The application is local-first, so a transient
-    // null state must never clear the encrypted session or reload the page. Explicit
-    // sign-out controls already clear the session and navigate intentionally.
-    if(!accountWasAuthenticated||signOutTransitionRunning)return;
-    accountWasAuthenticated=false;
-    try{document.documentElement.dataset.lourexCloudSessionLost='true';}catch{}
+    // A transient null during Firebase persistence restoration must not discard
+    // unsaved work. A *confirmed* sign-out must revoke the unlocked vault instead
+    // of leaving another person's encrypted workspace visible indefinitely.
+    if(!accountWasAuthenticated||signOutTransitionRunning||pendingAuthLossTimer!==undefined)return;
+    pendingAuthLossTimer=window.setTimeout(()=>{
+      pendingAuthLossTimer=undefined;
+      if(currentCloudUser()||signOutTransitionRunning)return;
+      if(!activeAccountStorageUid()){accountWasAuthenticated=false;return;}
+      accountWasAuthenticated=false;
+      signOutTransitionRunning=true;
+      try{document.documentElement.dataset.lourexCloudSessionLost='true';}catch{}
+      const complete=((event:Event)=>{
+        if((event as CustomEvent<{uid?:string|null}>).detail?.uid!==null)return;
+        signOutTransitionRunning=false;
+        window.removeEventListener('lourex-account-transition-complete',complete as EventListener);
+      }) as EventListener;
+      window.addEventListener('lourex-account-transition-complete',complete);
+      window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:null}}));
+    },AUTH_RESTORATION_GRACE_MS);
   });
 }
 
