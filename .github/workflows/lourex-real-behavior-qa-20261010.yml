@@ -1,0 +1,24 @@
+name: LOUREX Real Behavior QA Batch
+on:
+  push:
+    branches:
+      - fix/qa-real-behavior-batch-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Real behavior regressions
+        run: node --test --test-concurrency=2 tests/contextual-ai-batch4.test.mjs tests/ai-cfo-deal-desk-batch5.test.mjs tests/commercial-flow-batch1.test.mjs tests/commercial-controls-v136.test.mjs tests/audit-confirmed-signout.test.mjs tests/audit-account-transition-runtime.test.mjs
+      - name: Full suite (all failures visible)
+        run: node --test --test-concurrency=2 tests/*.test.mjs

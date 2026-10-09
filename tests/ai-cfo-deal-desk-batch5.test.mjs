@@ -44,7 +44,7 @@ test('Deal Desk refuses implicit multi-currency combination without recorded FX 
 
 test('CFO and Deal Desk intents are bilingual and conversation integration stays local-first',async()=>{
   const {isCfoIntent,isDealDeskIntent}=await mod();assert.equal(isCfoIntent('راجع الوضع المالي للشركة'),true);assert.equal(isCfoIntent('Give me a CFO review'),true);assert.equal(isDealDeskIntent('قيّم الصفقة وربحيتها'),true);assert.equal(isDealDeskIntent('Deal Desk: landed cost and margin'),true);
-  const client=await read('src/lib/ai-tool-client.ts');assert.match(client,/buildCfoBrief/);assert.match(client,/formatCfoBrief/);assert.match(client,/buildDealDeskDecision/);assert.match(client,/if\(isCfoIntent\(input\.message\)\)/);const cfoIndex=client.indexOf('if(isCfoIntent(input.message))'),providerIndex=client.indexOf("requestAiJson('/api/ai-inbox'");assert.ok(cfoIndex>=0&&providerIndex>cfoIndex,'CFO fast path must run before provider planning');
+  const client=await read('src/lib/ai-tool-client.ts');assert.match(client,/buildCfoBrief/);assert.match(client,/formatCfoBrief/);assert.match(client,/buildDealDeskDecision/);assert.match(client,/if\(!hasSources&&isCfoIntent\(input\.message\)\)/);assert.match(client,/const dealDesk=!hasSources&&isDealDeskIntent\(input\.message\)/);const cfoIndex=client.indexOf('if(!hasSources&&isCfoIntent(input.message))'),providerIndex=client.indexOf("requestAiJson('/api/ai-inbox'");assert.ok(cfoIndex>=0&&providerIndex>cfoIndex,'CFO fast path must run before provider planning');
 });
 
 test('Batch 5 adds no Serverless Function and preserves Vercel Hobby budget',async()=>{
