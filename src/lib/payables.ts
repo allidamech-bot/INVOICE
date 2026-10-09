@@ -26,6 +26,13 @@ function dayNumber(iso:string):number{const [year='0',month='1',day='1']=iso.spl
 function purchaseSupplierId(purchase:PurchaseRecord):string{return purchase.supplierSnapshot?.sourceSupplierId?.trim()||`legacy-purchase:${purchase.id}`;}
 function paymentCents(payment:SupplierPaymentRecord):bigint{return isDecimalInput(payment.amount)?decimalToScaled(payment.amount,2):0n;}
 function liabilityCents(purchase:PurchaseRecord):bigint{return decimalToScaled(purchaseTotals(purchase).landedTotal,2);}
+function postedOnOrBefore(purchase:PurchaseRecord,asOf:string):boolean{
+  if(purchase.status!=='posted')return false;
+  if(!asOf)return true;
+  if(purchase.date>asOf)return false;
+  const postedDate=purchase.postedAt?.slice(0,10)||'';
+  return !postedDate||(isIsoDate(postedDate)&&postedDate<=asOf);
+}
 
 export function supplierDaysOverdue(dueDate:string,today=todayIso()):number{
   if(!isIsoDate(dueDate)||!isIsoDate(today)||dueDate>=today)return 0;
@@ -44,7 +51,7 @@ export function supplierPaymentsForPurchase(purchase:PurchaseRecord,payments:Sup
 
 export function purchasePayableSummary(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],today=todayIso()):PurchasePayableSummary{
   const total=liabilityCents(purchase);
-  const linked=purchase.status==='posted'?supplierPaymentsForPurchase(purchase,payments):[];
+  const linked=purchase.status==='posted'?supplierPaymentsForPurchase(purchase,payments).filter(payment=>!today||payment.date<=today):[];
   const paid=linked.reduce((sum,payment)=>sum+paymentCents(payment),0n);
   const remaining=purchase.status==='posted'?(total>paid?total-paid:0n):purchase.status==='draft'?total:0n;
   const days=purchase.status==='posted'&&remaining>0n?supplierDaysOverdue(purchase.dueDate,today):0;
@@ -55,7 +62,7 @@ export function purchasePayableSummary(purchase:PurchaseRecord,payments:Supplier
 export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),supplierId=''):CurrencyPayableSummary[]{
   const map=new Map<string,{purchases:bigint;paid:bigint;remaining:bigint;overdue:bigint;aging:Record<PayablesAgingBucket,bigint>;openPurchases:number;overduePurchases:number}>();
   for(const purchase of purchases){
-    if(purchase.status!=='posted')continue;
+    if(!postedOnOrBefore(purchase,today))continue;
     if(supplierId&&purchaseSupplierId(purchase)!==supplierId)continue;
     const summary=purchasePayableSummary(purchase,payments,today);
     const row=map.get(summary.currency)??{purchases:0n,paid:0n,remaining:0n,overdue:0n,aging:{current:0n,days1to30:0n,days31to60:0n,days61to90:0n,days90plus:0n},openPurchases:0,overduePurchases:0};
@@ -69,14 +76,14 @@ export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:S
 
 export function supplierAccounts(suppliers:Supplier[],purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso()):SupplierAccountSummary[]{
   const supplierMap=new Map(suppliers.map(supplier=>[supplier.id,supplier]));
-  const ids=new Set(purchases.filter(purchase=>purchase.status==='posted').map(purchaseSupplierId));
+  const ids=new Set(purchases.filter(purchase=>postedOnOrBefore(purchase,today)).map(purchaseSupplierId));
   return[...ids].map(supplierId=>{const currencies=supplierPayablesByCurrency(purchases,payments,today,supplierId).map(row=>({...row,supplierId}));return{supplierId,supplier:supplierMap.get(supplierId)??null,currencies,hasOverdue:currencies.some(row=>decimalToScaled(row.overdue,2)>0n),openPurchases:currencies.reduce((sum,row)=>sum+row.openPurchases,0)};}).sort((a,b)=>Number(b.hasOverdue)-Number(a.hasOverdue)||b.openPurchases-a.openPurchases||((a.supplier?.nameEn||a.supplier?.nameAr||a.supplierId).localeCompare(b.supplier?.nameEn||b.supplier?.nameAr||b.supplierId)));
 }
 
 export function supplierStatement(supplierId:string,purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso()):SupplierStatementCurrency[]{
   const rows=new Map<string,{date:string;reference:string;type:'purchase'|'payment';description:string;debit:bigint;credit:bigint;purchaseNumber:string;order:number}[]>();
   const push=(currency:string,row:{date:string;reference:string;type:'purchase'|'payment';description:string;debit:bigint;credit:bigint;purchaseNumber:string;order:number})=>{const list=rows.get(currency)??[];list.push(row);rows.set(currency,list);};
-  const supplierPurchases=purchases.filter(purchase=>purchase.status==='posted'&&purchaseSupplierId(purchase)===supplierId&&(!today||purchase.date<=today));
+  const supplierPurchases=purchases.filter(purchase=>postedOnOrBefore(purchase,today)&&purchaseSupplierId(purchase)===supplierId);
   for(const purchase of supplierPurchases){
     const currency=cleanCurrency(purchase.currency),total=liabilityCents(purchase);
     push(currency,{date:purchase.date,reference:purchase.number,type:'purchase',description:purchase.supplierSnapshot?.nameEn||purchase.supplierSnapshot?.nameAr||purchase.number,debit:0n,credit:total,purchaseNumber:purchase.number,order:1});
