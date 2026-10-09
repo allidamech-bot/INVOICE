@@ -1,0 +1,55 @@
+name: LOUREX Free Pre-Merge Verification
+
+on:
+  push:
+    branches:
+      - fix/audit-workspace-payables-asof-20261009
+      - fix/audit-ai-verified-auth-20261009
+    paths-ignore:
+      - '**/*.md'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Node 24 · typecheck · build · integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript validation
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Focused accounting and AI integration regressions
+        run: >
+          node --test --test-concurrency=2
+          tests/audit-supplier-payables-asof.test.mjs
+          tests/audit-supplier-payment-void-merge.test.mjs
+          tests/audit-treasury-void-history.test.mjs
+          tests/audit-inventory-planning-scope.test.mjs
+          tests/accounts-payable-batch9.test.mjs
+          tests/audit-ai-firebase-auth.test.mjs
+          tests/audit-ai-client-token-safety.test.mjs
+          tests/ai-reliability-batch5.test.mjs
+          tests/b04-attachment-progress.test.mjs
+          tests/b04-ai-planner-failure-visibility.test.mjs
+          tests/b04-source-aware-tool-planner.test.mjs
+      - name: Complete Node test suite
+        run: node --test --test-concurrency=2 tests/*.test.mjs
