@@ -4,22 +4,21 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v189 loads the financial workspace layer late without displacing printable document CSS',async()=>{
-  const [html,css,build]=await Promise.all([
-    read('index.html'),
-    read('src/styles/financial-workspaces-v189.css'),
-    read('scripts/build.mjs')
-  ]);
-  assert.ok(html.includes('./styles/financial-workspaces-v189.css'));
-  assert.ok(html.indexOf('account-cloud-separation-v186.css')<html.indexOf('financial-workspaces-v189.css'));
-  assert.ok(html.indexOf('financial-workspaces-v189.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(build,/styleNames\.at\(-1\)!=='document-premium-redesign-v141\.css'/);
-  assert.match(css,/Batch 7 — Obsidian Executive financial workspaces/);
+test('current finance and operations owners stay screen-only and preserve A4 print output',async()=>{
+ const [html,legacy,finance,operations,build]=await Promise.all([
+  read('index.html'),read('src/styles/financial-workspaces-v189.css'),read('src/styles/tailadmin-finance-v320.css'),read('src/styles/tailadmin-operations-v320.css'),read('scripts/build.mjs')
+ ]);
+ const paper=html.indexOf('document-premium-redesign-v141.css');
+ const financeAt=html.indexOf('tailadmin-finance-v320.css');
+ const opsAt=html.indexOf('tailadmin-operations-v320.css');
+ assert.ok(paper>=0&&financeAt>paper&&opsAt>financeAt,'current application styling follows canonical print foundation');
+ assert.equal(html.includes('financial-workspaces-v189.css'),false,'retired financial style must not override approved TailAdmin');
+ for(const css of [legacy,finance,operations]){
   assert.match(css,/@media screen/);
-  assert.ok(!css.includes('@media print'),'financial workspace redesign must not override print media');
-  assert.ok(!css.includes('customer-statement-print'),'customer statement paper remains isolated');
+  assert.doesNotMatch(css,/@media print|\.invoice-page/,'finance chrome must not overwrite commercial paper');
+ }
+ assert.match(build,/app\.bundle\.css/);
 });
-
 test('v189 gives reports a compact command surface and financial hierarchy instead of white card stacks',async()=>{
   const css=await read('src/styles/financial-workspaces-v189.css');
   for(const selector of [
