@@ -32,7 +32,7 @@ test('v215 legacy migration adopts data only when the durable cloud-account owne
 test('v215 local cloud-account writes refuse a UID that differs from the selected local account scope',async()=>{
   const db=await read('src/storage/db.ts');
   assert.match(db,/if\(activeStorageUid&&activeStorageUid!==uid\)throw new Error\('Local account storage does not match the authenticated account\.'\)/);
-  assert.match(db,/Clear only the currently selected local account scope/);
+  assert.match(db,/function scopedDbName\(\):string\{return activeStorageUid\?accountDbName\(activeStorageUid\):PUBLIC_DB_NAME;\}/);
 });
 
 test('v215 selects the UID storage boundary before any account session or cloud reconciliation',async()=>{
@@ -44,32 +44,36 @@ test('v215 selects the UID storage boundary before any account session or cloud 
   assert.match(entry,/if\(accountReady\)await hydrateAuthoritativeCloudBeforeApp\(\)/);
 });
 
-test('v215 direct Firebase account replacement tears down the actual selected storage scope before reload',async()=>{
-  const entry=await read('src/app/index.tsx');
+test('v215 changing Firebase UID uses the coordinated old-key revocation and DB switch',async()=>{
+  const [entry,app]=await Promise.all([read('src/app/index.tsx'),read('src/app/App.tsx')]);
   const watcher=entry.slice(entry.indexOf('function startAccountSignOutWatcher'),entry.indexOf('async function start()'));
-  assert.match(entry,/activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot/);
-  assert.match(watcher,/const selectedStorageUid=activeAccountStorageUid\(\);/);
-  const switchStart=watcher.indexOf('if(selectedStorageUid&&selectedStorageUid!==user.uid)');
-  const switchEnd=watcher.indexOf('setActiveAccountUid(user.uid)',switchStart);
-  assert.ok(switchStart>=0&&switchEnd>switchStart,'direct UID replacement guard must run before normal same-user handling');
-  const directSwitch=watcher.slice(switchStart,switchEnd);
-  const oldScope=directSwitch.indexOf('await activateAccountStorage(selectedStorageUid)');
-  const suspend=directSwitch.indexOf('await suspendSession()');
-  const clearUid=directSwitch.indexOf('setActiveAccountUid(null)');
-  const publicScope=directSwitch.indexOf('await activateAccountStorage(null)');
-  const reload=directSwitch.indexOf('window.location.reload()');
-  assert.ok(oldScope>=0&&suspend>oldScope&&clearUid>suspend&&publicScope>clearUid&&reload>publicScope);
-  assert.doesNotMatch(directSwitch,/getActiveAccountUid\(\)|activateAccountStorage\(user\.uid\)|resumeAccountSession\(user\.uid\)/);
+  const handler=app.slice(app.indexOf('private handleAccountTransitionRequest='),app.indexOf('private handleOnline='));
+  assert.match(watcher,/const selectedStorageUid=activeAccountStorageUid\(\)/);
+  assert.match(watcher,/if\(selectedStorageUid&&selectedStorageUid!==user\.uid\)/);
+  assert.match(watcher,/lourex-account-transition-request[\s\S]*uid:targetUid/);
+  const drain=handler.indexOf('await this.drainVaultWrites()');
+  const idle=handler.indexOf('await this.waitForCloudIdle()');
+  const suspend=handler.indexOf('await suspendSession()');
+  const changeOwner=handler.indexOf('setActiveAccountUid(uid||null)');
+  const changeDb=handler.indexOf('await activateAccountStorage(uid||null)');
+  const clearView=handler.indexOf('unlocked:false,key:null,vault:null');
+  assert.ok(drain>=0&&idle>drain&&suspend>idle&&changeOwner>suspend&&changeDb>changeOwner&&clearView>changeDb,
+    'existing account must be drained, revoked and removed from React state before replacing the UID');
+  assert.doesNotMatch(watcher,/resumeAccountSession\(user\.uid\)/);
 });
 
-test('v215 sign-out destroys the usable session key before leaving that account storage scope',async()=>{
-  const entry=await read('src/app/index.tsx');
+test('v215 persistent sign-out revokes the PIN key before clearing the account scope',async()=>{
+  const [entry,app]=await Promise.all([read('src/app/index.tsx'),read('src/app/App.tsx')]);
   const watcher=entry.slice(entry.indexOf('function startAccountSignOutWatcher'),entry.indexOf('async function start()'));
-  const signedOut=watcher.slice(watcher.lastIndexOf('if(!accountWasAuthenticated||signOutTransitionRunning)return;'));
-  const suspend=signedOut.indexOf('await suspendSession()');
-  const clearUid=signedOut.indexOf('setActiveAccountUid(null)');
-  const publicScope=signedOut.indexOf('await activateAccountStorage(null)');
-  assert.ok(suspend>=0&&clearUid>suspend&&publicScope>clearUid);
+  const handler=app.slice(app.indexOf('private handleAccountTransitionRequest='),app.indexOf('private handleOnline='));
+  assert.match(watcher,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\|\|currentCloudUser\(\)\)return/);
+  assert.match(watcher,/detail:\{uid:'',signedOut:true\}/);
+  assert.match(handler,/const signedOut=detail\?\.signedOut===true/);
+  const suspend=handler.indexOf('await suspendSession()');
+  const clearOwner=handler.indexOf('setActiveAccountUid(uid||null)');
+  const clearStorage=handler.indexOf('await activateAccountStorage(uid||null)');
+  assert.ok(suspend>=0&&clearOwner>suspend&&clearStorage>clearOwner);
+  assert.match(handler,/if\(signedOut\)\{[\s\S]*await suspendSession\(\);[\s\S]*setActiveAccountUid\(null\);[\s\S]*window\.location\.reload\(\)/);
 });
 
 test('v216 keeps installed clients on the account-isolated storage runtime while advancing the PWA generation',async()=>{
