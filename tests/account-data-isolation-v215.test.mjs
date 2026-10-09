@@ -32,7 +32,8 @@ test('v215 legacy migration adopts data only when the durable cloud-account owne
 test('v215 local cloud-account writes refuse a UID that differs from the selected local account scope',async()=>{
   const db=await read('src/storage/db.ts');
   assert.match(db,/if\(activeStorageUid&&activeStorageUid!==uid\)throw new Error\('Local account storage does not match the authenticated account\.'\)/);
-  assert.match(db,/Clear only the currently selected local account scope/);
+  assert.match(db,/export async function clearDatabase\(\): Promise<void> \{[\s\S]*const name=scopedDbName\(\)/);
+  assert.match(db,/indexedDB\.deleteDatabase\(name\)/,'reset must delete only the scoped IndexedDB database');
 });
 
 test('v215 selects the UID storage boundary before any account session or cloud reconciliation',async()=>{
