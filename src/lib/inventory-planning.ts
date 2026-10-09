@@ -171,11 +171,16 @@ export function validatedInventoryPlanningDeleteEvent(vault:Pick<VaultPayload,'s
   return planningEvent(itemId,name,updatedAt,{kind:'delete',itemId,updatedAt});
 }
 
+function movementKnownBy(movement:InventoryMovementRecord,asOf:string):boolean{
+  // A backdated ledger entry recorded after the requested date is not historical evidence.
+  const created=movement.createdAt?.slice(0,10)||'';
+  return !created||(isIsoDate(created)&&created<=asOf);
+}
 function balanceByItem(movements:InventoryMovementRecord[],asOf:string):Map<string,bigint>{
   const balances=new Map<string,bigint>();
   for(const movement of movements){
     // Transfers only move stock between warehouses. Never count them as new company stock.
-    if(!inventoryMovementAccountingIsValid(movement)||movement.type==='transfer'||movement.date>asOf)continue;
+    if(!inventoryMovementAccountingIsValid(movement)||movement.type==='transfer'||movement.date>asOf||!movementKnownBy(movement,asOf))continue;
     balances.set(movement.itemId,(balances.get(movement.itemId)??0n)+scaled(movement.quantity));
   }
   return balances;
@@ -183,7 +188,7 @@ function balanceByItem(movements:InventoryMovementRecord[],asOf:string):Map<stri
 function issueVelocityByItem(movements:InventoryMovementRecord[],asOf:string,lookbackDays:number):Map<string,bigint>{
   const cutoff=dateCutoff(asOf,lookbackDays),totals=new Map<string,bigint>();
   for(const movement of movements){
-    if(movement.type!=='issue'||!inventoryMovementAccountingIsValid(movement)||movement.date<cutoff||movement.date>asOf)continue;
+    if(movement.type!=='issue'||!inventoryMovementAccountingIsValid(movement)||movement.date<cutoff||movement.date>asOf||!movementKnownBy(movement,asOf))continue;
     const quantity=scaled(movement.quantity),issued=quantity<0n?-quantity:quantity;
     totals.set(movement.itemId,(totals.get(movement.itemId)??0n)+issued);
   }
