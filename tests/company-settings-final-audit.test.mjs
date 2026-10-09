@@ -58,8 +58,8 @@ test('first-run company logo uses the same bounded raster policy and cannot fini
   assert.match(source,/accept="image\/png,image\/webp,image\/jpeg"/);
   assert.doesNotMatch(source,/accept="[^"]*image\/svg\+xml/);
   assert.match(source,/Preparing logo/);
-  const uploadStart=source.search(/private uploadLogo\\s*=\\s*async/);
-  const finishStart=source.search(/private finish\\s*=/);
+  const uploadStart=source.search(/private uploadLogo\s*=\s*async/);
+  const finishStart=source.search(/private finish\s*=/);
   assert.ok(uploadStart>=0&&finishStart>uploadStart,'setup logo operation must precede PIN completion');
   const upload=source.slice(uploadStart,finishStart);
   assert.ok(upload.includes('const uploadId=++this.logoUploadId'),'a new upload must supersede an earlier logo selection');
