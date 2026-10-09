@@ -50,7 +50,7 @@ test('first-run company logo uses the same bounded raster policy and cannot fini
   assert.match(source,/MAX_SETUP_LOGO_BYTES=4\*1024\*1024/);
   assert.ok(source.includes('const SETUP_LOGO_TYPES=/^image\\/(png|webp|jpeg)$/i;'));
   assert.match(source,/private logoUploadId=0/);
-  assert.match(source,/logoBusy: boolean/);
+  assert.match(source,/logoBusy\s*:\s*boolean/);
   assert.match(source,/this\.setState\(\{error:'',logoBusy:true\}\)/);
   assert.match(source,/if\(uploadId!==this\.logoUploadId\)return/);
   assert.match(source,/if\(this\.state\.logoBusy\|\|this\.state\.busy\)return/);
@@ -58,7 +58,12 @@ test('first-run company logo uses the same bounded raster policy and cannot fini
   assert.match(source,/accept="image\/png,image\/webp,image\/jpeg"/);
   assert.doesNotMatch(source,/accept="[^"]*image\/svg\+xml/);
   assert.match(source,/Preparing logo/);
-  const upload=source.slice(source.indexOf('private uploadLogo = async'),source.indexOf('private finish ='));
+  const uploadStart=source.search(/private uploadLogo\\s*=\\s*async/);
+  const finishStart=source.search(/private finish\\s*=/);
+  assert.ok(uploadStart>=0&&finishStart>uploadStart,'setup logo operation must precede PIN completion');
+  const upload=source.slice(uploadStart,finishStart);
+  assert.ok(upload.includes('const uploadId=++this.logoUploadId'),'a new upload must supersede an earlier logo selection');
+  assert.ok(upload.includes('file.size>MAX_SETUP_LOGO_BYTES')&&upload.includes('SETUP_LOGO_TYPES.test'),'raster size and MIME checks remain');
   assert.ok(upload.indexOf('const uploadId=++this.logoUploadId')<upload.indexOf('file.size>MAX_SETUP_LOGO_BYTES'),'every newer setup-logo selection must invalidate older work before size validation');
   assert.ok(upload.indexOf('const uploadId=++this.logoUploadId')<upload.indexOf('SETUP_LOGO_TYPES.test'),'a rejected setup-logo replacement must still supersede older work');
   assert.match(upload,/Image is too large[\s\S]*logoBusy:false/);
