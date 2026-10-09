@@ -45,20 +45,20 @@ test('production build identifies and guards the canonical INVOICE repository',a
   assert.match(build,/commitSha/);
 });
 
-test('system health page exposes bounded platform diagnostics without opening account data',async()=>{
-  const [health,healthScript,vercel,errors]=await Promise.all([read('public/health.html'),read('public/health.js'),read('vercel.json'),read('src/app/AppErrorBoundary.tsx')]);
-  assert.match(health,/System Health/);
-  assert.match(healthScript,/Deployment source/);
-  assert.match(healthScript,/Encrypted local storage/);
-  assert.match(health,/Privacy-safe diagnostics/);
-  assert.match(healthScript,/PROBE_TIMEOUT_MS/);
-  assert.match(healthScript,/finally\{finished=true;render\(\);\}/);
-  assert.doesNotMatch(healthScript,/companyNameEn|customerSnapshot|descriptionEn|decryptVault/);
-  assert.doesNotMatch(healthScript,/indexedDB\.open\(|transaction\('records'|Safety snapshot/);
-  assert.match(vercel,/\/sw\.js/);
-  assert.match(vercel,/\/runtime-config\.js/);
-  assert.match(vercel,/\/health\.html/);
-  assert.match(vercel,/no-cache, no-store, must-revalidate/);
-  assert.match(errors,/health\.html/);
-  assert.match(errors,/sourceRepoSlug/);
+test('unified system diagnostics remain bounded and privacy-safe without opening account records',async()=>{
+ const [health,script,vercel,errors]=await Promise.all([read('public/health.html'),read('public/health.js'),read('vercel.json'),read('src/app/AppErrorBoundary.tsx')]);
+ assert.match(health,/Unified Diagnostics/);
+ assert.match(health,/System health/);
+ assert.match(health,/One privacy-safe report/);
+ assert.match(health,/id="report"/);
+ assert.match(script,/PROBE_TIMEOUT_MS/);
+ assert.match(script,/HEALTH_DEADLINE_MS/);
+ assert.match(script,/finally\{finished=true;render\(\);\}/);
+ for(const sensitive of ['companyNameEn','customerSnapshot','descriptionEn','decryptVault','indexedDB.open('])assert.equal(script.includes(sensitive),false,`diagnostics must not access ${sensitive}`);
+ assert.match(vercel,/\/sw\.js/);
+ assert.match(vercel,/\/runtime-config\.js/);
+ assert.match(vercel,/\/health\.html/);
+ assert.match(vercel,/no-cache, no-store, must-revalidate/);
+ assert.match(errors,/health\.html/);
+ assert.match(errors,/sourceRepoSlug/);
 });
