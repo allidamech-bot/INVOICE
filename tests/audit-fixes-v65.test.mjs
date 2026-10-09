@@ -7,7 +7,9 @@ const read=path=>readFile(new URL(path,root),'utf8');
 
 test('final proforma remains convertible without unlocking it for editing',async()=>{
   const editor=await read('src/components/EditorPage.tsx');
-  assert.match(editor,/documentCanConvertToInvoice\(props\.document\.kind\)&&props\.document\.status==='final'/);
+  assert.match(editor,/documentCanConvertToInvoice\(props\.document\.kind\)&&props\.document\.role==='standard'&&props\.document\.status==='final'/);
+  assert.match(editor,/props\.document\.lifecycleStatus!=='voided'/);
+  assert.match(editor,/linkedInvoice=finalQuote\?props\.documents\.find\(item=>item\.kind==='invoice'&&item\.role==='standard'&&item\.convertedFromId===props\.document\.id&&item\.lifecycleStatus!=='voided'\)/);
   assert.match(editor,/props\.document\.lifecycleStatus!=='voided'/);
   assert.match(editor,/item\.convertedFromId===props\.document\.id&&item\.lifecycleStatus!=='voided'/);
   assert.match(editor,/Create Commercial Invoice/);
