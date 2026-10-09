@@ -1,6 +1,7 @@
 import type { BranchRecord, InventoryMovementRecord, SavedItem, WarehouseRecord } from '../types.js';
 import { decimalToScaled, isDecimalInput } from './money.js';
 import { makeId, todayIso } from './id.js';
+import { inventoryMovementAccountingIsValid } from './operations.js';
 
 const QTY_DECIMALS=4;
 function scaled(value:string):bigint{return decimalToScaled(value||'0',QTY_DECIMALS);}
@@ -22,6 +23,10 @@ export function validateWarehouse(warehouse:WarehouseRecord,all:WarehouseRecord[
 }
 
 export function movementLocationDelta(movement:InventoryMovementRecord,warehouseId:string,defaultId:string):bigint{
+  // Warehouse availability must use the same validated ledger as company stock.
+  // Invalid entries remain visible through operations integrity reporting, but must never
+  // inflate available quantity or crash inventory screens during quantity parsing.
+  if(!inventoryMovementAccountingIsValid(movement))return 0n;
   if(movement.type==='transfer'){
     const qty=scaled(movement.quantity);let delta=0n;if((movement.fromWarehouseId||defaultId)===warehouseId)delta-=qty<0n?-qty:qty;if((movement.toWarehouseId||defaultId)===warehouseId)delta+=qty<0n?-qty:qty;return delta;
   }
