@@ -23,6 +23,6 @@ jobs:
       - name: Production build (no deploy)
         run: npm run build
       - name: Focused current-runtime regressions
-        run: node --test tests/documents-workspace-v104.test.mjs tests/interface-polish-v256.test.mjs tests/design-semantic-closeout-batch2.test.mjs tests/design-system-v164.test.mjs
+        run: node --test tests/documents-workspace-v104.test.mjs tests/interface-polish-v256.test.mjs tests/design-semantic-closeout-batch2.test.mjs tests/design-system-v164.test.mjs tests/document-dark-contrast-v126.test.mjs tests/document-design-recovery-v139.test.mjs tests/document-final-qa-v130.test.mjs tests/document-layout-cleanup-v140.test.mjs tests/document-output-quality-v157.test.mjs tests/document-premium-redesign-v141.test.mjs tests/document-template-distinction-v143.test.mjs
       - name: Full historical suite with no exclusions
         run: node --test --test-concurrency=2 tests/*.test.mjs
