@@ -79,13 +79,17 @@ test('account surface keeps restore automatic and sign-out returns immediately t
   assert.doesNotMatch(signOut,/setTimeout[\s\S]*window\.location\.reload/);
 });
 
-test('Operations surfaces expose excluded legacy accounting records instead of silently hiding integrity loss',async()=>{
+test('Operations and scoped financial workspaces disclose invalid historical records rather than silently counting them',async()=>{
   const page=await read('src/components/OperationsPage.tsx');
-  assert.match(page,/operationsIntegritySummary/);
-  assert.match(page,/integrity\.totalInvalid\?<div className="operations-callout danger operations-integrity-warning" role="status">/);
-  assert.match(page,/integrity\.invalidPurchases/);
-  assert.match(page,/integrity\.invalidExpenses/);
+  assert.match(page,/operationsIntegritySummary\(this\.props\.purchases,this\.props\.expenses,this\.props\.inventoryMovements\)/);
+  assert.match(page,/mode==='purchasing'\?integrity\.invalidPurchases/);
+  assert.match(page,/mode==='finance'\?integrity\.invalidExpenses/);
   assert.match(page,/integrity\.invalidMovements/);
+  assert.match(page,/if\(!invalid\)return null/);
+  assert.match(page,/className="ta-ops-integrity is-danger" role="status"/);
+  assert.match(page,/Accounting integrity warning/);
+  assert.match(page,/are excluded from totals until corrected/);
+  assert.match(page,/integrity\.totalInvalid\?<div className="ta-ops-integrity is-danger" role="status">/);
   assert.match(page,/excluded from accounting or inventory totals until corrected/);
 });
 
@@ -108,14 +112,18 @@ test('v351 coarse-pointer controls retain a final 44px physical target floor wit
   assert.match(build,/app\.bundle\.css/);
 });
 
-test('v351 build promotes a genuinely fresh PWA generation while preserving historical source markers',async()=>{
+test('PWA build monotonically advances its cache generation while retaining historical migration markers',async()=>{
   const [sw,refresh]=await Promise.all([read('public/sw.js'),read('scripts/v303-visual-cache-refresh.mjs')]);
-  assert.match(refresh,/const RELEASE_GENERATION=351/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v314';$/m);
-  assert.match(sw,/lourex-invoice-v195: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v185: preserved as a legacy marker/);
+  const release=Number(refresh.match(/const RELEASE_GENERATION=(\d+)/)?.[1]);
+  const current=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m)?.[1]);
+  assert.ok(Number.isInteger(release)&&release>=361,'the build must not regress to an obsolete visual generation');
+  assert.ok(Number.isInteger(current)&&current>=314,'the currently checked-in service worker must be at least Batch 0');
+  assert.ok(release>current,'build must issue a newer cache identity for changed assets');
+  assert.match(refresh,/if\(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION\)/);
+  assert.match(refresh,/if\(activeCacheGeneration<RELEASE_GENERATION\)\{[\s\S]*throw new Error/);
+  for(const version of [195,193,188,185]){
+    assert.ok(sw.includes('lourex-invoice-v'+version),'missing legacy migration marker '+version);
+  }
 });
 
 test('active PWA shell uses network-first for navigation/runtime and cache-first only for immutable residual assets',async()=>{
