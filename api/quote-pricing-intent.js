@@ -1,3 +1,4 @@
+import {requireAiAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=12000;
@@ -19,6 +20,7 @@ export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Pricing intent requests must come from this LOUREX deployment.'});return;}
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'Pricing intent AI is temporarily rate limited.'});return;}
+  if(!await requireAiAuth(request,response,sendJson))return;
   let body;try{body=await readJson(request);}catch{sendJson(response,400,{code:'INVALID_REQUEST',message:'Invalid pricing instruction.'});return;}
   const instruction=cleanText(body?.instruction,500);if(!instruction){sendJson(response,400,{code:'EMPTY_INSTRUCTION',message:'Enter a pricing instruction first.'});return;}
   const prompt=`Convert the user's quotation pricing instruction into exactly one structured intent. Do NOT calculate any price or money. LOUREX will perform all calculations locally.\nAllowed modes:\n- company-policy: use the saved company pricing policy.\n- margin: target gross margin percent on saved cost; must be explicitly below 100%.\n- markup: target markup percent on saved cost; explicit values up to 1000% are accepted.\n- increase-percent: increase the currently proposed selling prices by an explicit percentage up to 1000%.\n- saved-sale-price: use each matched product's saved selling price.\n- last-customer-price: use the most recent comparable price previously quoted/invoiced to the matched customer for the matched product.\n- no-change: instruction is unsupported, ambiguous, invalid, or not a pricing instruction.\nFor margin, markup, and increase-percent, percent must be the explicit percentage from the user's instruction. Never invent a percentage. Return a short reason.\nUser instruction: ${JSON.stringify(instruction)}`;
