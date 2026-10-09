@@ -46,10 +46,10 @@ jobs:
                 grep -q 'synchronizeActiveWorkspaceOnSave' src/storage/vault.ts
                 git add src/storage/vault.ts
                 git commit -m "QA only: use v20 guard plus active workspace save persistence"
-              elif [[ "$name" == "fix/qa-document-details-pagination-20261009" ]] &&
-                   [[ $(git diff --name-only --diff-filter=U | wc -l) -eq 2 ]] &&
-                   git diff --name-only --diff-filter=U | grep -qx 'src/lib/document-quality.ts' &&
-                   git diff --name-only --diff-filter=U | grep -qx 'src/templates/TemplateRenderer.tsx'; then
+              elif [[ "$name" == "fix/qa-document-details-pagination-20261009" ]]; then
+                [[ $(git diff --name-only --diff-filter=U | wc -l) -eq 2 ]]
+                git diff --name-only --diff-filter=U | grep -qx 'src/lib/document-quality.ts'
+                git diff --name-only --diff-filter=U | grep -qx 'src/templates/TemplateRenderer.tsx'
                 git checkout --ours src/lib/document-quality.ts src/templates/TemplateRenderer.tsx
                 grep -q 'value.length>520' src/lib/document-quality.ts
                 grep -q 'value.length>520' src/templates/TemplateRenderer.tsx
