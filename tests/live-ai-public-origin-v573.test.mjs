@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import handler from '../api/ai-core.js';
+import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 
 function req(headers){
   const request=Readable.from([JSON.stringify({})]);
@@ -15,7 +16,9 @@ function res(){
 }
 async function invoke(headers){
   const response=res();
-  await handler(req(headers),response);
+  const originalFetch=globalThis.fetch;
+  globalThis.fetch=withTestFirebaseKeys(originalFetch);
+  try{await handler(req(headers),response);}finally{globalThis.fetch=originalFetch;}
   return response;
 }
 
@@ -25,7 +28,8 @@ test('the verified public production alias is accepted even when Vercel invokes 
     origin:'https://invoice-three-puce.vercel.app',
     'sec-fetch-site':'cross-site',
     'x-requested-with':'LOUREX-Invoice',
-    'x-forwarded-for':'127.0.0.10'
+    'x-forwarded-for':'127.0.0.10',
+    authorization:testFirebaseBearer()
   });
   assert.notEqual(response.statusCode,403);
   assert.equal(response.statusCode,400);
