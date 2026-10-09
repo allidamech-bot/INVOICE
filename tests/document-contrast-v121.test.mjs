@@ -11,10 +11,20 @@ test('historical contrast and art-direction layers no longer participate in runt
   assert.ok(html.indexOf('document-premium-redesign-v141.css')>=0);
 });
 
-test('document renderer exposes computed accent ink for dynamic contrast',async()=>{
+test('document renderer applies calculated accent ink from appearance tokens',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
-  assert.match(renderer,/--accent-ink/);
-  assert.match(renderer,/resolvedAccentInk\(accent\)/);
+  const appearance=await read('src/lib/appearance.ts');
+  assert.match(renderer,/const tokens=resolvedAppearanceTokens\(/);
+  assert.match(renderer,/'--accent':tokens\.accent/);
+  assert.match(renderer,/'--accent-ink':tokens\.accentInk/);
+  assert.match(appearance,/accent,accentInk:resolvedAccentInk\(accent\)/);
+  const {resolvedAppearanceTokens,resolvedAccentInk}=await import('../dist/src/lib/appearance.js');
+  for(const templateId of ['aurora','prism','split','executive']){
+    const tokens=resolvedAppearanceTokens({templateId,paletteMode:'auto'});
+    assert.match(tokens.accent,/^#[0-9a-f]{6}$/i);
+    assert.equal(tokens.accentInk,resolvedAccentInk(tokens.accent),'runtime rendering must use the exact computed ink');
+    assert.ok(tokens.accentInk==='#ffffff'||tokens.accentInk==='#101010');
+  }
 });
 
 test('v121 uses calculated accent ink where copy sits directly on accent',async()=>{
@@ -24,11 +34,19 @@ test('v121 uses calculated accent ink where copy sits directly on accent',async(
   assert.match(css,/grand-total[\s\S]*contrast-navy/);
 });
 
-test('automatic template palette avoids purple accent defaults',async()=>{
-  const appearance=await read('src/lib/appearance.ts');
-  assert.doesNotMatch(appearance,/#7259b8|#6b5bb4|#6f64ce/i);
-  assert.match(appearance,/aurora:'#b58b4f'/);
-  assert.match(appearance,/prism:'#3f736f'/);
+test('automatic palettes retain distinct template identities and choose readable ink for custom accents',async()=>{
+  const {resolvedAccent,resolvedAppearanceTokens,resolvedAccentInk}=await import('../dist/src/lib/appearance.js');
+  const aurora=resolvedAccent({templateId:'aurora',paletteMode:'auto'});
+  const prism=resolvedAccent({templateId:'prism',paletteMode:'auto'});
+  assert.match(aurora,/^#[0-9a-f]{6}$/i);
+  assert.match(prism,/^#[0-9a-f]{6}$/i);
+  assert.notEqual(aurora,prism,'distinct document identities must not be collapsed');
+  const custom=resolvedAppearanceTokens({templateId:'aurora',paletteMode:'custom',accentColor:'#eeeeee'});
+  assert.equal(custom.accent,'#eeeeee','explicit customer palette must remain selectable');
+  assert.equal(custom.accentInk,'#101010','light accents require dark lettering');
+  const dark=resolvedAppearanceTokens({templateId:'aurora',paletteMode:'custom',accentColor:'#101010'});
+  assert.equal(dark.accentInk,'#ffffff','dark accents require white lettering');
+  assert.equal(resolvedAccentInk('invalid-color'),'#101010','invalid legacy accents must fail to safe ink');
 });
 
 test('aurora masthead is fixed navy and no longer mixes purple into its background',async()=>{
