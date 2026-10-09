@@ -51,8 +51,8 @@ export async function verifyFirebaseIdToken(token){
   if(payload?.aud!==FIREBASE_PROJECT_ID||payload.iss!==`https://securetoken.google.com/${FIREBASE_PROJECT_ID}`||
     typeof payload.sub!=='string'||payload.sub.length<1||payload.sub.length>128||
     !Number.isInteger(payload.exp)||payload.exp<=now||
-    !Number.isInteger(payload.iat)||payload.iat>now+CLOCK_SKEW_SECONDS||
-    !Number.isInteger(payload.auth_time)||payload.auth_time>now+CLOCK_SKEW_SECONDS)throw new Error('Invalid Firebase ID token.');
+    !Number.isInteger(payload.iat)||payload.iat<=0||payload.iat>now+CLOCK_SKEW_SECONDS||
+    !Number.isInteger(payload.auth_time)||payload.auth_time<=0||payload.auth_time>now+CLOCK_SKEW_SECONDS)throw new Error('Invalid Firebase ID token.');
   let keys=await publicKeys();
   if(!keys.has(header.kid))keys=await publicKeys(true);
   const jwk=keys.get(header.kid);
