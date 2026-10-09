@@ -241,8 +241,9 @@ async function pullCloudVaultFromMeta(uid:string,meta:CloudVaultMeta):Promise<{s
   return {security:meta.security,vault:{id:'vault',schemaVersion:meta.schemaVersion,iv:meta.iv,cipher,updatedAt:meta.updatedAt}};
 }
 export async function pullCloudVault(uid:string):Promise<{security:SecurityMetadata;vault:EncryptedVaultRecord}|null>{requireCurrentUid(uid);const meta=await getCloudVaultMeta(uid);if(!meta)return null;return pullCloudVaultFromMeta(uid,meta);}
-export async function installCloudVault(uid:string,notify=false):Promise<boolean>{
+export async function installCloudVault(uid:string,notify=false,signal?:AbortSignal):Promise<boolean>{
   requireCurrentUid(uid);
+  if(signal?.aborted)throw new DOMException('Cloud restoration cancelled.','AbortError');
   if(inlineDraftWorkspaceOpen())throw new Error('Close the open editor or dialog before applying cloud account data.');
   const meta=await getCloudVaultMeta(uid);if(!meta)return false;
   if(meta.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data requires a newer LOUREX version. Update the app before restoring.');
@@ -252,6 +253,7 @@ export async function installCloudVault(uid:string,notify=false):Promise<boolean
   // both ownership and UI safety at the commit boundary before replacing the
   // encrypted local vault.
   requireCurrentUid(uid);
+  if(signal?.aborted)throw new DOMException('Cloud restoration cancelled.','AbortError');
   if(inlineDraftWorkspaceOpen())throw new Error('Close the open editor or dialog before applying cloud account data.');
   if(meta.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data requires a newer LOUREX version. Update the app before restoring.');
   await putSecurityAndVault(remote.security,remote.vault);
