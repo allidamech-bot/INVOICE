@@ -25,7 +25,7 @@ test('v188 a confirmed Firebase sign-out locks the account after a Safari-safe g
   ]);
   const watcher=index.slice(index.indexOf('function startAccountSignOutWatcher'),index.indexOf('async function start()'));
   const transition=app.slice(app.indexOf('private handleAccountTransitionRequest'),app.indexOf('private handleOnline'));
-  assert.match(watcher,/subscribeCloudUser\(user=>\{/);
+  assert.match(watcher,/subscribeCloudUser\(handleAuthChange\)/);
   assert.match(watcher,/clearPendingAuthLoss\(\)/,'a recovered session cancels the pending loss');
   assert.match(watcher,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\|\|pendingAuthLossTimer!==undefined\)return;/);
   assert.match(watcher,/pendingAuthLossTimer=window\.setTimeout/);
