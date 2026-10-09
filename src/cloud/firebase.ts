@@ -127,6 +127,28 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
+export async function currentCloudIdToken(signal?:AbortSignal):Promise<string>{
+  const user=auth().currentUser;
+  if(!user||typeof user.uid!=='string'||!user.uid||typeof user.getIdToken!=='function')throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  let abort=()=>{};
+  // Cancel promptly even if a Firebase network token refresh is still pending.
+  const cancelled=signal?new Promise<never>((_resolve,reject)=>{
+    abort=()=>reject(new DOMException('Cancelled','AbortError'));
+    signal.addEventListener('abort',abort,{once:true});
+    if(signal.aborted)abort();
+  }):null;
+  try{
+    const token=await (cancelled?Promise.race([user.getIdToken(),cancelled]):user.getIdToken());
+    if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+    // A pending refresh must not authorize a request after a switch of account.
+    if(auth().currentUser?.uid!==user.uid)throw new Error('Your LOUREX account changed. Sign in again before using AI.');
+    if(typeof token!=='string'||!token)throw new Error('Your LOUREX account session ended. Sign in again to use AI.');
+    return token;
+  }finally{
+    signal?.removeEventListener('abort',abort);
+  }
+}
 export function subscribeCloudUser(onChange:(user:CloudUser|null)=>void):()=>void{
   try{
     const off=auth().onAuthStateChanged((user:any)=>onChange(userFrom(user)),()=>undefined);

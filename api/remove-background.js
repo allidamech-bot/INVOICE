@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 
 const MAX_IMAGE_BYTES=4*1024*1024;
 const MAX_OUTPUT_BYTES=12*1024*1024;
@@ -34,7 +35,7 @@ function sameOriginRequest(request){
   }catch{return false;}
 }
 
-function requestIp(request){
+function requestIp(request){if(request.aiVerifiedUid)return `uid:${request.aiVerifiedUid}`;
   const forwarded=String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim();
   return forwarded||String(request.socket?.remoteAddress||'unknown');
 }
@@ -82,6 +83,7 @@ export default async function handler(request,response){
     sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Background removal requests must come from this LOUREX Invoice deployment.'});
     return;
   }
+  if(!await requireAiFirebaseAuth(request,response))return;
   if(!rateAllowed(request)){
     response.setHeader('Retry-After','300');
     sendJson(response,429,{code:'AI_RATE_LIMITED',message:'Too many background-removal requests. Try again shortly.'});

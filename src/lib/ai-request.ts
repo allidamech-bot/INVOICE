@@ -1,4 +1,5 @@
 import { t } from './i18n.js';
+import { currentCloudIdToken } from '../cloud/firebase.js';
 
 // Allow the server's provider failover to finish, but never leave a source UI
 // waiting indefinitely. Cancellation includes reading the response body.
@@ -9,7 +10,9 @@ export async function requestAiJson(endpoint:string,payload:unknown,signal?:Abor
   signal?.addEventListener('abort',cancel,{once:true});
   const timer=window.setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);
   try{
-    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify(payload),signal:controller.signal});
+    const token=await currentCloudIdToken(controller.signal);
+    if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
+    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice',Authorization:`Bearer ${token}`},body:JSON.stringify(payload),signal:controller.signal});
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     let body:any=null;try{body=await response.json();}catch{}
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');

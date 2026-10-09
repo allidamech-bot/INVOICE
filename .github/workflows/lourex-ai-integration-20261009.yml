@@ -1,0 +1,24 @@
+name: LOUREX AI Auth Integration QA
+on:
+  push:
+    branches:
+      - fix/audit-ai-secure-main-integration-20261009
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: AI token, endpoint security and Firebase account regressions
+        run: node --test tests/audit-ai-firebase-auth.test.mjs tests/audit-ai-client-token-safety.test.mjs tests/audit-ai-branch-isolation.test.mjs tests/audit-confirmed-signout.test.mjs tests/audit-account-transition-runtime.test.mjs tests/ai-origin-canonical-v570.test.mjs tests/b04-source-aware-tool-planner.test.mjs
+      - name: Full historical suite without suppression
+        run: node --test --test-concurrency=2 tests/*.test.mjs
