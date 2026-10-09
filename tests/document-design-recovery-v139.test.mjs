@@ -22,7 +22,7 @@ test('canonical recovery removes the historical document cascade from runtime',a
   const html=await read('index.html');
   for(const name of designLayers.filter(name=>!name.startsWith('mobile-document-actions')))assert.equal(html.indexOf(name),-1,`${name} must be retired`);
   assert.match(html,/href="\.\/styles\/document-premium-redesign-v141\.css"/);
-  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3"/);
+  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=365-1"/);
 });
 
 test('production bundle keeps one canonical A4 layer and only one standalone v337 runtime owner',async()=>{
@@ -34,7 +34,7 @@ test('production bundle keeps one canonical A4 layer and only one standalone v33
   assert.match(bundle,/\/\* --- document-premium-redesign-v141\.css --- \*\//);
   for(const name of designLayers.filter(name=>!name.startsWith('mobile-document-actions')))assert.equal(bundle.indexOf(`/* --- ${name} --- */`),-1);
   assert.deepEqual(localStyles(distHtml),['app.bundle.css','v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css','v482-mobile-ux-repair.css']);
-  assert.match(distHtml,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.match(distHtml,/v331-draft-scroll-recovery\.css\?v=365-1/);
   assert.match(distHtml,/data-lourex-v331-draft-recovery="true"/);
   assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
   assert.doesNotMatch(distHtml,/@import url\("\.\/styles\//);
