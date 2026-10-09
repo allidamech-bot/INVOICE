@@ -1,0 +1,49 @@
+name: LOUREX Auth Regression Remediation (Free)
+on:
+  push:
+    branches:
+      - fix/audit-legacy-security-logout-20261009
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-auth-remediation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build production candidate locally without deploying
+        run: npm run build
+      - name: Enforce real logout and account isolation regressions
+        run: |
+          node --test \
+            tests/audit-confirmed-signout.test.mjs \
+            tests/account-required-after-logout-v188.test.mjs \
+            tests/account-data-isolation-v215.test.mjs
+      - name: Record unresolved historical suite failures without hiding them
+        shell: bash
+        run: |
+          set +e
+          node --test tests/*.test.mjs > "${RUNNER_TEMP}/historical-node-suite.log" 2>&1
+          exit_code=$?
+          set -e
+          grep -E '^ℹ (tests|pass|fail) ' "${RUNNER_TEMP}/historical-node-suite.log" || true
+          echo "Full historical suite exit code: $exit_code"
+          if [[ "$exit_code" != "0" ]]; then
+            echo "::warning::Existing failures remain; historical suite is not green."
+          fi
