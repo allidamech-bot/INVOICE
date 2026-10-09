@@ -41,12 +41,22 @@ test('v116 target screens keep semantic labels that activate the shared choices'
   assert.ok(editor.includes("t('Delivery Time','مدة التسليم')"));
 });
 
-test('v116 product library slash shortcut now matches the visible shortcut hint',async()=>{
-  const page=await read('src/components/SavedItemsPage.tsx');
+test('v116 product library slash shortcut matches the rendered hint and respects editable fields',async()=>{
+  const [page,library]=await Promise.all([
+    read('src/components/SavedItemsPage.tsx'),
+    read('src/components/ProductLibraryWorkspace.tsx')
+  ]);
   assert.match(page,/document\.addEventListener\('keydown',this\.handleKeyDown\)/);
+  assert.match(page,/document\.removeEventListener\('keydown',this\.handleKeyDown\)/);
   assert.match(page,/event\.key!=='\/'/);
-  assert.match(page,/\.product-library-search input/);
-  assert.match(page,/input\.focus\(\)/);
+  assert.match(page,/event\.defaultPrevented\|\|event\.metaKey\|\|event\.ctrlKey\|\|event\.altKey/);
+  assert.match(page,/target instanceof HTMLInputElement\|\|target instanceof HTMLTextAreaElement\|\|target instanceof HTMLSelectElement/);
+  assert.match(page,/if\(typing\)return/);
+  assert.match(page,/document\.querySelector<HTMLInputElement>\('\.ta-product-search input'\)/);
+  assert.match(page,/if\(!input\)return/);
+  assert.match(page,/event\.preventDefault\(\);input\.focus\(\)/);
+  assert.match(library,/className="ta-product-search"/);
+  assert.match(library,/<kbd aria-hidden="true">\/<\/kbd>/);
 });
 
 test('shared users icon keeps valid two-person geometry after interface polish',async()=>{
