@@ -1,70 +1,95 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
 
-const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
+const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 
-function recoveryBlocks(runtime){
-  const stuckStart=runtime.indexOf('function bootOnly(){');
-  const desktopStart=runtime.indexOf("var RECOVERY_KEY='lourex-desktop-boot-recovery-v249'");
-  const authGateway=runtime.indexOf("var TRANSITION_KEY='lourex-auth-gateway-transition-v253'",desktopStart);
-  assert.ok(stuckStart>=0,'stuck-boot recovery block must exist');
-  assert.ok(desktopStart>stuckStart,'desktop boot recovery block must follow stuck-boot recovery');
-  return {
-    stuck:runtime.slice(stuckStart,desktopStart),
-    desktop:runtime.slice(desktopStart,authGateway>desktopStart?authGateway:runtime.length)
-  };
-}
-
-test('network-fresh runtime config can rescue an old PWA that is still trapped on the static boot shell',async()=>{
-  const [build,runtime,sw,vercel,html]=await Promise.all([
+test('boot runtime is configuration-only; startup watchdog is loaded without an automatic storage reset',async()=>{
+  const [build,watchdog,sw,vercel,html]=await Promise.all([
     read('scripts/build.mjs'),
-    read('dist/runtime-config.js'),
+    read('public/startup-watchdog-v321.js'),
     read('public/sw.js'),
     read('vercel.json'),
     read('index.html')
   ]);
+  assert.match(build,/await writeFile\('dist\/runtime-config\.js'/);
+  assert.match(build,/window\.__LOUREX_RUNTIME__/);
+  assert.match(build,/Startup recovery must never activate a/);
+  assert.match(html,/#lourex-boot\.loading-screen\{position:fixed;inset:-2px;z-index:2147483000/);
+  assert.match(html,/src="\.\/runtime-config\.js"/);
+  assert.match(html,/src="\.\/startup-watchdog-v321\.js/);
+  assert.match(watchdog,/function bootStillVisible\(\)/);
+  assert.match(watchdog,/function showRecovery\(\)/);
+  assert.match(watchdog,/window\.setTimeout\(recoverIfNeeded,CHECK_MS\)/);
+  assert.match(sw,/async function networkFirst\(request\)/);
+  assert.match(sw,/fetch\(request,\{cache:'no-store'\}\)/);
+  const config=JSON.parse(vercel);
+  const header=config.headers.find(x=>x.source==='/runtime-config.js');
+  assert.equal(header?.headers?.find(x=>x.key==='Cache-Control')?.value,'no-cache, no-store, must-revalidate');
+});
 
-  assert.match(html,/#lourex-boot\.loading-screen\{position:fixed;inset:0;z-index:2147483000/);
-  assert.match(sw,/runtime-config\.js[\s\S]*cache:'no-store'/);
-  assert.match(vercel,/"source": "\/runtime-config\.js"[\s\S]*"no-cache, no-store, must-revalidate"/);
+test('stuck boot recovery is explicitly user-controlled and cannot delete the encrypted vault',async()=>{
+  const watchdog=await read('public/startup-watchdog-v321.js');
+  const recover=watchdog.slice(watchdog.indexOf('function recoverIfNeeded()'),watchdog.indexOf('window.setTimeout(recoverIfNeeded'));
+  const show=watchdog.slice(watchdog.indexOf('function showRecovery()'),watchdog.indexOf('function recoverIfNeeded()'));
+  assert.match(watchdog,/function startupSurface\(\)/);
+  assert.match(watchdog,/function bootStillVisible\(\)/);
+  assert.match(watchdog,/document\.documentElement\.hasAttribute\('data-lourex-workspace-dirty'\)/);
+  assert.match(watchdog,/document\.documentElement\.hasAttribute\('data-lourex-document-editor'\)/);
+  assert.match(show,/if\(!bootStillVisible\(\)\|\|editingWorkspaceOpen\(\)\)return/);
+  assert.match(show,/Retry safely/);
+  assert.match(show,/Diagnostics/);
+  assert.match(show,/addEventListener\('click',handler\)/);
+  assert.match(show,/if\(editingWorkspaceOpen\(\)\|\|retry\.disabled\)return/);
+  assert.match(show,/void refreshStaticRuntime\(\)\.finally/);
+  assert.match(recover,/if\(editingWorkspaceOpen\(\)\|\|!bootStillVisible\(\)\)return/);
+  assert.match(recover,/showRecovery\(\)/);
+  assert.doesNotMatch(recover,/refreshStaticRuntime|window\.location\.replace|caches\.delete|indexedDB/);
+  assert.doesNotMatch(watchdog,/indexedDB\.deleteDatabase|putSecurityAndVault|clearSession|deleteRecord\('vault'\)/);
+});
 
-  for(const source of [build,runtime]){
-    assert.match(source,/lourex-boot/);
-    assert.match(source,/\.app-ui,\.auth-page/);
-    assert.match(source,/serviceWorker\.getRegistration\(\)/);
-    assert.match(source,/registration\.update\(\)/);
-    assert.match(source,/registration\.waiting/);
-    assert.match(source,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
-    assert.match(source,/controllerchange/);
-    assert.match(source,/window\.location\.replace\(window\.location\.href\)/);
+test('12-second watchdog presents recovery options without reloading; only a user click refreshes static caches',async()=>{
+  const source=await read('public/startup-watchdog-v321.js');
+  const tasks=[];
+  const calls={unregister:0,cacheDelete:0,replace:0};
+  class Element{
+    constructor(tag='div'){this.tag=tag;this.style={};this.dataset={};this.children=[];this.listeners={};this.disabled=false;}
+    setAttribute(){}
+    append(...nodes){this.children.push(...nodes);}
+    appendChild(node){this.children.push(node);}
+    replaceChildren(...nodes){this.children=[...nodes];}
+    addEventListener(event,callback){this.listeners[event]=callback;}
+    querySelector(){return null;}
   }
-});
-
-test('boot rescue is gated to pre-React state and never touches encrypted or local application data',async()=>{
-  const runtime=await read('dist/runtime-config.js');
-  const {stuck,desktop}=recoveryBlocks(runtime);
-
-  // The network-fresh stuck-boot rescue owns the update/install retry contract.
-  assert.match(stuck,/function bootOnly\(\)/);
-  assert.match(stuck,/document\.getElementById\('lourex-boot'\)/);
-  assert.match(stuck,/!document\.querySelector\('\.app-ui,\.auth-page'\)/);
-  assert.match(stuck,/if\(reloading\|\|!bootOnly\(\)\)return/);
-  assert.doesNotMatch(stuck,/localStorage|indexedDB|putSecurityAndVault|clearSession|deleteDatabase/);
-
-  // Desktop v249 has its own one-shot marker and broader desktop/network gates.
-  assert.match(desktop,/var RECOVERY_KEY='lourex-desktop-boot-recovery-v249'/);
-  assert.match(desktop,/function bootOnly\(\)/);
-  assert.match(desktop,/sessionStorage\.getItem\(RECOVERY_KEY\)==='1'/);
-  assert.match(desktop,/sessionStorage\.setItem\(RECOVERY_KEY,'1'\)/);
-  assert.doesNotMatch(desktop,/localStorage|indexedDB|putSecurityAndVault|clearSession|deleteDatabase/);
-  assert.doesNotMatch(desktop,/sessionStorage\.(?:clear|removeItem)\(/);
-});
-
-test('stuck boot rescue retries long enough for a waiting worker to finish installing on slow iPhone networks',async()=>{
-  const runtime=await read('dist/runtime-config.js');
-  assert.match(runtime,/setTimeout\(function\(\)\{void rescue\(\);\},750\)/);
-  assert.match(runtime,/setTimeout\(function\(\)\{void rescue\(\);\},2500\)/);
-  assert.match(runtime,/setTimeout\(function\(\)\{void rescue\(\);\},6000\)/);
-  assert.match(runtime,/installing\.addEventListener\('statechange',onStateChange\)/);
+  const loading=new Element('div'),root=new Element('div');
+  root.querySelector=selector=>selector===':scope > .loading-screen'?loading:null;
+  const document={
+    getElementById:id=>id==='root'?root:null,
+    querySelector:()=>null,
+    createElement:tag=>new Element(tag),
+    documentElement:{dataset:{},hasAttribute:()=>false},
+    visibilityState:'visible'
+  };
+  const caches={keys:async()=>['lourex-invoice-v314','unrelated-website'],delete:async name=>{calls.cacheDelete++;assert.equal(name,'lourex-invoice-v314');return true;}};
+  const navigator={onLine:true,serviceWorker:{getRegistrations:async()=>[{unregister:async()=>{calls.unregister++;return true;}}]}};
+  const window={
+    setTimeout:(fn,ms)=>{tasks.push({fn,ms});return tasks.length;},
+    location:{href:'https://invoice.example.test/',replace:()=>{calls.replace++;}},
+    caches,
+    __LOUREX_DIAGNOSTICS__:{mark:()=>{}}
+  };
+  vm.runInNewContext(source,{window,document,HTMLElement:Element,navigator,caches,URL});
+  assert.equal(tasks.length,1);
+  assert.equal(tasks[0].ms,12000);
+  assert.deepEqual(calls,{unregister:0,cacheDelete:0,replace:0});
+  tasks[0].fn();
+  assert.equal(loading.dataset.lourexStartupRecovery,'true');
+  assert.deepEqual(calls,{unregister:0,cacheDelete:0,replace:0});
+  const card=loading.children[0],actions=card?.children[2],retry=actions?.children[0];
+  assert.equal(retry?.tag,'button');
+  assert.equal(typeof retry?.listeners.click,'function');
+  retry.listeners.click();
+  for(let i=0;i<6;i++)await Promise.resolve();
+  assert.deepEqual(calls,{unregister:1,cacheDelete:1,replace:1});
 });
