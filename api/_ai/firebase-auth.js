@@ -6,14 +6,19 @@ const MAX_TOKEN_LENGTH=8192;
 const CLOCK_SKEW_SECONDS=60;
 let cachedKeys=null;
 let refreshPromise=null;
+let unknownKeyRefreshAfter=0;
 
 class AuthVerifierUnavailable extends Error {}
 
 async function publicKeys(force=false){
   const now=Date.now();
   if(!force&&cachedKeys&&cachedKeys.expiresAt>now)return cachedKeys.keys;
+  // An unsigned JWT can claim any kid. Bound forced re-fetches to avoid a
+  // public endpoint causing repeated Google JWKS requests on unknown key IDs.
+  if(force&&cachedKeys&&cachedKeys.expiresAt>now&&now<unknownKeyRefreshAfter)return cachedKeys.keys;
   if(refreshPromise)return refreshPromise;
   refreshPromise=(async()=>{
+    if(force)unknownKeyRefreshAfter=Date.now()+30_000;
     let response;
     try{
       response=await fetch(PUBLIC_KEYS_URL,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(5000)});
