@@ -77,3 +77,17 @@ test('signed Google Firebase token is accepted while wrong project, issuer and e
     assert.equal(foreign.statusCode,403);
   }finally{globalThis.fetch=previous;}
 });
+
+test('quote pricing intent accepts the canonical production alias but rejects foreign origins',async()=>{
+  const canonical=request();
+  canonical.headers.host='invoice-preview-example.vercel.app';
+  canonical.headers['sec-fetch-site']='cross-site';
+  const allowed=response();await quotePricing(canonical,allowed);
+  assert.equal(allowed.statusCode,401,'canonical LOUREX origin should pass host validation and reach account authentication');
+  assert.equal(allowed.body?.code,'AI_AUTH_REQUIRED');
+  const foreign=request('', 'https://untrusted.example');
+  foreign.headers['sec-fetch-site']='cross-site';
+  const denied=response();await quotePricing(foreign,denied);
+  assert.equal(denied.statusCode,403);
+  assert.equal(denied.body?.code,'ORIGIN_REJECTED');
+});
