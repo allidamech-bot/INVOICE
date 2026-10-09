@@ -13,6 +13,7 @@ import supplierDocument from '../api/supplier-document-ai.js';
 import product from '../api/product-source-ai.js';
 import mapping from '../api/product-import-ai.js';
 import quote from '../api/quote-source-ai.js';
+import quotePricing from '../api/quote-pricing-intent.js';
 import removeBackground from '../api/remove-background.js';
 
 const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});
@@ -40,7 +41,7 @@ function response(){
 }
 
 test('all paid AI endpoints require a verified account, including background removal',async()=>{
-  const handlers=[core,advisor,conversation,inbox,customer,supplier,supplierDocument,product,mapping,quote,removeBackground];
+  const handlers=[core,advisor,conversation,inbox,customer,supplier,supplierDocument,product,mapping,quote,quotePricing,removeBackground];
   for(const handler of handlers){
     const res=response();
     await handler(request(),res);
@@ -61,6 +62,9 @@ test('signed Google Firebase token is accepted while wrong project, issuer and e
     const res=response();await core(request('Bearer '+token()),res);
     assert.equal(res.statusCode,400);
     assert.equal(res.body?.code,'INVALID_CONTEXT');
+    const priceRes=response();await quotePricing(request('Bearer '+token()),priceRes);
+    assert.equal(priceRes.statusCode,400);
+    assert.equal(priceRes.body?.code,'EMPTY_INSTRUCTION');
     assert.equal(keyRequests,1);
     for(const changed of [{aud:'different-project'},{iss:'https://securetoken.google.com/other'},{exp:1},{sub:''}]){
       await assert.rejects(verifyFirebaseIdToken(token(changed)),/Invalid Firebase ID token/);
