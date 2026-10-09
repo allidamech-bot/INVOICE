@@ -62,32 +62,15 @@ export class EditorPage extends React.Component<Props,State>{
   private revisionPromise:Promise<LourexDocument>|null=null;
   private lifecyclePromises=new Map<string,Promise<void>>();
   private mounted=false;
-  private initialDraftPersistIds=new Set<string>();
   private stableEditorCompany:CompanySettings;
 
   constructor(props:Props){super(props);this.stableEditorCompany=props.company;this.state={sections:[],activeSectionId:'',persistenceError:''};}
-
-  // The number reservation is not the document itself. Persist an untouched new
-  // draft once, so closing an empty editor or a reload cannot silently lose it.
-  // App serializes this write behind the preceding number reservation.
-  private ensureInitialDraftPersisted=()=>{
-    const doc=this.props.document;
-    if(doc.status!=='draft'||this.props.documents.some(item=>item.id===doc.id)||this.initialDraftPersistIds.has(doc.id))return;
-    this.initialDraftPersistIds.add(doc.id);
-    void this.saveWithProtectedRetry(structuredClone(doc),true).catch(()=>{
-      this.initialDraftPersistIds.delete(doc.id);
-      if(this.mounted&&this.props.document.id===doc.id){
-        this.setState({persistenceError:t('Unable to save the new draft locally.','تعذر حفظ المسودة الجديدة محليًا.')});
-      }
-    });
-  };
 
   componentDidMount():void{
     this.mounted=true;
     document.documentElement.setAttribute(EditorPage.activeEditorAttribute,this.props.document.id);
     this.resetScroll();
     this.scheduleSectionNavigationSetup();
-    this.ensureInitialDraftPersisted();
   }
 
   componentDidUpdate(prevProps:Props):void{
@@ -96,8 +79,7 @@ export class EditorPage extends React.Component<Props,State>{
       this.quoteConversionRunning=false;
       this.resetScroll();
       this.scheduleSectionNavigationSetup();
-      this.ensureInitialDraftPersisted();
-    }
+      }
   }
 
   componentWillUnmount():void{
