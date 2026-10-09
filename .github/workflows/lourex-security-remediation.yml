@@ -67,14 +67,21 @@ jobs:
             git fetch origin "$branch:refs/remotes/origin/$branch"
             if ! git merge --no-ff --no-edit "origin/$branch"; then
               conflicts="$(git diff --name-only --diff-filter=U)"
-              # The two branches own independent copies of the same CI file.
-              # Any conflict outside that non-production QA file is a blocker.
-              if [[ "$conflicts" != ".github/workflows/lourex-free-premerge.yml" ]]; then
-                echo "Source conflicts must be resolved on a feature branch: $conflicts"
-                exit 1
-              fi
-              git checkout --ours .github/workflows/lourex-free-premerge.yml
-              git add .github/workflows/lourex-free-premerge.yml
+              while IFS= read -r file; do
+                case "$file" in
+                  .github/workflows/lourex-free-premerge.yml)
+                    # Both independent PRs install the same diagnostic workflow.
+                    git checkout --ours "$file"; git add "$file" ;;
+                  tests/account-data-isolation-v215.test.mjs|tests/account-required-after-logout-v188.test.mjs)
+                    # PR660 replaces obsolete source-shape assertions with the
+                    # stronger confirmed-logout and cross-account safety contracts.
+                    # Its executable behavior tests are also run in this job.
+                    git checkout --ours "$file"; git add "$file" ;;
+                  *)
+                    echo "Unresolved application/source conflict: $file"
+                    exit 1 ;;
+                esac
+              done <<< "$conflicts"
               git commit --no-edit
             fi
           done
