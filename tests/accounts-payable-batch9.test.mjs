@@ -95,3 +95,16 @@ test('supplier payment cancellations preserve journal and treasury provenance',a
   assert.match(treasury,/if\(item\.voidedAt\|\|supplierLinks\.has\(item\.id\)\)continue/);
   assert.match(page,/Void supplier payment\?/);
 });
+
+test('supplier payment void requires an explicit user reason that crosses all finance layers',async()=>{
+  const [page,finance,app]=await Promise.all([
+    read('src/components/SupplierPayablesPage.tsx'),read('src/components/FinanceWorkspace.tsx'),read('src/app/App.tsx')
+  ]);
+  assert.match(page,/Cancellation reason \(required\)/);
+  assert.match(page,/voidReason\.trim\(\)/);
+  assert.match(page,/onDeleteSupplierPayment\(payment,reason\)/);
+  assert.match(finance,/onDeleteSupplierPayment:\(payment:SupplierPaymentRecord,reason:string\)/);
+  assert.match(app,/deleteSupplierPayment=async\(payment:SupplierPaymentRecord,reason:string\)/);
+  assert.match(app,/voidSupplierPayment\(original,reason\)/);
+  assert.doesNotMatch(app,/voidSupplierPayment\(original,'Recorded in error/);
+});
