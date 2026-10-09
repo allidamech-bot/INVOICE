@@ -30,7 +30,7 @@ test('saved-item filters are visible, touch accessible, and offline in the activ
   read('src/styles/items-library-v106.css'),
   read('src/styles/tailadmin-products-v320.css'),
   read('index.html'),
-  read('public/sw.js')
+  read('dist/sw.js')
  ]);
  assert.match(legacy,/v106 — large-catalog saved-items refinement/);
  assert.equal(index.includes('items-library-v106.css'),false,'retired v106 style cannot override active product shell');
@@ -41,5 +41,5 @@ test('saved-item filters are visible, touch accessible, and offline in the activ
  assert.match(current,/@media screen and \(max-width:720px\)/);
  assert.match(current,/@media screen and \(max-width:390px\)/);
  assert.doesNotMatch(current,/@media print|\.invoice-page/);
- assert.match(sw,/tailadmin-products-v320\.css/);
+ assert.match(sw,/styles\/app\.bundle\.css/);
 });
