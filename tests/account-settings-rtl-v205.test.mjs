@@ -32,11 +32,18 @@ test('v205 Account owns company profile while Settings owns preferences and secu
   assert.match(settings,/Company logo and profile details are managed from Account/);
 });
 
-test('v205 Arabic More menu declares RTL direction at the dialog boundary',async()=>{
+test('v205 Arabic More menu preserves bilingual accessible dialog direction and navigation',async()=>{
   const shell=await read('src/components/AppShell.tsx');
-  assert.match(shell,/mobile-more-sheet[^>]*dir=\{this\.props\.language==='ar'\?'rtl':'ltr'\}/);
-  assert.match(shell,/Company identity, logo, legal profile and account access','هوية الشركة والشعار والبيانات القانونية وبيانات الحساب/);
-  assert.match(shell,/Workspace, documents, commercial and security','مساحة العمل والمستندات والتجاري والأمان/);
+  // The current sheet is `ta-mobile-sheet`, not the retired `mobile-more-sheet`.
+  // Verify the dialog boundary itself rather than a historical CSS class.
+  assert.match(shell,/<section className="ta-mobile-sheet" id="ta-mobile-more" role="dialog" aria-modal="true" aria-label=\{t\('More','المزيد'\)\} dir=\{this\.props\.language==='ar'\?'rtl':'ltr'\}>/);
+  assert.match(shell,/className="ta-overlay-backdrop ta-sheet-backdrop"[^>]*onClick=\{this\.closeMore\}/);
+  assert.match(shell,/className="ta-sheet-close" onClick=\{this\.closeMore\} aria-label=\{t\('Close','إغلاق'\)\}/);
+  assert.match(shell,/aria-haspopup="dialog" aria-controls="ta-mobile-more" aria-expanded=\{this\.state\.moreOpen\}/);
+  assert.match(shell,/t\('My Account','حسابي'\)/);
+  assert.match(shell,/t\('Business, documents, security and data','الأعمال والمستندات والأمان والبيانات'\)/);
+  assert.match(shell,/t\('Operations','العمليات'\)/);
+  assert.match(shell,/t\('Finance & insights','المالية والتحليلات'\)/);
 });
 
 test('v211 Account Save stays in normal mobile flow with a full touch target',async()=>{

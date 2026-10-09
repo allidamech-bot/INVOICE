@@ -4,10 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const component=await readFile(new URL('../src/components/AccountEntryScreen.tsx',import.meta.url),'utf8');
 
-test('v227 exposes one primary account-entry heading in DOM order',()=>{
-  assert.match(component,/<p className="auth-story-title">/);
-  assert.doesNotMatch(component,/<h2>/);
-  assert.match(component,/<h1>/);
+test('account entry keeps a unique primary heading and a subordinate bilingual form heading',()=>{
+  const headings=[...component.matchAll(/<h([12])>/g)];
+  assert.equal(headings.length,2,'one page heading and one sign-in form heading');
+  assert.deepEqual(headings.map(match=>match[1]),['1','2'],'page H1 must precede form H2');
+  assert.match(component,/className="ta-auth-aside-copy"[\s\S]*<h1>\{t\('Your commercial workspace,/);
+  assert.match(component,/className="ta-auth-card-header"[\s\S]*<h2>\{linkingGoogle\?/);
+  assert.match(component,/t\('Sign in to your workspace','سجّل الدخول إلى مساحتك'\)/);
 });
 
 test('v227 account tabs use a roving tab stop and an associated panel',()=>{
