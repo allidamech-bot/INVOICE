@@ -42,6 +42,9 @@ jobs:
             tests/number-reservation.test.mjs \
             tests/document-language-v151.test.mjs \
             tests/customers-workspace-v105.test.mjs \
+            tests/customers-final-audit.test.mjs \
+            tests/dashboard-documents-batch-2.test.mjs \
+            tests/ai-financial-copilot-v264.test.mjs \
             tests/audit-supplier-payables-asof.test.mjs \
             tests/audit-supplier-payment-void-merge.test.mjs \
             tests/audit-treasury-void-history.test.mjs \
