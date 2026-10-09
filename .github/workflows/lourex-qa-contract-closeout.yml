@@ -1,0 +1,28 @@
+name: LOUREX QA Contract Closeout
+on:
+  push:
+    branches:
+      - fix/final-qa-contracts-closeout-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Locked install
+        run: npm ci --no-audit --no-fund
+      - name: Type check
+        run: npm run typecheck
+      - name: Production build (no deploy)
+        run: npm run build
+      - name: Focused current-runtime regressions
+        run: node --test tests/documents-workspace-v104.test.mjs tests/interface-polish-v256.test.mjs tests/design-semantic-closeout-batch2.test.mjs tests/design-system-v164.test.mjs
+      - name: Full historical suite with no exclusions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
