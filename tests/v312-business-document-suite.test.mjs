@@ -79,7 +79,8 @@ test('v312 final clean audit separates numbering and document semantics',async()
   const [defaults,vault,kinds,docs,app,editor,renderer]=await Promise.all([
     read('src/lib/defaults.ts'),read('src/storage/vault.ts'),read('src/lib/document-kinds.ts'),read('src/lib/documents.ts'),read('src/app/App.tsx'),read('src/components/EditorPageCore.tsx'),read('src/templates/TemplateRenderer.tsx')
   ]);
-  assert.match(defaults,/APP_SCHEMA_VERSION = 15/);
+  assert.match(defaults,/export const APP_SCHEMA_VERSION = 21/);
+  assert.match(defaults,/v21 completes treasury, dated FX rates and real branch warehouse\/location ledgers/);
   assert.match(defaults,/proformaPrefix: 'QUO'/);
   assert.match(vault,/sourceVersion<14&&migrated\.appSettings\.numbering\.proformaPrefix==='PI'/);
   assert.match(kinds,/documentSecondaryDateKind/);
