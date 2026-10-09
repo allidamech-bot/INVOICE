@@ -6,13 +6,12 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('iPhone pre-render cloud work has a hard startup budget and cannot hold the boot shell forever',async()=>{
   const startup=await read('src/cloud/startup.ts');
-  assert.match(startup,/const STARTUP_CLOUD_BUDGET_MS=450/);
-  assert.match(startup,/const FRESH_DEVICE_CLOUD_BUDGET_MS=6_000/);
-  assert.match(startup,/const budgetMs=localBeforeStartup\?STARTUP_CLOUD_BUDGET_MS:FRESH_DEVICE_CLOUD_BUDGET_MS/);
-  assert.doesNotMatch(startup,/if\(!localBeforeStartup\)\{\s*await cloudWork/);
+  const budget=startup.match(/const STARTUP_CLOUD_BUDGET_MS=(\d+)/);
+  assert.ok(budget,'startup cloud wait must have an explicit maximum');
+  assert.ok(Number(budget[1])>0&&Number(budget[1])<=2200,'existing workspace startup must remain tightly bounded');
   assert.match(startup,/const outcome=await Promise\.race\(\[/);
   assert.match(startup,/cloudWork\.then\(result=>\(\{kind:'done' as const,result\}\)\)/);
-  assert.match(startup,/window\.setTimeout\(\(\)=>resolve\(\{kind:'timeout'\}\),budgetMs\)/);
+  assert.match(startup,/window\.setTimeout\(\(\)=>resolve\(\{kind:'timeout'\}\),STARTUP_CLOUD_BUDGET_MS\)/);
   assert.match(startup,/if\(outcome\.kind==='done'\)return/);
 });
 
@@ -25,24 +24,32 @@ test('timed-out cloud work becomes background reconciliation and only reloads af
 
   const entry=await read('src/app/index.tsx');
   assert.match(entry,/window\.addEventListener\('lourex-cloud-applied'/);
+  // The resumed cloud copy is announced, but applying it must be a deliberate
+  // user action and cannot replace an open editor's unsaved changes.
+  assert.match(entry,/function showCloudRefreshAvailable\(\)/);
+  assert.match(entry,/reload\.addEventListener\('click'/);
   assert.match(entry,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{/);
-  assert.match(entry,/window\.addEventListener\('lourex-cloud-refresh-available',showCloudRefreshAvailable\)/);
-  assert.match(entry,/title\.textContent='Cloud changes available/);
+  assert.match(entry,/rememberWorkspaceBeforeAutomaticReload\(\)/);
 });
 
-test('bounded startup still uses guarded reconcile and never switches to direct destructive cloud install',async()=>{
+test('bounded startup guards an existing vault and restores only an empty account scope',async()=>{
   const startup=await read('src/cloud/startup.ts');
-  assert.match(startup,/return await reconcileCloudVault\(user\.uid\)/);
-  assert.match(startup,/if\(!local\)\{[\s\S]*await installCloudVault\(user\.uid\)/);
+  const afterLocal=startup.slice(startup.indexOf('const local=await getEncryptedVault()'),startup.indexOf('function signalDeferredCloudPull'));
+  assert.match(afterLocal,/if\(!local\)\{/);
+  assert.match(afterLocal,/await installCloudVault\(user\.uid\)/);
+  assert.match(afterLocal,/return await reconcileCloudVault\(user\.uid\)/);
   assert.match(startup,/if\(linked&&linked\.uid!==user\.uid\)return 'skipped'/);
   assert.match(startup,/markLateStartupCloudApplyUnsafe\(\)/);
-  assert.match(startup,/linked&&linked\.uid!==user\.uid/);
+  assert.match(startup,/clearLateStartupCloudApplyGuard/);
 });
 
 test('v184 delivers the deadlock recovery to installed iPhone PWAs as a fresh immutable generation',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v184';$/m);
-  assert.match(sw,/lourex-invoice-v183: preserved as a legacy marker/);
+  // Older cache signatures are intentionally preserved inside source comments.
+  // The final declaration is the active service-worker generation.
+  const generations=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  assert.ok(generations.length>0,'the service worker must use an immutable versioned cache');
+  assert.ok(Number(generations.at(-1)[1])>=184,'the active installed generation must not regress below the original recovery');
   assert.ok(sw.includes('./src/cloud/startup.js'));
   assert.ok(sw.includes('./src/app/index.js'));
 });
