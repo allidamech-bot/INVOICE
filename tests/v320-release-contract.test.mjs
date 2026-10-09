@@ -80,35 +80,36 @@ test('revision history preserves audit metadata without multiplying attachment p
   assert.match(source,/Preserve the current live[\s\S]*supporting files across revision discard\/restore/);
 });
 
-test('production build publishes the canonical bundle plus v337 document owner and current runtime/cache generation',async()=>{
-  const html=await read('dist/index.html');
-  const sw=await read('dist/sw.js');
+test('production publishes the single bundled visual system and its four explicit A4/mobile owners',async()=>{
+  const [html,sw,finalize]=await Promise.all([read('dist/index.html'),read('dist/sw.js'),read('scripts/v347-startup-finalize.mjs')]);
   const links=localStyles(html);
-  assert.deepEqual(links,['app.bundle.css','v331-draft-scroll-recovery.css']);
-  assert.match(html,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  assert.match(html,/data-lourex-v331-draft-recovery="true"/);
-  assert.match(html,/home-final-closeout-v286\.js\?v=320/);
-  assert.match(html,/document-entry-v302\.js\?v=337-3/);
-  assert.doesNotMatch(html,/document-entry-v302\.js\?v=(?:302|311|314|320|337-2)/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v(?:33[7-9]|3[4-9]\d|[4-9]\d\d)'/);
-  assert.match(sw,/tailadmin-finance-v320\.css\?v=320-3/);
-  assert.match(sw,/tailadmin-reliability-bridge-v320\.css\?v=320-2/);
-  assert.match(sw,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  assert.match(sw,/v337-template-layout-balance\.css\?v=337-3/);
+  assert.deepEqual(links,['app.bundle.css','v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css','v482-mobile-ux-repair.css']);
+  assert.equal(new Set(links).size,links.length,'production must not duplicate stylesheet owners');
+  assert.match(html,/v331-draft-scroll-recovery\.css\?v=365-1/);
+  assert.match(html,/v332-critical-documents-deep-closeout\.css\?v=332-1/);
+  assert.match(html,/v482-mobile-ux-repair\.css\?v=482/);
+  for(const marker of ['data-lourex-v331-draft-recovery','data-lourex-v332-critical-documents','data-lourex-v482-mobile-ux']){
+    assert.equal(html.split(marker).length-1,1,marker+' must have exactly one active production owner');
+  }
+  assert.match(html,/home-final-closeout-v286\.js\?v=361/);
+  assert.match(html,/document-entry-v302\.js\?v=361/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v\d+'/);
+  assert.match(finalize,/const criticalDocumentsRuntime='\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1'/);
+  assert.match(finalize,/const v482MobileRepair='\.\/styles\/v482-mobile-ux-repair\.css\?v=482'/);
 });
 
-test('document runtime recognizes the TailAdmin create menu and promotes current reliability layers beneath final semantics',async()=>{
+test('document runtime keeps creation menus and stable one-time stylesheet ordering',async()=>{
   const runtime=await read('public/document-entry-v302.js');
   assert.match(runtime,/\.ta-create-menu button\[role="menuitem"\]/);
   assert.match(runtime,/function promoteTailAdminOwners/);
-  assert.match(runtime,/ensureRuntimeReliability\(\)/);
-  assert.match(runtime,/attachment-gallery-v304\.css\?v=304/);
-  assert.match(runtime,/release-hardening-v306\.css\?v=306/);
-  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  const tail=runtime.indexOf('promoteTailAdminOwners();');
-  const draft=runtime.indexOf('promoteDraftRecovery();');
-  const semantic=runtime.indexOf('promoteCriticalDocuments();');
-  assert.ok(tail>=0&&draft>tail&&semantic>draft);
+  assert.match(runtime,/function promoteDraftRecovery/);
+  assert.match(runtime,/function promoteCriticalDocuments/);
+  assert.match(runtime,/function ensureRuntimeReliability/);
+  assert.match(runtime,/if\(!stylesheetOrderPrepared\)/);
+  assert.match(runtime,/ensureStylesheet\(draftScrollRecoveryStyleMarker,'\.\/styles\/v331-draft-scroll-recovery\.css\?v=365-1'\)/);
+  assert.match(runtime,/ensureStylesheet\(criticalDocumentsStyleMarker,'\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1'\)/);
+  assert.match(runtime,/stylesheetOrderPrepared=true/);
+  assert.doesNotMatch(runtime,/attachment-gallery-v304\.css|release-hardening-v306\.css/,'retired historical styles must not re-enter the live document cascade');
 });
 
 test('iPhone runtime preserves local-first data while retiring WebKit service-worker churn',async()=>{
@@ -119,12 +120,14 @@ test('iPhone runtime preserves local-first data while retiring WebKit service-wo
   assert.doesNotMatch(source,/indexedDB\.deleteDatabase/);
 });
 
-test('AI presentation no longer injects a legacy runtime stylesheet',async()=>{
-  const nudge=await read('src/components/LourexAdvisorNudge.tsx');
-  const css=await read('src/styles/tailadmin-ai-v320.css');
+test('AI nudge delegates visual styling to the active unified conversation CSS owner',async()=>{
+  const [nudge,css]=await Promise.all([read('src/components/LourexAdvisorNudge.tsx'),read('src/styles/tailadmin-ai-v320.css')]);
   assert.doesNotMatch(nudge,/<style[\s>]/i);
   assert.doesNotMatch(nudge,/data-lourex-ai-core/);
-  assert.ok(css.includes('v320')||css.includes('TailAdmin'));
+  assert.match(css,/sole AI conversation-panel visual owner/);
+  assert.match(css,/\.lourex-ai-panel/);
+  assert.match(css,/\.lourex-ai-compose/);
+  assert.match(css,/@media screen/);
 });
 
 test('Vercel Git deployments remain fully manual',async()=>{
