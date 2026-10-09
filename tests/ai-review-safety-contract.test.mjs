@@ -22,7 +22,12 @@ test('customer AI capture remains server-keyed, same-origin and proposal-only', 
 
   assert.doesNotMatch(api, /mutateVaultSafely/);
   assert.doesNotMatch(api, /indexedDB/i);
-  assert.doesNotMatch(api, /firebase/i);
+  assert.match(api, /import \{requireAiFirebaseAuth\} from '\.\/_ai\/firebase-auth\.js'/,
+    'Customer AI must invoke the shared server-side Firebase signature verifier.');
+  assert.match(api, /if\(!await requireAiFirebaseAuth\(request,response\)\)return;/,
+    'Customer capture must authorize the account before processing data.');
+  assert.doesNotMatch(api, /firebase\.auth\(|getIdToken\(/i,
+    'The API must not invoke the browser Firebase authentication SDK.');
 });
 
 test('customer AI UI hands proposals to review without direct persistence', () => {
