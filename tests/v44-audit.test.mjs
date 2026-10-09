@@ -35,33 +35,55 @@ function validDoc(){
   return doc;
 }
 
-test('current service worker precaches every compiled application module',async()=>{
-  const [sw,bundle]=await Promise.all([read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
+test('current service worker retains every compiled JS module and app CSS for offline startup',async()=>{
+  const [sw,bundle,html,build]=await Promise.all([
+    read('dist/sw.js'),read('dist/styles/app.bundle.css'),read('dist/index.html'),read('scripts/build.mjs')
+  ]);
   assert.match(sw,/lourex-invoice-v\d+/);
   const files=await jsFiles(path.join(root,'dist/src'));
-  assert.ok(files.length>10);
+  assert.ok(files.length>10,'compiled app must contain a real JS module graph');
   for(const file of files){
     const relative=path.relative(path.join(root,'dist'),file).split(path.sep).join('/');
-    assert.ok(sw.includes(`./${relative}`),`offline cache missing ${relative}`);
+    assert.ok(sw.includes('./'+relative),'offline cache missing '+relative);
   }
   assert.match(sw,/src\/storage\/vault-merge\.js/);
   assert.match(sw,/styles\/app\.bundle\.css/);
-  assert.match(bundle,/\/\* --- v44-audit\.css --- \*\//);
+  assert.match(html,/styles\/app\.bundle\.css/,'production HTML must use the compiled CSS bundle');
+  for(const owner of ['tailadmin-finance-v320.css','tailadmin-overlays-v320.css','tailadmin-design-closeout-v323.css','tailadmin-reliability-bridge-v320.css']){
+    assert.ok(bundle.includes('/* --- '+owner+' --- */'),'canonical CSS owner missing: '+owner);
+  }
+  assert.match(build,/retiredVisualLayers/);
+  assert.match(build,/standaloneRuntimeStyles/);
   assert.match(sw,/EXTERNAL_CORE_SET/);
-  assert.match(sw,/preserveExternalRuntime/);
-  assert.match(sw,/caches\.match\(asset\)/);
-  assert.match(sw,/cache\.put\(asset,existing\.clone\(\)\)/);
-  assert.match(sw,/cache\.put\(event\.request,\s*response\.clone\(\)\)/);
+  assert.match(sw,/async function preserveExternalRuntime/);
+  assert.match(sw,/async function precacheLocalAsset/);
+  assert.match(sw,/await Promise\.allSettled\(LOCAL_CORE\.map\(asset=>precacheLocalAsset\(cache,asset\)\)\)/);
+  assert.match(sw,/await Promise\.allSettled\(EXTERNAL_CORE\.map\(asset=>preserveExternalRuntime\(cache,asset\)\)\)/);
+  assert.match(sw,/async function networkFirst\(request\)/);
+  assert.match(sw,/if\(event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)\)\{event\.respondWith\(networkFirst\(event\.request\)\);return;\}/);
+  assert.match(sw,/event\.respondWith\(cacheFirst\(event\.request\)\)/);
+  assert.match(sw,/cache\.put\(event\.request,response\.clone\(\)\)/);
+  assert.doesNotMatch(sw,/self\.addEventListener\('install'[\s\S]*?await self\.skipWaiting\(\)/);
 });
 
-test('cloud freshness watcher applies account updates only when the UI is safe',async()=>{
+test('realtime cloud freshness checks exact user scope and only notifies outside active edits',async()=>{
   const source=await read('src/cloud/freshness.ts');
-  assert.match(source,/reconcileCloudVault/);
+  const safety=source.slice(source.indexOf('function appIsSafeToApply'),source.indexOf('function detachRealtime'));
+  const check=source.slice(source.indexOf('async function checkCloudFreshness'),source.indexOf('export function startCloudFreshnessWatcher'));
   assert.match(source,/subscribeCloudVaultChanges/);
   assert.match(source,/cloudRemoteChangedSinceAnchor/);
-  assert.match(source,/window\.location\.reload\(\)/);
-  assert.match(source,/editor-screen,.modal-backdrop/);
-  assert.match(source,/document\.activeElement/);
+  assert.match(safety,/document\.visibilityState!=='visible'/);
+  assert.match(safety,/workspaceHasUnsavedChanges\(\)/);
+  assert.match(safety,/data-lourex-document-editor/);
+  assert.match(safety,/UNSAFE_SURFACE_SELECTOR/);
+  assert.match(safety,/document\.activeElement/);
+  assert.match(safety,/HTMLInputElement\|\|active instanceof HTMLTextAreaElement\|\|active instanceof HTMLSelectElement/);
+  assert.match(source,/\.editor-screen,\.modal-backdrop/);
+  assert.match(check,/if\(linked\.uid!==user\.uid\)\{detachRealtime\(\);return;\}/);
+  assert.match(check,/if\(!appIsSafeToApply\(\)\)return/);
+  assert.match(check,/remoteUpdateNotified=true;/);
+  assert.match(check,/lourex-cloud-refresh-available/);
+  assert.doesNotMatch(check,/reconcileCloudVault\(|installCloudVault\(|window\.location\.reload\(/);
   assert.match(source,/5_000/);
   assert.doesNotMatch(source,/lourex-cloud-remote-newer/);
 });
@@ -138,8 +160,9 @@ test('readiness uses fixed precision grammar instead of JavaScript Number coerci
   assert.equal(readiness.groups.find(group=>group.key==='items')?.complete,false);
 });
 
-test('legacy schema normalizes hostile defaults without changing document snapshots',()=>{
+test('legacy schema rejects malformed settings, preserves financial document identity and uses current safe prefixes',()=>{
   assert.ok(APP_SCHEMA_VERSION>=6);
+  const defaults=emptyVault();
   const vault=emptyVault();
   vault.schemaVersion=4;
   vault.company.defaultValidityDays=Infinity;
@@ -151,20 +174,32 @@ test('legacy schema normalizes hostile defaults without changing document snapsh
   assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);
   assert.equal(migrated.company.defaultValidityDays,7);
   assert.equal(migrated.company.defaultCurrency,'SAR');
-  assert.equal(migrated.appSettings.numbering.proformaPrefix,'PI');
+  assert.equal(migrated.appSettings.numbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix);
+  assert.match(migrated.appSettings.numbering.proformaPrefix,/^[A-Z0-9-]{1,12}$/);
+  assert.notEqual(migrated.appSettings.numbering.proformaPrefix,'P I!');
+  assert.equal(migrated.documents.length,1);
+  assert.equal(migrated.documents[0].number,vault.documents[0].number);
   assert.equal(migrated.documents[0].companySnapshot.nameEn,'Historical Seller');
+  assert.equal(migrated.documents[0].items[0].quantity,'1');
+  assert.equal(migrated.documents[0].items[0].unitPrice,'100');
 });
 
-test('pagination can reserve additional first-page space for long party details',async()=>{
+test('pagination reserves tall first-page party details and fragments long printed rows without double counting',async()=>{
   const base=validDoc().items[0];
-  const items=Array.from({length:9},(_,index)=>({...base,id:`i${index}`,descriptionEn:`Product ${index+1}`}));
+  const items=Array.from({length:9},(_,index)=>({...base,id:'i'+index,descriptionEn:'Product '+(index+1)}));
   assert.equal(paginateItems(items,false)[0].length,7);
   assert.equal(paginateItems(items,false,3)[0].length,3);
   const renderer=await read('src/templates/TemplateRenderer.tsx');
-  assert.match(renderer,/firstPageItemCapacity/);
-  assert.match(renderer,/const outputItems=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
-  assert.match(renderer,/paginateItems\(outputItems, !separateDetails, firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
+  assert.match(renderer,/function firstPageItemCapacity\(doc:LourexDocument\):number/);
+  assert.match(renderer,/if\(pressure>2200\)return 4;/);
+  assert.match(renderer,/if\(pressure>1800\)return 5;/);
+  assert.match(renderer,/const fragments=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
+  assert.match(renderer,/paginateItems\(fragments,false,firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
+  assert.match(renderer,/const continuation=fragment\.index>0/);
+  assert.match(renderer,/continuation\?'':item\.quantity/);
+  assert.match(renderer,/continuation\?'':documentPriceOptional\(doc\.kind\)/);
   assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
+  assert.match(renderer,/function shouldUseDetailsPage/);
 });
 
 test('custom row weights can reserve A4 space for wrapped trade columns',()=>{
