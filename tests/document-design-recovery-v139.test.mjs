@@ -36,7 +36,8 @@ test('production bundle keeps one canonical A4 layer and only one standalone v33
   assert.deepEqual(localStyles(distHtml),['app.bundle.css','v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css','v482-mobile-ux-repair.css']);
   assert.match(distHtml,/v331-draft-scroll-recovery\.css\?v=365-1/);
   assert.match(distHtml,/data-lourex-v331-draft-recovery="true"/);
-  assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
+  for(const dependency of ['v333-critical-documents-visual-functional-closeout.css','v337-template-layout-balance.css'])assert.ok(recovery.includes(`/* document dependency: ${dependency} */`),`flattened production recovery must contain ${dependency}`);
+  assert.match(recovery,/\.invoice-page \.final-details/);
   assert.doesNotMatch(distHtml,/@import url\("\.\/styles\//);
 });
 
