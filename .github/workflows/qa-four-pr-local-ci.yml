@@ -28,14 +28,15 @@ jobs:
           git config user.name 'LOUREX isolated QA'
           while read -r name sha; do
             git fetch origin "+refs/heads/$name:refs/remotes/origin/$name"
-            echo "Auditing current $name at $(git rev-parse "origin/$name")"
+            git cat-file -e "$sha^{commit}"
+            echo "Auditing exact reviewed snapshot $name $sha"
             merge_opts=()
             if [[ "$name" == "fix/qa-legacy-vault-preservation-20261009" ]]; then
               merge_opts=(-X theirs)
             elif [[ "$name" == "fix/qa-document-details-pagination-20261009" ]]; then
               merge_opts=(-X ours)
             fi
-            if git merge "${merge_opts[@]}" --no-ff --no-edit "origin/$name"; then
+            if git merge "${merge_opts[@]}" --no-ff --no-edit "$sha"; then
               echo "Merged locally: $name"
             else
               conflicts="$(git diff --name-only --diff-filter=U)"
@@ -50,8 +51,8 @@ jobs:
               fi
             fi
           done <<'BRANCHES'
-          fix/audit-workspace-payables-asof-20261009 31086a34e2e43a243336c2404ce95e2dacc08633
-          fix/audit-ai-verified-auth-20261009 8ea408669510a7add24a5c684726155fe892b56c
+          fix/audit-workspace-payables-asof-20261009 f8acc0ecbabf960552955862d35a1645380487d9
+          fix/audit-ai-verified-auth-20261009 c0fbf87d146fb1b758a17e387ac91ddb91fc5cbc
           fix/qa-legacy-vault-preservation-20261009 d0b80c887b167eebf2e7d0a69559216f52d1dc46
           fix/qa-document-details-pagination-20261009 812eb8e368569cd00724c05d4862be047816a06e
           BRANCHES
