@@ -12,8 +12,14 @@ test('v159 removes inline executable code while preserving canonical redirects o
     read('public/sw.js')
   ]);
 
-  assert.match(html,/<script src="\.\/runtime-config\.js"><\/script>\s*<script src="\.\/canonical-redirect\.js"><\/script>/);
-  assert.doesNotMatch(html,/<script>(?:.|\n)*?<\/script>/);
+  const configTag='<script src="./runtime-config.js"></script>';
+  const redirectTag='<script src="./canonical-redirect.js"></script>';
+  const startupTag='<script src="./startup-watchdog-v321.js?v=347"></script>';
+  const configAt=html.indexOf(configTag),startupAt=html.indexOf(startupTag),redirectAt=html.indexOf(redirectTag);
+  assert.ok(configAt>=0&&startupAt>configAt&&redirectAt>startupAt,
+    'CSP-safe config, startup watchdog and canonical redirect must remain ordered');
+  assert.doesNotMatch(html,/<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/,
+    'production bootstrap must not inject inline executable JavaScript');
   assert.match(redirect,/environment!=='production'/);
   assert.match(redirect,/window\.location\.replace/);
   assert.match(config,/script-src 'self' https:\/\/apis\.google\.com https:\/\/www\.gstatic\.com;/);
