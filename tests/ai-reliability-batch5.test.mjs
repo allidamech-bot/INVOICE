@@ -8,6 +8,7 @@ import quoteHandler from '../api/quote-source-ai.js';
 import productHandler from '../api/product-source-ai.js';
 import supplierHandler from '../api/supplier-document-ai.js';
 import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
+import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 
 test('local explicit tables preserve repeated SKU rows, Arabic/Persian numbers and money without provider calls',()=>{
  const text='Customer: Northstar\nSKU | Description | Quantity | Unit | Unit Price | Currency\nAX-1 | Valve | ۲ | PCS | ١٢٫٥٠ | USD\nAX-1 | Spare valve | 3 | PCS | 10 | USD';
@@ -26,8 +27,8 @@ test('duplicate quantity rows must survive extraction while incidental repeated 
  assert.equal(includesExplicitSourceCodes('SKU Description Quantity Price',[{sku:'A-1'}]),true,'column headings are not product codes');
 });
 
-const originalFetch=globalThis.fetch,originalTimeout=globalThis.setTimeout,originalEnv={...process.env};
-function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimeout;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];Object.assign(process.env,originalEnv);}
+const originalFetch=globalThis.fetch,originalTimeout=globalThis.setTimeout,originalFirebase=globalThis.firebase,originalEnv={...process.env};
+function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimeout;globalThis.firebase=originalFirebase;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];Object.assign(process.env,originalEnv);}
 test.afterEach(restore);
 test('provider timeout includes an unfinished response body and safely falls back',async()=>{
  process.env.GROQ_API_KEY='fixture';process.env.CLOUDFLARE_AI_API_TOKEN='fixture';process.env.CLOUDFLARE_ACCOUNT_ID='fixture';
@@ -70,6 +71,7 @@ test('client cancellation, body timeout and malformed responses clean up without
  const previousFirebase=globalThis.firebase;
  globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'lourex-test-user',getIdToken:async()=> 'fixture-token'}})};
  try{
+ globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};
  globalThis.window={setTimeout:(fn,ms)=>originalTimeout(fn,ms),clearTimeout};const {requestAiJson}=await import('../dist/src/lib/ai-request.js');
  globalThis.fetch=async()=>({ok:true,json:async()=>[]});await assert.rejects(requestAiJson('/fixture',{}),/unreadable/);
  globalThis.fetch=async(url,options)=>({ok:true,json:()=>new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}))});

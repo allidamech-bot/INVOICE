@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import advisorHandler from '../api/ai-advisor-v2.js';
 import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
+import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 
 function request(headers){
   const req=Readable.from([JSON.stringify({})]);
@@ -23,7 +24,8 @@ async function invoke(headers){
 }
 
 test('origin-omitting browser request is accepted only with same-origin fetch metadata and LOUREX intent',async()=>{
-  const res=await invoke({
+  const oldFetch=globalThis.fetch;globalThis.fetch=withTestFirebaseKeys(oldFetch);
+  let res;try{res=await invoke({
     host:'invoice-three-puce.vercel.app',
     'sec-fetch-site':'same-origin',
     'x-requested-with':'LOUREX-Invoice',

@@ -4,6 +4,7 @@ import {Readable} from 'node:stream';
 import handler from '../api/ai-core.js';
 import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
+import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 
 function request(headers,body='{}'){
   const req=Readable.from([body]);
@@ -58,7 +59,9 @@ test('foreign origin remains rejected even when production canonical host is con
       'x-forwarded-for':'127.0.0.2'
     });
     const res=response();
-    await handler(req,res);
+    const fetchBefore=globalThis.fetch;
+    globalThis.fetch=withTestFirebaseKeys(fetchBefore);
+    try{await handler(req,res);}finally{globalThis.fetch=fetchBefore;}
     assert.equal(res.statusCode,403);
     assert.equal(res.body?.code,'ORIGIN_REJECTED');
   }finally{
