@@ -20,16 +20,18 @@ test('toast feedback never blocks the controls underneath it',()=>{
   assert.match(ui,/aria-live=\{error\?'assertive':'polite'\}/);
 });
 
-test('document contextual actions close on outside press or Escape and mobile uses a portal',()=>{
-  const page=read('src/components/DocumentsPage.tsx');
-  assert.match(page,/document\.addEventListener\('pointerdown',this\.handleOutsidePointer\)/);
-  assert.match(page,/document\.removeEventListener\('pointerdown',this\.handleOutsidePointer\)/);
-  assert.match(page,/target\.closest\('[^']*\.mobile-actions[^']*\.mobile-document-action-portal'\)/);
-  assert.match(page,/event\.key==='Escape'/);
-  assert.match(page,/<button type="button" className="document-register-open"/);
-  assert.match(page,/private actionButtons=/);
-  assert.match(page,/ReactDOM\.createPortal\([\s\S]*?this\.actionButtons\(doc\)[\s\S]*?document\.body/);
-  assert.match(page,/mobile-document-action-backdrop[\s\S]*?onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/);
+test('document contextual actions retain outside-dismissal, Escape and accessible body portals',()=>{
+ const page=read('src/components/DocumentsPage.tsx');
+ assert.match(page,/document\.addEventListener\('pointerdown',this\.handleOutsidePointer\)/);
+ assert.match(page,/document\.removeEventListener\('pointerdown',this\.handleOutsidePointer\)/);
+ assert.ok(page.includes("target.closest('.ta-doc-actions,.ta-doc-detail-more,.ta-doc-action-popover,.ta-doc-mobile-action-portal')"));
+ assert.match(page,/event\.key==='Escape'/);
+ assert.match(page,/className="ta-doc-row-open"/);
+ assert.match(page,/private actionButtons=/);
+ assert.ok(page.includes('ReactDOM.createPortal(')&&page.includes(',document.body)'));
+ assert.ok(page.includes('ta-doc-mobile-action-sheet" role="menu"'));
+ assert.ok(page.includes('ta-doc-action-backdrop" aria-label='));
+ assert.ok(page.includes("onClick={()=>this.setState({menuId:''})}"));
 });
 
 test('customer editor warns before discarding unsaved changes',()=>{
@@ -62,14 +64,20 @@ test('cloud account modal remains dismissible while account actions are busy',()
   assert.doesNotMatch(modal,/Sync Now|مزامنة الآن/);
 });
 
-test('account entry cannot switch modes or double-submit while authentication is running',()=>{
-  const screen=read('src/components/AccountEntryScreen.tsx');
-  assert.match(screen,/if\(this\.state\.busy\)return;/);
-  assert.match(screen,/className="[^"]*auth-language-switch[^"]*" disabled=\{this\.state\.busy\}/);
-  assert.match(screen,/id="account-tab-signin"[\s\S]*disabled=\{this\.state\.busy\|\|linkingGoogle\}[\s\S]*className=\{!create\?'active':''\}/);
-  assert.match(screen,/id="account-tab-create"[\s\S]*disabled=\{this\.state\.busy\|\|linkingGoogle\}[\s\S]*className=\{create\?'active':''\}/);
-  assert.match(screen,/premium-auth-feedback" role="alert"/);
-  assert.match(screen,/premium-auth-feedback" role="status"/);
+test('account entry disables language, auth mode and submit while authentication runs',()=>{
+ const screen=read('src/components/AccountEntryScreen.tsx');
+ assert.match(screen,/if\(this\.state\.busy\)return;/);
+ assert.match(screen,/className="ta-auth-language" disabled=\{this\.state\.busy\}/);
+ for(const tab of ['account-tab-signin','account-tab-create']){
+   const start=screen.indexOf('id="'+tab+'"');
+   assert.ok(start>=0,tab+' is available');
+   const markup=screen.slice(start,start+420);
+   assert.ok(markup.includes('disabled={this.state.busy||linkingGoogle}'),tab+' must prevent busy changes');
+   assert.ok(markup.includes('aria-selected='),tab+' must expose accessible selection');
+ }
+ assert.match(screen,/className="ta-auth-primary" variant="primary" type="submit" disabled=\{this\.state\.busy\}/);
+ assert.match(screen,/ta-auth-feedback is-error" role="alert"/);
+ assert.match(screen,/ta-auth-feedback is-success" role="status"/);
 });
 
 test('settings modal warns before discarding persistent unsaved company or document settings',()=>{
