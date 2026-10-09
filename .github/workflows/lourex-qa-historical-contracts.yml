@@ -1,0 +1,38 @@
+name: LOUREX QA Historical Contract Verification
+on:
+  push:
+    branches:
+      - fix/qa-logo-product-shortcut-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Company asset and product interaction contracts
+        run: node --test tests/company-settings-final-audit.test.mjs tests/interaction-presets-v116.test.mjs
+  historical-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Full test suite with all failures visible and none bypassed
+        run: node --test --test-concurrency=2 tests/*.test.mjs
