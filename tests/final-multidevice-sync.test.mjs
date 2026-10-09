@@ -9,7 +9,7 @@ test('a stale device fast-forwards only with a verified anchor and fails closed 
   assert.match(cloud,/if\(!anchor\)return 'diverged'/);
   assert.match(cloud,/if\(localChanged&&remoteChanged\)return 'diverged'/);
   const reconcile=cloud.slice(cloud.indexOf('export async function reconcileCloudVault'));
-  assert.match(reconcile,/if\(remoteChanged\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(reconcile,/if\(remoteChanged\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\s*\}/);
   assert.match(reconcile,/const startup=Boolean\(document\.querySelector\('\.loading-screen'\)\)/);
   assert.doesNotMatch(reconcile,/if\(remoteChanged\)\{\s*await installCloudVault/);
   assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
@@ -20,7 +20,7 @@ test('a stale device fast-forwards only with a verified anchor and fails closed 
   assert.doesNotMatch(cloud,/Nothing was overwritten|Both copies are safe/);
 });
 
-test('cross-device updates use Firestore realtime events and automatic account reconcile',async()=>{
+test('cross-device updates announce a safe explicit refresh instead of silently overwriting workspace',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/subscribeCloudVaultChanges/);
   assert.match(freshness,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
