@@ -13,6 +13,7 @@ export async function requestProductImportAiMapping(analysis:ProductImportAnalys
   const columns=ambiguousProductImportColumns(analysis,mapping);
   if(!columns.length)return {model:'local',mappings:[]};
   const token=await currentCloudIdToken();
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   const response=await fetch('/api/product-import-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice',Authorization:`Bearer ${token}`},body:JSON.stringify({columns}),signal});
   let payload:any={};try{payload=await response.json();}catch{}
   if(!response.ok)throw new Error(String(payload?.message||'AI mapping is temporarily unavailable.'));
