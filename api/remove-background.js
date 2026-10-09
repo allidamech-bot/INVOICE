@@ -1,3 +1,4 @@
+import {requireAiAuth} from './_ai/firebase-auth.js';
 import { Buffer } from 'node:buffer';
 
 const MAX_IMAGE_BYTES=4*1024*1024;
@@ -88,6 +89,7 @@ export default async function handler(request,response){
     return;
   }
 
+  if(!await requireAiAuth(request,response,sendJson))return;
   const apiKey=process.env.REMOVE_BG_API_KEY?.trim();
   if(!apiKey){
     sendJson(response,503,{code:'AI_NOT_CONFIGURED',message:'AI background removal is not configured on this deployment.'});
