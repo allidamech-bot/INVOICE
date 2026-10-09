@@ -19,7 +19,8 @@ test('v589 editor buttons cannot fall back to fixed black or old blue surfaces',
   assert.match(css,/:is\(\.screen-editor,\.editor-screen\) \.btn\.btn-ghost\{[\s\S]*background:var\(--lx485-surface-3,#1d3651\)!important[\s\S]*color:var\(--lx485-text-2,#cbd8e8\)!important/);
   assert.match(css,/:is\(\.screen-editor,\.editor-screen\) \.icon-btn\{[\s\S]*background:transparent!important/);
   assert.match(css,/:is\(\.screen-editor,\.editor-screen\) \.advanced-master-toggle\{[\s\S]*appearance:none!important[\s\S]*background:var\(--lx485-surface-3,#1d3651\)!important/);
-  assert.match(css,/--lrx-editor-accent:#315fad/);
+  assert.match(css,/--lrx-editor-accent:var\(--ft-accent,#315DA8\)/,'editor must use the active application theme accent');
+  assert.doesNotMatch(css,/--lrx-editor-accent:#315fad/,'fixed blue may not override a user-selected theme');
 });
 
 test('v589 Design section has one visual hierarchy instead of nested card layers',async()=>{
