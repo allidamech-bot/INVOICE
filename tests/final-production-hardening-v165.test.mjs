@@ -44,7 +44,12 @@ test('manual cloud restore is removed from visible account UX while publication 
   assert.match(app,/private cloudReplaceBlocked=\(\)=>this\.state\.screen==='editor'\|\|this\.state\.settingsOpen\|\|this\.state\.cloudModal/);
   assert.match(app,/private cloudRestore=async\(\)=>\{[\s\S]*await this\.beginProtectedOperation\(\)[\s\S]*resolveCloudConflictWithCloud\(user\.uid\)[\s\S]*this\.endProtectedOperation\(\)/);
   assert.match(app,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
-  assert.match(app,/if\(result==='remote-changed'\)\{[\s\S]*this\.deferRemoteCloud\(\)[\s\S]*this\.handleRemoteCloudNewer/);
+  // The current runtime routes remote divergence through a single guarded
+  // notifier; it must stop publishing without replacing the local encrypted vault.
+  assert.match(app,/if\(result==='remote-changed'\)\{this\.announceRemoteCloudUpdate\(\);return;\}/);
+  assert.match(app,/private announceRemoteCloudUpdate=\(\)=>\{if\(!this\.state\.cloudUser\|\|!this\.state\.cloudLinked\|\|this\.state\.cloudSyncState==='conflict'\)return;this\.deferRemoteCloud\(\)/);
+  assert.match(app,/window\.dispatchEvent\(new Event\('lourex-cloud-refresh-available'\)\)/);
+  assert.match(app,/private handleRemoteCloudNewer=\(\)=>\{[\s\S]*this\.announceRemoteCloudUpdate\(\)/);
   assert.doesNotMatch(app,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
 });
 
