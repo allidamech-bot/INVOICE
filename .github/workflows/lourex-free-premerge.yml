@@ -47,6 +47,8 @@ jobs:
             tests/audit-ai-firebase-auth.test.mjs \
             tests/audit-ai-client-token-safety.test.mjs \
             tests/audit-account-auth-loss-watchdog.test.mjs \
+            tests/account-cloud-separation-v186.test.mjs \
+            tests/ai-premium-conversation-batch3.test.mjs \
             tests/ai-reliability-batch5.test.mjs \
             tests/b04-attachment-progress.test.mjs \
             tests/b04-ai-planner-failure-visibility.test.mjs \
