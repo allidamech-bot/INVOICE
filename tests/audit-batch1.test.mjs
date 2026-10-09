@@ -10,6 +10,7 @@ test('highest-total sorting groups currencies before comparing amounts',async()=
   assert.match(source,/Highest total \(by currency\)/);
   assert.match(source,/a\.currency\.localeCompare\(b\.currency/);
   assert.match(source,/if\(currencyOrder\)return currencyOrder/);
+  assert.match(source,/currency\.localeCompare\(b\.currency,undefined,\{sensitivity:'base'\}\)/,'sort by currency case-insensitively before comparing monetary values');
   assert.match(source,/compareMoneyStrings\(av,bv\)/);
   assert.match(source,/this\.state\.sort==='highest'\?-byTotal:byTotal/);
 });

@@ -47,9 +47,20 @@ for(const path of editorTargets){
 for(const path of compatibilityTargets){
   let source=await readFile(path,'utf8');
   const matches=source.match(legacyIosExpression)?.length??0;
-  if(matches!==1)throw new Error(`v339 expected exactly one compatibility iOS detector in ${path}; found ${matches}.`);
-  source=source.replace(legacyIosExpression,legacyIosReplacement);
-  if(!source.includes("platform||'')==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1")){
+  if(matches===1){
+    source=source.replace(legacyIosExpression,legacyIosReplacement);
+  }else if(matches===0 && path==='dist/src/app/index.js'){
+    // Source now ships its own desktop-UA iPadOS detection. Preserve that
+    // authoritative guard instead of replacing it or breaking the build.
+    const sourceAwareDetector=/\/iP\(\?:hone\|ad\|od\)\/i\.test\(ua\)\s*\|\|\s*\(platform\s*===\s*'MacIntel'\s*&&\s*touchPoints\s*>\s*1\)/;
+    if(!sourceAwareDetector.test(source)){
+      throw new Error(`v339 expected a source-owned, desktop-UA-safe iOS detector in ${path}.`);
+    }
+  }else{
+    throw new Error(`v339 expected one legacy or source-owned iOS detector in ${path}; found ${matches}.`);
+  }
+  if(!source.includes("platform||'')==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1")&&
+     !/platform\s*===\s*'MacIntel'\s*&&\s*touchPoints\s*>\s*1/.test(source)){
     throw new Error(`v339 desktop-UA iPadOS compatibility detector was not installed in ${path}.`);
   }
   await writeFile(path,source);

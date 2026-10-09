@@ -4,12 +4,15 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v302 fresh setup requires an explicit local PIN after account authentication',async()=>{
+test('fresh setup enforces an account-bound PIN plus explicit recovery key consent',async()=>{
   const auth=await read('src/components/AuthScreens.tsx');
   const setup=auth.slice(auth.indexOf('export class SetupScreen'),auth.indexOf('interface UnlockProps'));
   assert.match(setup,/PIN_PATTERN/);
   assert.match(setup,/Confirm PIN/);
-  assert.match(setup,/onFinish\(this\.state\.pin, this\.state\.company\)/);
+  assert.match(setup,/if\(!this\.state\.recoverySaved\)/);
+  assert.match(setup,/Save your PIN recovery key/);
+  assert.match(setup,/const user=currentCloudUser\(\);if\(!user\)/);
+  assert.match(setup,/onFinish\(this\.state\.pin,this\.state\.company,this\.state\.recoveryCode\)/);
   assert.match(setup,/Account \+ PIN protection/);
   assert.doesNotMatch(setup,/getOrCreateAccountVaultSecret\(user\.uid\)/);
   assert.doesNotMatch(setup,/No separate access PIN is required/);
@@ -25,16 +28,26 @@ test('v189 account access secret remains random, UID scoped and stored only belo
   assert.match(source,/runTransaction/);
 });
 
-test('v302 account-secret vaults require a one-time migration to a user PIN',async()=>{
+test('legacy account-secret PIN migration fails closed on cloud changes and retires secret after confirmed push',async()=>{
   const auth=await read('src/components/AuthScreens.tsx');
   const unlock=auth.slice(auth.indexOf('export class UnlockScreen'));
+  const detect=unlock.slice(unlock.indexOf('private detectSecurityMode='),unlock.indexOf('private submit='));
+  const submit=unlock.slice(unlock.indexOf('private submit='),unlock.indexOf('private submitRecovery='));
   assert.match(unlock,/componentDidMount\(\):void\{void this\.detectSecurityMode\(\);\}/);
-  assert.match(unlock,/getAccountVaultSecret\(user\.uid\)/);
-  assert.match(unlock,/await verifyPin\(secret,security\)/);
-  assert.match(unlock,/await changePin\(this\.accountSecret,pin\)/);
-  assert.match(unlock,/await this\.props\.onUnlock\(pin\)/);
-  assert.match(unlock,/Create your LOUREX PIN/);
-  assert.match(unlock,/PIN required on every app start/);
+  assert.match(detect,/getAccountVaultSecret\(user\.uid\)/);
+  assert.match(detect,/await verifyPin\(secret,security\)/);
+  assert.match(submit,/const baseline=await reconcileCloudVault\(user\.uid\)/);
+  assert.match(submit,/if\(baseline==='diverged'\)\{/);
+  assert.match(submit,/await changePin\(this\.accountSecret,pin\)/);
+  assert.match(submit,/await pushLocalVaultToCloud\(user\.uid\)/);
+  assert.match(submit,/if\(result==='remote-changed'\)/);
+  assert.match(submit,/await changePin\(pin,this\.accountSecret\)/,'failed migration must attempt to restore original PIN');
+  assert.match(submit,/await retireAccountVaultSecret\(user\.uid\)/);
+  assert.ok(submit.indexOf('await retireAccountVaultSecret(user.uid)')>submit.indexOf('await pushLocalVaultToCloud(user.uid)'));
+  assert.match(submit,/this\.state\.migrateAccountSecret/);
+  assert.match(submit,/await this\.props\.onUnlock\(pin\)/);
+  assert.match(unlock,/private submitRecovery=async/);
+  assert.match(unlock,/this\.props\.onRecoverPin\(this\.state\.recoveryKey,this\.state\.recoveryPin\)/);
   assert.doesNotMatch(unlock,/will not ask for it again/);
 });
 
@@ -73,19 +86,20 @@ test('daily workspace exposes truthful passive save states and reserves controls
   assert.doesNotMatch(css,/\.settings-tabs>button:nth-child\(4\),\s*\n\.app-ui \.security-settings-page\{\s*display:none!important/);
 });
 
-test('v189 account runtime remains cached as later PWA generations advance',async()=>{
-  const sw=await read('public/sw.js');
-  const html=await read('index.html');
+test('account runtime survives installed PWA upgrades via current bundled styles and UID-scoped cloud code',async()=>{
+  const [sw,html,build,db]=await Promise.all([
+    read('public/sw.js'),read('index.html'),read('scripts/build.mjs'),read('src/storage/db.ts')
+  ]);
   const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
-  const current=Number(versions.at(-1)?.[1]);
-  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
+  assert.ok(Number(versions.at(-1)?.[1])>=302,'immutable PWA version must preserve current PIN protection');
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
-  assert.ok(sw.includes("LOCAL_CORE.push('./styles/unified-account-v189.css')"));
   assert.ok(sw.includes("LOCAL_CORE.push('./src/cloud/account-access.js')"));
-  assert.match(html,/account-cloud-separation-v186\.css[\s\S]*unified-account-v189\.css[\s\S]*document-premium-redesign-v141\.css/);
+  assert.match(html,/tailadmin-shell-v320\.css/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/sw=sw\.replace\(/,'compiled PWA must rewrite source CSS cache assets');
+  assert.match(db,/function accountDbName\(uid:string\)/);
+  assert.match(db,/export async function activateAccountStorage\(uid:string\|null\)/);
 });
 
 test('v302 PIN migration never deletes the encrypted vault or security records',async()=>{

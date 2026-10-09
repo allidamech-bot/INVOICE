@@ -67,7 +67,9 @@ test('App persists supplier payments and blocks unsafe purchase reversal',async(
   assert.match(app,/private saveSupplierPayment=/);
   assert.match(app,/normalizeSupplierPayment/);
   assert.match(app,/private deleteSupplierPayment=/);
-  assert.match(app,/vault\.supplierPayments\.some\(payment=>payment\.purchaseId===current\.id\)/);
+  assert.match(app,/vault\.supplierPayments\.some\(payment=>payment\.purchaseId===current\.id&&!payment\.voidedAt\)/);
+  assert.match(app,/voidSupplierPayment\(original/);
+  assert.doesNotMatch(app,/supplierPayments:vault\.supplierPayments\.filter\(item=>item\.id!==payment\.id\)/,'recorded supplier payments must never be hard deleted');
   assert.match(app,/supplierPayments:vault\.supplierPayments/);
 });
 
@@ -78,4 +80,32 @@ test('Batch 9 mobile, RTL, print and reduced-motion affordances remain explicit'
   assert.match(css,/html\[dir="rtl"\]/);
   assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
   assert.match(css,/@media print/);
+});
+test('supplier payment cancellations preserve journal and treasury provenance',async()=>{
+  const [types,vault,engine,treasury,merge,page]=await Promise.all([
+    read('src/types.ts'),read('src/storage/vault.ts'),read('src/lib/payables.ts'),
+    read('src/lib/treasury-ledger.ts'),read('src/storage/vault-merge.ts'),read('src/components/SupplierPayablesPage.tsx')
+  ]);
+  assert.match(types,/voidedAt\?: string/);
+  assert.match(vault,/voidedAt:stringValue\(payment\?\.voidedAt\)/);
+  assert.match(engine,/export function voidSupplierPayment\(/);
+  assert.match(engine,/payment\.voidedAt\)/);
+  assert.match(merge,/Supplier payment history cannot be deleted/);
+  assert.match(merge,/A voided supplier payment cannot be restored or changed/);
+  assert.match(treasury,/for\(const item of supplierPayments\)\{if\(asOf\?/,'as-of cash ledger must rebuild cancelled payment history');
+  assert.match(treasury,/Boolean\(item\.voidedAt\)/,'current cash ledger must exclude cancelled payments');
+  assert.match(page,/Void supplier payment\?/);
+});
+
+test('supplier payment void requires an explicit user reason that crosses all finance layers',async()=>{
+  const [page,finance,app]=await Promise.all([
+    read('src/components/SupplierPayablesPage.tsx'),read('src/components/FinanceWorkspace.tsx'),read('src/app/App.tsx')
+  ]);
+  assert.match(page,/Cancellation reason \(required\)/);
+  assert.match(page,/voidReason\.trim\(\)/);
+  assert.match(page,/onDeleteSupplierPayment\(payment,reason\)/);
+  assert.match(finance,/onDeleteSupplierPayment:\(payment:SupplierPaymentRecord,reason:string\)/);
+  assert.match(app,/deleteSupplierPayment=async\(payment:SupplierPaymentRecord,reason:string\)/);
+  assert.match(app,/voidSupplierPayment\(original,reason\)/);
+  assert.doesNotMatch(app,/voidSupplierPayment\(original,'Recorded in error/);
 });

@@ -4,27 +4,62 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v302 essential company onboarding stays compact while adding the required PIN gate',async()=>{
-  const auth=await read('src/components/AuthScreens.tsx');
-  assert.match(auth,/account-managed-setup/);
-  assert.match(auth,/WORKSPACE SETUP/);
-  assert.match(auth,/Set up your protected workspace/);
-  assert.match(auth,/Company Name English/);
-  assert.match(auth,/Company Name Arabic/);
-  assert.match(auth,/Company Logo · Optional/);
-  assert.match(auth,/Create PIN · 4–12 digits/);
-  assert.match(auth,/Confirm PIN/);
-});
-
-test('v302 setup uses account plus a separate user PIN instead of account-secret auto unlock',async()=>{
+test('first-run onboarding requires business identity, separate PIN, and an explicitly saved recovery key',async()=>{
   const auth=await read('src/components/AuthScreens.tsx');
   const setup=auth.slice(auth.indexOf('export class SetupScreen'),auth.indexOf('interface UnlockProps'));
-  assert.match(setup,/PIN_PATTERN/);
-  assert.match(setup,/onFinish\(this\.state\.pin, this\.state\.company\)/);
-  assert.match(setup,/Account \+ PIN protection/);
-  assert.match(setup,/After signing in, LOUREX asks for this PIN/);
+  assert.match(setup,/Company Name English/);
+  assert.match(setup,/Company Name Arabic/);
+  assert.match(setup,/Company Logo · Optional/);
+  assert.match(setup,/Create PIN · 4–12 digits/);
+  assert.match(setup,/Confirm PIN/);
+  assert.match(setup,/Save your PIN recovery key/);
+  assert.match(setup,/Use this key if you forget your PIN/);
+  assert.match(setup,/checked=\{this\.state\.recoverySaved\}/);
+  assert.match(setup,/private finish=async\(\):Promise<void>/);
+  assert.match(setup,/if\(!PIN_PATTERN\.test\(this\.state\.pin\)\)/);
+  assert.match(setup,/if\(!this\.state\.recoverySaved\)/);
+  assert.match(setup,/const user=currentCloudUser\(\);if\(!user\)/);
   assert.doesNotMatch(setup,/getOrCreateAccountVaultSecret/);
-  assert.doesNotMatch(setup,/No separate access PIN is required/);
+});
+
+test('account plus PIN setup executes rejection gates and passes recovery key to protected creation',async()=>{
+  const auth=await read('src/components/AuthScreens.tsx');
+  const ts=await import('typescript');
+  const vm=await import('node:vm');
+  const start=auth.indexOf('private finish=async():Promise<void>=>');
+  const end=auth.indexOf('private copyRecoveryKey=',start);
+  const fn=auth.slice(start,end);
+  assert.ok(fn.startsWith('private finish=async():Promise<void>=>'));
+  assert.match(fn,/await this\.props\.onFinish\(this\.state\.pin,this\.state\.company,this\.state\.recoveryCode\)/);
+  const compiled=ts.default.transpileModule('export class SetupHarness {'+fn+'}',{compilerOptions:{module:ts.default.ModuleKind.CommonJS,target:ts.default.ScriptTarget.ES2022}}).outputText;
+  let user={uid:'uid-A'};
+  const ctx={exports:{},PIN_PATTERN:/^\d{4,12}$/,currentCloudUser:()=>user,t:(en)=>en};
+  vm.runInNewContext(compiled,ctx);
+  const screen=new ctx.exports.SetupHarness();
+  const created=[];
+  screen.state={company:{nameEn:'Test Company',nameAr:''},pin:'1234',confirmPin:'1234',recoveryCode:'private-recovery',recoverySaved:false,logoBusy:false,busy:false,error:''};
+  screen.props={onFinish:async(...args)=>{created.push(args);}};
+  screen.setState=update=>Object.assign(screen.state,update);
+  await screen.finish();
+  assert.equal(created.length,0,'creation blocked until user confirms recovery key saved');
+  screen.state.recoverySaved=true;
+  screen.state.pin='123';
+  await screen.finish();
+  assert.equal(created.length,0,'invalid short PIN rejected');
+  screen.state.pin='1234';
+  screen.state.confirmPin='9999';
+  await screen.finish();
+  assert.equal(created.length,0,'mismatched PIN rejected');
+  screen.state.confirmPin='1234';
+  user=null;
+  await screen.finish();
+  assert.equal(created.length,0,'account sign-out forbids setup');
+  user={uid:'uid-A'};
+  await screen.finish();
+  assert.equal(created.length,1,'valid account and recovery consent create exactly one workspace');
+  assert.deepEqual(Array.from(created[0]),['1234',screen.state.company,'private-recovery']);
+  await screen.finish();
+  assert.equal(created.length,1,'busy state prevents duplicate submission');
 });
 
 test('v115 still defers advanced company details to Settings instead of blocking first use',async()=>{
@@ -53,16 +88,18 @@ test('v302 onboarding presentation stays compact and touch safe with account-plu
   assert.match(v302Css,/\.pin-lock-badge/);
 });
 
-test('v115 remains loaded and cached while the current security generation advances safely',async()=>{
-  const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const ux='./styles/onboarding-simplification-v115.css';
-  const perf='./styles/performance-polish-v100.css';
-  assert.ok(index.indexOf(ux)>-1&&index.indexOf(ux)<index.indexOf(perf));
-  assert.ok(sw.includes(ux));
-  assert.match(sw,/v115/);
-  assert.match(index,/security-documents-closeout-v302\.css\?v=302/);
-  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
-  const current=Number(versions.at(-1)?.[1]);
-  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
+test('current PWA bundles the secured onboarding and preserves historical cache paths only for migration',async()=>{
+  const [html,sw,build]=await Promise.all([read('index.html'),read('public/sw.js'),read('scripts/build.mjs')]);
+  assert.match(html,/href="\.\/styles\/tailadmin-shell-v320\.css/);
+  assert.match(html,/matte-black-dark-v360\.css/);
+  assert.match(sw,/onboarding-simplification-v115\.css/,'installed legacy users retain old asset path during migration');
+  assert.match(sw,/security-documents-closeout-v302\.css/);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/Production HTML did not replace the local stylesheet stack with app\.bundle\.css/);
+  assert.match(build,/retiredVisualLayers/);
+  assert.match(build,/standaloneRuntimeStyles/);
+  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  assert.ok(Number(versions.at(-1)?.[1])>=302,'PWA must stay on a PIN-protected generation');
 });
+

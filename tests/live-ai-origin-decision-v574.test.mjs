@@ -26,8 +26,8 @@ test('origin-omitting browser request is accepted only with same-origin fetch me
     'x-requested-with':'LOUREX-Invoice',
     'x-forwarded-for':'127.0.0.41'
   });
-  assert.equal(res.statusCode,400);
-  assert.equal(res.body?.code,'INVALID_CONTEXT');
+  assert.equal(res.statusCode,401);
+  assert.equal(res.body?.code,'AI_AUTH_REQUIRED');
 });
 
 test('origin-omitting cross-site request remains rejected',async()=>{

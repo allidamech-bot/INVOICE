@@ -143,7 +143,7 @@ test('recovery key resets the PIN and continues unlocking the same encrypted wor
   const original=await encryptVault(initial.key,vault);
   const recovered=await recoverVaultKey(initial.recoveryCode,initial.metadata);
   assert.equal((await decryptVault(recovered.key,original)).company.nameEn,'LOUREX recovery test');
-  await assert.rejects(()=>recoverVaultKey(`${initial.recoveryCode.slice(0,-1)}0`,initial.metadata),/Recovery key is incorrect/);
+  await assert.rejects(()=>recoverVaultKey(`${initial.recoveryCode.slice(0,-1)}${initial.recoveryCode.endsWith('0')?'1':'0'}`,initial.metadata),/Recovery key is incorrect/);
   const reset=await createSecurityFromRecovery('654321',recovered.masterBytes,initial.recoveryCode,initial.metadata);
   const rewritten=await encryptVault(reset.key,vault);
   const pinKey=await verifyPin('654321',reset.metadata);

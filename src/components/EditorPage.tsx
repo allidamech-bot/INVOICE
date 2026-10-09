@@ -79,7 +79,7 @@ export class EditorPage extends React.Component<Props,State>{
       this.quoteConversionRunning=false;
       this.resetScroll();
       this.scheduleSectionNavigationSetup();
-    }
+      }
   }
 
   componentWillUnmount():void{
@@ -268,7 +268,7 @@ export class EditorPage extends React.Component<Props,State>{
     const company=this.editorCompany(props.company);
     if(isLetterDocument(props.document))return <div className="ta-editor-workspace ta-draft-studio-workspace"><DraftDocumentEditor key={props.document.id} document={props.document} company={company} onClose={props.onClose} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode} onEditActivity={props.onEditActivity}/></div>;
 
-    const finalQuote=documentCanConvertToInvoice(props.document.kind)&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
+    const finalQuote=documentCanConvertToInvoice(props.document.kind)&&props.document.role==='standard'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
     const sourceIsProformaInvoice=props.document.kind==='proforma-invoice';
     const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
     const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');

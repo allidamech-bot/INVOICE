@@ -12,13 +12,24 @@ test('local recovery UI is completely retired',async()=>{
   assert.match(db,/createSafetySnapshot[\s\S]*purgeLegacySafetySnapshot\(\)[\s\S]*return null/);
 });
 
-test('manual backup, sync, and lock controls are not exposed',async()=>{
-  const [settings,cloudCss,i18n]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/styles/cloud.css'),read('src/lib/i18n.ts')]);
-  assert.doesNotMatch(settings,/Backup \/ Restore|Backup Data|Choose backup file|backupPin|restoreFile/);
+test('manual encrypted backup requires separate password and explicit restore consent alongside cloud sync',async()=>{
+  const settings=await read('src/components/SettingsModal.tsx');
+  // Manual recovery was restored deliberately; it must not be hidden to satisfy
+  // an older cloud-only design test. Keep all security and data-loss barriers.
+  assert.match(settings,/private dataCenter\(\)/);
+  assert.match(settings,/private exportEncryptedBackup=async/);
+  assert.match(settings,/backupPasswordIssue\(backupPassword,backupPin\)/);
+  assert.match(settings,/this\.props\.onBackup\(backupPin,backupPassword\)/);
+  assert.doesNotMatch(settings,/this\.props\.onBackup\(backupPin,backupPin\)/);
+  assert.match(settings,/this\.hasUnsavedSettings\(\)/);
+  assert.match(settings,/private requestLocalRestore=/);
+  assert.match(settings,/confirmLocalRestore:true/);
+  assert.match(settings,/if\(this\.state\.busy\|\|!this\.state\.confirmLocalRestore\)return/);
+  assert.match(settings,/this\.props\.onRestore\(restoreFile,restorePassword\)/);
   assert.match(settings,/Restore from Cloud/);
-  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button,\.settings-panel \.settings-section:has\(select option\[value="30"\]\)>\.btn\{display:none!important\}/);
-  assert.match(i18n,/automatic synchronization/);
-  assert.match(i18n,/وسيطبقها LOUREX تلقائيًا/);
+  assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
+  assert.match(settings,/private lockNow=/);
+  assert.match(settings,/this\.props\.onLock\(\)/);
 });
 
 test('cloud restore uses the signed-in account without a backup PIN prompt',async()=>{
