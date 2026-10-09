@@ -52,10 +52,21 @@ test('v151 renderer and offline shell use the central language isolation layer',
 
 test('English document identity never falls back to Arabic-only names or addresses',async()=>{
   const renderer=await readFile('src/templates/TemplateRenderer.tsx','utf8');
-  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
-  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
+  // Current presentation uses a shared English fragment helper rather than
+  // embedding an inline span. Verify both the actual value policy and its
+  // renderer connection without requiring obsolete JSX markup.
+  const identity=renderer.slice(renderer.indexOf('function identityPair('),renderer.indexOf('function companyName('));
+  assert.ok(identity.length>100,'shared identity renderer must exist');
+  assert.match(identity,/if\(doc\.language==='en'\)return englishFragment\(documentDisplayValue\(english,'en'\)\|\|'—'\)/);
+  assert.doesNotMatch(identity,/if\(doc\.language==='en'\)[^\n]*(?:english\|\|arabic|arabic\|\|english)/);
   assert.match(renderer,/if\(doc\.language==='en'\)return documentDisplayValue\(doc\.companySnapshot\.nameEn,'en'\)\|\|'LOUREX'/);
-  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)return doc\.companySnapshot\.nameEn\.trim\(\)\|\|doc\.companySnapshot\.nameAr\.trim\(\)/);
+  // A source-only assertion is insufficient: run the same language policy
+  // against wrong-script names and quality-check the generated document.
+  assert.equal(documentDisplayValue('شركة عربية فقط','en'),'');
+  const company={...defaultCompany(),nameEn:'شركة عربية فقط',nameAr:'شركة عربية فقط'};
+  const doc=createBlankDocument('proforma','PI-2026-1001',company);
+  doc.language='en';
+  assert.ok(documentQualityIssues(doc).some(issue=>issue.code==='company-name-missing'));
 });
 
 test('final review identity follows rendered document language and blocks only new issue when output identity is missing',async()=>{
