@@ -130,12 +130,12 @@ async function transitionHarness({signedOut=true,failDrain=false}={}){
   return{actions,subject};
 }
 
-test('persistent sign-out revokes the old PIN key, clears account storage and reloads to auth gateway',async()=>{
+test('persistent sign-out revokes the old PIN key, clears account storage and reinitializes the locked gateway',async()=>{
   const {actions,subject}=await transitionHarness();
   assert.ok(actions.indexOf('revoke-key')<actions.indexOf('storage:null'));
   assert.ok(actions.includes('uid:null'));
   assert.ok(actions.includes('storage:null'));
-  assert.ok(actions.includes('reload'));
+  assert.ok(!actions.includes('reload'),'in-app reset must not rely on a potentially stale PWA reload');
   assert.equal(actions.includes('initialize'),true,'reinitialize the locked account gateway after revocation');
   assert.equal(subject.state.key,null);
   assert.equal(subject.state.vault,null);
