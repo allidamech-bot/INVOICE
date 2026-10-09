@@ -19,9 +19,9 @@ import removeBackground from '../api/remove-background.js';
 const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});
 const kid='fixture-key';
 const jwk={...publicKey.export({format:'jwk'}),kid,alg:'RS256',use:'sig'};
-function token(patch={}){
+function token(patch={},headerPatch={}){
   const now=Math.floor(Date.now()/1000);
-  const header=Buffer.from(JSON.stringify({alg:'RS256',typ:'JWT',kid})).toString('base64url');
+  const header=Buffer.from(JSON.stringify({alg:'RS256',typ:'JWT',kid,...headerPatch})).toString('base64url');
   const payload=Buffer.from(JSON.stringify({aud:'lourex-invoice',iss:'https://securetoken.google.com/lourex-invoice',
     sub:'test-account',iat:now-10,exp:now+3600,auth_time:now-30,...patch})).toString('base64url');
   const data=header+'.'+payload;
@@ -66,10 +66,13 @@ test('signed Google Firebase token is accepted while wrong project, issuer and e
     assert.equal(priceRes.statusCode,400);
     assert.equal(priceRes.body?.code,'EMPTY_INSTRUCTION');
     assert.equal(keyRequests,1);
-    for(const changed of [{aud:'different-project'},{iss:'https://securetoken.google.com/other'},{exp:1},{sub:''}]){
+    for(const changed of [{aud:'different-project'},{iss:'https://securetoken.google.com/other'},{exp:1},{sub:''},
+      {iat:0},{auth_time:0},{iat:Math.floor(Date.now()/1000)+120},{auth_time:Math.floor(Date.now()/1000)+120}]){
       await assert.rejects(verifyFirebaseIdToken(token(changed)),/Invalid Firebase ID token/);
     }
     await assert.rejects(verifyFirebaseIdToken(token().slice(0,-3)+'abc'),/Invalid Firebase ID token/);
+    await assert.rejects(verifyFirebaseIdToken(token({}, {alg:'HS256'})),/Invalid Firebase ID token/);
+    await assert.rejects(verifyFirebaseIdToken(token({}, {kid:'unknown-key'})),/Invalid Firebase ID token/);
     const foreign=response();await core(request('Bearer '+token(),'https://untrusted.example'),foreign);
     assert.equal(foreign.statusCode,403);
   }finally{globalThis.fetch=previous;}
