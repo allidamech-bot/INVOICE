@@ -1,3 +1,4 @@
+import {requireAiAuth} from './_ai/firebase-auth.js';
 import {includesExplicitSourceCodes} from './_ai/source-lines.js';
 import {explicitSourceDecimal} from './_ai/numbers.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
@@ -27,6 +28,7 @@ export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Supplier document import must come from this LOUREX deployment.'});return;}
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'Supplier document AI is temporarily rate limited.'});return;}
+  if(!await requireAiAuth(request,response,sendJson))return;
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid supplier document request.'});return;}
   const kind=body?.kind==='text'?'text':body?.kind==='file'?'file':'';const mimeType=cleanText(body?.mimeType,100);const fileName=cleanText(body?.fileName,160);const text=kind==='text'?String(body?.text||''):'';const data=kind==='file'?String(body?.data||''):'';
   if(!kind||(kind==='text'&&(!text.trim()||text.length>120000))||(kind==='file'&&(!data||data.length>3_600_000||!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)))){sendJson(response,400,{code:'INVALID_FILE',message:'Use PDF, PNG, JPG, WEBP, Excel or CSV. Large files should be reduced before import.'});return;}
