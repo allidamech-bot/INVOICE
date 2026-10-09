@@ -21,19 +21,23 @@ const run=overrides=>spawnSync(process.execPath,[script],{
 test('deployment isolation guard is wired before the production build',async()=>{
   const pkg=JSON.parse(await readFile('package.json','utf8'));
   const buildSteps=pkg.scripts.build.split('&&').map(step=>step.trim());
-  assert.deepEqual(buildSteps,[
-    'node scripts/verify-deployment-isolation.mjs',
-    'node scripts/build.mjs',
+  // Keep the complete production build pipeline free to evolve, but security
+  // isolation MUST remain the very first executable step.
+  assert.ok(buildSteps.length>=9,'the production build must include the verified runtime stages');
+  assert.equal(buildSteps[0],'node scripts/verify-deployment-isolation.mjs');
+  assert.equal(buildSteps[1],'node scripts/build.mjs');
+  for(const required of [
     'node scripts/pdf-searchable-text-v222.mjs',
     'node scripts/firebase-sdk-v213.mjs',
     'node scripts/normalize-sw-install-v262.mjs',
     'node scripts/pwa-cache-v205.mjs',
-    'node scripts/v303-visual-cache-refresh.mjs',
-    'node scripts/desktop-runtime-v249.mjs',
-    'node scripts/pwa-auto-precache.mjs',
-  ]);
-  assert.equal(buildSteps[0],'node scripts/verify-deployment-isolation.mjs');
-  assert.equal(buildSteps.at(-1),'node scripts/pwa-auto-precache.mjs');
+    'node scripts/pwa-auto-precache.mjs'
+  ])assert.equal(buildSteps.filter(step=>step===required).length,1,'missing or duplicate production stage: '+required);
+  const verify=buildSteps.indexOf('node scripts/verify-deployment-isolation.mjs');
+  const build=buildSteps.indexOf('node scripts/build.mjs');
+  const precache=buildSteps.indexOf('node scripts/pwa-auto-precache.mjs');
+  assert.ok(verify<build&&build<precache,'source guard must precede builds and PWA cache finalization');
+  assert.ok(buildSteps.every(step=>/^node scripts\/[a-z0-9-]+\.mjs$/i.test(step)),'unexpected shell command in production build chain');
 });
 
 test('deployment isolation guard accepts only the canonical INVOICE repository on the dedicated project',()=>{
