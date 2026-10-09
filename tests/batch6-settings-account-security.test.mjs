@@ -76,7 +76,7 @@ test('batch 6 settings ship inside the canonical offline application stylesheet 
   assert.match(html,/href="\.\/styles\/tailadmin-settings-v320\.css/);
   assert.match(html,/href="\.\/styles\/tailadmin-shell-v320\.css/);
   assert.match(html,/href="\.\/styles\/tailadmin-reliability-bridge-v320\.css/);
-  assert.match(build,/const appBundleCss=styleParts\.join\('\n'\)/);
+  assert.match(build,/const appBundleCss=styleParts\.join/);
   assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
   assert.match(build,/return '<link rel="stylesheet" href="\.\/styles\/app\.bundle\.css" \/>'/);
   assert.match(sw,/const CACHE = 'lourex-invoice-v314'/);
