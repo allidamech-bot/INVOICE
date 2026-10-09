@@ -77,3 +77,43 @@ jobs:
           node tests/visual/run-responsive-batch1.cjs
           node tests/visual/run-v339-ipad-portrait-draft.cjs
           node tests/visual/run-v339-shell-overlay-release.cjs
+
+  three-way-integration:
+    name: In-memory integration PR652 + PR653 + PR659, no push or merge to main
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Combine all three feature branches without pushing
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin fix/audit-workspace-payables-asof-20261009:refs/remotes/origin/fix/audit-workspace-payables-asof-20261009
+          git fetch origin fix/audit-ai-verified-auth-20261009:refs/remotes/origin/fix/audit-ai-verified-auth-20261009
+          git switch -c qa-three-way origin/fix/audit-workspace-payables-asof-20261009
+          if ! git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-commit --no-ff origin/fix/audit-ai-verified-auth-20261009; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            if [[ "$conflicts" != ".github/workflows/lourex-free-premerge.yml" ]]; then
+              printf 'Source or test conflict merging AI into accounting: %s\n' "$conflicts"
+              exit 1
+            fi
+            git checkout --ours .github/workflows/lourex-free-premerge.yml
+            git add .github/workflows/lourex-free-premerge.yml
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' commit -m 'Temporary accounting and AI integration'
+          git -c user.name='LOUREX QA' -c user.email='qa@invalid.local' merge --no-commit --no-ff "$GITHUB_SHA"
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git status --short
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Execute security, finance, browser-readiness and language regressions
+        run: |
+          node --test --test-concurrency=2 tests/audit-supplier-payables-asof.test.mjs tests/audit-supplier-payment-void-merge.test.mjs tests/audit-treasury-reconciliation-history.test.mjs tests/audit-ai-firebase-auth.test.mjs tests/audit-ai-client-token-safety.test.mjs tests/audit-inventory-planning-scope.test.mjs tests/iphone-startup-deadlock-v184.test.mjs tests/document-language-v151.test.mjs
