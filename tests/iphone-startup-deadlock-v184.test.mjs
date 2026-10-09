@@ -1,18 +1,58 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+import ts from 'typescript';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('iPhone pre-render cloud work has a hard startup budget and cannot hold the boot shell forever',async()=>{
+test('iPhone pre-render startup budgets are finite for existing and new-device vaults',async()=>{
   const startup=await read('src/cloud/startup.ts');
-  const budget=startup.match(/const STARTUP_CLOUD_BUDGET_MS=(\d+)/);
-  assert.ok(budget,'startup cloud wait must have an explicit maximum');
-  assert.ok(Number(budget[1])>0&&Number(budget[1])<=2200,'existing workspace startup must remain tightly bounded');
+  const existing=startup.match(/const STARTUP_CLOUD_BUDGET_MS=(\d+)/);
+  const fresh=startup.match(/const FRESH_DEVICE_CLOUD_BUDGET_MS=(\d+)/);
+  assert.ok(existing&&fresh,'both startup budgets must be explicit');
+  assert.ok(Number(existing[1])>0&&Number(existing[1])<=2200,'existing local work must mount promptly');
+  assert.ok(Number(fresh[1])>=Number(existing[1])&&Number(fresh[1])<=6000,'new-device verification must be bounded');
+  assert.match(startup,/const budgetMs=localBeforeStartup\?STARTUP_CLOUD_BUDGET_MS:FRESH_DEVICE_CLOUD_BUDGET_MS/);
   assert.match(startup,/const outcome=await Promise\.race\(\[/);
   assert.match(startup,/cloudWork\.then\(result=>\(\{kind:'done' as const,result\}\)\)/);
-  assert.match(startup,/window\.setTimeout\(\(\)=>resolve\(\{kind:'timeout'\}\),STARTUP_CLOUD_BUDGET_MS\)/);
+  assert.match(startup,/if\(timer!==undefined\)window\.clearTimeout\(timer\)/);
   assert.match(startup,/if\(outcome\.kind==='done'\)return/);
+
+  // Execute the actual shipped function using virtual timers and an unresolved
+  // remote Firestore operation: startup must not block React forever.
+  const start=startup.indexOf('export async function hydrateAuthoritativeCloudBeforeApp():Promise<void>');
+  assert.ok(start>=0,'actual startup function must be present');
+  const compiled=ts.transpileModule(startup.slice(start),{
+    compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
+  }).outputText;
+  for(const [local,expectedBudget] of [[{cipher:'local'},Number(existing[1])],[null,Number(fresh[1])]]){
+    const timerCalls=[];
+    let marked=0,clearedGuard=0;
+    const exports={};
+    const sandbox={
+      exports,
+      navigator:{onLine:true},
+      getEncryptedVault:async()=>local,
+      runAuthoritativeCloudStartup:()=>new Promise(()=>{}),
+      markLateStartupCloudApplyUnsafe:()=>{marked++;},
+      clearLateStartupCloudApplyGuard:()=>{clearedGuard++;},
+      signalDeferredCloudPull:()=>{},
+      window:{
+        setTimeout:(callback,ms)=>{timerCalls.push({callback,ms});return timerCalls.length;},
+        clearTimeout:()=>{}
+      }
+    };
+    vm.runInNewContext(compiled,sandbox);
+    const startupCall=exports.hydrateAuthoritativeCloudBeforeApp();
+    for(let i=0;i<8&&timerCalls.length===0;i++)await Promise.resolve();
+    assert.equal(timerCalls.length,1,'exactly one startup timeout must be scheduled');
+    assert.equal(timerCalls[0].ms,expectedBudget,'startup must use the correct vault-aware budget');
+    timerCalls[0].callback();
+    await startupCall;
+    assert.equal(marked,1,'timeout must block late cloud replacement at the storage boundary');
+    assert.equal(clearedGuard,0,'unresolved cloud work retains its write guard');
+  }
 });
 
 test('timed-out cloud work becomes background reconciliation and only reloads after a proven cloud pull',async()=>{
