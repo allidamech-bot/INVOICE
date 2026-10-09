@@ -544,7 +544,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
         supplierId:payment.supplierId,supplierNameEn:payment.supplierNameEn,supplierNameAr:payment.supplierNameAr,
         currency:payment.currency,amount:payment.amount,date:payment.date,method:payment.method,
         reference:payment.reference,notes:payment.notes,createdAt:payment.createdAt,
-        workspaceId:payment.workspaceId,branchId:payment.branchId
+        workspaceId:payment.workspaceId||'default',branchId:payment.branchId||'main'
       });
       if(!sameRecord(immutable(original),immutable(next)))throw new Error('Recorded supplier payment is immutable. Void it and create a corrected payment.');
       if(original.voidedAt&&(
