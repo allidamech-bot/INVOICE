@@ -48,7 +48,7 @@ test('AI logo workflow keeps the bounded touch editor available as a fallback ut
   const [settings,rebuild,css,sw]=await Promise.all([
     readFile('src/components/SettingsModal.tsx','utf8'),
     readFile('src/lib/logo-rebuild.ts','utf8'),
-    readFile('src/styles/company-assets.css','utf8'),
+    readFile('src/styles/tailadmin-settings-v320.css','utf8'),
     readFile('public/sw.js','utf8')
   ]);
   assert.match(settings,/AI Remove Background/);
@@ -69,7 +69,11 @@ test('AI logo workflow keeps the bounded touch editor available as a fallback ut
   assert.match(rebuild,/Undo/);
   assert.match(rebuild,/اعتماد هذا الشعار/);
   assert.match(rebuild,/finish\(crop\(canvas,pixels\)\)/);
-  assert.match(css,/logo-touch-editor-overlay/);
+  assert.match(css,/\.logo-touch-editor-overlay\{position:fixed;inset:0;z-index:1600/);
+  assert.match(css,/\.logo-touch-editor-sheet\{[\s\S]*max-height:min\(92dvh,860px\)/);
+  assert.match(css,/\.logo-touch-editor-sheet button\{min-height:44px;min-width:44px/);
+  assert.match(css,/@media screen and \(max-width:600px\)/);
+  assert.doesNotMatch(css,/@media print|\.invoice-page/);
   assert.match(css,/touch-action:none/);
   assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/lib\/logo-rebuild\.js/);
