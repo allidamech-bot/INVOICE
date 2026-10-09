@@ -14,6 +14,7 @@ export interface ProfitabilitySummary {
   marginPercent:string;
   complete:boolean;
   missingCostItems:number;
+  invalidInternalCostFields:number;
   costedItems:number;
   totalItems:number;
   isReversal:boolean;
@@ -70,8 +71,16 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
     costedItems+=1;
   }
 
-  const shippingCost=nonNegativeScaled(document.internalCosts?.shippingCost??'0.00',2)??0n;
-  const otherCost=nonNegativeScaled(document.internalCosts?.otherCost??'0.00',2)??0n;
+  // Historical documents may omit internal costs; an omitted/blank field means
+  // zero. An explicitly invalid value must not be silently treated as zero
+  // while presenting a complete gross margin.
+  const shippingInput=document.internalCosts?.shippingCost??'0.00';
+  const otherInput=document.internalCosts?.otherCost??'0.00';
+  const shippingParsed=typeof shippingInput==='string'&&!shippingInput.trim()?0n:nonNegativeScaled(shippingInput,2);
+  const otherParsed=typeof otherInput==='string'&&!otherInput.trim()?0n:nonNegativeScaled(otherInput,2);
+  const invalidInternalCostFields=Number(shippingParsed===null)+Number(otherParsed===null);
+  const shippingCost=shippingParsed??0n;
+  const otherCost=otherParsed??0n;
   const totalCost=itemCost+shippingCost+otherCost;
   const grossProfit=netRevenue-totalCost;
   const multiplier=document.role==='credit-note'?-1n:1n;
@@ -81,7 +90,7 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
   const signedOtherCost=otherCost*multiplier;
   const signedTotalCost=totalCost*multiplier;
   const signedProfit=grossProfit*multiplier;
-  const complete=missingCostItems===0;
+  const complete=missingCostItems===0&&invalidInternalCostFields===0;
 
   return {
     netRevenue:centsString(signedRevenue),
@@ -93,6 +102,7 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
     marginPercent:complete?marginString(grossProfit,netRevenue):'',
     complete,
     missingCostItems,
+    invalidInternalCostFields,
     costedItems,
     totalItems:document.items.length,
     isReversal:document.role==='credit-note'

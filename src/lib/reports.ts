@@ -92,7 +92,7 @@ export function normalizeReportPeriod(from:string,to:string):{from:string;to:str
 }
 
 function standardInvoices(documents:LourexDocument[]):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided');}
-function financialDocuments(documents:LourexDocument[]):LourexDocument[]{
+export function financialDocuments(documents:LourexDocument[]):LourexDocument[]{
   const invoices=standardInvoices(documents);
   const accountedCredits=new Set<string>();
   for(const invoice of invoices)for(const credit of accountedInvoiceCreditNotes(invoice,documents))accountedCredits.add(credit.id);
