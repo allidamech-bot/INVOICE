@@ -43,6 +43,8 @@ jobs:
             tests/audit-supplier-payment-void-merge.test.mjs \
             tests/audit-treasury-void-history.test.mjs \
             tests/audit-treasury-reconciliation-history.test.mjs \
+            tests/b03-manual-backup-recovery.test.mjs \
+            tests/commercial-output-hardening-v167.test.mjs \
             tests/audit-inventory-planning-scope.test.mjs \
             tests/accounts-payable-batch9.test.mjs \
             tests/audit-ai-firebase-auth.test.mjs \
@@ -108,6 +110,8 @@ jobs:
           tests/audit-supplier-payment-void-merge.test.mjs
           tests/audit-treasury-void-history.test.mjs
           tests/audit-treasury-reconciliation-history.test.mjs
+          tests/b03-manual-backup-recovery.test.mjs
+          tests/commercial-output-hardening-v167.test.mjs
           tests/audit-inventory-planning-scope.test.mjs
           tests/accounts-payable-batch9.test.mjs
           tests/audit-ai-firebase-auth.test.mjs
