@@ -1,30 +1,26 @@
-# Batch 9 — Operational integration audit and release contract
+# Batch 9 — Operational integration release evidence
 
-Status: SCOPING / NOT QA-VERIFIED. This document does not certify implementation or release readiness.
+This is a record of tested code paths, not physical iOS-device coverage or production publication.
 
-## Scope and sequence
+## Delivered parts
 
-1. Trace sales-order acceptance -> partial delivery -> stock issue -> invoice draft -> collection. Confirm that document identities, source links, quantities, currency and company boundaries remain consistent; no double posting on retries.
-2. Trace RFQ -> supplier quotation -> purchase order -> partial GRN -> supplier invoice matching -> approved receipt/posting -> payment. Check quantity, cost and supplier provenance and idempotency.
-3. Trace both workflows into inventory available/incoming/reserved quantities, finance, CFO and reports. Reconcile against deterministic source records; surface missing-cost and incomplete-profitability warnings rather than fabricate totals.
-4. Audit AI command previews and approval gates for the above workflows: stale revisions, cross-company records, ambiguous item matching, unsupported commands and failed tool execution must never silently mutate records.
-5. Verify Arabic/English, RTL/LTR, light/dark and representative mobile/tablet/desktop behavior, with special focus on Safari/WebKit PDF export and overlays. Automated WebKit is not physical-device evidence.
+- Part 9.1 — [PR #647](https://github.com/allidamech-bot/INVOICE/pull/647), merged. Tested partial sales delivery → stock issue → invoice → customer collection; RFQ → partial GRN → supplier invoice matched posting → payable → supplier payment. Blocks duplicate catalog SKU mapping and posting. Full Render Chromium/WebKit release gate: B09-QA-ALL-PASS at ed07e308b8f74b84b0d680ec6c0d026dbcdda222.
+- Part 9.2 — [PR #648](https://github.com/allidamech-bot/INVOICE/pull/648), merged. AI customer/supplier approval checks exact workspace, old/new preview, record revision and duplicate identity inside atomic vault mutation. Full Chromium/WebKit release gate: B09P2-QA-ALL-PASS at a95546dc4bee8815bff6d9e5e461842ac410facf.
+- Part 9.3 — [PR #649](https://github.com/allidamech-bot/INVOICE/pull/649), merged. Historical inventory snapshots honor requested as-of date for stock, policy events and supplier purchases. Full Chromium/WebKit release gate: B09P3-QA-ALL-PASS at d28b4ac40493784092effb95e3fa1a87034a61da.
 
-## Execution constraints
+## Final closeout scope
 
-- Repository: allidamech-bot/INVOICE only. Feature branch -> PR -> verified gates -> merge commit; never push to main directly.
-- Preserve approved UI and existing engines; no architectural rewrite or unrelated package installation.
-- No GitHub Actions, paid QA credits, production deploy, or invented PASS.
-- Execute Node 24 deterministic tests, build/type checks and complete Chromium + WebKit release gate on an available free runner; retain exact full logs and SHA.
-- Do not merge until final-head gates are fully successful and the PR is mergeable.
+- Ignore valid-looking backdated stock movements created after the requested report cutoff when computing both stock balances and issue velocity, avoiding changes to historical stock suggestions from later records.
+- Guarantee AI customer/supplier updatedAt revisions advance strictly even for same-millisecond saves or future-dated source revisions; replaying approvals is rejected.
+- Add targeted deterministic regression coverage without redesign, new runtime packages or high-impact automatic financial postings.
 
-## Initial findings
+## Final QA and merge criteria
 
-Existing Batch 7 and Batch 8 PRs cover substantial individual sales, purchasing, inventory and CFO integrity paths. Batch 9 must inspect current implementation and tests before adding overlapping behavior. No functional code changes or QA claims are included in this scoping commit.
+1. All Git-tracked source files in the isolated Render build context match the repository checkout at the tested HEAD.
+2. Run original unmodified full Node 24 release command: node scripts/verify-local.mjs, including security, typecheck, build, contract tests, Chromium and WebKit.
+3. The exact final PR head must be associated with explicit B09-FINAL-QA-PASS and B09-FINAL-QA-ALL-PASS markers, with zero failures.
+4. Merge only through a mergeable GitHub PR with expected head SHA and unchanged reviewed baseline; never direct-push main.
 
-## Acceptance evidence to capture per part
+## Out of scope and caveats
 
-- Baseline SHA, changed paths, affected workflow and exact defect reproduction.
-- Focused deterministic tests plus regressions, browser cases and complete command/log evidence.
-- Remaining limitations separated from verified passes.
-- PR number, final head SHA, successful release-gate marker and merge SHA only after observed completion.
+Automated Chromium and WebKit do not constitute physical iPhone/iPad testing. This work does not test production integration providers or publish LOUREX to Vercel. AI remains unable to post payments, stock adjustments and journal entries without protected human actions. Historical records with genuinely missing costs must be reported as incomplete, not estimated. No GitHub Actions, paid runner or new package is required.
