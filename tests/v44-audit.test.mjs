@@ -46,7 +46,8 @@ test('current service worker precaches every compiled application module',async(
   }
   assert.match(sw,/src\/storage\/vault-merge\.js/);
   assert.match(sw,/styles\/app\.bundle\.css/);
-  assert.match(bundle,/\/\* --- v44-audit\.css --- \*\//);
+  // The retired v44 stylesheet is now bundled under the current late app owner.
+  assert.match(bundle,/\/\* --- v485-visible-ui-corrections\.css --- \*\//);
   assert.match(sw,/EXTERNAL_CORE_SET/);
   assert.match(sw,/preserveExternalRuntime/);
   assert.match(sw,/caches\.match\(asset\)/);
@@ -56,10 +57,13 @@ test('current service worker precaches every compiled application module',async(
 
 test('cloud freshness watcher applies account updates only when the UI is safe',async()=>{
   const source=await read('src/cloud/freshness.ts');
-  assert.match(source,/reconcileCloudVault/);
+  // The watcher must never apply a remote vault or reload over an unsafe editor.
+  assert.doesNotMatch(source,/reconcileCloudVault\(/);
+  assert.match(source,/if\(!appIsSafeToApply\(\)\)return/);
+  assert.match(source,/lourex-cloud-refresh-available/);
   assert.match(source,/subscribeCloudVaultChanges/);
   assert.match(source,/cloudRemoteChangedSinceAnchor/);
-  assert.match(source,/window\.location\.reload\(\)/);
+  assert.doesNotMatch(source,/window\.location\.reload\(\)/);
   assert.match(source,/editor-screen,.modal-backdrop/);
   assert.match(source,/document\.activeElement/);
   assert.match(source,/5_000/);
@@ -151,7 +155,10 @@ test('legacy schema normalizes hostile defaults without changing document snapsh
   assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);
   assert.equal(migrated.company.defaultValidityDays,7);
   assert.equal(migrated.company.defaultCurrency,'SAR');
-  assert.equal(migrated.appSettings.numbering.proformaPrefix,'PI');
+  // Since schema v14, legacy PI quotation numbering is migrated to QUO, but
+  // previously issued document numbers and company snapshots stay immutable.
+  assert.equal(migrated.appSettings.numbering.proformaPrefix,'QUO');
+  assert.equal(migrated.documents[0].number,'PI-2026-0001');
   assert.equal(migrated.documents[0].companySnapshot.nameEn,'Historical Seller');
 });
 
@@ -162,8 +169,10 @@ test('pagination can reserve additional first-page space for long party details'
   assert.equal(paginateItems(items,false,3)[0].length,3);
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/firstPageItemCapacity/);
-  assert.match(renderer,/const outputItems=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
-  assert.match(renderer,/paginateItems\(outputItems, !separateDetails, firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
+  assert.match(renderer,/const fragments=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
+  assert.match(renderer,/paginateItems\(fragments,false,firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
+  assert.match(renderer,/footer\.getBoundingClientRect\(\)\.top/);
+  assert.match(renderer,/body\.querySelectorAll/);
   assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
 });
 
