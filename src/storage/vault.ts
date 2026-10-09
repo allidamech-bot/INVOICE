@@ -398,7 +398,7 @@ function synchronizeActiveWorkspaceOnSave(vault:VaultPayload):VaultPayload{
   const activeId=vault.appSettings.activeWorkspaceId;
   const index=vault.workspaces.findIndex(row=>row.id===activeId);
   if(index<0)return vault;
-  const current=vault.workspaces[index];
+  const current=vault.workspaces[index]!;
   if(JSON.stringify(current.company)===JSON.stringify(vault.company)
     &&JSON.stringify(current.numbering)===JSON.stringify(vault.appSettings.numbering)
     &&JSON.stringify(current.smartDefaults)===JSON.stringify(vault.appSettings.smartDefaults))return vault;
