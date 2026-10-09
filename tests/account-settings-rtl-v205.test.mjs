@@ -37,7 +37,7 @@ test('v205 Arabic More menu preserves bilingual accessible dialog direction and 
   // The current sheet is `ta-mobile-sheet`, not the retired `mobile-more-sheet`.
   // Verify the dialog boundary itself rather than a historical CSS class.
   assert.match(shell,/<section className="ta-mobile-sheet" id="ta-mobile-more" role="dialog" aria-modal="true" aria-label=\{t\('More','المزيد'\)\} dir=\{this\.props\.language==='ar'\?'rtl':'ltr'\}>/);
-  assert.match(shell,/className="ta-sheet-backdrop"[^>]*onClick=\{this\.closeMore\}/);
+  assert.match(shell,/className="ta-overlay-backdrop ta-sheet-backdrop"[^>]*onClick=\{this\.closeMore\}/);
   assert.match(shell,/className="ta-sheet-close" onClick=\{this\.closeMore\} aria-label=\{t\('Close','إغلاق'\)\}/);
   assert.match(shell,/aria-haspopup="dialog" aria-controls="ta-mobile-more" aria-expanded=\{this\.state\.moreOpen\}/);
   assert.match(shell,/t\('My Account','حسابي'\)/);
