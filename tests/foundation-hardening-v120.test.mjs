@@ -13,8 +13,12 @@ test('PWA update activation protects editable workspaces while permitting the sa
   assert.match(index,/document\.querySelector\('\.editor-screen'\)/);
   assert.match(index,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
   assert.match(index,/const userRequestedReload=reloadForUpdate/);
-  assert.match(index,/function safeSignedOutAuthGatewayForAutomaticReload\(\):boolean\{[\s\S]*!currentCloudUser\(\)[\s\S]*!reloadUnsafeWorkspaceOpen\(\)[\s\S]*document\.querySelector\('\.auth-page'\)/);
-  assert.match(index,/if\(!userRequestedReload\)\{[\s\S]*if\(safeSignedOutAuthGatewayForAutomaticReload\(\)\)window\.location\.replace\(window\.location\.href\);[\s\S]*return;[\s\S]*\}/);
+  assert.match(index,/function safeSignedOutAuthGatewayForAutomaticReload\(\):boolean/);
+  assert.match(index,/!currentCloudUser\(\)&&!reloadUnsafeWorkspaceOpen\(\)/);
+  assert.match(index,/\.ta-auth-page,\.auth-page/);
+  assert.match(index,/if\(!userRequestedReload\)return/);
+  assert.match(index,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
+  assert.match(index,/rememberWorkspaceBeforeAutomaticReload\(\)/);
   assert.match(index,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
   assert.match(index,/window\.location\.replace\(window\.location\.href\)/);
 });
