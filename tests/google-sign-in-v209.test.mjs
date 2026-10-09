@@ -142,3 +142,65 @@ test('service worker reloads only after explicit approval and never discards an 
   assert.match(entry,/function updateNoticeDeferredForWorkspace\(\):void/);
 });
 
+test('v212 account gateway keeps safe-link recovery without starting redirect completion',async()=>{
+  const account=await read('src/components/AccountEntryScreen.tsx');
+  assert.match(account,/Continue with Google/);
+  assert.match(account,/المتابعة باستخدام Google/);
+  assert.match(account,/GoogleAccountLinkRequiredError/);
+  assert.match(account,/googleLinkPending/);
+  assert.match(account,/linkGoogleToExistingPasswordAccount/);
+  assert.match(account,/connect Google without changing your data/);
+  assert.match(account,/ربط Google دون تغيير بياناتك/);
+  assert.match(account,/if\(this\.state\.googleLinkPending\)user=await linkGoogleToExistingPasswordAccount\(email,password\)/);
+  const google=await read('src/cloud/google-auth.ts');
+  assert.match(google,/const originalUid=String\(existingUser\.uid\|\|''\)/);
+  assert.match(google,/!originalUid\|\|user\.uid!==originalUid/);
+  assert.match(google,/await existingUser\.linkWithCredential\(pendingGoogleCredential\)/);
+  assert.match(google,/catch\(error\)\{[\s\S]*await instance\.signOut\(\)/);
+  assert.match(account,/\[LOUREX Google Auth\]/);
+});
+
+test('v212 production build keeps Firebase default authDomain and no longer applies same-origin patch',async()=>{
+  const [firebase,config]=await Promise.all([read('src/cloud/firebase.ts'),read('src/cloud/firebase-config.ts')]);
+  const pkg=JSON.parse(await read('package.json'));
+  assert.match(firebase,/import \{ LOUREX_FIREBASE_CONFIG \} from '\.\/firebase-config\.js'/);
+  assert.match(firebase,/const FIREBASE_CONFIG=LOUREX_FIREBASE_CONFIG/);
+  assert.match(config,/authDomain:'lourex-invoice\.firebaseapp\.com'/);
+  assert.match(config,/projectId:'lourex-invoice'/);
+  assert.doesNotMatch(pkg.scripts.build,/firebase-auth-same-origin-v211\.mjs/);
+});
+
+test('v209 Google entry uses the active premium theme, mobile touch target and global RTL direction',async()=>{
+  const [page,css,dark,account,lang]=await Promise.all([
+    read('index.html'),
+    read('src/styles/tailadmin-design-closeout-v323.css'),
+    read('src/styles/matte-black-dark-v360.css'),
+    read('src/components/AccountEntryScreen.tsx'),
+    read('src/lib/i18n.ts')
+  ]);
+  assert.match(page,/tailadmin-design-closeout-v323\.css/);
+  assert.match(page,/matte-black-dark-v360\.css/);
+  assert.match(account,/className="ta-google-button"/);
+  assert.match(account,/Continue with Google/);
+  assert.match(account,/المتابعة باستخدام Google/);
+  assert.match(account,/disabled=\{this\.state\.busy\|\|!this\.state\.googleReady\}/);
+  assert.match(css,/\.ta-google-button\{min-height:46px!important;border-radius:11px!important;\}/);
+  assert.match(dark,/html\[data-ui-theme="dark"\] body \.ta-auth-page :is\(\.ta-google-button/);
+  assert.match(lang,/document\.documentElement\.dir = language === 'ar' \? 'rtl' : 'ltr'/);
+  assert.match(account,/this\.props\.language==='ar'\?'en':'ar'/);
+});
+
+test('v214 worker activation never reloads an editing workspace without an explicit user update',async()=>{
+  const entry=await read('src/app/index.tsx');
+  const controller=entry.slice(entry.indexOf("navigator.serviceWorker.addEventListener('controllerchange'"),entry.indexOf("void navigator.serviceWorker.register('./sw.js')"));
+  assert.ok(controller.length>100,'controllerchange handler must be present');
+  assert.match(controller,/const userRequestedReload=reloadForUpdate/);
+  assert.match(controller,/if\(!userRequestedReload\)return/);
+  assert.match(controller,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
+  assert.match(controller,/rememberWorkspaceBeforeAutomaticReload\(\)/);
+  assert.match(controller,/window\.location\.replace\(window\.location\.href\)/);
+  assert.doesNotMatch(controller,/safeSignedOutAuthGatewayForAutomaticReload\(\)/);
+  assert.match(entry,/function reloadUnsafeWorkspaceOpen\(\):boolean/);
+  assert.match(entry,/if\(isDocumentEditorOpen\(\)\)/);
+  assert.match(entry,/function updateNoticeDeferredForWorkspace\(\):void/);
+});
