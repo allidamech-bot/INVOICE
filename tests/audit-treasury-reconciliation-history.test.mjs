@@ -47,6 +47,20 @@ test('a reconciliation effective after cutoff cannot alter an earlier report eve
   assert.equal(get('2026-10-21',[],[next]).reconciled,true);
 });
 
+test('a late-effective reconciliation is ordered after an earlier Undo, irrespective of entry creation',()=>{
+  const key='collection:hist-customer-payment';
+  const late=event('event-recorded-early',key,'2026-10-02T09:00:00.000Z','reconcile');
+  late.reconciledAt='2026-10-20T09:00:00.000Z';
+  const undo=event('event-undo-10',key,'2026-10-10T09:00:00.000Z','undo');
+  for(const events of [[late,undo],[undo,late]]){
+    assert.equal(get('2026-10-09',[],events).reconciled,false);
+    assert.equal(get('2026-10-11',[],events).reconciled,false);
+    const restored=get('2026-10-21',[],events);
+    assert.equal(restored.reconciled,true);
+    assert.equal(restored.reconciledAt,'2026-10-20T09:00:00.000Z');
+  }
+});
+
 test('legacy reconciliation records without action remain compatible',()=>{
   const record={...event('legacy','collection:hist-customer-payment','2026-10-02T08:00:00.000Z','reconcile')};
   delete record.action;
@@ -66,6 +80,11 @@ test('vault synchronization cannot delete or rewrite reconciliation history',()=
   base.treasuryReconciliations=[original];
   assert.throws(()=>mergeVaultIntent(base,{...base,treasuryReconciliations:[]},base),/history cannot be deleted/);
   assert.throws(()=>mergeVaultIntent(base,{...base,treasuryReconciliations:[{...original,action:'undo',reconciledAt:''}]},base),/immutable/);
+  assert.throws(()=>mergeVaultIntent(base,base,{...base,treasuryReconciliations:[]}),/history cannot be deleted/,
+    'a stale cloud copy must not silently remove an original reconciliation');
+  assert.throws(()=>mergeVaultIntent(base,base,{...base,treasuryReconciliations:[{...original,note:'rewritten elsewhere'}]}),/immutable/,
+    'a remote rewrite must not erase an immutable reconciliation in a merge');
+
   const next=event('undo-event','collection:hist-customer-payment','2026-10-20T08:00:00.000Z','undo');
   const merged=mergeVaultIntent(base,{...base,treasuryReconciliations:[original,next]},base);
   assert.deepEqual(merged.treasuryReconciliations.map(x=>x.id),['audit-event','undo-event']);
