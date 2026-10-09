@@ -26,6 +26,13 @@ function dayNumber(iso:string):number{const [year='0',month='1',day='1']=iso.spl
 function purchaseSupplierId(purchase:PurchaseRecord):string{return purchase.supplierSnapshot?.sourceSupplierId?.trim()||`legacy-purchase:${purchase.id}`;}
 function paymentCents(payment:SupplierPaymentRecord):bigint{return isDecimalInput(payment.amount)?decimalToScaled(payment.amount,2):0n;}
 function liabilityCents(purchase:PurchaseRecord):bigint{return decimalToScaled(purchaseTotals(purchase).landedTotal,2);}
+function paymentKnownOnOrBefore(payment:SupplierPaymentRecord,asOf:string):boolean{
+  if(!asOf)return true;
+  if(payment.date>asOf)return false;
+  // Backdated payment entered later must not rewrite a previously closed report.
+  const createdDate=payment.createdAt?.slice(0,10)||'';
+  return !createdDate||(isIsoDate(createdDate)&&createdDate<=asOf);
+}
 function postedOnOrBefore(purchase:PurchaseRecord,asOf:string):boolean{
   if(purchase.status!=='posted')return false;
   if(!asOf)return true;
@@ -51,7 +58,7 @@ export function supplierPaymentsForPurchase(purchase:PurchaseRecord,payments:Sup
 
 export function purchasePayableSummary(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],today=todayIso()):PurchasePayableSummary{
   const total=liabilityCents(purchase);
-  const linked=purchase.status==='posted'?supplierPaymentsForPurchase(purchase,payments).filter(payment=>!today||payment.date<=today):[];
+  const linked=purchase.status==='posted'?supplierPaymentsForPurchase(purchase,payments).filter(payment=>paymentKnownOnOrBefore(payment,today)):[];
   const paid=linked.reduce((sum,payment)=>sum+paymentCents(payment),0n);
   const remaining=purchase.status==='posted'?(total>paid?total-paid:0n):purchase.status==='draft'?total:0n;
   const days=purchase.status==='posted'&&remaining>0n?supplierDaysOverdue(purchase.dueDate,today):0;
@@ -87,7 +94,7 @@ export function supplierStatement(supplierId:string,purchases:PurchaseRecord[],p
   for(const purchase of supplierPurchases){
     const currency=cleanCurrency(purchase.currency),total=liabilityCents(purchase);
     push(currency,{date:purchase.date,reference:purchase.number,type:'purchase',description:purchase.supplierSnapshot?.nameEn||purchase.supplierSnapshot?.nameAr||purchase.number,debit:0n,credit:total,purchaseNumber:purchase.number,order:1});
-    for(const payment of supplierPaymentsForPurchase(purchase,payments).filter(item=>!today||item.date<=today))push(currency,{date:payment.date,reference:payment.reference||payment.id,type:'payment',description:payment.reference||purchase.number,debit:paymentCents(payment),credit:0n,purchaseNumber:purchase.number,order:2});
+    for(const payment of supplierPaymentsForPurchase(purchase,payments).filter(item=>paymentKnownOnOrBefore(item,today)))push(currency,{date:payment.date,reference:payment.reference||payment.id,type:'payment',description:payment.reference||purchase.number,debit:paymentCents(payment),credit:0n,purchaseNumber:purchase.number,order:2});
   }
   const summaries=supplierPayablesByCurrency(purchases,payments,today,supplierId);
   return[...rows.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([currency,entries])=>{
