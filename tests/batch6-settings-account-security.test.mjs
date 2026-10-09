@@ -29,7 +29,17 @@ test('batch 6 exposes account sign out without deleting local encrypted data',as
   assert.match(shell,/private signOutFromMore=async/);
   assert.match(shell,/await signOutCloudUser\(\)/);
   assert.match(shell,/await clearSession\(\)/);
-  assert.match(shell,/settings-signout-button/);
+  // The current shell deliberately exposes sign-out from the authenticated More sheet,
+  // not the retired v163 settings button. Guard visibility and repeat invocation.
+  assert.match(shell,/\{signedIn\?<button type="button" className="ta-sheet-signout" disabled=\{this\.state\.signingOut\}/);
+  assert.match(shell,/if\(this\.state\.signingOut\)return/);
+  assert.match(shell,/onClick=\{\(\)=>void this\.signOutFromMore\(\)\}/);
+  const signOutShell=shell.slice(shell.indexOf('private signOutFromMore=async'),shell.indexOf('private activeEditorDocument='));
+  const auth=signOutShell.indexOf('await signOutCloudUser()');
+  const revoke=signOutShell.indexOf('await clearSession()');
+  const redirect=signOutShell.indexOf('window.location.replace(window.location.href)');
+  assert.ok(auth>=0&&revoke>auth&&redirect>revoke,'explicit sign-out must revoke auth and local PIN before navigation');
+  assert.doesNotMatch(signOutShell,/deleteDatabase|deleteRecord\('vault'\)|putSecurityAndVault/);
   assert.match(shell,/t\('Sign Out','تسجيل الخروج'\)/);
 });
 
@@ -58,15 +68,26 @@ test('batch 6 settings navigation is responsive and visually bounded',async()=>{
   assert.match(mobile,/font-size:16px!important/);
 });
 
-test('batch 6 remains app-only, loads late, and ships offline',async()=>{
-  const [html,sw,css]=await Promise.all([read('index.html'),read('public/sw.js'),read('src/styles/settings-account-v163.css')]);
-  assert.match(html,/styles\/settings-account-v163\.css/);
-  assert.ok(html.indexOf('editor-workspace-v162.css')<html.indexOf('settings-account-v163.css'));
-  assert.ok(html.indexOf('settings-account-v163.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(sw,/\.\/styles\/settings-account-v163\.css/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
-  assert.doesNotMatch(css,/\.invoice-page\s*\{/);
-  assert.doesNotMatch(css,/\.items-table\s*\{/);
+test('batch 6 settings ship inside the canonical offline application stylesheet without changing A4 output',async()=>{
+  const [html,sw,build,settings,live]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('scripts/build.mjs'),
+    read('src/styles/settings-account-v163.css'),read('src/styles/tailadmin-settings-v320.css')
+  ]);
+  assert.match(html,/href="\.\/styles\/tailadmin-settings-v320\.css/);
+  assert.match(html,/href="\.\/styles\/tailadmin-shell-v320\.css/);
+  assert.match(html,/href="\.\/styles\/tailadmin-reliability-bridge-v320\.css/);
+  assert.match(build,/const appBundleCss=styleParts\.join\('\n'\)/);
+  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
+  assert.match(build,/return '<link rel="stylesheet" href="\.\/styles\/app\.bundle\.css" \/>'/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v314'/);
+  assert.match(build,/sw=sw\.replace\(/);
+  assert.match(build,/"\.\/styles\/app\.bundle\.css"/);
+  assert.match(live,/\.ta-settings-shell\{display:grid/);
+  assert.match(live,/@media\(max-width:720px\)/);
+  for(const sheet of [settings,live]){
+    assert.doesNotMatch(sheet,/\.invoice-page\s*\{/);
+    assert.doesNotMatch(sheet,/\.items-table\s*\{/);
+  }
 });
 
 test('batch 6 preserves unsaved-settings protection and company/document saves',async()=>{
