@@ -7,7 +7,7 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 test('v584 editor final owner follows the application theme instead of fixed blue',async()=>{
   const css=await read('src/styles/v485-visible-ui-corrections.css');
   assert.match(css,/v584 live document regression closeout/);
-  assert.match(css,/--lrx-editor-accent:var\(--boot-accent,#129da1\)/);
+  assert.match(css,/--lrx-editor-accent:var\(--ft-accent,var\(--boot-accent,#315DA8\)\)/);
   assert.match(css,/\.advanced-master-toggle\{[\s\S]*background:var\(--ft-surface-2\)!important;[\s\S]*border:1px solid var\(--ft-line-strong\)!important/);
   assert.match(css,/\.btn-primary\{[\s\S]*background:var\(--lrx-editor-accent\)!important;[\s\S]*background-image:none!important/);
 });
