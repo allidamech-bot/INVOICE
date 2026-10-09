@@ -7,13 +7,15 @@ const read=path=>readFile(path,'utf8');
 test('document search includes saved line-item and trade metadata',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
   assert.match(source,/doc\.items\.flatMap\(item=>\[item\.descriptionEn,item\.descriptionAr,item\.hsCode,item\.origin,item\.packing,item\.unit\]\)/);
-  assert.match(source,/Number, customer, item, HS code/);
-  assert.match(source,/رقم، عميل، صنف، HS Code/);
+  assert.match(source,/Search number, customer, item, HS code/);
+  assert.match(source,/ابحث بالرقم أو العميل أو الصنف أو HS Code/);
 });
 
 test('final cancelled or voided documents remain exportable as archival copies',async()=>{
   const [documents,renderer]=await Promise.all([read('src/components/DocumentsPage.tsx'),read('src/templates/TemplateRenderer.tsx')]);
-  assert.equal((documents.match(/const canOutput=doc\.status==='final';/g)||[]).length,2);
+  assert.match(documents,/const canOutput=doc\.kind==='draft'\|\|doc\.status==='final'/);
+  assert.match(documents,/const canOutput=doc\.status==='final'/);
+  assert.match(documents,/const canDelete=doc\.status!=='final'/);
   assert.match(documents,/Open archive/);
   assert.match(documents,/فتح الأرشيف/);
   assert.match(renderer,/document-void-watermark/);
@@ -33,7 +35,7 @@ test('issued and cancelled filters are mutually consistent with overview counts'
 
 test('document detail uses kind-specific due, validity and requested-delivery wording',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.ok(source.includes("doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):t('Valid until','صالح حتى')"));
+  assert.ok(source.includes("doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):(doc.kind==='proforma'||doc.kind==='proforma-invoice')?t('Valid until','صالح حتى'):t('Additional date','تاريخ إضافي')"));
   assert.doesNotMatch(source,/Validity \/ due/);
 });
 
@@ -57,7 +59,8 @@ test('document detail links quote invoice and credit-note relationships',async()
 test('voided documents do not reuse the issued visual status class',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
   assert.match(source,/const visualState=doc\.lifecycleStatus==='voided'\?'voided':state/);
-  assert.equal((source.match(/document-status-pill status-\$\{visualState\}/g)||[]).length,2);
+  assert.equal((source.match(/ta-doc-status status-\$\{visualState\}/g)||[]).length,2);
+  assert.match(source,/const visualState=doc\.lifecycleStatus==='voided'\?'voided':state/);
 });
 
 test('mobile document actions remain body-ported and dismissible',async()=>{
