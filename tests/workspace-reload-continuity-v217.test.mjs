@@ -10,21 +10,30 @@ test('v217 cloud account link repair no longer reloads before workspace safety c
   assert.doesNotMatch(source,/putCloudAccount\(user\.uid,user\.email\);window\.location\.reload\(\)/);
 });
 
-test('v217 automatic cloud pull remembers the current safe workspace before reload',async()=>{
-  const source=await read('src/cloud/freshness.ts');
+test('v217 cloud change detection defers reload and requires a safe explicit user action',async()=>{
+  const [source,entry]=await Promise.all([read('src/cloud/freshness.ts'),read('src/app/index.tsx')]);
   assert.match(source,/const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen'/);
-  assert.match(source,/function reloadPreservingWorkspace\(\):void\{\s*rememberWorkspaceBeforeAutomaticReload\(\);\s*window\.location\.reload\(\);\s*\}/);
-  assert.match(source,/if\(result==='pulled'\)reloadPreservingWorkspace\(\);/);
-  assert.match(source,/\.editor-screen,\.modal-backdrop,\.operations-page,\.product-library-pro\.editor-open/);
+  assert.match(source,/function rememberWorkspaceBeforeAutomaticReload\(\):void/);
+  assert.match(source,/if\(!appIsSafeToApply\(\)\)return/);
+  assert.match(source,/const remoteChanged=await cloudRemoteChangedSinceAnchor\(user\.uid\)/);
+  assert.match(source,/window\.dispatchEvent\(new Event\('lourex-cloud-refresh-available'\)\)/);
+  assert.doesNotMatch(source,/window\.location\.reload\(\)/,'a realtime notification must not discard local draft state');
+  const handler=entry.slice(entry.indexOf('function showCloudRefreshAvailable():void'),entry.indexOf("window.addEventListener('lourex-cloud-refresh-available'",entry.indexOf('function showCloudRefreshAvailable():void')));
+  assert.match(handler,/if\(reloadUnsafeWorkspaceOpen\(\)\)/);
+  assert.match(handler,/rememberWorkspaceBeforeAutomaticReload\(\);\s*window\.location\.reload\(\)/);
+  assert.match(handler,/data-lourex-cloud-refresh/);
 });
 
-test('v217 entry restores the prior non-editor workspace after a safe automatic reload',async()=>{
+test('v217 reopens only a recognized non-editor workspace after a safe refresh',async()=>{
   const source=await read('src/app/index.tsx');
-  assert.match(source,/const RESTORABLE_WORKSPACES:RestorableWorkspace\[\]=\['home','documents','customers','receivables','reports','items'\]/);
-  assert.doesNotMatch(source,/RESTORABLE_WORKSPACES[^\n]*editor/);
-  assert.match(source,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>,appRoot\);\s*restoreWorkspaceAfterAutomaticReload\(\);/);
-  assert.match(source,/window\.addEventListener\('lourex-cloud-applied',[\s\S]*rememberWorkspaceBeforeAutomaticReload\(\);[\s\S]*window\.location\.reload\(\);/);
-  assert.match(source,/if\(document\.querySelector\('\.auth-page'\)\)\{clearPendingWorkspace\(\);return;\}/);
+  const match=source.match(/const RESTORABLE_WORKSPACES:RestorableWorkspace\[\]=\[([^\]]+)\]/);
+  assert.ok(match,'the startup app must declare the safe workspace allowlist');
+  const allowed=[...match[1].matchAll(/'([^']+)'/g)].map(item=>item[1]);
+  assert.deepEqual([...allowed].sort(),['home','documents','customers','items','operations','receivables','reports'].sort());
+  assert.equal(allowed.includes('editor'),false,'dirty editor content must never be re-opened by a background refresh');
+  assert.match(source,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>,appRoot\);\s*restoreWorkspaceAfterAutomaticReload\(\)/);
+  assert.match(source,/if\(document\.querySelector\('\.ta-auth-page,\.auth-page'\)\)\{clearPendingWorkspace\(\);return;\}/);
+  assert.match(source,/window\.addEventListener\('lourex-cloud-applied',[\s\S]*lourexCloudApplied/);
 });
 
 test('v217 explicit PWA updates also preserve the active safe workspace',async()=>{

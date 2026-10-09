@@ -42,14 +42,23 @@ test('daily controller exposes today activity, data quality and bounded comparis
   assert.ok(source.includes('changes.length>=4'),'comparison signals are bounded');
 });
 
-test('home receives operational vault data and turns the daily controller into command-center exceptions',async()=>{
+test('home receives scoped operational data and presents actionable daily exceptions',async()=>{
   const [home,app]=await Promise.all([read('src/components/WorkspaceHome.tsx'),read('src/app/App.tsx')]);
-  for(const token of ['Business command center','dailyBusinessBrief','Needs attention','Purchase drafts to finish','Dormant products · 90+ days','Incomplete accounting data','Inventory health','LourexAdvisorCard'])assert.ok(home.includes(token),token);
+  for(const token of [
+    'dailyBusinessBrief(documents,payments,purchases,expenses,inventoryMovements,items,today)',
+    "className=\"ta-finance-dashboard\"",
+    "t('Purchase drafts','مسودات المشتريات')",
+    "t('Dormant products · 90+ days','أصناف خاملة · أكثر من 90 يوم')",
+    "t('Incomplete accounting data','بيانات محاسبية غير مكتملة')",
+    "t('Inventory health','حالة المخزون')",
+    'LourexAdvisorCard','BusinessHealthCard'
+  ])assert.ok(home.includes(token),token);
   for(const prop of ['purchases={vault.purchases}','expenses={vault.expenses}','inventoryMovements={vault.inventoryMovements}','items={vault.savedItems}'])assert.ok(app.includes(prop),prop);
   assert.ok(home.includes("onNavigate(daily.invalidOperations?'operations':'reports')"));
-  assert.ok(home.includes('const attentionCount='),'daily controller signals feed one bounded attention summary instead of a duplicate management workspace');
+  assert.ok(home.includes('const attentionCount='));
   assert.ok(home.includes('daily.draftPurchases')&&home.includes('daily.dormantProducts')&&home.includes('daily.missingCostItems'));
-  assert.ok(!home.includes('LOUREX Daily Brief'),'the retired daily widget must not duplicate the command center');
+  assert.ok(home.includes("t('No urgent issues','لا توجد أمور عاجلة')"),'empty state must not invent pending exceptions');
+  assert.ok(!home.includes('LOUREX Daily Brief'),'no duplicate retired dashboard');
 });
 
 test('daily brief does not add navigation or mutate accounting records',async()=>{

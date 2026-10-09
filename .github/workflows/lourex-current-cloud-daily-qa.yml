@@ -1,0 +1,25 @@
+name: LOUREX Current Cloud and Daily Contract QA
+on:
+  push:
+    branches:
+      - fix/qa-cloud-daily-current-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lourex-current-cloud-daily-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Execute existing and updated continuity contracts
+        run: node --test --test-concurrency=2 tests/workspace-reload-continuity-v217.test.mjs tests/daily-business-controller-v265.test.mjs
