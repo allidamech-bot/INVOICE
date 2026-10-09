@@ -105,3 +105,17 @@ test('B09.2: a malformed party step blocks a valid AI task in the same plan',()=
   assert.equal(result.results.find(row=>row.tool==='customer.update').source,'approval-preflight');
   assert.equal(vault.customers[0].city,'Riyadh');
 });
+
+test('B09 closeout: approval timestamp strictly advances over future or same-millisecond source revisions',()=>{
+  const vault=setup(),future='2099-01-01T00:00:00.000Z';
+  vault.customers[0].updatedAt=future;
+  const first=prepareApprovedPartyPatch(vault,'customer','buyer-a',{city:'Jeddah'});
+  const once=applyApprovedPartyPatch(vault,first);
+  assert.equal(once.customers[0].updatedAt,'2099-01-01T00:00:00.001Z');
+  assert.throws(()=>applyApprovedPartyPatch(once,first),/changed since review/);
+  const second=prepareApprovedPartyPatch(once,'customer','buyer-a',{city:'Dammam'});
+  const twice=applyApprovedPartyPatch(once,second);
+  assert.equal(twice.customers[0].updatedAt,'2099-01-01T00:00:00.002Z');
+  assert.throws(()=>applyApprovedPartyPatch(twice,second),/changed since review/);
+  assert.equal(vault.customers[0].city,'Riyadh','Review and apply never mutate old snapshots');
+});
