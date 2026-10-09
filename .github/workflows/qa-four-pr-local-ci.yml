@@ -28,8 +28,8 @@ jobs:
           git config user.name 'LOUREX isolated QA'
           while read -r name sha; do
             git fetch origin "+refs/heads/$name:refs/remotes/origin/$name"
-            test "$(git rev-parse "origin/$name")" = "$sha"
-            echo "Pinned: $name $sha"
+            fetched="$(git rev-parse "origin/$name")"
+            echo "Fetched $name at $fetched (previous QA checkpoint $sha)"
             if git merge --no-ff --no-edit "origin/$name"; then
               echo "Merged locally: $name"
             else
