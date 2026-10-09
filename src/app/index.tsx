@@ -237,7 +237,10 @@ function startAccountSignOutWatcher():void{
     if(user){
       clearPendingAuthLoss();
       const selectedStorageUid=activeAccountStorageUid();
-      if(selectedStorageUid&&selectedStorageUid!==user.uid){
+      // A late Firebase login from the public gateway must reinitialize React
+      // against the *new* account scope, not merely switch IndexedDB underneath
+      // the still-mounted public/previous workspace.
+      if(selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
         signOutTransitionRunning=true;
         accountWasAuthenticated=true;
@@ -250,19 +253,6 @@ function startAccountSignOutWatcher():void{
         }) as EventListener;
         window.addEventListener('lourex-account-transition-complete',complete);
         window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:targetUid}}));
-        return;
-      }
-      if(!selectedStorageUid){
-        if(signOutTransitionRunning)return;
-        signOutTransitionRunning=true;
-        accountWasAuthenticated=true;
-        void (async()=>{
-          try{setActiveAccountUid(user.uid);await activateAccountStorage(user.uid);}
-          finally{
-            signOutTransitionRunning=false;
-            window.dispatchEvent(new Event('lourex-cloud-refresh-available'));
-          }
-        })();
         return;
       }
       setActiveAccountUid(user.uid);
