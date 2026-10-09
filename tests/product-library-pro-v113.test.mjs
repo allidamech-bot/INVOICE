@@ -119,7 +119,7 @@ test('active product library uses screen-only TailAdmin ownership and bundled of
  assert.match(legacy,/@media \(max-width:720px\)/);
  assert.match(legacy,/@media \(pointer:coarse\)/);
  assert.doesNotMatch(legacy,/\.invoice-page|\.items-table|\.doc-header|\.totals-block/);
- assert.match(current,/\.ta-products-page/);
+ assert.match(current,/\.ta-products-workspace/);
  assert.match(current,/safe-area-inset-bottom/);
  assert.doesNotMatch(current,/\.invoice-page|@media print/);
  assert.equal(index.includes('product-library-pro-v113.css'),false,'retired visual owner must not override new product shell');
