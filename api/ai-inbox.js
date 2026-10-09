@@ -1,3 +1,4 @@
+import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=4_000_000;
@@ -54,6 +55,7 @@ async function handleToolPlan(body,response){
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'AI Inbox requests must come from this LOUREX deployment.'});return;}
+  if(!await requireAiFirebaseAuth(request,response))return;
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'AI Inbox is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid AI request.'});return;}
   if(body?.mode==='tool-plan'){await handleToolPlan(body,response);return;}
