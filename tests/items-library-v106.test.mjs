@@ -25,17 +25,21 @@ test('v106 accelerates saved-item search and bulk picker selection',async()=>{
   assert.match(modal,/currently visible/);
 });
 
-test('v106 styling stays app-only, offline-capable, and below the final performance layer',async()=>{
-  const [css,index,sw]=await Promise.all([
-    read('src/styles/items-library-v106.css'),
-    read('index.html'),
-    read('public/sw.js')
-  ]);
-  assert.match(css,/v106 — large-catalog saved-items refinement/);
-  assert.match(css,/\.app-ui \.saved-items-quick-filters/);
-  assert.match(css,/@media \(max-width:720px\)/);
-  assert.match(css,/@media print/);
-  assert.match(index,/items-library-v106\.css/);
-  assert.ok(index.indexOf('items-library-v106.css')<index.indexOf('performance-polish-v100.css'));
-  assert.match(sw,/\.\/styles\/items-library-v106\.css/);
+test('saved-item filters are visible, touch accessible, and offline in the active product owner',async()=>{
+ const [legacy,current,index,sw]=await Promise.all([
+  read('src/styles/items-library-v106.css'),
+  read('src/styles/tailadmin-products-v320.css'),
+  read('index.html'),
+  read('public/sw.js')
+ ]);
+ assert.match(legacy,/v106 — large-catalog saved-items refinement/);
+ assert.equal(index.includes('items-library-v106.css'),false,'retired v106 style cannot override active product shell');
+ assert.match(index,/tailadmin-products-v320\.css/);
+ assert.match(current,/\.app-ui \.saved-items-quick-filters\{/);
+ assert.match(current,/\.app-ui \.saved-items-quick-filters button\{[^}]*min-height:44px/);
+ assert.match(current,/\.app-ui \.saved-items-quick-filters button\.active\{[^}]*var\(--ft-accent\)/);
+ assert.match(current,/@media screen and \(max-width:720px\)/);
+ assert.match(current,/@media screen and \(max-width:390px\)/);
+ assert.doesNotMatch(current,/@media print|\.invoice-page/);
+ assert.match(sw,/tailadmin-products-v320\.css/);
 });
