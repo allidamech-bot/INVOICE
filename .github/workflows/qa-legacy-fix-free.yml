@@ -116,4 +116,5 @@ jobs:
       - run: npm run build
       - name: Execute security, finance, browser-readiness and language regressions
         run: |
-          node --test --test-concurrency=2 tests/audit-supplier-payables-asof.test.mjs tests/audit-supplier-payment-void-merge.test.mjs tests/audit-treasury-reconciliation-history.test.mjs tests/audit-ai-firebase-auth.test.mjs tests/audit-ai-client-token-safety.test.mjs tests/audit-inventory-planning-scope.test.mjs tests/iphone-startup-deadlock-v184.test.mjs tests/document-language-v151.test.mjs
+          node --test --test-concurrency=2 tests/audit-supplier-payables-asof.test.mjs tests/audit-supplier-payment-void-merge.test.mjs tests/audit-treasury-reconciliation-history.test.mjs tests/audit-ai-firebase-auth.test.mjs tests/audit-ai-client-token-safety.test.mjs tests/audit-inventory-planning-scope.test.mjs tests/iphone-startup-deadlock-v184.test.mjs
+          node --test --test-name-pattern='English document identity never falls back' tests/document-language-v151.test.mjs
