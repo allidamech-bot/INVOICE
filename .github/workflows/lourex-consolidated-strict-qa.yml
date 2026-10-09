@@ -1,0 +1,24 @@
+name: LOUREX Consolidated Strict QA
+on:
+  push:
+    branches:
+      - audit/combined-final-qa-20261010
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused regression and data safety
+        run: node --test tests/mobile-more-visual-v204.test.mjs tests/mobile-more-rtl-v208.test.mjs tests/live-document-regressions-v584.test.mjs tests/editor-color-layer-closeout-v591.test.mjs tests/editor-design-color-layer-owner-v589.test.mjs tests/v331-draft-scroll-account-transition.test.mjs tests/v337-runtime-stale-marker-recovery.test.mjs tests/v351-document-entry-source-contract.test.mjs tests/v338-editor-stability.test.mjs tests/mobile-pdf-v73.test.mjs tests/more-settings-ia-v248.test.mjs tests/v481-premium-visual-rebuild.test.mjs tests/v482-mobile-ux-repair.test.mjs
+      - name: Full historical Node 24 suite without exclusions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
