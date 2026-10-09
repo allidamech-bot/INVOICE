@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import handler from '../api/ai-core.js';
+import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 
 function request(headers,body='{}'){
   const req=Readable.from([body]);
@@ -23,10 +24,13 @@ test('production canonical origin is accepted when Vercel invokes the function o
       origin:'https://invoice-three-puce.vercel.app',
       'x-requested-with':'LOUREX-Invoice',
       'sec-fetch-site':'cross-site',
-      'x-forwarded-for':'127.0.0.1'
+      'x-forwarded-for':'127.0.0.1',
+      authorization:testFirebaseBearer()
     });
     const res=response();
-    await handler(req,res);
+    const previousFetch=globalThis.fetch;
+    globalThis.fetch=withTestFirebaseKeys(previousFetch);
+    try{await handler(req,res);}finally{globalThis.fetch=previousFetch;}
     assert.notEqual(res.statusCode,403);
     assert.equal(res.statusCode,400);
     assert.equal(res.body?.code,'INVALID_CONTEXT');
