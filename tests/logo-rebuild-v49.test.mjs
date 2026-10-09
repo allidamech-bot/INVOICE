@@ -71,6 +71,10 @@ test('AI logo workflow keeps the bounded touch editor available as a fallback ut
   assert.match(rebuild,/finish\(crop\(canvas,pixels\)\)/);
   assert.match(css,/logo-touch-editor-overlay/);
   assert.match(css,/touch-action:none/);
+  assert.match(css,/\.logo-touch-editor-overlay\{[\s\S]*?position:fixed/,'manual logo editor must be a body-level modal');
+  assert.match(css,/\.logo-touch-editor-sheet\{[\s\S]*?max-height:calc\(100dvh - 24px\)/,'manual logo editor must fit the available viewport');
+  assert.match(css,/\.logo-touch-editor-sheet button\{[\s\S]*?min-height:44px/,'manual logo controls must be touch reachable');
+  assert.match(css,/@media screen and \(max-width:420px\)/,'phone-sized logo editor must keep bounded canvas and visible actions');
   assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/lib\/logo-rebuild\.js/);
 });
