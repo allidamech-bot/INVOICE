@@ -19,7 +19,8 @@ test('live A4 preview is mounted only where the desktop preview pane is actually
   const core=await read('src/components/EditorPageCore.tsx');
   assert.match(core,/window\.matchMedia\('\(min-width:1181px\)'\)/);
   assert.doesNotMatch(core,/window\.matchMedia\('\(min-width:901px\)'\)/);
-  assert.match(core,/private handlePreviewMedia=\(event:MediaQueryListEvent\)=>this\.setState\(state=>\(\{desktopPreview:event\.matches,previewDoc:event\.matches\?structuredClone\(state\.doc\):state\.previewDoc\}\)\)/);
+  assert.match(core,/private handlePreviewMedia=\(event:MediaQueryListEvent\)=>this\.setState\(state=>\(\{desktopPreview:event\.matches,previewDoc:event\.matches\?previewDocument\(state\.doc\):state\.previewDoc\}\)\)/);
+  assert.match(core,/return doc\.attachments\?\.length\?\{\.\.\.doc,attachments:\[\]\}:doc/);
   assert.match(core,/if\(!this\.state\.desktopPreview\)return/);
   assert.match(core,/TemplateRenderer document=\{this\.state\.previewDoc\} scale=\{0\.82\}/);
 });
@@ -27,9 +28,11 @@ test('live A4 preview is mounted only where the desktop preview pane is actually
 test('single-language legal identity fields honor output language without losing Arabic brand fallback',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/function identityPair\(doc: LourexDocument, en: string, ar: string\)/);
-  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
+  assert.match(renderer,/if\(doc\.language==='en'\)return englishFragment\(documentDisplayValue\(english,'en'\)\|\|'—'\)/);
+  assert.match(renderer,/function englishFragment\(value:string\)[\s\S]*lang="en" dir="ltr"/);
   assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
-  assert.match(renderer,/if\(doc\.language==='ar'\)return <span dir="auto">\{arabic\|\|english\|\|'—'\}<\/span>/);
+  assert.match(renderer,/if\(doc\.language==='ar'\)return arabicFragment\(arabic\|\|english\|\|'—'\)/);
+  assert.match(renderer,/function arabicFragment\(value:string\)[\s\S]*lang="ar" dir="rtl"/);
   assert.match(renderer,/function companyName[\s\S]*return identityPair\(doc, doc\.companySnapshot\.nameEn, doc\.companySnapshot\.nameAr\)/);
   assert.match(renderer,/function customerName[\s\S]*return identityPair\(doc, c\?\.companyNameEn \?\? '', c\?\.companyNameAr \?\? ''\)/);
   assert.match(renderer,/const addressVisible=identityOutputValues\(doc,addressEn,addressAr\)\.length>0/);
@@ -73,8 +76,9 @@ test('oversized item continuation rows keep unrelated cells blank instead of ren
   assert.match(renderer,/continuation\?packing:packing\|\|'—'/);
   assert.match(renderer,/continuation\?unit:unit\|\|'—'/);
   assert.match(renderer,/continuation\?'':item\.quantity/);
-  assert.match(renderer,/continuation\?'':item\.unitPrice/);
-  assert.match(renderer,/continuation\?'':lineTotal\(item\.quantity,item\.unitPrice\)/);
+  assert.match(renderer,/continuation\?'':documentPriceOptional\(doc\.kind\)\?'—':item\.unitPrice/);
+  assert.match(renderer,/continuation\?'':documentPriceOptional\(doc\.kind\)\?'—':lineTotal\(item\.quantity,item\.unitPrice\)/);
+  assert.match(renderer,/unitPrice:index===0\?item\.unitPrice:''/);
 });
 
 test('document runtime changes ship through the explicit-update PWA cache generation',async()=>{
