@@ -70,3 +70,24 @@ test('late-entered backdated supplier payment never changes an earlier payable s
   assert.equal(current.paid,'550.00');
   assert.equal(current.remaining,'450.00');
 });
+
+test('reversal recorded after cutoff does not erase supplier debt from earlier reports',()=>{
+  const {supplier,purchase}=fixture();
+  const reversed={...purchase,status:'reversed',reversedAt:'2026-10-20T11:00:00.000Z'};
+  const past=purchasePayableSummary(reversed,[],'2026-10-09');
+  assert.equal(past.remaining,'1000.00');
+  assert.equal(past.state,'overdue');
+  const historical=supplierPayablesByCurrency([reversed],[],'2026-10-09');
+  assert.equal(historical.length,1);
+  assert.equal(historical[0].remaining,'1000.00');
+  const accounts=supplierAccounts([supplier],[reversed],[],'2026-10-09');
+  assert.equal(accounts.length,1);
+  const priorStatement=supplierStatement(supplier.id,[reversed],[],'2026-10-09')[0];
+  assert.equal(priorStatement.remaining,'1000.00');
+  assert.equal(priorStatement.entries.length,1);
+  const current=purchasePayableSummary(reversed,[],'2026-10-21');
+  assert.equal(current.state,'reversed');
+  assert.equal(current.remaining,'0.00');
+  assert.deepEqual(supplierPayablesByCurrency([reversed],[],'2026-10-21'),[]);
+  assert.deepEqual(supplierStatement(supplier.id,[reversed],[],'2026-10-21'),[]);
+});
