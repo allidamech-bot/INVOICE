@@ -36,7 +36,9 @@ test('v105 customer search executes multi-field discovery, all-term matching and
   assert.deepEqual(find('','recent'),['1','3','2'],'recent sort must be deterministic');
   assert.deepEqual(find('','alphabetical'),['2','3','1'],'alphabetical sort must use the visible customer name');
   assert.match(src,/Recently updated/);
-  assert.match(src,/customers-search-clear/);
+  assert.match(src,/ta-customers-search-input/,'current customer lookup must expose its accessible search control');
+  assert.match(src,/IconButton icon="x" label=\{t\('Clear search'/,'search must retain an explicit clear action');
+  assert.match(src,/onClick=\{\(\)=>this\.setState\(\{query:''\}\)\}/,'clear action must reset the query, not merely hide the input');
 });
 
 test('v105 customer save blocks probable duplicates and invalid email before persistence',async()=>{
