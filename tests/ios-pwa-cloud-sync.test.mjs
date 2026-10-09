@@ -4,17 +4,23 @@ import { readFile } from 'node:fs/promises';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('iOS standalone aggressively resumes cloud freshness',async()=>{
-  const freshness=await read('src/cloud/freshness.ts');
-  assert.match(freshness,/matchMedia\?\.\('\(display-mode: standalone\)'\)/);
-  assert.match(freshness,/navigator as Navigator&\{standalone\?:boolean\}/);
-  assert.match(freshness,/pageshow/);
-  assert.match(freshness,/visibilitychange/);
-  assert.match(freshness,/focus/);
+test('iOS WebKit retires the unsafe independent watcher but retains guarded explicit cloud updates',async()=>{
+  const [freshness,entry,cloud]=await Promise.all([
+    read('src/cloud/freshness.ts'),read('src/app/index.tsx'),read('src/cloud/firebase.ts')
+  ]);
+  assert.match(freshness,/function appleMobileWebKit\(\):boolean/);
+  assert.match(freshness,/platform==='MacIntel'&&touchPoints>1/);
+  assert.match(freshness,/if\(appleMobileWebKit\(\)\)\{/);
+  assert.match(freshness,/detachRealtime\(\)/);
+  assert.match(freshness,/return \(\)=>undefined/);
+  assert.match(entry,/if\(!iosWebKit\)startCloudFreshnessWatcher\(\)/);
+  // The shared cloud remains available through explicit, non-destructive sync.
+  assert.match(cloud,/export async function reconcileCloudVault\(/);
+  assert.match(cloud,/export async function refreshCloudVaultForUnlock\(/);
   assert.match(freshness,/cloudRemoteChangedSinceAnchor/);
-  assert.match(freshness,/reconcileCloudVault/);
-  assert.match(freshness,/standalone\?1_500:5_000/);
-  assert.match(freshness,/if\(isStandalonePwa\(\)\)schedule\(600\)/);
+  assert.match(freshness,/if\(workspaceHasUnsavedChanges\(\)\)return false/);
+  assert.match(freshness,/lourex-cloud-refresh-available/);
+  assert.doesNotMatch(freshness,/window\.location\.(?:reload|replace)/);
 });
 
 test('disconnected installed app can reopen cloud account without restoring manual sync and lock controls',async()=>{

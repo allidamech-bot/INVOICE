@@ -62,7 +62,9 @@ test('workspace dirty contract covers the inline inventory timing window without
   assert.match(dirty,/input\[inputmode="decimal"\]/);
   assert.match(dirty,/document\.activeElement/);
   assert.match(dirty,/entry\.contains\(active\)/);
-  assert.match(dirty,/document\.documentElement\.hasAttribute\(ATTRIBUTE\)\|\|operationsInlineMovementDraft\(\)/);
+  assert.match(dirty,/return publishedDirtyOwnerIsActive\(\)\|\|operationsInlineMovementDraft\(\)/);
+  assert.match(dirty,/if\(hasEnteredValue\)return true/);
+  assert.match(dirty,/item\?\.value\.trim\(\)&&active instanceof Element&&entry\.contains\(active\)/);
   assert.doesNotMatch(dirty,/querySelector\(['"]\.operations-page['"]\)/);
 });
 
@@ -72,7 +74,10 @@ test('cloud freshness blocks actual unsaved work, editors and modals without fre
   assert.match(freshness,/data-lourex-document-editor/);
   assert.match(freshness,/workspaceHasUnsavedChanges/);
   assert.match(freshness,/if\(workspaceHasUnsavedChanges\(\)\)return false/);
-  assert.match(freshness,/\.editor-screen,\.modal-backdrop,\.product-library-pro\.editor-open/);
+  assert.match(freshness,/const UNSAFE_SURFACE_SELECTOR=/);
+  assert.match(freshness,/\.editor-screen,\.modal-backdrop/);
+  assert.match(freshness,/\.product-library-pro\.editor-open/);
+  assert.match(freshness,/\.ta-operations-page \.ta-ops-editor/);
   assert.doesNotMatch(freshness,/\.editor-screen,\.modal-backdrop,\.operations-page/);
   assert.match(freshness,/window\.dispatchEvent\(new Event\('lourex-cloud-refresh-available'\)\)/);
   assert.doesNotMatch(freshness,/window\.location\.(?:reload|replace)/);
