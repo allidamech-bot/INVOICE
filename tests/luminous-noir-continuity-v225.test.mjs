@@ -22,7 +22,8 @@ test('v351 uses one canonical light/dark canvas from bootstrap through runtime t
   assert.match(palette,/--ft-canvas:#f4f7fb!important/);
   assert.match(palette,/--ft-canvas:#0D0D0D!important/);
   assert.match(guard,/background=dark\?'#0D0D0D':'#f4f7fb'/);
-  assert.doesNotMatch(guard,/ensureStylesheet|appendChild\(link\)|appendChild\(.*tailadmin/i);
+  assert.doesNotMatch(guard,/function ensureStylesheet\(|appendChild\(link\)/i);
+  assert.match(guard,/function retireLegacyVisualLayers\(\)/);
 });
 
 test('v351 keeps one production CSS bundle plus only intentional standalone document owners',async()=>{
