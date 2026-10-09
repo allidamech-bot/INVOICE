@@ -1,0 +1,27 @@
+name: LOUREX Logo Editor Safety QA
+on:
+  push:
+    branches:
+      - fix/audit-logo-touch-fallback-20261010
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Locked install
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build (no deployment)
+        run: npm run build
+      - name: Focused logo fallback tests
+        run: node --test tests/logo-rebuild-v49.test.mjs
+      - name: Full historical suite without exclusions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
