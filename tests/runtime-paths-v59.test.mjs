@@ -30,7 +30,10 @@ test('final document revision persists a protected final snapshot before opening
   const persistAt = app.indexOf('documentRevisions=[...vault.documentRevisions,revision]');
   assert.ok(snapshotAt >= 0, 'final revision snapshot is missing');
   assert.ok(persistAt > snapshotAt, 'final revision snapshot must be persisted before the revision workflow completes');
-  assert.match(lifecycle, /snapshot:structuredClone\(doc\)/);
+  assert.match(lifecycle,/snapshot:cloneDocumentForRevision\(doc,false\)/);
+  assert.match(lifecycle,/const clone=structuredClone\(\{\.\.\.doc,attachments:\[\]\}\)/);
+  assert.match(lifecycle,/attachmentAuditMetadata\(doc\.attachments\)/);
+  assert.match(lifecycle,/\.\.\.cloneDocumentForRevision\(doc,true\),status:'draft'/);
   assert.match(lifecycle, /status:'draft',revision:documentRevision\(doc\)\+1/);
 });
 
