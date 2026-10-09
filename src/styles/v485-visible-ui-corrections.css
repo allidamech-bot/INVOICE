@@ -1060,9 +1060,9 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
 /* v584 live document regression closeout: final owner only. */
 @media screen {
   /* The document editor follows the same application accent as first paint:
-     teal in light mode, blue in dark mode. No fixed v485 blue may leak into
+     configured light/dark application accent. No fixed v485 blue may leak into
      editor actions or the advanced-options toggle. */
-  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:#315fad;}
+  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:var(--ft-accent,var(--boot-accent,#315DA8));}
   html body #root .app-ui :is(.screen-editor,.editor-screen) :is(
     .editor-actions,.mobile-editor-actionbar,.draft-mobile-actionbar,.template-preference-bar
   ) .btn-primary{
