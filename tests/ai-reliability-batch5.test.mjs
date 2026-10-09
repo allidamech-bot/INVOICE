@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
+import {testFirebaseBearer,withTestFirebaseKeys} from './fixtures/firebase-ai-auth.mjs';
 import {explicitQuoteSource,includesExplicitSourceCodes} from '../api/_ai/source-lines.js';
 import {explicitSourceDecimal,normalizeSourceNumber} from '../api/_ai/numbers.js';
 import {routeAiStructured} from '../api/_ai/router.js';
@@ -25,8 +26,8 @@ test('duplicate quantity rows must survive extraction while incidental repeated 
  assert.equal(includesExplicitSourceCodes('SKU Description Quantity Price',[{sku:'A-1'}]),true,'column headings are not product codes');
 });
 
-const originalFetch=globalThis.fetch,originalTimeout=globalThis.setTimeout,originalEnv={...process.env};
-function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimeout;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];Object.assign(process.env,originalEnv);}
+const originalFetch=globalThis.fetch,originalTimeout=globalThis.setTimeout,originalFirebase=globalThis.firebase,originalEnv={...process.env};
+function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimeout;globalThis.firebase=originalFirebase;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];Object.assign(process.env,originalEnv);}
 test.afterEach(restore);
 test('provider timeout includes an unfinished response body and safely falls back',async()=>{
  process.env.GROQ_API_KEY='fixture';process.env.CLOUDFLARE_AI_API_TOKEN='fixture';process.env.CLOUDFLARE_ACCOUNT_ID='fixture';
@@ -34,7 +35,7 @@ test('provider timeout includes an unfinished response body and safely falls bac
  globalThis.fetch=async(url,options)=>{calls.push(String(url));return{ok:true,headers:new Headers(),text:()=>String(url).includes('api.groq.com')?new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('fixture body aborted','AbortError')),{once:true})):Promise.resolve(JSON.stringify({choices:[{message:{content:'{"value":"fallback"}'}}]}))};};
  const result=await routeAiStructured({taskType:'workspace_help',prompt:'bounded fixture',schema:{type:'OBJECT',properties:{value:{type:'STRING'}},required:['value']},timeoutMs:3000});assert.equal(result.success,true);assert.equal(result.provider,'cloudflare');assert.equal(result.fallbackUsed,true);assert.equal(calls.length,2);
 });
-async function requestQuote(text,ip,handler=quoteHandler){const req=Readable.from([JSON.stringify({kind:'text',text})]);req.method='POST';req.headers={host:'invoice.example.test',origin:'https://invoice.example.test','x-requested-with':'LOUREX-Invoice','x-forwarded-for':ip};const res={setHeader(){},end(body){this.body=JSON.parse(body);}};await handler(req,res);return res;}
+async function requestQuote(text,ip,handler=quoteHandler){const req=Readable.from([JSON.stringify({kind:'text',text})]);req.method='POST';req.headers={host:'invoice.example.test',origin:'https://invoice.example.test','x-requested-with':'LOUREX-Invoice','x-forwarded-for':ip,authorization:testFirebaseBearer()};const res={setHeader(){},end(body){this.body=JSON.parse(body);}};const previous=globalThis.fetch;globalThis.fetch=withTestFirebaseKeys(previous);try{await handler(req,res);return res;}finally{globalThis.fetch=previous;}}
 test('the real API parses a complete table locally and returns a review-only draft',async()=>{
  globalThis.fetch=()=>{throw new Error('local source must not call a provider');};const res=await requestQuote('SKU | Description | Qty | Unit\nA-1 | Valve | 2 | PCS','batch5-local');assert.equal(res.statusCode,200);assert.equal(res.body.draft.items[0].quantity,'2');assert.equal(res.body.draft.currency,'');assert.ok(!res.body.saved&&!res.body.documentId);
 });
@@ -66,7 +67,7 @@ test('supplier/product malformed explicit values cannot silently become blank su
  }
 });
 test('client cancellation, body timeout and malformed responses clean up without returning success',async()=>{
- globalThis.window={setTimeout:(fn,ms)=>originalTimeout(fn,ms),clearTimeout};const {requestAiJson}=await import('../dist/src/lib/ai-request.js');
+ globalThis.window={setTimeout:(fn,ms)=>originalTimeout(fn,ms),clearTimeout};globalThis.firebase={apps:[{}],auth:()=>({currentUser:{getIdToken:async()=>testFirebaseBearer().slice(7)}})};const {requestAiJson}=await import('../dist/src/lib/ai-request.js');
  globalThis.fetch=async()=>({ok:true,json:async()=>[]});await assert.rejects(requestAiJson('/fixture',{}),/unreadable/);
  globalThis.fetch=async(url,options)=>({ok:true,json:()=>new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}))});
  await assert.rejects(requestAiJson('/fixture',{},undefined,5),/timed out/);
