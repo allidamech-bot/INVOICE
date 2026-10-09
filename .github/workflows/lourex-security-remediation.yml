@@ -140,10 +140,10 @@ jobs:
             summary.push('- '+key+': '+value);
           }
           const failures=log.split('✖ failing tests:')[1]||'';
-          const tests=failures.split(/\\r?\\n/).filter(line=>line.startsWith('✖ ')).map(line=>line.replace(/ \\([\\d.]+ms\\)$/,''));
+          const tests=failures.split(/\r?\n/).filter(line=>line.startsWith('✖ ')).map(line=>line.replace(/ \([\d.]+ms\)$/,''));
           summary.push('- Failure listings: '+tests.length,'');
           summary.push(...tests.slice(0,80).map(line=>'- '+line));
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary.join('\\n')+'\\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary.join('\n')+'\n');
           NODE
           if [[ "$exit_code" != "0" ]]; then
             echo "::error::Full three-branch suite is not green. This is a release blocker."
