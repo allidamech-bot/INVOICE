@@ -84,7 +84,7 @@ try{
       const portFile=join(profile,'DevToolsActivePort');
       const value=await waitUntil(async()=>{
         if(chrome.exitCode!==null)return {exited:chrome.exitCode};
-        const lines=(await readFile(portFile,'utf8')).trim().split('\\n');
+        const lines=(await readFile(portFile,'utf8')).trim().split('\n');
         return lines[0]&&Number(lines[0])>0?Number(lines[0]):0;
       },30000,'Chrome DevTools port on attempt '+attempt);
       if(typeof value!=='number')throw new Error('Chrome exited with code '+value.exited);
