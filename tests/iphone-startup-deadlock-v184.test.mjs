@@ -26,9 +26,9 @@ test('iPhone pre-render startup budgets are finite for existing and new-device v
   assert.ok(start>=0,'actual startup function must be present');
   // Execute the real production declarations as well as the function. Isolating
   // only the function body misses its module-scoped budget constants.
-  const budgetDeclarations=startup.match(/^const (?:STARTUP_CLOUD_BUDGET_MS|FRESH_DEVICE_CLOUD_BUDGET_MS)=[^\\n]+;$/gm)??[];
+  const budgetDeclarations=startup.match(/^const (?:STARTUP_CLOUD_BUDGET_MS|FRESH_DEVICE_CLOUD_BUDGET_MS)=[^\n]+;$/gm)??[];
   assert.equal(budgetDeclarations.length,2,'the test must execute both production startup budgets');
-  const compiled=ts.transpileModule(budgetDeclarations.join('\\n')+'\\n'+startup.slice(start),{
+  const compiled=ts.transpileModule(budgetDeclarations.join('\n')+'\n'+startup.slice(start),{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
   }).outputText;
   for(const [local,expectedBudget] of [[{cipher:'local'},Number(existing[1])],[null,freshMs]]){
