@@ -17,13 +17,22 @@ test('v483 prevents scoped company identity churn from feeding the editor save l
   assert.match(editor,/<EditorPageCore[^>]*\.\.\.props[^>]*company=\{company\}/s,'EditorPageCore does not receive the stabilized company object');
 });
 
-test('v483 no longer writes a new document merely because the editor opened',async()=>{
+test('new editor drafts persist exactly once instead of silently losing reserved document numbers',async()=>{
   const editor=await read('src/components/EditorPage.tsx');
-  assert.doesNotMatch(editor,/ensureInitialDraftPersisted/,'new documents still perform implicit draft persistence on mount');
-  assert.doesNotMatch(editor,/initialDraftPersisted/,'legacy implicit-draft persistence state remains active');
-  assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/,'explicit editor persistence path was removed');
+  const logic=editor.slice(editor.indexOf('private ensureInitialDraftPersisted='),editor.indexOf('componentDidMount():void'));
+  const mount=editor.slice(editor.indexOf('componentDidMount():void'),editor.indexOf('componentDidUpdate('));
+  const update=editor.slice(editor.indexOf('componentDidUpdate('),editor.indexOf('componentWillUnmount()'));
+  assert.match(logic,/doc\.status!=='draft'/,'only drafts can use initial persistence');
+  assert.match(logic,/this\.props\.documents\.some\(item=>item\.id===doc\.id\)/,'existing saved drafts must not be duplicated');
+  assert.match(logic,/this\.initialDraftPersistIds\.has\(doc\.id\)/,'same draft cannot save twice');
+  assert.match(logic,/this\.initialDraftPersistIds\.add\(doc\.id\)/);
+  assert.match(logic,/this\.saveWithProtectedRetry\(structuredClone\(doc\),true\)/,'automatic save must go through protected serialized persistence');
+  assert.match(logic,/this\.initialDraftPersistIds\.delete\(doc\.id\)/,'failed writes must be retryable');
+  assert.match(logic,/persistenceError:t\('Unable to save the new draft locally/,'save failure must be visible');
+  assert.match(mount,/this\.ensureInitialDraftPersisted\(\)/);
+  assert.match(update,/prevProps\.document\.id!==this\.props\.document\.id[\s\S]*this\.ensureInitialDraftPersisted\(\)/);
+  assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/);
 });
-
 test('compact Documents geometry has one final owner after retiring v483',async()=>{
   const [pkg,css,bundle,standalone]=await Promise.all([
     read('package.json'),
