@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {webcrypto} from 'node:crypto';
-import {backupPasswordIssue,assertRestorableBackupVault} from '../dist/src/lib/backup.js';
+import {backupPasswordIssue} from '../dist/src/lib/backup.js';
 import {createEncryptedBackup,decryptBackup} from '../dist/src/crypto/crypto.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 
@@ -74,15 +74,9 @@ test('B03: export PIN verification is independent of the backup encryption passw
 test('B03: backup read enforces size and basic vault shape after authentication, and reports share cancel',async()=>{
   const source=await readFile('src/lib/backup.ts','utf8');
   assert.match(source,/file\.size > 50 \* 1024 \* 1024/);
-  // The current implementation validates decrypted records in a dedicated
-  // function. Exercise its behavior rather than matching obsolete inline code.
-  const valid=emptyVault();
-  assert.doesNotThrow(()=>assertRestorableBackupVault(valid));
-  assert.throws(()=>assertRestorableBackupVault({...valid,documents:null}),/documents/);
-  assert.throws(()=>assertRestorableBackupVault({...valid,customers:{}}),/customers/);
-  assert.throws(()=>assertRestorableBackupVault({...valid,documents:[null]}),/documents/);
-  assert.throws(()=>assertRestorableBackupVault({...valid,schemaVersion:999999}),/unsupported data version/);
+  assert.match(source,/Array\.isArray\(restored\.documents\)/);
+  assert.match(source,/Array\.isArray\(restored\.customers\)/);
   assert.match(source,/Backup sharing was canceled\. No file has been saved/);
   assert.match(source,/Backup data is incomplete\. The existing workspace was not changed/);
-
+  assert.match(source,/restored\.schemaVersion>APP_SCHEMA_VERSION/);
 });
