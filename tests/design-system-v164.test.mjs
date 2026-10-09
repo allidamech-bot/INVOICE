@@ -27,23 +27,30 @@ test('batch 7 standardizes accessible controls, numbers and RTL without touching
   assert.doesNotMatch(css,/\.items-table\b/);
 });
 
-test('batch 7 runtime loads the canonical design layer and retires obsolete action-sheet layers',async()=>{
+test('current runtime owns semantic app styling and retires superseded mobile sheets',async()=>{
   const html=await read('index.html');
-  assert.match(html,/design-system-v164\.css/);
-  assert.ok(html.indexOf('settings-account-v163.css')<html.indexOf('design-system-v164.css'));
-  assert.ok(html.indexOf('design-system-v164.css')<html.indexOf('document-premium-redesign-v141.css'));
-  for(const retired of ['mobile-document-actions-v122.css','mobile-document-actions-v123.css','mobile-document-actions-v124.css']){
-    assert.equal(html.includes(retired),false,`${retired} must leave the runtime cascade`);
+  const shell=html.indexOf('tailadmin-shell-v320.css');
+  const documents=html.indexOf('tailadmin-documents-v320.css');
+  const foundation=html.indexOf('tailadmin-design-closeout-v323.css');
+  assert.ok(shell>=0&&documents>shell&&foundation>documents,'current app cascade must retain ordered shell, documents and design owners');
+  for(const retired of ['design-system-v164.css','mobile-document-actions-v122.css','mobile-document-actions-v123.css','mobile-document-actions-v124.css']){
+    assert.equal(html.includes(retired),false,`${retired} must not return to the active cascade`);
   }
-  assert.match(html,/mobile-document-actions-v125\.css/);
+  assert.match(html,/mobile-document-actions-v125\\.css/);
 });
 
-test('the remaining mobile document action layer is self-contained',async()=>{
-  const css=await read('src/styles/mobile-document-actions-v125.css');
-  assert.match(css,/\.mobile-document-action-portal\{display:none\}/);
-  assert.match(css,/@media \(max-width:900px\)/);
-  assert.match(css,/\.mobile-document-action-backdrop/);
-  assert.match(css,/\.mobile-document-action-sheet/);
-  assert.match(css,/env\(safe-area-inset-bottom\)/);
-  assert.match(css,/html\[dir='rtl'\]/);
+test('current mobile document portal is mounted on body with accessible close and safe-area rules',async()=>{
+  const [page,css,legacy]=await Promise.all([
+    read('src/components/DocumentsPage.tsx'),
+    read('src/styles/tailadmin-documents-v320.css'),
+    read('src/styles/mobile-document-actions-v125.css')
+  ]);
+  assert.match(page,/ReactDOM\\.createPortal\\(<div className="app-ui ta-doc-mobile-action-portal"/);
+  assert.match(page,/ta-doc-mobile-action-sheet" role="menu"/);
+  assert.match(page,/ta-doc-action-backdrop" aria-label=/);
+  assert.match(page,/,document\\.body\\)/);
+  assert.match(css,/\\.ta-doc-mobile-action-portal/);
+  assert.match(css,/\\.ta-doc-mobile-action-sheet/);
+  assert.match(css,/env\\(safe-area-inset-bottom/);
+  assert.doesNotMatch(legacy,/\\.mobile-document-action-portal\\s*\\{/,'retired v125 stub must not reclaim portal geometry');
 });
