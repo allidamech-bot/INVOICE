@@ -7,18 +7,18 @@ const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 test('a stale device never auto-installs newer cloud data into an active workspace',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
   const reconcile=cloud.slice(cloud.indexOf('export async function reconcileCloudVault'));
-  assert.match(reconcile,/if\\(!anchor\\)return 'diverged'/);
-  assert.match(reconcile,/if\\(localChanged&&remoteChanged\\)return 'diverged'/);
-  assert.match(reconcile,/const startup=Boolean\\(document\\.querySelector\\('\\.loading-screen'\\)\\)&&!document\\.querySelector\\('\\.app-ui,\\.auth-page'\\)/);
-  assert.match(reconcile,/if\\(remoteChanged\\)\\{\\s*if\\(!startup\\)return 'diverged';\\s*await installCloudVault\\(uid\\);return 'pulled';\\s*\\}/);
-  assert.match(reconcile,/if\\(!local&&remote\\)\\{\\s*if\\(!startup\\)return 'diverged'/);
-  assert.doesNotMatch(reconcile,/if\\(!anchor\\)\\{await installCloudVault\\(uid\\);return 'pulled';\\}/);
+  assert.match(reconcile,/if\(!anchor\)return 'diverged'/);
+  assert.match(reconcile,/if\(localChanged&&remoteChanged\)return 'diverged'/);
+  assert.match(reconcile,/const startup=Boolean\(document\.querySelector\('\.loading-screen'\)\)&&!document\.querySelector\('\.app-ui,\.auth-page'\)/);
+  assert.match(reconcile,/if\(remoteChanged\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\s*\}/);
+  assert.match(reconcile,/if\(!local&&remote\)\{\s*if\(!startup\)return 'diverged'/);
+  assert.doesNotMatch(reconcile,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   const unlock=cloud.slice(cloud.indexOf('export async function refreshCloudVaultForUnlock'),cloud.indexOf('export async function reconcileCloudVault'));
-  assert.match(unlock,/if\\(!document\\.querySelector\\('\\.ta-unlock-page'\\)\\)throw new Error/);
-  assert.match(unlock,/if\\(hash!==anchor\\.cipherSha256\\)return 'diverged'/);
+  assert.match(unlock,/if\(!document\.querySelector\('\.ta-unlock-page'\)\)throw new Error/);
+  assert.match(unlock,/if\(hash!==anchor\.cipherSha256\)return 'diverged'/);
   const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
-  assert.match(push,/if\\(!anchor\\)return 'remote-changed'/);
-  assert.match(push,/if\\(remoteChanged\\)return 'remote-changed'/);
+  assert.match(push,/if\(!anchor\)return 'remote-changed'/);
+  assert.match(push,/if\(remoteChanged\)return 'remote-changed'/);
   assert.doesNotMatch(push,/installCloudVault/);
   assert.doesNotMatch(cloud,/Nothing was overwritten|Both copies are safe/);
 });
@@ -27,12 +27,12 @@ test('cross-device realtime reports newer data without replacing an active vault
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/subscribeCloudVaultChanges/);
   assert.match(freshness,/cloudRemoteChangedSinceAnchor/);
-  assert.match(freshness,/remoteUpdateNotified=true;[\\s\\S]*lourex-cloud-refresh-available/);
-  assert.match(freshness,/workspaceHasUnsavedChanges\\(\\)/);
-  assert.match(freshness,/if\\(appleMobileWebKit\\(\\)\\)\\{/);
+  assert.match(freshness,/remoteUpdateNotified=true;[\s\S]*lourex-cloud-refresh-available/);
+  assert.match(freshness,/workspaceHasUnsavedChanges\(\)/);
+  assert.match(freshness,/if\(appleMobileWebKit\(\)\)\{/);
   assert.match(freshness,/5_000/);
-  assert.doesNotMatch(freshness,/await (?:reconcileCloudVault|installCloudVault)\\(/);
-  assert.doesNotMatch(freshness,/window\\.location\\.reload\\(\\)/);
+  assert.doesNotMatch(freshness,/await (?:reconcileCloudVault|installCloudVault)\(/);
+  assert.doesNotMatch(freshness,/window\.location\.reload\(\)/);
 });
 
 test('live account workspace rejects remote fast-forward; locked or pre-mount session may pull',async()=>{
