@@ -203,7 +203,7 @@ function lastPostedPurchaseForItem(purchases:PurchaseRecord[],itemId:string,asOf
     ))&&isIsoDate(row.date)&&row.date<=asOf
     &&(!row.postedAt||(isIsoDate(row.postedAt.slice(0,10))&&row.postedAt.slice(0,10)<=asOf))
     &&row.items.some(line=>line.savedItemId===itemId))
-    .sort((a,b)=>b.date.localeCompare(a.date)||b.updatedAt.localeCompare(a.updatedAt))[0]??null;
+    .sort((a,b)=>b.date.localeCompare(a.date)||(b.postedAt||b.createdAt||'').localeCompare(a.postedAt||a.createdAt||'')||b.id.localeCompare(a.id))[0]??null;
 }
 function inferredSupplier(purchases:PurchaseRecord[],suppliers:Supplier[],itemId:string,preferredSupplierId:string,asOf:string):{supplier:Supplier|null;purchase:PurchaseRecord|null}{
   const purchase=lastPostedPurchaseForItem(purchases,itemId,asOf);
