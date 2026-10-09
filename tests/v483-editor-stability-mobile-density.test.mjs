@@ -17,20 +17,24 @@ test('v483 prevents scoped company identity churn from feeding the editor save l
   assert.match(editor,/<EditorPageCore[^>]*\.\.\.props[^>]*company=\{company\}/s,'EditorPageCore does not receive the stabilized company object');
 });
 
-test('new editor drafts persist exactly once instead of silently losing reserved document numbers',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
-  const logic=editor.slice(editor.indexOf('private ensureInitialDraftPersisted='),editor.indexOf('componentDidMount():void'));
-  const mount=editor.slice(editor.indexOf('componentDidMount():void'),editor.indexOf('componentDidUpdate('));
-  const update=editor.slice(editor.indexOf('componentDidUpdate('),editor.indexOf('componentWillUnmount()'));
-  assert.match(logic,/doc\.status!=='draft'/,'only drafts can use initial persistence');
-  assert.match(logic,/this\.props\.documents\.some\(item=>item\.id===doc\.id\)/,'existing saved drafts must not be duplicated');
-  assert.match(logic,/this\.initialDraftPersistIds\.has\(doc\.id\)/,'same draft cannot save twice');
-  assert.match(logic,/this\.initialDraftPersistIds\.add\(doc\.id\)/);
-  assert.match(logic,/this\.saveWithProtectedRetry\(structuredClone\(doc\),true\)/,'automatic save must go through protected serialized persistence');
-  assert.match(logic,/this\.initialDraftPersistIds\.delete\(doc\.id\)/,'failed writes must be retryable');
-  assert.match(logic,/persistenceError:t\('Unable to save the new draft locally/,'save failure must be visible');
-  assert.match(mount,/this\.ensureInitialDraftPersisted\(\)/);
-  assert.match(update,/prevProps\.document\.id!==this\.props\.document\.id[\s\S]*this\.ensureInitialDraftPersisted\(\)/);
+test('v483 creates durable numbered and customer drafts before editor opens, with no mount write loop',async()=>{
+  const [app,editor]=await Promise.all([read('src/app/App.tsx'),read('src/components/EditorPage.tsx')]);
+  const create=app.slice(app.indexOf('private newDocument=async('),app.indexOf('private newDocumentForCustomer=async('));
+  const customer=app.slice(app.indexOf('private newDocumentForCustomer=async('),app.indexOf('private saveDocument=async('));
+  for(const section of [create,customer]){
+    assert.match(section,/if\(this\.documentCreateBusy\|\|!confirmWorkspaceDeparture\(\)\)return/);
+    assert.match(section,/this\.documentCreateBusy=true/);
+    assert.match(section,/await reservation/);
+    const saved=section.indexOf('await this.persist(');
+    const opened=section.indexOf("this.setState({screen:'editor'");
+    assert.ok(saved>=0&&opened>saved,'complete local persistence before rendering editor');
+    assert.match(section,/catch\(e\)\{document\.documentElement\.removeAttribute\('data-lourex-document-editor'\)/);
+    assert.match(section,/finally\{this\.documentCreateBusy=false;\}/);
+  }
+  assert.match(customer,/applyCustomerCommercialDefaults/);
+  assert.match(customer,/documents:\[\.\.\.vault\.documents,prepared\]/);
+  assert.match(create,/documents:\[\.\.\.vault\.documents,doc\]/);
+  assert.doesNotMatch(editor,/ensureInitialDraftPersisted|initialDraftPersistIds/,'mount must not duplicate a saved draft or reserve a second number');
   assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/);
 });
 test('compact Documents geometry has one final owner after retiring v483',async()=>{
