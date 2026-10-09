@@ -23,7 +23,7 @@ test('existing-email recovery identifies the LOUREX Invoice account and switches
   assert.match(modal,/A LOUREX Invoice account already exists for this email/);
   assert.match(modal,/existingInvoiceAccount\?'signin'/);
   assert.match(modal,/Forgot password/);
-  assert.match(modal,/Use your LOUREX Invoice account to continue to your workspace/);
+  assert.match(modal,/Your workspace saves automatically\. Local encrypted storage and account backup run in the background/,'account copy must make automatic encrypted continuity explicit');
   assert.match(modal,/Saving and backup are automatic/);
 });
 
