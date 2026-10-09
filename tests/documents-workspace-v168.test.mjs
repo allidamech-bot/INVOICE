@@ -65,8 +65,9 @@ test('voided documents do not reuse the issued visual status class',async()=>{
 
 test('mobile document actions remain body-ported and dismissible',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.match(source,/mobile-document-action-portal/);
-  assert.match(source,/mobile-document-action-backdrop/);
+  assert.match(source,/ta-doc-mobile-action-portal/);
+  assert.match(source,/ta-doc-action-backdrop/);
+  assert.match(source,/role="menu" aria-label=\{t\('Document actions','إجراءات المستند'\)\}/);
   assert.match(source,/ReactDOM\.createPortal/);
   assert.match(source,/onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/);
 });
