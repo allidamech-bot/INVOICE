@@ -2,7 +2,7 @@ import type { CompanySettings, PurchaseRecord, Supplier, SupplierPaymentRecord }
 import { displayDate, todayIso } from '../lib/id.js';
 import { formatMoney } from '../lib/money.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
-import { createSupplierPayment, purchasePayableSummary, supplierAccounts, supplierPayablesByCurrency, supplierStatement } from '../lib/payables.js';
+import { createSupplierPayment, postedOnOrBefore, purchasePayableSummary, supplierAccounts, supplierPayablesByCurrency, supplierStatement } from '../lib/payables.js';
 import { ensurePayablesStyles } from '../lib/payables-style.js';
 import { Button, ConfirmDialog, Icon, Input, Modal, Select, Textarea } from './UI.js';
 
@@ -37,7 +37,7 @@ export class SupplierPayablesPage extends React.Component<Props,State>{
   componentWillUnmount():void{window.removeEventListener('lourex-supplier-payables-open',this.handleExternalOpen as EventListener);window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-supplier-statement');}
   private afterPrint=()=>document.body.classList.remove('printing-supplier-statement');
   private handleExternalOpen=(event:Event)=>{const supplierId=(event as CustomEvent<{supplierId?:string}>).detail?.supplierId||'';if(supplierId)this.setState({query:'',filter:'all',statementSupplierId:supplierId,error:''});};
-  private postedPurchases=()=>this.props.purchases.filter(purchase=>purchase.status==='posted').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.number.localeCompare(b.number));
+  private postedPurchases=()=>this.props.purchases.filter(purchase=>purchase.status==='posted'&&postedOnOrBefore(purchase,todayIso())).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.number.localeCompare(b.number));
   private openPayment=(purchase:PurchaseRecord)=>{
     try{const supplier=supplierForPurchase(purchase,this.props.suppliers);const draft=createSupplierPayment(purchase,supplier,this.props.supplierPayments);this.setState({paymentPurchaseId:purchase.id,draft,error:''});}
     catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}
