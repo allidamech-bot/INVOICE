@@ -4,25 +4,32 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v302 requires a user PIN after account authentication and on every new runtime',async()=>{
+test('PIN setup and resumed unlock remain account-bound and verified',async()=>{
   const [auth,session,selector]=await Promise.all([
     read('src/components/AuthScreens.tsx'),
     read('src/storage/session.ts'),
     read('src/app/AuthScreenSelector.tsx')
   ]);
-  assert.match(selector,/const cloudUser=currentCloudUser\(\)/);
+  assert.match(selector,/const cloudUser=currentCloudUser/);
   assert.match(selector,/if \(!cloudUser\) \{[\s\S]*<AccountEntryScreen/);
   assert.match(selector,/if \(props\.mode === 'unlock'\) \{[\s\S]*<UnlockScreen/);
-  assert.ok(selector.indexOf('if (!cloudUser)')<selector.indexOf("if (props.mode === 'unlock')"),'account gateway must gate PIN unlock');
+  assert.ok(selector.indexOf('if (!cloudUser)')<selector.indexOf("if (props.mode === 'unlock')"));
   assert.match(selector,/return <SetupScreen/);
   assert.match(auth,/Create PIN · 4–12 digits/);
-  assert.match(auth,/PIN required on every app start/);
-  assert.match(auth,/changePin\(this\.accountSecret,pin\)/);
-  assert.doesNotMatch(auth,/No separate access PIN is required/);
+  assert.match(auth,/PIN_PATTERN\.test\(this\.state\.pin\)/);
+  assert.match(auth,/PIN confirmation does not match/);
+  assert.match(auth,/autoComplete="new-password"/);
   assert.match(session,/let runtimePinAuthorized=false/);
+  assert.match(session,/ACCOUNT_TOKEN_PREFIX = 'acct:'/);
+  assert.match(session,/accountPrefix\(uid\)/);
   assert.match(session,/establishSession[\s\S]*runtimePinAuthorized=true/);
+  assert.match(session,/resumeAccountSession\(uid:string\):Promise<boolean>\{\s*runtimePinAuthorized=false/);
+  assert.match(session,/if\(!marker\|\|!tokenMatchesAccount\(marker\.token,uid\)\)/);
+  assert.match(session,/record\.token!==marker\.token\|\|!tokenMatchesAccount\(record\.token,uid\)/);
   assert.match(session,/getSessionKey[\s\S]*if\(!runtimePinAuthorized\)return null/);
-  assert.match(session,/resumeAccountSession[\s\S]*runtimePinAuthorized=false[\s\S]*return false/);
+  assert.match(session,/uid&&\(!tokenMatchesAccount\(marker\.token,uid\)\|\|!tokenMatchesAccount\(record\.token,uid\)\)/);
+  assert.match(session,/suspendSession\(\):Promise<void>\{\s*runtimePinAuthorized=false;\s*removeMarker\(\)/);
+  assert.doesNotMatch(session,/localStorage\.setItem\([^,]+,\s*(?:pin|rawPin|this\.state\.pin)\)/,'never persist raw PIN');
 });
 
 test('editor provides accessible multi-file image, PDF and supplier document uploads without legacy injection',async()=>{
