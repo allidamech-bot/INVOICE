@@ -68,7 +68,7 @@ export function prepareApprovedPartyPatch(vault:VaultPayload,party:ApprovedParty
   if(!id||matches.length!==1||workspaceOf(matches[0]!)!==active)
     throw new Error('Selected customer/supplier is not unique or belongs to another company.');
   const current=matches[0]!,patch=cleanedPatch(party,input);
-  if(!current.updatedAt)throw new Error('Missing party revision; refresh the record and review again.');
+  if(!current.updatedAt||!Number.isFinite(Date.parse(current.updatedAt)))throw new Error('Missing party revision; refresh the record and review again.');
   const before:Record<string,string>={partyName:nameFor(current,party)};
   for(const key of Object.keys(patch))before[key]=String((current as unknown as Record<string,unknown>)[key]??'');
   if(Object.keys(patch).every(key=>before[key]===patch[key]))throw new Error('No customer/supplier changes to approve.');
@@ -101,7 +101,12 @@ export function applyApprovedPartyPatch(vault:VaultPayload,proposal:ApprovedPart
   }
   if(Object.keys(patch).every(key=>proposal.before[key]===patch[key]))
     throw new Error('No approved customer/supplier changes remain.');
-  const updated={...current,...patch,updatedAt:new Date().toISOString()};
+  // Revision must strictly advance even if two saves happen in the same millisecond.
+  // This makes an already-applied approval fail closed on a replay.
+  const prior=Date.parse(current.updatedAt);
+  if(!Number.isFinite(prior))throw new Error('Invalid party revision. Refresh and review again.');
+  const updatedAt=new Date(Math.max(Date.now(),prior+1)).toISOString();
+  const updated={...current,...patch,updatedAt};
   checkDuplicateIdentity(vault,proposal.party,proposal.recordId,active,updated);
   if(proposal.party==='customer')return{...vault,customers:vault.customers.map(row=>
     row.id===proposal.recordId?updated as Customer:row)};
