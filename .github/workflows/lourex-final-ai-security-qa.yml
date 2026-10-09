@@ -23,7 +23,21 @@ jobs:
         run: npm run typecheck
       - name: Build without deployment
         run: npm run build
-      - name: AI endpoint authentication and company scope regressions
-        run: node --test tests/audit-ai-firebase-auth.test.mjs tests/audit-ai-client-token-safety.test.mjs tests/audit-ai-branch-isolation.test.mjs tests/audit-ai-product-scope.test.mjs tests/audit-ai-pwa-cache-contract.test.mjs tests/audit-account-auth-loss-watchdog.test.mjs tests/account-data-isolation-v215.test.mjs
+      - name: AI endpoint authentication and company scope regressions (each test isolated)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            tests/audit-ai-firebase-auth.test.mjs \
+            tests/audit-ai-client-token-safety.test.mjs \
+            tests/audit-ai-branch-isolation.test.mjs \
+            tests/audit-ai-product-scope.test.mjs \
+            tests/audit-ai-pwa-cache-contract.test.mjs \
+            tests/audit-account-auth-loss-watchdog.test.mjs \
+            tests/account-data-isolation-v215.test.mjs; do
+            echo "::group::$file"
+            timeout --signal=TERM 40s node --test "$file"
+            echo "::endgroup::"
+          done
       - name: Complete suite, without waivers
-        run: node --test --test-concurrency=2 tests/*.test.mjs
+        run: timeout --signal=TERM 180s node --test --test-concurrency=2 tests/*.test.mjs
