@@ -7,7 +7,7 @@ const read=path=>readFile(path,'utf8');
 test('v338 editor stability guard loads before executable application runtime',async()=>{
   const html=await read('index.html');
   const guard=html.indexOf('<script src="./editor-stability-v338.js?v=338"></script>');
-  const entry=html.indexOf('<script src="./document-entry-v302.js?v=337-3"></script>');
+  const entry=html.indexOf('<script src="./document-entry-v302.js?v=361"></script>');
   const app=html.indexOf('<script type="module" src="./src/app/index.js"></script>');
   assert.ok(guard>=0,'editor stability guard executable script missing');
   assert.ok(entry>guard,'document runtime must execute after editor stability guard');
