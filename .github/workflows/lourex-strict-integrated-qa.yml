@@ -1,0 +1,39 @@
+name: LOUREX Final Strict Integrated QA
+on:
+  push:
+    branches:
+      - audit/strict-integration-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lourex-strict-integrated-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  full-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build without deployment
+        run: npm run build
+      - name: All historical tests - no exclusions, no waivers
+        shell: bash
+        run: |
+          set +e
+          timeout --signal=TERM 180s node --test --test-concurrency=2 tests/*.test.mjs > "$RUNNER_TEMP/lourex-strict-tests.log" 2>&1
+          status=$?
+          set -e
+          grep -E '^ℹ (tests|pass|fail) [0-9]+' "$RUNNER_TEMP/lourex-strict-tests.log" || true
+          sed -n '/^✖ failing tests:/,$p' "$RUNNER_TEMP/lourex-strict-tests.log" | grep '^✖ ' || true
+          echo "Strict test exit status: $status"
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
