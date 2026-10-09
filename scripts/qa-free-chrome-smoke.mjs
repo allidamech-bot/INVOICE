@@ -96,16 +96,17 @@ try{
     await cdp.call('Page.navigate',{url:'http://127.0.0.1:4173/'});
     const state=await waitUntil(async()=>{
       const response=await cdp.call('Runtime.evaluate',{
-        expression:'JSON.stringify({ready:document.readyState,root:!!document.getElementById("root"),boot:!!document.getElementById("lourex-boot"),rootText:(document.getElementById("root")?.innerText||"").slice(0,240),horizontalOverflow:Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0)-document.documentElement.clientWidth,viewport:document.documentElement.clientWidth})',
+        expression:'JSON.stringify({ready:document.readyState,root:!!document.getElementById("root"),boot:!!document.getElementById("lourex-boot"),loading:!!document.querySelector(".loading-screen"),buttons:document.querySelectorAll("#root button").length,rootText:(document.getElementById("root")?.innerText||"").slice(0,240),horizontalOverflow:Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0)-document.documentElement.clientWidth,viewport:document.documentElement.clientWidth})',
         returnByValue:true
       });
       const value=response.result?.value;
       if(!value)return null;
       const state=JSON.parse(value);
-      return state.ready==='complete'&&!state.boot&&state.root?state:null;
+      return state.ready==='complete'&&!state.boot&&!state.loading&&state.root&&state.buttons>0?state:null;
     },25000,item.name+' render beyond boot screen');
     assert.ok(state.root,'React application root must exist.');
-    assert.ok(!state.boot,'Startup must leave the boot-only screen.');
+    assert.ok(!state.boot&&!state.loading,'Startup must leave all loading screens.');
+    assert.ok(state.buttons>0,'Application must expose actual interactive controls.');
     assert.ok(state.viewport>0,'Viewport width must be measurable.');
     assert.ok(state.horizontalOverflow<=4,item.name+' has '+state.horizontalOverflow+'px page-level horizontal overflow.');
     console.log('PASS '+item.name+': viewport='+state.viewport+', horizontalOverflow='+state.horizontalOverflow+', rendered='+JSON.stringify(state.rootText.slice(0,110)));
@@ -113,5 +114,6 @@ try{
 }finally{
   cdp?.close();
   for(const child of childProcesses.reverse())if(child.exitCode===null)child.kill('SIGTERM');
-  await rm(profile,{recursive:true,force:true});
+  await sleep(750);
+  await rm(profile,{recursive:true,force:true,maxRetries:12,retryDelay:250});
 }
