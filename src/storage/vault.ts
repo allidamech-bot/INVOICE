@@ -289,7 +289,10 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   (['customers','suppliers','savedItems','fxRates'] as const).forEach(key=>restoreScope(key,false));
   (['purchases','supplierPayments','expenses','inventoryMovements','treasuryAccounts','treasuryEntries','treasuryReconciliations','warehouses','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const).forEach(key=>restoreScope(key,true));
 
-  const rawWorkspaces=Array.isArray((vault as any).workspaces)?(vault as any).workspaces:[];
+  // Workspace directory was introduced at schema v20. For earlier vaults, the
+  // top-level company and smart defaults are the only authoritative copy; a
+  // stale/synthetic directory must not replace their historical values.
+  const rawWorkspaces=sourceVersion<20?[]:Array.isArray((vault as any).workspaces)?(vault as any).workspaces:[];
   migrated.workspaces=rawWorkspaces.map((workspace:any,index:number)=>({
     id:stringValue(workspace?.id,index===0?'default':''),name:stringValue(workspace?.name,workspace?.company?.nameEn||workspace?.company?.nameAr||`Workspace ${index+1}`),
     company:{...defaults.company,...structuredClone(workspace?.company&&typeof workspace.company==='object'?workspace.company:{})},
@@ -387,9 +390,31 @@ export async function resumeVaultSession(): Promise<{ key: CryptoKey; vault: Vau
   }
 }
 
+// A caller may update the top-level active company and smart defaults before
+// handing the full vault to saveVault. Persist the matching directory snapshot
+// in the same encrypted write, otherwise the next unlock can silently revert it.
+// This never touches other companies' workspace snapshots.
+function synchronizeActiveWorkspaceOnSave(vault:VaultPayload):VaultPayload{
+  const activeId=vault.appSettings.activeWorkspaceId;
+  const index=vault.workspaces.findIndex(row=>row.id===activeId);
+  if(index<0)return vault;
+  const current=vault.workspaces[index]!;
+  if(JSON.stringify(current.company)===JSON.stringify(vault.company)
+    &&JSON.stringify(current.numbering)===JSON.stringify(vault.appSettings.numbering)
+    &&JSON.stringify(current.smartDefaults)===JSON.stringify(vault.appSettings.smartDefaults))return vault;
+  const updated={...current,
+    company:structuredClone(vault.company),
+    numbering:structuredClone(vault.appSettings.numbering),
+    smartDefaults:structuredClone(vault.appSettings.smartDefaults),
+    updatedAt:new Date().toISOString()
+  };
+  return{...vault,workspaces:vault.workspaces.map((row,i)=>i===index?updated:row)};
+}
+
 export async function saveVault(key: CryptoKey, vault: VaultPayload): Promise<EncryptedVaultRecord> {
   try {
-    const encrypted=await encryptVault(key, { ...vault, schemaVersion: APP_SCHEMA_VERSION });
+    const consistent=synchronizeActiveWorkspaceOnSave(vault);
+    const encrypted=await encryptVault(key, { ...consistent, schemaVersion: APP_SCHEMA_VERSION });
     await putRecord(encrypted);
     return encrypted;
   }
