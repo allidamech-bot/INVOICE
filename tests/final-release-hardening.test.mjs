@@ -19,19 +19,54 @@ test('PWA controller activation reloads only after an explicit user update and r
   assert.match(entry,/reload\.style\.minHeight='44px'/);
 });
 
-test('cloud install revalidates account ownership and workspace safety at the local commit boundary',async()=>{
+test('cloud installation rechecks owner and dirty workspace after asynchronous download',async()=>{
+  const ts=await import('typescript');
+  const vm=await import('node:vm');
   const cloud=await read('src/cloud/firebase.ts');
-  const install=cloud.slice(cloud.indexOf('export async function installCloudVault'),cloud.indexOf('export async function pushLocalVaultToCloud'));
-  const pull=install.indexOf('const remote=await pullCloudVaultFromMeta(uid,meta)');
-  const put=install.indexOf('await putSecurityAndVault(remote.security,remote.vault)');
+  const source=cloud.slice(cloud.indexOf('export async function installCloudVault'),cloud.indexOf('export async function pushLocalVaultToCloud'));
+  assert.ok(source.startsWith('export async function installCloudVault('));
+  const pull=source.indexOf('const remote=await pullCloudVaultFromMeta(uid,meta)');
+  const put=source.indexOf('await putSecurityAndVault(remote.security,remote.vault)');
   assert.ok(pull>=0&&put>pull);
-  const between=install.slice(pull,put);
+  const between=source.slice(pull,put);
   assert.match(between,/requireCurrentUid\(uid\)/);
   assert.match(between,/if\(inlineDraftWorkspaceOpen\(\)\)throw new Error/);
   const guard=cloud.slice(cloud.indexOf('function inlineDraftWorkspaceOpen'),cloud.indexOf('function splitCipher'));
-  assert.match(guard,/\.editor-screen,\.operations-page,\.product-library-pro\.editor-open/);
+  assert.match(guard,/data-lourex-document-editor/);
+  assert.match(guard,/data-lourex-workspace-dirty/);
+  assert.match(guard,/\.editor-screen/);
   assert.match(guard,/\.modal-backdrop/);
-  assert.match(guard,/\.cloud-account-panel,\.cloud-auth-form/);
+  assert.match(guard,/modal&&!\s*modal\.querySelector\('\.cloud-account-panel,\.cloud-auth-form'\)/);
+  assert.doesNotMatch(guard,/document\.querySelector\('\.operations-page'\)/);
+
+  const compiled=ts.default.transpileModule(source,{compilerOptions:{module:ts.default.ModuleKind.CommonJS,target:ts.default.ScriptTarget.ES2022}}).outputText;
+  let activeUid='account-A',dirty=false,afterPull=()=>{},writes=0,anchors=0;
+  const remote={security:{key:'signed'},vault:{cipher:'encrypted'}};
+  const context={exports:{},APP_SCHEMA_VERSION:999,
+    requireCurrentUid:uid=>{if(uid!==activeUid)throw new Error('Account changed');},
+    inlineDraftWorkspaceOpen:()=>dirty,
+    getCloudVaultMeta:async()=>({revision:'rev-2',schemaVersion:1}),
+    pullCloudVaultFromMeta:async()=>{afterPull();return remote;},
+    putSecurityAndVault:async()=>{writes++;},
+    writeSyncAnchor:()=>{anchors++;},
+    notifyCloudApplied:()=>{}
+  };
+  vm.runInNewContext(compiled,context);
+  const install=context.exports.installCloudVault;
+  afterPull=()=>{dirty=true;};
+  await assert.rejects(install('account-A'),/Close the open editor/);
+  assert.equal(writes,0,'a newly opened editor must prevent local vault replacement');
+
+  dirty=false;
+  afterPull=()=>{activeUid='account-B';};
+  await assert.rejects(install('account-A'),/Account changed/);
+  assert.equal(writes,0,'account changes during download must prevent vault overwrite');
+
+  activeUid='account-A';
+  afterPull=()=>{};
+  assert.equal(await install('account-A'),true);
+  assert.equal(writes,1,'safe same-account installation writes exactly once');
+  assert.equal(anchors,1,'only committed installs advance the sync anchor');
 });
 
 test('account surface keeps restore automatic and sign-out returns immediately to the account gateway',async()=>{
