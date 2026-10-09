@@ -28,8 +28,8 @@ test('production canonical origin is accepted when Vercel invokes the function o
     const res=response();
     await handler(req,res);
     assert.notEqual(res.statusCode,403);
-    assert.equal(res.statusCode,400);
-    assert.equal(res.body?.code,'INVALID_CONTEXT');
+    assert.equal(res.statusCode,401);
+    assert.equal(res.body?.code,'AI_AUTH_REQUIRED');
   }finally{
     if(previous===undefined)delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     else process.env.VERCEL_PROJECT_PRODUCTION_URL=previous;

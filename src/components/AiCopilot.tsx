@@ -6,6 +6,7 @@ import { AI_ARCHIVE_TAG, aiProductArchived, buildAiBusinessContext, type AiBusin
 import { buildProductPricingContext, type ProductPricingContext } from '../lib/product-pricing-intelligence.js';
 import { requestAiJson } from '../lib/ai-request.js';
 import { resumeVaultSession } from '../storage/vault.js';
+import { scopeVault } from '../lib/workspaces.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { createBlankDocument, nextDocumentNumber } from '../lib/documents.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
@@ -81,17 +82,37 @@ function groundedText(value:unknown,message:string,fallback:string,max:number):s
 
 function draftReference(vault:VaultPayload,message:string,activeDocument?:LourexDocument|null):DraftReference{
   const q=normalized(message);const tokens=q.split(' ').filter(token=>token.length>=2);const score=(text:string)=>{const value=normalized(text);return tokens.reduce((total,token)=>total+(value.includes(token)?1:0),0);};
-  const activeWorkspace=vault.appSettings.activeWorkspaceId||'default';const inWorkspace=(row:{workspaceId?:string})=>(row.workspaceId||'default')===activeWorkspace;
+  const activeWorkspace=vault.appSettings.activeWorkspaceId||'default',activeBranch=vault.appSettings.activeBranchId||'main';
+  // Master data is company-scoped; financial documents are additionally branch-scoped.
+  const inWorkspace=(row:{workspaceId?:string})=>(row.workspaceId||'default')===activeWorkspace;
+  const inBranch=(row:{workspaceId?:string;branchId?:string})=>inWorkspace(row)&&(row.branchId||'main')===activeBranch;
   const customers=[...vault.customers].filter(inWorkspace).map(customer=>({customer,score:score([customer.companyNameEn,customer.companyNameAr,customer.contactPerson,customer.email,customer.phone].join(' '))})).sort((a,b)=>b.score-a.score||b.customer.updatedAt.localeCompare(a.customer.updatedAt)).slice(0,12).map(({customer})=>({id:customer.id,name:(customer.companyNameEn||customer.companyNameAr||customer.contactPerson||'Customer').trim(),preferredCurrency:customer.preferredCurrency||'',paymentTerms:customer.paymentTerms||''}));
   const items=vault.savedItems.filter(item=>inWorkspace(item)&&!aiProductArchived(item)).map(item=>({item,score:score([item.sku??'',item.descriptionEn,item.descriptionAr,item.hsCode,item.category??'',...(item.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG)].join(' '))})).sort((a,b)=>b.score-a.score||b.item.updatedAt.localeCompare(a.item.updatedAt)).slice(0,18).map(({item})=>({id:item.id,name:(item.descriptionEn||item.descriptionAr||item.sku||'Item').trim(),sku:item.sku??'',descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,unit:item.unit||'',lastUnitPrice:item.lastUnitPrice||'',lastCurrency:item.lastCurrency||''}));
   const smart=vault.appSettings.smartDefaults;const defaults={currency:smart.currency||vault.company.defaultCurrency||'',language:smart.language||vault.company.defaultLanguage||'en',incoterm:smart.incoterm||vault.company.defaultIncoterm||'',paymentTerms:smart.paymentTerms||vault.company.defaultPaymentTerms||'',deliveryTime:smart.deliveryTime||vault.company.defaultDeliveryTime||'',validity:String(vault.company.defaultValidityDays||'')};
-  const referencedDocument=!activeDocument?vault.documents.find(document=>inWorkspace(document)&&document.kind!=='draft'&&messageContainsText(message,document.number))??null:null;
-  const targetDocument=activeDocument&&inWorkspace(activeDocument)?activeDocument:referencedDocument;
+  const referencedDocument=!activeDocument?vault.documents.find(document=>inBranch(document)&&document.kind!=='draft'&&messageContainsText(message,document.number))??null:null;
+  const targetDocument=activeDocument&&inBranch(activeDocument)?activeDocument:referencedDocument;
   const active=targetDocument&&targetDocument.kind!=='draft'?{id:targetDocument.id,number:targetDocument.number,kind:targetDocument.kind,status:targetDocument.status,currency:targetDocument.currency,language:targetDocument.language,customerName:isSupplierDocumentKind(targetDocument.kind)?'':targetDocument.customerSnapshot?.companyNameEn||targetDocument.customerSnapshot?.companyNameAr||'',supplierName:isSupplierDocumentKind(targetDocument.kind)?(targetDocument.supplierSnapshot?.nameEn||targetDocument.supplierSnapshot?.nameAr||''):'',items:targetDocument.items.slice(0,40).map(item=>({id:item.id,descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,quantity:item.quantity,unit:item.unit,unitPrice:item.unitPrice,hsCode:item.hsCode,origin:item.origin,packing:item.packing})),terms:{incoterm:targetDocument.terms.incoterm,paymentTerms:targetDocument.terms.paymentTerms,packing:targetDocument.terms.packing,deliveryTime:targetDocument.terms.deliveryTime,portOfLoading:targetDocument.terms.portOfLoading,finalDestination:targetDocument.terms.finalDestination,countryOfOrigin:targetDocument.terms.countryOfOrigin,validity:targetDocument.terms.validity,remarks:targetDocument.terms.remarks},notes:targetDocument.notes}:null;
   return{customers,items,defaults,activeDocument:active};
 }
 
-export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,vault:VaultPayload,message:string,activeDocument?:LourexDocument|null):AiContextEnvelope{const business=buildAiBusinessContext(vault);return{version:5,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),finance:buildAiFinanceContext(financeSource,message),business,pricing:buildProductPricingContext(vault,message,business.asOf),drafting:draftReference(vault,message,activeDocument)};}
+export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,vault:VaultPayload,message:string,activeDocument?:LourexDocument|null):AiContextEnvelope{
+  // An unlocked account can hold several companies and branches in one encrypted
+  // vault. Never hand the assistant an unscoped financial/business snapshot.
+  const scoped=scopeVault(vault);
+  const selected=activeDocument??financeSource.activeDocument??null;
+  const scopedActiveDocument=selected?scoped.documents.find(doc=>doc.id===selected.id)??null:null;
+  const scopedFinance:AiFinanceSource={
+    documents:scoped.documents,payments:scoped.payments,customers:scoped.customers,
+    activeDocument:scopedActiveDocument
+  };
+  const business=buildAiBusinessContext(scoped);
+  return{
+    version:5,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),
+    finance:buildAiFinanceContext(scopedFinance,message),business,
+    pricing:buildProductPricingContext(scoped,message,business.asOf),
+    drafting:draftReference(scoped,message,scopedActiveDocument)
+  };
+}
 export function capabilityRequiresApproval(capability:AiCapabilityId):boolean{return AI_CAPABILITIES.find(item=>item.id===capability)?.requiresApproval!==false;}
 function safeMetadataPatch(value:any):AiItemProposal['patch']{
   if(!value||typeof value!=='object')return undefined;const patch:NonNullable<AiItemProposal['patch']>={};const fields:[keyof Omit<NonNullable<AiItemProposal['patch']>,'tags'>,number][]=[['sku',48],['descriptionEn',160],['descriptionAr',160],['hsCode',48],['origin',80],['packing',80],['unit',40],['category',80]];for(const [key,max] of fields){const cleaned=bounded(value[key],max);if(cleaned)patch[key]=cleaned as never;}if(Array.isArray(value.tags)){const cleanedTags:string[]=value.tags.map((tag:unknown)=>bounded(tag,40)).filter((tag:string)=>Boolean(tag)&&tag!==AI_ARCHIVE_TAG);patch.tags=Array.from(new Set<string>(cleanedTags)).slice(0,12);}return Object.keys(patch).length?patch:undefined;
@@ -178,9 +199,15 @@ export class AiCopilot extends React.Component<Props,State>{
     const calculation=advisorCalculation(message,this.props.language==='ar'?'ar':'en');if(calculation){const assistant:AiMessage={id:id('assistant'),role:'assistant',text:calculation.summary};this.setState(state=>({busy:false,proposal:pendingDocumentProposal,review:pendingDocumentReview,messages:[...state.messages,assistant]}));this.addAudit('finance.explain','answered');this.pending=false;this.requestController=null;return;}
     try{const resumed=await resumeVaultSession();if(!this.currentRequest(generation,controller))return;if(!resumed)throw new Error(t('Unlock LOUREX before using LOUREX Advisor.','افتح قفل LOUREX قبل استخدام مستشار LOUREX.'));const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};const context=buildAiContext(this.props.screen,this.props.language,financeSource,resumed.vault,message,this.props.activeDocument??null);
     if(pendingDocumentProposal?.capability==='document.updateDraft'&&!context.drafting.activeDocument){
-      const activeWorkspace=resumed.vault.appSettings.activeWorkspaceId||'default';
-      const target=resumed.vault.documents.find(doc=>doc.id===pendingDocumentProposal.documentId&&(doc.workspaceId||'default')===activeWorkspace);
-      if(target)context.drafting.activeDocument=draftReference(resumed.vault,message,target).activeDocument;
+      // A remembered draft might belong to a branch that has since been switched.
+      // Never resurface it from the unscoped encrypted vault, even in a follow-up.
+      const scoped=scopeVault(resumed.vault);
+      const target=scoped.documents.find(doc=>doc.id===pendingDocumentProposal.documentId);
+      if(!target){
+        if(this.currentRequest(generation,controller))this.setState({busy:false,proposal:null,review:null,error:t('The draft is unavailable in the active company or branch. No changes were made.','المسودة غير متاحة في الشركة أو الفرع الحالي. لم يتم إجراء أي تعديل.')});
+        return;
+      }
+      context.drafting.activeDocument=draftReference(scoped,message,target).activeDocument;
     }
     if(pendingDocumentProposal){
       const activeWorkspace=resumed.vault.appSettings.activeWorkspaceId||'default';
@@ -208,7 +235,7 @@ export class AiCopilot extends React.Component<Props,State>{
   };
   private executeItemProposal=async(proposal:AiItemProposal)=>{
     if(proposal.capability==='item.reviewDuplicate'){this.setState({proposal:null,open:false},()=>this.props.onNavigate('items'));return;}
-    await mutateVaultSafely(vault=>{const index=vault.savedItems.findIndex(item=>item.id===proposal.itemId);if(index<0)throw new Error(t('Product no longer exists.','الصنف لم يعد موجودًا.'));const current=vault.savedItems[index]!;let updated:SavedItem;if(proposal.capability==='item.archive'){const tags=Array.from(new Set([...(current.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG),AI_ARCHIVE_TAG]));updated={...current,archived:true,tags,updatedAt:new Date().toISOString()};}else if(proposal.capability==='item.restore'){updated={...current,archived:false,tags:(current.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG),updatedAt:new Date().toISOString()};}else{const patch=proposal.patch??{};const keepArchive=aiProductArchived(current);const proposedTags=patch.tags??current.tags??[];updated={...current,...patch,tags:keepArchive?Array.from(new Set([...proposedTags.filter(tag=>tag!==AI_ARCHIVE_TAG),AI_ARCHIVE_TAG])):proposedTags.filter(tag=>tag!==AI_ARCHIVE_TAG),updatedAt:new Date().toISOString()};const duplicate=findSavedItemDuplicate(vault.savedItems,updated);if(duplicate)throw new Error(t('This metadata would create a duplicate product. Review it in Items instead.','هذه البيانات ستنشئ صنفًا مكررًا. راجع الصنف في قسم الأصناف بدلًا من ذلك.'));}const savedItems=[...vault.savedItems];savedItems[index]=updated;return{...vault,savedItems};});
+    await mutateVaultSafely(vault=>{const index=vault.savedItems.findIndex(item=>item.id===proposal.itemId);if(index<0)throw new Error(t('Product no longer exists.','الصنف لم يعد موجودًا.'));const current=vault.savedItems[index]!;const activeWorkspace=vault.appSettings.activeWorkspaceId||'default';if((current.workspaceId||'default')!==activeWorkspace)throw new Error(t('Product is unavailable in the active company. No changes were made.','الصنف غير متاح في الشركة الحالية. لم يتم إجراء أي تعديل.'));let updated:SavedItem;if(proposal.capability==='item.archive'){const tags=Array.from(new Set([...(current.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG),AI_ARCHIVE_TAG]));updated={...current,archived:true,tags,updatedAt:new Date().toISOString()};}else if(proposal.capability==='item.restore'){updated={...current,archived:false,tags:(current.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG),updatedAt:new Date().toISOString()};}else{const patch=proposal.patch??{};const keepArchive=aiProductArchived(current);const proposedTags=patch.tags??current.tags??[];updated={...current,...patch,tags:keepArchive?Array.from(new Set([...proposedTags.filter(tag=>tag!==AI_ARCHIVE_TAG),AI_ARCHIVE_TAG])):proposedTags.filter(tag=>tag!==AI_ARCHIVE_TAG),updatedAt:new Date().toISOString()};const duplicate=findSavedItemDuplicate(vault.savedItems,updated);if(duplicate)throw new Error(t('This metadata would create a duplicate product. Review it in Items instead.','هذه البيانات ستنشئ صنفًا مكررًا. راجع الصنف في قسم الأصناف بدلًا من ذلك.'));}const savedItems=[...vault.savedItems];savedItems[index]=updated;return{...vault,savedItems};});
   };
   private documentLine=(entry:AiDraftItemInput,vault:VaultPayload,currency:string):DocumentItem=>{const saved=vault.savedItems.find(item=>item.id===entry.savedItemId&&!aiProductArchived(item));if(saved){const line=documentItemFromSavedItem(saved);line.quantity=entry.quantity;line.unit=entry.unit||line.unit;if(entry.unitPrice)line.unitPrice=entry.unitPrice;else if(saved.lastCurrency&&saved.lastCurrency!==currency)line.unitPrice='';return line;}return{id:makeId('item'),descriptionEn:entry.descriptionEn,descriptionAr:entry.descriptionAr,hsCode:'',origin:'',packing:'',quantity:entry.quantity,unit:entry.unit,unitPrice:entry.unitPrice,unitCost:''};};
   private executeDocumentProposal=async(proposal:AiDocumentDraftProposal):Promise<AiDocumentArtifact>=>{
