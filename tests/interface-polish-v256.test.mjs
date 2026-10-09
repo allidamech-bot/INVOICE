@@ -11,9 +11,9 @@ test('home navigation uses a dedicated house icon on desktop and mobile',async()
   ]);
   assert.match(ui,/IconName = 'plus'\|'home'\|/);
   assert.match(ui,/home:<g><path d="m3 10 9-7 9 7"/);
-  assert.match(shell,/navButton\('home','home'/);
-  assert.match(shell,/screen==='home'[\s\S]*?<Icon name="home"\/>/);
-  assert.doesNotMatch(shell,/navButton\('home','menu'/);
+  assert.match(shell,/this\.navItem\('home','home'/);
+  assert.match(shell,/this\.props\.screen==='home'[\s\S]*?<Icon name="home"\/>/);
+  assert.doesNotMatch(shell,/this\.navItem\('home','menu'/);
 });
 
 test('interface polish is responsive, application-scoped and loaded before document output',async()=>{

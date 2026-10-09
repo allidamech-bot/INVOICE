@@ -95,20 +95,28 @@ test('mobile overlays, horizontal discovery and accessibility keep iPhone-safe p
   assert.match(detail,/prefers-reduced-motion:reduce/);
 });
 
-test('operational finance and management reports remain conceptually separate',async()=>{
-  const [finance,reports]=await Promise.all([
+test('operational finance and currency-scoped reports remain conceptually separate',async()=>{
+  const [finance,reports,reportEngine]=await Promise.all([
     read('src/components/FinanceWorkspace.tsx'),
-    read('src/components/ReportsPage.tsx')
+    read('src/components/ReportsPage.tsx'),
+    read('src/lib/reports.ts')
   ]);
   assert.match(finance,/Operational Finance/);
-  assert.match(finance,/Revenue ≠ collections ≠ receivables/);
+  assert.match(finance,/Revenue ≠ collections ≠ cash position/,'operational finance must not equate sales, collections and cash balances');
+  assert.match(finance,/TreasuryLedgerPage/);
+  assert.match(finance,/ReceivablesPage/);
+  assert.match(finance,/SupplierPayablesPage/);
   assert.match(finance,/Operating expense records/);
-  assert.doesNotMatch(finance,/Operating cash out/);
-  assert.match(finance,/Period sales and profitability analysis stays in Reports & Insights/);
+  assert.doesNotMatch(finance,/Operating cash out/,'an unproven cash-flow metric must not masquerade as ledger movements');
+  assert.match(reports,/Management reporting/);
   assert.match(reports,/Sales, collections, receivables and gross profitability with each currency kept separate/);
   assert.match(reports,/Profitability data is incomplete/);
+  assert.match(reports,/profitComplete\?formatMoney\(row\.grossProfit,row\.currency\):'—'/,'incomplete margin evidence must not produce a reported gross profit');
+  assert.match(reportEngine,/export function financialReportByCurrency/);
+  assert.match(reportEngine,/const map=new Map<string,Aggregate>\(\)/);
+  assert.match(reportEngine,/map\.set\(key,row\)/,'report aggregation must remain currency-keyed');
+  assert.match(reportEngine,/grossProfit:row\.profitComplete\?centsString\(row\.grossProfit\):''/,'unverified gross profit must be withheld from report data');
 });
-
 test('help, privacy, terms and about are real product surfaces without invented runtime metadata',async()=>{
   const [shell,info]=await Promise.all([
     read('src/components/AppShell.tsx'),

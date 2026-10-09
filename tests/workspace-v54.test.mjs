@@ -4,15 +4,18 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('documents workspace exposes direct quote and invoice creation without removing search/filter workflow',async()=>{
-  const page=await read('src/components/DocumentsPage.tsx');
-  assert.match(page,/New Quote/);
-  assert.match(page,/New Invoice/);
-  assert.match(page,/onNew\('proforma'\)/);
-  assert.match(page,/onNew\('invoice'\)/);
-  assert.match(page,/Number, customer, item, HS code/);
-  assert.match(page,/Highest total/);
-  assert.match(page,/itemCountLabel/);
+test('documents expose direct quote and invoice creation with functional search and currency-safe sorting',async()=>{
+ const page=await read('src/components/DocumentsPage.tsx');
+ assert.match(page,/onClick=\{\(\)=>this\.props\.onNew\('proforma'\)\}/);
+ assert.match(page,/onClick=\{\(\)=>this\.props\.onNew\('invoice'\)\}/);
+ assert.ok(page.includes("t('Quotation','عرض سعر')"));
+ assert.ok(page.includes("t('Invoice','فاتورة')"));
+ for(const token of ['ta-doc-search-input','ta-doc-filter-button','ta-doc-register-meta','ta-doc-search-clear'])assert.ok(page.includes(token),token);
+ assert.ok(page.includes('Search number, customer, item, HS code'));
+ assert.ok(page.includes('Highest total (by currency)'));
+ assert.ok(page.includes('Lowest total (by currency)'));
+ assert.match(page,/documentSearchText/);
+ assert.match(page,/itemCountLabel/);
 });
 
 test('current service worker ships the template and workspace changes to installed devices',async()=>{

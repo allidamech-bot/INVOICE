@@ -15,23 +15,20 @@ test('documents workspace exposes one-tap resume for the latest unfinished docum
   assert.match(source,/Continue editing/);
 });
 
-test('overview cards act as truthful one-click filters with credit notes separated from standard invoices',async()=>{
-  const source=await read('src/components/DocumentsPage.tsx');
-  assert.match(source,/private setOverview=.*payment:'all',currency:'all',query:''/);
-  assert.match(source,/private overviewActive=.*payment==='all'.*currency==='all'.*!this\.state\.query\.trim\(\)/);
-  assert.match(source,/this\.setOverview\('proforma','all'\)/);
-  assert.match(source,/this\.setOverview\('invoice','all'\)/);
-  assert.match(source,/this\.setOverview\('credit','all'\)/);
-  assert.match(source,/this\.setOverview\('all','draft'\)/);
-  assert.match(source,/this\.setOverview\('all','final'\)/);
-  assert.match(source,/this\.overviewActive\('all','all'\)/);
-  assert.match(source,/this\.overviewActive\('proforma','all'\)/);
-  assert.match(source,/this\.overviewActive\('invoice','all'\)/);
-  assert.match(source,/this\.overviewActive\('credit','all'\)/);
-  assert.match(source,/const invoices=this\.props\.documents\.filter\(doc=>doc\.kind==='invoice'&&doc\.role==='standard'\)\.length/);
-  assert.match(source,/const creditNotes=this\.props\.documents\.filter\(doc=>doc\.role==='credit-note'\)\.length/);
-  assert.match(source,/Credit Notes/);
-  assert.doesNotMatch(source,/const invoices=this\.props\.documents\.filter\(doc=>doc\.kind==='invoice'\)\.length/,'credit notes must not be counted as standard invoices');
+test('summary and document-type tabs remain truthful, scope-safe one-click filters',async()=>{
+ const source=await read('src/components/DocumentsPage.tsx');
+ assert.match(source,/private setOverview=.*payment:'all',currency:'all',query:''/);
+ assert.match(source,/private overviewActive=.*payment==='all'.*currency==='all'.*!this\.state\.query\.trim\(\)/);
+ for(const token of [
+  "this.typeTab('proforma',","this.typeTab('invoice',","this.typeTab('credit',",
+  "this.setOverview('all','draft')","this.setOverview('all','final')",
+  "this.overviewActive('all','all')"
+ ])assert.ok(source.includes(token),token);
+ assert.match(source,/private typeCount=\(kind:DocumentKind\)=>this\.props\.documents\.filter\(doc=>doc\.kind===kind&&doc\.role==='standard'\)\.length/);
+ assert.match(source,/this\.props\.documents\.filter\(doc=>doc\.role==='credit-note'\)\.length/);
+ assert.match(source,/aria-pressed=\{active\}/);
+ assert.ok(source.includes("t('Credit Note','إشعار دائن')"));
+ assert.doesNotMatch(source,/const invoices=this\.props\.documents\.filter\(doc=>doc\.kind==='invoice'\)\.length/,'credit notes must not count as standard invoices');
 });
 
 test('empty filtered workspace provides a direct reset action',async()=>{

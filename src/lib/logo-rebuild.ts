@@ -146,7 +146,7 @@ function button(labelText:string,className:string):HTMLButtonElement{const eleme
 function paragraph(text:string,className:string):HTMLParagraphElement{const element=document.createElement('p');element.className=className;element.textContent=text;return element;}
 function span(text:string,className:string):HTMLSpanElement{const element=document.createElement('span');element.className=className;element.textContent=text;return element;}
 
-async function openManualBackgroundEditor(src:string):Promise<string>{
+export async function openManualBackgroundEditor(src:string):Promise<string>{
   const image=await loadImage(src),naturalWidth=image.naturalWidth||image.width,naturalHeight=image.naturalHeight||image.height;if(!naturalWidth||!naturalHeight)return src;
 
   const maxDimension=1024,scale=Math.min(1,maxDimension/Math.max(naturalWidth,naturalHeight));

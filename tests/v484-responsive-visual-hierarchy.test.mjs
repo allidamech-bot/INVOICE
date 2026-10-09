@@ -22,14 +22,28 @@ test('v484 centers Documents actions and activates premium styling on iPad and d
   assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1120px\)/);
 });
 
-test('v484 is the final production visual owner after v483',async()=>{
+test('v484 is the responsive production owner between mobile repair and final visible UI',async()=>{
   const [pkg,bundler]=await Promise.all([
     read('package.json'),
     read('scripts/v484-bundle-responsive-visual.mjs')
   ]);
-  const scripts=JSON.parse(pkg).scripts;
-  assert.match(scripts.build,/v483-bundle-mobile-density\.mjs && node scripts\/v484-bundle-responsive-visual\.mjs$/);
+  const buildSteps=String(JSON.parse(pkg).scripts.build||'').split(' && ');
+  const owners=[
+    'node scripts/v481-bundle-premium-visual.mjs',
+    'node scripts/v482-bundle-mobile-ux-repair.mjs',
+    'node scripts/v484-bundle-responsive-visual.mjs',
+    'node scripts/v485-bundle-visible-ui.mjs',
+    'node scripts/v544-pdf-a4-output-emergency.mjs'
+  ];
+  let previous=-1;
+  for(const owner of owners){
+    const current=buildSteps.indexOf(owner);
+    assert.ok(current>previous,`missing or incorrectly ordered production owner: ${owner}`);
+    previous=current;
+  }
   assert.match(bundler,/v484-responsive-visual-hierarchy\.css/);
-  assert.match(bundler,/v484Index<=v483Index/);
+  assert.match(bundler,/v484Index<=mobileIndex/);
   assert.match(bundler,/standalonePath='dist\/styles\/v482-mobile-ux-repair\.css'/);
+  assert.match(bundler,/for\(const path of \[bundlePath,standalonePath\]\)/,
+    'responsive hierarchy must be emitted to both application and standalone mobile CSS');
 });

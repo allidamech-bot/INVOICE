@@ -17,17 +17,30 @@ test('v485 gives Dark Mode visibly separated navy surfaces instead of stacked ne
   assert.match(css,/--lx485-canvas:#0a1826/);
   assert.match(css,/--lx485-surface:#12263a/);
   assert.match(css,/--lx485-surface-3:#1d3651/);
-  assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\):not\(\.btn-primary\)[\s\S]*?background-color:var\(--lx485-surface-3\)!important/,'non-primary create controls must no longer be black');
-  assert.match(css,/\.ta-mobile-sheet\{[\s\S]*?background:#102235!important/,'More sheet must own a visible navy base');
-  assert.match(css,/\.ta-mobile-sheet :is\(\.ta-sheet-account,\.ta-sheet-link,\.ta-sheet-theme,\.ta-sheet-theme \.mf-theme-toggle\)[\s\S]*?background:#1a3047!important/,'More sheet items need a distinct elevated layer');
+  assert.match(css,/--lx-ui-canvas:var\(--lx485-canvas\)/,
+    'semantic canvas must use the final palette');
+  assert.match(css,/--ft-surface:var\(--lx485-surface\)!important/,
+    'legacy surface tokens must resolve to the visible final palette');
+  assert.match(css,/:is\(\.modal,\.ta-mobile-sheet,\.ta-create-menu-mobile\)[\s\S]*?background:radial-gradient[\s\S]*?var\(--lx485-surface\)!important/,
+    'More/Create overlays must use the navy surface as their opaque base');
+  assert.match(css,/:is\(\.ta-sheet-link,\.ta-sheet-account,\.ta-sheet-theme,[\s\S]*?background:var\(--lx485-surface-3\)!important/,
+    'More navigation and account cards must stand out from their overlay base');
 });
 
 test('v485 visibly activates the premium dashboard on iPad and desktop',async()=>{
   const css=await read('src/styles/v485-visible-ui-corrections.css');
-  assert.match(css,/@media screen and \(min-width:901px\)[\s\S]*?\.ta-finance-dashboard/,'desktop dashboard owner is missing');
-  assert.match(css,/workspace-shell\.screen-home \.ta-dashboard-header\{[\s\S]*?linear-gradient\(135deg,#18334f 0%,#12283e 52%,#0f2134 100%\)!important/,'desktop hero must use the visible premium surface');
-  assert.match(css,/\.lourex-advisor-card\{[\s\S]*?linear-gradient\(145deg,#183149,#12273b\)!important/,'desktop AI card premium treatment is missing');
-  assert.match(css,/\.ta-sidebar\{[\s\S]*?linear-gradient\(180deg,#10253a,#0c1b2b\)!important/,'desktop/iPad sidebar must leave the old flat black treatment');
+  assert.match(css,/@media screen and \(min-width:901px\)[\s\S]*?\.workspace-shell\.screen-home \.ta-finance-dashboard\{[\s\S]*?max-width:1440px!important/,
+    'desktop dashboard must receive a bounded screen-home layout');
+  assert.match(css,/\.workspace-shell\.screen-home \.ta-dashboard-header\{[\s\S]*?min-height:180px!important[\s\S]*?background:radial-gradient/,
+    'desktop hero must retain measured height and a distinctive layered surface');
+  assert.match(css,/\.workspace-shell\.screen-home \.ta-kpi-grid\{display:grid!important;grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/,
+    'full-width dashboard must show four readable KPI columns');
+  assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1150px\)[\s\S]*?\.ta-kpi-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,
+    'iPad / narrow desktop KPI layout must adapt to two columns');
+  assert.match(css,/:is\(\.ta-sidebar,\.ta-topbar\)\{[\s\S]*?background:var\(--lx485-canvas-2\)!important/,
+    'desktop navigation must not fall back to a flat black background');
+  assert.match(css,/:is\(\.lx-notification-center,\.lx-notification-summary,\.lourex-advisor-card,\.lourex-ai-panel,\.ai-customer-proposal,\.lx-inventory-planning\)\{[\s\S]*?background:var\(--lx485-surface\)!important/,
+    'AI advisor and supporting dashboard cards must use the premium semantic surface');
 });
 
 test('v485 is the final production visual owner after v484',async()=>{

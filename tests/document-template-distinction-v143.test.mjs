@@ -5,10 +5,11 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const MODERN=['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('v143 is retired and its distinction contract lives in the canonical layer',async()=>{
-  const html=await read('index.html');
-  assert.equal(html.indexOf('document-template-distinction-v143.css'),-1);
-  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
+test('v143 is retired and the canonical A4 owner remains active alongside the current screen shell',async()=>{
+ const html=await read('index.html');
+ assert.equal(html.includes('document-template-distinction-v143.css'),false);
+ assert.equal(html.split('href="./styles/document-premium-redesign-v141.css"').length-1,1);
+ assert.ok(html.includes('tailadmin-shell-v320.css'));
 });
 
 test('all fourteen modern template identities receive explicit v143 art direction',async()=>{

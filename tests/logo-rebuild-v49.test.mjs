@@ -48,13 +48,17 @@ test('AI logo workflow keeps the bounded touch editor available as a fallback ut
   const [settings,rebuild,css,sw]=await Promise.all([
     readFile('src/components/SettingsModal.tsx','utf8'),
     readFile('src/lib/logo-rebuild.ts','utf8'),
-    readFile('src/styles/company-assets.css','utf8'),
+    readFile('src/styles/tailadmin-settings-v320.css','utf8'),
     readFile('public/sw.js','utf8')
   ]);
   assert.match(settings,/AI Remove Background/);
   assert.match(settings,/إزالة الخلفية بالذكاء الاصطناعي/);
   assert.match(settings,/rebuildLogoWithoutBackgroundDataUrl\(source\)/);
-  assert.match(rebuild,/openManualBackgroundEditor/);
+  assert.match(rebuild,/export async function openManualBackgroundEditor/);
+  assert.match(settings,/openManualBackgroundEditor\(source\)/);
+  assert.match(settings,/onClick=\{\(\)=>void this\.editLogoManually\(\)\}/);
+  assert.match(settings,/if\(!edited\|\|edited===source\)/,'cancel must not mutate the company logo');
+  assert.match(settings,/logoRebuiltDataUrl:edited,logoMode:'rebuild'/,'manual edits must remain a reviewable draft until explicit Save');
   assert.match(rebuild,/const maxDimension=1024/);
   assert.match(rebuild,/historyLimit=pixelCount>750_000\?4:pixelCount>400_000\?6:8/);
   assert.doesNotMatch(rebuild,/history\.length>12/);
@@ -69,8 +73,13 @@ test('AI logo workflow keeps the bounded touch editor available as a fallback ut
   assert.match(rebuild,/Undo/);
   assert.match(rebuild,/اعتماد هذا الشعار/);
   assert.match(rebuild,/finish\(crop\(canvas,pixels\)\)/);
-  assert.match(css,/logo-touch-editor-overlay/);
-  assert.match(css,/touch-action:none/);
+  assert.match(css,/\.logo-touch-editor-overlay[\s\S]*position:fixed/);
+  assert.match(css,/z-index:var\(--lourex-z-critical,1500\)/);
+  assert.match(css,/\.logo-touch-editor-sheet[\s\S]*max-height:calc\(100dvh - 24px\)/);
+  assert.match(css,/\.logo-touch-editor-canvas[\s\S]*touch-action:none/);
+  assert.match(css,/safe-area-inset-bottom/);
+  assert.match(css,/\.logo-touch-editor-apply/);
+  assert.match(css,/min-height:44px/);
   assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/lib\/logo-rebuild\.js/);
 });
