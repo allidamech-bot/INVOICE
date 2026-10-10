@@ -120,9 +120,9 @@
     }catch{clearWorkspaceContinuity();return '';}
   }
   function navigationButtonFor(screen){
-    const index=WORKSPACE_ORDER.indexOf(screen);if(index<0)return null;
-    const button=Array.from(document.querySelectorAll('.ta-sidebar-nav .ta-nav-item'))[index];
-    return button instanceof HTMLButtonElement?button:null;
+    if(!WORKSPACE_ORDER.includes(screen))return null;
+    const button=document.querySelector(`.ta-sidebar-nav .ta-nav-item[data-lourex-workspace="${screen}"]`);
+    return button instanceof HTMLButtonElement&&!button.disabled?button:null;
   }
   function installWorkspaceContinuity(){
     const wanted=readWorkspaceContinuity(),deadline=Date.now()+12000;

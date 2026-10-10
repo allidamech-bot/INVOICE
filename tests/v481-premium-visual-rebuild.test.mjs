@@ -37,9 +37,10 @@ test('v481 premium system provides one coherent dark/light mobile palette and co
   assert.match(css,/--ft-accent:var\(--lx481-primary\)!important/,'legacy utility accent is not bridged into v481');
   assert.match(css,/\.ta-mobile-nav\{[\s\S]*?border-radius:28px!important/,'premium floating mobile dock contract is missing');
   assert.match(css,/\.ta-dashboard-header\{[\s\S]*?min-height:196px!important/,'compact command-center hero contract is missing');
-  assert.match(css,/\.ta-kpi-card:nth-child\(2\).*?--lx481-tone:var\(--lx481-emerald\)/s,'semantic KPI differentiation is missing');
-  assert.match(css,/\.ta-kpi-card:nth-child\(3\).*?--lx481-tone:var\(--lx481-violet\)/s,'semantic violet KPI differentiation is missing');
-  assert.match(css,/\.ta-kpi-card:nth-child\(4\).*?--lx481-tone:var\(--lx481-rose\)/s,'semantic rose KPI differentiation is missing');
+  const current=await read('src/styles/v485-visible-ui-corrections.css');
+  assert.match(current,/\.ta-kpi-card:nth-child\(2\)\{--lx481-tone:var\(--lx485-blue\)/);
+  assert.match(current,/\.ta-kpi-card:nth-child\(3\)\{--lx481-tone:#9690df/);
+  assert.match(current,/\.ta-kpi-card:nth-child\(4\)\{--lx481-tone:#dd7e99/);
   assert.match(css,/\.ta-empty-state,.ta-chart-empty,.ta-dashboard-empty/,'intentional empty-state treatment is missing');
   assert.match(css,/min-height:44px/,'mobile touch-target floor is missing');
 });

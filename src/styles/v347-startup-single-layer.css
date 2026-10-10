@@ -16,7 +16,7 @@
     min-height:100dvh!important;
     overflow:hidden!important;
     overscroll-behavior:none!important;
-    background:var(--boot-bg,var(--ft-canvas,#0D0D0D))!important;
+    background:var(--boot-bg,var(--ft-canvas,#0a1826))!important;
   }
 
   /* Retire historical background pseudo-layers. They were visually identical in
@@ -57,7 +57,7 @@
     overflow:hidden!important;
     border:0!important;
     border-radius:0!important;
-    background:var(--boot-bg,var(--ft-canvas,#0D0D0D))!important;
+    background:var(--boot-bg,var(--ft-canvas,#0a1826))!important;
     background-image:none!important;
     color:var(--boot-text,var(--ft-text-strong,#f7fbff))!important;
     box-shadow:none!important;

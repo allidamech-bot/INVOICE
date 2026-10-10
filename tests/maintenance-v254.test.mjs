@@ -20,7 +20,9 @@ test('v254 keeps report filters truthful and accessible',async()=>{
     read('src/components/ReportsPage.tsx'),
     read('src/components/ReceivablesPage.tsx')
   ]);
-  assert.match(reportsPage,/currencies\.includes\(requestedCurrency\)/);
+  assert.match(reportsPage,/const selected=requestedCurrency;/);
+  assert.match(reportsPage,/selected&&!currencies\.includes\(selected\)/);
+  assert.match(reportsPage,/option value=\{selected\}/);
   assert.match(reportsPage,/aria-label=\{t\('Search customer performance'/);
   assert.match(reportsPage,/alt=\{companyDisplayName\(this\.props\.company\)\}/);
   assert.match(receivablesPage,/aria-label=\{t\('Filter customer accounts'/);

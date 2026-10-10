@@ -21,14 +21,19 @@ test('final document revision persists a protected final snapshot before opening
   const app = await read('src/app/App.tsx');
   const lifecycle = await read('src/lib/document-lifecycle.ts');
   assert.match(editor, /private unlockFinal=async\(\)=>/);
-  assert.match(editor, /await this\.props\.onBeginRevision\(structuredClone\(this\.state\.doc\)\)/);
+  assert.match(editor,/if\(this\.revisionPending\)return/);
+  assert.match(editor,/const doc=await this\.props\.onBeginRevision\(this\.state\.doc\)/);
+  assert.match(editor,/finally\{this\.revisionPending=false;\}/);
   assert.match(editor, /saving:true,saveState:'saving'/);
   assert.match(editor, /onConfirm=\{\(\)=>void this\.unlockFinal\(\)\}/);
   const snapshotAt = app.indexOf('const revision=createRevisionRecord(current)');
   const persistAt = app.indexOf('documentRevisions=[...vault.documentRevisions,revision]');
   assert.ok(snapshotAt >= 0, 'final revision snapshot is missing');
   assert.ok(persistAt > snapshotAt, 'final revision snapshot must be persisted before the revision workflow completes');
-  assert.match(lifecycle, /snapshot:structuredClone\(doc\)/);
+  assert.match(lifecycle,/snapshot:cloneDocumentForRevision\(doc,false\)/);
+  assert.match(lifecycle,/const clone=structuredClone\(\{\.\.\.doc,attachments:\[\]\}\)/);
+  assert.match(lifecycle,/attachmentAuditMetadata\(doc\.attachments\)/);
+  assert.match(lifecycle,/\.\.\.cloneDocumentForRevision\(doc,true\),status:'draft'/);
   assert.match(lifecycle, /status:'draft',revision:documentRevision\(doc\)\+1/);
 });
 

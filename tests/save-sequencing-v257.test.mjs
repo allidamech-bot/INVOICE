@@ -15,7 +15,9 @@ test('autosave completion cannot mark newer in-flight edits as saved by timestam
 test('back action waits for a stable latest snapshot before leaving the editor',()=>{
   const flow=source.slice(source.indexOf('private saveAndClose=async()=>'),source.indexOf('private openReview='));
   assert.match(flow,/for\(;;\)/);
-  assert.match(flow,/const snapshot=structuredClone\(this\.state\.doc\)/);
+  assert.match(flow,/const revisionAtStart=this\.editRevision/);
+  assert.match(flow,/const snapshot=this\.state\.doc/);
+  assert.ok(flow.indexOf('const snapshot=this.state.doc')<flow.indexOf('await this.props.onSave(snapshot,true)'),'immutable snapshot must be captured before asynchronous save');
   assert.match(flow,/await this\.props\.onSave\(snapshot,true\)/);
   assert.match(flow,/if\(this\.editRevision!==revisionAtStart\)continue/);
   assert.match(flow,/this\.props\.onClose\(\)/);

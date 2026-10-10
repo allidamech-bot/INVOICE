@@ -1,6 +1,7 @@
+import { handleTabKeyDown } from '../lib/tab-navigation.js';
 import type { AppSettings, ApprovalPolicyRecord, ApprovalRequestRecord, BranchRecord, CompanySettings, DocumentEventRecord, TeamMemberRecord, WorkspaceRecord } from '../types.js';
 import { fileToRawDataUrl } from '../lib/files.js';
-import { rebuildLogoWithoutBackgroundDataUrl } from '../lib/logo-rebuild.js';
+import { rebuildLogoWithoutBackgroundDataUrl, openManualBackgroundEditor } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
 import { normalizePinInput } from '../lib/account-security.js';
 import { backupPasswordIssue } from '../lib/backup.js';
@@ -45,6 +46,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private assetPreparationId=0;
   private settingsContent:HTMLElement|null=null;
   private settingsTouchStart:{tab:State['tab'];x:number;y:number;at:number}|null=null;
+  private closeRequestedDuringBusy=false;
   private settingsPointerStart:{tab:State['tab'];x:number;y:number;pointerId:number;at:number}|null=null;
   private lastSettingsTouchActivation:{tab:State['tab'];at:number}|null=null;
   constructor(props:Props){
@@ -54,9 +56,10 @@ export class SettingsModal extends React.Component<Props,State> {
     this.state={scope:'settings',tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',backupPin:'',backupPassword:'',backupPasswordConfirm:'',restorePassword:'',restoreFile:null,confirmLocalRestore:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original',activityLogOpen:false};
   }
 
-  componentDidUpdate(prev:Props):void{
-    if(!this.props.open&&prev.open)this.assetPreparationId+=1;
+  componentDidUpdate(prev:Props,previousState:State):void{
+    if(!this.props.open&&prev.open){this.assetPreparationId+=1;this.closeRequestedDuringBusy=false;}
     if(this.props.open&&!prev.open){
+      this.closeRequestedDuringBusy=false;
       const scope=consumeSettingsScope();
       let requestedTab:State['tab']='company';
       try{if(sessionStorage.getItem('lourex-settings-tab')==='workspaces')requestedTab='workspaces';sessionStorage.removeItem('lourex-settings-tab');}catch{}
@@ -65,8 +68,13 @@ export class SettingsModal extends React.Component<Props,State> {
       const preparationId=++this.assetPreparationId;
       this.setState({scope,tab:requestedTab,company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',backupPin:'',backupPassword:'',backupPasswordConfirm:'',restorePassword:'',restoreFile:null,confirmLocalRestore:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
     }
+    if(this.props.open&&previousState.busy&&!this.state.busy&&this.closeRequestedDuringBusy){
+      this.closeRequestedDuringBusy=false;
+      this.requestClose();
+    }
   }
 
+  private switchScope=(scope:SettingsScope)=>{if(this.state.busy||this.state.cleaningAssets)return;this.setState({scope,error:'',message:''});this.settingsContent?.scrollTo({top:0});};
   private hasUnsavedSettings=()=>JSON.stringify(this.state.company)!==this.state.companyInitial||JSON.stringify(this.state.appSettings)!==this.state.documentsInitial;
   private selectSettingsTab=(tab:State['tab'])=>this.setState({tab,error:'',message:'',savedSection:null},()=>{
     if(this.settingsContent)this.settingsContent.scrollTop=0;
@@ -104,7 +112,7 @@ export class SettingsModal extends React.Component<Props,State> {
     if(recent?.tab===tab&&Date.now()-recent.at<120)return;
     this.activateSettingsTabFromTouch(tab);
   };
-  private requestClose=()=>{if(this.state.busy)return;if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
+  private requestClose=()=>{if(this.state.busy){this.closeRequestedDuringBusy=true;this.setState({message:t('Finishing the current operation before closing…','جارٍ إكمال العملية الحالية قبل الإغلاق…'),error:''});return;}if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
   private discardAndClose=()=>this.setState({confirmClose:false},this.props.onClose);
   private setCompany=(key:keyof CompanySettings,value:any)=>this.setState({company:{...this.state.company,[key]:value},savedSection:null,message:'',error:''});
   private setBank=(key:keyof CompanySettings['bank'],value:string)=>this.setState({company:{...this.state.company,bank:{...this.state.company.bank,[key]:value}},savedSection:null,message:'',error:''});
@@ -164,6 +172,31 @@ export class SettingsModal extends React.Component<Props,State> {
     }catch(e){
       if(!this.props.open||preparationId!==this.assetPreparationId)return;
       this.setState({cleaningAssets:false,processingAsset:null,error:e instanceof Error?e.message:t('Unable to remove the background with AI.','تعذرت إزالة الخلفية بالذكاء الاصطناعي.')});
+    }
+  };
+  private editLogoManually=async()=>{
+    if(this.state.busy||this.state.cleaningAssets)return;
+    const source=this.state.logoOriginalDataUrl||this.state.company.logoDataUrl;
+    if(!source||!source.startsWith('data:image/')){
+      this.setState({error:t('Upload or save the original artwork first.','ارفع أو احفظ الصورة الأصلية أولًا.')});
+      return;
+    }
+    const preparationId=++this.assetPreparationId;
+    this.setState({cleaningAssets:true,processingAsset:'logoDataUrl',error:'',message:'',savedSection:null});
+    try{
+      const edited=await openManualBackgroundEditor(source);
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      if(!edited||edited===source){this.setState({cleaningAssets:false,processingAsset:null});return;}
+      this.setState(state=>({
+        company:{...state.company,logoDataUrl:edited},
+        logoRebuiltDataUrl:edited,logoMode:'rebuild',
+        cleaningAssets:false,processingAsset:null,savedSection:null,
+        message:t('Manual logo cleanup ready. Review the preview and press Save to use it on documents.','تم تجهيز الشعار بعد التنظيف اليدوي. راجع المعاينة ثم اضغط حفظ لاستخدامه في المستندات.'),
+        error:''
+      }));
+    }catch(e){
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      this.setState({cleaningAssets:false,processingAsset:null,error:e instanceof Error?e.message:t('Unable to edit the logo background.','تعذر تعديل خلفية الشعار.')});
     }
   };
   private rebuildLogo=async()=>{await this.rebuildAsset('logoDataUrl');};
@@ -301,7 +334,8 @@ export class SettingsModal extends React.Component<Props,State> {
   private saveButton(section:'company'|'documents'):any{
     const saved=this.state.savedSection===section;
     const processing=section==='company'&&this.state.cleaningAssets;
-    return <Button icon={saved?'check':'save'} variant="primary" disabled={this.state.busy||processing} onClick={section==='company'?this.saveCompany:this.saveDocuments}>{processing?t('Processing artwork…','جارٍ معالجة الصور…'):this.state.busy?t('Saving…','جارٍ الحفظ…'):saved?t('Saved','تم الحفظ'):t('Save','حفظ')}</Button>;
+    const saveLabel=section==='company'?t('Save company settings','حفظ إعدادات الشركة'):t('Save workspace preferences','حفظ تفضيلات مساحة العمل');
+    return <Button aria-label={saveLabel} title={saveLabel} icon={saved?'check':'save'} variant="primary" disabled={this.state.busy||processing} onClick={section==='company'?this.saveCompany:this.saveDocuments}>{processing?t('Processing artwork…','جارٍ معالجة الصور…'):this.state.busy?t('Saving…','جارٍ الحفظ…'):saved?t('Saved','تم الحفظ'):saveLabel}</Button>;
   }
 
   private artworkControl(field:AssetField,label:string,hasAsset:boolean):any{
@@ -315,7 +349,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const rebuild=()=>field==='logoDataUrl'?this.rebuildLogo():field==='signatureDataUrl'?this.rebuildSignature():this.rebuildStamp();
     const removeText=field==='logoDataUrl'?t('Remove logo','إزالة الشعار'):field==='signatureDataUrl'?t('Remove signature','إزالة التوقيع'):t('Remove stamp','إزالة الختم');
     const chooseText=hasAsset?t('Replace image','استبدال الصورة'):t('Choose image','اختيار صورة');
-    return <div className="ta-settings-asset"><label className="ta-settings-asset-upload"><span>{label}</span><div className="ta-settings-asset-preview">{hasAsset?<img src={current} alt={label}/>:<Icon name="upload"/>}</div><input type="file" aria-label={chooseText} disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset(field,e.currentTarget)}/><span className="ta-settings-asset-trigger" aria-hidden="true"><Icon name="upload"/><span>{chooseText}</span></span></label>{original?<><div className="ta-settings-segmented" role="group" aria-label={t('Artwork processing','معالجة الصورة')}><button type="button" className={mode==='original'?'is-active':''} onClick={()=>setMode('original')}>{t('Original','الأصلي')}</button>{rebuilt?<button type="button" className={mode==='rebuild'?'is-active':''} onClick={()=>setMode('rebuild')}>{t('AI transparent','شفاف AI')}</button>:null}</div><button type="button" className="ta-settings-link-action" disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void rebuild()}>{processing?t('Removing background with AI…','جارٍ إزالة الخلفية بالذكاء الاصطناعي…'):t('AI Remove Background','إزالة الخلفية بالذكاء الاصطناعي')}</button>{rebuilt&&mode!=='rebuild'?<button type="button" className="ta-settings-link-action" onClick={()=>setMode('rebuild')}>{t('Use AI version','استخدام نسخة AI')}</button>:null}</>:null}{hasAsset?<button type="button" className="ta-settings-link-action is-danger" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset(field)}>{removeText}</button>:null}</div>;
+    return <div className="ta-settings-asset"><label className="ta-settings-asset-upload"><span>{label}</span><div className="ta-settings-asset-preview">{hasAsset?<img src={current} alt={label}/>:<Icon name="upload"/>}</div><input type="file" aria-label={chooseText} disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset(field,e.currentTarget)}/><span className="ta-settings-asset-trigger" aria-hidden="true"><Icon name="upload"/><span>{chooseText}</span></span></label>{original?<><div className="ta-settings-segmented" role="group" aria-label={t('Artwork processing','معالجة الصورة')}><button type="button" className={mode==='original'?'is-active':''} onClick={()=>setMode('original')}>{t('Original','الأصلي')}</button>{rebuilt?<button type="button" className={mode==='rebuild'?'is-active':''} onClick={()=>setMode('rebuild')}>{t('AI transparent','شفاف AI')}</button>:null}</div><button type="button" className="ta-settings-link-action" disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void rebuild()}>{processing?t('Removing background with AI…','جارٍ إزالة الخلفية بالذكاء الاصطناعي…'):t('AI Remove Background','إزالة الخلفية بالذكاء الاصطناعي')}</button>{field==='logoDataUrl'?<button type="button" className="ta-settings-link-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>void this.editLogoManually()}>{t('Edit logo background manually','تعديل خلفية الشعار يدويًا')}</button>:null}{rebuilt&&mode!=='rebuild'?<button type="button" className="ta-settings-link-action" onClick={()=>setMode('rebuild')}>{t('Use AI version','استخدام نسخة AI')}</button>:null}</>:null}{hasAsset?<button type="button" className="ta-settings-link-action is-danger" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset(field)}>{removeText}</button>:null}</div>;
   }
 
   private pageHeader(kicker:string,title:string,description:string,action?:any):any{return <header className="ta-settings-page-header"><div><span>{kicker}</span><h3>{title}</h3><p>{description}</p></div>{action?<div className="ta-settings-page-action">{action}</div>:null}</header>;}
@@ -372,21 +406,24 @@ export class SettingsModal extends React.Component<Props,State> {
   </div>;}
 
   private securitySettings(s:AppSettings,account:CloudUser|null):any{return <div className="ta-settings-page ta-security-page">
-    {this.pageHeader(t('Security','الأمان'),t('Security & recovery','الأمان والاستعادة'),t('Session locking, device PIN and encrypted cloud recovery. Sign out is available from More.','قفل الجلسة ورمز PIN والاستعادة السحابية المشفّرة. تسجيل الخروج متاح من صفحة المزيد.'))}
+    {this.pageHeader(t('Security','الأمان'),t('Security & recovery','الأمان والاستعادة'),t('Session locking, device PIN and encrypted cloud recovery. Sign out is available from More.','قفل الجلسة ورمز PIN والاستعادة السحابية المشفّرة. تسجيل الخروج متاح من قائمة المزيد.'))}
     {this.card(t('Session protection','حماية الجلسة'),t('Choose how long an inactive trusted device stays unlocked, or lock this workspace immediately.','اختر مدة بقاء الجهاز الموثوق مفتوحًا عند عدم الاستخدام، أو اقفل مساحة العمل فورًا.'),<div className="form-grid two"><Field label={t('Auto Lock','القفل التلقائي')}><Select value={String(s.autoLockMinutes)} onChange={(e:any)=>this.setAutoLock(Number(e.target.value) as AppSettings['autoLockMinutes'])}><option value="0">{t('Never','أبدًا')}</option><option value="5">{t('After 5 minutes','بعد 5 دقائق')}</option><option value="15">{t('After 15 minutes','بعد 15 دقيقة')}</option><option value="30">{t('After 30 minutes','بعد 30 دقيقة')}</option></Select></Field><div className="ta-settings-inline-action"><Button variant="secondary" disabled={this.state.busy} onClick={this.lockNow}>{t('Lock Now','قفل الآن')}</Button></div></div>,this.saveButton('documents'))}
     {this.card(t('Encrypted backup & recovery','النسخ المشفّر والاستعادة'),account?t('Your encrypted workspace is protected automatically. Use recovery only when you intentionally need the cloud copy.','تتم حماية مساحة العمل المشفّرة تلقائيًا. استخدم الاستعادة فقط عندما تريد نسخة السحابة عن قصد.'):t('Sign in to your LOUREX account before using cloud recovery.','سجّل الدخول إلى حساب LOUREX قبل استخدام الاستعادة السحابية.'),<div className="ta-recovery-status"><span className={`ta-account-dot ${account?'is-online':'is-offline'}`}/><div><small>{account?t('Automatic protection active','الحماية التلقائية مفعّلة'):t('Cloud recovery unavailable','الاستعادة السحابية غير متاحة')}</small><strong>{account?.email||t('LOUREX account required','يتطلب حساب LOUREX')}</strong></div>{account?<Button variant="secondary" disabled={this.state.busy} onClick={()=>this.setState({confirmCloudRestore:true,error:'',message:''})}>{this.state.accountAction==='restore'?t('Restoring…','جارٍ الاسترجاع…'):t('Restore from Cloud','استرجاع من السحابة')}</Button>:null}</div>)}
-    {this.card(t('Device PIN','رمز PIN للجهاز'),t('The PIN protects the encrypted vault on this device. Every account sign-in and every new page start or reload requires the PIN before the workspace opens. Auto Lock also protects an already-open session after inactivity.','يحمي رمز PIN الخزنة المشفّرة على هذا الجهاز. يتطلب كل تسجيل دخول للحساب وكل تشغيل جديد للصفحة أو إعادة تحميل إدخال PIN قبل فتح مساحة العمل. كما يحمي القفل التلقائي الجلسة المفتوحة بعد فترة من عدم النشاط.'),<><div className="form-grid one ta-pin-grid"><Field label={t('Current PIN','رمز PIN الحالي')}><Input inputMode="numeric" type="password" autoComplete="current-password" value={this.state.currentPin} onChange={(e:any)=>this.setState({currentPin:normalizePinInput(e.target.value),recoveryKey:'',message:'',error:''})}/></Field><Field label={t('New PIN','رمز PIN الجديد')}><Input inputMode="numeric" type="password" autoComplete="new-password" value={this.state.newPin} onChange={(e:any)=>this.setState({newPin:normalizePinInput(e.target.value)})}/></Field><Field label={t('Confirm New PIN','تأكيد رمز PIN الجديد')}><Input inputMode="numeric" type="password" autoComplete="new-password" value={this.state.confirmPin} onChange={(e:any)=>this.setState({confirmPin:normalizePinInput(e.target.value)})}/></Field></div><div className="ta-settings-card-actions"><Button variant="primary" disabled={this.state.busy} onClick={this.changePin}>{t('Change PIN','تغيير رمز PIN')}</Button><Button disabled={this.state.busy} onClick={()=>void this.createRecoveryKey()}>{t('Create / replace recovery key','إنشاء / استبدال مفتاح الاسترداد')}</Button></div>{this.state.recoveryKey?<div className="ta-pin-recovery-setup is-settings"><strong>{t('Save your new recovery key now','احفظ مفتاح الاسترداد الجديد الآن')}</strong><p>{t('This key can reset your PIN on another device. Replacing it disables every previous recovery key. Keep it private.','يسمح هذا المفتاح بإعادة تعيين PIN على جهاز آخر. استبداله يعطّل كل مفاتيح الاسترداد السابقة. احتفظ به سرًا.')}</p><code dir="ltr">{this.state.recoveryKey}</code><Button disabled={this.state.busy} onClick={()=>void this.copyRecoveryKey()}>{t('Copy recovery key','نسخ مفتاح الاسترداد')}</Button></div>:null}</>)}
+    {this.card(t('Device PIN','رمز PIN للجهاز'),t('The PIN protects the encrypted vault on this device. A normal refresh keeps a valid active protected session open. The PIN is required again after manual lock, sign-out and later sign-in, auto-lock timeout, or when the protected session is no longer valid.','يحمي رمز PIN الخزنة المشفّرة على هذا الجهاز. يحافظ التحديث العادي على الجلسة المحمية الصالحة والمفتوحة. يُطلب الرمز مجددًا بعد القفل اليدوي، أو تسجيل الخروج ثم الدخول، أو انتهاء مهلة القفل التلقائي، أو فقدان صلاحية الجلسة المحمية.'),<><div className="form-grid one ta-pin-grid"><Field label={t('Current PIN','رمز PIN الحالي')}><Input inputMode="numeric" type="password" autoComplete="current-password" value={this.state.currentPin} onChange={(e:any)=>this.setState({currentPin:normalizePinInput(e.target.value),recoveryKey:'',message:'',error:''})}/></Field><Field label={t('New PIN','رمز PIN الجديد')}><Input inputMode="numeric" type="password" autoComplete="new-password" value={this.state.newPin} onChange={(e:any)=>this.setState({newPin:normalizePinInput(e.target.value)})}/></Field><Field label={t('Confirm New PIN','تأكيد رمز PIN الجديد')}><Input inputMode="numeric" type="password" autoComplete="new-password" value={this.state.confirmPin} onChange={(e:any)=>this.setState({confirmPin:normalizePinInput(e.target.value)})}/></Field></div><div className="ta-settings-card-actions"><Button variant="primary" disabled={this.state.busy} onClick={this.changePin}>{t('Change PIN','تغيير رمز PIN')}</Button><Button disabled={this.state.busy} onClick={()=>void this.createRecoveryKey()}>{t('Create / replace recovery key','إنشاء / استبدال مفتاح الاسترداد')}</Button></div>{this.state.recoveryKey?<div className="ta-pin-recovery-setup is-settings"><strong>{t('Save your new recovery key now','احفظ مفتاح الاسترداد الجديد الآن')}</strong><p>{t('This key can reset your PIN on another device. Replacing it disables every previous recovery key. Keep it private.','يسمح هذا المفتاح بإعادة تعيين PIN على جهاز آخر. استبداله يعطّل كل مفاتيح الاسترداد السابقة. احتفظ به سرًا.')}</p><code dir="ltr">{this.state.recoveryKey}</code><Button disabled={this.state.busy} onClick={()=>void this.copyRecoveryKey()}>{t('Copy recovery key','نسخ مفتاح الاسترداد')}</Button></div>:null}</>)}
   </div>;}
 
   render():any{
     const c=this.state.company,s=this.state.appSettings;
     const account=this.props.cloudUser;
     const accountScope=this.state.scope==='account';
-    const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['workspaces',t('Companies','الشركات'),'users',t('Companies and branches','الشركات والفروع')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['access',t('Access','الوصول'),'users',t('Team and approvals','الفريق والموافقات')],['data',t('Data Center','مركز البيانات'),'file',t('Backup and activity','النسخ والنشاط')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
+    const tabItems=([['company',t('Preferences','التفضيلات'),'settings',t('Language and defaults','اللغة والإعدادات')],['workspaces',t('Companies','الشركات'),'users',t('Companies and branches','الشركات والفروع')],['commercial',t('Commercial & banking','التجارة والبنوك'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents & artwork','المستندات والصور'),'file',t('Output and numbering','الإخراج والترقيم')],['access',t('Team & approvals','الفريق والموافقات'),'users',t('Team and approvals','الفريق والموافقات')],['data',t('Data Center','مركز البيانات'),'file',t('Backup and activity','النسخ والنشاط')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className={`ta-settings-shell ${accountScope?'is-account':'is-settings'} ${this.state.accountAction==='restore'?'is-restoring':''}`}>
-        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')} onClickCapture={this.handleSettingsNavClickCapture}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} data-settings-tab={id} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onPointerDown={(event:any)=>this.handleSettingsTabPointerDown(id,event)} onPointerUp={(event:any)=>this.handleSettingsTabPointerUp(id,event)} onPointerCancel={()=>{this.settingsPointerStart=null;}} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
-        <main ref={(node:HTMLElement|null)=>{this.settingsContent=node;}} id="settings-tab-panel" role="tabpanel" aria-labelledby={`settings-tab-${this.state.tab}`} tabIndex={-1} className="ta-settings-content">
+        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-orientation="vertical" onKeyDown={(event:any)=>handleTabKeyDown(event,true)} aria-label={t('Settings sections','أقسام الإعدادات')} onClickCapture={this.handleSettingsNavClickCapture}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} data-settings-tab={id} aria-controls="settings-tab-panel" tabIndex={this.state.tab===id?0:-1} aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onPointerDown={(event:any)=>this.handleSettingsTabPointerDown(id,event)} onPointerUp={(event:any)=>this.handleSettingsTabPointerUp(id,event)} onPointerCancel={()=>{this.settingsPointerStart=null;}} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
+        <main ref={(node:HTMLElement|null)=>{this.settingsContent=node;}} id="settings-tab-panel" role="tabpanel" aria-labelledby={accountScope?undefined:`settings-tab-${this.state.tab}`} aria-label={accountScope?t('Account profile','ملف الحساب'):undefined} tabIndex={-1} className="ta-settings-content">
+          <div className="ta-settings-card-actions"><Button disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.switchScope(accountScope?'settings':'account')}>{accountScope?t('Open settings','فتح الإعدادات'):t('Company profile & logo','ملف الشركة والشعار')}</Button></div>
+          {JSON.stringify(c)!==this.state.companyInitial?<p className="ta-settings-note" role="status">{t('Unsaved company settings. Changes remain available when switching sections.','إعدادات شركة غير محفوظة. تبقى التغييرات عند التنقل بين الأقسام.')}</p>:null}
+          {JSON.stringify(s)!==this.state.documentsInitial?<p className="ta-settings-note" role="status">{t('Unsaved workspace preferences. Changes remain available when switching sections.','تفضيلات مساحة عمل غير محفوظة. تبقى التغييرات عند التنقل بين الأقسام.')}</p>:null}
           {accountScope?this.accountProfile():null}
           {!accountScope&&this.state.tab==='company'?this.workspacePreferences(c,s):null}
           {!accountScope&&this.state.tab==='workspaces'?this.workspaceManager():null}

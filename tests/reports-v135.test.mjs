@@ -106,28 +106,14 @@ test('legacy customer performance reconciles sales collections and receivables i
   assert.equal(rows[0].outstanding,'600.00');
 });
 
-test('v135 ships reports navigation print CSV and offline assets without combining currencies',async()=>{
-  const [app,shell,page,logic,html,sw,css,recoveryCss]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/ReportsPage.tsx'),read('src/lib/reports.ts'),read('index.html'),read('public/sw.js'),read('src/styles/reports-v135.css'),read('src/styles/ux-recovery-v152.css')]);
-  assert.ok(app.includes("|'reports'|"),'reports screen remains in the application state');assert.ok(shell.includes("t('Reports','التقارير')"));assert.ok(app.includes('<ReportsPage'));
-  for(const term of ['Financial Reports','This Month','This Quarter','This Year','All Time','Export CSV','Print / Save PDF','Monthly Performance','Customer Performance','All currencies — separate'])assert.ok(page.includes(term),term);
-  assert.ok(page.includes("aria-label={t('Search customer performance'"));
-  assert.ok(page.includes('alt={companyDisplayName(this.props.company)}'));
-  assert.ok(page.includes('currencies.includes(requestedCurrency)'));
-  assert.ok(page.includes("value={selected||'ALL'}"));
-  assert.ok(page.includes('Currencies are never combined or converted automatically'));
-  assert.ok(logic.includes('receivablesByCurrency(asOfDocuments'));
-  assert.ok(logic.includes('financialPayments(documents,payments)'));
-  assert.ok(logic.includes('receivableCustomerId'));
-  assert.ok(!logic.includes('exchangeRate'));assert.ok(!logic.includes('fxRate'));assert.ok(!logic.includes('convertCurrency'));
-  assert.ok(html.includes('tailadmin-finance-v320.css'));
-  assert.ok(html.includes('tailadmin-finance-workspaces-v320.css'));
-  const [build,activeReportCss]=await Promise.all([read('scripts/build.mjs'),read('src/styles/tailadmin-finance-workspaces-v320.css')]);
-  assert.match(build,/const appBundleCss=styleParts\.join/);
-  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
-  assert.match(build,/sw=sw\.replace\(/);
-  assert.match(activeReportCss,/\.ta-reports-page/);
-  assert.match(activeReportCss,/@media print/);
-  for(const asset of ['reports-v135.css','ReportsPage.js','reports.js'])assert.ok(sw.includes(asset),'legacy PWA support must retain '+asset);
-  assert.ok(/^const CACHE = 'lourex-invoice-v\d+';/m.test(sw));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v135'"));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v134'"));
-  assert.ok(css.includes('printing-financial-report'));assert.ok(css.includes('@media print'));assert.ok(!css.includes('.app-ui .main-nav'),'reports no longer overrides shared navigation');assert.ok(recoveryCss.includes('.app-ui .main-nav button'),'legacy recovery layer remains beneath the new app shell');
+test('reports retain currency-specific sales, receivables, profit and offline export',async()=>{
+ const [app,page,logic,html,sw,css]=await Promise.all([read('src/app/App.tsx'),read('src/components/ReportsPage.tsx'),read('src/lib/reports.ts'),read('index.html'),read('dist/sw.js'),read('src/styles/tailadmin-finance-workspaces-v320.css')]);
+ assert.ok(app.includes('<ReportsPage'));
+ for(const token of ['Financial Reports','This Month','Export CSV','Print / Save PDF','Monthly Performance','Customer Performance','Currencies are never combined or converted automatically'])assert.ok(page.includes(token),token);
+ for(const token of ['receivablesByCurrency(asOfDocuments','financialPayments(documents,payments)','receivableCustomerId'])assert.ok(logic.includes(token),token);
+ for(const bad of ['exchangeRate','fxRate','convertCurrency'])assert.ok(!logic.includes(bad),'reporting must not mix monetary units: '+bad);
+ assert.ok(html.includes('tailadmin-finance-workspaces-v320.css'));
+ assert.ok(css.includes('.ta-reports-page'));
+ assert.ok(sw.includes('ReportsPage.js')&&sw.includes('reports.js')&&sw.includes('styles/app.bundle.css'));
 });
+

@@ -4,11 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v61 editor workflow layer loads after the consolidated editor system and stays print-isolated',async()=>{
-  const [html,css]=await Promise.all([read('index.html'),read('src/styles/editor-workflow-v61.css')]);
-  assert.ok(html.indexOf('editor-workflow-v61.css')>html.indexOf('editor-system.css'));
-  assert.match(css,/\.app-ui \.premium-item-card:focus-within/);
-  assert.doesNotMatch(css,/\.a4[-_]|\.document-page|\.invoice-page|@media\s+print/i);
+test('approved screen-only editor layers replace legacy workflow geometry without A4 leakage',async()=>{
+ const [html,frame,core,legacy]=await Promise.all([read('index.html'),read('src/styles/tailadmin-editor-frame-v320.css'),read('src/styles/tailadmin-editor-core-v320.css'),read('src/styles/editor-workflow-v61.css')]);
+ assert.ok(html.indexOf('tailadmin-editor-frame-v320.css')>=0);
+ assert.ok(html.indexOf('tailadmin-editor-core-v320.css')>html.indexOf('tailadmin-editor-frame-v320.css'));
+ assert.equal(html.includes('editor-workflow-v61.css'),false,'retired layer cannot override canonical frame');
+ assert.ok(frame.includes('.ta-editor-step-list'));
+ assert.ok(core.includes('.app-ui'));
+ for(const css of [frame,core,legacy])assert.doesNotMatch(css,/\.a4[-_]|\.document-page|\.invoice-page|@media\s+print/i);
 });
 
 test('item creation controls remain reachable while scrolling long mobile and tablet documents',async()=>{

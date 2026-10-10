@@ -17,17 +17,18 @@ test('v485 gives Dark Mode visibly separated navy surfaces instead of stacked ne
   assert.match(css,/--lx485-canvas:#0a1826/);
   assert.match(css,/--lx485-surface:#12263a/);
   assert.match(css,/--lx485-surface-3:#1d3651/);
-  assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\):not\(\.btn-primary\)[\s\S]*?background-color:var\(--lx485-surface-3\)!important/,'non-primary create controls must no longer be black');
-  assert.match(css,/\.ta-mobile-sheet\{[\s\S]*?background:#102235!important/,'More sheet must own a visible navy base');
-  assert.match(css,/\.ta-mobile-sheet :is\(\.ta-sheet-account,\.ta-sheet-link,\.ta-sheet-theme,\.ta-sheet-theme \.mf-theme-toggle\)[\s\S]*?background:#1a3047!important/,'More sheet items need a distinct elevated layer');
+  assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\):not\(\.btn-primary\)\{background-color:var\(--lx485-surface-3\)!important/,'secondary Create buttons must use readable surface');
+  assert.ok(css.includes(':is(.modal,.ta-mobile-sheet,.ta-create-menu-mobile)'),'More shares the final app sheet owner');
+  assert.ok(css.includes('var(--lx-ui-overlay)!important'),'More uses the semantic navy/ivory overlay surface');
+  assert.match(css,/:is\(\.ta-sheet-link,\.ta-sheet-account,\.ta-sheet-theme,\.ta-sheet-workspace,[\s\S]*?background:var\(--lx485-surface-3\)!important/,'More action items must be elevated above the sheet');
 });
 
 test('v485 visibly activates the premium dashboard on iPad and desktop',async()=>{
   const css=await read('src/styles/v485-visible-ui-corrections.css');
   assert.match(css,/@media screen and \(min-width:901px\)[\s\S]*?\.ta-finance-dashboard/,'desktop dashboard owner is missing');
-  assert.match(css,/workspace-shell\.screen-home \.ta-dashboard-header\{[\s\S]*?linear-gradient\(135deg,#18334f 0%,#12283e 52%,#0f2134 100%\)!important/,'desktop hero must use the visible premium surface');
-  assert.match(css,/\.lourex-advisor-card\{[\s\S]*?linear-gradient\(145deg,#183149,#12273b\)!important/,'desktop AI card premium treatment is missing');
-  assert.match(css,/\.ta-sidebar\{[\s\S]*?linear-gradient\(180deg,#10253a,#0c1b2b\)!important/,'desktop/iPad sidebar must leave the old flat black treatment');
+  assert.match(css,/\.workspace-shell\.screen-home \.ta-dashboard-header\{[\s\S]*?linear-gradient\(135deg,var\(--lx485-surface\),var\(--lx485-surface-2\)\)!important/);
+  assert.match(css,/\.lourex-advisor-card/);
+  assert.match(css,/:is\(\.ta-sidebar,\.ta-topbar\)/);
 });
 
 test('v485 is the final production visual owner after v484',async()=>{

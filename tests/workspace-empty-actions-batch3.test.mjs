@@ -24,7 +24,7 @@ test('filtered operations empty state offers recovery without creating or saving
 });
 
 test('true purchase empty action reuses the canonical editor and its discard guard',()=>{
- const page=new OperationsPage({mode:'purchasing',purchases:[],suppliers:[],defaultCurrency:'USD'});page.state.tab='purchases';
+ const page=new OperationsPage({mode:'purchasing',purchases:[],suppliers:[{id:'supplier'}],defaultCurrency:'USD'});page.state.tab='purchases';
  const action=buttons(page.emptyState('backup','No purchases yet.','Create a purchase.'))[0];
  assert.equal(action.children[0],'New Purchase');
  page.confirmDiscardCurrent=()=>false;action.props.onClick();assert.equal(page.state.purchaseEdit,null);

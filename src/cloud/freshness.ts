@@ -9,6 +9,7 @@ let stopped=false;
 let realtimeOff:(()=>void)|undefined;
 let realtimeUid='';
 let remoteUpdateNotified=false;
+let watcherGeneration=0;
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
 const UNSAFE_SURFACE_SELECTOR='.editor-screen,.modal-backdrop,.ta-product-editor.is-open,.ta-operations-page .ta-ops-editor,.product-library-pro.editor-open,.operations-page .purchase-editor';
@@ -71,6 +72,7 @@ function schedule(delay=60):void{
 
 function ensureRealtime(uid:string):void{
   if(realtimeUid===uid&&realtimeOff)return;
+  if(realtimeUid!==uid)remoteUpdateNotified=false;
   detachRealtime();
   try{
     realtimeOff=subscribeCloudVaultChanges(uid,()=>schedule(25));
@@ -82,51 +84,56 @@ function ensureRealtime(uid:string):void{
 
 async function checkCloudFreshness():Promise<void>{
   if(stopped||running)return;
+  // Claim the whole check before the first async account lookup. A slow local
+  // read must not allow focus/realtime/poll ticks to launch overlapping checks.
+  running=true;
+  const generation=watcherGeneration;
   const user=currentCloudUser();
-  if(!user){
-    detachRealtime();
-    // iOS Home Screen apps can restore Firebase persistence later than Safari.
-    // Keep probing silently instead of treating the first null auth read as final.
-    if(isStandalonePwa())schedule(600);
-    return;
-  }
-
-  let linked=await getCloudAccount().catch(()=>null);
-  if(!linked){
-    try{
-      // Creating the missing local account link does not require a page reload.
-      // Reloading here used to eject an active user back to Home and could even
-      // interrupt a draft because this branch runs before the workspace guard.
-      await putCloudAccount(user.uid,user.email);
-      linked=await getCloudAccount().catch(()=>null);
-    }catch{
-      schedule(isStandalonePwa()?350:700);
+  const stillCurrent=()=>!stopped&&generation===watcherGeneration&&currentCloudUser()?.uid===user?.uid;
+  try{
+    if(!user){
+      detachRealtime();
+      if(isStandalonePwa())schedule(600);
       return;
     }
-  }
-  if(!linked){detachRealtime();return;}
-  if(linked.uid!==user.uid){detachRealtime();return;}
-  ensureRealtime(user.uid);
-  if(!appIsSafeToApply())return;
 
-  running=true;
-  try{
-    const remoteChanged=await cloudRemoteChangedSinceAnchor(user.uid);
-    if(!remoteChanged){remoteUpdateNotified=false;return;}
-    if(!remoteUpdateNotified){
-      remoteUpdateNotified=true;
-      window.dispatchEvent(new Event('lourex-cloud-refresh-available'));
+    let linked=await getCloudAccount().catch(()=>null);
+    if(!stillCurrent())return;
+    if(!linked){
+      try{
+        await putCloudAccount(user.uid,user.email);
+        if(!stillCurrent())return;
+        linked=await getCloudAccount().catch(()=>null);
+      }catch{
+        if(stillCurrent())schedule(isStandalonePwa()?350:700);
+        return;
+      }
     }
-  }catch{
-    // Transient failures retry automatically. Confirmed divergence is surfaced
-    // separately so the customer can make an explicit, non-destructive choice.
-    schedule(isStandalonePwa()?350:700);
+    if(!stillCurrent())return;
+    if(!linked){detachRealtime();return;}
+    if(linked.uid!==user.uid){detachRealtime();return;}
+    ensureRealtime(user.uid);
+    if(!appIsSafeToApply())return;
+
+    try{
+      const remoteChanged=await cloudRemoteChangedSinceAnchor(user.uid);
+      if(!stillCurrent())return;
+      if(!remoteChanged){remoteUpdateNotified=false;return;}
+      if(!remoteUpdateNotified){
+        remoteUpdateNotified=true;
+        window.dispatchEvent(new Event('lourex-cloud-refresh-available'));
+      }
+    }catch{
+      // Preserve existing retry cadence; never replace running workspace data.
+      if(stillCurrent())schedule(isStandalonePwa()?350:700);
+    }
   }finally{
     running=false;
   }
 }
 
 export function startCloudFreshnessWatcher():()=>void{
+  watcherGeneration+=1;
   // Apple mobile WebKit keeps local encrypted persistence and explicit cloud sync,
   // but the independent realtime watcher is deliberately retired. iPadOS Desktop
   // Website mode reports MacIntel, so it must share the same stability policy.
@@ -150,6 +157,7 @@ export function startCloudFreshnessWatcher():()=>void{
   timer=window.setInterval(()=>schedule(0),standalone?1_500:5_000);
   schedule(standalone?40:120);
   return ()=>{
+    watcherGeneration+=1;
     stopped=true;
     window.removeEventListener('focus',onFocus);
     window.removeEventListener('online',onOnline);

@@ -167,7 +167,8 @@
   html body #root .app-ui .lx-pipeline-column>.lx-pipeline-empty{
     min-height:76px!important;height:auto!important;display:grid!important;place-items:center!important;padding:14px!important;background:transparent!important;color:var(--lx481-faint)!important;
   }
-  html body #root .app-ui .lx-pipeline-page>.lx-pipeline-empty{
+  html body #root .app-ui .lx-pipeline-page>.lx-pipeline-empty,
+  html body #root .app-ui .lx-pipeline-page>#customers-workspace-panel>.lx-pipeline-empty{
     min-height:170px!important;display:grid!important;place-items:center!important;align-content:center!important;gap:8px!important;padding:18px!important;border:1px dashed var(--lx481-line-strong)!important;border-radius:18px!important;background:var(--lx481-surface)!important;color:var(--lx481-muted)!important;
   }
 
@@ -191,3 +192,6 @@
 
   html[dir="rtl"] body #root .app-ui :is(.ta-documents-page,.ta-customers-page,.lx-pipeline-page){text-align:right!important;}
 }
+
+/* Accessible customer panels preserve their workspace's established grid spacing. */
+html body #root .app-ui :is(.ta-customers-page,.lx-pipeline-page)>#customers-workspace-panel{display:grid;gap:inherit;min-width:0;}

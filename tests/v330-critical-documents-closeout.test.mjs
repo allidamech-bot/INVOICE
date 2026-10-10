@@ -93,5 +93,7 @@ test('v330 printable finish remains data and pagination neutral', async () => {
   const printable = css.slice(marker);
   assert.doesNotMatch(printable, /@page|page-break|break-(?:before|after|inside)|\.invoice-page\s*\{[^}]*?(?:width|height|padding|margin)\s*:/i);
   assert.doesNotMatch(css + guard, /firebase|indexedDB|saveVault|calculateTotals|window\.location/i);
-  assert.match(guard, /\.template-obsidian\{--paper:#fff/);
+  const paper=await read('src/styles/document-premium-redesign-v141.css');
+  assert.match(paper,/\.template-obsidian\{--paper:#fff/);
+  assert.ok(!guard.includes('.template-obsidian{--paper:'),'A4 paper remains in canonical stylesheet');
 });

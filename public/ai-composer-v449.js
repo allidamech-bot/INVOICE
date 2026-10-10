@@ -145,7 +145,7 @@
   function schedule(){if(raf)return;raf=window.requestAnimationFrame(sync);}
 
   document.addEventListener('pointerdown',event=>{const target=event.target;if(!(target instanceof Node))return;const menu=document.querySelector(`${PANEL} .lourex-ai-plus-menu`);const plus=document.querySelector(`${PANEL} .lourex-ai-composer-plus`);if(menu instanceof Node&&!menu.contains(target)&&plus instanceof Node&&!plus.contains(target))closeMenu();},true);
-  document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const menu=document.querySelector(`${PANEL} .lourex-ai-plus-menu`);if(menu instanceof HTMLElement&&!menu.hidden){event.preventDefault();event.stopImmediatePropagation();closeMenu(true);}},true);
+  document.addEventListener('keydown',event=>{if(event.key!=='Escape'||!(event.target instanceof Element)||event.target.closest('[role="dialog"][aria-modal="true"]')!==document.querySelector(PANEL))return;const menu=document.querySelector(`${PANEL} .lourex-ai-plus-menu`);if(menu instanceof HTMLElement&&!menu.hidden){event.preventDefault();event.stopImmediatePropagation();closeMenu(true);}},true);
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
   window.addEventListener('lourex-language-change',schedule);schedule();
 })();

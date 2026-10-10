@@ -110,7 +110,7 @@ test('v264 client still builds finance facts locally while AI Core receives only
   assert.match(copilot,/const scoped=scopeVault\(vault\)/,'all local accounting evidence must be filtered by current company and branch');
   assert.match(copilot,/const scopedFinance:AiFinanceSource=/);
   assert.match(copilot,/documents:scoped\.documents,payments:scoped\.payments,customers:scoped\.customers/);
-  assert.match(copilot,/finance:buildAiFinanceContext\(scopedFinance,message\)/);
+  assert.match(copilot,/finance:buildAiFinanceContext\(scopedFinance,message,business\.asOf\)/);
   assert.match(copilot,/const scopedActiveDocument=selected\?scoped\.documents\.find\(doc=>doc\.id===selected\.id\)\?\?null:null/);
   assert.doesNotMatch(copilot,/buildAiFinanceContext\(financeSource,message\)/,'regression: unscoped decrypted vault must not enter assistant finance context');
   assert.match(copilot,/const context=buildAiContext\(/);

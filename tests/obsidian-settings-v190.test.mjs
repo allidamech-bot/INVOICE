@@ -15,12 +15,14 @@ test('v190 keeps the Obsidian settings pass isolated to application settings UI'
   assert.doesNotMatch(css,/\.invoice-pages|\.invoice-page|\.document-page/);
 });
 
-test('v190 is bundled after financial workspaces and before the protected printable-template layer',async()=>{
-  const html=await read('index.html');
-  const financial=html.indexOf('./styles/financial-workspaces-v189.css');
-  const settings=html.indexOf('./styles/settings-obsidian-v190.css');
-  const printable=html.indexOf('./styles/document-premium-redesign-v141.css');
-  assert.ok(financial>=0&&settings>financial&&printable>settings);
+test('current settings owner follows the shell and stays print-isolated in the released bundle',async()=>{
+ const [html,bundle,css]=await Promise.all([read('index.html'),read('dist/styles/app.bundle.css'),read('src/styles/tailadmin-settings-v320.css')]);
+ const shell=html.indexOf('tailadmin-shell-v320.css'),settings=html.indexOf('tailadmin-settings-v320.css');
+ assert.ok(shell>=0&&settings>shell,'settings UI must follow the application shell');
+ assert.ok(bundle.includes('tailadmin-settings-v320.css'));
+ assert.ok(css.includes('@media screen'));
+ assert.ok(!css.includes('.invoice-page')&&!css.includes('@media print'));
+ assert.ok(html.includes('document-premium-redesign-v141.css'));
 });
 
 test('v190 Settings QA exercises the real modal in English and Arabic responsive flows',async()=>{

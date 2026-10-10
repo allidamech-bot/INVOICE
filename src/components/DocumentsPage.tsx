@@ -1,3 +1,4 @@
+import { topOverlay } from '../lib/overlay-focus.js';
 import { deliverySourceEligible, linkedDeliveries, deliverySource } from '../lib/delivery-flow.js';
 import { invoiceSourceDelivery, isDeliveryLinkedInvoice } from '../lib/sales-delivery-invoice.js';
 import { linkedPurchaseOrders, purchaseOrderSource, purchaseOrderSourceEligible } from '../lib/procurement-flow.js';
@@ -215,6 +216,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(document.querySelector('.modal-backdrop'))return;
+    if(event.defaultPrevented||topOverlay())return;
     if(event.key==='Escape'){
       if(this.state.menuId){event.preventDefault();this.closeMenu();return;}
       if(this.state.detailId){event.preventDefault();this.setState({detailId:''});return;}
@@ -517,6 +519,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     </section>;
   };
 
+  private resumableDocument=()=>[...this.props.documents].filter(doc=>doc.status!=='final'&&doc.lifecycleStatus!=='voided').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]??null;
   private typeCount=(kind:DocumentKind)=>this.props.documents.filter(doc=>doc.kind===kind&&doc.role==='standard').length;
 
   private typeTab=(tab:OverviewTab,label:string,count:number,index?:number)=>{
@@ -531,7 +534,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const docs=this.filtered();
     const drafts=this.props.documents.filter(doc=>workflowStatus(doc)==='draft').length;
     const issued=this.props.documents.filter(doc=>matchesWorkspaceStatus(doc,'final')).length;
-    const resume=[...this.props.documents].filter(doc=>doc.status!=='final').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]??null;
+    const resume=this.resumableDocument();
     const currencies=Array.from(new Set(this.props.documents.map(doc=>doc.currency).filter(Boolean))).sort();
     const filteredView=Boolean(this.state.query||this.state.tab!=='all'||this.state.status!=='all'||this.state.payment!=='all'||this.state.currency!=='all');
     const activeFilterCount=(this.state.tab!=='all'?1:0)+(this.state.status!=='all'?1:0)+(this.state.payment!=='all'?1:0)+(this.state.currency!=='all'?1:0)+(this.state.query.trim()?1:0);

@@ -45,25 +45,13 @@ test('v112 reuses prior HS codes inside direct invoice item editing too',async()
   assert.match(editor,/onClick=\{\(\)=>this\.item\(i\.id,'hsCode',code\)\}/);
 });
 
-test('v112 metadata choices remain app-only, touch-friendly, cached offline and below v100',async()=>{
-  const css=await read('src/styles/product-metadata-assist-v112.css');
-  const index=await read('index.html');
-  const sw=await read('public/sw.js');
-
-  assert.match(css,/\.app-ui \.product-metadata-suggestions/);
-  assert.match(css,/@media \(max-width:720px\)/);
-  assert.match(css,/@media \(pointer:coarse\)/);
-  assert.match(css,/@media print/);
-  assert.doesNotMatch(css,/\.invoice-page|\.items-table|\.doc-header|\.totals-block/);
-
-  const metadataCss='./styles/product-metadata-assist-v112.css';
-  const performanceCss='./styles/performance-polish-v100.css';
-  assert.ok(index.includes(metadataCss));
-  assert.ok(index.indexOf(metadataCss)<index.indexOf(performanceCss));
-  assert.match(sw,/\.\/styles\/product-metadata-assist-v112\.css/);
-  assert.match(sw,/v112/);
-  assert.match(sw,/v111/);
-  assert.match(sw,/v110/);
-  assert.match(sw,/v103/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
+test('product metadata controls remain touch-safe, app-only and available offline',async()=>{
+ const [css,html,sw,bundle]=await Promise.all([read('src/styles/product-metadata-assist-v112.css'),read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
+ assert.ok(css.includes('product-metadata-suggestions')&&css.includes('@media (max-width:720px)'));
+ assert.ok(!css.includes('.invoice-page'),'product metadata controls must not affect A4');
+ assert.ok(html.includes('product-metadata-assist-v112.css'));
+ assert.ok(html.indexOf('product-metadata-assist-v112.css')>html.indexOf('performance-polish-v100.css'));
+ assert.ok(bundle.includes('product-metadata-assist-v112.css'));
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
+

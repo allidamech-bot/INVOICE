@@ -1,3 +1,4 @@
+import { containOverlayFocus, lockOverlayScroll, ownsOverlay, restoreOverlayFocus, topOverlay, trapOverlayTab, unlockOverlayScroll } from '../lib/overlay-focus.js';
 import { CONTEXTUAL_ADVISOR_EVENT } from './ContextualAdvisorAction.js';
 import type { Customer, DocumentItem, DocumentKind, DocumentLanguage, LourexDocument, SavedItem, UiLanguage, VaultPayload } from '../types.js';
 import { t } from '../lib/i18n.js';
@@ -108,7 +109,7 @@ export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,fina
   const business=buildAiBusinessContext(scoped);
   return{
     version:5,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),
-    finance:buildAiFinanceContext(scopedFinance,message),business,
+    finance:buildAiFinanceContext(scopedFinance,message,business.asOf),business,
     pricing:buildProductPricingContext(scoped,message,business.asOf),
     drafting:draftReference(scoped,message,scopedActiveDocument)
   };
@@ -183,17 +184,35 @@ export class AiCopilot extends React.Component<Props,State>{
   private mounted=false;
   private pending=false;
   private applying=false;
+  private previousFocus:HTMLElement|null=null;
+  private overlayWasOpen=false;
+  private panel=()=>document.getElementById('lourex-ai-panel');
+  private containFocus=()=>{if(this.state.open)containOverlayFocus(this.panel());};
   private requestGeneration=0;
   private requestController:AbortController|null=null;
-  private cancelRequest=()=>{this.requestGeneration+=1;this.requestController?.abort();this.requestController=null;this.pending=false;};
+  private cancelRequest=()=>{(this as any).__lourexAttachmentAbort?.abort();this.requestGeneration+=1;this.requestController?.abort();this.requestController=null;this.pending=false;};
   private currentRequest=(generation:number,controller:AbortController)=>this.mounted&&generation===this.requestGeneration&&!controller.signal.aborted;
-  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.onKeyDown);window.addEventListener(CONTEXTUAL_ADVISOR_EVENT,this.openContext);}
-  componentDidUpdate(previous:Props):void{if(previous.screen!==this.props.screen||previous.language!==this.props.language||previous.activeDocument?.id!==this.props.activeDocument?.id){this.cancelRequest();this.setState({busy:this.applying,proposal:null,review:null,error:''});}}
-  componentWillUnmount():void{this.mounted=false;this.cancelRequest();document.removeEventListener('keydown',this.onKeyDown);window.removeEventListener(CONTEXTUAL_ADVISOR_EVENT,this.openContext);}
-  private openContext=(event:Event)=>{const detail=(event as CustomEvent).detail;if(!this.mounted||this.pending||this.applying||this.state.busy||detail?.screen!==this.props.screen||typeof detail?.question!=='string')return;const input=bounded(detail.question,Math.min(MAX_MESSAGE_CHARS,1000));if(!input)return;this.setState({open:true,input,proposal:null,error:''},()=>document.querySelector<HTMLInputElement>('#lourex-ai-panel .lourex-ai-compose input')?.focus());};
-  private onKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.open)this.toggle();};
+  componentDidMount():void{this.mounted=true;document.addEventListener('focusin',this.containFocus);document.addEventListener('keydown',this.onKeyDown);window.addEventListener(CONTEXTUAL_ADVISOR_EVENT,this.openContext);}
+  componentDidUpdate(previous:Props):void{
+    if(!this.overlayWasOpen&&this.state.open){
+      this.overlayWasOpen=true;
+      this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+      lockOverlayScroll(this);
+      window.requestAnimationFrame(()=>{if(this.mounted&&this.state.open)containOverlayFocus(this.panel());});
+    }else if(this.overlayWasOpen&&!this.state.open){this.overlayWasOpen=false;unlockOverlayScroll(this);restoreOverlayFocus(this.previousFocus);this.previousFocus=null;}
+    if(previous.screen!==this.props.screen||previous.language!==this.props.language||previous.activeDocument?.id!==this.props.activeDocument?.id){this.cancelRequest();this.setState({busy:this.applying,proposal:null,review:null,error:''});}}
+  componentWillUnmount():void{this.mounted=false;unlockOverlayScroll(this);document.removeEventListener('focusin',this.containFocus);this.cancelRequest();document.removeEventListener('keydown',this.onKeyDown);window.removeEventListener(CONTEXTUAL_ADVISOR_EVENT,this.openContext);}
+  private openContext=(event:Event)=>{const detail=(event as CustomEvent).detail;if(!this.mounted||(topOverlay()&&topOverlay()!==this.panel())||this.pending||this.applying||this.state.busy||detail?.screen!==this.props.screen||typeof detail?.question!=='string')return;const input=bounded(detail.question,Math.min(MAX_MESSAGE_CHARS,1000));if(!input)return;this.setState({open:true,input,proposal:null,error:''},()=>document.querySelector<HTMLInputElement>('#lourex-ai-panel .lourex-ai-compose input')?.focus());};
+  private onKeyDown=(event:KeyboardEvent)=>{
+    const panel=this.panel();if(event.defaultPrevented||!this.state.open||!ownsOverlay(panel)||!panel)return;
+    if(event.key==='Escape'){
+      if(panel.querySelector('[role="menu"]:not([hidden])'))return;
+      event.preventDefault();this.toggle();return;
+    }
+    trapOverlayTab(event,panel);
+  };
   private addAudit=(capability:AiCapabilityId,outcome:AiAuditEntry['outcome'])=>this.setState(state=>({audit:[{id:id('audit'),at:new Date().toISOString(),capability,outcome,screen:this.props.screen},...state.audit].slice(0,30)}));
-  private toggle=()=>{if(this.applying)return;if(this.state.open)this.cancelRequest();this.setState(state=>({open:!state.open,busy:false,error:'',proposal:state.open?null:state.proposal,review:state.open?null:state.review}));};
+  private toggle=()=>{if(this.applying||(!this.state.open&&topOverlay()))return;if(this.state.open)this.cancelRequest();this.setState(state=>({open:!state.open,busy:false,error:'',proposal:state.open?null:state.proposal,review:state.open?null:state.review}));};
   private ask=async(raw?:string)=>{
     if(this.pending||this.applying||this.state.busy)return;const message=String(raw??this.state.input).trim().slice(0,MAX_MESSAGE_CHARS);if(!message)return;this.pending=true;const generation=++this.requestGeneration,controller=new AbortController();this.requestController=controller;const capability=capabilityFor(message,this.props.screen);const pendingDocumentProposal=this.state.proposal?.capability==='document.createDraft'||this.state.proposal?.capability==='document.updateDraft'?this.state.proposal:null;const pendingDocumentReview=pendingDocumentProposal?this.state.review:null;const userMessage:AiMessage={id:id('user'),role:'user',text:message};const memory=this.state.messages.slice(-4).map(entry=>`${entry.role==='user'?'User':'Advisor'}: ${entry.text}`).join('\n').slice(-520);this.setState(state=>({busy:true,error:'',input:'',proposal:null,review:null,messages:[...state.messages,userMessage]}));this.addAudit(capability,'requested');
     const calculation=advisorCalculation(message,this.props.language==='ar'?'ar':'en');if(calculation){const assistant:AiMessage={id:id('assistant'),role:'assistant',text:calculation.summary};this.setState(state=>({busy:false,proposal:pendingDocumentProposal,review:pendingDocumentReview,messages:[...state.messages,assistant]}));this.addAudit('finance.explain','answered');this.pending=false;this.requestController=null;return;}
@@ -253,7 +272,7 @@ export class AiCopilot extends React.Component<Props,State>{
   render():any{const prompts=starterPrompts(this.props.screen);const preview=this.state.proposal?this.proposalPreview(this.state.proposal):'';return <>
     <style data-lourex-ai-core="v267-pricing">{AI_CORE_CSS}</style>
     <button type="button" className={`lourex-ai-launcher screen-${this.props.screen}`} dir={this.props.language==='ar'?'rtl':'ltr'} aria-label={t('Open LOUREX Advisor','فتح مستشار LOUREX')} aria-expanded={this.state.open} aria-controls="lourex-ai-panel" onClick={this.toggle}><Icon name="bot"/></button>
-    {this.state.open?<><button type="button" className="lourex-ai-backdrop" aria-label={t('Close LOUREX Advisor','إغلاق مستشار LOUREX')} onClick={this.toggle}/><aside id="lourex-ai-panel" className="lourex-ai-panel" role="dialog" aria-modal="true" aria-label={t('LOUREX Advisor','مستشار LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
+    {this.state.open?<><button type="button" className="lourex-ai-backdrop" aria-label={t('Close LOUREX Advisor','إغلاق مستشار LOUREX')} onClick={this.toggle}/><aside id="lourex-ai-panel" tabIndex={-1} className="lourex-ai-panel" role="dialog" aria-modal="true" aria-label={t('LOUREX Advisor','مستشار LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
       <header className="lourex-ai-head"><div className="lourex-ai-title"><span className="lourex-ai-mark"><Icon name="bot"/></span><div><strong>{t('LOUREX Advisor','مستشار LOUREX')}</strong><small>{t('Financial & business advisor · deterministic numbers','مستشار مالي وتجاري · أرقام من المحركات المحلية')}</small></div></div><button type="button" className="lourex-ai-close" aria-label={t('Close','إغلاق')} onClick={this.toggle}><Icon name="x"/></button></header>
       <div className="lourex-ai-context">{t('Current context','السياق الحالي')}: {screenLabel(this.props.screen)}</div>
       <div className="lourex-ai-messages" aria-live="polite">{!this.state.messages.length?<div className="lourex-ai-empty"><strong>{t('Ask about the business or prepare a safe action','اسأل عن الأعمال أو جهّز إجراءً آمنًا')}</strong><p>{t('LOUREX calculates accounting, pricing and business intelligence locally. AI explains results and may prepare safe previews; every record change requires your approval.','LOUREX يحسب المحاسبة والتسعير ومؤشرات الأعمال محليًا. الذكاء يشرح النتائج وقد يجهز معاينات آمنة؛ كل تغيير على السجلات يحتاج موافقتك.')}</p><div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div></div>:null}{this.state.messages.map(message=><React.Fragment key={message.id}><div className={`lourex-ai-message ${message.role}`}>{message.text}</div>{message.artifact?<div className="lourex-ai-created-artifact" aria-label={t('Created LOUREX document','مستند LOUREX تم إنشاؤه')}><strong><bdi>{message.artifact.document.number}</bdi></strong><small>{message.artifact.document.customerSnapshot?.companyNameEn||message.artifact.document.customerSnapshot?.companyNameAr||t('No customer','بدون عميل')} · {message.artifact.document.currency} · {message.artifact.document.items.length} {t('items','أصناف')}</small><div><button type="button" className="primary" onClick={()=>window.dispatchEvent(new CustomEvent('lourex-global-search-open',{detail:{query:message.artifact!.document.number,autoOpenUnique:true}}))}>{message.artifact.document.kind==='invoice'?t('Open invoice','فتح الفاتورة'):t('Open quotation','فتح عرض السعر')}</button><button type="button" onClick={()=>this.props.onNavigate('documents')}>{t('Documents','المستندات')}</button></div></div>:null}</React.Fragment>)}{this.state.busy?<div className="lourex-ai-busy">{t('LOUREX Advisor is reviewing…','مستشار LOUREX يراجع…')}</div>:null}</div>

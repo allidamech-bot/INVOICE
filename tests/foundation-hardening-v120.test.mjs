@@ -13,8 +13,12 @@ test('PWA update activation protects editable workspaces while permitting the sa
   assert.match(index,/document\.querySelector\('\.editor-screen'\)/);
   assert.match(index,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
   assert.match(index,/const userRequestedReload=reloadForUpdate/);
-  assert.match(index,/function safeSignedOutAuthGatewayForAutomaticReload\(\):boolean\{[\s\S]*!currentCloudUser\(\)[\s\S]*!reloadUnsafeWorkspaceOpen\(\)[\s\S]*document\.querySelector\('\.auth-page'\)/);
-  assert.match(index,/if\(!userRequestedReload\)\{[\s\S]*if\(safeSignedOutAuthGatewayForAutomaticReload\(\)\)window\.location\.replace\(window\.location\.href\);[\s\S]*return;[\s\S]*\}/);
+  assert.match(index,/function safeSignedOutAuthGatewayForAutomaticReload\(\):boolean/);
+  assert.match(index,/!currentCloudUser\(\)&&!reloadUnsafeWorkspaceOpen\(\)/);
+  assert.match(index,/\.ta-auth-page,\.auth-page/);
+  assert.match(index,/if\(!userRequestedReload\)return/);
+  assert.match(index,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
+  assert.match(index,/rememberWorkspaceBeforeAutomaticReload\(\)/);
   assert.match(index,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
   assert.match(index,/window\.location\.replace\(window\.location\.href\)/);
 });
@@ -45,20 +49,31 @@ test('production build identifies and guards the canonical INVOICE repository',a
   assert.match(build,/commitSha/);
 });
 
-test('system health page exposes bounded platform diagnostics without opening account data',async()=>{
-  const [health,healthScript,vercel,errors]=await Promise.all([read('public/health.html'),read('public/health.js'),read('vercel.json'),read('src/app/AppErrorBoundary.tsx')]);
-  assert.match(health,/System Health/);
-  assert.match(healthScript,/Deployment source/);
-  assert.match(healthScript,/Encrypted local storage/);
-  assert.match(health,/Privacy-safe diagnostics/);
-  assert.match(healthScript,/PROBE_TIMEOUT_MS/);
-  assert.match(healthScript,/finally\{finished=true;render\(\);\}/);
-  assert.doesNotMatch(healthScript,/companyNameEn|customerSnapshot|descriptionEn|decryptVault/);
-  assert.doesNotMatch(healthScript,/indexedDB\.open\(|transaction\('records'|Safety snapshot/);
-  assert.match(vercel,/\/sw\.js/);
-  assert.match(vercel,/\/runtime-config\.js/);
-  assert.match(vercel,/\/health\.html/);
-  assert.match(vercel,/no-cache, no-store, must-revalidate/);
-  assert.match(errors,/health\.html/);
-  assert.match(errors,/sourceRepoSlug/);
+test('unified system diagnostics remain bounded and privacy-safe without opening account records',async()=>{
+ const [health,script,vercel,errors]=await Promise.all([read('public/health.html'),read('public/health.js'),read('vercel.json'),read('src/app/AppErrorBoundary.tsx')]);
+ assert.match(health,/Unified Diagnostics/);
+ assert.match(health,/System health/);
+ assert.match(health,/One privacy-safe report/);
+ assert.match(health,/id="report"/);
+ assert.match(script,/PROBE_TIMEOUT_MS/);
+ assert.match(script,/HEALTH_DEADLINE_MS/);
+ assert.match(script,/finally\{finished=true;render\(\);\}/);
+ for(const sensitive of ['companyNameEn','customerSnapshot','descriptionEn','decryptVault','indexedDB.open('])assert.equal(script.includes(sensitive),false,`diagnostics must not access ${sensitive}`);
+ assert.match(vercel,/\/sw\.js/);
+ assert.match(vercel,/\/runtime-config\.js/);
+ assert.match(vercel,/\/health\.html/);
+ assert.match(vercel,/no-cache, no-store, must-revalidate/);
+ assert.match(errors,/health\.html/);
+ assert.match(errors,/sourceRepoSlug/);
+});
+
+test('integrated diagnostics retain structured text-only output and avoid account record access',async()=>{
+  const [health,script,errors,index]=await Promise.all([read('public/health.html'),read('public/health.js'),read('src/app/AppErrorBoundary.tsx'),read('src/app/index.tsx')]);
+  assert.match(health,/id="diagnosticLog"/);
+  assert.match(script,/Deployment source/);
+  assert.match(script,/Encrypted local storage/);
+  assert.match(script,/\.textContent=systemReportText\(\)/);
+  assert.doesNotMatch(script,/transaction\('records'|Safety snapshot/);
+  assert.match(errors,/unifiedDiagnostics=/);
+  assert.match(index,/if\(iosWebKit\)\{[\s\S]*?getRegistrations\(\)[\s\S]*?return;/);
 });

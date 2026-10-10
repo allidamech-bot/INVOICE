@@ -30,15 +30,12 @@ test('v108 remains application-only and respects motion/touch ergonomics',async(
   assert.doesNotMatch(css,/\.invoice-page|\.items-table|\.doc-header|\.totals-block/);
 });
 
-test('v108 loads before final performance layer and is cached offline',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const settings=html.indexOf('./styles/settings-workspace-v108.css');
-  const performance=html.indexOf('./styles/performance-polish-v100.css');
-  assert.ok(settings>=0,'v108 stylesheet should be linked');
-  assert.ok(performance>settings,'v100 must stay the final performance layer');
-  assert.match(sw,/settings-workspace-v108\.css/);
-  assert.match(sw,/v108/);
-  assert.match(sw,/v107/);
-  assert.match(sw,/v103/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
+test('current settings hierarchy is in the active source and installed offline bundle',async()=>{
+ const [html,sw,css,bundle]=await Promise.all([read('index.html'),read('dist/sw.js'),read('src/styles/tailadmin-settings-v320.css'),read('dist/styles/app.bundle.css')]);
+ assert.equal(html.includes('settings-workspace-v108.css'),false,'old settings sheet cannot override current shell');
+ assert.ok(html.includes('tailadmin-settings-v320.css'));
+ assert.ok(css.includes('.ta-settings-shell')&&css.includes('.ta-settings-page'));
+ assert.ok(bundle.includes('tailadmin-settings-v320.css'));
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
+

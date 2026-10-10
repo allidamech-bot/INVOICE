@@ -19,6 +19,7 @@ test('Advisor V2 excludes future operational and treasury records from an as-of 
   vault.treasuryAccounts=[{id:'bank',workspaceId:'default',branchId:'main',label:'Bank',kind:'bank',currency:'USD',bankAccountId:'',active:true,createdAt:at('2026-01-01'),updatedAt:at('2026-01-01')}];
   vault.treasuryEntries=[{id:'opening',workspaceId:'default',branchId:'main',type:'opening-balance',date:'2026-10-01',currency:'USD',amount:'100',fromAccountId:'',toAccountId:'bank',sourceType:'manual',sourceId:'',reference:'',notes:'',reconciledAt:'',voidedAt:'',voidReason:'',createdAt:at('2026-10-01'),updatedAt:at('2026-10-01')},{id:'future-withdrawal',workspaceId:'default',branchId:'main',type:'withdrawal',date:'2026-10-20',currency:'USD',amount:'80',fromAccountId:'bank',toAccountId:'',sourceType:'manual',sourceId:'',reference:'',notes:'',reconciledAt:'',voidedAt:'',voidReason:'',createdAt:at('2026-10-20'),updatedAt:at('2026-10-20')}];
   const advisor=await build(vault);
+  assert.equal(advisor.asOf,AS_OF,'the explicitly requested business snapshot date must override ambient finance today');
   assert.equal(advisor.purchasing.postedPurchases,1);
   assert.deepEqual(advisor.purchasing.byCurrency.map(row=>[row.currency,row.purchases,row.expenses]),[['EUR','0.00','20.00'],['USD','10.00','0.00']]);
   assert.equal(advisor.expenses.count,1);

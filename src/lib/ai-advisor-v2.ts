@@ -2,7 +2,8 @@ import type { VaultPayload } from '../types.js';
 import type { AiBusinessContext } from './ai-business.js';
 import type { AiFinanceContext } from './ai-finance.js';
 import { validateFxRate } from './fx-rates.js';
-import { todayIso } from './id.js';
+import { isIsoDate, todayIso } from './id.js';
+import { buildAiFinanceContext } from './ai-finance.js';
 import { decimalToScaled } from './money.js';
 import { expenseAccountingIsValid, inventoryBalances, purchaseAccountingIsValid, spendByCurrency } from './operations.js';
 import { supplierPayablesByCurrency } from './payables.js';
@@ -77,8 +78,11 @@ function redactedAdvisor(asOf:string):AdvisorDataV2{return{
 };}
 
 export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,business:AiBusinessContext,scope:'business'|'personal'|'temporary'='business'):AdvisorDataV2{
-  const asOf=finance.asOf||business.asOf||todayIso();
+  const asOf=business.asOf||finance.asOf||todayIso();
   if(scope==='personal')return redactedAdvisor(asOf);
+  if(!isIsoDate(asOf))throw new Error('Advisor snapshot date is invalid.');
+  const financeDateAligned=finance.asOf===asOf;
+  if(!financeDateAligned)finance=buildAiFinanceContext({documents:vault.documents,payments:vault.payments,customers:vault.customers,activeDocument:null},'',asOf);
 
   const purchasesAsOf=vault.purchases.filter(row=>datedOnOrBefore(row.date,asOf));
   const supplierPaymentsAsOf=vault.supplierPayments.filter(row=>datedOnOrBefore(row.date,asOf)&&(!row.createdAt||datedOnOrBefore(row.createdAt,asOf)));
@@ -97,7 +101,8 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
 
   const spend=spendByCurrency(purchasesAsOf,expensesAsOf).slice(0,12);
   const expensesByCurrency=spend.filter(row=>amountPositive(row.expenses)).map(row=>({currency:row.currency,expenses:row.expenses}));
-  const balances=inventoryBalances(vault.savedItems,inventoryMovementsAsOf);
+  const itemsAsOf=vault.savedItems.filter(item=>!item.createdAt||datedOnOrBefore(item.createdAt,asOf));
+  const balances=inventoryBalances(itemsAsOf,inventoryMovementsAsOf);
   const inventoryRows=balances.map(row=>({itemId:row.item.id,name:itemName(row.item),sku:row.item.sku??'',quantity:row.quantity,state:quantityState(row.quantity)})).sort((a,b)=>{
     const rank={negative:2,zero:1,positive:0} as const;return rank[b.state]-rank[a.state]||a.name.localeCompare(b.name);
   });
@@ -108,7 +113,7 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
   const latestRates=[] as AdvisorDataV2['fx']['latestRates'];
   for(const rate of validRates){const pair=`${rate.fromCurrency.trim().toUpperCase()}/${rate.toCurrency.trim().toUpperCase()}`;if(seenPairs.has(pair))continue;seenPairs.add(pair);latestRates.push({id:rate.id,date:rate.date,fromCurrency:rate.fromCurrency.trim().toUpperCase(),toCurrency:rate.toCurrency.trim().toUpperCase(),rate:rate.rate,sourceLabel:rate.sourceLabel});if(latestRates.length>=20)break;}
 
-  const pipeline=buildSalesPipeline(vault);
+  const pipeline=buildSalesPipeline(vault,asOf);
   const nextActions=pipeline.nextActions.map(row=>({id:row.id,title:row.title,stage:row.stage,expectedCloseDate:row.expectedCloseDate,nextAction:row.nextAction,currency:row.currency,amount:row.amount}));
   const evidenceRows:AdvisorEvidence[]=[];
   for(const row of finance.monthToDate.slice(0,8))evidenceRows.push(evidence(`sales-mtd-${row.currency}`,'sales','ai-finance.monthToDate',`Month-to-date net sales are ${row.netSales} ${row.currency}; collected ${row.collected} ${row.currency}.`,'info',row.currency,row.netSales,row.issuedInvoices));
@@ -172,6 +177,6 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
     fx:{policy:'recorded-rates-only-no-automatic-conversion',latestRates,recordedPairs:[...seenPairs].slice(0,20)},
     pipeline:{stages:pipeline.stages,openValues:pipeline.openValues,nextActions,wonCount:pipeline.wonCount,lostCount:pipeline.lostCount},
     health:{status,score:null,signals},evidence:prioritizedEvidence,missingData,
-    limitations:['currencies-remain-separate-by-default','no-cross-currency-total-without-deterministic-fx-result','recorded-fx-rates-are-evidence-not-model-arithmetic-authority','health-is-qualitative-not-a-numeric-score','inventory-has-no-invented-reorder-threshold','pipeline-values-remain-separated-by-currency','ai-explains-deterministic-results-and-does-not-recalculate-accounting']
+    limitations:[...(!financeDateAligned?['finance-context-rebuilt-at-advisor-asof']:[]),'pipeline-replayed-from-recorded-events-through-asof','historical-operational-context-uses-current-records-not-full-vault-version-history','currencies-remain-separate-by-default','no-cross-currency-total-without-deterministic-fx-result','recorded-fx-rates-are-evidence-not-model-arithmetic-authority','health-is-qualitative-not-a-numeric-score','inventory-has-no-invented-reorder-threshold','pipeline-values-remain-separated-by-currency','ai-explains-deterministic-results-and-does-not-recalculate-accounting']
   };
 }

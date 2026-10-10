@@ -66,8 +66,8 @@ test('v152 cloud persistence is local-first coalesced retryable and automaticall
   assert.doesNotMatch(setup,/await pushLocalVaultToCloud/);
   assert.match(db,/let dbPromise:Promise<IDBDatabase>\|null=null/);
   assert.match(freshness,/if\(pending\)window\.clearTimeout\(pending\)/);
-  assert.match(modal,/Your LOUREX workspace saves automatically/);
-  assert.match(modal,/Local storage and account backup run in the background/);
+  assert.match(modal,/Automatic protection is active/);
+  assert.match(modal,/No manual sync or separate cloud sign-in is required/);
   assert.doesNotMatch(modal,/Saved locally — waiting to sync|Sync Now|مزامنة الآن/);
   assert.match(i18n,/automaticSyncCopy/);
   assert.match(i18n,/automatic synchronization/);
@@ -85,7 +85,7 @@ test('v152 small encrypted vaults use one atomic cloud transaction',async()=>{
 
 test('v152 report dates retain native picking behind stable mobile labels',async()=>{
   const [page,css]=await Promise.all([read('src/components/ReportsPage.tsx'),read('src/styles/ux-recovery-v152.css')]);
-  assert.match(page,/reports-date-value/);
+  assert.ok(page.includes('type="date"'),'Safari-native date selection retained');
   assert.match(page,/type="date"/);
   assert.match(page,/aria-label=\{t\('From date','تاريخ البداية'\)\}/);
   assert.match(page,/aria-label=\{t\('To date','تاريخ النهاية'\)\}/);

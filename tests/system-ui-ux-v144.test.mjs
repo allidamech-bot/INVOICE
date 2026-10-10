@@ -4,33 +4,26 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v144 unifies the main application workspaces without adding a new production stylesheet',async()=>{
-  const [css,html]=await Promise.all([read('src/styles/performance-polish-v100.css'),read('index.html')]);
-  assert.match(css,/v144 — unified application UI\/UX refinement/);
-  for(const selector of ['documents-overview','customer-card','saved-item-row','receivables-page','reports-page','operations-page','settings-tabs']){
-    assert.ok(css.includes(selector),`v144 must cover ${selector}`);
-  }
-  assert.doesNotMatch(html,/system-ui-ux-v144\.css/);
-  assert.equal((html.match(/performance-polish-v100\.css/g)||[]).length,1);
+test('current shared UI styles cover all workspaces without retired v144 presentation overrides',async()=>{
+ const [html,css]=await Promise.all([read('index.html'),read('src/styles/tailadmin-shell-v320.css')]);
+ for(const layer of ['tailadmin-shell-v320.css','tailadmin-dashboard-v320.css','tailadmin-documents-v320.css','tailadmin-customers-v320.css','tailadmin-products-v320.css','tailadmin-finance-workspaces-v320.css','tailadmin-operations-v320.css','tailadmin-settings-v320.css'])assert.ok(html.includes(layer),layer);
+ assert.ok(css.includes('.ta-shell')&&css.includes('.ta-mobile-nav'));
+ assert.ok(!html.includes('system-ui-ux-v144.css'));
 });
 
-test('v144 remains app-only and protects responsive usability',async()=>{
-  const css=await read('src/styles/performance-polish-v100.css');
-  const v144=css.slice(css.indexOf('/* v144'));
-  assert.match(v144,/\.app-ui \.main-content/);
-  assert.match(v144,/@media \(max-width:720px\)/);
-  assert.match(v144,/env\(safe-area-inset-bottom\)/);
-  assert.match(v144,/settings-tabs\{position:sticky/);
-  assert.match(v144,/@media \(prefers-reduced-motion:reduce\)/);
-  assert.doesNotMatch(v144,/\.invoice-page|\.invoice-pages|\.document-sheet/);
+test('shared app shell and overlays are touch-safe, keyboard safe and print-isolated',async()=>{
+ const [shell,overlays]=await Promise.all([read('src/styles/tailadmin-shell-v320.css'),read('src/styles/tailadmin-overlays-v320.css')]);
+ assert.ok(shell.includes('@media')&&shell.includes('safe-area-inset-bottom'));
+ assert.ok(shell.includes('.ta-mobile-nav'));
+ assert.ok(overlays.includes('.modal-backdrop')&&overlays.includes('min-height:44px'));
+ assert.ok(!shell.includes('.invoice-page')&&!overlays.includes('.invoice-page'));
 });
 
-test('v144 preserves financial scanning with tabular figures and compact tables',async()=>{
-  const css=await read('src/styles/performance-polish-v100.css');
-  const v144=css.slice(css.indexOf('/* v144'));
-  assert.match(v144,/font-variant-numeric:tabular-nums/);
-  assert.match(v144,/receivables-page table/);
-  assert.match(v144,/reports-page table/);
-  assert.match(v144,/operations-page table/);
-  assert.match(v144,/tbody tr:hover/);
+test('financial workspaces maintain clear metrics and compact responsive ledger rows',async()=>{
+ const [finance,ops,reports]=await Promise.all([read('src/styles/tailadmin-finance-v320.css'),read('src/styles/tailadmin-operations-v320.css'),read('src/styles/tailadmin-finance-workspaces-v320.css')]);
+ for(const css of [finance,ops,reports])assert.ok(css.includes('var(--ft-'),'financial tokens must be theme-aware');
+ assert.ok(finance.includes('receivable')&&reports.includes('ta-reports-page'));
+ assert.ok(ops.includes('.ta-ops-row')&&ops.includes('min-height:44px'));
+ for(const css of [finance,ops,reports])assert.ok(!css.includes('.invoice-page'));
 });
+

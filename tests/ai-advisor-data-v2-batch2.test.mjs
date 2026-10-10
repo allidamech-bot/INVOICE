@@ -27,7 +27,9 @@ async function fixture(){
   vault.treasuryAccounts=[{id:'bank-usd',workspaceId:'default',branchId:'main',label:'Main Bank',kind:'bank',currency:'USD',bankAccountId:'',active:true,createdAt:at('2026-01-01'),updatedAt:at('2026-01-01')}];
   vault.treasuryEntries=[{id:'opening-bank',workspaceId:'default',branchId:'main',type:'opening-balance',date:'2026-01-01',currency:'USD',amount:'1000',fromAccountId:'',toAccountId:'bank-usd',sourceType:'manual',sourceId:'',reference:'OPEN',notes:'',reconciledAt:'',voidedAt:'',voidReason:'',createdAt:at('2026-01-01'),updatedAt:at('2026-01-01')}];
   vault.fxRates=[{id:'fx-usd-eur',workspaceId:'default',date:'2026-10-01',fromCurrency:'USD',toCurrency:'EUR',rate:'0.90',sourceLabel:'Recorded manual rate',notes:'',createdAt:at('2026-10-01'),updatedAt:at('2026-10-01')}];
-  const opportunity=blankOpportunity(customer);opportunity.title='Acme Q4';opportunity.stage='quote-sent';opportunity.amount='300';opportunity.currency='USD';opportunity.nextAction='Follow up quote';opportunity.expectedCloseDate='2026-10-20';const upsert=validatedOpportunityUpsertEvent(vault,opportunity,'');vault.documentEvents=[...vault.documentEvents,upsert.event];
+  const opportunity=blankOpportunity(customer);opportunity.title='Acme Q4';opportunity.stage='quote-sent';opportunity.amount='300';opportunity.currency='USD';opportunity.nextAction='Follow up quote';opportunity.expectedCloseDate='2026-10-20';const upsert=validatedOpportunityUpsertEvent(vault,opportunity,'');// This fixture describes an opportunity already known at AS_OF, independent of the machine clock.
+  const historical={...upsert.opportunity,createdAt:at('2026-09-01'),updatedAt:at(AS_OF)};
+  vault.documentEvents=[...vault.documentEvents,{...upsert.event,at:at(AS_OF),note:'@lourex:crm-opportunity:v1:'+JSON.stringify({kind:'upsert',opportunity:historical})}];
   const finance=buildAiFinanceContext({documents:vault.documents,payments:vault.payments,customers:vault.customers,activeDocument:null},'Acme health');
   const business=buildAiBusinessContext(vault,AS_OF);
   return{vault,advisor:buildAdvisorDataV2(vault,finance,business,'business'),buildAdvisorDataV2,finance,business};

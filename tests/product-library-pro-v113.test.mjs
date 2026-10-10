@@ -103,21 +103,26 @@ test('v113 Product Library Pro exposes SKU, duplicate, dirty-state protection an
 test('favorite toggles on the actively edited product stay in the unsaved editor snapshot',async()=>{
   const workspace=await read('src/components/ProductLibraryWorkspace.tsx');
   assert.match(workspace,/if\(editing\?\.id===item\.id\)\{this\.set\('favorite',!Boolean\(editing\.favorite\)\);return;\}/);
-  assert.match(workspace,/const rowFavorite=active\?Boolean\(edit\?\.favorite\):Boolean\(item\.favorite\)/);
+  assert.match(workspace,/rowFavorite=active\?Boolean\(edit\?\.favorite\):Boolean\(item\.favorite\)/);
   assert.match(workspace,/aria-pressed=\{rowFavorite\}/);
 });
 
-test('v113 stays app-only, offline capable and keeps the performance layer last',async()=>{
-  const [css,index,sw]=await Promise.all([read('src/styles/product-library-pro-v113.css'),read('index.html'),read('public/sw.js')]);
-  assert.match(css,/\.app-ui \.product-library-pro/);
-  assert.match(css,/product-import-table/);
-  assert.match(css,/@media \(max-width:720px\)/);
-  assert.match(css,/@media \(pointer:coarse\)/);
-  assert.doesNotMatch(css,/\.invoice-page|\.items-table|\.doc-header|\.totals-block/);
-  const pro='./styles/product-library-pro-v113.css'; const perf='./styles/performance-polish-v100.css';
-  assert.ok(index.indexOf(pro)>-1&&index.indexOf(pro)<index.indexOf(perf));
-  for(const asset of ['./styles/product-library-pro-v113.css','./src/components/ProductLibraryWorkspace.js','./src/components/ProductImportModal.js','./src/lib/product-import.js','./src/lib/product-import-ai.js'])assert.ok(sw.includes(asset),asset);
-  assert.match(sw,/xlsx@0\.18\.5\/dist\/xlsx\.full\.min\.js/);
-  assert.match(sw,/v113/); assert.match(sw,/v112/); assert.match(sw,/v111/); assert.match(sw,/v103/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
+test('active product library uses screen-only TailAdmin ownership and bundled offline assets',async()=>{
+ const [legacy,current,index,distSw]=await Promise.all([
+   read('src/styles/product-library-pro-v113.css'),
+   read('src/styles/tailadmin-products-v320.css'),
+   read('index.html'),
+   read('dist/sw.js')
+ ]);
+ assert.match(legacy,/\.app-ui \.product-library-pro/);
+ assert.match(legacy,/product-import-table/);
+ assert.match(legacy,/@media \(max-width:720px\)/);
+ assert.match(legacy,/@media \(pointer:coarse\)/);
+ assert.doesNotMatch(legacy,/\.invoice-page|\.items-table|\.doc-header|\.totals-block/);
+ assert.match(current,/\.ta-products-workspace/);
+ assert.match(current,/safe-area-inset-bottom/);
+ assert.doesNotMatch(current,/\.invoice-page|@media print/);
+ assert.equal(index.includes('product-library-pro-v113.css'),false,'retired visual owner must not override new product shell');
+ assert.match(index,/tailadmin-products-v320\.css/);
+ assert.ok(distSw.includes('styles/app.bundle.css'),'installed app requires combined current product CSS');
 });

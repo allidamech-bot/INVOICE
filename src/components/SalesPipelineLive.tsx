@@ -1,3 +1,4 @@
+import { handleTabKeyDown } from '../lib/tab-navigation.js';
 import type { Customer, LourexDocument } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { resumeVaultSession } from '../storage/vault.js';
@@ -116,12 +117,14 @@ export class SalesPipelineLive extends React.Component<Props,State>{
       </div>
     </Modal>;
   };
+  private showDirectory=()=>{if(this.state.busy||this.state.editing||this.state.deleting)return;this.props.onShowDirectory();};
   render():any{
     const snapshot=this.state.snapshot;const opportunities=snapshot?.opportunities??[];
     const customerById=new Map(this.state.customers.map(customer=>[customer.id,customer]));
     const openCount=opportunities.filter(row=>row.stage!=='won'&&row.stage!=='lost').length;
     return <section className="lx-pipeline-page" dir={isArabic()?'rtl':'ltr'}>
-      <div className="lx-pipeline-tabs" role="tablist" aria-label={t('Customer workspace','مساحة العملاء')}><button type="button" role="tab" aria-selected="false" onClick={this.props.onShowDirectory}>{t('Directory','الدليل')}</button><button type="button" role="tab" aria-selected="true" className="is-active">{t('Pipeline','خط المبيعات')}</button></div>
+      <div className="lx-pipeline-tabs" onKeyDown={handleTabKeyDown} role="tablist" aria-label={t('Customer workspace','مساحة العملاء')}><button type="button" role="tab" id="customers-tab-directory" aria-controls="customers-workspace-panel" tabIndex={-1} aria-selected="false" disabled={this.state.busy||Boolean(this.state.editing)||Boolean(this.state.deleting)} onClick={this.showDirectory}>{t('Directory','الدليل')}</button><button type="button" role="tab" id="customers-tab-pipeline" aria-controls="customers-workspace-panel" tabIndex={0} aria-selected="true" className="is-active">{t('Pipeline','خط المبيعات')}</button></div>
+      <div id="customers-workspace-panel" role="tabpanel" aria-labelledby="customers-tab-pipeline" tabIndex={-1}>
       <header className="lx-pipeline-topbar"><div className="lx-pipeline-heading"><small>{t('Sales & Relationships','المبيعات والعلاقات')}</small><h1>{t('Sales Pipeline','خط المبيعات')}</h1><p>{t('Track opportunities from first contact to won or lost without changing invoices, quotations or accounting records.','تابع فرص البيع من أول تواصل حتى الفوز أو الخسارة بدون تغيير الفواتير أو عروض الأسعار أو السجلات المحاسبية.')}</p></div><Button icon="plus" variant="primary" onClick={this.newOpportunity}>{t('New Opportunity','فرصة جديدة')}</Button></header>
       {this.state.error&&!this.state.editing?<div className="lx-pipeline-error" role="alert">{this.state.error}</div>:null}
       <section className="lx-pipeline-summary" aria-label={t('Pipeline summary','ملخص خط المبيعات')}>
@@ -139,6 +142,7 @@ export class SalesPipelineLive extends React.Component<Props,State>{
       <p className="lx-pipeline-note">{t('LOUREX AI may summarize pipeline context, but stage, value and won/lost decisions remain user-controlled. Currencies are never silently converted.','يمكن لذكاء LOUREX تلخيص سياق خط المبيعات، لكن المرحلة والقيمة وقرارات الفوز/الخسارة تبقى بيد المستخدم. لا يتم تحويل العملات بشكل مخفي.')}</p>
       {this.editor()}
       <ConfirmDialog open={Boolean(this.state.deleting)} title={t('Delete opportunity?','حذف فرصة البيع؟')} message={t('The current opportunity will disappear from Pipeline. Its encrypted history remains in the local audit event stream.','ستختفي فرصة البيع الحالية من خط المبيعات، بينما يبقى سجلها المشفر ضمن سجل الأحداث المحلي.')} onCancel={()=>{if(!this.state.busy)this.setState({deleting:null});}} onConfirm={()=>void this.remove()}/>
+      </div>
     </section>;
   }
 }

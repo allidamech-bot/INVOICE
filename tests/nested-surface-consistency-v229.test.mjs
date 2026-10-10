@@ -20,24 +20,18 @@ test('v229 normalizes nested application surfaces without touching printable pag
   assert.doesNotMatch(css,/\.invoice-page|\.invoice-pages|@media print/);
 });
 
-test('v229 follows Matte Black and remains before the canonical document stylesheet',async()=>{
-  const [html,dist]=await Promise.all([read('index.html'),read('dist/styles/app.bundle.css')]);
-  const matte=html.indexOf('./styles/matte-black-v228.css');
-  const nested=html.indexOf('./styles/nested-surface-consistency-v229.css');
-  const document=html.indexOf('./styles/document-premium-redesign-v141.css');
-  assert.ok(matte>=0&&nested>matte&&document>nested,'nested surface pass must sit after v228 and before printable document styling');
-  assert.match(dist,/v229 — nested surface consistency pass/);
+test('approved TailAdmin semantic layers own nested screen surfaces and preserve separate A4 print',async()=>{
+ const [html,bundle,css]=await Promise.all([read('index.html'),read('dist/styles/app.bundle.css'),read('src/styles/tailadmin-shell-v320.css')]);
+ assert.equal(html.includes('nested-surface-consistency-v229.css'),false,'retired nested override must not re-enter the cascade');
+ for(const name of ['tailadmin-shell-v320.css','tailadmin-settings-v320.css','tailadmin-editor-core-v320.css','document-premium-redesign-v141.css'])assert.ok(html.includes(name)&&bundle.includes(name),name);
+ assert.ok(css.includes('var(--ft-surface)'),'nested surfaces should use semantic palette');
+ assert.ok(!css.includes('.invoice-page'),'shell cannot alter A4 paper');
 });
 
-test('v229 explicitly replaces legacy light nested controls found in older layers',async()=>{
-  const [legacyEditor,legacyCommercial,legacySettings,legacyMore,patch]=await Promise.all([
-    read('src/styles/editor-system.css'),read('src/styles/commercial-controls-v136.css'),
-    read('src/styles/settings-account-v163.css'),read('src/styles/mobile-more-visual-v204.css'),
-    read('scripts/pwa-cache-v205.mjs')
-  ]);
-  assert.match(legacyEditor,/item-pricing-grid[\s\S]*?background:#f8fafb/);
-  assert.match(legacyCommercial,/commercial-row-card[\s\S]*?background:#fff/);
-  assert.match(legacySettings,/settings-workspace-v2[\s\S]*?background:#fffdfa/);
-  assert.match(legacyMore,/mobile-more-link\.tone-reports[\s\S]*?linear-gradient/);
-  assert.match(patch,/\.\/styles\/nested-surface-consistency-v229\.css/);
+test('current application nested controls use theme surfaces rather than retired light-only sheets',async()=>{
+ const [html,settings,editor,more]=await Promise.all([read('index.html'),read('src/styles/tailadmin-settings-v320.css'),read('src/styles/tailadmin-editor-core-v320.css'),read('src/styles/tailadmin-shell-v320.css')]);
+ assert.equal(html.includes('nested-surface-consistency-v229.css'),false);
+ for(const [label,css] of [['settings',settings],['editor',editor],['More',more]])assert.ok(css.includes('var(--ft-surface')||css.includes('var(--ft-line'),'semantic visual owner missing for '+label);
+ assert.ok(more.includes('.ta-mobile-sheet')&&settings.includes('.ta-settings-shell'));
 });
+

@@ -17,23 +17,25 @@ test('v228 establishes a flat matte-black accounting palette',async()=>{
   assert.doesNotMatch(css,/\.invoice-page|\.invoice-pages|@media print/);
 });
 
-test('v228 loads last for app chrome and ships in the installed PWA',async()=>{
-  const [html,sw,patch,dist]=await Promise.all([read('index.html'),read('public/sw.js'),read('scripts/pwa-cache-v205.mjs'),read('dist/styles/app.bundle.css')]);
-  const matte=html.indexOf('./styles/matte-black-v228.css');
-  assert.ok(matte>html.indexOf('./styles/luminous-noir-v224.css'));
-  assert.ok(matte<html.indexOf('./styles/document-premium-redesign-v141.css'));
-  assert.match(sw,/LOCAL_CORE\.push\('\.\/styles\/matte-black-v228\.css'\)/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v228'/);
-  assert.match(dist,/LOUREX Matte Black/);
+test('approved dark-only matte visual owner loads in current cascade and offline bundle',async()=>{
+ const [html,sw,dist,dark]=await Promise.all([read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css'),read('src/styles/matte-black-dark-v360.css')]);
+ assert.ok(html.includes('matte-black-dark-v360.css'));
+ assert.ok(html.includes('tailadmin-reliability-bridge-v320.css'));
+ assert.equal(html.includes('matte-black-v228.css'),false,'retired all-theme matte CSS cannot overwrite approved light UI');
+ assert.ok(dist.includes('matte-black-dark-v360.css'));
+ assert.ok(sw.includes('styles/app.bundle.css'));
+ assert.ok(dark.includes('html[data-ui-theme="dark"]'));
+ assert.ok(dark.includes('background-image:none!important'));
+ assert.ok(!dark.includes('.invoice-page'),'dark workspace cannot override document paper');
 });
 
-test('v228 removes 3D treatments from public and emergency surfaces',async()=>{
-  const [html,health,bridge,entry,recovery]=await Promise.all([
-    read('index.html'),read('public/health.html'),read('public/ios-print-bridge.js'),read('src/app/index.tsx'),read('src/app/AppErrorBoundary.tsx')
-  ]);
-  assert.doesNotMatch(html.slice(html.indexOf('<style id="lourex-boot-style">'),html.indexOf('</style>')),/gradient\(|box-shadow/);
-  assert.doesNotMatch(health,/gradient\(|backdrop-filter/);
-  assert.match(bridge,/\.lourex-ios-output-primary\{[^}]*background-image:none!important/);
-  assert.match(entry,/reload\.style\.boxShadow='none'/);
-  assert.match(recovery,/boxShadow:'none'/);
+test('current dark workspace contrast remains flat while diagnostics and fallback UI stay readable',async()=>{
+ const [dark,health,bridge,entry,recovery]=await Promise.all([read('src/styles/matte-black-dark-v360.css'),read('public/health.html'),read('public/ios-print-bridge.js'),read('src/app/index.tsx'),read('src/app/AppErrorBoundary.tsx')]);
+ assert.ok(dark.includes('box-shadow:none!important'),'dark cards must avoid extraneous elevation');
+ assert.ok(dark.includes('background-image:none!important'));
+ assert.ok(health.includes('System health')&&health.includes('Unified Diagnostics'),'health diagnostics remain visible');
+ assert.ok(bridge.includes('.lourex-ios-output-primary'),'iPhone output action remains available');
+ assert.ok(entry.includes('showUpdateNotice'),'startup update path remains available');
+ assert.ok(recovery.includes('health.html'),'recovery continues to diagnostics');
 });
+

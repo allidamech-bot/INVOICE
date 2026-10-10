@@ -18,7 +18,8 @@ test('all 18 template identifiers stay aligned across type, selector, renderer a
 
 test('proforma, invoice and credit note share the same semantic renderer',async()=>{
   const [types,renderer,bridge]=await Promise.all([read('src/types.ts'),read('src/templates/TemplateRenderer.tsx'),read('public/ios-print-bridge.js')]);
-  assert.match(types,/DocumentKind\s*=\s*'proforma'\s*\|\s*'invoice'/);
+  assert.match(types,/DocumentKind/);
+  for(const kind of ["'proforma'","'invoice'","'purchase-order'","'delivery-note'"])assert.ok(types.includes(kind),kind);
   assert.match(renderer,/kind-\$\{doc\.kind\}/);
   assert.match(renderer,/doc\.role==='credit-note'/);
   assert.match(renderer,/data-kind=\{doc\.kind\}/);

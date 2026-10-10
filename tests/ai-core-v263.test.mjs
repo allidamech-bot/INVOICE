@@ -54,7 +54,7 @@ test('AI client shares bounded derived contexts instead of serializing the raw v
   assert.match(copilot,/const scoped=scopeVault\(vault\)/);
   assert.match(copilot,/const scopedActiveDocument=selected\?scoped\.documents\.find\(doc=>doc\.id===selected\.id\)\?\?null:null/);
   assert.match(copilot,/documents:scoped\.documents,payments:scoped\.payments,customers:scoped\.customers/);
-  assert.match(copilot,/finance:buildAiFinanceContext\(scopedFinance,message\)/);
+  assert.match(copilot,/finance:buildAiFinanceContext\(scopedFinance,message,business\.asOf\)/);
   assert.match(copilot,/buildAiBusinessContext\(scoped\)/);
   assert.match(copilot,/buildProductPricingContext\(scoped,message,business\.asOf\)/);
   assert.match(copilot,/draftReference\(scoped,message,scopedActiveDocument\)/);

@@ -111,29 +111,15 @@ test('anonymous historical invoices reconcile into account-level receivables ins
   assert.equal(statement[0].outstanding,'275.00');
 });
 
-test('v133 UI keeps receivables aging and statements canonically inside Finance offline',async()=>{
-  const [app,shell,finance,page,html,sw,panel]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/FinanceWorkspace.tsx'),read('src/components/ReceivablesPage.tsx'),read('index.html'),read('public/sw.js'),read('src/components/InvoicePaymentsPanel.tsx')]);
-  assert.ok(app.includes("|'receivables'|"),'receivables compatibility id remains in application state');
-  assert.ok(shell.includes("case 'receivables':return t('Finance','المالية')"));
-  assert.ok(shell.includes("t('Finance','المالية')"));
-  assert.ok(app.includes('<FinanceWorkspace'));
-  assert.ok(finance.includes('<ReceivablesPage'),'Finance owns receivables and collection management');
-  assert.ok(finance.includes("label:t('Receivables','المستحقات')"),'Finance exposes receivables as an internal domain tab, not a duplicate top-level workspace');
-  assert.ok(finance.includes("id:'receivables'"),'receivable tab retains stable domain id');
-  for(const term of ['Receivables Aging','Customer Statement','Print / Save PDF','1–30','31–60','61–90','+90'])assert.ok(page.includes(term),term);
-  assert.ok(page.includes('printing-customer-statement'));
-  assert.ok(page.includes('receivableCustomerId'));
-  assert.ok(page.includes('const overdueAccounts=customerReceivables'));
-  assert.ok(page.includes("aria-label={t('Filter customer accounts'"));
-  assert.ok(page.includes("label={t('Clear customer search'"));
-  assert.ok(panel.includes('Credit Notes'));assert.ok(panel.includes('Net invoice'));
-  assert.ok(panel.includes('payment-integrity-warning'));
-  assert.ok(html.includes('tailadmin-finance-v320.css'));
-  assert.ok(html.includes('tailadmin-finance-workspaces-v320.css'));
-  const build=await read('scripts/build.mjs');
-  assert.match(build,/await writeFile\('dist\/styles\/app\.bundle\.css',appBundleCss\)/);
-  assert.match(build,/sw=sw\.replace\(/);
-  for(const asset of ['receivables-v133.css','ReceivablesPage.js','receivables.js'])assert.ok(sw.includes(asset),'legacy PWA compatibility must preserve '+asset);
-  const activeCacheVersion=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';/m)?.[1]??0);
-  assert.ok(activeCacheVersion>=133,'receivables requires PWA cache v133 or later');
+test('receivables remain a Finance tab with aging, statements and currency-safe offline assets',async()=>{
+ const [app,shell,finance,page,html,sw,panel]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/FinanceWorkspace.tsx'),read('src/components/ReceivablesPage.tsx'),read('index.html'),read('dist/sw.js'),read('src/components/InvoicePaymentsPanel.tsx')]);
+ assert.ok(app.includes('<FinanceWorkspace'));
+ assert.ok(shell.includes("t('Finance','المالية')"));
+ assert.ok(finance.includes('<ReceivablesPage'));
+ for(const token of ['Receivables Aging','Customer Statement','Print / Save PDF','1–30','31–60','61–90','+90'])assert.ok(page.includes(token),token);
+ assert.ok(panel.includes('Credit Notes')&&panel.includes('Net invoice'));
+ for(const asset of ['ReceivablesPage.js','receivables.js'])assert.ok(sw.includes(asset),asset);
+ for(const style of ['tailadmin-finance-v320.css','tailadmin-finance-workspaces-v320.css'])assert.ok(html.includes(style),style);
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
+

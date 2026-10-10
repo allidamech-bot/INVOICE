@@ -10,7 +10,8 @@ test('v340 checkpoints every stable TailAdmin workspace including Purchasing',as
   assert.match(runtime,/const WORKSPACES=\['home','documents','customers','items','operations','receivables','reports'\]/);
   assert.match(runtime,/document\.querySelector\('\.ta-shell'\)/);
   assert.match(runtime,/\.ta-sidebar-nav \.ta-nav-item/);
-  assert.match(runtime,/operations:4/);
+  assert.match(runtime,/data-lourex-workspace/);
+  assert.doesNotMatch(runtime,/WORKSPACE_NAV_INDEX|buttons\[index\]/);
 });
 
 test('v340 restores the previous workspace after PIN, shell re-init or Safari reload',async()=>{

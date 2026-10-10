@@ -6,6 +6,7 @@ const swPath='dist/sw.js';
 const VERSION='580-1';
 
 let bridge=await readFile(bridgePath,'utf8');
+if(!bridge.includes("stage.className = 'lourex-ios-pdf-stage invoice-pages'"))throw new Error('v580: PDF stage lost the canonical invoice-pages parent.');
 
 const bridgeStart='(() => {';
 const versionMarker=`const SAFARI_PDF_BRIDGE_VERSION = '${VERSION}';\n  window.__LOUREX_PDF_BRIDGE_VERSION__ = SAFARI_PDF_BRIDGE_VERSION;`;

@@ -16,7 +16,7 @@ if(!html.includes(themeBootstrap))throw new Error('v351: canonical external them
    final artifact must always end with one palette from the parser's first paint
    through the mounted application. */
 const legacyLightBoot='html[data-ui-theme="light"]{--boot-bg:#f9fafb;--boot-text:#101828;--boot-track:#e4e7ec;--boot-accent:#465fff}';
-const canonicalLightBoot='html[data-ui-theme="light"]{--boot-bg:#f4f7fb;--boot-text:#102235;--boot-track:#c3d1dc;--boot-accent:#129da1}';
+const canonicalLightBoot='html[data-ui-theme="light"]{--boot-bg:#f3f7fc;--boot-text:#102235;--boot-track:#c3d1dc;--boot-accent:#129da1}';
 const legacyDarkBoot='html[data-ui-theme="dark"]{--boot-bg:#0c111d;--boot-text:#f9fafb;--boot-track:#344054;--boot-accent:#7592ff}';
 const canonicalDarkBoot='html[data-ui-theme="dark"]{--boot-bg:#0a1826;--boot-text:#f7fbff;--boot-track:#353535;--boot-accent:#7399E3}';
 html=html
@@ -98,9 +98,11 @@ await writeFile(runtimePath,runtime);
 /* Source document-entry still supports older copied builds; the generated file
    must resolve boot repainting to the canonical v351 canvas. */
 let entry=await readFile(entryPath,'utf8');
-entry=entry.replaceAll("const bootBackground=dark?'#0c111d':'#f9fafb';","const bootBackground=dark?'#0a1826':'#f4f7fb';");
+entry=entry.replaceAll("const bootBackground=dark?'#0c111d':'#f9fafb';","const bootBackground=dark?'#0a1826':'#f3f7fc';");
+entry=entry.replaceAll("const bootBackground=dark?'#0a1826':'#f4f7fb';","const bootBackground=dark?'#0a1826':'#f3f7fc';");
+entry=entry.replaceAll("const bootBackground=dark?'#0D0D0D':'#f4f7fb';","const bootBackground=dark?'#0a1826':'#f3f7fc';");
 if(entry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas colors remain.');
-if(!entry.includes("const bootBackground=dark?'#0a1826':'#f4f7fb';"))throw new Error('v351: canonical document-entry boot canvas contract is missing.');
+if(!entry.includes("const bootBackground=dark?'#0a1826':'#f3f7fc';"))throw new Error('v351: canonical document-entry boot canvas contract is missing.');
 await writeFile(entryPath,entry);
 
 /* Finalize the Service Worker after all normal precache passes. */

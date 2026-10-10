@@ -12,17 +12,18 @@ test('v351 uses one canonical light/dark canvas from bootstrap through runtime t
   const [bootstrap,theme,palette,guard]=await Promise.all([
     read('public/theme-bootstrap-v347.js'),
     read('src/lib/ui-theme.ts'),
-    read('src/styles/v346-template-color-visual-closeout.css'),
+    read('src/styles/v485-visible-ui-corrections.css'),
     read('public/home-final-closeout-v286.js')
   ]);
 
-  assert.match(bootstrap,/dark='#081321',light='#f4f7fb'/);
-  assert.match(theme,/THEME_COLORS:Record<ResolvedUiTheme,string>=\{light:'#f4f7fb',dark:'#081321'\}/);
+  assert.match(bootstrap,/dark='#0a1826',light='#f3f7fc'/);
+  assert.match(theme,/THEME_COLORS:Record<ResolvedUiTheme,string>=\{light:'#f3f7fc',dark:'#0a1826'\}/);
   assert.doesNotMatch(theme,/#080808|#061820|#f2f7f8/);
-  assert.match(palette,/--ft-canvas:#f4f7fb!important/);
-  assert.match(palette,/--ft-canvas:#081321!important/);
-  assert.match(guard,/background=dark\?'#081321':'#f4f7fb'/);
-  assert.doesNotMatch(guard,/ensureStylesheet|appendChild\(link\)|appendChild\(.*tailadmin/i);
+  assert.match(palette,/--lx485-canvas:#f3f7fc/);
+  assert.match(palette,/--lx485-canvas:#0a1826/);
+  assert.match(guard,/background=dark\?'#0a1826':'#f3f7fc'/);
+  assert.doesNotMatch(guard,/function ensureStylesheet\(|appendChild\(link\)/i);
+  assert.match(guard,/function retireLegacyVisualLayers\(\)/);
 });
 
 test('v351 keeps one production CSS bundle plus only intentional standalone document owners',async()=>{
@@ -37,7 +38,7 @@ test('v351 keeps one production CSS bundle plus only intentional standalone docu
   assert.match(build,/const standaloneRuntimeStyles=new Set\(\[\s*'v331-draft-scroll-recovery\.css',\s*'v332-critical-documents-deep-closeout\.css'/);
   assert.match(build,/const paletteOwner='v346-template-color-visual-closeout\.css'/);
   assert.match(build,/app\.bundle\.css/);
-  assert.match(entry,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.match(entry,/v331-draft-scroll-recovery\.css\?v=365-1/);
   assert.match(entry,/v332-critical-documents-deep-closeout\.css\?v=332-1/);
   for(const css of [attachment304,attachment305,attachment306]){
     assert.match(css,/compatibility stub/i);
@@ -56,6 +57,6 @@ test('v351 final reliability layer keeps touch targets and recovery surfaces the
   assert.match(reliability,/\.template-favorite-button\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important\}/);
   assert.match(reliability,/\.lourex-advisor-compose form>button\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important\}/);
   assert.match(pull,/background:var\(--ft-surface/);
-  assert.match(finalizer,/theme-bootstrap-v347\.js\?v=351/);
-  assert.match(finalizer,/home-final-closeout-v286\.js\?v=351/);
+  assert.match(finalizer,/theme-bootstrap-v347\.js\?v=361/);
+  assert.match(finalizer,/home-final-closeout-v286\.js\?v=361/);
 });

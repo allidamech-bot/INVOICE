@@ -25,7 +25,7 @@ test('v351 mobile spacing has one page clearance owner and one universal 44px to
     read('src/styles/tailadmin-mobile-header-v322.css')
   ]);
   assert.match(mobile,/padding:18px 14px calc\(112px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
-  assert.match(controls,/@media \(max-width:960px\) and \(pointer:coarse\)/);
+  assert.match(controls,/@media \(max-width:1366px\) and \(pointer:coarse\)/);
   assert.match(controls,/min-height:44px!important/);
   assert.match(shell,/scroll-padding-bottom:calc\(116px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
 });
@@ -44,13 +44,13 @@ test('v351 PWA launch palette matches the canonical application canvas',async()=
     read('public/manifest.webmanifest'),
     read('public/theme-bootstrap-v347.js'),
     read('src/lib/ui-theme.ts'),
-    read('src/styles/v346-template-color-visual-closeout.css')
+    read('src/styles/v485-visible-ui-corrections.css')
   ]);
   const manifest=JSON.parse(manifestText);
-  assert.equal(manifest.background_color,'#081321');
-  assert.equal(manifest.theme_color,'#081321');
-  assert.match(bootstrap,/dark='#081321',light='#f4f7fb'/);
-  assert.match(theme,/light:'#f4f7fb',dark:'#081321'/);
-  assert.match(palette,/--ft-canvas:#f4f7fb!important/);
-  assert.match(palette,/--ft-canvas:#081321!important/);
+  assert.equal(manifest.background_color,'#0a1826');
+  assert.equal(manifest.theme_color,'#0a1826');
+  assert.match(bootstrap,/dark='#0a1826',light='#f3f7fc'/);
+  assert.match(theme,/light:'#f3f7fc',dark:'#0a1826'/);
+  assert.match(palette,/--lx485-canvas:#f3f7fc/);
+  assert.match(palette,/--lx485-canvas:#0a1826/);
 });

@@ -14,16 +14,11 @@ test('v240 blocks deliberate lock while an inline data-entry workspace owns unsa
   assert.match(entry,/return lockNow\(automatic\)/);
 });
 
-test('v240 covers document, editable Operations, product, modal and manual inventory draft surfaces',async()=>{
-  const entry=await read('src/app/index.tsx');
-  assert.match(entry,/function manualLockUnsafeWorkspaceOpen\(\):boolean/);
-  assert.match(entry,/if\(isDocumentEditorOpen\(\)\)return true/);
-  assert.match(entry,/\.operations-editor:not\(\.purchase-editor\),\.purchase-editor fieldset:not\(\[disabled\]\)/);
-  assert.match(entry,/\.product-library-pro\.editor-open,\.modal-backdrop/);
-  assert.match(entry,/inventoryEntryHasDraftInput\(\)/);
-  assert.match(entry,/\.operations-page \.inventory-entry/);
-  assert.match(entry,/input\[inputmode="decimal"\]/);
-  assert.match(entry,/input:not\(\[type="date"\]\):not\(\[list\]\)/);
+test('manual lock checks current document, product, purchasing and manual inventory draft surfaces',async()=>{
+ const entry=await read('src/app/index.tsx');
+ for(const token of ['function manualLockUnsafeWorkspaceOpen():boolean','isDocumentEditorOpen()','activeDataEntryEditorOpen()','inventoryEntryHasDraftInput()',"data-lourex-workspace-dirty",'.ta-product-editor.is-open','.ta-operations-page .ta-ops-editor','.product-library-pro.editor-open','.operations-page .purchase-editor'])assert.ok(entry.includes(token),token);
+ assert.ok(entry.includes('if(!automatic&&manualLockUnsafeWorkspaceOpen())'),'manual lock must protect dirty entries');
+ assert.ok(entry.includes("instance.lockNow=(automatic:boolean)=>"),'automatic security lock stays on the established path');
 });
 
 test('v240 leaves automatic inactivity lock security-authoritative',async()=>{

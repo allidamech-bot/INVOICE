@@ -21,7 +21,7 @@ test('iOS standalone protects local work by disabling the independent realtime f
   const source=freshness.slice(freshness.indexOf('export function startCloudFreshnessWatcher()'));
   const compiled=ts.default.transpileModule(source,{compilerOptions:{module:ts.default.ModuleKind.CommonJS,target:ts.default.ScriptTarget.ES2022}}).outputText;
   let detachCount=0,registered=0;
-  const context={exports:{},stopped:false,pending:undefined,timer:undefined,
+  const context={exports:{},watcherGeneration:0,stopped:false,pending:undefined,timer:undefined,
     appleMobileWebKit:()=>true,
     detachRealtime:()=>{detachCount++;},
     window:{addEventListener:()=>{registered++;},setInterval:()=>{registered++;}},

@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const css = await readFile('src/styles/editor-system.css','utf8');
 const html = await readFile('index.html','utf8');
 const sw = await readFile('public/sw.js','utf8');
+const distSw = await readFile('dist/sw.js','utf8');
 
 test('mobile item section actions keep their responsive layout',()=>{
   assert.match(css,/\.section-heading\.with-action\{[^}]*flex-direction:column/);
@@ -23,10 +24,10 @@ test('mobile controls retain larger touch targets and spacing',()=>{
   assert.match(css,/\.adjustment-row\{[^}]*min-height:54px/);
 });
 
-test('legacy final editor layers are replaced by one cached final stylesheet',()=>{
-  assert.match(html,/v44-audit\.css[^]*editor-system\.css/);
-  assert.doesNotMatch(html,/mobile-editor-fixes\.css|editor-premium-v56\.css/);
-  assert.match(sw,/lourex-invoice-v\d+/);
-  assert.match(sw,/\.\/styles\/editor-system\.css/);
-  assert.doesNotMatch(sw,/mobile-editor-fixes\.css|editor-premium-v56\.css/);
+test('current editor frame and core replace retired mobile editor layers and ship offline',()=>{
+ for(const css of ['tailadmin-editor-frame-v320.css','tailadmin-editor-core-v320.css'])assert.ok(html.includes(css),css);
+ assert.doesNotMatch(html,/mobile-editor-fixes\.css|editor-premium-v56\.css/);
+ assert.ok(sw.includes("lourex-invoice-v"));
+ assert.ok(distSw.includes('styles/app.bundle.css'),'the generated PWA cache includes its stylesheet bundle');
 });
+

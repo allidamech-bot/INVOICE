@@ -80,35 +80,22 @@ test('revision history preserves audit metadata without multiplying attachment p
   assert.match(source,/Preserve the current live[\s\S]*supporting files across revision discard\/restore/);
 });
 
-test('production build publishes the canonical bundle plus v337 document owner and current runtime/cache generation',async()=>{
-  const html=await read('dist/index.html');
-  const sw=await read('dist/sw.js');
-  const links=localStyles(html);
-  assert.deepEqual(links,['app.bundle.css','v331-draft-scroll-recovery.css']);
-  assert.match(html,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  assert.match(html,/data-lourex-v331-draft-recovery="true"/);
-  assert.match(html,/home-final-closeout-v286\.js\?v=320/);
-  assert.match(html,/document-entry-v302\.js\?v=337-3/);
-  assert.doesNotMatch(html,/document-entry-v302\.js\?v=(?:302|311|314|320|337-2)/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v(?:33[7-9]|3[4-9]\d|[4-9]\d\d)'/);
-  assert.match(sw,/tailadmin-finance-v320\.css\?v=320-3/);
-  assert.match(sw,/tailadmin-reliability-bridge-v320\.css\?v=320-2/);
-  assert.match(sw,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  assert.match(sw,/v337-template-layout-balance\.css\?v=337-3/);
+test('production bundles application CSS and retains the supported standalone document owners',async()=>{
+ const html=await read('dist/index.html'),sw=await read('dist/sw.js'),links=localStyles(html);
+ assert.deepEqual(links,['app.bundle.css','v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css','v482-mobile-ux-repair.css']);
+ assert.ok(html.includes('v331-draft-scroll-recovery.css?v=365-1'));
+ assert.ok(html.includes('document-entry-v302.js?v=361'));
+ assert.ok(html.includes('data-lourex-v331-draft-recovery="true"'));
+ assert.match(sw,/const CACHE = 'lourex-invoice-v\d+'/);
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
 
-test('document runtime recognizes the TailAdmin create menu and promotes current reliability layers beneath final semantics',async()=>{
-  const runtime=await read('public/document-entry-v302.js');
-  assert.match(runtime,/\.ta-create-menu button\[role="menuitem"\]/);
-  assert.match(runtime,/function promoteTailAdminOwners/);
-  assert.match(runtime,/ensureRuntimeReliability\(\)/);
-  assert.match(runtime,/attachment-gallery-v304\.css\?v=304/);
-  assert.match(runtime,/release-hardening-v306\.css\?v=306/);
-  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  const tail=runtime.indexOf('promoteTailAdminOwners();');
-  const draft=runtime.indexOf('promoteDraftRecovery();');
-  const semantic=runtime.indexOf('promoteCriticalDocuments();');
-  assert.ok(tail>=0&&draft>tail&&semantic>draft);
+test('document entry promotes current reliable stylesheet versions without reviving retired owners',async()=>{
+ const runtime=await read('public/document-entry-v302.js');
+ for(const token of ['.ta-create-menu button[role="menuitem"]','function promoteTailAdminOwners','ensureRuntimeReliability()','v331-draft-scroll-recovery.css?v=365-1','v332-critical-documents-deep-closeout.css?v=332-1'])assert.ok(runtime.includes(token),token);
+ for(const name of ['attachment-gallery-v304.css','release-hardening-v306.css'])assert.ok(!runtime.includes(name),'retired stylesheet must stay off runtime: '+name);
+ const a=runtime.indexOf('promoteTailAdminOwners();'),b=runtime.indexOf('promoteDraftRecovery();',a),c=runtime.indexOf('promoteCriticalDocuments();',b);
+ assert.ok(a>=0&&b>a&&c>b,'runtime promotion ordering cannot regress');
 });
 
 test('iPhone runtime preserves local-first data while retiring WebKit service-worker churn',async()=>{
@@ -119,12 +106,12 @@ test('iPhone runtime preserves local-first data while retiring WebKit service-wo
   assert.doesNotMatch(source,/indexedDB\.deleteDatabase/);
 });
 
-test('AI presentation no longer injects a legacy runtime stylesheet',async()=>{
-  const nudge=await read('src/components/LourexAdvisorNudge.tsx');
-  const css=await read('src/styles/tailadmin-ai-v320.css');
-  assert.doesNotMatch(nudge,/<style[\s>]/i);
-  assert.doesNotMatch(nudge,/data-lourex-ai-core/);
-  assert.ok(css.includes('v320')||css.includes('TailAdmin'));
+test('AI presentation is styled through the safe shared app CSS rather than injected inline styles',async()=>{
+ const [nudge,css,html]=await Promise.all([read('src/components/LourexAdvisorNudge.tsx'),read('src/styles/tailadmin-ai-v320.css'),read('index.html')]);
+ assert.doesNotMatch(nudge,/<style[\s>]/i);
+ assert.doesNotMatch(nudge,/data-lourex-ai-core/);
+ assert.ok(css.includes('.lourex-ai-launcher')&&css.includes('@media screen'));
+ assert.ok(html.includes('tailadmin-ai-v320.css'));
 });
 
 test('Vercel Git deployments remain fully manual',async()=>{

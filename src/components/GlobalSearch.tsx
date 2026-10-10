@@ -1,11 +1,16 @@
-import type { Customer, DocumentKind, LourexDocument, PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
+import { containOverlayFocus, lockOverlayScroll, ownsOverlay, restoreOverlayFocus, topOverlay, trapOverlayTab, unlockOverlayScroll } from '../lib/overlay-focus.js';
+import type { Customer, DocumentKind, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { documentKindLabel, isSupplierDocumentKind } from '../lib/document-kinds.js';
+import { invoicePaymentSummary } from '../lib/payments.js';
+import { decimalToScaled } from '../lib/money.js';
+import { isIsoDate, todayIso } from '../lib/id.js';
 import { Icon } from './UI.js';
 
 export type GlobalSearchTarget='documents'|'customers'|'items'|'operations'|'receivables'|'reports';
 interface Props{
   documents:LourexDocument[];
+  payments:PaymentRecord[];
   customers:Customer[];
   items:SavedItem[];
   suppliers:Supplier[];
@@ -40,6 +45,10 @@ export class GlobalSearch extends React.Component<Props,State>{
   state:State={open:false,query:'',paymentPicker:false};
   private inputRef:HTMLInputElement|null=null;
   private panelRef:HTMLElement|null=null;
+  private previousFocus:HTMLElement|null=null;
+  private mounted=false;
+  private focusRequest=0;
+  private containFocus=()=>containOverlayFocus(this.panelRef);
 
   private syncVisualViewport=()=>{
     const panel=this.panelRef;
@@ -64,6 +73,8 @@ export class GlobalSearch extends React.Component<Props,State>{
   private setPanelRef=(panel:HTMLElement|null)=>{this.panelRef=panel;this.syncVisualViewport();};
 
   componentDidMount():void{
+    this.mounted=true;
+    document.addEventListener('focusin',this.containFocus);
     document.addEventListener('keydown',this.handleKeyDown);
     window.addEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
     window.addEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
@@ -72,6 +83,9 @@ export class GlobalSearch extends React.Component<Props,State>{
     window.visualViewport?.addEventListener('scroll',this.syncVisualViewport);
   }
   componentWillUnmount():void{
+    this.mounted=false;this.focusRequest+=1;
+    unlockOverlayScroll(this);
+    document.removeEventListener('focusin',this.containFocus);
     document.removeEventListener('keydown',this.handleKeyDown);
     window.removeEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
     window.removeEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
@@ -80,9 +94,12 @@ export class GlobalSearch extends React.Component<Props,State>{
     window.visualViewport?.removeEventListener('scroll',this.syncVisualViewport);
   }
   private openFromEvent=(event:Event)=>{
+    if(!this.beginOpen())return;
     const detail=(event as CustomEvent<GlobalSearchOpenDetail>).detail;
+    const request=++this.focusRequest;
     const query=typeof detail?.query==='string'?detail.query.trim().slice(0,160):'';
     this.setState({open:true,query,paymentPicker:false},()=>window.setTimeout(()=>{
+      if(!this.mounted||!this.state.open||request!==this.focusRequest||!ownsOverlay(this.panelRef))return;
       if(detail?.autoOpenUnique&&query){const results=this.results();if(results.length===1){results[0]!.action();return;}}
       this.inputRef?.focus();
     },0));
@@ -95,14 +112,31 @@ export class GlobalSearch extends React.Component<Props,State>{
     if(detail.action==='payment'&&detail.invoiceId){this.close();this.props.onNavigate('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:detail.invoiceId}})),0);}
   };
   private handleKeyDown=(event:KeyboardEvent)=>{
-    if(event.key==='Escape'&&this.state.open){event.preventDefault();if(this.state.paymentPicker){this.setState({paymentPicker:false});return;}this.close();return;}
+    if(event.defaultPrevented)return;
+    if(this.state.open&&!ownsOverlay(this.panelRef))return;
+    if(this.state.open&&this.panelRef)trapOverlayTab(event,this.panelRef);
+    if(event.key==='Escape'&&this.state.open){event.preventDefault();if(this.state.paymentPicker){this.setState({paymentPicker:false,query:''},()=>this.inputRef?.focus());return;}this.close();return;}
     if(event.key.toLowerCase()==='k'&&(event.metaKey||event.ctrlKey)){
       event.preventDefault();
       this.state.open?this.close():this.open();
     }
   };
-  private open=()=>this.setState({open:true,query:'',paymentPicker:false},()=>window.setTimeout(()=>this.inputRef?.focus(),0));
-  private close=()=>this.setState({open:false,query:'',paymentPicker:false});
+  private beginOpen=():boolean=>{
+    const top=topOverlay();if(top&&top!==this.panelRef)return false;
+    if(!this.state.open){this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;lockOverlayScroll(this);}
+    return true;
+  };
+  private open=()=>{
+    if(!this.beginOpen())return;
+    const request=++this.focusRequest;
+    this.setState({open:true,query:'',paymentPicker:false},()=>window.setTimeout(()=>{
+      if(this.mounted&&this.state.open&&request===this.focusRequest&&ownsOverlay(this.panelRef))this.inputRef?.focus();
+    },0));
+  };
+  private close=()=>{
+    this.focusRequest+=1;
+    this.setState({open:false,query:'',paymentPicker:false},()=>{unlockOverlayScroll(this);restoreOverlayFocus(this.previousFocus);this.previousFocus=null;});
+  };
   private navigate=(screen:GlobalSearchTarget)=>{this.close();this.props.onNavigate(screen);};
   private create=(kind:DocumentKind)=>{this.close();this.props.onNewDocument(kind);};
   private openDocument=(document:LourexDocument)=>{this.close();this.props.onOpenDocument(document);};
@@ -117,7 +151,7 @@ export class GlobalSearch extends React.Component<Props,State>{
   };
   private resultKeyDown=(event:{key:string;preventDefault:()=>void})=>{
     if(event.key!=='ArrowDown'&&event.key!=='ArrowUp'&&event.key!=='Enter')return;
-    const rows=Array.from(document.querySelectorAll<HTMLButtonElement>('.global-search-results .global-search-result'));
+    const rows=Array.from(this.panelRef?.querySelectorAll<HTMLButtonElement>('.global-search-results .global-search-result, .global-search-payment-list .global-search-result')??[]);
     if(!rows.length)return;
     const index=rows.indexOf(document.activeElement as HTMLButtonElement);
     if(event.key==='Enter'){if(index<0&&document.activeElement===this.inputRef){event.preventDefault();rows[0]?.click();}return;}
@@ -125,11 +159,16 @@ export class GlobalSearch extends React.Component<Props,State>{
     if(event.key==='ArrowUp'&&index===0){this.inputRef?.focus();return;}
     rows[event.key==='ArrowDown'?Math.min(index+1,rows.length-1):index<0?rows.length-1:index-1]?.focus();
   };
-  private paymentInvoices=():LourexDocument[]=>this.props.documents
-    .filter(document=>document.kind==='invoice'&&document.role!=='credit-note'&&document.status==='final'&&document.lifecycleStatus!=='voided')
-    .sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0,20);
+  private paymentInvoices=():LourexDocument[]=>{
+    const asOf=todayIso(),tokens=normalize(this.state.query).split(' ').filter(Boolean);
+    return this.props.documents
+      .filter(document=>document.kind==='invoice'&&document.role!=='credit-note'&&document.status==='final'&&document.lifecycleStatus!=='voided'&&isIsoDate(document.issueDate)&&document.issueDate<=asOf)
+      .filter(document=>decimalToScaled(invoicePaymentSummary(document,this.props.payments,asOf,this.props.documents).remaining,2)>0n)
+      .filter(document=>{const text=normalize([document.number,document.customerSnapshot?.companyNameEn||'',document.customerSnapshot?.companyNameAr||'',document.currency,document.issueDate].join(' '));return tokens.every(token=>text.includes(token));})
+      .sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  };
   private createPayment=(document:LourexDocument)=>{
+    if(!this.paymentInvoices().some(invoice=>invoice.id===document.id))return;
     this.close();
     this.props.onNavigate('receivables');
     window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:document.id}})),0);
@@ -173,16 +212,16 @@ export class GlobalSearch extends React.Component<Props,State>{
   private renderPaymentPicker=():any=>{
     const invoices=this.paymentInvoices();
     return <div className="global-search-start global-search-payment-picker">
-      <div className="global-search-section-title"><button type="button" className="global-search-back-button" onClick={()=>this.setState({paymentPicker:false})}>← {t('Quick create','الإنشاء السريع')}</button><small>{t('Choose the invoice to collect','اختر الفاتورة للتحصيل')}</small></div>
-      <div className="global-search-payment-list">{invoices.length?invoices.map(document=><button type="button" key={document.id} className="global-search-result" onClick={()=>this.createPayment(document)}><span className="global-search-result-icon"><Icon name="invoice"/></span><span className="global-search-result-copy"><small>{t('Record payment','تسجيل دفعة')}</small><strong>{document.number}</strong><span>{documentCustomer(document)} · {document.currency}</span></span><span className="global-search-result-arrow" aria-hidden="true">→</span></button>):<div className="global-search-empty"><Icon name="invoice"/><strong>{t('No collectible invoices','لا توجد فواتير قابلة للتحصيل')}</strong><span>{t('Finalize an invoice first, then record its collection here.','أصدر فاتورة نهائية أولًا ثم سجّل تحصيلها من هنا.')}</span></div>}</div>
+      <div className="global-search-section-title"><button type="button" className="global-search-back-button" onClick={()=>this.setState({paymentPicker:false,query:''},()=>this.inputRef?.focus())}>← {t('Quick create','الإنشاء السريع')}</button><small>{t('Choose the invoice to collect','اختر الفاتورة للتحصيل')} · {invoices.length}</small></div>
+      <div className="global-search-payment-list">{invoices.length?invoices.map(document=>{const summary=invoicePaymentSummary(document,this.props.payments,todayIso(),this.props.documents);return <button type="button" key={document.id} className="global-search-result" onClick={()=>this.createPayment(document)}><span className="global-search-result-icon"><Icon name="invoice"/></span><span className="global-search-result-copy"><small>{t('Record payment','تسجيل دفعة')}</small><strong>{document.number}</strong><span>{documentCustomer(document)} · {document.currency} {summary.remaining} · {summary.paid!=='0.00'||summary.credits!=='0.00'?t('Partially settled','مسددة جزئيًا'):t('Unpaid','غير مسددة')}{summary.status==='overdue'?` · ${t('Overdue','متأخرة')}`:''}</span></span><span className="global-search-result-arrow" aria-hidden="true">→</span></button>;}):<div className="global-search-empty"><Icon name="invoice"/><strong>{this.state.query.trim()?t('No matching collectible invoices','لا توجد فواتير قابلة للتحصيل تطابق البحث'):t('No collectible invoices','لا توجد فواتير قابلة للتحصيل')}</strong><span>{t('Only issued invoices with a remaining balance are shown. Try another search or review Receivables.','تظهر الفواتير الصادرة ذات الرصيد المتبقي فقط. جرّب بحثًا آخر أو راجع المستحقات.')}</span></div>}</div>
     </div>;
   };
 
   render():any{
     if(!this.state.open)return null;
     const results=this.results();
-    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section ref={this.setPanelRef} className="global-search-panel" onKeyDown={this.resultKeyDown} role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
-      <header className="global-search-input-wrap"><Icon name="search"/><input ref={(node:HTMLInputElement|null)=>{this.inputRef=node;}} value={this.state.query} disabled={this.state.paymentPicker} onChange={(event:any)=>this.setState({query:event.target.value})} placeholder={t('Search documents, customers, products, suppliers or purchases…','ابحث في المستندات والعملاء والمنتجات والموردين والمشتريات…')} aria-label={t('Search LOUREX','بحث LOUREX')}/><button type="button" className="global-search-close" onClick={this.close} aria-label={t('Close search','إغلاق البحث')}><Icon name="x"/></button></header>
+    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section ref={this.setPanelRef} className="global-search-panel" onKeyDown={this.resultKeyDown} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
+      <header className="global-search-input-wrap"><Icon name="search"/><input ref={(node:HTMLInputElement|null)=>{this.inputRef=node;}} value={this.state.query} onChange={(event:any)=>this.setState({query:event.target.value})} placeholder={this.state.paymentPicker?t('Search invoice number, customer or currency…','ابحث برقم الفاتورة أو العميل أو العملة…'):t('Search documents, customers, products, suppliers or purchases…','ابحث في المستندات والعملاء والمنتجات والموردين والمشتريات…')} aria-label={this.state.paymentPicker?t('Search collectible invoices','بحث الفواتير القابلة للتحصيل'):t('Search LOUREX','بحث LOUREX')}/><button type="button" className="global-search-close" onClick={this.close} aria-label={t('Close search','إغلاق البحث')}><Icon name="x"/></button></header>
       {this.state.paymentPicker?this.renderPaymentPicker():!this.state.query.trim()?<div className="global-search-start">
         <div className="global-search-section-title"><span>{t('Quick create','إنشاء سريع')}</span><small>{t('Always opens the canonical workspace','يفتح دائمًا مساحة العمل الأصلية')}</small></div>
         <div className="global-search-actions">
@@ -192,7 +231,7 @@ export class GlobalSearch extends React.Component<Props,State>{
           <button type="button" onClick={()=>this.navigateAndCreate('items','lourex-create-product')}><Icon name="items"/><span><strong>{t('New product','منتج جديد')}</strong><small>{t('Add to the product master','إضافة إلى سجل المنتجات')}</small></span></button>
           <button type="button" onClick={()=>this.navigateAndCreate('operations','lourex-create-purchase')}><Icon name="backup"/><span><strong>{t('New purchase','شراء جديد')}</strong><small>{t('Create a purchase draft','إنشاء مسودة شراء')}</small></span></button>
           <button type="button" onClick={()=>this.navigateAndCreate('receivables','lourex-create-expense')}><Icon name="file"/><span><strong>{t('New expense','مصروف جديد')}</strong><small>{t('Record an operating expense','تسجيل مصروف تشغيلي')}</small></span></button>
-          <button type="button" onClick={()=>this.setState({paymentPicker:true,query:''})}><Icon name="invoice"/><span><strong>{t('Record payment','تسجيل دفعة')}</strong><small>{t('Collect against a final invoice','تحصيل على فاتورة نهائية')}</small></span></button>
+          <button type="button" onClick={()=>this.setState({paymentPicker:true,query:''},()=>this.inputRef?.focus())}><Icon name="invoice"/><span><strong>{t('Record payment','تسجيل دفعة')}</strong><small>{t('Collect against a final invoice','تحصيل على فاتورة نهائية')}</small></span></button>
         </div>
         <div className="global-search-section-title"><span>{t('Go to','انتقل إلى')}</span></div>
         <div className="global-search-destinations"><button type="button" onClick={()=>this.navigate('documents')}><Icon name="file"/>{t('Documents','المستندات')}</button><button type="button" onClick={()=>this.navigate('customers')}><Icon name="users"/>{t('Customers','العملاء')}</button><button type="button" onClick={()=>this.navigate('items')}><Icon name="items"/>{t('Products & Inventory','المنتجات والمخزون')}</button><button type="button" onClick={()=>this.navigate('operations')}><Icon name="backup"/>{t('Purchasing','المشتريات')}</button><button type="button" onClick={()=>this.navigate('receivables')}><Icon name="invoice"/>{t('Finance','المالية')}</button><button type="button" onClick={()=>this.navigate('reports')}><Icon name="file"/>{t('Reports','التقارير')}</button></div>

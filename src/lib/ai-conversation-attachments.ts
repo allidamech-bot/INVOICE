@@ -44,10 +44,18 @@ export function validateConversationFiles(files:File[]):File[]{
   return selected;
 }
 
+async function verifyBinarySource(file:File,mime:string):Promise<void>{
+  const b=new Uint8Array(await file.slice(0,12).arrayBuffer());
+  const ascii=(start:number,length:number)=>String.fromCharCode(...b.slice(start,start+length));
+  const valid=mime==='application/pdf'?ascii(0,5)==='%PDF-':mime==='image/png'?b.length>=8&&b[0]===0x89&&ascii(1,3)==='PNG'&&b[4]===13&&b[5]===10&&b[6]===26&&b[7]===10:mime==='image/jpeg'?b.length>=3&&b[0]===255&&b[1]===216&&b[2]===255:mime==='image/webp'?b.length>=12&&ascii(0,4)==='RIFF'&&ascii(8,4)==='WEBP':false;
+  if(!valid)throw new Error('Attachment content does not match its PDF/image type. Choose a valid supported file.');
+}
+
 export async function conversationAttachmentPayload(file:File):Promise<AiPayload>{
   const name=file.name.toLowerCase();
   if(name.endsWith('.pdf')||file.type==='application/pdf'){
     if(file.size>MAX_DOCUMENT_BYTES)throw new Error('PDF must be 12 MB or smaller.');
+    await verifyBinarySource(file,'application/pdf');
     const text=await readablePdfText(file,MAX_TEXT_CHARS);
     if(text.trim())return{kind:'text',mimeType:'text/plain',text};
   }
@@ -68,6 +76,7 @@ export async function conversationAttachmentPayload(file:File):Promise<AiPayload
   const mime=file.type||(name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');
   if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error('Use PDF, image, Excel, CSV or TXT.');
   if(file.size>MAX_BINARY_BYTES)throw new Error('Scanned PDF/image must be below 2.6 MB for safe AI analysis.');
+  await verifyBinarySource(file,mime);
   return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
 
@@ -86,11 +95,13 @@ function extractedPayload(route:ConversationAttachmentRoute,body:any):unknown{
 }
 async function genericExtraction(fileName:string,payload:AiPayload,signal?:AbortSignal):Promise<string>{
   const body=await requestAiJson('/api/ai-inbox',{mode:'source-summary',fileName,...payload},signal,30_000);
-  return compactJson(body?.source??null);
+  if(!body?.source||typeof body.source!=='object'||Array.isArray(body.source)||!Object.keys(body.source).length)throw new Error('Source extraction returned no readable data. Try again or use a clearer file.');
+  return compactJson(body.source);
 }
 
 export async function analyzeConversationAttachment(file:File,signal?:AbortSignal,onProgress?:ConversationAttachmentProgress):Promise<ConversationAttachmentAnalysis>{
   onProgress?.('reading');
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   const payload=await conversationAttachmentPayload(file);
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('classifying');
@@ -108,7 +119,9 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   }else{
     try{
       const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
-      extracted=compactJson(extractedPayload(classification.route,body),classification.route==='product_list'?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
+      const result=extractedPayload(classification.route,body);
+      if(!result||typeof result!=='object'||Array.isArray(result)||!Object.keys(result).length)throw new Error('Specific extraction returned no structured data.');
+      extracted=compactJson(result,classification.route==='product_list'?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
     }catch(error){
       if(signal?.aborted)throw error;
       onProgress?.('fallback');

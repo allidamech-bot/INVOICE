@@ -8,7 +8,7 @@ const {emptyVault}=await import('../dist/src/lib/defaults.js');
 const {contextualReportQuestion}=await import('../dist/src/lib/contextual-report-question.js');
 
 test('context opens a bounded reviewable question without making a request',()=>{
- globalThis.document={querySelector:()=>null};const copilot=new AiCopilot({screen:'customers',language:'en'});copilot.mounted=true;
+ globalThis.document={querySelector:()=>null,querySelectorAll:()=>[],getElementById:()=>null};const copilot=new AiCopilot({screen:'customers',language:'en'});copilot.mounted=true;
  copilot.openContext({detail:{screen:'items',question:'wrong workspace'}});assert.equal(copilot.state.open,false);
  copilot.openContext({detail:{screen:'customers',question:'Explain Northstar'}});assert.equal(copilot.state.input,'Explain Northstar');assert.equal(copilot.state.open,true);assert.equal(copilot.state.busy,false);assert.deepEqual(copilot.state.messages,[]);assert.equal(copilot.state.proposal,null);
  copilot.pending=true;copilot.openContext({detail:{screen:'customers',question:'replace active'}});assert.equal(copilot.state.input,'Explain Northstar');copilot.pending=false;

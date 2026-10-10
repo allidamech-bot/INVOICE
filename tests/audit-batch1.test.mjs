@@ -34,9 +34,9 @@ test('shared modal closes only the topmost dialog on Escape and restores focus',
   const source=await read('src/components/UI.tsx');
   assert.match(source,/document\.addEventListener\('keydown',this\.handleKeyDown\)/);
   assert.match(source,/private isTopModal=/);
-  assert.match(source,/backdrops\[backdrops\.length-1\]===this\.backdrop/);
+  assert.match(source,/ownsOverlay\(this\.dialog\)/);
   assert.match(source,/event\.key==='Escape'/);
-  assert.match(source,/previousFocus\?\.focus/);
+  assert.match(source,/restoreOverlayFocus\(this\.previousFocus\)/);
 });
 
 test('project documentation describes the live encrypted cloud architecture',async()=>{

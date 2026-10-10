@@ -12,7 +12,8 @@ test('customer quick-add reuses name searches without turning phone or email sea
   assert.match(source,/seed\.includes\('@'\)/);
   assert.match(source,/\^\[\+\\d\\s\(\)\.\-\]\{5,\}\$/);
   assert.match(source,/private newCustomer=\(\)=>this\.beginEdit\(blankCustomer\(customerSearchSeed\(this\.state\.query\)\)\)/);
-  assert.match(source,/Create this customer without typing the name again/);
+  assert.match(source,/suggestedName\?t\(`Add/);
+  assert.match(source,/onClick=\{this\.newCustomer\}/);
   assert.match(source,/query:''/);
 });
 

@@ -1,3 +1,4 @@
+import { handleTabKeyDown } from '../lib/tab-navigation.js';
 import type { UiLanguage } from '../types.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
 import { todayIso } from '../lib/id.js';
@@ -172,15 +173,16 @@ export class NotificationCenterLive extends React.Component<Props,State>{
       {this.summary()}
       <Modal open={this.state.open} title={t('Notifications & Follow-up','التنبيهات والمتابعة')} onClose={this.close} size="lg">
         <div className="lx-notification-center" dir={this.props.language==='ar'?'rtl':'ltr'}>
-          <div className="lx-notification-tabs" role="tablist" aria-label={t('Notification status','حالة التنبيه')}>
+          <div className="lx-notification-tabs" onKeyDown={handleTabKeyDown} role="tablist" aria-label={t('Notification status','حالة التنبيه')}>
             {(['active','snoozed','done'] as NotificationCenterTab[]).map(tab=>{
               const count=tab==='active'?snapshot?.active.length??0:tab==='snoozed'?snapshot?.snoozed.length??0:snapshot?.done.length??0;
               const text=tab==='active'?t('Active','نشط'):tab==='snoozed'?t('Snoozed','مؤجل'):t('Done','تم');
-              return <button type="button" role="tab" key={tab} aria-selected={this.state.tab===tab} className={this.state.tab===tab?'is-active':''} onClick={()=>this.setState({tab,snoozeKey:'',error:this.state.snapshot?'':this.state.error})}>{text} · {count}</button>;
+              return <button type="button" role="tab" key={tab} id={`notification-tab-${tab}`} aria-controls="notification-panel" tabIndex={this.state.tab===tab?0:-1} aria-selected={this.state.tab===tab} className={this.state.tab===tab?'is-active':''} onClick={()=>this.setState({tab,snoozeKey:'',error:this.state.snapshot?'':this.state.error})}>{text} · {count}</button>;
             })}
           </div>
-          {this.state.error?<div className="lx-notification-error" role="alert"><span>{this.state.error}</span><Button disabled={this.state.loading||Boolean(this.state.busyKey)} onClick={()=>void this.refresh(true)}>{t('Try again','إعادة المحاولة')}</Button></div>:null}
+          <div id="notification-panel" role="tabpanel" aria-labelledby={`notification-tab-${this.state.tab}`} tabIndex={-1}>{this.state.error?<div className="lx-notification-error" role="alert"><span>{this.state.error}</span><Button disabled={this.state.loading||Boolean(this.state.busyKey)} onClick={()=>void this.refresh(true)}>{t('Try again','إعادة المحاولة')}</Button></div>:null}
           {this.state.loading?<div className="lx-notification-empty" role="status"><Icon name="refresh"/><strong>{t('Loading notifications…','جارٍ تحميل التنبيهات…')}</strong></div>:this.state.error&&!this.state.snapshot?null:items.length?<div className="lx-notification-list">{items.map(this.row)}</div>:<div className="lx-notification-empty"><Icon name="check"/><strong>{this.state.tab==='active'?t('Nothing needs attention','لا يوجد ما يحتاج انتباه'):this.state.tab==='snoozed'?t('Nothing is snoozed','لا توجد عناصر مؤجلة'):t('No completed items in the current conditions','لا توجد عناصر مكتملة ضمن الحالات الحالية')}</strong><span>{t('The Center is derived from recorded LOUREX data and never invents missing business facts.','المركز مشتق من بيانات LOUREX المسجلة ولا يخترع معلومات أعمال مفقودة.')}</span><Button onClick={this.close}>{t('Return to workspace','العودة إلى مساحة العمل')}</Button></div>}
+          </div>
         </div>
       </Modal>
     </>;

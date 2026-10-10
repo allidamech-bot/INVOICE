@@ -4,18 +4,12 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v248 keeps More as a navigation hub with accurate final destinations',async()=>{
-  const shell=await read('src/components/AppShell.tsx');
-  assert.match(shell,/Your business, finance, reports and settings/);
-  assert.match(shell,/Company identity, logo, legal profile and account access/);
-  assert.match(shell,/Products & Inventory/);
-  assert.match(shell,/Suppliers and purchase workflow/);
-  assert.match(shell,/Receivables, collections and expenses/);
-  assert.match(shell,/Business and financial analysis/);
-  assert.match(shell,/Workspace, documents, commercial and security/);
-  assert.doesNotMatch(shell,/Suppliers, purchases, expenses and inventory/,'More must not restore the retired mixed Operations destination');
-  assert.match(shell,/this\.requestSettingsScope\('account'\)/);
-  assert.match(shell,/this\.requestSettingsScope\('settings'\)/);
+test('current More is a navigation hub that keeps Operations, Finance, Account and Settings distinct',async()=>{
+ const shell=await read('src/components/AppShell.tsx');
+ for(const token of ['ta-mobile-sheet','ta-sheet-account','ta-sheet-group','ta-sheet-link','Products & Inventory','Suppliers and purchase workflow','Receivables, collections and expenses','Period analysis and profitability','Identity, business profile and account access','Business, documents, security and data'])assert.ok(shell.includes(token),token);
+ assert.ok(!shell.includes('Suppliers, purchases, expenses and inventory'),'retired mixed Operations wording must not reappear');
+ assert.ok(shell.includes("this.requestSettingsScope('account')"));
+ assert.ok(shell.includes("this.requestSettingsScope('settings')"));
 });
 
 test('v248 Account owns identity, legal registration and access only',async()=>{
@@ -34,11 +28,13 @@ test('v248 Workspace owns interface language and workspace-wide currency only',a
   for(const misplaced of ['Bank Name','Default Document Language','Default Payment Terms','Default Incoterm','Default Delivery Time','Signature','Stamp'])assert.ok(!workspace.includes(misplaced),`Workspace must not own ${misplaced}`);
 });
 
-test('v248 Documents owns output artwork, document defaults and numbering',async()=>{
-  const settings=await read('src/components/SettingsModal.tsx');
-  const documents=settings.slice(settings.indexOf('private documentSettings'),settings.indexOf('private securitySettings'));
-  for(const token of ['Document artwork','Signature','Stamp','Default Document Language','Default Validity','Default Footer Text','Default Notes','Numbering','Proforma Prefix','Invoice Prefix'])assert.ok(documents.includes(token),token);
-  for(const misplaced of ['Default Payment Terms','Default Incoterm','Default Delivery Time','Bank Name','Tax presets'])assert.ok(!documents.includes(misplaced),`Documents must not own ${misplaced}`);
+test('Documents settings own output artwork, validity and independent forward-only document numbering',async()=>{
+ const settings=await read('src/components/SettingsModal.tsx');
+ const begin=settings.indexOf('private documentSettings('),end=settings.indexOf('private securitySettings',begin);
+ assert.ok(begin>=0&&end>begin,'document settings section exists');
+ const docs=settings.slice(begin,end);
+ for(const token of ['Document artwork','Signature','Stamp','Default Document Language','Default Validity','Default Footer Text','Default Notes','Numbering','Quotation Prefix','Invoice Prefix','proformaPrefix','invoicePrefix','Document sequences only move forward'])assert.ok(docs.includes(token),token);
+ for(const misplaced of ['Default Payment Terms','Default Incoterm','Default Delivery Time','Bank Name','Tax presets'])assert.ok(!docs.includes(misplaced),'commercial settings must not move into Documents: '+misplaced);
 });
 
 test('v248 Commercial consolidates primary bank, alternate banks and trade defaults',async()=>{

@@ -1,3 +1,4 @@
+import { handleTabKeyDown } from '../lib/tab-navigation.js';
 import { ContextualAdvisorAction } from './ContextualAdvisorAction.js';
 import type { CompanySettings, Customer, DocumentKind } from '../types.js';
 import { makeId } from '../lib/id.js';
@@ -62,6 +63,7 @@ export class CustomersPage extends React.Component<Props,State>{
     if(this.state.busy||this.state.creatingDocument||this.state.editing||this.state.deleting||!this.props.customers.some(row=>row.id===id))return;
     this.setState({workspace:'directory',viewingId:id!,query:'',error:''});
   };
+  private changeWorkspace=(workspace:CustomerWorkspace)=>{if(this.state.busy||this.state.editing||this.state.creatingDocument)return;this.setState({workspace,query:'',error:''},()=>document.getElementById(`customers-tab-${workspace}`)?.focus());};
   private handleQuickCreate=()=>{this.setState({workspace:'directory'},this.newCustomer);};
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing||document.querySelector('.modal-backdrop'))return;
@@ -159,12 +161,13 @@ export class CustomersPage extends React.Component<Props,State>{
 
   render():any{
     const viewing=this.props.customers.find(customer=>customer.id===this.state.viewingId);if(viewing)return this.renderProfile(viewing);
-    if(this.state.workspace==='pipeline')return <SalesPipelineLive onShowDirectory={()=>this.setState({workspace:'directory',error:''})}/>;
+    if(this.state.workspace==='pipeline')return <SalesPipelineLive onShowDirectory={()=>this.changeWorkspace('directory')}/>;
     const customers=this.filtered(),query=this.state.query.trim(),suggestedName=customerSearchSeed(query),hasFilter=Boolean(query);
     const withEmail=this.props.customers.filter(customer=>customer.email.trim()).length;
     const withCredit=this.props.customers.filter(customer=>customer.creditLimit.trim()).length;
     return <section className="ta-customers-page">
-      <div className="lx-pipeline-tabs" role="tablist" aria-label={t('Customer workspace','مساحة العملاء')}><button type="button" role="tab" aria-selected="true" className="is-active">{t('Directory','الدليل')}</button><button type="button" role="tab" aria-selected="false" onClick={()=>this.setState({workspace:'pipeline',query:'',error:''})}>{t('Pipeline','خط المبيعات')}</button></div>
+      <div className="lx-pipeline-tabs" onKeyDown={handleTabKeyDown} role="tablist" aria-label={t('Customer workspace','مساحة العملاء')}><button type="button" role="tab" id="customers-tab-directory" aria-controls="customers-workspace-panel" tabIndex={0} aria-selected="true" className="is-active">{t('Directory','الدليل')}</button><button type="button" role="tab" id="customers-tab-pipeline" aria-controls="customers-workspace-panel" tabIndex={-1} aria-selected="false" disabled={this.state.busy||Boolean(this.state.editing)||Boolean(this.state.creatingDocument)} onClick={()=>this.changeWorkspace('pipeline')}>{t('Pipeline','خط المبيعات')}</button></div>
+      <div id="customers-workspace-panel" role="tabpanel" aria-labelledby="customers-tab-directory" tabIndex={-1}>
       <header className="ta-customers-header"><div><span className="ta-customers-eyebrow">{t('Address book','دليل العملاء')}</span><h1>{t('Customers','العملاء')}</h1><p>{t('Manage customer identity, commercial defaults and credit controls from one workspace.','أدر هوية العملاء وإعداداتهم التجارية والرقابة الائتمانية من مساحة واحدة.')}</p></div><div className="ta-customer-modal-actions"><CustomerAiCapture customers={this.props.customers} onReview={this.beginAiReview}/><Button icon="plus" variant="primary" onClick={this.newCustomer}>{suggestedName?t(`Add “${suggestedName}”`,`إضافة «${suggestedName}»`):t('Add Customer','إضافة عميل')}</Button></div></header>
 
       <section className="ta-customers-summary"><div><span className="ta-customers-summary-icon"><Icon name="users"/></span><span><small>{t('Customers','العملاء')}</small><strong>{this.props.customers.length}</strong><em>{t('Saved profiles','ملفات محفوظة')}</em></span></div><div><span className="ta-customers-summary-icon"><Icon name="file"/></span><span><small>{t('With email','لديهم بريد')}</small><strong>{withEmail}</strong><em>{t('Ready for contact','جاهزون للتواصل')}</em></span></div><div><span className="ta-customers-summary-icon"><Icon name="chart"/></span><span><small>{t('Credit controls','ضوابط ائتمان')}</small><strong>{withCredit}</strong><em>{t('Profiles with a limit','عملاء لديهم حد')}</em></span></div></section>
@@ -184,6 +187,7 @@ export class CustomersPage extends React.Component<Props,State>{
         })}</div>:<div className="ta-customers-empty"><span><Icon name="users" size={28}/></span><h2>{query?t('No matching customer','لا يوجد عميل مطابق'):t('No customers yet','لا يوجد عملاء بعد')}</h2><p>{query?t('Try a different name, email, phone or location.','جرّب اسمًا أو بريدًا أو هاتفًا أو موقعًا مختلفًا.'):t('Add customers once, then reuse their details on every document.','أضف العميل مرة واحدة ثم أعد استخدام بياناته في جميع المستندات.')}</p><Button icon="plus" variant="primary" onClick={this.newCustomer}>{suggestedName?t(`Add “${suggestedName}”`,`إضافة «${suggestedName}»`):t('Add Customer','إضافة عميل')}</Button></div>}
       </section>
       {this.renderDialogs()}
+      </div>
     </section>;
   }
 }

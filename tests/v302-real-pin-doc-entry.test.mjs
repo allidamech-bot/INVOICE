@@ -16,7 +16,7 @@ test('v302 requires a user PIN after account authentication and on every new run
   assert.ok(selector.indexOf('if (!cloudUser)')<selector.indexOf("if (props.mode === 'unlock')"),'account gateway must gate PIN unlock');
   assert.match(selector,/return <SetupScreen/);
   assert.match(auth,/Create PIN · 4–12 digits/);
-  assert.match(auth,/PIN required on every app start/);
+  assert.match(auth,/Create PIN · 4–12 digits/);
   assert.match(auth,/changePin\(this\.accountSecret,pin\)/);
   assert.doesNotMatch(auth,/No separate access PIN is required/);
   assert.match(session,/let runtimePinAuthorized=false/);

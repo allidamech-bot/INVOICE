@@ -6,7 +6,7 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('v217 cloud account link repair no longer reloads before workspace safety checks',async()=>{
   const source=await read('src/cloud/freshness.ts');
-  assert.match(source,/await putCloudAccount\(user\.uid,user\.email\);\s*linked=await getCloudAccount\(\)\.catch\(\(\)=>null\);/);
+  assert.match(source,/await putCloudAccount\(user\.uid,user\.email\);\s*if\(!stillCurrent\(\)\)return;\s*linked=await getCloudAccount\(\)\.catch\(\(\)=>null\);/);
   assert.doesNotMatch(source,/putCloudAccount\(user\.uid,user\.email\);window\.location\.reload\(\)/);
 });
 

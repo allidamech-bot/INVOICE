@@ -310,7 +310,7 @@ const documentStudioFinalGuard=`
    inherit a second visual system from older owners. */
 @media screen {
   html body #root .app-ui :is(.screen-editor,.editor-screen){
-    --lrx-editor-accent:#315fad;
+    --lrx-editor-accent:var(--lx-ui-action,#315fad);
   }
 
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-primary{
@@ -484,6 +484,20 @@ const documentStudioFinalGuard=`
 
 const sourceCss=(await readFile(sourcePath,'utf8')).trim();
 if(!sourceCss)throw new Error('v485 visible UI: source stylesheet is empty.');
+// Earlier boot finalizers must agree with the final visible canvas, not with a
+// retired stylesheet that happened to use the same theme preference key.
+const canvasValues=Array.from(sourceCss.matchAll(/--lx485-canvas:(#[0-9a-f]{6});/gi),match=>match[1]);
+const [darkCanvas,lightCanvas]=canvasValues;
+if(canvasValues.length!==2)throw new Error('v485 visible UI: ambiguous canvas palette.');
+for(const path of ['dist/index.html','dist/theme-bootstrap-v347.js','dist/src/lib/ui-theme.js','dist/document-entry-v302.js','dist/home-final-closeout-v286.js']){
+  const emitted=await readFile(path,'utf8');
+  if(!emitted.includes(darkCanvas)||!emitted.includes(lightCanvas))throw new Error(`v485 visible UI: boot/runtime canvas drift in ${path}.`);
+}
+const manifest=JSON.parse(await readFile('dist/manifest.webmanifest','utf8'));
+if(manifest.background_color!==darkCanvas||manifest.theme_color!==darkCanvas)throw new Error('v485 visible UI: manifest canvas drift.');
+for(const weight of ['Regular','Medium','Bold','ExtraBold']){
+  if((await readFile(`dist/fonts/Tajawal-${weight}.ttf`)).length<1000)throw new Error(`v485 visible UI: Arabic font asset ${weight} is missing.`);
+}
 if(!sourceCss.includes('.ta-doc-type-tabs')||!sourceCss.includes('grid-template-columns:repeat(2,minmax(0,1fr))!important'))throw new Error('v485 visible UI: centered mobile document tile grid is missing.');
 if(!sourceCss.includes('-webkit-mask-image:none!important')||!sourceCss.includes('overflow:visible!important'))throw new Error('v485 visible UI: clipped document-tab recovery is missing.');
 if(!sourceCss.includes('@media screen and (min-width:901px)')||!sourceCss.includes('.ta-finance-dashboard'))throw new Error('v485 visible UI: iPad/desktop premium activation is missing.');

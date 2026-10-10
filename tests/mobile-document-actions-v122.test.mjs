@@ -4,28 +4,26 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('historical v122 action-sheet layer is retired from runtime in favor of the consolidated portal',async()=>{
-  const [html,current,sw]=await Promise.all([
-    read('index.html'),
-    read('src/styles/mobile-document-actions-v125.css'),
-    read('public/sw.js')
-  ]);
-  assert.doesNotMatch(html,/mobile-document-actions-v122\.css/);
-  assert.match(html,/mobile-document-actions-v125\.css/);
-  assert.match(current,/@media \(max-width:900px\)/);
-  assert.match(current,/\.mobile-document-action-portal[\s\S]*?position:fixed!important/);
-  assert.match(current,/bottom:max\(12px,env\(safe-area-inset-bottom\)\)!important/);
-  assert.match(current,/max-height:min\(72dvh,560px\)!important/);
-  assert.match(current,/overflow-y:auto!important/);
-  // Source-cache compatibility can keep the old file during the migration; it
-  // must not participate in the live cascade anymore.
-  assert.match(sw,/mobile-document-actions-v122\.css/);
+test('mobile document action portal uses current fixed viewport owner and safe-area limits',async()=>{
+ const [html,css,sw]=await Promise.all([read('index.html'),read('src/styles/tailadmin-documents-v320.css'),read('public/sw.js')]);
+ assert.doesNotMatch(html,/mobile-document-actions-v122\.css/);
+ assert.match(html,/mobile-document-actions-v125\.css/);
+ assert.match(html,/tailadmin-documents-v320\.css/);
+ assert.match(css,/\.app-ui\.ta-doc-mobile-action-portal \{ position:fixed!important/);
+ assert.match(css,/z-index:var\(--lourex-z-critical,1500\)!important/);
+ assert.match(css,/\.app-ui \.ta-doc-mobile-action-sheet \{ position:absolute!important/);
+ assert.match(css,/bottom:calc\(8px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
+ assert.match(css,/max-height:min\(72dvh,620px\)!important/);
+ assert.match(css,/overflow:auto!important/);
+ assert.match(sw,/mobile-document-actions-v122\.css/);
 });
 
-test('the consolidated body portal no longer depends on card overflow escape hatches',async()=>{
-  const current=await read('src/styles/mobile-document-actions-v125.css');
-  assert.match(current,/\.mobile-document-action-portal \.mobile-document-action-backdrop/);
-  assert.match(current,/pointer-events:none!important/);
-  assert.match(current,/pointer-events:auto!important/);
-  assert.doesNotMatch(current,/premium-document-card:has\(\.action-menu\)/);
+test('action backdrop and menu are independently interactive, not clipped by document cards',async()=>{
+ const [css,source]=await Promise.all([read('src/styles/tailadmin-documents-v320.css'),read('src/components/DocumentsPage.tsx')]);
+ assert.match(css,/\.app-ui \.ta-doc-action-backdrop \{ position:absolute!important/);
+ assert.match(css,/\.app-ui \.ta-doc-mobile-action-sheet>button \{ min-height:46px!important/);
+ assert.doesNotMatch(css,/premium-document-card:has\(\.action-menu\)/);
+ assert.ok(source.includes('ReactDOM.createPortal('));
+ assert.ok(source.includes(',document.body)'));
+ assert.ok(source.includes('ta-doc-action-backdrop" aria-label='));
 });

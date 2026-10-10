@@ -24,12 +24,15 @@ test('v224 gives shell, financial, overlay and mobile chrome explicit dark fallb
   assert.match(css,/\.app-ui \.issue-asset-checks>span\.ok\{background-color:#122B26!important/);
 });
 
-test('v224 loads after all legacy application layers and ships offline',async()=>{
-  const [html,sw,patch,dist]=await Promise.all([read('index.html'),read('public/sw.js'),read('scripts/pwa-cache-v205.mjs'),read('dist/styles/app.bundle.css')]);
-  const noir=html.indexOf('./styles/luminous-noir-v224.css');
-  assert.ok(noir>html.indexOf('./styles/dark-surface-continuity-v220.css'));
-  assert.ok(noir<html.indexOf('./styles/document-premium-redesign-v141.css'));
-  assert.match(sw,/LOCAL_CORE\.push\('\.\/styles\/luminous-noir-v224\.css'\)/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v228'/);
-  assert.match(dist,/LOUREX Luminous Noir/);
+test('approved theme-aware shell and mobile owners ship through the consolidated offline stylesheet',async()=>{
+ const [html,sw,dist,css]=await Promise.all([read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css'),read('src/styles/tailadmin-shell-v320.css')]);
+ assert.ok(html.includes('tailadmin-shell-v320.css'));
+ assert.ok(html.includes('matte-black-dark-v360.css'));
+ assert.equal(html.includes('luminous-noir-v224.css'),false,'retired visual owner must not override the approved theme');
+ for(const token of ['tailadmin-shell-v320.css','matte-black-dark-v360.css'])assert.ok(dist.includes(token),token);
+ assert.ok(sw.includes('styles/app.bundle.css'),'PWA caches consolidated cascade');
+ assert.ok(css.includes('var(--ft-canvas)'));
+ assert.ok(css.includes('.ta-mobile-sheet'));
+ assert.ok(!css.includes('.invoice-page'),'screen shell must not affect invoice paper');
 });
+

@@ -13,7 +13,7 @@ test('canonical A4 base remains document-only while v337 is Draft/watermark supp
     read('src/styles/v337-template-layout-balance.css')
   ]);
   assert.match(html,/href="\.\/styles\/document-premium-redesign-v141\.css"/);
-  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3"/);
+  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=365-1"/);
   assert.match(qa,/canonical A4 layer/);
   assert.doesNotMatch(qa,/\.app-shell|\.documents-page|\.editor-shell/);
   assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);

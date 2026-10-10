@@ -8,7 +8,7 @@
     catch(e){resolved='dark';}
   }
   var root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');
-  var dark='#0a1826',light='#f4f7fb',bg=resolved==='light'?light:dark;
+  var dark='#0a1826',light='#f3f7fc',bg=resolved==='light'?light:dark;
   root.dataset.uiTheme=resolved;
   root.dataset.uiThemePreference=pref;
   root.dataset.lourexBooting='true';
@@ -31,9 +31,13 @@
       if(startupSurface())return;
       delete root.dataset.lourexBooting;
       root.style.removeProperty('--boot-bg');
-      root.style.colorScheme=resolved;
-      root.style.backgroundColor=bg;
-      if(meta)meta.setAttribute('content',bg);
+      // A theme change may occur while auth is loading. Do not restore the
+      // preference captured before React mounted over the current selection.
+      var current=root.dataset.uiTheme==='light'?'light':'dark';
+      var currentBg=current==='light'?light:dark;
+      root.style.colorScheme=current;
+      root.style.backgroundColor=currentBg;
+      if(meta)meta.setAttribute('content',currentBg);
       if(observer)observer.disconnect();
     };
     observer=new MutationObserver(restore);

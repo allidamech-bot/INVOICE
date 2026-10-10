@@ -1,0 +1,31 @@
+name: LOUREX QA Contract Closeout
+on:
+  push:
+    branches:
+      - fix/final-qa-contracts-closeout-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Locked install
+        run: npm ci --no-audit --no-fund
+      - name: Type check
+        run: npm run typecheck
+      - name: Production build (no deploy)
+        run: npm run build
+      - name: Focused current-runtime regressions
+        run: node --test tests/documents-workspace-v104.test.mjs tests/interface-polish-v256.test.mjs tests/design-semantic-closeout-batch2.test.mjs tests/design-system-v164.test.mjs tests/document-dark-contrast-v126.test.mjs tests/document-design-recovery-v139.test.mjs tests/document-final-qa-v130.test.mjs tests/document-layout-cleanup-v140.test.mjs tests/document-output-quality-v157.test.mjs tests/document-premium-redesign-v141.test.mjs tests/document-template-distinction-v143.test.mjs tests/workspace-v54.test.mjs tests/workspace-v60.test.mjs tests/editor-detail-polish-v230.test.mjs tests/editor-guided-flow-v107.test.mjs tests/editor-hierarchy-v93.test.mjs tests/editor-premium-v56.test.mjs tests/editor-workflow-v61.test.mjs tests/editor-memory-v53.test.mjs tests/entry-acceleration-v62.test.mjs tests/final-closeout-v233.test.mjs tests/site-shell-audit-v86.test.mjs tests/stress-reliability-v58.test.mjs tests/runtime-paths-v59.test.mjs tests/save-sequencing-v257.test.mjs tests/company-settings-final-audit.test.mjs tests/foundation-hardening-v120.test.mjs tests/final-production-hardening-v165.test.mjs tests/financial-workspaces-v189.test.mjs tests/mobile-document-actions-v122.test.mjs tests/mobile-document-actions-v123.test.mjs tests/mobile-document-actions-v124.test.mjs tests/product-library-pro-v113.test.mjs tests/v338-editor-stability.test.mjs tests/v339-signout-editor-guard.test.mjs tests/luminous-noir-continuity-v225.test.mjs tests/iphone-startup-v183.test.mjs tests/mobile-spacing-fit-v198.test.mjs
+      - name: Full historical suite with no exclusions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
+
+      - name: Independent real Chromium startup and viewport smoke (iPhone, iPad, desktop)
+        run: node scripts/qa-free-chrome-smoke.mjs

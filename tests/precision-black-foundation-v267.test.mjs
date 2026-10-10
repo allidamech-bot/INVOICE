@@ -4,24 +4,15 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v267 Precision Black foundation is the final application-chrome layer before printable documents',async()=>{
-  const [html,css]=await Promise.all([
-    read('index.html'),
-    read('src/styles/precision-black-foundation-v267.css')
-  ]);
-  const foundation=html.indexOf('./styles/precision-black-foundation-v267.css');
-  const runtimeAudit=html.indexOf('./styles/runtime-contrast-audit-v266.css');
-  const printable=html.indexOf('./styles/document-premium-redesign-v141.css');
-  assert.ok(foundation>runtimeAudit,'Precision Black must follow all legacy runtime visual patches');
-  assert.ok(printable>foundation,'printable document styling must remain the final stylesheet');
-  assert.match(css,/--ds-canvas:#080808/);
-  assert.match(css,/--ds-surface:#131313/);
-  assert.match(css,/--ds-accent:#B8A071/);
-  assert.match(css,/--ds-space-1:4px/);
-  assert.match(css,/--ds-space-7:48px/);
-  assert.match(css,/--ds-control-h-touch:46px/);
-  assert.match(css,/font-variant-numeric:tabular-nums lining-nums/);
-  assert.match(css,/@media print/);
+test('approved dark matte foundation coexists with light mode and separate printable commercial paper',async()=>{
+ const [html,dark,design]=await Promise.all([read('index.html'),read('src/styles/matte-black-dark-v360.css'),read('src/styles/tailadmin-design-closeout-v323.css')]);
+ assert.ok(html.includes('matte-black-dark-v360.css'));
+ assert.ok(html.includes('tailadmin-design-closeout-v323.css'));
+ assert.equal(html.includes('precision-black-foundation-v267.css'),false,'retired monochrome theme cannot overwrite approved screens');
+ assert.ok(dark.includes('html[data-ui-theme="dark"]'),'matte behavior is dark-theme-specific');
+ assert.ok(dark.includes('background-image:none!important'));
+ assert.ok(design.includes('var(--ft-')||design.includes('--ft-'));
+ assert.ok(!dark.includes('.invoice-page'),'dark app theme must not alter printable paper');
 });
 
 test('v267 keeps the runtime visual language flat and restrained',async()=>{

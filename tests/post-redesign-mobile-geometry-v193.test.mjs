@@ -4,14 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v193 mobile geometry layer loads after v192 and before printable document styling',async()=>{
-  const index=await read('index.html');
-  const previous='./styles/obsidian-production-audit-v192.css';
-  const mobile='./styles/obsidian-mobile-geometry-v193.css';
-  const print='./styles/document-premium-redesign-v141.css';
-  assert.ok(index.includes(mobile));
-  assert.ok(index.indexOf(previous)<index.indexOf(mobile));
-  assert.ok(index.indexOf(mobile)<index.indexOf(print));
+test('current mobile/editor recovery layers follow shell geometry while printable documents remain isolated',async()=>{
+ const html=await read('index.html');
+ for(const layer of ['tailadmin-shell-v320.css','tailadmin-editor-frame-v320.css','tailadmin-editor-core-v320.css','tailadmin-design-mobile-priority-v323.css','tailadmin-reliability-bridge-v320.css'])assert.ok(html.includes(layer),layer);
+ assert.equal(html.includes('obsidian-mobile-geometry-v193.css'),false,'retired geometry must not override approved mobile layers');
+ const frame=await read('src/styles/tailadmin-editor-frame-v320.css');
+ assert.ok(frame.includes('ta-editor-step-nav'),'mobile editor navigation stays visible');
+ assert.ok(html.includes('document-premium-redesign-v141.css'));
 });
 
 test('v193 keeps all six editor steps on narrow phones without touching printable pages',async()=>{

@@ -14,7 +14,6 @@
   const EDITOR_RESUME_MAX_AGE=6*60*60*1000;
   const EDITOR_RESTORE_TIMEOUT=12_000;
   const WORKSPACES=['home','documents','customers','items','operations','receivables','reports'];
-  const WORKSPACE_NAV_INDEX={home:0,documents:1,customers:2,items:3,operations:4,receivables:5,reports:6};
   let lastEditorInputAt=0;
   let workspaceFrame=0;
   let workspaceRestoreTarget=readWorkspace(WORKSPACE_RESUME_KEY)||readWorkspace(WORKSPACE_LAST_KEY);
@@ -147,11 +146,9 @@
   }
 
   function workspaceNavigationButton(screen){
-    const index=WORKSPACE_NAV_INDEX[screen];
-    if(typeof index!=='number')return null;
-    const buttons=Array.from(document.querySelectorAll('.ta-sidebar-nav .ta-nav-item'));
-    const button=buttons[index];
-    return button instanceof HTMLButtonElement?button:null;
+    if(!validWorkspace(screen))return null;
+    const button=document.querySelector(`.ta-sidebar-nav .ta-nav-item[data-lourex-workspace="${screen}"]`);
+    return button instanceof HTMLButtonElement&&!button.disabled?button:null;
   }
 
   function rememberStableWorkspace(screen){
@@ -181,8 +178,8 @@
   }
 
   function clickEditorRestoreTarget(){
-    const target=editorRestoreTarget;
-    if(!target)return false;
+    const target=validEditorResume(editorRestoreTarget);
+    if(!target){clearEditorResume();return false;}
     const now=Date.now();
     const elapsed=now-editorRestoreLastClickAt;
     if(elapsed<180){
@@ -209,6 +206,7 @@
   }
 
   function processEditorContinuity(current){
+    if(editorRestoreArmed&&!validEditorResume(editorRestoreTarget))clearEditorResume();
     if(checkpointEditor())return true;
     if(editorOpen())return true;
 

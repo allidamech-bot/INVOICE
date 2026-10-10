@@ -51,5 +51,6 @@ test('v230 refreshes installed PWA clients without invalidating existing cache c
   assert.match(patch,/lourex-invoice-v230: editor detail polish refresh/);
   assert.match(distSw,/lourex-invoice-v230: editor detail polish refresh/);
   assert.match(distSw,/const CACHE = 'lourex-invoice-v228'/);
-  assert.match(distSw,/nested-surface-consistency-v229\.css/);
+  assert.ok(distSw.includes('styles/app.bundle.css'),'production worker precaches the consolidated editor styles');
+  assert.ok(!distSw.includes('"./styles/nested-surface-consistency-v229.css"'),'retired visual owner is not separately cached');
 });

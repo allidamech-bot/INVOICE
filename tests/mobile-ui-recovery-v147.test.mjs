@@ -4,23 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v152 workspaces remain reachable through the current phone navigation architecture',async()=>{
-  const [app,shell,reportsCss,shellCss]=await Promise.all([
-    read('src/app/App.tsx'),
-    read('src/components/AppShell.tsx'),
-    read('src/styles/reports-v135.css'),
-    read('src/styles/app-shell-v161.css')
-  ]);
-  for(const screen of ['documents','customers','receivables','reports','items','operations'])assert.ok(app.includes(`screen==='${screen}'`),screen);
-  assert.ok(!reportsCss.includes('.app-ui .main-nav'),'report styles do not own shared navigation');
-  assert.ok(shell.includes('mobile-bottom-nav'));
-  assert.ok(shell.includes('mobile-more-sheet'));
-  assert.ok(shell.includes("this.navButton('receivables'"));
-  assert.ok(shell.includes("this.navButton('reports'"));
-  assert.ok(shell.includes("this.navButton('items'"));
-  assert.ok(shell.includes("this.navButton('operations'"));
-  assert.ok(shellCss.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
-  assert.ok(shellCss.includes('min-width:0'));
+test('current phone navigation exposes core workspaces through compact More and dedicated tabs',async()=>{
+ const [app,shell,shellCss,reportCss]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/styles/tailadmin-shell-v320.css'),read('src/styles/reports-v135.css')]);
+ for(const screen of ['documents','customers','receivables','reports','items','operations'])assert.ok(app.includes("screen==='"+screen+"'"),screen);
+ for(const token of ['ta-mobile-nav','ta-mobile-sheet','ta-mobile-more','ta-mobile-create','this.mobileSheetItem(\'items\'','this.mobileSheetItem(\'operations\'','this.mobileSheetItem(\'receivables\'','this.mobileSheetItem(\'reports\''])assert.ok(shell.includes(token),token);
+ assert.ok(shellCss.includes('.ta-mobile-nav')&&shellCss.includes('.ta-mobile-sheet'));
+ assert.ok(shellCss.includes('min-width:0'));
+ assert.equal(reportCss.includes('.app-ui .main-nav'),false);
 });
 
 test('v147 compacts customer and operations phone workspaces without changing printable documents',async()=>{
@@ -49,12 +39,13 @@ test('v148-v150 cover product library settings editor auth and modal phone surfa
   }
 });
 
-test('final mobile recovery styles load before the performance layer and ship in the offline shell',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const layers=['mobile-ui-rebalance-v146.css','mobile-workspaces-v148.css','mobile-editor-recovery-v149.css','mobile-auth-modal-v150.css'];
-  for(const layer of layers){
-    assert.ok(html.includes(`./styles/${layer}`),`${layer} loaded`);
-    assert.ok(sw.includes(`./styles/${layer}`),`${layer} cached`);
-    assert.ok(html.indexOf(layer)<html.indexOf('performance-polish-v100.css'),`${layer} remains below performance layer`);
-  }
+test('current responsive TailAdmin recovery assets ship in one canonical offline bundle',async()=>{
+ const [html,sw,bundle]=await Promise.all([read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
+ for(const asset of ['tailadmin-shell-v320.css','tailadmin-editor-core-v320.css','tailadmin-auth-v320.css','tailadmin-overlays-v320.css','tailadmin-reliability-bridge-v320.css']){
+   assert.ok(html.includes(asset),'source includes '+asset);
+   assert.ok(bundle.includes(asset),'release includes '+asset);
+ }
+ assert.ok(sw.includes('styles/app.bundle.css'));
+ assert.ok(!html.includes('mobile-ui-rebalance-v146.css'),'retired cascade cannot reclaim geometry');
 });
+

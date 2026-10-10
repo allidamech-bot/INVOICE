@@ -1,3 +1,4 @@
+import { containOverlayFocus, lockOverlayScroll, ownsOverlay, topOverlay, trapOverlayTab, unlockOverlayScroll } from '../lib/overlay-focus.js';
 import type { DocumentKind, LourexDocument, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { signOutCloudUser } from '../cloud/firebase.js';
@@ -77,6 +78,7 @@ export class AppShell extends React.Component<Props,State>{
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
+    document.addEventListener('focusin',this.containFocus);
     this.syncOverlayState();
     window.addEventListener('resize',this.syncEditorViewport);
     window.visualViewport?.addEventListener('resize',this.syncEditorViewport);
@@ -86,6 +88,7 @@ export class AppShell extends React.Component<Props,State>{
 
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
+    document.removeEventListener('focusin',this.containFocus);
     this.applyOverlayLock(false);
     window.removeEventListener('resize',this.syncEditorViewport);
     window.visualViewport?.removeEventListener('resize',this.syncEditorViewport);
@@ -136,10 +139,12 @@ export class AppShell extends React.Component<Props,State>{
     const root=document.documentElement;
     const body=document.body;
     if(locked){
+      lockOverlayScroll(this);
       root.dataset.lourexShellOverlay='true';
       body.dataset.lourexShellOverlay='true';
       return;
     }
+    unlockOverlayScroll(this);
     delete root.dataset.lourexShellOverlay;
     delete body.dataset.lourexShellOverlay;
   };
@@ -149,17 +154,24 @@ export class AppShell extends React.Component<Props,State>{
     this.applyOverlayLock(!editor&&(this.state.moreOpen||this.props.newMenu));
   };
 
+  private containFocus=()=>containOverlayFocus(document.getElementById(this.state.moreOpen?'ta-mobile-more':this.activeCreateMenuId()));
   private focusableIn=(root:HTMLElement):HTMLElement[]=>Array.from(root.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(node=>node.offsetParent!==null);
 
   private trapOverlayFocus=(event:KeyboardEvent,root:HTMLElement)=>{
-    const focusable=this.focusableIn(root);
-    if(!focusable.length){event.preventDefault();return;}
-    const first=focusable[0]!,last=focusable[focusable.length-1]!;
-    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
-    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    trapOverlayTab(event,root);
   };
 
   private handleKeyDown=(event:KeyboardEvent)=>{
+    if(event.defaultPrevented)return;
+    const active=document.getElementById(this.state.moreOpen?'ta-mobile-more':this.activeCreateMenuId());
+    if(!active||!ownsOverlay(active))return;
+    if(this.props.newMenu&&['ArrowDown','ArrowUp','Home','End'].includes(event.key)){
+      const items=Array.from(active.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not([disabled])'));
+      if(!items.length)return;
+      const index=items.indexOf(document.activeElement as HTMLButtonElement);
+      const next=event.key==='Home'?0:event.key==='End'?items.length-1:event.key==='ArrowDown'?(index+1)%items.length:index<0?items.length-1:(index-1+items.length)%items.length;
+      event.preventDefault();items[next]?.focus({preventScroll:true});items[next]?.scrollIntoView({block:'nearest',inline:'nearest'});return;
+    }
     if(event.key==='Escape'){
       if(this.state.moreOpen){event.preventDefault();this.setState({moreOpen:false});return;}
       if(this.props.newMenu){event.preventDefault();this.closeCreateMenu();}
@@ -173,9 +185,8 @@ export class AppShell extends React.Component<Props,State>{
       return;
     }
 
-    if(this.props.newMenu&&this.isMobileShell()){
-      const menu=document.getElementById('ta-mobile-create-menu');
-      if(menu)this.trapOverlayFocus(event,menu);
+    if(this.props.newMenu){
+      this.trapOverlayFocus(event,active);
     }
   };
 
@@ -189,17 +200,18 @@ export class AppShell extends React.Component<Props,State>{
   };
 
   private toggleCreate=()=>{
+    if(topOverlay()&&!this.props.newMenu&&!this.state.moreOpen)return;
     this.closeMore();
     this.props.onToggleNew();
   };
 
   private openMobileQuickCreate=()=>{
     this.closeCreateMenu();
-    this.closeMore();
-    window.dispatchEvent(new Event('lourex-global-search-open'));
+    this.setState({moreOpen:false},()=>window.requestAnimationFrame(()=>window.dispatchEvent(new Event('lourex-global-search-open'))));
   };
 
   private toggleMore=()=>{
+    if(topOverlay()&&!this.state.moreOpen&&!this.props.newMenu)return;
     this.closeCreateMenu();
     this.setState(state=>({moreOpen:!state.moreOpen}));
   };
@@ -309,6 +321,7 @@ export class AppShell extends React.Component<Props,State>{
   private navItem=(screen:NavTarget,icon:NavIcon,label:string)=>
     <button
       type="button"
+      data-lourex-workspace={screen}
       className={`ta-nav-item ${this.props.screen===screen?'is-active':''}`}
       aria-current={this.props.screen===screen?'page':undefined}
       onClick={()=>this.navigate(screen)}
@@ -332,16 +345,19 @@ export class AppShell extends React.Component<Props,State>{
   private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`ta-create-menu new-doc-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
     <div className="ta-create-menu-heading"><small>{t('Documents','المستندات')}</small><strong>{t('Create document','إنشاء مستند')}</strong></div>
     <div className="ta-create-menu-grid">
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial customer offer','عرض تجاري للعميل')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Commercial Invoice','فاتورة تجارية')}</strong><small>{t('Final sales invoice','فاتورة البيع النهائية')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('draft')}><Icon name="edit"/><span><strong>{t('Draft','مسودة')}</strong><small>{t('Free-form company document','مستند شركة حر')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('proforma-invoice')}><Icon name="invoice"/><span><strong>{t('Proforma Invoice','فاتورة مبدئية')}</strong><small>{t('Pre-shipment invoice','فاتورة قبل الشحن')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('rfq')}><Icon name="file"/><span><strong>{t('RFQ','طلب عرض سعر')}</strong><small>{t('Request supplier prices','طلب أسعار المورد')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('purchase-order')}><Icon name="file"/><span><strong>{t('Purchase Order','طلب شراء')}</strong><small>{t('Supplier order','طلب للمورد')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('delivery-note')}><Icon name="file"/><span><strong>{t('Delivery Note','سند تسليم')}</strong><small>{t('Confirm delivered goods','إثبات تسليم البضاعة')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('payment-receipt')}><Icon name="invoice"/><span><strong>{t('Payment Receipt','إيصال دفع')}</strong><small>{t('Acknowledge a payment','إثبات استلام دفعة')}</small></span></button>
-      <button type="button" role="menuitem" onClick={this.openCreditNote}><Icon name="invoice"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Reference an issued invoice','يرتبط بفاتورة صادرة')}</small></span></button>
-      <button type="button" role="menuitem" onClick={this.openStatementAccount}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Customer account statement','كشف حساب العميل')}</small></span></button>
+      <div className="ta-create-group-label" role="presentation">{t('Sales','المبيعات')}</div>
+      <button type="button" role="menuitem" data-kind="proforma" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial customer offer','عرض تجاري للعميل')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="invoice" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Commercial Invoice','فاتورة تجارية')}</strong><small>{t('Final sales invoice','فاتورة البيع النهائية')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="proforma-invoice" onClick={()=>this.createDocument('proforma-invoice')}><Icon name="invoice"/><span><strong>{t('Proforma Invoice','فاتورة مبدئية')}</strong><small>{t('Pre-shipment invoice','فاتورة قبل الشحن')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="delivery-note" onClick={()=>this.createDocument('delivery-note')}><Icon name="file"/><span><strong>{t('Delivery Note','سند تسليم')}</strong><small>{t('Confirm delivered goods','إثبات تسليم البضاعة')}</small></span></button>
+      <div className="ta-create-group-label" role="presentation">{t('Purchasing','المشتريات')}</div>
+      <button type="button" role="menuitem" data-kind="rfq" onClick={()=>this.createDocument('rfq')}><Icon name="file"/><span><strong>{t('RFQ','طلب عرض سعر')}</strong><small>{t('Request supplier prices','طلب أسعار المورد')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="purchase-order" onClick={()=>this.createDocument('purchase-order')}><Icon name="file"/><span><strong>{t('Purchase Order','طلب شراء')}</strong><small>{t('Supplier order','طلب للمورد')}</small></span></button>
+      <div className="ta-create-group-label" role="presentation">{t('Finance and other','المالية وغيرها')}</div>
+      <button type="button" role="menuitem" data-kind="payment-receipt" onClick={()=>this.createDocument('payment-receipt')}><Icon name="invoice"/><span><strong>{t('Payment Receipt','إيصال دفع')}</strong><small>{t('Acknowledge a payment','إثبات استلام دفعة')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="credit-note" onClick={this.openCreditNote}><Icon name="invoice"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Reference an issued invoice','يرتبط بفاتورة صادرة')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="statement-account" onClick={this.openStatementAccount}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Customer account statement','كشف حساب العميل')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="draft" onClick={()=>this.createDocument('draft')}><Icon name="edit"/><span><strong>{t('Draft','مسودة')}</strong><small>{t('Free-form company document','مستند شركة حر')}</small></span></button>
     </div>
   </div>:null;
 
@@ -460,7 +476,7 @@ export class AppShell extends React.Component<Props,State>{
           <button type="button" className={this.props.screen==='home'?'is-active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="home"/><span>{t('Home','الرئيسية')}</span></button>
           <button type="button" className={this.props.screen==='documents'?'is-active':''} aria-current={this.props.screen==='documents'?'page':undefined} onClick={()=>this.navigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
           <div className="ta-mobile-create-wrap">
-            <button type="button" className="ta-mobile-create" aria-haspopup="dialog" aria-label={t('Quick create or search','إنشاء سريع أو بحث')} title={t('Quick create','إنشاء سريع')} onClick={this.openMobileQuickCreate}><Icon name="plus" size={24}/></button>
+            <button type="button" className="ta-mobile-create" aria-haspopup="dialog" aria-controls="ta-mobile-create-menu" aria-expanded={this.props.newMenu} aria-label={t('Quick create or search','إنشاء سريع أو بحث')} title={t('Quick create','إنشاء سريع')} onClick={this.openMobileQuickCreate}><Icon name="plus" size={24}/></button>
           </div>
           <button type="button" className={this.props.screen==='customers'?'is-active':''} aria-current={this.props.screen==='customers'?'page':undefined} onClick={()=>this.navigate('customers')}><Icon name="users"/><span>{t('Customers','العملاء')}</span></button>
           <button type="button" className={this.state.moreOpen?'is-active':''} aria-haspopup="dialog" aria-controls="ta-mobile-more" aria-expanded={this.state.moreOpen} onClick={this.toggleMore}><Icon name="more"/><span>{t('More','المزيد')}</span></button>

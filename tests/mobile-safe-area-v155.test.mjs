@@ -4,12 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v155 loads after application recovery and is cached for installed PWAs',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  assert.ok(html.indexOf('ux-recovery-v152.css')<html.indexOf('mobile-safe-area-v155.css'));
-  assert.ok(html.indexOf('mobile-safe-area-v155.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
-  assert.ok(sw.includes('./styles/mobile-safe-area-v155.css'));
+test('current mobile safe areas and iPhone editor controls are bundled for installed clients',async()=>{
+ const [html,sw,shell,core]=await Promise.all([read('index.html'),read('dist/sw.js'),read('src/styles/tailadmin-shell-v320.css'),read('src/styles/tailadmin-editor-core-v320.css')]);
+ assert.equal(html.includes('mobile-safe-area-v155.css'),false,'retired safe-area styles cannot override current shell');
+ assert.ok(html.includes('tailadmin-shell-v320.css')&&html.includes('tailadmin-editor-core-v320.css'));
+ assert.ok(shell.includes('safe-area-inset-bottom'));
+ assert.ok(core.includes('safe-area-inset-bottom'));
+ assert.ok(sw.includes('styles/app.bundle.css'),'offline PWA caches the canonical controls');
 });
 
 test('v155 preserves a full editor header below the iPhone safe area',async()=>{

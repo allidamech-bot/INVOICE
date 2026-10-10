@@ -94,13 +94,14 @@ test('v137 operating expenses remain separate and currencies are never combined'
   assert.equal(spend.find(row=>row.currency==='EUR').total,'5.00');
 });
 
-test('v137 UI and PWA expose one compact Operations workspace offline',async()=>{
-  const [app,page,index,sw]=await Promise.all([read('src/app/App.tsx'),read('src/components/OperationsPage.tsx'),read('index.html'),read('public/sw.js')]);
-  assert.match(app,/screen:'home'\|'documents'\|'customers'\|'receivables'\|'reports'\|'items'\|'operations'\|'editor'/);
-  assert.match(app,/OperationsPage/);assert.match(page,/Suppliers/);assert.match(page,/Purchases/);assert.match(page,/Expenses/);assert.match(page,/Inventory Ledger/);
-  const css='./styles/operations-v137.css',performance='./styles/performance-polish-v100.css';
-  assert.ok(index.includes(css));assert.ok(index.indexOf(css)<index.indexOf(performance));
-  for(const asset of [css,'./src/components/OperationsPage.js','./src/lib/operations.js'])assert.ok(sw.includes(asset),asset);
-  const activeCacheVersion=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';/m)?.[1]??0);assert.ok(activeCacheVersion>=137);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v136'/);
+test('current Operations functionality remains reachable with supplier, purchase, expense and inventory in the offline app',async()=>{
+ const [app,page,html,sw,bundle]=await Promise.all([read('src/app/App.tsx'),read('src/components/OperationsPage.tsx'),read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
+ assert.ok(app.includes('OperationsPage'),'operational routing must remain connected');
+ for(const word of ['Suppliers','Purchases','Expenses','Inventory Ledger'])assert.ok(page.includes(word),word);
+ assert.ok(html.includes('tailadmin-operations-v320.css'));
+ assert.ok(bundle.includes('tailadmin-operations-v320.css'));
+ assert.ok(sw.includes('./src/components/OperationsPage.js'),'installed app must cache working Operations');
+ assert.ok(sw.includes('./src/lib/operations.js'),'installed app must cache deterministic operations accounting');
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
+

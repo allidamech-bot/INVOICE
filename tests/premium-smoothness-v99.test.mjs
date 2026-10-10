@@ -4,16 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v99 smoothness layer remains loaded beneath the current performance layer and source cache manifest keeps the layers',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  const v99Index=styles.indexOf('premium-smoothness-v99.css');
-  const currentIndex=styles.indexOf('performance-polish-v100.css');
-  assert.ok(v99Index>=0);
-  assert.ok(currentIndex>v99Index);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
-  assert.match(sw,/\.\/styles\/premium-smoothness-v99\.css/);
-  assert.match(sw,/\.\/styles\/performance-polish-v100\.css/);
+test('current performant UI honors reduced motion and ships one offline stylesheet',async()=>{
+ const [html,sw,bundle,legacy]=await Promise.all([read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css'),read('src/styles/premium-smoothness-v99.css')]);
+ assert.ok(html.includes('performance-polish-v100.css'));
+ assert.ok(html.includes('tailadmin-shell-v320.css'));
+ assert.ok(bundle.includes('performance-polish-v100.css'));
+ assert.ok(sw.includes('styles/app.bundle.css'));
+ assert.equal(html.includes('premium-smoothness-v99.css'),false,'retired visual layer is no longer a separate cascade owner');
+ assert.ok(legacy.includes('prefers-reduced-motion'),'motion accessibility is preserved in historical assets');
 });
 
 test('v99 uses compositor-friendly restrained motion and touch momentum',async()=>{

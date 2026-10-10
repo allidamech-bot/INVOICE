@@ -1,3 +1,4 @@
+import { handleTabKeyDown } from '../lib/tab-navigation.js';
 import type { SavedItem } from '../types.js';
 import { makeId } from '../lib/id.js';
 import { decimalToScaled, isDecimalInput, normalizeDecimalInput } from '../lib/money.js';
@@ -73,7 +74,10 @@ function rankedMetadata(items:SavedItem[],values:(item:SavedItem)=>string[],limi
     .map(entry=>entry.value);
 }
 
+let savedItemsTabSequence=0;
+
 export class SavedItemsModal extends React.Component<Props,State>{
+  private readonly tabPrefix=`saved-items-${++savedItemsTabSequence}`;
   state:State={
     query:'',editing:null,editingInitial:'',discardAction:'',pendingSelect:null,deleting:null,
     busy:false,error:'',view:this.props.items.some(item=>item.favorite)?'favorites':'recent',
@@ -353,17 +357,17 @@ export class SavedItemsModal extends React.Component<Props,State>{
 
     const library=<div className={`saved-items-shell ${picker?'is-picker':''}`}>
       <aside className="saved-items-list-pane">
-        <div className="saved-items-smart-nav" role="tablist" aria-label={t('Product library views','طرق عرض مكتبة الأصناف')}>
-          <button type="button" role="tab" aria-selected={this.state.view==='favorites'} className={this.state.view==='favorites'?'active':''} onClick={()=>this.setView('favorites')}>
+        <div className="saved-items-smart-nav" onKeyDown={handleTabKeyDown} role="tablist" aria-label={t('Product library views','طرق عرض مكتبة الأصناف')}>
+          <button type="button" role="tab" id={`${this.tabPrefix}-tab-favorites`} aria-controls={`${this.tabPrefix}-panel`} tabIndex={this.state.view==='favorites'?0:-1} aria-selected={this.state.view==='favorites'} className={this.state.view==='favorites'?'active':''} onClick={()=>this.setView('favorites')}>
             <span aria-hidden="true">★</span><strong>{t('Favorites','المفضلة')}</strong><small>{favoriteCount}</small>
           </button>
-          <button type="button" role="tab" aria-selected={this.state.view==='recent'} className={this.state.view==='recent'?'active':''} onClick={()=>this.setView('recent')}>
+          <button type="button" role="tab" id={`${this.tabPrefix}-tab-recent`} aria-controls={`${this.tabPrefix}-panel`} tabIndex={this.state.view==='recent'?0:-1} aria-selected={this.state.view==='recent'} className={this.state.view==='recent'?'active':''} onClick={()=>this.setView('recent')}>
             <strong>{t('Recent','الأخيرة')}</strong><small>{Math.min(this.props.items.length,24)}</small>
           </button>
-          <button type="button" role="tab" aria-selected={this.state.view==='categories'} className={this.state.view==='categories'?'active':''} onClick={()=>this.setView('categories')}>
+          <button type="button" role="tab" id={`${this.tabPrefix}-tab-categories`} aria-controls={`${this.tabPrefix}-panel`} tabIndex={this.state.view==='categories'?0:-1} aria-selected={this.state.view==='categories'} className={this.state.view==='categories'?'active':''} onClick={()=>this.setView('categories')}>
             <strong>{t('Categories','التصنيفات')}</strong><small>{categories.length+(uncategorizedCount?1:0)}</small>
           </button>
-          <button type="button" role="tab" aria-selected={this.state.view==='all'} className={this.state.view==='all'?'active':''} onClick={()=>this.setView('all')}>
+          <button type="button" role="tab" id={`${this.tabPrefix}-tab-all`} aria-controls={`${this.tabPrefix}-panel`} tabIndex={this.state.view==='all'?0:-1} aria-selected={this.state.view==='all'} className={this.state.view==='all'?'active':''} onClick={()=>this.setView('all')}>
             <strong>{t('All','الكل')}</strong><small>{this.props.items.length}</small>
           </button>
         </div>
@@ -431,7 +435,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
           <span><b>{filtered.length}</b>{basePoolCount!==filtered.length?<><i>/</i>{basePoolCount}</>:null}</span>
         </div>
 
-        <div className="saved-items-list">
+        <div className="saved-items-list" id={`${this.tabPrefix}-panel`} role="tabpanel" aria-labelledby={`${this.tabPrefix}-tab-${this.state.view}`} tabIndex={-1}>
           {filtered.map(item=>{
             const selected=selectedIds.has(item.id);
             return <article key={item.id} className={`saved-item-row ${item.favorite?'is-favorite ':''}${selected?'is-selected':''}`}>

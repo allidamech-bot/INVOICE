@@ -4,20 +4,14 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v208 mobile More menu uses true logical-start RTL alignment',async()=>{
-  const [shell,css]=await Promise.all([
-    read('src/components/AppShell.tsx'),
-    read('src/styles/maintenance-closeout-v207.css')
-  ]);
-
-  assert.match(shell,/mobile-more-sheet[^>]*dir=\{this\.props\.language==='ar'\?'rtl':'ltr'\}/);
-  assert.match(css,/mobile-more-sheet\[dir='rtl'\][\s\S]*direction:rtl!important/);
-  assert.match(css,/mobile-more-heading-copy,[\s\S]*mobile-more-settings-copy\{[\s\S]*align-items:flex-start!important;[\s\S]*text-align:start!important/);
-  assert.match(css,/mobile-more-status-row\{\s*justify-content:flex-start!important/);
-  assert.match(css,/mobile-more-account-icon,[\s\S]*mobile-more-settings-icon\{[\s\S]*grid-column:1!important/);
-  assert.match(css,/mobile-more-account-copy,[\s\S]*mobile-more-settings-copy\{[\s\S]*grid-column:2!important/);
-  assert.match(css,/mobile-more-chevron\{[\s\S]*grid-column:3!important;[\s\S]*justify-self:end!important/);
-  assert.match(css,/mobile-more-group>p\{[\s\S]*justify-content:flex-start!important;[\s\S]*text-align:start!important/);
+test('current mobile More sheet preserves Arabic RTL, logical alignment and accessibility',async()=>{
+ const [shell,css,reliability]=await Promise.all([read('src/components/AppShell.tsx'),read('src/styles/tailadmin-shell-v320.css'),read('src/styles/tailadmin-reliability-bridge-v320.css')]);
+ for(const token of ['className="ta-mobile-sheet"','id="ta-mobile-more"','role="dialog"','aria-modal="true"',"dir={this.props.language==='ar'?'rtl':'ltr'}",'ta-sheet-header','ta-sheet-link-copy','ta-sheet-group'])assert.ok(shell.includes(token),token);
+ assert.ok(css.includes('[dir="rtl"] .app-ui .ta-sheet-chevron'),'chevron direction follows RTL');
+ assert.ok(css.includes('.ta-sheet-group>p'),'logical group heading owner');
+ assert.ok(css.includes('inset-inline'),'sheet uses logical horizontal positions');
+ assert.ok(reliability.includes('focus-visible'),'keyboard visibility is preserved');
+ assert.ok(reliability.includes('min-height:44px'),'touch controls remain accessible');
 });
 
 test('v208 PWA cache forces installed clients to receive the RTL correction',async()=>{

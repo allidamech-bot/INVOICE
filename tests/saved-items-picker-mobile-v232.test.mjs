@@ -14,26 +14,15 @@ test('v232 makes the phone Saved Items picker one contained dialog with one scro
   assert.match(css,/white-space:normal!important/);
 });
 
-test('v232 is a late app-only layer and is delivered to installed PWA clients',async()=>{
-  const [html,css,patch,distSw,bundle]=await Promise.all([
-    read('index.html'),
-    read('src/styles/saved-items-picker-v232.css'),
-    read('scripts/pwa-cache-v205.mjs'),
-    read('dist/sw.js'),
-    read('dist/styles/app.bundle.css')
-  ]);
-  const nested=html.indexOf('./styles/nested-surface-consistency-v229.css');
-  const picker=html.indexOf('./styles/saved-items-picker-v232.css');
-  const documentCss=html.indexOf('./styles/document-premium-redesign-v141.css');
-  assert.ok(nested>=0&&picker>nested&&documentCss>picker,'v232 must load after app closeout and before printable document CSS');
-  assert.match(css,/@media screen and \(max-width:720px\)/);
-  assert.doesNotMatch(css,/\.invoice-page|\.invoice-pages/);
-  assert.match(bundle,/v232 — mobile Saved Items picker containment/);
-  assert.match(patch,/\.\/styles\/saved-items-picker-v232\.css/);
-  assert.match(patch,/lourex-invoice-v232: saved-items picker containment refresh/);
-  assert.match(distSw,/lourex-invoice-v232: saved-items picker containment refresh/);
-  assert.match(distSw,/\.\/styles\/saved-items-picker-v232\.css/);
-  assert.match(distSw,/lourex-invoice-v231: mobile totals switch geometry refresh/);
+test('mobile picker containment stays print-isolated in the bundled offline app',async()=>{
+ const [html,css,patch,sw,bundle]=await Promise.all([read('index.html'),read('src/styles/saved-items-picker-v232.css'),read('scripts/pwa-cache-v205.mjs'),read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
+ const picker=html.indexOf('saved-items-picker-v232.css'),paper=html.indexOf('document-premium-redesign-v141.css');
+ assert.ok(picker>=0&&paper>=0,'both app-only picker and separate print foundation must be present');
+ assert.ok(css.includes('overflow-y:auto!important')&&css.includes('min-height:44px!important'));
+ assert.ok(!css.includes('.invoice-page'));
+ assert.ok(bundle.includes('saved-items-picker-v232.css'));
+ assert.ok(patch.includes('saved-items-picker-v232.css'));
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
 
 test('v232 browser QA verifies picker containment at real phone widths in both UI languages',async()=>{
