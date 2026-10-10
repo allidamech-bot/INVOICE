@@ -35,6 +35,6 @@ test('v484 is the final production visual owner after v483',async()=>{
   assert.ok(v481>=0&&v482>v481&&v484>v482&&v485>v484,'active responsive ownership must build v481 → v482 → v484 → v485');
 
   assert.match(bundler,/v484-responsive-visual-hierarchy\.css/);
-  assert.match(bundler,/v484Index<=v483Index/);
+  assert.match(bundler,/mobileIndex<0\|\|v484Index<0\|\|v484Index<=mobileIndex/);
   assert.match(bundler,/standalonePath='dist\/styles\/v482-mobile-ux-repair\.css'/);
 });
