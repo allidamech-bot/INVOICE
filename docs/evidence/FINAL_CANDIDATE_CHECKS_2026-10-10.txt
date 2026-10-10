@@ -1,0 +1,143 @@
+LOUREX final candidate evidence — 2026-10-10
+Repository: allidamech-bot/INVOICE
+Parent candidate: e2777a3517cea7b458ca3d0152068172245368f8
+No merge/deployment. Final runtime was generated from the modified final hash owner.
+
+Ordinary clean build observations:
+- Pre-cache-fix clean build 1: exit 0.
+- Pre-cache-fix clean build 2: exit 1 (below).
+- Post-cache-fix npm build: exit 0.
+- Post-cache-fix repeated npm build: exit 1 (below).
+- Exact package build steps with per-owner hash/marker inspection: exit 0.
+No workaround/retry owner was added. Root cause of BUILD-REPRO-001 remains unproven.
+
+
+lourex-batch9-clean-build2.log (failure excerpt):
+[LOUREX] Remediation Batch 3 installed: flat modern AI thread, compact icon actions, overflow navigation and keyboard/safe-area composer.
+[LOUREX] Remediation Batch 3 closeout installed: panel grid track and WebKit/RTL thread width are constrained, tool activity is first-frame contained, and the welcome state is flat and touch-safe.
+[LOUREX] Remediation Batch 4 installed: AI tools/routes are unified, raw technical labels are humanized, Memory & Tasks is flattened, and Morning Brief uses a priority/action hierarchy.
+[LOUREX] AI Conversation Design Batch 1 installed: cleaner header, larger conversation typography, quieter message actions, unified composer and upward send affordance.
+file:///workspace/scratch/4963e0fee80a/INVOICE/scripts/ai-conversation-design-batch2.mjs:8
+if(!runtime.includes('__lourexConversationOwnerBatch3'))throw new Error('Conversation Design Batch 2 requires the current composer runtime owner.');
+                                                              ^
+
+Error: Conversation Design Batch 2 requires the current composer runtime owner.
+    at file:///workspace/scratch/4963e0fee80a/INVOICE/scripts/ai-conversation-design-batch2.mjs:8:63
+
+Node.js v24.19.0
+
+
+lourex-batch9-repeat-build.log (failure excerpt):
+[LOUREX] Remediation Batch 3 installed: flat modern AI thread, compact icon actions, overflow navigation and keyboard/safe-area composer.
+[LOUREX] Remediation Batch 3 closeout installed: panel grid track and WebKit/RTL thread width are constrained, tool activity is first-frame contained, and the welcome state is flat and touch-safe.
+[LOUREX] Remediation Batch 4 installed: AI tools/routes are unified, raw technical labels are humanized, Memory & Tasks is flattened, and Morning Brief uses a priority/action hierarchy.
+[LOUREX] AI Conversation Design Batch 1 installed: cleaner header, larger conversation typography, quieter message actions, unified composer and upward send affordance.
+file:///workspace/scratch/4963e0fee80a/INVOICE/scripts/ai-conversation-design-batch2.mjs:8
+if(!runtime.includes('__lourexConversationOwnerBatch3'))throw new Error('Conversation Design Batch 2 requires the current composer runtime owner.');
+                                                              ^
+
+Error: Conversation Design Batch 2 requires the current composer runtime owner.
+    at file:///workspace/scratch/4963e0fee80a/INVOICE/scripts/ai-conversation-design-batch2.mjs:8:63
+
+Node.js v24.19.0
+
+
+Exact-chain owner trace (from stage 3 to last owner):
+OWNER_TRACE 38 node scripts/ai-conversation-owner-stage3.mjs true 81fde322308785f4
+OWNER_TRACE 39 node scripts/ai-conversation-owner-stage3-closeout.mjs true 81fde322308785f4
+OWNER_TRACE 40 node scripts/ai-conversation-owner-stage4-tools.mjs true 81fde322308785f4
+OWNER_TRACE 41 node scripts/ai-conversation-owner-stage4-tools-closeout.mjs true 81fde322308785f4
+OWNER_TRACE 42 node scripts/ai-conversation-owner-stage4.mjs true 81fde322308785f4
+OWNER_TRACE 43 node scripts/ai-conversation-owner-stage4-accessibility.mjs true 81fde322308785f4
+OWNER_TRACE 44 node scripts/ai-conversation-final-batch5.mjs true 81fde322308785f4
+OWNER_TRACE 45 node scripts/ai-remediation-batch3-conversation-ux.mjs true 81fde322308785f4
+OWNER_TRACE 46 node scripts/ai-remediation-batch3-conversation-ux-closeout.mjs true 81fde322308785f4
+OWNER_TRACE 47 node scripts/ai-remediation-batch4-tools-routes-ux.mjs true 81fde322308785f4
+OWNER_TRACE 48 node scripts/ai-conversation-design-batch1.mjs true 81fde322308785f4
+OWNER_TRACE 49 node scripts/ai-conversation-design-batch2.mjs true 7ebe1c716683d04f
+OWNER_TRACE 50 node scripts/ai-conversation-design-batch2-closeout.mjs true 3c6b20159ca8f0c2
+OWNER_TRACE 51 node scripts/v580-safari-pdf-single-page.mjs true 3c6b20159ca8f0c2
+OWNER_TRACE 52 node scripts/ai-voice-final-runtime-hash.mjs true 3c6b20159ca8f0c2
+
+
+lourex-batch9-typecheck.log (result excerpt):
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> lourex-invoice@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+
+lourex-batch9-focused.log (result excerpt):
+✔ web font request covers every font exposed by document design controls (1.082311ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 766.57016
+
+
+lourex-batch9-tests.log (result excerpt):
+✔ primary navigation freeze remains unchanged (3.042315ms)
+ℹ tests 2330
+ℹ suites 0
+ℹ pass 2330
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25974.199661
+
+
+Known environment gates: production alias still 37ee61c4b2318cfaae4b455d54143620b01be72d; candidate deployments query returned 0. Cloud browser local URL returned net::ERR_CONNECTION_REFUSED. No candidate screenshots or real PDF/microphone acceptance.
+
+ISOLATED VERIFICATION (outside synchronized workspace):
+- Worktree source tree matched e210dbfab66e8e07734a7fc906f5fb3019a0b599 before final evidence prose updates. Existing node_modules reused by symlink; no dependency/package addition.
+- Standard npm run build #1: exit 0.
+- Standard npm run build #2: exit 0.
+- Both SW hashes: a994169f2763bdf29fcd37f29a3dc264d4e13c8b8e09080e232622027584836d.
+- Both composer hashes: 3c6b20159ca8f0c2cc30119eba478797e7a2cb899f4ef55b7e5e8aa1b2ea850e.
+- Synchronized-folder artifact inconsistency did not reproduce in isolated standard builds; environment involvement is an inference, not a root-cause finding.
+
+lourex-batch9-isolated-build1.log (final result):
+[LOUREX AI] Conversation Batch 5 closeout installed: first submit survives asynchronous thread hydration.
+[LOUREX] Remediation Batch 3 installed: flat modern AI thread, compact icon actions, overflow navigation and keyboard/safe-area composer.
+[LOUREX] Remediation Batch 3 closeout installed: panel grid track and WebKit/RTL thread width are constrained, tool activity is first-frame contained, and the welcome state is flat and touch-safe.
+[LOUREX] Remediation Batch 4 installed: AI tools/routes are unified, raw technical labels are humanized, Memory & Tasks is flattened, and Morning Brief uses a priority/action hierarchy.
+[LOUREX] AI Conversation Design Batch 1 installed: cleaner header, larger conversation typography, quieter message actions, unified composer and upward send affordance.
+[LOUREX] AI Conversation Design Batch 2 installed: consolidated scope selector, disclosure-first trust UI, calmer structured answers and refined history surfaces.
+[LOUREX] AI Conversation Design Batch 2 closeout installed: scope selector sync is mutation-stable.
+LOUREX v580 Safari PDF guard installed: cache-busted bridge, no native document-print fallback, physical PDF page-count invariant.
+[LOUREX AI] final voice runtime cache identity 3c6b20159ca8f0c2 installed after all conversation/voice owners.
+
+lourex-batch9-isolated-build2.log (final result):
+[LOUREX AI] Conversation Batch 5 closeout installed: first submit survives asynchronous thread hydration.
+[LOUREX] Remediation Batch 3 installed: flat modern AI thread, compact icon actions, overflow navigation and keyboard/safe-area composer.
+[LOUREX] Remediation Batch 3 closeout installed: panel grid track and WebKit/RTL thread width are constrained, tool activity is first-frame contained, and the welcome state is flat and touch-safe.
+[LOUREX] Remediation Batch 4 installed: AI tools/routes are unified, raw technical labels are humanized, Memory & Tasks is flattened, and Morning Brief uses a priority/action hierarchy.
+[LOUREX] AI Conversation Design Batch 1 installed: cleaner header, larger conversation typography, quieter message actions, unified composer and upward send affordance.
+[LOUREX] AI Conversation Design Batch 2 installed: consolidated scope selector, disclosure-first trust UI, calmer structured answers and refined history surfaces.
+[LOUREX] AI Conversation Design Batch 2 closeout installed: scope selector sync is mutation-stable.
+LOUREX v580 Safari PDF guard installed: cache-busted bridge, no native document-print fallback, physical PDF page-count invariant.
+[LOUREX AI] final voice runtime cache identity 3c6b20159ca8f0c2 installed after all conversation/voice owners.
+
+lourex-batch9-isolated-typecheck.log (final result):
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> lourex-invoice@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+lourex-batch9-isolated-tests.log (final result):
+✔ primary navigation freeze remains unchanged (1.012952ms)
+ℹ tests 2330
+ℹ suites 0
+ℹ pass 2330
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21412.590955
