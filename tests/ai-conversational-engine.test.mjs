@@ -45,3 +45,10 @@ test('reviewed conversational drafts accept 21 complete rows, guard still reject
 test('restored drafts reject malformed state rather than trusting encrypted historical payloads',()=>{
  const state=quotation();assert.equal(validCommercialSession({...state,draft:{...state.draft,shipping:'NaN'}}),false);assert.equal(validCommercialSession({...state,draft:{...state.draft,lines:[state.draft.lines[0],state.draft.lines[0]]}}),false);
 });
+test('mixed-currency freight and non-carton pallet conversion never silently change the reviewed total',()=>{
+ const state=quotation(),id=state.draft.lines[0].id;
+ assert.throws(()=>reviseConversationalSession(state,[operation('shipping',{value:'3000',evidence:'3000 EUR'})],'3000 EUR'),/currency differs/);
+ state.draft.lines[0].unit='kg';
+ const revised=reviseConversationalSession(state,[operation('packaging',{target:id,field:'pallets',value:'24',evidence:'24'}),operation('packaging',{target:id,field:'cartonsPerPallet',value:'100',evidence:'100'})],'24 100');
+ assert.equal(revised.draft.lines[0].quantity,'4000');assert.match(conversationalReview(revised.draft,revised.customers).missing.join(' '),/clarify commercial carton unit/);
+});

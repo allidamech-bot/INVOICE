@@ -17,9 +17,9 @@ const sessions=new Map<string,ConversationalSession>();
 export function customerOrdinal(message:string):number|null{
   const input=norm(message).replace(/[.!؟]+$/g,'');
   const words:Record<string,number>={'الأول':1,'الاول':1,'الأولى':1,'الاولى':1,'الثاني':2,'الثانية':2,'الثالث':3,'الثالثة':3,'الرابع':4,'الرابعة':4,'الخامس':5,'الخامسة':5,'first':1,'second':2,'third':3,'fourth':4,'fifth':5};
-  const token=input.replace(/^(?:اختار|اختر|اختَر|بدي|the|choose|select)\s+(?:العميل\s+|customer\s+)?/,'').replace(/\s+(?:واحد|one)$/,'');
+  const token=input.replace(/^(?:اختار|اختر|اختَر|بدي|the|choose|select)\s+/,'').replace(/^(?:العميل|customer)\s+/,'').replace(/\s+(?:واحد|one|customer|من العملاء)$/,'');
   if(words[token])return words[token]!;
-  const match=input.match(/^(?:(?:اختر|اختار)\s+العميل\s+(?:رقم\s+)?|choose customer number |select customer )([0-9٠-٩]{1,2})$/);
+  const match=input.match(/^(?:(?:اختر|اختار)\s+العميل\s+(?:رقم\s+)?|choose customer number |select customer )?([0-9٠-٩]{1,2})$/);
   return match?Number(normalizeDecimalInput(match[1]!)):null;
 }
 const str=(v:unknown,max=500):string=>typeof v==='string'?v.trim().slice(0,max):'';
@@ -30,6 +30,11 @@ function decimal(v:string,positive=false):string{
 }
 function scaled(v:bigint):string{const neg=v<0n;const n=neg?-v:v;return(neg?'-':'')+String(n/10000n)+'.'+String(n%10000n).padStart(4,'0');}
 function norm(v:string):string{return v.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();}
+function checkPriceCurrency(evidence:string,currency:string):void{
+  const mentions:Array<[string,RegExp]>=[['USD',/\busd\b|\bdollars?\b|دولار/iu],['EUR',/\beur\b|\beuros?\b|يورو/iu],['SAR',/\bsar\b|ريال\s*سعودي/iu],['TRY',/\btry\b|ليرة\s*تركي/iu]];
+  if(currency&&mentions.some(([code,pattern])=>code!==currency&&pattern.test(evidence)))throw new Error('Price currency differs from this draft. No FX conversion was performed.');
+}
+const cartonUnit=(unit:string):boolean=>/^(?:cartons?|boxes?|كرتون|كرتونة|كراتين)$/iu.test(unit.trim());
 function groundNumber(value:string,evidence:string):void{
   const target=decimalToScaled(decimal(value));
   const tokens=evidence.match(/[0-9٠-٩۰-۹]+(?:[.,٫٬][0-9٠-٩۰-۹]+)*/g)||[];
@@ -72,6 +77,7 @@ export function reviseConversationalSession(previous:ConversationalSession,opera
       if(!name||!norm(evidence).includes(norm(name)))throw new Error('Product description requires explicit source wording.');
       if(draft.lines.length>=200)throw new Error('Draft exceeds 200 lines. Split explicitly; nothing was dropped.');
       for(const value of [op.quantity,op.price])if(value)groundNumber(value,evidence);
+      if(op.price)checkPriceCurrency(evidence,draft.currency);
       const row:CommercialLine={id:'line-'+(draft.revision+1)+'-'+draft.lines.length,name,quantity:op.quantity?decimal(op.quantity,true):'',price:op.price?decimal(op.price):'',unit:str(op.unit,40),pallets:'',cartonsPerPallet:'',containers:'',cartonsPerContainer:''};
       if(row.unit&&!norm(evidence).includes(norm(row.unit)))throw new Error('Unit requires explicit evidence.');
       draft.lines.push(row);draft.focus=row.id;change(name,'',`${row.quantity} × ${row.price}`);
@@ -88,16 +94,18 @@ export function reviseConversationalSession(previous:ConversationalSession,opera
         const field=op.field as 'pallets'|'cartonsPerPallet'|'containers'|'cartonsPerContainer';change(row.name+' '+field,row[field],op.value);row[field]=decimal(op.value,true);
         const count=field==='pallets'||field==='cartonsPerPallet'?'pallets':'containers';
         const ratio=count==='pallets'?'cartonsPerPallet':'cartonsPerContainer';
-        if(row[count]&&row[ratio]){const before=row.quantity;row.quantity=lineTotal(row[count],row[ratio]);change(row.name+' quantity (packaging)',before,row.quantity);}
+        if(row[count]&&row[ratio]&&cartonUnit(row.unit)){const before=row.quantity;row.quantity=lineTotal(row[count],row[ratio]);change(row.name+' quantity (packaging)',before,row.quantity);}
       }else{
         if(!['quantity','price'].includes(op.field)||!['set','add','subtract'].includes(op.mode))throw new Error('Unsupported line revision.');
         const field=op.field as 'quantity'|'price';const before=row[field];
+        if(field==='price')checkPriceCurrency(evidence,draft.currency);
         if(op.mode!=='set'&&!before)throw new Error('Current value is missing; specify it before applying a delta.');
         const v=decimal(op.value,field==='quantity');const value=op.mode==='set'?v:scaled(decimalToScaled(before)+(op.mode==='subtract'?-1n:1n)*decimalToScaled(v));
         row[field]=decimal(value,field==='quantity');change(row.name+' '+field,before,row[field]);
       }
       draft.focus=row.id;
     }else if(op.type==='shipping'){
+      checkPriceCurrency(evidence,draft.currency);
       groundNumber(op.value,evidence);change('Shipping',draft.shipping,op.value);draft.shipping=decimal(op.value);
     }else if(op.type==='terms'){
       if(!['delivery','paymentTerms','incoterm','notes'].includes(op.field)||!norm(evidence).includes(norm(op.value)))throw new Error('Commercial terms require explicit source wording.');
@@ -113,6 +121,7 @@ export function conversationalReview(draft:ConversationDraft,customers:CustomerC
     if(!row.quantity)missing.push(row.name+': quantity / الكمية');if(!row.price)missing.push(row.name+': price / السعر');
     for(const [count,ratio] of [['pallets','cartonsPerPallet'],['containers','cartonsPerContainer']] as const){
       if(row[count]&&!row[ratio])missing.push(row.name+': '+ratio+' / بيانات التعبئة');
+      if(row[count]&&row[ratio]&&!cartonUnit(row.unit))missing.push(row.name+': clarify commercial carton unit / وضّح وحدة الكرتون قبل التحويل');
       if(row[count]&&row[ratio]&&row.quantity&&decimalToScaled(lineTotal(row[count],row[ratio]))!==decimalToScaled(row.quantity))missing.push(row.name+': packaging conflicts with carton quantity / تعارض التعبئة والكمية');
     }
   }
@@ -130,6 +139,17 @@ export function conversationalReview(draft:ConversationDraft,customers:CustomerC
 export function conversationProposal(draft:ConversationDraft,customers:CustomerChoice[],language:'ar'|'en'):AiDocumentDraftProposal|null{
   if(conversationalReview(draft,customers).missing.length)return null;
   return{capability:'document.createDraft',reviewedConversation:true,kind:draft.kind,customerId:draft.customerId,customerDraft:null,currency:draft.currency,language,packing:[draft.pallets?draft.pallets+' pallets':'',draft.containers?draft.containers+' containers':''].filter(Boolean).join('; '),shipping:draft.shipping,items:draft.lines.map(row=>({savedItemId:'',descriptionEn:row.name,descriptionAr:'',quantity:row.quantity,unitPrice:row.price,unit:row.unit,packing:[row.pallets?row.pallets+' pallets':'',row.cartonsPerPallet?row.cartonsPerPallet+' cartons/pallet':'',row.containers?row.containers+' containers':'',row.cartonsPerContainer?row.cartonsPerContainer+' cartons/container':''].filter(Boolean).join('; ')})),incoterm:draft.incoterm,paymentTerms:draft.paymentTerms,deliveryTime:draft.delivery,validity:'',remarks:'',notes:draft.notes,label:language==='ar'?'مراجعة وحفظ المسودة':'Review and save draft',rationale:language==='ar'?'لم يُحفظ شيء. راجع كل الأصناف والتفاصيل ثم وافق.':'Nothing saved. Review every line and detail, then approve.'};
+}
+
+/** A commercial narrative cannot introduce a number absent from supplied facts
+ * or the authoritative calculation. Replace that narrative, never the draft. */
+export function commercialAnswerGrounded(answer:string,session:ConversationalSession,sourceText:string):boolean{
+  if(!session.draft)return true;
+  const review=conversationalReview(session.draft,session.customers);
+  const data=[sourceText,JSON.stringify(session.draft),JSON.stringify(review.totals),...session.history.filter(m=>m.role==='user').map(m=>m.text)].join('\n');
+  const numbers=(text:string)=>(text.match(/[0-9٠-٩۰-۹]+(?:[.,٫٬][0-9٠-٩۰-۹]+)*/g)||[]).map(v=>decimalToScaled(normalizeDecimalInput(v)).toString());
+  const allowed=new Set(numbers(data));for(let i=1;i<=Math.max(session.customers.length,session.draft.lines.length);i++)allowed.add(decimalToScaled(String(i)).toString());
+  return numbers(answer).every(n=>allowed.has(n));
 }
 
 function sessionKey(runtime:any):string{return[runtime.operatorId,runtime.scope,runtime.workspaceId,runtime.branchId,runtime.threadId].map(v=>str(v,120)).join('|');}
@@ -174,14 +194,16 @@ export async function conversationalRequest(input:{message:string;vault:VaultPay
     if(!previous.customers.length)previous={...previous,customers:scoped.customers.slice(0,24).map(row=>({id:row.id,name:row.companyNameAr||row.companyNameEn||row.contactPerson}))};
     previous={...previous,customers:previous.customers.filter(c=>scoped.customers.some(row=>row.id===c.id))};
   }
-  const sources=business&&Array.isArray(input.context.conversationSources)?input.context.conversationSources.map((row:any)=>({fileName:str(row.fileName,180),extracted:str(row.extracted,12000)})).slice(0,4):[];
+  const sources=Array.isArray(input.context.conversationSources)?input.context.conversationSources.map((row:any)=>({fileName:str(row.fileName,180),extracted:str(row.extracted,12000),truncated:String(row.extracted||'').length>12000})).slice(0,4):[];
   const ordinal=business&&previous.draft?customerOrdinal(input.message):null;
   const payload=ordinal!==null?{handled:true,intent:'customer-selection',summary:previous.summary,answer:input.language==='ar'?'ربطت اختيارك بالمسودة فقط. يمكنك متابعة التعديل قبل الحفظ.':'Linked your selection to the unsaved draft. You can keep refining it.',questions:[],operations:[{type:'customer',target:'',field:'',value:String(ordinal),quantity:'',price:'',unit:'',mode:'set',evidence:input.message}]}:await requestAiJson('/api/ai-core',{message:input.message,conversation:{scope:runtime.scope,language:input.language,summary:previous.summary||input.context.conversationalSummary||'',history:previous.history,draft:business?previous.draft:null,customers:business?previous.customers:[],products:business?input.context.drafting?.items:[],sources}},input.signal);
   if(input.signal?.aborted)throw new DOMException('Cancelled','AbortError');
   if(!payload.handled)return null;
+  if(sources.some((source:any)=>source.truncated)&&payload.operations?.length)throw new Error('Source exceeds the full-review limit. Use the complete file importer; no rows were saved or discarded. / استخدم استيراد الملف الكامل لمراجعة كل الصفوف.');
   if(!business&&payload.operations?.length)throw new Error('Company operations are unavailable in this conversation mode.');
   const next=business?reviseConversationalSession(previous,payload.operations||[],input.message,sources.map((row:any)=>row.extracted)):previous;
-  const answer=String(payload.answer||'').trim()+((payload.questions||[]).length?'\n\n'+payload.questions.join('\n'):'');
+  let answer=String(payload.answer||'').trim()+((payload.questions||[]).length?'\n\n'+payload.questions.join('\n'):'');
+  if(business&&!commercialAnswerGrounded(answer,next,[input.message,...sources.map((s:any)=>s.extracted)].join('\n')))answer=input.language==='ar'?'راجعت المسودة. الأرقام المؤكدة والتفاصيل الناقصة ظاهرة في المعاينة أدناه؛ يمكنك متابعة التعديل قبل الموافقة.':'I reviewed the draft. Confirmed numbers and missing details are shown in the preview below; you can keep refining it before approval.';
   next.history=[...previous.history,{role:'user' as const,text:input.message},{role:'assistant' as const,text:answer}].slice(-24);
   next.summary=str(payload.summary,2400)||previous.summary||'';
   sessions.set(key,next);
