@@ -66,3 +66,14 @@ test('unified system diagnostics remain bounded and privacy-safe without opening
  assert.match(errors,/health\.html/);
  assert.match(errors,/sourceRepoSlug/);
 });
+
+test('integrated diagnostics retain structured text-only output and avoid account record access',async()=>{
+  const [health,script,errors,index]=await Promise.all([read('public/health.html'),read('public/health.js'),read('src/app/AppErrorBoundary.tsx'),read('src/app/index.tsx')]);
+  assert.match(health,/id="diagnosticLog"/);
+  assert.match(script,/Deployment source/);
+  assert.match(script,/Encrypted local storage/);
+  assert.match(script,/\.textContent=systemReportText\(\)/);
+  assert.doesNotMatch(script,/transaction\('records'|Safety snapshot/);
+  assert.match(errors,/unifiedDiagnostics=/);
+  assert.match(index,/if\(iosWebKit\)\{[\s\S]*?getRegistrations\(\)[\s\S]*?return;/);
+});

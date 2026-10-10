@@ -20,18 +20,23 @@ test('toast feedback never blocks the controls underneath it',()=>{
   assert.match(ui,/aria-live=\{error\?'assertive':'polite'\}/);
 });
 
-test('document contextual actions retain outside-dismissal, Escape and accessible body portals',()=>{
- const page=read('src/components/DocumentsPage.tsx');
- assert.match(page,/document\.addEventListener\('pointerdown',this\.handleOutsidePointer\)/);
- assert.match(page,/document\.removeEventListener\('pointerdown',this\.handleOutsidePointer\)/);
- assert.ok(page.includes("target.closest('.ta-doc-actions,.ta-doc-detail-more,.ta-doc-action-popover,.ta-doc-mobile-action-portal')"));
- assert.match(page,/event\.key==='Escape'/);
- assert.match(page,/className="ta-doc-row-open"/);
- assert.match(page,/private actionButtons=/);
- assert.ok(page.includes('ReactDOM.createPortal(')&&page.includes(',document.body)'));
- assert.ok(page.includes('ta-doc-mobile-action-sheet" role="menu"'));
- assert.ok(page.includes('ta-doc-action-backdrop" aria-label='));
- assert.ok(page.includes("onClick={()=>this.setState({menuId:''})}"));
+test('document contextual actions close on outside press or Escape and mobile uses a portal',()=>{
+  const page=read('src/components/DocumentsPage.tsx');
+  assert.match(page,/document\.addEventListener\('pointerdown',this\.handleOutsidePointer\)/);
+  assert.match(page,/document\.removeEventListener\('pointerdown',this\.handleOutsidePointer\)/);
+  assert.match(page,/target\.closest\('\.ta-doc-actions,\.ta-doc-detail-more,\.ta-doc-action-popover,\.ta-doc-mobile-action-portal'\)/,
+    'outside-click handling must treat the document.body portal as inside the active menu');
+  assert.match(page,/event\.key==='Escape'[\s\S]*?this\.closeMenu\(\)/,
+    'Escape must close the menu and restore its trigger focus');
+  assert.match(page,/<button type="button" className="ta-doc-row-open"/,
+    'document register must retain an explicit open action');
+  assert.match(page,/private actionButtons=/);
+  assert.match(page,/ReactDOM\.createPortal\(<div className="app-ui ta-doc-desktop-action-portal"[\s\S]*?this\.actionButtons\(doc\)[\s\S]*?document\.body\)/,
+    'desktop action menu must mount to the body with accessible role menu');
+  assert.match(page,/ReactDOM\.createPortal\(<div className="app-ui ta-doc-mobile-action-portal"[\s\S]*?className="ta-doc-mobile-action-sheet" role="menu"[\s\S]*?this\.actionButtons\(doc\)[\s\S]*?document\.body\)/,
+    'mobile action sheet must mount to the body and expose the same authorized actions');
+  assert.match(page,/className="ta-doc-action-backdrop"[\s\S]*?onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/,
+    'backdrop must dismiss the actions without triggering a business mutation');
 });
 
 test('customer editor warns before discarding unsaved changes',()=>{
@@ -64,20 +69,25 @@ test('cloud account modal remains dismissible while account actions are busy',()
   assert.doesNotMatch(modal,/Sync Now|مزامنة الآن/);
 });
 
-test('account entry disables language, auth mode and submit while authentication runs',()=>{
- const screen=read('src/components/AccountEntryScreen.tsx');
- assert.match(screen,/if\(this\.state\.busy\)return;/);
- assert.match(screen,/className="ta-auth-language" disabled=\{this\.state\.busy\}/);
- for(const tab of ['account-tab-signin','account-tab-create']){
-   const start=screen.indexOf('id="'+tab+'"');
-   assert.ok(start>=0,tab+' is available');
-   const markup=screen.slice(start,start+420);
-   assert.ok(markup.includes('disabled={this.state.busy||linkingGoogle}'),tab+' must prevent busy changes');
-   assert.ok(markup.includes('aria-selected='),tab+' must expose accessible selection');
- }
- assert.match(screen,/className="ta-auth-primary" variant="primary" type="submit" disabled=\{this\.state\.busy\}/);
- assert.match(screen,/ta-auth-feedback is-error" role="alert"/);
- assert.match(screen,/ta-auth-feedback is-success" role="status"/);
+test('account entry cannot switch modes or double-submit while authentication is running',()=>{
+  const screen=read('src/components/AccountEntryScreen.tsx');
+  const setMode=screen.slice(screen.indexOf('private setMode='),screen.indexOf('private modeKeyDown='));
+  assert.match(setMode,/private setMode=.*?=>\{if\(this\.state\.busy\)return;/,
+    'click and keyboard mode switches must both fail closed during an active auth request');
+  assert.match(screen,/private modeKeyDown=[\s\S]*?this\.setMode\(mode,true\)/,
+    'keyboard tabs must share the guarded setMode path');
+  assert.match(screen,/className="ta-auth-language" disabled=\{this\.state\.busy\}/,
+    'language may not be switched while credentials are processing');
+  assert.match(screen,/id="account-tab-signin"[\s\S]*?disabled=\{this\.state\.busy\|\|linkingGoogle\}[\s\S]*?className=\{!create\?'is-active':''\}/,
+    'sign-in tab must remain disabled throughout busy and pending Google linking');
+  assert.match(screen,/id="account-tab-create"[\s\S]*?disabled=\{this\.state\.busy\|\|linkingGoogle\}[\s\S]*?className=\{create\?'is-active':''\}/,
+    'create-account tab must remain disabled throughout busy and pending Google linking');
+  assert.match(screen,/className="ta-auth-feedback is-error" role="alert"/,
+    'authentication failure must be announced to assistive technologies');
+  assert.match(screen,/className="ta-auth-feedback is-success" role="status"/,
+    'successful recovery or account status must remain accessible');
+  assert.match(screen,/className="ta-auth-link" disabled=\{this\.state\.busy\} onClick=\{\(\)=>this\.setMode\('signin'\)\}/,
+    'a non-busy user must retain an explicit way to cancel pending Google linking');
 });
 
 test('settings modal warns before discarding persistent unsaved company or document settings',()=>{

@@ -1,6 +1,6 @@
 import type { AppSettings, ApprovalPolicyRecord, ApprovalRequestRecord, BranchRecord, CompanySettings, DocumentEventRecord, TeamMemberRecord, WorkspaceRecord } from '../types.js';
 import { fileToRawDataUrl } from '../lib/files.js';
-import { rebuildLogoWithoutBackgroundDataUrl } from '../lib/logo-rebuild.js';
+import { rebuildLogoWithoutBackgroundDataUrl, openManualBackgroundEditor } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
 import { normalizePinInput } from '../lib/account-security.js';
 import { backupPasswordIssue } from '../lib/backup.js';
@@ -172,6 +172,31 @@ export class SettingsModal extends React.Component<Props,State> {
       this.setState({cleaningAssets:false,processingAsset:null,error:e instanceof Error?e.message:t('Unable to remove the background with AI.','تعذرت إزالة الخلفية بالذكاء الاصطناعي.')});
     }
   };
+  private editLogoManually=async()=>{
+    if(this.state.busy||this.state.cleaningAssets)return;
+    const source=this.state.logoOriginalDataUrl||this.state.company.logoDataUrl;
+    if(!source||!source.startsWith('data:image/')){
+      this.setState({error:t('Upload or save the original artwork first.','ارفع أو احفظ الصورة الأصلية أولًا.')});
+      return;
+    }
+    const preparationId=++this.assetPreparationId;
+    this.setState({cleaningAssets:true,processingAsset:'logoDataUrl',error:'',message:'',savedSection:null});
+    try{
+      const edited=await openManualBackgroundEditor(source);
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      if(!edited||edited===source){this.setState({cleaningAssets:false,processingAsset:null});return;}
+      this.setState(state=>({
+        company:{...state.company,logoDataUrl:edited},
+        logoRebuiltDataUrl:edited,logoMode:'rebuild',
+        cleaningAssets:false,processingAsset:null,savedSection:null,
+        message:t('Manual logo cleanup ready. Review the preview and press Save to use it on documents.','تم تجهيز الشعار بعد التنظيف اليدوي. راجع المعاينة ثم اضغط حفظ لاستخدامه في المستندات.'),
+        error:''
+      }));
+    }catch(e){
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      this.setState({cleaningAssets:false,processingAsset:null,error:e instanceof Error?e.message:t('Unable to edit the logo background.','تعذر تعديل خلفية الشعار.')});
+    }
+  };
   private rebuildLogo=async()=>{await this.rebuildAsset('logoDataUrl');};
   private rebuildSignature=async()=>{await this.rebuildAsset('signatureDataUrl');};
   private rebuildStamp=async()=>{await this.rebuildAsset('stampDataUrl');};
@@ -321,7 +346,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const rebuild=()=>field==='logoDataUrl'?this.rebuildLogo():field==='signatureDataUrl'?this.rebuildSignature():this.rebuildStamp();
     const removeText=field==='logoDataUrl'?t('Remove logo','إزالة الشعار'):field==='signatureDataUrl'?t('Remove signature','إزالة التوقيع'):t('Remove stamp','إزالة الختم');
     const chooseText=hasAsset?t('Replace image','استبدال الصورة'):t('Choose image','اختيار صورة');
-    return <div className="ta-settings-asset"><label className="ta-settings-asset-upload"><span>{label}</span><div className="ta-settings-asset-preview">{hasAsset?<img src={current} alt={label}/>:<Icon name="upload"/>}</div><input type="file" aria-label={chooseText} disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset(field,e.currentTarget)}/><span className="ta-settings-asset-trigger" aria-hidden="true"><Icon name="upload"/><span>{chooseText}</span></span></label>{original?<><div className="ta-settings-segmented" role="group" aria-label={t('Artwork processing','معالجة الصورة')}><button type="button" className={mode==='original'?'is-active':''} onClick={()=>setMode('original')}>{t('Original','الأصلي')}</button>{rebuilt?<button type="button" className={mode==='rebuild'?'is-active':''} onClick={()=>setMode('rebuild')}>{t('AI transparent','شفاف AI')}</button>:null}</div><button type="button" className="ta-settings-link-action" disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void rebuild()}>{processing?t('Removing background with AI…','جارٍ إزالة الخلفية بالذكاء الاصطناعي…'):t('AI Remove Background','إزالة الخلفية بالذكاء الاصطناعي')}</button>{rebuilt&&mode!=='rebuild'?<button type="button" className="ta-settings-link-action" onClick={()=>setMode('rebuild')}>{t('Use AI version','استخدام نسخة AI')}</button>:null}</>:null}{hasAsset?<button type="button" className="ta-settings-link-action is-danger" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset(field)}>{removeText}</button>:null}</div>;
+    return <div className="ta-settings-asset"><label className="ta-settings-asset-upload"><span>{label}</span><div className="ta-settings-asset-preview">{hasAsset?<img src={current} alt={label}/>:<Icon name="upload"/>}</div><input type="file" aria-label={chooseText} disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset(field,e.currentTarget)}/><span className="ta-settings-asset-trigger" aria-hidden="true"><Icon name="upload"/><span>{chooseText}</span></span></label>{original?<><div className="ta-settings-segmented" role="group" aria-label={t('Artwork processing','معالجة الصورة')}><button type="button" className={mode==='original'?'is-active':''} onClick={()=>setMode('original')}>{t('Original','الأصلي')}</button>{rebuilt?<button type="button" className={mode==='rebuild'?'is-active':''} onClick={()=>setMode('rebuild')}>{t('AI transparent','شفاف AI')}</button>:null}</div><button type="button" className="ta-settings-link-action" disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void rebuild()}>{processing?t('Removing background with AI…','جارٍ إزالة الخلفية بالذكاء الاصطناعي…'):t('AI Remove Background','إزالة الخلفية بالذكاء الاصطناعي')}</button>{field==='logoDataUrl'?<button type="button" className="ta-settings-link-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>void this.editLogoManually()}>{t('Edit logo background manually','تعديل خلفية الشعار يدويًا')}</button>:null}{rebuilt&&mode!=='rebuild'?<button type="button" className="ta-settings-link-action" onClick={()=>setMode('rebuild')}>{t('Use AI version','استخدام نسخة AI')}</button>:null}</>:null}{hasAsset?<button type="button" className="ta-settings-link-action is-danger" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset(field)}>{removeText}</button>:null}</div>;
   }
 
   private pageHeader(kicker:string,title:string,description:string,action?:any):any{return <header className="ta-settings-page-header"><div><span>{kicker}</span><h3>{title}</h3><p>{description}</p></div>{action?<div className="ta-settings-page-action">{action}</div>:null}</header>;}
