@@ -1399,3 +1399,6 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   color:#f5efe2!important;
   -webkit-text-fill-color:#f5efe2!important;
 }
+
+/* Creation groups retain direct menu items and the shared theme tokens. */
+html body .app-ui .ta-create-menu-grid>.ta-create-group-label{grid-column:1/-1;color:var(--ft-muted);font-size:12px;line-height:18px;font-weight:700;padding:8px 4px 2px;}

@@ -366,16 +366,16 @@
     border-color:color-mix(in srgb,var(--v333-kind,#64748b) 46%,var(--ft-line))!important;
     background:color-mix(in srgb,var(--v333-kind,#64748b) 9%,var(--ft-surface))!important;
   }
-  html body .app-ui .ta-create-menu-grid>button:nth-child(1){--v333-kind:#8b6fe8;--v333-code:"DR";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(2){--v333-kind:#3182ce;--v333-code:"RFQ";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(3){--v333-kind:#6c63d9;--v333-code:"QT";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(4){--v333-kind:#4263c7;--v333-code:"PI";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(5){--v333-kind:#c58a2c;--v333-code:"PO";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(6){--v333-kind:#1f9d73;--v333-code:"INV";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(7){--v333-kind:#3c8db3;--v333-code:"DN";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(8){--v333-kind:#198d7a;--v333-code:"RC";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(9){--v333-kind:#c76562;--v333-code:"CN";}
-  html body .app-ui .ta-create-menu-grid>button:nth-child(10){--v333-kind:#68778e;--v333-code:"SOA";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="draft"]{--v333-kind:#8b6fe8;--v333-code:"DR";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="rfq"]{--v333-kind:#3182ce;--v333-code:"RFQ";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="proforma"]{--v333-kind:#6c63d9;--v333-code:"QT";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="proforma-invoice"]{--v333-kind:#4263c7;--v333-code:"PI";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="purchase-order"]{--v333-kind:#c58a2c;--v333-code:"PO";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="invoice"]{--v333-kind:#1f9d73;--v333-code:"INV";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="delivery-note"]{--v333-kind:#3c8db3;--v333-code:"DN";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="payment-receipt"]{--v333-kind:#198d7a;--v333-code:"RC";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="credit-note"]{--v333-kind:#c76562;--v333-code:"CN";}
+  html body .app-ui .ta-create-menu-grid>button[data-kind="statement-account"]{--v333-kind:#68778e;--v333-code:"SOA";}
 }
 
 @media screen and (max-width:900px){

@@ -150,21 +150,21 @@
       :'The PIN protects the encrypted vault on this device. A normal refresh keeps a valid active protected session open. The PIN is required again after manual lock, sign-out and later sign-in, auto-lock timeout, or when the protected session is no longer valid.';
   }
 
-  function kindFromMenuButton(button,index=-1){
+  function kindFromMenuButton(button){
     const explicit=button?.dataset?.kind||'';
-    if(explicit)return explicit;
+    if(explicit)return menuKinds.includes(explicit)?explicit:'';
     const strong=button?.querySelector?.('strong');
     const label=String(strong?.textContent||'').trim().toLowerCase();
     if(menuLabelKinds.has(label))return menuLabelKinds.get(label)||'';
-    return index>=0?(menuKinds[index]||''):'';
+    return '';
   }
 
   function normalizeCreateMenuKinds(){
     document.querySelectorAll('.ta-create-menu,.shell-new-menu').forEach(menu=>{
       const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));
-      buttons.forEach((button,index)=>{
+      buttons.forEach(button=>{
         if(!(button instanceof HTMLButtonElement)||button.dataset.kind)return;
-        const kind=kindFromMenuButton(button,index);
+        const kind=kindFromMenuButton(button);
         if(kind)button.dataset.kind=kind;
       });
     });
@@ -174,8 +174,7 @@
     const target=event.target;if(!(target instanceof Element))return;
     const button=target.closest('.ta-create-menu button[role="menuitem"],.shell-new-menu button[role="menuitem"]');if(!(button instanceof HTMLButtonElement))return;
     const menu=button.closest('.ta-create-menu,.shell-new-menu');if(!(menu instanceof HTMLElement))return;
-    const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));const index=buttons.indexOf(button);
-    const kind=kindFromMenuButton(button,index);const creatableKinds=new Set(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
+    const kind=kindFromMenuButton(button);const creatableKinds=new Set(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
     if(!kind||!creatableKinds.has(kind)){try{window.sessionStorage.removeItem(pendingKindKey);}catch{}return;}
     button.dataset.kind=kind;
     try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}

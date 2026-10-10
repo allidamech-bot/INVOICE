@@ -345,16 +345,19 @@ export class AppShell extends React.Component<Props,State>{
   private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`ta-create-menu new-doc-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
     <div className="ta-create-menu-heading"><small>{t('Documents','المستندات')}</small><strong>{t('Create document','إنشاء مستند')}</strong></div>
     <div className="ta-create-menu-grid">
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial customer offer','عرض تجاري للعميل')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Commercial Invoice','فاتورة تجارية')}</strong><small>{t('Final sales invoice','فاتورة البيع النهائية')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('draft')}><Icon name="edit"/><span><strong>{t('Draft','مسودة')}</strong><small>{t('Free-form company document','مستند شركة حر')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('proforma-invoice')}><Icon name="invoice"/><span><strong>{t('Proforma Invoice','فاتورة مبدئية')}</strong><small>{t('Pre-shipment invoice','فاتورة قبل الشحن')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('rfq')}><Icon name="file"/><span><strong>{t('RFQ','طلب عرض سعر')}</strong><small>{t('Request supplier prices','طلب أسعار المورد')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('purchase-order')}><Icon name="file"/><span><strong>{t('Purchase Order','طلب شراء')}</strong><small>{t('Supplier order','طلب للمورد')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('delivery-note')}><Icon name="file"/><span><strong>{t('Delivery Note','سند تسليم')}</strong><small>{t('Confirm delivered goods','إثبات تسليم البضاعة')}</small></span></button>
-      <button type="button" role="menuitem" onClick={()=>this.createDocument('payment-receipt')}><Icon name="invoice"/><span><strong>{t('Payment Receipt','إيصال دفع')}</strong><small>{t('Acknowledge a payment','إثبات استلام دفعة')}</small></span></button>
-      <button type="button" role="menuitem" onClick={this.openCreditNote}><Icon name="invoice"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Reference an issued invoice','يرتبط بفاتورة صادرة')}</small></span></button>
-      <button type="button" role="menuitem" onClick={this.openStatementAccount}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Customer account statement','كشف حساب العميل')}</small></span></button>
+      <div className="ta-create-group-label" role="presentation">{t('Sales','المبيعات')}</div>
+      <button type="button" role="menuitem" data-kind="proforma" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial customer offer','عرض تجاري للعميل')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="invoice" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Commercial Invoice','فاتورة تجارية')}</strong><small>{t('Final sales invoice','فاتورة البيع النهائية')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="proforma-invoice" onClick={()=>this.createDocument('proforma-invoice')}><Icon name="invoice"/><span><strong>{t('Proforma Invoice','فاتورة مبدئية')}</strong><small>{t('Pre-shipment invoice','فاتورة قبل الشحن')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="delivery-note" onClick={()=>this.createDocument('delivery-note')}><Icon name="file"/><span><strong>{t('Delivery Note','سند تسليم')}</strong><small>{t('Confirm delivered goods','إثبات تسليم البضاعة')}</small></span></button>
+      <div className="ta-create-group-label" role="presentation">{t('Purchasing','المشتريات')}</div>
+      <button type="button" role="menuitem" data-kind="rfq" onClick={()=>this.createDocument('rfq')}><Icon name="file"/><span><strong>{t('RFQ','طلب عرض سعر')}</strong><small>{t('Request supplier prices','طلب أسعار المورد')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="purchase-order" onClick={()=>this.createDocument('purchase-order')}><Icon name="file"/><span><strong>{t('Purchase Order','طلب شراء')}</strong><small>{t('Supplier order','طلب للمورد')}</small></span></button>
+      <div className="ta-create-group-label" role="presentation">{t('Finance and other','المالية وغيرها')}</div>
+      <button type="button" role="menuitem" data-kind="payment-receipt" onClick={()=>this.createDocument('payment-receipt')}><Icon name="invoice"/><span><strong>{t('Payment Receipt','إيصال دفع')}</strong><small>{t('Acknowledge a payment','إثبات استلام دفعة')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="credit-note" onClick={this.openCreditNote}><Icon name="invoice"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Reference an issued invoice','يرتبط بفاتورة صادرة')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="statement-account" onClick={this.openStatementAccount}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Customer account statement','كشف حساب العميل')}</small></span></button>
+      <button type="button" role="menuitem" data-kind="draft" onClick={()=>this.createDocument('draft')}><Icon name="edit"/><span><strong>{t('Draft','مسودة')}</strong><small>{t('Free-form company document','مستند شركة حر')}</small></span></button>
     </div>
   </div>:null;
 

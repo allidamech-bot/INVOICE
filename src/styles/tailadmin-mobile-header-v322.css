@@ -515,16 +515,16 @@
     width:20px!important;height:20px!important;padding:7px!important;border-radius:11px!important;
     background:color-mix(in srgb,var(--create-accent) 13%,var(--ft-surface))!important;color:var(--create-accent)!important;
   }
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(1){--create-accent:#7c6cf2;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(2){--create-accent:#25a7c7;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(3){--create-accent:#5b7cfa;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(4){--create-accent:#9b67e8;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(5){--create-accent:#e69a32;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(6){--create-accent:#2ba777;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(7){--create-accent:#3d91d8;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(8){--create-accent:#22a69a;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(9){--create-accent:#d16b79;}
-  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(10){--create-accent:#66758d;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="draft"]{--create-accent:#7c6cf2;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="rfq"]{--create-accent:#25a7c7;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="proforma"]{--create-accent:#5b7cfa;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="proforma-invoice"]{--create-accent:#9b67e8;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="purchase-order"]{--create-accent:#e69a32;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="invoice"]{--create-accent:#2ba777;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="delivery-note"]{--create-accent:#3d91d8;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="payment-receipt"]{--create-accent:#22a69a;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="credit-note"]{--create-accent:#d16b79;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button[data-kind="statement-account"]{--create-accent:#66758d;}
   html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid strong{font-size:12.5px!important;line-height:18px!important;}
   html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid small{font-size:10px!important;line-height:14px!important;color:var(--ft-muted)!important;}
 }
