@@ -18,8 +18,9 @@ test('v485 gives Dark Mode visibly separated navy surfaces instead of stacked ne
   assert.match(css,/--lx485-surface:#12263a/);
   assert.match(css,/--lx485-surface-3:#1d3651/);
   assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\):not\(\.btn-primary\)\{background-color:var\(--lx485-surface-3\)!important/,'secondary Create buttons must use readable surface');
-  assert.match(css,/\.ta-mobile-sheet\{[\s\S]*?background:#102235!important/,'More sheet must own a visible navy base');
-  assert.match(css,/\.ta-mobile-sheet :is\(\.ta-sheet-account,\.ta-sheet-link,\.ta-sheet-theme,\.ta-sheet-theme \.mf-theme-toggle\)[\s\S]*?background:#1a3047!important/,'More sheet items need a distinct elevated layer');
+  assert.ok(css.includes(':is(.modal,.ta-mobile-sheet,.ta-create-menu-mobile)'),'More shares the final app sheet owner');
+  assert.ok(css.includes('var(--lx-ui-overlay)!important'),'More uses the semantic navy/ivory overlay surface');
+  assert.match(css,/:is\(\.ta-sheet-link,\.ta-sheet-account,\.ta-sheet-theme,\.ta-sheet-workspace,[\s\S]*?background:var\(--lx485-surface-3\)!important/,'More action items must be elevated above the sheet');
 });
 
 test('v485 visibly activates the premium dashboard on iPad and desktop',async()=>{

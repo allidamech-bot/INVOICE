@@ -28,10 +28,12 @@ test('v484 is the final production visual owner after v483',async()=>{
     read('scripts/v484-bundle-responsive-visual.mjs')
   ]);
   const scripts=JSON.parse(pkg).scripts;
-  const v483=scripts.build.indexOf('scripts/v483-bundle-mobile-density.mjs');
+  const v481=scripts.build.indexOf('scripts/v481-bundle-premium-visual.mjs');
+  const v482=scripts.build.indexOf('scripts/v482-bundle-mobile-ux-repair.mjs');
   const v484=scripts.build.indexOf('scripts/v484-bundle-responsive-visual.mjs');
   const v485=scripts.build.indexOf('scripts/v485-bundle-visible-ui.mjs');
-  assert.ok(v483>=0&&v484>v483&&v485>v484,'responsive owners must build v483 → v484 → v485');
+  assert.ok(v481>=0&&v482>v481&&v484>v482&&v485>v484,'active responsive ownership must build v481 → v482 → v484 → v485');
+
   assert.match(bundler,/v484-responsive-visual-hierarchy\.css/);
   assert.match(bundler,/v484Index<=v483Index/);
   assert.match(bundler,/standalonePath='dist\/styles\/v482-mobile-ux-repair\.css'/);
