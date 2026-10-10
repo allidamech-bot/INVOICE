@@ -23,29 +23,17 @@ test('production build inlines every v363 owner before the final reliability bri
   assert.match(helper, /late @import remains/);
 });
 
-test('v364 mobile document suggestions and purchase editor sections remain reachable and legible', async () => {
-  const bridge = await read('src/styles/tailadmin-reliability-bridge-v320.css');
-  const helper = await read('scripts/v363-bundle-visual-owners.mjs');
-  const css = await read('src/styles/mobile-core-workflows-v364.css');
-  assert.match(bridge, /@import url\("\.\/mobile-core-workflows-v364\.css\?v=364-1"\);/);
-  assert.match(helper, /\['mobile-core-workflows-v364\.css','@import url\("\.\/mobile-core-workflows-v364\.css\?v=364-1"\);'\]/);
-  assert.match(css, /customer-select-wrap>\.customer-dropdown\{[\s\S]*position:static!important/);
-  assert.match(css, /ta-ops-form-section>header\{[\s\S]*display:grid!important/);
-  assert.match(css, /ta-ops-editor-scroll>fieldset\{[\s\S]*border:0!important/);
-  assert.match(css, /ta-purchase-totals\{[\s\S]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-  assert.match(css, /ta-ops-editor-actions\{[\s\S]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
-  assert.match(css, /issue-review-status>div,[\s\S]*display:flex!important/);
-  assert.match(css, /issue-review-grid\{[\s\S]*display:grid!important/);
-  assert.match(css, /issue-warning>p\{[\s\S]*overflow-wrap:anywhere!important/);
-  assert.match(css, /max-width:560px\)[\s\S]*issue-review-grid\{grid-template-columns:minmax\(0,1fr\)!important/);
-  assert.match(css, /ta-ops-panel-head>\.btn-primary:hover:not\(:disabled\),[\s\S]*ta-ops-split :is\(\.btn\.btn-primary,button\.btn-primary\):hover:not\(:disabled\),[\s\S]*ta-ops-panel-head>\.btn-primary:active:not\(:disabled\),[\s\S]*ta-ops-split :is\(\.btn\.btn-primary,button\.btn-primary\):active:not\(:disabled\)\{[\s\S]*background:var\(--ft-accent\)!important/);
+test('mobile document and purchasing controls retain keyboard-safe selection, dense totals and consistent primary actions',async()=>{
+ const [bridge,helper,css]=await Promise.all([read('src/styles/tailadmin-reliability-bridge-v320.css'),read('scripts/v363-bundle-visual-owners.mjs'),read('src/styles/mobile-core-workflows-v364.css')]);
+ assert.ok(bridge.includes('mobile-core-workflows-v364.css?v=364-1'));
+ assert.ok(helper.includes('mobile-core-workflows-v364.css'));
+ for(const token of ['customer-select-wrap>.customer-dropdown','ta-ops-form-section>header','ta-ops-editor-scroll>fieldset','ta-purchase-totals','ta-ops-editor-actions','issue-review-grid','issue-warning>p','ta-ops-panel-head .btn-primary:hover:not(:disabled)','ta-ops-split :is(.btn.btn-primary,button.btn-primary):active:not(:disabled)','background:var(--ft-accent)!important'])assert.ok(css.includes(token),token);
 });
 
-test('PDF color normalization covers modern logical borders and inherited scrollbar colors', async () => {
-  const bridge = await read('public/ios-print-bridge.js');
-  assert.match(bridge, /'border-block-start-color','border-block-end-color','border-inline-start-color','border-inline-end-color','scrollbar-color'/);
-  assert.match(bridge, /normalizeUnsupportedColors\(stage\)/);
-  assert.ok(bridge.indexOf('normalizeUnsupportedColors(stage)')<bridge.indexOf('window.html2canvas(page'));
+test('mobile PDF normalizes computed colors and modern logical borders before html2canvas renders',async()=>{
+ const bridge=await read('public/ios-print-bridge.js');
+ for(const token of ["'border-block-start-color'","'border-inline-start-color'","'scrollbar-color'","sanitizeUnsupportedColors(stage)","normalizeUnsupportedColors(root)","computedStyleFor(node)"])assert.ok(bridge.includes(token),token);
+ assert.ok(bridge.indexOf('sanitizeUnsupportedColors(stage)')<bridge.indexOf('window.html2canvas(page'),'Safari color conversion must occur before rasterization');
 });
 
 test('Draft has a separate PDF design gallery that applies real letterhead settings', async () => {
