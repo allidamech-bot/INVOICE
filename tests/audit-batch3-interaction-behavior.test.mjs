@@ -76,6 +76,24 @@ test('Search redirects stray programmatic focus and AI cannot open behind it',()
 test('Search refuses to open over an existing Settings/confirmation dialog',()=>{
   const f=searchFixture(),settings=f.e.dialog('settings',1400);f.e.document.body.append(settings);f.h.open();assert.equal(f.h.state.open,false);
 });
+test('Escape closes Search without dismissing underlying document details in either listener order',()=>{
+  for(const searchFirst of [false,true]){
+    const f=searchFixture();f.h.open();
+    const docs=methods('src/components/DocumentsPage.tsx',['handleKeyDown'],f.e);
+    docs.state={menuId:'',detailId:'quotation'};
+    const escape=f.e.key('Escape');
+    if(searchFirst){f.h.handleKeyDown(escape);docs.handleKeyDown(escape);}
+    else{docs.handleKeyDown(escape);f.h.handleKeyDown(escape);}
+    assert.equal(f.h.state.open,false);
+    assert.equal(docs.state.detailId,'quotation');
+    assert.equal(f.e.document.activeElement,f.opener);
+  }
+});
+test('document details still close with Escape when no overlay owns the event',()=>{
+  const e=environment(),docs=methods('src/components/DocumentsPage.tsx',['handleKeyDown'],e);
+  docs.state={menuId:'',detailId:'quotation'};const escape=e.key('Escape');docs.handleKeyDown(escape);
+  assert.equal(docs.state.detailId,'');assert.equal(escape.defaultPrevented,true);
+});
 test('late Search focus callback cannot steal focus after close',()=>{
   const f=searchFixture();f.h.open();f.h.close();f.e.timers.shift()();assert.equal(f.e.document.activeElement,f.opener);
 });
