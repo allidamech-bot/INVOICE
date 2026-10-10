@@ -41,7 +41,9 @@ test('iPhone PDF save and share normalize Safari colors and preserve high-resolu
   assert.match(bridge, /srgb-linear/);
   assert.match(bridge, /computedStyleFor\(node\)/);
   assert.match(bridge, /view\.getComputedStyle\(node, pseudo \|\| null\)/);
-  assert.match(bridge, /normalizeUnsupportedColors\(stage\)/);
+  assert.match(bridge, /sanitizeUnsupportedColors\(stage\)/);
+  assert.match(bridge, /normalizeUnsupportedColors\(root\)/);
+  assert.match(bridge, /installPseudoColorOverrides\(root\)/);
   assert.match(bridge, /SHARP_MEDIA_SELECTOR\s*=\s*'\.signature-image,\.stamp-image'/);
   assert.match(bridge, /collectSharpMedia/);
   assert.match(bridge, /visibility','hidden','important'/);

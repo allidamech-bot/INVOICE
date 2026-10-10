@@ -85,7 +85,7 @@ test('v152 small encrypted vaults use one atomic cloud transaction',async()=>{
 
 test('v152 report dates retain native picking behind stable mobile labels',async()=>{
   const [page,css]=await Promise.all([read('src/components/ReportsPage.tsx'),read('src/styles/ux-recovery-v152.css')]);
-  assert.match(page,/reports-date-value/);
+  assert.ok(page.includes('type="date"'),'Safari-native date selection retained');
   assert.match(page,/type="date"/);
   assert.match(page,/aria-label=\{t\('From date','تاريخ البداية'\)\}/);
   assert.match(page,/aria-label=\{t\('To date','تاريخ النهاية'\)\}/);

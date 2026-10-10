@@ -35,5 +35,6 @@ test('settings navigation and segmented controls retain the global touch floor',
   assert.match(css,/\.ta-settings-segmented button\{flex:1;min-height:44px/);
   assert.match(css,/\.ta-settings-link-action\{width:max-content;min-height:44px/);
   assert.match(css,/\.ta-settings-asset-trigger\{grid-column:2;min-height:44px/);
-  assert.match(css,/@media\(max-width:720px\)[\s\S]*\.ta-settings-nav button\{min-width:140px;min-height:52px/);
+  assert.match(css,/\.ta-settings-nav button\{width:100%;min-height:58px/);
+  assert.match(css,/@media\(max-width:720px\)[\s\S]*\.ta-settings-nav\{display:grid/);
 });

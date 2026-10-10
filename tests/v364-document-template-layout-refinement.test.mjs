@@ -30,6 +30,8 @@ test('v364 pagination keeps routine commercial closing content with item pages',
     assert.doesNotMatch(source,/exceptionalClosing=score>=18/);
   }
   assert.match(documents,/Math\.min\(10,Math\.trunc\(firstPageCapacity\)\|\|7\)/);
-  assert.match(renderer,/const itemPages = paginateItems\(outputItems, !separateDetails,/);
+  assert.match(renderer,/const fragments=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
+  assert.match(renderer,/const pages=paginateItems\(fragments,false,firstPageItemCapacity\(doc\)/);
+  assert.match(renderer,/return separateDetails\?\[\.\.\.pages,\[\]\]:pages/);
   assert.match(quality,/const itemPages=paginateItems\(doc\.items,!separateDetails,/);
 });

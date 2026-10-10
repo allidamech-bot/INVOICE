@@ -27,7 +27,7 @@ test('v321 production boot uses the vendorable ReactDOM runtime and a data-safe 
   assert.ok(watchdogScript>=0,'v321 startup watchdog must be present in index.html');
   assert.ok(appModule>watchdogScript,'startup watchdog must execute before the React application module');
 
-  assert.match(watchdog,/CHECK_MS=9000/);
+  assert.match(watchdog,/CHECK_MS=12000/);
   assert.match(watchdog,/navigator\.serviceWorker\.getRegistrations\(\)/);
   assert.match(watchdog,/caches\.keys\(\)/);
   assert.match(watchdog,/CACHE_PREFIX='lourex-invoice-'/);

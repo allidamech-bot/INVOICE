@@ -460,7 +460,7 @@ export class AppShell extends React.Component<Props,State>{
           <button type="button" className={this.props.screen==='home'?'is-active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="home"/><span>{t('Home','الرئيسية')}</span></button>
           <button type="button" className={this.props.screen==='documents'?'is-active':''} aria-current={this.props.screen==='documents'?'page':undefined} onClick={()=>this.navigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
           <div className="ta-mobile-create-wrap">
-            <button type="button" className="ta-mobile-create" aria-haspopup="dialog" aria-label={t('Quick create or search','إنشاء سريع أو بحث')} title={t('Quick create','إنشاء سريع')} onClick={this.openMobileQuickCreate}><Icon name="plus" size={24}/></button>
+            <button type="button" className="ta-mobile-create" aria-haspopup="dialog" aria-controls="ta-mobile-create-menu" aria-expanded={this.props.newMenu} aria-label={t('Quick create or search','إنشاء سريع أو بحث')} title={t('Quick create','إنشاء سريع')} onClick={this.openMobileQuickCreate}><Icon name="plus" size={24}/></button>
           </div>
           <button type="button" className={this.props.screen==='customers'?'is-active':''} aria-current={this.props.screen==='customers'?'page':undefined} onClick={()=>this.navigate('customers')}><Icon name="users"/><span>{t('Customers','العملاء')}</span></button>
           <button type="button" className={this.state.moreOpen?'is-active':''} aria-haspopup="dialog" aria-controls="ta-mobile-more" aria-expanded={this.state.moreOpen} onClick={this.toggleMore}><Icon name="more"/><span>{t('More','المزيد')}</span></button>

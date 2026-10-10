@@ -17,7 +17,7 @@ test('v330 keeps Save Preview PDF Share reachable after single-scroll recovery',
   assert.match(editor, /onClick=\{\(\)=>void this\.save\(false\)\}/);
   assert.match(css, /\.screen-editor \.mobile-editor-actionbar\s*\{[\s\S]*?position:fixed!important[\s\S]*?bottom:0!important/);
   assert.match(css, /\.screen-editor \.mobile-action-buttons\s*\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/);
-  assert.match(css, /\.screen-editor \.mobile-total\{display:none!important\}/);
+  assert.ok(css.includes('.screen-editor .mobile-total{display:none!important;}'),'duplicate total is hidden above the dock');
 });
 
 test('v330 final AI position stays on right above the action dock', async () => {
