@@ -1,3 +1,4 @@
+import {conversationalRequest} from './ai-conversational-engine.js';
 import type { VaultPayload } from '../types.js';
 import { requestAiJson } from './ai-request.js';
 import { scopeVault } from './workspaces.js';
@@ -90,6 +91,13 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const sources=aiPlannerSourceFacts(input.context?.conversationSources);
   const hasSources=sources.length>0;
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  if(input.context?.conversationalEngine===true){
+    if(!hasSources&&runtime.scope==='personal'){
+      const resumed=await resumeVaultSession();
+      if(resumed){const local=await handleAssistantLocalCommand(resumed.key,{message:input.message,scope:runtime.scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,language:input.language,threadId:clean(input.context?.assistantRuntime?.threadId,120)});if(local)return{answer:local.answer,proposal:local.proposal,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};}
+    }
+    const conversation=await conversationalRequest(input);if(conversation)return conversation;
+  }
   // An explicitly pending in-memory draft belongs to this company/thread only.
   // No upload contents, model output or prior assistant replies may authorize edits.
   if(!hasSources&&runtime.scope==='business'&&input.context?.pendingProductImport){
