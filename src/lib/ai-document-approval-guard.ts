@@ -2,7 +2,7 @@ import type {VaultPayload} from '../types.js';
 import {aiProductArchived} from './ai-business.js';
 
 interface LineInput{savedItemId?:string;descriptionEn?:string;descriptionAr?:string;quantity?:string;unitPrice?:string;}
-interface DraftApproval{customerId?:string;customerDraft?:{companyNameEn?:string;companyNameAr?:string;email?:string}|null;currency:string;items:LineInput[];}
+interface DraftApproval{reviewedConversation?:boolean;shipping?:string;customerId?:string;customerDraft?:{companyNameEn?:string;companyNameAr?:string;email?:string}|null;currency:string;items:LineInput[];}
 interface UpdateApproval{documentId:string;addItems:LineInput[];itemEdits:Array<{itemId:string;descriptionEn?:string;descriptionAr?:string;unit?:string;quantity?:string;unitPrice?:string}>;termsPatch?:Record<string,unknown>;notes?:unknown;language?:unknown;}
 function scoped(row:{workspaceId?:string},active:string):boolean{return (row.workspaceId||'default')===active;}
 function validDecimal(value:unknown,positive:boolean):boolean{
@@ -32,8 +32,9 @@ function validateLine(vault:VaultPayload,line:LineInput,currency:string,scope:st
 /** Run *inside* the one vault mutation, against the freshest company/products. */
 export function assertAiDocumentCreateApproval(vault:VaultPayload,proposal:DraftApproval):void{
   const active=vault.appSettings.activeWorkspaceId||'default';
-  if(!proposal||!/^[A-Z]{3}$/.test(String(proposal.currency||''))||!Array.isArray(proposal.items)||!proposal.items.length||proposal.items.length>20)
+  if(!proposal||!/^[A-Z]{3}$/.test(String(proposal.currency||''))||!Array.isArray(proposal.items)||!proposal.items.length||proposal.items.length>(proposal.reviewedConversation===true?200:20))
     throw new Error('Invalid reviewed document currency or item count.');
+  if(proposal.shipping!==undefined&&proposal.shipping!==''&&!validDecimal(proposal.shipping,false))throw new Error('Invalid reviewed shipping amount.');
   if(!proposal.customerId&&!proposal.customerDraft)throw new Error('Document requires an existing or explicitly named new customer before approval.');
   if(proposal.customerId&&proposal.customerDraft)throw new Error('Document customer identity is ambiguous; choose only one source.');
   if(proposal.customerId){
