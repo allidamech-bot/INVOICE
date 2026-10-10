@@ -77,7 +77,7 @@ function redactedAdvisor(asOf:string):AdvisorDataV2{return{
 };}
 
 export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,business:AiBusinessContext,scope:'business'|'personal'|'temporary'='business'):AdvisorDataV2{
-  const asOf=finance.asOf||business.asOf||todayIso();
+  const asOf=business.asOf||finance.asOf||todayIso();
   if(scope==='personal')return redactedAdvisor(asOf);
 
   const purchasesAsOf=vault.purchases.filter(row=>datedOnOrBefore(row.date,asOf));
