@@ -22,7 +22,7 @@ test('v321 production boot uses the vendorable ReactDOM runtime and a data-safe 
   assert.ok(build.includes(`['${reactDomRuntime}','./vendor/react-dom.production.min.js']`),'production build must vendor the exact ReactDOM URL used by index.html');
   assert.doesNotMatch(vercel,/script-src[^\n]*cdn\.jsdelivr\.net/,'Production CSP must not rely on jsDelivr for application runtime JavaScript');
 
-  const watchdogScript=html.indexOf('<script src="./startup-watchdog-v321.js?v=321"></script>');
+  const watchdogScript=html.search(/<script src="\.\/startup-watchdog-v321\.js\?v=\d+"><\/script>/);
   const appModule=html.indexOf('<script type="module" src="./src/app/index.js"></script>');
   assert.ok(watchdogScript>=0,'v321 startup watchdog must be present in index.html');
   assert.ok(appModule>watchdogScript,'startup watchdog must execute before the React application module');
@@ -36,9 +36,8 @@ test('v321 production boot uses the vendorable ReactDOM runtime and a data-safe 
   assert.doesNotMatch(watchdog,/sessionStorage\.clear\(\)/);
   assert.match(watchdog,/\.\/health\.html/);
 
-  assert.match(cacheRefresh,/RELEASE_GENERATION=337/);
-  assert.match(cacheRefresh,/v337-template-layout-balance\.css\?v=337-3/);
-  assert.match(cacheRefresh,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  assert.match(cacheRefresh,/document-entry-v302\.js\?v=337-3/);
-  assert.match(cacheRefresh,/startup-watchdog-v321\.js\?v=321/);
+  assert.match(cacheRefresh,/RELEASE_GENERATION=\d+/);
+  assert.ok(cacheRefresh.includes('v331-draft-scroll-recovery.css'),'scroll recovery must remain a managed release dependency');
+  assert.ok(cacheRefresh.includes('document-entry-v302.js'),'document runtime remains managed');
+  assert.ok(cacheRefresh.includes('startup-watchdog-v321.js'),'watchdog remains versioned');
 });

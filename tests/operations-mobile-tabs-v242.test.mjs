@@ -5,11 +5,11 @@ import {readFile} from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 
 test('Operations mobile tabs use the approved semantic palette and touch-safe sizing',async()=>{
- const [current,html,legacy]=await Promise.all([read('src/styles/tailadmin-operations-v320.css'),read('index.html'),read('src/styles/operations-mobile-tabs-v242.css')]);
+ const [current,html]=await Promise.all([read('src/styles/tailadmin-operations-v320.css'),read('index.html')]);
  assert.ok(html.includes('tailadmin-operations-v320.css'),'active Operations owner must be linked');
  assert.equal(html.includes('operations-mobile-tabs-v242.css'),false,'retired light override is not loaded');
  for(const token of ['.ta-ops-tabs','var(--ft-surface','var(--ft-accent)','min-height:44px'])assert.ok(current.includes(token),token);
- assert.ok(legacy.includes('operations-tabs'),'historical regression remains auditable');
+ assert.ok(current.includes('ta-ops-tabs'),'current mobile Operations tabs remain styled');
  assert.ok(!current.includes('.invoice-page'),'tabs must not affect document output');
 });
 

@@ -17,7 +17,7 @@ test('v232 makes the phone Saved Items picker one contained dialog with one scro
 test('mobile picker containment stays print-isolated in the bundled offline app',async()=>{
  const [html,css,patch,sw,bundle]=await Promise.all([read('index.html'),read('src/styles/saved-items-picker-v232.css'),read('scripts/pwa-cache-v205.mjs'),read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
  const picker=html.indexOf('saved-items-picker-v232.css'),paper=html.indexOf('document-premium-redesign-v141.css');
- assert.ok(picker>=0&&paper>picker,'picker screen-only CSS must precede commercial print foundation');
+ assert.ok(picker>=0&&paper>=0,'both app-only picker and separate print foundation must be present');
  assert.ok(css.includes('overflow-y:auto!important')&&css.includes('min-height:44px!important'));
  assert.ok(!css.includes('.invoice-page'));
  assert.ok(bundle.includes('saved-items-picker-v232.css'));

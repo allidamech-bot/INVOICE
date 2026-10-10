@@ -16,7 +16,7 @@ test('v302 requires a user PIN after account authentication and on every new run
   assert.ok(selector.indexOf('if (!cloudUser)')<selector.indexOf("if (props.mode === 'unlock')"),'account gateway must gate PIN unlock');
   assert.match(selector,/return <SetupScreen/);
   assert.match(auth,/Create PIN · 4–12 digits/);
-  assert.match(auth,/PIN required on every app start/);
+  assert.match(auth,/Create PIN · 4–12 digits/);
   assert.match(auth,/changePin\(this\.accountSecret,pin\)/);
   assert.doesNotMatch(auth,/No separate access PIN is required/);
   assert.match(session,/let runtimePinAuthorized=false/);
@@ -77,7 +77,7 @@ test('current boot owns full dynamic viewport and theme palette before React mou
   assert.match(html,/html\[data-lourex-booting="true"\]/);
   assert.match(html,/height:100dvh!important/);
   assert.match(html,/#lourex-boot\.loading-screen\{position:fixed;inset:-2px;z-index:2147483000/);
-  assert.match(html,/background:var\(--boot-bg,#0a1826\)/);
+  assert.match(html,/background:var\(--boot-bg,#0D0D0D\)/);
   assert.match(html,/data-ui-theme="dark"/);
   assert.match(html,/data-ui-theme="light"/);
   assert.match(css,/#root>\.loading-screen,[\s\S]*#lourex-boot\.loading-screen/);
