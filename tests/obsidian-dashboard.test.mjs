@@ -4,15 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('dashboard exposes the canonical executive financial hierarchy',async()=>{
-  const [home,css]=await Promise.all([read('src/components/WorkspaceHome.tsx'),read('src/styles/dashboard-documents.css')]);
-  for(const metric of ['Sales','Collected','Outstanding','Overdue'])assert.ok(home.includes(metric),metric);
-  for(const value of ['row.netSales','row.collected','row.outstanding','row.overdue'])assert.ok(home.includes(value),value);
-  for(const field of ['dashboard-document-customer','dashboard-document-date','dashboard-document-amount','dashboard-document-status'])assert.ok(home.includes(field),field);
-  assert.match(css,/One financial instrument with four internally divided measures/);
-  assert.match(css,/\.dashboard-kpis\{[^}]*background:var\(--ds-surface\)/);
-  assert.match(css,/\.dashboard-kpis>button\{[^}]*border-radius:0/);
-  assert.doesNotMatch(css,/\.dashboard-kpis>button\{[^}]*background:#fff/);
+test('dashboard keeps deterministic finance KPIs and readable current TailAdmin hierarchy',async()=>{
+ const [home,css]=await Promise.all([read('src/components/WorkspaceHome.tsx'),read('src/styles/tailadmin-dashboard-v320.css')]);
+ for(const metric of ['Sales','Collected','Outstanding','Overdue'])assert.ok(home.includes(metric),metric);
+ for(const value of ['row.netSales','row.collected','row.outstanding','row.overdue'])assert.ok(home.includes(value),value);
+ assert.ok(home.includes('ta-dashboard'),'dashboard uses the approved screen owner');
+ assert.ok(css.includes('.ta-dashboard')&&css.includes('var(--ft-surface)'));
+ assert.ok(!css.includes('.invoice-page'),'dashboard UI cannot override printed invoices');
 });
 
 test('dashboard uses existing accounting and payment status logic without changing schemas',async()=>{

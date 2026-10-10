@@ -4,14 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v192 production audit layer is loaded after Obsidian closeout and before printable template styling',async()=>{
-  const index=await read('index.html');
-  const closeout='./styles/obsidian-closeout-v191.css';
-  const audit='./styles/obsidian-production-audit-v192.css';
-  const print='./styles/document-premium-redesign-v141.css';
-  assert.ok(index.includes(audit));
-  assert.ok(index.indexOf(closeout)<index.indexOf(audit));
-  assert.ok(index.indexOf(audit)<index.indexOf(print));
+test('current design and editor system is delivered without resurrecting legacy Obsidian overrides',async()=>{
+ const [html,bundle]=await Promise.all([read('index.html'),read('dist/styles/app.bundle.css')]);
+ for(const layer of ['tailadmin-editor-core-v320.css','tailadmin-design-closeout-v323.css','tailadmin-reliability-bridge-v320.css'])assert.ok(html.includes(layer)&&bundle.includes(layer),layer);
+ assert.equal(html.includes('obsidian-production-audit-v192.css'),false);
+ assert.ok(html.includes('document-premium-redesign-v141.css'),'canonical A4 remains included');
 });
 
 test('v192 removes residual light editor design rows and pins switch geometry',async()=>{

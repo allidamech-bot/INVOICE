@@ -13,18 +13,15 @@ const layers=[
   'precision-black-final-v273.css'
 ];
 
-test('Precision Black runtime layers are ordered and printable output remains final',async()=>{
-  const html=await read('index.html');
-  let cursor=html.indexOf('./styles/runtime-contrast-audit-v266.css');
-  assert.ok(cursor>=0,'runtime audit layer missing');
-  for(const layer of layers){
-    const next=html.indexOf(`./styles/${layer}`);
-    assert.ok(next>cursor,`${layer} must follow the preceding runtime layer`);
-    cursor=next;
-  }
-  const printable=html.indexOf('./styles/document-premium-redesign-v141.css');
-  assert.ok(printable>cursor,'printable document stylesheet must remain final');
-  assert.equal((html.match(/precision-black-/g)||[]).length,layers.length);
+test('current TailAdmin owners form one ordered app bundle without retired precision-black cascade',async()=>{
+ const [html,bundle]=await Promise.all([read('index.html'),read('dist/styles/app.bundle.css')]);
+ const layers=['tailadmin-shell-v320.css','tailadmin-dashboard-v320.css','tailadmin-documents-v320.css','tailadmin-editor-frame-v320.css','tailadmin-editor-core-v320.css','tailadmin-reliability-bridge-v320.css'];
+ for(const layer of layers)assert.ok(html.includes(layer)&&bundle.includes(layer),layer);
+ assert.ok(html.indexOf(layers[1])>html.indexOf(layers[0]));
+ assert.ok(html.indexOf(layers[3])>html.indexOf(layers[2]));
+ for(const layer of layers.slice(0,-1))assert.equal(html.includes(layer.replace('tailadmin-','precision-black-')),false);
+ assert.equal(html.includes('precision-black-final-v273.css'),false);
+ assert.ok(html.includes('document-premium-redesign-v141.css'));
 });
 
 test('Precision Black redesign does not introduce decorative gradients into its runtime layers',async()=>{

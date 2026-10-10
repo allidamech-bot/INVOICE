@@ -4,15 +4,13 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v242 overrides the legacy light Operations phone tab strip with semantic workspace surfaces',async()=>{
-  const [legacy,late]=await Promise.all([
-    read('src/styles/ux-recovery-v152.css'),
-    read('src/styles/customer-language-purity-v233.css')
-  ]);
-  assert.match(legacy,/\.operations-tabs\{[^}]*background:#dfe7e9!important/s);
-  assert.match(late,/v242 — mobile Operations tabs/);
-  assert.match(late,/\.app-ui \.operations-tabs\{[^}]*background:var\(--ds-workspace\)!important/s);
-  assert.match(late,/\.app-ui \.operations-tabs button\.active\{[^}]*background:var\(--ds-selected\)!important/s);
+test('Operations mobile tabs use the approved semantic palette and touch-safe sizing',async()=>{
+ const [current,html,legacy]=await Promise.all([read('src/styles/tailadmin-operations-v320.css'),read('index.html'),read('src/styles/operations-mobile-tabs-v242.css')]);
+ assert.ok(html.includes('tailadmin-operations-v320.css'),'active Operations owner must be linked');
+ assert.equal(html.includes('operations-mobile-tabs-v242.css'),false,'retired light override is not loaded');
+ for(const token of ['.ta-ops-tabs','var(--ft-surface','var(--ft-accent)','min-height:44px'])assert.ok(current.includes(token),token);
+ assert.ok(legacy.includes('operations-tabs'),'historical regression remains auditable');
+ assert.ok(!current.includes('.invoice-page'),'tabs must not affect document output');
 });
 
 test('v279 makes the mobile Operations tab palette a semantic real-browser regression gate',async()=>{
