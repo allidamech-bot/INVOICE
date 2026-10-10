@@ -7,7 +7,8 @@ const read=path=>readFile(new URL(path,root),'utf8');
 
 test('documents workspace exposes one-tap resume for the latest unfinished document',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.match(source,/filter\(doc=>doc\.status!=='final'\)/);
+  assert.match(source,/filter\(doc=>doc\.status!=='final'&&doc\.lifecycleStatus!=='voided'\)/);
+  assert.match(source,/const resume=this\.resumableDocument\(\);/);
   assert.match(source,/sort\(\(a,b\)=>b\.updatedAt\.localeCompare\(a\.updatedAt\)\)/);
   assert.match(source,/Continue where you left off/);
   assert.match(source,/onClick=\{\(\)=>this\.props\.onOpen\(resume\)\}/);
