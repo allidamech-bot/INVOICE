@@ -1407,3 +1407,20 @@ html body .app-ui .ta-create-menu-grid>.ta-create-group-label{grid-column:1/-1;c
 html body #root .app-ui .ta-ops-embedded-toolbar{display:flex;justify-content:flex-end;min-width:0;margin-bottom:12px;}
 html body #root .app-ui .ta-ops-embedded-toolbar .ta-ops-search{min-width:0;width:min(100%,360px);}
 html body #root .app-ui .ta-ops-callout{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;}
+
+/* The catalog has seven controls; let actions wrap instead of occupying the
+   old six-column layout's 40px overflow slot. Preserve the mobile grid. */
+@media screen and (min-width:901px){
+  html body #root .app-ui .ta-product-commandbar{display:flex!important;flex-wrap:wrap!important;}
+  html body #root .app-ui .ta-product-commandbar>.ta-product-search{flex:1 1 260px!important;}
+  html body #root .app-ui .ta-product-commandbar>:is(.ta-product-filter,.ta-product-sort){flex:0 1 170px!important;}
+  html body #root .app-ui .ta-product-commandbar>.btn{flex:0 0 auto!important;width:auto!important;min-width:max-content!important;white-space:nowrap!important;}
+  html body #root .app-ui .ta-product-commandbar>.ta-product-overflow{flex:0 0 44px!important;}
+}
+
+/* PDF output controls follow the app palette; document template colors stay
+   owned by the paper styles. The bridge inserts this dialog outside #root. */
+@media screen{
+  html body .lourex-ios-output-card .lourex-ios-output-primary{background:var(--lx485-blue-strong,#315fad)!important;border-color:var(--lx485-blue-strong,#315fad)!important;color:#fff!important;}
+  html body .lourex-ios-output-card .lourex-ios-output-secondary{background:var(--lx485-surface-2,#172d45)!important;border-color:var(--lx485-line-strong,rgba(145,190,247,.34))!important;color:var(--lx485-text,#f7faff)!important;}
+}
