@@ -36,16 +36,15 @@ test('mobile PDF normalizes computed colors and modern logical borders before ht
  assert.ok(bridge.indexOf('sanitizeUnsupportedColors(stage)')<bridge.indexOf('window.html2canvas(page'),'Safari color conversion must occur before rasterization');
 });
 
-test('Draft has a separate PDF design gallery that applies real letterhead settings', async () => {
-  const editor = await read('src/components/DraftDocumentEditor.tsx');
-  const types = await read('src/types.ts');
-  assert.match(editor, /draft-pdf-template-grid/);
-  assert.match(editor, /aria-pressed=\{this\.activePdfDesign\(letter\)===design\.id\}/);
-  assert.match(editor, /onClick=\{\(\)=>this\.applyPdfDesign\(design\.id\)\}/);
-  assert.match(editor, /footerStyle:'company',bodyWidth:'comfortable'/);
-  assert.match(editor, /footerStyle:'minimal',bodyWidth:'wide'/);
-  assert.match(editor, /footerStyle:'none',bodyWidth:'narrow'/);
-  assert.match(types, /export interface LetterDocumentData/);
+test('Draft PDF appearance uses the same 18 templates as quotation and invoice while retaining company-letter branding',async()=>{
+ const [editor,thumbs,renderer,types]=await Promise.all([read('src/components/DraftDocumentEditor.tsx'),read('src/templates/TemplateThumbnails.tsx'),read('src/components/DraftDocumentRenderer.tsx'),read('src/types.ts')]);
+ assert.ok(editor.includes('<TemplateThumbnails document={d} onSelect={this.setTemplate}/>'));
+ assert.ok(editor.includes('appearance:{...doc.appearance,templateId:id}'));
+ assert.ok(!editor.includes('DRAFT_PDF_DESIGNS')&&!editor.includes('DraftPdfDesign'),'do not fork the shared template catalog');
+ for(const id of ['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'])assert.ok(thumbs.includes("id: '"+id+"'"),id);
+ for(const field of ['headerStyle','footerStyle','bodyWidth','showLogo','showCompanyDetails'])assert.ok(editor.includes(field),field);
+ assert.ok(types.includes('export interface LetterDocumentData'));
+ assert.ok(renderer.includes('template-${doc.appearance.templateId}'));
 });
 
 test('v363 deep audit keeps primary actions on the current accent, prevents Safari AI zoom and bounds retained import flows', async () => {
