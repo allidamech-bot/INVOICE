@@ -1,3 +1,4 @@
+import { topOverlay } from '../lib/overlay-focus.js';
 import { deliverySourceEligible, linkedDeliveries, deliverySource } from '../lib/delivery-flow.js';
 import { invoiceSourceDelivery, isDeliveryLinkedInvoice } from '../lib/sales-delivery-invoice.js';
 import { linkedPurchaseOrders, purchaseOrderSource, purchaseOrderSourceEligible } from '../lib/procurement-flow.js';
@@ -215,6 +216,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(document.querySelector('.modal-backdrop'))return;
+    if(event.defaultPrevented||topOverlay())return;
     if(event.key==='Escape'){
       if(this.state.menuId){event.preventDefault();this.closeMenu();return;}
       if(this.state.detailId){event.preventDefault();this.setState({detailId:''});return;}
