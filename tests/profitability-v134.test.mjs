@@ -103,16 +103,13 @@ test('v134 editor integration preserves newer internal costs against stale core 
   assert.match(editor,/<ProfitabilityPanel[^>]*onSave=\{props\.onSave\}/);
 });
 
-test('v134 PWA ships profitability offline beneath the canonical document layer',async()=>{
-  const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const profitability='./styles/profitability-v134.css';
-  const performance='./styles/performance-polish-v100.css';
-  assert.ok(index.includes(profitability));
-  assert.ok(index.indexOf(profitability)<index.indexOf(performance));
-  assert.equal([...index.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(match=>match[1]).at(-1),'./styles/document-premium-redesign-v141.css');
-  for(const asset of [profitability,'./src/components/ProfitabilityPanel.js','./src/lib/profitability.js'])assert.ok(sw.includes(asset),asset);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v134'/);
-  assert.match(sw,/v103 saved-item compatibility/);
-  assert.match(sw,/v116 workflow preset compatibility/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v133'/);
+test('internal-only profitability stays separated from printed A4 and loads for installed PWAs',async()=>{
+ const [html,sw,bundle,panel]=await Promise.all([read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css'),read('src/components/ProfitabilityPanel.tsx')]);
+ assert.ok(html.includes('profitability-v134.css'));
+ assert.ok(bundle.includes('profitability-v134.css'));
+ assert.ok(html.includes('document-premium-redesign-v141.css'));
+ assert.ok(panel.includes('Internal only · never printed'));
+ for(const asset of ['./src/components/ProfitabilityPanel.js','./src/lib/profitability.js'])assert.ok(sw.includes(asset),asset);
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
+

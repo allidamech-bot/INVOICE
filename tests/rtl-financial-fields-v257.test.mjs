@@ -10,11 +10,9 @@ const [rtl,editor,payments,profitability,operations]=await Promise.all([
   readFile('src/components/OperationsPage.tsx','utf8')
 ]);
 
-test('RTL shell isolates every decimal input used by core financial workspaces',()=>{
-  assert.match(rtl,/input\[inputmode="decimal"\]\{direction:ltr;text-align:left;unicode-bidi:isolate\}/);
-  for(const [name,source] of [['editor',editor],['payments',payments],['profitability',profitability],['operations',operations]]){
-    assert.match(source,/inputMode="decimal"/,`${name} must expose decimal controls through the shared RTL selector`);
-  }
+test('Arabic numeric-entry controls maintain left-to-right decimal entry and bidi isolation',()=>{
+ for(const token of ['input[inputmode="decimal"]','direction:ltr','text-align:left','unicode-bidi:isolate'])assert.ok(rtl.includes(token),token);
+ for(const [name,source] of [['editor',editor],['payments',payments],['profitability',profitability],['operations',operations]])assert.ok(source.includes('inputMode="decimal"'),name+' decimal controls must use the shared selector');
 });
 
 test('RTL shell isolates dates phone fields and visible editor money strings',()=>{

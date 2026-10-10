@@ -4,19 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v259 product library exposes direct single-item actions and bulk selection',async()=>{
-  const workspace=await read('src/components/ProductLibraryWorkspace.tsx');
-  assert.match(workspace,/icon="more" label=\{t\('Product actions','إجراءات الأصناف'\)\}/);
-  assert.match(workspace,/Select products/);
-  assert.match(workspace,/product-library-selection-bar/);
-  assert.match(workspace,/Select visible/);
-  assert.match(workspace,/Delete selected/);
-  assert.match(workspace,/product-library-row-menu/);
-  assert.match(workspace,/requestSingleDelete\(item\)/);
-  assert.match(workspace,/requestBulkDelete/);
-  assert.match(workspace,/removeSelected=async/);
-  assert.match(workspace,/for\(const item of products\)\{await this\.props\.onDelete\(item\);deleted\+=1;\}/);
-  assert.match(workspace,/Existing invoices and quotes stay unchanged/);
+test('product library retains row actions and transactional bulk selection with confirmed deletion',async()=>{
+ const source=await read('src/components/ProductLibraryWorkspace.tsx');
+ for(const token of ['Product actions','Select products','ta-product-selection','Select visible','Delete selected','ta-product-row-menu','requestSingleDelete(item)','requestBulkDelete','removeSelected=async','for(const item of products){await this.props.onDelete(item);deleted+=1;}','Existing invoices and quotes stay unchanged'])assert.ok(source.includes(token),token);
+ assert.ok(source.includes('bulkDeleteConfirm'),'bulk delete must be confirmed before mutation');
+ assert.ok(source.includes('mutationInFlight=true'),'bulk delete must guard concurrent changes');
 });
 
 test('v259 selection mode is explicit, reversible and keeps destructive actions confirmed',async()=>{

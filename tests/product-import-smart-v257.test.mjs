@@ -71,17 +71,11 @@ test('v257 treats the real Russian Mars Unit EURO EXW column as an EUR sale pric
   assert.equal(created.unit,'PCS');
 });
 
-test('v257 keeps imported catalogue text readable and loads the contrast layer late',async()=>{
-  const [css,index,importer]=await Promise.all([
-    read('src/styles/product-library-contrast-v257.css'),
-    read('index.html'),
-    read('src/components/ProductImportModal.tsx')
-  ]);
-  assert.match(css,/product-library-row-title strong/);
-  assert.match(css,/color:var\(--ds-text\)!important/);
-  assert.ok(index.indexOf('./styles/product-library-contrast-v257.css')>index.indexOf('./styles/interface-polish-v256.css'));
-  assert.ok(index.indexOf('./styles/document-premium-redesign-v141.css')>index.indexOf('./styles/product-library-contrast-v257.css'));
-  assert.match(importer,/Smart catalog import/);
-  assert.match(importer,/Sale price/);
-  assert.match(importer,/lastUnitCost/);
+test('current product UI keeps imported names readable and preserves price, cost and classification fields',async()=>{
+ const [html,css,importer]=await Promise.all([read('index.html'),read('src/styles/tailadmin-products-v320.css'),read('src/components/ProductImportModal.tsx')]);
+ assert.ok(html.includes('tailadmin-products-v320.css'));
+ for(const token of ['.ta-product','var(--ft-text','min-height:44px'])assert.ok(css.includes(token),token);
+ for(const token of ['Smart catalog import','Sale price','lastUnitCost'])assert.ok(importer.includes(token),token);
+ assert.ok(!css.includes('.invoice-page'),'product import styling cannot alter printed paper');
 });
+

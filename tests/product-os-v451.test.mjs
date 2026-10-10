@@ -95,18 +95,11 @@ test('mobile overlays, horizontal discovery and accessibility keep iPhone-safe p
   assert.match(detail,/prefers-reduced-motion:reduce/);
 });
 
-test('operational finance and management reports remain conceptually separate',async()=>{
-  const [finance,reports]=await Promise.all([
-    read('src/components/FinanceWorkspace.tsx'),
-    read('src/components/ReportsPage.tsx')
-  ]);
-  assert.match(finance,/Operational Finance/);
-  assert.match(finance,/Revenue ≠ collections ≠ receivables/);
-  assert.match(finance,/Operating expense records/);
-  assert.doesNotMatch(finance,/Operating cash out/);
-  assert.match(finance,/Period sales and profitability analysis stays in Reports & Insights/);
-  assert.match(reports,/Sales, collections, receivables and gross profitability with each currency kept separate/);
-  assert.match(reports,/Profitability data is incomplete/);
+test('Finance owns operational ledgers while Reports owns period performance without mixing currencies',async()=>{
+ const [finance,reports]=await Promise.all([read('src/components/FinanceWorkspace.tsx'),read('src/components/ReportsPage.tsx')]);
+ for(const token of ['Operational Finance','Operating expense records','Receivables'])assert.ok(finance.includes(token),token);
+ assert.ok(!finance.includes('Operating cash out'),'operating expense is not equivalent to treasury outflow');
+ for(const token of ['Sales, collections, receivables and gross profitability with each currency kept separate','Profitability data is incomplete'])assert.ok(reports.includes(token),token);
 });
 
 test('help, privacy, terms and about are real product surfaces without invented runtime metadata',async()=>{

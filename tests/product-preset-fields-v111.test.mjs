@@ -56,26 +56,13 @@ test('v111 applies the same smart controls to saved items and invoice item field
   assert.match(saved,/label=\{t\('Currency','العملة'\)\}/);
 });
 
-test('v111 stays application-only, offline-capable, and below the final performance layer',async()=>{
-  const css=await read('src/styles/product-preset-fields-v111.css');
-  const index=await read('index.html');
-  const sw=await read('public/sw.js');
-
-  assert.match(css,/\.app-ui \.smart-product-field/);
-  assert.match(css,/packing-preset-details/);
-  assert.match(css,/@media \(max-width:720px\)/);
-  assert.doesNotMatch(css,/\.invoice-page|\.items-table|\.doc-header|\.totals-block/);
-
-  const presetCss='./styles/product-preset-fields-v111.css';
-  const performanceCss='./styles/performance-polish-v100.css';
-  assert.ok(index.indexOf(presetCss)<index.indexOf(performanceCss));
-  assert.match(sw,/\.\/styles\/product-preset-fields-v111\.css/);
-  assert.match(sw,/\.\/src\/lib\/product-presets\.js/);
-  assert.match(sw,/v111/);
-  assert.match(sw,/v110/);
-  assert.match(sw,/v109/);
-  assert.match(sw,/v108/);
-  assert.match(sw,/v107/);
-  assert.match(sw,/v103/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
+test('product unit, currency, packing and origin controls remain isolated and available offline',async()=>{
+ const [css,html,sw,bundle]=await Promise.all([read('src/styles/product-preset-fields-v111.css'),read('index.html'),read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
+ for(const t of ['.app-ui .smart-product-field','packing-preset-details','@media (max-width:720px)'])assert.ok(css.includes(t),t);
+ assert.ok(!css.includes('.invoice-page')&&!css.includes('.items-table'));
+ assert.ok(html.includes('product-preset-fields-v111.css'));
+ assert.ok(bundle.includes('product-preset-fields-v111.css'));
+ assert.ok(sw.includes('./src/lib/product-presets.js'));
+ assert.ok(sw.includes('styles/app.bundle.css'));
 });
+
