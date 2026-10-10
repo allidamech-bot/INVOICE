@@ -22,7 +22,9 @@ test('v482 runs after v481 and owns the real production cascade after v332',asyn
   assert.match(bundler,/narrowOwnerName='v482-narrow-readability\.css'/,'v482 build does not compose the narrow readability supplement');
   assert.match(bundler,/standalonePath='dist\/styles\/v482-mobile-ux-repair\.css'/,'v482 build does not emit the standalone stylesheet referenced by production');
   const expected=`${sourceCss.trim()}\n\n/* --- v482-narrow-readability.css --- */\n${narrowCss.trim()}`;
-  assert.equal(emittedCss.trim(),expected,'emitted standalone v482 stylesheet differs from the composed final owner');
+  assert.ok(emittedCss.includes(expected),'standalone v482 output must preserve base mobile repair and narrow readability');
+  assert.ok(emittedCss.indexOf('/* --- v484-responsive-visual-hierarchy.css --- */')>emittedCss.indexOf('/* --- v482-narrow-readability.css --- */'));
+  assert.ok(emittedCss.indexOf('/* --- v485-visible-ui-corrections.css --- */')>emittedCss.indexOf('/* --- v484-responsive-visual-hierarchy.css --- */'));
   assert.match(finalize,/v482MobileRepair='\.\/styles\/v482-mobile-ux-repair\.css\?v=482'/,'production standalone v482 stylesheet is not wired');
   assert.match(finalize,/app\.bundle\.css -> v331 -> v332 -> v482/,'production final owner order contract is missing');
   assert.match(finalize,/data-lourex-v482-mobile-ux="true"/,'production v482 owner marker is missing');

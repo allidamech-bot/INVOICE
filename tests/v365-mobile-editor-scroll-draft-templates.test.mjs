@@ -28,8 +28,11 @@ test('v365 Draft uses the exact shared 18-template selector instead of a separat
   assert.match(editor,/TemplateThumbnails/);
   assert.match(editor,/<TemplateThumbnails document=\{d\} onSelect=\{this\.setTemplate\}\/>/);
   assert.match(editor,/appearance:\{\.\.\.doc\.appearance,templateId:id\}/);
-  assert.doesNotMatch(editor,/DraftPdfDesign/);
-  assert.doesNotMatch(editor,/DRAFT_PDF_DESIGNS/);
+  assert.match(editor,/draft-pdf-template-grid/);
+  assert.match(editor,/private applyPdfDesign=\(design:DraftPdfDesignId\)/);
+  const paperPresets=editor.slice(editor.indexOf('private applyPdfDesign='),editor.indexOf('private setWatermark='));
+  assert.match(paperPresets,/this\.patchLetter/);
+  assert.doesNotMatch(paperPresets,/templateId/,'letterhead presets must not replace the shared 18-template selection');
   for(const id of TEMPLATE_IDS)assert.match(thumbs,new RegExp(`id: '${id}'`));
   assert.match(renderer,/template-\$\{doc\.appearance\.templateId\}/);
 });

@@ -564,6 +564,7 @@ html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-crea
   html body #root .app-ui .ta-documents-header h1{font-size:25px!important;line-height:1.2!important;margin:0!important;}
   html body #root .app-ui .ta-documents-header-actions{gap:6px!important;min-width:0!important;align-items:stretch!important;}
   html body #root .app-ui .ta-documents-header-actions>:is(button,.btn){min-height:44px!important;padding:7px 9px!important;gap:7px!important;border-radius:var(--lx-ui-radius-control)!important;font-size:12px!important;line-height:1.25!important;}
+  html body #root .app-ui .ta-documents-header-actions>:is(button,.btn):not(.btn-primary){background-color:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;border:1px solid var(--lx485-line)!important;}
   html body #root .app-ui .ta-documents-header-actions>:is(button,.btn) .icon{width:18px!important;height:18px!important;flex:0 0 18px!important;}
   html body #root .app-ui :is(.ta-doc-type-tabs,.ta-documents-filterbar){border-radius:16px!important;}
   html body #root .app-ui .ta-doc-search{min-height:54px!important;padding:6px 8px!important;}

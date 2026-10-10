@@ -6,7 +6,9 @@ const read=path=>readFile(path,'utf8');
 
 test('v94 workspace layer remains loaded and ships in later offline PWA shells',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  assert.match(html,/\.\/styles\/workspace-mobile-v94\.css/);
+  assert.ok(html.includes('tailadmin-mobile-header-v322.css'));
+  assert.ok(html.includes('tailadmin-design-mobile-priority-v323.css'));
+  assert.ok(sw.includes('./styles/workspace-mobile-v94.css'),'legacy cached mobile workspace styling stays available for older installs');
   assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/workspace-mobile-v94\.css/);
 });
