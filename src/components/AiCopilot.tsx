@@ -190,7 +190,7 @@ export class AiCopilot extends React.Component<Props,State>{
   private containFocus=()=>{if(this.state.open)containOverlayFocus(this.panel());};
   private requestGeneration=0;
   private requestController:AbortController|null=null;
-  private cancelRequest=()=>{this.requestGeneration+=1;this.requestController?.abort();this.requestController=null;this.pending=false;};
+  private cancelRequest=()=>{(this as any).__lourexAttachmentAbort?.abort();this.requestGeneration+=1;this.requestController?.abort();this.requestController=null;this.pending=false;};
   private currentRequest=(generation:number,controller:AbortController)=>this.mounted&&generation===this.requestGeneration&&!controller.signal.aborted;
   componentDidMount():void{this.mounted=true;document.addEventListener('focusin',this.containFocus);document.addEventListener('keydown',this.onKeyDown);window.addEventListener(CONTEXTUAL_ADVISOR_EVENT,this.openContext);}
   componentDidUpdate(previous:Props):void{
