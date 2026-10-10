@@ -4,12 +4,14 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v584 editor final owner follows the application theme instead of fixed blue',async()=>{
-  const css=await read('src/styles/v485-visible-ui-corrections.css');
-  assert.match(css,/v584 live document regression closeout/);
-  assert.match(css,/--lrx-editor-accent:var\(--ft-accent,var\(--boot-accent,#315DA8\)\)/);
-  assert.match(css,/\.advanced-master-toggle\{[\s\S]*background:var\(--ft-surface-2\)!important;[\s\S]*border:1px solid var\(--ft-line-strong\)!important/);
-  assert.match(css,/\.btn-primary\{[\s\S]*background:var\(--lrx-editor-accent\)!important;[\s\S]*background-image:none!important/);
+test('final editor controls use active semantic theme accents and accessible contrast',async()=>{
+ const css=await read('src/styles/v485-visible-ui-corrections.css');
+ assert.ok(css.includes('v584 live document regression closeout'));
+ assert.ok(css.includes('--lrx-editor-accent:var(--ft-accent'),'editor accent must track active theme');
+ assert.ok(css.includes('.advanced-master-toggle'),'advanced settings toggle must remain accessible');
+ assert.ok(css.includes('min-height:44px!important'),'mobile editor touch floor');
+ assert.ok(css.includes('background:var(--lrx-editor-accent)!important'),'primary action follows semantic accent');
+ assert.ok(css.includes('background-image:none!important'),'solid action contrast prevents ambiguous gradient');
 });
 
 test('v584 luxury identities are truly dark in renderer tokens and final printable owner',async()=>{

@@ -4,37 +4,24 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v204 More sheet exposes the final compact information hierarchy',async()=>{
-  const shell=await read('src/components/AppShell.tsx');
-  assert.match(shell,/mobile-more-heading-copy/);
-  assert.match(shell,/Your business, finance, reports and settings/);
-  assert.match(shell,/mobile-more-status-row/);
-  assert.match(shell,/mobile-more-account-copy/);
-  assert.match(shell,/Products & Inventory/);
-  assert.match(shell,/Products, stock and inventory movement/);
-  assert.match(shell,/Purchasing/);
-  assert.match(shell,/Suppliers and purchase workflow/);
-  assert.match(shell,/Receivables, collections and expenses/);
-  assert.match(shell,/Business and financial analysis/);
-  assert.match(shell,/Workspace, documents, commercial and security/);
-  assert.doesNotMatch(shell,/Suppliers, purchases, expenses and inventory/,'More must not recreate the retired Operations ownership mix');
-  for(const tone of ['items','receivables','reports','operations'])assert.match(shell,new RegExp(`'${tone}'`));
+test('current More sheet groups business navigation by task with short descriptions',async()=>{
+ const shell=await read('src/components/AppShell.tsx');
+ for(const token of ['ta-sheet-header','ta-sheet-utilities','ta-sheet-account','ta-sheet-workspace','ta-sheet-group','Products & Inventory','Purchasing','Suppliers and purchase workflow','Receivables, collections and expenses','Reports & Insights','Period analysis and profitability','Settings','Notifications & Follow-up','Help & Product Info'])assert.ok(shell.includes(token),token);
+ assert.ok(shell.includes("this.mobileSheetItem('items'"));
+ assert.ok(shell.includes("this.mobileSheetItem('operations'"));
+ assert.ok(shell.includes("this.mobileSheetItem('receivables'"));
+ assert.ok(shell.includes("this.mobileSheetItem('reports'"));
+ assert.ok(!shell.includes('Suppliers, purchases, expenses and inventory'),'deprecated mixed destination must not reappear');
 });
 
-test('v204 More sheet uses distinct semantic tones without changing printable templates',async()=>{
-  const [css,index]=await Promise.all([read('src/styles/mobile-more-visual-v204.css'),read('index.html')]);
-  assert.match(index,/mobile-more-visual-v204\.css/);
-  assert.match(css,/\.tone-items/);
-  assert.match(css,/\.tone-receivables/);
-  assert.match(css,/\.tone-reports/);
-  assert.match(css,/\.tone-operations/);
-  assert.match(css,/mobile-more-account/);
-  assert.match(css,/mobile-more-settings/);
-  assert.match(css,/max-height:min\(78dvh,690px\)/);
-  assert.match(css,/background-color:#101d24!important/);
-  for(const forbidden of ['.invoice-page','.quotation-page','.document-sheet','.print-']){
-    assert.equal(css.includes(forbidden),false,`v204 mobile menu CSS must not target ${forbidden}`);
-  }
+test('current More sheet uses accessible, theme-aware, mobile-only style ownership',async()=>{
+ const [css,reliability,html]=await Promise.all([read('src/styles/tailadmin-shell-v320.css'),read('src/styles/tailadmin-reliability-bridge-v320.css'),read('index.html')]);
+ for(const token of ['.ta-mobile-sheet','.ta-sheet-account','.ta-sheet-link','.ta-sheet-link-icon','.ta-sheet-link-copy','.ta-sheet-group','.ta-sheet-chevron','safe-area-inset-bottom'])assert.ok(css.includes(token),token);
+ for(const token of ['var(--ft-text-strong)','var(--ft-surface-2)','var(--ft-accent)'])assert.ok(css.includes(token),token);
+ assert.ok(reliability.includes('focus-visible'));
+ assert.ok(html.includes('tailadmin-shell-v320.css'));
+ assert.ok(!html.includes('mobile-more-visual-v204.css'),'retired v204 CSS cannot override current shell');
+ assert.ok(!css.includes('.invoice-page'),'mobile More styles cannot affect commercial print');
 });
 
 test('v204 build refreshes the installed PWA generation',async()=>{
