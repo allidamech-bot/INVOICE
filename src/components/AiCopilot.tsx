@@ -109,7 +109,7 @@ export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,fina
   const business=buildAiBusinessContext(scoped);
   return{
     version:5,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),
-    finance:buildAiFinanceContext(scopedFinance,message),business,
+    finance:buildAiFinanceContext(scopedFinance,message,business.asOf),business,
     pricing:buildProductPricingContext(scoped,message,business.asOf),
     drafting:draftReference(scoped,message,scopedActiveDocument)
   };

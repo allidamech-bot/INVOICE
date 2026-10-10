@@ -136,8 +136,17 @@ export function validatedOpportunityDeleteEvent(vault:Pick<VaultPayload,'documen
 export function documentsForOpportunity(documents:LourexDocument[],customerId:string):LourexDocument[]{
   return documents.filter(doc=>doc.customerSnapshot?.sourceCustomerId===customerId&&doc.lifecycleStatus!=='voided').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
 }
-export function buildSalesPipeline(vault:Pick<VaultPayload,'documentEvents'>):SalesPipelineSnapshot{
-  const opportunities=salesOpportunitiesFromEvents(vault.documentEvents);
+export function buildSalesPipeline(vault:Pick<VaultPayload,'documentEvents'>,asOf=''):SalesPipelineSnapshot{
+  if(asOf&&!isIsoDate(asOf))throw new Error('Pipeline snapshot date is invalid.');
+  // Replay only mutations known at the end of the requested day. Filtering
+  // the latest rows would lose earlier versions and later-deleted opportunities.
+  const events=asOf?vault.documentEvents.filter(event=>{
+    if(!isIsoDate(event.at.slice(0,10))||!Number.isFinite(Date.parse(event.at))||event.at.slice(0,10)>asOf)return false;
+    const payload=parseEvent(event);if(!payload)return false;
+    const updatedAt=payload.kind==='upsert'?payload.opportunity.updatedAt:payload.updatedAt;
+    return updatedAt.slice(0,10)<=asOf&&(payload.kind!=='upsert'||payload.opportunity.createdAt.slice(0,10)<=asOf);
+  }):vault.documentEvents;
+  const opportunities=salesOpportunitiesFromEvents(events);
   const stages=PIPELINE_STAGES.map(stage=>({stage,count:opportunities.filter(row=>row.stage===stage).length}));
   const open=opportunities.filter(row=>row.stage!=='won'&&row.stage!=='lost'&&row.amount&&row.currency);
   const grouped=new Map<string,{amount:number;count:number}>();
