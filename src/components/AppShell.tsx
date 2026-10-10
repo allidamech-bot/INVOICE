@@ -309,6 +309,7 @@ export class AppShell extends React.Component<Props,State>{
   private navItem=(screen:NavTarget,icon:NavIcon,label:string)=>
     <button
       type="button"
+      data-lourex-workspace={screen}
       className={`ta-nav-item ${this.props.screen===screen?'is-active':''}`}
       aria-current={this.props.screen===screen?'page':undefined}
       onClick={()=>this.navigate(screen)}

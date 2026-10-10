@@ -46,6 +46,7 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
   private revision=0;
   private outputPending=false;
   private departureFlushQueued=false;
+  private saveInFlight=false;
   constructor(props:Props){
     super(props);
     // Draft edits are immutable below this component. Avoid a full structuredClone
@@ -76,15 +77,14 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     this.flushPendingSnapshot();
   }
   private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?state.doc:state.previewDoc}));
-  private handleVisibilityChange=()=>{if(document.visibilityState!=='hidden'||this.state.saveState==='saved')return;if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);void this.save(true);};
-  private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(this.state.saveState==='saved'&&!this.state.saving)return;this.flushPendingSnapshot();event.preventDefault();event.returnValue='';};
+  private handleVisibilityChange=()=>{if(document.visibilityState!=='hidden'||this.state.saveState==='saved')return;this.flushPendingSnapshot();};
+  private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(this.state.saveState==='saved'&&!this.state.saving&&!this.saveInFlight)return;this.flushPendingSnapshot();event.preventDefault();event.returnValue='';};
   private handlePageHide=()=>this.flushPendingSnapshot();
   private flushPendingSnapshot=()=>{
-    if(this.departureFlushQueued||this.state.saveState==='saved'&&!this.state.saving)return;
+    if(this.departureFlushQueued||this.state.saveState==='saved'&&!this.state.saving&&!this.saveInFlight)return;
     this.departureFlushQueued=true;
     if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
-    const snapshot=this.state.doc;
-    void this.props.onSave(snapshot,true).catch(()=>{this.departureFlushQueued=false;});
+    void this.save(true);
   };
 
   private letter=():LetterDocumentData=>normalizeLetterData(this.state.doc.letter,this.state.doc.language);
@@ -105,40 +105,56 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:this.state.doc}),260);
   };
   private save=async(auto=false)=>{
-    if(this.state.saving){if(auto)this.schedule();return;}
+    if(this.saveInFlight||this.state.saving){if(auto&&!this.departureFlushQueued)this.schedule();return;}
     if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
     const doc=this.state.doc;
     if(!doc.number.trim()){this.setState({error:t('Document number is required.','رقم المستند مطلوب.')});return;}
     if(!doc.issueDate){this.setState({error:t('Document date is required.','تاريخ المستند مطلوب.')});return;}
     const start=this.revision;
+    this.saveInFlight=true;
     this.setState({saving:true,saveState:'saving'});
-    try{await this.props.onSave(doc,auto);const newer=start!==this.revision;this.setState({saving:false,saveState:newer?'unsaved':'saved'},()=>{if(newer)this.schedule();});}
-    catch(e){this.setState({saving:false,saveState:'unsaved',error:e instanceof Error?e.message:t('Unable to save document.','تعذر حفظ المستند.')});}
+    try{
+      await this.props.onSave(doc,auto);
+      const newer=start!==this.revision;
+      this.saveInFlight=false;
+      this.departureFlushQueued=false;
+      this.setState({saving:false,saveState:newer?'unsaved':'saved',error:''},()=>{
+        if(!newer)return;
+        if(document.visibilityState==='hidden')this.flushPendingSnapshot();else this.schedule();
+      });
+    }catch(e){
+      this.saveInFlight=false;
+      this.departureFlushQueued=false;
+      this.setState({saving:false,saveState:'unsaved',error:e instanceof Error?e.message:t('Unable to save document.','تعذر حفظ المستند.')});
+    }
   };
   private persistStable=async():Promise<LourexDocument|null>=>{
     if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
-    while(this.state.saving)await new Promise<void>(resolve=>window.setTimeout(resolve,40));
+    while(this.saveInFlight||this.state.saving)await new Promise<void>(resolve=>window.setTimeout(resolve,40));
     for(;;){
       const doc=this.state.doc;
       if(!doc.number.trim()){this.setState({error:t('Document number is required.','رقم المستند مطلوب.'),saveState:'unsaved'});return null;}
       if(!doc.issueDate){this.setState({error:t('Document date is required.','تاريخ المستند مطلوب.'),saveState:'unsaved'});return null;}
       const start=this.revision;
+      this.saveInFlight=true;
+      this.departureFlushQueued=true;
       this.setState({saving:true,saveState:'saving',error:''});
       try{await this.props.onSave(doc,true);}
-      catch(e){this.setState({saving:false,saveState:'unsaved',error:e instanceof Error?e.message:t('Unable to save document.','تعذر حفظ المستند.')});return null;}
+      catch(e){this.saveInFlight=false;this.departureFlushQueued=false;this.setState({saving:false,saveState:'unsaved',error:e instanceof Error?e.message:t('Unable to save document.','تعذر حفظ المستند.')});return null;}
+      this.saveInFlight=false;
       if(start!==this.revision){this.setState({saving:false,saveState:'unsaved'});continue;}
       this.departureFlushQueued=false;
       this.setState({saving:false,saveState:'saved',error:''});
       return doc;
     }
   };
-  private saveAndClose=async()=>{if(this.state.saveState==='saved'){this.props.onClose();return;}const saved=await this.persistStable();if(saved)this.props.onClose();};
+  private saveAndClose=async()=>{if(this.state.saveState==='saved'&&!this.saveInFlight&&!this.state.saving){this.props.onClose();return;}const saved=await this.persistStable();if(saved)this.props.onClose();};
   private output=async(mode:'print'|'pdf'|'share')=>{
     if(this.outputPending)return;
     this.outputPending=true;
     this.setState({outputBusy:true,error:''});
     try{
-      const doc=this.state.saveState==='saved'?this.state.doc:await this.persistStable();
+      const doc=this.state.saveState==='saved'&&!this.saveInFlight&&!this.state.saving?this.state.doc:await this.persistStable();
       if(!doc)return;
       try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
       this.setState({mobilePreview:false});
