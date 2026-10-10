@@ -36,7 +36,8 @@ test('search removes all viewport listeners on unmount',()=>{
   const target=name=>({addEventListener:(event,handler)=>listeners.set(`${name}:${event}`,handler),removeEventListener:(event,handler)=>{assert.equal(listeners.get(`${name}:${event}`),handler);listeners.delete(`${name}:${event}`);}});
   globalThis.document=target('document');globalThis.window={...target('window'),visualViewport:target('viewport')};
   const search=new GlobalSearch();search.componentDidMount();
-  assert.equal(listeners.size,6);
+  assert.equal(listeners.size,7);
+  assert.ok(listeners.has('document:focusin'),'focus containment listener is registered and cleaned up');
   search.componentWillUnmount();assert.equal(listeners.size,0);
 });
 

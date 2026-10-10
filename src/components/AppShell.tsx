@@ -1,3 +1,4 @@
+import { containOverlayFocus, lockOverlayScroll, ownsOverlay, topOverlay, trapOverlayTab, unlockOverlayScroll } from '../lib/overlay-focus.js';
 import type { DocumentKind, LourexDocument, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { signOutCloudUser } from '../cloud/firebase.js';
@@ -77,6 +78,7 @@ export class AppShell extends React.Component<Props,State>{
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
+    document.addEventListener('focusin',this.containFocus);
     this.syncOverlayState();
     window.addEventListener('resize',this.syncEditorViewport);
     window.visualViewport?.addEventListener('resize',this.syncEditorViewport);
@@ -86,6 +88,7 @@ export class AppShell extends React.Component<Props,State>{
 
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
+    document.removeEventListener('focusin',this.containFocus);
     this.applyOverlayLock(false);
     window.removeEventListener('resize',this.syncEditorViewport);
     window.visualViewport?.removeEventListener('resize',this.syncEditorViewport);
@@ -136,10 +139,12 @@ export class AppShell extends React.Component<Props,State>{
     const root=document.documentElement;
     const body=document.body;
     if(locked){
+      lockOverlayScroll(this);
       root.dataset.lourexShellOverlay='true';
       body.dataset.lourexShellOverlay='true';
       return;
     }
+    unlockOverlayScroll(this);
     delete root.dataset.lourexShellOverlay;
     delete body.dataset.lourexShellOverlay;
   };
@@ -149,17 +154,24 @@ export class AppShell extends React.Component<Props,State>{
     this.applyOverlayLock(!editor&&(this.state.moreOpen||this.props.newMenu));
   };
 
+  private containFocus=()=>containOverlayFocus(document.getElementById(this.state.moreOpen?'ta-mobile-more':this.activeCreateMenuId()));
   private focusableIn=(root:HTMLElement):HTMLElement[]=>Array.from(root.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(node=>node.offsetParent!==null);
 
   private trapOverlayFocus=(event:KeyboardEvent,root:HTMLElement)=>{
-    const focusable=this.focusableIn(root);
-    if(!focusable.length){event.preventDefault();return;}
-    const first=focusable[0]!,last=focusable[focusable.length-1]!;
-    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
-    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    trapOverlayTab(event,root);
   };
 
   private handleKeyDown=(event:KeyboardEvent)=>{
+    if(event.defaultPrevented)return;
+    const active=document.getElementById(this.state.moreOpen?'ta-mobile-more':this.activeCreateMenuId());
+    if(!active||!ownsOverlay(active))return;
+    if(this.props.newMenu&&['ArrowDown','ArrowUp','Home','End'].includes(event.key)){
+      const items=Array.from(active.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not([disabled])'));
+      if(!items.length)return;
+      const index=items.indexOf(document.activeElement as HTMLButtonElement);
+      const next=event.key==='Home'?0:event.key==='End'?items.length-1:event.key==='ArrowDown'?(index+1)%items.length:index<0?items.length-1:(index-1+items.length)%items.length;
+      event.preventDefault();items[next]?.focus({preventScroll:true});items[next]?.scrollIntoView({block:'nearest',inline:'nearest'});return;
+    }
     if(event.key==='Escape'){
       if(this.state.moreOpen){event.preventDefault();this.setState({moreOpen:false});return;}
       if(this.props.newMenu){event.preventDefault();this.closeCreateMenu();}
@@ -173,9 +185,8 @@ export class AppShell extends React.Component<Props,State>{
       return;
     }
 
-    if(this.props.newMenu&&this.isMobileShell()){
-      const menu=document.getElementById('ta-mobile-create-menu');
-      if(menu)this.trapOverlayFocus(event,menu);
+    if(this.props.newMenu){
+      this.trapOverlayFocus(event,active);
     }
   };
 
@@ -189,17 +200,18 @@ export class AppShell extends React.Component<Props,State>{
   };
 
   private toggleCreate=()=>{
+    if(topOverlay()&&!this.props.newMenu&&!this.state.moreOpen)return;
     this.closeMore();
     this.props.onToggleNew();
   };
 
   private openMobileQuickCreate=()=>{
     this.closeCreateMenu();
-    this.closeMore();
-    window.dispatchEvent(new Event('lourex-global-search-open'));
+    this.setState({moreOpen:false},()=>window.requestAnimationFrame(()=>window.dispatchEvent(new Event('lourex-global-search-open'))));
   };
 
   private toggleMore=()=>{
+    if(topOverlay()&&!this.state.moreOpen&&!this.props.newMenu)return;
     this.closeCreateMenu();
     this.setState(state=>({moreOpen:!state.moreOpen}));
   };

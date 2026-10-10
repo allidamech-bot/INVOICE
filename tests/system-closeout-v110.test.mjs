@@ -17,7 +17,8 @@ test('v110 modal frame traps keyboard focus and restores the opener',()=>{
   assert.match(ui,/private isTopModal=/);
   assert.match(ui,/event\.key!=='Tab'/);
   assert.match(ui,/event\.shiftKey\?last:first/);
-  assert.match(ui,/this\.previousFocus\?\.focus\(\{preventScroll:true\}\)/);
+  assert.match(read('src/lib/overlay-focus.ts'),/previous\?\.isConnected/);
+  assert.match(ui,/restoreOverlayFocus\(this\.previousFocus\)/);
   assert.match(ui,/aria-labelledby=\{this\.titleId\}/);
   assert.match(ui,/tabIndex=\{-1\}/);
   assert.match(ui,/<h2 id=\{this\.titleId\}>/);

@@ -1,3 +1,4 @@
+import { containOverlayFocus, lockOverlayScroll, ownsOverlay, restoreOverlayFocus, trapOverlayTab, unlockOverlayScroll } from '../lib/overlay-focus.js';
 import type { DocumentAttachment, LourexDocument } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon, IconButton } from './UI.js';
@@ -65,9 +66,16 @@ function totalAttachmentBytes(list:DocumentAttachment[]):number{return list.redu
 export class DocumentAttachmentsSection extends React.Component<Props,State>{
   state:State={busy:false,error:'',preview:null};private input:HTMLInputElement|null=null;
   private mounted=false;
-  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);}
-  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);}
-  private handleKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.preview){event.preventDefault();this.closePreview();}};
+  private previewOverlay:HTMLElement|null=null;
+  private previousFocus:HTMLElement|null=null;
+  private containFocus=()=>containOverlayFocus(this.previewOverlay);
+  componentDidMount():void{this.mounted=true;document.addEventListener('focusin',this.containFocus);document.addEventListener('keydown',this.handleKeyDown);}
+  componentWillUnmount():void{this.mounted=false;unlockOverlayScroll(this);document.removeEventListener('focusin',this.containFocus);document.removeEventListener('keydown',this.handleKeyDown);}
+  private handleKeyDown=(event:KeyboardEvent)=>{
+    if(event.defaultPrevented||!this.state.preview||!ownsOverlay(this.previewOverlay)||!this.previewOverlay)return;
+    if(event.key==='Escape'){event.preventDefault();this.closePreview();return;}
+    trapOverlayTab(event,this.previewOverlay);
+  };
   private adding=false;
   private add=async(event:any)=>{
     const input=event.target as HTMLInputElement,files=Array.from(input.files??[]);
@@ -94,8 +102,12 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
     finally{this.adding=false;if(this.mounted)this.setState({busy:false});input.value='';}
   };
   private remove=(id:string)=>this.props.onChange({...this.props.document,attachments:(this.props.document.attachments??[]).filter(a=>a.id!==id)});
-  private openPreview=(preview:DocumentAttachment)=>this.setState({preview});
-  private closePreview=()=>this.setState({preview:null});
+  private openPreview=(preview:DocumentAttachment)=>{
+    this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    lockOverlayScroll(this);
+    this.setState({preview},()=>{if(this.mounted)containOverlayFocus(this.previewOverlay);});
+  };
+  private closePreview=()=>this.setState({preview:null},()=>{unlockOverlayScroll(this);restoreOverlayFocus(this.previousFocus);this.previousFocus=null;});
   render():any{
     const list=this.props.document.attachments??[],preview=this.state.preview,totalSize=totalAttachmentBytes(list);
     return <>
@@ -120,7 +132,7 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
           </article>;
         })}</div>:<div className="attachments-empty"><Icon name="file"/><span>{t('No attachments yet. Add one or more supporting files.','لا توجد مرفقات بعد. أضف ملفًا داعمًا أو عدة ملفات.')}</span></div>}
       </section>
-      {preview?<div className="attachment-preview-overlay" role="dialog" aria-modal="true" aria-label={preview.name} onClick={this.closePreview}><div className="attachment-preview-dialog" onClick={(event:any)=>event.stopPropagation()}><header><div><strong>{preview.name}</strong><small>{isImageAttachment(preview)?t('Image preview','معاينة الصورة'):t('File details','تفاصيل الملف')}</small></div><IconButton icon="x" label={t('Close preview','إغلاق المعاينة')} onClick={this.closePreview}/></header><div className="attachment-preview-body">{!isImageAttachment(preview)?<div className="attachment-pdf-preview"><span className="attachment-pdf-preview-icon"><Icon name="file"/></span><strong>{t('File attached to this document','ملف مرفق بهذا المستند')}</strong><small>{preview.name} · {bytes(preview.size)}</small><a className="attachment-preview-fallback" href={preview.dataUrl} download={preview.name}>{t('Download file','تنزيل الملف')}</a></div>:<img src={preview.dataUrl} alt={preview.name}/>}</div></div></div>:null}
+      {preview?<div ref={(node:HTMLElement|null)=>{this.previewOverlay=node;}} tabIndex={-1} className="attachment-preview-overlay" role="dialog" aria-modal="true" aria-label={preview.name} onClick={()=>{if(ownsOverlay(this.previewOverlay))this.closePreview();}}><div className="attachment-preview-dialog" onClick={(event:any)=>event.stopPropagation()}><header><div><strong>{preview.name}</strong><small>{isImageAttachment(preview)?t('Image preview','معاينة الصورة'):t('File details','تفاصيل الملف')}</small></div><IconButton icon="x" label={t('Close preview','إغلاق المعاينة')} onClick={this.closePreview}/></header><div className="attachment-preview-body">{!isImageAttachment(preview)?<div className="attachment-pdf-preview"><span className="attachment-pdf-preview-icon"><Icon name="file"/></span><strong>{t('File attached to this document','ملف مرفق بهذا المستند')}</strong><small>{preview.name} · {bytes(preview.size)}</small><a className="attachment-preview-fallback" href={preview.dataUrl} download={preview.name}>{t('Download file','تنزيل الملف')}</a></div>:<img src={preview.dataUrl} alt={preview.name}/>}</div></div></div>:null}
     </>;
   }
 }

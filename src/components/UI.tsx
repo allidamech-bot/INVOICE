@@ -1,3 +1,4 @@
+import { containOverlayFocus, lockOverlayScroll, overlayFocusables, ownsOverlay, restoreOverlayFocus, unlockOverlayScroll } from '../lib/overlay-focus.js';
 import type { UiLanguage } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { displayPackingPreset } from '../lib/packing-display.js';
@@ -207,8 +208,6 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   return <label className="toggle-row"><button type="button" role="switch" aria-checked={checked} className={`toggle ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}><span/></button><span>{label}</span></label>;
 }
 
-let openModalFrames=0;
-let bodyOverflowBeforeModals='';
 let modalFrameSequence=0;
 
 interface ModalFrameProps { title:string; children:any; onClose:()=>void; size:'sm'|'md'|'lg'|'xl'; footer?:any; }
@@ -253,9 +252,9 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   };
   componentDidMount():void{
     this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
-    if(openModalFrames===0){bodyOverflowBeforeModals=document.body.style.overflow;document.body.style.overflow='hidden';}
-    openModalFrames+=1;
+    lockOverlayScroll(this);
     document.addEventListener('keydown',this.handleKeyDown);
+    document.addEventListener('focusin',this.containFocus);
     window.addEventListener('resize',this.syncVisualViewport);
     window.visualViewport?.addEventListener('resize',this.syncVisualViewport);
     window.visualViewport?.addEventListener('scroll',this.syncVisualViewport);
@@ -270,25 +269,18 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   }
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
+    document.removeEventListener('focusin',this.containFocus);
     window.removeEventListener('resize',this.syncVisualViewport);
     window.visualViewport?.removeEventListener('resize',this.syncVisualViewport);
     window.visualViewport?.removeEventListener('scroll',this.syncVisualViewport);
-    openModalFrames=Math.max(0,openModalFrames-1);
-    if(openModalFrames===0)document.body.style.overflow=bodyOverflowBeforeModals;
-    try{this.previousFocus?.focus({preventScroll:true});}catch{}
+    unlockOverlayScroll(this);
+    restoreOverlayFocus(this.previousFocus);
   }
-  private isTopModal=():boolean=>{
-    if(!this.backdrop)return false;
-    const backdrops=document.querySelectorAll('.modal-backdrop');
-    return !backdrops.length||backdrops[backdrops.length-1]===this.backdrop;
-  };
-  private focusable=():HTMLElement[]=>{
-    if(!this.dialog)return [];
-    const selector='a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-    return Array.from(this.dialog.querySelectorAll<HTMLElement>(selector)).filter(node=>!node.hasAttribute('hidden')&&node.getAttribute('aria-hidden')!=='true'&&node.getClientRects().length>0);
-  };
+  private containFocus=()=>containOverlayFocus(this.dialog);
+  private isTopModal=():boolean=>ownsOverlay(this.dialog);
+  private focusable=():HTMLElement[]=>this.dialog?overlayFocusables(this.dialog):[];
   private handleKeyDown=(event:KeyboardEvent)=>{
-    if(!this.backdrop||!this.dialog||!this.isTopModal())return;
+    if(event.defaultPrevented||!this.backdrop||!this.dialog||!this.isTopModal())return;
     if(event.key==='Escape'){
       event.preventDefault();
       this.props.onClose();
@@ -307,7 +299,7 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   };
   render():any{
     const {title,children,onClose,size,footer}=this.props;
-    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onPointerDown={(e:any) => { if (e.target === e.currentTarget) onClose(); }}><section ref={(node:any)=>{this.dialog=node;}} className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-labelledby={this.titleId} tabIndex={-1}><header className="modal-header"><h2 id={this.titleId}>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
+    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onPointerDown={(e:any) => { if (e.target === e.currentTarget&&this.isTopModal()) onClose(); }}><section ref={(node:any)=>{this.dialog=node;}} className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-labelledby={this.titleId} tabIndex={-1}><header className="modal-header"><h2 id={this.titleId}>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
   }
 }
 

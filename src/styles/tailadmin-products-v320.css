@@ -16,8 +16,8 @@
   .app-ui .ta-products-overview strong { color:var(--ft-text-strong)!important;font-size:22px!important;line-height:29px!important;font-weight:600!important; }
   .app-ui .ta-products-overview em { overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;color:var(--ft-faint)!important;font-size:9px!important;line-height:14px!important;font-style:normal!important; }
 
-  .app-ui .ta-domain-tabs { min-width:0!important;display:flex!important;align-items:stretch!important;gap:4px!important;overflow:auto!important;padding:5px!important;border:1px solid var(--ft-line)!important;border-radius:10px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important;scrollbar-width:none!important; }
-  .app-ui .ta-domain-tabs::-webkit-scrollbar { display:none!important; }
+  .app-ui .ta-domain-tabs { min-width:0!important;display:flex!important;align-items:stretch!important;gap:4px!important;overflow:auto!important;scrollbar-width:thin!important;scroll-padding-inline:5px!important;justify-content:flex-start!important;padding:5px!important;border:1px solid var(--ft-line)!important;border-radius:10px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .ta-domain-tabs::-webkit-scrollbar { height:5px; }
   .app-ui .ta-domain-tabs>button { position:relative!important;flex:1 0 180px!important;min-height:54px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;padding:8px 10px!important;border:0!important;border-radius:7px!important;background:transparent!important;color:var(--ft-muted)!important;box-shadow:none!important;text-align:start!important; }
   .app-ui .ta-domain-tabs>button:hover { background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important; }
   .app-ui .ta-domain-tabs>button.is-active { background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important; }

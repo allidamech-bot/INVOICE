@@ -38,6 +38,7 @@ test('search requires every query token and returns canonical record identity',(
  const search=new GlobalSearch(props);search.state.query='Northstar Dubai';assert.equal(search.results().length,1);
  search.state.query='Northstar nonexistent';assert.equal(search.results().length,0);
  search.state.query='VAL-1';assert.equal(search.results().length,1,'archived products stay excluded');
+ globalThis.document={querySelectorAll:()=>[],activeElement:null};
  const events=[];globalThis.CustomEvent=class{constructor(type,options){this.type=type;this.detail=options.detail;}};
  globalThis.window={setTimeout:fn=>fn(),dispatchEvent:event=>events.push(event)};
  search.results()[0].action();assert.deepEqual(events.map(e=>[e.type,e.detail]),[['lourex-open-product',{id:'p1'}]]);

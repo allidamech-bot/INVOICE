@@ -6,10 +6,11 @@ const read=path=>fs.readFileSync(path,'utf8');
 
 test('shared modal shell locks background scrolling and stays safe with nested dialogs',()=>{
   const ui=read('src/components/UI.tsx');
-  assert.match(ui,/let openModalFrames=0/);
-  assert.match(ui,/document\.body\.style\.overflow='hidden'/);
-  assert.match(ui,/openModalFrames=Math\.max\(0,openModalFrames-1\)/);
-  assert.match(ui,/if\(openModalFrames===0\)document\.body\.style\.overflow=bodyOverflowBeforeModals/);
+  assert.match(read('src/lib/overlay-focus.ts'),/const scrollOwners=new Set<object>/);
+  assert.match(ui,/lockOverlayScroll\(this\)/);
+  assert.match(read('src/lib/overlay-focus.ts'),/document\.body\.style\.overflow='hidden'/);
+  assert.match(read('src/lib/overlay-focus.ts'),/scrollOwners\.delete\(owner\)/);
+  assert.match(ui,/unlockOverlayScroll\(this\)/);
   assert.match(ui,/onPointerDown=/);
 });
 

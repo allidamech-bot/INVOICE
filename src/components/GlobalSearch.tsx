@@ -1,3 +1,4 @@
+import { containOverlayFocus, lockOverlayScroll, ownsOverlay, restoreOverlayFocus, topOverlay, trapOverlayTab, unlockOverlayScroll } from '../lib/overlay-focus.js';
 import type { Customer, DocumentKind, LourexDocument, PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { documentKindLabel, isSupplierDocumentKind } from '../lib/document-kinds.js';
@@ -40,6 +41,10 @@ export class GlobalSearch extends React.Component<Props,State>{
   state:State={open:false,query:'',paymentPicker:false};
   private inputRef:HTMLInputElement|null=null;
   private panelRef:HTMLElement|null=null;
+  private previousFocus:HTMLElement|null=null;
+  private mounted=false;
+  private focusRequest=0;
+  private containFocus=()=>containOverlayFocus(this.panelRef);
 
   private syncVisualViewport=()=>{
     const panel=this.panelRef;
@@ -64,6 +69,8 @@ export class GlobalSearch extends React.Component<Props,State>{
   private setPanelRef=(panel:HTMLElement|null)=>{this.panelRef=panel;this.syncVisualViewport();};
 
   componentDidMount():void{
+    this.mounted=true;
+    document.addEventListener('focusin',this.containFocus);
     document.addEventListener('keydown',this.handleKeyDown);
     window.addEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
     window.addEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
@@ -72,6 +79,9 @@ export class GlobalSearch extends React.Component<Props,State>{
     window.visualViewport?.addEventListener('scroll',this.syncVisualViewport);
   }
   componentWillUnmount():void{
+    this.mounted=false;this.focusRequest+=1;
+    unlockOverlayScroll(this);
+    document.removeEventListener('focusin',this.containFocus);
     document.removeEventListener('keydown',this.handleKeyDown);
     window.removeEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
     window.removeEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
@@ -80,9 +90,12 @@ export class GlobalSearch extends React.Component<Props,State>{
     window.visualViewport?.removeEventListener('scroll',this.syncVisualViewport);
   }
   private openFromEvent=(event:Event)=>{
+    if(!this.beginOpen())return;
     const detail=(event as CustomEvent<GlobalSearchOpenDetail>).detail;
+    const request=++this.focusRequest;
     const query=typeof detail?.query==='string'?detail.query.trim().slice(0,160):'';
     this.setState({open:true,query,paymentPicker:false},()=>window.setTimeout(()=>{
+      if(!this.mounted||!this.state.open||request!==this.focusRequest||!ownsOverlay(this.panelRef))return;
       if(detail?.autoOpenUnique&&query){const results=this.results();if(results.length===1){results[0]!.action();return;}}
       this.inputRef?.focus();
     },0));
@@ -95,14 +108,31 @@ export class GlobalSearch extends React.Component<Props,State>{
     if(detail.action==='payment'&&detail.invoiceId){this.close();this.props.onNavigate('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:detail.invoiceId}})),0);}
   };
   private handleKeyDown=(event:KeyboardEvent)=>{
-    if(event.key==='Escape'&&this.state.open){event.preventDefault();if(this.state.paymentPicker){this.setState({paymentPicker:false});return;}this.close();return;}
+    if(event.defaultPrevented)return;
+    if(this.state.open&&!ownsOverlay(this.panelRef))return;
+    if(this.state.open&&this.panelRef)trapOverlayTab(event,this.panelRef);
+    if(event.key==='Escape'&&this.state.open){event.preventDefault();if(this.state.paymentPicker){this.setState({paymentPicker:false},()=>this.inputRef?.focus());return;}this.close();return;}
     if(event.key.toLowerCase()==='k'&&(event.metaKey||event.ctrlKey)){
       event.preventDefault();
       this.state.open?this.close():this.open();
     }
   };
-  private open=()=>this.setState({open:true,query:'',paymentPicker:false},()=>window.setTimeout(()=>this.inputRef?.focus(),0));
-  private close=()=>this.setState({open:false,query:'',paymentPicker:false});
+  private beginOpen=():boolean=>{
+    const top=topOverlay();if(top&&top!==this.panelRef)return false;
+    if(!this.state.open){this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;lockOverlayScroll(this);}
+    return true;
+  };
+  private open=()=>{
+    if(!this.beginOpen())return;
+    const request=++this.focusRequest;
+    this.setState({open:true,query:'',paymentPicker:false},()=>window.setTimeout(()=>{
+      if(this.mounted&&this.state.open&&request===this.focusRequest&&ownsOverlay(this.panelRef))this.inputRef?.focus();
+    },0));
+  };
+  private close=()=>{
+    this.focusRequest+=1;
+    this.setState({open:false,query:'',paymentPicker:false},()=>{unlockOverlayScroll(this);restoreOverlayFocus(this.previousFocus);this.previousFocus=null;});
+  };
   private navigate=(screen:GlobalSearchTarget)=>{this.close();this.props.onNavigate(screen);};
   private create=(kind:DocumentKind)=>{this.close();this.props.onNewDocument(kind);};
   private openDocument=(document:LourexDocument)=>{this.close();this.props.onOpenDocument(document);};
@@ -181,7 +211,7 @@ export class GlobalSearch extends React.Component<Props,State>{
   render():any{
     if(!this.state.open)return null;
     const results=this.results();
-    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section ref={this.setPanelRef} className="global-search-panel" onKeyDown={this.resultKeyDown} role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
+    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section ref={this.setPanelRef} className="global-search-panel" onKeyDown={this.resultKeyDown} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
       <header className="global-search-input-wrap"><Icon name="search"/><input ref={(node:HTMLInputElement|null)=>{this.inputRef=node;}} value={this.state.query} disabled={this.state.paymentPicker} onChange={(event:any)=>this.setState({query:event.target.value})} placeholder={t('Search documents, customers, products, suppliers or purchases…','ابحث في المستندات والعملاء والمنتجات والموردين والمشتريات…')} aria-label={t('Search LOUREX','بحث LOUREX')}/><button type="button" className="global-search-close" onClick={this.close} aria-label={t('Close search','إغلاق البحث')}><Icon name="x"/></button></header>
       {this.state.paymentPicker?this.renderPaymentPicker():!this.state.query.trim()?<div className="global-search-start">
         <div className="global-search-section-title"><span>{t('Quick create','إنشاء سريع')}</span><small>{t('Always opens the canonical workspace','يفتح دائمًا مساحة العمل الأصلية')}</small></div>
