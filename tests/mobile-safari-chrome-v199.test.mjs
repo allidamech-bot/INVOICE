@@ -8,14 +8,15 @@ const activeCacheVersion=sw=>{
   return matches.length?Number(matches.at(-1)[1]):0;
 };
 
-test('v199 loads after v198 and before the printable document layer',async()=>{
-  const html=await read('index.html');
-  const v198='mobile-spacing-fit-v198.css';
-  const v199='mobile-safari-chrome-v199.css';
-  const printable='document-premium-redesign-v141.css';
-  assert.ok(html.includes(`./styles/${v199}`),'v199 stylesheet must be linked');
-  assert.ok(html.indexOf(v199)>html.indexOf(v198),'v199 must override the v198 physical viewport layer');
-  assert.ok(html.indexOf(printable)>html.indexOf(v199),'printable document CSS must remain final');
+test('current TailAdmin mobile shell owns Safari/PWA safe-area geometry without retired v199 CSS',async()=>{
+ const [html,css,bridge]=await Promise.all([read('index.html'),read('src/styles/tailadmin-shell-v320.css'),read('src/styles/tailadmin-reliability-bridge-v320.css')]);
+ assert.equal(html.includes('mobile-safari-chrome-v199.css'),false);
+ assert.ok(html.includes('tailadmin-shell-v320.css'));
+ assert.ok(html.includes('tailadmin-reliability-bridge-v320.css'));
+ assert.ok(css.includes('.ta-mobile-nav')&&css.includes('.ta-mobile-sheet'));
+ assert.ok(css.includes('env(safe-area-inset-bottom'));
+ assert.ok(bridge.includes('safe-area-inset-bottom')||bridge.includes('min-height:44px'));
+ assert.ok(html.includes('document-premium-redesign-v141.css'),'A4 styling remains independent');
 });
 
 test('v199 separates Safari browser chrome from standalone PWA safe areas',async()=>{

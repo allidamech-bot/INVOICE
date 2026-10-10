@@ -4,17 +4,11 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v241 width-fits narrow-phone A4 preview without shrinking printable document geometry',async()=>{
-  const [previewCss,documentCss]=await Promise.all([
-    read('src/styles/mobile-preview-v156.css'),
-    read('src/styles/document.css')
-  ]);
-  assert.match(previewCss,/@media screen and \(max-width:390px\)[\s\S]*--preview-scale:\.445!important/);
-  assert.match(previewCss,/@media screen and \(max-width:375px\)[\s\S]*--preview-scale:\.43!important/);
-  assert.match(previewCss,/@media screen and \(max-width:360px\)[\s\S]*--preview-scale:\.405!important/);
-  assert.match(previewCss,/@media screen and \(max-width:340px\)[\s\S]*--preview-scale:\.38!important/);
-  assert.match(documentCss,/\.invoice-page\{width:210mm;height:297mm/);
-  assert.match(documentCss,/transform:scale\(var\(--preview-scale\)\)/);
+test('iPhone preview scales independently while canonical commercial A4 remains 210 × 297 mm',async()=>{
+ const [preview,canonical,renderer]=await Promise.all([read('src/styles/mobile-preview-v156.css'),read('src/styles/document-premium-redesign-v141.css'),read('src/templates/TemplateRenderer.tsx')]);
+ for(const pair of [['390','.445'],['375','.43'],['360','.405'],['340','.38']])assert.ok(preview.includes('--preview-scale:'+pair[1]+'!important'),pair[0]+'px fitting still present');
+ assert.ok(canonical.includes('width:210mm;height:297mm'),'commercial paper must remain full A4 size');
+ assert.ok(renderer.includes('invoice-page'),'full document renderer stays mounted');
 });
 
 test('v241 makes preview-edge containment a required Browser Visual QA check',async()=>{

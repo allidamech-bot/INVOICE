@@ -31,15 +31,12 @@ test('v110 keeps phone modal decisions reachable without touching invoice templa
   assert.match(css,/@media print/);
 });
 
-test('v110 is loaded offline before the final performance layer',()=>{
-  const html=read('index.html');
-  const sw=read('public/sw.js');
-  const closeout='./styles/system-closeout-v110.css';
-  const performance='./styles/performance-polish-v100.css';
-  assert.ok(html.includes(closeout));
-  assert.ok(sw.includes(closeout));
-  assert.ok(html.indexOf(closeout)<html.indexOf(performance));
-  assert.ok(sw.indexOf(closeout)<sw.indexOf(performance));
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
-  assert.match(sw,/v103 saved-item compatibility/);
+test('current modal safety and mobile shell are shipped through the PWA bundle',()=>{
+ const html=read('index.html'),sw=read('dist/sw.js'),css=read('src/styles/tailadmin-overlays-v320.css');
+ assert.ok(html.includes('tailadmin-overlays-v320.css'));
+ assert.ok(html.includes('tailadmin-shell-v320.css'));
+ assert.ok(css.includes('.modal-backdrop')&&css.includes('safe-area-inset-bottom'));
+ assert.ok(sw.includes('styles/app.bundle.css'));
+ assert.equal(html.includes('system-closeout-v110.css'),false,'retired modal CSS no longer overrides the current implementation');
 });
+
