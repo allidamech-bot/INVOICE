@@ -12,16 +12,16 @@ test('v351 uses one canonical light/dark canvas from bootstrap through runtime t
   const [bootstrap,theme,palette,guard]=await Promise.all([
     read('public/theme-bootstrap-v347.js'),
     read('src/lib/ui-theme.ts'),
-    read('src/styles/v346-template-color-visual-closeout.css'),
+    read('src/styles/v485-visible-ui-corrections.css'),
     read('public/home-final-closeout-v286.js')
   ]);
 
-  assert.match(bootstrap,/dark='#0D0D0D',light='#f4f7fb'/);
-  assert.match(theme,/THEME_COLORS:Record<ResolvedUiTheme,string>=\{light:'#f4f7fb',dark:'#0D0D0D'\}/);
+  assert.match(bootstrap,/dark='#0a1826',light='#f3f7fc'/);
+  assert.match(theme,/THEME_COLORS:Record<ResolvedUiTheme,string>=\{light:'#f3f7fc',dark:'#0a1826'\}/);
   assert.doesNotMatch(theme,/#080808|#061820|#f2f7f8/);
-  assert.match(palette,/--ft-canvas:#f4f7fb!important/);
-  assert.match(palette,/--ft-canvas:#0D0D0D!important/);
-  assert.match(guard,/background=dark\?'#0D0D0D':'#f4f7fb'/);
+  assert.match(palette,/--lx485-canvas:#f3f7fc/);
+  assert.match(palette,/--lx485-canvas:#0a1826/);
+  assert.match(guard,/background=dark\?'#0a1826':'#f3f7fc'/);
   assert.doesNotMatch(guard,/function ensureStylesheet\(|appendChild\(link\)/i);
   assert.match(guard,/function retireLegacyVisualLayers\(\)/);
 });

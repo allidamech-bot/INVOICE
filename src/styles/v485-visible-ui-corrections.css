@@ -21,11 +21,11 @@
   --lx485-text:#f7faff;
   --lx485-text-2:#cbd8e8;
   --lx485-muted:#9aadc4;
-  --lx485-faint:#758ba5;
+  --lx485-faint:#9aadc4;
   --lx485-line:rgba(140,179,228,.21);
   --lx485-line-strong:rgba(145,190,247,.34);
   --lx485-blue:#72a4ff;
-  --lx485-blue-strong:#3975e8;
+  --lx485-blue-strong:#315fad;
   --lx485-shadow:0 16px 42px rgba(0,6,14,.24),inset 0 1px 0 rgba(255,255,255,.04);
 
   /* Stable semantic names for incremental consolidation. Theme values stay in
@@ -36,6 +36,9 @@
   --lx-ui-elevated:var(--lx485-surface-3);
   --lx-ui-interactive:var(--lx485-blue);
   --lx-ui-primary:var(--lx-ui-interactive);
+  --lx-ui-action:var(--lx485-blue-strong);
+  --lx-ui-action-hover:#244d91;
+  --lx-ui-on-action:#fff;
   --lx-ui-info:var(--ft-info);
   --lx-ui-overlay:var(--lx485-surface);
   --lx-ui-success:var(--ft-success);
@@ -89,6 +92,7 @@
   --lx481-primary:var(--lx485-blue)!important;
   --lx481-primary-strong:var(--lx485-blue-strong)!important;
 
+  --ft-canvas:var(--lx485-canvas)!important;
   --ft-workspace:var(--lx485-canvas)!important;
   --ft-surface:var(--lx485-surface)!important;
   --ft-surface-2:var(--lx485-surface-2)!important;
@@ -132,8 +136,8 @@ html[data-ui-theme="light"]{
   --lx485-elevated:#ffffff;
   --lx485-text:#10243d;
   --lx485-text-2:#405873;
-  --lx485-muted:#6c819b;
-  --lx485-faint:#8da0b7;
+  --lx485-muted:#526780;
+  --lx485-faint:#5a6c83;
   --lx485-line:rgba(58,91,137,.13);
   --lx485-line-strong:rgba(54,104,173,.24);
   --lx485-blue:#4678ce;
@@ -251,9 +255,9 @@ html body #root .app-ui .ta-settings-card>header :is(h4,p){color:var(--lx485-tex
 html body #root .app-ui .lx-notification-summary{display:flex!important;align-items:center!important;gap:12px!important;padding:14px!important;}
 html body #root .app-ui .lx-notification-summary-copy{display:grid!important;gap:4px!important;min-width:0!important;}
 html body #root .app-ui .lx-notification-summary-copy :is(small,strong,span){margin:0!important;line-height:1.5!important;}
-html body #root .app-ui .lx-notification-summary-copy span{font-size:12px!important;}
+html body #root .app-ui .lx-notification-summary-copy span{font-size:var(--lx-ui-type-caption)!important;}
 html body #root .app-ui .lx-notification-summary-actions{flex:0 0 auto!important;}
-html body #root .app-ui .ta-kpi-copy>small{font-size:12px!important;}
+html body #root .app-ui .ta-kpi-copy>small{font-size:var(--lx-ui-type-caption)!important;}
 html body #root .app-ui .ta-kpi-copy em{font-size:11px!important;line-height:1.6!important;}
 html body #root .app-ui .ta-kpi-empty{font-size:28px!important;line-height:1.2!important;}
 html body #root .app-ui .lourex-advisor-starters button{white-space:normal!important;line-height:1.55!important;font-size:12px!important;min-height:44px!important;}
@@ -399,8 +403,8 @@ html body #root .app-ui .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){
   border-color:var(--lx485-line-strong)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important;
 }
 html body #root .app-ui .btn.btn-primary{
-  background:linear-gradient(135deg,#619dff,#3975e8)!important;background-color:var(--ft-accent,#3975e8)!important;border:1px solid rgba(168,202,255,.48)!important;
-  color:#fff!important;box-shadow:0 8px 20px rgba(47,106,224,.18),inset 0 1px 0 rgba(255,255,255,.20)!important;
+  background:linear-gradient(135deg,var(--lx-ui-action),var(--lx-ui-action-hover))!important;background-color:var(--lx-ui-action)!important;border:1px solid rgba(168,202,255,.48)!important;
+  color:var(--lx-ui-on-action)!important;box-shadow:0 8px 20px rgba(47,106,224,.18),inset 0 1px 0 rgba(255,255,255,.20)!important;
 }
 html body #root .app-ui .btn.btn-danger{background:color-mix(in srgb,#da7088 12%,var(--lx485-surface))!important;border-color:rgba(218,112,136,.35)!important;color:#ed91a4!important;}
 /* Older modal text rules must not mute the label of its primary action. */
@@ -956,10 +960,10 @@ html body #root .app-ui .ta-doc-row-open{grid-template-columns:minmax(0,1fr) aut
 html body #root .app-ui .ta-doc-row-identity{grid-area:identity!important;grid-template-columns:40px minmax(0,1fr)!important;}
 html body #root .app-ui .ta-doc-row-identity strong{font-size:15px!important;line-height:1.5!important;}
 html body #root .app-ui .ta-doc-row-party{grid-area:party!important;padding-inline-start:52px!important;}
-html body #root .app-ui .ta-doc-row-party strong{font-size:14px!important;line-height:1.5!important;}
-html body #root .app-ui .ta-doc-row-party small{font-size:12px!important;line-height:1.5!important;white-space:normal!important;}
-html body #root .app-ui .ta-doc-row-date{grid-area:date!important;font-size:12px!important;line-height:1.5!important;}
-html body #root .app-ui .ta-doc-row-amount{grid-area:amount!important;font-size:14px!important;line-height:1.5!important;}
+html body #root .app-ui .ta-doc-row-party strong{font-size:var(--lx-ui-type-body)!important;line-height:1.5!important;}
+html body #root .app-ui .ta-doc-row-party small{font-size:var(--lx-ui-type-caption)!important;line-height:1.5!important;white-space:normal!important;}
+html body #root .app-ui .ta-doc-row-date{grid-area:date!important;font-size:var(--lx-ui-type-caption)!important;line-height:1.5!important;}
+html body #root .app-ui .ta-doc-row-amount{grid-area:amount!important;font-size:var(--lx-ui-type-body)!important;line-height:1.5!important;}
 html body #root .app-ui .ta-doc-row-status{grid-area:status!important;}
 html body #root .app-ui .ta-doc-actions{align-self:start!important;padding:0!important;}
 }
@@ -1174,7 +1178,7 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
 /* v589 source parity — the build appends the same final document-studio owner
    after Batch 5 flattening. Keep dev/source rendering aligned with dist. */
 @media screen {
-  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:#315fad;}
+  html body #root .app-ui :is(.screen-editor,.editor-screen){--lrx-editor-accent:var(--lx-ui-action,#315fad);}
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-primary{background:var(--lrx-editor-accent)!important;background-image:none!important;border-color:var(--lrx-editor-accent)!important;color:#fff!important;box-shadow:none!important;}
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-secondary,
   html body #root .app-ui :is(.screen-editor,.editor-screen) .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){background:var(--lx485-surface-3,#1d3651)!important;background-image:none!important;border:1px solid var(--lx485-line-strong,rgba(145,190,247,.34))!important;color:var(--lx485-text-2,#cbd8e8)!important;box-shadow:none!important;}

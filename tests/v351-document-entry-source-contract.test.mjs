@@ -8,7 +8,7 @@ test('v351 source document runtime matches the canonical production owner set an
   const runtime=await read('public/document-entry-v302.js');
   for(const retired of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])assert.doesNotMatch(runtime,new RegExp(retired.replaceAll('.','\\.')));
   assert.doesNotMatch(runtime,/#0c111d|#f9fafb/);
-  assert.match(runtime,/const bootBackground=dark\?'#0D0D0D':'#f4f7fb';/);
+  assert.match(runtime,/const bootBackground=dark\?'#0a1826':'#f3f7fc';/);
   assert.match(runtime,/ensureStylesheet\(draftScrollRecoveryStyleMarker,'\.\/styles\/v331-draft-scroll-recovery\.css\?v=365-1'\)/);
   assert.match(runtime,/ensureStylesheet\(criticalDocumentsStyleMarker,'\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1'\)/);
   const promoteTail=runtime.indexOf('promoteTailAdminOwners();');

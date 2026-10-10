@@ -8,7 +8,7 @@ test('final editor controls use active semantic theme accents and accessible con
  const css=await read('src/styles/v485-visible-ui-corrections.css');
  assert.ok(css.includes('v584 live document regression closeout'));
  assert.ok(css.includes('--lrx-editor-accent:var(--ft-accent'),'editor retains an active theme accent source');
- assert.ok(css.includes('--lrx-editor-accent:#315fad'),'approved final editor palette must not be replaced by a different blue');
+ assert.ok(css.includes('--lrx-editor-accent:var(--lx-ui-action,#315fad)'),'approved final editor palette must not be replaced by a different blue');
  assert.ok(css.includes('.advanced-master-toggle'),'advanced settings toggle must remain accessible');
  assert.ok(css.includes('min-height:44px!important'),'mobile editor touch floor');
  assert.ok(css.includes('background:var(--lrx-editor-accent)!important'),'primary action follows semantic accent');

@@ -44,13 +44,13 @@ test('v351 PWA launch palette matches the canonical application canvas',async()=
     read('public/manifest.webmanifest'),
     read('public/theme-bootstrap-v347.js'),
     read('src/lib/ui-theme.ts'),
-    read('src/styles/v346-template-color-visual-closeout.css')
+    read('src/styles/v485-visible-ui-corrections.css')
   ]);
   const manifest=JSON.parse(manifestText);
-  assert.equal(manifest.background_color,'#0D0D0D');
-  assert.equal(manifest.theme_color,'#0D0D0D');
-  assert.match(bootstrap,/dark='#0D0D0D',light='#f4f7fb'/);
-  assert.match(theme,/light:'#f4f7fb',dark:'#0D0D0D'/);
-  assert.match(palette,/--ft-canvas:#f4f7fb!important/);
-  assert.match(palette,/--ft-canvas:#0D0D0D!important/);
+  assert.equal(manifest.background_color,'#0a1826');
+  assert.equal(manifest.theme_color,'#0a1826');
+  assert.match(bootstrap,/dark='#0a1826',light='#f3f7fc'/);
+  assert.match(theme,/light:'#f3f7fc',dark:'#0a1826'/);
+  assert.match(palette,/--lx485-canvas:#f3f7fc/);
+  assert.match(palette,/--lx485-canvas:#0a1826/);
 });

@@ -326,7 +326,9 @@
       const sourcePages = Array.from(document.querySelectorAll('.print-portal .invoice-page'));
       if (!sourcePages.length) throw new Error('Printable document is not ready.');
       const stage = document.createElement('div');
-      stage.className = 'lourex-ios-pdf-stage'; stage.setAttribute('aria-hidden','true');
+      // Preserve the canonical parent and page order: template CSS uses direct
+      // children plus first/continued-page selectors during preview pagination.
+      stage.className = 'lourex-ios-pdf-stage invoice-pages'; stage.setAttribute('aria-hidden','true');
       stage.style.cssText = 'position:fixed;left:-12000px;top:0;width:210mm;display:block;background:#fff;pointer-events:none;z-index:-1;';
       for (const source of sourcePages) {
         const clone = source.cloneNode(true);

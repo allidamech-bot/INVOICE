@@ -21,8 +21,8 @@ test('one matte black startup presentation replaces retired ledger pulse and rem
  assert.match(boot,/\.loading-screen/);
  assert.match(boot,/background:var\(--boot-bg/);
  assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
- assert.match(theme,/dark='#0D0D0D',light='#f4f7fb'/);
- assert.equal(JSON.parse(manifest).background_color,'#0D0D0D');
+ assert.match(theme,/dark='#0a1826',light='#f3f7fc'/);
+ assert.equal(JSON.parse(manifest).background_color,'#0a1826');
 });
 test('v250 changes the generated service worker so installed clients refresh the launch assets',async()=>{
   const script=await read('scripts/desktop-runtime-v249.mjs');
