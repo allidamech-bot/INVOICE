@@ -20,12 +20,12 @@ function fakeFirebase(){
       commit:async()=>{for(const [path,data] of pending)docs.set(path,structuredClone(data));}
     };},
     runTransaction:async fn=>{
-      let update;
+      const updates=[];
       const value=await fn({
         get:ref=>ref.get(),
-        set:(ref,data)=>{update=[ref.path,data];}
+        set:(ref,data)=>{updates.push([ref.path,data]);}
       });
-      if(update)docs.set(update[0],structuredClone(update[1]));
+      for(const [path,data] of updates)docs.set(path,structuredClone(data));
       return value;
     }
   });
@@ -111,4 +111,21 @@ test('cross-UID access fails closed before Firestore fetch',async()=>{
   const firebase=fakeFirebase();
   const a=await client(firebase,'user-2');
   await assert.rejects(a.api.getPlainCloudMeta('user-1'),/account.*changed/i);
+});
+
+test('prior authoritative cloud revision is archived atomically alongside replacement',async()=>{
+  const firebase=fakeFirebase();
+  const a=await client(firebase,'user-1');
+  a.state.local=local(payload());
+  assert.equal(await a.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  const previous=a.state.local.baseCloudRevision;
+  a.state.local={...a.state.local,localRevision:webcrypto.randomUUID(),
+    payload:{...a.state.local.payload,customers:[{id:'customer-2'}]}};
+  assert.equal(await a.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  const current=a.state.local.baseCloudRevision;
+  assert.notEqual(current,previous);
+  const history=[...firebase.docs.entries()].filter(([key])=>key.endsWith('/workspaceHistory/'+previous));
+  assert.equal(history.length,1,'the replaced manifest must have an archived recovery point');
+  assert.equal(history[0][1].revision,previous);
+  assert.equal(history[0][1].sha256.length,64);
 });
