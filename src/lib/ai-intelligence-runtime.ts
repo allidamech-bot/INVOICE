@@ -7,6 +7,8 @@ import { prepareAssistantContext } from './ai-assistant-foundation.js';
 import { scopeVault } from './workspaces.js';
 import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-tool-client.js';
 import type { VaultPayload } from '../types.js';
+import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
+import { reviewAiDocumentProposal } from './ai-document-review.js';
 
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
 type Host=any;
@@ -42,6 +44,43 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   host.__foundationReceipts=thread?.foundationReceipts||[];
   host.__foundationVault=vault;
   if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;host.setState({proposal,review:null});await flush(host);}
+}
+/** Refresh when opening/switching workspace, not only when sending a model request. */
+export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
+  await host.__lourexLoadPromise;
+  const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
+  const scope=scopeFor(host,resumed.vault),expected=scope.scope==='personal'?'personal':scope.scope==='temporary'?'temporary':scope.workspaceId+'|'+scope.branchId;
+  if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
+  await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
+  const proposal=host.state.proposal;
+  if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')stageKernelArtifact(host.__intelligenceKernel,proposal);
+  await flush(host);
+}
+export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
+  if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;
+  host.__workspaceCommandBusy=true;
+  try{
+    const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
+    const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+    if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Company, branch, account or conversation changed. Reopen the workspace.');
+    // Reject stale reviewed business state before changing an existing proposal.
+    if(command.kind!=='focus'&&kernel.artifact?.proposal&&(kernel.artifact.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact.proposal);
+    const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,command);
+    let review;
+    if(command.kind!=='focus'&&next.artifact){
+      const p=next.artifact.proposal as any;delete p.foundationApproval;stampProposal(host,p,resumed.vault);
+      review=reviewAiDocumentProposal(p,workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:''),host.props.language==='ar'?'ar':'en');
+    }
+    host.__intelligenceKernel=next;host.__foundationVault=resumed.vault;
+    if(command.kind!=='focus'&&next.artifact)host.setState({proposal:next.artifact.proposal,review,error:''});
+    await flush(host);await persistKernel(host);
+  }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
+  finally{host.__workspaceCommandBusy=false;await flush(host);}
+}
+export async function dismissIntelligenceWorkspace(host:Host):Promise<void>{
+  if(host.__workspaceCommandBusy||host.applying||host.state.busy)return;
+  if(host.__intelligenceKernel)host.__intelligenceKernel.artifact=undefined;
+  host.setState({proposal:null,review:null,__workspaceSavedId:'',__workspaceEditing:false});await flush(host);await persistKernel(host);
 }
 export function intelligenceContext(host:Host,context:any):any{
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
@@ -86,7 +125,7 @@ function stampProposal(host:Host,proposal:any,vault:VaultPayload):void{
   proposal.foundationApproval=prepareFoundationApproval(vault,proposal,kernel.scope);
 }
 export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{
-  if(host.__foundationApprovalBusy||!proposal)return;host.__foundationApprovalBusy=true;
+  if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;host.__foundationApprovalBusy=true;
   let receipt:any;
   try{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX before approval.');
