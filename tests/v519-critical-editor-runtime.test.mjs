@@ -2,34 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-test('active quotation autosave stays lightweight in the emitted v350 runtime',async()=>{
+test('active quotation autosave writes to the PIN-free local CAS queue, never to an encrypted checkpoint',async()=>{
   const [source,runtime]=await Promise.all([
     readFile('scripts/v350-rendering-storage-hardening.mjs','utf8'),
     readFile('dist/src/app/index.js','utf8')
   ]);
-  assert.ok(source.includes('saveDocumentAutosaveCheckpoint(key,checkpointDocument,checkpointEvents'),'v350 source owner must keep the encrypted per-document checkpoint');
-  assert.ok(runtime.includes('saveDocumentAutosaveCheckpoint(key,checkpointDocument,checkpointEvents'),'production runtime must keep the encrypted per-document checkpoint');
-  assert.ok(!runtime.includes('checkpointFlushTimer'),'production runtime must not own a periodic full-vault timer while editing');
-  assert.ok(!runtime.includes('scheduleDocumentCheckpointFlush'),'production runtime must not schedule periodic full-vault encryption while editing');
-  assert.ok(!runtime.includes('window.setTimeout(()=>void flushDocumentCheckpoint().catch(()=>undefined),30000)'),'removed 30-second full-vault cycle must not survive in production');
-  assert.ok(runtime.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'),'normal editor close must flush the checkpoint into the authoritative Vault');
-  assert.ok(runtime.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'),'cloud publication must remain deferred while a checkpoint is pending');
-  assert.ok(runtime.includes('recoverDocumentAutosaveCheckpoint(key,vault)'),'crash/process recovery must keep the encrypted checkpoint recovery path');
+  assert.match(source,/LOUREX_PINLESS_WORKSPACE_V2/);
+  assert.match(runtime,/const __lourexPinlessAutosaveV2=true/);
+  assert.match(runtime,/instance\.saveDocument=/);
+  assert.doesNotMatch(runtime,/saveDocumentAutosaveCheckpoint\(key|recoverDocumentAutosaveCheckpoint\(key|instance\.unlock\.bind\(/);
+  assert.ok(!runtime.includes('checkpointFlushTimer'),'no legacy full-vault periodic timer while editing');
 });
 
-test('document saves are single-flight across autosave, pagehide and explicit save re-entry',async()=>{
-  const [source,runtime]=await Promise.all([
-    readFile('scripts/v350-rendering-storage-hardening.mjs','utf8'),
-    readFile('dist/src/app/index.js','utf8')
-  ]);
-  for(const code of [source,runtime]){
-    assert.ok(code.includes("let documentSaveTail=null"),'document save tail must exist');
-    assert.ok(code.includes("const saveKey=String(doc.id||'')+'|'+String(doc.updatedAt||'')"),'document revision identity must be stable');
-    assert.ok(code.includes('if(documentSaveTail&&documentSaveKey===saveKey)'),'same-revision re-entry must reuse the active save');
-    assert.ok(code.includes("if(autoDraft||documentSaveMode==='manual')return documentSaveTail"),'duplicate autosave/pagehide must collapse while manual semantics stay explicit');
-    assert.ok(code.includes('if(previous)await previous.catch(()=>undefined)'),'newer document revisions must serialize behind the active write');
-    assert.ok(code.includes("documentSaveMode=autoDraft?'auto':'manual'"),'runtime must distinguish automatic and explicit save semantics');
-  }
+test('all automatic, explicit and pagehide document save calls share one serialized promise chain',async()=>{
+  const runtime=await readFile('dist/src/app/index.js','utf8');
+  const owner=runtime.slice(runtime.indexOf('const __lourexPinlessAutosaveV2=true'),runtime.indexOf('const App = AdaptiveCloudApp;'));
+  assert.match(owner,/const originalDocumentSave=instance\.saveDocument/);
+  assert.match(owner,/let pendingDocumentSave=Promise\.resolve\(\)/);
+  assert.match(owner,/instance\.saveDocument=\(doc,auto=false\)=>/);
+  assert.match(owner,/pendingDocumentSave\.catch\(\(\)=>undefined\)/);
+  assert.match(owner,/\.then\(\(\)=>originalDocumentSave\(doc,auto\)\)/);
+  assert.match(owner,/pendingDocumentSave=save\.catch\(\(\)=>undefined\)/);
+  assert.doesNotMatch(owner,/saveVault\(|unlockVault\(|saveDocumentAutosaveCheckpoint/);
 });
 
 test('mobile keyboard activity keeps the established stability owner',async()=>{
