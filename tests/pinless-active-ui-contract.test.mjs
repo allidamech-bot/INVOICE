@@ -50,3 +50,20 @@ test('security documentation tells the truth about PIN-free Firebase data and op
   assert.match(guide,/Firebase Authentication/);
   assert.doesNotMatch(guide,/PIN changes re-encrypt|Firestore stores only the encrypted vault payload/);
 });
+
+test('retired device-PIN React screens are not compiled or precached into the live PWA',async()=>{
+  const [tsconfig,serviceWorker,app,entry,precache]=await Promise.all([
+    read('tsconfig.json'),read('public/sw.js'),
+    read('src/app/App.tsx'),read('src/app/index.tsx'),
+    read('scripts/pwa-auto-precache.mjs')
+  ]);
+  const excluded=JSON.parse(tsconfig).exclude||[];
+  assert.ok(excluded.includes('src/app/AuthScreenSelector.tsx'));
+  assert.ok(excluded.includes('src/components/AuthScreens.tsx'));
+  assert.doesNotMatch(serviceWorker,/\.\/src\/(?:app\/AuthScreenSelector|components\/AuthScreens)\.js/);
+  assert.doesNotMatch(app,/import\s+.*(?:AuthScreenSelector|AuthScreens)/);
+  assert.doesNotMatch(entry,/import\s+.*(?:AuthScreenSelector|AuthScreens)/);
+  // Automatic cache population must follow actual compiled modules; excluded
+  // screen modules must not be restored by a second precache owner.
+  assert.match(precache,/readdir\('dist\/src',\{recursive:true\}\)/);
+});
