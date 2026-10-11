@@ -21,6 +21,7 @@ test('failed scoped conversation hydration exposes retry instead of an endless l
   const source=await read('src/components/AiConversationWorkspace.tsx');
   assert.match(source,/if\(classes\.includes\('lourex-ai-messages'\)\)return react\.cloneElement\(child,undefined,host\.state\.__workspaceLoadError/);
   assert.match(source,/<div role="alert" className="lxw-load-error">/);
+  assert.match(source,/workspaceError\(host\.props\.language==='ar',String\(host\.state\.__workspaceLoadError\)\)/);
   assert.match(source,/host\.setState\(\{__workspaceLoadError:''\},\(\)=>void host\.__workspaceRefresh\?\.\(\)\)/);
   assert.match(source,/role="status"[^\n]*Loading scoped conversation/);
   assert.match(source,/if\(classes\.includes\('lourex-ai-proposal'\)\)return null/);
@@ -126,4 +127,13 @@ test('active AI endpoints instruct Firebase account retry rather than the retire
   const presentation=await read('src/lib/ai-workspace-presentation.ts');
   assert.match(presentation,/Account workspace is not ready\. Sign in and retry\./);
   assert.match(presentation,/مساحة عمل الحساب غير جاهزة/);
+});
+
+
+test('Arabic loading and scope errors show actionable explanations',async()=>{
+  const dictionary=await read('src/lib/ai-workspace-presentation.ts');
+  assert.match(dictionary,/Conversation loading timed out\. Retry loading\./);
+  assert.match(dictionary,/Conversation scope did not load\. Retry loading\./);
+  assert.match(dictionary,/Account, conversation or workspace changed during loading\./);
+  assert.match(dictionary,/تغيّر الحساب أو المحادثة أو مساحة العمل/);
 });
