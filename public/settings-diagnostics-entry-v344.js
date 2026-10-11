@@ -97,7 +97,7 @@
     setText(description,ar?'تم نقل أدوات التشخيص إلى مركز البيانات بدل إضافة قسم جانبي مستقل.':'Diagnostics now live inside Data Center instead of creating another Settings section.');
     setText(eventsLabel,ar?'أحداث التشغيل':'Runtime events');
     setText(eventsValue,String(events));
-    setText(vaultLabel,ar?'الخزنة النشطة':'Active vault');
+    setText(vaultLabel,ar?'التخزين المشفر القديم':'Legacy encrypted cache');
     setText(vaultValue,vault?formatBytes(vault.encryptedBytes):'—');
     setText(scope,ar?'يشمل دورة حياة الصفحة، أخطاء JavaScript وPromise، Auth/Firebase، التنقل والحفظ، Vault/Crypto، IndexedDB، التخزين، السحابة وService Worker. لا يسجل محتوى الأعمال أو كلمات المرور أو رموز تسجيل الدخول.':'Includes page lifecycle, JavaScript/Promise errors, Auth/Firebase, navigation/save state, Vault/Crypto, IndexedDB, storage, cloud and Service Worker. No business content, passwords or account tokens are recorded.');
     setText(action,ar?'فتح التشخيص الشامل':'Open full diagnostics');
