@@ -19,12 +19,15 @@ test('refresh validates the hydrated conversation thread, not the initial empty 
 
 test('failed scoped conversation hydration exposes retry instead of an endless loading placeholder',async()=>{
   const source=await read('src/components/AiConversationWorkspace.tsx');
-  assert.match(source,/if\(classes\.includes\('lourex-ai-messages'\)\)return react\.cloneElement\(child,undefined,host\.state\.error/);
+  assert.match(source,/if\(classes\.includes\('lourex-ai-messages'\)\)return react\.cloneElement\(child,undefined,host\.state\.__workspaceLoadError/);
   assert.match(source,/<div role="alert" className="lxw-load-error">/);
-  assert.match(source,/host\.setState\(\{error:''\},\(\)=>void host\.__workspaceRefresh\?\.\(\)\)/);
+  assert.match(source,/host\.setState\(\{__workspaceLoadError:''\},\(\)=>void host\.__workspaceRefresh\?\.\(\)\)/);
   assert.match(source,/role="status"[^\n]*Loading scoped conversation/);
   assert.match(source,/if\(classes\.includes\('lourex-ai-proposal'\)\)return null/);
   assert.match(source,/catch\(error\)\{host\.__workspaceObservedProps=undefined;host\.__foundationVault=undefined/);
+  assert.match(source,/host\.setState\(\{__workspaceLoadError:''\}\);\}catch\(error\)/);
+  assert.match(source,/setState\(\{__workspaceLoadError:error instanceof Error/);
+  assert.doesNotMatch(source,/host\.state\.error\s*\?\s*<div role="alert" className="lxw-load-error"/);
   assert.ok(source.includes("'data-workspace-ready':'false'"));
 });
 
