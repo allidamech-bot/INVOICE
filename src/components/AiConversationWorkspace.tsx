@@ -115,7 +115,9 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       const safe=personalReady?children:children.map((child:any)=>{
         const classes=String(child?.props?.className||'').split(' ');
         if(classes.includes('lourex-ai-proposal'))return null;
-        if(classes.includes('lourex-ai-messages'))return react.cloneElement(child,undefined,<p role="status">{label(host.props.language==='ar','Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
+        if(classes.includes('lourex-ai-messages'))return react.cloneElement(child,undefined,host.state.error
+          ?<div role="alert" className="lxw-load-error"><p>{label(host.props.language==='ar','Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><button type="button" onClick={()=>host.setState({error:''},()=>void host.__workspaceRefresh?.())}>{label(host.props.language==='ar','Retry loading','إعادة المحاولة')}</button></div>
+          :<p role="status">{label(host.props.language==='ar','Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
         return child;
       });
       return react.cloneElement(node,{'data-lourex-workspace':'2','data-workspace-ready':'false'},...safe);
