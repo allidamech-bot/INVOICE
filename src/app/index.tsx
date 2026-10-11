@@ -5,10 +5,10 @@ import { subscribePlainCloudChanges } from '../cloud/plain-workspace.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { adaptiveCloudSettleMs } from '../cloud/coalescing.js';
 import { t } from '../lib/i18n.js';
-import { activateAccountStorage, activeAccountStorageUid } from '../storage/db.js';
+import { activateAccountStorage, activeAccountStorageUid, getPlainWorkspace, getAccountAssistantCacheKey } from '../storage/db.js';
 import { getActiveAccountUid, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
-import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js';
+import { registerVaultMutationBridge, registerWorkspaceSessionReader } from '../storage/vault-mutation-bridge.js';
 import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
 import { applyWorkspaceScope, mergeScopedVault, scopeVaultForExternalMutation } from '../lib/workspaces.js';
 import { mergeVaultIntent } from '../storage/vault-merge.js';
@@ -75,6 +75,15 @@ class AdaptiveCloudApp extends BaseApp {
 
     // Every AI mutation enters the same validated, UID-scoped, CAS-protected
     // save queue as an ordinary user edit. No encryption key or PIN is used.
+    registerWorkspaceSessionReader(async()=>{
+      const uid=currentCloudUser()?.uid;
+      if(!uid||!instance.state.unlocked||instance.state.cloudUser?.uid!==uid||activeAccountStorageUid()!==uid)return null;
+      const local=await getPlainWorkspace();
+      if(!local||local.uid!==uid)return null;
+      const key=await getAccountAssistantCacheKey(uid);
+      if(currentCloudUser()?.uid!==uid||activeAccountStorageUid()!==uid||instance.state.cloudUser?.uid!==uid)return null;
+      return{key,vault:structuredClone(local.payload)};
+    });
     registerVaultMutationBridge(async mutation=>{
       await instance.persistFullMutation((full:any)=>{
         const latest=scopeVaultForExternalMutation(full);

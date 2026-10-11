@@ -29,7 +29,7 @@ test('B04: extracted attachments enter bounded, non-mutating planning context',(
   assert.equal(facts[0].fileName,'sample.xlsx');
   assert.equal(facts[0].extracted.length,2800);
   assert.equal(facts[0].truncated,true);
-  assert.equal(aiPlannerSourceFacts(Array.from({length:12},(_,i)=>({...source(),fileName:`sheet-${i}.xlsx`}))).length,4);
+  assert.equal(aiPlannerSourceFacts(Array.from({length:12},(_,i)=>({...source(),fileName:`sheet-${i}.xlsx`}))).length,10);
   assert.deepEqual(aiPlannerSourceFacts(null),[]);
 });
 

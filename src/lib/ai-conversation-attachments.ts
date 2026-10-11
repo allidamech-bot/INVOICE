@@ -22,7 +22,7 @@ export type ConversationAttachmentProgress=(phase:ConversationAttachmentPhase)=>
 type AiPayload={kind:'text'|'file';mimeType:string;text?:string;data?:string};
 
 export const CONVERSATION_ATTACHMENT_ACCEPT='image/*,.pdf,.xlsx,.xls,.csv,.txt,text/plain,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
-export const MAX_CONVERSATION_ATTACHMENTS=4;
+export const MAX_CONVERSATION_ATTACHMENTS=10;
 export const MAX_CONVERSATION_ATTACHMENT_TOTAL_BYTES=16_000_000;
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_DOCUMENT_BYTES=12_000_000;

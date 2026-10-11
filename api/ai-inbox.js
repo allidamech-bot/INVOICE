@@ -33,7 +33,7 @@ function cleanToolPlan(value,scope){if(!value||typeof value!=='object'||value.ve
 
 function cleanToolPlannerSources(raw){
   if(!Array.isArray(raw))return[];
-  return raw.slice(0,4).filter(row=>row&&typeof row==='object').map(row=>{
+  return raw.slice(0,10).filter(row=>row&&typeof row==='object').map(row=>{
     const confidence=Number(row.confidence);
     return{fileName:cleanText(row.fileName,180),documentType:cleanText(row.documentType,80),
       route:cleanText(row.route,40),confidence:Number.isFinite(confidence)?Math.max(0,Math.min(1,confidence)):0,

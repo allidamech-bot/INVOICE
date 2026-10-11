@@ -6,6 +6,7 @@ import { createRecoveryCode, createSecurity, createSecurityForChangedPin, create
 import { createSafetySnapshot, getEncryptedVault, getSecurity, putRecord, putSecurityAndVault } from './db.js';
 import { DEFAULT_APPROVAL_POLICIES, defaultOwnerMember, normalizeApprovalPolicies } from '../lib/governance.js';
 import { clearSession, getSessionKey, isSessionExpired, touchSession } from './session.js';
+import { readWorkspaceSession } from './vault-mutation-bridge.js';
 
 const TEMPLATE_IDS = new Set(['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon']);
 const LATIN_FONTS = new Set(['auto','inter','source-sans','montserrat','playfair']);
@@ -369,6 +370,8 @@ export async function unlockVault(pin: string): Promise<{ key: CryptoKey; vault:
 }
 
 export async function resumeVaultSession(): Promise<{ key: CryptoKey; vault: VaultPayload } | null> {
+  const accountSession=readWorkspaceSession();
+  if(accountSession!==undefined)return accountSession;
   const session = await getSessionKey();
   if (!session) return null;
   const encrypted = await getEncryptedVault();

@@ -12,12 +12,12 @@ test('locked notifications cannot claim a healthy empty result and retry recover
  const code=ts.transpileModule(readFileSync('src/components/NotificationCenterLive.tsx','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
  const exports={};runInNewContext(code,{exports,React,require:()=>imports});
  const page=new exports.NotificationCenterLive({onCount:()=>{},renderHomeSummary:true});
- await page.refresh(true);assert.equal(page.state.snapshot,null);assert.match(page.state.error,/Unlock the encrypted vault/);assert.equal(page.state.loading,false);
+ await page.refresh(true);assert.equal(page.state.snapshot,null);assert.match(page.state.error,/account workspace is not ready/);assert.equal(page.state.loading,false);
  const visit=node=>node&&typeof node==='object'?[node,...(node.children||[]).flat(Infinity).flatMap(visit)]:[];
  const summaryText=()=>visit(page.summary()).flatMap(node=>node.children).filter(child=>typeof child==='string').join(' ');
  assert.match(summaryText(),/Notifications unavailable/);assert.doesNotMatch(summaryText(),/No active follow-ups/);
  for(const tab of visit(page.render()).filter(node=>node.props.role==='tab')){
-  tab.props.onClick();assert.match(page.state.error,/Unlock the encrypted vault/);assert.equal(page.state.snapshot,null);
+  tab.props.onClick();assert.match(page.state.error,/account workspace is not ready/);assert.equal(page.state.snapshot,null);
  }
  session={vault:{documents:[]}};const before=JSON.stringify(session);
  await page.refresh(true);assert.equal(page.state.error,'');assert.equal(page.state.snapshot,snapshot);assert.equal(JSON.stringify(session),before);

@@ -75,3 +75,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-approval .loure
 
 /* Scoped precompiled reliability panels; preserve existing non-AI owners. */
 .lxw-reliability{display:grid;gap:14px}.lxw-reliability article{display:grid;gap:6px;padding:12px;border:1px solid var(--lxw-line);border-radius:10px;overflow-wrap:anywhere}.lxw-reliability button,.lxw-reliability input,.lxw-reliability select{min-height:44px}.lxw-reliability small{display:block;opacity:.78}.lxw-reliability input,.lxw-reliability select{max-width:100%;color:inherit;background:var(--lxw-surface);border:1px solid var(--lxw-line);border-radius:8px;padding:8px}.lxw-reliability .lxw-commercial-form label{display:grid;gap:6px}
+
+/* Keep the established visual owner; fix undersized conversation controls. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-scope-trigger,.lourex-ai-message-actions button,.lxw-approval button){min-height:44px!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-actions button{min-width:44px!important;}

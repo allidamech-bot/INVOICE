@@ -59,7 +59,7 @@ const PLANNER_SOURCE_CHARS=2800;
 export interface AiPlannerSourceFact{fileName:string;documentType:string;route:string;confidence:number;extracted:string;truncated:boolean;}
 export function aiPlannerSourceFacts(sources:unknown):AiPlannerSourceFact[]{
   if(!Array.isArray(sources))return [];
-  return sources.slice(0,4).filter(row=>row&&typeof row==='object').map(row=>{
+  return sources.slice(0,10).filter(row=>row&&typeof row==='object').map(row=>{
     const item=row as Record<string,unknown>;
     const extracted=String(item.extracted??'');
     const confidence=Number(item.confidence);
