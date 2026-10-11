@@ -38,3 +38,16 @@ test('User-triggered backup remains optional and PIN-free',async()=>{
   assert.match(settings,/onBackup:\(\)=>Promise<void>/);
   assert.match(app,/await exportPlainBackup\(local.payload\)/);
 });
+
+test('simultaneous first login from two devices hydrates the winning cloud snapshot instead of demanding a PIN or reload',async()=>{
+  const app=await read('src/app/App.tsx');
+  const from=app.indexOf('const outcome=await uploadPlainCloudWorkspace(user.uid,proposal)');
+  const to=app.indexOf("syncState='synced';",from);
+  assert.ok(from>=0&&to>from,'bootstrap publish and winner reconciliation are required');
+  const block=app.slice(from,to);
+  assert.match(block,/if\(outcome==='remote-changed'\)/);
+  assert.match(block,/await reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(block,/winner!=='pulled'&&winner!=='same'/);
+  assert.match(block,/replacePlainWorkspaceIfUnchanged\(user\.uid,null/);
+  assert.doesNotMatch(block,/unlockVault\(|setupVault\(|window\.location\.reload/);
+});
