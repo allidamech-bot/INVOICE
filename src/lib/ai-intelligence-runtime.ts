@@ -43,8 +43,13 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   if(!host.__lourexAssistantThreadId)host.__lourexAssistantThreadId='ai-thread-'+crypto.randomUUID();
   const scope=scopeFor(host,vault);
   if(host.__intelligenceKernel&&kernelScopeKey(host.__intelligenceKernel.scope)===kernelScopeKey(scope))return;
+  const generation=host.__workspaceLoadGeneration;
   const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
   const store=scope.scope==='temporary'?null:await loadAssistantState(resumed.key);
+  // Superseded loads may finish after the user retries, changes thread or
+  // switches account. Never let an old cache read install its scoped kernel.
+  if(generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))
+    throw new Error('Conversation changed while loading. Retry loading.');
   const thread=store?.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
   host.__intelligenceKernel=normalizeConversationKernel(thread?.kernel,scope);
   host.__foundationReceipts=thread?.foundationReceipts||[];
@@ -55,14 +60,24 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
 /** Refresh when opening/switching workspace, not only when sending a model request. */
 export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   await host.__lourexLoadPromise;
+  const generation=host.__workspaceLoadGeneration;
   const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
   const requestedScope=scopeFor(host,resumed.vault),expected=requestedScope.scope==='personal'?'personal':requestedScope.scope==='temporary'?'temporary':requestedScope.workspaceId+'|'+requestedScope.branchId;
-  if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(requestedScope.scope);
+  if(host.__lourexAssistantWorkspaceKey!==expected){
+    // Use the saved scope loader directly; the public UI wrapper also calls
+    // refresh(), and invoking it from refresh would recurse on a failed load.
+    const setScope=host.__workspaceBaseSetScope||host.__lourexSetScope;
+    if(!setScope)throw new Error('Conversation scope loader is unavailable.');
+    await setScope(requestedScope.scope);
+    if(host.__lourexAssistantWorkspaceKey!==expected)throw new Error('Conversation scope did not load. Retry loading.');
+  }
+  if(generation!==host.__workspaceLoadGeneration)throw new Error('Conversation changed while loading. Retry loading.');
   strictAiActor(resumed.vault);await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
   // hydrateKernel creates the first thread ID when none has been saved. Read the
   // scope AFTER hydration, otherwise the fresh-session check compares the old
   // empty thread ID with the newly generated ID and the UI never becomes ready.
   const scope=scopeFor(host,resumed.vault);
+  if(generation!==host.__workspaceLoadGeneration)throw new Error('Conversation changed while loading. Retry loading.');
   if(scope.scope==='business'){
     const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
     const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
@@ -74,7 +89,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   // rule as Business after asynchronous hydration. Never expose stale state
   // across a user switch while local cache reads are still pending.
   const live=await resumeVaultSession();
-  if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(scope))
+  if(!live||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(scope))
     throw new Error('Account, conversation or workspace changed during loading.');
   const proposal=host.state.proposal;
   if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft'){
