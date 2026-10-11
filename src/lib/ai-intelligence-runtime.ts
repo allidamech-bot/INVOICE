@@ -195,7 +195,7 @@ export async function assignIntelligenceConversationMode(host:Host,mode:AiConver
 export function intelligenceContext(host:Host,context:any):any{
   const settings=currentAiExperiencePreferences(host);
   if(context&&typeof context==='object'){
-    const latest=(host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
+    const latest=String(host.state.input||'').trim()||(host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
     context.language=resolveAiConversationReplyLanguage(settings.replyLanguage,latest,host.props.language==='ar'?'ar':'en');
     context.aiResponseDetail=settings.detail;
     // Advisor is read/calculation only at the provider boundary as well as at
@@ -272,7 +272,7 @@ function stageReviewedMission(kernel:ConversationKernel,proposal:any):void{
   kernel.missions=[...all,createMission(kernel.scope,proposal,kernel.toolEvidence||[])];
 }
 async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{
-  if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;host.__foundationApprovalBusy=true;
+  if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||!proposal)return;host.__foundationApprovalBusy=true;
   let receipt:any,step:MissionStep|undefined;
   try{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready for approval. Sign in and retry.');
