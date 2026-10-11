@@ -140,8 +140,12 @@ export function installConversationWorkspace(host:Host):void {
     // IndexedDB and account hydration can stall without rejecting a promise.
     // Surface a retryable failure instead of leaving the panel loading forever.
     host.__workspaceLoadTimer=window.setTimeout(()=>{
-      if(host.mounted!==false&&host.__workspaceLoadGeneration===generation)
+      if(host.mounted!==false&&host.__workspaceLoadGeneration===generation){
+        // Invalidate the unresolved attempt, including any late cache read.
+        host.__workspaceLoadGeneration=generation+1;
+        host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;
         host.setState({__workspaceLoadError:label(host.props.language==='ar','Conversation loading timed out. Retry loading.','انتهت مهلة تحميل المحادثة. حاول مجددًا.')});
+      }
     },20_000);
     try{
       const previous=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);
@@ -171,6 +175,7 @@ export function installConversationWorkspace(host:Host):void {
   // the requested thread before redisplaying its encrypted working artifact.
   for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
     const old=host[name]?.bind(host);if(!old)continue;
+    if(name==='__lourexSetScope')host.__workspaceBaseSetScope=old;
     host[name]=async(...args:any[])=>{if(disabled(host))return;host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
   }
   host.__workspaceRefresh=refresh;
