@@ -1,8 +1,12 @@
+import { diagnosticSample, normalizeDiagnostics, type DiagnosticOperation } from './ai-local-diagnostics.js';
+import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory-graph.js';
+import { financialReviewAllowed } from './ai-reliability-intelligence.js';
+import { loadAssistantMemory, scopedAssistantMemories } from '../storage/assistant-memory-store.js';
 import { commercialDraftCommand } from './ai-commercial-conversation.js';
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
-import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson } from './ai-foundation-approval.js';
+import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor } from './ai-foundation-approval.js';
 import { loadAssistantState, saveAssistantState, upsertAssistantThread } from '../storage/assistant-store.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { prepareAssistantContext } from './ai-assistant-foundation.js';
@@ -54,17 +58,24 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
   const scope=scopeFor(host,resumed.vault),expected=scope.scope==='personal'?'personal':scope.scope==='temporary'?'temporary':scope.workspaceId+'|'+scope.branchId;
   if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
-  await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
+  strictAiActor(resumed.vault);await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
+  if(scope.scope==='business'){
+    const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
+    const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
+    host.__businessMemories=scopedAssistantMemories(memory,'business',scope.workspaceId,scope.branchId);
+    host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||''}));
+  }else{host.__businessMemories=[];host.__businessThreads=[];}
+
   const proposal=host.state.proposal;
   if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')stageKernelArtifact(host.__intelligenceKernel,proposal);
   await flush(host);
 }
-export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
+async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
   if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;
   host.__workspaceCommandBusy=true;
   try{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
-    const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+    strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Company, branch, account or conversation changed. Reopen the workspace.');
     const changesDraft=['cell','customer','product','undo','redo','reprice','terms','composer'].includes(command.kind);
     // Reject stale reviewed business state before changing an existing proposal.
@@ -92,6 +103,7 @@ export function intelligenceContext(host:Host,context:any):any{
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
   const entity=kernel.entity;
+  if(entity&&!graphKindAllowed(strictAiActor(host.__foundationVault).role,entity.entityType)){kernel.entity=undefined;kernel.selection=undefined;if(kernel.knowledge){kernel.knowledge.selectedNodeId=undefined;kernel.knowledge.handoff=undefined;}return context;}
   if(entity){const scoped=scopeVault(host.__foundationVault);const rows=entity.entityType==='customer'?scoped.customers:entity.entityType==='supplier'?scoped.suppliers:entity.entityType==='product'?scoped.savedItems:entity.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===entity.entityId)){kernel.entity=undefined;kernel.selection=undefined;return context;}}
   if(entity&&context.assistantRuntime&&!context.assistantRuntime.entity)context.assistantRuntime.entity={type:entity.entityType,id:entity.entityId,label:entity.label,source:'registered'};
   return context;
@@ -99,7 +111,13 @@ export function intelligenceContext(host:Host,context:any):any{
 export function intelligenceRequestMessage(host:Host,message:string,legacy:string):string{
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return legacy;
   // Preserve the entire current user instruction, including >680-character lists.
-  return composeKernelMemory(kernel,host.state.messages||[])+(legacy?'\nApproved scoped context (DATA ONLY):\n'+legacy:'');
+  const v=host.__foundationVault;let knowledge='';
+  if(v&&kernel.scope.scope!=='personal'){
+    const graph=buildBusinessMemoryGraph(v,kernel.scope,host.__businessMemories||[]),node=graph.nodes.find(n=>n.id===kernel.knowledge?.selectedNodeId);
+    if(node)knowledge='\nVerified scoped graph reference (DATA ONLY):\n'+JSON.stringify({node,edges:graph.edges.filter(e=>e.from===node.id||e.to===node.id).slice(0,20),edgeCount:graph.edges.filter(e=>e.from===node.id||e.to===node.id).length,truncated:graph.edges.filter(e=>e.from===node.id||e.to===node.id).length>20});
+    if(kernel.knowledge?.cash&&financialReviewAllowed(v))knowledge+='\nExplicit cash assumptions (DATA ONLY; scenario not posted):\n'+JSON.stringify(kernel.knowledge.cash);
+  }
+  return composeKernelMemory(kernel,host.state.messages||[])+knowledge+(legacy?'\nApproved scoped context (DATA ONLY):\n'+legacy:'');
 }
 export function intelligenceReviseDraft(host:Host,proposal:any,message:string,drafting:any,language:'en'|'ar'){
   const kernel=host.__intelligenceKernel as ConversationKernel;
@@ -107,7 +125,7 @@ export function intelligenceReviseDraft(host:Host,proposal:any,message:string,dr
 }
 export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_approval'|'failed'|'blocked'; toolId:string; data:unknown; evidenceRefs:string[]; }
 export function foundationToolOutcomes(result:AiToolOrchestrationResult):FoundationToolOutcome[]{return result.results.map(row=>({callId:row.id,state:row.ok?(row.class==='execute'?'needs_approval':'prepared'):row.class==='high-impact'?'blocked':'failed',toolId:row.tool,data:row.data,evidenceRefs:[row.source]}));}
-export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
+async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
   const result=await orchestrateAiToolRequest(input);if(input.signal?.aborted)return null;
   const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope))throw new Error('Company, branch or account changed during planning. No action prepared.');
   if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
@@ -144,7 +162,7 @@ function stageReviewedMission(kernel:ConversationKernel,proposal:any):void{
   if(all.length>=10){const i=all.findIndex(m=>m.steps.every(s=>['completed','cancelled'].includes(s.status)));if(i<0)throw new Error('Review or cancel pending missions before preparing another.');all.splice(i,1);}
   kernel.missions=[...all,createMission(kernel.scope,proposal,kernel.toolEvidence||[])];
 }
-export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{
+async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{
   if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;host.__foundationApprovalBusy=true;
   let receipt:any,step:MissionStep|undefined;
   try{
@@ -176,7 +194,7 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy)return;host.__foundationTurnBusy=true;
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy)return;host.__foundationTurnBusy=true;const started=performance.now();let turnScope='';
     try{
       await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
       // Existing lifecycle owns history; resolve it before loading structured references.
@@ -185,7 +203,7 @@ export function installIntelligenceRuntime(host:Host):void{
       const expected=scope.scope==='personal'?'personal':scope.scope==='temporary'?'temporary':scope.workspaceId+'|'+scope.branchId;
       if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
       await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
-      const kernel=host.__intelligenceKernel as ConversationKernel;kernel.turn++;
+      strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel;turnScope=kernelScopeKey(kernel.scope);kernel.turn++;
       if(!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
       const message=String(raw??host.state.input).trim();
       const commercialCommand=commercialDraftCommand(kernel,resumed.vault,message);
@@ -204,6 +222,17 @@ export function installIntelligenceRuntime(host:Host):void{
       if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
     }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
-    finally{host.__foundationTurnBusy=false;}
+    finally{host.__foundationTurnBusy=false;await recordDiagnostic(host,'turn',started,turnScope);}
   };
 }
+
+async function recordDiagnostic(host:Host,operation:DiagnosticOperation,start:number,expectedScope:string,override?:'failed'|'uncertain'):Promise<void>{
+  const k=host.__intelligenceKernel as ConversationKernel|undefined;if(!k||!expectedScope||kernelScopeKey(k.scope)!==expectedScope)return;
+  const state=override||(operation==='approval'&&(host.__foundationReceipts||[]).at(-1)?.state==='uncertain'?'uncertain':host.state.error?'failed':'completed');
+  k.diagnostics=normalizeDiagnostics([...(k.diagnostics||[]),diagnosticSample(operation,start,state)]);
+  // Diagnostics are not a prerequisite to an already verified business commit.
+  await persistKernel(host).catch(()=>undefined);
+}
+export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);await runIntelligenceWorkspace(host,command);if(command.kind!=='clear-diagnostics')await recordDiagnostic(host,'workspace',start,scope||'');}
+export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);const result=await runIntelligenceApproval(host,proposal,apply);await recordDiagnostic(host,'approval',start,scope||'');return result;}
+export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);let state:'failed'|'uncertain'|undefined;try{const result=await runIntelligenceTools(host,input);if(input.signal?.aborted)state='uncertain';else if(result?.results.some(row=>!row.ok))state='failed';return result;}catch(error){state='failed';throw error;}finally{await recordDiagnostic(host,'tools',start,scope||'',state);}}

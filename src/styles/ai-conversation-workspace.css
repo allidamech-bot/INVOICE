@@ -72,3 +72,6 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-approval .loure
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-commercial :is(input,select,button),#lourex-ai-panel[data-lourex-workspace='2'] [data-workspace-component='WorkflowProgress'] button{min-height:44px;max-width:100%;background:var(--ft-input);color:var(--ft-text);border:1px solid var(--ft-line);border-radius:8px;padding:8px;}
 #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-commercial,[data-workspace-component='WorkflowProgress']){overflow-wrap:anywhere;}
 #lourex-ai-panel[data-lourex-workspace='2'] [data-workspace-component='WorkflowProgress'] section{padding:12px 0;border-bottom:1px solid var(--ft-line);}
+
+/* Scoped precompiled reliability panels; preserve existing non-AI owners. */
+.lxw-reliability{display:grid;gap:14px}.lxw-reliability article{display:grid;gap:6px;padding:12px;border:1px solid var(--lxw-line);border-radius:10px;overflow-wrap:anywhere}.lxw-reliability button,.lxw-reliability input,.lxw-reliability select{min-height:44px}.lxw-reliability small{display:block;opacity:.78}.lxw-reliability input,.lxw-reliability select{max-width:100%;color:inherit;background:var(--lxw-surface);border:1px solid var(--lxw-line);border-radius:8px;padding:8px}.lxw-reliability .lxw-commercial-form label{display:grid;gap:6px}
