@@ -67,11 +67,27 @@ async function decryptState(key:CryptoKey,record:EncryptedAssistantRecord):Promi
   return normalizeAssistantState(JSON.parse(new TextDecoder().decode(plain)));
 }
 export async function loadAssistantState(key:CryptoKey):Promise<AssistantStoreState>{
+  // A stale or unreadable local conversation cache must never lock a signed-in
+  // Firebase workspace. Storage/account binding failures still propagate.
   const record=await getRecord<any>(RECORD_ID as any,key) as EncryptedAssistantRecord|null;
   if(!record)return emptyState();
-  try{return await decryptState(key,record);}catch{throw new Error('LOUREX assistant history could not be decrypted for this account.');}
+  try{return await decryptState(key,record);}catch{return emptyState();}
 }
-export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{await putRecord(await encryptState(key,normalizeAssistantState(state)) as any,key);}
+export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{
+  // Preserve an unreadable AI-only ciphertext before creating fresh local chat
+  // history. The business workspace, its keys, and all account records are untouched.
+  // Never swallow failed database reads, preservation, or encryption operations.
+  const existing=await getRecord<any>(RECORD_ID as any,key) as EncryptedAssistantRecord|null;
+  if(existing){
+    let readable=true;
+    try{await decryptState(key,existing);}catch{readable=false;}
+    if(!readable){
+      const archive={...existing,id:'assistant-state-inaccessible-'+crypto.randomUUID(),archivedAt:now()};
+      await putRecord(archive as any,key);
+    }
+  }
+  await putRecord(await encryptState(key,normalizeAssistantState(state)) as any,key);
+}
 
 function scopeMatches(thread:AssistantThread,scope:Exclude<AssistantScope,'temporary'>,workspaceId:string,branchId:string):boolean{
   return thread.scope===scope&&(scope==='personal'||(thread.workspaceId===workspaceId&&thread.branchId===branchId));
