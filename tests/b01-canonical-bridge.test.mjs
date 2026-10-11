@@ -17,7 +17,12 @@ test('external/AI mutations now validate against the canonical vault invariants 
   assert.match(bridge,/const intended=applyWorkspaceScope\(latest,mutation\(latest\)\)/);
   assert.match(bridge,/const validated=mergeVaultIntent\(latest,intended,latest\)/);
   assert.match(bridge,/appendAuditEventsForVaultDiff\(latest,validated\)/);
-  assert.ok(bridge.indexOf('mergeVaultIntent(')<bridge.indexOf('saveVault('));
+  assert.ok(bridge.indexOf('mergeVaultIntent(')<bridge.indexOf('mergeScopedVault('));
+  assert.match(bridge,/await instance\.persistFullMutation\(/);
+  assert.doesNotMatch(bridge,/saveVault\(|verifyPin\(|unlockVault\(/);
+  const app=await read('src/app/App.tsx');
+  assert.match(app,/private persistFullMutation=async/);
+  assert.match(app,/updatePlainWorkspaceIfUnchanged\(uid,local\.localRevision,next\)/);
   assert.doesNotMatch(bridge,/appendAuditEventsForVaultDiff\(latest,intended\)/);
 });
 
