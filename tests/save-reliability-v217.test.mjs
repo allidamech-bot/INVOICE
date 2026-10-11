@@ -33,25 +33,27 @@ test('save status distinguishes local, queued, offline, server-confirmed and con
   assert.match(conflict,/onClick=\{this\.props\.onCloud\}/);
 });
 
-test('cloud divergence is blocked from background overwrite and requires confirmation before either recovery choice',async()=>{
-  const [app,cloud,freshness,modal]=await Promise.all([
-    read('src/app/App.tsx'),read('src/cloud/firebase.ts'),
-    read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx')
+test('cloud divergence refuses background overwrite and requires confirmed resolution of either account copy',async()=>{
+  const [app,cloud,modal]=await Promise.all([
+    read('src/app/App.tsx'),read('src/cloud/plain-workspace.ts'),
+    read('src/components/CloudAccountModal.tsx')
   ]);
   assert.match(app,/window\.addEventListener\('lourex-cloud-conflict',this\.handleCloudConflict\)/);
   const conflict=app.slice(app.indexOf('private handleCloudConflict='),app.indexOf('private announceRemoteCloudUpdate='));
   assert.match(conflict,/clearTimeout\(this\.cloudTimer\)/);
   assert.match(conflict,/this\.cloudSyncQueued=false/);
   assert.match(conflict,/cloudSyncState:'conflict'/);
-  const flush=app.slice(app.indexOf('private flushCloudSync='),app.indexOf('private attachCloudUser=')>0?app.indexOf('private attachCloudUser='):app.indexOf('private cloudSignIn='));
-  assert.match(flush,/if\(this\.state\.cloudSyncState==='conflict'\)return/);
-  assert.match(flush,/if\(result==='remote-changed'\)\{this\.announceRemoteCloudUpdate\(\);return;\}/);
-  const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
-  assert.match(push,/if\(!anchor\)return 'remote-changed'/);
-  assert.match(push,/if\(remoteChanged\)return 'remote-changed'/);
-  assert.doesNotMatch(push,/installCloudVault/);
-  assert.match(cloud,/await publishVault\(uid,security,local,remote\)/);
-  assert.doesNotMatch(freshness,/await (?:installCloudVault|reconcileCloudVault)\(/);
+  const flush=app.slice(app.indexOf('private flushCloudSync='),app.indexOf('private attachCloudUser='));
+  assert.match(flush,/this\.state\.cloudSyncState==='conflict'\)return/);
+  assert.match(flush,/await uploadPlainCloudWorkspace\(user\.uid,local\)/);
+  assert.match(flush,/if\(result==='remote-changed'\)/);
+  assert.match(flush,/cloudSyncState:'conflict'/);
+  const upload=cloud.slice(cloud.indexOf('export async function uploadPlainCloudWorkspace'),
+    cloud.indexOf('/** Reads remote revisions'));
+  assert.match(upload,/!replaceRemote&&\(previous\?\.revision\?\?null\)!==\(local\.baseCloudRevision\?\?null\)/);
+  assert.match(upload,/runTransaction\(async/);
+  assert.match(upload,/if\(\(existing\?\.revision\?\?null\)!==\(previous\?\.revision\?\?null\)\)return false/);
+  assert.doesNotMatch(upload,/deleteUncommittedChunks|installCloudVault/);
   assert.match(modal,/confirmConflict:'keep-local'\|'use-cloud'\|''/);
   assert.match(modal,/if\(this\.props\.cloudState!=='conflict'\)/);
   assert.match(modal,/Keep This Device Copy/);
