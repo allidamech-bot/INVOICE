@@ -201,7 +201,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
     if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
     if(cn.split(' ').includes('lourex-ai-head')&&workspaceVisible(host)){
-      const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
+      const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
       return react.cloneElement(node,undefined,...children.slice(0,-1),settings,...children.slice(-1));
     }
     if(cn.split(' ').includes('lourex-ai-title')){
@@ -314,7 +314,7 @@ export function installConversationWorkspace(host:Host):void {
   for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
     const old=host[name]?.bind(host);if(!old)continue;
     if(name==='__lourexSetScope')host.__workspaceBaseSetScope=old;
-    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
+    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
   }
   // Each mode opens its own scoped thread. Never relabel an existing turn.
   const drafts=new Map<string,string>();
