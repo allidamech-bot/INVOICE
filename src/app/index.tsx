@@ -32,6 +32,10 @@ const iosWebKit=(()=>{
 // sync delay are clamped to the adaptive editor quiet window. This closes the
 // remaining 80/120/180ms paths that could otherwise push a multi-megabyte vault
 // while Safari is typing, laying out and encrypting the same document locally.
+// Build-time postprocessors must never inject PIN/CryptoKey-based autosave.
+const LOUREX_PINLESS_WORKSPACE_V2 = true;
+void LOUREX_PINLESS_WORKSPACE_V2;
+
 class AdaptiveCloudApp extends BaseApp {
   adaptiveCloudRuntime=(()=>{
     const instance=this as any;
