@@ -15,6 +15,7 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
+import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
 import { conversationModePermitsCapability, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
@@ -22,6 +23,7 @@ type Host=any;
 let storeQueue:Promise<unknown>=Promise.resolve();
 const flush=(host:Host)=>new Promise<void>(resolve=>host.setState({},resolve));
 const currentConversationMode=(host:Host):AiConversationMode=>normalizeAiConversationMode(host.__intelligenceKernel?.mode);
+export const currentAiExperiencePreferences=(host:Host):AiConversationExperiencePreferences=>normalizeAiConversationPreferences(host.__aiConversationPreferences||DEFAULT_AI_CONVERSATION_PREFERENCES);
 function scopeFor(host:Host,vault:VaultPayload):KernelScope{
   const scope=host.state.assistantScope||'business';
   const runtime=prepareAssistantContext(vault,host.props.screen,'',null,scope).runtime;
@@ -52,6 +54,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   // switches account. Never let an old cache read install its scoped kernel.
   if(generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))
     throw new Error('Conversation changed while loading. Retry loading.');
+  host.__aiConversationPreferences=normalizeAiConversationPreferences(store?.aiPreferences);
   const thread=store?.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
   // A truly new thread defaults to Controller. Existing legacy threads without
   // valid mode metadata fail closed to Advisor; never infer elevated permission.
@@ -137,6 +140,37 @@ export async function dismissIntelligenceWorkspace(host:Host):Promise<void>{
   if(host.__intelligenceKernel)host.__intelligenceKernel.artifact=undefined;
   host.setState({proposal:null,review:null,__workspaceSavedId:'',__workspaceEditing:false});await flush(host);await persistKernel(host);
 }
+/** Encrypted AI-only preferences are account-scoped and independent from
+ * LOUREX site locale. Uses the same serialized store queue as chat persistence
+ * so a simultaneous conversation save cannot discard a settings change. */
+export async function updateAiExperiencePreferences(host:Host,patch:Partial<AiConversationExperiencePreferences>):Promise<void>{
+  if(host.__aiPreferencesSaving)throw new Error('AI settings are already being saved.');
+  host.__aiPreferencesSaving=true;
+  host.setState({__workspaceSettingsSaving:true,__workspaceSettingsError:''});
+  const accountId=activeAccountStorageUid()||'';
+  try{
+    const run=async()=>{
+      const session=await resumeVaultSession();
+      if(!session||!accountId||activeAccountStorageUid()!==accountId)throw new Error('Account changed. Reopen AI settings.');
+      const state=await loadAssistantState(session.key);
+      if(activeAccountStorageUid()!==accountId)throw new Error('Account changed during settings update.');
+      const preferences=normalizeAiConversationPreferences({...state.aiPreferences,...patch});
+      await saveAssistantState(session.key,{...state,aiPreferences:preferences});
+      if(activeAccountStorageUid()!==accountId)throw new Error('Account changed while saving AI settings. Reopen the assistant.');
+      host.__aiConversationPreferences=preferences;
+      host.setState({__workspaceSettingsError:''});
+    };
+    const task=storeQueue.catch(()=>undefined).then(run);
+    storeQueue=task;
+    await task;
+  }catch(error){
+    host.setState({__workspaceSettingsError:error instanceof Error?error.message:String(error)});
+  }finally{
+    host.__aiPreferencesSaving=false;
+    host.setState({__workspaceSettingsSaving:false});
+  }
+}
+
 /**
  * Assign a mode only to an empty, authenticated thread. Never relabel a
  * conversation that already contains business messages or working artifacts:
@@ -159,6 +193,11 @@ export async function assignIntelligenceConversationMode(host:Host,mode:AiConver
 }
 
 export function intelligenceContext(host:Host,context:any):any{
+  const settings=currentAiExperiencePreferences(host);
+  if(context&&typeof context==='object'){
+    if(settings.replyLanguage==='ar'||settings.replyLanguage==='en')context.language=settings.replyLanguage;
+    context.aiResponseDetail=settings.detail;
+  }
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
   const entity=kernel.entity;
@@ -186,7 +225,9 @@ export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_
 export function foundationToolOutcomes(result:AiToolOrchestrationResult):FoundationToolOutcome[]{return result.results.map(row=>({callId:row.id,state:row.ok?(row.class==='execute'?'needs_approval':'prepared'):row.class==='high-impact'?'blocked':'failed',toolId:row.tool,data:row.data,evidenceRefs:[row.source]}));}
 async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
   const requestedMode=currentConversationMode(host);
-  const result=await orchestrateAiToolRequest({...input,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
+  const preferences=currentAiExperiencePreferences(host);
+  const responseLanguage=preferences.replyLanguage==='ar'||preferences.replyLanguage==='en'?preferences.replyLanguage:input.language;
+  const result=await orchestrateAiToolRequest({...input,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
   const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
   if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
