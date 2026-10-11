@@ -63,10 +63,10 @@ html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2
    These own exactly the same views; no new build-time selector owner. */
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-navigation{display:grid;gap:7px;flex:0 0 auto;padding:9px 12px;border-bottom:1px solid var(--lxw-line);}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;}
-#lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-groups button{min-width:0;min-height:44px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:#a6a6ae;font:650 12px/1.3 inherit;cursor:pointer;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-groups button{min-width:0;min-height:44px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:#a6a6ae;font-family:inherit;font-weight:650;font-size:12px;line-height:1.3;cursor:pointer;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-groups button[aria-pressed='true']{color:#f4f4f6;border-bottom-color:#f0f0f2;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-options{display:flex;flex-wrap:wrap;gap:5px;min-width:0;}
-#lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-options button{min-height:40px;padding:7px 10px;border:1px solid #3b3b41;border-radius:999px;background:#202023;color:#b6b6bc;font:550 11px/1.35 inherit;cursor:pointer;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-options button{min-height:44px;padding:7px 10px;border:1px solid #3b3b41;border-radius:999px;background:#202023;color:#b6b6bc;font-family:inherit;font-weight:550;font-size:11px;line-height:1.35;cursor:pointer;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-view-options button[aria-current='page']{background:#ebebed;color:#141415;border-color:#ebebed;}
 #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-view-groups,.lxw-view-options) button:focus-visible{outline:2px solid #f1f1f2;outline-offset:2px;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-revision-controls button[aria-pressed='true']{background:var(--lx485-blue-strong,#315fad);color:#fff;border-color:var(--lx485-blue-strong,#315fad);}
