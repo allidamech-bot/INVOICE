@@ -151,7 +151,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     bytes:bytes.length,sha256:hash,chunkCount:count,
     updatedAt:local.updatedAt,parentRevision:previous?.revision??null
   };
-  let staged=false;
+  let staged=false,manifestCommitted=false;
   try{
     for(let offset=0;offset<count;offset+=WRITE_BATCH_SIZE){
       const batch=firebase.firestore().batch();
@@ -175,13 +175,14 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     });
     requireUid(uid);
     if(!committed){await deleteUncommittedChunks(uid,revision,count);return 'remote-changed';}
+    manifestCommitted=true;
     if(previous){
       try{await firebase.firestore().collection('users').doc(uid).collection('workspaceHistory').doc(previous.revision).set({...previous,archivedAt:new Date().toISOString()});}catch{}
     }
     await acknowledgePlainWorkspace(uid,local.updatedAt,revision,hash);
     return 'pushed';
   }catch(error){
-    if(staged)await deleteUncommittedChunks(uid,revision,count);
+    if(staged&&!manifestCommitted)await deleteUncommittedChunks(uid,revision,count);
     throw error;
   }
 }
