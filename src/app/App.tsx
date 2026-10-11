@@ -28,7 +28,7 @@ import { AccountEntryScreen } from '../components/AccountEntryScreen.js';
 import { exportPlainBackup, readPlainBackup } from '../lib/backup.js';
 import { synchronizeActiveWorkspaceOnSave } from '../storage/vault.js';
 import { getPlainWorkspace, savePlainWorkspace, updatePlainWorkspaceIfUnchanged, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
-import { reconcilePlainCloudWorkspace, uploadPlainCloudWorkspace, downloadPlainCloudWorkspace, getPlainCloudMeta } from '../cloud/plain-workspace.js';
+import { assertPlainCloudWorkspaceUploadable, reconcilePlainCloudWorkspace, uploadPlainCloudWorkspace, downloadPlainCloudWorkspace, getPlainCloudMeta } from '../cloud/plain-workspace.js';
 import type { PlainWorkspaceRecord } from '../types.js';
 import { DocumentsPage } from '../components/DocumentsPage.js';
 import { CustomersPage } from '../components/CustomersPage.js';
@@ -536,6 +536,7 @@ export class App extends React.Component<{},State> {
       const merged=mergeVaultIntent(base,scopedIntended,latest);
       const audited=appendAuditEventsForVaultDiff(latest,merged);
       const next=synchronizeActiveWorkspaceOnSave(overlayWorkspaceScope(latestFull,audited));
+      assertPlainCloudWorkspaceUploadable(next);
       const stored=await updatePlainWorkspaceIfUnchanged(uid,local.localRevision,next);
       if(!stored)throw new Error('Another tab updated this account. Refresh before saving to avoid overwriting its work.');
       if(this.state.unlocked&&this.state.cloudUser?.uid===uid)
@@ -555,6 +556,7 @@ export class App extends React.Component<{},State> {
       const latest=queued??this.state.vault;
       if(!latest)throw new Error('Workspace is not ready.');
       const next=synchronizeActiveWorkspaceOnSave(mutation(latest));
+      assertPlainCloudWorkspaceUploadable(next);
       const stored=await updatePlainWorkspaceIfUnchanged(uid,local.localRevision,next);
       if(!stored)throw new Error('Another tab saved changes. Refresh before continuing.');
       if(this.state.unlocked&&this.state.cloudUser?.uid===uid)
@@ -708,6 +710,8 @@ export class App extends React.Component<{},State> {
   private restore=async(file:File)=>{
     this.editorMustBeClosed('importing a local copy','استيراد نسخة محلية');
     const restored=synchronizeActiveWorkspaceOnSave(this.normalizedVault(await readPlainBackup(file)));
+    // Never replace this device with a backup that Firebase cannot publish.
+    assertPlainCloudWorkspaceUploadable(restored);
     await this.beginProtectedOperation();
     try{
       const uid=this.state.cloudUser?.uid;
