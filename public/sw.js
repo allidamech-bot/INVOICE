@@ -205,6 +205,11 @@ self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')voi
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
   const keys=await caches.keys();
   await Promise.all(keys.filter(key=>key!==CACHE&&key.startsWith(APP_CACHE_PREFIX)).map(key=>caches.delete(key)));
+  // PIN-only React screens are excluded from the current compiled app. An old
+  // service worker can still leave their responses inside a same-name PWA cache.
+  // Retire those two assets only; never touch IndexedDB, account data or AI keys.
+  const current=await caches.open(CACHE);
+  await Promise.allSettled(['./src/app/AuthScreenSelector.js','./src/components/AuthScreens.js'].map(asset=>current.delete(asset)));
   await self.clients.claim();
 })()));
 self.addEventListener('fetch',event=>{
