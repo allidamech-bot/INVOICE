@@ -55,6 +55,37 @@ const aiTarget='dist/src/components/AiCopilot.js';
    earlier automatic save because it also owns Smart Defaults / explicit-save effects. */
 {
   let source=await readFile(runtimeTarget,'utf8');
+  if(source.includes('LOUREX_PINLESS_WORKSPACE_V2')){
+    // On the new Firebase-authoritative workspace each editor save already
+    // commits to the UID-scoped IndexedDB CAS cache and queues cloud sync.
+    // The old encrypted per-document checkpoint must NOT be installed:
+    // it calls unlock.bind(), saveVault() and requires a CryptoKey.
+    const start=source.indexOf('class AdaptiveCloudApp extends BaseApp {');
+    const end=source.indexOf('const App = AdaptiveCloudApp;',start);
+    const marker='        return true;\n    })();';
+    const owner=start<0||end<=start?'':source.slice(start,end);
+    if(owner.split(marker).length!==2)throw new Error('v350 pinless runtime owner marker missing.');
+    const at=start+owner.indexOf(marker);
+    const runtime=`
+    // PIN-free document saves share one promise queue, so an autosave
+    // never overtakes an explicit editor save. No encryption is performed.
+    const __lourexPinlessAutosaveV2=true;
+    const originalDocumentSave=instance.saveDocument;
+    if(typeof originalDocumentSave!=='function')
+      throw new Error('LOUREX V2 document save handler was not installed.');
+    let pendingDocumentSave=Promise.resolve();
+    instance.saveDocument=(doc,auto=false)=>{
+      const save=pendingDocumentSave.catch(()=>undefined)
+        .then(()=>originalDocumentSave(doc,auto));
+      pendingDocumentSave=save.catch(()=>undefined);
+      return save;
+    };
+`;
+    source=source.slice(0,at)+runtime+source.slice(at);
+    if(source.includes('const baseUnlock=instance.unlock.bind(instance)'))
+      throw new Error('Legacy PIN checkpoint unexpectedly appeared in PIN-free build.');
+    await writeFile(runtimeTarget,source);
+  }else{
   if(source.includes('__lourexDocumentAutosaveV486'))throw new Error('v350 document autosave checkpoint runtime was already installed unexpectedly.');
   const imports=`import { clearDocumentAutosaveCheckpoint, recoverDocumentAutosaveCheckpoint, saveDocumentAutosaveCheckpoint } from '../storage/document-autosave.js';\nimport { mergeVaultIntent as mergeVaultIntentForAutosave } from '../storage/vault-merge.js';\nimport { overlayWorkspaceScope as overlayWorkspaceScopeForAutosave, scopeVault as scopeVaultForAutosave } from '../lib/workspaces.js';\n`;
   source=imports+source;
@@ -201,6 +232,7 @@ const aiTarget='dist/src/components/AiCopilot.js';
   if(!source.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'))throw new Error('v350 close-editor durability flush is missing.');
   if(!source.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'))throw new Error('v350 checkpoint cloud-sync guard is missing.');
   await writeFile(runtimeTarget,source);
+  }
 }
 
 /* AiCopilot behavior stays in its class. This wrapper retires the historical
