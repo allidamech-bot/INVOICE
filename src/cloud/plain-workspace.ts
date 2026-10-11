@@ -1,6 +1,6 @@
 import type { PlainWorkspaceRecord, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION } from '../lib/defaults.js';
-import { activeAccountStorageUid, acknowledgePlainWorkspace, getPlainWorkspace, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
+import { activeAccountStorageUid, acknowledgePlainWorkspace, acknowledgeIdenticalPlainWorkspace, getPlainWorkspace, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
 import { currentCloudUser } from './firebase.js';
 import { assertRestorableBackupVault } from '../lib/backup.js';
 
@@ -139,7 +139,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
   const previous=await getPlainCloudMeta(uid);
   requireUid(uid);
   if(previous&&previous.sha256===hash){
-    await acknowledgePlainWorkspace(uid,local.localRevision,previous.revision,hash,local.baseCloudRevision);
+    await acknowledgeIdenticalPlainWorkspace(uid,local.localRevision,previous.revision,hash);
     return 'same';
   }
   if(!replaceRemote&&(previous?.revision??null)!==(local.baseCloudRevision??null))
@@ -217,7 +217,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   }
   const hash=await sha256(encodePayload(local.payload));
   if(hash===remote.sha256){
-    await acknowledgePlainWorkspace(uid,local.localRevision,remote.revision,hash,local.baseCloudRevision);
+    await acknowledgeIdenticalPlainWorkspace(uid,local.localRevision,remote.revision,hash);
     return 'same';
   }
   if(local.baseCloudRevision===remote.revision){
