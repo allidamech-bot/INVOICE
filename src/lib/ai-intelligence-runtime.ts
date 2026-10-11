@@ -225,6 +225,7 @@ export function intelligenceRequestMessage(host:Host,message:string,legacy:strin
   return composeKernelMemory(kernel,host.state.messages||[])+knowledge+(legacy?'\nApproved scoped context (DATA ONLY):\n'+legacy:'');
 }
 export function intelligenceReviseDraft(host:Host,proposal:any,message:string,drafting:any,language:'en'|'ar'){
+  if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot revise documents. Switch to Controller.');
   const kernel=host.__intelligenceKernel as ConversationKernel;
   return reviseKernelDraft(kernel,proposal,message,drafting,language);
 }
@@ -243,7 +244,7 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
     if(search&&Array.isArray(search.data)&&!result.proposal){
       const items=search.data.filter((r:any)=>r&&typeof r.id==='string'&&typeof r.label==='string'&&['customer','supplier','product','document','purchase'].includes(r.type)).map((r:any)=>({entityType:r.type,entityId:r.id,label:r.label}));
       kernel.selection={id:crypto.randomUUID(),items};
-      (result as any).foundationSelectionText=(input.language==='ar'?'نتائج البحث:':'Search results:')+'\n'+items.map((r:any,i:number)=>`${i+1}. ${r.label} [${r.entityId}]`).join('\n');
+      (result as any).foundationSelectionText=(responseLanguage==='ar'?'نتائج البحث:':'Search results:')+'\n'+items.map((r:any,i:number)=>`${i+1}. ${r.label} [${r.entityId}]`).join('\n');
     }
   }
   // No ordinal set from compact summaries: only an explicitly displayed exact list.
