@@ -7,7 +7,7 @@ import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntel
 import { normalizeAiConversationMode, conversationModeDescription, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 import { kernelScopeKey, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { activeAccountStorageUid } from '../storage/db.js';
-import { lineTotal } from '../lib/money.js';
+import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 
 // Narrow compatibility adapter: existing chat, composer, history, voice and guarded
 // approval owners remain intact. All new presentation is precompiled TSX.
@@ -41,10 +41,11 @@ function CellEditor({value,numeric,onCommit,name,busy}:{value:string;numeric:boo
  * never model-generated totals; missing/invalid prices remain visibly unknown. */
 function QuotePreviewSummary({doc,ar}:{doc:WorkspaceDocument;ar:boolean}):any {
   const amount=(quantity:string,price:string):string=>{
-    if(!quantity||!price)return '—';
+    if(!quantity||!price||!isNonNegativeDecimalInput(quantity)||!isNonNegativeDecimalInput(price))return '—';
     try{return lineTotal(quantity,price);}catch{return '—';}
   };
-  const subtotal=doc.subtotal===null?'—':doc.subtotal;
+  // An incomplete line must not be silently counted as zero in the preview.
+  const subtotal=!doc.rows.length||doc.rows.some(row=>amount(row.quantity,row.unitPrice)==='—')||!isNonNegativeDecimalInput(doc.subtotal??'')?'—':doc.subtotal;
   return <div className="lxw-document-review" aria-label={label(ar,'Quotation or invoice review','مراجعة المستند المالي')}>
     <header className="lxw-review-banner">
       <span className="lxw-review-kicker">{label(ar,'LOUREX · Document review','LOUREX · مراجعة المستند')}</span>
