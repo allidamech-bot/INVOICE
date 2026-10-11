@@ -60,7 +60,10 @@ test('retired device-PIN React screens are not compiled or precached into the li
   const excluded=JSON.parse(tsconfig).exclude||[];
   assert.ok(excluded.includes('src/app/AuthScreenSelector.tsx'));
   assert.ok(excluded.includes('src/components/AuthScreens.tsx'));
-  assert.doesNotMatch(serviceWorker,/\.\/src\/(?:app\/AuthScreenSelector|components\/AuthScreens)\.js/);
+  const precacheList=serviceWorker.split('\n').find(line=>line.startsWith('const LOCAL_CORE'))||'';
+  assert.doesNotMatch(precacheList,/\.\/src\/(?:app\/AuthScreenSelector|components\/AuthScreens)\.js/);
+  assert.match(serviceWorker,/current\.delete\(asset\)/);
+  assert.match(serviceWorker,/Promise\.allSettled\(\['\.\/src\/app\/AuthScreenSelector\.js','\.\/src\/components\/AuthScreens\.js'\]/);
   assert.doesNotMatch(app,/import\s+.*(?:AuthScreenSelector|AuthScreens)/);
   assert.doesNotMatch(entry,/import\s+.*(?:AuthScreenSelector|AuthScreens)/);
   // Automatic cache population must follow actual compiled modules; excluded
