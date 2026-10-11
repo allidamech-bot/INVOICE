@@ -240,8 +240,13 @@ export class App extends React.Component<{},State> {
       this.setState({loading:false,firstRun:false,unlocked:true,vault,
         uiLanguage,publicLogo:vault.company.logoDataUrl||publicLogo,cloudUser:user,cloudLinked:true,
         cloudSyncState:syncState,cloudSyncMessage:syncMessage,screen:'home',editorDoc:null},
-        ()=>{if(syncState!=='conflict'&&syncState!=='synced')this.scheduleCloudSync(500);
-          void this.processDueRecurringWorkflows(true);});
+        ()=>{
+          // Firebase auth can resolve before the account database is selected.
+          // Tell the cloud observer that the UID-scoped workspace is now ready.
+          window.dispatchEvent(new Event('lourex-cloud-account-ready'));
+          if(syncState!=='conflict'&&syncState!=='synced')this.scheduleCloudSync(500);
+          void this.processDueRecurringWorkflows(true);
+        });
     }catch(error){
       this.setState({loading:false,firstRun:false,unlocked:false,vault:null,
         cloudUser:currentCloudUser(),cloudLinked:false,cloudSyncState:'error',
