@@ -24,6 +24,7 @@ test('failed scoped conversation hydration exposes retry instead of an endless l
   assert.match(source,/host\.setState\(\{error:''\},\(\)=>void host\.__workspaceRefresh\?\.\(\)\)/);
   assert.match(source,/role="status"[^\n]*Loading scoped conversation/);
   assert.match(source,/if\(classes\.includes\('lourex-ai-proposal'\)\)return null/);
+  assert.match(source,/catch\(error\)\{host\.__workspaceObservedProps=undefined;host\.__foundationVault=undefined/);
   assert.ok(source.includes("'data-workspace-ready':'false'"));
 });
 
