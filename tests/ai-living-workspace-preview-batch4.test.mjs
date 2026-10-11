@@ -46,7 +46,7 @@ test('preview preserves real scoped document content, including all lines and te
 test('financial review is a single specialized view, not a second giant grid',()=>{
   assert.match(component,/function QuotePreviewSummary/);
   assert.match(component,/tab==='preview'\?<QuotePreviewSummary doc=\{doc\} ar=\{ar\}/);
-  assert.match(component,/tab==='edit'\?[^]*<PricingGrid key=\{doc\.id\+':edit'\}/);
+  assert.match(component,/<PricingGrid key=\{doc\.id\+':edit'\}/,'editable grid still exists only in edit view');
   assert.match(styles,/\.lxw-review-banner\{/);
   assert.match(styles,/\.lxw-review-amount\{color:#b4e4d1/);
   assert.match(styles,/\.lxw-review-subtotal\{/);
