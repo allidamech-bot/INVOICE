@@ -74,7 +74,7 @@ const WORKSPACE_VIEW_GROUPS=[
   {id:'knowledge',en:'Sources',ar:'المصادر',views:[['evidence','Evidence','الأدلة'],['knowledge','Memory','الذاكرة']]},
   {id:'checks',en:'Review',ar:'المراجعة',views:[['reliability','Review','التحقق'],['diagnostics','Reliability','الموثوقية']]}
 ] as const;
-function WorkspaceNavigation({tab,choose,ar}:{tab:string;choose:(tab:string)=>void;ar:boolean}):any {
+export function WorkspaceNavigation({tab,choose,ar}:{tab:string;choose:(tab:string)=>void;ar:boolean}):any {
   const active=WORKSPACE_VIEW_GROUPS.find(group=>group.views.some(view=>view[0]===tab))||WORKSPACE_VIEW_GROUPS[0];
   return <div className="lxw-navigation">
     <nav className="lxw-nav-primary" aria-label={label(ar,'Workspace sections','أقسام مساحة العمل')}>
