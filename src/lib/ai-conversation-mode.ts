@@ -37,7 +37,7 @@ export const DEFAULT_AI_CONVERSATION_PREFERENCES: Readonly<AiConversationExperie
  * navigate, create drafts, edit records, call generic tools, run tool plans, or
  * approve pending actions. Every read remains subject to current account scope.
  */
-export const ADVISOR_READ_CAPABILITIES: ReadonlySet<string> = new Set([
+export const ADVISOR_READ_CAPABILITIES: readonly string[] = Object.freeze([
   'workspace.help',
   'finance.explain',
   'business.explain',
@@ -59,7 +59,7 @@ export function normalizeAiConversationMode(value: unknown): AiConversationMode 
  * the existing role, company/branch scope and approval guard remain required.
  */
 export function conversationModePermitsCapability(mode: AiConversationMode, capability: string): boolean {
-  return mode === 'advisor' ? ADVISOR_READ_CAPABILITIES.has(capability) : true;
+  return mode === 'advisor' ? ADVISOR_READ_CAPABILITIES.includes(capability) : true;
 }
 
 /**
