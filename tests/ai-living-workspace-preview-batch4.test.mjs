@@ -56,7 +56,7 @@ test('financial review is a single specialized view, not a second giant grid',()
 
 test('inline document approval is only visible after explicit review',()=>{
   assert.match(component,/function InlineDocumentApproval/);
-  assert.match(component,/reviewed&&originalButtons\.length/);
+  assert.match(component,/\{decline\}\{reviewed&&confirm\?confirm:null\}/,'decline stays available, confirmation requires review');
   assert.match(component,/__workspaceReviewedProposal===host\.state\.proposal/);
   assert.match(styles,/@keyframes lxwActionAppear/);
 });
