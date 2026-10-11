@@ -100,6 +100,22 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(typeof node==='string')return workspaceText(host.props.language==='ar',node);
     if(!react.isValidElement(node))return node;
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    if(cn.split(' ').includes('lourex-ai-title')){
+      const branded=children.map((child:any)=>{
+        if(child?.type!=='div')return child;
+        const text=react.Children.toArray(child.props?.children).map((part:any)=>{
+          if(part?.type==='strong')return react.cloneElement(part,undefined,'LOUREX AI');
+          if(part?.type==='small')return react.cloneElement(part,undefined,label(host.props.language==='ar','Your business AI','مساعد أعمالك الذكي'));
+          return part;
+        });
+        return react.cloneElement(child,undefined,...text);
+      });
+      return react.cloneElement(node,undefined,...branded);
+    }
+    if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
+      // Retain the historic document number but never expose route-changing buttons.
+      return react.cloneElement(node,undefined,...children.filter((child:any)=>child?.type!=='div'));
+    }
     if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
       const number=children.find((child:any)=>child?.type==='strong')?.props?.children?.props?.children;
       const documentId=host.state.messages?.find((message:any)=>message.artifact?.document?.number===number)?.artifact?.document?.id;
@@ -138,7 +154,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     </div>;
     const toolbar=mode==='controller'?<div className="lxw-toolbar"><button type="button" disabled={inactive} aria-expanded={open} onClick={()=>host.setState({__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}>{label(ar,'Workspace','مساحة العمل')}{k.artifact?' · '+k.artifact.revision:''}</button></div>:null;
     const safeContent=mode==='controller'?content.filter((child:any)=>child!==approval):content.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
-    return react.cloneElement(node,{'data-lourex-workspace':'2','data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...header,tabs,description,toolbar,<div className="lxw-body"><div className="lxw-chat">{safeContent}{mode==='controller'&&!open&&approval?<div className="lxw-collapsed-approval">{approval}</div>:null}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    return react.cloneElement(node,{'aria-label':'LOUREX AI','data-lourex-workspace':'2','data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...header,tabs,description,toolbar,<div className="lxw-body"><div className="lxw-chat">{safeContent}{mode==='controller'&&!open&&approval?<div className="lxw-collapsed-approval">{approval}</div>:null}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
