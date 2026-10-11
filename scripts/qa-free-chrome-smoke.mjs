@@ -126,7 +126,7 @@ try{
     await cdp.call('Page.navigate',{url:'http://127.0.0.1:4173/'});
     const state=await waitUntil(async()=>{
       const response=await cdp.call('Runtime.evaluate',{
-        expression:'JSON.stringify({ready:document.readyState,root:!!document.getElementById("root"),boot:!!document.getElementById("lourex-boot"),loading:!!document.querySelector(".loading-screen"),buttons:document.querySelectorAll("#root button").length,rootText:(document.getElementById("root")?.innerText||"").slice(0,240),horizontalOverflow:Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0)-document.documentElement.clientWidth,viewport:document.documentElement.clientWidth})',
+        expression:'JSON.stringify({ready:document.readyState,root:!!document.getElementById("root"),boot:!!document.getElementById("lourex-boot"),loading:!!document.querySelector(".loading-screen"),buttons:document.querySelectorAll("#root button").length,authGateway:!!document.querySelector(".ta-auth-page"),googleButton:!!document.querySelector(".ta-google-button"),passwordField:!!document.querySelector('input[type="password"]'),legacyPinFields:document.querySelectorAll('input[autocomplete="one-time-code"],[data-pin-setup],[data-pin-unlock]').length,rootText:(document.getElementById("root")?.innerText||"").slice(0,240),horizontalOverflow:Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0)-document.documentElement.clientWidth,viewport:document.documentElement.clientWidth})',
         returnByValue:true
       });
       const value=response.result?.value;
@@ -142,6 +142,10 @@ try{
     assert.equal(cdp.exceptions.length,0,item.name+' emitted browser JavaScript exceptions: '+JSON.stringify(cdp.exceptions.slice(-4)));
     assert.ok(!state.boot&&!state.loading,'Startup must leave all loading screens.');
     assert.ok(state.buttons>0,'Application must expose actual interactive controls.');
+    assert.ok(state.authGateway,'Signed-out user must see Firebase account gateway, not a PIN vault.');
+    assert.ok(state.googleButton,'Google sign-in must be available at account entry.');
+    assert.ok(state.passwordField,'Email/password sign-in must be available at account entry.');
+    assert.equal(state.legacyPinFields,0,'Device PIN controls must never render.');
     assert.ok(state.viewport>0,'Viewport width must be measurable.');
     assert.ok(state.horizontalOverflow<=4,item.name+' has '+state.horizontalOverflow+'px page-level horizontal overflow.');
     console.log('PASS '+item.name+': viewport='+state.viewport+', horizontalOverflow='+state.horizontalOverflow+', rendered='+JSON.stringify(state.rootText.slice(0,110)));
