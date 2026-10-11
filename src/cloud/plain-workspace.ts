@@ -63,6 +63,10 @@ async function sha256(bytes:Uint8Array):Promise<string>{
 function encodePayload(payload:VaultPayload):Uint8Array {
   if(!payload||payload.schemaVersion>APP_SCHEMA_VERSION||payload.schemaVersion<1)
     throw new Error('Invalid or newer LOUREX workspace schema.');
+  // An invalid invoice/customer payload must never become the authoritative
+  // Firebase revision. A cryptographic hash proves transport integrity, not
+  // accounting schema validity.
+  assertRestorableBackupVault(payload);
   const bytes=new TextEncoder().encode(JSON.stringify(payload));
   if(!bytes.length||bytes.length>MAX_BYTES)throw new Error('Workspace is too large for Firebase backup.');
   return bytes;
