@@ -35,7 +35,20 @@ const iosWebKit=(()=>{
 class AdaptiveCloudApp extends BaseApp {
   adaptiveCloudRuntime=(()=>{
     const instance=this as any;
-    const scheduleCloudSync=instance.scheduleCloudSync.bind(instance);
+    // The app saves through a coalescing timer. Define the scheduler directly
+    // instead of binding a possibly unavailable class-field method during the
+    // React subclass field-initialization phase.
+    const scheduleCloudSync=(delay:number)=>{
+      if(!instance.state.cloudUser||!instance.state.cloudLinked||instance.state.cloudSyncState==='conflict')return;
+      if(instance.cloudTimer)window.clearTimeout(instance.cloudTimer);
+      const offline=typeof navigator!=='undefined'&&!navigator.onLine;
+      instance.setState({cloudSyncState:offline?'offline':'queued',
+        cloudSyncMessage:offline
+          ?t('Offline — changes will sync on reconnect.','غير متصل — ستتم المزامنة عند عودة الاتصال.')
+          :t('Saved locally — Firebase sync pending.','محفوظ محليًا — بانتظار مزامنة Firebase.')});
+      instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),
+        offline?instance.cloudRetryDelay:delay);
+    };
     instance.scheduleCloudSync=(delay?:number)=>{
       const cipherLength=instance.latestEncryptedVault?.cipher?.length??0;
       const editing=isDocumentEditorOpen();
