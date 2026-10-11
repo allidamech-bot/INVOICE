@@ -198,6 +198,8 @@ export function intelligenceContext(host:Host,context:any):any{
     const latest=(host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
     context.language=resolveAiConversationReplyLanguage(settings.replyLanguage,latest,host.props.language==='ar'?'ar':'en');
     context.aiResponseDetail=settings.detail;
+    // Advisory intent is a restrictive hint to the server, not an authorization grant.
+    context.conversationMode=currentConversationMode(host);
   }
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
