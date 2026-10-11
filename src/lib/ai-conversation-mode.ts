@@ -62,6 +62,14 @@ export function conversationModePermitsCapability(mode: AiConversationMode, capa
   return mode === 'advisor' ? ADVISOR_READ_CAPABILITIES.includes(capability) : true;
 }
 
+/** Typed read/calculate operations may inform an Advisor response only. */
+export function conversationModePermitsToolClass(
+  mode: AiConversationMode,
+  toolClass: 'read' | 'calculate' | 'prepare' | 'execute' | 'high-impact',
+): boolean {
+  return mode === 'controller' || toolClass === 'read' || toolClass === 'calculate';
+}
+
 /**
  * Readable tab description; a single centered line in RTL/LTR, no extra card.
  * Language is passed explicitly so the text is independent of site locale.
