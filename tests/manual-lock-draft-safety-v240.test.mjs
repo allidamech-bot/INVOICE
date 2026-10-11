@@ -4,29 +4,25 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v240 blocks deliberate lock while an inline data-entry workspace owns unsaved input',async()=>{
+test('V2 has no manual device PIN lock and protects dirty inline editors during cloud refresh',async()=>{
   const entry=await read('src/app/index.tsx');
-  assert.match(entry,/const lockNow=instance\.lockNow\.bind\(instance\)/);
-  assert.match(entry,/instance\.lockNow=\(automatic:boolean\)=>\{/);
-  assert.match(entry,/if\(!automatic&&manualLockUnsafeWorkspaceOpen\(\)\)/);
-  assert.match(entry,/Close or save the open editor before locking the app/);
-  assert.match(entry,/أغلق أو احفظ المحرر المفتوح قبل قفل التطبيق/);
-  assert.match(entry,/return lockNow\(automatic\)/);
+  assert.doesNotMatch(entry,/instance\.lockNow=|instance\.lockNow\.bind\(/);
+  assert.match(entry,/instance\.cloudReplaceBlocked=\(\)=>/);
+  assert.match(entry,/reloadUnsafeWorkspaceOpen\(\)/);
 });
 
-test('manual lock checks current document, product, purchasing and manual inventory draft surfaces',async()=>{
+test('cloud refresh guard checks current document, product, purchasing and inventory draft surfaces',async()=>{
  const entry=await read('src/app/index.tsx');
  for(const token of ['function manualLockUnsafeWorkspaceOpen():boolean','isDocumentEditorOpen()','activeDataEntryEditorOpen()','inventoryEntryHasDraftInput()',"data-lourex-workspace-dirty",'.ta-product-editor.is-open','.ta-operations-page .ta-ops-editor','.product-library-pro.editor-open','.operations-page .purchase-editor'])assert.ok(entry.includes(token),token);
- assert.ok(entry.includes('if(!automatic&&manualLockUnsafeWorkspaceOpen())'),'manual lock must protect dirty entries');
- assert.ok(entry.includes("instance.lockNow=(automatic:boolean)=>"),'automatic security lock stays on the established path');
+ assert.ok(entry.includes('instance.cloudReplaceBlocked=()=>'),'cloud refresh must protect dirty entries');
+ assert.ok(entry.includes('reloadUnsafeWorkspaceOpen()'),'refresh guard must include inline editors');
 });
 
-test('v240 leaves automatic inactivity lock security-authoritative',async()=>{
+test('V2 leaves Firebase Auth, not device PIN, as the only interactive security boundary',async()=>{
   const entry=await read('src/app/index.tsx');
-  const guard=entry.indexOf('if(!automatic&&manualLockUnsafeWorkspaceOpen())');
-  const delegate=entry.indexOf('return lockNow(automatic);',guard);
-  assert.ok(guard>=0&&delegate>guard,'manual-only guard must delegate automatic locking to the established lock path');
-  assert.match(entry,/instance\.lockTimer=window\.setTimeout\(\(\)=>\{[\s\S]*void instance\.lockNow\(true\)/);
+  assert.doesNotMatch(entry,/instance\.lockTimer=window\.setTimeout|instance\.lockNow\.bind/);
+  assert.match(entry,/resolveRequiredAccountSession\(\)/);
+  assert.match(entry,/startAccountSignOutWatcher\(\)/);
 });
 
 test('v240 refreshes installed clients for manual lock draft safety',async()=>{
