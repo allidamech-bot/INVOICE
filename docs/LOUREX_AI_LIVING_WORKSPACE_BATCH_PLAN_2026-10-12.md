@@ -117,3 +117,12 @@ Existing personal/business/temporary scopes are independent from Controller/Advi
 - Both document and non-document suggestion surfaces expose **Decline** immediately, even for blocked documents; accepting a change remains gated on explicit review.
 - On normal-motion devices, rejecting animates out for 160ms, then invokes the preexisting dismissal callback. The callback is skipped if the proposal was superseded, and timers are cancelled on unmount or proposal change. No business mutation is performed by this animation.
 - Device-level and AI-specific reduced-motion preferences bypass the delay and motion. The behavior has source contract coverage but still requires live browser QA.
+
+## 9. Encrypted AI preferences and server-side Advisor trust
+
+- AI preferences are stored independently of the LOUREX site locale in the existing encrypted assistant state (not company settings), normalized on recovery and preserved by thread upserts. Saves share the serialized assistant-store queue to prevent lost preference writes.
+- Interface language may inherit the site or use AR/EN. Answer-language preferences support explicit AR/EN and automatic detection of the actual user question; short neutral questions fall back to site locale. These choices do not change document output language.
+- Preferred answer length (brief/balanced/detailed) is sanitized in the AI Core and Advisor V2 API handlers and passed into their model instructions. No accounting numbers are supplied by the model rather than deterministic LOUREX calculation engines.
+- `conversationMode` is copied from authenticated thread state into AI requests. Core suppresses ALL proposals when the request comes from Advisor, and corrects false claims of saved documents; Advisor V2 also suppresses even navigation proposals in Advisor mode. Controller remains subject to normal guarded review/approval.
+- Source-level JS syntax checks passed for Core, Advisor V2 and composer. Direct executable smoke tests of the actual extracted policy functions verified five Controller/Advisor allow/deny cases. The automatic reply-language helper passed four executable checks. Persistent test coverage was added to the repository.
+- **Still required:** full TypeScript build and complete regression suite, live Firebase-account switch and encrypted preference persistence tests, real network/provider response validation, actual iOS/WebKit/desktop visual QA. These remain release blockers; keep stacked PRs in draft.
