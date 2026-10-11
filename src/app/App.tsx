@@ -116,6 +116,17 @@ export class App extends React.Component<{},State> {
     window.addEventListener('lourex-cloud-conflict',this.handleCloudConflict);
     window.addEventListener('lourex-account-transition-request',this.handleAccountTransitionRequest as EventListener);
   }
+  componentDidUpdate(_previousProps:Readonly<{}>,previousState:Readonly<State>):void{
+    if(!this.cloudReconcileQueued||this.cloudReconcileRunning||this.vaultReplacing||
+       !this.state.unlocked||!this.state.cloudUser||this.cloudReplaceBlocked())return;
+    // Retry only after a meaningful UI transition; cloudSyncNow handles
+    // in-flight writes and serializes application state with IndexedDB.
+    if(previousState.screen===this.state.screen&&
+       previousState.settingsOpen===this.state.settingsOpen&&
+       previousState.cloudModal===this.state.cloudModal)return;
+    this.cloudReconcileQueued=false;
+    window.setTimeout(()=>void this.cloudSyncNow().catch(error=>this.retryCloudSync(error)),0);
+  }
   componentWillUnmount():void{
     ['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));
     document.removeEventListener('visibilitychange',this.handleVisibilityChange);
@@ -282,7 +293,11 @@ export class App extends React.Component<{},State> {
   private announceRemoteCloudUpdate=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.deferRemoteCloud();try{window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}catch{}};
   private handleRemoteCloudNewer=()=>{
     if(!this.state.cloudUser||!this.state.cloudLinked||!this.state.unlocked)return;
-    if(this.cloudReplaceBlocked()||this.cloudSyncRunning){
+    if(this.cloudReplaceBlocked()||this.cloudSyncRunning||this.vaultReplacing){
+      // The listener can fire while an invoice editor is active. Remember the
+      // pending cloud revision; publishing blindly on editor close would
+      // manufacture a conflict even when this device has no unsynced edits.
+      this.cloudReconcileQueued=true;
       this.announceRemoteCloudUpdate();return;
     }
     void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
