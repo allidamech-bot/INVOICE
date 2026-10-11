@@ -85,6 +85,8 @@ export class App extends React.Component<{},State> {
   private cloudTimer:number|undefined;
   private cloudSyncRunning=false;
   private cloudSyncQueued=false;
+  private cloudReconcileRunning=false;
+  private cloudReconcileQueued=false;
   private cloudRetryDelay=5_000;
   private lastCloudSyncedAt='';
   private lastActivityTouch=0;
@@ -420,22 +422,48 @@ export class App extends React.Component<{},State> {
     }catch(error){throw new Error(friendlyCloudError(error));}
   };
   private cloudSyncNow=async()=>{
+    // Cloud pull and React hydration must be one protected operation.
+    // Otherwise an edit can land between IndexedDB CAS and UI setState,
+    // replacing the user's new in-memory invoice with the older download.
     if(this.cloudReplaceBlocked())return;
+    if(this.cloudReconcileRunning||this.vaultReplacing){
+      this.cloudReconcileQueued=true;return;
+    }
     const uid=this.state.cloudUser?.uid;
     if(!uid)return;
-    await this.drainVaultWrites();
-    const result=await reconcilePlainCloudWorkspace(uid);
-    if(result==='diverged'){this.handleCloudConflict();return;}
-    if(result==='pulled'){
-      const local=await getPlainWorkspace();
-      if(local){
-        const vault=this.normalizedVault(local.payload);
-        this.vaultWriteTail=Promise.resolve(vault);
-        this.setState({vault,editorDoc:null,cloudSyncState:'synced',
-          cloudSyncMessage:t('Cloud updates loaded.','تم تحميل تحديثات السحابة.')});
+    this.cloudReconcileRunning=true;
+    let protectedOperation=false;
+    try{
+      await this.beginProtectedOperation();
+      protectedOperation=true;
+      if(this.cloudReplaceBlocked())return;
+      if(uid!==this.state.cloudUser?.uid||uid!==currentCloudUser()?.uid||
+         uid!==activeAccountStorageUid())
+        throw new Error('Account changed during cloud reconciliation.');
+      const result=await reconcilePlainCloudWorkspace(uid);
+      if(result==='diverged'){this.handleCloudConflict();return;}
+      if(result==='pulled'){
+        const local=await getPlainWorkspace();
+        if(local){
+          const vault=this.normalizedVault(local.payload);
+          this.vaultWriteTail=Promise.resolve(vault);
+          await new Promise<void>(resolve=>this.setState({vault,editorDoc:null,cloudSyncState:'synced',
+            cloudSyncMessage:t('Cloud updates loaded.','تم تحميل تحديثات السحابة.')},resolve));
+        }
+      }else if(result==='pushed'||result==='same'){
+        this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
       }
-    }else if(result==='pushed'||result==='same'){
-      this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
+    }finally{
+      if(protectedOperation)this.endProtectedOperation();
+      this.cloudReconcileRunning=false;
+      if(this.cloudSyncQueued){
+        this.cloudSyncQueued=false;
+        this.scheduleCloudSync(250);
+      }
+      if(this.cloudReconcileQueued){
+        this.cloudReconcileQueued=false;
+        window.setTimeout(()=>void this.cloudSyncNow().catch(error=>this.retryCloudSync(error)),0);
+      }
     }
   };
 
