@@ -54,3 +54,40 @@ test('a completed manifest keeps its chunks even when auth changes after commit'
   assert.ok(meta&&chunks.size>0);
   assert.equal(deleted,0);
 });
+
+test('same cloud SHA with a newer local generation retries rather than claiming synced',async()=>{
+  const compiled=compile(await source(),'export async function reconcilePlainCloudWorkspace(', '/** Notify other devices');
+  const exports={};
+  const snapshot={uid:'uid',localRevision:'local-a',baseCloudRevision:'remote-old',
+    baseCloudSha256:'1'.repeat(64),payload:{schemaVersion:1}};
+  vm.runInNewContext(compiled,{
+    exports,Promise,requireUid:()=>{},
+    getPlainWorkspace:async()=>snapshot,
+    getPlainCloudMeta:async()=>({revision:'remote-new',sha256:'2'.repeat(64)}),
+    sha256:async()=> '2'.repeat(64),
+    encodePayload:()=>new Uint8Array([1,2]),
+    acknowledgeIdenticalPlainWorkspace:async()=>false
+  });
+  assert.equal(await exports.reconcilePlainCloudWorkspace('uid'),'retry');
+});
+
+test('cloud pull losing an IndexedDB generation race retries without overwriting new invoice edits',async()=>{
+  const compiled=compile(await source(),'export async function reconcilePlainCloudWorkspace(', '/** Notify other devices');
+  const exports={};
+  const local={uid:'uid',localRevision:'local-a',baseCloudRevision:'cloud-a',
+    baseCloudSha256:'1'.repeat(64),payload:{schemaVersion:1}};
+  let attempts=0;
+  vm.runInNewContext(compiled,{
+    exports,Promise,crypto:{randomUUID:()=> 'replacement-b'},requireUid:()=>{},
+    getPlainWorkspace:async()=>local,
+    getPlainCloudMeta:async()=>({revision:'cloud-b',sha256:'2'.repeat(64)}),
+    sha256:async()=> '1'.repeat(64),
+    encodePayload:()=>new Uint8Array([1]),
+    downloadPlainCloudWorkspace:async()=>({payload:{schemaVersion:1},meta:{
+      revision:'cloud-b',sha256:'2'.repeat(64),updatedAt:'2026-10-11T10:00:00Z'
+    }}),
+    replacePlainWorkspaceIfUnchanged:async()=>{attempts++;return false;}
+  });
+  assert.equal(await exports.reconcilePlainCloudWorkspace('uid'),'retry');
+  assert.equal(attempts,1,'stale remote state must not overwrite concurrently changed local data');
+});
