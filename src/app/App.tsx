@@ -210,13 +210,21 @@ export class App extends React.Component<{},State> {
           baseCloudRevision:null,baseCloudSha256:null
         };
         const outcome=await uploadPlainCloudWorkspace(user.uid,proposal);
-        if(outcome==='remote-changed')throw new Error('Another device created an account workspace. Retry to restore it.');
-        const committed=await getPlainCloudMeta(user.uid);
-        if(!committed)throw new Error('Cloud workspace could not be verified after setup.');
-        const accepted=await replacePlainWorkspaceIfUnchanged(user.uid,null,{
-          ...proposal,baseCloudRevision:committed.revision,baseCloudSha256:committed.sha256
-        });
-        if(!accepted)throw new Error('Another browser tab created local data while setup completed. Reload safely.');
+        if(outcome==='remote-changed'){
+          // Two fresh devices may bootstrap the same Firebase UID at once.
+          // The losing device must hydrate the verified winning revision,
+          // not turn a safe CAS race into an account-blocking reload prompt.
+          const winner=await reconcilePlainCloudWorkspace(user.uid);
+          if(winner!=='pulled'&&winner!=='same')
+            throw new Error('Another device is preparing your account. Retry in a moment.');
+        }else{
+          const committed=await getPlainCloudMeta(user.uid);
+          if(!committed)throw new Error('Cloud workspace could not be verified after setup.');
+          const accepted=await replacePlainWorkspaceIfUnchanged(user.uid,null,{
+            ...proposal,baseCloudRevision:committed.revision,baseCloudSha256:committed.sha256
+          });
+          if(!accepted)throw new Error('Another browser tab created local data while setup completed. Retry safely.');
+        }
         syncState='synced';
         syncMessage=t('Your Firebase workspace is ready.','مساحة Firebase الخاصة بك جاهزة.');
         local=await getPlainWorkspace();
