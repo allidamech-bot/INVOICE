@@ -53,7 +53,9 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   if(generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))
     throw new Error('Conversation changed while loading. Retry loading.');
   const thread=store?.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
-  host.__intelligenceKernel=normalizeConversationKernel(thread?.kernel,scope);
+  // A truly new thread defaults to Controller. Existing legacy threads without
+  // valid mode metadata fail closed to Advisor; never infer elevated permission.
+  host.__intelligenceKernel=thread?normalizeConversationKernel(thread.kernel,scope):newConversationKernel(scope);
   host.__foundationReceipts=thread?.foundationReceipts||[];
   host.__foundationVault=vault;
   if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
