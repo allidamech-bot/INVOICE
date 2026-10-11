@@ -2,7 +2,7 @@ import { diagnosticSample, normalizeDiagnostics, type DiagnosticOperation } from
 import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory-graph.js';
 import { financialReviewAllowed } from './ai-reliability-intelligence.js';
 import { loadAssistantMemory, scopedAssistantMemories } from '../storage/assistant-memory-store.js';
-import { commercialDraftCommand } from './ai-commercial-conversation.js';
+import { commercialDraftCommand, savedDocumentPreviewId } from './ai-commercial-conversation.js';
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
@@ -50,7 +50,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   host.__foundationReceipts=thread?.foundationReceipts||[];
   host.__foundationVault=vault;
   if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
-  if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;host.setState({proposal,review:null});await flush(host);}
+  if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;const review=reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');host.setState({proposal,review});await flush(host);}
 }
 /** Refresh when opening/switching workspace, not only when sending a model request. */
 export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
@@ -67,7 +67,10 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   }else{host.__businessMemories=[];host.__businessThreads=[];}
 
   const proposal=host.state.proposal;
-  if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')stageKernelArtifact(host.__intelligenceKernel,proposal);
+  if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft'){
+    stageKernelArtifact(host.__intelligenceKernel,proposal);
+    host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
+  }
   await flush(host);
 }
 async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
@@ -77,7 +80,7 @@ async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Prom
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
     strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Company, branch, account or conversation changed. Reopen the workspace.');
-    const changesDraft=['cell','customer','product','undo','redo','reprice','terms','composer'].includes(command.kind);
+    const changesDraft=['cell','customer','product','add-line','undo','redo','reprice','terms','composer'].includes(command.kind);
     // Reject stale reviewed business state before changing an existing proposal.
     if(changesDraft&&kernel.artifact?.proposal&&(kernel.artifact.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact.proposal);
     const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,command);
@@ -171,6 +174,11 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Review the action again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
     assertFoundationApproval(resumed.vault,proposal);
+    if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft'){
+      const review=reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');
+      host.setState({review});
+      if(review.blockers.length)throw new Error(review.blockers.join(' '));
+    }
     if((host.__foundationReceipts||[]).some((r:any)=>r.id===proposal.foundationApproval.id))throw new Error('This approval was already attempted. Check the saved record before preparing a new action.');
     if(!missionStep(kernel.missions||[],proposal))stageReviewedMission(kernel,proposal);
     step=beginMissionStep(kernel.missions||[],proposal);
@@ -206,13 +214,22 @@ export function installIntelligenceRuntime(host:Host):void{
       strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel;turnScope=kernelScopeKey(kernel.scope);kernel.turn++;
       if(!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
       const message=String(raw??host.state.input).trim();
+      const previewId=savedDocumentPreviewId(kernel,resumed.vault,message);
+      if(previewId){
+        if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
+        const fresh=await resumeVaultSession();
+        if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||savedDocumentPreviewId(kernel,fresh.vault,message)!==previewId)throw new Error('Document scope changed. Ask for the preview again.');
+        host.__foundationVault=fresh.vault;
+        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
+        await flush(host);await persistKernel(host);return;
+      }
       const commercialCommand=commercialDraftCommand(kernel,resumed.vault,message);
       if(commercialCommand){
         if((kernel.artifact!.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
         const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,commercialCommand);
         const p=next.artifact!.proposal as any;delete p.foundationApproval;stampProposal(host,p,resumed.vault);stageReviewedMission(next,p);
         const review=reviewAiDocumentProposal(p,workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:''),host.props.language==='ar'?'ar':'en');
-        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:p,review,error:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'عدّلت المسودة فقط. راجع الفروق والشروط قبل الحفظ.':'Draft revised only. Review its diff and terms before saving.'}]}));await flush(host);await persistKernel(host);return;
+        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:p,review,error:'',__workspaceSavedId:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'عدّلت المسودة فقط. راجع الفروق والشروط قبل الحفظ.':'Draft revised only. Review its diff and terms before saving.'}]}));await flush(host);await persistKernel(host);return;
       }
 
       if(!kernel.artifact){const selected=resolveKernelSelection(kernel,message);if(selected){const scoped=scopeVault(resumed.vault);const rows=selected.entityType==='customer'?scoped.customers:selected.entityType==='supplier'?scoped.suppliers:selected.entityType==='product'?scoped.savedItems:selected.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===selected.entityId)){kernel.selection=undefined;kernel.entity=undefined;throw new Error('The displayed selection is stale. Search again.');}host.setState((state:any)=>({input:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:selected.label}]}));await flush(host);await persistKernel(host);return;}}

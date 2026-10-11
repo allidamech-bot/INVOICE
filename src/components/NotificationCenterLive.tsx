@@ -82,7 +82,7 @@ export class NotificationCenterLive extends React.Component<Props,State>{
     try{
       const session=await resumeVaultSession();
       if(startedAtMutationGeneration!==this.mutationGeneration){this.setState({loading:false});return;}
-      if(!session){this.setState({snapshot:null,loading:false,error:t('Unlock the encrypted vault to review notifications. Close this window and unlock your session, then try again.','افتح الخزنة المشفرة لمراجعة التنبيهات. أغلق هذه النافذة وافتح جلستك ثم أعد المحاولة.')});this.publish(null);return;}
+      if(!session){this.setState({snapshot:null,loading:false,error:t('Your account workspace is not ready. Sign in and retry.','مساحة عمل حسابك غير جاهزة. سجّل الدخول وأعد المحاولة.')});this.publish(null);return;}
       const snapshot=buildNotificationCenter(scopeVault(session.vault),todayIso());
       if(startedAtMutationGeneration!==this.mutationGeneration){this.setState({loading:false});return;}
       this.setState({snapshot,loading:false,error:''});this.publish(snapshot);

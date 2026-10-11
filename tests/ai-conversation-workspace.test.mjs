@@ -93,3 +93,77 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  h.props={language:'en'};assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');h.__workspaceObservedProps=h.props;k.scope.scope='personal';h.state.assistantScope='personal';assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');
  assert.equal(RegisteredWorkspaceCard({descriptor:{component:'javascript',rows:[]}}),null);
 });
+
+
+test('manual lines work without a catalog, normalize Arabic digits and undo as one revision',()=>{
+ const {k,v}=fixture();v.savedItems=[];const before=structuredClone(v),ids=[...k.artifact.lineIds];
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'add-line',descriptionEn:'Alpha',descriptionAr:'ألفا',quantity:'١٠',unit:'CTN',unitPrice:'١٢٫٥٠'}));
+ const line=k.artifact.lineIds.at(-1);assert.equal(k.artifact.proposal.items.at(-1).quantity,'10');assert.equal(k.artifact.proposal.items.at(-1).unitPrice,'12.50');assert.equal(workspaceDocument(k,v,'ar').subtotal,'875.30');assert.deepEqual(v,before);assert.equal(k.artifact.undo.length,1);
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'undo'}));assert.deepEqual(k.artifact.lineIds,ids);assert.equal(k.artifact.proposal.items.length,3);
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'redo'}));assert.equal(k.artifact.lineIds.at(-1),line);assert.equal(k.artifact.proposal.items.length,4);
+});
+test('manual line validation rejects unsafe values atomically and enforces 20-line limit',()=>{
+ const {k,v}=fixture(),line={kind:'add-line',descriptionEn:'Alpha',descriptionAr:'',quantity:'1',unit:'CTN',unitPrice:'0'};
+ for(const patch of [{quantity:'0'},{quantity:'-1'},{quantity:'1e3'},{unitPrice:'-1'},{unitPrice:''},{descriptionEn:''},{unit:''},{descriptionEn:'x'.repeat(161)},{unit:'x'.repeat(41)},{descriptionAr:'x\u0000'}]){
+  const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{...line,...patch})));assert.deepEqual(k,before);
+ }
+ for(let i=3;i<20;i++)applyWorkspaceCommand(k,v,cmd(k,line));const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,line)),/20/);assert.deepEqual(k,before);
+});
+test('manual append to an existing draft preserves base and new IDs through undo',()=>{
+ const {k,v}=fixture(),d=createBlankDocument('proforma','PI',v.company);d.items=[{id:'base',descriptionEn:'Original',descriptionAr:'',quantity:'1',unit:'CTN',unitPrice:'2'}];v.documents=[d];k.artifact=undefined;
+ stageKernelArtifact(k,{capability:'document.updateDraft',documentId:d.id,addItems:[],itemEdits:[],termsPatch:{},label:'Update',rationale:'User'});
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'add-line',descriptionEn:'New',descriptionAr:'',quantity:'2',unit:'CTN',unitPrice:'3'}));const rows=workspaceDocument(k,v,'en').rows;assert.equal(rows[0].id,'base');assert.equal(rows.length,2);assert.notEqual(rows[1].id,'base');assert.equal(workspaceDocument(k,v,'en').subtotal,'8.00');
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'undo'}));assert.deepEqual(workspaceDocument(k,v,'en').rows.map(r=>r.id),['base']);assert.equal(v.documents[0].items.length,1);
+});
+
+
+test('personal empty conversation offers personal prompts and preserves isolation',async()=>{
+ const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js'),e=React.createElement;
+ const host={props:{language:'ar'},state:{assistantScope:'personal'},ask:async()=>{}};
+ const tree=e('div',{className:'lourex-ai-empty'},'جهز عرض سعر','راجع التحصيل'),result=renderConversationWorkspace(host,tree),serialized=JSON.stringify(result);
+ assert.match(serialized,/مساعدك الشخصي/);assert.match(serialized,/تفضيلاتي/);assert.ok(!serialized.includes('عرض سعر'));assert.ok(!serialized.includes('التحصيل'));
+});
+test('mission workspace exposes uncertain and pending actions while retaining completed history',async()=>{
+ const {MissionWorkspace}=await import('../dist/src/components/AiCommercialWorkspace.js');
+ const mission=(id,status)=>({id,goal:id,steps:[{id:id+'-step',label:id,status,proposal:{}}]});
+ const host={props:{language:'ar'},state:{},__intelligenceKernel:{missions:[mission('pending','needs_approval'),mission('uncertain','uncertain'),mission('cancelled','cancelled'),mission('done','completed')]}};
+ const view=MissionWorkspace({host}),children=React.Children.toArray(view.props.children),history=children.find(c=>c?.type==='details');assert.ok(history);
+ const historical=JSON.stringify(history);assert.match(historical,/cancelled/);assert.match(historical,/done/);assert.ok(!historical.includes('pending'));assert.ok(!historical.includes('uncertain'));
+ const active=JSON.stringify(children.filter(c=>c?.type!=='details'));assert.match(active,/pending/);assert.match(active,/uncertain/);assert.ok(!active.includes('cancelled'));assert.ok(!active.includes('done'));
+});
+
+
+test('undo and redo delivery terms keep obligations aligned with the restored draft',()=>{
+ const {k,v}=fixture(),before=structuredClone(v);
+ const terms=incoterm=>applyWorkspaceCommand(k,v,cmd(k,{kind:'terms',incoterm,paymentTerms:'Cash',deliveryTime:''}));
+ terms('CFR Jeddah');terms('EXW Mersin');
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'undo'}));assert.equal(k.artifact.proposal.incoterm,'CFR Jeddah');assert.equal(k.commercial.obligations.to,'CFR Jeddah');assert.ok(k.commercial.obligations.warnings.some(w=>w.includes('insurance under CFR')));assert.ok(!k.commercial.obligations.warnings.some(w=>w.includes('Buyer generally')));
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'redo'}));assert.equal(k.artifact.proposal.incoterm,'EXW Mersin');assert.equal(k.commercial.obligations.to,'EXW Mersin');assert.deepEqual(v,before);
+});
+test('undo restores empty or legacy delivery terms without retaining incompatible obligations',()=>{
+ for(const original of ['', 'Delivery Mersin']){const {k,v}=fixture();k.artifact.proposal.incoterm=original;
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'terms',incoterm:'CFR Jeddah',paymentTerms:'Cash',deliveryTime:''}));
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'undo'}));assert.equal(k.artifact.proposal.incoterm,original);assert.equal(k.commercial.obligations,undefined);
+ applyWorkspaceCommand(k,v,cmd(k,{kind:'redo'}));assert.equal(k.commercial.obligations.to,'CFR Jeddah');}
+});
+test('repricing an empty draft rejects without producing a review or undo revision',()=>{
+ const {k,v}=fixture();k.artifact.proposal.items=[];k.artifact.lineIds=[];const before=structuredClone(k);
+ assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{kind:'reprice',currency:'USD',reduction:'0.5',lastReduction:'1'})),/at least one line/);assert.deepEqual(k,before);
+});
+test('workspace presentation localizes known validation failures without altering user text or IDs',async()=>{
+ const {workspaceText,workspaceError}=await import('../dist/src/lib/ai-workspace-presentation.js');
+ assert.match(workspaceError(true,'Whole cartons and whole units per carton are required.'),/عددًا صحيحًا/);
+ assert.match(workspaceError(true,'Flow needs a unique ID, currency, direction and date after baseline within horizon.'),/ضمن مدة السيناريو/);
+ assert.equal(workspaceText(true,'customer-document'),'مستند العميل');assert.equal(workspaceText(false,'Business document draft'),'Business document draft');
+ assert.equal(workspaceText(true,'My custom quote'),'My custom quote');assert.equal(workspaceText(true,'QUO-2026-0007'),'QUO-2026-0007');
+});
+
+
+test('hydrating a restored incomplete draft recomputes review and blocks approval before side effects',async()=>{
+ const {compiledReliabilityHarness}=await import('./helpers/ai-reliability-runtime.mjs');const {v}=fixture(),harness=await compiledReliabilityHarness(v),h=harness.host();
+ await harness.runtime.refreshIntelligenceWorkspace(h);await harness.runtime.updateIntelligenceWorkspace(h,{kind:'composer',documentKind:'proforma',currency:'USD'});
+ assert.ok(h.state.review.blockers.length);const id=h.__intelligenceKernel.artifact.id;
+ h.__intelligenceKernel=undefined;h.state.proposal=null;h.state.review=null;
+ await harness.runtime.refreshIntelligenceWorkspace(h);assert.equal(h.__intelligenceKernel.artifact.id,id);assert.ok(h.state.review.blockers.length);
+ let writes=0;await harness.runtime.intelligenceApprove(h,h.state.proposal,async()=>{writes++;return{id:'should-not-write'};});assert.equal(writes,0);assert.equal(h.__foundationReceipts.length,0);assert.equal(v.documents.length,0);assert.ok(h.state.error);
+});

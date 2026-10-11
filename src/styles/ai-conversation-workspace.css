@@ -3,7 +3,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2']{
   --lxw-bg:var(--lx485-canvas,var(--ft-workspace,#111b28));--lxw-surface:var(--lx485-surface,var(--ft-surface,#192434));--lxw-text:var(--lx485-text,var(--ft-text,#f2f4f6));--lxw-muted:var(--lx485-muted,var(--ft-text-soft,#acb8c8));--lxw-line:var(--lx485-line,var(--ft-line,#334153));--lxw-accent:var(--lx485-blue,var(--ft-accent,#67b7d8));
   display:flex!important;flex-direction:column!important;overflow:hidden!important;color:var(--lxw-text)!important;background:var(--lxw-bg)!important;
 }
-html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2']{--lxw-bg:#f6f4ef;--lxw-surface:#fffdf8;--lxw-text:#172927;--lxw-muted:#526662;--lxw-line:#d7dfd8;--lxw-accent:#16665c;}
+html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2']{--lxw-bg:#f6f4ef;--lxw-surface:#fffdf8;--lxw-text:#172927;--lxw-muted:#526662;--lxw-line:#d7dfd8;--lxw-accent:var(--lx485-blue-strong,#315fad);}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-body{display:flex;min-height:0;flex:1;min-width:0;overflow:hidden;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;overflow:hidden;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-messages{min-height:0!important;flex:1!important;overflow-y:auto!important;overscroll-behavior:contain;}
@@ -23,7 +23,7 @@ html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-badge.external{color:var(--lxw-muted);}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-tabs{display:flex;gap:6px;flex-shrink:0;overflow-x:auto;padding:8px 12px;overscroll-behavior:contain;border-bottom:1px solid var(--lxw-line);}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-tabs button{white-space:nowrap;flex-shrink:0;}
-#lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-tabs,.lxw-revision-controls) button[aria-pressed='true']{background:var(--lxw-accent);color:#fff;border-color:var(--lxw-accent);}
+#lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-tabs,.lxw-revision-controls) button[aria-pressed='true']{background:var(--lx485-blue-strong,#315fad);color:#fff;border-color:var(--lx485-blue-strong,#315fad);}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-artifact-content{padding:12px;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;flex:1;font-size:14px;line-height:1.65;overflow-wrap:anywhere;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-artifact-content h3{font-size:15px;margin:8px 0;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-table-scroll{overflow:auto;max-width:100%;overscroll-behavior:contain;}
@@ -75,3 +75,9 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-approval .loure
 
 /* Scoped precompiled reliability panels; preserve existing non-AI owners. */
 .lxw-reliability{display:grid;gap:14px}.lxw-reliability article{display:grid;gap:6px;padding:12px;border:1px solid var(--lxw-line);border-radius:10px;overflow-wrap:anywhere}.lxw-reliability button,.lxw-reliability input,.lxw-reliability select{min-height:44px}.lxw-reliability small{display:block;opacity:.78}.lxw-reliability input,.lxw-reliability select{max-width:100%;color:inherit;background:var(--lxw-surface);border:1px solid var(--lxw-line);border-radius:8px;padding:8px}.lxw-reliability .lxw-commercial-form label{display:grid;gap:6px}
+
+/* Keep the established visual owner; fix undersized conversation controls. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-scope-trigger,.lourex-ai-message-actions button,.lxw-approval button){min-height:44px!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-actions button{min-width:44px!important;}
+
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-manual-line{display:grid;gap:10px;margin-block:18px;padding:14px;border:1px solid var(--lxw-line);border-radius:12px;background:var(--lxw-surface)}#lourex-ai-panel[data-lourex-workspace='2'] .lxw-manual-line label{display:grid;gap:5px}#lourex-ai-panel[data-lourex-workspace='2'] .lxw-manual-line input{min-height:44px;min-width:0;width:100%;box-sizing:border-box;background:var(--lxw-surface);color:inherit;border:1px solid var(--lxw-line);border-radius:8px;padding:8px}#lourex-ai-panel[data-lourex-workspace='2'] .lxw-manual-line button{min-height:44px}

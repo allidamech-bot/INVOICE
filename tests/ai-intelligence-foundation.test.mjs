@@ -8,7 +8,7 @@ import {normalizeAssistantState,upsertAssistantThread} from '../dist/src/storage
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createAiToolRuntime,executeAiToolCall} from '../dist/src/lib/ai-tool-orchestrator.js';
 const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'t1'};
-const proposal=()=>({capability:'document.createDraft',kind:'proforma',currency:'USD',language:'en',customerId:'',items:Array.from({length:3},(_,i)=>({savedItemId:'',descriptionEn:'Item '+i,descriptionAr:'',quantity:'10',unit:'CTN',unitPrice:'25'})),label:'Review',rationale:'Explicit user request'});
+const proposal=()=>({capability:'document.createDraft',kind:'proforma',currency:'USD',language:'en',customerId:'',customerDraft:{companyNameEn:'QA Customer',companyNameAr:''},items:Array.from({length:3},(_,i)=>({savedItemId:'',descriptionEn:'Item '+i,descriptionAr:'',quantity:'10',unit:'CTN',unitPrice:'25'})),label:'Review',rationale:'Explicit user request'});
 const drafting={activeDocument:null,items:[],customers:[],defaults:{currency:'USD',language:'en'}};
 const person=(id,name)=>({id,workspaceId:'default',companyNameEn:name,companyNameAr:'',contactPerson:'',phone:'',email:''});
 test('50 mixed Arabic/English turns retain exact draft and stable third-line identity',()=>{

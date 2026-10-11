@@ -11,7 +11,60 @@ const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
 const ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
 const VAULT_WRITE_DIAG_INTERVAL_MS=30_000;
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord | PlainWorkspaceRecord | PlainWorkspaceArchiveRecord;
+interface AssistantCacheKeyRecord {id:'assistant-cache-key';uid:string;key:CryptoKey;updatedAt:string;namespace?:'legacy'|'pinless';}
+const assistantKeyBindings=new WeakMap<CryptoKey,{uid:string;namespace:'legacy'|'pinless'}>();
+function assistantBinding(key?:CryptoKey){
+  const binding=key&&assistantKeyBindings.get(key);
+  if(binding&&binding.uid!==activeStorageUid)throw new Error('Assistant account changed. No cache access allowed.');
+  return binding;
+}
+function assistantRecordId(id:string,key?:CryptoKey):string{
+  const binding=assistantBinding(key);
+  // Unrecoverable historical PIN-encrypted caches stay intact in their original
+  // records. New account caches use a separate namespace and never overwrite them.
+  return binding?.namespace==='pinless'?'ai-v2:'+id:id;
+}
+function assertAssistantDatabase(db:IDBDatabase,key?:CryptoKey):void{
+  const binding=assistantBinding(key);
+  if(binding&&db.name!==accountDbName(binding.uid))throw new Error('Assistant database scope changed.');
+}
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord | PlainWorkspaceRecord | PlainWorkspaceArchiveRecord | AssistantCacheKeyRecord;
+
+/** Local AI cache compatibility only: never an authentication or workspace key. */
+export async function getAccountAssistantCacheKey(uid:string):Promise<CryptoKey>{
+  if(!uid||activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  const retained=await getRecord<AssistantCacheKeyRecord>('assistant-cache-key');
+  if(activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  if(retained){if(retained.uid!==uid||!retained.key)throw new Error('Assistant cache belongs to another account.');assistantKeyBindings.set(retained.key,{uid,namespace:retained.namespace||'pinless'});return retained.key;}
+  const candidate=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  const db=await openDb();
+  if(activeStorageUid!==uid||db.name!==accountDbName(uid))throw new Error('Account storage scope changed.');
+  return new Promise((resolve,reject)=>{
+    let key:CryptoKey;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('assistant-cache-key');
+    req.onsuccess=()=>{
+      if(activeStorageUid!==uid){tx.abort();return;}
+      const existing=req.result as AssistantCacheKeyRecord|undefined;
+      if(existing){if(existing.uid!==uid||!existing.key){tx.abort();return;}key=existing.key;assistantKeyBindings.set(key,{uid,namespace:existing.namespace||'pinless'});return;}
+      // Reuse a retained account-bound legacy cache key where available. The
+      // historical vault itself remains untouched and is never opened here.
+      const legacy=store.get('session-key');
+      legacy.onsuccess=()=>{
+        if(activeStorageUid!==uid){tx.abort();return;}
+        const previous=legacy.result as SessionKeyRecord|undefined;
+        const compatible=Boolean(previous?.token?.startsWith('acct:'+uid+':')&&previous.key);
+        key=compatible?previous!.key:candidate;
+        const namespace=compatible?'legacy':'pinless';
+        assistantKeyBindings.set(key,{uid,namespace});
+        store.put({id:'assistant-cache-key',uid,key,namespace,updatedAt:new Date().toISOString()});
+      };
+    };
+    tx.oncomplete=()=>activeStorageUid===uid?resolve(key!):reject(new Error('Account storage scope changed.'));
+    tx.onerror=()=>reject(tx.error??new Error('Assistant cache unavailable.'));
+    tx.onabort=()=>reject(tx.error??new Error('Account storage scope changed.'));
+  });
+}
 
 let activeStorageUid:string|null=null;
 let dbPromise:Promise<IDBDatabase>|null=null;
@@ -196,16 +249,19 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-export async function getRecord<T extends DbRecord>(id: T['id']): Promise<T | null> {
+export async function getRecord<T extends DbRecord>(id: T['id'],assistantKey?:CryptoKey): Promise<T | null> {
   const started=nowTick(),vaultRead=id==='vault';
   try{
     const db = await openDb();
+    assertAssistantDatabase(db,assistantKey);
+    const recordId=assistantRecordId(id,assistantKey);
     const value=await new Promise<T | null>((resolve, reject) => {
       const tx = db.transaction(STORE, 'readonly');
-      const req = tx.objectStore(STORE).get(id);
+      const req = tx.objectStore(STORE).get(recordId);
       req.onsuccess = () => resolve((req.result as T | undefined) ?? null);
       req.onerror = () => reject(req.error ?? new Error('IndexedDB read failed.'));
     });
+    assistantBinding(assistantKey);
     if(vaultRead)diag('vault-storage-read-success',`durationMs=${elapsedMs(started)} present=${value?'yes':'no'}`);
     return value;
   }catch(error){
@@ -214,17 +270,20 @@ export async function getRecord<T extends DbRecord>(id: T['id']): Promise<T | nu
   }
 }
 
-export async function putRecord(record: DbRecord): Promise<void> {
+export async function putRecord(record: DbRecord,assistantKey?:CryptoKey): Promise<void> {
   const started=nowTick(),vaultWrite=record.id==='vault';
   try{
     const db = await openDb();
+    assertAssistantDatabase(db,assistantKey);
+    const recordId=assistantRecordId(record.id,assistantKey);
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE,'readwrite');
-      tx.objectStore(STORE).put(record);
+      tx.objectStore(STORE).put(recordId===record.id?record:{...record,id:recordId});
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed.'));
       tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted.'));
     });
+    assistantBinding(assistantKey);
     if(vaultWrite){
       rememberVaultMeta(record as EncryptedVaultRecord);
       const duration=elapsedMs(started),now=Date.now();

@@ -37,7 +37,7 @@ test('Conversation attachments reuse canonical LOUREX parsers, AI Inbox classifi
   assert.match(source,/mode:'source-summary'/);
   assert.doesNotMatch(source,/ai-source-summary-v3/);
   assert.match(source,/general read-only extraction was used/i);
-  assert.match(source,/MAX_CONVERSATION_ATTACHMENTS=4/);
+  assert.match(source,/MAX_CONVERSATION_ATTACHMENTS=10/);
   assert.match(source,/MAX_CONVERSATION_ATTACHMENT_TOTAL_BYTES=16_000_000/);
   assert.match(source,/Scanned PDF\/image must be below 2\.6 MB/);
 });
@@ -99,6 +99,6 @@ test('Conversation attachment validation rejects too many or oversized combined 
   const {validateConversationFiles}=await import('../dist/src/lib/ai-conversation-attachments.js');
   const fake=(name,size)=>({name,size,lastModified:1,type:'text/plain'});
   assert.equal(validateConversationFiles([fake('a',1),fake('b',1),fake('c',1),fake('d',1)]).length,4);
-  assert.throws(()=>validateConversationFiles([fake('a',1),fake('b',1),fake('c',1),fake('d',1),fake('e',1)]),/up to 4/i);
+  assert.throws(()=>validateConversationFiles(Array.from({length:11},(_,i)=>fake(String(i),1))),/up to 10/i);
   assert.throws(()=>validateConversationFiles([fake('large',16_000_001)]),/16 MB/i);
 });

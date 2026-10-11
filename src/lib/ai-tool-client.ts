@@ -1,5 +1,5 @@
 import type { VaultPayload } from '../types.js';
-import { requestAiJson } from './ai-request.js';
+import { requestAiJson, AiRequestError } from './ai-request.js';
 import { scopeVault } from './workspaces.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult, type AiToolId } from './ai-tool-orchestrator.js';
@@ -59,7 +59,7 @@ const PLANNER_SOURCE_CHARS=2800;
 export interface AiPlannerSourceFact{fileName:string;documentType:string;route:string;confidence:number;extracted:string;truncated:boolean;}
 export function aiPlannerSourceFacts(sources:unknown):AiPlannerSourceFact[]{
   if(!Array.isArray(sources))return [];
-  return sources.slice(0,4).filter(row=>row&&typeof row==='object').map(row=>{
+  return sources.slice(0,10).filter(row=>row&&typeof row==='object').map(row=>{
     const item=row as Record<string,unknown>;
     const extracted=String(item.extracted??'');
     const confidence=Number(item.confidence);
@@ -76,9 +76,11 @@ export function explicitAiActionRequest(message:string):boolean{
 
 /** When an explicit user action fails to plan, do not quietly replace the
  * operation with conversational output that could suggest it was performed. */
-export function aiPlanningUnavailableResult(message:string,language:'en'|'ar',reason:'unavailable'|'invalid'|'limited'='unavailable'):AiToolOrchestrationResult{
+export function aiPlanningUnavailableResult(message:string,language:'en'|'ar',reason:'unavailable'|'invalid'|'limited'|'not-configured'='unavailable'):AiToolOrchestrationResult{
   const ar=language==='ar';
-  const answer=reason==='limited'
+  const answer=reason==='not-configured'
+    ?(ar?'مزوّدو AI غير مهيّئين لهذه النسخة من الموقع. لم يتم تجهيز الإجراء أو تغيير أي بيانات. يمكن استخدام الأدوات المحلية من مساحة العمل.':'AI providers are not configured for this deployment. No action was prepared and no data changed. Local tools remain available in the workspace.')
+    :reason==='limited'
     ?(ar?'تعذر تجهيز الإجراء لأن طلبات AI بلغت الحد المؤقت. لم أغيّر أي بيانات. حاول مجددًا لاحقًا أو استخدم القسم المختص مباشرة.':'The AI planner is temporarily rate limited. No data was changed. Try again later or use the relevant workspace directly.')
     :reason==='invalid'
       ?(ar?'لم أتمكن من إنشاء خطة آمنة وواضحة لهذا الإجراء. لم أغيّر أي بيانات. حدّد الأصناف أو المستندات والتعديلات المطلوبة، ثم أعد المحاولة.':'I could not form a valid, safe action plan. No data was changed. Specify the affected products or documents and the required edits, then retry.')
@@ -166,7 +168,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       if(input.signal?.aborted)throw error;
       if(!actionRequested)return null;
       const limited=error instanceof Error&&/(?:rate.?limit|too many|429)/i.test(error.message);
-      return aiPlanningUnavailableResult(input.message,input.language,limited?'limited':'unavailable');
+      return aiPlanningUnavailableResult(input.message,input.language,error instanceof AiRequestError&&error.code==='AI_NOT_CONFIGURED'?'not-configured':limited?'limited':'unavailable');
     }
     plan=validateAiToolPlan(payload?.plan,runtime.scope);
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;

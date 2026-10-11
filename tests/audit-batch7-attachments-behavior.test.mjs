@@ -21,8 +21,8 @@ test('missing specific extraction uses an explicit read-only fallback rather tha
 for(const source of [null,{},[],undefined])test(`missing generic source (${JSON.stringify(source)}) fails explicitly without a complete phase`,async()=>{
  const h=fixture(async(_url,payload)=>payload.mode==='source-summary'?{source}:{classification:{route:'unknown'}}),phases=[];await assert.rejects(h.analyzeConversationAttachment(new File(['SKU A1'],'source.txt',{type:'text/plain'}),undefined,p=>phases.push(p)),/no readable data/);assert.ok(!phases.includes('complete'));
 });
-test('mixed file selection preserves all four sources and enforces count and total budgets',()=>{
- const h=fixture(),files=[new File(['a'],'a.txt',{type:'text/plain'}),new File(['a,b'],'b.csv',{type:'text/csv'}),new File([new Uint8Array(signatures[0][2])],'c.png',{type:'image/png'}),new File([new Uint8Array(signatures[3][2])],'d.pdf',{type:'application/pdf'})];assert.deepEqual([...h.validateConversationFiles(files)],files);assert.throws(()=>h.validateConversationFiles([...files,files[0]]),/up to 4/);assert.throws(()=>h.validateConversationFiles([{size:16_000_001}]),/16 MB/);
+test('mixed file selection preserves ten sources and enforces count and total budgets',()=>{
+ const h=fixture(),files=[new File(['a'],'a.txt',{type:'text/plain'}),new File(['a,b'],'b.csv',{type:'text/csv'}),new File([new Uint8Array(signatures[0][2])],'c.png',{type:'image/png'}),new File([new Uint8Array(signatures[3][2])],'d.pdf',{type:'application/pdf'})];const ten=Array.from({length:10},(_,i)=>files[i%4]);assert.deepEqual([...h.validateConversationFiles(ten)],ten);assert.throws(()=>h.validateConversationFiles([...ten,files[0]]),/up to 10/);assert.throws(()=>h.validateConversationFiles([{size:16_000_001}]),/16 MB/);
 });
 function generatedFunction(name,globals={}){
  const path='dist/src/components/AiCopilot.js',source=read(path),ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);let fn;function visit(n){if(ts.isFunctionDeclaration(n)&&n.name?.text===name)fn=n;ts.forEachChild(n,visit);}visit(ast);assert.ok(fn,'actual final emitted function');const ctx={AbortController,DOMException,...globals};vm.runInNewContext(fn.getText(ast)+'\nthis.run='+name+';',ctx);return ctx.run;
@@ -58,5 +58,5 @@ test('voice retry cannot restart an obsolete recognition instance after cancella
 test('repeated selection retains existing sources; busy drops and over-budget batches cannot erase them',()=>{
  const h=instance(),validation=fixture().validateConversationFiles,add=generatedFunction('__lourexAddFiles',{__lourexFileKey:generatedFunction('__lourexFileKey'),validateConversationFiles:validation,t:en=>en}),a=new File(['a'],'a.txt'),b=new File(['b'],'b.csv');h.state.conversationAttachments=[{id:'a',file:a,status:'ready'}];
  add(h,[a,b]);assert.equal(h.state.conversationAttachments.length,2);assert.equal(h.state.conversationAttachments[0].id,'a');const kept=h.state.conversationAttachments;h.state.attachmentBusy=true;add(h,[new File(['c'],'c.txt')]);assert.equal(h.state.conversationAttachments,kept);assert.match(h.state.error,/stop it before adding files/);
- h.state.attachmentBusy=false;add(h,[new File(['c'],'c.txt'),new File(['d'],'d.txt'),new File(['e'],'e.txt')]);assert.equal(h.state.conversationAttachments,kept);assert.match(h.state.error,/up to 4/);
+ h.state.attachmentBusy=false;add(h,Array.from({length:9},(_,i)=>new File(['c'],`extra-${i}.txt`)));assert.equal(h.state.conversationAttachments,kept);assert.match(h.state.error,/up to 10/);
 });

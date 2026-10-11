@@ -67,11 +67,11 @@ async function decryptState(key:CryptoKey,record:EncryptedAssistantRecord):Promi
   return normalizeAssistantState(JSON.parse(new TextDecoder().decode(plain)));
 }
 export async function loadAssistantState(key:CryptoKey):Promise<AssistantStoreState>{
-  const record=await getRecord<any>(RECORD_ID as any) as EncryptedAssistantRecord|null;
+  const record=await getRecord<any>(RECORD_ID as any,key) as EncryptedAssistantRecord|null;
   if(!record)return emptyState();
   try{return await decryptState(key,record);}catch{throw new Error('LOUREX assistant history could not be decrypted for this account.');}
 }
-export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{await putRecord(await encryptState(key,normalizeAssistantState(state)) as any);}
+export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{await putRecord(await encryptState(key,normalizeAssistantState(state)) as any,key);}
 
 function scopeMatches(thread:AssistantThread,scope:Exclude<AssistantScope,'temporary'>,workspaceId:string,branchId:string):boolean{
   return thread.scope===scope&&(scope==='personal'||(thread.workspaceId===workspaceId&&thread.branchId===branchId));
