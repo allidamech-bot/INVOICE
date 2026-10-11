@@ -3,7 +3,7 @@ import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from '
 import { strictAiActor } from '../lib/ai-foundation-approval.js';
 import { CommercialWorkspace, MissionWorkspace } from './AiCommercialWorkspace.js';
 import { workspaceDocument, workspaceDrafting, validateWorkspaceCard, type WorkspaceCard, type WorkspaceComponent, type WorkspaceDocument, type WorkspaceCommand } from '../lib/ai-workspace-model.js';
-import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, assignIntelligenceConversationMode } from '../lib/ai-intelligence-runtime.js';
+import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, assignIntelligenceConversationMode, currentAiExperiencePreferences, updateAiExperiencePreferences } from '../lib/ai-intelligence-runtime.js';
 import { normalizeAiConversationMode, conversationModeDescription, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 import { kernelScopeKey, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { activeAccountStorageUid } from '../storage/db.js';
@@ -17,6 +17,7 @@ const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
 const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy);
 function dispatch(host:Host,command:WorkspaceCommand){void updateIntelligenceWorkspace(host,command);}
+const aiUiAr=(host:Host):boolean=>{const pref=currentAiExperiencePreferences(host).interfaceLanguage;return pref==='ar'||(pref==='inherit'&&host.props.language==='ar');};
 function CardRows({card}:{card:WorkspaceCard}):any {
   return <dl className="lxw-facts">{card.rows.map(row=><div key={row.id}><dt>{row.label}</dt><dd>{row.detail||'—'}</dd></div>)}</dl>;
 }
@@ -106,6 +107,29 @@ function RevisionTimeline({host}:{host:Host}):any {
 }
 /** Compact action entry in chat; the original guarded callbacks remain the
  * only execution owners. Approval buttons appear only after explicit review. */
+/** Per-account, AI-only preferences. The host owns state, and encrypted
+ * persistence reuses the serialized assistant-store queue (no site setting writes). */
+function AiExperienceSettings({host}:{host:Host}):any {
+  const ar=aiUiAr(host),prefs=currentAiExperiencePreferences(host);
+  const saving=Boolean(host.state.__workspaceSettingsSaving);
+  const update=(patch:any)=>{if(!saving)void updateAiExperiencePreferences(host,patch);};
+  const field=(id:string,titleEn:string,titleAr:string,helpEn:string,helpAr:string,value:string,choices:{value:string;en:string;ar:string}[],key:string)=>
+    <label className="lxw-settings-field" htmlFor={id}><strong>{label(ar,titleEn,titleAr)}</strong><small>{label(ar,helpEn,helpAr)}</small>
+      <select id={id} value={value} disabled={saving} onChange={(event:any)=>update({[key]:event.target.value})}>
+        {choices.map(option=><option key={option.value} value={option.value}>{label(ar,option.en,option.ar)}</option>)}
+      </select>
+    </label>;
+  return <section className="lxw-settings" role="region" aria-label={label(ar,'LOUREX AI settings','إعدادات LOUREX AI')}>
+    <header className="lxw-settings-head"><div><strong>{label(ar,'AI preferences','تفضيلات المساعد')}</strong><small>{label(ar,'Independent from the main LOUREX site settings','مستقلة عن إعدادات موقع LOUREX')}</small></div><button type="button" onClick={()=>host.setState({__workspaceSettingsOpen:false})}>{label(ar,'Done','تم')}</button></header>
+    {field('lxw-ui-language','AI interface language','لغة واجهة المحادثة','Does not change the main site language.','لا تغيّر لغة الموقع الرئيسية.',prefs.interfaceLanguage,[{value:'inherit',en:'Same as site',ar:'مثل لغة الموقع'},{value:'ar',en:'Arabic',ar:'العربية'},{value:'en',en:'English',ar:'الإنجليزية'}],'interfaceLanguage')}
+    {field('lxw-reply-language','Answer language','لغة الإجابات','The language to request from LOUREX AI.','اللغة المطلوبة لردود LOUREX AI.',prefs.replyLanguage,[{value:'auto',en:'Follow the conversation',ar:'حسب المحادثة'},{value:'ar',en:'Arabic',ar:'العربية'},{value:'en',en:'English',ar:'الإنجليزية'}],'replyLanguage')}
+    {field('lxw-response-detail','Response length','تفصيل الإجابات','Choose how much detail to request in analysis.','حدّد مقدار التفاصيل المطلوب في التحليل.',prefs.detail,[{value:'balanced',en:'Balanced',ar:'متوازن'},{value:'brief',en:'Concise',ar:'مختصر'},{value:'detailed',en:'Detailed',ar:'مفصل'}],'detail')}
+    {field('lxw-motion','Motion and transitions','الحركة والانتقالات','Use device preference or reduce optional animations.','اتبع إعداد الجهاز أو خفف المؤثرات الاختيارية.',prefs.motion,[{value:'system',en:'Follow device',ar:'حسب الجهاز'},{value:'reduced',en:'Reduce motion',ar:'تقليل الحركة'}],'motion')}
+    <div className="lxw-settings-info"><strong>{label(ar,'Voice and permissions','الصوت والصلاحيات')}</strong><p>{label(ar,'Voice text remains editable before sending. Advisor stays read-only regardless of these settings.','يظل النص الصوتي قابلًا للمراجعة قبل الإرسال. ويبقى المستشار للقراءة والتحليل فقط مهما تغيّرت الإعدادات.')}</p></div>
+    {host.state.__workspaceSettingsError?<p role="alert" className="lxw-settings-error">{host.state.__workspaceSettingsError}</p>:null}
+    {saving?<p role="status" className="lxw-settings-note">{label(ar,'Saving preferences…','جارٍ حفظ التفضيلات…')}</p>:null}
+  </section>;
+}
 function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:boolean}):any {
   if(!approval||!host.state.proposal)return null;
   const reviewed=host.state.__workspaceReviewedProposal===host.state.proposal;
@@ -128,7 +152,7 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
   </section>;
 }
 function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
-  const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=host.props.language==='ar';
+  const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
   let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
   const tab=host.state.__workspaceTab||'preview',editable=Boolean(host.state.__workspaceEditing&&doc?.status==='draft');
   const choose=(value:string)=>host.setState({__workspaceTab:value});
@@ -175,6 +199,10 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(typeof node==='string')return workspaceText(host.props.language==='ar',node);
     if(!react.isValidElement(node))return node;
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    if(cn.split(' ').includes('lourex-ai-head')&&workspaceVisible(host)){
+      const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
+      return react.cloneElement(node,undefined,...children.slice(0,-1),settings,...children.slice(-1));
+    }
     if(cn.split(' ').includes('lourex-ai-title')){
       const branded=children.map((child:any)=>{
         if(child?.type!=='div')return child;
@@ -222,7 +250,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       });
       return react.cloneElement(node,{'data-lourex-workspace':'2','data-workspace-ready':'false'},...safe);
     }
-    const ar=host.props.language==='ar',k=host.__intelligenceKernel as ConversationKernel;
+    const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
     const header=children.filter((child:any)=>['lourex-ai-head','lourex-ai-context'].some(name=>String(child?.props?.className||'').split(' ').includes(name)));
     const content=children.filter((child:any)=>!header.includes(child));
     const approval=content.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal')&&['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability));
@@ -237,7 +265,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     </div>;
     const toolbar=mode==='controller'?<div className="lxw-toolbar"><button type="button" disabled={inactive} aria-expanded={open} onClick={()=>host.setState({__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}>{label(ar,'Workspace','مساحة العمل')}{k.artifact?' · '+k.artifact.revision:''}</button></div>:null;
     const safeContent=mode==='controller'?content.filter((child:any)=>child!==approval):content.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
-    return react.cloneElement(node,{'aria-label':'LOUREX AI','data-lourex-workspace':'2','data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...header,tabs,description,toolbar,<div className="lxw-body"><div className="lxw-chat">{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    return react.cloneElement(node,{'aria-label':'LOUREX AI','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...header,tabs,description,toolbar,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
@@ -304,7 +332,7 @@ export function installConversationWorkspace(host:Host):void {
       if(!host.__intelligenceKernel)throw new Error('The selected conversation could not be loaded.');
       if(normalizeAiConversationMode(host.__intelligenceKernel.mode)!==target)await assignIntelligenceConversationMode(host,target);
       const current=host.__intelligenceKernel as ConversationKernel;
-      host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSwitching:false});
+      host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSwitching:false,__workspaceSettingsOpen:false});
     }catch(error){
       host.setState({__workspaceSwitching:false,error:error instanceof Error?error.message:String(error)});
     }finally{
