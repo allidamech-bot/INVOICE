@@ -1,13 +1,13 @@
 import { App as BaseApp } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
-import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
+import { subscribePlainCloudChanges } from '../cloud/plain-workspace.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { adaptiveCloudSettleMs } from '../cloud/coalescing.js';
 import { t } from '../lib/i18n.js';
-import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
-import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
-import { saveVault } from '../storage/vault.js';
+import { activateAccountStorage, activeAccountStorageUid } from '../storage/db.js';
+import { getActiveAccountUid, setActiveAccountUid, suspendSession } from '../storage/session.js';
+
 import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js';
 import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
 import { applyWorkspaceScope, mergeScopedVault, scopeVaultForExternalMutation } from '../lib/workspaces.js';
@@ -56,35 +56,17 @@ class AdaptiveCloudApp extends BaseApp {
       instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),delay);
     };
 
-    // AI actions and supplier-import drafts share BaseApp's authoritative
-    // encrypted write tail AND its domain invariant validator. Mutations must
-    // pass the same customer/supplier/product/payment/inventory guards as manual
-    // edits before any encrypted snapshot can be committed.
+    // Every AI mutation enters the same validated, UID-scoped, CAS-protected
+    // save queue as an ordinary user edit. No encryption key or PIN is used.
     registerVaultMutationBridge(async mutation=>{
-      const operation=instance.vaultWriteTail.catch(()=>null).then(async (queued:any)=>{
-        await instance.waitForProtectedDataOperation();
-        const key=instance.state.key;
-        if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
-        const latestFull=queued??instance.state.vault;
-        if(!latestFull)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));
-        const latest=scopeVaultForExternalMutation(latestFull);
+      await instance.persistFullMutation((full:any)=>{
+        const latest=scopeVaultForExternalMutation(full);
         const intended=applyWorkspaceScope(latest,mutation(latest));
         const validated=mergeVaultIntent(latest,intended,latest);
-        const next=mergeScopedVault(latestFull,appendAuditEventsForVaultDiff(latest,validated));
-        const encrypted=await saveVault(key,next);
-        instance.latestEncryptedVault=encrypted;
-        if(instance.state.unlocked&&instance.state.key===key){
-          const currentEditor=instance.state.editorDoc;
-          const refreshedEditor=currentEditor?next.documents.find((doc:any)=>doc.id===currentEditor.id):null;
-          // Documents are edited immutably. A shallow identity refresh is enough
-          // here and avoids duplicating attachment data URLs in Safari memory.
-          await new Promise<void>(resolve=>instance.setState(refreshedEditor?{vault:next,editorDoc:{...refreshedEditor}}:{vault:next},resolve));
-        }
-        instance.scheduleCloudSync();
-        return next;
+        return mergeScopedVault(full,appendAuditEventsForVaultDiff(latest,validated));
       });
-      instance.vaultWriteTail=operation;
-      return await operation;
+      if(!instance.state.vault)throw new Error('The account workspace is unavailable.');
+      return instance.state.vault;
     });
 
     // BaseApp already defers a remote vault replacement when cloudReplaceBlocked()
@@ -94,38 +76,15 @@ class AdaptiveCloudApp extends BaseApp {
     // the user is typing outside the document editor.
     instance.cloudReplaceBlocked=()=>instance.state.screen==='editor'||instance.state.settingsOpen||instance.state.cloudModal||reloadUnsafeWorkspaceOpen();
 
-    // A deliberate Lock action must not throw away unsaved inline business input.
-    // Automatic inactivity locking stays security-authoritative and still proceeds.
-    const lockNow=instance.lockNow.bind(instance);
-    instance.lockNow=(automatic:boolean)=>{
-      if(!automatic&&manualLockUnsafeWorkspaceOpen()){
-        instance.showToast(t('Close or save the open editor before locking the app.','أغلق أو احفظ المحرر المفتوح قبل قفل التطبيق.'),'error');
-        return Promise.resolve();
-      }
-      return lockNow(automatic);
-    };
-
-    // Restore the live inactivity timer promised by AppSettings.autoLockMinutes.
+    // No session PIN, automatic vault lock, or secondary security prompt.
     instance.resetAutoLock=()=>{
       if(instance.lockTimer){window.clearTimeout(instance.lockTimer);instance.lockTimer=undefined;}
-      const minutes=Number(instance.state.vault?.appSettings?.autoLockMinutes??0);
-      if(!instance.state.unlocked||minutes<=0)return;
-      instance.lockTimer=window.setTimeout(()=>{
-        instance.lockTimer=undefined;
-        void instance.lockNow(true);
-      },minutes*60_000);
     };
     const handleVisibilityChange=instance.handleVisibilityChange.bind(instance);
     instance.handleVisibilityChange=()=>{
-      if(document.visibilityState==='visible'&&instance.state.unlocked){
-        const minutes=Number(instance.state.vault?.appSettings?.autoLockMinutes??0);
-        if(minutes>0&&isCurrentSessionExpired(minutes)){
-          if(instance.lockTimer){window.clearTimeout(instance.lockTimer);instance.lockTimer=undefined;}
-          void instance.lockNow(true);
-          return;
-        }
-      }
       handleVisibilityChange();
+      if(document.visibilityState==='visible'&&instance.state.unlocked&&!instance.cloudReplaceBlocked())
+        void instance.cloudSyncNow().catch(()=>undefined);
     };
     return true;
   })();
@@ -232,7 +191,9 @@ async function resolveRequiredAccountSession():Promise<boolean>{
     await activateAccountStorage(user.uid);
     let freshLogin=false;
     try{freshLogin=sessionStorage.getItem('lourex-auth-just-signed-in')==='1';if(freshLogin)sessionStorage.removeItem('lourex-auth-just-signed-in');}catch{}
-    if(freshLogin)await suspendSession();else await resumeAccountSession(user.uid);
+    // An authenticated Firebase session directly authorizes the UID-scoped cache.
+    // Old encrypted session keys are not used to open the V2 workspace.
+    await suspendSession();
     return true;
   }
 
@@ -298,16 +259,31 @@ function startAccountSignOutWatcher():void{
   subscribeCloudUser(handleAuthChange);
 }
 
+function startPlainWorkspaceWatcher():void{
+  let stop:()=>void=()=>{};
+  subscribeCloudUser(user=>{
+    stop();stop=()=>{};
+    if(!user||activeAccountStorageUid()!==user.uid)return;
+    try{
+      stop=subscribePlainCloudChanges(user.uid,()=>{
+        if(currentCloudUser()?.uid!==user.uid)return;
+        window.dispatchEvent(new Event('lourex-cloud-remote-newer'));
+      });
+    }catch{/* The app will retry from foreground/online events. */}
+  });
+}
+
 async function start():Promise<void>{
   const accountReady=await resolveRequiredAccountSession();
-  if(accountReady)await hydrateAuthoritativeCloudBeforeApp();
+  // V1 encrypted cloud is deliberately NOT hydrated for fresh V2 accounts.
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
   restoreWorkspaceAfterAutomaticReload();
-  void purgeLegacySafetySnapshot();
+  // Keep historical encrypted local records available for optional offline recovery.
   // iOS Safari stability mode: cloud saving remains available through App, but
   // the independent realtime freshness watcher is disabled to remove a second
   // Firestore listener/polling loop from the mobile editing runtime.
-  if(!iosWebKit)startCloudFreshnessWatcher();
+  // V2 owns its own per-account cloud revision observer. The V1 observer is disabled.
+  startPlainWorkspaceWatcher();
   startAccountSignOutWatcher();
 }
 void start();
