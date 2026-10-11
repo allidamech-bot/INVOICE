@@ -15,11 +15,13 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
+import { conversationModePermitsCapability, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
 type Host=any;
 let storeQueue:Promise<unknown>=Promise.resolve();
 const flush=(host:Host)=>new Promise<void>(resolve=>host.setState({},resolve));
+const currentConversationMode=(host:Host):AiConversationMode=>normalizeAiConversationMode(host.__intelligenceKernel?.mode);
 function scopeFor(host:Host,vault:VaultPayload):KernelScope{
   const scope=host.state.assistantScope||'business';
   const runtime=prepareAssistantContext(vault,host.props.screen,'',null,scope).runtime;
@@ -82,7 +84,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
     const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
     host.__businessMemories=scopedAssistantMemories(memory,'business',scope.workspaceId,scope.branchId);
-    host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||''}));
+    host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
   }else{host.__businessMemories=[];host.__businessThreads=[];}
 
   // A Personal or Temporary thread must obey the same account/thread stability
@@ -99,6 +101,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   await flush(host);
 }
 async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
+  if(currentConversationMode(host)!=='controller')throw new Error('Advisor can analyze but cannot edit a workspace. Switch to Controller.');
   if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;
   host.__workspaceCommandBusy=true;
   try{
@@ -154,8 +157,9 @@ export function intelligenceReviseDraft(host:Host,proposal:any,message:string,dr
 export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_approval'|'failed'|'blocked'; toolId:string; data:unknown; evidenceRefs:string[]; }
 export function foundationToolOutcomes(result:AiToolOrchestrationResult):FoundationToolOutcome[]{return result.results.map(row=>({callId:row.id,state:row.ok?(row.class==='execute'?'needs_approval':'prepared'):row.class==='high-impact'?'blocked':'failed',toolId:row.tool,data:row.data,evidenceRefs:[row.source]}));}
 async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
-  const result=await orchestrateAiToolRequest(input);if(input.signal?.aborted)return null;
-  const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope))throw new Error('Company, branch or account changed during planning. No action prepared.');
+  const requestedMode=currentConversationMode(host);
+  const result=await orchestrateAiToolRequest({...input,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
+  const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
   if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
     kernel.toolEvidence=host.__foundationToolOutcomes.map((row:FoundationToolOutcome)=>({...row,at:new Date().toISOString()}));
@@ -173,6 +177,7 @@ function stampProposal(host:Host,proposal:any,vault:VaultPayload):void{
   if(!proposal)return;
   if(proposal.capability==='tool.plan'){for(const step of proposal.steps||[])stampProposal(host,step,vault);return;}
   const kernel=host.__intelligenceKernel as ConversationKernel;
+  if(!conversationModePermitsCapability(currentConversationMode(host),proposal.capability))throw new Error('Advisor cannot prepare or approve business actions. Switch to Controller.');
   const previous=proposal.foundationApproval;
   if(previous&&canonicalFoundationJson(proposal)===previous.payload)return;
   proposal.foundationApproval=prepareFoundationApproval(vault,proposal,kernel.scope);
@@ -197,6 +202,7 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready for approval. Sign in and retry.');
     const kernel=host.__intelligenceKernel as ConversationKernel;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Review the action again.');
+    if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot approve actions. Switch to Controller and review again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
     assertFoundationApproval(resumed.vault,proposal);
     if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft'){
@@ -237,9 +243,10 @@ export function installIntelligenceRuntime(host:Host):void{
       if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
       await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
       strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel;turnScope=kernelScopeKey(kernel.scope);kernel.turn++;
-      if(!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
+      if(currentConversationMode(host)==='controller'&&!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
+      if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
-      const previewId=savedDocumentPreviewId(kernel,resumed.vault,message);
+      const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       if(previewId){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
@@ -248,7 +255,7 @@ export function installIntelligenceRuntime(host:Host):void{
         host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
         await flush(host);await persistKernel(host);return;
       }
-      const commercialCommand=commercialDraftCommand(kernel,resumed.vault,message);
+      const commercialCommand=currentConversationMode(host)==='controller'?commercialDraftCommand(kernel,resumed.vault,message):null;
       if(commercialCommand){
         if((kernel.artifact!.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
         const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,commercialCommand);
@@ -261,7 +268,9 @@ export function installIntelligenceRuntime(host:Host):void{
       await ask(raw);await flush(host);await host.__lourexAssistantPersistQueue;
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
       const proposal=host.state.proposal;
-      if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
+      if(currentConversationMode(host)==='advisor'){
+        if(proposal){host.setState({proposal:null,review:null});await flush(host);}
+      }else if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
     }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
     finally{host.__foundationTurnBusy=false;await recordDiagnostic(host,'turn',started,turnScope);}
