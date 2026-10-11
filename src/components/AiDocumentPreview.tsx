@@ -21,6 +21,7 @@ const label = (language: Language, english: string, arabic: string) =>
 export interface AiDocumentPreviewProps {
   doc: WorkspaceDocument;
   language: Language;
+  onReviewed?: () => void;
 }
 
 /**
@@ -28,7 +29,7 @@ export interface AiDocumentPreviewProps {
  * Never derives a financial amount from model text and never posts/saves.
  * The surrounding workspace owns all mutation controls and approval guards.
  */
-export function AiDocumentPreview({ doc, language }: AiDocumentPreviewProps): any {
+export function AiDocumentPreview({ doc, language, onReviewed }: AiDocumentPreviewProps): any {
   const [page, setPage] = React.useState(0);
   const isAr = language === 'ar';
   const pageCount = Math.max(1, Math.ceil(doc.rows.length / PAGE_SIZE));
@@ -139,6 +140,12 @@ export function AiDocumentPreview({ doc, language }: AiDocumentPreviewProps): an
           <div>{doc.diff.map((entry, i) =>
             <p key={i}><b>{entry.field}</b><span>{entry.before || '—'} → {entry.after || '—'}</span></p>)}</div>
         </section>
+      : null}
+
+    {onReviewed && doc.status === 'draft'
+      ? <button type="button" className="lxw-document-preview-reviewed" onClick={onReviewed}>
+          {label(language, 'Reviewed · return to chat', 'تمت المراجعة · العودة للمحادثة')}
+        </button>
       : null}
 
     {incomplete
