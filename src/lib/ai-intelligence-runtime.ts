@@ -56,9 +56,13 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
 export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   await host.__lourexLoadPromise;
   const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
-  const scope=scopeFor(host,resumed.vault),expected=scope.scope==='personal'?'personal':scope.scope==='temporary'?'temporary':scope.workspaceId+'|'+scope.branchId;
-  if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
+  const requestedScope=scopeFor(host,resumed.vault),expected=requestedScope.scope==='personal'?'personal':requestedScope.scope==='temporary'?'temporary':requestedScope.workspaceId+'|'+requestedScope.branchId;
+  if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(requestedScope.scope);
   strictAiActor(resumed.vault);await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
+  // hydrateKernel creates the first thread ID when none has been saved. Read the
+  // scope AFTER hydration, otherwise the fresh-session check compares the old
+  // empty thread ID with the newly generated ID and the UI never becomes ready.
+  const scope=scopeFor(host,resumed.vault);
   if(scope.scope==='business'){
     const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
     const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
