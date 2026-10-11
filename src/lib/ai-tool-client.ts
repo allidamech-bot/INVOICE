@@ -167,7 +167,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }catch(error){
       if(input.signal?.aborted)throw error;
       if(!actionRequested)return null;
-      const limited=error instanceof Error&&/(?:rate.?limit|too many|429)/i.test(error.message);
+      const limited=(error instanceof AiRequestError&&(error.code==='AI_RATE_LIMITED'||error.status===429))||(error instanceof Error&&/(?:rate.?limit|too many|429|temporarily at capacity|مشغولون مؤقتًا)/i.test(error.message));
       return aiPlanningUnavailableResult(input.message,input.language,error instanceof AiRequestError&&error.code==='AI_NOT_CONFIGURED'?'not-configured':limited?'limited':'unavailable');
     }
     plan=validateAiToolPlan(payload?.plan,runtime.scope);
