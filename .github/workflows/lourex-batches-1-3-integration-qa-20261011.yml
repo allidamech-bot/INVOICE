@@ -73,6 +73,23 @@ jobs:
             sed -n '/^✖ failing tests:/,$p' "$RUNNER_TEMP/lourex-batches-full-tests.log" | head -n 160 || true
             exit "${status}"
           fi
+      - name: Real Chromium browser smoke — phone, tablet and desktop
+        run: node scripts/qa-free-chrome-smoke.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Real Firebase Auth plus Firestore emulator — two isolated Chromium profiles
+        shell: bash
+        run: |
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > firebase-emulator.qa.json
+          npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project lourex-invoice --config firebase-emulator.qa.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
+      - name: Safari WebKit browser QA — iPhone, iPad and desktop
+        shell: bash
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps webkit
+          node scripts/qa-pinless-webkit.mjs
       - name: Upload full-suite diagnostics
         if: always()
         uses: actions/upload-artifact@v4
