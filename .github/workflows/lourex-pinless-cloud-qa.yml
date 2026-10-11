@@ -64,6 +64,12 @@ jobs:
           npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project lourex-invoice --config firebase-emulator.qa.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
       - name: Free real-browser smoke — 390/820/1440 Chromium viewport
         run: node scripts/qa-free-chrome-smoke.mjs
+      - name: Actual Safari WebKit on iPhone, iPad, and desktop — no device PIN
+        shell: bash
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps webkit
+          node scripts/qa-pinless-webkit.mjs
       - name: Full historical regression suite — BLOCKING no skipped tests
         if: success()
         shell: bash
