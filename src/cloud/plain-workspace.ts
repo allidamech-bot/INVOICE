@@ -71,6 +71,10 @@ function encodePayload(payload:VaultPayload):Uint8Array {
   if(!bytes.length||bytes.length>MAX_BYTES)throw new Error('Workspace is too large for Firebase backup.');
   return bytes;
 }
+/** Reject an unsyncable invoice workspace before any local/cloud replacement. */
+export function assertPlainCloudWorkspaceUploadable(payload:VaultPayload):void{
+  encodePayload(payload);
+}
 function b64(bytes:Uint8Array):string {
   let binary='';
   for(let i=0;i<bytes.length;i+=0x4000)
