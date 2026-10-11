@@ -266,7 +266,11 @@ export class App extends React.Component<{},State> {
       }
     })();
   };
-  private handleOnline=()=>{this.scheduleCloudSync(80);};
+  private handleOnline=()=>{
+    if(this.state.unlocked&&!this.cloudReplaceBlocked())
+      void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
+    else this.scheduleCloudSync(300);
+  };
   private handleCloudConflict=()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}this.cloudSyncQueued=false;this.setState({cloudSyncState:'conflict',cloudSyncMessage:t('This device and the cloud both contain newer changes. Neither copy was overwritten. Choose which copy to keep.','يحتوي هذا الجهاز والسحابة على تعديلات أحدث. لم يتم استبدال أي نسخة. اختر النسخة التي تريد الاحتفاظ بها.')});};
   private announceRemoteCloudUpdate=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.deferRemoteCloud();try{window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}catch{}};
   private handleRemoteCloudNewer=()=>{
@@ -405,7 +409,7 @@ export class App extends React.Component<{},State> {
       await signOutCloudUser();
       if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
       this.vaultWriteTail=Promise.resolve(null);
-      this.setState({cloudUser:null,cloudLinked:false,unlocked:false,key:null,vault:null,
+      this.setState({cloudUser:null,cloudLinked:false,firstRun:true,unlocked:false,key:null,vault:null,
         cloudSyncState:'local',cloudSyncMessage:'',settingsOpen:false,cloudModal:false});
     }catch(error){throw new Error(friendlyCloudError(error));}
   };
