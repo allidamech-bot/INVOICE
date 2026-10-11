@@ -98,12 +98,17 @@ test('document entry promotes current reliable stylesheet versions without reviv
  assert.ok(a>=0&&b>a&&c>b,'runtime promotion ordering cannot regress');
 });
 
-test('iPhone runtime preserves local-first data while retiring WebKit service-worker churn',async()=>{
+test('iPhone PIN-free runtime protects IndexedDB while retiring stale WebKit service-worker caches',async()=>{
   const source=await read('src/app/index.tsx');
   assert.match(source,/getRegistrations\(\)[\s\S]*unregister\(\)/);
   assert.match(source,/key\.startsWith\('lourex-invoice-'\)/);
-  assert.match(source,/if\(!iosWebKit\)startCloudFreshnessWatcher\(\)/);
+  assert.match(source,/startPlainWorkspaceWatcher\(\)/);
+  assert.match(source,/subscribePlainCloudChanges\(uid,/);
+  assert.match(source,/window\.addEventListener\('lourex-account-transition-complete',reconcileListener\)/);
+  assert.match(source,/window\.addEventListener\('lourex-cloud-account-ready',reconcileListener\)/);
+  assert.match(source,/currentCloudUser\(\)\?\.uid!==uid\|\|activeAccountStorageUid\(\)!==uid/);
   assert.doesNotMatch(source,/indexedDB\.deleteDatabase/);
+  assert.doesNotMatch(source,/hydrateAuthoritativeCloudBeforeApp\(/);
 });
 
 test('AI presentation is styled through the safe shared app CSS rather than injected inline styles',async()=>{

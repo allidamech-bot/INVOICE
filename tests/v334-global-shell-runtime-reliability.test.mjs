@@ -92,15 +92,17 @@ test('cloud freshness is notification-only and rejects actual dirty surfaces',as
   assert.doesNotMatch(freshness,/window\.location\.(?:reload|replace)\(/);
 });
 
-test('App runtime serializes local vault writes and defers cloud publication while editing',async()=>{
+test('App serializes UID-scoped local writes and defers Firebase publication while editing',async()=>{
   const [index,app]=await Promise.all([read('src/app/index.tsx'),read('src/app/App.tsx')]);
   assert.match(index,/registerVaultMutationBridge\(async mutation=>/);
-  assert.match(index,/instance\.vaultWriteTail\.catch\(\(\)=>null\)\.then/);
+  assert.match(index,/await instance\.persistFullMutation\(/);
   assert.match(index,/adaptiveCloudSettleMs\(cipherLength,editing\)/);
   assert.match(index,/iosWebKit&&editing\?Math\.max\(30_000,editorSafe\)/);
   assert.match(app,/private persist=async[\s\S]*this\.vaultWriteTail/);
   assert.match(app,/mergeVaultIntent/);
-  assert.match(app,/saveVault/);
+  assert.match(app,/updatePlainWorkspaceIfUnchanged\(uid,local\.localRevision,next\)/);
+  assert.match(app,/cloudRetryDelay=Math\.min\(60_000,this\.cloudRetryDelay\*2\)/);
+  assert.doesNotMatch(app,/await saveVault\(|unlockVault\(|verifyPin\(/);
 });
 
 test('automatic Firebase account transitions are deferred while unsafe work is open',async()=>{

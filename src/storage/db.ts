@@ -1,4 +1,4 @@
-import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord } from '../types.js';
+import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord, PlainWorkspaceRecord, PlainWorkspaceArchiveRecord, VaultPayload } from '../types.js';
 
 const LEGACY_DB_NAME = 'lourex-invoice';
 const PUBLIC_DB_NAME = 'lourex-invoice-public';
@@ -11,7 +11,7 @@ const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
 const ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
 const VAULT_WRITE_DIAG_INTERVAL_MS=30_000;
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord;
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord | PlainWorkspaceRecord | PlainWorkspaceArchiveRecord;
 
 let activeStorageUid:string|null=null;
 let dbPromise:Promise<IDBDatabase>|null=null;
@@ -281,6 +281,170 @@ export async function getSafetySnapshot():Promise<SafetySnapshotRecord|null>{
 export async function swapSafetySnapshotIntoCurrent():Promise<SafetySnapshotRecord>{
   await purgeLegacySafetySnapshot();
   throw new Error('Local recovery copies are no longer used. Restore your account data from the cloud.');
+}
+
+/** New-format workspace uses the existing physically UID-scoped account database.
+ * A legacy encrypted vault is never deleted while migrating to this record.
+ */
+export async function getPlainWorkspace():Promise<PlainWorkspaceRecord|null>{
+  const uid=activeAccountStorageUid();
+  if(!uid)throw new Error('Sign in before accessing the account workspace.');
+  const record=await getRecord<PlainWorkspaceRecord>('workspace-v2');
+  if(!record)return null;
+  if(record.uid!==uid||record.schemaVersion!==record.payload?.schemaVersion||!record.localRevision)
+    throw new Error('Account workspace belongs to a different user or has invalid metadata.');
+  return record;
+}
+export async function putPlainWorkspace(record:PlainWorkspaceRecord):Promise<void>{
+  const uid=activeAccountStorageUid();
+  if(!uid||record.uid!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
+  if(record.id!=='workspace-v2'||record.schemaVersion!==record.payload?.schemaVersion||!record.localRevision)
+    throw new Error('Invalid account workspace payload.');
+  await putRecord(record);
+}
+export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseCloudRevision:string|null,baseCloudSha256:string|null):Promise<PlainWorkspaceRecord>{
+  if(activeAccountStorageUid()!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
+  const record:PlainWorkspaceRecord={id:'workspace-v2',uid,payload,schemaVersion:payload.schemaVersion,updatedAt:new Date().toISOString(),localRevision:crypto.randomUUID(),baseCloudRevision,baseCloudSha256};
+  await putPlainWorkspace(record);
+  return record;
+}
+
+/**
+ * Replace a cloud-downloaded workspace only if its local generation has not
+ * changed while remote chunks were loading. The optional archive and the
+ * replacement are committed together inside one IndexedDB transaction.
+ */
+export async function replacePlainWorkspaceIfUnchanged(
+  uid:string,expectedLocalRevision:string|null,replacement:PlainWorkspaceRecord,
+  archiveReason:PlainWorkspaceArchiveRecord['reason']|null=null
+):Promise<boolean>{
+  if(!uid||activeStorageUid!==uid||replacement.uid!==uid
+    ||replacement.id!=='workspace-v2'||replacement.schemaVersion!==replacement.payload?.schemaVersion
+    ||!replacement.localRevision)throw new Error('Account storage scope changed or invalid payload.');
+  const db=await openDb();
+  return new Promise<boolean>((resolve,reject)=>{
+    let applied=false;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if((existing?.localRevision??null)!==expectedLocalRevision)return;
+      if(existing&&archiveReason){
+        const archivedAt=new Date().toISOString();
+        const id=`workspace-v2-archive:${archivedAt}:${crypto.randomUUID()}` as const;
+        const archive:PlainWorkspaceArchiveRecord={...existing,id,reason:archiveReason,archivedAt};
+        store.put(archive);
+      }
+      store.put(replacement);
+      applied=true;
+    };
+    tx.oncomplete=()=>resolve(applied);
+    tx.onerror=()=>reject(tx.error??new Error('Workspace replacement failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Workspace replacement aborted.'));
+  });
+}
+
+/** All local writers use CAS to prevent two tabs from losing each other's edits. */
+export async function updatePlainWorkspaceIfUnchanged(
+  uid:string,expectedLocalRevision:string,payload:VaultPayload
+):Promise<PlainWorkspaceRecord|null>{
+  if(!uid||activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  const db=await openDb();
+  return new Promise<PlainWorkspaceRecord|null>((resolve,reject)=>{
+    let result:PlainWorkspaceRecord|null=null;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if(!existing||existing.uid!==uid||existing.localRevision!==expectedLocalRevision)return;
+      result={...existing,payload,schemaVersion:payload.schemaVersion,
+        // Edits are applied using an IndexedDB CAS. A newer snapshot is thus a
+        // proven descendant of the previous immutable local generation.
+        localAncestors:[...(existing.localAncestors??[]),existing.localRevision].slice(-128),
+        localRevision:crypto.randomUUID(),updatedAt:new Date().toISOString()};
+      store.put(result);
+    };
+    tx.oncomplete=()=>resolve(result);
+    tx.onerror=()=>reject(tx.error??new Error('Concurrent workspace save failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Concurrent workspace save aborted.'));
+  });
+}
+
+/** A cloud acknowledgment is valid for the exact immutable local generation. */
+/**
+ * Account for edits that legitimately occurred while their parent snapshot
+ * was uploading. Never label an independent/conflicting snapshot as synced.
+ * A callback may acknowledge the exact uploaded generation, or one of its
+ * atomic IndexedDB descendants still based on the same cloud parent.
+ */
+export async function acknowledgePlainWorkspace(
+  uid:string,uploadedLocalRevision:string,revision:string,sha256:string,expectedParentRevision:string|null
+):Promise<boolean>{
+  if(activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  const db=await openDb();
+  return new Promise<boolean>((resolve,reject)=>{
+    let matched=false;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if(!existing||existing.uid!==uid)return;
+      const exact=existing.localRevision===uploadedLocalRevision;
+      const ancestorIndex=(existing.localAncestors??[]).indexOf(uploadedLocalRevision);
+      if((!exact&&ancestorIndex<0)||
+         existing.baseCloudRevision!==expectedParentRevision)return;
+      matched=true;
+      const ancestors=exact?[]:(existing.localAncestors??[]).slice(ancestorIndex+1);
+      store.put({...existing,baseCloudRevision:revision,baseCloudSha256:sha256,localAncestors:ancestors});
+    };
+    tx.oncomplete=()=>resolve(matched);
+    tx.onerror=()=>reject(tx.error??new Error('Workspace acknowledgment failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Workspace acknowledgment aborted.'));
+  });
+}
+
+/**
+ * Adopt the remote revision when both full-workspace SHA-256 hashes are
+ * identical. This is safe even when the previous cloud anchor differs:
+ * the actual business payload is equivalent, and a generation CAS protects
+ * against a concurrent local mutation between hashing and acknowledgment.
+ * For non-identical payloads the ancestry-aware acknowledgment is mandatory.
+ */
+export async function acknowledgeIdenticalPlainWorkspace(
+  uid:string,expectedLocalRevision:string,revision:string,sha256:string
+):Promise<boolean>{
+  if(activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  const db=await openDb();
+  return new Promise<boolean>((resolve,reject)=>{
+    let matched=false;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if(!existing||existing.uid!==uid||existing.localRevision!==expectedLocalRevision)return;
+      matched=true;
+      store.put({...existing,baseCloudRevision:revision,baseCloudSha256:sha256,
+        localAncestors:[]});
+    };
+    tx.oncomplete=()=>resolve(matched);
+    tx.onerror=()=>reject(tx.error??new Error('Identical workspace acknowledgment failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Identical workspace acknowledgment aborted.'));
+  });
+}
+
+/** Preserve the displaced workspace when a user explicitly chooses cloud/backup. */
+export async function archivePlainWorkspace(uid:string,reason:PlainWorkspaceArchiveRecord['reason']):Promise<string|null>{
+  const existing=await getPlainWorkspace();
+  if(!existing)return null;
+  if(activeAccountStorageUid()!==uid||existing.uid!==uid)throw new Error('Account scope changed.');
+  const id=`workspace-v2-archive:${new Date().toISOString()}:${crypto.randomUUID()}` as const;
+  const archive:PlainWorkspaceArchiveRecord={...existing,id,reason,archivedAt:new Date().toISOString()};
+  await putRecord(archive);
+  return id;
 }
 
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }

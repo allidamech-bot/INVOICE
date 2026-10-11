@@ -20,11 +20,14 @@ test('v218 coalesces consecutive local commits before full-vault cloud publicati
   assert.doesNotMatch(app,/private scheduleCloudSync=\(delay=220\)/);
 });
 
-test('v218 keeps event-driven recovery paths urgent instead of delaying every cloud action',async()=>{
+test('V2 retries failed uploads and reconciles remote state immediately on connectivity return',async()=>{
   const app=await read('src/app/App.tsx');
-  for(const delay of [80,120,150,180,500])assert.ok(app.includes(`scheduleCloudSync(${delay})`),String(delay));
   assert.match(app,/private cloudSyncNow=async/);
-  assert.match(app,/private handleOnline=\(\)=>\{this\.scheduleCloudSync\(80\);\}/);
+  assert.match(app,/private handleOnline=\(\)=>\{/);
+  assert.match(app,/void this\.cloudSyncNow\(\)\.catch/);
+  assert.match(app,/this\.cloudRetryDelay=Math\.min\(60_000,this\.cloudRetryDelay\*2\)/);
+  assert.match(app,/cloudReconcileQueued=true/);
+  assert.match(app,/retryDeferredRemoteHydration\(\)/);
 });
 
 test('v218 advances the immutable installed-PWA generation',async()=>{

@@ -1,3 +1,4 @@
+// v315 Cloud-First PIN-free release — recache all client modules. Historical V1 encrypted local data remains untouched.
 // v314 Batch 0 stability — network-fresh app shell, resilient precache, scoped cache cleanup.
 // v302 real PIN + document entry closeout — recache mandatory PIN access, attachment/PO shortcuts and zero-gap startup.
 // v301 mobile UX closeout — preview, settings, document-create stability and dark first paint.
@@ -87,7 +88,8 @@ const CACHE = 'lourex-invoice-v188';
 // const CACHE = 'lourex-invoice-v280'; preserved as a legacy marker for cache-migration/security regression tests.
 // const CACHE = 'lourex-invoice-v301'; preserved as the immediate pre-v302 cache generation.
 // const CACHE = 'lourex-invoice-v302'; preserved as the immediate pre-Batch-0 cache generation.
-const CACHE = 'lourex-invoice-v314';
+// const CACHE = 'lourex-invoice-v314'; retained only as a legacy generation marker.
+const CACHE = 'lourex-invoice-v315';
 // const CACHE = 'lourex-invoice-v228'; preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v201: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v200: preserved as a legacy marker for cache-migration tests.

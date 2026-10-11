@@ -1,0 +1,158 @@
+name: LOUREX PIN-Free Cloud Release QA
+on:
+  push:
+    branches:
+      - fix/pinless-firebase-workspace-20261011
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pinless-cloud-release-qa
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript strict compiler check
+        run: npm run typecheck
+      - name: Production build and bundled runtime contracts
+        run: npm run build
+      - name: Verify the built runtime never contains legacy PIN autosave
+        shell: bash
+        run: |
+          grep -q '__lourexPinlessAutosaveV2' dist/src/app/index.js
+          grep -q "^const CACHE = 'lourex-invoice-v362';" dist/sw.js
+          if grep -q 'instance.unlock.bind(instance)' dist/src/app/index.js; then
+            echo 'ERROR: legacy PIN unlock was injected by a build script'
+            exit 1
+          fi
+          if grep -q 'saveDocumentAutosaveCheckpoint(key,' dist/src/app/index.js; then
+            echo 'ERROR: encrypted document checkpoint was injected into V2'
+            exit 1
+          fi
+      - name: Inspect emitted application runtime around browser crash
+        run: |
+          nl -ba dist/src/app/index.js | sed -n '85,135p'
+          grep -n '\\.bind(' dist/src/app/index.js || true
+      - name: PIN-free cloud behavior and safety tests
+        run: node --test tests/cloud-first-pinless-contract.test.mjs tests/cloud-first-manifest-race.test.mjs tests/cloud-first-two-device.test.mjs tests/cloud-first-ack-lineage.test.mjs tests/cloud-first-listener-lifecycle.test.mjs tests/cloud-first-login-state-machine.test.mjs
+      - name: Essential financial invariants
+        run: node --test --test-concurrency=2 tests/number-reservation.test.mjs tests/document-language-v151.test.mjs tests/commercial-output-hardening-v167.test.mjs tests/audit-supplier-payables-asof.test.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Firestore V2 UID security rules in real local emulator
+        shell: bash
+        run: |
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"ui":{"enabled":false}}}' > firebase-emulator.qa.json
+          npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-lourex-pinless --config firebase-emulator.qa.json "node --test tests/firebase-firestore-rules-emulator.integration.mjs"
+      - name: Two independent Chromium profiles — Firebase Auth + Firestore emulator
+        shell: bash
+        run: |
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > firebase-emulator.qa.json
+          npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project lourex-invoice --config firebase-emulator.qa.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
+      - name: Free real-browser smoke — 390/820/1440 Chromium viewport
+        run: node scripts/qa-free-chrome-smoke.mjs
+      - name: Actual Safari WebKit on iPhone, iPad, and desktop — no device PIN
+        shell: bash
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps webkit
+          node scripts/qa-pinless-webkit.mjs
+      - name: Full historical regression suite — BLOCKING no skipped tests
+        if: success()
+        shell: bash
+        run: |
+          set +e
+          node --test --test-concurrency=2 tests/*.test.mjs > "$RUNNER_TEMP/pinless-all-tests.log" 2>&1
+          status=$?
+          set -e
+          grep -E '^[[:space:]]*ℹ (tests|pass|fail) ' "$RUNNER_TEMP/pinless-all-tests.log" || true
+          echo "Full historical suite exit status: $status"
+          grep -E "^[[:space:]]*✖ " "$RUNNER_TEMP/pinless-all-tests.log" | tail -n 50 || true
+          echo 'No PIN-era regression is waived: any failing test blocks this release.'
+          if [ "$status" -ne 0 ]; then
+            sed -n '/^✖ failing tests:/,$p' "$RUNNER_TEMP/pinless-all-tests.log" | head -n 500 || true
+            exit "$status"
+          fi
+      - name: Print historical regression diagnostics for follow-up
+        if: always()
+        shell: bash
+        run: |
+          if test -f "$RUNNER_TEMP/pinless-all-tests.log"; then
+            sed -n '/^✖ failing tests:/,$p' "$RUNNER_TEMP/pinless-all-tests.log" | head -n 500 || true
+          fi
+      - name: Compare historical failures with unmodified main
+        if: success()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin main
+          git worktree add --detach "$RUNNER_TEMP/lourex-baseline" FETCH_HEAD
+          (
+            cd "$RUNNER_TEMP/lourex-baseline"
+            npm ci --no-audit --no-fund
+            npm run build
+            set +e
+            node --test --test-concurrency=2 tests/*.test.mjs > "$RUNNER_TEMP/main-historical-tests.log" 2>&1
+            set -e
+          )
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const dir=process.env.RUNNER_TEMP;
+          const before=readFileSync(dir+'/main-historical-tests.log','utf8');
+          const after=readFileSync(dir+'/pinless-all-tests.log','utf8');
+          const parse=log=>{
+            const i=log.lastIndexOf('✖ failing tests:');
+            if(i<0)return new Set();
+            return new Set([...log.slice(i).matchAll(/^✖ (.+?) \([0-9.]+ms\)$/gm)].map(m=>m[1]));
+          };
+          const a=parse(before),b=parse(after);
+          const newFailures=[...b].filter(x=>!a.has(x));
+          const fixed=[...a].filter(x=>!b.has(x));
+          const obsolete=/\bPIN\b|inactivity lock|encrypted (local|vault|backup)|unlock session|device lock|old cloud/i;
+          const changedContracts=newFailures.filter(x=>obsolete.test(x));
+          const needsReview=newFailures.filter(x=>!obsolete.test(x));
+          const report=[
+            '# LOUREX main vs PIN-free V2 test delta',
+            '',
+            'MAIN failing titles: '+a.size,
+            'PIN-free V2 failing titles: '+b.size,
+            'New failing titles: '+newFailures.length,
+            'Previously failing titles now passing: '+fixed.length,
+            'New titles referring to legacy PIN/encrypted-device contracts: '+changedContracts.length,
+            'New titles requiring explicit manual assessment: '+needsReview.length,
+            '',
+            '## New failures requiring assessment',
+            ...needsReview.map(x=>'- '+x),
+            '',
+            '## Changed legacy PIN contract titles (not automatically waived)',
+            ...changedContracts.map(x=>'- '+x)
+          ].join('\n');
+          writeFileSync(dir+'/pinless-main-delta.md',report);
+          console.log(report);
+          NODE
+          cat "$RUNNER_TEMP/pinless-main-delta.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload complete historical test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinless-historical-suite-log
+          path: |
+            ${{ runner.temp }}/pinless-all-tests.log
+            ${{ runner.temp }}/main-historical-tests.log
+            ${{ runner.temp }}/pinless-main-delta.md
+          retention-days: 7
+          if-no-files-found: warn

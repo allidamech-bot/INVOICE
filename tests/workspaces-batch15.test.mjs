@@ -104,13 +104,19 @@ test('new workspace resets numbering and does not inherit legal/contact/bank ide
   assert.equal(next.branches.at(-1).workspaceId,created.id);
 });
 
-test('application and AI bridge use scoped runtime while backups remain full-vault',async()=>{
-  const [app,index,shell,settings]=await Promise.all([read('src/app/App.tsx'),read('src/app/index.tsx'),read('src/components/AppShell.tsx'),read('src/components/SettingsModal.tsx')]);
+test('application and AI bridge write full workspace atomically while preserving active company scope',async()=>{
+  const [app,index,shell,settings]=await Promise.all([
+    read('src/app/App.tsx'),read('src/app/index.tsx'),
+    read('src/components/AppShell.tsx'),read('src/components/SettingsModal.tsx')
+  ]);
   assert.match(app,/return scopeVault\(this\.state\.vault\)/);
-  assert.match(app,/const fullVault=this\.state\.vault/);
-  assert.match(app,/overlayWorkspaceScope\(this\.state\.vault,current\)/);
-  assert.match(index,/scopeVaultForExternalMutation\(latestFull\)/);
-  assert.match(index,/mergeScopedVault\(latestFull/);
+  assert.match(app,/const latestFull=queued\?\?this\.state\.vault/);
+  assert.match(app,/overlayWorkspaceScope\(latestFull,audited\)/);
+  assert.match(app,/updatePlainWorkspaceIfUnchanged\(uid,local\.localRevision,next\)/);
+  assert.match(app,/const uid=this\.state\.cloudUser\?\.uid/);
+  assert.match(index,/scopeVaultForExternalMutation\(full\)/);
+  assert.match(index,/mergeScopedVault\(full,/);
+  assert.match(index,/registerVaultMutationBridge\(async mutation/);
   assert.match(shell,/lx-workspace-switcher/);
   assert.match(shell,/ta-sheet-workspace/);
   assert.match(shell,/lourex-settings-tab','workspaces/);

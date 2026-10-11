@@ -74,13 +74,13 @@ export class AccountEntryScreen extends React.Component<Props,State>{
 
   private finishGoogleRedirect=async():Promise<void>=>{
     this.setState({busy:true,error:'',message:t('Completing Google sign-in…','جارٍ إكمال تسجيل الدخول عبر Google…')});
-    try{const user=await consumeGoogleRedirectResult();if(!user){this.setState({busy:false,message:''});return;}this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});await this.enterAuthenticatedAccount(user);}catch(error:any){this.applyGoogleFailure(error);}
+    try{const user=await consumeGoogleRedirectResult();if(!user){this.setState({busy:false,message:''});return;}this.setState({message:t('Google sign-in complete. Opening your account workspace…','تم تسجيل الدخول عبر Google. جارٍ فتح مساحة حسابك…')});await this.enterAuthenticatedAccount(user);}catch(error:any){this.applyGoogleFailure(error);}
   };
 
   private googleSignIn=async():Promise<void>=>{
     if(this.state.busy||!this.state.googleReady)return;
     clearPendingGoogleLink();this.setState({busy:true,error:'',message:'',googleLinkPending:false});
-    try{const user=await signInCloudUserWithGoogle();if(!user)return;this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});await this.enterAuthenticatedAccount(user);}catch(error:any){this.applyGoogleFailure(error);}
+    try{const user=await signInCloudUserWithGoogle();if(!user)return;this.setState({message:t('Google sign-in complete. Opening your account workspace…','تم تسجيل الدخول عبر Google. جارٍ فتح مساحة حسابك…')});await this.enterAuthenticatedAccount(user);}catch(error:any){this.applyGoogleFailure(error);}
   };
 
   private submit=async(e:any):Promise<void>=>{
@@ -94,7 +94,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
       if(!this.state.googleLinkPending){try{await prepareGooglePopupAuth();}catch{}}
       let user:CloudUser;
       if(this.state.googleLinkPending)user=await linkGoogleToExistingPasswordAccount(email,password);else if(create)user=await createCloudUser(email,password);else user=await signInCloudUser(email,password);
-      const message=this.state.googleLinkPending?t('Google connected securely. Restoring your existing LOUREX data…','تم ربط Google بأمان. جارٍ استعادة بيانات LOUREX الحالية…'):create?t('Account created. Preparing LOUREX…','تم إنشاء الحساب. جارٍ تجهيز LOUREX…'):t('Signed in. Restoring your LOUREX data…','تم تسجيل الدخول. جارٍ استعادة بيانات LOUREX…');
+      const message=this.state.googleLinkPending?t('Google connected securely. Opening your LOUREX account…','تم ربط Google بأمان. جارٍ فتح حساب LOUREX…'):create?t('Account created. Preparing LOUREX…','تم إنشاء الحساب. جارٍ تجهيز LOUREX…'):t('Signed in. Opening your account workspace…','تم تسجيل الدخول. جارٍ فتح مساحة حسابك…');
       this.setState({message,error:''});await this.enterAuthenticatedAccount(user);
     }catch(error:any){const code=String(error?.code||'');if(create&&code.includes('email-already-in-use')){this.setState({mode:'signin',busy:false,password:'',confirm:'',message:'',error:t('This account already exists. Enter its password and sign in — do not create a new account.','هذا الحساب موجود بالفعل. أدخل كلمة المرور وسجّل الدخول — لا تنشئ حسابًا جديدًا.')});return;}this.setState({busy:false,error:this.state.googleLinkPending?this.googleError(error):friendlyCloudError(error)});}
   };
@@ -113,7 +113,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
         <section className="ta-auth-aside" aria-label={t('LOUREX Invoice workspace','مساحة عمل LOUREX Invoice')}>
           <div className="ta-auth-brand"><Brand logoDataUrl="./brand/lourex-logo.svg" language={this.props.language}/><span>LOUREX INVOICE</span></div>
           <div className="ta-auth-aside-copy"><span>{t('PRIVATE BUSINESS WORKSPACE','مساحة أعمال خاصة')}</span><h1>{t('Your commercial workspace, organized around the work that matters.','مساحة أعمالك التجارية منظمة حول العمل الذي يهمك.')}</h1><p>{t('Documents, customers, purchasing, finance and reports stay protected in one focused workspace.','المستندات والعملاء والمشتريات والمالية والتقارير تبقى محمية في مساحة عمل واحدة مركزة.')}</p></div>
-          <div className="ta-auth-feature-list"><div><b>01</b><span><strong>{t('Encrypted workspace','مساحة مشفّرة')}</strong><small>{t('Protected local vault and account continuity','خزنة محلية محمية واستمرارية للحساب')}</small></span></div><div><b>02</b><span><strong>{t('Automatic continuity','استمرارية تلقائية')}</strong><small>{t('Reliable saving without interrupting your work','حفظ موثوق دون مقاطعة العمل')}</small></span></div><div><b>03</b><span><strong>{t('Offline ready','جاهز دون اتصال')}</strong><small>{t('Keep working when the network is unavailable','تابع العمل عندما لا تتوفر الشبكة')}</small></span></div></div>
+          <div className="ta-auth-feature-list"><div><b>01</b><span><strong>{t('Cloud workspace','مساحة سحابية')}</strong><small>{t('Your Firebase account is the source of truth on every device','حساب Firebase هو النسخة المعتمدة على كل جهاز')}</small></span></div><div><b>02</b><span><strong>{t('Automatic continuity','استمرارية تلقائية')}</strong><small>{t('Reliable saving without interrupting your work','حفظ موثوق دون مقاطعة العمل')}</small></span></div><div><b>03</b><span><strong>{t('Offline ready','جاهز دون اتصال')}</strong><small>{t('Keep working when the network is unavailable','تابع العمل عندما لا تتوفر الشبكة')}</small></span></div></div>
           <footer>{t('LOUREX Invoice · Private business workspace','LOUREX Invoice · مساحة أعمال خاصة')}</footer>
         </section>
 

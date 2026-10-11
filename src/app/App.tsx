@@ -4,7 +4,7 @@ import { confirmedSalesDeliveries } from '../lib/sales-delivery-flow.js';
 import { createConfirmedDeliveryInvoiceDraft, assertDeliveryInvoiceIntegrity, isDeliveryLinkedInvoice } from '../lib/sales-delivery-invoice.js';
 import { createLinkedPurchaseOrderDraft } from '../lib/procurement-flow.js';
 import type { AppSettings, ApprovalPolicyRecord, CompanySettings, Customer, DocumentKind, EncryptedVaultRecord, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, RecurringTarget, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, TeamMemberRecord, UiLanguage, VaultPayload } from '../types.js';
-import { customerSnapshotFrom, defaultCompany, emptyVault } from '../lib/defaults.js';
+import { customerSnapshotFrom, emptyVault } from '../lib/defaults.js';
 import { createBlankDocument, convertToInvoice, duplicateDocument, nextCreditNoteNumber, nextDocumentNumber, validateDocument } from '../lib/documents.js';
 import { assertDocumentLifecycleInvariant, auditedDocument, beginRevisionDraft, createCreditNoteDraft, createDocumentEvent, createRevisionRecord, invoiceCreditCapacity, restoreRevisionSnapshot, voidFinalDocument } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant, normalizePaymentRecord } from '../lib/payments.js';
@@ -12,22 +12,24 @@ import { normalizeSupplierPayment, voidSupplierPayment } from '../lib/payables.j
 import { applyCustomerCommercialDefaults, applyPaymentTermPreset, assertCustomerCreditLimit, paymentTermPresetById, paymentTermPresetByLabel } from '../lib/commercial-controls.js';
 import { inventoryMovementIsManual, nextPurchaseNumber, postPurchase, reverseManualInventoryMovement, reversePurchase, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { findSavedItemDuplicate, findSavedItemMatch, markSavedItemsUsed, normalizeSavedItemIdentity, savedItemFromDocumentItem } from '../lib/saved-items.js';
-import { backupPasswordIssue, exportBackup, readBackup } from '../lib/backup.js';
 import { safeFilename } from '../lib/id.js';
 import { calculateTotals } from '../lib/money.js';
 import { buildBusinessHealth } from '../lib/business-health.js';
-import { activateAccountStorage, activeAccountStorageUid, getCloudAccount, getEncryptedVault, getPublicPreferences, getSecurity, hasSecurity, putCloudAccount, putPublicPreferences } from '../storage/db.js';
-import { changePin, recoverPinWithRecoveryKey, renewPinRecoveryKey, restoreVaultWithCurrentKey, resumeVaultSession, saveVault, setupVault, unlockVault } from '../storage/vault.js';
+import { activateAccountStorage, activeAccountStorageUid, getPublicPreferences, putCloudAccount, putPublicPreferences } from '../storage/db.js';
 import { mergeVaultIntent } from '../storage/vault-merge.js';
-import { clearSession, establishSession, setActiveAccountUid, suspendSession, touchSession } from '../storage/session.js';
-import { verifyPin } from '../crypto/crypto.js';
+import { setActiveAccountUid, suspendSession, touchSession } from '../storage/session.js';
 import { setUiLanguage, t } from '../lib/i18n.js';
 import { confirmWorkspaceDeparture } from '../lib/workspace-dirty.js';
 import { assertRecurringWorkflow, completeRecurringRun, materializeRecurringDocumentDraft, materializeRecurringPurchaseDraft, recurringWorkflowDue } from '../lib/recurring-workflows.js';
 import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
 import { approvalGate, decideApprovalRequest } from '../lib/governance.js';
 import { activateBranch, activateWorkspace, applyWorkspaceScope, createBranch, createWorkspace, overlayWorkspaceScope, scopeVault } from '../lib/workspaces.js';
-import { AuthScreenSelector } from './AuthScreenSelector.js';
+import { AccountEntryScreen } from '../components/AccountEntryScreen.js';
+import { exportPlainBackup, readPlainBackup } from '../lib/backup.js';
+import { synchronizeActiveWorkspaceOnSave } from '../storage/vault.js';
+import { getPlainWorkspace, savePlainWorkspace, updatePlainWorkspaceIfUnchanged, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
+import { assertPlainCloudWorkspaceUploadable, reconcilePlainCloudWorkspace, uploadPlainCloudWorkspace, downloadPlainCloudWorkspace, getPlainCloudMeta } from '../cloud/plain-workspace.js';
+import type { PlainWorkspaceRecord } from '../types.js';
 import { DocumentsPage } from '../components/DocumentsPage.js';
 import { CustomersPage } from '../components/CustomersPage.js';
 import { ReportsPage } from '../components/ReportsPage.js';
@@ -46,7 +48,7 @@ import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { DraftDocumentRenderer } from '../components/DraftDocumentRenderer.js';
 import { isLetterDocument } from '../lib/document-extras.js';
 import { documentUsesCommercialDefaults } from '../lib/document-kinds.js';
-import { cloudRemoteChangedSinceAnchor, currentCloudUser, refreshCloudVaultForUnlock, createCloudUser, friendlyCloudError, getCloudVaultMeta, pushLocalVaultToCloud, reconcileCloudVault, resolveCloudConflictWithCloud, resolveCloudConflictWithLocal, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
+import { currentCloudUser, createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import type { CloudUser } from '../cloud/firebase.js';
 
 type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
@@ -66,7 +68,7 @@ function assertFinancialOutputParity(source:LourexDocument,target:LourexDocument
 }
 
 interface State {
-  loading:boolean; firstRun:boolean; unlocked:boolean; key:CryptoKey|null; vault:VaultPayload|null;
+  loading:boolean; firstRun:boolean; unlocked:boolean; vault:VaultPayload|null;
   screen:'home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor'; editorDoc:LourexDocument|null; settingsOpen:boolean; newMenu:boolean;
   documentsInitialStatus:'all'|'draft';
   deletingDoc:LourexDocument|null; toast:string; toastTone:'default'|'success'|'error'; printDoc:LourexDocument|null;
@@ -77,12 +79,15 @@ interface State {
 }
 
 export class App extends React.Component<{},State> {
-  state:State={loading:true,firstRun:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,documentsInitialStatus:'all',deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en',cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''};
+  state:State={loading:true,firstRun:false,unlocked:false,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,documentsInitialStatus:'all',deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en',cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''};
   private lockTimer:number|undefined;
   private toastTimer:number|undefined;
   private cloudTimer:number|undefined;
   private cloudSyncRunning=false;
   private cloudSyncQueued=false;
+  private cloudReconcileRunning=false;
+  private cloudReconcileQueued=false;
+  private deferredRemoteTimer:number|undefined;
   private cloudRetryDelay=5_000;
   private lastCloudSyncedAt='';
   private lastActivityTouch=0;
@@ -96,6 +101,8 @@ export class App extends React.Component<{},State> {
   private vaultReplacing=false;
   private documentCreateBusy=false;
   private accountTransitionRunning=false;
+  /** Invalidates in-flight business actions across Firebase sessions, without a CryptoKey or PIN. */
+  private accountEpoch=0;
   private recurringProcessRunning=false;
 
   componentDidMount():void{
@@ -110,7 +117,19 @@ export class App extends React.Component<{},State> {
     window.addEventListener('lourex-cloud-conflict',this.handleCloudConflict);
     window.addEventListener('lourex-account-transition-request',this.handleAccountTransitionRequest as EventListener);
   }
+  componentDidUpdate(_previousProps:Readonly<{}>,previousState:Readonly<State>):void{
+    if(!this.cloudReconcileQueued||this.cloudReconcileRunning||this.vaultReplacing||
+       !this.state.unlocked||!this.state.cloudUser||this.cloudReplaceBlocked())return;
+    // Retry only after a meaningful UI transition; cloudSyncNow handles
+    // in-flight writes and serializes application state with IndexedDB.
+    if(previousState.screen===this.state.screen&&
+       previousState.settingsOpen===this.state.settingsOpen&&
+       previousState.cloudModal===this.state.cloudModal)return;
+    this.cloudReconcileQueued=false;
+    window.setTimeout(()=>void this.cloudSyncNow().catch(error=>this.retryCloudSync(error)),0);
+  }
   componentWillUnmount():void{
+    if(this.deferredRemoteTimer){window.clearTimeout(this.deferredRemoteTimer);this.deferredRemoteTimer=undefined;}
     ['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));
     document.removeEventListener('visibilitychange',this.handleVisibilityChange);
     document.removeEventListener('pointerdown',this.closeTransientMenus);
@@ -125,68 +144,114 @@ export class App extends React.Component<{},State> {
     if(this.cloudTimer)clearTimeout(this.cloudTimer);
   }
 
+  /** Firebase is the only interactive login boundary. Legacy encrypted records
+   * remain stored but are neither unlocked nor installed into the clean account.
+   */
   private initialize=async()=>{
+    this.accountEpoch++;
     try{
-      let configured=await hasSecurity();
       const preferences=await getPublicPreferences();
       let uiLanguage=preferences?.uiLanguage??'en';
-      let publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';
-      if(configured){
-        const resumed=await resumeVaultSession();
-        if(resumed){
-          const vault={...resumed.vault,appSettings:{...resumed.vault.appSettings,uiLanguage:resumed.vault.appSettings.uiLanguage??uiLanguage}};
-          uiLanguage=vault.appSettings.uiLanguage;publicLogo=vault.company.logoDataUrl||publicLogo;setUiLanguage(uiLanguage);
-          this.vaultWriteTail=Promise.resolve(vault);
-          this.setState({loading:false,firstRun:false,unlocked:true,key:resumed.key,vault,screen:'home',editorDoc:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''},()=>{this.resetAutoLock();void this.initializeConfiguredCloud();void this.processDueRecurringWorkflows(true);});
-          return;
-        }
-        setUiLanguage(uiLanguage);
-        this.setState({loading:false,firstRun:false,unlocked:false,key:null,vault:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''},()=>void this.initializeConfiguredCloud());
+      const publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';
+      setUiLanguage(uiLanguage);
+      const user=await waitForCloudUser();
+      if(!user){
+        this.setState({loading:false,firstRun:true,unlocked:false,vault:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});
         return;
       }
-      let cloudUser:CloudUser|null=null;
-      let cloudLinked=false;
-      let cloudSyncState:CloudSyncState='local';
-      let cloudSyncMessage='';
-      try{cloudUser=await waitForCloudUser();}catch{}
-      if(cloudUser){
+      if(activeAccountStorageUid()!==user.uid){
+        setActiveAccountUid(user.uid);
+        await activateAccountStorage(user.uid);
+      }
+      let local=await getPlainWorkspace();
+      let syncState:CloudSyncState='local';
+      let syncMessage='';
+      const online=typeof navigator==='undefined'||navigator.onLine;
+      if(online){
         try{
-          let linked=await getCloudAccount();
-          if(linked&&linked.uid!==cloudUser.uid){cloudSyncState='error';cloudSyncMessage=t('This device is linked to a different LOUREX cloud account.','هذا الجهاز مرتبط بحساب LOUREX سحابي مختلف.');}
-          else{
-            if(!linked){await putCloudAccount(cloudUser.uid,cloudUser.email);linked=await getCloudAccount();}
-            cloudLinked=Boolean(linked?.uid===cloudUser.uid);
-            if(cloudLinked){
-              const result=await reconcileCloudVault(cloudUser.uid);
-              if(result==='pulled'){configured=true;}
-              if(result==='diverged'){cloudSyncState='conflict';cloudSyncMessage=t('This device and the cloud both contain newer changes. Neither copy was overwritten. Choose which copy to keep.','يحتوي هذا الجهاز والسحابة على تعديلات أحدث. لم يتم استبدال أي نسخة. اختر النسخة التي تريد الاحتفاظ بها.');}
-              else if(result!=='empty'){cloudSyncState='synced';cloudSyncMessage=t('Encrypted cloud data restored.','تمت استعادة البيانات السحابية المشفّرة.');}
+          const result=await reconcilePlainCloudWorkspace(user.uid);
+          if(result==='retry'){
+            syncState='queued';
+            syncMessage=t('A newer local edit is pending. Firebase will retry safely.','هناك تعديل محلي أحدث بانتظار المزامنة. ستُعاد المحاولة بأمان.');
+          }else if(result==='diverged'){
+            if(!local){
+              throw new Error('Cloud account changed while starting. Reload to retry safely.');
             }
+            syncState='conflict';
+            syncMessage=t('This device and the cloud have different saved changes. Neither was overwritten.','هناك تعديلات مختلفة محفوظة في الجهاز والسحابة. لم يتم استبدال أي نسخة.');
+          }else if(result!=='empty'){
+            syncState=result==='pushed'?'synced':'synced';
+            syncMessage=t('Cloud workspace ready.','مساحة العمل السحابية جاهزة.');
           }
-        }catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}
+          local=await getPlainWorkspace();
+        }catch(error){
+          if(!local)throw error;
+          syncState='error';
+          syncMessage=error instanceof Error?error.message:String(error);
+        }
+      }else if(!local){
+        throw new Error(t('Connect to the internet once to initialize your LOUREX account.','اتصل بالإنترنت مرة واحدة لتهيئة حساب LOUREX.'));
+      }else{
+        syncState='offline';
+        syncMessage=t('Offline. Changes are saved on this device until your account reconnects.','غير متصل. تُحفظ التعديلات على هذا الجهاز حتى يعود الاتصال بالحساب.');
       }
+      if(!local){
+        // Cloud-first bootstrap: do NOT create an authoritative local blank
+        // until the server has committed it. A simultaneous second device
+        // must never strand this browser with a divergent empty local record.
+        if(!online)throw new Error('Internet connection is required to start a new account.');
+        const existing=await getPlainCloudMeta(user.uid);
+        if(existing)throw new Error('Cloud workspace appeared during initialization. Retry to restore it.');
+        const blank=emptyVault();
+        blank.appSettings={...blank.appSettings,autoLockMinutes:0};
+        const proposal:PlainWorkspaceRecord={
+          id:'workspace-v2',uid:user.uid,payload:blank,schemaVersion:blank.schemaVersion,
+          updatedAt:new Date().toISOString(),localRevision:crypto.randomUUID(),
+          baseCloudRevision:null,baseCloudSha256:null
+        };
+        const outcome=await uploadPlainCloudWorkspace(user.uid,proposal);
+        if(outcome==='remote-changed'){
+          // Two fresh devices may bootstrap the same Firebase UID at once.
+          // The losing device must hydrate the verified winning revision,
+          // not turn a safe CAS race into an account-blocking reload prompt.
+          const winner=await reconcilePlainCloudWorkspace(user.uid);
+          if(winner!=='pulled'&&winner!=='same')
+            throw new Error('Another device is preparing your account. Retry in a moment.');
+        }else{
+          const committed=await getPlainCloudMeta(user.uid);
+          if(!committed)throw new Error('Cloud workspace could not be verified after setup.');
+          const accepted=await replacePlainWorkspaceIfUnchanged(user.uid,null,{
+            ...proposal,baseCloudRevision:committed.revision,baseCloudSha256:committed.sha256
+          });
+          if(!accepted)throw new Error('Another browser tab created local data while setup completed. Retry safely.');
+        }
+        syncState='synced';
+        syncMessage=t('Your Firebase workspace is ready.','مساحة Firebase الخاصة بك جاهزة.');
+        local=await getPlainWorkspace();
+      }
+      if(!local)throw new Error('The account workspace is unavailable.');
+      if(currentCloudUser()?.uid!==user.uid||activeAccountStorageUid()!==user.uid)
+        throw new Error('Account identity changed while opening the workspace.');
+      const vault=this.normalizedVault(local.payload);
+      uiLanguage=vault.appSettings.uiLanguage??uiLanguage;
       setUiLanguage(uiLanguage);
-      this.setState({loading:false,firstRun:!configured,unlocked:false,key:null,vault:null,uiLanguage,publicLogo,cloudUser,cloudLinked,cloudSyncState,cloudSyncMessage});
-    }catch(e){this.setState({loading:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});this.showToast(e instanceof Error?e.message:t('Unable to access local storage.','تعذر الوصول إلى التخزين المحلي.'),'error');}
-  };
-
-  private initializeConfiguredCloud=async()=>{
-    let cloudUser:CloudUser|null=null;
-    try{cloudUser=await waitForCloudUser();}catch{}
-    if(!cloudUser){this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});return;}
-    try{
-      const linked=await getCloudAccount();
-      if(linked&&linked.uid!==cloudUser.uid){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:t('This device is linked to a different LOUREX cloud account.','هذا الجهاز مرتبط بحساب LOUREX سحابي مختلف.')});return;}
-      if(!linked){
-        const remote=await getCloudVaultMeta(cloudUser.uid);
-        if(remote){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:t('This cloud account already contains LOUREX data. Sign in with the account originally linked to this device or use Sync Now from the correct device.','هذا الحساب السحابي يحتوي بالفعل على بيانات LOUREX. سجّل بالحساب المرتبط أصلًا بهذا الجهاز أو استخدم المزامنة من الجهاز الصحيح.')});return;}
-        await putCloudAccount(cloudUser.uid,cloudUser.email);
-      }
-      this.setState({cloudUser,cloudLinked:true,cloudSyncState:'local',cloudSyncMessage:t('Cloud account connected.','الحساب السحابي متصل.')},()=>{
-        if(this.state.screen==='editor'||this.state.settingsOpen||this.state.cloudModal)return;
-        this.scheduleCloudSync(220);
-      });
-    }catch(e){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}
+      this.vaultWriteTail=Promise.resolve(vault);
+      await putCloudAccount(user.uid,user.email);
+      this.setState({loading:false,firstRun:false,unlocked:true,vault,
+        uiLanguage,publicLogo:vault.company.logoDataUrl||publicLogo,cloudUser:user,cloudLinked:true,
+        cloudSyncState:syncState,cloudSyncMessage:syncMessage,screen:'home',editorDoc:null},
+        ()=>{
+          // Firebase auth can resolve before the account database is selected.
+          // Tell the cloud observer that the UID-scoped workspace is now ready.
+          window.dispatchEvent(new Event('lourex-cloud-account-ready'));
+          if(syncState!=='conflict'&&syncState!=='synced')this.scheduleCloudSync(500);
+          void this.processDueRecurringWorkflows(true);
+        });
+    }catch(error){
+      this.setState({loading:false,firstRun:false,unlocked:false,vault:null,
+        cloudUser:currentCloudUser(),cloudLinked:false,cloudSyncState:'error',
+        cloudSyncMessage:error instanceof Error?error.message:String(error)});
+    }
   };
 
   private activity=()=>{
@@ -216,12 +281,13 @@ export class App extends React.Component<{},State> {
         // The outgoing account's CryptoKey must be invalidated *before*
         // changing the IndexedDB scope. Never erase the encrypted vault.
         await suspendSession();
+        this.accountEpoch++;
         setActiveAccountUid(uid);
         await activateAccountStorage(uid);
         await suspendSession();
         this.latestEncryptedVault=null;
         this.vaultWriteTail=Promise.resolve(null);
-        await new Promise<void>(resolve=>this.setState({loading:true,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,cloudModal:false,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''},resolve));
+        await new Promise<void>(resolve=>this.setState({loading:true,unlocked:false,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,cloudModal:false,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''},resolve));
         await this.initialize();
       }catch(error){
         // Fail closed: a rejected or interrupted account transition may not
@@ -229,17 +295,49 @@ export class App extends React.Component<{},State> {
         await suspendSession();
         this.latestEncryptedVault=null;
         this.vaultWriteTail=Promise.resolve(null);
-        this.setState({loading:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,newMenu:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(error)});
+        this.setState({loading:false,unlocked:false,vault:null,screen:'home',editorDoc:null,newMenu:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(error)});
       }finally{
         this.accountTransitionRunning=false;
         window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid}}));
       }
     })();
   };
-  private handleOnline=()=>{this.scheduleCloudSync(80);};
+  private handleOnline=()=>{
+    if(this.state.unlocked&&!this.cloudReplaceBlocked())
+      void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
+    else this.scheduleCloudSync(300);
+  };
   private handleCloudConflict=()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}this.cloudSyncQueued=false;this.setState({cloudSyncState:'conflict',cloudSyncMessage:t('This device and the cloud both contain newer changes. Neither copy was overwritten. Choose which copy to keep.','يحتوي هذا الجهاز والسحابة على تعديلات أحدث. لم يتم استبدال أي نسخة. اختر النسخة التي تريد الاحتفاظ بها.')});};
   private announceRemoteCloudUpdate=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.deferRemoteCloud();try{window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}catch{}};
-  private handleRemoteCloudNewer=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.announceRemoteCloudUpdate();};
+  private retryDeferredRemoteHydration=()=>{
+    if(this.deferredRemoteTimer||!this.cloudReconcileQueued)return;
+    this.deferredRemoteTimer=window.setTimeout(()=>{
+      this.deferredRemoteTimer=undefined;
+      if(!this.cloudReconcileQueued)return;
+      if(!this.state.unlocked||!this.state.cloudUser){this.cloudReconcileQueued=false;return;}
+      // An inline customer/inventory editor can clear its DOM dirty flag
+      // without causing a BaseApp setState. The bounded retry ensures cloud
+      // refresh resumes when it is safe rather than remaining queued forever.
+      if(this.cloudReplaceBlocked()||this.cloudSyncRunning||
+         this.cloudReconcileRunning||this.vaultReplacing){
+        this.retryDeferredRemoteHydration();return;
+      }
+      this.cloudReconcileQueued=false;
+      void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
+    },2000);
+  };
+  private handleRemoteCloudNewer=()=>{
+    if(!this.state.cloudUser||!this.state.cloudLinked||!this.state.unlocked)return;
+    if(this.cloudReplaceBlocked()||this.cloudSyncRunning||this.vaultReplacing){
+      // The listener can fire while an invoice editor is active. Remember the
+      // pending cloud revision; publishing blindly on editor close would
+      // manufacture a conflict even when this device has no unsynced edits.
+      this.cloudReconcileQueued=true;
+      this.retryDeferredRemoteHydration();
+      this.announceRemoteCloudUpdate();return;
+    }
+    void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
+  };
   private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;touchSession();this.resetAutoLock();this.scheduleCloudSync(120);};
   private closeTransientMenus=(event:PointerEvent)=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.ta-create-menu, .new-doc-menu'))return;this.setState({newMenu:false});};
   private closeTransientMenusOnEscape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.newMenu)this.setState({newMenu:false});};
@@ -250,7 +348,7 @@ export class App extends React.Component<{},State> {
   private changePublicLanguage=async(uiLanguage:UiLanguage)=>{await this.syncPublicPreferences(this.state.publicLogo||'./brand/lourex-logo.svg',uiLanguage);};
   private drainVaultWrites=async()=>{try{await this.vaultWriteTail;}catch{}};
   private waitForCloudIdle=async()=>{while(this.cloudSyncRunning)await new Promise(resolve=>window.setTimeout(resolve,30));};
-  private waitForProtectedDataOperation=async()=>{const deadline=Date.now()+30_000;while(this.vaultReplacing){if(!this.state.unlocked||!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));if(Date.now()>=deadline)throw new Error(t('Cloud restore is still finishing. Try again in a moment.','ما زالت استعادة البيانات السحابية قيد الإنهاء. حاول مرة أخرى بعد لحظة.'));await new Promise(resolve=>window.setTimeout(resolve,50));}};
+  private waitForProtectedDataOperation=async()=>{const deadline=Date.now()+30_000;while(this.vaultReplacing){if(!this.state.unlocked||!this.state.cloudUser?.uid||this.state.cloudUser.uid!==activeAccountStorageUid())throw new Error(t('Account session changed. Sign in again.','تغيرت جلسة الحساب. سجّل الدخول مجددًا.'));if(Date.now()>=deadline)throw new Error(t('Cloud restore is still finishing. Try again in a moment.','ما زالت استعادة البيانات السحابية قيد الإنهاء. حاول مرة أخرى بعد لحظة.'));await new Promise(resolve=>window.setTimeout(resolve,50));}};
   private editorMustBeClosed=(actionEn:string,actionAr:string)=>{if(this.state.screen!=='editor')return;throw new Error(t(`Close the document editor before ${actionEn}.`,`أغلق محرر المستند قبل ${actionAr}.`));};
   private beginProtectedOperation=async()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();await this.waitForCloudIdle();this.latestEncryptedVault=null;this.vaultReplacing=true;};
   private endProtectedOperation=()=>{this.vaultReplacing=false;};
@@ -278,38 +376,211 @@ export class App extends React.Component<{},State> {
     this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),offline?this.cloudRetryDelay:delay);
   };
   private flushCloudSync=async()=>{
-    this.cloudTimer=undefined;const user=this.state.cloudUser;if(!user||!this.state.cloudLinked)return;if(this.state.cloudSyncState==='conflict')return;if(this.vaultReplacing||this.cloudSyncRunning){this.cloudSyncQueued=true;return;}if(typeof navigator!=='undefined'&&!navigator.onLine){this.setState({cloudSyncState:'offline',cloudSyncMessage:t('Offline — saved locally. Cloud sync will resume automatically.','غير متصل — تم الحفظ محليًا وستُستأنف المزامنة تلقائيًا.')});return;}let linked:Awaited<ReturnType<typeof getCloudAccount>>;let storedLocal:EncryptedVaultRecord|null;try{await this.drainVaultWrites();if(this.vaultReplacing){this.cloudSyncQueued=true;return;}[linked,storedLocal]=await Promise.all([getCloudAccount(),this.latestEncryptedVault?Promise.resolve(this.latestEncryptedVault):getEncryptedVault()]);}catch(e){this.retryCloudSync(e);return;}const local=storedLocal;if(!linked||linked.uid!==user.uid||!local)return;if(local.updatedAt===this.lastCloudSyncedAt){this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});return;}this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Syncing in background…','جارٍ المزامنة في الخلفية…')});try{const result=await pushLocalVaultToCloud(user.uid,local);if(result==='remote-changed'){this.announceRemoteCloudUpdate();return;}this.lastCloudSyncedAt=local.updatedAt;this.cloudRetryDelay=5_000;const newest=this.latestEncryptedVault??await getEncryptedVault();if(newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});}catch(e){this.retryCloudSync(e);}finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(180);}}};
-  private attachCloudUser=async(user:CloudUser)=>{const [linked,configured]=await Promise.all([getCloudAccount(),hasSecurity()]);if(linked&&linked.uid!==user.uid){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This device is already linked to another LOUREX cloud account.','هذا الجهاز مرتبط مسبقًا بحساب LOUREX سحابي آخر.'));}if(!linked&&configured){const remote=await getCloudVaultMeta(user.uid);if(remote){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This cloud account already contains LOUREX data. Use an empty device to restore it, or sign in with the account originally linked to this device.','هذا الحساب السحابي يحتوي بالفعل على بيانات LOUREX. استخدم جهازًا فارغًا لاستعادتها أو سجّل بالحساب المرتبط أصلًا بهذا الجهاز.'));}}await putCloudAccount(user.uid,user.email);this.setState({cloudUser:user,cloudLinked:true,cloudSyncState:'syncing',cloudSyncMessage:t('Connecting encrypted cloud backup…','جارٍ ربط النسخة السحابية المشفّرة…')});try{const result=await reconcileCloudVault(user.uid);if(result==='pulled'){this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud data restored. This trusted device stays signed in.','تمت استعادة البيانات السحابية وسيبقى هذا الجهاز الموثوق مسجلاً للدخول.')});window.location.reload();return;}if(result==='diverged'){this.handleCloudConflict();return;}this.setState({cloudSyncState:result==='empty'?'local':'synced',cloudSyncMessage:result==='empty'?t('Cloud account linked. Finish local setup to create the first encrypted sync.','تم ربط الحساب السحابي. أكمل الإعداد المحلي لإنشاء أول مزامنة مشفّرة.'):t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}catch(e){this.setState({cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}};
+    this.cloudTimer=undefined;
+    const user=this.state.cloudUser;
+    if(!user||!this.state.cloudLinked||!this.state.unlocked||this.state.cloudSyncState==='conflict')return;
+    if(this.vaultReplacing||this.cloudSyncRunning){this.cloudSyncQueued=true;return;}
+    if(typeof navigator!=='undefined'&&!navigator.onLine){
+      this.setState({cloudSyncState:'offline',cloudSyncMessage:t('Offline — saved on this device.','غير متصل — محفوظ على هذا الجهاز.')});
+      return;
+    }
+    this.cloudSyncRunning=true;
+    try{
+      await this.drainVaultWrites();
+      const local=await getPlainWorkspace();
+      if(!local||local.uid!==user.uid)return;
+      this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Saving account data…','جارٍ حفظ بيانات الحساب…')});
+      const result=await uploadPlainCloudWorkspace(user.uid,local);
+      if(result==='remote-changed'){
+        this.setState({cloudSyncState:'conflict',cloudSyncMessage:t('Another device saved changes. Your local work was preserved. Review the account copies.','حفظ جهاز آخر تعديلات. تم الاحتفاظ بعملك المحلي. راجع نسختي الحساب.')});
+        return;
+      }
+      const latest=await getPlainWorkspace();
+      if(latest?.localRevision!==local.localRevision){
+        this.cloudSyncQueued=true;
+        this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local edits are queued.','تعديلات محلية أحدث بانتظار المزامنة.')});
+      }else{
+        this.cloudRetryDelay=5_000;
+        this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Saved to Firebase.','تم الحفظ في Firebase.')});
+      }
+    }catch(error){this.retryCloudSync(error);}
+    finally{
+      this.cloudSyncRunning=false;
+      if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(250);}
+    }
+  };
+  private attachCloudUser=async(user:CloudUser)=>{
+    if(currentCloudUser()?.uid!==user.uid)throw new Error('Account identity changed. Sign in again.');
+    // Firebase may return the same UID after a deliberate sign-out. Its old
+    // IndexedDB cache remains selected, but React must STILL rehydrate and
+    // authenticate the workspace; the old public gateway is not unlocked.
+    const scopeChanged=activeAccountStorageUid()!==user.uid;
+    if(scopeChanged){
+      setActiveAccountUid(user.uid);
+      await activateAccountStorage(user.uid);
+    }
+    if(scopeChanged||!this.state.unlocked||!this.state.vault||this.state.firstRun||!this.state.cloudLinked){
+      await new Promise<void>(resolve=>this.setState({
+        loading:true,firstRun:false,unlocked:false,vault:null,cloudUser:user,
+        cloudLinked:false,cloudSyncState:'local'
+      },resolve));
+      await this.initialize();
+      if(!this.state.unlocked)throw new Error(this.state.cloudSyncMessage||'Could not open your Firebase workspace.');
+      return;
+    }
+    await putCloudAccount(user.uid,user.email);
+    this.setState({cloudUser:user,cloudLinked:true});
+    await this.cloudSyncNow();
+  };
   private cloudSignIn=async(email:string,password:string)=>{try{const user=await signInCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudCreate=async(email:string,password:string)=>{try{const user=await createCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudReset=async(email:string)=>{try{await sendCloudPasswordReset(email);}catch(e){throw new Error(friendlyCloudError(e));}};
-  private cloudRestore=async()=>{this.editorMustBeClosed('restoring account data','استرجاع بيانات الحساب');await this.beginProtectedOperation();try{const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));const linked=await getCloudAccount();if(!linked||linked.uid!==user.uid)throw new Error(t('This device is not linked to the signed-in cloud account.','هذا الجهاز غير مرتبط بالحساب السحابي المسجل حاليًا.'));await resolveCloudConflictWithCloud(user.uid);this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud copy selected. Reloading the protected workspace…','تم اختيار نسخة السحابة. جارٍ إعادة تحميل مساحة العمل المحمية…')});}catch(e){throw new Error(friendlyCloudError(e));}finally{this.endProtectedOperation();}};
-  private keepLocalCloudCopy=async()=>{this.editorMustBeClosed('resolving cloud changes','حل تعارض البيانات السحابية');await this.drainVaultWrites();await this.waitForCloudIdle();await this.beginProtectedOperation();try{const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));await resolveCloudConflictWithLocal(user.uid);const local=await getEncryptedVault();this.lastCloudSyncedAt=local?.updatedAt||'';this.cloudRetryDelay=5_000;this.setState({cloudSyncState:'synced',cloudSyncMessage:t('This device copy is now saved to the cloud.','تم الآن حفظ نسخة هذا الجهاز في السحابة.')});}catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'conflict',cloudSyncMessage:message});throw new Error(message);}finally{this.endProtectedOperation();}};
-  private cloudSignOut=async()=>{try{await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});}catch(e){throw new Error(friendlyCloudError(e));}};
-  private cloudSyncNow=async()=>{this.editorMustBeClosed('syncing from the cloud','المزامنة من السحابة');if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();await this.waitForCloudIdle();try{const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));const linked=await getCloudAccount();if(!linked){await this.attachCloudUser(user);return;}if(linked.uid!==user.uid)throw new Error(t('This device is linked to another cloud account.','هذا الجهاز مرتبط بحساب سحابي آخر.'));this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Checking encrypted cloud data…','جارٍ فحص البيانات السحابية المشفّرة…')});const [local,remoteChanged]=await Promise.all([getEncryptedVault(),cloudRemoteChangedSinceAnchor(user.uid)]);if(remoteChanged){if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}await this.beginProtectedOperation();try{if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}const result=await reconcileCloudVault(user.uid);if(result==='pulled'){window.location.reload();return;}if(result==='diverged'){this.handleCloudConflict();return;}this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}finally{this.endProtectedOperation();}return;}this.cloudSyncRunning=true;try{if(local){const result=await pushLocalVaultToCloud(user.uid,local);if(result==='remote-changed'){this.announceRemoteCloudUpdate();return;}this.lastCloudSyncedAt=local.updatedAt;}const newest=this.latestEncryptedVault??await getEncryptedVault();if(local&&newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}}catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'error',cloudSyncMessage:message});throw new Error(message);}};
+  private cloudRestore=async()=>{
+    this.editorMustBeClosed('restoring cloud data','استعادة بيانات السحابة');
+    await this.beginProtectedOperation();
+    try{
+      const uid=this.state.cloudUser?.uid;
+      if(!uid)throw new Error('Sign in to your LOUREX account first.');
+      const remote=await downloadPlainCloudWorkspace(uid);
+      if(!remote)throw new Error('There is no cloud account copy.');
+      const local=await getPlainWorkspace();
+      const current=await getPlainWorkspace();
+      const replacement:PlainWorkspaceRecord={
+        id:'workspace-v2',uid,payload:remote.payload,schemaVersion:remote.payload.schemaVersion,
+        localRevision:crypto.randomUUID(),updatedAt:remote.meta.updatedAt,
+        baseCloudRevision:remote.meta.revision,baseCloudSha256:remote.meta.sha256
+      };
+      const ok=await replacePlainWorkspaceIfUnchanged(uid,current?.localRevision??null,replacement,'replaced-by-cloud');
+      if(!ok)throw new Error('Local data changed during cloud restore. Retry to avoid losing edits.');
+      const vault=this.normalizedVault(remote.payload);
+      this.vaultWriteTail=Promise.resolve(vault);
+      this.setState({vault,screen:'home',editorDoc:null,cloudSyncState:'synced',
+        cloudSyncMessage:t('Cloud copy restored.','تمت استعادة النسخة السحابية.')});
+    }finally{this.endProtectedOperation();}
+  };
+  private keepLocalCloudCopy=async()=>{
+    this.editorMustBeClosed('resolving cloud changes','حل تعارض السحابة');
+    await this.beginProtectedOperation();
+    try{
+      const uid=this.state.cloudUser?.uid;
+      if(!uid)throw new Error('Sign in to your account first.');
+      const local=await getPlainWorkspace();
+      if(!local)throw new Error('Local workspace is unavailable.');
+      const result=await uploadPlainCloudWorkspace(uid,local,true);
+      if(result==='remote-changed')throw new Error('Cloud changed during conflict resolution. Retry.');
+      this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Local copy saved to Firebase.','تم حفظ النسخة المحلية في Firebase.')});
+    }finally{this.endProtectedOperation();}
+  };
+  private cloudSignOut=async()=>{
+    await this.drainVaultWrites();
+    try{
+      await signOutCloudUser();
+      this.accountEpoch++;
+      if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
+      this.vaultWriteTail=Promise.resolve(null);
+      this.setState({cloudUser:null,cloudLinked:false,firstRun:true,unlocked:false,vault:null,
+        cloudSyncState:'local',cloudSyncMessage:'',settingsOpen:false,cloudModal:false});
+    }catch(error){throw new Error(friendlyCloudError(error));}
+  };
+  private cloudSyncNow=async()=>{
+    // Cloud pull and React hydration must be one protected operation.
+    // Otherwise an edit can land between IndexedDB CAS and UI setState,
+    // replacing the user's new in-memory invoice with the older download.
+    if(this.cloudReplaceBlocked())return;
+    if(this.cloudReconcileRunning||this.vaultReplacing){
+      this.cloudReconcileQueued=true;return;
+    }
+    const uid=this.state.cloudUser?.uid;
+    if(!uid)return;
+    this.cloudReconcileRunning=true;
+    let protectedOperation=false;
+    try{
+      await this.beginProtectedOperation();
+      protectedOperation=true;
+      if(this.cloudReplaceBlocked())return;
+      if(uid!==this.state.cloudUser?.uid||uid!==currentCloudUser()?.uid||
+         uid!==activeAccountStorageUid())
+        throw new Error('Account changed during cloud reconciliation.');
+      const result=await reconcilePlainCloudWorkspace(uid);
+      if(result==='diverged'){this.handleCloudConflict();return;}
+      if(result==='retry'){
+        this.cloudSyncQueued=true;
+        this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Checking newer edits before syncing.','جارٍ التحقق من التعديلات الأحدث قبل المزامنة.')});
+        return;
+      }
+      if(result==='pulled'){
+        const local=await getPlainWorkspace();
+        if(local){
+          const vault=this.normalizedVault(local.payload);
+          this.vaultWriteTail=Promise.resolve(vault);
+          await new Promise<void>(resolve=>this.setState({vault,editorDoc:null,cloudSyncState:'synced',
+            cloudSyncMessage:t('Cloud updates loaded.','تم تحميل تحديثات السحابة.')},resolve));
+        }
+      }else if(result==='pushed'||result==='same'){
+        this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
+      }
+    }finally{
+      if(protectedOperation)this.endProtectedOperation();
+      this.cloudReconcileRunning=false;
+      if(this.cloudSyncQueued){
+        this.cloudSyncQueued=false;
+        this.scheduleCloudSync(250);
+      }
+      if(this.cloudReconcileQueued){
+        this.cloudReconcileQueued=false;
+        window.setTimeout(()=>void this.cloudSyncNow().catch(error=>this.retryCloudSync(error)),0);
+      }
+    }
+  };
 
-  private finishSetup=async(pin:string,company:CompanySettings,recoveryCode:string)=>{const base=emptyVault();const vault={...base,company,appSettings:{...base.appSettings,uiLanguage:this.state.uiLanguage,smartDefaults:{...base.appSettings.smartDefaults,currency:company.defaultCurrency||'USD',language:company.defaultLanguage,incoterm:company.defaultIncoterm,paymentTerms:company.defaultPaymentTerms,deliveryTime:company.defaultDeliveryTime}}};const scopedVault=applyWorkspaceScope(base,vault);const setup=await setupVault(pin,scopedVault,recoveryCode);await establishSession(setup.key);await this.syncPublicPreferences(company.logoDataUrl,this.state.uiLanguage);let cloudLinked=this.state.cloudLinked,cloudSyncState=this.state.cloudSyncState,cloudSyncMessage=this.state.cloudSyncMessage;if(this.state.cloudUser){try{await putCloudAccount(this.state.cloudUser.uid,this.state.cloudUser.email);cloudLinked=true;cloudSyncState='queued';cloudSyncMessage=t('Setup saved locally — cloud backup queued.','تم حفظ الإعداد محليًا — النسخة السحابية في الانتظار.');}catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}}this.vaultWriteTail=Promise.resolve(setup.vault);this.setState({firstRun:false,unlocked:true,key:setup.key,vault:setup.vault,screen:'home',cloudLinked,cloudSyncState,cloudSyncMessage},()=>{this.resetAutoLock();this.scheduleCloudSync(150);});this.showToast(t('LOUREX Invoice is ready.','نظام LOUREX Invoice جاهز.'),'success');};
-  private unlock=async(pin:string)=>{
-    if(this.state.unlocked)throw new Error('The workspace is already open.');
-    const uid=this.state.cloudUser?.uid;let refreshError:unknown=null;
-    if(uid&&typeof navigator!=='undefined'&&navigator.onLine){
-      let refreshed:'same'|'pulled'|'diverged'='same';
-      try{refreshed=await refreshCloudVaultForUnlock(uid);}catch(error){refreshError=error;}
-      if(refreshed==='diverged')throw new Error('Your account data changed on another device. Resolve the account copy first, then retry PIN entry.');
-    }
-    if(uid!==this.state.cloudUser?.uid||uid!==currentCloudUser()?.uid||uid!==activeAccountStorageUid())throw new Error(t('Your account changed. Sign in again.','تغير الحساب. سجّل الدخول مجددًا.'));
-    let result:Awaited<ReturnType<typeof unlockVault>>;
-    try{result=await unlockVault(pin);}catch(error){
-      if(refreshError)throw new Error(t('Could not refresh this account’s encrypted PIN data. Check the connection and try again.','تعذر تحديث بيانات PIN المشفّرة لهذا الحساب. تحقق من الاتصال وحاول مجددًا.'));
-      throw error;
-    }
-    if(uid!==this.state.cloudUser?.uid||uid!==currentCloudUser()?.uid||uid!==activeAccountStorageUid())throw new Error(t('Your account changed. Sign in again.','تغير الحساب. سجّل الدخول مجددًا.'));
-const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.vaultWriteTail=Promise.resolve(vault);this.setState({unlocked:true,key:result.key,vault,screen:'home',editorDoc:null},()=>{this.resetAutoLock();this.scheduleCloudSync(220);void this.processDueRecurringWorkflows(true);});};
-  private recoverPin=async(recoveryKey:string,newPin:string)=>{const user=this.state.cloudUser;if(user){if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error(t('Connect to the internet before recovering this account PIN.','اتصل بالإنترنت قبل استرداد PIN لهذا الحساب.'));const sync=await reconcileCloudVault(user.uid);if(sync==='diverged')throw new Error('Your account data changed on another device. Resolve the account copy first, then retry PIN recovery.');}await recoverPinWithRecoveryKey(recoveryKey,newPin);await this.unlock(newPin);};
-  private lock=()=>{void this.lockNow(false);};
-  private lockNow=async(automatic:boolean)=>{if(!automatic&&this.state.screen==='editor'){this.showToast(t('Close the document editor before locking the app.','أغلق محرر المستند قبل قفل التطبيق.'),'error');return;}if(this.lockTimer)window.clearTimeout(this.lockTimer);await this.drainVaultWrites();await clearSession();this.latestEncryptedVault=null;this.vaultWriteTail=Promise.resolve(null);this.setState({unlocked:false,key:null,vault:null,editorDoc:null,screen:'home',settingsOpen:false,newMenu:false});};
-  private persist=async(intended:VaultPayload)=>{const base=this.requireVault();const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{await this.waitForProtectedDataOperation();const key=this.state.key;if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));const latestFull=queued??this.state.vault;if(!latestFull)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));const latest=scopeVault(latestFull);const scopedIntended=applyWorkspaceScope(base,intended);const merged=mergeVaultIntent(base,scopedIntended,latest);const audited=appendAuditEventsForVaultDiff(latest,merged);const next=overlayWorkspaceScope(latestFull,audited);const encrypted=await saveVault(key,next);this.latestEncryptedVault=encrypted;if(this.state.unlocked&&this.state.key===key)await new Promise<void>(resolve=>this.setState({vault:next},resolve));this.scheduleCloudSync();return next;});this.vaultWriteTail=operation;await operation;};
-  private persistFullMutation=async(mutation:(vault:VaultPayload)=>VaultPayload)=>{const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{await this.waitForProtectedDataOperation();const key=this.state.key;if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));const latest=queued??this.state.vault;if(!latest)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));const next=mutation(latest);const encrypted=await saveVault(key,next);this.latestEncryptedVault=encrypted;if(this.state.unlocked&&this.state.key===key)await new Promise<void>(resolve=>this.setState({vault:next},resolve));this.scheduleCloudSync();return next;});this.vaultWriteTail=operation;await operation;};
+  // Account access is provided by Firebase Auth; there is no device PIN or lock.
+  private lock=()=>{};
+  private lockNow=async(_automatic:boolean)=>{};
+  private persist=async(intended:VaultPayload)=>{
+    const base=this.requireVault();
+    const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{
+      await this.waitForProtectedDataOperation();
+      const uid=this.state.cloudUser?.uid;
+      if(!uid||uid!==currentCloudUser()?.uid||uid!==activeAccountStorageUid())throw new Error('Account session changed. Save was not applied.');
+      const latestFull=queued??this.state.vault;
+      if(!latestFull)throw new Error('Workspace is not ready.');
+      const local=await getPlainWorkspace();
+      if(!local)throw new Error('Local account workspace is unavailable.');
+      const latest=scopeVault(latestFull);
+      const scopedIntended=applyWorkspaceScope(base,intended);
+      const merged=mergeVaultIntent(base,scopedIntended,latest);
+      const audited=appendAuditEventsForVaultDiff(latest,merged);
+      const next=synchronizeActiveWorkspaceOnSave(overlayWorkspaceScope(latestFull,audited));
+      assertPlainCloudWorkspaceUploadable(next);
+      const stored=await updatePlainWorkspaceIfUnchanged(uid,local.localRevision,next);
+      if(!stored)throw new Error('Another tab updated this account. Refresh before saving to avoid overwriting its work.');
+      if(this.state.unlocked&&this.state.cloudUser?.uid===uid)
+        await new Promise<void>(resolve=>this.setState({vault:next},resolve));
+      this.scheduleCloudSync();
+      return next;
+    });
+    this.vaultWriteTail=operation;await operation;
+  };
+  private persistFullMutation=async(mutation:(vault:VaultPayload)=>VaultPayload)=>{
+    const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{
+      await this.waitForProtectedDataOperation();
+      const uid=this.state.cloudUser?.uid;
+      if(!uid||uid!==currentCloudUser()?.uid||uid!==activeAccountStorageUid())throw new Error('Account session changed.');
+      const local=await getPlainWorkspace();
+      if(!local)throw new Error('Local account workspace is unavailable.');
+      const latest=queued??this.state.vault;
+      if(!latest)throw new Error('Workspace is not ready.');
+      const next=synchronizeActiveWorkspaceOnSave(mutation(latest));
+      assertPlainCloudWorkspaceUploadable(next);
+      const stored=await updatePlainWorkspaceIfUnchanged(uid,local.localRevision,next);
+      if(!stored)throw new Error('Another tab saved changes. Refresh before continuing.');
+      if(this.state.unlocked&&this.state.cloudUser?.uid===uid)
+        await new Promise<void>(resolve=>this.setState({vault:next},resolve));
+      this.scheduleCloudSync();
+      return next;
+    });
+    this.vaultWriteTail=operation;await operation;
+  };
   private reserveDocument=async(kind:DocumentKind):Promise<{doc:LourexDocument;vault:VaultPayload;reservation:Promise<void>}>=>{if(this.vaultReplacing)await this.waitForProtectedDataOperation();const vault=this.requireVault();const next=nextDocumentNumber(vault,kind);const reservation=this.persist(next.vault);const current=next.vault;const smart=current.appSettings.smartDefaults;const base=createBlankDocument(kind,next.number,current.company);const paymentTerms=smart.paymentTerms||base.terms.paymentTerms;let doc={...base,currency:smart.currency||base.currency,language:smart.language||base.language,terms:{...base.terms,incoterm:smart.incoterm,paymentTerms,deliveryTime:smart.deliveryTime},appearance:{...base.appearance,templateId:(kind==='proforma'||kind==='proforma-invoice'||kind==='rfq')?smart.quoteTemplateId:kind==='invoice'?smart.invoiceTemplateId:base.appearance.templateId}};const paymentPreset=paymentTermPresetByLabel(current.company,paymentTerms);if(paymentPreset&&(kind==='invoice'||kind==='proforma'||kind==='proforma-invoice'))doc=applyPaymentTermPreset(doc,paymentPreset);const projected=this.state.vault?overlayWorkspaceScope(this.state.vault,current):current;return{doc,vault:projected,reservation};};
   private newDocument=async(kind:DocumentKind)=>{if(this.documentCreateBusy||!confirmWorkspaceDeparture())return;this.documentCreateBusy=true;document.documentElement.setAttribute('data-lourex-document-editor','opening');this.setState({newMenu:false});try{const {doc,vault,reservation}=await this.reserveDocument(kind);await reservation;await this.persist({...vault,documents:[...vault.documents,doc]});await new Promise<void>(resolve=>this.setState({screen:'editor',editorDoc:doc,newMenu:false},resolve));}catch(e){document.documentElement.removeAttribute('data-lourex-document-editor');this.showToast(e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.'),'error');}finally{this.documentCreateBusy=false;}};
   private newDocumentForCustomer=async(kind:DocumentKind,customer:Customer)=>{if(this.documentCreateBusy||!confirmWorkspaceDeparture())return;this.documentCreateBusy=true;document.documentElement.setAttribute('data-lourex-document-editor','opening');try{const {doc,vault,reservation}=await this.reserveDocument(kind);await reservation;const prepared=applyCustomerCommercialDefaults({...doc,customerSnapshot:customerSnapshotFrom(customer)},customer,vault.company);await this.persist({...vault,documents:[...vault.documents,prepared]});await new Promise<void>(resolve=>this.setState({screen:'editor',editorDoc:prepared,newMenu:false},resolve));}catch(e){document.documentElement.removeAttribute('data-lourex-document-editor');throw e instanceof Error?e:new Error(t('Unable to create document.','تعذر إنشاء المستند.'));}finally{this.documentCreateBusy=false;}};
@@ -339,12 +610,12 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
   private createDelivery=async(source:LourexDocument)=>{
     if(this.deliveryCreations.has(source.id))return;
     this.deliveryCreations.add(source.id);
-    const key=this.state.key;
+    const sessionUid=this.state.cloudUser?.uid,sessionEpoch=this.accountEpoch;
     let delivery:LourexDocument|undefined,created=false;
     try{
       const initial=this.requireVault();
       await this.persistFullMutation(full=>{
-        if(this.state.key!==key||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
+        if((this.accountEpoch!==sessionEpoch||this.state.cloudUser?.uid!==sessionUid||activeAccountStorageUid()!==sessionUid)||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const scoped=scopeVault(full);
         if(scoped.appSettings.activeWorkspaceId!==initial.appSettings.activeWorkspaceId||scoped.appSettings.activeBranchId!==initial.appSettings.activeBranchId)throw new Error(t('Workspace changed. Reopen the source document.','تغيرت مساحة العمل. افتح المستند المصدر من جديد.'));
         const result=createLinkedDeliveryDraft(scoped,source.id);delivery=result.document;created=result.created;
@@ -352,7 +623,7 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
         const intended=applyWorkspaceScope(scoped,result.vault);
         return overlayWorkspaceScope(full,appendAuditEventsForVaultDiff(scoped,intended));
       });
-      if(delivery&&this.state.unlocked&&this.state.key===key&&this.requireVault().documents.some(doc=>doc.id===delivery?.id)){
+      if(delivery&&this.state.unlocked&&(this.accountEpoch===sessionEpoch&&this.state.cloudUser?.uid===sessionUid&&activeAccountStorageUid()===sessionUid)&&this.requireVault().documents.some(doc=>doc.id===delivery?.id)){
         this.setState({screen:'editor',editorDoc:delivery});
         if(created)this.showToast(t('Delivery draft ready for review. No inventory or payment was posted.','مسودة التسليم جاهزة للمراجعة. لم تُرحّل حركة مخزون أو دفعة.'),'success');
       }
@@ -362,12 +633,12 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
   private createDeliveryInvoice=async(delivery:LourexDocument)=>{
     if(this.deliveryInvoiceCreations.has(delivery.id))return;
     this.deliveryInvoiceCreations.add(delivery.id);
-    const key=this.state.key;
+    const sessionUid=this.state.cloudUser?.uid,sessionEpoch=this.accountEpoch;
     let invoice:LourexDocument|undefined,created=false;
     try{
       const initial=this.requireVault();
       await this.persistFullMutation(full=>{
-        if(this.state.key!==key||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
+        if((this.accountEpoch!==sessionEpoch||this.state.cloudUser?.uid!==sessionUid||activeAccountStorageUid()!==sessionUid)||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const scoped=scopeVault(full);
         if(scoped.appSettings.activeWorkspaceId!==initial.appSettings.activeWorkspaceId
           ||scoped.appSettings.activeBranchId!==initial.appSettings.activeBranchId)
@@ -378,7 +649,7 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
         const intended=applyWorkspaceScope(scoped,result.vault);
         return overlayWorkspaceScope(full,appendAuditEventsForVaultDiff(scoped,intended));
       });
-      if(invoice&&this.state.unlocked&&this.state.key===key
+      if(invoice&&this.state.unlocked&&(this.accountEpoch===sessionEpoch&&this.state.cloudUser?.uid===sessionUid&&activeAccountStorageUid()===sessionUid)
         &&this.requireVault().documents.some(doc=>doc.id===invoice?.id)){
         this.setState({screen:'editor',editorDoc:invoice});
         if(created)this.showToast(t('Invoice draft prepared from confirmed delivered quantities. Review before issuing; nothing was posted automatically.','تم تجهيز مسودة فاتورة للكميات المسلّمة المؤكدة. راجعها قبل الإصدار؛ لم تُرحّل أي مبالغ تلقائيًا.'),'success');
@@ -390,12 +661,12 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
   private createPurchaseOrderFromRfq=async(source:LourexDocument)=>{
     if(this.purchaseOrderCreations.has(source.id))return;
     this.purchaseOrderCreations.add(source.id);
-    const key=this.state.key;
+    const sessionUid=this.state.cloudUser?.uid,sessionEpoch=this.accountEpoch;
     let order:LourexDocument|undefined,created=false;
     try{
       const initial=this.requireVault();
       await this.persistFullMutation(full=>{
-        if(this.state.key!==key||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
+        if((this.accountEpoch!==sessionEpoch||this.state.cloudUser?.uid!==sessionUid||activeAccountStorageUid()!==sessionUid)||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const scoped=scopeVault(full);
         if(scoped.appSettings.activeWorkspaceId!==initial.appSettings.activeWorkspaceId||scoped.appSettings.activeBranchId!==initial.appSettings.activeBranchId){
           throw new Error(t('Workspace changed. Reopen the source document.','تغيرت مساحة العمل. افتح المستند المصدر من جديد.'));
@@ -406,7 +677,7 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
         const intended=applyWorkspaceScope(scoped,result.vault);
         return overlayWorkspaceScope(full,appendAuditEventsForVaultDiff(scoped,intended));
       });
-      if(order&&this.state.unlocked&&this.state.key===key&&this.requireVault().documents.some(doc=>doc.id===order?.id)){
+      if(order&&this.state.unlocked&&(this.accountEpoch===sessionEpoch&&this.state.cloudUser?.uid===sessionUid&&activeAccountStorageUid()===sessionUid)&&this.requireVault().documents.some(doc=>doc.id===order?.id)){
         this.setState({screen:'editor',editorDoc:order});
         if(created)this.showToast(t('Purchase order draft ready for pricing and review. No stock or supplier payment was posted.','مسودة أمر الشراء جاهزة للتسعير والمراجعة. لم يتم ترحيل المخزون أو أي دفعة للمورد.'),'success');
       }
@@ -442,31 +713,39 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
   private decideApproval=async(id:string,decision:'approved'|'rejected')=>{const vault=this.requireVault();await this.persist(decideApprovalRequest(vault,id,decision));this.showToast(decision==='approved'?t('Approval granted.','تمت الموافقة.'):t('Approval rejected.','تم رفض الطلب.'),'success');};
   private saveCompany=async(company:CompanySettings)=>{const vault=this.requireVault();const smartDefaults={...vault.appSettings.smartDefaults,currency:company.defaultCurrency||'USD',language:company.defaultLanguage,incoterm:company.defaultIncoterm,paymentTerms:company.defaultPaymentTerms,deliveryTime:company.defaultDeliveryTime};const appSettings={...vault.appSettings,smartDefaults};await this.persist({...vault,company,appSettings});await this.syncPublicPreferences(company.logoDataUrl,this.requireVault().appSettings.uiLanguage);};
   private saveAppSettings=async(appSettings:AppSettings)=>{const vault=this.requireVault();const next={...appSettings,uiLanguage:appSettings.uiLanguage??'en'};await this.persist({...vault,appSettings:next});const current=this.requireVault();await this.syncPublicPreferences(current.company.logoDataUrl,current.appSettings.uiLanguage);touchSession();this.resetAutoLock();};
-  private changePin=async(currentPin:string,newPin:string):Promise<string|undefined>=>{this.editorMustBeClosed('changing the PIN','تغيير رمز PIN');if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();this.latestEncryptedVault=null;this.vaultReplacing=true;try{const result=await changePin(currentPin,newPin);await establishSession(result.key);const encrypted=await getEncryptedVault();this.latestEncryptedVault=encrypted;this.vaultWriteTail=Promise.resolve(this.state.vault);await new Promise<void>(resolve=>this.setState({key:result.key},resolve));touchSession();this.resetAutoLock();const user=this.state.cloudUser;if(user&&this.state.cloudLinked&&encrypted&&typeof navigator!=='undefined'&&navigator.onLine&&!this.cloudSyncRunning){this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Saving new PIN to your account…','جارٍ حفظ رمز PIN الجديد في حسابك…')});try{const sync=await pushLocalVaultToCloud(user.uid,encrypted);if(sync==='remote-changed'){this.deferRemoteCloud();this.cloudSyncQueued=true;}else{this.lastCloudSyncedAt=encrypted.updatedAt;this.cloudRetryDelay=5_000;this.setState({cloudSyncState:'synced',cloudSyncMessage:t('New PIN saved to your account.','تم حفظ رمز PIN الجديد في حسابك.')});}}catch(e){this.retryCloudSync(e);}finally{this.cloudSyncRunning=false;}}else this.scheduleCloudSync(120);this.showToast(t('PIN changed.','تم تغيير رمز PIN.'),'success');return result.recoveryCode;}finally{this.endProtectedOperation();if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}};
-  private createPinRecoveryKey=async(currentPin:string):Promise<string>=>{this.editorMustBeClosed('creating a PIN recovery key','إنشاء مفتاح استرداد PIN');if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();this.latestEncryptedVault=null;this.vaultReplacing=true;try{const result=await renewPinRecoveryKey(currentPin);await establishSession(result.key);const encrypted=await getEncryptedVault();this.latestEncryptedVault=encrypted;this.vaultWriteTail=Promise.resolve(this.state.vault);await new Promise<void>(resolve=>this.setState({key:result.key},resolve));touchSession();this.resetAutoLock();const user=this.state.cloudUser;if(user&&this.state.cloudLinked&&encrypted&&typeof navigator!=='undefined'&&navigator.onLine&&!this.cloudSyncRunning){this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Saving recovery protection to your account…','جارٍ حفظ حماية الاسترداد في حسابك…')});try{const sync=await pushLocalVaultToCloud(user.uid,encrypted);if(sync==='remote-changed'){this.deferRemoteCloud();this.cloudSyncQueued=true;}else{this.lastCloudSyncedAt=encrypted.updatedAt;this.cloudRetryDelay=5_000;this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Recovery protection saved to your account.','تم حفظ حماية الاسترداد في حسابك.')});}}catch(e){this.retryCloudSync(e);}finally{this.cloudSyncRunning=false;}}else this.scheduleCloudSync(120);return result.recoveryCode;}finally{this.endProtectedOperation();if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}};
-  private backup=async(pin:string,password:string)=>{this.editorMustBeClosed('creating a backup','إنشاء نسخة احتياطية');const issue=backupPasswordIssue(password,pin);if(issue)throw new Error(issue);await this.drainVaultWrites();const security=await getSecurity();if(!security)throw new Error(t('Security settings are missing.','إعدادات الأمان غير موجودة.'));await verifyPin(pin,security);const fullVault=this.state.vault;if(!fullVault)throw new Error(t('App is locked.','التطبيق مقفل.'));await exportBackup(password,fullVault);};
-  private restore=async(file:File,pin:string)=>{
-    this.editorMustBeClosed('restoring a backup','استعادة نسخة احتياطية');
-    const restored=this.normalizedVault(await readBackup(file,pin));
+  private backup=async()=>{
+    this.editorMustBeClosed('downloading a local copy','تنزيل نسخة محلية');
+    await this.drainVaultWrites();
+    const uid=this.state.cloudUser?.uid;
+    if(!uid||uid!==currentCloudUser()?.uid)throw new Error('Sign in to your account first.');
+    const local=await getPlainWorkspace();
+    if(!local)throw new Error('The account workspace is unavailable.');
+    await exportPlainBackup(local.payload);
+  };
+  private restore=async(file:File)=>{
+    this.editorMustBeClosed('importing a local copy','استيراد نسخة محلية');
+    if(this.state.cloudSyncState==='conflict')
+      throw new Error(t('Resolve the cloud/device conflict before importing a local copy. Neither version has been overwritten.','حل تعارض الجهاز والسحابة قبل استيراد النسخة المحلية. لم يتم استبدال أي نسخة.'));
+    const restored=synchronizeActiveWorkspaceOnSave(this.normalizedVault(await readPlainBackup(file)));
+    // Never replace this device with a backup that Firebase cannot publish.
+    assertPlainCloudWorkspaceUploadable(restored);
     await this.beginProtectedOperation();
-    let committed=false;
     try{
-      const key=this.state.key;
-      if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
-      const vault=await restoreVaultWithCurrentKey(key,restored);
-      committed=true;
-      this.vaultWriteTail=Promise.resolve(vault);
-      await new Promise<void>(resolve=>this.setState({vault,screen:'documents',editorDoc:null},resolve));
-      touchSession();
-      this.resetAutoLock();
-      // Once the encrypted vault is committed, a noncritical preferences write
-      // must not turn successful recovery into a misleading failure message.
-      try{await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);}
-      catch{this.showToast(t('Backup restored, but display preferences could not refresh.','تم استرجاع النسخة، لكن تعذر تحديث تفضيلات العرض.'),'error');}
-    }finally{
-      this.endProtectedOperation();
-      if(committed)this.scheduleCloudSync(500);
-    }
+      const uid=this.state.cloudUser?.uid;
+      if(!uid||uid!==currentCloudUser()?.uid)throw new Error('Sign in to your account first.');
+      const current=await getPlainWorkspace();
+      if(!current)throw new Error('The local workspace is unavailable.');
+      const replacement:PlainWorkspaceRecord={
+        id:'workspace-v2',uid,payload:restored,schemaVersion:restored.schemaVersion,
+        localRevision:crypto.randomUUID(),updatedAt:new Date().toISOString(),
+        baseCloudRevision:current.baseCloudRevision,baseCloudSha256:current.baseCloudSha256
+      };
+      const ok=await replacePlainWorkspaceIfUnchanged(uid,current.localRevision,replacement,'replaced-by-backup');
+      if(!ok)throw new Error('Account data changed during import. Retry to protect newer changes.');
+      this.vaultWriteTail=Promise.resolve(restored);
+      await new Promise<void>(resolve=>this.setState({vault:restored,screen:'home',editorDoc:null},resolve));
+      this.scheduleCloudSync(300);
+    }finally{this.endProtectedOperation();}
   };
   private requireVault():VaultPayload{if(!this.state.vault)throw new Error(t('App is locked.','التطبيق مقفل.'));return scopeVault(this.state.vault);}
   private waitForPrintAssets=async()=>{await new Promise<void>(resolve=>window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>resolve())));try{if(document.fonts)await document.fonts.ready;}catch{}const images=Array.from(document.querySelectorAll<HTMLImageElement>('.print-portal img'));await Promise.all(images.map(async image=>{if(image.complete&&image.naturalWidth>0)return;try{if(typeof image.decode==='function'){await image.decode();return;}}catch{}await new Promise<void>(resolve=>{const done=()=>resolve();image.addEventListener('load',done,{once:true});image.addEventListener('error',done,{once:true});window.setTimeout(done,1200);});}));};
@@ -520,8 +799,13 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
   render():any{
     const activeLanguage=this.state.vault?.appSettings.uiLanguage??this.state.uiLanguage;setUiLanguage(activeLanguage);
     if(this.state.loading)return <div className="loading-screen"><Brand logoDataUrl={this.state.publicLogo} language={activeLanguage}/><span className="loading-line"/></div>;
-    if(this.state.firstRun)return this.authCloudShell(<AuthScreenSelector mode="setup" company={defaultCompany()} logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onFinish={this.finishSetup}/>);
-    if(!this.state.unlocked)return this.authCloudShell(<AuthScreenSelector mode="unlock" logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onUnlock={this.unlock} onRecoverPin={this.recoverPin}/>);
+    if(this.state.firstRun)return <AccountEntryScreen language={activeLanguage} onLanguageChange={this.changePublicLanguage}/>;
+    if(!this.state.unlocked)return <main className="auth-recovery-state" role="alert">
+      <strong>{t('Account workspace unavailable','تعذر فتح مساحة الحساب')}</strong>
+      <p>{this.state.cloudSyncMessage||t('Connect to Firebase and retry.','اتصل بـ Firebase ثم حاول مجددًا.')}</p>
+      <button type="button" className="button primary" onClick={()=>this.setState({loading:true},()=>void this.initialize())}>{t('Retry','إعادة المحاولة')}</button>
+      <button type="button" className="button" onClick={()=>void signOutCloudUser().then(()=>window.location.reload())}>{t('Sign out','تسجيل الخروج')}</button>
+    </main>;
     const vault=this.requireVault();
     const businessHealth=buildBusinessHealth(vault);
     const activeWorkspaceMeta=vault.workspaces.find(item=>item.id===vault.appSettings.activeWorkspaceId)??vault.workspaces[0];
@@ -546,7 +830,7 @@ const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.norma
       </AppShell>
       <RecurringWorkflowsManager open={this.state.recurringOpen} filter={this.state.recurringFilter} workflows={vault.recurringWorkflows} sourceDocument={vault.documents.find(item=>item.id===this.state.recurringSourceDocumentId)??null} sourcePurchase={vault.purchases.find(item=>item.id===this.state.recurringSourcePurchaseId)??null} onClose={this.closeRecurringManager} onSave={this.saveRecurringWorkflow} onDelete={this.deleteRecurringWorkflow} onGenerate={this.generateRecurringWorkflow} onOpenGenerated={this.openRecurringGenerated}/>
       <GlobalSearch documents={vault.documents} payments={vault.payments} customers={vault.customers} items={vault.savedItems} suppliers={vault.suppliers} purchases={vault.purchases} language={activeLanguage} onNavigate={navigate} onOpenDocument={(doc)=>void this.openDocument(doc)} onNewDocument={(kind)=>void this.newDocument(kind)}/>
-      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} documentEvents={vault.documentEvents} teamMembers={vault.teamMembers} approvalPolicies={vault.approvalPolicies} approvalRequests={vault.approvalRequests} workspaces={vault.workspaces} branches={vault.branches} onCreateWorkspace={this.createCompanyWorkspace} onSwitchWorkspace={this.switchCompanyWorkspace} onCreateBranch={this.createWorkspaceBranch} onSwitchBranch={this.switchWorkspaceBranch} onSaveTeamMember={this.saveTeamMember} onToggleTeamMember={this.toggleTeamMember} onSetActiveTeamMember={this.setActiveTeamMember} onToggleApprovalPolicy={this.toggleApprovalPolicy} onDecideApproval={this.decideApproval} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onCreateRecoveryKey={this.createPinRecoveryKey} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
+      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} documentEvents={vault.documentEvents} teamMembers={vault.teamMembers} approvalPolicies={vault.approvalPolicies} approvalRequests={vault.approvalRequests} workspaces={vault.workspaces} branches={vault.branches} onCreateWorkspace={this.createCompanyWorkspace} onSwitchWorkspace={this.switchCompanyWorkspace} onCreateBranch={this.createWorkspaceBranch} onSwitchBranch={this.switchWorkspaceBranch} onSaveTeamMember={this.saveTeamMember} onToggleTeamMember={this.toggleTeamMember} onSetActiveTeamMember={this.setActiveTeamMember} onToggleApprovalPolicy={this.toggleApprovalPolicy} onDecideApproval={this.decideApproval} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onBackup={this.backup} onRestore={this.restore}/>
       {this.cloudModal()}
       {this.catalogLauncherModal(vault)}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>

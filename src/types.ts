@@ -640,6 +640,30 @@ export interface RecurringWorkflowRecord {
   updatedAt: string;
 }
 
+/** Account-bound, PIN-free local workspace cache. The encrypted legacy records remain untouched. */
+export interface PlainWorkspaceRecord {
+  id: 'workspace-v2';
+  uid: string;
+  payload: VaultPayload;
+  schemaVersion: number;
+  updatedAt: string;
+  /** Changes on each business-data write. Used for atomic IndexedDB compare-and-swap. */
+  localRevision: string;
+  /** Previous local generations that belong to this pending edit lineage.
+   * Lets an in-flight Firebase upload acknowledge only genuine descendant edits.
+   */
+  localAncestors?: string[];
+  baseCloudRevision: string | null;
+  baseCloudSha256: string | null;
+}
+
+/** Retained before an explicit conflict replacement; never synced as canonical data. */
+export interface PlainWorkspaceArchiveRecord extends Omit<PlainWorkspaceRecord,'id'> {
+  id: `workspace-v2-archive:${string}`;
+  archivedAt: string;
+  reason: 'replaced-by-cloud' | 'replaced-by-backup';
+}
+
 export interface VaultPayload {
   schemaVersion: number;
   company: CompanySettings;

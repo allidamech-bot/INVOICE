@@ -12,8 +12,8 @@ const start=source.indexOf('private handleAccountTransitionRequest=');
 const end=source.indexOf('private handleOnline=',start);
 assert.ok(start>0&&end>start,'account transition handler is required');
 const body='class TestApp { accountTransitionRunning=false; cloudTimer=undefined; '+
-  'cloudSyncQueued=true; latestEncryptedVault={cipher:"old"}; '+
-  'vaultWriteTail=Promise.resolve({old:true}); state={unlocked:true,key:"OLD_KEY",vault:{sensitive:true}}; '+
+  'cloudSyncQueued=true; latestEncryptedVault={cipher:"legacy-retained"}; '+
+  'vaultWriteTail=Promise.resolve({old:true}); state={unlocked:true,vault:{sensitive:true}}; '+
   'constructor(log){this.log=log;} '+
   'drainVaultWrites=async()=>{this.log.push("drain");}; '+
   'waitForCloudIdle=async()=>{this.log.push("idle");}; '+
@@ -49,25 +49,23 @@ function fixture({rejectSwitch=false,holdDrain=false}={}){
   return {app,log,completed,Event:TestEvent,releaseDrain};
 }
 
-test('confirmed sign-out releases old CryptoKey before switching to public DB and clears decrypted UI',async()=>{
+test('confirmed sign-out revokes session before switching UID scope and clears V2 business UI',async()=>{
   const f=fixture();
   f.app.handleAccountTransitionRequest(new f.Event('transition',{detail:{uid:null}}));
   const done=await f.completed;
   assert.equal(done.detail.uid,null);
   assert.equal(f.app.state.unlocked,false);
-  assert.equal(f.app.state.key,null);
   assert.equal(f.app.state.vault,null);
   const a=f.log.indexOf('drain'),b=f.log.indexOf('suspend'),c=f.log.indexOf('uid:null'),d=f.log.indexOf('scope:null');
-  assert.ok(a>=0&&b>a&&c>b&&d>c,'save drain → key revocation → UID clear → DB switch');
+  assert.ok(a>=0&&b>a&&c>b&&d>c,'save drain → session invalidation → UID clear → DB switch');
   assert.ok(f.log.indexOf('initialize')>d,'signed-out screen is reinitialized');
 });
 
-test('switching from A to B cannot reuse A PIN or A decrypted vault',async()=>{
+test('switching from A to B never exposes the previous Firebase UID workspace',async()=>{
   const f=fixture();
   f.app.handleAccountTransitionRequest(new f.Event('transition',{detail:{uid:'account-B'}}));
   await f.completed;
   assert.equal(f.app.state.unlocked,false);
-  assert.equal(f.app.state.key,null);
   assert.equal(f.app.state.vault,null);
   assert.ok(f.log.indexOf('suspend')<f.log.indexOf('uid:account-B'));
   assert.ok(f.log.indexOf('uid:account-B')<f.log.indexOf('scope:account-B'));
@@ -79,26 +77,24 @@ test('a failed storage switch fails closed and cannot show the old account',asyn
   f.app.handleAccountTransitionRequest(new f.Event('transition',{detail:{uid:'account-B'}}));
   await f.completed;
   assert.equal(f.app.state.unlocked,false);
-  assert.equal(f.app.state.key,null);
   assert.equal(f.app.state.vault,null);
   assert.equal(f.app.state.cloudSyncState,'error');
-  assert.ok(f.log.filter(x=>x==='suspend').length>=2,'session revoked again on failure');
+  assert.ok(f.log.filter(x=>x==='suspend').length>=2,'session scope invalidated again on failure');
   assert.ok(!f.log.includes('initialize'),'must not initialize a different account after failed isolation');
 });
 
 
-test('account switch masks decrypted workspace immediately while old cloud writes finish',async()=>{
+test('account transition masks UI immediately while old account cloud writes finish',async()=>{
   const f=fixture({holdDrain:true});
   f.app.handleAccountTransitionRequest(new f.Event('transition',{detail:{uid:'account-B'}}));
   assert.equal(f.app.state.loading,true,'account data must be hidden before any asynchronous drain');
-  assert.equal(f.app.state.unlocked,true,'key remains available only to finish queued writes before revocation');
+  assert.equal(f.app.state.unlocked,true,'queued in-memory writes can finish while the loading boundary masks UI');
   assert.ok(!f.log.includes('uid:account-B'),'cannot change IndexedDB scope while old writes are pending');
   assert.match(source,/if\(this\.state\.loading\)return <div className="loading-screen"/,
-    'loading state must render without business or account data');
+    'loading state must mask business data during Firebase scope transition');
   f.releaseDrain();
   await f.completed;
   assert.equal(f.app.state.unlocked,false);
-  assert.equal(f.app.state.key,null);
   assert.equal(f.app.state.vault,null);
   assert.ok(f.log.indexOf('suspend')<f.log.indexOf('uid:account-B'));
 });

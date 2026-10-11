@@ -24,12 +24,13 @@ function browserBinary(){
 function openCdp(url){
   return new Promise((resolve,reject)=>{
     const socket=new WebSocket(url);
-    const pending=new Map();
+    const pending=new Map(),exceptions=[],consoleErrors=[];
     let nextId=0,opened=false;
     socket.addEventListener('error',()=>{if(!opened)reject(new Error('Chrome DevTools WebSocket failed.'));});
     socket.addEventListener('open',()=>{
       opened=true;
       resolve({
+        exceptions,consoleErrors,
         call(method,params={}){
           const id=++nextId;
           return new Promise((ok,no)=>{
@@ -43,6 +44,13 @@ function openCdp(url){
     },{once:true});
     socket.addEventListener('message',event=>{
       const message=JSON.parse(String(event.data));
+      if(message.method==='Runtime.exceptionThrown'){
+        const d=message.params?.exceptionDetails;
+        exceptions.push(String(d?.exception?.description||d?.text||'Unknown JS exception').slice(0,2000));
+      }
+      if(message.method==='Runtime.consoleAPICalled'&&message.params?.type==='error'){
+        consoleErrors.push((message.params.args||[]).map(a=>String(a.value??a.description??'')).join(' ').slice(0,2000));
+      }
       if(!message.id)return;
       const task=pending.get(message.id);
       if(!task)return;
@@ -118,7 +126,7 @@ try{
     await cdp.call('Page.navigate',{url:'http://127.0.0.1:4173/'});
     const state=await waitUntil(async()=>{
       const response=await cdp.call('Runtime.evaluate',{
-        expression:'JSON.stringify({ready:document.readyState,root:!!document.getElementById("root"),boot:!!document.getElementById("lourex-boot"),loading:!!document.querySelector(".loading-screen"),buttons:document.querySelectorAll("#root button").length,rootText:(document.getElementById("root")?.innerText||"").slice(0,240),horizontalOverflow:Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0)-document.documentElement.clientWidth,viewport:document.documentElement.clientWidth})',
+        expression:'JSON.stringify({ready:document.readyState,root:!!document.getElementById("root"),boot:!!document.getElementById("lourex-boot"),loading:!!document.querySelector(".loading-screen"),buttons:document.querySelectorAll("#root button").length,authGateway:!!document.querySelector(".ta-auth-page"),googleButton:!!document.querySelector(".ta-google-button"),passwordField:!!document.querySelector("input[type=password]"),legacyPinFields:document.querySelectorAll("input[autocomplete=one-time-code],[data-pin-setup],[data-pin-unlock]").length,rootText:(document.getElementById("root")?.innerText||"").slice(0,240),horizontalOverflow:Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0)-document.documentElement.clientWidth,viewport:document.documentElement.clientWidth})',
         returnByValue:true
       });
       const value=response.result?.value;
@@ -127,12 +135,55 @@ try{
       return state.ready==='complete'&&!state.boot&&!state.loading&&state.root&&state.buttons>0?state:null;
     },25000,item.name+' render beyond boot screen');
     assert.ok(state.root,'React application root must exist.');
+    assert.doesNotMatch(state.rootText,/An unexpected screen error occurred|حدث خطأ غير متوقع/i,
+      item.name+' rendered the fatal AppErrorBoundary: '+JSON.stringify({
+        text:state.rootText,exceptions:cdp.exceptions.slice(-4),consoleErrors:cdp.consoleErrors.slice(-4)
+      }));
+    assert.equal(cdp.exceptions.length,0,item.name+' emitted browser JavaScript exceptions: '+JSON.stringify(cdp.exceptions.slice(-4)));
     assert.ok(!state.boot&&!state.loading,'Startup must leave all loading screens.');
     assert.ok(state.buttons>0,'Application must expose actual interactive controls.');
+    assert.ok(state.authGateway,'Signed-out user must see Firebase account gateway, not a PIN vault.');
+    assert.ok(state.googleButton,'Google sign-in must be available at account entry.');
+    assert.ok(state.passwordField,'Email/password sign-in must be available at account entry.');
+    assert.equal(state.legacyPinFields,0,'Device PIN controls must never render.');
     assert.ok(state.viewport>0,'Viewport width must be measurable.');
     assert.ok(state.horizontalOverflow<=4,item.name+' has '+state.horizontalOverflow+'px page-level horizontal overflow.');
     console.log('PASS '+item.name+': viewport='+state.viewport+', horizontalOverflow='+state.horizontalOverflow+', rendered='+JSON.stringify(state.rootText.slice(0,110)));
   }
+  // Exercise the *real compiled IndexedDB implementation* inside Chromium.
+  // One Firebase UID must never read or overwrite another UID's offline cache.
+  const scoped=await cdp.call('Runtime.evaluate',{
+    expression:`(async()=>{
+      const db=await import('./src/storage/db.js');
+      const uidA='lourex-ci-account-A',uidB='lourex-ci-account-B';
+      const payload={schemaVersion:1,company:{nameEn:'CI A'},appSettings:{},documents:[],customers:[{id:'A'}]};
+      await db.activateAccountStorage(uidA);
+      const first=await db.savePlainWorkspace(uidA,payload,null,null);
+      await db.activateAccountStorage(uidB);
+      if(await db.getPlainWorkspace())throw new Error('Account B inherited account A cache');
+      const other={...payload,company:{nameEn:'CI B'},customers:[{id:'B'}]};
+      await db.savePlainWorkspace(uidB,other,null,null);
+      await db.activateAccountStorage(uidA);
+      const restored=await db.getPlainWorkspace();
+      if(!restored||restored.payload.customers[0].id!=='A')
+        throw new Error('Account A did not recover its own data');
+      const next={...restored.payload,customers:[{id:'A-new'}]};
+      const update=await db.updatePlainWorkspaceIfUnchanged(uidA,restored.localRevision,next);
+      if(!update)throw new Error('Atomic local save was rejected');
+      const stale=await db.updatePlainWorkspaceIfUnchanged(uidA,restored.localRevision,payload);
+      if(stale)throw new Error('Stale local writer bypassed CAS');
+      await db.activateAccountStorage(uidB);
+      const b=await db.getPlainWorkspace();
+      if(b?.payload.customers[0].id!=='B')
+        throw new Error('Account B data was overwritten by A');
+      return {accountIsolation:true,atomicCAS:true,accountB:b.payload.company.nameEn};
+    })().catch(e=>({error:String(e?.stack||e)}))`,
+    awaitPromise:true,returnByValue:true
+  });
+  const dbState=scoped.result?.value;
+  assert.ok(dbState?.accountIsolation&&dbState?.atomicCAS,
+    'Compiled IndexedDB account isolation failure: '+JSON.stringify(dbState));
+  console.log('PASS real Chromium IndexedDB: separate Firebase UID caches and stale-write CAS');
 }finally{
   cdp?.close();
   for(const child of childProcesses.reverse())if(child.exitCode===null)child.kill('SIGTERM');

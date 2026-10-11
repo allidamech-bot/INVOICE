@@ -395,7 +395,7 @@ export async function resumeVaultSession(): Promise<{ key: CryptoKey; vault: Vau
 // handing the full vault to saveVault. Persist the matching directory snapshot
 // in the same encrypted write, otherwise the next unlock can silently revert it.
 // This never touches other companies' workspace snapshots.
-function synchronizeActiveWorkspaceOnSave(vault:VaultPayload):VaultPayload{
+export function synchronizeActiveWorkspaceOnSave(vault:VaultPayload):VaultPayload{
   const activeId=vault.appSettings.activeWorkspaceId;
   const index=vault.workspaces.findIndex(row=>row.id===activeId);
   if(index<0)return vault;

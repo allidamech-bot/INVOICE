@@ -90,3 +90,35 @@ export async function readBackup(file: File, pin: string): Promise<VaultPayload>
   assertRestorableBackupVault(restored);
   return restored;
 }
+
+/**
+ * Explicit user-requested portable copy of the Firebase-authoritative workspace.
+ * Export files are NOT encrypted by LOUREX; the user controls where they save it.
+ */
+export async function exportPlainBackup(vault:VaultPayload):Promise<void>{
+  assertRestorableBackupVault(vault);
+  const data={format:'LOUREX_WORKSPACE_EXPORT_V2',version:2,createdAt:new Date().toISOString(),payload:vault};
+  const file=new File([JSON.stringify(data)],`LOUREX-Account-${new Date().toISOString().slice(0,10)}.lourex-json`,{type:'application/json'});
+  const nav=navigator as Navigator & {canShare?:(data?:ShareData)=>boolean};
+  if(typeof navigator.share==='function'&&(!nav.canShare||nav.canShare({files:[file]}))){
+    try{
+      await navigator.share({files:[file],title:'LOUREX local copy'});
+      return;
+    }catch(error){
+      if(error instanceof DOMException&&error.name==='AbortError')
+        throw new Error('The local backup was cancelled and has not been saved.');
+    }
+  }
+  downloadFallback(file);
+}
+
+export async function readPlainBackup(file:File):Promise<VaultPayload>{
+  if(file.size>50*1024*1024)throw new Error('Local backup is larger than 50 MB.');
+  let parsed:any;
+  try{parsed=JSON.parse(await file.text());}
+  catch{throw new Error('The selected local backup is not valid JSON.');}
+  if(parsed?.format!=='LOUREX_WORKSPACE_EXPORT_V2'||parsed.version!==2)
+    throw new Error('This is not a current LOUREX local copy. Older encrypted backups cannot be opened without their original password.');
+  assertRestorableBackupVault(parsed.payload);
+  return parsed.payload;
+}

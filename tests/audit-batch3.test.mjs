@@ -4,14 +4,15 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('configured devices restore their encrypted local session before background cloud reconciliation',async()=>{
+test('configured devices hydrate the Firebase UID workspace before displaying account data',async()=>{
   const app=await read('src/app/App.tsx');
-  const initialize=app.slice(app.indexOf('private initialize=async'),app.indexOf('private initializeConfiguredCloud'));
-  assert.ok(initialize.indexOf('await hasSecurity()')>=0);
-  assert.ok(initialize.indexOf('resumeVaultSession()')>=0);
-  assert.ok(initialize.indexOf('resumeVaultSession()')<initialize.indexOf('waitForCloudUser()'),'local encrypted session restore must precede background cloud reconciliation');
-  assert.match(initialize,/loading:false,firstRun:false,unlocked:true/);
-  assert.match(initialize,/void this\.initializeConfiguredCloud\(\)/);
+  const initialize=app.slice(app.indexOf('private initialize=async'),app.indexOf('private activity='));
+  assert.match(initialize,/const user=await waitForCloudUser\(\)/);
+  assert.match(initialize,/await activateAccountStorage\(user\.uid\)/);
+  assert.match(initialize,/let local=await getPlainWorkspace\(\)/);
+  assert.match(initialize,/await reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(initialize,/loading:false,firstRun:false,unlocked:true,vault/);
+  assert.doesNotMatch(initialize,/resumeVaultSession\(|unlockVault\(|hasSecurity\(/);
 });
 
 test('newer remote revisions are surfaced without destructive automatic reloads',async()=>{

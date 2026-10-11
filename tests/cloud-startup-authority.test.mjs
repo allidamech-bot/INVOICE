@@ -3,11 +3,17 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('app hydrates authoritative cloud vault before rendering local unlock state',async()=>{
-  const entry=await read('src/app/index.tsx');
-  assert.match(entry,/hydrateAuthoritativeCloudBeforeApp/);
-  assert.match(entry,/await hydrateAuthoritativeCloudBeforeApp\(\)/);
-  assert.ok(entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()')<entry.indexOf('ReactDOM.render'));
+test('V2 opens through Firebase Auth and hydrates the authoritative cloud workspace without any PIN prompt',async()=>{
+  const [entry,app]=await Promise.all([read('src/app/index.tsx'),read('src/app/App.tsx')]);
+  assert.match(entry,/const accountReady=await resolveRequiredAccountSession\(\)/);
+  assert.match(entry,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
+  assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
+  const initialize=app.slice(app.indexOf('private initialize=async'),app.indexOf('private activity='));
+  assert.match(initialize,/const user=await waitForCloudUser\(\)/);
+  assert.match(initialize,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(initialize,/await getPlainWorkspace\(\)/);
+  assert.match(initialize,/unlocked:true,vault/);
+  assert.doesNotMatch(initialize,/unlockVault\(|verifyPin\(|setupVault\(/);
 });
 
 test('startup cloud bootstrap links authenticated account and uses guarded reconcile',async()=>{

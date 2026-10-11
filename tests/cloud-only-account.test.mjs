@@ -12,33 +12,35 @@ test('local recovery UI is completely retired',async()=>{
   assert.match(db,/createSafetySnapshot[\s\S]*purgeLegacySafetySnapshot\(\)[\s\S]*return null/);
 });
 
-test('manual encrypted backup requires separate password and explicit restore consent alongside cloud sync',async()=>{
+test('manual local copy requires explicit user action and destructive import confirmation without PIN',async()=>{
   const settings=await read('src/components/SettingsModal.tsx');
-  // Manual recovery was restored deliberately; it must not be hidden to satisfy
-  // an older cloud-only design test. Keep all security and data-loss barriers.
+  const backup=await read('src/lib/backup.ts');
   assert.match(settings,/private dataCenter\(\)/);
-  assert.match(settings,/private exportEncryptedBackup=async/);
-  assert.match(settings,/backupPasswordIssue\(backupPassword,backupPin\)/);
-  assert.match(settings,/this\.props\.onBackup\(backupPin,backupPassword\)/);
-  assert.doesNotMatch(settings,/this\.props\.onBackup\(backupPin,backupPin\)/);
+  assert.match(settings,/private exportLocalBackup=async/);
+  assert.match(settings,/this\.props\.onBackup\(\)/);
   assert.match(settings,/this\.hasUnsavedSettings\(\)/);
   assert.match(settings,/private requestLocalRestore=/);
   assert.match(settings,/confirmLocalRestore:true/);
   assert.match(settings,/if\(this\.state\.busy\|\|!this\.state\.confirmLocalRestore\)return/);
-  assert.match(settings,/this\.props\.onRestore\(restoreFile,restorePassword\)/);
-  assert.match(settings,/Restore from Cloud/);
+  assert.match(settings,/this\.props\.onRestore\(file\)/);
+  assert.match(settings,/Restore cloud copy/);
   assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
-  assert.match(settings,/private lockNow=/);
-  assert.match(settings,/this\.props\.onLock\(\)/);
+  assert.doesNotMatch(settings,/private lockNow=|onLock:\(\)=>|backupPasswordIssue|onChangePin/);
+  assert.match(backup,/LOUREX_WORKSPACE_EXPORT_V2/);
 });
 
-test('cloud restore uses the signed-in account without a backup PIN prompt',async()=>{
-  const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
-  assert.match(settings,/const user=this\.props\.cloudUser/);
+test('manual cloud restore uses the signed-in UID, validates remote integrity and archives prior local copy',async()=>{
+  const [settings,app,cloud]=await Promise.all([
+    read('src/components/SettingsModal.tsx'),read('src/app/App.tsx'),read('src/cloud/plain-workspace.ts')
+  ]);
   assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
-  assert.match(app,/resolveCloudConflictWithCloud\(user\.uid\)/);
-  assert.match(app,/await this\.beginProtectedOperation\(\)/);
-  assert.doesNotMatch(settings,/Backup PIN|restorePin/);
+  const restore=app.slice(app.indexOf('  private cloudRestore=async'),app.indexOf('  private keepLocalCloudCopy=async'));
+  assert.match(restore,/await this\.beginProtectedOperation\(\)/);
+  assert.match(restore,/downloadPlainCloudWorkspace\(uid\)/);
+  assert.match(restore,/replacePlainWorkspaceIfUnchanged\(uid,current\?\.localRevision\?\?null,replacement,'replaced-by-cloud'\)/);
+  assert.match(restore,/this\.endProtectedOperation\(\)/);
+  assert.match(cloud,/assertRestorableBackupVault\(payload\)/);
+  assert.doesNotMatch(restore,/verifyPin\(|unlockVault\(/);
 });
 
 test('automatic cloud reconciliation is startup-gated and fails closed after the workspace mounts',async()=>{

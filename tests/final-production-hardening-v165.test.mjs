@@ -29,39 +29,38 @@ test('legacy settings sign out does not wipe encrypted local data',async()=>{
   assert.match(app,/cloudUser=\{this\.state\.cloudUser\}[\s\S]{0,120}onCloudSignOut=\{this\.cloudSignOut\}/);
 });
 
-test('manual cloud restore is removed from visible account UX while publication safety remains intact',async()=>{
-  const [account,cloud,app,unifiedCss]=await Promise.all([
-    read('src/components/CloudAccountModal.tsx'),
-    read('src/cloud/firebase.ts'),
-    read('src/app/App.tsx'),
-    read('src/styles/unified-account-v189.css')
+test('cloud recovery is explicit while automatic V2 publication remains loss-safe',async()=>{
+  const [account,cloud,app,settings]=await Promise.all([
+    read('src/components/CloudAccountModal.tsx'),read('src/cloud/plain-workspace.ts'),
+    read('src/app/App.tsx'),read('src/components/SettingsModal.tsx')
   ]);
-  assert.doesNotMatch(account,/confirmRestore:boolean|Restore from Cloud|private restoreFromCloud=async/);
-  assert.match(account,/No manual sync or separate cloud sign-in is required/);
-  assert.match(unifiedCss,/\.settings-preferences-workspace \.security-settings-page\{\s*display:block!important/);
-  const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
-  assert.doesNotMatch(push,/installCloudVault/);
-  assert.match(push,/Promise<'same'\|'pushed'\|'remote-changed'>/);
-  assert.match(push,/return 'remote-changed'/);
+  assert.match(account,/confirmConflict:'keep-local'\|'use-cloud'\|''/);
+  assert.match(settings,/confirmCloudRestore/);
+  assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
+  assert.match(cloud,/Promise<'same'\|'pushed'\|'remote-changed'>/);
+  assert.match(cloud,/return 'remote-changed'/);
+  assert.match(cloud,/runTransaction\(async\(tx:any\)=>/);
+  assert.match(cloud,/replacePlainWorkspaceIfUnchanged\(uid,local\.localRevision,replacement,'replaced-by-cloud'\)/);
   assert.match(app,/private cloudReplaceBlocked=\(\)=>this\.state\.screen==='editor'\|\|this\.state\.settingsOpen\|\|this\.state\.cloudModal/);
-  assert.match(app,/private cloudRestore=async\(\)=>\{[\s\S]*await this\.beginProtectedOperation\(\)[\s\S]*resolveCloudConflictWithCloud\(user\.uid\)[\s\S]*this\.endProtectedOperation\(\)/);
-  assert.match(app,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
-  assert.match(app,/if\(result==='remote-changed'\)\{this\.announceRemoteCloudUpdate\(\);return;\}/);
-  assert.match(app,/private announceRemoteCloudUpdate=\(\)=>\{[^}]*this\.deferRemoteCloud\(\)/);
+  const restore=app.slice(app.indexOf('private cloudRestore=async'),app.indexOf('private keepLocalCloudCopy=async'));
+  assert.match(restore,/await this\.beginProtectedOperation\(\)/);
+  assert.match(restore,/downloadPlainCloudWorkspace\(uid\)/);
+  assert.match(restore,/this\.endProtectedOperation\(\)/);
   assert.doesNotMatch(app,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
 });
 
-test('startup authority, trusted-session ordering and explicit PWA updates remain intact',async()=>{
-  const [entry,startup,app,sw]=await Promise.all([
-    read('src/app/index.tsx'),read('src/cloud/startup.ts'),read('src/app/App.tsx'),read('public/sw.js')
+test('Firebase UID bootstrap and explicit PWA updates preserve safe ordering without the old PIN vault',async()=>{
+  const [entry,app,sw]=await Promise.all([
+    read('src/app/index.tsx'),read('src/app/App.tsx'),read('public/sw.js')
   ]);
-  assert.match(entry,/await hydrateAuthoritativeCloudBeforeApp\(\)/);
-  assert.ok(entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()')<entry.indexOf('ReactDOM.render'));
-  assert.match(startup,/waitForCloudUser\(\)/);
-  assert.match(startup,/reconcileCloudVault\(user\.uid\)/);
-  assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
+  assert.match(entry,/const accountReady=await resolveRequiredAccountSession\(\)/);
+  assert.match(entry,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
+  assert.match(entry,/await activateAccountStorage\(user\.uid\)/);
+  assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
+  assert.match(app,/waitForCloudUser\(\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
   assert.match(app,/auth-cloud-launcher/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v315';$/m);
   assert.match(sw,/SKIP_WAITING/);
   assert.doesNotMatch(sw,/install[\s\S]{0,500}await self\.skipWaiting\(\)/);
 });

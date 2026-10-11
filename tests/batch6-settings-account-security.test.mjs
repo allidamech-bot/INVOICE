@@ -15,48 +15,43 @@ test('batch 6 keeps the canonical modal close control reachable on iPhone',async
   assert.match(mobile,/\.app-ui \.modal-body\{[\s\S]*flex:1 1 0!important[\s\S]*overflow-y:auto!important/);
 });
 
-test('batch 6 exposes account sign out without deleting local encrypted data',async()=>{
-  const [settings,app,shell]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx'),read('src/components/AppShell.tsx')]);
+test('batch 6 supports authenticated sign out without deleting either local cache or legacy encrypted records',async()=>{
+  const [settings,app,shell]=await Promise.all([
+    read('src/components/SettingsModal.tsx'),read('src/app/App.tsx'),read('src/components/AppShell.tsx')
+  ]);
   assert.match(settings,/onCloudSignOut:\(\)=>Promise<void>/);
   assert.match(settings,/private signOutFromCloud=async/);
-  assert.match(settings,/Signing out does not delete the encrypted data already stored on this device/);
+  assert.match(settings,/This device keeps an offline cache for the same account/);
   const signOut=settings.slice(settings.indexOf('private signOutFromCloud=async'),settings.indexOf('private saveButton'));
   assert.match(signOut,/await this\.props\.onCloudSignOut\(\)/);
-  assert.doesNotMatch(signOut,/clearSession|delete|remove|installCloudVault|restoreVault|putCloudAccount/i);
-  assert.doesNotMatch(signOut,/window\.location\.reload/);
-  assert.match(app,/cloudUser=\{this\.state\.cloudUser\}[\s\S]{0,120}onCloudSignOut=\{this\.cloudSignOut\}/);
-  assert.match(app,/private cloudSignOut=async\(\)=>\{try\{await signOutCloudUser\(\)/);
+  assert.doesNotMatch(signOut,/deleteDatabase|deleteRecord|installCloudVault|restoreVault|putCloudAccount/);
+  const appSignOut=app.slice(app.indexOf('private cloudSignOut=async'),app.indexOf('private cloudSyncNow=async'));
+  assert.match(appSignOut,/await signOutCloudUser\(\)/);
+  assert.match(appSignOut,/cloudUser:null,cloudLinked:false,firstRun:true,unlocked:false,vault:null/);
   assert.match(shell,/private signOutFromMore=async/);
   assert.match(shell,/await signOutCloudUser\(\)/);
   assert.match(shell,/await clearSession\(\)/);
-  // The current shell deliberately exposes sign-out from the authenticated More sheet,
-  // not the retired v163 settings button. Guard visibility and repeat invocation.
-  assert.match(shell,/\{signedIn\?<button type="button" className="ta-sheet-signout" disabled=\{this\.state\.signingOut\}/);
+  assert.match(shell,/\{signedIn\?<button type="button" className="ta-sheet-signout"/);
   assert.match(shell,/if\(this\.state\.signingOut\)return/);
-  assert.match(shell,/onClick=\{\(\)=>void this\.signOutFromMore\(\)\}/);
-  const signOutShell=shell.slice(shell.indexOf('private signOutFromMore=async'),shell.indexOf('private activeEditorDocument='));
-  const auth=signOutShell.indexOf('await signOutCloudUser()');
-  const revoke=signOutShell.indexOf('await clearSession()');
-  const redirect=signOutShell.indexOf('window.location.replace(window.location.href)');
-  assert.ok(auth>=0&&revoke>auth&&redirect>revoke,'explicit sign-out must revoke auth and local PIN before navigation');
-  assert.doesNotMatch(signOutShell,/deleteDatabase|deleteRecord\('vault'\)|putSecurityAndVault/);
-  assert.match(shell,/t\('Sign Out','تسجيل الخروج'\)/);
+  const more=shell.slice(shell.indexOf('private signOutFromMore=async'),shell.indexOf('private activeEditorDocument='));
+  const auth=more.indexOf('await signOutCloudUser()');
+  const revoke=more.indexOf('await clearSession()');
+  const redirect=more.indexOf('window.location.replace(window.location.href)');
+  assert.ok(auth>=0&&revoke>auth&&redirect>revoke,'sign-out removes Firebase auth before switching gateway');
+  assert.doesNotMatch(more,/deleteDatabase|deleteRecord\('vault'\)|putSecurityAndVault/);
 });
 
-test('batch 6 separates automatic account protection from explicit cloud recovery and exposes session locking',async()=>{
+test('batch 6 exposes automatic Firebase account security, optional recovery, and no PIN lock',async()=>{
   const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
-  assert.match(settings,/Your encrypted workspace is protected automatically/);
+  assert.match(settings,/Sign in using Google or your email and password/);
   assert.match(settings,/confirmCloudRestore/);
   assert.match(settings,/Restore account data from cloud\?/);
   assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
-  assert.match(app,/resolveCloudConflictWithCloud\(user\.uid\)/);
-  assert.match(settings,/The signed-in account copy will replace the current encrypted local vault on this device/);
-  assert.match(settings,/Auto Lock/);
-  assert.match(settings,/Lock Now/);
-  assert.match(settings,/autoLockMinutes/);
-  assert.match(settings,/this\.props\.onLock\(\)/);
+  assert.match(app,/downloadPlainCloudWorkspace\(uid\)/);
+  assert.match(settings,/The signed-in Firebase account copy will replace the local cache/);
+  assert.doesNotMatch(settings,/Auto Lock|Lock Now|Device PIN|Change PIN|onLock:\(\)=>/);
+  assert.match(app,/private lock=\(\)=>\{\}/);
 });
-
 test('batch 6 settings navigation is responsive and visually bounded',async()=>{
   const css=await read('src/styles/settings-account-v163.css');
   assert.match(css,/settings-workspace-v2/);

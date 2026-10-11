@@ -51,23 +51,25 @@ test('legacy account-secret PIN migration fails closed on cloud changes and reti
   assert.doesNotMatch(unlock,/will not ask for it again/);
 });
 
-test('v302 persisted session keys never authorize a brand-new runtime without PIN',async()=>{
-  const [session,index,modal]=await Promise.all([
-    read('src/storage/session.ts'),read('src/app/index.tsx'),read('src/components/CloudAccountModal.tsx')
+test('V2 never authorizes an account from an old PIN session key without Firebase Auth',async()=>{
+  const [session,index,app,cloud]=await Promise.all([
+    read('src/storage/session.ts'),read('src/app/index.tsx'),
+    read('src/app/App.tsx'),read('src/cloud/plain-workspace.ts')
   ]);
-  assert.match(session,/let runtimePinAuthorized=false/);
-  assert.match(session,/establishSession[\s\S]*runtimePinAuthorized=true/);
-  const resume=session.slice(session.indexOf('export async function resumeAccountSession'),session.indexOf('export function touchSession'));
-  assert.match(resume,/runtimePinAuthorized=false/);
-  assert.match(resume,/return false/);
-  const getter=session.slice(session.indexOf('export async function getSessionKey'),session.indexOf('export async function suspendSession'));
-  assert.match(getter,/if\(!runtimePinAuthorized\)return null/);
-  const suspended=session.slice(session.indexOf('export async function suspendSession'),session.indexOf('export async function clearSession'));
-  assert.match(suspended,/runtimePinAuthorized=false/);
-  assert.match(suspended,/deleteRecord\('session-key'\)/);
-  assert.match(index,/await resumeAccountSession\(user\.uid\)/);
-  assert.match(index,/await suspendSession\(\)/);
-  assert.match(modal,/await suspendSession\(\)/);
+  const signedOut=index.slice(index.indexOf('async function suspendPreviousAccountStorage'),
+    index.indexOf('async function resolveRequiredAccountSession'));
+  const gate=index.slice(index.indexOf('async function resolveRequiredAccountSession'),
+    index.indexOf('function startAccountSignOutWatcher'));
+  assert.match(signedOut,/const previousUid=getActiveAccountUid\(\)/);
+  assert.match(gate,/let user=currentCloudUser\(\)/);
+  assert.match(gate,/await suspendSession\(\)/);
+  assert.match(signedOut,/setActiveAccountUid\(null\)/);
+  assert.match(signedOut,/await activateAccountStorage\(null\)/);
+  assert.doesNotMatch(gate,/resumeAccountSession\(|getSessionKey\(/);
+  assert.match(app,/const user=await waitForCloudUser\(\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(cloud,/currentCloudUser\(\)\?\.uid!==uid\|\|activeAccountStorageUid\(\)!==uid/);
+  assert.match(session,/export async function suspendSession\(\):Promise<void>/);
 });
 
 test('daily workspace exposes truthful passive save states and reserves controls for conflicts',async()=>{

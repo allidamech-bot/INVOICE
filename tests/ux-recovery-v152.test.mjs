@@ -50,27 +50,22 @@ test('v152 keeps PDF and share actions awaitable visible and single-armed',async
   assert.match(app,/__LOUREX_OUTPUT_ERROR__\?\.\(message\)/);
 });
 
-test('v152 cloud persistence is local-first coalesced retryable and automatically presented',async()=>{
-  const [app,db,freshness,modal,i18n]=await Promise.all([
-    read('src/app/App.tsx'),read('src/storage/db.ts'),read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx'),read('src/lib/i18n.ts')
+test('V2 cloud persistence is locally durable, retryable and automatically presented without PIN',async()=>{
+  const [app,db,cloud,modal]=await Promise.all([
+    read('src/app/App.tsx'),read('src/storage/db.ts'),
+    read('src/cloud/plain-workspace.ts'),read('src/components/CloudAccountModal.tsx')
   ]);
   assert.match(app,/type CloudSyncState='local'\|'queued'\|'syncing'\|'synced'\|'offline'\|'error'\|'conflict'/);
-  assert.match(app,/const CLOUD_SAVE_SETTLE_MS=350/);
   assert.match(app,/private scheduleCloudSync=\(delay=CLOUD_SAVE_SETTLE_MS\)/);
-  assert.match(app,/pushLocalVaultToCloud\(user\.uid,local\)/);
-  assert.match(app,/Newer local changes are waiting to sync/);
+  assert.match(app,/uploadPlainCloudWorkspace\(user\.uid,local\)/);
   assert.match(app,/cloudRetryDelay=Math\.min\(60_000,this\.cloudRetryDelay\*2\)/);
-  assert.match(app,/Setup saved locally — cloud backup queued/);
   assert.match(app,/private cloudHeaderLabel=/);
-  const setup=app.slice(app.indexOf('private finishSetup='),app.indexOf('private unlock='));
-  assert.doesNotMatch(setup,/await pushLocalVaultToCloud/);
+  assert.match(app,/private handleOnline=/);
+  assert.match(app,/updatePlainWorkspaceIfUnchanged\(uid,local\.localRevision,next\)/);
   assert.match(db,/let dbPromise:Promise<IDBDatabase>\|null=null/);
-  assert.match(freshness,/if\(pending\)window\.clearTimeout\(pending\)/);
-  assert.match(modal,/Automatic protection is active/);
-  assert.match(modal,/No manual sync or separate cloud sign-in is required/);
-  assert.doesNotMatch(modal,/Saved locally — waiting to sync|Sync Now|مزامنة الآن/);
-  assert.match(i18n,/automaticSyncCopy/);
-  assert.match(i18n,/automatic synchronization/);
+  assert.match(cloud,/runTransaction\(async\(tx:any\)=>/);
+  assert.match(modal,/Your workspace saves automatically to your Firebase account/);
+  assert.doesNotMatch(app,/<AuthScreenSelector|unlockVault\(|saveVault\(/);
 });
 
 test('v152 small encrypted vaults use one atomic cloud transaction',async()=>{

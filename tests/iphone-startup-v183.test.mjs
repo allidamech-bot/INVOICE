@@ -55,12 +55,16 @@ test('cloud bootstrap uses an already-restored Firebase user before the slower a
   assert.ok(ready>=0&&wait>ready&&reconcile>wait);
 });
 
-test('startup remains bounded and never performs an automatic watchdog reload',async()=>{
-  const [entry,watchdog]=await Promise.all([read('src/app/index.tsx'),read('public/startup-watchdog-v321.js')]);
-  const hydrate=entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()');
+test('V2 account startup never performs an automatic watchdog reload or revives PIN',async()=>{
+  const [entry,watchdog,app]=await Promise.all([
+    read('src/app/index.tsx'),read('public/startup-watchdog-v321.js'),read('src/app/App.tsx')
+  ]);
+  const auth=entry.indexOf('await resolveRequiredAccountSession()');
   const render=entry.indexOf('ReactDOM.render');
-  assert.ok(hydrate>=0&&render>hydrate);
+  assert.ok(auth>=0&&render>auth);
   assert.match(watchdog,/automaticReload=no/);
   assert.match(watchdog,/startup-recovery-user-retry/);
   assert.doesNotMatch(watchdog,/setTimeout\(\(\)=>window\.location\.reload\(\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.doesNotMatch(app,/<AuthScreenSelector|unlockVault\(/);
 });
