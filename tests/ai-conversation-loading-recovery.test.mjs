@@ -44,4 +44,7 @@ test('conversation hydration still requires matching account and workspace owner
   assert.match(source,/strictAiActor\(v\)/);
   assert.match(runtime,/strictAiActor\(resumed\.vault\);await hydrateKernel/);
   assert.match(runtime,/Scope changed while reading business memory/);
+  assert.match(runtime,/const live=await resumeVaultSession\(\)/);
+  assert.match(runtime,/kernelScopeKey\(scopeFor\(host,live\.vault\)\)!==kernelScopeKey\(scope\)/);
+  assert.match(runtime,/Account, conversation or workspace changed during loading/);
 });
