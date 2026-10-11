@@ -145,7 +145,7 @@ function useInlineDecline(host:Host,proposal:any):{exiting:boolean;wrap:(button:
     onClick:()=>{
       if(exiting||timer.current||host.state.proposal!==proposal)return;
       const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||document.getElementById('lourex-ai-panel')?.getAttribute('data-ai-motion')==='reduced';
-      if(reduced){button.props?.onClick?.();return;}
+      if(reduced){timer.current=-1;button.props?.onClick?.();return;}
       setExiting(true);
       timer.current=window.setTimeout(()=>{
         timer.current=null;
