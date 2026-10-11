@@ -80,9 +80,10 @@ class AdaptiveCloudApp extends BaseApp {
     instance.resetAutoLock=()=>{
       if(instance.lockTimer){window.clearTimeout(instance.lockTimer);instance.lockTimer=undefined;}
     };
-    const handleVisibilityChange=instance.handleVisibilityChange.bind(instance);
+    // The legacy inactivity handler is PIN-specific. Do not bind it during
+    // class-field initialization: it may be absent from the compiled base
+    // runtime, and no session lock is permitted in the V2 architecture.
     instance.handleVisibilityChange=()=>{
-      handleVisibilityChange();
       if(document.visibilityState==='visible'&&instance.state.unlocked&&!instance.cloudReplaceBlocked())
         void instance.cloudSyncNow().catch(()=>undefined);
     };
