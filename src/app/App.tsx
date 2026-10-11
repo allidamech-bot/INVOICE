@@ -68,7 +68,7 @@ function assertFinancialOutputParity(source:LourexDocument,target:LourexDocument
 }
 
 interface State {
-  loading:boolean; firstRun:boolean; unlocked:boolean; key:CryptoKey|null; vault:VaultPayload|null;
+  loading:boolean; firstRun:boolean; unlocked:boolean; vault:VaultPayload|null;
   screen:'home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor'; editorDoc:LourexDocument|null; settingsOpen:boolean; newMenu:boolean;
   documentsInitialStatus:'all'|'draft';
   deletingDoc:LourexDocument|null; toast:string; toastTone:'default'|'success'|'error'; printDoc:LourexDocument|null;
@@ -79,7 +79,7 @@ interface State {
 }
 
 export class App extends React.Component<{},State> {
-  state:State={loading:true,firstRun:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,documentsInitialStatus:'all',deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en',cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''};
+  state:State={loading:true,firstRun:false,unlocked:false,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,documentsInitialStatus:'all',deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en',cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''};
   private lockTimer:number|undefined;
   private toastTimer:number|undefined;
   private cloudTimer:number|undefined;
@@ -98,6 +98,8 @@ export class App extends React.Component<{},State> {
   private vaultReplacing=false;
   private documentCreateBusy=false;
   private accountTransitionRunning=false;
+  /** Invalidates in-flight business actions across Firebase sessions, without a CryptoKey or PIN. */
+  private accountEpoch=0;
   private recurringProcessRunning=false;
 
   componentDidMount():void{
@@ -131,6 +133,7 @@ export class App extends React.Component<{},State> {
    * remain stored but are neither unlocked nor installed into the clean account.
    */
   private initialize=async()=>{
+    this.accountEpoch++;
     try{
       const preferences=await getPublicPreferences();
       let uiLanguage=preferences?.uiLanguage??'en';
@@ -138,7 +141,7 @@ export class App extends React.Component<{},State> {
       setUiLanguage(uiLanguage);
       const user=await waitForCloudUser();
       if(!user){
-        this.setState({loading:false,firstRun:true,unlocked:false,key:null,vault:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});
+        this.setState({loading:false,firstRun:true,unlocked:false,vault:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});
         return;
       }
       if(activeAccountStorageUid()!==user.uid){
@@ -208,16 +211,13 @@ export class App extends React.Component<{},State> {
       setUiLanguage(uiLanguage);
       this.vaultWriteTail=Promise.resolve(vault);
       await putCloudAccount(user.uid,user.email);
-      // Compatibility-only truthy authorization marker for non-cryptographic
-      // BaseApp work guards. This is NOT a PIN, key, or encryption credential.
-      const readyMarker={} as CryptoKey;
-      this.setState({loading:false,firstRun:false,unlocked:true,key:readyMarker,vault,
+      this.setState({loading:false,firstRun:false,unlocked:true,vault,
         uiLanguage,publicLogo:vault.company.logoDataUrl||publicLogo,cloudUser:user,cloudLinked:true,
         cloudSyncState:syncState,cloudSyncMessage:syncMessage,screen:'home',editorDoc:null},
         ()=>{if(syncState!=='conflict'&&syncState!=='synced')this.scheduleCloudSync(500);
           void this.processDueRecurringWorkflows(true);});
     }catch(error){
-      this.setState({loading:false,firstRun:false,unlocked:false,key:null,vault:null,
+      this.setState({loading:false,firstRun:false,unlocked:false,vault:null,
         cloudUser:currentCloudUser(),cloudLinked:false,cloudSyncState:'error',
         cloudSyncMessage:error instanceof Error?error.message:String(error)});
     }
@@ -250,12 +250,13 @@ export class App extends React.Component<{},State> {
         // The outgoing account's CryptoKey must be invalidated *before*
         // changing the IndexedDB scope. Never erase the encrypted vault.
         await suspendSession();
+        this.accountEpoch++;
         setActiveAccountUid(uid);
         await activateAccountStorage(uid);
         await suspendSession();
         this.latestEncryptedVault=null;
         this.vaultWriteTail=Promise.resolve(null);
-        await new Promise<void>(resolve=>this.setState({loading:true,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,cloudModal:false,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''},resolve));
+        await new Promise<void>(resolve=>this.setState({loading:true,unlocked:false,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,cloudModal:false,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:'',recurringOpen:false,recurringFilter:'all',recurringSourceDocumentId:'',recurringSourcePurchaseId:''},resolve));
         await this.initialize();
       }catch(error){
         // Fail closed: a rejected or interrupted account transition may not
@@ -263,7 +264,7 @@ export class App extends React.Component<{},State> {
         await suspendSession();
         this.latestEncryptedVault=null;
         this.vaultWriteTail=Promise.resolve(null);
-        this.setState({loading:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,newMenu:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(error)});
+        this.setState({loading:false,unlocked:false,vault:null,screen:'home',editorDoc:null,newMenu:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(error)});
       }finally{
         this.accountTransitionRunning=false;
         window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid}}));
@@ -294,7 +295,7 @@ export class App extends React.Component<{},State> {
   private changePublicLanguage=async(uiLanguage:UiLanguage)=>{await this.syncPublicPreferences(this.state.publicLogo||'./brand/lourex-logo.svg',uiLanguage);};
   private drainVaultWrites=async()=>{try{await this.vaultWriteTail;}catch{}};
   private waitForCloudIdle=async()=>{while(this.cloudSyncRunning)await new Promise(resolve=>window.setTimeout(resolve,30));};
-  private waitForProtectedDataOperation=async()=>{const deadline=Date.now()+30_000;while(this.vaultReplacing){if(!this.state.unlocked||!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));if(Date.now()>=deadline)throw new Error(t('Cloud restore is still finishing. Try again in a moment.','ما زالت استعادة البيانات السحابية قيد الإنهاء. حاول مرة أخرى بعد لحظة.'));await new Promise(resolve=>window.setTimeout(resolve,50));}};
+  private waitForProtectedDataOperation=async()=>{const deadline=Date.now()+30_000;while(this.vaultReplacing){if(!this.state.unlocked||!this.state.cloudUser?.uid||this.state.cloudUser.uid!==activeAccountStorageUid())throw new Error(t('Account session changed. Sign in again.','تغيرت جلسة الحساب. سجّل الدخول مجددًا.'));if(Date.now()>=deadline)throw new Error(t('Cloud restore is still finishing. Try again in a moment.','ما زالت استعادة البيانات السحابية قيد الإنهاء. حاول مرة أخرى بعد لحظة.'));await new Promise(resolve=>window.setTimeout(resolve,50));}};
   private editorMustBeClosed=(actionEn:string,actionAr:string)=>{if(this.state.screen!=='editor')return;throw new Error(t(`Close the document editor before ${actionEn}.`,`أغلق محرر المستند قبل ${actionAr}.`));};
   private beginProtectedOperation=async()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();await this.waitForCloudIdle();this.latestEncryptedVault=null;this.vaultReplacing=true;};
   private endProtectedOperation=()=>{this.vaultReplacing=false;};
@@ -360,7 +361,7 @@ export class App extends React.Component<{},State> {
     if(activeAccountStorageUid()!==user.uid){
       setActiveAccountUid(user.uid);
       await activateAccountStorage(user.uid);
-      this.setState({loading:true,unlocked:false,key:null,vault:null});
+      this.setState({loading:true,unlocked:false,vault:null});
       await this.initialize();
       return;
     }
@@ -411,9 +412,10 @@ export class App extends React.Component<{},State> {
     await this.drainVaultWrites();
     try{
       await signOutCloudUser();
+      this.accountEpoch++;
       if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
       this.vaultWriteTail=Promise.resolve(null);
-      this.setState({cloudUser:null,cloudLinked:false,firstRun:true,unlocked:false,key:null,vault:null,
+      this.setState({cloudUser:null,cloudLinked:false,firstRun:true,unlocked:false,vault:null,
         cloudSyncState:'local',cloudSyncMessage:'',settingsOpen:false,cloudModal:false});
     }catch(error){throw new Error(friendlyCloudError(error));}
   };
@@ -512,12 +514,12 @@ export class App extends React.Component<{},State> {
   private createDelivery=async(source:LourexDocument)=>{
     if(this.deliveryCreations.has(source.id))return;
     this.deliveryCreations.add(source.id);
-    const key=this.state.key;
+    const sessionUid=this.state.cloudUser?.uid,sessionEpoch=this.accountEpoch;
     let delivery:LourexDocument|undefined,created=false;
     try{
       const initial=this.requireVault();
       await this.persistFullMutation(full=>{
-        if(this.state.key!==key||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
+        if((this.accountEpoch!==sessionEpoch||this.state.cloudUser?.uid!==sessionUid||activeAccountStorageUid()!==sessionUid)||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const scoped=scopeVault(full);
         if(scoped.appSettings.activeWorkspaceId!==initial.appSettings.activeWorkspaceId||scoped.appSettings.activeBranchId!==initial.appSettings.activeBranchId)throw new Error(t('Workspace changed. Reopen the source document.','تغيرت مساحة العمل. افتح المستند المصدر من جديد.'));
         const result=createLinkedDeliveryDraft(scoped,source.id);delivery=result.document;created=result.created;
@@ -525,7 +527,7 @@ export class App extends React.Component<{},State> {
         const intended=applyWorkspaceScope(scoped,result.vault);
         return overlayWorkspaceScope(full,appendAuditEventsForVaultDiff(scoped,intended));
       });
-      if(delivery&&this.state.unlocked&&this.state.key===key&&this.requireVault().documents.some(doc=>doc.id===delivery?.id)){
+      if(delivery&&this.state.unlocked&&(this.accountEpoch===sessionEpoch&&this.state.cloudUser?.uid===sessionUid&&activeAccountStorageUid()===sessionUid)&&this.requireVault().documents.some(doc=>doc.id===delivery?.id)){
         this.setState({screen:'editor',editorDoc:delivery});
         if(created)this.showToast(t('Delivery draft ready for review. No inventory or payment was posted.','مسودة التسليم جاهزة للمراجعة. لم تُرحّل حركة مخزون أو دفعة.'),'success');
       }
@@ -535,12 +537,12 @@ export class App extends React.Component<{},State> {
   private createDeliveryInvoice=async(delivery:LourexDocument)=>{
     if(this.deliveryInvoiceCreations.has(delivery.id))return;
     this.deliveryInvoiceCreations.add(delivery.id);
-    const key=this.state.key;
+    const sessionUid=this.state.cloudUser?.uid,sessionEpoch=this.accountEpoch;
     let invoice:LourexDocument|undefined,created=false;
     try{
       const initial=this.requireVault();
       await this.persistFullMutation(full=>{
-        if(this.state.key!==key||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
+        if((this.accountEpoch!==sessionEpoch||this.state.cloudUser?.uid!==sessionUid||activeAccountStorageUid()!==sessionUid)||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const scoped=scopeVault(full);
         if(scoped.appSettings.activeWorkspaceId!==initial.appSettings.activeWorkspaceId
           ||scoped.appSettings.activeBranchId!==initial.appSettings.activeBranchId)
@@ -551,7 +553,7 @@ export class App extends React.Component<{},State> {
         const intended=applyWorkspaceScope(scoped,result.vault);
         return overlayWorkspaceScope(full,appendAuditEventsForVaultDiff(scoped,intended));
       });
-      if(invoice&&this.state.unlocked&&this.state.key===key
+      if(invoice&&this.state.unlocked&&(this.accountEpoch===sessionEpoch&&this.state.cloudUser?.uid===sessionUid&&activeAccountStorageUid()===sessionUid)
         &&this.requireVault().documents.some(doc=>doc.id===invoice?.id)){
         this.setState({screen:'editor',editorDoc:invoice});
         if(created)this.showToast(t('Invoice draft prepared from confirmed delivered quantities. Review before issuing; nothing was posted automatically.','تم تجهيز مسودة فاتورة للكميات المسلّمة المؤكدة. راجعها قبل الإصدار؛ لم تُرحّل أي مبالغ تلقائيًا.'),'success');
@@ -563,12 +565,12 @@ export class App extends React.Component<{},State> {
   private createPurchaseOrderFromRfq=async(source:LourexDocument)=>{
     if(this.purchaseOrderCreations.has(source.id))return;
     this.purchaseOrderCreations.add(source.id);
-    const key=this.state.key;
+    const sessionUid=this.state.cloudUser?.uid,sessionEpoch=this.accountEpoch;
     let order:LourexDocument|undefined,created=false;
     try{
       const initial=this.requireVault();
       await this.persistFullMutation(full=>{
-        if(this.state.key!==key||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
+        if((this.accountEpoch!==sessionEpoch||this.state.cloudUser?.uid!==sessionUid||activeAccountStorageUid()!==sessionUid)||!this.state.unlocked)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const scoped=scopeVault(full);
         if(scoped.appSettings.activeWorkspaceId!==initial.appSettings.activeWorkspaceId||scoped.appSettings.activeBranchId!==initial.appSettings.activeBranchId){
           throw new Error(t('Workspace changed. Reopen the source document.','تغيرت مساحة العمل. افتح المستند المصدر من جديد.'));
@@ -579,7 +581,7 @@ export class App extends React.Component<{},State> {
         const intended=applyWorkspaceScope(scoped,result.vault);
         return overlayWorkspaceScope(full,appendAuditEventsForVaultDiff(scoped,intended));
       });
-      if(order&&this.state.unlocked&&this.state.key===key&&this.requireVault().documents.some(doc=>doc.id===order?.id)){
+      if(order&&this.state.unlocked&&(this.accountEpoch===sessionEpoch&&this.state.cloudUser?.uid===sessionUid&&activeAccountStorageUid()===sessionUid)&&this.requireVault().documents.some(doc=>doc.id===order?.id)){
         this.setState({screen:'editor',editorDoc:order});
         if(created)this.showToast(t('Purchase order draft ready for pricing and review. No stock or supplier payment was posted.','مسودة أمر الشراء جاهزة للتسعير والمراجعة. لم يتم ترحيل المخزون أو أي دفعة للمورد.'),'success');
       }
