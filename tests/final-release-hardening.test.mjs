@@ -86,7 +86,9 @@ test('v351 build promotes a genuinely fresh PWA generation while preserving hist
   const builtGeneration=Number(built.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m)?.[1]);
   assert.ok(Number.isInteger(builtGeneration)&&builtGeneration>=generation,
     'production service worker must use the promoted application cache generation');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v314';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v315';$/m);
+  assert.match(refresh,/const PINLESS_RELEASE_GENERATION=362/);
+  assert.ok(builtGeneration>=362,'PIN-free release must never reuse the previous installed-cache generation');
   assert.match(sw,/lourex-invoice-v195: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
