@@ -94,3 +94,17 @@ test('Workspace exposes two modes and preserves separate thread scopes',()=>{
   assert.match(styles,/\.lxw-mode-description\{/);
   assert.match(styles,/\.lxw-mode-tabs button\[aria-selected='true'\]/);
 });
+
+test('legacy personal-memory and attachment shortcuts do not prepare actions in Advisor',()=>{
+  const client=read('src/lib/ai-tool-client.ts');
+  const runtimeSource=read('src/lib/ai-intelligence-runtime.ts');
+  assert.match(client,/runtime\.conversationMode!=='advisor'&&sources\.every\(row=>row\.route==='product_list'\)/,
+    'product list review must not silently propose a product import in Advisor');
+  assert.match(client,/runtime\.conversationMode!=='advisor'&&requestedAiProductImport\(input\.message\)/,
+    'attachment import requests must bypass the executor in Advisor');
+  assert.match(client,/runtime\.conversationMode==='advisor'&&local\.proposal/,
+    'legacy local commands must not surface a write proposal');
+  assert.match(client,/No data was changed/, 'Advisor must state that no action was performed');
+  assert.match(runtimeSource,/Advisor cannot revise documents/,'legacy revision shortcut requires Controller');
+  assert.match(runtimeSource,/host\.__workspaceModeSwitchBusy\|\|!proposal/,'approval cannot race tab switching');
+});
