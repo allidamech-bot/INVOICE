@@ -11,15 +11,16 @@ test('v188 signed-out startup cannot resume an unlocked workspace without the au
   ]);
   assert.match(index,/currentCloudUser,[^}]*waitForCloudUser/);
   assert.match(index,/async function resolveRequiredAccountSession/);
-  assert.match(index,/if\(user\)\{[\s\S]*setActiveAccountUid\(user\.uid\);[\s\S]*await resumeAccountSession\(user\.uid\);[\s\S]*return true;[\s\S]*\}/);
+  assert.match(index,/if\(user\)\{[\s\S]*setActiveAccountUid\(user\.uid\);[\s\S]*await suspendSession\(\);[\s\S]*return true;[\s\S]*\}/);
   assert.match(index,/setActiveAccountUid\(null\);[\s\S]*await suspendSession\(\);[\s\S]*return false;/);
   assert.match(index,/const accountReady=await resolveRequiredAccountSession\(\)/);
-  assert.match(index,/if\(accountReady\)await hydrateAuthoritativeCloudBeforeApp\(\)/);
+  assert.doesNotMatch(index,/hydrateAuthoritativeCloudBeforeApp\(/);
+  assert.match(index,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
   assert.match(session,/export async function suspendSession\(\):Promise<void>/);
   assert.doesNotMatch(session,/deleteRecord\('vault'\)|deleteRecord\('security'\)/);
 });
 
-test('v188 a confirmed Firebase sign-out locks the account after a Safari-safe grace window',async()=>{
+test('v188 a confirmed Firebase sign-out hides the account after a Safari-safe grace window',async()=>{
   const [index,app,session]=await Promise.all([
     read('src/app/index.tsx'),read('src/app/App.tsx'),read('src/storage/session.ts')
   ]);
@@ -34,8 +35,10 @@ test('v188 a confirmed Firebase sign-out locks the account after a Safari-safe g
   assert.match(watcher,/detail:\{uid:null\}/,'confirmed loss requests an actual sign-out');
   assert.match(transition,/await this\.drainVaultWrites\(\);[\s\S]*await this\.waitForCloudIdle\(\);[\s\S]*await suspendSession\(\);/);
   assert.match(transition,/setActiveAccountUid\(uid\);[\s\S]*await activateAccountStorage\(uid\);/);
-  assert.match(transition,/unlocked:false,key:null,vault:null/);
-  assert.match(session,/runtimePinAuthorized=false;[\s\S]*removeMarker\(\);[\s\S]*deleteRecord\('session-key'\)/);
+  assert.match(transition,/unlocked:false,vault:null/);
+  assert.match(transition,/await suspendSession\(\)/);
+  assert.doesNotMatch(transition,/unlockVault\(|setupVault\(|resumeAccountSession\(/);
+  assert.match(session,/export async function suspendSession\(\):Promise<void>/);
   assert.match(index,/startAccountSignOutWatcher\(\);/);
 });
 test('v188 logout guard remains present in later immutable PWA generations',async()=>{
