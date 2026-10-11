@@ -4,22 +4,19 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v236 restores a live inactivity timer from the persisted app setting',async()=>{
+test('V2 does not install a secondary inactivity PIN timer after Firebase sign-in',async()=>{
   const entry=await read('src/app/index.tsx');
-  assert.match(entry,/isCurrentSessionExpired/);
   assert.match(entry,/instance\.resetAutoLock=\(\)=>\{/);
-  assert.match(entry,/const minutes=Number\(instance\.state\.vault\?\.appSettings\?\.autoLockMinutes\?\?0\)/);
-  assert.match(entry,/if\(!instance\.state\.unlocked\|\|minutes<=0\)return/);
-  assert.match(entry,/instance\.lockTimer=window\.setTimeout\(\(\)=>\{[\s\S]*void instance\.lockNow\(true\)[\s\S]*\},minutes\*60_000\)/);
+  assert.doesNotMatch(entry,/instance\.lockTimer=window\.setTimeout|instance\.lockNow\(true\)|isCurrentSessionExpired\(/);
+  assert.match(entry,/subscribeCloudUser\(handleAuthChange\)/);
 });
 
-test('v236 checks persisted inactivity before touching a session on foreground resume',async()=>{
+test('V2 resumes automatic Firebase sync on foreground without relocking account',async()=>{
   const entry=await read('src/app/index.tsx');
-  const visibility=entry.indexOf('instance.handleVisibilityChange=()=>');
-  const expiry=entry.indexOf('isCurrentSessionExpired(minutes)',visibility);
-  const delegate=entry.indexOf('handleVisibilityChange();',visibility);
-  assert.ok(visibility>=0&&expiry>visibility&&delegate>expiry,'foreground resume must check expiry before BaseApp refreshes activity');
-  assert.match(entry,/if\(minutes>0&&isCurrentSessionExpired\(minutes\)\)\{[\s\S]*void instance\.lockNow\(true\);[\s\S]*return;/);
+  const visibility=entry.slice(entry.indexOf('instance.handleVisibilityChange=()=>'),entry.indexOf('    return true;',entry.indexOf('instance.handleVisibilityChange=()=>')));
+  assert.match(visibility,/document\.visibilityState==='visible'/);
+  assert.match(visibility,/void instance\.cloudSyncNow\(\)/);
+  assert.doesNotMatch(visibility,/lockNow|isCurrentSessionExpired/);
 });
 
 test('v236 keeps the session expiry primitive and release refresh wired',async()=>{
