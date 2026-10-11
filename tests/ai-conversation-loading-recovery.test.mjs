@@ -24,7 +24,7 @@ test('failed scoped conversation hydration exposes retry instead of an endless l
   assert.match(source,/host\.setState\(\{error:''\},\(\)=>void host\.__workspaceRefresh\?\.\(\)\)/);
   assert.match(source,/role="status"[^\n]*Loading scoped conversation/);
   assert.match(source,/if\(classes\.includes\('lourex-ai-proposal'\)\)return null/);
-  assert.match(source,/"data-workspace-ready":?\s*'false'/);
+  assert.ok(source.includes("'data-workspace-ready':'false'"));
 });
 
 test('conversation hydration still requires matching account and workspace ownership',async()=>{
