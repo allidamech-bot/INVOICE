@@ -5,7 +5,7 @@ LOUREX Invoice is a local-first web application for creating, saving, printing, 
 ## Architecture
 
 - React + TypeScript, compiled as a static web application.
-- IndexedDB is the primary local data store.
+- IndexedDB is the UID-scoped local cache; Firebase Firestore is authoritative for the current signed-in workspace.
 - Firebase Authentication (Google or email/password) is the only interactive sign-in boundary; the current workspace has no separate device PIN.
 - Firestore hosts each signed-in user's authoritative `workspace-v2` data and revisioned history under that account's owner-only paths.
 - IndexedDB holds a UID-scoped local workspace for fast access and offline operation after the account has been initialized.
