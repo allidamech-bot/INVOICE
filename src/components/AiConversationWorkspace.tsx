@@ -187,9 +187,9 @@ function InlineGeneralProposal({host,proposalNode,ar}:{host:Host;proposalNode:an
   </section>;
 }
 function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:boolean}):any {
+  const dismissal=useInlineDecline(host,host.state.proposal);
   if(!approval||!host.state.proposal)return null;
   const reviewed=host.state.__workspaceReviewedProposal===host.state.proposal;
-  const dismissal=useInlineDecline(host,host.state.proposal);
   const actions=react.Children.toArray(approval.props?.children).find((child:any)=>
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const originalButtons=actions?react.Children.toArray((actions as any).props.children):[];
