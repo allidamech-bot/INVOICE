@@ -87,4 +87,6 @@ test('composer stays one pill with the send physically on the right in RTL',()=>
   assert.match(hierarchy,/background:#f1f1f1!important/);
   assert.match(css,/\.lourex-ai-composer-plus\[aria-expanded="true"\] svg\{transform:rotate\(45deg\)/);
   assert.match(css,/\.lourex-ai-plus-menu\{[^}]*animation:none\}/);
+  assert.match(hierarchy,/lourexLivingLauncherIdle 11s ease-in-out infinite/);
+  assert.match(hierarchy,/@media\(prefers-reduced-motion:reduce\)\{[\s\S]*\.lourex-ai-launcher\{animation:none!important/);
 });
