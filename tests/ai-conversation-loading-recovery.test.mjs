@@ -110,3 +110,20 @@ test('runtime: an unreadable assistant-only cache starts clean and preserves ori
   await store.saveAssistantState(session.key,reopened);
   assert.equal([...records.keys()].filter(id=>id.startsWith('assistant-state-inaccessible-')).length,1,'normal subsequent saves must not create extra archives');
 });
+
+test('active AI endpoints instruct Firebase account retry rather than the retired local unlock',async()=>{
+  const files=[
+    'src/lib/ai-intelligence-runtime.ts',
+    'src/components/AiCopilot.tsx',
+    'src/components/LourexAdvisorCard.tsx',
+    'src/components/AiWorkflowTools.tsx'
+  ];
+  for(const file of files){
+    const content=await read(file);
+    assert.doesNotMatch(content,/Unlock LOUREX(?: first| before| to preserve)|افتح قفل LOUREX/,file);
+    assert.match(content,/Account workspace is not ready/,file);
+  }
+  const presentation=await read('src/lib/ai-workspace-presentation.ts');
+  assert.match(presentation,/Account workspace is not ready\. Sign in and retry\./);
+  assert.match(presentation,/مساحة عمل الحساب غير جاهزة/);
+});
