@@ -215,10 +215,25 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
   const tab=host.state.__workspaceTab||'preview',editable=Boolean(host.state.__workspaceEditing&&doc?.status==='draft');
   const choose=(value:string)=>host.setState({__workspaceTab:value});
+  const viewGroups=[
+    {id:'document',label:label(ar,'Document','المستند'),views:[['preview','Preview','المعاينة'],['edit','Edit','تعديل'],['customer','Customer','العميل'],['product','Products','الأصناف'],['files','Files','الملفات'],['revisions','Revisions','التعديلات']]},
+    {id:'commercial',label:label(ar,'Business','الأعمال'),views:[['commercial','Deal studio','استوديو الصفقة'],['missions','Missions','المهام']]},
+    {id:'analysis',label:label(ar,'Insights','التحليلات'),views:[['evidence','Evidence','الأدلة'],['knowledge','Memory','الذاكرة'],['reliability','Review','المراجعة'],['diagnostics','Reliability','الموثوقية']]},
+  ];
+  const activeGroup=viewGroups.find(group=>group.views.some(view=>view[0]===tab))||viewGroups[0];
+  const chooseGroup=(id:string)=>{const group=viewGroups.find(row=>row.id===id);if(group)host.setState({__workspaceTab:group.views[0][0]});};
+
   const drafting=workspaceDrafting(vault,kernel.artifact?.proposal.capability==='document.updateDraft'?kernel.artifact.proposal.documentId:'');
   const pick=(kind:'customer'|'product',id:string)=>{if(doc?.status==='draft')dispatch(host,{kind,artifactId:doc.id,revision:doc.revision,entityId:id});};
   const evidence=host.__lourexLatestContext?.advisorV2?.evidence||[];
-  return <aside className="lxw-artifact" aria-label={label(ar,'Document workspace','مساحة المستند')}><header className="lxw-artifact-head"><div><strong>{workspaceText(ar,doc?.title||'')||label(ar,'Your workspace','مساحة عملك')}</strong><span className={'lxw-badge '+(doc?.status||'draft')}>{doc?.status==='saved'?label(ar,'Saved in LOUREX','محفوظ في LOUREX'):label(ar,'Draft · unsaved','مسودة · غير محفوظة')}</span></div><button type="button" className="lxw-back" onClick={()=>host.setState({__workspacePane:'chat',__workspaceOpen:false})}>{label(ar,'Back to chat','العودة للمحادثة')}</button></header><div className="lxw-tabs" aria-label={label(ar,'Workspace views','طرق عرض مساحة العمل')}>{[['preview','Preview','المعاينة'],['edit','Edit','تعديل'],['customer','Customer','العميل'],['product','Products','الأصناف'],['files','Files','الملفات'],['revisions','Revisions','التعديلات'],['evidence','Evidence','الأدلة'],['commercial','Deal studio','استوديو الصفقة'],['missions','Missions','المهام'],['knowledge','Memory','الذاكرة'],['reliability','Review','المراجعة'],['diagnostics','Reliability','الموثوقية']].map(([value,en,arabic])=><button key={value} type="button" aria-pressed={tab===value} onClick={()=>choose(value!)}>{label(ar,en!,arabic!)}</button>)}</div><div className="lxw-artifact-content">{error||host.state.error?<p role="alert">{workspaceError(ar,error||host.state.error)}</p>:null}
+  return <aside className="lxw-artifact" aria-label={label(ar,'Document workspace','مساحة المستند')}><header className="lxw-artifact-head"><div><strong>{workspaceText(ar,doc?.title||'')||label(ar,'Your workspace','مساحة عملك')}</strong><span className={'lxw-badge '+(doc?.status||'draft')}>{doc?.status==='saved'?label(ar,'Saved in LOUREX','محفوظ في LOUREX'):label(ar,'Draft · unsaved','مسودة · غير محفوظة')}</span></div><button type="button" className="lxw-back" onClick={()=>host.setState({__workspacePane:'chat',__workspaceOpen:false})}>{label(ar,'Back to chat','العودة للمحادثة')}</button></header><div className="lxw-view-navigation">
+    <nav className="lxw-view-groups" aria-label={label(ar,'Workspace areas','أقسام مساحة العمل')}>
+      {viewGroups.map(group=><button key={group.id} type="button" aria-pressed={activeGroup.id===group.id} onClick={()=>chooseGroup(group.id)}>{group.label}</button>)}
+    </nav>
+    <nav className="lxw-view-options" aria-label={label(ar,'Current area views','عروض القسم الحالي')}>
+      {activeGroup.views.map(([value,en,arabic])=><button key={value} type="button" aria-current={tab===value?'page':undefined} onClick={()=>choose(value)}>{label(ar,en,arabic)}</button>)}
+    </nav>
+  </div><div className="lxw-artifact-content">{error||host.state.error?<p role="alert">{workspaceError(ar,error||host.state.error)}</p>:null}
     {(tab==='preview'||tab==='edit')&&doc?<section data-workspace-component="QuotePreview">
       {tab==='preview'?<QuotePreviewSummary doc={doc} ar={ar}/>:<>
         <p><strong>{doc.customer||label(ar,'Select a customer','حدد العميل')}</strong> · <b dir="ltr">{doc.currency}</b></p>
