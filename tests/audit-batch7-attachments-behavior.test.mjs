@@ -74,10 +74,12 @@ test('compiled conversation analyzer uses two workers at most and retains origin
  h.state.conversationAttachments=rows;
  const job=run(h,rows);
  assert.equal(pending.length,2,'only two remote extraction operations may be in flight');
- pending[1].complete({id:'2'});await Promise.resolve();await Promise.resolve();
- assert.equal(pending.length,3);
- pending[0].complete({id:'1'});await Promise.resolve();await Promise.resolve();
- assert.equal(pending.length,4);
+ const waitForJobs=async count=>{
+   for(let turn=0;turn<20&&pending.length<count;turn++)await new Promise(resolve=>setImmediate(resolve));
+   assert.equal(pending.length,count,'worker pool must dispatch queued files after completed operations');
+ };
+ pending[1].complete({id:'2'});await waitForJobs(3);
+ pending[0].complete({id:'1'});await waitForJobs(4);
  pending[3].complete({id:'4'});pending[2].complete({id:'3'});
  const analyses=await job;
  assert.equal(active.max,2);
