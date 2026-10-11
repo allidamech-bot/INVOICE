@@ -64,6 +64,27 @@ test('commit bridge rechecks stale envelope inside the real mutation callback',a
  let writes=0;registerVaultMutationBridge(async mutation=>{const next=mutation(changed);writes++;return next;});
  await assert.rejects(()=>applyApprovedToolExecution(p),/changed since review/);assert.equal(writes,0);
 });
+test('missing, inactive, duplicate or invalid selected operators cannot fall back to owner approval',()=>{
+ for(const variant of ['missing','inactive','duplicate','invalid-role']){
+  const v=emptyVault();v.teamMembers.push({...v.teamMembers[0],id:'selected',role:'viewer'});v.appSettings.activeTeamMemberId='selected';
+  if(variant==='missing')v.teamMembers=v.teamMembers.filter(member=>member.id!=='selected');
+  if(variant==='inactive')v.teamMembers[1].status='inactive';
+  if(variant==='duplicate')v.teamMembers.push({...v.teamMembers[1],role:'owner'});
+  if(variant==='invalid-role')v.teamMembers[1].role='unknown';
+  assert.throws(()=>prepareFoundationApproval(v,proposal(),scope),/operator/);
+ }
+});
+test('operator removal or deactivation after review blocks the actual mutation callback',async()=>{
+ const {registerVaultMutationBridge}=await import('../dist/src/storage/vault-mutation-bridge.js');
+ const {applyApprovedToolExecution}=await import('../dist/src/lib/ai-tool-actions.js');
+ for(const variant of ['removed','inactive']){
+  const v=emptyVault();v.teamMembers.push({...v.teamMembers[0],id:'reviewer'});v.appSettings.activeTeamMemberId='reviewer';
+  const p={capability:'tool.execute',tool:'product.bulkUpdate',args:{rows:[]},label:'Review'};p.foundationApproval=prepareFoundationApproval(v,p,scope);
+  const changed=structuredClone(v);if(variant==='removed')changed.teamMembers.pop();else changed.teamMembers[1].status='inactive';
+  let writes=0;registerVaultMutationBridge(async mutation=>{const next=mutation(changed);writes++;return next;});
+  await assert.rejects(()=>applyApprovedToolExecution(p),/operator/);assert.equal(writes,0);
+ }
+});
 test('duplicate names are blocked across customers, suppliers and products',()=>{
  const v=emptyVault();v.customers=[person('1','Twin'),person('2','Twin')];v.suppliers=[{id:'1',nameEn:'Twin'},{id:'2',nameEn:'Twin'}];v.savedItems=[{id:'1',descriptionEn:'Twin'},{id:'2',descriptionEn:'Twin'}];
  const runtime=createAiToolRuntime(v,{assistantRuntime:scope});
