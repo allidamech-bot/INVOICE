@@ -647,6 +647,8 @@ export interface PlainWorkspaceRecord {
   payload: VaultPayload;
   schemaVersion: number;
   updatedAt: string;
+  /** Changes on each business-data write. Used for atomic IndexedDB compare-and-swap. */
+  localRevision: string;
   baseCloudRevision: string | null;
   baseCloudSha256: string | null;
 }
