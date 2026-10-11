@@ -27,6 +27,10 @@ jobs:
         run: npm run typecheck
       - name: Production build and bundled runtime contracts
         run: npm run build
+      - name: Inspect emitted application runtime around browser crash
+        run: |
+          nl -ba dist/src/app/index.js | sed -n '85,135p'
+          grep -n '\\.bind(' dist/src/app/index.js || true
       - name: PIN-free cloud behavior and safety tests
         run: node --test tests/cloud-first-pinless-contract.test.mjs tests/cloud-first-manifest-race.test.mjs tests/cloud-first-two-device.test.mjs
       - name: Essential financial invariants
@@ -34,7 +38,7 @@ jobs:
       - name: Free real-browser smoke — 390/820/1440 Chromium viewport
         run: node scripts/qa-free-chrome-smoke.mjs
       - name: All tests diagnostic (legacy PIN assertions may be obsolete)
-        if: always()
+        if: success()
         continue-on-error: true
         shell: bash
         run: |
