@@ -143,7 +143,7 @@ function useInlineDecline(host:Host,proposal:any):{exiting:boolean;wrap:(button:
   const wrap=(button:any)=>react.cloneElement(button,{
     disabled:Boolean(button.props?.disabled||exiting),
     onClick:()=>{
-      if(exiting||host.state.proposal!==proposal)return;
+      if(exiting||timer.current||host.state.proposal!==proposal)return;
       const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||document.getElementById('lourex-ai-panel')?.getAttribute('data-ai-motion')==='reduced';
       if(reduced){button.props?.onClick?.();return;}
       setExiting(true);
