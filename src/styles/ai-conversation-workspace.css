@@ -65,3 +65,10 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-approval .loure
 }
 @media(max-height:520px){html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-context-shell,.lourex-ai-title small){display:none!important;} }
 @media(prefers-reduced-motion:reduce){#lourex-ai-panel[data-lourex-workspace='2'] *{scroll-behavior:auto!important;transition:none!important;}}
+
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-commercial form{padding:12px 0;border-bottom:1px solid var(--ft-line);display:grid;gap:10px;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-commercial-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-commercial label{display:grid;gap:5px;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-commercial :is(input,select,button),#lourex-ai-panel[data-lourex-workspace='2'] [data-workspace-component='WorkflowProgress'] button{min-height:44px;max-width:100%;background:var(--ft-input);color:var(--ft-text);border:1px solid var(--ft-line);border-radius:8px;padding:8px;}
+#lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-commercial,[data-workspace-component='WorkflowProgress']){overflow-wrap:anywhere;}
+#lourex-ai-panel[data-lourex-workspace='2'] [data-workspace-component='WorkflowProgress'] section{padding:12px 0;border-bottom:1px solid var(--ft-line);}
