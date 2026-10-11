@@ -1,4 +1,8 @@
 import test from 'node:test';
+import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
+import ts from 'typescript';
+import {appendAuditEventsForVaultDiff} from '../dist/src/lib/audit-diff.js';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument,convertToInvoice,validateDocument} from '../dist/src/lib/documents.js';
@@ -53,15 +57,61 @@ test('existing purchase → landed inventory movement → supplier payment remai
  const payment=normalizeSupplierPayment(posted.purchase,supplier,[],createSupplierPayment(posted.purchase,supplier,[]));assert.equal(payment.amount,'30.00');assert.equal(purchasePayableSummary(posted.purchase,[payment]).remaining,'0.00');assert.throws(()=>normalizeSupplierPayment(posted.purchase,supplier,[],{...payment,currency:'EUR'}),/currency/);
 });
 
-test('actual App action serializes a quotation/invoice race and refuses a queued workspace switch',async()=>{
- globalThis.React={createElement:()=>({}),Component:class{setState(patch){this.state={...this.state,...patch};}}};
- const {App}=await import('../dist/src/app/App.js');
- const app=new App({}),vault=sourceVault(),quote=vault.documents[0],invoice={...convertToInvoice(quote,'INV-RACE'),status:'final'};vault.documents.push(invoice);
- app.state={...app.state,unlocked:true,key:{},vault};app.showToast=()=>{};
- let tail=Promise.resolve(vault);app.persistFullMutation=mutation=>{tail=tail.then(latest=>{const next=mutation(latest);app.state.vault=next;return next;});return tail;};
- await Promise.all([app.createDelivery(quote),app.createDelivery(invoice)]);assert.equal(app.state.vault.documents.filter(doc=>doc.kind==='delivery-note').length,1);assert.equal(app.state.editorDoc.kind,'delivery-note');
- const switched=createWorkspace(vault,'Another company');const other=activateWorkspace(switched,switched.workspaces.at(-1).id);app.state.vault=vault;let message='';app.showToast=value=>message=value;app.persistFullMutation=async mutation=>{mutation(other);};
- await app.createDelivery(quote);assert.match(message,/Workspace changed/);assert.equal(other.documents.filter(doc=>doc.kind==='delivery-note').length,0);
+test('actual App action serializes quotation/invoice races and refuses a queued cross-workspace switch',async()=>{
+  // Exercise the exact production class-field method with a test-scoped
+  // authenticated Firebase UID. Never weaken the production UID guard or
+  // pretend that an unauthenticated App can post commercial documents.
+  const source=await readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8');
+  const from=source.indexOf('  private createDelivery=async(');
+  const until=source.indexOf('  private createDeliveryInvoice=async(',from);
+  assert.ok(from>0&&until>from,'production delivery action must be present');
+  const method=source.slice(from,until);
+  const harness=`class TestApp{
+    constructor(vault){
+      this.state={vault,unlocked:true,cloudUser:{uid:'qa-firebase-user'},editorDoc:null,screen:'documents'};
+      this.accountEpoch=0;this.deliveryCreations=new Set();this.messages=[];
+      this.tail=Promise.resolve(vault);
+    }
+    requireVault(){return scopeVault(this.state.vault);}
+    persistFullMutation(mutation){
+      this.tail=this.tail.then(vault=>{
+        const next=mutation(vault);
+        this.state.vault=next;
+        return next;
+      });
+      return this.tail;
+    }
+    setState(patch){this.state={...this.state,...patch};}
+    showToast(message){this.messages.push(message);}
+    ${method}
+  }
+  exports.TestApp=TestApp;`;
+  const compiled=ts.transpileModule(harness,{compilerOptions:{
+    target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS
+  }}).outputText;
+  const ctx={
+    exports:{},Promise,Set,Date,
+    scopeVault,applyWorkspaceScope,overlayWorkspaceScope,
+    createLinkedDeliveryDraft,appendAuditEventsForVaultDiff,
+    activeAccountStorageUid:()=> 'qa-firebase-user',
+    t:(en)=>en
+  };
+  vm.runInNewContext(compiled,ctx);
+  const vault=sourceVault(),app=new ctx.exports.TestApp(vault),quote=vault.documents[0];
+  const invoice={...convertToInvoice(quote,'INV-RACE'),status:'final'};
+  app.state.vault={...vault,documents:[...vault.documents,invoice]};
+  app.tail=Promise.resolve(app.state.vault);
+  await Promise.all([app.createDelivery(quote),app.createDelivery(invoice)]);
+  assert.equal(app.state.vault.documents.filter(doc=>doc.kind==='delivery-note').length,1);
+  assert.equal(app.state.editorDoc.kind,'delivery-note');
+
+  const switched=createWorkspace(vault,'Another company');
+  const other=activateWorkspace(switched,switched.workspaces.at(-1).id);
+  app.state.vault=vault;
+  app.persistFullMutation=async mutation=>{mutation(other);};
+  await app.createDelivery(quote);
+  assert.ok(app.messages.some(message=>/Workspace changed/.test(message)));
+  assert.equal(other.documents.filter(doc=>doc.kind==='delivery-note').length,0);
 });
 
 test('sent and accepted quotation stays non-financial; invoice, partial collection and credit reconcile to customer statement',()=>{
