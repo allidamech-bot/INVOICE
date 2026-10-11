@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="ai-composer-v449.css"></head><body><div id="root"><div class="app-ui" id="visual-app"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script src="ai-composer-v449.js"></script><script type="module">
+import {AiCopilot} from './src/components/AiCopilot.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+import {setupVault,resumeVaultSession,saveVault} from './src/storage/vault.js';
+import {establishSession} from './src/storage/session.js';
+import {registerVaultMutationBridge} from './src/storage/vault-mutation-bridge.js';
+import {stageKernelArtifact} from './src/lib/ai-conversation-kernel.js';
+import {prepareFoundationApproval} from './src/lib/ai-foundation-approval.js';
+import {workspaceDrafting} from './src/lib/ai-workspace-model.js';
+import {reviewAiDocumentProposal} from './src/lib/ai-document-review.js';
+import {refreshIntelligenceWorkspace} from './src/lib/ai-intelligence-runtime.js';
+import {createBlankDocument} from './src/lib/documents.js';
+const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en';setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.documentElement.dataset.uiTheme=params.get('theme')||'dark';
+const {key}=await setupVault('2468');await establishSession(key);const session=await resumeVaultSession();const v=session.vault;v.customers=[{id:'c1',workspaceId:'default',companyNameEn:'Twin',companyNameAr:'عميل مكرر',contactPerson:'',email:'',phone:'',preferredCurrency:'USD',paymentTerms:'Cash',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{id:'c2',workspaceId:'default',companyNameEn:'Twin',companyNameAr:'عميل مكرر',contactPerson:'',email:'',phone:'',preferredCurrency:'USD',paymentTerms:'Cash',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];v.savedItems=[{id:'product',workspaceId:'default',descriptionEn:'Tea',descriptionAr:'شاي',sku:'SKU1',unit:'CTN',lastUnitPrice:'5.25',lastCurrency:'EUR',tags:[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];
+const long=createBlankDocument('proforma','PI-LONG',v.company);long.number='PI-LONG';long.items=Array.from({length:30},(_,i)=>({id:'long'+i,savedItemId:'',descriptionEn:'Bilingual long product '+i,descriptionAr:'صنف عربي طويل '+i,quantity:'2',unit:'CTN',unitPrice:'0.10',hsCode:'',origin:'',packing:''}));v.documents.push(long);await saveVault(key,v);
+window.fixture={key,longId:long.id,writes:0};registerVaultMutationBridge(async mutate=>{const current=await resumeVaultSession();const next=mutate(current.vault);await saveVault(current.key,next);window.fixture.writes++;return next;});
+ReactDOM.render(React.createElement(AiCopilot,{screen:'home',language:lang,onNavigate:()=>{},ref:host=>window.fixture.host=host}),document.getElementById('visual-app'));
+window.fixture.stage=async()=>{const host=window.fixture.host;await refreshIntelligenceWorkspace(host);const p={capability:'document.createDraft',kind:'proforma',customerId:'c1',customerDraft:null,currency:'USD',language:'bilingual',label:lang==='ar'?'عرض سعر للمراجعة':'Quotation review',rationale:'Explicit fixture user request',items:Array.from({length:3},(_,i)=>({savedItemId:'',descriptionEn:'Item '+(i+1),descriptionAr:'صنف '+(i+1),quantity:'10',unit:'CTN',unitPrice:'25.01'})),incoterm:'EXW',paymentTerms:'Cash',deliveryTime:'',validity:'',remarks:'',notes:''};p.foundationApproval=prepareFoundationApproval((await resumeVaultSession()).vault,p,host.__intelligenceKernel.scope);stageKernelArtifact(host.__intelligenceKernel,p);host.setState({proposal:p,review:reviewAiDocumentProposal(p,workspaceDrafting(v),lang)});};
+window.fixture.snapshot=async()=>({vault:(await resumeVaultSession()).vault,writes:window.fixture.writes});
+</script></body></html>
