@@ -30,7 +30,7 @@ function runStorage(record){
     }
   };
   return {store,env:{
-    exports:{},activeStorageUid:UID,openDb:async()=>fakeDb,
+    exports:{},activeStorageUid:UID,STORE:'kv',openDb:async()=>fakeDb,
     crypto:webcrypto,Date,Promise,Error
   }};
 }
