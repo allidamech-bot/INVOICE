@@ -1,4 +1,4 @@
-import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord, PlainWorkspaceRecord, VaultPayload } from '../types.js';
+import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord, PlainWorkspaceRecord, PlainWorkspaceArchiveRecord, VaultPayload } from '../types.js';
 
 const LEGACY_DB_NAME = 'lourex-invoice';
 const PUBLIC_DB_NAME = 'lourex-invoice-public';
@@ -11,7 +11,7 @@ const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
 const ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
 const VAULT_WRITE_DIAG_INTERVAL_MS=30_000;
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord | PlainWorkspaceRecord;
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord | PlainWorkspaceRecord | PlainWorkspaceArchiveRecord;
 
 let activeStorageUid:string|null=null;
 let dbPromise:Promise<IDBDatabase>|null=null;
@@ -331,6 +331,17 @@ export async function acknowledgePlainWorkspace(uid:string,localUpdatedAt:string
     tx.onerror=()=>reject(tx.error??new Error('Workspace acknowledgment failed.'));
     tx.onabort=()=>reject(tx.error??new Error('Workspace acknowledgment aborted.'));
   });
+}
+
+/** Preserve the displaced workspace when a user explicitly chooses cloud/backup. */
+export async function archivePlainWorkspace(uid:string,reason:PlainWorkspaceArchiveRecord['reason']):Promise<string|null>{
+  const existing=await getPlainWorkspace();
+  if(!existing)return null;
+  if(activeAccountStorageUid()!==uid||existing.uid!==uid)throw new Error('Account scope changed.');
+  const id=`workspace-v2-archive:${new Date().toISOString()}:${crypto.randomUUID()}` as const;
+  const archive:PlainWorkspaceArchiveRecord={...existing,id,reason,archivedAt:new Date().toISOString()};
+  await putRecord(archive);
+  return id;
 }
 
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }
