@@ -306,7 +306,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private signOutFromCloud=async()=>{
     if(this.state.busy)return;
     this.setState({busy:true,accountAction:'signout',error:'',message:'',savedSection:null});
-    try{await this.props.onCloudSignOut();this.setState({busy:false,accountAction:'',message:t('Signed out. Encrypted local data remains on this device.','تم تسجيل الخروج. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});}
+    try{await this.props.onCloudSignOut();this.setState({busy:false,accountAction:'',message:t('Signed out. This device keeps an offline cache for the same account.','تم تسجيل الخروج. يحتفظ هذا الجهاز بنسخة محلية للعمل دون اتصال لنفس الحساب.')});}
     catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to sign out.','تعذر تسجيل الخروج.')});}
   };
 
