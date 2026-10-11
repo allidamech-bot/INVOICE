@@ -51,3 +51,19 @@ test('simultaneous first login from two devices hydrates the winning cloud snaps
   assert.match(block,/replacePlainWorkspaceIfUnchanged\(user\.uid,null/);
   assert.doesNotMatch(block,/unlockVault\(|setupVault\(|window\.location\.reload/);
 });
+
+test('Cloud-First never accepts a local edit or imported backup too large to reach Firebase',async()=>{
+  const [app,cloud]=await Promise.all([
+    read('src/app/App.tsx'),read('src/cloud/plain-workspace.ts')
+  ]);
+  assert.match(cloud,/MAX_BYTES=45_000_000/);
+  assert.match(cloud,/export function assertPlainCloudWorkspaceUploadable/);
+  assert.match(cloud,/encodePayload\(payload\)/);
+  const edit=app.slice(app.indexOf('  private persist=async('),app.indexOf('  private reserveDocument=async('));
+  assert.equal((edit.match(/assertPlainCloudWorkspaceUploadable\(next\)/g)||[]).length,2);
+  const importPart=app.slice(app.indexOf('  private restore=async('),app.indexOf('  private requireVault('));
+  const validateAt=importPart.indexOf('assertPlainCloudWorkspaceUploadable(restored)');
+  const mutateAt=importPart.indexOf('replacePlainWorkspaceIfUnchanged(');
+  assert.ok(validateAt>=0&&mutateAt>validateAt,
+    'oversized local backup must be rejected before archiving or replacing any account data');
+});
