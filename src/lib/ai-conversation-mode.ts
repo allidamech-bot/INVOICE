@@ -71,6 +71,26 @@ export function conversationModePermitsToolClass(
 }
 
 /**
+ * The reply-language preference applies only to the AI response. The main
+ * LOUREX site locale and the language of generated documents are untouched.
+ * When set to automatic, prefer an explicit Arabic/Latin user instruction;
+ * number-only or mixed neutral messages inherit the site locale.
+ */
+export function resolveAiConversationReplyLanguage(
+  preference: AiConversationReplyLanguage,
+  message: string,
+  siteLanguage: 'ar' | 'en',
+): 'ar' | 'en' {
+  if(preference==='ar'||preference==='en')return preference;
+  const source=String(message||'').slice(0,1000);
+  const arabic=(source.match(/[\u0621-\u064A\u0671-\u06D3]/g)||[]).length;
+  const latin=(source.match(/[A-Za-z]/g)||[]).length;
+  if(arabic>=3&&arabic>=latin/2)return 'ar';
+  if(latin>=3&&latin>arabic*2)return 'en';
+  return siteLanguage;
+}
+
+/**
  * Readable tab description; a single centered line in RTL/LTR, no extra card.
  * Language is passed explicitly so the text is independent of site locale.
  */
