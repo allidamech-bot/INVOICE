@@ -84,3 +84,18 @@ test('declining a suggestion animates out safely without delaying reduced-motion
   assert.match(styles,/\.lxw-inline-approval\[data-exiting='true'\]/);
   assert.match(styles,/prefers-reduced-motion:reduce/);
 });
+
+test('grouped artifact navigation retains all twelve original functional views',()=>{
+  const groups=component.split('const viewGroups=[')[1]?.split('  const activeGroup=')[0]||'';
+  const ids=[...groups.matchAll(/\['([^']+)','[^']+','[^']+'\]/g)].map(match=>match[1]);
+  assert.deepEqual(ids.sort(),[
+    'preview','edit','customer','product','files','revisions',
+    'commercial','missions','evidence','knowledge','reliability','diagnostics',
+  ].sort());
+  assert.match(component,/className="lxw-view-groups"/);
+  assert.match(component,/className="lxw-view-options"/);
+  assert.doesNotMatch(component,/className="lxw-tabs"/);
+  assert.match(styles,/\.lxw-view-groups button\{/);
+  assert.match(styles,/\.lxw-view-options button\{min-height:44px/);
+  assert.match(styles,/@media\(max-width:430px\)/);
+});
