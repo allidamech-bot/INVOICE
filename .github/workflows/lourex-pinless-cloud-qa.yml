@@ -48,6 +48,15 @@ jobs:
         run: node --test tests/cloud-first-pinless-contract.test.mjs tests/cloud-first-manifest-race.test.mjs tests/cloud-first-two-device.test.mjs tests/cloud-first-ack-lineage.test.mjs
       - name: Essential financial invariants
         run: node --test --test-concurrency=2 tests/number-reservation.test.mjs tests/document-language-v151.test.mjs tests/commercial-output-hardening-v167.test.mjs tests/audit-supplier-payables-asof.test.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Firestore V2 UID security rules in real local emulator
+        shell: bash
+        run: |
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"ui":{"enabled":false}}}' > firebase-emulator.qa.json
+          npx --yes firebase-tools@14.20.1 emulators:exec --only firestore --project demo-lourex-pinless --config firebase-emulator.qa.json "node --test tests/firebase-firestore-rules-emulator.test.mjs"
       - name: Free real-browser smoke — 390/820/1440 Chromium viewport
         run: node scripts/qa-free-chrome-smoke.mjs
       - name: All tests diagnostic (legacy PIN assertions may be obsolete)
