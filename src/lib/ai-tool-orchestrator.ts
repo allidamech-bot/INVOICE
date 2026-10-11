@@ -1,4 +1,5 @@
 import type { VaultPayload } from '../types.js';
+import { conversationModePermitsToolClass, type AiConversationMode } from './ai-conversation-mode.js';
 import { calculateTotals, decimalToScaled, lineTotal, normalizeDecimalInput } from './money.js';
 import { customerReceivables, customerStatement, receivableCustomerId } from './receivables.js';
 import { inventoryBalances, purchaseTotals } from './operations.js';
@@ -28,7 +29,7 @@ export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;
 export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
 export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
 export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
-export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;}
+export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;conversationMode?:AiConversationMode;}
 
 const DEFS:AiToolDefinition[]=[
   ['customer.getSummary','read','Customer identity, receivables and recent commercial activity.',false,false,5000],
@@ -132,16 +133,17 @@ function documentDraftItems(args:Record<string,unknown>):Record<string,string>[]
 function findDocument(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.documentId,120)||relevantEntity(runtime,'document');const number=clean(args.number||args.query||args.documentId,100);return runtime.vault.documents.find(row=>(id&&(row.id===id||lower(row.number)===lower(id)))||(number&&lower(row.number)===lower(number)))??null;}
 function findPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.purchaseId,120)||relevantEntity(runtime,'purchase');const number=clean(args.number||args.query,100);return runtime.vault.purchases.find(row=>(id&&row.id===id)||(number&&lower(row.number)===lower(number)))??null;}
 
-export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='business'):Array<{id:AiToolId;class:AiToolClass;description:string;approval:boolean}>{
-  if(scope==='personal')return AI_TOOL_REGISTRY.filter(row=>['message.prepare','reminder.prepare','task.create'].includes(row.id)).map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
-  return AI_TOOL_REGISTRY.map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
+export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='business',mode:AiConversationMode='controller'):Array<{id:AiToolId;class:AiToolClass;description:string;approval:boolean}>{
+  const allowed=AI_TOOL_REGISTRY.filter(row=>conversationModePermitsToolClass(mode,row.class));
+  if(scope==='personal')return allowed.filter(row=>['message.prepare','reminder.prepare','task.create'].includes(row.id)).map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
+  return allowed.map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
 }
 export function createAiToolRuntime(vault:VaultPayload,context:any):AiToolRuntime{
   const scope=(context?.assistantRuntime?.scope==='personal'?'personal':context?.assistantRuntime?.scope==='temporary'?'temporary':'business') as AiToolRuntime['scope'];
-  return{vault,context,scope,workspaceId:clean(context?.assistantRuntime?.workspaceId,120),branchId:clean(context?.assistantRuntime?.branchId,120)};
+  return{vault,context,scope,workspaceId:clean(context?.assistantRuntime?.workspaceId,120),branchId:clean(context?.assistantRuntime?.branchId,120),conversationMode:context?.conversationMode==='advisor'?'advisor':'controller'};
 }
-export function validateAiToolPlan(value:unknown,scope:'business'|'personal'|'temporary'='business'):AiToolPlan|null{
-  if(!value||typeof value!=='object')return null;const raw=value as any;if(raw.version!==1||!Array.isArray(raw.calls)||raw.calls.length>5)return null;const allowed=new Set(aiToolPlannerCatalog(scope).map(row=>row.id));const calls:AiToolCall[]=[];
+export function validateAiToolPlan(value:unknown,scope:'business'|'personal'|'temporary'='business',mode:AiConversationMode='controller'):AiToolPlan|null{
+  if(!value||typeof value!=='object')return null;const raw=value as any;if(raw.version!==1||!Array.isArray(raw.calls)||raw.calls.length>5)return null;const allowed=new Set(aiToolPlannerCatalog(scope,mode).map(row=>row.id));const calls:AiToolCall[]=[];
   for(const entry of raw.calls){if(!entry||typeof entry!=='object')return null;const tool=clean(entry.tool,80) as AiToolId;if(!allowed.has(tool)||!DEF_BY_ID.has(tool))return null;calls.push({id:clean(entry.id,80)||`tool-${calls.length+1}`,tool,args:safeObject(entry.args),reason:clean(entry.reason,220)});}
   return{version:1,calls,goal:clean(raw.goal,260)};
 }
@@ -235,6 +237,7 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
 }
 export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolResult{
   const def=DEF_BY_ID.get(call.tool);if(!def)return{id:call.id,tool:call.tool,ok:false,class:'read',data:null,summary:'Unknown tool.',source:'tool-registry'};
+  if(!conversationModePermitsToolClass(runtime.conversationMode||'controller',def.class))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Advisor is read-only. Switch to Controller for navigation, drafts or actions.',source:'advisor-read-only-guard'};
   if(runtime.scope==='personal'&&!['message.prepare','reminder.prepare','task.create'].includes(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Business tools are unavailable in Personal scope.',source:'scope-guard'};
   if(HIGH_IMPACT.has(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'High-impact financial actions are never executed by LOUREX AI. Open the relevant workspace and complete the protected workflow manually.',source:'high-impact-guard'};
   if(EXECUTE.has(call.tool)){try{const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'approval-preflight'};}}
