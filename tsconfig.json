@@ -17,5 +17,6 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
+  "exclude": ["src/app/AuthScreenSelector.tsx", "src/components/AuthScreens.tsx"]
 }
