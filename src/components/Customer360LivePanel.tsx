@@ -19,7 +19,7 @@ export function Customer360LivePanel({customer}:{customer:Customer}):any{
     setSnapshot(null);setError('');
     void resumeVaultSession().then(session=>{
       if(!active)return;
-      if(!session){setError(t('Customer 360 is unavailable while the encrypted vault is locked.','ملف العميل 360 غير متاح أثناء قفل الخزنة المشفرة.'));return;}
+      if(!session){setError(t('Customer 360 is unavailable until your account workspace is ready.','ملف العميل 360 غير متاح حتى تجهز مساحة عمل حسابك.'));return;}
       setSnapshot(buildCustomer360(customer,session.vault.documents,session.vault.payments,session.vault.documentEvents));
     }).catch(()=>{if(active)setError(t('Unable to load Customer 360 safely.','تعذر تحميل ملف العميل 360 بأمان.'));});
     return()=>{active=false;registerAssistantEntity('customers',null);};
