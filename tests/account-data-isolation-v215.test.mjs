@@ -62,8 +62,10 @@ test('v215 selects the UID storage boundary before any account session or cloud 
   const resolve=entry.slice(entry.indexOf('async function resolveRequiredAccountSession'),entry.indexOf('function startAccountSignOutWatcher'));
   assert.ok(resolve.indexOf('setActiveAccountUid(user.uid)')>=0);
   assert.ok(resolve.indexOf('await activateAccountStorage(user.uid)')>resolve.indexOf('setActiveAccountUid(user.uid)'));
-  assert.ok(resolve.indexOf('await resumeAccountSession(user.uid)')>resolve.indexOf('await activateAccountStorage(user.uid)'));
-  assert.match(entry,/if\(accountReady\)await hydrateAuthoritativeCloudBeforeApp\(\)/);
+  assert.match(resolve,/await activateAccountStorage\(user\.uid\);[\s\S]*await suspendSession\(\);/);
+  assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
+  const app=await read('src/app/App.tsx');
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
 });
 
 test('v215 direct UID replacement goes through a guarded account transition before exposing new data',async()=>{
@@ -78,7 +80,7 @@ test('v215 direct UID replacement goes through a guarded account transition befo
   assert.match(transition,/await this\.drainVaultWrites\(\);[\s\S]*await this\.waitForCloudIdle\(\);/);
   assert.match(transition,/await suspendSession\(\);[\s\S]*setActiveAccountUid\(uid\);[\s\S]*await activateAccountStorage\(uid\);/);
   assert.match(transition,/this\.latestEncryptedVault=null;/);
-  assert.match(transition,/unlocked:false,key:null,vault:null/);
+  assert.match(transition,/unlocked:false,vault:null/);
   assert.doesNotMatch(transition,/resumeAccountSession\(uid\)/,'account switching must not inherit an unlocked PIN session');
 });
 
@@ -90,7 +92,7 @@ test('v215 confirmed sign-out revokes the old account session before selecting t
   assert.match(watcher,/detail:\{uid:null\}/);
   assert.match(transition,/requested===null\?null:String\(requested\)\.trim\(\)/);
   assert.match(transition,/await suspendSession\(\);[\s\S]*setActiveAccountUid\(uid\);[\s\S]*await activateAccountStorage\(uid\);/);
-  assert.match(transition,/this\.setState\(\{loading:false,unlocked:false,key:null,vault:null/,'failed scope transition must fail closed');
+  assert.match(transition,/this\.setState\(\{loading:false,unlocked:false,vault:null/,'failed scope transition must hide the outgoing V2 workspace');
 });
 
 test('v216 keeps installed clients on the account-isolated storage runtime while advancing the PWA generation',async()=>{
