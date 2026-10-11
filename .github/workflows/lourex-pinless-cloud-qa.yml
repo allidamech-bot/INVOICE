@@ -27,6 +27,18 @@ jobs:
         run: npm run typecheck
       - name: Production build and bundled runtime contracts
         run: npm run build
+      - name: Verify the built runtime never contains legacy PIN autosave
+        shell: bash
+        run: |
+          grep -q '__lourexPinlessAutosaveV2' dist/src/app/index.js
+          if grep -q 'instance.unlock.bind(instance)' dist/src/app/index.js; then
+            echo 'ERROR: legacy PIN unlock was injected by a build script'
+            exit 1
+          fi
+          if grep -q 'saveDocumentAutosaveCheckpoint(key,' dist/src/app/index.js; then
+            echo 'ERROR: encrypted document checkpoint was injected into V2'
+            exit 1
+          fi
       - name: Inspect emitted application runtime around browser crash
         run: |
           nl -ba dist/src/app/index.js | sed -n '85,135p'
