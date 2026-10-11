@@ -88,3 +88,25 @@ test('runtime: successful direct scope loading does not require nested UI refres
   assert.equal(calls,1);
   assert.equal(h.__intelligenceKernel.scope.workspaceId,'default');
 });
+
+test('runtime: an unreadable assistant-only cache starts clean and preserves original ciphertext',async()=>{
+  const [{compiledReliabilityHarness},{emptyVault}]=await Promise.all([
+    import('./helpers/ai-reliability-runtime.mjs'),
+    import('../dist/src/lib/defaults.js')
+  ]);
+  const {store,session,records}=await compiledReliabilityHarness(emptyVault());
+  const broken={id:'assistant-state',version:1,iv:'AAAA',cipher:'broken-ciphertext',updatedAt:'2026-10-11T00:00:00.000Z'};
+  records.set('assistant-state',broken);
+  const fresh=await store.loadAssistantState(session.key);
+  assert.deepEqual(fresh.threads,[]);
+  assert.equal(fresh.currentBusinessThreadId,'');
+  await store.saveAssistantState(session.key,fresh);
+  const archiveIds=[...records.keys()].filter(id=>id.startsWith('assistant-state-inaccessible-'));
+  assert.equal(archiveIds.length,1,'unreadable history must be preserved before replacement');
+  assert.equal(records.get(archiveIds[0]).cipher,broken.cipher);
+  const reopened=await store.loadAssistantState(session.key);
+  assert.deepEqual(reopened.threads,[]);
+  assert.equal(reopened.version,1);
+  await store.saveAssistantState(session.key,reopened);
+  assert.equal([...records.keys()].filter(id=>id.startsWith('assistant-state-inaccessible-')).length,1,'normal subsequent saves must not create extra archives');
+});
