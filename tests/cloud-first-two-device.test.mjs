@@ -49,6 +49,11 @@ async function client(firebase,uid){
       state.local={...state.local,baseCloudRevision:revision,baseCloudSha256:sha,localAncestors:[]};
       return true;
     },
+    acknowledgeIdenticalPlainWorkspace:async(_uid,localRevision,revision,sha)=>{
+      if(state.local?.localRevision!==localRevision)return false;
+      state.local={...state.local,baseCloudRevision:revision,baseCloudSha256:sha,localAncestors:[]};
+      return true;
+    },
     replacePlainWorkspaceIfUnchanged:async(_uid,expected,replacement,reason)=>{
       if((state.local?.localRevision??null)!==expected)return false;
       if(state.local&&reason)state.archives.push(state.local);
