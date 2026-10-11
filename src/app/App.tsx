@@ -175,25 +175,29 @@ export class App extends React.Component<{},State> {
         syncMessage=t('Offline. Changes are saved on this device until your account reconnects.','غير متصل. تُحفظ التعديلات على هذا الجهاز حتى يعود الاتصال بالحساب.');
       }
       if(!local){
-        // Only an online, verified empty V2 account may start with a blank workspace.
+        // Cloud-first bootstrap: do NOT create an authoritative local blank
+        // until the server has committed it. A simultaneous second device
+        // must never strand this browser with a divergent empty local record.
         if(!online)throw new Error('Internet connection is required to start a new account.');
         const existing=await getPlainCloudMeta(user.uid);
-        if(existing)throw new Error('Cloud workspace changed during initialization. Reload.');
+        if(existing)throw new Error('Cloud workspace appeared during initialization. Retry to restore it.');
         const blank=emptyVault();
         blank.appSettings={...blank.appSettings,autoLockMinutes:0};
-        local=await savePlainWorkspace(user.uid,blank,null,null);
-        try{
-          const result=await uploadPlainCloudWorkspace(user.uid,local);
-          if(result==='remote-changed')throw new Error('Another device created an account workspace. Reload to restore it.');
-          syncState='synced';
-        }catch(error){
-          // A blank local record cannot be shown as authoritative when another
-          // device has established a cloud revision.
-          const conflict=await getPlainCloudMeta(user.uid).catch(()=>null);
-          if(conflict)throw new Error('Cloud workspace appeared during setup. Reload to restore it safely.');
-          syncState='error';
-          syncMessage=error instanceof Error?error.message:String(error);
-        }
+        const proposal:PlainWorkspaceRecord={
+          id:'workspace-v2',uid:user.uid,payload:blank,schemaVersion:blank.schemaVersion,
+          updatedAt:new Date().toISOString(),localRevision:crypto.randomUUID(),
+          baseCloudRevision:null,baseCloudSha256:null
+        };
+        const outcome=await uploadPlainCloudWorkspace(user.uid,proposal);
+        if(outcome==='remote-changed')throw new Error('Another device created an account workspace. Retry to restore it.');
+        const committed=await getPlainCloudMeta(user.uid);
+        if(!committed)throw new Error('Cloud workspace could not be verified after setup.');
+        const accepted=await replacePlainWorkspaceIfUnchanged(user.uid,null,{
+          ...proposal,baseCloudRevision:committed.revision,baseCloudSha256:committed.sha256
+        });
+        if(!accepted)throw new Error('Another browser tab created local data while setup completed. Reload safely.');
+        syncState='synced';
+        syncMessage=t('Your Firebase workspace is ready.','مساحة Firebase الخاصة بك جاهزة.');
         local=await getPlainWorkspace();
       }
       if(!local)throw new Error('The account workspace is unavailable.');
