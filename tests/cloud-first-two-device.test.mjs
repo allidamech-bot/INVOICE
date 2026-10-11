@@ -183,3 +183,10 @@ test('byte-identical cloud copy fast-forwards a stale anchor so the next invoice
   assert.equal(b.state.local.payload.documents[0].id,'next-invoice');
   assert.notEqual(b.state.local.baseCloudRevision,previous);
 });
+
+test('invalid business arrays cannot become authoritative Firebase data even with valid schema version',async()=>{
+  const firebase=fakeFirebase(),a=await client(firebase,'user-1');
+  a.state.local=local({...payload(),documents:null});
+  await assert.rejects(a.api.uploadPlainCloudWorkspace('user-1',a.state.local),/AssertionError|false|documents|array/i);
+  assert.equal(firebase.docs.size,0,'no manifest or business-data chunk is written');
+});
