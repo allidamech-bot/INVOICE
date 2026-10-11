@@ -7,13 +7,18 @@ let sw=await readFile(swPath,'utf8');
    assets. Force a genuinely new application cache so an installed PWA cannot
    retain pre-v351 HTML, manifest, palette or runtime references. */
 const RELEASE_GENERATION=361;
+const PINLESS_RELEASE_GENERATION=362;
+// V2 must produce a genuinely new built cache, not just edit public/sw.js:
+// this script would otherwise re-promote both V1 and V2 to v361.
+const releaseGeneration=sw.includes('v315 Cloud-First PIN-free release')
+  ?PINLESS_RELEASE_GENERATION:RELEASE_GENERATION;
 const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
-if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
+if(activeCacheGeneration>0&&activeCacheGeneration<releaseGeneration){
   const marker=activeCacheMatch[0];
-  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v${RELEASE_GENERATION}';\n// ${marker} preserved as the immediate pre-v${RELEASE_GENERATION} cache generation.`);
-}else if(activeCacheGeneration<RELEASE_GENERATION){
-  throw new Error(`Unable to promote the LOUREX PWA cache to v${RELEASE_GENERATION} or verify a newer cache generation.`);
+  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v${releaseGeneration}';\n// ${marker} preserved as the immediate pre-v${releaseGeneration} cache generation.`);
+}else if(activeCacheGeneration<releaseGeneration){
+  throw new Error(`Unable to promote the LOUREX PWA cache to v${releaseGeneration} or verify a newer cache generation.`);
 }
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
@@ -104,4 +109,4 @@ if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2|337-3)/.test(entry))
 for(const retired of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])if(entry.includes(retired))throw new Error(`Retired empty runtime stylesheet request survived production build: ${retired}`);
 await writeFile(entryPath,entry);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with canonical v351 runtime refs, no retired empty CSS requests and standalone v331/v332 document owners.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,releaseGeneration)} ready with canonical v351 runtime refs, no retired empty CSS requests and standalone v331/v332 document owners.`);
