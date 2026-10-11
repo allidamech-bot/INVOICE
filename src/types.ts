@@ -651,6 +651,13 @@ export interface PlainWorkspaceRecord {
   baseCloudSha256: string | null;
 }
 
+/** Retained before an explicit conflict replacement; never synced as canonical data. */
+export interface PlainWorkspaceArchiveRecord extends Omit<PlainWorkspaceRecord,'id'> {
+  id: `workspace-v2-archive:${string}`;
+  archivedAt: string;
+  reason: 'replaced-by-cloud' | 'replaced-by-backup';
+}
+
 export interface VaultPayload {
   schemaVersion: number;
   company: CompanySettings;
