@@ -56,6 +56,8 @@ test('Model plans requesting mutations are rejected in Advisor, not silently pro
 
 test('Legacy kernel without explicit mode is read-only after hydration',()=>{
   const old=newConversationKernel(scope);delete old.mode;old.turn=8;old.focus='operator';
+  assert.equal(normalizeConversationKernel(null,scope).mode,'advisor','legacy thread with no kernel must fail closed');
+  assert.equal(normalizeConversationKernel({version:1,scope,turn:1,focus:'auto',artifact:{lineIds:null}},scope).mode,'advisor','malformed legacy artifact cannot elevate permissions');
   const restored=normalizeConversationKernel(old,scope);
   assert.equal(restored.mode,'advisor');
   assert.equal(restored.turn,8);
@@ -82,6 +84,7 @@ test('Workspace exposes two modes and preserves separate thread scopes',()=>{
   assert.match(component,/host\.__lourexNewConversation\(\)/);
   assert.match(component,/drafts\.set\(kernelScopeKey\(previous\.scope\)/);
   assert.match(runtimeSource,/mode:normalizeAiConversationMode\(t\.kernel\?\.mode\)/);
+  assert.match(runtimeSource,/thread\?normalizeConversationKernel\(thread\.kernel,scope\):newConversationKernel\(scope\)/);
   assert.match(runtimeSource,/Advisor cannot approve actions/);
   assert.match(runtimeSource,/Advisor can analyze but cannot edit a workspace/);
   assert.match(runtimeSource,/conversationMode:requestedMode/);
