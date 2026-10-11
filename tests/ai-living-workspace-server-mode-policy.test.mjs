@@ -21,6 +21,12 @@ test('Core discards any draft/navigation proposal when the user is in Advisor mo
   assert.equal(resultForRequest({answer:'I can prepare it',proposal:draft},advisor).proposal,null);
   assert.match(resultForRequest({answer:'Created and saved',proposal:draft},advisor).answer,/did not create or save/);
   assert.equal(resultForRequest({answer:'Proposal ready',proposal:draft},controller).proposal,draft);
+  const strictResultForRequest=new Function('cleanAiResult','claimedDraftCreation','previewOnlyDocumentRequested','draftActionRequested',
+    line(code,'function resultForRequest(')+';return resultForRequest;')(
+      value=>value.proposal?.capability==='INVALID'?null:{answer:value.answer,proposal:value.proposal},
+      value=>/created|saved/i.test(value),()=>false,()=>false);
+  assert.equal(strictResultForRequest({answer:'Here is the analysis',proposal:{capability:'INVALID'}},advisor).proposal,null);
+  assert.equal(strictResultForRequest({answer:'Ready',proposal:{capability:'INVALID'}},controller),null);
   assert.match(code,/conversationMode=body\?\.context\?\.conversationMode==='advisor'/);
   assert.match(code,/aiResponseDetail=cleanEnum/);
   assert.match(code,/modeInstruction/);
