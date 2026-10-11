@@ -649,6 +649,10 @@ export interface PlainWorkspaceRecord {
   updatedAt: string;
   /** Changes on each business-data write. Used for atomic IndexedDB compare-and-swap. */
   localRevision: string;
+  /** Previous local generations that belong to this pending edit lineage.
+   * Lets an in-flight Firebase upload acknowledge only genuine descendant edits.
+   */
+  localAncestors?: string[];
   baseCloudRevision: string | null;
   baseCloudSha256: string | null;
 }
