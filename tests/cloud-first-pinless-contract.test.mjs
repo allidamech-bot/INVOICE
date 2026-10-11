@@ -67,3 +67,24 @@ test('Cloud-First never accepts a local edit or imported backup too large to rea
   assert.ok(validateAt>=0&&mutateAt>validateAt,
     'oversized local backup must be rejected before archiving or replacing any account data');
 });
+
+test('same Firebase UID signs out and signs back in: active IndexedDB scope never bypasses account rehydration',async()=>{
+  const app=await read('src/app/App.tsx');
+  const action=app.slice(app.indexOf('  private attachCloudUser=async('),app.indexOf('  private cloudSignIn=async(',app.indexOf('  private attachCloudUser=async(')));
+  assert.match(action,/const scopeChanged=activeAccountStorageUid\(\)!==user\.uid/);
+  assert.match(action,/scopeChanged\|\|!this\.state\.unlocked\|\|!this\.state\.vault\|\|this\.state\.firstRun\|\|!this\.state\.cloudLinked/);
+  assert.match(action,/await this\.initialize\(\)/);
+  assert.match(action,/if\(!this\.state\.unlocked\)throw new Error/);
+  const signOut=app.slice(app.indexOf('  private cloudSignOut=async('),app.indexOf('  private cloudSyncNow=async('));
+  assert.match(signOut,/firstRun:true,unlocked:false,vault:null/);
+  assert.doesNotMatch(action,/unlockVault\(|resumeVaultSession\(|setupVault\(/);
+});
+test('a conflicting cloud/device account must reject local import before deleting or archiving anything',async()=>{
+  const app=await read('src/app/App.tsx');
+  const importAction=app.slice(app.indexOf('  private restore=async('),app.indexOf('  private requireVault('));
+  const guard=importAction.indexOf("if(this.state.cloudSyncState==='conflict')");
+  const archive=importAction.indexOf("replacePlainWorkspaceIfUnchanged(uid,current.localRevision,replacement,'replaced-by-backup')");
+  assert.ok(guard>=0&&archive>guard,'conflict must block backup import before any IndexedDB replacement');
+  assert.match(importAction,/Neither version has been overwritten/);
+  assert.match(importAction,/assertPlainCloudWorkspaceUploadable\(restored\)/);
+});
