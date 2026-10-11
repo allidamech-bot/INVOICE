@@ -1,3 +1,5 @@
+import { buildBusinessMemoryGraph, prepareBusinessHandoff } from './ai-business-memory-graph.js';
+import { simulateCash, reliabilityReview, type CashAssumption } from './ai-reliability-intelligence.js';
 import type { AiContextEnvelope, AiDocumentDraftProposal, AiDocumentUpdateProposal } from '../components/AiCopilot.js';
 import type { ConversationKernel, WorkingArtifact } from './ai-conversation-kernel.js';
 import type { VaultPayload } from '../types.js';
@@ -15,6 +17,11 @@ export interface WorkspaceDiff { field:string; before:string; after:string; }
 export interface WorkspaceDocument { id:string; revision:number; status:'draft'|'saved'; title:string; currency:string; customer:string; rows:WorkspaceLine[]; subtotal:string|null; terms:{label:string;value:string}[]; blockers:string[]; diff:WorkspaceDiff[]; }
 export interface PickerRow { id:string; label:string; detail:string; }
 export type WorkspaceCommand =
+  | { kind:'graph-select'; nodeId:string }
+  | { kind:'handoff-preview'; nodeId:string; recipientId:string }
+  | { kind:'review-date'; asOf:string }
+  | { kind:'cash-simulation'; asOf:string; until:string; flows:CashAssumption[] }
+  | { kind:'clear-diagnostics' }
   | { kind:'scenario'; input:ScenarioInput }
   | { kind:'pack'; cartons:string; unitsPerCarton:string }
   | { kind:'external-source'; source:Omit<ExternalQuote,'id'|'capturedAt'|'reliability'> }
@@ -83,6 +90,12 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
   if(command.kind==='focus'){if(!['auto','operator','advisor','financial'].includes(command.focus))throw new Error('Unknown focus.');kernel.focus=command.focus;return;}
   if(kernel.scope.scope==='personal')throw new Error('Business editing is unavailable in Personal.');
   if(kernel.scope.workspaceId!==(vault.appSettings.activeWorkspaceId||'default')||kernel.scope.branchId!==(vault.appSettings.activeBranchId||'main'))throw new Error('Company or branch changed.');
+  const knowledge=()=>kernel.knowledge||(kernel.knowledge={});
+  if(command.kind==='graph-select'){const node=buildBusinessMemoryGraph(vault,kernel.scope).nodes.find(n=>n.id===command.nodeId);if(!node)throw new Error('Exact graph record is no longer available.');knowledge().selectedNodeId=node.id;knowledge().handoff=undefined;if(['customer','supplier','product','document','purchase'].includes(node.kind))kernel.entity={entityType:node.kind as any,entityId:node.recordId,label:node.label};return;}
+  if(command.kind==='handoff-preview'){const result=prepareBusinessHandoff(vault,buildBusinessMemoryGraph(vault,kernel.scope),command.nodeId,command.recipientId);knowledge().handoff=result;return;}
+  if(command.kind==='review-date'){reliabilityReview(vault,kernel.scope,command.asOf);knowledge().reviewDate=command.asOf;return;}
+  if(command.kind==='cash-simulation'){const result=simulateCash(vault,kernel.scope,command.asOf,command.until,command.flows);knowledge().cash=result;return;}
+  if(command.kind==='clear-diagnostics'){kernel.diagnostics=[];return;}
   const commercial=()=>kernel.commercial|| (kernel.commercial={sources:[]});
   if(command.kind==='scenario'){commercial().scenario=commercialScenario(vault,command.input);return;}
   if(command.kind==='pack'){commercial().pack=convertPack(command.cartons,command.unitsPerCarton);return;}

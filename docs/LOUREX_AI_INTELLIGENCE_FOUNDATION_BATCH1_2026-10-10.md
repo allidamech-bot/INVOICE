@@ -171,3 +171,27 @@ Coverage pointers: `tests/ai-tool-orchestrator-batch4.test.mjs`, `tests/b04-sour
 ## Built artifact identity
 
 Final local `dist/src/components/AiCopilot.js` SHA-256: `747a59872bb567920973382ba00c78837e7b7c3083966b68eb8a48b4a8070b07`. This is local built-runtime evidence, not a claim that this feature is deployed.
+
+
+## Batch 1 approval hardening — 2026-10-11
+
+Approved Library inputs were re-read in full. Work remains isolated to the Batch 1 branch and PR #693. Later-phase branches and uncommitted work are kept separate from this PR.
+
+Main was reverified as `00117b9b7109c82e34b9fcc0c8fafe6cd03a4e61`; Production alias remains READY on this same SHA (`dpl_4S4bvun6GJPNTQDm7TmhdXs7orBX`). PR #693 was open, unmerged and mergeable, with pre-hardening head `c4ee50fb183ee7bf346edd3ad3e43b49dc8b6d82`.
+
+**F08 / high safety — invalid selected operator falls back to owner.** The existing governance helper resolves a missing/inactive selected operator to another active member, preferentially owner. An AI proposal could therefore receive an owner approval even though the explicitly selected operator was unavailable. Reproduced with missing/inactive selected IDs and an active owner still present. The AI approval boundary now requires the explicit selected ID to match exactly one active member and a known role. It rechecks this condition inside the existing guarded mutation. All-inactive nonempty teams are rejected. Legacy configurations with no selected operator retain their established active-member/default-owner behavior. Non-AI governance and business workflows are unchanged.
+
+Changed files for this follow-up: `src/lib/ai-foundation-approval.ts`, `tests/ai-intelligence-foundation.test.mjs`, and this report. Two additional behavioral tests cover missing/inactive/duplicate IDs and invalid roles at preparation, plus removal/deactivation between review and actual mutation; the latter verifies zero writes.
+
+Validation results are recorded below after the final run. The first follow-up regression run had 2,345 passes and seven compiled voice/interaction failures; its emitted composer file was found empty. This run is not accepted as successful validation. A complete rebuild and fresh regression run follow; no assertions were weakened. The cause of the transient empty emitted asset is not established.
+
+### Final follow-up validation
+
+- TypeScript: PASS. Full ordered build: PASS.
+- `TZ=UTC node --test --test-concurrency=2 tests/*.test.mjs`: **2,352 passed, zero failed/skipped/cancelled** (73.583 seconds). All original 2,350 cases retained plus two operator tests.
+- `TZ=Europe/Istanbul node --test tests/ai-intelligence-foundation.test.mjs`: **20 passed, zero failures**.
+- Emitted composer SHA-256 before and after final regressions: `3c6b20159ca8f0c2cc30119eba478797e7a2cb899f4ef55b7e5e8aa1b2ea850e`. The formerly failing voice/interaction tests all pass.
+- Emitted `AiCopilot.js` SHA-256 remains `747a59872bb567920973382ba00c78837e7b7c3083966b68eb8a48b4a8070b07`. Approval module SHA-256: `18d7be554c3ec4dcbc1c166da85bea178f035d57506dbbd7365e5f32f17a2e5d`.
+- `git diff --check`: PASS. No new dependencies/services, changes to encryption or non-AI governance, merge or Production deployment.
+- Remaining limitations are unchanged: authenticated live AI/voice/device QA pending; conservative snapshot invalidation; separate approval journal/vault stores; legacy postbuild debt and retained source-size limits. The transient empty emitted asset in the discarded run has no established root cause; final run verifies unchanged nonempty bytes.
+- Review: https://github.com/allidamech-bot/INVOICE/pull/693. The remote commit/tree identity is verified in the PR handoff.

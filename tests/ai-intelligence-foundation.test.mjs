@@ -1,3 +1,4 @@
+import { reliabilityRuntimeModules } from './helpers/ai-reliability-runtime.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -64,6 +65,27 @@ test('commit bridge rechecks stale envelope inside the real mutation callback',a
  let writes=0;registerVaultMutationBridge(async mutation=>{const next=mutation(changed);writes++;return next;});
  await assert.rejects(()=>applyApprovedToolExecution(p),/changed since review/);assert.equal(writes,0);
 });
+test('missing, inactive, duplicate or invalid selected operators cannot fall back to owner approval',()=>{
+ for(const variant of ['missing','inactive','duplicate','invalid-role']){
+  const v=emptyVault();v.teamMembers.push({...v.teamMembers[0],id:'selected',role:'viewer'});v.appSettings.activeTeamMemberId='selected';
+  if(variant==='missing')v.teamMembers=v.teamMembers.filter(member=>member.id!=='selected');
+  if(variant==='inactive')v.teamMembers[1].status='inactive';
+  if(variant==='duplicate')v.teamMembers.push({...v.teamMembers[1],role:'owner'});
+  if(variant==='invalid-role')v.teamMembers[1].role='unknown';
+  assert.throws(()=>prepareFoundationApproval(v,proposal(),scope),/operator/);
+ }
+});
+test('operator removal or deactivation after review blocks the actual mutation callback',async()=>{
+ const {registerVaultMutationBridge}=await import('../dist/src/storage/vault-mutation-bridge.js');
+ const {applyApprovedToolExecution}=await import('../dist/src/lib/ai-tool-actions.js');
+ for(const variant of ['removed','inactive']){
+  const v=emptyVault();v.teamMembers.push({...v.teamMembers[0],id:'reviewer'});v.appSettings.activeTeamMemberId='reviewer';
+  const p={capability:'tool.execute',tool:'product.bulkUpdate',args:{rows:[]},label:'Review'};p.foundationApproval=prepareFoundationApproval(v,p,scope);
+  const changed=structuredClone(v);if(variant==='removed')changed.teamMembers.pop();else changed.teamMembers[1].status='inactive';
+  let writes=0;registerVaultMutationBridge(async mutation=>{const next=mutation(changed);writes++;return next;});
+  await assert.rejects(()=>applyApprovedToolExecution(p),/operator/);assert.equal(writes,0);
+ }
+});
 test('duplicate names are blocked across customers, suppliers and products',()=>{
  const v=emptyVault();v.customers=[person('1','Twin'),person('2','Twin')];v.suppliers=[{id:'1',nameEn:'Twin'},{id:'2',nameEn:'Twin'}];v.savedItems=[{id:'1',descriptionEn:'Twin'},{id:'2',descriptionEn:'Twin'}];
  const runtime=createAiToolRuntime(v,{assistantRuntime:scope});
@@ -93,7 +115,7 @@ async function runtimeHarness(){
  const store=await import('data:text/javascript;base64,'+Buffer.from(storeSource).toString('base64')+'#'+crypto.randomUUID());
  const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
  const session={key,vault:emptyVault()};
- globalThis.__foundationRuntimeModules={...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
+ globalThis.__foundationRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__foundationDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
  let runtimeSource=await readFile('dist/src/lib/ai-intelligence-runtime.js','utf8');
  runtimeSource=runtimeSource.replace(/import \{([\s\S]*?)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.__foundationRuntimeModules;`);
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(runtimeSource).toString('base64')+'#'+crypto.randomUUID());
