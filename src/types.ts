@@ -648,6 +648,7 @@ export interface PlainWorkspaceRecord {
   schemaVersion: number;
   updatedAt: string;
   baseCloudRevision: string | null;
+  baseCloudSha256: string | null;
 }
 
 export interface VaultPayload {
