@@ -177,3 +177,15 @@ test('provider response body that never settles is hard-timed-out, not left spin
   assert.equal(result.errorCode,'AI_TIMEOUT');
   assert.equal(calls,1);
 });
+
+
+test('browser AI request maps provider failures to bilingual retry guidance',()=>{
+  const source=readFileSync(new URL('../src/lib/ai-request.ts',import.meta.url),'utf8');
+  assert.match(source,/timeoutMs=60_000/);
+  for(const code of ['AI_RATE_LIMITED','AI_TIMEOUT','AI_NOT_CONFIGURED','AI_TEMPORARILY_UNAVAILABLE'])
+    assert.ok(source.includes(code),code+' must have an explicit user-facing message');
+  assert.match(source,/مزوّدو الذكاء الاصطناعي مشغولون مؤقتًا/);
+  assert.match(source,/استغرق رد الذكاء الاصطناعي وقتًا أطول/);
+  assert.match(source,/تحتاج جلسة حساب Firebase إلى التحديث/);
+  assert.match(source,/new AiRequestError\(aiPublicErrorMessage\(code,response.status/);
+});
