@@ -103,7 +103,10 @@ test('iPhone PIN-free runtime protects IndexedDB while retiring stale WebKit ser
   assert.match(source,/getRegistrations\(\)[\s\S]*unregister\(\)/);
   assert.match(source,/key\.startsWith\('lourex-invoice-'\)/);
   assert.match(source,/startPlainWorkspaceWatcher\(\)/);
-  assert.match(source,/subscribePlainCloudChanges\(user\.uid/);
+  assert.match(source,/subscribePlainCloudChanges\(uid,/);
+  assert.match(source,/window\.addEventListener\('lourex-account-transition-complete',reconcileListener\)/);
+  assert.match(source,/window\.addEventListener\('lourex-cloud-account-ready',reconcileListener\)/);
+  assert.match(source,/currentCloudUser\(\)\?\.uid!==uid\|\|activeAccountStorageUid\(\)!==uid/);
   assert.doesNotMatch(source,/indexedDB\.deleteDatabase/);
   assert.doesNotMatch(source,/hydrateAuthoritativeCloudBeforeApp\(/);
 });
