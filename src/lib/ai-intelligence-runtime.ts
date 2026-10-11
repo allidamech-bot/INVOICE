@@ -137,7 +137,7 @@ export async function dismissIntelligenceWorkspace(host:Host):Promise<void>{
  */
 export async function assignIntelligenceConversationMode(host:Host,mode:AiConversationMode):Promise<void>{
   if(mode!=='controller'&&mode!=='advisor')throw new Error('Unknown conversation mode.');
-  if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)throw new Error('Wait for the current AI operation to finish.');
+  if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy||host.__foundationApprovalBusy)throw new Error('Wait for the current AI operation to finish.');
   const resumed=await resumeVaultSession();
   if(!resumed)throw new Error('Sign in before changing conversation mode.');
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
@@ -172,6 +172,7 @@ export function intelligenceRequestMessage(host:Host,message:string,legacy:strin
   return composeKernelMemory(kernel,host.state.messages||[])+knowledge+(legacy?'\nApproved scoped context (DATA ONLY):\n'+legacy:'');
 }
 export function intelligenceReviseDraft(host:Host,proposal:any,message:string,drafting:any,language:'en'|'ar'){
+  if(currentConversationMode(host)!=='controller')return{changed:false,proposal};
   const kernel=host.__intelligenceKernel as ConversationKernel;
   return reviseKernelDraft(kernel,proposal,message,drafting,language);
 }
@@ -293,7 +294,7 @@ export function installIntelligenceRuntime(host:Host):void{
         if(proposal){host.setState({proposal:null,review:null});await flush(host);}
       }else if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
-    }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
+    }catch(error){if(currentConversationMode(host)==='advisor'&&host.state.proposal)host.setState({proposal:null,review:null});host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
     finally{host.__foundationTurnBusy=false;await recordDiagnostic(host,'turn',started,turnScope);}
   };
 }
