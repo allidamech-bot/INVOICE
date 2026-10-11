@@ -24,8 +24,14 @@ test('failed scoped conversation hydration exposes retry instead of an endless l
   assert.match(source,/host\.setState\(\{__workspaceLoadError:''\},\(\)=>void host\.__workspaceRefresh\?\.\(\)\)/);
   assert.match(source,/role="status"[^\n]*Loading scoped conversation/);
   assert.match(source,/if\(classes\.includes\('lourex-ai-proposal'\)\)return null/);
-  assert.match(source,/catch\(error\)\{host\.__workspaceObservedProps=undefined;host\.__foundationVault=undefined/);
-  assert.match(source,/host\.setState\(\{__workspaceLoadError:''\}\);\}catch\(error\)/);
+  assert.match(source,/host\.__workspaceObservedProps=undefined;host\.__foundationVault=undefined/);
+  assert.match(source,/host\.setState\(\{__workspaceLoadError:''\}\)/);
+  assert.match(source,/window\.setTimeout\(\(\)=>\{/);
+  assert.match(source,/20_000/);
+  assert.match(source,/host\.__workspaceLoadGeneration===generation/);
+  assert.match(source,/host\.__workspaceLoadGeneration!==generation/);
+  assert.match(source,/window\.clearTimeout\(host\.__workspaceLoadTimer\)/);
+  assert.match(source,/unmountConversationWorkspace\(host:Host\)/);
   assert.match(source,/setState\(\{__workspaceLoadError:error instanceof Error/);
   assert.doesNotMatch(source,/host\.state\.error\s*\?\s*<div role="alert" className="lxw-load-error"/);
   assert.ok(source.includes("'data-workspace-ready':'false'"));
