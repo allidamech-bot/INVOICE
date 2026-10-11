@@ -58,8 +58,13 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   host.__intelligenceKernel=thread?normalizeConversationKernel(thread.kernel,scope):newConversationKernel(scope);
   host.__foundationReceipts=thread?.foundationReceipts||[];
   host.__foundationVault=vault;
-  if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
-  if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;const review=reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');host.setState({proposal,review});await flush(host);}
+  // Read-only Advisor must never surface or re-stage a stored execution proposal.
+  if(currentConversationMode(host)==='advisor'){
+    if(host.state.proposal||host.state.review){host.setState({proposal:null,review:null});await flush(host);}
+  }else{
+    if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
+    if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;const review=reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');host.setState({proposal,review});await flush(host);}
+  }
 }
 /** Refresh when opening/switching workspace, not only when sending a model request. */
 export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
@@ -96,7 +101,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   if(!live||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(scope))
     throw new Error('Account, conversation or workspace changed during loading.');
   const proposal=host.state.proposal;
-  if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft'){
+  if(currentConversationMode(host)==='controller'&&(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')){
     stageKernelArtifact(host.__intelligenceKernel,proposal);
     host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
   }
