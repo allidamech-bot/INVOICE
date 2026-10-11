@@ -53,3 +53,10 @@ test('financial review is a single specialized view, not a second giant grid',()
   assert.match(styles,/\.lxw-review-warnings\{/);
   assert.match(styles,/@media\(max-width:430px\)/);
 });
+
+test('inline document approval is only visible after explicit review',()=>{
+  assert.match(component,/function InlineDocumentApproval/);
+  assert.match(component,/reviewed&&originalButtons\.length/);
+  assert.match(component,/__workspaceReviewedProposal===host\.state\.proposal/);
+  assert.match(styles,/@keyframes lxwActionAppear/);
+});
