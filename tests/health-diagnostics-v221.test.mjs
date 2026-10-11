@@ -30,7 +30,7 @@ test('health diagnostics recognize current scoped databases without opening or r
 
 test('health diagnostics retain privacy-scoped storage without accessing customer or invoice data',()=>{
   assert.match(health,/It does not open or print decrypted business content/i);
-  assert.match(health,/لا يتم تسجيل أسماء العملاء أو المستندات أو المبالغ أو كلمات المرور أو PIN أو محتوى المرفقات/);
+  assert.match(health,/لا يتم تسجيل أسماء العملاء أو المستندات أو المبالغ أو كلمات المرور أو رموز تسجيل الدخول أو محتوى المرفقات/);
   assert.match(healthScript,/Encrypted local storage/);
   assert.match(healthScript,/indexedDB\.databases\(\)/);
   assert.match(healthScript,/vault\.fingerprint!==scope\.fingerprint/);
