@@ -7,6 +7,7 @@ import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntel
 import { normalizeAiConversationMode, conversationModeDescription, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 import { kernelScopeKey, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { activeAccountStorageUid } from '../storage/db.js';
+import { lineTotal } from '../lib/money.js';
 
 // Narrow compatibility adapter: existing chat, composer, history, voice and guarded
 // approval owners remain intact. All new presentation is precompiled TSX.
@@ -34,6 +35,43 @@ export function RegisteredWorkspaceCard({descriptor,onPick,busy}:{descriptor:unk
 function CellEditor({value,numeric,onCommit,name,busy}:{value:string;numeric:boolean;onCommit:(value:string)=>void;name:string;busy:boolean}):any {
   const [input,setInput]=React.useState(value);
   return <input value={input} aria-label={name} inputMode={numeric?'decimal':'text'} dir={numeric?'ltr':undefined} maxLength={numeric?24:160} disabled={busy} onChange={(event:any)=>setInput(event.target.value)} onBlur={()=>{if(input!==value){onCommit(input);setInput(value);}}} onKeyDown={(event:any)=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}}/>;
+}
+/** Accessible, read-only document review. All amounts come from LOUREX money math,
+ * never model-generated totals; missing/invalid prices remain visibly unknown. */
+function QuotePreviewSummary({doc,ar}:{doc:WorkspaceDocument;ar:boolean}):any {
+  const amount=(quantity:string,price:string):string=>{
+    if(!quantity||!price)return '—';
+    try{return lineTotal(quantity,price);}catch{return '—';}
+  };
+  const subtotal=doc.subtotal===null?'—':doc.subtotal;
+  return <div className="lxw-document-review" aria-label={label(ar,'Quotation or invoice review','مراجعة المستند المالي')}>
+    <header className="lxw-review-banner">
+      <span className="lxw-review-kicker">{label(ar,'LOUREX · Document review','LOUREX · مراجعة المستند')}</span>
+      <strong>{doc.title||label(ar,'Document preview','معاينة المستند')}</strong>
+      <span className="lxw-review-state">{doc.status==='saved'?label(ar,'Saved · read only','محفوظ · للقراءة'):label(ar,'Working draft · not saved','مسودة عمل · غير محفوظة')}</span>
+    </header>
+    <dl className="lxw-review-facts">
+      <div><dt>{label(ar,'Customer','العميل')}</dt><dd>{doc.customer||label(ar,'Not selected','لم يحدد بعد')}</dd></div>
+      <div><dt>{label(ar,'Currency','العملة')}</dt><dd dir="ltr">{doc.currency}</dd></div>
+    </dl>
+    <section className="lxw-review-section" aria-label={label(ar,'Items and prices','الأصناف والأسعار')}>
+      <div className="lxw-review-heading"><strong>{label(ar,'Items and prices','الأصناف والأسعار')}</strong><span>{doc.rows.length} {label(ar,'lines','أصناف')}</span></div>
+      {doc.rows.length?<ol className="lxw-review-items">{doc.rows.map((row,i)=>{
+        const total=amount(row.quantity,row.unitPrice);
+        const name=(ar?row.descriptionAr||row.descriptionEn:row.descriptionEn||row.descriptionAr)||label(ar,'Unnamed item','صنف بدون وصف');
+        return <li key={row.id} className="lxw-review-item">
+          <div className="lxw-review-item-heading"><span className="lxw-review-index" aria-hidden="true">{i+1}</span><strong>{name}</strong><b dir="ltr" className={total==='—'?'lxw-review-unknown':'lxw-review-amount'}>{total==='—'?'—':total+' '+doc.currency}</b></div>
+          <dl><div><dt>{label(ar,'Quantity','الكمية')}</dt><dd dir="ltr">{row.quantity||'—'} {row.unit}</dd></div><div><dt>{label(ar,'Unit price','سعر الوحدة')}</dt><dd dir="ltr">{row.unitPrice||'—'} {doc.currency}</dd></div></dl>
+          {total==='—'?<small className="lxw-review-unknown">{label(ar,'Price or quantity needs review','الكمية أو السعر يحتاج مراجعة')}</small>:null}
+        </li>;
+      })}</ol>:<p className="lxw-review-unknown">{label(ar,'No item lines yet.','لم تُضف أصناف بعد.')}</p>}
+    </section>
+    {doc.terms.length?<section className="lxw-review-section" aria-label={label(ar,'Commercial terms','الشروط التجارية')}><div className="lxw-review-heading"><strong>{label(ar,'Terms and delivery','الشروط والتسليم')}</strong></div><dl className="lxw-review-terms">{doc.terms.map((row,i)=><div key={i}><dt>{fieldLabel(ar,row.label)}</dt><dd>{row.value}</dd></div>)}</dl></section>:null}
+    {doc.diff.length?<section className="lxw-review-section" aria-label={label(ar,'Pending changes','التغييرات للمراجعة')}><div className="lxw-review-heading"><strong>{label(ar,'Changes to review','الفروق قبل الاعتماد')}</strong><span>{doc.diff.length}</span></div><dl className="lxw-review-diff">{doc.diff.map((row,i)=><div key={i}><dt>{fieldLabel(ar,row.field)}</dt><dd><span>{row.before||'—'}</span><span aria-hidden="true">→</span><strong>{row.after||'—'}</strong></dd></div>)}</dl></section>:null}
+    <div className="lxw-review-subtotal"><span>{label(ar,'Item subtotal','المجموع الفرعي للأصناف')}</span><strong dir="ltr">{subtotal==='—'?'—':subtotal+' '+doc.currency}</strong></div>
+    <p className="lxw-review-disclaimer">{doc.status==='saved'?label(ar,'Read-only record. This item subtotal excludes tax, discounts and freight; the original document has the complete totals.','سجل للقراءة فقط. المجموع الفرعي للأصناف لا يشمل الضريبة والخصومات والشحن؛ الإجماليات الكاملة في المستند الأصلي.'):label(ar,'Review-only draft. This item subtotal excludes tax, discounts and freight. Nothing is saved by opening this preview.','مسودة للمراجعة فقط. المجموع الفرعي لا يشمل الضريبة والخصومات والشحن؛ فتح هذه المعاينة لا يحفظ أي شيء.')}</p>
+    {doc.blockers.length?<div className="lxw-review-warnings" role="status"><strong>{label(ar,'Complete before approval','أكمل قبل الموافقة')}</strong><ul>{doc.blockers.map((value,i)=><li key={i}>{value}</li>)}</ul></div>:null}
+  </div>;
 }
 function PricingGrid({host,doc,editable}:{host:Host;doc:WorkspaceDocument;editable:boolean}):any {
   const [page,setPage]=React.useState(0),ar=host.props.language==='ar',rows=doc.rows.slice(page*10,page*10+10);
@@ -75,7 +113,16 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const pick=(kind:'customer'|'product',id:string)=>{if(doc?.status==='draft')dispatch(host,{kind,artifactId:doc.id,revision:doc.revision,entityId:id});};
   const evidence=host.__lourexLatestContext?.advisorV2?.evidence||[];
   return <aside className="lxw-artifact" aria-label={label(ar,'Document workspace','مساحة المستند')}><header className="lxw-artifact-head"><div><strong>{workspaceText(ar,doc?.title||'')||label(ar,'Your workspace','مساحة عملك')}</strong><span className={'lxw-badge '+(doc?.status||'draft')}>{doc?.status==='saved'?label(ar,'Saved in LOUREX','محفوظ في LOUREX'):label(ar,'Draft · unsaved','مسودة · غير محفوظة')}</span></div><button type="button" className="lxw-back" onClick={()=>host.setState({__workspacePane:'chat',__workspaceOpen:false})}>{label(ar,'Back to chat','العودة للمحادثة')}</button></header><div className="lxw-tabs" aria-label={label(ar,'Workspace views','طرق عرض مساحة العمل')}>{[['preview','Preview','المعاينة'],['edit','Edit','تعديل'],['customer','Customer','العميل'],['product','Products','الأصناف'],['files','Files','الملفات'],['revisions','Revisions','التعديلات'],['evidence','Evidence','الأدلة'],['commercial','Deal studio','استوديو الصفقة'],['missions','Missions','المهام'],['knowledge','Memory','الذاكرة'],['reliability','Review','المراجعة'],['diagnostics','Reliability','الموثوقية']].map(([value,en,arabic])=><button key={value} type="button" aria-pressed={tab===value} onClick={()=>choose(value!)}>{label(ar,en!,arabic!)}</button>)}</div><div className="lxw-artifact-content">{error||host.state.error?<p role="alert">{workspaceError(ar,error||host.state.error)}</p>:null}
-    {(tab==='preview'||tab==='edit')&&doc?<><section data-workspace-component="QuotePreview"><p><strong>{doc.customer||label(ar,'Select a customer','حدد العميل')}</strong> · <b dir="ltr">{doc.currency}</b></p>{doc.status==='draft'?<div className="lxw-revision-controls"><span>{label(ar,'Revision','التعديل')} {doc.revision}</span><button type="button" disabled={!kernel.artifact?.undo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Undo','تراجع')}</button><button type="button" disabled={!kernel.artifact?.redo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Redo','إعادة')}</button>{tab==='edit'?<button type="button" aria-pressed={editable} disabled={disabled(host)} onClick={()=>host.setState({__workspaceEditing:!editable})}>{label(ar,editable?'Finish editing':'Edit draft cells',editable?'إنهاء التعديل':'تعديل خانات المسودة')}</button>:null}</div>:null}<PricingGrid key={doc.id+':'+tab} host={host} doc={doc} editable={tab==='edit'&&editable}/>{tab==='edit'&&doc.status==='draft'?<ManualLine key={doc.id} host={host} doc={doc}/>:null}<div className="lxw-subtotal"><span>{label(ar,'Item subtotal','المجموع الفرعي للأصناف')}</span><b dir="ltr">{doc.subtotal??'—'} {doc.currency}</b></div><p className="lxw-note">{doc.status==='saved'?label(ar,'Read-only saved record. Item subtotal excludes tax, discounts and freight; open the document for its full totals and final PDF.','سجل محفوظ للقراءة. المجموع الفرعي لا يشمل الضرائب والخصومات والشحن؛ افتح المستند لإجمالياته الكاملة وPDF النهائي.'):label(ar,'Item subtotal excludes tax, discounts and freight. This is a working preview; it is not a saved invoice or a final PDF.','المجموع الفرعي لا يشمل الضرائب والخصومات والشحن. هذه معاينة عمل؛ ليست فاتورة محفوظة أو PDF نهائيًا.')}</p><RegisteredWorkspaceCard descriptor={{component:'QuotePreview',rows:doc.terms.map((row,i)=>({id:String(i),label:fieldLabel(ar,row.label),detail:row.value}))}}/>{doc.blockers.length?<div role="status" className="lxw-blockers"><strong>{label(ar,'Complete before approval','أكمل قبل الموافقة')}</strong><ul>{doc.blockers.map((row,i)=><li key={i}>{row}</li>)}</ul></div>:null}</section></>:null}
+    {(tab==='preview'||tab==='edit')&&doc?<section data-workspace-component="QuotePreview">
+      {tab==='preview'?<QuotePreviewSummary doc={doc} ar={ar}/>:<>
+        <p><strong>{doc.customer||label(ar,'Select a customer','حدد العميل')}</strong> · <b dir="ltr">{doc.currency}</b></p>
+        {doc.status==='draft'?<div className="lxw-revision-controls"><span>{label(ar,'Revision','التعديل')} {doc.revision}</span><button type="button" disabled={!kernel.artifact?.undo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Undo','تراجع')}</button><button type="button" disabled={!kernel.artifact?.redo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Redo','إعادة')}</button><button type="button" aria-pressed={editable} disabled={disabled(host)} onClick={()=>host.setState({__workspaceEditing:!editable})}>{label(ar,editable?'Finish editing':'Edit draft cells',editable?'إنهاء التعديل':'تعديل خانات المسودة')}</button></div>:null}
+        <PricingGrid key={doc.id+':edit'} host={host} doc={doc} editable={editable}/>
+        {doc.status==='draft'?<ManualLine key={doc.id} host={host} doc={doc}/>:null}
+        <div className="lxw-subtotal"><span>{label(ar,'Item subtotal','المجموع الفرعي للأصناف')}</span><b dir="ltr">{doc.subtotal??'—'} {doc.currency}</b></div>
+        <p className="lxw-note">{label(ar,'Working items exclude taxes, freight and discounts. Review the full document before saving.','مجموع الأصناف لا يشمل الضرائب والشحن والخصومات. راجع المستند كاملًا قبل الحفظ.')}</p>
+      </>}
+    </section>:null}
     {(tab==='preview'||tab==='edit')&&!doc?<p>{label(ar,'Ask LOUREX to prepare a quotation, or open a saved document from the chat.','اطلب من LOUREX تجهيز عرض سعر، أو افتح مستندًا محفوظًا من المحادثة.')}</p>:null}
     {tab==='customer'?<><h3>{label(ar,'Choose the exact customer','اختر العميل المحدد')}</h3><RegisteredWorkspaceCard descriptor={{component:'CustomerPicker',rows:drafting.customers.map(row=>({id:row.id,label:row.name,detail:row.preferredCurrency+' · '+row.paymentTerms}))}} busy={disabled(host)||doc?.status!=='draft'||kernel.artifact?.proposal.capability!=='document.createDraft'} onPick={id=>pick('customer',id)}/></>:null}
     {tab==='product'?<><h3>{label(ar,'Add a product to this draft','أضف صنفًا لهذه المسودة')}</h3><RegisteredWorkspaceCard descriptor={{component:'ProductPicker',rows:drafting.items.map(row=>({id:row.id,label:row.name,detail:[row.sku,row.unit,row.lastUnitPrice,row.lastCurrency].filter(Boolean).join(' · ')}))}} busy={disabled(host)||doc?.status!=='draft'} onPick={id=>pick('product',id)}/><p className="lxw-note">{label(ar,'A recorded price is used only when its currency matches. Otherwise enter a price; no FX rate is inferred.','يستخدم السعر المسجل عند تطابق العملة فقط. خلاف ذلك أدخل السعر؛ لا يُفترض سعر صرف.')}</p></>:null}
