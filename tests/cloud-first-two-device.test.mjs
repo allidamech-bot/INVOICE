@@ -39,8 +39,9 @@ async function client(firebase,uid){
   const db={
     activeAccountStorageUid:()=>uid,
     getPlainWorkspace:async()=>state.local,
-    acknowledgePlainWorkspace:async(_uid,localRevision,revision,sha)=>{
-      if(state.local?.localRevision!==localRevision)return false;
+    acknowledgePlainWorkspace:async(_uid,localRevision,revision,sha,expectedParent)=>{
+      if(state.local?.localRevision!==localRevision||
+         state.local?.baseCloudRevision!==expectedParent)return false;
       state.local={...state.local,baseCloudRevision:revision,baseCloudSha256:sha};return true;
     },
     replacePlainWorkspaceIfUnchanged:async(_uid,expected,replacement,reason)=>{
@@ -128,4 +129,27 @@ test('prior authoritative cloud revision is archived atomically alongside replac
   assert.equal(history.length,1,'the replaced manifest must have an archived recovery point');
   assert.equal(history[0][1].revision,previous);
   assert.equal(history[0][1].sha256.length,64);
+});
+
+test('explicit Keep This Device choice publishes conflict safely and rebases its local cloud anchor',async()=>{
+  const firebase=fakeFirebase();
+  const a=await client(firebase,'user-1'),b=await client(firebase,'user-1');
+  a.state.local=local(payload());
+  assert.equal(await a.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  assert.equal(await b.api.reconcilePlainCloudWorkspace('user-1'),'pulled');
+  const originalParent=b.state.local.baseCloudRevision;
+  a.state.local={...a.state.local,localRevision:webcrypto.randomUUID(),
+    payload:{...a.state.local.payload,customers:[{id:'A'}]}};
+  assert.equal(await a.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  b.state.local={...b.state.local,localRevision:webcrypto.randomUUID(),
+    payload:{...b.state.local.payload,customers:[{id:'B'}]}};
+  assert.equal(await b.api.reconcilePlainCloudWorkspace('user-1'),'diverged');
+  assert.equal(await b.api.uploadPlainCloudWorkspace('user-1',b.state.local,true),'pushed');
+  assert.notEqual(b.state.local.baseCloudRevision,originalParent);
+  assert.equal(await b.api.reconcilePlainCloudWorkspace('user-1'),'same');
+  const c=await client(firebase,'user-1');
+  assert.equal(await c.api.reconcilePlainCloudWorkspace('user-1'),'pulled');
+  assert.equal(c.state.local.payload.customers[0].id,'B');
+  const archived=[...firebase.docs.keys()].filter(k=>k.includes('/workspaceHistory/'));
+  assert.ok(archived.length>=2,'displaced remote manifest retained for recovery');
 });
