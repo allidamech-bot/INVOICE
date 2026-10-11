@@ -132,7 +132,7 @@ async function deleteUncommittedChunks(uid:string,revision:string,count:number):
   }
 }
 
-export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceRecord):Promise<'same'|'pushed'|'remote-changed'>{
+export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceRecord,replaceRemote=false):Promise<'same'|'pushed'|'remote-changed'>{
   requireUid(uid);
   if(local.uid!==uid||local.schemaVersion!==local.payload?.schemaVersion)throw new Error('Invalid local workspace identity.');
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Offline: cloud upload will retry when connected.');
@@ -143,7 +143,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     await acknowledgePlainWorkspace(uid,local.updatedAt,previous.revision,hash);
     return 'same';
   }
-  if((previous?.revision??null)!==(local.baseCloudRevision??null))
+  if(!replaceRemote&&(previous?.revision??null)!==(local.baseCloudRevision??null))
     return 'remote-changed';
   const revision=newRevision(),count=Math.ceil(bytes.length/CHUNK_BYTES);
   const meta:PlainCloudMeta={
