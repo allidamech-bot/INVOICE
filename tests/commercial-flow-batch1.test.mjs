@@ -50,18 +50,22 @@ test('Documents workspace receives real lifecycle evidence and renders Commercia
   assert.match(panel,/buildCommercialFlowSnapshot/);
 });
 
-test('Commercial tracking persists through the registered encrypted vault mutation bridge',async()=>{
-  const panel=await read('src/components/CommercialFlowPanel.tsx');
-  const bridge=await read('src/storage/vault-mutation-bridge.ts');
-  const runtime=await read('src/app/index.tsx');
+test('Commercial tracking persists through the registered V2 validated UID-scoped mutation bridge',async()=>{
+  const [panel,bridge,runtime,app]=await Promise.all([
+    read('src/components/CommercialFlowPanel.tsx'),
+    read('src/storage/vault-mutation-bridge.ts'),
+    read('src/app/index.tsx'),read('src/app/App.tsx')
+  ]);
   assert.match(panel,/mutateVaultSafely/);
   assert.match(panel,/validatedCommercialTrackingEvent\(vault,document\.id,kind,payload\)/);
   assert.match(panel,/documentEvents:\[\.\.\.vault\.documentEvents,event\]/);
   assert.match(bridge,/registerVaultMutationBridge/);
   assert.match(runtime,/registerVaultMutationBridge\(async mutation=>/);
-  assert.match(runtime,/saveVault\(key,next\)/);
-  assert.match(runtime,/instance\.vaultWriteTail=operation/);
-  assert.match(runtime,/instance\.scheduleCloudSync\(\)/);
+  assert.match(runtime,/await instance\.persistFullMutation\(/);
+  assert.match(runtime,/mergeVaultIntent\(latest,intended,latest\)/);
+  assert.match(app,/updatePlainWorkspaceIfUnchanged\(uid,local\.localRevision,next\)/);
+  assert.match(app,/this\.scheduleCloudSync\(\)/);
+  assert.doesNotMatch(runtime,/saveVault\(key,next\)/);
 });
 
 test('Commercial tracking events use the encrypted event ledger without changing schema or lifecycle event labels',async()=>{
