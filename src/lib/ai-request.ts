@@ -3,6 +3,9 @@ import { currentCloudIdToken } from '../cloud/firebase.js';
 
 // Allow the server's provider failover to finish, but never leave a source UI
 // waiting indefinitely. Cancellation includes reading the response body.
+export class AiRequestError extends Error {
+  constructor(message:string,readonly code:string,readonly status:number){super(message);this.name='AiRequestError';}
+}
 export async function requestAiJson(endpoint:string,payload:unknown,signal?:AbortSignal,timeoutMs=60_000):Promise<any>{
   const controller=new AbortController();let timedOut=false;
   const cancel=()=>controller.abort();
@@ -16,7 +19,7 @@ export async function requestAiJson(endpoint:string,payload:unknown,signal?:Abor
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     let body:any=null;try{body=await response.json();}catch{}
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
-    if(!response.ok)throw new Error(String(body?.message||t('LOUREX AI could not process this request.','تعذر على ذكاء LOUREX معالجة الطلب.')));
+    if(!response.ok)throw new AiRequestError(body?.code==='AI_NOT_CONFIGURED'?t('AI providers are not configured for this deployment. No data was changed.','مزوّدو AI غير مهيّئين لهذه النسخة من الموقع. لم تتغير أي بيانات.'):String(body?.message||t('LOUREX AI could not process this request.','تعذر على ذكاء LOUREX معالجة الطلب.')),String(body?.code||''),response.status);
     if(!body||typeof body!=='object'||Array.isArray(body))throw new Error(t('AI returned an unreadable response. Retry the analysis.','وصل رد غير قابل للقراءة من AI. أعد التحليل.'));
     return body;
   }catch(error){

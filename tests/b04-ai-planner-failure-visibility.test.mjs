@@ -63,6 +63,15 @@ test('B04: network failure for an action gives a clear retry instruction',async(
   });
 });
 
+test('missing deployment providers report configuration failure without preparing any action',async()=>{
+  for(const language of ['en','ar'])await withPlannerReply(ok({code:'AI_NOT_CONFIGURED',message:'Unavailable'},503),async calls=>{
+    const result=await request('Create a new invoice draft',{language});
+    assert.equal(calls(),1);assert.equal(result.proposal,null);assert.equal(result.results.length,0);assert.equal(result.plan.calls.length,0);
+    assert.match(result.answer,language==='ar'?/غير مهيّئين/:/not configured/);
+    assert.match(result.answer,language==='ar'?/لم يتم تجهيز الإجراء/:/No action was prepared/);
+  });
+});
+
 test('B04: non-action read/chat fallback retains existing natural-language behavior',async()=>{
   await withPlannerReply(ok({plan:{version:1,goal:'lookup',calls:[]}}),async()=>{
     const result=await request('Compare customer options for a new loyalty campaign');

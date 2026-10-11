@@ -77,3 +77,65 @@ Existing architecture gaps (connected external research, actual team handoff and
 production telemetry) are not solved by these fixes. Historical encrypted assistant
 caches with no retained key remain preserved but unavailable; new caches start
 separately. No historical business vault is opened, modified or deleted.
+
+## Continued remediation and verification
+
+- Added manual draft lines when the product catalog is empty. Arabic digits are
+  normalized; missing descriptions/units, nonpositive quantities, negative prices,
+  exponent notation and the 21st new line are rejected without changing the draft.
+  Stable line IDs and one-step undo/redo work for new and existing drafts.
+- Replaced business starter prompts in Personal with personal preferences/tasks.
+- Kept pending, applying and uncertain missions visible; completed/cancelled/failed
+  reviews remain accessible inside a collapsed history disclosure.
+- Localized scenario assumptions and commercial delivery warnings.
+- Preserve provider error codes and distinguish missing deployment configuration
+  from network/rate-limit errors, with zero proposed actions on failure.
+- TypeScript, production build and all 494 regression files passed. The 29 targeted
+  behavioral tests and 21 workspace tests under Europe/Istanbul also passed.
+- Reopened the existing signed-in preview successfully without credentials or PIN.
+  Live verification of the new commit is pending a refreshed preview deployment.
+- Groq preview scope was enabled temporarily, then restored to production-only
+  after the update push was rejected by automatic approval review. No updated
+  preview was deployed. Credentials were never printed or copied into source.
+
+
+## Continued live findings and local repairs (latest)
+
+Live checks used the existing signed-in preview at the older remote revision;
+these observations are not acceptance evidence for the unpushed local changes.
+No invoice, customer, payment or other business record was saved or deleted.
+
+- Confirmed 144 cartons × 12 units = 1728 and rejection of fractional cartons.
+  Missing cost leaves profit and margin unknown; absent recorded FX is explicit.
+- Found stale commercial obligations after EXW → undo to CFR. Undo/redo now
+  recomputes obligations from the actual restored delivery term. Restoring empty
+  or custom historical terms clears obsolete warnings without blocking undo.
+- Found an enabled approval button for an empty restored draft after switching
+  Business → Personal → Business. Hydration and refresh now recompute blockers;
+  the approval executor also rejects incomplete proposals before any write or
+  approval receipt. Runtime tests verify zero writes/receipts for this case.
+- Empty repricing is rejected atomically instead of creating an empty revision.
+- Arabic workspace presentation translates generated labels, validation errors,
+  graph relations, mission cancellation text and diagnostics. Exact record IDs,
+  user content and planner contracts remain unchanged.
+- Selected tabs use the existing strong blue. White text contrast changes from
+  2.48:1 to 6.23:1 on the observed dark-mode active-tab background. Local timing
+  values display one decimal rather than floating-point representation noise.
+- Confirmed invalid cash horizon rejection through native date controls. The
+  automated fill alone did not commit React date state; this was not treated as
+  a product defect. The English validation message is localized in the repair.
+- Ten synthetic TXT attachments were accepted and displayed together on the
+  live preview, then removed. No real customer files were transmitted.
+- Added the new presentation module to the transitive service-worker content
+  hash so installed clients refresh it with the established cache contract.
+- Approval-success, interruption and cancellation test fixtures now contain a
+  real draft customer and line. Replay, stale approval, cancellation and the
+  100-concurrent-approval assertions remain intact.
+- Final validation: TypeScript PASS; production build PASS; all 494 regression
+  files PASS; git diff whitespace check PASS. No test was skipped or weakened.
+
+The earlier push to allidamech-bot/INVOICE PR #699 was rejected by automatic
+approval review for lack of explicit authorization for that external destination.
+The local source is reviewable; the remote branch and live preview remain older.
+Live acceptance of the new repairs, configured-provider flows and physical-device
+voice/keyboard testing remains open. Production was not deployed or modified.

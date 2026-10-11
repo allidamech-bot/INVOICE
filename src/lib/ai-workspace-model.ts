@@ -28,6 +28,7 @@ export type WorkspaceCommand =
   | { kind:'suppliers'; productId:string }
   | { kind:'cancel-mission'; missionId:string }
   | { kind:'composer'; documentKind:'proforma'|'invoice'; currency:string }
+  | { kind:'add-line'; artifactId:string; revision:number; descriptionEn:string; descriptionAr:string; quantity:string; unit:string; unitPrice:string }
   | { kind:'reprice'; artifactId:string; revision:number; currency:string; reduction:string; lastReduction:string }
   | { kind:'terms'; artifactId:string; revision:number; incoterm:string; paymentTerms:string; deliveryTime:string }
   | { kind:'focus'; focus:ConversationKernel['focus'] }
@@ -113,10 +114,18 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
   if(command.kind==='undo'||command.kind==='redo'){
     const from=command.kind==='undo'?a.undo:a.redo,fromIds=command.kind==='undo'?(a.undoLineIds||[]):(a.redoLineIds||[]);
     const to=command.kind==='undo'?a.redo:a.undo,toIds=command.kind==='undo'?(a.redoLineIds||=[]):(a.undoLineIds||=[]);
-    const next=from.pop();if(!next)throw new Error('No revision available.');to.push(p);toIds.push([...a.lineIds]);a.proposal=next;a.lineIds=fromIds.pop()||a.lineIds;a.revision++;a.lastEdit=undefined;return;
+    const next=from.at(-1);if(!next)throw new Error('No revision available.');
+    const term=(proposal:WorkspaceDraft)=>proposal.capability==='document.createDraft'?proposal.incoterm:proposal.termsPatch.incoterm??drafting.activeDocument?.terms.incoterm??'';
+    const beforeTerm=term(p),restoredTerm=term(next);
+    if(beforeTerm!==restoredTerm){
+      const obligations=/^(EXW|FCA|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP)(?:\s|$)/i.test(restoredTerm.trim())?compareIncoterms(beforeTerm,restoredTerm):undefined;
+      commercial().obligations=obligations;
+    }
+    from.pop();to.push(p);toIds.push([...a.lineIds]);a.proposal=next;a.lineIds=fromIds.pop()||a.lineIds;a.revision++;a.lastEdit=undefined;return;
   }
   if(command.kind==='reprice'){
     const doc=workspaceDocument(kernel,vault,'en')!;if(doc.currency!==command.currency)throw new Error('Repricing currency must match the draft.');
+    if(!doc.rows.length)throw new Error('Add at least one line before repricing.');
     const amount=decimal(command.reduction),last=decimal(command.lastReduction);
     // Validate the whole draft first. No partial edits, one undo revision.
     const edits=doc.rows.map((row,i)=>({row,value:decimalToScaled(decimal(row.unitPrice),4)-decimalToScaled(i===doc.rows.length-1?last:amount,4)}));
@@ -138,6 +147,14 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
     const list=p.capability==='document.createDraft'?p.items:p.addItems;if(list.length>=20)throw new Error('The existing approval limit is 20 added lines. No line was dropped.');
     const currency=p.capability==='document.createDraft'?p.currency:drafting.activeDocument!.currency;
     list.push({savedItemId:row.id,descriptionEn:row.descriptionEn,descriptionAr:row.descriptionAr,quantity:'1',unit:row.unit,unitPrice:row.lastCurrency===currency?row.lastUnitPrice:''});
+  }else if(command.kind==='add-line'){
+    const list=p.capability==='document.createDraft'?p.items:p.addItems;
+    if(list.length>=20)throw new Error('The existing approval limit is 20 added lines. No line was dropped.');
+    const descriptionEn=command.descriptionEn.trim(),descriptionAr=command.descriptionAr.trim(),unit=command.unit.trim();
+    if((!descriptionEn&&!descriptionAr)||descriptionEn.length>160||descriptionAr.length>160||!unit||unit.length>40||/[\u0000-\u001f]/.test(descriptionEn+descriptionAr+unit))throw new Error('Enter a description and unit within their limits.');
+    const quantity=normalizeDecimalInput(command.quantity),unitPrice=normalizeDecimalInput(command.unitPrice);
+    if(!/^(?:0|[1-9]\d{0,12})(?:\.\d{1,6})?$/.test(quantity)||decimalToScaled(quantity,6)<=0n||! /^(?:0|[1-9]\d{0,12})(?:\.\d{1,6})?$/.test(unitPrice))throw new Error('Enter valid decimals; quantity must be positive and price cannot be negative.');
+    list.push({savedItemId:'',descriptionEn,descriptionAr,quantity,unit,unitPrice});
   }else if(command.kind==='cell'){
     if(!['descriptionEn','descriptionAr','quantity','unit','unitPrice'].includes(command.field)||typeof command.value!=='string')throw new Error('Unsupported grid field.');
     const rows=draftRows(a,drafting),row=rows.find(row=>row.id===command.lineId);if(!row)throw new Error('Line identity is no longer available.');
@@ -153,7 +170,7 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
   if(p.capability==='document.updateDraft'){
     const base=drafting.activeDocument!.items.map(row=>row.id),isFull=base.every((id,i)=>a.lineIds[i]===id);a.lineIds=[...base,...(isFull?a.lineIds.slice(base.length):a.lineIds)];
   }
-  if(command.kind==='product')a.lineIds.push(crypto.randomUUID());
+  if(command.kind==='product'||command.kind==='add-line')a.lineIds.push(crypto.randomUUID());
   if(command.kind==='customer'||command.kind==='product'){
     const row=command.kind==='customer'?drafting.customers.find(row=>row.id===command.entityId):drafting.items.find(row=>row.id===command.entityId);
     kernel.entity={entityType:command.kind,entityId:command.entityId,label:row?.name||command.entityId};
