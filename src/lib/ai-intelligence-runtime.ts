@@ -70,6 +70,12 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||''}));
   }else{host.__businessMemories=[];host.__businessThreads=[];}
 
+  // A Personal or Temporary thread must obey the same account/thread stability
+  // rule as Business after asynchronous hydration. Never expose stale state
+  // across a user switch while local cache reads are still pending.
+  const live=await resumeVaultSession();
+  if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(scope))
+    throw new Error('Account, conversation or workspace changed during loading.');
   const proposal=host.state.proposal;
   if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft'){
     stageKernelArtifact(host.__intelligenceKernel,proposal);
