@@ -40,8 +40,10 @@ function requireUid(uid:string):void {
 function collection(uid:string):any {return firebase.firestore().collection('users').doc(uid).collection('workspace');}
 function metaRef(uid:string):any {return collection(uid).doc('meta');}
 function newRevision():string {
-  const random=new Uint8Array(12);crypto.getRandomValues(random);
-  return Date.now().toString(36)+'-'+Array.from(random,b=>b.toString(16).padStart(2,'0')).join('');
+  // Revision identity is cryptographically random, never wall-clock ordered.
+  // Only Firestore's manifest transaction decides the winner.
+  const random=new Uint8Array(16);crypto.getRandomValues(random);
+  return Array.from(random,b=>b.toString(16).padStart(2,'0')).join('');
 }
 function validMeta(value:any):value is PlainCloudMeta {
   return Boolean(value&&value.format===FORMAT&&value.version===2
@@ -165,6 +167,15 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
       const existing=snap.exists?snap.data():null;
       if(existing&&!validMeta(existing))throw new Error('The existing cloud workspace is invalid.');
       if((existing?.revision??null)!==(previous?.revision??null))return false;
+      // Archive the last authoritative manifest atomically with publishing
+      // the next one. A second network request must never be required for
+      // recovery history; in particular a successful publish can't have a
+      // missing archive due to auth loss or connectivity after the commit.
+      if(existing){
+        const historyRef=firebase.firestore().collection('users').doc(uid)
+          .collection('workspaceHistory').doc(existing.revision);
+        tx.set(historyRef,{...existing,archivedAt:new Date().toISOString()});
+      }
       tx.set(ref,meta);
       return true;
     });
@@ -172,9 +183,6 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     // Never delete the chunks even if the identity changes right here.
     if(!committed)return 'remote-changed';
     requireUid(uid);
-    if(previous){
-      try{await firebase.firestore().collection('users').doc(uid).collection('workspaceHistory').doc(previous.revision).set({...previous,archivedAt:new Date().toISOString()});}catch{}
-    }
     await acknowledgePlainWorkspace(uid,local.localRevision,revision,hash,previous?.revision??null);
     return 'pushed';
   }catch(error){
