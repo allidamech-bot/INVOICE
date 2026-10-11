@@ -137,7 +137,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
   const previous=await getPlainCloudMeta(uid);
   requireUid(uid);
   if(previous&&previous.sha256===hash){
-    await acknowledgePlainWorkspace(uid,local.localRevision,previous.revision,hash);
+    await acknowledgePlainWorkspace(uid,local.localRevision,previous.revision,hash,local.baseCloudRevision);
     return 'same';
   }
   if(!replaceRemote&&(previous?.revision??null)!==(local.baseCloudRevision??null))
@@ -175,7 +175,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     if(previous){
       try{await firebase.firestore().collection('users').doc(uid).collection('workspaceHistory').doc(previous.revision).set({...previous,archivedAt:new Date().toISOString()});}catch{}
     }
-    await acknowledgePlainWorkspace(uid,local.localRevision,revision,hash);
+    await acknowledgePlainWorkspace(uid,local.localRevision,revision,hash,previous?.revision??null);
     return 'pushed';
   }catch(error){
     // The server might have committed despite a lost response. Retain staged
@@ -209,7 +209,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   }
   const hash=await sha256(encodePayload(local.payload));
   if(hash===remote.sha256){
-    await acknowledgePlainWorkspace(uid,local.localRevision,remote.revision,hash);
+    await acknowledgePlainWorkspace(uid,local.localRevision,remote.revision,hash,local.baseCloudRevision);
     return 'same';
   }
   if(local.baseCloudRevision===remote.revision){
