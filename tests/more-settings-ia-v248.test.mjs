@@ -44,20 +44,15 @@ test('v248 Commercial consolidates primary bank, alternate banks and trade defau
   assert.match(commercial,/defaultBankAccountId/);
 });
 
-test('v248 Security exposes the real runtime session controls',async()=>{
+test('V2 Security exposes Firebase identity and cloud recovery without a PIN control',async()=>{
   const settings=await read('src/components/SettingsModal.tsx');
   const security=settings.slice(settings.indexOf('private securitySettings'),settings.indexOf('render():any'));
-  assert.match(security,/Session protection/);
-  assert.match(security,/Auto Lock/);
-  assert.match(security,/autoLockMinutes/);
-  assert.match(security,/After 5 minutes/);
-  assert.match(security,/After 15 minutes/);
-  assert.match(security,/After 30 minutes/);
-  assert.match(security,/Lock Now/);
-  assert.match(settings,/private lockNow=\(\)=>/);
-  assert.match(settings,/this\.props\.onLock\(\)/);
-  assert.match(security,/Restore from Cloud/);
-  assert.match(security,/Device PIN/);
+  assert.match(security,/Firebase account/);
+  assert.match(security,/Sign in using Google or your email and password/);
+  assert.match(security,/Restore cloud copy/);
+  assert.match(security,/confirmCloudRestore/);
+  assert.doesNotMatch(security,/Auto Lock|Lock Now|Device PIN|Change PIN|Session protection/);
+  assert.doesNotMatch(settings,/private lockNow=\(\)=>|this\.props\.onLock\(\)/);
 });
 
 test('v248 publishes a fresh installed-app generation without adding a data migration',async()=>{
