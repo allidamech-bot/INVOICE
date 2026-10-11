@@ -1,4 +1,4 @@
-import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord } from '../types.js';
+import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord, PlainWorkspaceRecord, VaultPayload } from '../types.js';
 
 const LEGACY_DB_NAME = 'lourex-invoice';
 const PUBLIC_DB_NAME = 'lourex-invoice-public';
@@ -11,7 +11,7 @@ const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
 const ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
 const VAULT_WRITE_DIAG_INTERVAL_MS=30_000;
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord;
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord | PlainWorkspaceRecord;
 
 let activeStorageUid:string|null=null;
 let dbPromise:Promise<IDBDatabase>|null=null;
@@ -281,6 +281,32 @@ export async function getSafetySnapshot():Promise<SafetySnapshotRecord|null>{
 export async function swapSafetySnapshotIntoCurrent():Promise<SafetySnapshotRecord>{
   await purgeLegacySafetySnapshot();
   throw new Error('Local recovery copies are no longer used. Restore your account data from the cloud.');
+}
+
+/** New-format workspace uses the existing physically UID-scoped account database.
+ * A legacy encrypted vault is never deleted while migrating to this record.
+ */
+export async function getPlainWorkspace():Promise<PlainWorkspaceRecord|null>{
+  const uid=activeAccountStorageUid();
+  if(!uid)throw new Error('Sign in before accessing the account workspace.');
+  const record=await getRecord<PlainWorkspaceRecord>('workspace-v2');
+  if(!record)return null;
+  if(record.uid!==uid||record.schemaVersion!==record.payload?.schemaVersion)
+    throw new Error('Account workspace belongs to a different user or has invalid metadata.');
+  return record;
+}
+export async function putPlainWorkspace(record:PlainWorkspaceRecord):Promise<void>{
+  const uid=activeAccountStorageUid();
+  if(!uid||record.uid!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
+  if(record.id!=='workspace-v2'||record.schemaVersion!==record.payload?.schemaVersion)
+    throw new Error('Invalid account workspace payload.');
+  await putRecord(record);
+}
+export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseCloudRevision:string|null):Promise<PlainWorkspaceRecord>{
+  if(activeAccountStorageUid()!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
+  const record:PlainWorkspaceRecord={id:'workspace-v2',uid,payload,schemaVersion:payload.schemaVersion,updatedAt:new Date().toISOString(),baseCloudRevision};
+  await putPlainWorkspace(record);
+  return record;
 }
 
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }
