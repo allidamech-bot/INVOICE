@@ -70,7 +70,7 @@
   function animatePlusMenu(menu,opening){
     const last=menuAnimations.get(menu);
     if(last){last.onfinish=null;last.cancel();menuAnimations.delete(menu);}
-    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const reduced=document.querySelector(PANEL)?.getAttribute('data-ai-motion')==='reduced'||window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     if(reduced||typeof menu.animate!=='function'){
       menu.hidden=!opening;
       return;
