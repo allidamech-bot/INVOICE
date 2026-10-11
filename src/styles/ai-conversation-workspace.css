@@ -113,6 +113,59 @@ html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2
  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-item-heading>b{margin-inline-start:auto;}
  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-subtotal strong{font-size:15px;}
 }
+/* Inline approval replaces the oversized legacy proposal card only for
+   document drafts; original guarded React button callbacks are preserved. */
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval{
+  display:grid;gap:8px;min-width:0;margin:6px 1px 3px;
+  padding:10px 0;border-top:1px solid #39393d;
+  color:#ededed;animation:lxwActionAppear .23s cubic-bezier(.16,1,.3,1) both;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-title{display:grid;gap:2px;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-title strong{font-size:12px;font-weight:650;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-title small{font-size:10px;color:#b3b3b7;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-row{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-row button{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  min-height:44px;padding:6px 10px;border-radius:999px;
+  font-family:inherit;font-size:11px;line-height:1.3;white-space:nowrap;
+  touch-action:manipulation;cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-preview-button{
+  border:1px solid transparent;background:transparent;color:#ededf0;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-preview-button:hover{background:#27272a;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-buttons{
+  display:flex;align-items:center;gap:5px;margin-inline-start:auto;
+  animation:lxwActionAppear .21s cubic-bezier(.16,1,.3,1) both;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-buttons button{
+  min-width:65px!important;min-height:44px!important;flex:0 0 auto!important;
+  margin:0!important;padding:7px 10px!important;border-radius:999px!important;
+  border:1px solid #525256!important;background:#222225!important;
+  color:#eeeeef!important;font-size:11px!important;font-weight:600!important;
+  box-shadow:none!important;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-buttons button.primary{
+  background:#efefef!important;border-color:#efefef!important;color:#191919!important;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-row button:disabled{opacity:.45;cursor:wait;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-row button:not(:disabled):active{transform:scale(.975);}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-complete{
+  display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+  padding:10px 14px;border-radius:11px;border:1px solid #e3e3e5;
+  background:#ededed;color:#171718;font-weight:650;cursor:pointer;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-complete:disabled{opacity:.4;cursor:not-allowed;}
+@keyframes lxwActionAppear{
+  from{opacity:0;transform:translateY(8px) scale(.985);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
+@media(prefers-reduced-motion:reduce){
+  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval,
+  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-buttons{animation:none!important;}
+  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-row button{transition:none!important;}
+}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-table-scroll{overflow:auto;max-width:100%;overscroll-behavior:contain;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-grid{border-collapse:collapse;width:100%;min-width:570px;font-size:12px;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-grid caption{text-align:start;color:var(--lxw-muted);padding:8px 0;}
