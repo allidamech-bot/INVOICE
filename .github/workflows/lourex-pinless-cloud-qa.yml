@@ -59,9 +59,8 @@ jobs:
           npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-lourex-pinless --config firebase-emulator.qa.json "node --test tests/firebase-firestore-rules-emulator.integration.mjs"
       - name: Free real-browser smoke — 390/820/1440 Chromium viewport
         run: node scripts/qa-free-chrome-smoke.mjs
-      - name: All tests diagnostic (legacy PIN assertions may be obsolete)
+      - name: Full historical regression suite — BLOCKING no skipped tests
         if: success()
-        continue-on-error: true
         shell: bash
         run: |
           set +e
@@ -71,7 +70,11 @@ jobs:
           grep -E '^[[:space:]]*ℹ (tests|pass|fail) ' "$RUNNER_TEMP/pinless-all-tests.log" || true
           echo "Full historical suite exit status: $status"
           grep -E "^[[:space:]]*✖ " "$RUNNER_TEMP/pinless-all-tests.log" | tail -n 50 || true
-          echo 'Legacy assertions require explicit review, never silently disable them.'
+          echo 'No PIN-era regression is waived: any failing test blocks this release.'
+          if [ "$status" -ne 0 ]; then
+            sed -n '/^✖ failing tests:/,$p' "$RUNNER_TEMP/pinless-all-tests.log" | head -n 500 || true
+            exit "$status"
+          fi
       - name: Print historical regression diagnostics for follow-up
         if: always()
         shell: bash
