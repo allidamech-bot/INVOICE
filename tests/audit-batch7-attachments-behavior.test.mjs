@@ -60,3 +60,28 @@ test('repeated selection retains existing sources; busy drops and over-budget ba
  add(h,[a,b]);assert.equal(h.state.conversationAttachments.length,2);assert.equal(h.state.conversationAttachments[0].id,'a');const kept=h.state.conversationAttachments;h.state.attachmentBusy=true;add(h,[new File(['c'],'c.txt')]);assert.equal(h.state.conversationAttachments,kept);assert.match(h.state.error,/stop it before adding files/);
  h.state.attachmentBusy=false;add(h,Array.from({length:9},(_,i)=>new File(['c'],`extra-${i}.txt`)));assert.equal(h.state.conversationAttachments,kept);assert.match(h.state.error,/up to 10/);
 });
+
+
+test('compiled conversation analyzer uses two workers at most and retains original attachment order',async()=>{
+ const pending=[],active={count:0,max:0};
+ const analyzeConversationAttachment=file=>new Promise(resolve=>{
+   active.count++;active.max=Math.max(active.max,active.count);
+   pending.push({name:file.name,complete:source=>{active.count--;resolve({file,source});}});
+ });
+ const run=generatedFunction('__lourexAnalyzeAttachments',{analyzeConversationAttachment});
+ const h=instance();
+ const rows=Array.from({length:4},(_,index)=>({id:'attach-'+index,status:'ready',file:{name:'source-'+index+'.txt'}}));
+ h.state.conversationAttachments=rows;
+ const job=run(h,rows);
+ assert.equal(pending.length,2,'only two remote extraction operations may be in flight');
+ pending[1].complete({id:'2'});await Promise.resolve();await Promise.resolve();
+ assert.equal(pending.length,3);
+ pending[0].complete({id:'1'});await Promise.resolve();await Promise.resolve();
+ assert.equal(pending.length,4);
+ pending[3].complete({id:'4'});pending[2].complete({id:'3'});
+ const analyses=await job;
+ assert.equal(active.max,2);
+ assert.deepEqual(Array.from(analyses,x=>x.source.id),['1','2','3','4']);
+ assert.equal(h.state.attachmentBusy,false);
+ assert.ok(h.state.conversationAttachments.every(row=>row.status==='done'));
+});
