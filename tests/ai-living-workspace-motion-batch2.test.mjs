@@ -15,6 +15,7 @@ function harness(reducedMotion=false,canAnimate=true){
   class Element {
     constructor(){this.hidden=true;this.dataset={};this.attrs={};this.inert=true;this.motions=[];this.focusCount=0;}
     setAttribute(key,value){this.attrs[key]=value;}
+    getAttribute(key){return this.attrs[key]??null;}
     querySelectorAll(){return[];}
     focus(){this.focusCount++;}
     animate(frames,options){
