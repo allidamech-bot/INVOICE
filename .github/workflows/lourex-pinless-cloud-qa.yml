@@ -57,6 +57,11 @@ jobs:
         run: |
           printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"ui":{"enabled":false}}}' > firebase-emulator.qa.json
           npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-lourex-pinless --config firebase-emulator.qa.json "node --test tests/firebase-firestore-rules-emulator.integration.mjs"
+      - name: Two independent Chromium profiles — Firebase Auth + Firestore emulator
+        shell: bash
+        run: |
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > firebase-emulator.qa.json
+          npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project lourex-invoice --config firebase-emulator.qa.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
       - name: Free real-browser smoke — 390/820/1440 Chromium viewport
         run: node scripts/qa-free-chrome-smoke.mjs
       - name: Full historical regression suite — BLOCKING no skipped tests
