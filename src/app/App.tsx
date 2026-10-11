@@ -170,7 +170,10 @@ export class App extends React.Component<{},State> {
       if(online){
         try{
           const result=await reconcilePlainCloudWorkspace(user.uid);
-          if(result==='diverged'){
+          if(result==='retry'){
+            syncState='queued';
+            syncMessage=t('A newer local edit is pending. Firebase will retry safely.','هناك تعديل محلي أحدث بانتظار المزامنة. ستُعاد المحاولة بأمان.');
+          }else if(result==='diverged'){
             if(!local){
               throw new Error('Cloud account changed while starting. Reload to retry safely.');
             }
@@ -477,6 +480,11 @@ export class App extends React.Component<{},State> {
         throw new Error('Account changed during cloud reconciliation.');
       const result=await reconcilePlainCloudWorkspace(uid);
       if(result==='diverged'){this.handleCloudConflict();return;}
+      if(result==='retry'){
+        this.cloudSyncQueued=true;
+        this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Checking newer edits before syncing.','جارٍ التحقق من التعديلات الأحدث قبل المزامنة.')});
+        return;
+      }
       if(result==='pulled'){
         const local=await getPlainWorkspace();
         if(local){
