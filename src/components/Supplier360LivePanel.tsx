@@ -18,7 +18,7 @@ export function Supplier360LivePanel({supplier}:{supplier:Supplier}):any{
     setSnapshot(null);setError('');
     void resumeVaultSession().then(session=>{
       if(!active)return;
-      if(!session){setError(t('Supplier 360 is unavailable while the encrypted vault is locked.','ملف المورد 360 غير متاح أثناء قفل الخزنة المشفرة.'));return;}
+      if(!session){setError(t('Supplier 360 is unavailable until your account workspace is ready.','ملف المورد 360 غير متاح حتى تجهز مساحة عمل حسابك.'));return;}
       setSnapshot(buildSupplier360(supplier,session.vault.purchases,session.vault.expenses,session.vault.savedItems));
     }).catch(()=>{if(active)setError(t('Unable to load Supplier 360 safely.','تعذر تحميل ملف المورد 360 بأمان.'));});
     return()=>{active=false;registerAssistantEntity('operations',null);};
