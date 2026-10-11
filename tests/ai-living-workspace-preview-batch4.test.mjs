@@ -17,8 +17,9 @@ test('document preview computes exact per-line amounts without inventing prices'
   // The general-purpose money engine treats blank input as zero; the preview
   // explicitly refuses to show that as a verified amount (see component guard).
   assert.equal(lineTotal('','10.00'),'0.00');
-  assert.match(component,/if\(!quantity\|\|!price\)return '—'/);
+  assert.match(component,/!quantity\|\|!price\|\|!isNonNegativeDecimalInput\(quantity\)\|\|!isNonNegativeDecimalInput\(price\)/);
   assert.match(component,/try\{return lineTotal\(quantity,price\);\}catch\{return '—';\}/);
+  assert.match(component,/doc\.rows\.some\(row=>amount\(row\.quantity,row\.unitPrice\)==='—'\)/,'incomplete row must invalidate displayed subtotal');
 });
 
 test('preview preserves real scoped document content, including all lines and terms',()=>{
