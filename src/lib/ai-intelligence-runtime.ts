@@ -1,3 +1,5 @@
+import { commercialDraftCommand } from './ai-commercial-conversation.js';
+import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
 import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson } from './ai-foundation-approval.js';
@@ -43,6 +45,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   host.__intelligenceKernel=normalizeConversationKernel(thread?.kernel,scope);
   host.__foundationReceipts=thread?.foundationReceipts||[];
   host.__foundationVault=vault;
+  if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
   if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;host.setState({proposal,review:null});await flush(host);}
 }
 /** Refresh when opening/switching workspace, not only when sending a model request. */
@@ -63,17 +66,20 @@ export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCom
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
     const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Company, branch, account or conversation changed. Reopen the workspace.');
+    const changesDraft=['cell','customer','product','undo','redo','reprice','terms','composer'].includes(command.kind);
     // Reject stale reviewed business state before changing an existing proposal.
-    if(command.kind!=='focus'&&kernel.artifact?.proposal&&(kernel.artifact.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact.proposal);
+    if(changesDraft&&kernel.artifact?.proposal&&(kernel.artifact.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact.proposal);
     const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,command);
     let review;
-    if(command.kind!=='focus'&&next.artifact){
+    if(changesDraft&&next.artifact){
       const p=next.artifact.proposal as any;delete p.foundationApproval;stampProposal(host,p,resumed.vault);
       review=reviewAiDocumentProposal(p,workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:''),host.props.language==='ar'?'ar':'en');
     }
+    if(changesDraft&&next.artifact)stageReviewedMission(next,next.artifact.proposal);
     host.__intelligenceKernel=next;host.__foundationVault=resumed.vault;
-    if(command.kind!=='focus'&&next.artifact)host.setState({proposal:next.artifact.proposal,review,error:''});
-    await flush(host);await persistKernel(host);
+    if(changesDraft&&next.artifact)host.setState({proposal:next.artifact.proposal,review,error:''});
+    if(command.kind==='cancel-mission'){const p=host.state.proposal,steps=p?.capability==='tool.plan'?p.steps:[p];if(steps?.some((s:any)=>missionStep(next.missions||[],s)?.mission.id===command.missionId))host.setState({proposal:null,review:null});}
+    host.setState({error:''});await flush(host);await persistKernel(host);
   }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
   finally{host.__workspaceCommandBusy=false;await flush(host);}
 }
@@ -106,6 +112,7 @@ export async function intelligenceTools(host:Host,input:Parameters<typeof orches
   const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope))throw new Error('Company, branch or account changed during planning. No action prepared.');
   if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
+    kernel.toolEvidence=host.__foundationToolOutcomes.map((row:FoundationToolOutcome)=>({...row,at:new Date().toISOString()}));
     const search=result.results.find(row=>row.ok&&row.tool==='search.records');
     if(search&&Array.isArray(search.data)&&!result.proposal){
       const items=search.data.filter((r:any)=>r&&typeof r.id==='string'&&typeof r.label==='string'&&['customer','supplier','product','document','purchase'].includes(r.type)).map((r:any)=>({entityType:r.type,entityId:r.id,label:r.label}));
@@ -124,9 +131,22 @@ function stampProposal(host:Host,proposal:any,vault:VaultPayload):void{
   if(previous&&canonicalFoundationJson(proposal)===previous.payload)return;
   proposal.foundationApproval=prepareFoundationApproval(vault,proposal,kernel.scope);
 }
+function stageReviewedMission(kernel:ConversationKernel,proposal:any):void{
+  if(kernel.scope.scope==='personal')return;
+  const steps=proposal?.capability==='tool.plan'?proposal.steps:[proposal];
+  if(!steps?.length||steps.some((p:any)=>!p?.foundationApproval))return;
+  if(steps.every((p:any)=>missionStep(kernel.missions||[],p)))return;
+  const all=kernel.missions||[];
+  // Editing the active draft supersedes only its unstarted review. Completed writes survive.
+  if(['document.createDraft','document.updateDraft'].includes(proposal.capability))for(const mission of all)for(const s of mission.steps){const previous=s.proposal;if(s.status==='needs_approval'&&previous?.capability===proposal.capability&&(proposal.capability==='document.createDraft'||previous.documentId===proposal.documentId)){s.status='cancelled';mission.interruptedReason='Draft revised; review the new revision.';}}
+
+  // Keep pending/uncertain receipts; only discard old wholly terminal missions.
+  if(all.length>=10){const i=all.findIndex(m=>m.steps.every(s=>['completed','cancelled'].includes(s.status)));if(i<0)throw new Error('Review or cancel pending missions before preparing another.');all.splice(i,1);}
+  kernel.missions=[...all,createMission(kernel.scope,proposal,kernel.toolEvidence||[])];
+}
 export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{
   if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;host.__foundationApprovalBusy=true;
-  let receipt:any;
+  let receipt:any,step:MissionStep|undefined;
   try{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX before approval.');
     const kernel=host.__intelligenceKernel as ConversationKernel;
@@ -134,16 +154,21 @@ export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promi
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
     assertFoundationApproval(resumed.vault,proposal);
     if((host.__foundationReceipts||[]).some((r:any)=>r.id===proposal.foundationApproval.id))throw new Error('This approval was already attempted. Check the saved record before preparing a new action.');
+    if(!missionStep(kernel.missions||[],proposal))stageReviewedMission(kernel,proposal);
+    step=beginMissionStep(kernel.missions||[],proposal);
     receipt={id:proposal.foundationApproval.id,state:'applying',at:new Date().toISOString(),actorId:proposal.foundationApproval.actorId,action:proposal.tool||proposal.capability,payload:proposal.foundationApproval.payload};
     host.__foundationReceipts=[...(host.__foundationReceipts||[]),receipt].slice(-100);
     await persistKernel(host); // Crash after commit cannot silently replay an uncertain action.
     const result=await apply();await flush(host);
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
     else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';if((kernel.artifact?.proposal as any)?.foundationApproval?.id===proposal.foundationApproval.id)kernel.artifact=undefined;
-      const latest=await resumeVaultSession();if(latest&&host.state.proposal?.capability==='tool.plan'){for(const step of host.state.proposal.steps||[]){if(step!==proposal){delete step.foundationApproval;stampProposal(host,step,latest.vault);}}}
+      const latest=await resumeVaultSession(),mission=missionStep(kernel.missions||[],proposal)?.mission;
+      if(latest&&mission){const visible=host.state.proposal?.capability==='tool.plan'?host.state.proposal.steps:[host.state.proposal];for(const pending of mission.steps){if(pending===step||pending.status!=='needs_approval'||!pending.proposal)continue;const oldId=pending.approvalId,p=structuredClone(pending.proposal);delete p.foundationApproval;stampProposal(host,p,latest.vault);pending.approvalId=p.foundationApproval.id;pending.proposal=p;pending.payload=canonicalFoundationJson(p);for(const row of visible||[])if(row?.foundationApproval?.id===oldId)row.foundationApproval=p.foundationApproval;}}
+
     }
+    finishMissionStep(step,receipt.state==='applied',receipt.resultId||'');
     await persistKernel(host);return result;
-  }catch(error){if(receipt){receipt.state='uncertain';await persistKernel(host).catch(()=>undefined);}host.setState({busy:false,error:error instanceof Error?error.message:String(error)});return undefined;}
+  }catch(error){if(receipt){receipt.state='uncertain';finishMissionStep(step,false);await persistKernel(host).catch(()=>undefined);}host.setState({busy:false,error:error instanceof Error?error.message:String(error)});return undefined;}
   finally{host.__foundationApprovalBusy=false;}
 }
 export function installIntelligenceRuntime(host:Host):void{
@@ -163,11 +188,20 @@ export function installIntelligenceRuntime(host:Host):void{
       const kernel=host.__intelligenceKernel as ConversationKernel;kernel.turn++;
       if(!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
       const message=String(raw??host.state.input).trim();
+      const commercialCommand=commercialDraftCommand(kernel,resumed.vault,message);
+      if(commercialCommand){
+        if((kernel.artifact!.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
+        const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,commercialCommand);
+        const p=next.artifact!.proposal as any;delete p.foundationApproval;stampProposal(host,p,resumed.vault);stageReviewedMission(next,p);
+        const review=reviewAiDocumentProposal(p,workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:''),host.props.language==='ar'?'ar':'en');
+        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:p,review,error:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'عدّلت المسودة فقط. راجع الفروق والشروط قبل الحفظ.':'Draft revised only. Review its diff and terms before saving.'}]}));await flush(host);await persistKernel(host);return;
+      }
+
       if(!kernel.artifact){const selected=resolveKernelSelection(kernel,message);if(selected){const scoped=scopeVault(resumed.vault);const rows=selected.entityType==='customer'?scoped.customers:selected.entityType==='supplier'?scoped.suppliers:selected.entityType==='product'?scoped.savedItems:selected.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===selected.entityId)){kernel.selection=undefined;kernel.entity=undefined;throw new Error('The displayed selection is stale. Search again.');}host.setState((state:any)=>({input:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:selected.label}]}));await flush(host);await persistKernel(host);return;}}
       await ask(raw);await flush(host);await host.__lourexAssistantPersistQueue;
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
       const proposal=host.state.proposal;
-      if(proposal){stampProposal(host,proposal,resumed.vault);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
+      if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
     }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
     finally{host.__foundationTurnBusy=false;}

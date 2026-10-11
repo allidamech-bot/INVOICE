@@ -1,4 +1,5 @@
 import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 const target='dist/src/components/AiCopilot.js';let source=await readFile(target,'utf8');
 if(!source.includes('__lourexIntelligenceFoundation')||source.includes('__lourexConversationWorkspace2'))throw new Error('Workspace requires exactly one audited Foundation owner.');
@@ -21,3 +22,10 @@ await writeFile(target,source);execFileSync(process.execPath,['--check',target])
 const css=await readFile('src/styles/ai-conversation-workspace.css','utf8');
 await writeFile('dist/ai-composer-v449.css',(await readFile('dist/ai-composer-v449.css','utf8'))+'\n'+css);
 console.log('[LOUREX AI] Conversation Workspace typed presentation boundary installed.');
+
+// Imported TS modules have stable URLs. Change SW bytes when their content changes
+// so installed local-first clients recache them with the existing reload contract.
+const workspaceModules=['components/AiConversationWorkspace','components/AiCommercialWorkspace','lib/ai-conversation-kernel','lib/ai-intelligence-runtime','lib/ai-workspace-model','lib/ai-commercial-intelligence','lib/ai-commercial-conversation','lib/ai-mission-runner'];
+const moduleHash=createHash('sha256');
+for(const name of workspaceModules){const asset='./src/'+name+'.js';const sw=await readFile('dist/sw.js','utf8');if(!sw.includes(asset))throw new Error('Workspace module missing from precache: '+asset);moduleHash.update(name).update(await readFile('dist/src/'+name+'.js'));}
+await writeFile('dist/sw.js',(await readFile('dist/sw.js','utf8'))+'\n// LOUREX AI workspace modules SHA256 '+moduleHash.digest('hex')+'\n');

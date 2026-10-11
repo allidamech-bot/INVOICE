@@ -4,6 +4,9 @@ import type { VaultPayload } from '../types.js';
 import { scopeVault } from './workspaces.js';
 import { aiProductArchived } from './ai-business.js';
 import { normalizeDecimalInput, lineTotal, decimalToScaled } from './money.js';
+import { commercialScenario, convertPack, externalQuote, compareSuppliers, compareIncoterms, decimal, moneyString, type ScenarioInput, type ExternalQuote } from './ai-commercial-intelligence.js';
+import { cancelMission } from './ai-mission-runner.js';
+import { stageKernelArtifact } from './ai-conversation-kernel.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 
 export type WorkspaceDraft = AiDocumentDraftProposal | AiDocumentUpdateProposal;
@@ -12,6 +15,14 @@ export interface WorkspaceDiff { field:string; before:string; after:string; }
 export interface WorkspaceDocument { id:string; revision:number; status:'draft'|'saved'; title:string; currency:string; customer:string; rows:WorkspaceLine[]; subtotal:string|null; terms:{label:string;value:string}[]; blockers:string[]; diff:WorkspaceDiff[]; }
 export interface PickerRow { id:string; label:string; detail:string; }
 export type WorkspaceCommand =
+  | { kind:'scenario'; input:ScenarioInput }
+  | { kind:'pack'; cartons:string; unitsPerCarton:string }
+  | { kind:'external-source'; source:Omit<ExternalQuote,'id'|'capturedAt'|'reliability'> }
+  | { kind:'suppliers'; productId:string }
+  | { kind:'cancel-mission'; missionId:string }
+  | { kind:'composer'; documentKind:'proforma'|'invoice'; currency:string }
+  | { kind:'reprice'; artifactId:string; revision:number; currency:string; reduction:string; lastReduction:string }
+  | { kind:'terms'; artifactId:string; revision:number; incoterm:string; paymentTerms:string; deliveryTime:string }
   | { kind:'focus'; focus:ConversationKernel['focus'] }
   | { kind:'cell'; artifactId:string; revision:number; lineId:string; field:'descriptionEn'|'descriptionAr'|'quantity'|'unit'|'unitPrice'; value:string }
   | { kind:'customer'|'product'; artifactId:string; revision:number; entityId:string }
@@ -72,6 +83,18 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
   if(command.kind==='focus'){if(!['auto','operator','advisor','financial'].includes(command.focus))throw new Error('Unknown focus.');kernel.focus=command.focus;return;}
   if(kernel.scope.scope==='personal')throw new Error('Business editing is unavailable in Personal.');
   if(kernel.scope.workspaceId!==(vault.appSettings.activeWorkspaceId||'default')||kernel.scope.branchId!==(vault.appSettings.activeBranchId||'main'))throw new Error('Company or branch changed.');
+  const commercial=()=>kernel.commercial|| (kernel.commercial={sources:[]});
+  if(command.kind==='scenario'){commercial().scenario=commercialScenario(vault,command.input);return;}
+  if(command.kind==='pack'){commercial().pack=convertPack(command.cartons,command.unitsPerCarton);return;}
+  if(command.kind==='external-source'){if(commercial().sources.length>=50)throw new Error('Evidence limit reached; no source was dropped.');commercial().sources.push(externalQuote(vault,command.source));return;}
+  if(command.kind==='suppliers'){compareSuppliers(vault,command.productId,commercial().sources);commercial().supplierProductId=command.productId;return;}
+  if(command.kind==='cancel-mission'){const mission=kernel.missions?.find(m=>m.id===command.missionId);if(!mission)throw new Error('Mission not found.');cancelMission(mission);return;}
+  if(command.kind==='composer'){
+    if(kernel.artifact)throw new Error('Finish or dismiss the current draft before starting another.');
+    if(!['proforma','invoice'].includes(command.documentKind)||! /^[A-Z]{3}$/.test(command.currency))throw new Error('Invalid document type or currency.');
+    const defaults=workspaceDrafting(vault).defaults;
+    stageKernelArtifact(kernel,{capability:'document.createDraft',kind:command.documentKind,currency:command.currency,language:defaults.language,customerId:'',customerDraft:null,items:[],incoterm:defaults.incoterm,paymentTerms:defaults.paymentTerms,deliveryTime:defaults.deliveryTime,validity:defaults.validity,remarks:'',notes:'',label:'Business document draft',rationale:'Prepared by user in the conversation workspace.'});return;
+  }
   const a=kernel.artifact;if(!a||a.id!==command.artifactId||a.revision!==command.revision)throw new Error('The draft changed. Review its latest revision.');
   const p=structuredClone(a.proposal),drafting=workspaceDrafting(vault,p.capability==='document.updateDraft'?p.documentId:'');
   if(command.kind==='undo'||command.kind==='redo'){
@@ -79,7 +102,22 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
     const to=command.kind==='undo'?a.redo:a.undo,toIds=command.kind==='undo'?(a.redoLineIds||=[]):(a.undoLineIds||=[]);
     const next=from.pop();if(!next)throw new Error('No revision available.');to.push(p);toIds.push([...a.lineIds]);a.proposal=next;a.lineIds=fromIds.pop()||a.lineIds;a.revision++;a.lastEdit=undefined;return;
   }
-  if(command.kind==='customer'){
+  if(command.kind==='reprice'){
+    const doc=workspaceDocument(kernel,vault,'en')!;if(doc.currency!==command.currency)throw new Error('Repricing currency must match the draft.');
+    const amount=decimal(command.reduction),last=decimal(command.lastReduction);
+    // Validate the whole draft first. No partial edits, one undo revision.
+    const edits=doc.rows.map((row,i)=>({row,value:decimalToScaled(decimal(row.unitPrice),4)-decimalToScaled(i===doc.rows.length-1?last:amount,4)}));
+    if(edits.some(e=>e.value<0n))throw new Error('Reduction would make a price negative.');
+    for(const {row,value} of edits){const price=String(value/10000n)+'.'+String(value%10000n).padStart(4,'0');
+      if(p.capability==='document.createDraft')p.items[a.lineIds.indexOf(row.id)]!.unitPrice=price;
+      else{const i=drafting.activeDocument!.items.findIndex(item=>item.id===row.id);if(i>=0){let edit=p.itemEdits.find(e=>e.itemId===row.id);if(!edit){if(p.itemEdits.length>=30)throw new Error('Existing limit is 30 edited lines.');edit={itemId:row.id};p.itemEdits.push(edit);}edit.unitPrice=price;}else p.addItems[doc.rows.indexOf(row)-drafting.activeDocument!.items.length]!.unitPrice=price;}
+    }
+  }else if(command.kind==='terms'){
+    if([command.incoterm,command.paymentTerms,command.deliveryTime].some(v=>typeof v!=='string'||v.length>160||/[\u0000-\u001f]/.test(v)))throw new Error('Invalid commercial terms.');
+    const from=p.capability==='document.createDraft'?p.incoterm:p.termsPatch.incoterm||drafting.activeDocument!.terms.incoterm;
+    commercial().obligations=compareIncoterms(from,command.incoterm);
+    if(p.capability==='document.createDraft'){p.incoterm=command.incoterm;p.paymentTerms=command.paymentTerms;p.deliveryTime=command.deliveryTime;}else p.termsPatch={...p.termsPatch,incoterm:command.incoterm,paymentTerms:command.paymentTerms,deliveryTime:command.deliveryTime};
+  }else if(command.kind==='customer'){
     if(p.capability!=='document.createDraft')throw new Error('Customer reassignment is only available in an unsaved new draft.');
     const row=drafting.customers.find(row=>row.id===command.entityId);if(!row)throw new Error('Customer is no longer available.');p.customerId=row.id;p.customerDraft=null;
   }else if(command.kind==='product'){
@@ -111,7 +149,7 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
   if(command.kind==='cell'&&(command.field==='quantity'||command.field==='unitPrice')){a.selectedLineId=command.lineId;a.lastEdit={lineId:command.lineId,field:command.field,value:normalizeDecimalInput(command.value),before:previous};}
 }
 
-export const WORKSPACE_COMPONENTS=Object.freeze(['CustomerPicker','ProductPicker','EditablePricingGrid','QuotePreview','QuoteDiff','AttachmentGallery','EvidencePopover','ApprovalDiff'] as const);
+export const WORKSPACE_COMPONENTS=Object.freeze(['CustomerPicker','ProductPicker','EditablePricingGrid','QuotePreview','QuoteDiff','AttachmentGallery','EvidencePopover','ApprovalDiff','WorkflowProgress','FinanceScenario','SourceCompare'] as const);
 export type WorkspaceComponent=typeof WORKSPACE_COMPONENTS[number];
 export interface WorkspaceCard { component:WorkspaceComponent; rows:{id:string;label:string;detail:string}[]; }
 /** An untrusted descriptor cannot choose code, handlers, styles, URLs or HTML. */
