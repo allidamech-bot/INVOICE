@@ -291,29 +291,87 @@ export async function getPlainWorkspace():Promise<PlainWorkspaceRecord|null>{
   if(!uid)throw new Error('Sign in before accessing the account workspace.');
   const record=await getRecord<PlainWorkspaceRecord>('workspace-v2');
   if(!record)return null;
-  if(record.uid!==uid||record.schemaVersion!==record.payload?.schemaVersion)
+  if(record.uid!==uid||record.schemaVersion!==record.payload?.schemaVersion||!record.localRevision)
     throw new Error('Account workspace belongs to a different user or has invalid metadata.');
   return record;
 }
 export async function putPlainWorkspace(record:PlainWorkspaceRecord):Promise<void>{
   const uid=activeAccountStorageUid();
   if(!uid||record.uid!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
-  if(record.id!=='workspace-v2'||record.schemaVersion!==record.payload?.schemaVersion)
+  if(record.id!=='workspace-v2'||record.schemaVersion!==record.payload?.schemaVersion||!record.localRevision)
     throw new Error('Invalid account workspace payload.');
   await putRecord(record);
 }
 export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseCloudRevision:string|null,baseCloudSha256:string|null):Promise<PlainWorkspaceRecord>{
   if(activeAccountStorageUid()!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
-  const record:PlainWorkspaceRecord={id:'workspace-v2',uid,payload,schemaVersion:payload.schemaVersion,updatedAt:new Date().toISOString(),baseCloudRevision,baseCloudSha256};
+  const record:PlainWorkspaceRecord={id:'workspace-v2',uid,payload,schemaVersion:payload.schemaVersion,updatedAt:new Date().toISOString(),localRevision:crypto.randomUUID(),baseCloudRevision,baseCloudSha256};
   await putPlainWorkspace(record);
   return record;
 }
 
-/** Mark an uploaded snapshot as acknowledged only if no newer local save has appeared.
- * This protects edits from a second tab during an in-flight cloud write.
+/**
+ * Replace a cloud-downloaded workspace only if its local generation has not
+ * changed while remote chunks were loading. The optional archive and the
+ * replacement are committed together inside one IndexedDB transaction.
  */
-export async function acknowledgePlainWorkspace(uid:string,localUpdatedAt:string,revision:string,sha256:string):Promise<boolean>{
-  if(activeAccountStorageUid()!==uid)throw new Error('Account storage scope changed.');
+export async function replacePlainWorkspaceIfUnchanged(
+  uid:string,expectedLocalRevision:string|null,replacement:PlainWorkspaceRecord,
+  archiveReason:PlainWorkspaceArchiveRecord['reason']|null=null
+):Promise<boolean>{
+  if(!uid||activeStorageUid!==uid||replacement.uid!==uid
+    ||replacement.id!=='workspace-v2'||replacement.schemaVersion!==replacement.payload?.schemaVersion
+    ||!replacement.localRevision)throw new Error('Account storage scope changed or invalid payload.');
+  const db=await openDb();
+  return new Promise<boolean>((resolve,reject)=>{
+    let applied=false;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if((existing?.localRevision??null)!==expectedLocalRevision)return;
+      if(existing&&archiveReason){
+        const archivedAt=new Date().toISOString();
+        const id=`workspace-v2-archive:${archivedAt}:${crypto.randomUUID()}` as const;
+        const archive:PlainWorkspaceArchiveRecord={...existing,id,reason:archiveReason,archivedAt};
+        store.put(archive);
+      }
+      store.put(replacement);
+      applied=true;
+    };
+    tx.oncomplete=()=>resolve(applied);
+    tx.onerror=()=>reject(tx.error??new Error('Workspace replacement failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Workspace replacement aborted.'));
+  });
+}
+
+/** All local writers use CAS to prevent two tabs from losing each other's edits. */
+export async function updatePlainWorkspaceIfUnchanged(
+  uid:string,expectedLocalRevision:string,payload:VaultPayload
+):Promise<PlainWorkspaceRecord|null>{
+  if(!uid||activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  const db=await openDb();
+  return new Promise<PlainWorkspaceRecord|null>((resolve,reject)=>{
+    let result:PlainWorkspaceRecord|null=null;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if(!existing||existing.uid!==uid||existing.localRevision!==expectedLocalRevision)return;
+      result={...existing,payload,schemaVersion:payload.schemaVersion,
+        localRevision:crypto.randomUUID(),updatedAt:new Date().toISOString()};
+      store.put(result);
+    };
+    tx.oncomplete=()=>resolve(result);
+    tx.onerror=()=>reject(tx.error??new Error('Concurrent workspace save failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Concurrent workspace save aborted.'));
+  });
+}
+
+/** A cloud acknowledgment is valid for the exact immutable local generation. */
+export async function acknowledgePlainWorkspace(uid:string,localRevision:string,revision:string,sha256:string):Promise<boolean>{
+  if(activeStorageUid!==uid)throw new Error('Account storage scope changed.');
   const db=await openDb();
   return new Promise<boolean>((resolve,reject)=>{
     let matched=false;
@@ -321,12 +379,12 @@ export async function acknowledgePlainWorkspace(uid:string,localUpdatedAt:string
     const req=store.get('workspace-v2');
     req.onsuccess=()=>{
       const existing=req.result as PlainWorkspaceRecord|undefined;
-      if(existing&&existing.uid===uid&&existing.updatedAt===localUpdatedAt){
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if(existing&&existing.uid===uid&&existing.localRevision===localRevision){
         matched=true;
         store.put({...existing,baseCloudRevision:revision,baseCloudSha256:sha256});
       }
     };
-    req.onerror=()=>reject(req.error??new Error('Workspace acknowledgment read failed.'));
     tx.oncomplete=()=>resolve(matched);
     tx.onerror=()=>reject(tx.error??new Error('Workspace acknowledgment failed.'));
     tx.onabort=()=>reject(tx.error??new Error('Workspace acknowledgment aborted.'));
