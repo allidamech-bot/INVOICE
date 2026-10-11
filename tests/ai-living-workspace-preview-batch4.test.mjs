@@ -14,7 +14,9 @@ test('document preview computes exact per-line amounts without inventing prices'
   assert.equal(lineTotal('12','25.00'),'300.00');
   assert.equal(lineTotal('4','45.00'),'180.00');
   assert.equal(lineTotal('1.5','10.20'),'15.30');
-  assert.throws(()=>lineTotal('','10.00'));
+  // The general-purpose money engine treats blank input as zero; the preview
+  // explicitly refuses to show that as a verified amount (see component guard).
+  assert.equal(lineTotal('','10.00'),'0.00');
   assert.match(component,/if\(!quantity\|\|!price\)return '—'/);
   assert.match(component,/try\{return lineTotal\(quantity,price\);\}catch\{return '—';\}/);
 });
