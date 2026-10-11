@@ -360,6 +360,9 @@ export async function updatePlainWorkspaceIfUnchanged(
       if(activeStorageUid!==uid){tx.abort();return;}
       if(!existing||existing.uid!==uid||existing.localRevision!==expectedLocalRevision)return;
       result={...existing,payload,schemaVersion:payload.schemaVersion,
+        // Edits are applied using an IndexedDB CAS. A newer snapshot is thus a
+        // proven descendant of the previous immutable local generation.
+        localAncestors:[...(existing.localAncestors??[]),existing.localRevision].slice(-128),
         localRevision:crypto.randomUUID(),updatedAt:new Date().toISOString()};
       store.put(result);
     };
@@ -370,7 +373,15 @@ export async function updatePlainWorkspaceIfUnchanged(
 }
 
 /** A cloud acknowledgment is valid for the exact immutable local generation. */
-export async function acknowledgePlainWorkspace(uid:string,localRevision:string,revision:string,sha256:string):Promise<boolean>{
+/**
+ * Account for edits that legitimately occurred while their parent snapshot
+ * was uploading. Never label an independent/conflicting snapshot as synced.
+ * A callback may acknowledge the exact uploaded generation, or one of its
+ * atomic IndexedDB descendants still based on the same cloud parent.
+ */
+export async function acknowledgePlainWorkspace(
+  uid:string,uploadedLocalRevision:string,revision:string,sha256:string,expectedParentRevision:string|null
+):Promise<boolean>{
   if(activeStorageUid!==uid)throw new Error('Account storage scope changed.');
   const db=await openDb();
   return new Promise<boolean>((resolve,reject)=>{
@@ -380,10 +391,14 @@ export async function acknowledgePlainWorkspace(uid:string,localRevision:string,
     req.onsuccess=()=>{
       const existing=req.result as PlainWorkspaceRecord|undefined;
       if(activeStorageUid!==uid){tx.abort();return;}
-      if(existing&&existing.uid===uid&&existing.localRevision===localRevision){
-        matched=true;
-        store.put({...existing,baseCloudRevision:revision,baseCloudSha256:sha256});
-      }
+      if(!existing||existing.uid!==uid)return;
+      const exact=existing.localRevision===uploadedLocalRevision;
+      const ancestorIndex=(existing.localAncestors??[]).indexOf(uploadedLocalRevision);
+      if((!exact&&ancestorIndex<0)||
+         existing.baseCloudRevision!==expectedParentRevision)return;
+      matched=true;
+      const ancestors=exact?[]:(existing.localAncestors??[]).slice(ancestorIndex+1);
+      store.put({...existing,baseCloudRevision:revision,baseCloudSha256:sha256,localAncestors:ancestors});
     };
     tx.oncomplete=()=>resolve(matched);
     tx.onerror=()=>reject(tx.error??new Error('Workspace acknowledgment failed.'));
