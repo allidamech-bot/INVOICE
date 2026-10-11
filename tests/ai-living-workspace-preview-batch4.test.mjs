@@ -23,10 +23,11 @@ test('document preview computes exact per-line amounts without inventing prices'
 
 test('preview preserves real scoped document content, including all lines and terms',()=>{
   const vault=emptyVault(),scope={scope:'business',workspaceId:vault.appSettings.activeWorkspaceId||'default',branchId:vault.appSettings.activeBranchId||'main',threadId:'financial-preview'};
+  vault.customers=[{id:'c1',workspaceId:'default',companyNameEn:'Test Buyer',companyNameAr:'عميل تجريبي',preferredCurrency:'USD',paymentTerms:'',email:''}];
   const kernel=newConversationKernel(scope);
   const proposal={
     capability:'document.createDraft',kind:'proforma',currency:'USD',language:'bilingual',
-    customerId:'',customerDraft:{companyNameEn:'Test Buyer',companyNameAr:''},
+    customerId:'c1',customerDraft:null,
     items:[{savedItemId:'',descriptionEn:'Product A',descriptionAr:'صنف أ',quantity:'12',unit:'CTN',unitPrice:'25.00'},
            {savedItemId:'',descriptionEn:'Product B',descriptionAr:'صنف ب',quantity:'4',unit:'CTN',unitPrice:'45.00'}],
     label:'Example draft',rationale:'Unit test',incoterm:'FOB',paymentTerms:'Advance',deliveryTime:'',validity:'',remarks:'',notes:'',
