@@ -142,17 +142,17 @@ export function AiDocumentPreview({ doc, language, onReviewed }: AiDocumentPrevi
         </section>
       : null}
 
-    {onReviewed && doc.status === 'draft'
-      ? <button type="button" className="lxw-document-preview-reviewed" onClick={onReviewed}>
-          {label(language, 'Reviewed · return to chat', 'تمت المراجعة · العودة للمحادثة')}
-        </button>
-      : null}
-
     {incomplete
       ? <section className="lxw-document-preview-warnings" role="status">
           <h4>{label(language, 'Complete before approval', 'أكمل قبل الاعتماد')}</h4>
           {doc.blockers.map((issue, i) => <p key={i}>{issue}</p>)}
         </section>
+      : null}
+
+    {onReviewed && doc.status === 'draft'
+      ? <button type="button" className="lxw-document-preview-reviewed" onClick={onReviewed}>
+          {label(language, 'Reviewed · return to chat', 'تمت المراجعة · العودة للمحادثة')}
+        </button>
       : null}
   </section>;
 }
