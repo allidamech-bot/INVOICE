@@ -124,7 +124,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   // For a classified product-list upload, make a review-only proposal even
   // when the user first asks to analyze the file. Nothing is registered without
   // a separate explicit click, and incomplete extraction fails closed.
-  if(hasSources&&runtime.scope==='business'&&sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
     const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'source-review-1',tool:'product.importSource',args:{sources:input.context.conversationSources},reason:'Review attachment product rows; approval required before registration.'}]};
     const execution=executeAiToolPlan(runtime,plan);
     if(execution.proposal){
@@ -135,7 +135,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   }
   // The user's own message must expressly request registration. Untrusted file
   // instructions never authorize a write, and source rows are not truncated here.
-  if(hasSources&&runtime.scope==='business'&&requestedAiProductImport(input.message)){
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&requestedAiProductImport(input.message)){
     const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'source-registration-1',tool:'product.importSource',args:{sources:input.context.conversationSources,generateMissingSku:requestedAiProductSkuGeneration(input.message)},reason:'User explicitly asked to register the attached product list.'}]};
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
@@ -144,7 +144,9 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const resumed=await resumeVaultSession();
     if(resumed){
       const local=await handleAssistantLocalCommand(resumed.key,{message:input.message,scope:runtime.scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,language:input.language,threadId:clean(input.context?.assistantRuntime?.threadId,120)});
-      if(local){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};return{answer:local.answer,proposal:local.proposal,plan,results:[],plannedBy:'local'};}
+      if(local){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
+        if(runtime.conversationMode==='advisor'&&local.proposal)return{answer:input.language==='ar'?'المستشار مخصص للنقاش والتحليل فقط. انتقل إلى المتحكم لهذه المهمة. لم يتم تعديل أي بيانات.':'Advisor is for discussion and analysis only. Switch to Controller for this task. No data was changed.',proposal:null,plan,results:[],plannedBy:'local'};
+        return{answer:local.answer,proposal:local.proposal,plan,results:[],plannedBy:'local'};}
     }
   }
   if(!hasSources&&isCfoIntent(input.message)){
