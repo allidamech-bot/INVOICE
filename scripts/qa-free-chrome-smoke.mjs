@@ -24,12 +24,13 @@ function browserBinary(){
 function openCdp(url){
   return new Promise((resolve,reject)=>{
     const socket=new WebSocket(url);
-    const pending=new Map();
+    const pending=new Map(),exceptions=[],consoleErrors=[];
     let nextId=0,opened=false;
     socket.addEventListener('error',()=>{if(!opened)reject(new Error('Chrome DevTools WebSocket failed.'));});
     socket.addEventListener('open',()=>{
       opened=true;
       resolve({
+        exceptions,consoleErrors,
         call(method,params={}){
           const id=++nextId;
           return new Promise((ok,no)=>{
@@ -43,6 +44,13 @@ function openCdp(url){
     },{once:true});
     socket.addEventListener('message',event=>{
       const message=JSON.parse(String(event.data));
+      if(message.method==='Runtime.exceptionThrown'){
+        const d=message.params?.exceptionDetails;
+        exceptions.push(String(d?.exception?.description||d?.text||'Unknown JS exception').slice(0,2000));
+      }
+      if(message.method==='Runtime.consoleAPICalled'&&message.params?.type==='error'){
+        consoleErrors.push((message.params.args||[]).map(a=>String(a.value??a.description??'')).join(' ').slice(0,2000));
+      }
       if(!message.id)return;
       const task=pending.get(message.id);
       if(!task)return;
@@ -127,6 +135,11 @@ try{
       return state.ready==='complete'&&!state.boot&&!state.loading&&state.root&&state.buttons>0?state:null;
     },25000,item.name+' render beyond boot screen');
     assert.ok(state.root,'React application root must exist.');
+    assert.doesNotMatch(state.rootText,/An unexpected screen error occurred|حدث خطأ غير متوقع/i,
+      item.name+' rendered the fatal AppErrorBoundary: '+JSON.stringify({
+        text:state.rootText,exceptions:cdp.exceptions.slice(-4),consoleErrors:cdp.consoleErrors.slice(-4)
+      }));
+    assert.equal(cdp.exceptions.length,0,item.name+' emitted browser JavaScript exceptions: '+JSON.stringify(cdp.exceptions.slice(-4)));
     assert.ok(!state.boot&&!state.loading,'Startup must leave all loading screens.');
     assert.ok(state.buttons>0,'Application must expose actual interactive controls.');
     assert.ok(state.viewport>0,'Viewport width must be measurable.');
