@@ -88,6 +88,8 @@ test('Workspace exposes two modes and preserves separate thread scopes',()=>{
   assert.match(runtimeSource,/Advisor cannot approve actions/);
   assert.match(runtimeSource,/Advisor can analyze but cannot edit a workspace/);
   assert.match(runtimeSource,/conversationMode:requestedMode/);
+  assert.match(runtimeSource,/context\.allowedCapabilities=context\.allowedCapabilities\.filter/,'Advisor provider input must remove execution and navigation capabilities');
+  assert.match(runtimeSource,/conversationModePermitsCapability\('advisor',capability\)/,'model capability filtering is deny-only');
   assert.match(gateway,/panel\.dataset\.workspaceMode==='advisor'/);
   assert.match(styles,/\.lxw-mode-description\{/);
   assert.match(styles,/\.lxw-mode-tabs button\[aria-selected='true'\]/);
