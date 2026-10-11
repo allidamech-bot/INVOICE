@@ -53,6 +53,16 @@ test('B04: rate limit is explained without claiming an action completed',async()
     assert.equal(result.results.length,0);
   });
 });
+test('B04: HTTP 429 remains a rate-limit notice even when public copy says at capacity',async()=>{
+  await withPlannerReply(ok({code:'AI_RATE_LIMITED',message:'AI providers are temporarily at capacity. Retry shortly.'},429),async()=>{
+    const result=await request('Create a new invoice draft',{language:'ar'});
+    assert.ok(result);
+    assert.match(result.answer,/الحد المؤقت/);
+    assert.match(result.answer,/لم أغيّر أي بيانات/);
+    assert.equal(result.results.length,0);
+    assert.equal(result.proposal,null);
+  });
+});
 
 test('B04: network failure for an action gives a clear retry instruction',async()=>{
   await withPlannerReply(async()=>{throw new TypeError('Network failure');},async()=>{
