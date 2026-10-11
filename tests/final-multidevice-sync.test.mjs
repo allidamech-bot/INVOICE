@@ -42,12 +42,13 @@ test('missing local account link is repaired for the already authenticated accou
 });
 
 test('account revisions never use wall clock time to choose a winner',async()=>{
-  const [cloud,app]=await Promise.all([read('src/cloud/firebase.ts'),read('src/app/App.tsx')]);
+  const [cloud,app]=await Promise.all([read('src/cloud/plain-workspace.ts'),read('src/app/App.tsx')]);
   assert.doesNotMatch(cloud,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
   assert.doesNotMatch(app,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
-  assert.match(app,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
-  assert.match(cloud,/remote\.revision!==anchor\.revision/);
-  assert.match(cloud,/commitMetaIfUnchanged/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(cloud,/if\(\(existing\?\.revision\?\?null\)!==\(previous\?\.revision\?\?null\)\)return false/);
+  assert.match(cloud,/tx\.set\(ref,meta\)/);
+  assert.match(cloud,/sha256\(bytes\)/);
 });
 
 test('UI rehydrates after cloud layer fast-forwards a stale legacy push',async()=>{
