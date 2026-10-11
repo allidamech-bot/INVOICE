@@ -47,21 +47,19 @@ test('image and PDF attachments remain in the encrypted document payload with bo
   assert.match(vault,/attachments/);
 });
 
-test('an explicit Firebase login cannot reuse a previously unlocked PIN session',async()=>{
-  const [entry,session,selector,html]=await Promise.all([
-    read('src/app/index.tsx'),read('src/storage/session.ts'),
-    read('src/app/AuthScreenSelector.tsx'),read('index.html')
+test('Firebase login selects the correct UID cache without reusing previous device PIN state',async()=>{
+  const [entry,app,html]=await Promise.all([
+    read('src/app/index.tsx'),read('src/app/App.tsx'),read('index.html')
   ]);
   const startup=entry.slice(entry.indexOf('async function resolveRequiredAccountSession'),entry.indexOf('function startAccountSignOutWatcher'));
   assert.match(startup,/lourex-auth-just-signed-in/);
-  assert.match(startup,/if\(freshLogin\)await suspendSession\(\);else await resumeAccountSession\(user\.uid\)/);
   assert.match(startup,/setActiveAccountUid\(user\.uid\)/);
   assert.match(startup,/await activateAccountStorage\(user\.uid\)/);
-  assert.ok(startup.indexOf('await activateAccountStorage(user.uid)')<startup.indexOf('if(freshLogin)await suspendSession()'));
-  assert.match(session,/runtimePinAuthorized/);
-  assert.match(selector,/currentCloudUser\(\)/);
+  assert.ok(startup.indexOf('await activateAccountStorage(user.uid)')<startup.indexOf('await suspendSession()'));
+  assert.doesNotMatch(startup,/resumeAccountSession\(|establishSession\(/);
+  assert.match(app,/if\(currentCloudUser\(\)\?\.uid!==user\.uid\|\|activeAccountStorageUid\(\)!==user\.uid\)/);
   assert.match(html,/data-lourex-booting/);
-  assert.doesNotMatch(startup,/establishSession\(/);
+  assert.doesNotMatch(app,/<AuthScreenSelector|unlockVault\(/);
 });
 
 test('purchase orders use supplier parties and costs without customer/sales accounting',async()=>{
