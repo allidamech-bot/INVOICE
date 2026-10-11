@@ -88,3 +88,14 @@ Existing personal/business/temporary scopes are independent from Controller/Advi
 - Verify dynamic switching and account-scoped thread hydration in authenticated Chromium and WebKit; fix any discovered regressions before promoting this draft.
 - Consolidate old CSS owners; complete grayscale chat palette, financial preview and inline approval UI, AI settings, audio and sources.
 - Preserve true execution authorization on all legacy workflow shortcuts; not all legacy routes have been live-audited.
+
+## 8. Batch 4 — financial document preview and inline approval (draft)
+
+- In the existing typed React workspace, the **Preview** tab no longer duplicates the horizontally scrolling edit grid. It presents all real scoped line items as legible cards, with deterministic `lineTotal` figures; blank/invalid quantities or prices display an unknown marker, never a fabricated amount or misleading 0.00.
+- Actual client/currency, saved-vs-working status, delivery/payment terms, complete diff, and approval blockers are visibly distinct. The item **subtotal is not final total**: tax, discount and freight are explicitly excluded. Color accents are scoped to the document preview (navy / blue, green, gold, warnings); chat remains grayscale.
+- Document action proposals in the chat use a short, animated inline **Review details** affordance. The original legacy proposal card is no longer duplicated or exposed in the typed chat for these document actions.
+- Opening a preview does not count as approval. After examining the document, **I reviewed the details** sets a volatile reference to the exact proposal under review and returns to chat; only then are the existing callback-bearing **Approve** and **Dismiss** buttons shown as compact accessible pills. Draft blockers disable completion. A subsequently revised proposal does not inherit the earlier review acknowledgement.
+- The pre-existing approval execution callbacks and foundation envelopes remain responsible for applying/rejecting mutations. This code does not implement new raw mutation endpoints.
+- A new targeted test, `tests/ai-living-workspace-preview-batch4.test.mjs`, covers deterministic amounts, scoped invoice preview fixture, every row/term/diff, visual semantic sections and reviewed-before-approval contract.
+
+**Still unverified:** full TypeScript / production build, authenticated live navigation and preview rendering on iPhone/iPad/desktop, source JS layering. This PR must remain Draft until validation. Other non-document tool approvals still use legacy presentation and require later consolidation.
