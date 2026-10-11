@@ -15,7 +15,7 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
-import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
+import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
 import { conversationModePermitsCapability, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
@@ -195,7 +195,8 @@ export async function assignIntelligenceConversationMode(host:Host,mode:AiConver
 export function intelligenceContext(host:Host,context:any):any{
   const settings=currentAiExperiencePreferences(host);
   if(context&&typeof context==='object'){
-    if(settings.replyLanguage==='ar'||settings.replyLanguage==='en')context.language=settings.replyLanguage;
+    const latest=(host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
+    context.language=resolveAiConversationReplyLanguage(settings.replyLanguage,latest,host.props.language==='ar'?'ar':'en');
     context.aiResponseDetail=settings.detail;
   }
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
@@ -226,7 +227,7 @@ export function foundationToolOutcomes(result:AiToolOrchestrationResult):Foundat
 async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
   const requestedMode=currentConversationMode(host);
   const preferences=currentAiExperiencePreferences(host);
-  const responseLanguage=preferences.replyLanguage==='ar'||preferences.replyLanguage==='en'?preferences.replyLanguage:input.language;
+  const responseLanguage=resolveAiConversationReplyLanguage(preferences.replyLanguage,input.message,input.language);
   const result=await orchestrateAiToolRequest({...input,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
   const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
   if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
