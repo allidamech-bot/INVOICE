@@ -406,6 +406,36 @@ export async function acknowledgePlainWorkspace(
   });
 }
 
+/**
+ * Adopt the remote revision when both full-workspace SHA-256 hashes are
+ * identical. This is safe even when the previous cloud anchor differs:
+ * the actual business payload is equivalent, and a generation CAS protects
+ * against a concurrent local mutation between hashing and acknowledgment.
+ * For non-identical payloads the ancestry-aware acknowledgment is mandatory.
+ */
+export async function acknowledgeIdenticalPlainWorkspace(
+  uid:string,expectedLocalRevision:string,revision:string,sha256:string
+):Promise<boolean>{
+  if(activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  const db=await openDb();
+  return new Promise<boolean>((resolve,reject)=>{
+    let matched=false;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if(!existing||existing.uid!==uid||existing.localRevision!==expectedLocalRevision)return;
+      matched=true;
+      store.put({...existing,baseCloudRevision:revision,baseCloudSha256:sha256,
+        localAncestors:[]});
+    };
+    tx.oncomplete=()=>resolve(matched);
+    tx.onerror=()=>reject(tx.error??new Error('Identical workspace acknowledgment failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Identical workspace acknowledgment aborted.'));
+  });
+}
+
 /** Preserve the displaced workspace when a user explicitly chooses cloud/backup. */
 export async function archivePlainWorkspace(uid:string,reason:PlainWorkspaceArchiveRecord['reason']):Promise<string|null>{
   const existing=await getPlainWorkspace();
