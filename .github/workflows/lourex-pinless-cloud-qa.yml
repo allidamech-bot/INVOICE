@@ -31,6 +31,7 @@ jobs:
         shell: bash
         run: |
           grep -q '__lourexPinlessAutosaveV2' dist/src/app/index.js
+          grep -q "^const CACHE = 'lourex-invoice-v362';" dist/sw.js
           if grep -q 'instance.unlock.bind(instance)' dist/src/app/index.js; then
             echo 'ERROR: legacy PIN unlock was injected by a build script'
             exit 1
