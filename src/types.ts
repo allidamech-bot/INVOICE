@@ -640,6 +640,16 @@ export interface RecurringWorkflowRecord {
   updatedAt: string;
 }
 
+/** Account-bound, PIN-free local workspace cache. The encrypted legacy records remain untouched. */
+export interface PlainWorkspaceRecord {
+  id: 'workspace-v2';
+  uid: string;
+  payload: VaultPayload;
+  schemaVersion: number;
+  updatedAt: string;
+  baseCloudRevision: string | null;
+}
+
 export interface VaultPayload {
   schemaVersion: number;
   company: CompanySettings;
