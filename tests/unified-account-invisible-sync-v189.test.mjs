@@ -57,11 +57,11 @@ test('V2 never authorizes an account from an old PIN session key without Firebas
     read('src/app/App.tsx'),read('src/cloud/plain-workspace.ts')
   ]);
   const gate=index.slice(index.indexOf('async function resolveRequiredAccountSession'),index.indexOf('function startAccountSignOutWatcher'));
-  assert.match(gate,/const previousUid=getActiveAccountUid\(\)/);
-  assert.match(gate,/const user=currentCloudUser\(\)/);
+  assert.match(index,/async function suspendPreviousAccountStorage\(\):Promise<void>\{[\s\S]*const previousUid=getActiveAccountUid\(\)/);
+  assert.match(gate,/let user=currentCloudUser\(\)/);
   assert.match(gate,/await suspendSession\(\)/);
-  assert.match(gate,/setActiveAccountUid\(null\)/);
-  assert.match(gate,/await activateAccountStorage\(null\)/);
+  assert.match(index,/async function suspendPreviousAccountStorage\(\)[\s\S]*setActiveAccountUid\(null\)/);
+  assert.match(index,/async function suspendPreviousAccountStorage\(\)[\s\S]*await activateAccountStorage\(null\)/);
   assert.doesNotMatch(gate,/resumeAccountSession\(|getSessionKey\(/);
   assert.match(app,/const user=await waitForCloudUser\(\)/);
   assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
