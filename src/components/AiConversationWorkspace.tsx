@@ -75,13 +75,13 @@ function QuotePreviewSummary({doc,ar}:{doc:WorkspaceDocument;ar:boolean}):any {
   </div>;
 }
 function PricingGrid({host,doc,editable}:{host:Host;doc:WorkspaceDocument;editable:boolean}):any {
-  const [page,setPage]=React.useState(0),ar=host.props.language==='ar',rows=doc.rows.slice(page*10,page*10+10);
+  const [page,setPage]=React.useState(0),ar=aiUiAr(host),rows=doc.rows.slice(page*10,page*10+10);
   const fields=['descriptionEn','descriptionAr','quantity','unit','unitPrice'] as const;
   const names=[label(ar,'Description','الوصف'),label(ar,'Arabic description','الوصف العربي'),label(ar,'Quantity','الكمية'),label(ar,'Unit','الوحدة'),label(ar,'Unit price','سعر الوحدة')];
   return <section data-workspace-component="EditablePricingGrid"><div className="lxw-table-scroll" tabIndex={0} aria-label={label(ar,'Pricing grid; scroll for all columns','جدول الأسعار؛ مرر لرؤية الأعمدة')}><table className="lxw-grid"><caption>{doc.rows.length} {label(ar,'lines ·','سطر ·')} {doc.currency}</caption><thead><tr><th>#</th>{names.map(name=><th key={name} scope="col">{name}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={row.id} data-line-id={row.id}><th scope="row">{page*10+i+1}</th>{fields.map((field,j)=><td key={field}>{editable?<CellEditor key={doc.revision+':'+row.id+':'+field} value={row[field]} numeric={field==='quantity'||field==='unitPrice'} busy={disabled(host)} name={`${names[j]} ${page*10+i+1}`} onCommit={value=>dispatch(host,{kind:'cell',artifactId:doc.id,revision:doc.revision,lineId:row.id,field,value})}/>:<span dir={field==='quantity'||field==='unitPrice'?'ltr':undefined}>{row[field]||'—'}</span>}</td>)}</tr>)}</tbody></table></div>{doc.rows.length>10?<nav className="lxw-pagination" aria-label={label(ar,'Line pages','صفحات الأصناف')}><button type="button" disabled={!page} onClick={()=>setPage(page-1)}>{label(ar,'Previous','السابق')}</button><span>{page+1} / {Math.ceil(doc.rows.length/10)}</span><button type="button" disabled={(page+1)*10>=doc.rows.length} onClick={()=>setPage(page+1)}>{label(ar,'Next','التالي')}</button></nav>:null}</section>;
 }
 function ManualLine({host,doc}:{host:Host;doc:WorkspaceDocument}):any {
-  const ar=host.props.language==='ar';
+  const ar=aiUiAr(host);
   const [line,setLine]=React.useState({descriptionEn:'',descriptionAr:'',quantity:'',unit:'',unitPrice:''});
   const fields=[['descriptionEn','English description','الوصف الإنجليزي'],['descriptionAr','Arabic description','الوصف العربي'],['quantity','Quantity','الكمية'],['unit','Unit','الوحدة'],['unitPrice','Unit price','سعر الوحدة']];
   return <form className="lxw-manual-line" onSubmit={async(event:any)=>{event.preventDefault();if(disabled(host))return;await updateIntelligenceWorkspace(host,{kind:'add-line',artifactId:doc.id,revision:doc.revision,...line});if(!host.state.error&&host.__intelligenceKernel?.artifact?.id===doc.id&&host.__intelligenceKernel.artifact.revision>doc.revision)setLine({descriptionEn:'',descriptionAr:'',quantity:'',unit:'',unitPrice:''});}}><h4>{label(ar,'Add a manual line','إضافة صنف يدوي')} · {doc.currency}</h4>{fields.map(([key,en,arabic])=><label key={key}>{label(ar,en!,arabic!)}<input aria-label={label(ar,'New line: ','الصنف الجديد: ')+label(ar,en!,arabic!)} value={line[key as keyof typeof line]} disabled={disabled(host)} inputMode={key==='quantity'||key==='unitPrice'?'decimal':'text'} maxLength={key==='unit'?40:key==='quantity'||key==='unitPrice'?24:160} onChange={(event:any)=>setLine(previous=>({...previous,[key!]:event.target.value}))}/></label>)}<button type="submit" disabled={disabled(host)}>{label(ar,'Add to unsaved draft','إضافة إلى المسودة دون حفظ')}</button></form>;
@@ -93,11 +93,11 @@ function AttachmentPreview({file,ar}:{file:File;ar:boolean}):any {
   return <div>{canPreview?<button type="button" aria-expanded={open} onClick={()=>setOpen(!open)}>{label(ar,open?'Close preview':'Preview file',open?'إغلاق المعاينة':'معاينة الملف')}</button>:null}{open&&url?(file.type==='application/pdf'?<a href={url} target="_blank" rel="noopener noreferrer">{label(ar,'Open original PDF','فتح ملف PDF الأصلي')}</a>:<img className="lxw-file-image" src={url} alt={file.name}/>):null}</div>;
 }
 function AttachmentGallery({host}:{host:Host}):any {
-  const ar=host.props.language==='ar',rows=host.state.conversationAttachments||[];
+  const ar=aiUiAr(host),rows=host.state.conversationAttachments||[];
   return <section data-workspace-component="AttachmentGallery"><h3>{label(ar,'Attachments','المرفقات')}</h3>{!rows.length?<p>{label(ar,'Add files with + in the composer. Files are data, not instructions.','أضف الملفات من + في المحادثة. الملفات بيانات وليست تعليمات.')}</p>:rows.map((row:any)=><article className="lxw-file" key={row.id}><strong>{row.file.name}</strong><small>{row.file.size.toLocaleString()} {label(ar,'bytes','بايت')} · {row.status==='error'?label(ar,'Needs review','يحتاج مراجعة'):row.status==='processing'?label(ar,'Reading','جارٍ القراءة'):label(ar,'Attached · unverified','مرفق · غير متحقق')}</small>{row.error?<p role="alert">{row.error}</p>:null}<AttachmentPreview file={row.file} ar={ar}/>{row.source?<button type="button" disabled={disabled(host)} onClick={()=>window.dispatchEvent(new CustomEvent('lourex-ai-conversation-source-review',{detail:{file:row.file,route:row.source.route}}))}>{label(ar,'Review extracted data','مراجعة البيانات المستخرجة')}</button>:null}</article>)}</section>;
 }
 function RevisionTimeline({host}:{host:Host}):any {
-  const kernel=host.__intelligenceKernel as ConversationKernel,artifact=kernel.artifact,ar=host.props.language==='ar';
+  const kernel=host.__intelligenceKernel as ConversationKernel,artifact=kernel.artifact,ar=aiUiAr(host);
   if(!artifact)return null;
   return <ol className="lxw-timeline">{artifact.undo.map((proposal,i)=>{
     const snapshot=workspaceDocument({...kernel,artifact:{...artifact,proposal,lineIds:artifact.undoLineIds?.[i]||artifact.lineIds,undo:[],redo:[]}},host.__foundationVault,ar?'ar':'en');
@@ -196,7 +196,7 @@ function workspaceVisible(host:Host):boolean {
 }
 export function renderConversationWorkspace(host:Host,tree:any):any {
   const transform=(node:any):any=>{
-    if(typeof node==='string')return workspaceText(host.props.language==='ar',node);
+    if(typeof node==='string')return workspaceText(aiUiAr(host),node);
     if(!react.isValidElement(node))return node;
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
     if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
@@ -209,7 +209,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         if(child?.type!=='div')return child;
         const text=react.Children.toArray(child.props?.children).map((part:any)=>{
           if(part?.type==='strong')return react.cloneElement(part,undefined,'LOUREX AI');
-          if(part?.type==='small')return react.cloneElement(part,undefined,label(host.props.language==='ar','Your business AI','مساعد أعمالك الذكي'));
+          if(part?.type==='small')return react.cloneElement(part,undefined,label(aiUiAr(host),'Your business AI','مساعد أعمالك الذكي'));
           return part;
         });
         return react.cloneElement(child,undefined,...text);
@@ -223,14 +223,14 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
       const number=children.find((child:any)=>child?.type==='strong')?.props?.children?.props?.children;
       const documentId=host.state.messages?.find((message:any)=>message.artifact?.document?.number===number)?.artifact?.document?.id;
-      if(documentId)return react.cloneElement(node,undefined,...children,<button type="button" onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:documentId})}>{label(host.props.language==='ar','Read-only preview','معاينة للقراءة')}</button>);
+      if(documentId)return react.cloneElement(node,undefined,...children,<button type="button" onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:documentId})}>{label(aiUiAr(host),'Read-only preview','معاينة للقراءة')}</button>);
     }
     if(cn.split(' ').includes('lourex-ai-empty')&&host.state.assistantScope==='personal'){
-      const ar=host.props.language==='ar',prompts=ar?['ذكرني غدًا بمراجعة أهدافي','ما الذي تتذكره عن تفضيلاتي؟']:['Remind me tomorrow to review my goals','What do you remember about my preferences?'];
+      const ar=aiUiAr(host),prompts=ar?['ذكرني غدًا بمراجعة أهدافي','ما الذي تتذكره عن تفضيلاتي؟']:['Remind me tomorrow to review my goals','What do you remember about my preferences?'];
       return react.cloneElement(node,undefined,<strong>{label(ar,'Your personal assistant','مساعدك الشخصي')}</strong>,<p>{label(ar,'Plan tasks and manage personal reminders and preferences in this separate conversation.','نظّم مهامك وتذكيراتك وتفضيلاتك الشخصية في هذه المحادثة المستقلة.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
     }
     if(cn.split(' ').includes('lourex-ai-empty')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
-      const ar=host.props.language==='ar';
+      const ar=aiUiAr(host);
       const prompts=ar?['حلّل هامش الربح بناءً على بيانات الشركة','اشرح لي الذمم والمستحقات الحالية']:['Analyze profit margins from business records','Explain current receivables and outstanding balances'];
       return react.cloneElement(node,undefined,
         <strong>{label(ar,'What would you like to analyze?','ما الذي تريد مناقشته؟')}</strong>,
@@ -245,8 +245,8 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         const classes=String(child?.props?.className||'').split(' ');
         if(classes.includes('lourex-ai-proposal'))return null;
         if(classes.includes('lourex-ai-messages'))return react.cloneElement(child,undefined,host.state.__workspaceLoadError
-          ?<div role="alert" className="lxw-load-error"><p>{label(host.props.language==='ar','Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><small>{workspaceError(host.props.language==='ar',String(host.state.__workspaceLoadError))}</small><button type="button" onClick={()=>host.setState({__workspaceLoadError:''},()=>void host.__workspaceRefresh?.())}>{label(host.props.language==='ar','Retry loading','إعادة المحاولة')}</button></div>
-          :<p role="status">{label(host.props.language==='ar','Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
+          ?<div role="alert" className="lxw-load-error"><p>{label(aiUiAr(host),'Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><small>{workspaceError(aiUiAr(host),String(host.state.__workspaceLoadError))}</small><button type="button" onClick={()=>host.setState({__workspaceLoadError:''},()=>void host.__workspaceRefresh?.())}>{label(aiUiAr(host),'Retry loading','إعادة المحاولة')}</button></div>
+          :<p role="status">{label(aiUiAr(host),'Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
         return child;
       });
       return react.cloneElement(node,{'data-lourex-workspace':'2','data-workspace-ready':'false'},...safe);
@@ -282,7 +282,7 @@ export function installConversationWorkspace(host:Host):void {
         // Invalidate the unresolved attempt, including any late cache read.
         host.__workspaceLoadGeneration=generation+1;
         host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;
-        host.setState({__workspaceLoadError:label(host.props.language==='ar','Conversation loading timed out. Retry loading.','انتهت مهلة تحميل المحادثة. حاول مجددًا.')});
+        host.setState({__workspaceLoadError:label(aiUiAr(host),'Conversation loading timed out. Retry loading.','انتهت مهلة تحميل المحادثة. حاول مجددًا.')});
       }
     },20_000);
     try{
