@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
 
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 
@@ -69,4 +70,31 @@ test('retired device-PIN React screens are not compiled or precached into the li
   // Automatic cache population must follow actual compiled modules; excluded
   // screen modules must not be restored by a second precache owner.
   assert.match(precache,/readdir\('dist\/src',\{recursive:true\}\)/);
+});
+
+
+test('service worker activation evicts old PIN screens while keeping current account cache intact',async()=>{
+  const script=await read('public/sw.js');
+  const handlers={},removed=[],oldCaches=[],opened=[];
+  let claimed=0;
+  const caches={
+    keys:async()=>['lourex-invoice-v314','lourex-invoice-v315'],
+    delete:async name=>{oldCaches.push(name);return true;},
+    open:async name=>{opened.push(name);return{delete:async asset=>{removed.push(asset);return true;}}}
+  };
+  vm.runInNewContext(script,{
+    self:{addEventListener(name,handler){handlers[name]=handler;},clients:{claim:async()=>{claimed++;}},location:{origin:'https://invoice.example'}},
+    caches,URL,Request,Response,fetch:async()=>{throw new Error('no network needed for activation');}
+  },{timeout:1000});
+  assert.equal(typeof handlers.activate,'function');
+  await new Promise((resolve,reject)=>{
+    handlers.activate({waitUntil(promise){Promise.resolve(promise).then(resolve,reject);}});
+  });
+  assert.deepEqual(oldCaches,['lourex-invoice-v314']);
+  assert.deepEqual(opened,['lourex-invoice-v315']);
+  assert.deepEqual(removed,[
+    './src/app/AuthScreenSelector.js',
+    './src/components/AuthScreens.js'
+  ]);
+  assert.equal(claimed,1);
 });
