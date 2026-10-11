@@ -14,6 +14,13 @@ let source=await readFile(target,'utf8');
  * auto=true for an active draft. That wrapper is the authoritative eligibility
  * boundary; object identity from a freshly scoped Vault must not be a second gate.
  */
+if(source.includes('LOUREX_PINLESS_WORKSPACE_V2')){
+  if(!source.includes('__lourexPinlessAutosaveV2'))
+    throw new Error('PIN-free editor autosave serialization was not installed.');
+  if(source.includes('instance.unlock.bind(instance)')||source.includes('saveDocumentAutosaveCheckpoint(key,'))
+    throw new Error('Legacy encrypted draft checkpoint leaked into the PIN-free runtime.');
+  console.log('LOUREX v529 V2 confirmed: automatic editor saving uses UID-scoped CAS and never requires PIN encryption.');
+}else{
 const impossibleIdentityGate="const checkpointEligible=Boolean(documentId&&intendedDocument&&intendedDocument.status==='draft'&&intendedDocument.lifecycleStatus!=='voided'&&intended.documents!==base.documents&&intended.appSettings===base.appSettings);";
 const scopedAutosaveGate="const checkpointEligible=Boolean(documentId&&intendedDocument&&intendedDocument.status==='draft'&&intendedDocument.lifecycleStatus!=='voided'&&intended.documents!==base.documents);";
 const matches=source.split(impossibleIdentityGate).length-1;
@@ -24,3 +31,5 @@ if(!source.includes(scopedAutosaveGate))throw new Error('v529 scoped automatic-d
 
 await writeFile(target,source);
 console.log('LOUREX v529 document autosave closeout installed: scoped draft autosaves reach the encrypted per-document checkpoint instead of full-vault persistence.');
+
+}
