@@ -369,7 +369,19 @@ export class App extends React.Component<{},State> {
       if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(250);}
     }
   };
-  private attachCloudUser=async(user:CloudUser)=>{const [linked,configured]=await Promise.all([getCloudAccount(),hasSecurity()]);if(linked&&linked.uid!==user.uid){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This device is already linked to another LOUREX cloud account.','هذا الجهاز مرتبط مسبقًا بحساب LOUREX سحابي آخر.'));}if(!linked&&configured){const remote=await getCloudVaultMeta(user.uid);if(remote){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This cloud account already contains LOUREX data. Use an empty device to restore it, or sign in with the account originally linked to this device.','هذا الحساب السحابي يحتوي بالفعل على بيانات LOUREX. استخدم جهازًا فارغًا لاستعادتها أو سجّل بالحساب المرتبط أصلًا بهذا الجهاز.'));}}await putCloudAccount(user.uid,user.email);this.setState({cloudUser:user,cloudLinked:true,cloudSyncState:'syncing',cloudSyncMessage:t('Connecting encrypted cloud backup…','جارٍ ربط النسخة السحابية المشفّرة…')});try{const result=await reconcileCloudVault(user.uid);if(result==='pulled'){this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud data restored. This trusted device stays signed in.','تمت استعادة البيانات السحابية وسيبقى هذا الجهاز الموثوق مسجلاً للدخول.')});window.location.reload();return;}if(result==='diverged'){this.handleCloudConflict();return;}this.setState({cloudSyncState:result==='empty'?'local':'synced',cloudSyncMessage:result==='empty'?t('Cloud account linked. Finish local setup to create the first encrypted sync.','تم ربط الحساب السحابي. أكمل الإعداد المحلي لإنشاء أول مزامنة مشفّرة.'):t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}catch(e){this.setState({cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}};
+  private attachCloudUser=async(user:CloudUser)=>{
+    if(currentCloudUser()?.uid!==user.uid)throw new Error('Account identity changed. Sign in again.');
+    if(activeAccountStorageUid()!==user.uid){
+      setActiveAccountUid(user.uid);
+      await activateAccountStorage(user.uid);
+      this.setState({loading:true,unlocked:false,key:null,vault:null});
+      await this.initialize();
+      return;
+    }
+    await putCloudAccount(user.uid,user.email);
+    this.setState({cloudUser:user,cloudLinked:true});
+    await this.cloudSyncNow();
+  };
   private cloudSignIn=async(email:string,password:string)=>{try{const user=await signInCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudCreate=async(email:string,password:string)=>{try{const user=await createCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudReset=async(email:string)=>{try{await sendCloudPasswordReset(email);}catch(e){throw new Error(friendlyCloudError(e));}};
@@ -409,7 +421,16 @@ export class App extends React.Component<{},State> {
       this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Local copy saved to Firebase.','تم حفظ النسخة المحلية في Firebase.')});
     }finally{this.endProtectedOperation();}
   };
-  private cloudSignOut=async()=>{try{await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});}catch(e){throw new Error(friendlyCloudError(e));}};
+  private cloudSignOut=async()=>{
+    await this.drainVaultWrites();
+    try{
+      await signOutCloudUser();
+      if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
+      this.vaultWriteTail=Promise.resolve(null);
+      this.setState({cloudUser:null,cloudLinked:false,unlocked:false,key:null,vault:null,
+        cloudSyncState:'local',cloudSyncMessage:'',settingsOpen:false,cloudModal:false});
+    }catch(error){throw new Error(friendlyCloudError(error));}
+  };
   private cloudSyncNow=async()=>{
     if(this.cloudReplaceBlocked())return;
     const uid=this.state.cloudUser?.uid;
