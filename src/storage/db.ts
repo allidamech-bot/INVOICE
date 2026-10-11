@@ -302,9 +302,9 @@ export async function putPlainWorkspace(record:PlainWorkspaceRecord):Promise<voi
     throw new Error('Invalid account workspace payload.');
   await putRecord(record);
 }
-export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseCloudRevision:string|null):Promise<PlainWorkspaceRecord>{
+export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseCloudRevision:string|null,baseCloudSha256:string|null):Promise<PlainWorkspaceRecord>{
   if(activeAccountStorageUid()!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
-  const record:PlainWorkspaceRecord={id:'workspace-v2',uid,payload,schemaVersion:payload.schemaVersion,updatedAt:new Date().toISOString(),baseCloudRevision};
+  const record:PlainWorkspaceRecord={id:'workspace-v2',uid,payload,schemaVersion:payload.schemaVersion,updatedAt:new Date().toISOString(),baseCloudRevision,baseCloudSha256};
   await putPlainWorkspace(record);
   return record;
 }
