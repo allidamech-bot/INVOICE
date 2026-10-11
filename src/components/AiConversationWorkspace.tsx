@@ -153,7 +153,7 @@ function InlineGeneralProposal({host,proposalNode,ar}:{host:Host;proposalNode:an
     </div>:<>
       <div className="lxw-inline-general-row">
         <button type="button" className="lxw-inline-preview-button" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{label(ar,expanded?'Hide details':'Review details',expanded?'إخفاء التفاصيل':'عرض التفاصيل')}</button>
-        {reviewed&&buttons.length?<div className="lxw-inline-approval-buttons" role="group" aria-label={label(ar,'Approve or decline','الموافقة أو الرفض')}>{buttons}</div>:null}
+        {buttons.length?<div className="lxw-inline-approval-buttons" role="group" aria-label={label(ar,'Approve or decline','الموافقة أو الرفض')}>{other}{reviewed&&primary?primary:null}</div>:null}
       </div>
       {expanded?<div className="lxw-inline-general-detail" role="region" aria-label={label(ar,'Action details','تفاصيل الإجراء')}>
         {children.filter((child:any)=>child!==actions)}
@@ -169,6 +169,8 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
   const actions=react.Children.toArray(approval.props?.children).find((child:any)=>
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const originalButtons=actions?react.Children.toArray((actions as any).props.children):[];
+  const confirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
+  const decline=originalButtons.filter((button:any)=>button!==confirm);
   return <section className="lxw-inline-approval" aria-label={label(ar,'Document approval suggestion','اقتراح اعتماد مستند')}>
     <div className="lxw-inline-approval-title">
       <strong>{label(ar,'Draft ready for review','المسودة جاهزة للمراجعة')}</strong>
@@ -179,7 +181,7 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>
         {label(ar,'Review details','عرض التفاصيل')}
       </button>
-      {reviewed&&originalButtons.length?<div className="lxw-inline-approval-buttons" role="group" aria-label={label(ar,'Approval decision','قرار الاعتماد')}>{originalButtons}</div>:null}
+      {originalButtons.length?<div className="lxw-inline-approval-buttons" role="group" aria-label={label(ar,'Approval decision','قرار الاعتماد')}>{decline}{reviewed&&confirm?confirm:null}</div>:null}
     </div>
     {reviewed&&!originalButtons.length?<p role="status" className="lxw-review-unknown">{label(ar,'Approval controls could not load. No action was executed.','تعذر تحميل أزرار الاعتماد. لم يُنفّذ أي إجراء.')}</p>:null}
   </section>;
