@@ -72,6 +72,13 @@ jobs:
           echo "Full historical suite exit status: $status"
           grep -E "^[[:space:]]*✖ " "$RUNNER_TEMP/pinless-all-tests.log" | tail -n 50 || true
           echo 'Legacy assertions require explicit review, never silently disable them.'
+      - name: Print historical regression diagnostics for follow-up
+        if: always()
+        shell: bash
+        run: |
+          if test -f "$RUNNER_TEMP/pinless-all-tests.log"; then
+            sed -n '/^✖ failing tests:/,$p' "$RUNNER_TEMP/pinless-all-tests.log" | head -n 500 || true
+          fi
       - name: Compare historical failures with unmodified main
         if: success()
         continue-on-error: true
