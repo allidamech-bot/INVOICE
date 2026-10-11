@@ -4,7 +4,7 @@ import { confirmedSalesDeliveries } from '../lib/sales-delivery-flow.js';
 import { createConfirmedDeliveryInvoiceDraft, assertDeliveryInvoiceIntegrity, isDeliveryLinkedInvoice } from '../lib/sales-delivery-invoice.js';
 import { createLinkedPurchaseOrderDraft } from '../lib/procurement-flow.js';
 import type { AppSettings, ApprovalPolicyRecord, CompanySettings, Customer, DocumentKind, EncryptedVaultRecord, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, RecurringTarget, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, TeamMemberRecord, UiLanguage, VaultPayload } from '../types.js';
-import { customerSnapshotFrom, defaultCompany, emptyVault } from '../lib/defaults.js';
+import { customerSnapshotFrom, emptyVault } from '../lib/defaults.js';
 import { createBlankDocument, convertToInvoice, duplicateDocument, nextCreditNoteNumber, nextDocumentNumber, validateDocument } from '../lib/documents.js';
 import { assertDocumentLifecycleInvariant, auditedDocument, beginRevisionDraft, createCreditNoteDraft, createDocumentEvent, createRevisionRecord, invoiceCreditCapacity, restoreRevisionSnapshot, voidFinalDocument } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant, normalizePaymentRecord } from '../lib/payments.js';
@@ -12,15 +12,12 @@ import { normalizeSupplierPayment, voidSupplierPayment } from '../lib/payables.j
 import { applyCustomerCommercialDefaults, applyPaymentTermPreset, assertCustomerCreditLimit, paymentTermPresetById, paymentTermPresetByLabel } from '../lib/commercial-controls.js';
 import { inventoryMovementIsManual, nextPurchaseNumber, postPurchase, reverseManualInventoryMovement, reversePurchase, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { findSavedItemDuplicate, findSavedItemMatch, markSavedItemsUsed, normalizeSavedItemIdentity, savedItemFromDocumentItem } from '../lib/saved-items.js';
-import { backupPasswordIssue, exportBackup, readBackup } from '../lib/backup.js';
 import { safeFilename } from '../lib/id.js';
 import { calculateTotals } from '../lib/money.js';
 import { buildBusinessHealth } from '../lib/business-health.js';
-import { activateAccountStorage, activeAccountStorageUid, getCloudAccount, getEncryptedVault, getPublicPreferences, getSecurity, hasSecurity, putCloudAccount, putPublicPreferences } from '../storage/db.js';
-import { changePin, recoverPinWithRecoveryKey, renewPinRecoveryKey, restoreVaultWithCurrentKey, resumeVaultSession, saveVault, setupVault, unlockVault } from '../storage/vault.js';
+import { activateAccountStorage, activeAccountStorageUid, getPublicPreferences, putCloudAccount, putPublicPreferences } from '../storage/db.js';
 import { mergeVaultIntent } from '../storage/vault-merge.js';
-import { clearSession, establishSession, setActiveAccountUid, suspendSession, touchSession } from '../storage/session.js';
-import { verifyPin } from '../crypto/crypto.js';
+import { setActiveAccountUid, suspendSession, touchSession } from '../storage/session.js';
 import { setUiLanguage, t } from '../lib/i18n.js';
 import { confirmWorkspaceDeparture } from '../lib/workspace-dirty.js';
 import { assertRecurringWorkflow, completeRecurringRun, materializeRecurringDocumentDraft, materializeRecurringPurchaseDraft, recurringWorkflowDue } from '../lib/recurring-workflows.js';
@@ -51,7 +48,7 @@ import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { DraftDocumentRenderer } from '../components/DraftDocumentRenderer.js';
 import { isLetterDocument } from '../lib/document-extras.js';
 import { documentUsesCommercialDefaults } from '../lib/document-kinds.js';
-import { cloudRemoteChangedSinceAnchor, currentCloudUser, refreshCloudVaultForUnlock, createCloudUser, friendlyCloudError, getCloudVaultMeta, pushLocalVaultToCloud, reconcileCloudVault, resolveCloudConflictWithCloud, resolveCloudConflictWithLocal, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
+import { currentCloudUser, createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import type { CloudUser } from '../cloud/firebase.js';
 
 type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
@@ -220,25 +217,6 @@ export class App extends React.Component<{},State> {
         cloudUser:currentCloudUser(),cloudLinked:false,cloudSyncState:'error',
         cloudSyncMessage:error instanceof Error?error.message:String(error)});
     }
-  };
-
-  private initializeConfiguredCloud=async()=>{
-    let cloudUser:CloudUser|null=null;
-    try{cloudUser=await waitForCloudUser();}catch{}
-    if(!cloudUser){this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});return;}
-    try{
-      const linked=await getCloudAccount();
-      if(linked&&linked.uid!==cloudUser.uid){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:t('This device is linked to a different LOUREX cloud account.','هذا الجهاز مرتبط بحساب LOUREX سحابي مختلف.')});return;}
-      if(!linked){
-        const remote=await getCloudVaultMeta(cloudUser.uid);
-        if(remote){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:t('This cloud account already contains LOUREX data. Sign in with the account originally linked to this device or use Sync Now from the correct device.','هذا الحساب السحابي يحتوي بالفعل على بيانات LOUREX. سجّل بالحساب المرتبط أصلًا بهذا الجهاز أو استخدم المزامنة من الجهاز الصحيح.')});return;}
-        await putCloudAccount(cloudUser.uid,cloudUser.email);
-      }
-      this.setState({cloudUser,cloudLinked:true,cloudSyncState:'local',cloudSyncMessage:t('Cloud account connected.','الحساب السحابي متصل.')},()=>{
-        if(this.state.screen==='editor'||this.state.settingsOpen||this.state.cloudModal)return;
-        this.scheduleCloudSync(220);
-      });
-    }catch(e){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}
   };
 
   private activity=()=>{
