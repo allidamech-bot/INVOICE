@@ -138,18 +138,6 @@
     });
   }
 
-  function normalizeSecurityCopy(){
-    const copy=document.querySelector('.device-security-section .settings-section-heading p');
-    if(!(copy instanceof HTMLElement))return;
-    const text=String(copy.textContent||'');
-    const stale=text.includes('Every account sign-in and every new page start or reload requires the PIN')||text.includes('يتطلب كل تسجيل دخول للحساب وكل تشغيل جديد للصفحة أو إعادة تحميل إدخال PIN');
-    if(!stale)return;
-    const arabic=document.documentElement.dir==='rtl'||String(document.documentElement.lang||'').toLowerCase().startsWith('ar');
-    copy.textContent=arabic
-      ?'يحمي رمز PIN الخزنة المشفّرة على هذا الجهاز. لا تتطلب إعادة التحميل العادية إدخال PIN ما دامت الجلسة المحمية النشطة صالحة. يُطلب PIN مجددًا بعد القفل اليدوي، أو تسجيل الخروج ثم الدخول لاحقًا، أو انتهاء مهلة القفل التلقائي، أو عندما تصبح الجلسة المحمية غير صالحة.'
-      :'The PIN protects the encrypted vault on this device. A normal refresh keeps a valid active protected session open. The PIN is required again after manual lock, sign-out and later sign-in, auto-lock timeout, or when the protected session is no longer valid.';
-  }
-
   function kindFromMenuButton(button){
     const explicit=button?.dataset?.kind||'';
     if(explicit)return menuKinds.includes(explicit)?explicit:'';
@@ -239,7 +227,7 @@
   function noteAppliedCloudVault(){try{document.documentElement.dataset.lourexCloudApplied='true';}catch{}}
 
   let scheduled=false;
-  function reconcile(){scheduled=false;ensureRuntimeReliability();normalizeAuthControls();normalizeSecurityCopy();normalizeCreateMenuKinds();removeLegacyInjectedControls();inferEditorKind();normalizeDetailDocumentKind();observeAppUiSurfaces();}
+  function reconcile(){scheduled=false;ensureRuntimeReliability();normalizeAuthControls();normalizeCreateMenuKinds();removeLegacyInjectedControls();inferEditorKind();normalizeDetailDocumentKind();observeAppUiSurfaces();}
   function schedule(){if(scheduled)return;scheduled=true;window.requestAnimationFrame(reconcile);}
   function nodeContainsRelevantUi(node){if(!(node instanceof Element))return false;if(node.matches('.editor-screen,.ta-doc-detail-page,.ta-create-menu,.shell-new-menu,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'))return true;return Boolean(node.querySelector('.editor-screen,.ta-doc-detail-page,.ta-create-menu,.shell-new-menu,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'));}
 

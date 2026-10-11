@@ -108,29 +108,29 @@
     const scope=readJson(ACTIVE_SCOPE_META_KEY,null);
     const vault=readJson(ACTIVE_VAULT_META_KEY,null);
     if(!scope||typeof scope!=='object'){
-      add('Active encrypted vault','Awaiting active storage measurement','warn');
+      add('Historical encrypted cache','No legacy cache measurement available. The current Firebase V2 workspace is separate.','ok');
       return;
     }
     const scopeKind=scope.kind==='account'?'Account scope':'Public scope';
     if(!vault||typeof vault!=='object'||!vault.fingerprint||vault.fingerprint!==scope.fingerprint){
-      add('Active encrypted vault',`${scopeKind}; size not measured yet`,'warn');
+      add('Historical encrypted cache',`${scopeKind}; no legacy cache measurement`,'ok');
       return;
     }
     const cipherChars=Math.max(0,Number(vault.cipherChars)||0);
     const encryptedBytes=Math.max(0,Number(vault.encryptedBytes)||0);
     const label=`${scopeKind}: ${formatMb(cipherChars)} Base64 cipher (~${formatMb(encryptedBytes)} encrypted bytes)`;
-    add('Active encrypted vault',label,cipherChars>64*MB?'warn':'ok');
-    if(vault.measuredAt)add('Vault size measured',String(vault.measuredAt),'ok');
+    add('Historical encrypted cache',label,cipherChars>64*MB?'warn':'ok');
+    if(vault.measuredAt)add('Historical cache size measured',String(vault.measuredAt),'ok');
   }
   function vaultBreakdownStatus(){
     const scope=readJson(ACTIVE_SCOPE_META_KEY,null);
     const breakdown=readJson(VAULT_BREAKDOWN_KEY,null);
     if(!breakdown||typeof breakdown!=='object'){
-      add('Vault payload breakdown','Awaiting one successful vault unlock/resume','warn');
+      add('Historical cache breakdown','Not available; no legacy account unlock is required.','ok');
       return;
     }
     if(scope&&scope.fingerprint&&breakdown.fingerprint&&scope.fingerprint!==breakdown.fingerprint){
-      add('Vault payload breakdown','Stored measurement belongs to a different local account scope','warn');
+      add('Historical cache breakdown','Stored measurement belongs to a different local account scope','warn');
       return;
     }
     const strings=breakdown.strings&&typeof breakdown.strings==='object'?breakdown.strings:{};

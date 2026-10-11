@@ -5,24 +5,22 @@ LOUREX Invoice is a local-first web application for creating, saving, printing, 
 ## Architecture
 
 - React + TypeScript, compiled as a static web application.
-- IndexedDB is the primary local data store.
-- Company data, customers, documents, saved items and settings are stored inside an encrypted local vault.
-- Firebase Authentication provides the optional/required LOUREX cloud account flow used by the current product.
-- Firestore stores only the encrypted vault payload and security metadata under the authenticated user's owner-only path.
-- The application remains usable offline after the PWA shell has been cached.
-- No accounting ledger, ERP, inventory accounting or server-side business database is included.
+- IndexedDB is the UID-scoped local cache; Firebase Firestore is authoritative for the current signed-in workspace.
+- Firebase Authentication (Google or email/password) is the only interactive sign-in boundary; the current workspace has no separate device PIN.
+- Firestore hosts each signed-in user's authoritative `workspace-v2` data and revisioned history under that account's owner-only paths.
+- IndexedDB holds a UID-scoped local workspace for fast access and offline operation after the account has been initialized.
+- The current business workspace includes documents, customers, saved items, purchasing and finance records; historical encrypted local records are not part of its active sign-in flow.
 
 ## Security model
 
-- The local PIN is never stored as plaintext.
-- PBKDF2-SHA-256 with a random salt derives the local AES-GCM key.
-- Business data is encrypted with AES-GCM before it is stored in IndexedDB.
-- Cloud synchronization uploads the already-encrypted vault in bounded chunks and verifies the ciphertext with SHA-256 metadata.
-- Firestore rules restrict each user's vault path to that authenticated user.
-- Encrypted `.lourex-backup` files use their own random salt and IV.
-- PIN changes re-encrypt the local vault atomically.
+- Access to the current account workspace requires a valid Firebase Authentication session.
+- Firebase UID ownership is enforced in client-side storage scoping and Firestore security rules.
+- The `workspace-v2` data format is JSON encoded for transport, **not** an application-layer end-to-end encrypted vault. Firebase service transport/storage protections and account access controls are the relevant security boundaries.
+- Cloud updates use SHA-256 validation, revision checks and compare-and-swap to detect conflicting writes.
+- An exported LOUREX V2 local copy is **not encrypted**; protect it as sensitive business information.
+- Historical encrypted record formats and cryptography may remain in the codebase for compatibility. They do not grant account access and must not trigger device PIN screens.
 
-The local PIN protects the encrypted vault on the device. As with any browser application, device security, browser storage and account security remain part of the overall security boundary.
+Protect the Firebase account, linked Google/email credentials, connected devices and downloaded business-data copies.
 
 ## Documents
 
@@ -50,13 +48,13 @@ LOUREX uses the browser's native print/PDF engine so exported documents keep sel
 
 ## Cloud synchronization
 
-Cloud synchronization stores encrypted ciphertext, not the decrypted invoice database. The client splits large encrypted vaults into bounded Firestore writes, validates metadata and ciphertext integrity, and uses revision checks to avoid silently overwriting a changed remote vault.
+Cloud synchronization stores the current `workspace-v2` snapshot and revision metadata in Firebase Firestore. The client uses bounded writes, SHA-256 validation and revision checks to avoid silently overwriting changes from another device.
 
-Manual **Sync Now** performs a full reconciliation. Normal saves are written locally first, then queued for cloud synchronization.
+An initialized account maintains a UID-scoped local copy for immediate editing. Changes are queued for automatic cloud publication and reconciliation; the app must report a failed sync instead of claiming that an uncommitted change reached another device.
 
 ## Backup and restore
 
-Backup creates one encrypted `.lourex-backup` file containing the complete vault. Restore validates and decrypts the selected file before replacing the current local vault. Existing data is not merged during a restore operation.
+The optional local export produces a LOUREX V2 JSON copy that is **not encrypted**. Import validates the chosen V2 copy and requires explicit confirmation before replacing the current cloud workspace. Import does not automatically merge historical data. Legacy encrypted exports are not part of the current import flow.
 
 ## Development
 
@@ -81,12 +79,12 @@ npm run dev
 
 ```text
 src/
-  app/          application lifecycle, lock state, persistence and cloud coordination
-  cloud/        Firebase authentication and encrypted-vault synchronization
+  app/          Firebase account lifecycle, workspace persistence and cloud coordination
+  cloud/        Firebase authentication, versioned workspace storage and sync
   components/   documents, customers, editor, settings and shared UI
-  crypto/       Web Crypto PIN/key/encryption layer
+  crypto/       historical vault cryptography and compatibility utilities
   lib/          financial calculations, documents, backups, images and utilities
-  storage/      IndexedDB, session handling, migrations and concurrent-write merge logic
+  storage/      UID-scoped IndexedDB, AI cache encryption and concurrent-write merge logic
   templates/    document renderers and template thumbnails
   styles/       application UI, responsive layers and printable A4 templates
   types.ts      shared strict data model

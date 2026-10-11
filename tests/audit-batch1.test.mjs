@@ -39,10 +39,13 @@ test('shared modal closes only the topmost dialog on Escape and restores focus',
   assert.match(source,/restoreOverlayFocus\(this\.previousFocus\)/);
 });
 
-test('project documentation describes the live encrypted cloud architecture',async()=>{
+test('project documentation describes the live Firebase V2 account and backup security model',async()=>{
   const readme=await read('README.md');
   assert.match(readme,/Firebase Authentication/);
-  assert.match(readme,/Firestore stores only the encrypted vault payload/);
+  assert.match(readme,/Firestore hosts each signed-in user's authoritative `workspace-v2` data/);
+  assert.match(readme,/Firebase UID ownership is enforced/);
+  assert.match(readme,/not encrypted/);
   assert.match(readme,/18 template identifiers/);
+  assert.doesNotMatch(readme,/Firestore stores only the encrypted vault payload|PIN changes re-encrypt the local vault/);
   assert.doesNotMatch(readme,/no cloud database, no external login/i);
 });
