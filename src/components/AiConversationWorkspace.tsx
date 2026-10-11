@@ -157,7 +157,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       {(['controller','advisor'] as const).map(value=><button key={value} type="button" role="tab" aria-selected={mode===value} disabled={inactive} onClick={()=>void host.__workspaceSwitchMode?.(value)}>{value==='controller'?label(ar,'Controller','المتحكم'):label(ar,'Advisor','المستشار')}</button>)}
     </nav>;
     const description=<div className="lxw-mode-description" dir={ar?'rtl':'ltr'} aria-live="polite">
-      <span className="lxw-mode-symbol" aria-hidden="true">{mode==='controller'?'⚙':'✧'}</span>
+      <span className="lxw-mode-symbol" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{mode==='controller'?<><path d="M4 7h16M4 17h16"/><path d="M8 4v6M16 14v6"/></>:<><path d="M20 11.5a8 8 0 0 1-8.5 8 8 8 0 0 1-3.8-1L4 20l1.5-3.7A8 8 0 1 1 20 11.5Z"/><path d="M8 11h8M8 14h5"/></>}</svg></span>
       <span>{conversationModeDescription(mode,ar?'ar':'en')}</span>
     </div>;
     const toolbar=mode==='controller'?<div className="lxw-toolbar"><button type="button" disabled={inactive} aria-expanded={open} onClick={()=>host.setState({__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}>{label(ar,'Workspace','مساحة العمل')}{k.artifact?' · '+k.artifact.revision:''}</button></div>:null;
