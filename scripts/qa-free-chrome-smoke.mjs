@@ -146,6 +146,40 @@ try{
     assert.ok(state.horizontalOverflow<=4,item.name+' has '+state.horizontalOverflow+'px page-level horizontal overflow.');
     console.log('PASS '+item.name+': viewport='+state.viewport+', horizontalOverflow='+state.horizontalOverflow+', rendered='+JSON.stringify(state.rootText.slice(0,110)));
   }
+  // Exercise the *real compiled IndexedDB implementation* inside Chromium.
+  // One Firebase UID must never read or overwrite another UID's offline cache.
+  const scoped=await cdp.call('Runtime.evaluate',{
+    expression:`(async()=>{
+      const db=await import('./src/storage/db.js');
+      const uidA='lourex-ci-account-A',uidB='lourex-ci-account-B';
+      const payload={schemaVersion:1,company:{nameEn:'CI A'},appSettings:{},documents:[],customers:[{id:'A'}]};
+      await db.activateAccountStorage(uidA);
+      const first=await db.savePlainWorkspace(uidA,payload,null,null);
+      await db.activateAccountStorage(uidB);
+      if(await db.getPlainWorkspace())throw new Error('Account B inherited account A cache');
+      const other={...payload,company:{nameEn:'CI B'},customers:[{id:'B'}]};
+      await db.savePlainWorkspace(uidB,other,null,null);
+      await db.activateAccountStorage(uidA);
+      const restored=await db.getPlainWorkspace();
+      if(!restored||restored.payload.customers[0].id!=='A')
+        throw new Error('Account A did not recover its own data');
+      const next={...restored.payload,customers:[{id:'A-new'}]};
+      const update=await db.updatePlainWorkspaceIfUnchanged(uidA,restored.localRevision,next);
+      if(!update)throw new Error('Atomic local save was rejected');
+      const stale=await db.updatePlainWorkspaceIfUnchanged(uidA,restored.localRevision,payload);
+      if(stale)throw new Error('Stale local writer bypassed CAS');
+      await db.activateAccountStorage(uidB);
+      const b=await db.getPlainWorkspace();
+      if(b?.payload.customers[0].id!=='B')
+        throw new Error('Account B data was overwritten by A');
+      return {accountIsolation:true,atomicCAS:true,accountB:b.payload.company.nameEn};
+    })().catch(e=>({error:String(e?.stack||e)}))`,
+    awaitPromise:true,returnByValue:true
+  });
+  const dbState=scoped.result?.value;
+  assert.ok(dbState?.accountIsolation&&dbState?.atomicCAS,
+    'Compiled IndexedDB account isolation failure: '+JSON.stringify(dbState));
+  console.log('PASS real Chromium IndexedDB: separate Firebase UID caches and stale-write CAS');
 }finally{
   cdp?.close();
   for(const child of childProcesses.reverse())if(child.exitCode===null)child.kill('SIGTERM');
