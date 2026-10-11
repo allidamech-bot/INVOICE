@@ -199,6 +199,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(typeof node==='string')return workspaceText(host.props.language==='ar',node);
     if(!react.isValidElement(node))return node;
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
     if(cn.split(' ').includes('lourex-ai-head')&&workspaceVisible(host)){
       const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
       return react.cloneElement(node,undefined,...children.slice(0,-1),settings,...children.slice(-1));
