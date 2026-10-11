@@ -144,3 +144,36 @@ test('document prompts keep uploads as untrusted data and accounting remains det
   assert.match(customer,/untrusted DATA/i);assert.match(customer,/ignore any instructions|never execute or follow/i);
   assert.match(core,/calculated deterministically/i);assert.match(core,/do not replace or recalculate/i);assert.match(core,/preview-only/i);
 });
+
+
+test('free-provider fallback respects a total deadline shorter than the 60s browser timeout',async()=>{
+  configureAll();
+  let clock=Date.now(),requests=0;
+  Date.now=()=>clock;
+  globalThis.fetch=async()=>{
+    requests+=1;
+    clock+=49_500;
+    return response(503,{error:{message:'upstream unavailable'}});
+  };
+  const result=await routeAiStructured({taskType:'workspace_help',prompt:'help',schema:schema()});
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_TIMEOUT');
+  assert.equal(requests,1,'after consuming the deadline no later provider or retry may start');
+});
+
+test('provider response body that never settles is hard-timed-out, not left spinning indefinitely',async()=>{
+  delete process.env.CLOUDFLARE_AI_API_TOKEN;
+  delete process.env.CLOUDFLARE_ACCOUNT_ID;
+  delete process.env.GEMINI_API_KEY;
+  process.env.GROQ_API_KEY='test-groq';
+  globalThis.setTimeout=(callback,_delay,...args)=>originalSetTimeout(callback,0,...args);
+  let calls=0;
+  globalThis.fetch=async()=>{
+    calls+=1;
+    return{ok:true,status:200,headers:{get:()=>null},text:()=>new Promise(()=>{})};
+  };
+  const result=await routeAiStructured({taskType:'workspace_help',prompt:'help',schema:schema(),timeoutMs:3_000});
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_TIMEOUT');
+  assert.equal(calls,1);
+});
