@@ -125,6 +125,14 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       const ar=host.props.language==='ar',prompts=ar?['ذكرني غدًا بمراجعة أهدافي','ما الذي تتذكره عن تفضيلاتي؟']:['Remind me tomorrow to review my goals','What do you remember about my preferences?'];
       return react.cloneElement(node,undefined,<strong>{label(ar,'Your personal assistant','مساعدك الشخصي')}</strong>,<p>{label(ar,'Plan tasks and manage personal reminders and preferences in this separate conversation.','نظّم مهامك وتذكيراتك وتفضيلاتك الشخصية في هذه المحادثة المستقلة.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
     }
+    if(cn.split(' ').includes('lourex-ai-empty')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
+      const ar=host.props.language==='ar';
+      const prompts=ar?['حلّل هامش الربح بناءً على بيانات الشركة','اشرح لي الذمم والمستحقات الحالية']:['Analyze profit margins from business records','Explain current receivables and outstanding balances'];
+      return react.cloneElement(node,undefined,
+        <strong>{label(ar,'What would you like to analyze?','ما الذي تريد مناقشته؟')}</strong>,
+        <p>{label(ar,'Discuss financial and commercial questions. The Advisor reads permitted information but never opens pages or changes records.','ناقش الأمور المالية والتجارية. يقرأ المستشار المعلومات المصرّح بها للتحليل دون فتح صفحات أو تغيير سجلات.')}</p>,
+        <div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} disabled={disabled(host)} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
+    }
     if(node.props?.id!=='lourex-ai-panel')return children.length?react.cloneElement(node,undefined,...children):node;
     if(!workspaceVisible(host)){
       const k=host.__intelligenceKernel as ConversationKernel|undefined;
