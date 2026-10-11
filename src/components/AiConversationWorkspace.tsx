@@ -133,19 +133,42 @@ function AiExperienceSettings({host}:{host:Host}):any {
 /** Generic Controller suggestions stay compact, including navigation.
  * Non-navigation actions retain the exact legacy approval buttons and
  * require opening details plus an explicit acknowledgement before exposure. */
+/** Decline is always allowed. A short exit motion runs before invoking the
+ * original dismiss callback. Stale-proposal and unmount checks cancel the
+ * animation without ever authorizing or changing a business record. */
+function useInlineDecline(host:Host,proposal:any):{exiting:boolean;wrap:(button:any)=>any}{
+  const [exiting,setExiting]=React.useState(false);
+  const timer=React.useRef<any>(null);
+  React.useEffect(()=>{setExiting(false);return()=>{if(timer.current)window.clearTimeout(timer.current);};},[proposal]);
+  const wrap=(button:any)=>react.cloneElement(button,{
+    disabled:Boolean(button.props?.disabled||exiting),
+    onClick:()=>{
+      if(exiting||host.state.proposal!==proposal)return;
+      const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||document.getElementById('lourex-ai-panel')?.getAttribute('data-ai-motion')==='reduced';
+      if(reduced){button.props?.onClick?.();return;}
+      setExiting(true);
+      timer.current=window.setTimeout(()=>{
+        timer.current=null;
+        if(host.state.proposal===proposal)button.props?.onClick?.();
+      },160);
+    }
+  });
+  return{exiting,wrap};
+}
 function InlineGeneralProposal({host,proposalNode,ar}:{host:Host;proposalNode:any;ar:boolean}):any {
   const proposal=host.state.proposal;
   const [expanded,setExpanded]=React.useState(false);
   const [reviewedProposal,setReviewedProposal]=React.useState<any>(null);
+  const dismissal=useInlineDecline(host,proposal);
   if(!proposal||!proposalNode)return null;
   const children=react.Children.toArray(proposalNode.props?.children);
   const actions=children.find((node:any)=>String(node?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const buttons=actions?react.Children.toArray((actions as any).props.children):[];
   const primary=buttons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
-  const other=buttons.filter((button:any)=>button!==primary);
+  const other=buttons.filter((button:any)=>button!==primary).map((button:any)=>dismissal.wrap(button));
   const isNavigation=proposal.capability==='workspace.navigate';
   const reviewed=reviewedProposal===proposal;
-  return <section className="lxw-inline-general" aria-label={label(ar,'Suggested action','إجراء مقترح')}>
+  return <section className="lxw-inline-general" data-exiting={dismissal.exiting?'true':'false'} aria-label={label(ar,'Suggested action','إجراء مقترح')}>
     <div className="lxw-inline-general-heading"><span>{label(ar,'LOUREX suggests','يقترح LOUREX')}</span><strong>{proposal.label||label(ar,'Review an action','مراجعة إجراء')}</strong></div>
     {isNavigation?<div className="lxw-inline-general-row">
       {primary?react.cloneElement(primary,{className:'lxw-inline-open'},label(ar,'Open section','فتح القسم')):null}
@@ -166,12 +189,13 @@ function InlineGeneralProposal({host,proposalNode,ar}:{host:Host;proposalNode:an
 function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:boolean}):any {
   if(!approval||!host.state.proposal)return null;
   const reviewed=host.state.__workspaceReviewedProposal===host.state.proposal;
+  const dismissal=useInlineDecline(host,host.state.proposal);
   const actions=react.Children.toArray(approval.props?.children).find((child:any)=>
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const originalButtons=actions?react.Children.toArray((actions as any).props.children):[];
   const confirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
-  const decline=originalButtons.filter((button:any)=>button!==confirm);
-  return <section className="lxw-inline-approval" aria-label={label(ar,'Document approval suggestion','اقتراح اعتماد مستند')}>
+  const decline=originalButtons.filter((button:any)=>button!==confirm).map((button:any)=>dismissal.wrap(button));
+  return <section className="lxw-inline-approval" data-exiting={dismissal.exiting?'true':'false'} aria-label={label(ar,'Document approval suggestion','اقتراح اعتماد مستند')}>
     <div className="lxw-inline-approval-title">
       <strong>{label(ar,'Draft ready for review','المسودة جاهزة للمراجعة')}</strong>
       <small>{label(ar,'No changes are saved by previewing.','المعاينة لا تحفظ أي تغيير.')}</small>
