@@ -1,7 +1,8 @@
 import type { PlainWorkspaceRecord, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION } from '../lib/defaults.js';
-import { activeAccountStorageUid, acknowledgePlainWorkspace, getPlainWorkspace, putPlainWorkspace } from '../storage/db.js';
+import { activeAccountStorageUid, acknowledgePlainWorkspace, getPlainWorkspace, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
 import { currentCloudUser } from './firebase.js';
+import { assertRestorableBackupVault } from '../lib/backup.js';
 
 /**
  * PIN-free Firebase format. Data is JSON carried in base64 chunks ONLY to avoid
@@ -118,20 +119,16 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
   if(!latest||latest.revision!==meta.revision||latest.sha256!==meta.sha256)
     throw new Error('The cloud workspace changed during download. Retry.');
   const payload=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)) as VaultPayload;
-  if(!payload||payload.schemaVersion!==meta.schemaVersion||typeof payload.company!=='object'||!Array.isArray(payload.documents))
-    throw new Error('The downloaded workspace payload is invalid.');
+  assertRestorableBackupVault(payload);
+  if(payload.schemaVersion!==meta.schemaVersion)
+    throw new Error('The downloaded workspace schema does not match the verified manifest.');
   requireUid(uid);
   return {payload,meta};
 }
 
-async function deleteUncommittedChunks(uid:string,revision:string,count:number):Promise<void>{
-  for(let offset=0;offset<count;offset+=100){
-    const batch=firebase.firestore().batch();
-    for(let i=offset;i<Math.min(count,offset+100);i++)batch.delete(collection(uid).doc(chunkId(revision,i)));
-    try{await batch.commit();}catch{/* Orphaned chunks are unreachable by any manifest. */}
-  }
-}
-
+// Orphan chunks are intentionally left untouched after an ambiguous network
+// failure. No unverified cleanup may delete a revision referenced by a
+// committed manifest. Garbage collection requires a separate audited job.
 export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceRecord,replaceRemote=false):Promise<'same'|'pushed'|'remote-changed'>{
   requireUid(uid);
   if(local.uid!==uid||local.schemaVersion!==local.payload?.schemaVersion)throw new Error('Invalid local workspace identity.');
@@ -140,7 +137,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
   const previous=await getPlainCloudMeta(uid);
   requireUid(uid);
   if(previous&&previous.sha256===hash){
-    await acknowledgePlainWorkspace(uid,local.updatedAt,previous.revision,hash);
+    await acknowledgePlainWorkspace(uid,local.localRevision,previous.revision,hash);
     return 'same';
   }
   if(!replaceRemote&&(previous?.revision??null)!==(local.baseCloudRevision??null))
@@ -151,7 +148,6 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     bytes:bytes.length,sha256:hash,chunkCount:count,
     updatedAt:local.updatedAt,parentRevision:previous?.revision??null
   };
-  let staged=false,manifestCommitted=false;
   try{
     for(let offset=0;offset<count;offset+=WRITE_BATCH_SIZE){
       const batch=firebase.firestore().batch();
@@ -160,7 +156,6 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
           revision,index:i,data:b64(bytes.subarray(i*CHUNK_BYTES,Math.min(bytes.length,(i+1)*CHUNK_BYTES)))
         });
       await batch.commit();
-      staged=true;
       requireUid(uid);
     }
     // Manifest transaction is the commit point. A losing device never replaces
@@ -173,21 +168,23 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
       tx.set(ref,meta);
       return true;
     });
+    // A successful Firestore transaction has already committed remotely.
+    // Never delete the chunks even if the identity changes right here.
+    if(!committed)return 'remote-changed';
     requireUid(uid);
-    if(!committed){await deleteUncommittedChunks(uid,revision,count);return 'remote-changed';}
-    manifestCommitted=true;
     if(previous){
       try{await firebase.firestore().collection('users').doc(uid).collection('workspaceHistory').doc(previous.revision).set({...previous,archivedAt:new Date().toISOString()});}catch{}
     }
-    await acknowledgePlainWorkspace(uid,local.updatedAt,revision,hash);
+    await acknowledgePlainWorkspace(uid,local.localRevision,revision,hash);
     return 'pushed';
   }catch(error){
-    if(staged&&!manifestCommitted)await deleteUncommittedChunks(uid,revision,count);
+    // The server might have committed despite a lost response. Retain staged
+    // chunks until their reachability can be verified in a separate GC pass.
     throw error;
   }
 }
 
-/** No last-write-wins data loss. Only clean local copies can fast-forward. */
+/** Reads remote revisions without overwriting concurrent local work. */
 export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainCloudSyncResult>{
   requireUid(uid);
   const [local,remote]=await Promise.all([getPlainWorkspace(),getPlainCloudMeta(uid)]);
@@ -196,8 +193,13 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   if(!local&&remote){
     const result=await downloadPlainCloudWorkspace(uid,remote);
     if(!result)return 'empty';
-    await putPlainWorkspace({id:'workspace-v2',uid,payload:result.payload,schemaVersion:result.payload.schemaVersion,updatedAt:result.meta.updatedAt,baseCloudRevision:result.meta.revision,baseCloudSha256:result.meta.sha256});
-    return 'pulled';
+    const replacement:PlainWorkspaceRecord={
+      id:'workspace-v2',uid,payload:result.payload,schemaVersion:result.payload.schemaVersion,
+      updatedAt:result.meta.updatedAt,localRevision:crypto.randomUUID(),
+      baseCloudRevision:result.meta.revision,baseCloudSha256:result.meta.sha256
+    };
+    const installed=await replacePlainWorkspaceIfUnchanged(uid,null,replacement);
+    return installed?'pulled':'diverged';
   }
   if(!local)return 'empty';
   if(!remote){
@@ -207,7 +209,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   }
   const hash=await sha256(encodePayload(local.payload));
   if(hash===remote.sha256){
-    await acknowledgePlainWorkspace(uid,local.updatedAt,remote.revision,hash);
+    await acknowledgePlainWorkspace(uid,local.localRevision,remote.revision,hash);
     return 'same';
   }
   if(local.baseCloudRevision===remote.revision){
@@ -218,6 +220,24 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   if(!localClean)return 'diverged';
   const result=await downloadPlainCloudWorkspace(uid,remote);
   if(!result)return 'diverged';
-  await putPlainWorkspace({id:'workspace-v2',uid,payload:result.payload,schemaVersion:result.payload.schemaVersion,updatedAt:result.meta.updatedAt,baseCloudRevision:result.meta.revision,baseCloudSha256:result.meta.sha256});
-  return 'pulled';
+  const replacement:PlainWorkspaceRecord={
+    id:'workspace-v2',uid,payload:result.payload,schemaVersion:result.payload.schemaVersion,
+    updatedAt:result.meta.updatedAt,localRevision:crypto.randomUUID(),
+    baseCloudRevision:result.meta.revision,baseCloudSha256:result.meta.sha256
+  };
+  // The checked local generation may have changed during the download.
+  const installed=await replacePlainWorkspaceIfUnchanged(uid,local.localRevision,replacement,'replaced-by-cloud');
+  return installed?'pulled':'diverged';
+}
+
+/** Notify other devices when a fully committed cloud manifest changes. */
+export function subscribePlainCloudChanges(uid:string,onChange:()=>void):()=>void{
+  requireUid(uid);
+  const off=metaRef(uid).onSnapshot((snapshot:any)=>{
+    if(!snapshot.exists)return;
+    const data=snapshot.data();
+    if(!validMeta(data))return;
+    onChange();
+  },()=>undefined);
+  return typeof off==='function'?off:()=>{};
 }
