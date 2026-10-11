@@ -78,7 +78,7 @@ test('declining a suggestion animates out safely without delaying reduced-motion
   assert.match(component,/host\.state\.proposal===proposal/);
   assert.match(component,/window\.setTimeout\(\(\)=>\{/);
   assert.match(component,/\},160\)/);
-  assert.match(component,/if\(reduced\)\{button\.props\?\.onClick\?\.\(\);return;\}/);
+  assert.match(component,/if\(reduced\)\{timer\.current=-1;button\.props\?\.onClick\?\.\(\);return;\}/);
   assert.match(component,/data-exiting=\{dismissal\.exiting\?'true':'false'\}/);
   assert.match(styles,/\.lxw-inline-approval\[data-exiting='true'\]/);
   assert.match(styles,/prefers-reduced-motion:reduce/);
