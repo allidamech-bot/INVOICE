@@ -5,6 +5,10 @@ const GEMINI_BASE_URL='https://generativelanguage.googleapis.com/v1beta/models';
 const CLOUDFLARE_CHAT_PATH='/ai/v1/chat/completions';
 const GEMINI_MODEL='gemini-2.5-flash-lite';
 const DEFAULT_TIMEOUT_MS=18_000;
+// Keep the entire provider fallback chain below the browser's 60-second request timeout.
+const ROUTER_BUDGET_MS=50_000;
+const PROVIDER_MIN_MS=3_000;
+const ROUTER_SETTLE_RESERVE_MS=1_500;
 const MAX_OUTPUT_TOKENS=4096;
 const CIRCUIT_FAILURE_THRESHOLD=2;
 const CIRCUIT_OPEN_MS=30_000;
@@ -211,8 +215,19 @@ function providerError(provider,model,status,bodyText){
   return{category:'upstream',code:'AI_UPSTREAM_ERROR',retryable:false};
 }
 async function fetchWithTimeout(url,options,timeoutMs){
-  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
-  try{const response=await fetch(url,{...options,signal:controller.signal});const text=await response.text();if(controller.signal.aborted)throw new DOMException('Provider response timed out','AbortError');return{response,text};}finally{clearTimeout(timeout);}
+  const controller=new AbortController();let timeout;
+  // Abort alone is insufficient: a stalled response.text() can ignore the signal.
+  // Race the complete fetch + body read against the same hard deadline.
+  const timedOut=new Promise((_,reject)=>{
+    timeout=setTimeout(()=>{controller.abort();reject(new DOMException('Provider response timed out','AbortError'));},timeoutMs);
+  });
+  const request=(async()=>{
+    const response=await fetch(url,{...options,signal:controller.signal});
+    const text=await response.text();
+    if(controller.signal.aborted)throw new DOMException('Provider response timed out','AbortError');
+    return{response,text};
+  })();
+  try{return await Promise.race([request,timedOut]);}finally{clearTimeout(timeout);}
 }
 function groqReasoningOptions(model,reasoningLevel){
   if(model.model.startsWith('openai/gpt-oss-'))return{reasoning_effort:reasoningLevel==='deep'?'medium':'low',include_reasoning:false};
@@ -280,12 +295,19 @@ export async function routeAiStructured(options={}){
   if(!candidates.length)return{success:false,errorCode:'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false};
   const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
   let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null;
+  const routeStartedAt=Date.now();
+  providerRoute:
   for(let index=0;index<candidates.length;index+=1){
     const model=candidates[index];
     for(let attempt=0;attempt<MAX_PROVIDER_ATTEMPTS;attempt+=1){
+      const remaining=ROUTER_BUDGET_MS-(Date.now()-routeStartedAt);
+      if(remaining<PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS){lastCode='AI_TIMEOUT';break providerRoute;}
+      // Reserve a small window for later free-tier fallback models.
+      const futureReserve=Math.min((candidates.length-index-1)*PROVIDER_MIN_MS,Math.max(0,remaining-PROVIDER_MIN_MS-ROUTER_SETTLE_RESERVE_MS));
+      const perAttemptMs=Math.min(30_000,Math.max(PROVIDER_MIN_MS,Number(options.timeoutMs)||DEFAULT_TIMEOUT_MS),remaining-ROUTER_SETTLE_RESERVE_MS-futureReserve);
       const startedAt=Date.now();
       try{
-        const result=await callProvider(model,{taskType,prompt:options.prompt,messages:options.messages,attachments,schema,reasoningLevel,timeoutMs:Math.max(3_000,Math.min(30_000,Number(options.timeoutMs)||DEFAULT_TIMEOUT_MS)),maxOutputTokens:options.maxOutputTokens});
+        const result=await callProvider(model,{taskType,prompt:options.prompt,messages:options.messages,attachments,schema,reasoningLevel,timeoutMs:Math.max(PROVIDER_MIN_MS,perAttemptMs),maxOutputTokens:options.maxOutputTokens});
         const schemaValid=validateJsonSchema(result.data,jsonSchema),customValid=schemaValid&&(typeof options.validate!=='function'||options.validate(result.data)!==false);
         if(!customValid){lastCode='AI_INVALID_RESULT';recordFailure(model.provider,model.model,'invalid');telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category:'schema',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});break;}
         const lowConfidence=hasLowConfidence(result.data);
@@ -295,7 +317,11 @@ export async function routeAiStructured(options={}){
         return accepted;
       }catch(error){
         const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});
-        if(retryableSameProvider(error,attempt)){await sleep(RETRY_BASE_MS*(attempt+1));continue;}
+        if(retryableSameProvider(error,attempt)){
+          const delay=RETRY_BASE_MS*(attempt+1);
+          if(Date.now()-routeStartedAt+delay+PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS>=ROUTER_BUDGET_MS){lastCode='AI_TIMEOUT';break providerRoute;}
+          await sleep(delay);continue;
+        }
         break;
       }
     }
