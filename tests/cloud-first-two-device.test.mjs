@@ -44,6 +44,11 @@ async function client(firebase,uid){
          state.local?.baseCloudRevision!==expectedParent)return false;
       state.local={...state.local,baseCloudRevision:revision,baseCloudSha256:sha};return true;
     },
+    acknowledgeIdenticalPlainWorkspace:async(_uid,expectedGeneration,revision,sha)=>{
+      if(state.local?.localRevision!==expectedGeneration)return false;
+      state.local={...state.local,baseCloudRevision:revision,baseCloudSha256:sha,localAncestors:[]};
+      return true;
+    },
     replacePlainWorkspaceIfUnchanged:async(_uid,expected,replacement,reason)=>{
       if((state.local?.localRevision??null)!==expected)return false;
       if(state.local&&reason)state.archives.push(state.local);
@@ -152,4 +157,24 @@ test('explicit Keep This Device choice publishes conflict safely and rebases its
   assert.equal(c.state.local.payload.customers[0].id,'B');
   const archived=[...firebase.docs.keys()].filter(k=>k.includes('/workspaceHistory/'));
   assert.ok(archived.length>=2,'displaced remote manifest retained for recovery');
+});
+
+test('byte-identical cloud copy fast-forwards a stale anchor so the next invoice edit publishes normally',async()=>{
+  const firebase=fakeFirebase();
+  const a=await client(firebase,'user-1'),b=await client(firebase,'user-1');
+  a.state.local=local(payload());
+  assert.equal(await a.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  assert.equal(await b.api.reconcilePlainCloudWorkspace('user-1'),'pulled');
+  const previous=b.state.local.baseCloudRevision;
+  const metaKey='users/user-1/workspace/meta',old=firebase.docs.get(metaKey);
+  assert.ok(old);
+  const equivalent='equivalent-copy-revision-12345';
+  firebase.docs.set(metaKey,{...old,revision:equivalent,parentRevision:old.revision});
+  assert.equal(await b.api.reconcilePlainCloudWorkspace('user-1'),'same');
+  assert.equal(b.state.local.baseCloudRevision,equivalent,'equal content must update the stale cloud anchor');
+  b.state.local={...b.state.local,localRevision:webcrypto.randomUUID(),
+    payload:{...b.state.local.payload,documents:[{id:'next-invoice'}]}};
+  assert.equal(await b.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  assert.equal(b.state.local.payload.documents[0].id,'next-invoice');
+  assert.notEqual(b.state.local.baseCloudRevision,previous);
 });
