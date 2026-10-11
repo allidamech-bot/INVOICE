@@ -61,17 +61,17 @@ const GUIDE_ITEMS:GuideItem[]=[
   },
   {
     titleEn:'Backup, restore & cloud sync',titleAr:'النسخ الاحتياطي والاستعادة والمزامنة',
-    bodyEn:'Data protection features preserve the encrypted business vault; restore and sync actions must be reviewed carefully.',
-    bodyAr:'تحافظ ميزات حماية البيانات على خزنة الأعمال المشفرة، ويجب مراجعة الاستعادة والمزامنة بعناية.',
+    bodyEn:'Your Firebase account saves your workspace automatically. Optional local copies are not encrypted, so store them securely and review any restore before confirming.',
+    bodyAr:'يحفظ حساب Firebase مساحة العمل تلقائيًا. النسخ المحلية الاختيارية غير مشفّرة، لذلك احفظها بأمان وراجع أي عملية استعادة قبل تأكيدها.',
     stepsEn:['Keep a recent backup before major changes.','Check sync state before moving between devices.','Use restore only when you understand which data version will become authoritative.'],
     stepsAr:['احتفظ بنسخة احتياطية حديثة قبل التغييرات الكبيرة.','تحقق من حالة المزامنة قبل الانتقال بين الأجهزة.','استخدم الاستعادة فقط عندما تعرف أي نسخة من البيانات ستصبح المعتمدة.']
   },
   {
     titleEn:'Account security & recovery',titleAr:'أمان الحساب واستعادته',
-    bodyEn:'Sign in with your Firebase account using email and password or Google. Local PIN entry is not required; historical encrypted data is preserved for safe recovery.',
-    bodyAr:'سجّل الدخول بحساب Firebase باستخدام البريد وكلمة المرور أو Google. لا يلزم رمز PIN محلي، مع الحفاظ على البيانات المشفرة القديمة لاستعادتها بأمان.',
-    stepsEn:['Manage account access through Firebase email/password or Google.','Check cloud synchronization before switching devices.','Use account password recovery if you cannot sign in; do not reset historical encrypted records.'],
-    stepsAr:['أدر الوصول للحساب عبر Firebase بالبريد وكلمة المرور أو Google.','تحقق من المزامنة السحابية قبل تبديل الأجهزة.','استخدم استرداد كلمة مرور الحساب عند تعذر الدخول، ولا تعِد ضبط السجلات المشفرة القديمة.']
+    bodyEn:'Use your Firebase account to sign in with Google or email and password. Your current workspace is saved and synchronized automatically when cloud access is available.',
+    bodyAr:'سجّل الدخول بحساب Firebase عبر Google أو البريد وكلمة المرور. تُحفظ مساحة عملك الحالية وتُزامن تلقائيًا عند توفر الاتصال السحابي.',
+    stepsEn:['Sign in using Google or your account email and password.','Check that your latest changes have synchronized before switching devices.','Use account password recovery if you cannot sign in.'],
+    stepsAr:['سجّل الدخول باستخدام Google أو البريد وكلمة مرور الحساب.','تحقق من مزامنة آخر تعديلاتك قبل تبديل الأجهزة.','استخدم استرداد كلمة مرور الحساب عند تعذر تسجيل الدخول.']
   }
 ];
 
