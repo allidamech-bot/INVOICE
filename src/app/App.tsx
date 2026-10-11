@@ -432,7 +432,6 @@ export class App extends React.Component<{},State> {
   // Account access is provided by Firebase Auth; there is no device PIN or lock.
   private lock=()=>{};
   private lockNow=async(_automatic:boolean)=>{};
-  private resetAutoLock=()=>{if(this.lockTimer){window.clearTimeout(this.lockTimer);this.lockTimer=undefined;}};
   private persist=async(intended:VaultPayload)=>{
     const base=this.requireVault();
     const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{
