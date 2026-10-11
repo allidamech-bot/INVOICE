@@ -133,7 +133,37 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
 }
 export function installConversationWorkspace(host:Host):void {
   if(host.__workspaceInstalled)return;host.__workspaceInstalled=true;
-  const refresh=async()=>{try{const previous=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);await refreshIntelligenceWorkspace(host);if(host.mounted===false)return;if(previous&&previous!==kernelScopeKey(host.__intelligenceKernel.scope)){host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];}host.__workspaceObservedProps=host.props;host.setState({__workspaceLoadError:''});}catch(error){host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;if(host.mounted!==false)host.setState({__workspaceLoadError:error instanceof Error?error.message:String(error)});}};
+  const refresh=async()=>{
+    const generation=(host.__workspaceLoadGeneration||0)+1;
+    host.__workspaceLoadGeneration=generation;
+    if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);
+    // IndexedDB and account hydration can stall without rejecting a promise.
+    // Surface a retryable failure instead of leaving the panel loading forever.
+    host.__workspaceLoadTimer=window.setTimeout(()=>{
+      if(host.mounted!==false&&host.__workspaceLoadGeneration===generation)
+        host.setState({__workspaceLoadError:label(host.props.language==='ar','Conversation loading timed out. Retry loading.','انتهت مهلة تحميل المحادثة. حاول مجددًا.')});
+    },20_000);
+    try{
+      const previous=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);
+      await refreshIntelligenceWorkspace(host);
+      if(host.mounted===false||host.__workspaceLoadGeneration!==generation)return;
+      if(previous&&previous!==kernelScopeKey(host.__intelligenceKernel.scope)){
+        host.__lourexLatestContext=undefined;host.__businessMemories=[];
+        host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];
+      }
+      host.__workspaceObservedProps=host.props;
+      host.setState({__workspaceLoadError:''});
+    }catch(error){
+      if(host.mounted===false||host.__workspaceLoadGeneration!==generation)return;
+      host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;
+      host.setState({__workspaceLoadError:error instanceof Error?error.message:String(error)});
+    }finally{
+      if(host.__workspaceLoadGeneration===generation){
+        window.clearTimeout(host.__workspaceLoadTimer);
+        host.__workspaceLoadTimer=0;
+      }
+    }
+  };
   const toggle=host.toggle.bind(host);host.toggle=()=>{const opening=!host.state.open;toggle();if(opening)void refresh();};
   const ask=host.ask.bind(host);host.ask=async(raw?:string)=>{await ask(raw);if(host.state.open)await refresh();};
   const dismiss=host.dismissProposal.bind(host);host.dismissProposal=()=>{if(disabled(host))return;dismiss();void dismissIntelligenceWorkspace(host).catch((error:Error)=>host.setState({error:error.message}));};
@@ -157,4 +187,4 @@ export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
   if(previous!==host.props){host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
 }
-export function unmountConversationWorkspace(host:Host):void {window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
+export function unmountConversationWorkspace(host:Host):void {host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
