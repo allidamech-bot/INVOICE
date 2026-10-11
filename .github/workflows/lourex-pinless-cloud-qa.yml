@@ -62,11 +62,66 @@ jobs:
           echo "Full historical suite exit status: $status"
           grep -E "^[[:space:]]*✖ " "$RUNNER_TEMP/pinless-all-tests.log" | tail -n 50 || true
           echo 'Legacy assertions require explicit review, never silently disable them.'
+      - name: Compare historical failures with unmodified main
+        if: success()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin main
+          git worktree add --detach "$RUNNER_TEMP/lourex-baseline" FETCH_HEAD
+          (
+            cd "$RUNNER_TEMP/lourex-baseline"
+            npm ci --no-audit --no-fund
+            npm run build
+            set +e
+            node --test --test-concurrency=2 tests/*.test.mjs > "$RUNNER_TEMP/main-historical-tests.log" 2>&1
+            set -e
+          )
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const dir=process.env.RUNNER_TEMP;
+          const before=readFileSync(dir+'/main-historical-tests.log','utf8');
+          const after=readFileSync(dir+'/pinless-all-tests.log','utf8');
+          const parse=log=>{
+            const i=log.lastIndexOf('✖ failing tests:');
+            if(i<0)return new Set();
+            return new Set([...log.slice(i).matchAll(/^✖ (.+?) \([0-9.]+ms\)$/gm)].map(m=>m[1]));
+          };
+          const a=parse(before),b=parse(after);
+          const newFailures=[...b].filter(x=>!a.has(x));
+          const fixed=[...a].filter(x=>!b.has(x));
+          const obsolete=/\bPIN\b|inactivity lock|encrypted (local|vault|backup)|unlock session|device lock|old cloud/i;
+          const changedContracts=newFailures.filter(x=>obsolete.test(x));
+          const needsReview=newFailures.filter(x=>!obsolete.test(x));
+          const report=[
+            '# LOUREX main vs PIN-free V2 test delta',
+            '',
+            'MAIN failing titles: '+a.size,
+            'PIN-free V2 failing titles: '+b.size,
+            'New failing titles: '+newFailures.length,
+            'Previously failing titles now passing: '+fixed.length,
+            'New titles referring to legacy PIN/encrypted-device contracts: '+changedContracts.length,
+            'New titles requiring explicit manual assessment: '+needsReview.length,
+            '',
+            '## New failures requiring assessment',
+            ...needsReview.map(x=>'- '+x),
+            '',
+            '## Changed legacy PIN contract titles (not automatically waived)',
+            ...changedContracts.map(x=>'- '+x)
+          ].join('\n');
+          writeFileSync(dir+'/pinless-main-delta.md',report);
+          console.log(report);
+          NODE
+          cat "$RUNNER_TEMP/pinless-main-delta.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload complete historical test log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pinless-historical-suite-log
-          path: ${{ runner.temp }}/pinless-all-tests.log
+          path: |
+            ${{ runner.temp }}/pinless-all-tests.log
+            ${{ runner.temp }}/main-historical-tests.log
+            ${{ runner.temp }}/pinless-main-delta.md
           retention-days: 7
           if-no-files-found: warn
