@@ -183,7 +183,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     // Never delete the chunks even if the identity changes right here.
     if(!committed)return 'remote-changed';
     requireUid(uid);
-    await acknowledgePlainWorkspace(uid,local.localRevision,revision,hash,previous?.revision??null);
+    await acknowledgePlainWorkspace(uid,local.localRevision,revision,hash,local.baseCloudRevision);
     return 'pushed';
   }catch(error){
     // The server might have committed despite a lost response. Retain staged
