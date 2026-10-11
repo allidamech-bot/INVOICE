@@ -94,7 +94,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
   // An explicitly pending in-memory draft belongs to this company/thread only.
   // No upload contents, model output or prior assistant replies may authorize edits.
-  if(!hasSources&&runtime.scope==='business'&&input.context?.pendingProductImport){
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&input.context?.pendingProductImport){
     const batch=input.context.pendingProductImport as AiProductSourceImportBatch;
     const change=parseAiProductDraftCommand(input.message);
     if(change){
@@ -170,7 +170,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       const limited=(error instanceof AiRequestError&&(error.code==='AI_RATE_LIMITED'||error.status===429))||(error instanceof Error&&/(?:rate.?limit|too many|429|temporarily at capacity|مشغولون مؤقتًا)/i.test(error.message));
       return aiPlanningUnavailableResult(input.message,input.language,error instanceof AiRequestError&&error.code==='AI_NOT_CONFIGURED'?'not-configured':limited?'limited':'unavailable');
     }
-    plan=validateAiToolPlan(payload?.plan,runtime.scope);
+    plan=validateAiToolPlan(payload?.plan,runtime.scope,runtime.conversationMode);
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
@@ -181,7 +181,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(plan.calls.some(call=>call.tool==='product.bulkUpdate'&&(Object.hasOwn(call.args,'transform')||Object.hasOwn(call.args,'groupPrice'))))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(hasSources){
-      const allowed=new Map(aiToolPlannerCatalog(runtime.scope).map(def=>[def.id,def.class]));
+      const allowed=new Map(aiToolPlannerCatalog(runtime.scope,runtime.conversationMode).map(def=>[def.id,def.class]));
       const writes=plan.calls.some(call=>allowed.get(call.tool)==='execute'||allowed.get(call.tool)==='high-impact');
       if(writes&&sources.some(source=>source.truncated)){
         return{answer:input.language==='ar'?'الملفات المرفقة أكبر من الحد الآمن لتنفيذ عملية كاملة. افتح استيراد الملفات لمراجعة كل الصفوف قبل الحفظ. لم يُنفّذ أي تغيير.':'The attachments contain more data than the safe action-planning limit. Use the full file importer to review every row. No changes were made.',proposal:null,plan:{version:1,calls:[],goal:clean(input.message,240)},results:[],plannedBy:'local'};
@@ -191,7 +191,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       if(writes&&!actionRequested)return null;
     }
   }
-  plan=promoteDocumentCreationPlan(plan,input.message);
+  if(runtime.conversationMode!=='advisor')plan=promoteDocumentCreationPlan(plan,input.message);
   const execution=executeAiToolPlan(runtime,plan);const answer=dealDesk?formatDealDeskDecision(buildDealDeskDecision(plan,execution.results),input.language):formatAnswer(plan,execution.results,input.language);return{answer,proposal:execution.proposal,plan,results:execution.results,plannedBy};
 }
 
