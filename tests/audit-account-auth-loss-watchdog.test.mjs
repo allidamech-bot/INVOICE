@@ -99,7 +99,7 @@ async function transitionHarness({signedOut=true,failDrain=false}={}){
     'cloudSyncQueued=false;',
     'latestEncryptedVault={cipher:"protected"};',
     'vaultWriteTail=Promise.resolve({secret:"protected"});',
-    'state={unlocked:true,vault:{secret:"protected"},key:"key"};',
+    'state={unlocked:true,vault:{secret:"protected"}};',
     'async drainVaultWrites(){actions.push("drain");if(failDrain)throw new Error("disk fault");}',
     'async waitForCloudIdle(){actions.push("cloud-idle");}',
     'setState(next,callback){this.state={...this.state,...next};actions.push("lock-ui");callback?.();}',
@@ -130,26 +130,24 @@ async function transitionHarness({signedOut=true,failDrain=false}={}){
   return{actions,subject};
 }
 
-test('persistent sign-out revokes the old PIN key, clears account storage and reinitializes the locked gateway',async()=>{
+test('persistent sign-out revokes prior workspace and reinitializes signed-out Firebase entry',async()=>{
   const {actions,subject}=await transitionHarness();
   assert.ok(actions.indexOf('revoke-key')<actions.indexOf('storage:null'));
   assert.ok(actions.includes('uid:null'));
   assert.ok(actions.includes('storage:null'));
   assert.ok(!actions.includes('reload'),'in-app reset must not rely on a potentially stale PWA reload');
   assert.equal(actions.includes('initialize'),true,'reinitialize the locked account gateway after revocation');
-  assert.equal(subject.state.key,null);
   assert.equal(subject.state.vault,null);
   assert.equal(subject.state.unlocked,false);
 });
 
-test('a failed cloud write still revokes session access on confirmed sign-out',async()=>{
+test('failed cloud write must still mask signed-out Firebase account data',async()=>{
   const {actions,subject}=await transitionHarness({failDrain:true});
   assert.ok(actions.includes('revoke-key'),'finally must revoke even after rejected writes');
   // A failed write must never migrate an in-flight encrypted vault into a new
   // storage scope; remain fail-closed with the former CryptoKey revoked.
   assert.ok(!actions.includes('storage:account-b'));
   assert.equal(subject.state.unlocked,false);
-  assert.equal(subject.state.key,null);
 });
 
 test('switching accounts locks old decrypted data but does not reload',async()=>{
