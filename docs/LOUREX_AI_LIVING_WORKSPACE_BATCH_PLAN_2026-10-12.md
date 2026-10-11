@@ -63,3 +63,12 @@ Existing personal/business/temporary scopes are independent from Controller/Advi
 `src/lib/ai-conversation-mode.ts` establishes a **pure**, typechecked mode/settings contract. Unknown stored mode values fail closed to read-only Advisor; Advisor capability matching uses a closed allowlist. The function is an additional *deny-only* filter, not permission grant. No runtime is wired to it in Batch 1, so neither existing UI nor business action policy changes prematurely.
 
 **Pending for Batch 2 / 4:** integrate this contract into authenticated dispatch and tool execution, add conversation-mode persistence, then perform visual owner consolidation. Until this is done, the current UI's old focus labels do not provide Advisor isolation.
+
+## 6. Batch 2 delivery slice — existing owner integration
+
+- **Motion**: `public/ai-composer-v449.js` now animates open *and* close using the existing menu owner, with rapid-toggle cancellation, `inert`/ARIA state, keyboard focus restoration and reduced-motion fallback. The prior conflicting CSS keyframe is retired in the original `public/ai-composer-v449.css`; no new build stage or stylesheet was introduced.
+- **Composer**: existing `scripts/ai-conversation-design-batch1.mjs` composition rules now produce a compact single pill, neutral send control, subtle separator between voice/text, and correct source placeholder «اسأل LOUREX…». Existing physical LTR flex ordering positions SEND on the right, PLUS on the left while Arabic text remains RTL/right aligned.
+- **Launcher**: one rare ~2px idle nudge per 11 seconds from that same visual owner; reduced-motion and hover/focus opt-outs.
+- **Tests**: `tests/ai-living-workspace-motion-batch2.test.mjs` includes a no-package runtime fake-browser harness for open/close, rapid reversal, no-animation fallback, and source contract assertions. Static source checks and a minimal in-memory motion smoke check were performed; full `npm run build`, full tests and authenticated real-browser QA are **not** claimed.
+- **Out of scope of this delivery slice**: the two live Controller/Advisor tabs, mode-scoped history, enforceable advisor policy in tool orchestration, finance preview restructuring, universal palette consolidation. These remain mandatory before marking Batch 2/4 complete. This branch must not be merged as the finished experience.
+
