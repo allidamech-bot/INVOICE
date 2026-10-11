@@ -130,6 +130,39 @@ function AiExperienceSettings({host}:{host:Host}):any {
     {saving?<p role="status" className="lxw-settings-note">{label(ar,'Saving preferences…','جارٍ حفظ التفضيلات…')}</p>:null}
   </section>;
 }
+/** Generic Controller suggestions stay compact, including navigation.
+ * Non-navigation actions retain the exact legacy approval buttons and
+ * require opening details plus an explicit acknowledgement before exposure. */
+function InlineGeneralProposal({host,proposalNode,ar}:{host:Host;proposalNode:any;ar:boolean}):any {
+  const proposal=host.state.proposal;
+  const [expanded,setExpanded]=React.useState(false);
+  const [reviewedProposal,setReviewedProposal]=React.useState<any>(null);
+  if(!proposal||!proposalNode)return null;
+  const children=react.Children.toArray(proposalNode.props?.children);
+  const actions=children.find((node:any)=>String(node?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
+  const buttons=actions?react.Children.toArray((actions as any).props.children):[];
+  const primary=buttons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
+  const other=buttons.filter((button:any)=>button!==primary);
+  const isNavigation=proposal.capability==='workspace.navigate';
+  const reviewed=reviewedProposal===proposal;
+  return <section className="lxw-inline-general" aria-label={label(ar,'Suggested action','إجراء مقترح')}>
+    <div className="lxw-inline-general-heading"><span>{label(ar,'LOUREX suggests','يقترح LOUREX')}</span><strong>{proposal.label||label(ar,'Review an action','مراجعة إجراء')}</strong></div>
+    {isNavigation?<div className="lxw-inline-general-row">
+      {primary?react.cloneElement(primary,{className:'lxw-inline-open'},label(ar,'Open section','فتح القسم')):null}
+      {other.length?<div className="lxw-inline-secondary">{other}</div>:null}
+    </div>:<>
+      <div className="lxw-inline-general-row">
+        <button type="button" className="lxw-inline-preview-button" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{label(ar,expanded?'Hide details':'Review details',expanded?'إخفاء التفاصيل':'عرض التفاصيل')}</button>
+        {reviewed&&buttons.length?<div className="lxw-inline-approval-buttons" role="group" aria-label={label(ar,'Approve or decline','الموافقة أو الرفض')}>{buttons}</div>:null}
+      </div>
+      {expanded?<div className="lxw-inline-general-detail" role="region" aria-label={label(ar,'Action details','تفاصيل الإجراء')}>
+        {children.filter((child:any)=>child!==actions)}
+        {!reviewed?<button type="button" className="lxw-inline-review-confirm" disabled={disabled(host)} onClick={()=>{setReviewedProposal(proposal);setExpanded(false);}}>{label(ar,'I reviewed this action','اطلعت على الإجراء')}</button>:null}
+      </div>:null}
+      {reviewed&&!buttons.length?<p role="status">{label(ar,'Action controls are unavailable. Nothing was executed.','أزرار الإجراء غير متاحة. لم يُنفّذ أي شيء.')}</p>:null}
+    </>}
+  </section>;
+}
 function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:boolean}):any {
   if(!approval||!host.state.proposal)return null;
   const reviewed=host.state.__workspaceReviewedProposal===host.state.proposal;
@@ -254,7 +287,9 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
     const header=children.filter((child:any)=>['lourex-ai-head','lourex-ai-context'].some(name=>String(child?.props?.className||'').split(' ').includes(name)));
     const content=children.filter((child:any)=>!header.includes(child));
-    const approval=content.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal')&&['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability));
+    const proposalNode=content.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
+    const approval=['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability)?proposalNode:null;
+    const generalProposal=proposalNode&&!approval?proposalNode:null;
     const mode=normalizeAiConversationMode(k.mode),open=mode==='controller'&&Boolean(host.state.__workspaceOpen),pane=host.state.__workspacePane||'chat';
     const switching=Boolean(host.state.__workspaceSwitching),inactive=disabled(host)||switching;
     const tabs=<nav className="lxw-mode-tabs" role="tablist" aria-label={label(ar,'Conversation modes','نوع المحادثة')}>
@@ -265,8 +300,8 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       <span>{conversationModeDescription(mode,ar?'ar':'en')}</span>
     </div>;
     const toolbar=mode==='controller'?<div className="lxw-toolbar"><button type="button" disabled={inactive} aria-expanded={open} onClick={()=>host.setState({__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}>{label(ar,'Workspace','مساحة العمل')}{k.artifact?' · '+k.artifact.revision:''}</button></div>:null;
-    const safeContent=mode==='controller'?content.filter((child:any)=>child!==approval):content.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
-    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...header,tabs,description,toolbar,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    const safeContent=content.filter((child:any)=>child!==proposalNode);
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...header,tabs,description,toolbar,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}{mode==='controller'&&generalProposal?<InlineGeneralProposal host={host} proposalNode={generalProposal} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
