@@ -130,6 +130,27 @@ export async function dismissIntelligenceWorkspace(host:Host):Promise<void>{
   if(host.__intelligenceKernel)host.__intelligenceKernel.artifact=undefined;
   host.setState({proposal:null,review:null,__workspaceSavedId:'',__workspaceEditing:false});await flush(host);await persistKernel(host);
 }
+/**
+ * Assign a mode only to an empty, authenticated thread. Never relabel a
+ * conversation that already contains business messages or working artifacts:
+ * mode changes must switch threads, not silently grant permissions.
+ */
+export async function assignIntelligenceConversationMode(host:Host,mode:AiConversationMode):Promise<void>{
+  if(mode!=='controller'&&mode!=='advisor')throw new Error('Unknown conversation mode.');
+  if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)throw new Error('Wait for the current AI operation to finish.');
+  const resumed=await resumeVaultSession();
+  if(!resumed)throw new Error('Sign in before changing conversation mode.');
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Reopen LOUREX AI.');
+  const previous=currentConversationMode(host);
+  if(previous!==mode&&(kernel.turn>0||kernel.artifact||(host.state.messages||[]).length||host.state.proposal))throw new Error('Start another thread to change conversation mode; existing messages remain in their original mode.');
+  kernel.mode=mode;
+  kernel.focus=mode==='controller'?'operator':'advisor';
+  await persistKernel(host);
+  host.setState({__workspaceMode:mode,error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,proposal:null,review:null});
+  await flush(host);
+}
+
 export function intelligenceContext(host:Host,context:any):any{
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
@@ -284,6 +305,6 @@ async function recordDiagnostic(host:Host,operation:DiagnosticOperation,start:nu
   // Diagnostics are not a prerequisite to an already verified business commit.
   await persistKernel(host).catch(()=>undefined);
 }
-export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);await runIntelligenceWorkspace(host,command);if(command.kind!=='clear-diagnostics')await recordDiagnostic(host,'workspace',start,scope||'');}
+export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);try{await runIntelligenceWorkspace(host,command);}catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}if(command.kind!=='clear-diagnostics')await recordDiagnostic(host,'workspace',start,scope||'');}
 export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);const result=await runIntelligenceApproval(host,proposal,apply);await recordDiagnostic(host,'approval',start,scope||'');return result;}
 export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);let state:'failed'|'uncertain'|undefined;try{const result=await runIntelligenceTools(host,input);if(input.signal?.aborted)state='uncertain';else if(result?.results.some(row=>!row.ok))state='failed';return result;}catch(error){state='failed';throw error;}finally{await recordDiagnostic(host,'tools',start,scope||'',state);}}
