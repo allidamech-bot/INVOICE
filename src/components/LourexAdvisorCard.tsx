@@ -105,7 +105,7 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
     try{
       const resumed=await resumeVaultSession();
       if(!this.current(generation,controller))return;
-      if(!resumed)throw new Error(t('Unlock LOUREX before using your financial advisor.','افتح قفل LOUREX قبل استخدام مستشارك المالي.'));
+      if(!resumed)throw new Error(t('Account workspace is not ready for financial advice. Sign in or retry.','مساحة عمل الحساب غير جاهزة للاستشارة المالية. سجّل الدخول أو أعد المحاولة.'));
       financeSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:null};
       const context=buildAiContext('home',this.props.language,financeSource,resumed.vault,message,null);
       const requestMessage=conversationRequest(message,previousMessages);
