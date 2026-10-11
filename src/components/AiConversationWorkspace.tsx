@@ -116,7 +116,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         const classes=String(child?.props?.className||'').split(' ');
         if(classes.includes('lourex-ai-proposal'))return null;
         if(classes.includes('lourex-ai-messages'))return react.cloneElement(child,undefined,host.state.__workspaceLoadError
-          ?<div role="alert" className="lxw-load-error"><p>{label(host.props.language==='ar','Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><button type="button" onClick={()=>host.setState({__workspaceLoadError:''},()=>void host.__workspaceRefresh?.())}>{label(host.props.language==='ar','Retry loading','إعادة المحاولة')}</button></div>
+          ?<div role="alert" className="lxw-load-error"><p>{label(host.props.language==='ar','Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><small>{workspaceError(host.props.language==='ar',String(host.state.__workspaceLoadError))}</small><button type="button" onClick={()=>host.setState({__workspaceLoadError:''},()=>void host.__workspaceRefresh?.())}>{label(host.props.language==='ar','Retry loading','إعادة المحاولة')}</button></div>
           :<p role="status">{label(host.props.language==='ar','Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
         return child;
       });
