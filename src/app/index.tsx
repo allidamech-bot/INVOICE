@@ -279,16 +279,31 @@ function startAccountSignOutWatcher():void{
 
 function startPlainWorkspaceWatcher():void{
   let stop:()=>void=()=>{};
-  subscribeCloudUser(user=>{
-    stop();stop=()=>{};
-    if(!user||activeAccountStorageUid()!==user.uid)return;
+  let watchedUid:string|null=null;
+  const reconcileListener=()=>{
+    const user=currentCloudUser();
+    const uid=user?.uid??null;
+    const scopedUid=activeAccountStorageUid();
+    if(uid&&uid===scopedUid&&watchedUid===uid)return;
+    // A Firebase sign-in can arrive BEFORE its UID-scoped IndexedDB activation.
+    // Subscribe again on account-transition-complete; otherwise this device
+    // never receives live invoice/customer changes from another device.
+    stop();stop=()=>{};watchedUid=null;
+    if(!uid||scopedUid!==uid)return;
     try{
-      stop=subscribePlainCloudChanges(user.uid,()=>{
-        if(currentCloudUser()?.uid!==user.uid)return;
+      stop=subscribePlainCloudChanges(uid,()=>{
+        if(currentCloudUser()?.uid!==uid||activeAccountStorageUid()!==uid)return;
         window.dispatchEvent(new Event('lourex-cloud-remote-newer'));
       });
-    }catch{/* The app will retry from foreground/online events. */}
-  });
+      watchedUid=uid;
+    }catch{/* Foreground/reconnect retries stay available if Firestore is offline. */}
+  };
+  subscribeCloudUser(reconcileListener);
+  window.addEventListener('lourex-account-transition-complete',reconcileListener);
+  // A new same-UID public-gateway login can reopen a workspace without a UID
+  // transition event; this signal is emitted when Firebase hydration succeeds.
+  window.addEventListener('lourex-cloud-account-ready',reconcileListener);
+  reconcileListener();
 }
 
 async function start():Promise<void>{
