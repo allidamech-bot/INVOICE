@@ -110,4 +110,10 @@ Existing personal/business/temporary scopes are independent from Controller/Advi
 - Tests: `tests/ai-living-workspace-preferences-batch4.test.mjs` covers normalization and persistence through separate threads; expanded preview tests cover compact suggestions and review-gated approval.
 - Verification completed here: fourteen source/runtime-helper checks and an extracted account-safe preferences save function test with a fake store. These are **not** real IndexedDB, TypeScript, production build, browser, provider or Firebase end-to-end tests.
 
-**Outstanding:** final UI motion exit for declining actions, full mobile/iPad/desktop live QA, CSS owner consolidation, actual provider style compliance and safe release acceptance. No branch here should be merged as the finished product solely from static checks.
+**Outstanding:** real-browser verification of the 160ms safe decline exit, full mobile/iPad/desktop live QA, CSS owner consolidation, actual provider style compliance and safe release acceptance. No branch here should be merged as the finished product solely from static checks.
+
+## 10. Inline rejection completion
+
+- Both document and non-document suggestion surfaces expose **Decline** immediately, even for blocked documents; accepting a change remains gated on explicit review.
+- On normal-motion devices, rejecting animates out for 160ms, then invokes the preexisting dismissal callback. The callback is skipped if the proposal was superseded, and timers are cancelled on unmount or proposal change. No business mutation is performed by this animation.
+- Device-level and AI-specific reduced-motion preferences bypass the delay and motion. The behavior has source contract coverage but still requires live browser QA.
