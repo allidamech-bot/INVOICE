@@ -87,6 +87,7 @@ export class App extends React.Component<{},State> {
   private cloudSyncQueued=false;
   private cloudReconcileRunning=false;
   private cloudReconcileQueued=false;
+  private deferredRemoteTimer:number|undefined;
   private cloudRetryDelay=5_000;
   private lastCloudSyncedAt='';
   private lastActivityTouch=0;
@@ -128,6 +129,7 @@ export class App extends React.Component<{},State> {
     window.setTimeout(()=>void this.cloudSyncNow().catch(error=>this.retryCloudSync(error)),0);
   }
   componentWillUnmount():void{
+    if(this.deferredRemoteTimer){window.clearTimeout(this.deferredRemoteTimer);this.deferredRemoteTimer=undefined;}
     ['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));
     document.removeEventListener('visibilitychange',this.handleVisibilityChange);
     document.removeEventListener('pointerdown',this.closeTransientMenus);
@@ -291,6 +293,23 @@ export class App extends React.Component<{},State> {
   };
   private handleCloudConflict=()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}this.cloudSyncQueued=false;this.setState({cloudSyncState:'conflict',cloudSyncMessage:t('This device and the cloud both contain newer changes. Neither copy was overwritten. Choose which copy to keep.','يحتوي هذا الجهاز والسحابة على تعديلات أحدث. لم يتم استبدال أي نسخة. اختر النسخة التي تريد الاحتفاظ بها.')});};
   private announceRemoteCloudUpdate=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.deferRemoteCloud();try{window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}catch{}};
+  private retryDeferredRemoteHydration=()=>{
+    if(this.deferredRemoteTimer||!this.cloudReconcileQueued)return;
+    this.deferredRemoteTimer=window.setTimeout(()=>{
+      this.deferredRemoteTimer=undefined;
+      if(!this.cloudReconcileQueued)return;
+      if(!this.state.unlocked||!this.state.cloudUser){this.cloudReconcileQueued=false;return;}
+      // An inline customer/inventory editor can clear its DOM dirty flag
+      // without causing a BaseApp setState. The bounded retry ensures cloud
+      // refresh resumes when it is safe rather than remaining queued forever.
+      if(this.cloudReplaceBlocked()||this.cloudSyncRunning||
+         this.cloudReconcileRunning||this.vaultReplacing){
+        this.retryDeferredRemoteHydration();return;
+      }
+      this.cloudReconcileQueued=false;
+      void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
+    },2000);
+  };
   private handleRemoteCloudNewer=()=>{
     if(!this.state.cloudUser||!this.state.cloudLinked||!this.state.unlocked)return;
     if(this.cloudReplaceBlocked()||this.cloudSyncRunning||this.vaultReplacing){
@@ -298,6 +317,7 @@ export class App extends React.Component<{},State> {
       // pending cloud revision; publishing blindly on editor close would
       // manufacture a conflict even when this device has no unsynced edits.
       this.cloudReconcileQueued=true;
+      this.retryDeferredRemoteHydration();
       this.announceRemoteCloudUpdate();return;
     }
     void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
