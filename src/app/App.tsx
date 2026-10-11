@@ -406,11 +406,21 @@ export class App extends React.Component<{},State> {
   };
   private attachCloudUser=async(user:CloudUser)=>{
     if(currentCloudUser()?.uid!==user.uid)throw new Error('Account identity changed. Sign in again.');
-    if(activeAccountStorageUid()!==user.uid){
+    // Firebase may return the same UID after a deliberate sign-out. Its old
+    // IndexedDB cache remains selected, but React must STILL rehydrate and
+    // authenticate the workspace; the old public gateway is not unlocked.
+    const scopeChanged=activeAccountStorageUid()!==user.uid;
+    if(scopeChanged){
       setActiveAccountUid(user.uid);
       await activateAccountStorage(user.uid);
-      this.setState({loading:true,unlocked:false,vault:null});
+    }
+    if(scopeChanged||!this.state.unlocked||!this.state.vault||this.state.firstRun||!this.state.cloudLinked){
+      await new Promise<void>(resolve=>this.setState({
+        loading:true,firstRun:false,unlocked:false,vault:null,cloudUser:user,
+        cloudLinked:false,cloudSyncState:'local'
+      },resolve));
       await this.initialize();
+      if(!this.state.unlocked)throw new Error(this.state.cloudSyncMessage||'Could not open your Firebase workspace.');
       return;
     }
     await putCloudAccount(user.uid,user.email);
@@ -709,6 +719,8 @@ export class App extends React.Component<{},State> {
   };
   private restore=async(file:File)=>{
     this.editorMustBeClosed('importing a local copy','استيراد نسخة محلية');
+    if(this.state.cloudSyncState==='conflict')
+      throw new Error(t('Resolve the cloud/device conflict before importing a local copy. Neither version has been overwritten.','حل تعارض الجهاز والسحابة قبل استيراد النسخة المحلية. لم يتم استبدال أي نسخة.'));
     const restored=synchronizeActiveWorkspaceOnSave(this.normalizedVault(await readPlainBackup(file)));
     // Never replace this device with a backup that Firebase cannot publish.
     assertPlainCloudWorkspaceUploadable(restored);
