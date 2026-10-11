@@ -28,7 +28,9 @@ import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
 import { approvalGate, decideApprovalRequest } from '../lib/governance.js';
 import { activateBranch, activateWorkspace, applyWorkspaceScope, createBranch, createWorkspace, overlayWorkspaceScope, scopeVault } from '../lib/workspaces.js';
 import { AccountEntryScreen } from '../components/AccountEntryScreen.js';
-import { getPlainWorkspace, savePlainWorkspace, updatePlainWorkspaceIfUnchanged, archivePlainWorkspace } from '../storage/db.js';
+import { exportPlainBackup, readPlainBackup } from '../lib/backup.js';
+import { synchronizeActiveWorkspaceOnSave } from '../storage/vault.js';
+import { getPlainWorkspace, savePlainWorkspace, updatePlainWorkspaceIfUnchanged, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
 import { reconcilePlainCloudWorkspace, uploadPlainCloudWorkspace, downloadPlainCloudWorkspace, getPlainCloudMeta } from '../cloud/plain-workspace.js';
 import type { PlainWorkspaceRecord } from '../types.js';
 import { DocumentsPage } from '../components/DocumentsPage.js';
@@ -374,9 +376,7 @@ export class App extends React.Component<{},State> {
       const remote=await downloadPlainCloudWorkspace(uid);
       if(!remote)throw new Error('There is no cloud account copy.');
       const local=await getPlainWorkspace();
-      if(local)await archivePlainWorkspace(uid,'replaced-by-cloud');
       const current=await getPlainWorkspace();
-      const {replacePlainWorkspaceIfUnchanged}=await import('../storage/db.js');
       const replacement:PlainWorkspaceRecord={
         id:'workspace-v2',uid,payload:remote.payload,schemaVersion:remote.payload.schemaVersion,
         localRevision:crypto.randomUUID(),updatedAt:remote.meta.updatedAt,
@@ -442,7 +442,7 @@ export class App extends React.Component<{},State> {
       const scopedIntended=applyWorkspaceScope(base,intended);
       const merged=mergeVaultIntent(base,scopedIntended,latest);
       const audited=appendAuditEventsForVaultDiff(latest,merged);
-      const next=overlayWorkspaceScope(latestFull,audited);
+      const next=synchronizeActiveWorkspaceOnSave(overlayWorkspaceScope(latestFull,audited));
       const stored=await updatePlainWorkspaceIfUnchanged(uid,local.localRevision,next);
       if(!stored)throw new Error('Another tab updated this account. Refresh before saving to avoid overwriting its work.');
       if(this.state.unlocked&&this.state.cloudUser?.uid===uid)
@@ -461,7 +461,7 @@ export class App extends React.Component<{},State> {
       if(!local)throw new Error('Local account workspace is unavailable.');
       const latest=queued??this.state.vault;
       if(!latest)throw new Error('Workspace is not ready.');
-      const next=mutation(latest);
+      const next=synchronizeActiveWorkspaceOnSave(mutation(latest));
       const stored=await updatePlainWorkspaceIfUnchanged(uid,local.localRevision,next);
       if(!stored)throw new Error('Another tab saved changes. Refresh before continuing.');
       if(this.state.unlocked&&this.state.cloudUser?.uid===uid)
@@ -603,31 +603,35 @@ export class App extends React.Component<{},State> {
   private decideApproval=async(id:string,decision:'approved'|'rejected')=>{const vault=this.requireVault();await this.persist(decideApprovalRequest(vault,id,decision));this.showToast(decision==='approved'?t('Approval granted.','تمت الموافقة.'):t('Approval rejected.','تم رفض الطلب.'),'success');};
   private saveCompany=async(company:CompanySettings)=>{const vault=this.requireVault();const smartDefaults={...vault.appSettings.smartDefaults,currency:company.defaultCurrency||'USD',language:company.defaultLanguage,incoterm:company.defaultIncoterm,paymentTerms:company.defaultPaymentTerms,deliveryTime:company.defaultDeliveryTime};const appSettings={...vault.appSettings,smartDefaults};await this.persist({...vault,company,appSettings});await this.syncPublicPreferences(company.logoDataUrl,this.requireVault().appSettings.uiLanguage);};
   private saveAppSettings=async(appSettings:AppSettings)=>{const vault=this.requireVault();const next={...appSettings,uiLanguage:appSettings.uiLanguage??'en'};await this.persist({...vault,appSettings:next});const current=this.requireVault();await this.syncPublicPreferences(current.company.logoDataUrl,current.appSettings.uiLanguage);touchSession();this.resetAutoLock();};
-  private changePin=async(currentPin:string,newPin:string):Promise<string|undefined>=>{this.editorMustBeClosed('changing the PIN','تغيير رمز PIN');if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();this.latestEncryptedVault=null;this.vaultReplacing=true;try{const result=await changePin(currentPin,newPin);await establishSession(result.key);const encrypted=await getEncryptedVault();this.latestEncryptedVault=encrypted;this.vaultWriteTail=Promise.resolve(this.state.vault);await new Promise<void>(resolve=>this.setState({key:result.key},resolve));touchSession();this.resetAutoLock();const user=this.state.cloudUser;if(user&&this.state.cloudLinked&&encrypted&&typeof navigator!=='undefined'&&navigator.onLine&&!this.cloudSyncRunning){this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Saving new PIN to your account…','جارٍ حفظ رمز PIN الجديد في حسابك…')});try{const sync=await pushLocalVaultToCloud(user.uid,encrypted);if(sync==='remote-changed'){this.deferRemoteCloud();this.cloudSyncQueued=true;}else{this.lastCloudSyncedAt=encrypted.updatedAt;this.cloudRetryDelay=5_000;this.setState({cloudSyncState:'synced',cloudSyncMessage:t('New PIN saved to your account.','تم حفظ رمز PIN الجديد في حسابك.')});}}catch(e){this.retryCloudSync(e);}finally{this.cloudSyncRunning=false;}}else this.scheduleCloudSync(120);this.showToast(t('PIN changed.','تم تغيير رمز PIN.'),'success');return result.recoveryCode;}finally{this.endProtectedOperation();if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}};
-  private createPinRecoveryKey=async(currentPin:string):Promise<string>=>{this.editorMustBeClosed('creating a PIN recovery key','إنشاء مفتاح استرداد PIN');if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();this.latestEncryptedVault=null;this.vaultReplacing=true;try{const result=await renewPinRecoveryKey(currentPin);await establishSession(result.key);const encrypted=await getEncryptedVault();this.latestEncryptedVault=encrypted;this.vaultWriteTail=Promise.resolve(this.state.vault);await new Promise<void>(resolve=>this.setState({key:result.key},resolve));touchSession();this.resetAutoLock();const user=this.state.cloudUser;if(user&&this.state.cloudLinked&&encrypted&&typeof navigator!=='undefined'&&navigator.onLine&&!this.cloudSyncRunning){this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Saving recovery protection to your account…','جارٍ حفظ حماية الاسترداد في حسابك…')});try{const sync=await pushLocalVaultToCloud(user.uid,encrypted);if(sync==='remote-changed'){this.deferRemoteCloud();this.cloudSyncQueued=true;}else{this.lastCloudSyncedAt=encrypted.updatedAt;this.cloudRetryDelay=5_000;this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Recovery protection saved to your account.','تم حفظ حماية الاسترداد في حسابك.')});}}catch(e){this.retryCloudSync(e);}finally{this.cloudSyncRunning=false;}}else this.scheduleCloudSync(120);return result.recoveryCode;}finally{this.endProtectedOperation();if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}};
-  private backup=async(pin:string,password:string)=>{this.editorMustBeClosed('creating a backup','إنشاء نسخة احتياطية');const issue=backupPasswordIssue(password,pin);if(issue)throw new Error(issue);await this.drainVaultWrites();const security=await getSecurity();if(!security)throw new Error(t('Security settings are missing.','إعدادات الأمان غير موجودة.'));await verifyPin(pin,security);const fullVault=this.state.vault;if(!fullVault)throw new Error(t('App is locked.','التطبيق مقفل.'));await exportBackup(password,fullVault);};
-  private restore=async(file:File,pin:string)=>{
-    this.editorMustBeClosed('restoring a backup','استعادة نسخة احتياطية');
-    const restored=this.normalizedVault(await readBackup(file,pin));
+  private backup=async()=>{
+    this.editorMustBeClosed('downloading a local copy','تنزيل نسخة محلية');
+    await this.drainVaultWrites();
+    const uid=this.state.cloudUser?.uid;
+    if(!uid||uid!==currentCloudUser()?.uid)throw new Error('Sign in to your account first.');
+    const local=await getPlainWorkspace();
+    if(!local)throw new Error('The account workspace is unavailable.');
+    await exportPlainBackup(local.payload);
+  };
+  private restore=async(file:File)=>{
+    this.editorMustBeClosed('importing a local copy','استيراد نسخة محلية');
+    const restored=synchronizeActiveWorkspaceOnSave(this.normalizedVault(await readPlainBackup(file)));
     await this.beginProtectedOperation();
-    let committed=false;
     try{
-      const key=this.state.key;
-      if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
-      const vault=await restoreVaultWithCurrentKey(key,restored);
-      committed=true;
-      this.vaultWriteTail=Promise.resolve(vault);
-      await new Promise<void>(resolve=>this.setState({vault,screen:'documents',editorDoc:null},resolve));
-      touchSession();
-      this.resetAutoLock();
-      // Once the encrypted vault is committed, a noncritical preferences write
-      // must not turn successful recovery into a misleading failure message.
-      try{await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);}
-      catch{this.showToast(t('Backup restored, but display preferences could not refresh.','تم استرجاع النسخة، لكن تعذر تحديث تفضيلات العرض.'),'error');}
-    }finally{
-      this.endProtectedOperation();
-      if(committed)this.scheduleCloudSync(500);
-    }
+      const uid=this.state.cloudUser?.uid;
+      if(!uid||uid!==currentCloudUser()?.uid)throw new Error('Sign in to your account first.');
+      const current=await getPlainWorkspace();
+      if(!current)throw new Error('The local workspace is unavailable.');
+      const replacement:PlainWorkspaceRecord={
+        id:'workspace-v2',uid,payload:restored,schemaVersion:restored.schemaVersion,
+        localRevision:crypto.randomUUID(),updatedAt:new Date().toISOString(),
+        baseCloudRevision:current.baseCloudRevision,baseCloudSha256:current.baseCloudSha256
+      };
+      const ok=await replacePlainWorkspaceIfUnchanged(uid,current.localRevision,replacement,'replaced-by-backup');
+      if(!ok)throw new Error('Account data changed during import. Retry to protect newer changes.');
+      this.vaultWriteTail=Promise.resolve(restored);
+      await new Promise<void>(resolve=>this.setState({vault:restored,screen:'home',editorDoc:null},resolve));
+      this.scheduleCloudSync(300);
+    }finally{this.endProtectedOperation();}
   };
   private requireVault():VaultPayload{if(!this.state.vault)throw new Error(t('App is locked.','التطبيق مقفل.'));return scopeVault(this.state.vault);}
   private waitForPrintAssets=async()=>{await new Promise<void>(resolve=>window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>resolve())));try{if(document.fonts)await document.fonts.ready;}catch{}const images=Array.from(document.querySelectorAll<HTMLImageElement>('.print-portal img'));await Promise.all(images.map(async image=>{if(image.complete&&image.naturalWidth>0)return;try{if(typeof image.decode==='function'){await image.decode();return;}}catch{}await new Promise<void>(resolve=>{const done=()=>resolve();image.addEventListener('load',done,{once:true});image.addEventListener('error',done,{once:true});window.setTimeout(done,1200);});}));};
@@ -712,7 +716,7 @@ export class App extends React.Component<{},State> {
       </AppShell>
       <RecurringWorkflowsManager open={this.state.recurringOpen} filter={this.state.recurringFilter} workflows={vault.recurringWorkflows} sourceDocument={vault.documents.find(item=>item.id===this.state.recurringSourceDocumentId)??null} sourcePurchase={vault.purchases.find(item=>item.id===this.state.recurringSourcePurchaseId)??null} onClose={this.closeRecurringManager} onSave={this.saveRecurringWorkflow} onDelete={this.deleteRecurringWorkflow} onGenerate={this.generateRecurringWorkflow} onOpenGenerated={this.openRecurringGenerated}/>
       <GlobalSearch documents={vault.documents} payments={vault.payments} customers={vault.customers} items={vault.savedItems} suppliers={vault.suppliers} purchases={vault.purchases} language={activeLanguage} onNavigate={navigate} onOpenDocument={(doc)=>void this.openDocument(doc)} onNewDocument={(kind)=>void this.newDocument(kind)}/>
-      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} documentEvents={vault.documentEvents} teamMembers={vault.teamMembers} approvalPolicies={vault.approvalPolicies} approvalRequests={vault.approvalRequests} workspaces={vault.workspaces} branches={vault.branches} onCreateWorkspace={this.createCompanyWorkspace} onSwitchWorkspace={this.switchCompanyWorkspace} onCreateBranch={this.createWorkspaceBranch} onSwitchBranch={this.switchWorkspaceBranch} onSaveTeamMember={this.saveTeamMember} onToggleTeamMember={this.toggleTeamMember} onSetActiveTeamMember={this.setActiveTeamMember} onToggleApprovalPolicy={this.toggleApprovalPolicy} onDecideApproval={this.decideApproval} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onCreateRecoveryKey={this.createPinRecoveryKey} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
+      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} documentEvents={vault.documentEvents} teamMembers={vault.teamMembers} approvalPolicies={vault.approvalPolicies} approvalRequests={vault.approvalRequests} workspaces={vault.workspaces} branches={vault.branches} onCreateWorkspace={this.createCompanyWorkspace} onSwitchWorkspace={this.switchCompanyWorkspace} onCreateBranch={this.createWorkspaceBranch} onSwitchBranch={this.switchWorkspaceBranch} onSaveTeamMember={this.saveTeamMember} onToggleTeamMember={this.toggleTeamMember} onSetActiveTeamMember={this.setActiveTeamMember} onToggleApprovalPolicy={this.toggleApprovalPolicy} onDecideApproval={this.decideApproval} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onBackup={this.backup} onRestore={this.restore}/>
       {this.cloudModal()}
       {this.catalogLauncherModal(vault)}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>
