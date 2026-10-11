@@ -309,6 +309,30 @@ export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseClo
   return record;
 }
 
+/** Mark an uploaded snapshot as acknowledged only if no newer local save has appeared.
+ * This protects edits from a second tab during an in-flight cloud write.
+ */
+export async function acknowledgePlainWorkspace(uid:string,localUpdatedAt:string,revision:string,sha256:string):Promise<boolean>{
+  if(activeAccountStorageUid()!==uid)throw new Error('Account storage scope changed.');
+  const db=await openDb();
+  return new Promise<boolean>((resolve,reject)=>{
+    let matched=false;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const req=store.get('workspace-v2');
+    req.onsuccess=()=>{
+      const existing=req.result as PlainWorkspaceRecord|undefined;
+      if(existing&&existing.uid===uid&&existing.updatedAt===localUpdatedAt){
+        matched=true;
+        store.put({...existing,baseCloudRevision:revision,baseCloudSha256:sha256});
+      }
+    };
+    req.onerror=()=>reject(req.error??new Error('Workspace acknowledgment read failed.'));
+    tx.oncomplete=()=>resolve(matched);
+    tx.onerror=()=>reject(tx.error??new Error('Workspace acknowledgment failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('Workspace acknowledgment aborted.'));
+  });
+}
+
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }
 export async function getSecurity(): Promise<SecurityMetadata | null> { return getRecord<SecurityMetadata>('security'); }
 export async function getEncryptedVault(): Promise<EncryptedVaultRecord | null> {
