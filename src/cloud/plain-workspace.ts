@@ -31,7 +31,7 @@ export interface PlainCloudMeta {
   updatedAt:string;
   parentRevision:string|null;
 }
-export type PlainCloudSyncResult='empty'|'same'|'pushed'|'pulled'|'diverged';
+export type PlainCloudSyncResult='empty'|'same'|'pushed'|'pulled'|'diverged'|'retry';
 
 function requireUid(uid:string):void {
   if(!uid||currentCloudUser()?.uid!==uid||activeAccountStorageUid()!==uid)
@@ -207,7 +207,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
       baseCloudRevision:result.meta.revision,baseCloudSha256:result.meta.sha256
     };
     const installed=await replacePlainWorkspaceIfUnchanged(uid,null,replacement);
-    return installed?'pulled':'diverged';
+    return installed?'pulled':'retry';
   }
   if(!local)return 'empty';
   if(!remote){
@@ -217,8 +217,8 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   }
   const hash=await sha256(encodePayload(local.payload));
   if(hash===remote.sha256){
-    await acknowledgeIdenticalPlainWorkspace(uid,local.localRevision,remote.revision,hash);
-    return 'same';
+    const acknowledged=await acknowledgeIdenticalPlainWorkspace(uid,local.localRevision,remote.revision,hash);
+    return acknowledged?'same':'retry';
   }
   if(local.baseCloudRevision===remote.revision){
     const published=await uploadPlainCloudWorkspace(uid,local);
@@ -235,7 +235,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   };
   // The checked local generation may have changed during the download.
   const installed=await replacePlainWorkspaceIfUnchanged(uid,local.localRevision,replacement,'replaced-by-cloud');
-  return installed?'pulled':'diverged';
+  return installed?'pulled':'retry';
 }
 
 /** Notify other devices when a fully committed cloud manifest changes. */
