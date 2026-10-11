@@ -161,7 +161,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const actionRequested=explicitAiActionRequest(input.message);
     let payload:any;
     try{
-      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
+      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',workingMemory:input.context?.conversationWorkingMemory||'',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
     }catch(error){
       if(input.signal?.aborted)throw error;
       if(!actionRequested)return null;

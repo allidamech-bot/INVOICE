@@ -1,3 +1,4 @@
+import { normalizeConversationKernel, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { getRecord, putRecord } from './db.js';
 import type { AssistantScope } from '../lib/ai-assistant-foundation.js';
 
@@ -9,6 +10,8 @@ export interface AssistantThread{
   workspaceId:string;
   branchId:string;
   summary:string;
+  kernel?:ConversationKernel;
+  foundationReceipts?:{id:string;state:'applying'|'applied'|'uncertain';at:string}[];
   messages:AssistantStoredMessage[];
   createdAt:string;
   updatedAt:string;
@@ -44,7 +47,7 @@ function normalizedThread(value:any):AssistantThread|null{
   const id=safeText(value.id,120);if(!scope||!id)return null;
   const messages:AssistantStoredMessage[]=Array.isArray(value.messages)?value.messages.map((row:any)=>normalizedMessage(row)).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES):[];
   const createdAt=safeText(value.createdAt,40)||now(),updatedAt=safeText(value.updatedAt,40)||createdAt;
-  return{id,scope,title:safeText(value.title,100)||'LOUREX conversation',workspaceId:scope==='business'?safeText(value.workspaceId,120):'',branchId:scope==='business'?safeText(value.branchId,120):'',summary:safeText(value.summary,MAX_SUMMARY_CHARS),messages,createdAt,updatedAt};
+  return{id,scope,title:safeText(value.title,100)||'LOUREX conversation',workspaceId:scope==='business'?safeText(value.workspaceId,120):'',branchId:scope==='business'?safeText(value.branchId,120):'',summary:safeText(value.summary,MAX_SUMMARY_CHARS),kernel:value.kernel?normalizeConversationKernel(value.kernel,{scope,workspaceId:safeText(value.workspaceId,120),branchId:safeText(value.branchId,120),threadId:id,accountId:typeof value.kernel?.scope?.accountId==='string'?value.kernel.scope.accountId:undefined}):undefined,foundationReceipts:Array.isArray(value.foundationReceipts)?value.foundationReceipts.filter((r:any)=>r&&typeof r.id==='string'&&['applying','applied','uncertain'].includes(r.state)).slice(-100):[],messages,createdAt,updatedAt};
 }
 export function normalizeAssistantState(value:any):AssistantStoreState{
   if(!value||typeof value!=='object'||value.version!==1)return emptyState();
