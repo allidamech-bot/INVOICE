@@ -144,7 +144,7 @@ export async function dismissIntelligenceWorkspace(host:Host):Promise<void>{
  * LOUREX site locale. Uses the same serialized store queue as chat persistence
  * so a simultaneous conversation save cannot discard a settings change. */
 export async function updateAiExperiencePreferences(host:Host,patch:Partial<AiConversationExperiencePreferences>):Promise<void>{
-  if(host.__aiPreferencesSaving)throw new Error('AI settings are already being saved.');
+  if(host.__aiPreferencesSaving){host.setState({__workspaceSettingsError:'AI settings are still being saved. Please try again shortly.'});return;}
   host.__aiPreferencesSaving=true;
   host.setState({__workspaceSettingsSaving:true,__workspaceSettingsError:''});
   const accountId=activeAccountStorageUid()||'';
