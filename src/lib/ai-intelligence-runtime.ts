@@ -198,8 +198,12 @@ export function intelligenceContext(host:Host,context:any):any{
     const latest=(host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
     context.language=resolveAiConversationReplyLanguage(settings.replyLanguage,latest,host.props.language==='ar'?'ar':'en');
     context.aiResponseDetail=settings.detail;
-    // Advisory intent is a restrictive hint to the server, not an authorization grant.
+    // Advisor is read/calculation only at the provider boundary as well as at
+    // the separate tool planner, approval gateway and actual executor.
     context.conversationMode=currentConversationMode(host);
+    if(context.conversationMode==='advisor'&&Array.isArray(context.allowedCapabilities)){
+      context.allowedCapabilities=context.allowedCapabilities.filter((capability:unknown)=>typeof capability==='string'&&conversationModePermitsCapability('advisor',capability));
+    }
   }
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
