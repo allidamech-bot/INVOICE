@@ -67,11 +67,11 @@ const GUIDE_ITEMS:GuideItem[]=[
     stepsAr:['احتفظ بنسخة احتياطية حديثة قبل التغييرات الكبيرة.','تحقق من حالة المزامنة قبل الانتقال بين الأجهزة.','استخدم الاستعادة فقط عندما تعرف أي نسخة من البيانات ستصبح المعتمدة.']
   },
   {
-    titleEn:'Security, PIN & recovery',titleAr:'الأمان وPIN والاسترداد',
-    bodyEn:'Protect account credentials, PIN and recovery material. Recovery works only with the security material available to the configured workflow.',
-    bodyAr:'احمِ بيانات الحساب ورمز PIN ومواد الاسترداد. تعمل الاستعادة فقط بمواد الأمان المتاحة لمسار العمل المهيأ.',
-    stepsEn:['Set or change PIN from Security.','Store recovery material separately from the device.','Use account password recovery when authentication—not the local vault—is the issue.'],
-    stepsAr:['اضبط PIN أو غيّره من الأمان.','احفظ مواد الاسترداد بعيدًا عن الجهاز.','استخدم استرداد كلمة مرور الحساب عندما تكون المشكلة في تسجيل الدخول وليس في الخزنة المحلية.']
+    titleEn:'Account security & recovery',titleAr:'أمان الحساب واستعادته',
+    bodyEn:'Sign in with your Firebase account using email and password or Google. Local PIN entry is not required; historical encrypted data is preserved for safe recovery.',
+    bodyAr:'سجّل الدخول بحساب Firebase باستخدام البريد وكلمة المرور أو Google. لا يلزم رمز PIN محلي، مع الحفاظ على البيانات المشفرة القديمة لاستعادتها بأمان.',
+    stepsEn:['Manage account access through Firebase email/password or Google.','Check cloud synchronization before switching devices.','Use account password recovery if you cannot sign in; do not reset historical encrypted records.'],
+    stepsAr:['أدر الوصول للحساب عبر Firebase بالبريد وكلمة المرور أو Google.','تحقق من المزامنة السحابية قبل تبديل الأجهزة.','استخدم استرداد كلمة مرور الحساب عند تعذر الدخول، ولا تعِد ضبط السجلات المشفرة القديمة.']
   }
 ];
 
