@@ -24,6 +24,17 @@ html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-conversation
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-title small{
   display:none!important;
 }
+/* Launcher motion belongs to the existing visual owner; no runtime patch. */
+#root .lourex-ai-launcher:not([aria-expanded='true']):not(:hover):not(:focus-visible){
+  animation:lourexLivingLauncherIdle 11s ease-in-out infinite;
+}
+@keyframes lourexLivingLauncherIdle{
+  0%,89%,100%{transform:translateY(0);}
+  95%{transform:translateY(-2px);}
+}
+@media(prefers-reduced-motion:reduce){
+  #root .lourex-ai-launcher{animation:none!important;}
+}
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-context-shell{
   min-height:44px!important;
   padding:5px 12px 6px!important;
