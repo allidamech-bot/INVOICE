@@ -182,6 +182,46 @@ try{
   assert.equal(conflict.number,'INV-A-0003','unsynced offline-equivalent edit must never be overwritten');
   console.log('PASS real Firebase browser A/B: overlapping edits fail closed without loss');
 
+  // Simulate a truly disconnected browser, not a fake navigator flag.
+  // Changes must remain in account-scoped IndexedDB and upload after Chrome
+  // regains network access without prompting for device PIN or re-login.
+  await b.call('Network.enable');
+  await b.call('Network.emulateNetworkConditions',{
+    offline:true,latency:0,downloadThroughput:0,uploadThroughput:0
+  });
+  const offlineEdit=await evaluate(b,`(async()=>{
+    const {db,user}=await ${modules};
+    const local=await db.getPlainWorkspace();
+    const customers=[...local.payload.customers,{id:'offline-qa-customer',
+      companyNameEn:'Offline client',companyNameAr:'عميل دون اتصال',contactPerson:'',
+      addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',
+      vatTaxNumber:'',commercialRegistration:''}];
+    const result=await db.updatePlainWorkspaceIfUnchanged(user.uid,local.localRevision,{
+      ...local.payload,customers
+    });
+    return {stored:Boolean(result),online:navigator.onLine,
+      count:(await db.getPlainWorkspace()).payload.customers.length};
+  })()`);
+  assert.ok(offlineEdit.stored,'offline save must succeed locally');
+  assert.equal(offlineEdit.online,false,'browser should actually be offline');
+  assert.equal(offlineEdit.count,1,'offline customer must survive in account cache');
+  await b.call('Network.emulateNetworkConditions',{
+    offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1
+  });
+  const reconnected=await wait(async()=>{
+    const r=await evaluate(b,`(async()=>{
+      const {db,sync,user}=await ${modules};
+      try{
+        const outcome=await sync.reconcilePlainCloudWorkspace(user.uid);
+        const local=await db.getPlainWorkspace();
+        return {outcome,online:navigator.onLine,revision:local.baseCloudRevision};
+      }catch(error){return {outcome:String(error),online:navigator.onLine};}
+    })()`);
+    return r.outcome==='pushed'?r:null;
+  },25000,'offline Firebase reconnect and upload');
+  assert.equal(reconnected.online,true);
+  console.log('PASS real Firebase browser B: offline customer persists and uploads automatically after reconnection');
+
   const loggedOut=await evaluate(b,`(async()=>{
     await firebase.auth().signOut();
     const {db,sync}=await (async()=>{
