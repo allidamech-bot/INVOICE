@@ -36,39 +36,38 @@ test('B03: older PIN-encrypted v1 backups still decrypt with the original PIN',a
   assert.ok(Array.isArray(restored.documents));
 });
 
-test('B03: Data Center exposes explicit export and file restore with destructive confirmation',async()=>{
+test('B03: PIN-free Data Center downloads local copy and confirms cloud-affecting import',async()=>{
   const settings=await readFile('src/components/SettingsModal.tsx','utf8');
   assert.match(settings,/private dataCenter\(\)/);
-  assert.match(settings,/Export Encrypted Backup/);
-  assert.match(settings,/Review & Restore Backup/);
-  assert.match(settings,/type="file" accept="\.lourex-backup,application\/json"/);
+  assert.match(settings,/Save local copy/);
+  assert.match(settings,/Review & import/);
+  assert.match(settings,/type="file" accept="\.lourex-json,application\/json"/);
   assert.match(settings,/confirmLocalRestore:boolean/);
   assert.match(settings,/private restoreLocalBackup=async/);
-  assert.match(settings,/this\.props\.onRestore\(restoreFile,restorePassword\)/);
-  assert.match(settings,/private exportEncryptedBackup=async/);
-  assert.match(settings,/this\.props\.onBackup\(backupPin,backupPassword\)/);
-  assert.match(settings,/Restore Selected Backup/);
+  assert.match(settings,/this\.props\.onRestore\(file\)/);
+  assert.match(settings,/private exportLocalBackup=async/);
+  assert.match(settings,/this\.props\.onBackup\(\)/);
   assert.match(settings,/this\.hasUnsavedSettings\(\)/);
-  assert.match(settings,/backupPin:'',backupPassword:'',backupPasswordConfirm:''/);
-  assert.match(settings,/restorePassword:''/);
+  assert.doesNotMatch(settings,/onChangePin|onCreateRecoveryKey|Current device PIN|Change PIN/);
 });
 
-test('B03: export PIN verification is independent of the backup encryption password',async()=>{
+test('B03: optional plain local export and import do not need a PIN and preserve a recovery archive',async()=>{
   const app=await readFile('src/app/App.tsx','utf8');
-  const source=app.slice(app.indexOf('  private backup=async('),app.indexOf('  private restore=async('));
-  assert.match(source,/backupPasswordIssue\(password,pin\)/);
-  assert.match(source,/verifyPin\(pin,security\)/);
-  assert.match(source,/exportBackup\(password,fullVault\)/);
-  assert.doesNotMatch(source,/exportBackup\(pin,fullVault\)/);
-  const localRestore=app.slice(app.indexOf('  private restore=async('),app.indexOf('  private requireVault('));
-  assert.match(localRestore,/readBackup\(file,pin\)/);
-  assert.match(localRestore,/beginProtectedOperation\(\)/);
-  assert.match(localRestore,/restoreVaultWithCurrentKey\(key,restored\)/);
-  assert.match(localRestore,/if\(committed\)this\.scheduleCloudSync\(500\)/);
-  assert.match(localRestore,/committed=true/);
-  assert.match(localRestore,/try\{await this\.syncPublicPreferences\(/);
-  const vault=await readFile('src/storage/vault.ts','utf8');
-  assert.match(vault,/restoreVaultWithCurrentKey[\s\S]*createSafetySnapshot\('pre-restore'\)/);
+  const backup=app.slice(app.indexOf('  private backup=async('),app.indexOf('  private restore=async('));
+  assert.match(backup,/await this\.drainVaultWrites\(\)/);
+  assert.match(backup,/uid!==currentCloudUser\(\)\?\.uid/);
+  assert.match(backup,/await exportPlainBackup\(local\.payload\)/);
+  assert.doesNotMatch(backup,/verifyPin\(|exportBackup\(password/);
+  const restore=app.slice(app.indexOf('  private restore=async('),app.indexOf('  private requireVault('));
+  assert.match(restore,/readPlainBackup\(file\)/);
+  assert.match(restore,/beginProtectedOperation\(\)/);
+  assert.match(restore,/replacePlainWorkspaceIfUnchanged\(uid,current\.localRevision,replacement,'replaced-by-backup'\)/);
+  assert.match(restore,/if\(!ok\)throw new Error/);
+  assert.match(restore,/scheduleCloudSync\(300\)/);
+  const backupModule=await readFile('src/lib/backup.ts','utf8');
+  assert.match(backupModule,/LOUREX_WORKSPACE_EXPORT_V2/);
+  assert.match(backupModule,/assertRestorableBackupVault\(parsed\.payload\)/);
+  assert.match(backupModule,/exportPlainBackup\(vault:VaultPayload\)/);
 });
 
 test('B03: backup read enforces size and basic vault shape after authentication, and reports share cancel',async()=>{
