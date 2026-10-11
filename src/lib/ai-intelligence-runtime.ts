@@ -30,7 +30,7 @@ async function persistKernel(host:Host):Promise<void>{
   const kernel=structuredClone(host.__intelligenceKernel) as ConversationKernel;
   const receipts=structuredClone(host.__foundationReceipts||[]);
   const messages=(host.state.messages||[]).map((row:any)=>({id:row.id,role:row.role,text:row.text}));
-  const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX to preserve conversation state.');
+  const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready to save this conversation. Sign in and retry.');
     if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
     const current=await loadAssistantState(resumed.key);
     const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
@@ -44,7 +44,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   const scope=scopeFor(host,vault);
   if(host.__intelligenceKernel&&kernelScopeKey(host.__intelligenceKernel.scope)===kernelScopeKey(scope))return;
   const generation=host.__workspaceLoadGeneration;
-  const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
+  const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
   const store=scope.scope==='temporary'?null:await loadAssistantState(resumed.key);
   // Superseded loads may finish after the user retries, changes thread or
   // switches account. Never let an old cache read install its scoped kernel.
@@ -61,7 +61,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
 export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   await host.__lourexLoadPromise;
   const generation=host.__workspaceLoadGeneration;
-  const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
+  const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
   const requestedScope=scopeFor(host,resumed.vault),expected=requestedScope.scope==='personal'?'personal':requestedScope.scope==='temporary'?'temporary':requestedScope.workspaceId+'|'+requestedScope.branchId;
   if(host.__lourexAssistantWorkspaceKey!==expected){
     // Use the saved scope loader directly; the public UI wrapper also calls
@@ -102,7 +102,7 @@ async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Prom
   if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;
   host.__workspaceCommandBusy=true;
   try{
-    const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
+    const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
     strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Company, branch, account or conversation changed. Reopen the workspace.');
     const changesDraft=['cell','customer','product','add-line','undo','redo','reprice','terms','composer'].includes(command.kind);
@@ -194,7 +194,7 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
   if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;host.__foundationApprovalBusy=true;
   let receipt:any,step:MissionStep|undefined;
   try{
-    const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX before approval.');
+    const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready for approval. Sign in and retry.');
     const kernel=host.__intelligenceKernel as ConversationKernel;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Review the action again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
@@ -229,7 +229,7 @@ export function installIntelligenceRuntime(host:Host):void{
   host.ask=async(raw?:string)=>{
     if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy)return;host.__foundationTurnBusy=true;const started=performance.now();let turnScope='';
     try{
-      await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Unlock LOUREX first.');
+      await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
       const scope=scopeFor(host,resumed.vault);
       if(host.__intelligenceKernel&&host.__intelligenceKernel.scope.accountId!==scope.accountId){host.__intelligenceKernel=undefined;host.__foundationReceipts=[];await host.__lourexSetScope(scope.scope);}
