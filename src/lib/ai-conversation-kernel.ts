@@ -18,10 +18,10 @@ export function newConversationKernel(scope:KernelScope):ConversationKernel{retu
 export function normalizeConversationKernel(value:unknown,scope:KernelScope):ConversationKernel{
   if(!value||typeof value!=='object')return newConversationKernel(scope);
   const candidate=value as ConversationKernel;
-  if(candidate.version!==1||!candidate.scope||kernelScopeKey(candidate.scope)!==kernelScopeKey(scope))return newConversationKernel(scope);
+  if(candidate.version!==1||!candidate.scope||kernelScopeKey(candidate.scope)!==kernelScopeKey(scope))return{...newConversationKernel(scope),mode:'advisor'};
   // Personal never restores business references, even from an older/corrupt record.
   if(scope.scope==='personal')return{...newConversationKernel(scope),turn:Number.isSafeInteger(candidate.turn)?candidate.turn:0};
-  try{const copy=structuredClone(candidate);if(!Number.isSafeInteger(copy.turn)||copy.turn<0||!['auto','operator','advisor','financial'].includes(copy.focus))return newConversationKernel(scope);if(copy.artifact&&(!Array.isArray(copy.artifact.lineIds)||!Array.isArray(copy.artifact.undo)||!Array.isArray(copy.artifact.redo)))return newConversationKernel(scope);copy.mode=normalizeAiConversationMode(copy.mode);copy.missions=recoverMissions(copy.missions,scope);copy.diagnostics=normalizeDiagnostics(copy.diagnostics);return copy;}catch{return newConversationKernel(scope);}
+  try{const copy=structuredClone(candidate);if(!Number.isSafeInteger(copy.turn)||copy.turn<0||!['auto','operator','advisor','financial'].includes(copy.focus))return{...newConversationKernel(scope),mode:'advisor'};if(copy.artifact&&(!Array.isArray(copy.artifact.lineIds)||!Array.isArray(copy.artifact.undo)||!Array.isArray(copy.artifact.redo)))return newConversationKernel(scope);copy.mode=normalizeAiConversationMode(copy.mode);copy.missions=recoverMissions(copy.missions,scope);copy.diagnostics=normalizeDiagnostics(copy.diagnostics);return copy;}catch{return{...newConversationKernel(scope),mode:'advisor'};}
 }
 export function stageKernelArtifact(kernel:ConversationKernel,proposal:Draft):void{
   if(kernel.scope.scope==='personal')throw new Error('Business drafts are unavailable in Personal scope.');
