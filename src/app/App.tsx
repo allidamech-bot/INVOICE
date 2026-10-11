@@ -291,7 +291,13 @@ export class App extends React.Component<{},State> {
   private handleOnline=()=>{this.scheduleCloudSync(80);};
   private handleCloudConflict=()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}this.cloudSyncQueued=false;this.setState({cloudSyncState:'conflict',cloudSyncMessage:t('This device and the cloud both contain newer changes. Neither copy was overwritten. Choose which copy to keep.','يحتوي هذا الجهاز والسحابة على تعديلات أحدث. لم يتم استبدال أي نسخة. اختر النسخة التي تريد الاحتفاظ بها.')});};
   private announceRemoteCloudUpdate=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.deferRemoteCloud();try{window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}catch{}};
-  private handleRemoteCloudNewer=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.announceRemoteCloudUpdate();};
+  private handleRemoteCloudNewer=()=>{
+    if(!this.state.cloudUser||!this.state.cloudLinked||!this.state.unlocked)return;
+    if(this.cloudReplaceBlocked()||this.cloudSyncRunning){
+      this.announceRemoteCloudUpdate();return;
+    }
+    void this.cloudSyncNow().catch(error=>this.retryCloudSync(error));
+  };
   private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;touchSession();this.resetAutoLock();this.scheduleCloudSync(120);};
   private closeTransientMenus=(event:PointerEvent)=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.ta-create-menu, .new-doc-menu'))return;this.setState({newMenu:false});};
   private closeTransientMenusOnEscape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.newMenu)this.setState({newMenu:false});};
