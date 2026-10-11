@@ -189,6 +189,56 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-approval .loure
   #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-preview-fact{padding:10px;}
   #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-preview-totals strong{font-size:17px;}
 }
+/* Compact controller-only proposal UI, within the existing workspace owner. */
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval{
+  display:flex;justify-content:space-between;align-items:center;gap:8px 12px;
+  padding:7px 9px;margin:0 0 6px;flex-wrap:wrap;
+  border-radius:11px;background:#202023;border:1px solid #3c3c41;color:#e7e7ea;
+  animation:lxwActionAppear .22s cubic-bezier(.16,1,.3,1) both;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval p{
+  margin:0;min-width:0;flex:1 1 145px;color:#d3d3d7;
+  font-size:11px;line-height:1.6;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:5px;flex:0 0 auto;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-actions button{
+  min-height:44px;padding:6px 11px;border-radius:999px;
+  border:1px solid #4a4a50;background:#27272b;color:#e8e8eb;
+  font-size:11px;font-family:inherit;font-weight:600;line-height:1.25;
+  touch-action:manipulation;cursor:pointer;
+  transition:background .17s ease,border-color .17s ease,opacity .17s ease;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-actions button:is(:hover,:focus-visible){
+  border-color:#8d8d92;background:#39393e;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-actions button.lxw-approve{
+  background:#eaeaec;border-color:#f0f0f1;color:#111114;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-actions button.lxw-approve:is(:hover,:focus-visible){
+  background:#ffffff;color:#101010;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-actions button:disabled{
+  opacity:.42;cursor:default;
+}
+@keyframes lxwActionAppear{
+  from{opacity:0;transform:translateY(7px);}
+  to{opacity:1;transform:translateY(0);}
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-preview-reviewed{
+  min-height:44px;width:100%;padding:10px;border:1px solid #6b7788;
+  border-radius:11px;background:#eef0f4;color:#17181c;
+  font:700 12px/1.4 inherit;cursor:pointer;
+  transition:background .17s ease,transform .17s ease;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-preview-reviewed:hover{background:#fff;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-preview-reviewed:active{transform:scale(.994);}
+@media(prefers-reduced-motion:reduce){
+  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval{animation:none;}
+  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-actions button,
+  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-preview-reviewed{transition:none;}
+}
 @media(min-width:901px){html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-workspace-open='true']{width:min(1180px,calc(100vw - 32px))!important;max-width:1180px!important;} }
 @media(min-width:721px) and (max-width:900px){html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-workspace-open='true']{width:calc(100vw - 16px)!important;max-width:none!important;} }
 @media(max-width:720px){
