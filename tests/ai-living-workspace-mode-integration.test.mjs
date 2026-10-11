@@ -63,6 +63,9 @@ test('Legacy kernel without explicit mode is read-only after hydration',()=>{
   assert.equal(newConversationKernel(scope).mode,'controller','new threads begin as explicit Controller');
   const changed=normalizeConversationKernel({...old,mode:'controller'},scope);
   assert.equal(changed.mode,'controller');
+  assert.equal(normalizeConversationKernel({...old,focus:'unknown'},scope).mode,'advisor');
+  assert.equal(normalizeConversationKernel({...old,version:999},scope).mode,'advisor');
+  assert.equal(normalizeConversationKernel({...old,scope:{...scope,branchId:'foreign'}},scope).mode,'advisor');
 });
 
 test('Workspace exposes two modes and preserves separate thread scopes',()=>{
