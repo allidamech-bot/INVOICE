@@ -31,13 +31,26 @@ jobs:
         run: node --test tests/cloud-first-pinless-contract.test.mjs tests/cloud-first-manifest-race.test.mjs
       - name: Essential financial invariants
         run: node --test --test-concurrency=2 tests/number-reservation.test.mjs tests/document-language-v151.test.mjs tests/commercial-output-hardening-v167.test.mjs tests/audit-supplier-payables-asof.test.mjs
+      - name: Free real-browser smoke — 390/820/1440 Chromium viewport
+        run: node scripts/qa-free-chrome-smoke.mjs
       - name: All tests diagnostic (legacy PIN assertions may be obsolete)
         if: always()
         continue-on-error: true
         shell: bash
         run: |
+          set +e
           node --test --test-concurrency=2 tests/*.test.mjs > "$RUNNER_TEMP/pinless-all-tests.log" 2>&1
           status=$?
+          set -e
           grep -E '^[[:space:]]*ℹ (tests|pass|fail) ' "$RUNNER_TEMP/pinless-all-tests.log" || true
           echo "Full historical suite exit status: $status"
+          grep -E "^[[:space:]]*✖ " "$RUNNER_TEMP/pinless-all-tests.log" | tail -n 50 || true
           echo 'Legacy assertions require explicit review, never silently disable them.'
+      - name: Upload complete historical test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinless-historical-suite-log
+          path: ${{ runner.temp }}/pinless-all-tests.log
+          retention-days: 7
+          if-no-files-found: warn
