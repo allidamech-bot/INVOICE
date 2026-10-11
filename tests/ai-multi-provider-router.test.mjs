@@ -159,6 +159,9 @@ test('free-provider fallback respects a total deadline shorter than the 60s brow
   assert.equal(result.success,false);
   assert.equal(result.errorCode,'AI_TIMEOUT');
   assert.equal(requests,1,'after consuming the deadline no later provider or retry may start');
+  // The router circuit breaker uses Date.now. Advance the shared fake clock
+  // past this test's simulated 49.5-second provider latency before the next case.
+  testClock=clock;
 });
 
 test('provider response body that never settles is hard-timed-out, not left spinning indefinitely',async()=>{
