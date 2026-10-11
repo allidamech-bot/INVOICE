@@ -48,3 +48,43 @@ test('conversation hydration still requires matching account and workspace owner
   assert.match(runtime,/kernelScopeKey\(scopeFor\(host,live\.vault\)\)!==kernelScopeKey\(scope\)/);
   assert.match(runtime,/Account, conversation or workspace changed during loading/);
 });
+
+test('runtime: a fresh Business thread completes hydration without stale empty-ID rejection',async()=>{
+  const [{compiledReliabilityHarness},{emptyVault}]=await Promise.all([
+    import('./helpers/ai-reliability-runtime.mjs'),
+    import('../dist/src/lib/defaults.js')
+  ]);
+  const {runtime,host}=await compiledReliabilityHarness(emptyVault());
+  const h=host();h.__lourexAssistantThreadId='';
+  await runtime.refreshIntelligenceWorkspace(h);
+  assert.match(h.__lourexAssistantThreadId,/^ai-thread-/);
+  assert.equal(h.__intelligenceKernel.scope.threadId,h.__lourexAssistantThreadId);
+  assert.equal(h.__intelligenceKernel.scope.scope,'business');
+});
+
+test('runtime: an unsuccessful scope load fails once rather than recursively refreshing',async()=>{
+  const [{compiledReliabilityHarness},{emptyVault}]=await Promise.all([
+    import('./helpers/ai-reliability-runtime.mjs'),
+    import('../dist/src/lib/defaults.js')
+  ]);
+  const {runtime,host}=await compiledReliabilityHarness(emptyVault());
+  const h=host();h.__lourexAssistantWorkspaceKey='stale|scope';
+  let calls=0;
+  h.__workspaceBaseSetScope=async()=>{calls++;};
+  await assert.rejects(runtime.refreshIntelligenceWorkspace(h),/scope did not load/);
+  assert.equal(calls,1,'failed scope loader must be attempted just once');
+});
+
+test('runtime: successful direct scope loading does not require nested UI refresh',async()=>{
+  const [{compiledReliabilityHarness},{emptyVault}]=await Promise.all([
+    import('./helpers/ai-reliability-runtime.mjs'),
+    import('../dist/src/lib/defaults.js')
+  ]);
+  const {runtime,host}=await compiledReliabilityHarness(emptyVault());
+  const h=host();h.__lourexAssistantWorkspaceKey='stale|scope';
+  let calls=0;
+  h.__workspaceBaseSetScope=async()=>{calls++;h.__lourexAssistantWorkspaceKey='default|main';};
+  await runtime.refreshIntelligenceWorkspace(h);
+  assert.equal(calls,1);
+  assert.equal(h.__intelligenceKernel.scope.workspaceId,'default');
+});
