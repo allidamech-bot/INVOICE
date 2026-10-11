@@ -44,7 +44,7 @@ jobs:
           nl -ba dist/src/app/index.js | sed -n '85,135p'
           grep -n '\\.bind(' dist/src/app/index.js || true
       - name: PIN-free cloud behavior and safety tests
-        run: node --test tests/cloud-first-pinless-contract.test.mjs tests/cloud-first-manifest-race.test.mjs tests/cloud-first-two-device.test.mjs
+        run: node --test tests/cloud-first-pinless-contract.test.mjs tests/cloud-first-manifest-race.test.mjs tests/cloud-first-two-device.test.mjs tests/cloud-first-ack-lineage.test.mjs
       - name: Essential financial invariants
         run: node --test --test-concurrency=2 tests/number-reservation.test.mjs tests/document-language-v151.test.mjs tests/commercial-output-hardening-v167.test.mjs tests/audit-supplier-payables-asof.test.mjs
       - name: Free real-browser smoke — 390/820/1440 Chromium viewport
