@@ -5,7 +5,7 @@ import {
   normalizeAssistantState,upsertAssistantThread,
 } from '../dist/src/storage/assistant-store.js';
 import {
-  DEFAULT_AI_CONVERSATION_PREFERENCES,normalizeAiConversationPreferences,
+  DEFAULT_AI_CONVERSATION_PREFERENCES,normalizeAiConversationPreferences,resolveAiConversationReplyLanguage,
 } from '../dist/src/lib/ai-conversation-mode.js';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
@@ -46,7 +46,8 @@ test('settings are connected to encrypted account queue and real AI context',()=
   assert.match(store,/aiPreferences:normalized\.aiPreferences/);
   assert.match(runtime,/export async function updateAiExperiencePreferences/);
   assert.match(runtime,/storeQueue\.catch\(\(\)=>undefined\)\.then\(run\)/);
-  assert.match(runtime,/context\.language=settings\.replyLanguage/);
+  assert.match(runtime,/resolveAiConversationReplyLanguage\(settings\.replyLanguage,latest/);
+  assert.match(runtime,/resolveAiConversationReplyLanguage\(preferences\.replyLanguage,input\.message/);
   assert.match(runtime,/language:responseLanguage,context:/);
   assert.match(ui,/function AiExperienceSettings/);
   assert.match(ui,/interfaceLanguage/);
@@ -55,4 +56,12 @@ test('settings are connected to encrypted account queue and real AI context',()=
   assert.match(css,/\.lxw-settings-field\{/);
   assert.match(css, /data-ai-motion='reduced'/);
   assert.match(menu,/data-ai-motion/);
+});
+
+test('automatic language follows the actual conversation without changing the site',()=>{
+  assert.equal(resolveAiConversationReplyLanguage('auto','حلل أرباح الشركة','en'),'ar');
+  assert.equal(resolveAiConversationReplyLanguage('auto','Explain our profit margin','ar'),'en');
+  assert.equal(resolveAiConversationReplyLanguage('auto','12345','ar'),'ar');
+  assert.equal(resolveAiConversationReplyLanguage('ar','Explain our profit margin','en'),'ar');
+  assert.equal(resolveAiConversationReplyLanguage('en','حلل الأرباح','ar'),'en');
 });
