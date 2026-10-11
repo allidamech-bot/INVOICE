@@ -44,8 +44,8 @@ Existing personal/business/temporary scopes are independent from Controller/Advi
 |---|---|---|
 | **1 Foundation / audit** | Code+owner inventory, UX spec, pure mode and settings contracts, test guardrails | No runtime/visual alteration; safety tests pass; baseline documented |
 | **2 Conversation shell** | Single presentation owner migration, tabs, centered strip, composer, menu+motion, launcher, responsive layout | RTL/LTR, mobile keyboard, iPad/desktop, real click paths and reduced-motion verified; no redundant old owners |
-| **3 Previews and approvals** | Contextual suggestions, preview/diff layout, small approve/reject, status/undo semantics | Explicit approval, rejection, stale review, double click, errors, item totals and preview parity verified |
-| **4 Intelligence / settings** | Real Controller vs Advisor dispatch guard, separate histories/preferences, language overrides, voice and evidence-aware responses | Advisor cannot navigate or mutate even via crafted tool calls; scoped data and deterministic financial reports; persistence migration verified |
+| **3 Mode separation / trust** | Real Controller vs Advisor tabs, read-only tool routing, mode-scoped thread history, fail-closed legacy migration | Advisor cannot navigate or mutate even via crafted tool calls; account/branch isolation and persistence tested |
+| **4 Previews / intelligence / settings** | Contextual suggestions, diff/approval layout, safe outcomes, document palette, separate AI language settings, voice and evidence-aware financial responses | Explicit approval, stale review, double click, deterministic totals, correct bilingual preview, no invented data |
 | **5 QA / release** | End-to-end authenticated Chromium/WebKit; mobile 320/390/430, tablet 820/900/901/1024, desktop 1440, AR/EN, light/dark site, offline/retry | No regressions; no auth data loss; check Production commit and deploy only after approval |
 
 ## 4. Non-negotiable controls
@@ -72,3 +72,19 @@ Existing personal/business/temporary scopes are independent from Controller/Advi
 - **Tests**: `tests/ai-living-workspace-motion-batch2.test.mjs` includes a no-package runtime fake-browser harness for open/close, rapid reversal, no-animation fallback, and source contract assertions. Static source checks and a minimal in-memory motion smoke check were performed; full `npm run build`, full tests and authenticated real-browser QA are **not** claimed.
 - **Out of scope of this delivery slice**: the two live Controller/Advisor tabs, mode-scoped history, enforceable advisor policy in tool orchestration, finance preview restructuring, universal palette consolidation. These remain mandatory before marking Batch 2/4 complete. This branch must not be merged as the finished experience.
 
+
+## 7. Batch 3 — mode isolation and actual UI (work in draft)
+
+- Conversation kernels gain a persisted mode. New threads explicitly begin in Controller; old/malformed stored threads without valid mode become read-only Advisor without deleting history.
+- The typed React workspace displays **Controller / Advisor** tabs and the centered gray description. Four old focus selectors are no longer shown; stored focus values remain readable.
+- Switching modes selects an existing scoped thread or creates a new one before assigning its mode; threads containing prior turns/artifacts cannot be relabeled. Volatile unsent text is keyed by the full account/workspace/branch/thread scope.
+- Advisor tool planning and execution permit only read/calculate tools. Validation denies model plans with mutate/navigate/prepare tools; direct tool execution denies them again. Approval, workspace editing, saved-document open and staged draft edits are blocked.
+- The unified + menu hides execution/navigation entries in Advisor; legacy saved-artifact buttons are filtered in the typed presentation owner.
+- New typed mode module is included in service-worker module identity hashing.
+- Tests: tests/ai-living-workspace-mode-integration.test.mjs covers actual compiled tool calls after a build, malformed-kernel migration and UI/tool guards. Full build, regressions and authenticated browser checks have NOT been run in this session.
+
+### Remaining release blockers
+
+- Verify dynamic switching and account-scoped thread hydration in authenticated Chromium and WebKit; fix any discovered regressions before promoting this draft.
+- Consolidate old CSS owners; complete grayscale chat palette, financial preview and inline approval UI, AI settings, audio and sources.
+- Preserve true execution authorization on all legacy workflow shortcuts; not all legacy routes have been live-audited.
