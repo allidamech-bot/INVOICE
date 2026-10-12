@@ -57,7 +57,13 @@ function deletion(uid:string,id:string,deletedAt:string):CloudThread{
 }
 function mergeMessages(a:AssistantStoredMessage[],b:AssistantStoredMessage[]):AssistantStoredMessage[]{
   const byId=new Map<string,AssistantStoredMessage>();
-  for(const row of [...b,...a]){const next=message(row);if(next)byId.set(next.id,next);}
+  for(const row of [...b,...a]){
+    const next=message(row);if(!next)throw new Error('Invalid incoming message. No history was merged.');
+    const previous=byId.get(next.id);
+    if(previous&&(previous.role!==next.role||previous.text!==next.text))
+      throw new Error('Conflicting message identity from two devices. No history was overwritten.');
+    byId.set(next.id,previous&&previous.createdAt<next.createdAt?previous:next);
+  }
   if(byId.size>MAX_MESSAGES)throw new Error('Merging devices exceeds the 60-message retention limit. No conversation message was silently dropped.');
   return [...byId.values()].sort((x,y)=>x.createdAt.localeCompare(y.createdAt)||x.id.localeCompare(y.id));
 }
