@@ -160,3 +160,21 @@ test('cloud pull restores an idle conversation kernel after remote changes',()=>
   assert.ok(runtime.includes("host.__lourexAssistantThreadId=''"));
   assert.ok(runtime.includes("__workspaceHistorySyncStatus:needsReopen?'pending'"));
 });
+
+test('local history never evicts its 31st thread or silently truncates a 61st message',()=>{
+  const thirty=normalizeAssistantState(local(Array.from({length:30},(_,i)=>thread('local-'+i))));
+  assert.throws(()=>upsertAssistantThread(thirty,{threadId:'new-thread',scope:'business',workspaceId:'company-a',branchId:'main',messages:[]}),/Nothing was evicted/);
+  assert.throws(()=>upsertAssistantThread(normalizeAssistantState(local()),{threadId:'long-thread',scope:'business',workspaceId:'company-a',branchId:'main',
+    messages:Array.from({length:61},(_,i)=>({id:'turn-'+i,role:'user',text:'Message '+i}))}),/No previous messages were discarded/);
+});
+
+test('all local deletion markers remain durable beyond the previous 200-item cutoff',()=>{
+  const markers=Object.fromEntries(Array.from({length:251},(_,i)=>['old-'+i,'2026-10-12T15:00:00.000Z']));
+  assert.equal(Object.keys(normalizeAssistantState(local([],markers)).deletedThreads).length,251);
+});
+
+test('thread identity cannot silently move to another company or branch on local save',()=>{
+  const previous=normalizeAssistantState(local([thread('shared-id')]));
+  assert.throws(()=>upsertAssistantThread(previous,{threadId:'shared-id',scope:'business',workspaceId:'company-b',branchId:'main',
+    messages:[]}),/different workspace or branch/);
+});
