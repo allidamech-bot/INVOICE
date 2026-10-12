@@ -52,7 +52,7 @@ test('remote-only conversations import readable messages and mode without execut
   assert.deepEqual(saved.messages.map(m=>m.id),['d','e']);
   assert.equal(saved.kernel?.mode,'controller');
   assert.equal(saved.kernel?.artifact,undefined);
-  assert.equal(saved.kernel?.missions,undefined);
+  assert.equal(saved.kernel?.missions?.length||0,0,'imported cloud threads must not restore executable missions');
   assert.deepEqual(saved.foundationReceipts,[]);
   assert.equal(saved.kernel?.scope.accountId,uid);
 });
