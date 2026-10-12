@@ -40,7 +40,11 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
     }
     host.setState({__workspaceHistorySyncStatus:'synced',__workspaceHistorySyncError:'',__workspaceHistoryRemoteCount:result.downloaded});
   };
-  const task=cloudHistoryQueue.catch(()=>undefined).then(run);
+  // Incoming cloud merges can rewrite the local assistant cache. Serialize
+  // their install behind local kernel saves, and make later saves wait for them.
+  const priorLocal=storeQueue;
+  const task=cloudHistoryQueue.catch(()=>undefined).then(()=>installRemote?priorLocal.catch(()=>undefined).then(run):run());
+  if(installRemote)storeQueue=task.catch(()=>undefined);
   cloudHistoryQueue=task.catch(()=>undefined);
   void task.catch(error=>{
     if(activeAccountStorageUid()!==uid||host.mounted===false)return;
