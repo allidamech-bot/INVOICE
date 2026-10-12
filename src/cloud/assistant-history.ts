@@ -134,6 +134,10 @@ async function publishThread(uid:string,candidate:CloudThread):Promise<boolean>{
     const snapshot=await tx.get(ref);checkAccount(uid);
     const record=snapshot.exists?snapshot.data():null;
     if(record&&(!validCloud(record,uid)||record.id!==candidate.id))throw new Error('Remote conversation identity or format changed.');
+    // A deleted conversation cannot acknowledge a stale device write as saved.
+    // Keep the durable local draft for recovery, but require an explicit pull.
+    if(record?.deletedAt&&!candidate.deletedAt)
+      throw new Error('This conversation was deleted on another device. Refresh history before editing. The local copy was not uploaded.');
     const merged=record?mergeAssistantCloudThread(candidate,record):candidate;
     if(bytes(merged)>MAX_DOCUMENT_BYTES)throw new Error('Merged history exceeds Firestore safe document size.');
     if(record&&JSON.stringify(record)===JSON.stringify(merged))return false;
