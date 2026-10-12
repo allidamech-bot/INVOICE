@@ -144,3 +144,12 @@ test('the same message identifier cannot silently overwrite different words on a
   const newer=cloud('t-collision',[msg('same-id','Conflicting edited message')]);
   assert.throws(()=>mergeAssistantCloudThread(older,newer),/Conflicting message identity/);
 });
+
+test('a remote deletion frees space for a replacement thread at the local retention limit',()=>{
+  const full=Array.from({length:30},(_,i)=>thread('old-'+i));
+  const deleted=cloud('old-0',[],{deletedAt:'2026-10-12T16:00:00.000Z',updatedAt:'2026-10-12T16:00:00.000Z'});
+  const merged=mergeAssistantCloudState(uid,local(full),[deleted,cloud('replacement')]);
+  assert.equal(merged.threads.length,30);
+  assert.ok(!merged.threads.some(row=>row.id==='old-0'));
+  assert.ok(merged.threads.some(row=>row.id==='replacement'));
+});
