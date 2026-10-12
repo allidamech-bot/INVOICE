@@ -69,13 +69,15 @@ export function mergeAssistantCloudThread(local:CloudThread,remote:CloudThread):
     updatedAt:local.updatedAt>=remote.updatedAt?local.updatedAt:remote.updatedAt};
 }
 function restore(uid:string,row:CloudThread,local?:AssistantThread):AssistantThread{
-  const kernel=local?.kernel??{
+  const matching=Boolean(local?.kernel&&normalizeAiConversationMode(local.kernel.mode)===row.mode);
+  const kernel=matching?local!.kernel:{
     version:1 as const,
     scope:{scope:row.scope,workspaceId:row.workspaceId,branchId:row.branchId,threadId:row.id,accountId:uid},
     turn:0,mode:row.mode,focus:row.mode==='advisor'?'advisor' as const:'operator' as const
   };
+  // A conflicting mode cannot inherit old executable artifacts or approvals.
   return{...local,id:row.id,scope:row.scope,title:row.title,workspaceId:row.workspaceId,branchId:row.branchId,
-    summary:row.summary,kernel,foundationReceipts:local?.foundationReceipts||[],
+    summary:row.summary,kernel,foundationReceipts:matching?local?.foundationReceipts||[]:[],
     messages:row.messages,createdAt:row.createdAt,updatedAt:row.updatedAt};
 }
 function bytes(value:unknown):number{return new TextEncoder().encode(JSON.stringify(value)).length;}
