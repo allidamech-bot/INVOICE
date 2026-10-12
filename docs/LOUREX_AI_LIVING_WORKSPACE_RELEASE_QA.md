@@ -27,6 +27,29 @@ The consolidated visual correction remains pending live retest. Do not mark it F
 - Re-ran actual local TypeScript, full build and the complete Node suite on this source: **2525 PASS / 0 FAIL / 0 SKIPPED / 0 cancelled**. Fresh logs are `/tmp/lourex-build-20261012-resumed.log` and `/tmp/lourex-tests-20261012-resumed.log`. Only documentation changed since the previously tested implementation.
 - PR #708 remains Draft/unmerged; Production remains unchanged. No new assistant screenshot, real iPhone/iPad/WebKit retest, or acceptance of the latest correction is claimed. Resume authenticated visual and functional testing on this READY Preview; do not deploy it to Production merely to bypass the Preview sign-in gate.
 
+### Authenticated live retest — 2026-10-12, 08:13 UTC onward
+
+Manual sign-in completed. An authenticated Arabic dashboard and the assistant rendered on Preview `6f72f04` / deployment `dpl_7EpQ6M1osiVAFQshtz17JBKhPCeA`, observed Chrome viewport 1363×936. Authentication is no longer the live blocker.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Compact header / Business dropdown | FIXED (observed desktop only) | One header row with title, workspace icon, settings, menu and close; no Business dropdown or separate Workspace row. |
+| Black assistant on Light site | FIXED (observed desktop only) | Header, tabs, messages, pill, settings and CFO portal retain black/charcoal while the site remains Light. |
+| Independent settings locale | PASS (live, limited) | Changed AI UI to English while the site stayed Arabic; mode descriptions, header and settings translated. Returned AI UI to Arabic. |
+| CFO portal theme and language | FIXED (live, limited) | Opened through Plus; black portal, white text, charcoal fields, English matching AI UI; close returned to chat. No calculation possible without products. |
+| Advisor restriction | PASS (live, limited) | Arabic request to delete customer, alter price, create invoice and navigate products produced read-only navigation denial, no approval/route change. |
+| Advisor Plus / Escape | PASS (live) | Only Camera and Photos & files. Escape closed the menu; AI settings remained usable. |
+| Controller / Advisor message history | PASS (live, limited) | Each restored its own submitted request. This is not a cross-account isolation certification. |
+| Actual document preparation | BLOCKED | Explicit safe two-line quotation draft request returned provider-not-configured message. No proposal, approval or save. |
+
+New reproducible defects in this live retest, repaired in source but **pending another live retest**:
+
+1. **Visible composer and message-action locale:** Site AR / AI UI EN left the visible premium textarea placeholder and Copy/Edit/Retry/Helpful/More labels Arabic. `refreshComposer` updated the hidden input bridge; the later React textarea and icon labels still used site strings. The existing typed presentation owner now supplies the visible textarea placeholder/accessibility label and action `aria-label`/title from AI UI preferences, preserving every original callback and user message.
+2. **Transient tool activity crosses threads:** Submit a blocked navigation request in Advisor, then select Controller: the Advisor tool-plan card remained below Controller's different messages. The thread lifecycle cleared context/files but omitted `__lourexToolPresentation`, `__lourexLastToolAudit`, and `__foundationToolOutcomes`. Those volatile references now clear before thread/scope transitions and on account/workspace prop changes; stored kernel evidence/history remains intact. Executable compiled-code regression checks clearing without deleting saved evidence.
+3. **Mode switch leaves controls disabled:** Switch Advisor → Controller; both tabs and Workspace remained disabled after loading. Opening/closing AI settings caused a render and released them, reproducing stale rendered guard state. Mode-switch completion rendered before clearing the non-state busy guard. The final state update now follows guard release in `finally`, on success and failure. Executable regression verifies the final render sees an unlocked guard in both paths.
+
+Source files: `src/components/AiConversationWorkspace.tsx`; regression `tests/ai-conversation-tool-presentation-isolation.test.mjs`. TypeScript PASS, full build PASS, **2528 Node tests PASS / 0 FAIL / 0 SKIPPED / 0 cancelled**. No security capability or approval policy was changed. Captured actual desktop settings/CFO screenshots; no real Safari, mobile keyboard, eight-width matrix or full release acceptance is claimed.
+
 - Preview `b965b8c`, deployment `dpl_Dp8DPfP4Y5Dm7pawJubrAgnEyTjn`, was created through the authorized Vercel Dashboard after the connector's 403. Manual email sign-in succeeded. At the observed tablet-sized Chrome viewport, the initial correction still failed: the header computed to grid / 131px and the composer to grid / 154px, including light field surfaces. These were reproduced defects in the correction itself, not acceptance.
 - The cause was old AI-specific layout in both `app.bundle.css` and standalone `v482-mobile-ux-repair.css`, plus generic site input/label styling. Correction `50fae11` retires exact AI-owned legacy declarations across emitted CSS, removes the obsolete tablet header at source, and gives the existing typed owner explicit scoped control boundaries. CSS bytes now contribute their own Service Worker identity without changing the independent voice/module identity contract.
 - Preview `50fae116bf379b03bae1aa7b34618577f41e0542`, deployment `dpl_Aw4Mo4WaeGWMHzJaJtwMFaq6dX4e`, is READY. Its stable branch alias was opened and email sign-in succeeded. Live screenshots showed a single header row, black pill composer, absent Business dropdown and black settings fields. Settings primary text computed to `rgb(245,245,247)` with opacity 1. These observations improve specific defects; they do not certify the entire design.
