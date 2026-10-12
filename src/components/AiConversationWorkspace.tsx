@@ -361,6 +361,12 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
     </header>
     <input className="lxw-history-search" type="search" value={query} onChange={(event:any)=>setQuery(event.target.value)} aria-label={label(ar,'Search conversation titles','البحث في عناوين المحادثات')} placeholder={label(ar,'Search saved conversations…','ابحث في المحادثات المحفوظة…')}/>
     {host.state.__workspaceHistoryError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistoryError))}</p>:null}
+    <p className="lxw-history-sync" role="status">
+      {host.state.__workspaceHistorySyncStatus==='syncing'?label(ar,'Syncing account conversations…','جارٍ مزامنة محادثات الحساب…'):
+       host.state.__workspaceHistorySyncStatus==='synced'?label(ar,'Account conversation history synchronized','تمت مزامنة سجل محادثات الحساب'):
+       label(ar,'Conversations are saved locally. Cloud sync is pending or unavailable.','المحادثات محفوظة محليًا. المزامنة السحابية معلقة أو غير متاحة.')}
+    </p>
+    {host.state.__workspaceHistorySyncError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistorySyncError))}</p>:null}
     <div className="lxw-history-list" role="list">
       {rows.map((row:any)=><div role="listitem" key={row.id}>
         <button type="button" className="lxw-history-row" disabled={busy} aria-current={row.id===host.__lourexAssistantThreadId?'page':undefined} onClick={()=>void openThread(row.id)}>
