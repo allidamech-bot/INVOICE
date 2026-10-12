@@ -5,6 +5,7 @@ import { loadAssistantMemory, scopedAssistantMemories } from '../storage/assista
 import { commercialDraftCommand, savedDocumentPreviewId } from './ai-commercial-conversation.js';
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
+import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
 import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
 import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor } from './ai-foundation-approval.js';
 import { loadAssistantState, saveAssistantState, upsertAssistantThread } from '../storage/assistant-store.js';
@@ -21,6 +22,32 @@ import { conversationModePermitsCapability, normalizeAiConversationMode, type Ai
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
 type Host=any;
 let storeQueue:Promise<unknown>=Promise.resolve();
+let cloudHistoryQueue:Promise<unknown>=Promise.resolve();
+function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,generation?:number,installRemote=false):void{
+  const run=async()=>{
+    if(activeAccountStorageUid()!==uid)return;
+    host.setState({__workspaceHistorySyncStatus:'syncing',__workspaceHistorySyncError:''});
+    const result=await synchronizeAssistantHistory(uid,key,{installRemote});
+    if(activeAccountStorageUid()!==uid||host.mounted===false)return;
+    if(scope&&generation===host.__workspaceLoadGeneration){
+      const vault=host.__foundationVault as VaultPayload|undefined;
+      if(vault&&kernelScopeKey(scopeFor(host,vault))===kernelScopeKey(scope)&&scope.scope==='business'){
+        const store=await loadAssistantState(key);
+        if(activeAccountStorageUid()!==uid||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,vault))!==kernelScopeKey(scope))return;
+        host.__businessThreads=store.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===uid))
+          .map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
+      }
+    }
+    host.setState({__workspaceHistorySyncStatus:'synced',__workspaceHistorySyncError:'',__workspaceHistoryRemoteCount:result.downloaded});
+  };
+  const task=cloudHistoryQueue.catch(()=>undefined).then(run);
+  cloudHistoryQueue=task.catch(()=>undefined);
+  void task.catch(error=>{
+    if(activeAccountStorageUid()!==uid||host.mounted===false)return;
+    host.setState({__workspaceHistorySyncStatus:'pending',__workspaceHistorySyncError:error instanceof Error?error.message:'Cloud history sync failed. Local conversation is preserved.'});
+  });
+}
+
 const flush=(host:Host)=>new Promise<void>(resolve=>host.setState({},resolve));
 const currentConversationMode=(host:Host):AiConversationMode=>normalizeAiConversationMode(host.__intelligenceKernel?.mode);
 export const currentAiExperiencePreferences=(host:Host):AiConversationExperiencePreferences=>normalizeAiConversationPreferences(host.__aiConversationPreferences||DEFAULT_AI_CONVERSATION_PREFERENCES);
@@ -44,6 +71,7 @@ async function persistKernel(host:Host):Promise<void>{
     const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
     const store=saved.state,thread=saved.thread;
     thread.kernel=kernel;thread.foundationReceipts=receipts;await saveAssistantState(resumed.key,store);
+    const uid=activeAccountStorageUid();if(uid)queueHistorySync(host,uid,resumed.key);
   };
   const next=storeQueue.catch(()=>undefined).then(run);storeQueue=next;await next;
 }
@@ -113,6 +141,8 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
   }
   await flush(host);
+  // Sync inert thread messages without importing executable approvals or drafts.
+  const uid=activeAccountStorageUid();if(uid&&scope.scope!=='temporary')queueHistorySync(host,uid,resumed.key,scope,generation,true);
 }
 async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
   if(currentConversationMode(host)!=='controller')throw new Error('Advisor can analyze but cannot edit a workspace. Switch to Controller.');
