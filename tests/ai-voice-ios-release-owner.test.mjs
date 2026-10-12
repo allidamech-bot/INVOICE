@@ -34,11 +34,11 @@ test('WebKit voice restart uses an extended native lease and bounded transient s
   assert.match(owner,/nativeReleaseUntil=Math.max\(nativeReleaseUntil,Number\(handoff.readyAt\)\|\|0\)/);
 });
 
-test('WebKit browser QA reproduces delayed native release and verifies fourteen sessions including a workflow handoff',()=>{
+test('WebKit browser QA reproduces delayed native release and verifies fifteen sessions including a workflow handoff',()=>{
   assert.match(visual,/releaseDelay:engine\.name\(\)==='webkit'\?1450:260/);
   assert.match(visual,/native microphone is still owned/);
   assert.match(visual,/overlappingStarts\),0/);
-  assert.match(visual,/sessions:14/);
+  assert.match(visual,/sessions:15/);
   assert.match(visual,/crossOwnerHandoff:'PASS'/);
   assert.match(visual,/repeat session/);
 });
