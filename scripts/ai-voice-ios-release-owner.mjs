@@ -11,6 +11,11 @@ const graceToken='  const NATIVE_RELEASE_GRACE_MS=420;';
 if(!source.includes(graceToken))throw new Error('iOS voice release owner could not find the native release grace.');
 source=source.replace(graceToken,`  const __lourexWebKitVoice=/iP(?:hone|ad|od)/i.test(navigator.userAgent)||(/AppleWebKit/i.test(navigator.userAgent)&&!/Chrome|Chromium|Edg|OPR/i.test(navigator.userAgent));\n  const NATIVE_RELEASE_GRACE_MS=__lourexWebKitVoice?1600:420;\n  const NATIVE_RELEASE_RETRY_MS=__lourexWebKitVoice?320:220;\n  const NATIVE_RELEASE_RETRY_LIMIT=__lourexWebKitVoice?6:4;`);
 
+// A close/unmount also releases speech; it must clear the visible listening state.
+const teardownToken="    voiceRestartPanel=null;clearRecognitionStopTimer();clearCaptureTimer();clearRecognitionReleaseTimer();const current=recognition;\\n    recognition=null;recognitionPanel=null;resetVoiceState();";
+if(!source.includes(teardownToken))throw new Error('iOS voice owner could not find canonical teardown for visual state reset.');
+source=source.replace(teardownToken,"    voiceRestartPanel=null;clearRecognitionStopTimer();clearCaptureTimer();clearRecognitionReleaseTimer();const priorPanel=recognitionPanel;const current=recognition;\\n    recognition=null;recognitionPanel=null;resetVoiceState();if(priorPanel?.isConnected)composerStatus(priorPanel,'','');");
+
 const toggleToken='  function toggleVoice(panel){';
 if(!source.includes(toggleToken))throw new Error('iOS voice release owner could not find the voice toggle owner.');
 const startOwner=`  // The workflow quick-mic and conversation composer share Safari's native engine.
