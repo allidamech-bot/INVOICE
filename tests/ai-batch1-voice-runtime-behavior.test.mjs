@@ -53,6 +53,7 @@ test('built iOS voice composer hands off microphone in both directions and clear
   const doc={
     documentElement:new ElementStub(),
     querySelector:selector=>selector==='#lourex-ai-panel'?panel:null,
+    getElementById:id=>id==='lourex-ai-panel'?panel:null,
     addEventListener(){}
   };
   const microtasks=[];
