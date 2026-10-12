@@ -313,6 +313,56 @@ function conversationModeTabs(host:Host,mode:AiConversationMode|undefined,locked
     {(['controller','advisor'] as const).map(value=><button key={value} type="button" role="tab" aria-selected={mode===value} disabled={locked} onClick={()=>void host.__workspaceSwitchMode?.(value)}>{value==='controller'?label(ar,'Controller','المتحكم'):label(ar,'Advisor','المستشار')}</button>)}
   </nav>;
 }
+/** The legacy conversation-context container is hidden by the workspace shell.
+ * History must have its own visible, scoped UI instead of relying on that DOM. */
+function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
+  const [query,setQuery]=react.useState('');
+  const rows=(Array.isArray(host.__businessThreads)?host.__businessThreads:[])
+    .filter((row:any)=>row&&typeof row.id==='string')
+    .filter((row:any)=>{
+      const needle=String(query||'').trim().toLocaleLowerCase();
+      return !needle||String(row.title||'').toLocaleLowerCase().includes(needle);
+    })
+    .sort((a:any,b:any)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+  const busy=disabled(host)||Boolean(host.state.__workspaceHistoryBusy);
+  const openThread=async(id:string)=>{
+    if(busy)return;
+    host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
+    try{await host.__lourexOpenThread(id);host.setState({__workspaceHistoryOpen:false});}
+    catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
+    finally{host.setState({__workspaceHistoryBusy:false});}
+  };
+  const newThread=async()=>{
+    if(busy)return;
+    const previousMode=normalizeAiConversationMode(host.__intelligenceKernel?.mode);
+    host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
+    try{
+      await host.__lourexNewConversation();
+      if(previousMode==='advisor')await assignIntelligenceConversationMode(host,'advisor');
+      host.setState({__workspaceHistoryOpen:false});
+    }catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
+    finally{host.setState({__workspaceHistoryBusy:false});}
+  };
+  return <section className="lxw-history" aria-label={label(ar,'Saved conversations','المحادثات المحفوظة')}>
+    <header className="lxw-history-head">
+      <button type="button" disabled={busy} onClick={()=>host.setState({__workspaceHistoryOpen:false,__workspaceHistoryError:''})} aria-label={label(ar,'Back to chat','العودة للمحادثة')}>←</button>
+      <strong>{label(ar,'Conversations','المحادثات')}</strong>
+      <button type="button" disabled={busy} onClick={()=>void newThread()}>{label(ar,'New','جديدة')}</button>
+    </header>
+    <input className="lxw-history-search" type="search" value={query} onChange={(event:any)=>setQuery(event.target.value)} aria-label={label(ar,'Search conversation titles','البحث في عناوين المحادثات')} placeholder={label(ar,'Search saved conversations…','ابحث في المحادثات المحفوظة…')}/>
+    {host.state.__workspaceHistoryError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistoryError))}</p>:null}
+    <div className="lxw-history-list" role="list">
+      {rows.map((row:any)=><div role="listitem" key={row.id}>
+        <button type="button" className="lxw-history-row" disabled={busy} aria-current={row.id===host.__lourexAssistantThreadId?'page':undefined} onClick={()=>void openThread(row.id)}>
+          <span className="lxw-history-row-title" dir="auto">{row.title||label(ar,'Untitled conversation','محادثة بلا عنوان')}</span>
+          <span className="lxw-history-row-meta"><small>{normalizeAiConversationMode(row.mode)==='advisor'?label(ar,'Advisor','المستشار'):label(ar,'Controller','المتحكم')}</small><small>{row.updatedAt?new Date(row.updatedAt).toLocaleDateString(ar?'ar':'en',{day:'numeric',month:'short'}):''}</small></span>
+        </button>
+      </div>)}
+      {!rows.length?<p className="lxw-history-empty">{query?label(ar,'No matching conversation titles.','لا توجد محادثات مطابقة للبحث.'):label(ar,'No saved conversations in this company or branch.','لا توجد محادثات محفوظة لهذه الشركة أو الفرع.')}</p>:null}
+    </div>
+  </section>;
+}
+
 export function renderConversationWorkspace(host:Host,tree:any):any {
   const transform=(node:any):any=>{
     if(typeof node==='string')return workspaceText(aiUiAr(host),node);
@@ -335,7 +385,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       return react.cloneElement(node,undefined,...children.map((button:any,i:number)=>{
         if(!react.isValidElement(button)||!names[i])return button;
         const parts=react.Children.toArray(button.props.children);
-        return react.cloneElement(button,undefined,parts[0],<span>{names[i]}</span>);
+        return react.cloneElement(button,i===1?{onClick:(event:any)=>{button.props?.onClick?.(event);host.setState({__workspaceHistoryOpen:true,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'});}}:undefined,parts[0],<span>{names[i]}</span>);
       }));
     }
     if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
@@ -428,9 +478,10 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       <span>{conversationModeDescription(mode,ar?'ar':'en')}</span>
     </div>;
     const toolbar=mode==='controller'?<button type="button" className="lxw-workspace-trigger" disabled={inactive} aria-label={label(ar,'Workspace','مساحة العمل')} title={label(ar,'Workspace','مساحة العمل')} aria-expanded={open} onClick={()=>host.setState({__workspaceSettingsOpen:false,__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>:<span className="lxw-header-slot" aria-hidden="true"/>;
-    const compactHeader=header.map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],toolbar,...parts.slice(1));});
+    const historyButton=<button type="button" className="lxw-history-trigger" disabled={inactive} aria-label={label(ar,'Conversation history','سجل المحادثات')} title={label(ar,'Conversation history','سجل المحادثات')} aria-expanded={Boolean(host.state.__workspaceHistoryOpen)} onClick={()=>host.setState({__workspaceHistoryOpen:!host.state.__workspaceHistoryOpen,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.6 5.9"/><path d="M4 5v6h6M12 7v5l4 2"/></svg></button>;
+    const compactHeader=header.map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],historyButton,toolbar,...parts.slice(1));});
     const safeContent=content.filter((child:any)=>child!==proposalNode);
-    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}{mode==='controller'&&generalProposal?<InlineGeneralProposal host={host} proposalNode={generalProposal} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}{mode==='controller'&&generalProposal?<InlineGeneralProposal host={host} proposalNode={generalProposal} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
@@ -478,7 +529,7 @@ export function installConversationWorkspace(host:Host):void {
   for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
     const old=host[name]?.bind(host);if(!old)continue;
     if(name==='__lourexSetScope')host.__workspaceBaseSetScope=old;
-    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
+    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:'',__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
   }
   // Each mode opens its own scoped thread. Never relabel an existing turn.
   const drafts=new Map<string,string>();
