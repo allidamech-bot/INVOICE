@@ -65,7 +65,8 @@ test('inline document approval is only visible after explicit review',()=>{
 });
 
 test('the approval executor rejects unreviewed business actions, not just the visible button',()=>{
-  assert.match(approvalRuntime,/kernel\.scope\.scope==='business'&&proposal\.capability!=='workspace\.navigate'&&host\.state\.__workspaceReviewedProposal!==proposal/);
+  assert.match(approvalRuntime,/kernel\.scope\.scope==='business'&&proposal\.capability!=='workspace\.navigate'&&!approvalWasReviewed\(host,proposal\)/);
+  assert.match(read('src/lib/ai-intelligence-runtime.ts'),/active\?\.capability==='tool\.plan'&&Array\.isArray\(active\.steps\)&&active\.steps\.includes\(proposal\)/,'only actual steps of the visible plan may be reviewed');
   assert.match(approvalRuntime,/throw new Error\('Review and acknowledge this exact action before approval\.'\)/);
   assert.match(component,/host\.setState\(\{__workspaceReviewedProposal:proposal\}\);setReviewedProposal\(proposal\)/,
     'non-document write suggestions must register the same acknowledgement as financial reviews');
@@ -78,7 +79,7 @@ test('approval rechecks live account, scope, mode, proposal and actor after asyn
   const resume=approvalRuntime.indexOf('const live=await resumeVaultSession();',commit);
   const checkScope=approvalRuntime.indexOf('kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(kernel.scope)',resume);
   const checkMode=approvalRuntime.indexOf("currentConversationMode(host)!=='controller'",resume);
-  const checkProposal=approvalRuntime.indexOf('host.state.proposal!==proposal',resume);
+  const checkProposal=approvalRuntime.indexOf('!approvalIsCurrent(host,proposal)',resume);
   const checkActor=approvalRuntime.indexOf('assertFoundationApproval(live.vault,proposal);',resume);
   const execute=approvalRuntime.indexOf('const result=await apply();',resume);
   assert.ok(commit>=0&&commit<resume&&resume<checkScope&&checkScope<checkMode&&checkMode<checkProposal&&checkProposal<checkActor&&checkActor<execute,
