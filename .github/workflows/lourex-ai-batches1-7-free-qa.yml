@@ -66,3 +66,44 @@ jobs:
         run: npm run build
       - name: Verify real Firestore owner rules and cross-device transactions
         run: ./node_modules/.bin/firebase emulators:exec --only firestore --config firebase.ai-ci.json --project demo-lourex-ai-integration-719 "node --test tests/emulator/ai-history.test.mjs"
+
+  webkit-visual:
+    name: Chromium/WebKit login, AI voice, conversation and PDF QA
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout integration code without deploying
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install pinned browser tools temporarily
+        run: npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0 http-server@14.1.1
+      - name: Install Chromium and WebKit with system browser dependencies
+        run: ./node_modules/.bin/playwright install --with-deps chromium webkit
+      - name: Compile the complete app for local-only browser inspection
+        run: npm run build
+      - name: Test PIN-free gateway on iPhone, iPad and desktop WebKit
+        run: node scripts/qa-pinless-webkit.mjs
+      - name: Test mock native microphone handoff and quoted tool conversation in both browser engines
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/http-server dist -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-ai-visual.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          node tests/visual/run-ai-voice-reliability-batch5.cjs
+          node tests/visual/run-ai-conversation-final-batch5.cjs
+          node tests/visual/run-v542-pagination-parity.cjs
