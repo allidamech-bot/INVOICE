@@ -234,7 +234,7 @@ export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state
   try{
     // A declined decision is complete only AFTER the tombstone is durable.
     await persistKernel(host);
-    if(host.__intelligenceKernel===next)host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceSavedId:'',__workspaceEditing:false});
+    if(host.__intelligenceKernel===next)host.setState({review:null,__workspaceReviewedProposal:null,__workspaceSavedId:'',__workspaceEditing:false});
   }catch(error){
     if(host.__intelligenceKernel===next)host.__intelligenceKernel=kernel;
     throw error;
