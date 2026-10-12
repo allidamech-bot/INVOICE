@@ -17,6 +17,7 @@
 
 - The per-device IndexedDB AES-GCM history cache remains local. **Its CryptoKey/ciphertext is not uploaded.**
 - Firestore stores account-protected **plaintext** messages and metadata (thread ID, scope, company, branch, mode, title, summary, timestamps). This is not end-to-end encryption; confidentiality relies on Firebase Auth, Firestore UID rules, TLS, platform security and account controls.
+- A matching message ID with conflicting message text is treated as a synchronization conflict, not resolved by silently accepting one device's text. The UI also distinguishes a successful **upload** from a complete two-way history refresh.
 - Cloud documents **never contain** `kernel`, executable proposals, working draft artifacts, approval receipts, mission state, financial vaults or the PIN-era encrypted cache.
 - Downloaded threads receive a minimal safe kernel without pending actions. A conflicting Controller/Advisor mode is downgraded to Advisor. When remote messages differ from the current local copy, old local executable drafts/approvals are also discarded even if the modes agree.
 - Malformed UID, mismatched account, changed workspace/branch, corrupt document, invalid Firestore format or unknown network state cause failure rather than a silent overwrite.
@@ -42,7 +43,7 @@
 6. zero approvals/ciphertext in the cloud schema, UID checks and transactions;
 7. limits on cloud query/document sizes.
 
-**Actually executed:** 18 isolated syntax/source-contract checks passed for source integration, scoped delete, transactional call sites, sync status and build-owner syntax.  
+**Actually executed:** 16/16 cross-batch source/formatter checks for Batches 3–6 passed, and 6/6 isolated behavior checks executed directly against a JavaScript-adapted extract of the current cloud merge code. These are not full compiled Node tests. The 14 authored cloud-history Node tests still need execution after build.  
 **Not executed here:** TypeScript compiler, production build, full Node tests, Firebase emulator with two real browsers, iPhone Safari, or authenticated cloud traffic. The container cannot resolve github.com; GitHub shows no workflow runs on preceding PRs.
 
 ## Required acceptance matrix before merge
