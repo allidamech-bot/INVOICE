@@ -37,13 +37,25 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
         if(activeAccountStorageUid()!==uid||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,vault))!==kernelScopeKey(scope))return;
         const remoteCurrent=store.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
         const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
-        if(kernel&&kernelScopeKey(kernel.scope)===kernelScopeKey(scope)&&
-           (!remoteCurrent||normalizeAiConversationMode(remoteCurrent.kernel?.mode)!==normalizeAiConversationMode(kernel.mode)||
-            (Boolean(kernel.artifact||host.state.proposal)&&!remoteCurrent.kernel?.artifact))){
-          // Invalidate an on-screen approval/draft whose local authority no
-          // longer matches the reconciled history. Never auto-execute a stale one.
+        const visible=(host.state.messages||[]).filter((row:any)=>row.role==='user'||row.role==='assistant');
+        const received=(remoteCurrent?.messages||[]).map(row=>({id:row.id,role:row.role,text:row.text}));
+        const changed=Boolean(remoteCurrent&&JSON.stringify(visible.map((row:any)=>[row.id,row.role,row.text]))!==JSON.stringify(received.map(row=>[row.id,row.role,row.text])));
+        const requiresReset=Boolean(kernel&&kernelScopeKey(kernel.scope)===kernelScopeKey(scope)&&
+           (!remoteCurrent||changed||normalizeAiConversationMode(remoteCurrent.kernel?.mode)!==normalizeAiConversationMode(kernel.mode)||
+            (Boolean(kernel.artifact||host.state.proposal)&&!remoteCurrent.kernel?.artifact)));
+        if(requiresReset){
+          // A changed remote transcript invalidates local draft/approval authority,
+          // even when the conversation is still labelled Controller on both devices.
           host.__intelligenceKernel=undefined;host.__foundationReceipts=[];needsReopen=true;
           host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceOpen:false});
+        }
+        if(changed&&remoteCurrent){
+          const active=Boolean(host.state.busy||host.applying||host.__foundationTurnBusy||host.pending);
+          if(!active){
+            host.__lourexAssistantSummary=remoteCurrent.summary||'';
+            host.setState({messages:received,proposal:null,review:null,__workspaceReviewedProposal:null});
+            needsReopen=false; // The read-only transcript is now visible; actions were still invalidated.
+          }
         }
         host.__businessThreads=store.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===uid))
           .map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
