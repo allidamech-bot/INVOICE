@@ -363,6 +363,7 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
       await host.__lourexDeleteThread(id);
       const session=await resumeVaultSession();
       if(!session||!(await loadAssistantState(session.key)).deletedThreads?.[id])throw new Error('Conversation deletion was not confirmed. Retry.');
+      await refreshIntelligenceWorkspace(host); // Never retain a deleted kernel as the active draft.
       // The lifecycle owner commits a deletion tombstone locally before
       // scheduling cloud publication. A failed cloud push remains retryable.
       host.__businessThreads=(host.__businessThreads||[]).filter((row:any)=>row.id!==id);
