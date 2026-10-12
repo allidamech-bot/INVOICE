@@ -98,6 +98,17 @@ function restore(uid:string,row:CloudThread,local?:AssistantThread):AssistantThr
     summary:row.summary,kernel,foundationReceipts:matching?local?.foundationReceipts||[]:[],
     messages:row.messages,createdAt:row.createdAt,updatedAt:row.updatedAt};
 }
+/** Compare persisted fields by value, not JSON object-key insertion order:
+ * Firestore can return an equivalent map with a different property order. */
+function sameCloudThread(a:CloudThread,b:CloudThread):boolean{
+  const keys=['format','ownerUid','id','scope','workspaceId','branchId',
+    'title','summary','mode','createdAt','updatedAt','deletedAt'] as const;
+  if(!keys.every(key=>a[key]===b[key])||a.messages.length!==b.messages.length)return false;
+  return a.messages.every((row,index)=>{
+    const other=b.messages[index];
+    return other?.id===row.id&&other.role===row.role&&other.text===row.text&&other.createdAt===row.createdAt;
+  });
+}
 function bytes(value:unknown):number{return new TextEncoder().encode(JSON.stringify(value)).length;}
 /** Pure merge for tests and for the safe, never-destructive local install. */
 export function mergeAssistantCloudState(uid:string,localState:AssistantStoreState,remoteRows:CloudThread[]):AssistantStoreState{
@@ -140,7 +151,7 @@ async function publishThread(uid:string,candidate:CloudThread):Promise<boolean>{
       throw new Error('This conversation was deleted on another device. Refresh history before editing. The local copy was not uploaded.');
     const merged=record?mergeAssistantCloudThread(candidate,record):candidate;
     if(bytes(merged)>MAX_DOCUMENT_BYTES)throw new Error('Merged history exceeds Firestore safe document size.');
-    if(record&&JSON.stringify(record)===JSON.stringify(merged))return false;
+    if(record&&sameCloudThread(record,merged))return false;
     checkAccount(uid);tx.set(ref,merged);return true;
   });
   checkAccount(uid);return changed;
@@ -183,7 +194,7 @@ export async function synchronizeAssistantHistory(uid:string,key:CryptoKey,optio
   for(const candidate of requests){
     checkAccount(uid);
     const remote=remoteById.get(candidate.id);
-    if(remote&&JSON.stringify(remote)===JSON.stringify(candidate))continue;
+    if(remote&&sameCloudThread(remote,candidate))continue;
     if(await publishThread(uid,candidate))uploaded++;
   }
   // During outgoing auto-save, do not overwrite concurrent local edits with
