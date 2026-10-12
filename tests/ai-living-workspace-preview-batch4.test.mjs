@@ -9,6 +9,7 @@ import { emptyVault } from '../dist/src/lib/defaults.js';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const component=read('src/components/AiConversationWorkspace.tsx');
 const styles=read('src/styles/ai-conversation-workspace.css');
+const approvalRuntime=read('src/lib/ai-intelligence-runtime.ts').split('async function runIntelligenceApproval(')[1]?.split('export function installIntelligenceRuntime(')[0]||'';
 
 test('document preview computes exact per-line amounts without inventing prices',()=>{
   assert.equal(lineTotal('12','25.00'),'300.00');
@@ -61,6 +62,28 @@ test('inline document approval is only visible after explicit review',()=>{
   assert.match(component,/\{decline\}\{reviewed&&confirm\?confirm:null\}/,'decline stays available, confirmation requires review');
   assert.match(component,/__workspaceReviewedProposal===host\.state\.proposal/);
   assert.match(styles,/@keyframes lxwActionAppear/);
+});
+
+test('the approval executor rejects unreviewed business actions, not just the visible button',()=>{
+  assert.match(approvalRuntime,/kernel\.scope\.scope==='business'&&proposal\.capability!=='workspace\.navigate'&&host\.state\.__workspaceReviewedProposal!==proposal/);
+  assert.match(approvalRuntime,/throw new Error\('Review and acknowledge this exact action before approval\.'\)/);
+  assert.match(component,/host\.setState\(\{__workspaceReviewedProposal:proposal\}\);setReviewedProposal\(proposal\)/,
+    'non-document write suggestions must register the same acknowledgement as financial reviews');
+  assert.match(component,/__workspaceReviewedProposal:host\.state\.proposal/,
+    'document review must acknowledge the exact current proposal');
+});
+
+test('approval rechecks live account, scope, mode, proposal and actor after async persistence',()=>{
+  const commit=approvalRuntime.indexOf('await persistKernel(host); // Crash after commit');
+  const resume=approvalRuntime.indexOf('const live=await resumeVaultSession();',commit);
+  const checkScope=approvalRuntime.indexOf('kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(kernel.scope)',resume);
+  const checkMode=approvalRuntime.indexOf("currentConversationMode(host)!=='controller'",resume);
+  const checkProposal=approvalRuntime.indexOf('host.state.proposal!==proposal',resume);
+  const checkActor=approvalRuntime.indexOf('assertFoundationApproval(live.vault,proposal);',resume);
+  const execute=approvalRuntime.indexOf('const result=await apply();',resume);
+  assert.ok(commit>=0&&commit<resume&&resume<checkScope&&checkScope<checkMode&&checkMode<checkProposal&&checkProposal<checkActor&&checkActor<execute,
+    'all post-await authorization checks must complete before apply()');
+  assert.match(approvalRuntime,/The action review changed during approval\. Nothing was applied\./);
 });
 
 test('ordinary navigation and edit suggestions are compact without bypassing the original callbacks',()=>{
