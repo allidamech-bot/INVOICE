@@ -52,7 +52,7 @@ function normalizedThread(value:any):AssistantThread|null{
 }
 export function normalizeAssistantState(value:any):AssistantStoreState{
   if(!value||typeof value!=='object'||value.version!==1)return emptyState();
-  const deletedThreads=Object.fromEntries(Object.entries(value.deletedThreads&&typeof value.deletedThreads==='object'?value.deletedThreads:{}).filter(([id,date])=>/^[A-Za-z0-9_-]{1,120}$/.test(id)&&typeof date==='string'&&Number.isFinite(Date.parse(date))).sort((a,b)=>String(b[1]).localeCompare(String(a[1]))).slice(0,200)) as Record<string,string>;
+  const deletedThreads=Object.fromEntries(Object.entries(value.deletedThreads&&typeof value.deletedThreads==='object'?value.deletedThreads:{}).filter(([id,date])=>/^[A-Za-z0-9_-]{1,120}$/.test(id)&&typeof date==='string'&&Number.isFinite(Date.parse(date))).sort((a,b)=>String(b[1]).localeCompare(String(a[1])))) as Record<string,string>;
   const threads:AssistantThread[]=Array.isArray(value.threads)?value.threads.map((row:any)=>normalizedThread(row)).filter((row:AssistantThread|null):row is AssistantThread=>Boolean(row)&&!deletedThreads[row.id]).sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS):[];
   const currentBusinessThreadId=safeText(value.currentBusinessThreadId,120),currentPersonalThreadId=safeText(value.currentPersonalThreadId,120);
   return{version:1,threads,currentBusinessThreadId:threads.some((row:AssistantThread)=>row.id===currentBusinessThreadId&&row.scope==='business')?currentBusinessThreadId:'',currentPersonalThreadId:threads.some((row:AssistantThread)=>row.id===currentPersonalThreadId&&row.scope==='personal')?currentPersonalThreadId:'',aiPreferences:normalizeAiConversationPreferences(value.aiPreferences),updatedAt:safeText(value.updatedAt,40)||now(),deletedThreads};
@@ -122,6 +122,12 @@ export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?
   const normalized=normalizeAssistantState(state);
   const requestedId=safeText(input.threadId,120);
   const existing=requestedId?normalized.threads.find((row:AssistantThread)=>row.id===requestedId&&scopeMatches(row,input.scope,input.workspaceId,input.branchId)):findAssistantThread(normalized,input.scope,input.workspaceId,input.branchId);
+  if(requestedId&&normalized.threads.some((row:AssistantThread)=>row.id===requestedId&&!scopeMatches(row,input.scope,input.workspaceId,input.branchId)))
+    throw new Error('Conversation belongs to a different workspace or branch. Nothing was overwritten.');
+  if(input.messages.length>MAX_MESSAGES)
+    throw new Error('Conversation exceeds the 60-message local retention limit. No previous messages were discarded; archive or expand retention before continuing.');
+  if(!existing&&normalized.threads.length>=MAX_THREADS)
+    throw new Error('The device already contains 30 conversations. Nothing was evicted; free space or expand history retention first.');
   if(requestedId&&normalized.deletedThreads?.[requestedId])
     throw new Error('Conversation was deleted. Start a new conversation instead of restoring its old ID.');
   const created=newAssistantThread(input.scope,input.workspaceId,input.branchId);
