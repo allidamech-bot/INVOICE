@@ -6,9 +6,9 @@ import { commercialDraftCommand, savedDocumentPreviewId } from './ai-commercial-
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
-import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
+import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, reconcileCancelledApprovals, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
 import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor } from './ai-foundation-approval.js';
-import { loadAssistantState, saveAssistantState, upsertAssistantThread } from '../storage/assistant-store.js';
+import { loadAssistantState, saveAssistantState, mutateAssistantState, upsertAssistantThread } from '../storage/assistant-store.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { prepareAssistantContext } from './ai-assistant-foundation.js';
 import { scopeVault } from './workspaces.js';
@@ -106,10 +106,13 @@ async function persistKernel(host:Host):Promise<void>{
   const messages=(host.state.messages||[]).map((row:any)=>({id:row.id,role:row.role,text:row.text}));
   const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready to save this conversation. Sign in and retry.');
     if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
-    const current=await loadAssistantState(resumed.key);
-    const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
-    const store=saved.state,thread=saved.thread;
-    thread.kernel=kernel;thread.foundationReceipts=receipts;await saveAssistantState(resumed.key,store);
+    await mutateAssistantState(resumed.key,current=>{
+      const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
+      const earlier=current.threads.find(row=>row.id===kernel.scope.threadId&&row.scope===kernel.scope.scope&&row.workspaceId===kernel.scope.workspaceId&&row.branchId===kernel.scope.branchId);
+      saved.thread.kernel=reconcileCancelledApprovals(kernel,earlier?.kernel);
+      saved.thread.foundationReceipts=receipts;
+      return saved.state;
+    });
     const uid=activeAccountStorageUid();if(uid)queueHistorySync(host,uid,resumed.key,undefined,undefined,false,kernel.scope.threadId);
   };
   const next=storeQueue.catch(()=>undefined).then(run);storeQueue=next;await next;
@@ -209,13 +212,33 @@ async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Prom
   finally{host.__workspaceCommandBusy=false;await flush(host);}
 }
 export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state.proposal||host.__intelligenceKernel?.artifact?.proposal):Promise<void>{
-  if(host.__workspaceCommandBusy||host.__foundationApprovalBusy||host.applying||host.state.busy)return;
+  if(host.__workspaceCommandBusy||host.__foundationApprovalBusy||host.applying||host.state.busy)throw new Error('An action is still running. Decline it after the current operation completes.');
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
-  const steps=proposal?.capability==='tool.plan'?proposal.steps:[proposal];
-  const cancelled=new Set();
-  for(const step of steps||[]){const found=missionStep(kernel?.missions||[],step);if(found&&!cancelled.has(found.mission)){cancelMission(found.mission);cancelled.add(found.mission);}}
-  if(host.__intelligenceKernel)host.__intelligenceKernel.artifact=undefined;
-  host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceSavedId:'',__workspaceEditing:false});await flush(host);await persistKernel(host);
+  if(!kernel||!proposal)throw new Error('No current action is available to decline.');
+  if(host.state.proposal&&host.state.proposal!==proposal)throw new Error('The proposed action changed. Review it again.');
+  const session=await resumeVaultSession();
+  if(!session||kernelScopeKey(scopeFor(host,session.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Reopen the action.');
+  const next=structuredClone(kernel),steps=proposal.capability==='tool.plan'?proposal.steps:[proposal];
+  const cancelled=new Set<unknown>(),ids=new Set(next.cancelledApprovals||[]);
+  for(const row of steps||[]){
+    const id=row?.foundationApproval?.id;
+    if(typeof id==='string'&&id)ids.add(id);
+    const found=missionStep(next.missions||[],row);
+    if(found&&!cancelled.has(found.mission)){cancelMission(found.mission);cancelled.add(found.mission);}
+  }
+  next.cancelledApprovals=[...ids].slice(-100);
+  reconcileCancelledApprovals(next);
+  // Do not remove an unrelated working document when declining a different action.
+  if(next.artifact&&steps?.some((row:any)=>row?.foundationApproval?.id&&(next.artifact?.proposal as any)?.foundationApproval?.id===row.foundationApproval.id))next.artifact=undefined;
+  host.__intelligenceKernel=next;
+  try{
+    // A declined decision is complete only AFTER the tombstone is durable.
+    await persistKernel(host);
+    if(host.__intelligenceKernel===next)host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceSavedId:'',__workspaceEditing:false});
+  }catch(error){
+    if(host.__intelligenceKernel===next)host.__intelligenceKernel=kernel;
+    throw error;
+  }
 }
 /** Encrypted AI-only preferences are account-scoped and independent from
  * LOUREX site locale. Uses the same serialized store queue as chat persistence
@@ -349,6 +372,7 @@ function stageReviewedMission(kernel:ConversationKernel,proposal:any):void{
   if(kernel.scope.scope==='personal')return;
   const steps=proposal?.capability==='tool.plan'?proposal.steps:[proposal];
   if(!steps?.length||steps.some((p:any)=>!p?.foundationApproval))return;
+  if(steps.some((p:any)=>kernel.cancelledApprovals?.includes(p.foundationApproval.id)))throw new Error('This approval was declined. Prepare a fresh review.');
   if(steps.every((p:any)=>missionStep(kernel.missions||[],p)))return;
   const all=kernel.missions||[];
   // Editing the active draft supersedes only its unstarted review. Completed writes survive.
@@ -370,7 +394,7 @@ function approvalWasReviewed(host:Host,proposal:any):boolean{
     (host.state.__workspaceReviewedProposal===proposal||host.state.__workspaceReviewedProposal===host.state.proposal);
 }
 async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{
-  if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||!proposal)return;host.__foundationApprovalBusy=true;
+  if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||host.__workspaceDismissBusy||!proposal)return;host.__foundationApprovalBusy=true;
   let receipt:any,step:MissionStep|undefined;
   try{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready for approval. Sign in and retry.');
@@ -378,6 +402,7 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Review the action again.');
     if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot approve actions. Switch to Controller and review again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
+    if(kernel.cancelledApprovals?.includes(proposal.foundationApproval.id))throw new Error('This approval was declined. Prepare a fresh review.');
     assertFoundationApproval(resumed.vault,proposal);
     // Give an attempted receipt its precise non-replayable failure before
     // generic stale-view checks; never start a second write for the same ID.
