@@ -700,3 +700,32 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger
    min-width:0;
  }
 }
+
+/* Account cloud AI history: compact deletion and explicit sync status. */
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-sync{
+  margin:0 14px 8px;padding:3px 0;color:var(--lxw-muted);
+  font-size:12px;line-height:1.5;overflow-wrap:anywhere;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-item{
+  display:flex;align-items:center;min-width:0;gap:6px;margin-bottom:6px;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-item .lxw-history-row{
+  flex:1;min-width:0;margin:0;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-delete{
+  flex:0 0 40px;min-width:40px;min-height:44px;border:1px solid var(--lxw-line);
+  border-radius:10px;background:var(--lxw-surface);color:var(--lxw-muted);
+  font-size:19px;line-height:1;cursor:pointer;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-delete-confirm{
+  display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0;
+  padding:5px;color:var(--lxw-text);font-size:12px;line-height:1.4;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-delete-confirm button{
+  min-height:44px;border:1px solid var(--lxw-line);border-radius:10px;
+  background:var(--lxw-surface);color:var(--lxw-text);padding:5px 8px;
+  cursor:pointer;font:inherit;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history :is(.lxw-history-delete,.lxw-history-delete-confirm button):focus-visible{
+  outline:2px solid var(--lxw-text);outline-offset:2px;
+}
