@@ -32,25 +32,25 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===5);await page.locator('.lourex-ai-close').click();await page.waitForFunction(()=>window.speechInstances[4].abortCalled);await page.locator('.lourex-ai-launcher').click();await mic.click();await page.waitForFunction(()=>window.speechInstances.length===6);await page.evaluate(()=>window.speechInstances[5].end());
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===7);await page.evaluate(()=>window.speechInstances[6].result('fallback cleanup'));await page.waitForFunction(()=>window.speechInstances[6].abortCalled);await mic.click();await page.waitForFunction(()=>window.speechInstances.length===8);await page.evaluate(()=>window.speechInstances[7].end());
 
-   for(let cycle=0;cycle<4;cycle+=1){
+   for(let cycle=0;cycle<5;cycle+=1){
     const expected=9+cycle;await mic.click();await page.waitForFunction(count=>window.speechInstances.length===count,expected);await page.evaluate(({index,cycle})=>{window.speechInstances[index].result(`repeat session ${cycle+1}`);window.speechInstances[index].end();},{index:expected-1,cycle});
    }
-   assert.equal(await page.evaluate(()=>window.speechInstances.length),12,'twelve independent speech sessions must be constructible in one open app lifecycle');
-   assert.match(await input.inputValue(),/repeat session 4$/,'twelfth session transcript reaches the editable composer');
+   assert.equal(await page.evaluate(()=>window.speechInstances.length),13,'thirteen independent speech sessions must be constructible in one open app lifecycle');
+   assert.match(await input.inputValue(),/repeat session 5$/,'thirteenth session transcript reaches the editable composer');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'Safari delayed release must never receive overlapping recognition.start() calls');assert.deepEqual(errors,[]);assert.deepEqual(requests,[],'voice must not call providers before explicit Send');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));const box=await mic.boundingBox();assert.ok(box.width>=44&&box.height>=44);
 
    // A workflow-initiated recording must first revoke the composer microphone.
-   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===13);
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===14);
    const workflowHandoff=await page.evaluate(()=>{
      const detail={active:false,readyAt:0};
      window.dispatchEvent(new CustomEvent('lourex-ai-workflow-voice-request',{detail}));
-     return {active:detail.active,readyAt:detail.readyAt,aborted:window.speechInstances[12].abortCalled};
+     return {active:detail.active,readyAt:detail.readyAt,aborted:window.speechInstances[13].abortCalled};
    });
    assert.equal(workflowHandoff.active,true,'secondary microphone request must revoke the active composer');
    assert.equal(workflowHandoff.aborted,true,'native microphone release must be initiated');
    assert.ok(workflowHandoff.readyAt>Date.now(),'handoff advertises an upcoming safe restart time');
-   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===14);
-   await page.evaluate(()=>{window.speechInstances[13].result('after workflow handoff');window.speechInstances[13].end();});
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===15);
+   await page.evaluate(()=>{window.speechInstances[14].result('after workflow handoff');window.speechInstances[14].end();});
    assert.match(await input.inputValue(),/after workflow handoff$/,'composer recovers after workflow takes the microphone');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'handoff cannot start overlapping recognizers');
 
@@ -102,7 +102,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     unifiedAssistant='PASS';
    }
 
-   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:14,crossOwnerHandoff:'PASS',restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',repeatSessions:'PASS',runtimeOwner:await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
+   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:15,crossOwnerHandoff:'PASS',restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',repeatSessions:'PASS',runtimeOwner:await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
   }finally{await browser.close();}
  }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + 12-session delayed Safari native release PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; unified encrypted conversation/scopes smoke PASS in Chromium.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
