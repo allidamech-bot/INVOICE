@@ -209,6 +209,8 @@ Current follow-up validation: TypeScript PASS; complete build PASS; 2532 Node te
 
 Attachments live on `faae47d`: file chooser reports multiple=true; selected two synthetic TXT files with EN/AR numbers, both appeared as composer attachments, no auto-send, and both were removed successfully. **PASS** for multiple small text-file selection/removal only. PDF extraction, images, large-file limits, failed transfers and provider interpretation remain unverified.
 
+Latest source `9d0ad284af38d82aeb19b53dd1e912da3f0e9939` (tested code tree `44968b471409496e3842325e41b6b1f71ae1b54a`): Vercel Create Preview returned `An unexpected internal error occurred`, and one bounded retry returned the same error without a new deployment. **BLOCKED** for latest rejection-after-Undo live retest. Last usable Preview remains `faae47d`. No merge/Production remediation release. Authenticated browser session retained for continuation; no password recorded in this ledger.
+
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.
 - Base `main` at kickoff: `27ed9d54f615ecfea8dd73ab34fc072d3a4dcfa3`.
