@@ -186,3 +186,17 @@ test('publishing a stale device message into a remotely deleted thread reports a
   assert.match(source,/The local copy was not uploaded/);
   assert.match(source,/checkAccount\(uid\);tx\.set\(ref,merged\)/);
 });
+
+test('Firestore history equality ignores map key order but detects text, owner, and deletion changes',()=>{
+  const part=origin.slice(origin.indexOf('function sameCloudThread('),origin.indexOf('function bytes(',origin.indexOf('function sameCloudThread(')))
+    .replace('function sameCloudThread(a:CloudThread,b:CloudThread):boolean{','function sameCloudThread(a,b){').replace(' as const','');
+  const same=new Function(part+';return sameCloudThread;')();
+  const base=cloud('key-order-test',[msg('m','Original')]);
+  const reversed=Object.fromEntries(Object.entries(base).reverse());
+  assert.equal(same(base,reversed),true);
+  assert.equal(same(base,{...reversed,messages:[msg('m','Edited')]}),false);
+  assert.equal(same(base,{...reversed,ownerUid:'another-user'}),false);
+  assert.equal(same(base,{...reversed,deletedAt:at}),false);
+  assert.match(origin,/if\(record&&sameCloudThread\(record,merged\)\)return false/);
+  assert.match(origin,/if\(remote&&sameCloudThread\(remote,candidate\)\)continue/);
+});
