@@ -178,3 +178,11 @@ test('thread identity cannot silently move to another company or branch on local
   assert.throws(()=>upsertAssistantThread(previous,{threadId:'shared-id',scope:'business',workspaceId:'company-b',branchId:'main',
     messages:[]}),/different workspace or branch/);
 });
+
+test('publishing a stale device message into a remotely deleted thread reports a conflict',()=>{
+  const source=origin.slice(origin.indexOf('async function publishThread('),origin.indexOf('/** Called only on an authenticated account'));
+  assert.match(source,/if\(record\?\.deletedAt&&!candidate\.deletedAt\)/);
+  assert.match(source,/This conversation was deleted on another device/);
+  assert.match(source,/The local copy was not uploaded/);
+  assert.match(source,/checkAccount\(uid\);tx\.set\(ref,merged\)/);
+});
