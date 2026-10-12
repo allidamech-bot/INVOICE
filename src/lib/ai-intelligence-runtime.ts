@@ -15,11 +15,13 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
+import { conversationModePermitsCapability, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
 type Host=any;
 let storeQueue:Promise<unknown>=Promise.resolve();
 const flush=(host:Host)=>new Promise<void>(resolve=>host.setState({},resolve));
+const currentConversationMode=(host:Host):AiConversationMode=>normalizeAiConversationMode(host.__intelligenceKernel?.mode);
 function scopeFor(host:Host,vault:VaultPayload):KernelScope{
   const scope=host.state.assistantScope||'business';
   const runtime=prepareAssistantContext(vault,host.props.screen,'',null,scope).runtime;
@@ -51,11 +53,18 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   if(generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))
     throw new Error('Conversation changed while loading. Retry loading.');
   const thread=store?.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
-  host.__intelligenceKernel=normalizeConversationKernel(thread?.kernel,scope);
+  // A truly new thread defaults to Controller. Existing legacy threads without
+  // valid mode metadata fail closed to Advisor; never infer elevated permission.
+  host.__intelligenceKernel=thread?normalizeConversationKernel(thread.kernel,scope):newConversationKernel(scope);
   host.__foundationReceipts=thread?.foundationReceipts||[];
   host.__foundationVault=vault;
-  if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
-  if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;const review=reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');host.setState({proposal,review});await flush(host);}
+  // Read-only Advisor must never surface or re-stage a stored execution proposal.
+  if(currentConversationMode(host)==='advisor'){
+    if(host.state.proposal||host.state.review){host.setState({proposal:null,review:null});await flush(host);}
+  }else{
+    if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
+    if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;const review=reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');host.setState({proposal,review});await flush(host);}
+  }
 }
 /** Refresh when opening/switching workspace, not only when sending a model request. */
 export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
@@ -82,7 +91,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
     const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
     host.__businessMemories=scopedAssistantMemories(memory,'business',scope.workspaceId,scope.branchId);
-    host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||''}));
+    host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
   }else{host.__businessMemories=[];host.__businessThreads=[];}
 
   // A Personal or Temporary thread must obey the same account/thread stability
@@ -92,13 +101,14 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   if(!live||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(scope))
     throw new Error('Account, conversation or workspace changed during loading.');
   const proposal=host.state.proposal;
-  if(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft'){
+  if(currentConversationMode(host)==='controller'&&(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')){
     stageKernelArtifact(host.__intelligenceKernel,proposal);
     host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
   }
   await flush(host);
 }
 async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
+  if(currentConversationMode(host)!=='controller')throw new Error('Advisor can analyze but cannot edit a workspace. Switch to Controller.');
   if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;
   host.__workspaceCommandBusy=true;
   try{
@@ -127,6 +137,27 @@ export async function dismissIntelligenceWorkspace(host:Host):Promise<void>{
   if(host.__intelligenceKernel)host.__intelligenceKernel.artifact=undefined;
   host.setState({proposal:null,review:null,__workspaceSavedId:'',__workspaceEditing:false});await flush(host);await persistKernel(host);
 }
+/**
+ * Assign a mode only to an empty, authenticated thread. Never relabel a
+ * conversation that already contains business messages or working artifacts:
+ * mode changes must switch threads, not silently grant permissions.
+ */
+export async function assignIntelligenceConversationMode(host:Host,mode:AiConversationMode):Promise<void>{
+  if(mode!=='controller'&&mode!=='advisor')throw new Error('Unknown conversation mode.');
+  if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)throw new Error('Wait for the current AI operation to finish.');
+  const resumed=await resumeVaultSession();
+  if(!resumed)throw new Error('Sign in before changing conversation mode.');
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Reopen LOUREX AI.');
+  const previous=currentConversationMode(host);
+  if(previous!==mode&&(kernel.turn>0||kernel.artifact||(host.state.messages||[]).length||host.state.proposal))throw new Error('Start another thread to change conversation mode; existing messages remain in their original mode.');
+  kernel.mode=mode;
+  kernel.focus=mode==='controller'?'operator':'advisor';
+  await persistKernel(host);
+  host.setState({__workspaceMode:mode,error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,proposal:null,review:null});
+  await flush(host);
+}
+
 export function intelligenceContext(host:Host,context:any):any{
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
@@ -154,8 +185,9 @@ export function intelligenceReviseDraft(host:Host,proposal:any,message:string,dr
 export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_approval'|'failed'|'blocked'; toolId:string; data:unknown; evidenceRefs:string[]; }
 export function foundationToolOutcomes(result:AiToolOrchestrationResult):FoundationToolOutcome[]{return result.results.map(row=>({callId:row.id,state:row.ok?(row.class==='execute'?'needs_approval':'prepared'):row.class==='high-impact'?'blocked':'failed',toolId:row.tool,data:row.data,evidenceRefs:[row.source]}));}
 async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
-  const result=await orchestrateAiToolRequest(input);if(input.signal?.aborted)return null;
-  const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope))throw new Error('Company, branch or account changed during planning. No action prepared.');
+  const requestedMode=currentConversationMode(host);
+  const result=await orchestrateAiToolRequest({...input,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
+  const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
   if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
     kernel.toolEvidence=host.__foundationToolOutcomes.map((row:FoundationToolOutcome)=>({...row,at:new Date().toISOString()}));
@@ -173,6 +205,7 @@ function stampProposal(host:Host,proposal:any,vault:VaultPayload):void{
   if(!proposal)return;
   if(proposal.capability==='tool.plan'){for(const step of proposal.steps||[])stampProposal(host,step,vault);return;}
   const kernel=host.__intelligenceKernel as ConversationKernel;
+  if(!conversationModePermitsCapability(currentConversationMode(host),proposal.capability))throw new Error('Advisor cannot prepare or approve business actions. Switch to Controller.');
   const previous=proposal.foundationApproval;
   if(previous&&canonicalFoundationJson(proposal)===previous.payload)return;
   proposal.foundationApproval=prepareFoundationApproval(vault,proposal,kernel.scope);
@@ -197,6 +230,7 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready for approval. Sign in and retry.');
     const kernel=host.__intelligenceKernel as ConversationKernel;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Review the action again.');
+    if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot approve actions. Switch to Controller and review again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
     assertFoundationApproval(resumed.vault,proposal);
     if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft'){
@@ -237,9 +271,10 @@ export function installIntelligenceRuntime(host:Host):void{
       if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
       await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
       strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel;turnScope=kernelScopeKey(kernel.scope);kernel.turn++;
-      if(!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
+      if(currentConversationMode(host)==='controller'&&!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
+      if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
-      const previewId=savedDocumentPreviewId(kernel,resumed.vault,message);
+      const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       if(previewId){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
@@ -248,7 +283,7 @@ export function installIntelligenceRuntime(host:Host):void{
         host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
         await flush(host);await persistKernel(host);return;
       }
-      const commercialCommand=commercialDraftCommand(kernel,resumed.vault,message);
+      const commercialCommand=currentConversationMode(host)==='controller'?commercialDraftCommand(kernel,resumed.vault,message):null;
       if(commercialCommand){
         if((kernel.artifact!.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
         const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,commercialCommand);
@@ -261,7 +296,9 @@ export function installIntelligenceRuntime(host:Host):void{
       await ask(raw);await flush(host);await host.__lourexAssistantPersistQueue;
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
       const proposal=host.state.proposal;
-      if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
+      if(currentConversationMode(host)==='advisor'){
+        if(proposal){host.setState({proposal:null,review:null});await flush(host);}
+      }else if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
     }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
     finally{host.__foundationTurnBusy=false;await recordDiagnostic(host,'turn',started,turnScope);}
@@ -275,6 +312,6 @@ async function recordDiagnostic(host:Host,operation:DiagnosticOperation,start:nu
   // Diagnostics are not a prerequisite to an already verified business commit.
   await persistKernel(host).catch(()=>undefined);
 }
-export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);await runIntelligenceWorkspace(host,command);if(command.kind!=='clear-diagnostics')await recordDiagnostic(host,'workspace',start,scope||'');}
+export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);try{await runIntelligenceWorkspace(host,command);}catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}if(command.kind!=='clear-diagnostics')await recordDiagnostic(host,'workspace',start,scope||'');}
 export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);const result=await runIntelligenceApproval(host,proposal,apply);await recordDiagnostic(host,'approval',start,scope||'');return result;}
 export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);let state:'failed'|'uncertain'|undefined;try{const result=await runIntelligenceTools(host,input);if(input.signal?.aborted)state='uncertain';else if(result?.results.some(row=>!row.ok))state='failed';return result;}catch(error){state='failed';throw error;}finally{await recordDiagnostic(host,'tools',start,scope||'',state);}}
