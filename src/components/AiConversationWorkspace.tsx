@@ -569,9 +569,8 @@ export function installConversationWorkspace(host:Host):void {
     const proposal=host.state.proposal;if(!proposal)return;
     host.__workspaceDismissBusy=true;
     void dismissIntelligenceWorkspace(host,proposal).then(()=>{
-      // Record the legacy dismissal audit only after the cancellation is durable.
-      // The runtime already cleared the proposal, so restore only for the audit callback.
-      if(host.state.proposal===null){host.setState({proposal});dismiss();}
+      // Only the original dismiss callback records the audit and clears the UI.
+      if(host.state.proposal===proposal)dismiss();
     }).catch((error:Error)=>host.setState({error:error.message}))
       .finally(()=>{host.__workspaceDismissBusy=false;});
   };
