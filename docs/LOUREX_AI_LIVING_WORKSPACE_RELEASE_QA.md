@@ -1,3 +1,18 @@
+## Independent pre-acceptance review — 2026-10-12
+
+The release remains **BLOCKED / NOT APPROVED**. Review surfaced and repaired two approval-boundary defects on the existing **Draft PR #706** branch, without touching `main` or Production:
+
+- **UI-only review acknowledgement:** the document approval button was hidden until review, but the approval executor did not enforce that acknowledgement. Business write approvals now require the exact active proposal to have been explicitly acknowledged, except the existing single-click workspace-navigation path. General non-document suggestions now register the acknowledgement in host state before enabling approval.
+- **Post-persistence time-of-check/time-of-use gap:** the approval executor used the earlier account/role/scope decision after awaiting an IndexedDB persistence step. Immediately before calling the original execution callback it now reloads the live vault session and rechecks account/company/branch/thread, Controller mode, current proposal identity, acknowledgement and the original role/baseline/payload envelope. A changed context fails closed.
+
+**Changes committed:** `e3ba503` (executor), `b2b40b7` (inline acknowledgement), `e701cef` (regression contracts).
+
+**What was checked:** retrieved the updated branch source and verified all eight targeted boundary invariants, including check order before `apply()`. Two new Node source-contract tests were added to `tests/ai-living-workspace-preview-batch4.test.mjs`. **These Node tests have NOT been run in this connector-only environment.** No TypeScript, build, full test, browser or device gate is claimed to have passed.
+
+**Additional integration blocker:** PR #706 is still one commit behind its stacked base PR #705 (diverged history). Do not squash or merge the stack without reconciling that ancestry and verifying the source tree preserves both changes.
+
+**Infrastructure blocker:** no GitHub Actions checks/runs appeared on the current PR head; the connected Vercel deployment API denied authorized deployment inspection (403), so this audit cannot certify a Preview build. Do not treat empty checks as green.
+
 # LOUREX AI Living Workspace — release QA gate
 
 **Audit date:** 2026-10-12. **Release state: BLOCKED / NOT APPROVED.**
