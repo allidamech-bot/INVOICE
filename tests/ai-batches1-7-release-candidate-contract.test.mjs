@@ -89,3 +89,14 @@ test('local retention and tombstones are fail-closed, not silently discarded',()
   assert.match(source,/No previous messages were discarded/);
   assert.doesNotMatch(source,/slice\(0,200\)\) as Record<string,string>/);
 });
+
+test('cloud history refuses stale deleted writes and avoids duplicate Firestore charges',()=>{
+  const cloud=read('src/cloud/assistant-history.ts');
+  const rules=read('firestore.rules');
+  assert.match(cloud,/if\(record\?\.deletedAt&&!candidate\.deletedAt\)/);
+  assert.match(cloud,/This conversation was deleted on another device/);
+  assert.match(cloud,/function sameCloudThread\(/);
+  assert.match(cloud,/if\(record&&sameCloudThread\(record,merged\)\)return false/);
+  assert.match(cloud,/if\(remote&&sameCloudThread\(remote,candidate\)\)continue/);
+  assert.match(rules,/request\.auth\.uid == userId/);
+});
