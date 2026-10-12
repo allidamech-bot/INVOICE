@@ -25,8 +25,8 @@ function db():any{
 }
 const collection=(uid:string):any=>db().collection('users').doc(uid).collection('assistantHistory');
 function message(value:any):AssistantStoredMessage|null{
-  if(!value||typeof value!=='object'||!safeId(String(value.id||''))||!['user','assistant'].includes(value.role)||typeof value.text!=='string'||!validTime(value.createdAt))return null;
-  return{id:value.id,role:value.role,text:value.text.slice(0,4000),createdAt:value.createdAt};
+  if(!value||typeof value!=='object'||!safeId(String(value.id||''))||!['user','assistant'].includes(value.role)||typeof value.text!=='string'||value.text.length>4000||!validTime(value.createdAt))return null;
+  return{id:value.id,role:value.role,text:value.text,createdAt:value.createdAt};
 }
 function validCloud(value:any,uid:string):value is CloudThread{
   if(!value||value.format!==FORMAT||value.ownerUid!==uid||!safeId(value.id)
@@ -41,6 +41,7 @@ function toCloud(uid:string,thread:AssistantThread):CloudThread{
   if(!safeId(thread.id))throw new Error('Invalid conversation ID; no cloud history was changed.');
   if(thread.kernel?.scope.accountId&&thread.kernel.scope.accountId!==uid)
     throw new Error('Conversation belongs to a different Firebase account. Sync cancelled.');
+  if(thread.messages.length>MAX_MESSAGES)throw new Error('Conversation exceeds the safe 60-message limit. Nothing was uploaded.');
   const messages=thread.messages.map(row=>message(row));
   if(messages.some(row=>!row)||messages.length!==thread.messages.length)
     throw new Error('Conversation contains an invalid message. Nothing was silently omitted.');
@@ -57,7 +58,8 @@ function deletion(uid:string,id:string,deletedAt:string):CloudThread{
 function mergeMessages(a:AssistantStoredMessage[],b:AssistantStoredMessage[]):AssistantStoredMessage[]{
   const byId=new Map<string,AssistantStoredMessage>();
   for(const row of [...b,...a]){const next=message(row);if(next)byId.set(next.id,next);}
-  return [...byId.values()].sort((x,y)=>x.createdAt.localeCompare(y.createdAt)||x.id.localeCompare(y.id)).slice(-MAX_MESSAGES);
+  if(byId.size>MAX_MESSAGES)throw new Error('Merging devices exceeds the 60-message retention limit. No conversation message was silently dropped.');
+  return [...byId.values()].sort((x,y)=>x.createdAt.localeCompare(y.createdAt)||x.id.localeCompare(y.id));
 }
 export function mergeAssistantCloudThread(local:CloudThread,remote:CloudThread):CloudThread{
   if(local.ownerUid!==remote.ownerUid||local.id!==remote.id)throw new Error('Conversation identity mismatch.');
