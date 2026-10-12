@@ -70,7 +70,8 @@ test('Server sanitizers do not promote missing or malformed mode into Controller
       cleanPricing:()=>({}),
       cleanDrafting:()=>({}),
       cleanAdvisor:()=>({version:2}),
-      ALLOWED_CAPABILITIES:[],
+      ALLOWED_CAPABILITIES:['workspace.help','finance.explain','document.createDraft','workspace.navigate'],
+      ACTION_CAPABILITIES:['document.createDraft','workspace.navigate'],
     };
     const keys=Object.keys(dependencies);
     const sanitize=new Function(...keys,line(code,'function cleanRequest(')+';return cleanRequest;')(...keys.map(key=>dependencies[key]));
@@ -80,6 +81,11 @@ test('Server sanitizers do not promote missing or malformed mode into Controller
     }
     const authorized={message:'Analyze purchasing options',context:{version:5,screen:'home',conversationMode:'controller',...fields}};
     assert.equal(sanitize(authorized)?.context.conversationMode,'controller',path);
+    if(path==='api/ai-core.js'){
+      assert.deepEqual(sanitize(authorized)?.context.allowedCapabilities,['workspace.help','finance.explain','document.createDraft','workspace.navigate']);
+      const advisor={message:'Discuss the purchase',context:{version:5,screen:'home',conversationMode:'advisor',...fields}};
+      assert.deepEqual(sanitize(advisor)?.context.allowedCapabilities,['workspace.help','finance.explain']);
+    }
     assert.match(code,/hypothetical|hypothetically/i,'Advisor system instruction must facilitate discussion rather than just refuse');
   }
 });
