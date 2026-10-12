@@ -26,7 +26,11 @@ test('WebKit voice restart uses an extended native lease and bounded transient s
   assert.match(owner,/name==='notallowederror'\|\|name==='securityerror'/);
   assert.match(owner,/source\.replace\(startToken,'    __lourexStartVoice\(instance,panel\);'\)/);
   assert.match(owner,/__LOUREX_VOICE_RUNTIME_OWNER__/);
-  assert.match(owner,/ios-release-v2/);
+  assert.match(owner,/ios-release-v3-cross-owner/);
+  assert.match(owner,/lourex-ai-composer-voice-request/);
+  assert.match(owner,/lourex-ai-workflow-voice-request/);
+  assert.match(owner,/abortVoice\(\);detail.active=true/);
+  assert.match(owner,/nativeReleaseUntil=Math.max\(nativeReleaseUntil,Number\(handoff.readyAt\)\|\|0\)/);
 });
 
 test('WebKit browser QA reproduces a native release delay that exceeds the previous 1100ms grace and repeats twelve sessions',()=>{
