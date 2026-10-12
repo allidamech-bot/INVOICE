@@ -145,7 +145,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(resumed){
       const local=await handleAssistantLocalCommand(resumed.key,{message:input.message,scope:runtime.scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,language:input.language,threadId:clean(input.context?.assistantRuntime?.threadId,120)});
       if(local){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
-        if(runtime.conversationMode==='advisor'&&local.proposal)return{answer:input.language==='ar'?'المستشار مخصص للنقاش والتحليل فقط. انتقل إلى المتحكم لهذه المهمة. لم يتم تعديل أي بيانات.':'Advisor is for discussion and analysis only. Switch to Controller for this task. No data was changed.',proposal:null,plan,results:[],plannedBy:'local'};
+        if(runtime.conversationMode==='advisor'&&local.proposal)return null; // Discuss the request without preparing an action.
         return{answer:local.answer,proposal:local.proposal,plan,results:[],plannedBy:'local'};}
     }
   }
@@ -156,7 +156,17 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
   }
   const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
+  // Advisor remains a genuine conversation. An imperative may be discussed or
+  // evaluated, but a deterministic mutation/navigation plan must not replace
+  // the advisor's reply with execution errors or a proposed action.
+  if(runtime.conversationMode==='advisor'){
+    const permitted=new Set(aiToolPlannerCatalog(runtime.scope,'advisor').map(row=>row.id));
+    if(plan?.calls.some(call=>!permitted.has(call.tool)))return null;
+  }
   if(!plan){
+    // Controller must report failed action planning; Advisor instead answers
+    // through the regular conversational model without triggering tool planning.
+    if(runtime.conversationMode==='advisor'&&explicitAiActionRequest(input.message))return null;
     // Explicit user commands must always reach the planner, including short
     // Arabic commands such as "احفظ جميع الأصناف" with no attachment.
     if(!likelyToolIntent(input.message,input.context)&&!explicitAiActionRequest(input.message))return null;
