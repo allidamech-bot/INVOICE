@@ -326,6 +326,7 @@ function conversationModeTabs(host:Host,mode:AiConversationMode|undefined,locked
  * History must have its own visible, scoped UI instead of relying on that DOM. */
 function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
   const [query,setQuery]=react.useState('');
+  const [confirmDelete,setConfirmDelete]=react.useState('');
   const rows=(Array.isArray(host.__businessThreads)?host.__businessThreads:[])
     .filter((row:any)=>row&&typeof row.id==='string')
     .filter((row:any)=>{
@@ -353,6 +354,19 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
     }catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
     finally{host.setState({__workspaceHistoryBusy:false});}
   };
+  const deleteThread=async(id:string)=>{
+    if(busy)return;
+    host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
+    try{
+      await host.__lourexDeleteThread(id);
+      // The lifecycle owner commits a deletion tombstone locally before
+      // scheduling cloud publication. A failed cloud push remains retryable.
+      host.__businessThreads=(host.__businessThreads||[]).filter((row:any)=>row.id!==id);
+      setConfirmDelete('');
+      host.setState({__workspaceHistoryOpen:true});
+    }catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
+    finally{host.setState({__workspaceHistoryBusy:false});}
+  };
   return <section className="lxw-history" aria-label={label(ar,'Saved conversations','المحادثات المحفوظة')}>
     <header className="lxw-history-head">
       <button type="button" disabled={busy} onClick={()=>host.setState({__workspaceHistoryOpen:false,__workspaceHistoryError:''})} aria-label={label(ar,'Back to chat','العودة للمحادثة')}>←</button>
@@ -368,11 +382,16 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
     </p>
     {host.state.__workspaceHistorySyncError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistorySyncError))}</p>:null}
     <div className="lxw-history-list" role="list">
-      {rows.map((row:any)=><div role="listitem" key={row.id}>
+      {rows.map((row:any)=><div role="listitem" className="lxw-history-item" key={row.id}>
         <button type="button" className="lxw-history-row" disabled={busy} aria-current={row.id===host.__lourexAssistantThreadId?'page':undefined} onClick={()=>void openThread(row.id)}>
           <span className="lxw-history-row-title" dir="auto">{row.title||label(ar,'Untitled conversation','محادثة بلا عنوان')}</span>
           <span className="lxw-history-row-meta"><small>{normalizeAiConversationMode(row.mode)==='advisor'?label(ar,'Advisor','المستشار'):label(ar,'Controller','المتحكم')}</small><small>{row.updatedAt?new Date(row.updatedAt).toLocaleDateString(ar?'ar':'en',{day:'numeric',month:'short'}):''}</small></span>
         </button>
+        {confirmDelete===row.id?<div className="lxw-history-delete-confirm">
+          <span>{label(ar,'Delete this conversation?','حذف هذه المحادثة؟')}</span>
+          <button type="button" disabled={busy} onClick={()=>void deleteThread(row.id)}>{label(ar,'Confirm','تأكيد')}</button>
+          <button type="button" disabled={busy} onClick={()=>setConfirmDelete('')}>{label(ar,'Cancel','إلغاء')}</button>
+        </div>:<button type="button" className="lxw-history-delete" disabled={busy} aria-label={label(ar,'Delete conversation','حذف المحادثة')} onClick={()=>setConfirmDelete(row.id)}>×</button>}
       </div>)}
       {!rows.length?<p className="lxw-history-empty">{query?label(ar,'No matching conversation titles.','لا توجد محادثات مطابقة للبحث.'):label(ar,'No saved conversations in this company or branch.','لا توجد محادثات محفوظة لهذه الشركة أو الفرع.')}</p>:null}
     </div>
