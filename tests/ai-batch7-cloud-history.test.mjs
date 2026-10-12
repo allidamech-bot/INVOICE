@@ -200,3 +200,17 @@ test('Firestore history equality ignores map key order but detects text, owner, 
   assert.match(origin,/if\(record&&sameCloudThread\(record,merged\)\)return false/);
   assert.match(origin,/if\(remote&&sameCloudThread\(remote,candidate\)\)continue/);
 });
+
+test('cloud messages cannot import approval artifacts or unexpected document fields',()=>{
+  const entry=cloud('inert-message',[msg('m','Discuss supplier')]);
+  assert.doesNotThrow(()=>mergeAssistantCloudState(uid,local(),[entry]));
+  assert.throws(()=>mergeAssistantCloudState(uid,local(),[
+    {...entry,messages:[{...entry.messages[0],artifact:{id:'dangerous'}}]}
+  ]),/Invalid cloud conversation/i);
+  assert.throws(()=>mergeAssistantCloudState(uid,local(),[
+    {...entry,kernel:{missions:[{capability:'document.createDraft'}]}}
+  ]),/Invalid cloud conversation/i);
+  assert.throws(()=>mergeAssistantCloudState(uid,local(),[
+    {...entry,messages:[{...entry.messages[0],toolEvidence:[]}]}
+  ]),/Invalid cloud conversation/i);
+});
