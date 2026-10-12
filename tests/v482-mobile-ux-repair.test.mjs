@@ -47,7 +47,13 @@ test('v482 repairs the production mobile surfaces reported from iPhone screensho
   assert.match(css,/\.global-search-actions\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,'Global Search quick-create density repair is missing');
   assert.match(css,/\.lourex-ai-compose\{[\s\S]*?min-height:54px!important/,'AI composer geometry repair is missing');
   assert.match(css,/#lourex-ai-panel\.lourex-ai-panel\{[\s\S]*?inset:max\(8px,env\(safe-area-inset-top,0px\)\)/,'full-screen AI mobile safe-area repair is missing');
-  assert.match(css,/#lourex-ai-panel \.lourex-ai-head\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) auto!important/,'AI header overlap repair is missing');
+  const workspace=await read('src/styles/ai-conversation-workspace.css');
+  const header=workspace.match(/\[data-lourex-workspace='2'\] \.lourex-ai-head\{([^}]+)\}/)?.[1]||'';
+  assert.match(header,/display:flex!important/,'the typed header must own one flex row');
+  assert.match(header,/flex-direction:row!important/,'settings and actions must not wrap into a second grid row');
+  assert.match(header,/min-height:60px!important/,'compact header retains a 44px control plus spacing');
+  const legacyHeader=css.match(/#lourex-ai-panel \.lourex-ai-head\{([^}]+)\}/)?.[1]||'';
+  assert.doesNotMatch(legacyHeader,/grid-template-columns|min-height:80px/,'obsolete two-column/80px header must be retired at its source');
   assert.match(css,/#lourex-ai-panel \.lourex-ai-close\{[\s\S]*?position:static!important/,'AI close control must remain in header flow');
   assert.match(css,/\.ta-sheet-link\{[\s\S]*?min-height:62px!important/,'More sheet command sizing repair is missing');
   assert.match(css,/@media screen and \(max-width:360px\)\{[\s\S]*?\.ta-sheet-group\{grid-template-columns:minmax\(0,1fr\)!important;\}/,'320px More sheet must collapse command groups to one readable column');

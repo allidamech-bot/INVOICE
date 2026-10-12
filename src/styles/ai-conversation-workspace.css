@@ -1,5 +1,6 @@
 /* Phase 2: one scoped AI workspace owner; no non-AI selectors. */
 html body #root #lourex-ai-panel[data-lourex-workspace='2']{
+  width:min(760px,calc(100vw - 32px))!important;max-width:760px!important;
   --lxw-bg:#080808;--lxw-surface:#111111;--lxw-text:#f5f5f7;--lxw-muted:#a1a1a6;--lxw-line:#2c2c2e;--lxw-accent:#f5f5f7;
   --lxw-selected:#eeeeee;--lxw-on-selected:#171717;
   /* Legacy descendants consume these aliases locally; the site keeps its tokens. */
@@ -366,24 +367,29 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-a
 
 /* Canonical conversation chrome: the workspace build retires older rules for
    these exact elements before this stylesheet is installed. No site selectors. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(input,select,textarea){background:#1c1c1e!important;color:var(--lxw-text)!important;border:1px solid var(--lxw-line)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings :is(strong,label){color:var(--lxw-text)!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings :is(small,p){color:var(--lxw-muted)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head{
- display:flex;flex-direction:row;align-items:center;gap:8px;flex:0 0 auto;
- min-height:60px;height:auto;padding:8px 12px;box-sizing:border-box;
- background:var(--lxw-bg);border-bottom:1px solid var(--lxw-line);
+ display:flex!important;flex-direction:row!important;align-items:center!important;gap:8px!important;flex:0 0 auto!important;
+ min-height:60px!important;height:auto!important;padding:8px 12px!important;box-sizing:border-box!important;
+ background:var(--lxw-bg)!important;border-bottom:1px solid var(--lxw-line)!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-title{display:flex;align-items:center;gap:8px;flex:1;min-width:0;color:var(--lxw-text);}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-title{display:flex!important;align-items:center!important;gap:8px!important;flex:1!important;min-width:0!important;color:var(--lxw-text)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-title :is(strong,span){color:var(--lxw-text)!important;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions{display:flex;align-items:center;gap:2px;flex:0 0 auto;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions button{height:44px;min-height:44px;width:44px;border:0;background:transparent;color:var(--lxw-muted);}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.user{align-self:flex-end;max-width:85%;padding:12px 15px;border:0;border-radius:18px 18px 5px 18px;background:#2a2a2d;color:var(--lxw-text);box-shadow:none;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.assistant{align-self:stretch;max-width:none;padding:0;border:0;background:transparent;color:var(--lxw-text);box-shadow:none;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-compose form{display:flex;flex-direction:row;direction:ltr;align-items:center;min-height:54px;padding:4px;gap:3px;border:1px solid var(--lxw-line);border-radius:28px;background:#1c1c1e;box-shadow:none;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-premium-textarea{background:transparent;color:var(--lxw-text);border:0;border-radius:0;box-shadow:none;font-size:16px;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-send{background:#f5f5f7;color:#080808;border:0;box-shadow:none;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-composer-plus,.lourex-ai-composer-mic){background:transparent;color:var(--lxw-text);box-shadow:none;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions{display:flex!important;align-items:center!important;gap:2px!important;flex:0 0 auto!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions button{height:44px!important;min-height:44px!important;width:44px!important;border:0!important;background:transparent!important;color:var(--lxw-muted)!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.user{align-self:flex-end!important;max-width:85%!important;padding:12px 15px!important;border:0!important;border-radius:18px 18px 5px 18px!important;background:#2a2a2d!important;color:var(--lxw-text)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.assistant{align-self:stretch!important;max-width:none!important;padding:0!important;border:0!important;background:transparent!important;color:var(--lxw-text)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-compose form{display:flex!important;flex-direction:row!important;direction:ltr!important;align-items:center!important;min-height:54px!important;padding:4px!important;gap:3px!important;border:1px solid var(--lxw-line)!important;border-radius:28px!important;background:#1c1c1e!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-premium-textarea{background:transparent!important;color:var(--lxw-text)!important;border:0!important;border-radius:0!important;box-shadow:none!important;font-size:16px!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-send{display:grid!important;place-items:center!important;width:44px!important;height:44px!important;min-height:44px!important;border-radius:50%!important;background:#f5f5f7!important;color:#080808!important;border:0!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-composer-plus,.lourex-ai-composer-mic){display:grid!important;place-items:center!important;width:44px!important;height:44px!important;min-height:44px!important;border-radius:50%!important;background:transparent!important;color:var(--lxw-text)!important;box-shadow:none!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-plus-item{--ai-tone:var(--lxw-text)!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-plus-copy strong{color:var(--lxw-text)!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-copy small,.lourex-ai-plus-heading){color:var(--lxw-muted)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-answer-copy,.lourex-ai-answer-list,.lourex-ai-answer-heading,.lourex-ai-kpi-card strong){color:var(--lxw-text)!important;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(h3,h4){margin:12px 0 6px;font-size:16px;line-height:1.5;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown p{margin:0 0 8px;white-space:pre-wrap;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(ul,ol){margin:6px 0 12px;padding-inline-start:24px;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown code{font-family:monospace;background:#1c1c1e;padding:2px 5px;border-radius:4px;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(h3,h4){margin:12px 0 6px!important;font-size:16px!important;line-height:1.5!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown p{margin:0 0 8px!important;white-space:pre-wrap!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(ul,ol){margin:6px 0 12px!important;padding-inline-start:24px!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown code{font-family:monospace!important;background:#1c1c1e!important;padding:2px 5px!important;border-radius:4px!important;}
