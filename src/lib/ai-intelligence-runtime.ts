@@ -386,6 +386,18 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
 }
 export function installIntelligenceRuntime(host:Host):void{
   if(host.__intelligenceInstalled)return;host.__intelligenceInstalled=true;
+  if(typeof window!=='undefined'){
+    window.addEventListener('online',()=>{
+      // Offline conversations remain encrypted locally. Retry the remote pull
+      // on reconnect only under the Firebase account and workspace now active.
+      void (async()=>{
+        const uid=activeAccountStorageUid(),resumed=await resumeVaultSession();
+        if(!uid||!resumed||activeAccountStorageUid()!==uid)return;
+        const scope=scopeFor(host,resumed.vault);
+        if(scope.scope!=='temporary')queueHistorySync(host,uid,resumed.key,scope,host.__workspaceLoadGeneration,true);
+      })().catch(()=>undefined);
+    });
+  }
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
