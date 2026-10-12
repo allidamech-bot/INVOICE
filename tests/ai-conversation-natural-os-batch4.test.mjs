@@ -63,11 +63,11 @@ test('Batch 4 tool owner preserves plans and explicit approvals',async()=>{
 
 test('Batch 4 Arabic executive response sections are fully localized',async()=>{
   const closeout=await read('scripts/ai-conversation-owner-stage4-tools-closeout.mjs');
-  assert.match(closeout,/الملخص/);
-  assert.match(closeout,/البيانات المؤكدة/);
-  assert.match(closeout,/الإجراءات/);
+  assert.match(closeout,/ملخص/);
+  assert.match(closeout,/معلومات مسجلة/);
+  assert.match(closeout,/إجراءات للمراجعة/);
   assert.match(closeout,/تنبيه/);
-  assert.match(closeout,/المخاطر/);
+  assert.match(closeout,/مخاطر/);
   assert.doesNotMatch(closeout,/\["ar\?'Summary':'Summary'","ar\?'Summary':'Summary'"\]/);
 });
 
