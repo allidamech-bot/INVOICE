@@ -163,7 +163,7 @@ Recorded live Chrome Preview inspection at PR head `522fbd79b143d3a191a2584caa38
 | PASS | Assistant reduced motion | Saved Reduce motion preference; visible menu computed animation/transition 0s. Restored Follow device afterward. |
 | FAIL pending live retest | Rejected proposal returns after reload | Dismiss cleared artifact but left mission steps awaiting approval; hydration reconstructed the rejected proposal. |
 | BLOCKED | Provider-backed drafting/discussion on Preview | Deployment returns providers-not-configured error. No credentials or environment configuration changed. |
-| NOT IMPLEMENTED / incomplete | Preview-only planner result and natural-language Undo | Read-only prepare result lacks a dedicated artifact bridge; UI Undo works, conversational Undo not certified. |
+| NOT IMPLEMENTED / incomplete | Preview-only planner result | Read-only prepare result lacks a dedicated artifact bridge. This is distinct from the working manual draft preview. |
 | BLOCKED | Safari/iPhone/iPad, virtual keyboard, eight-width device matrix | Available browser is Chrome; no real WebKit or viewport/device control. User Safari baselines are not Safari retest evidence. |
 | BLOCKED / incomplete | Successful voice transcription, uploads, cross-device/account matrix | Not certified live. Do not infer PASS from Node coverage. |
 
@@ -192,6 +192,22 @@ Live retest of `88624ab`: first Preview failed before source build with Git info
 The same retest found a remaining presentation discontinuity: tabs/settings disappeared during hydration and tools shifted when Advisor removed the workspace trigger. Follow-up keeps the same two disabled, unselected tabs during unverified loading, retains the disabled settings slot, and uses an inert 44px workspace slot in loading/Advisor instead of exposing Controller actions. A single mode-tabs renderer serves both states. Regression asserts exactly two inert tabs without selecting an unverified mode. Live retest of this follow-up remains pending.
 
 Site Light/Dark independence verified live on `c29661b`: assistant computed background rgb(8,8,8), text rgb(245,245,247); original Light site and inherited assistant UI preference restored. No accounting write, saved document, customer deletion or stock adjustment occurred.
+
+Live chrome stability retest: `faae47d`, Vercel `dpl_ByhR3xujHt2A4SpyQUmpR1oR8gZn` READY 31s. Controller/Advisor settings button stayed at x=127,y=25 in the available desktop viewport. During Controller hydration, exactly two disabled tabs and disabled settings/composer remained, with no legacy Business selector. Controls recovered after hydration. **FIXED** for the reproduced transition discontinuity, within Chrome only.
+
+### Conversational Undo and rejection after Undo
+
+Correction to the earlier uncertainty: live exact `undo` works. An unsaved synthetic line 2 PCS × 10 USD = 20 was revised through `Set price item 1 to 15 USD` to subtotal 30, then `undo` restored price 10/subtotal 20. No saved record changed. **PASS** for this exact conversational command; broad natural-language equivalence is not implied.
+
+Further live rejection regression on the same draft: after Undo, Decline → close/reload → reopen restored the superseded 15 USD / subtotal 30 proposal. **FAIL pending latest fix/retest.** This is distinct from direct rejection of a freshly prepared draft, which passed.
+
+Cause: Undo restored an old review envelope from its snapshot. `stageReviewedMission` recognized the earlier cancelled approval and returned before superseding the newer pending mission; rejection cancelled the wrong historical mission, leaving the newer one recoverable. Fix: every actual conversational revision removes the review envelope from both returned proposal and working artifact before the existing stamping path gives it a fresh identity. Prior acknowledgement cannot authorize the new revision. New runtime/store regression performs prepare → edit → Undo → reject → persisted restart; asserts fresh review identity, previous pending cancellation, retained no-write behavior and no restored proposal.
+
+The deterministic draft parser also accepts the explicit requested phrases `أرجع التعديل الأخير`, `ارجع التعديل الاخير`, `undo the last change` and `revert last change`; anchored matching refuses combined approval requests and quoted/explanatory occurrences. These operate on the unsaved working draft only. Latest source/build/tests and live retest must be recorded before marking the rejection-after-Undo defect FIXED.
+
+Current follow-up validation: TypeScript PASS; complete build PASS; 2532 Node tests PASS / 0 FAIL / 0 SKIPPED. One earlier test run overlapped a still-running build and read intermediate dist assets; rerun after build completion passed, with no test changes to bypass those assertions.
+
+Attachments live on `faae47d`: file chooser reports multiple=true; selected two synthetic TXT files with EN/AR numbers, both appeared as composer attachments, no auto-send, and both were removed successfully. **PASS** for multiple small text-file selection/removal only. PDF extraction, images, large-file limits, failed transfers and provider interpretation remain unverified.
 
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.

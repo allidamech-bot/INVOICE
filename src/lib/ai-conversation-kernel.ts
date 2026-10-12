@@ -54,8 +54,10 @@ export function reviseKernelDraft(kernel:ConversationKernel,proposal:Draft,messa
   stageKernelArtifact(kernel,proposal);const artifact=kernel.artifact!;const text=digits(message.trim());
   const reply=(p:Draft,changed:boolean,message:string)=>({proposal:p,changed,message});
   const reject=(reason:string)=>reply(proposal,false,language==='ar'?'لم أغيّر المسودة: '+reason:'Draft unchanged: '+reason);
-  if(/^(?:undo|تراجع|تراجع عن آخر تعديل)[.!؟\s]*$/iu.test(text)||/^(?:redo|أعد التعديل|اعد التعديل)[.!؟\s]*$/iu.test(text)){
-    const undo=/^(?:undo|تراجع)/iu.test(text),from=undo?artifact.undo:artifact.redo,to=undo?artifact.redo:artifact.undo;
+  const undo=/^(?:undo(?: the last change| last change)?|revert (?:the )?last change|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل (?:الأخير|الاخير))[.!؟\s]*$/iu.test(text);
+  const redo=/^(?:redo|أعد التعديل|اعد التعديل)[.!؟\s]*$/iu.test(text);
+  if(undo||redo){
+    const from=undo?artifact.undo:artifact.redo,to=undo?artifact.redo:artifact.undo;
     const previous=from.pop();const fromIds=undo?(artifact.undoLineIds||[]):(artifact.redoLineIds||[]),toIds=undo?(artifact.redoLineIds||=[]):(artifact.undoLineIds||=[]);
     const previousIds=fromIds.pop();if(!previous)return reject('No revision available.');to.push(structuredClone(artifact.proposal));toIds.push([...artifact.lineIds]);if(previousIds)artifact.lineIds=previousIds;artifact.proposal=structuredClone(previous);artifact.revision++;artifact.lastEdit=undefined;
     return reply(artifact.proposal,true,language==='ar'?'استعدت تعديل المسودة فقط. لم أحفظ شيئًا.':'Draft revision restored. Nothing saved.');

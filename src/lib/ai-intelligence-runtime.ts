@@ -235,7 +235,11 @@ export function intelligenceRequestMessage(host:Host,message:string,legacy:strin
 export function intelligenceReviseDraft(host:Host,proposal:any,message:string,drafting:any,language:'en'|'ar'){
   if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot revise documents. Switch to Controller.');
   const kernel=host.__intelligenceKernel as ConversationKernel;
-  return reviseKernelDraft(kernel,proposal,message,drafting,resolveAiConversationReplyLanguage(currentAiExperiencePreferences(host).replyLanguage,message,language));
+  const revised=reviseKernelDraft(kernel,proposal,message,drafting,resolveAiConversationReplyLanguage(currentAiExperiencePreferences(host).replyLanguage,message,language));
+  // Undo may restore a snapshot with a cancelled review envelope. Every actual
+  // revision needs a new identity, even when its prices equal an earlier draft.
+  if(revised?.changed){delete (revised.proposal as any).foundationApproval;if(kernel.artifact)delete (kernel.artifact.proposal as any).foundationApproval;}
+  return revised;
 }
 export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_approval'|'failed'|'blocked'; toolId:string; data:unknown; evidenceRefs:string[]; }
 export function foundationToolOutcomes(result:AiToolOrchestrationResult):FoundationToolOutcome[]{return result.results.map(row=>({callId:row.id,state:row.ok?(row.class==='execute'?'needs_approval':'prepared'):row.class==='high-impact'?'blocked':'failed',toolId:row.tool,data:row.data,evidenceRefs:[row.source]}));}
