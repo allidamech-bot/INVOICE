@@ -99,13 +99,16 @@ function scopeFor(host:Host,vault:VaultPayload):KernelScope{
   const runtime=prepareAssistantContext(vault,host.props.screen,'',null,scope).runtime;
   return{scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,threadId:host.__lourexAssistantThreadId||'',accountId:activeAccountStorageUid()||''};
 }
-async function persistKernel(host:Host):Promise<void>{
+async function persistKernel(host:Host,requireScope=false):Promise<void>{
   if(!host.__intelligenceKernel||host.__intelligenceKernel.scope.scope==='temporary')return;
   const kernel=structuredClone(host.__intelligenceKernel) as ConversationKernel;
   const receipts=structuredClone(host.__foundationReceipts||[]);
   const messages=(host.state.messages||[]).map((row:any)=>({id:row.id,role:row.role,text:row.text}));
   const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready to save this conversation. Sign in and retry.');
-    if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
+    if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope)){
+      if(requireScope)throw new Error('Account, company or conversation changed before the declined approval was saved.');
+      return;
+    }
     await mutateAssistantState(resumed.key,current=>{
       const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
       const earlier=current.threads.find(row=>row.id===kernel.scope.threadId&&row.scope===kernel.scope.scope&&row.workspaceId===kernel.scope.workspaceId&&row.branchId===kernel.scope.branchId);
@@ -233,7 +236,7 @@ export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state
   host.__intelligenceKernel=next;
   try{
     // A declined decision is complete only AFTER the tombstone is durable.
-    await persistKernel(host);
+    await persistKernel(host,true);
     if(host.__intelligenceKernel===next)host.setState({review:null,__workspaceReviewedProposal:null,__workspaceSavedId:'',__workspaceEditing:false});
   }catch(error){
     if(host.__intelligenceKernel===next)host.__intelligenceKernel=kernel;
