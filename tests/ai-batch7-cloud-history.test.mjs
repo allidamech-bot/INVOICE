@@ -138,3 +138,9 @@ test('an outgoing chat turn targets one Firestore document, not the full collect
   assert.match(runtime,/queueHistorySync\(host,uid,resumed\.key,undefined,undefined,false,kernel\.scope\.threadId\)/);
   assert.match(build,/installRemote:false,changedThreadId:threadId/);
 });
+
+test('the same message identifier cannot silently overwrite different words on another device',()=>{
+  const older=cloud('t-collision',[msg('same-id','First message')]);
+  const newer=cloud('t-collision',[msg('same-id','Conflicting edited message')]);
+  assert.throws(()=>mergeAssistantCloudThread(older,newer),/Conflicting message identity/);
+});
