@@ -229,6 +229,10 @@ Live large-image boundary: a synthetic valid PNG with trailing padding at 2,700,
 
 Vercel reference resolution for consolidated `5e1f201` is currently blocked by GitHub secondary-rate-limit HTTP403. The provider explicitly asks to wait a few minutes. No deployment was created and no alternate source/permission workaround was attempted. Browser sessions remain authenticated; Production unchanged.
 
+Final follow-up source `e8a336903bac6705fa12ddfc1e361afef54cbf70`, tested tree `80fa2b94319068bc295cd25e0efc2d7fcf916673`: TypeScript/full build and 2534/0/0 Node suite passed again after quota-error translations. Vercel reference resolution after useful intervening testing still returned GitHub secondary-rate-limit HTTP403; no Preview created. No further retry loop. Latest visual/media corrections and rejection-after-Undo remain awaiting live retest, not release-approved.
+
+Production media verification was attempted separately to avoid attributing Preview provider configuration to the official site. Production displayed sign-in; the secure sign-in request was declined and was not retried. **BLOCKED** for authenticated Production PDF/image/provider verification. Preview authentication remains available. Do not report Production providers as broken based on Preview evidence.
+
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.
 - Base `main` at kickoff: `27ed9d54f615ecfea8dd73ab34fc072d3a4dcfa3`.
