@@ -9,6 +9,7 @@ Scope: AI conversation and AI workflow quick-microphone only. No site-wide visua
   - `lourex-ai-workflow-voice-request`: the composer relinquishes ownership and advertises the native release deadline.
   - `lourex-ai-composer-voice-request`: the workflow relinquishes ownership, including any pending retry or post-completion release lease.
 - The workflow now preserves a 1600ms release lease, cancels pending retry timers on stop/unmount, rejects stale callbacks by generation, retries recognized transient start failures at most six times, and reports permission, capture, and unsupported-browser failures explicitly.
+- Composer handoff also clears the mic's stale pressed/listening state. A built-output behavioral regression simulates both owner transitions and native lease expiry; it is designed to run after a full build.
 - A distinct localized "Starting…" state indicates a queued native microphone release. Transcribed text remains editable; microphone capture never automatically submits a message.
 - The production composer runtime identity advances to `ios-release-v3-cross-owner`; the existing final-runtime hash stage should keep the service-worker and HTML URL aligned.
 
