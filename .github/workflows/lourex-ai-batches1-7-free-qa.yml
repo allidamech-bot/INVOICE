@@ -35,3 +35,34 @@ jobs:
         run: node --test --test-concurrency=2 tests/ai-batches1-7-release-candidate-contract.test.mjs tests/ai-batch7-cloud-history.test.mjs
       - name: Entire existing Node test suite
         run: node --test --test-concurrency=2 tests/*.test.mjs
+
+  firestore-emulator:
+    name: Real Firestore rules and two-device transaction tests (emulator only)
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      FIREBASE_CLI_DISABLE_UPDATE_CHECK: 'true'
+      CI: 'true'
+    steps:
+      - name: Checkout candidate — no production credentials
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Java 21 for offline Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Restore exact project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install test-only Firebase emulator and rules SDK (no lockfile edits)
+        run: npm install --no-save --package-lock=false --no-audit --no-fund firebase@12.1.0 @firebase/rules-unit-testing@5.0.2 firebase-tools@14.12.1
+      - name: Build application modules for transaction tests
+        run: npm run build
+      - name: Verify real Firestore owner rules and cross-device transactions
+        run: ./node_modules/.bin/firebase emulators:exec --only firestore --config firebase.ai-ci.json --project demo-lourex-ai-integration-719 "node --test tests/ai-firebase-firestore-emulator.test.mjs"
