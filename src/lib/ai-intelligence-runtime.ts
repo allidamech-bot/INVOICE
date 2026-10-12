@@ -282,6 +282,10 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot approve actions. Switch to Controller and review again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
     assertFoundationApproval(resumed.vault,proposal);
+    // UI visibility alone is not authorization: all non-navigation business writes
+    // require acknowledgement of this exact proposal before entering the executor.
+    if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&host.state.__workspaceReviewedProposal!==proposal)
+      throw new Error('Review and acknowledge this exact action before approval.');
     if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft'){
       const review=reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');
       host.setState({review});
@@ -293,6 +297,15 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     receipt={id:proposal.foundationApproval.id,state:'applying',at:new Date().toISOString(),actorId:proposal.foundationApproval.actorId,action:proposal.tool||proposal.capability,payload:proposal.foundationApproval.payload};
     host.__foundationReceipts=[...(host.__foundationReceipts||[]),receipt].slice(-100);
     await persistKernel(host); // Crash after commit cannot silently replay an uncertain action.
+    // Persistence can await IndexedDB. Re-check the live session and visible
+    // proposal afterwards so switching account, thread or mode cannot race apply().
+    const live=await resumeVaultSession();
+    if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(kernel.scope)||
+       currentConversationMode(host)!=='controller'||host.state.proposal!==proposal)
+      throw new Error('Account, company, conversation or action changed during approval. Nothing was applied.');
+    if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&host.state.__workspaceReviewedProposal!==proposal)
+      throw new Error('The action review changed during approval. Nothing was applied.');
+    assertFoundationApproval(live.vault,proposal);
     const result=await apply();await flush(host);
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
     else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';if((kernel.artifact?.proposal as any)?.foundationApproval?.id===proposal.foundationApproval.id)kernel.artifact=undefined;
