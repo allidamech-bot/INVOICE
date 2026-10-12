@@ -9,7 +9,7 @@
 - Logged-in users' **text conversation history** is queued for synchronization under `users/{uid}/assistantHistory/{threadId}` in Firestore, separate from financial workspace documents.
 - The existing Firestore security rules guard the entire `users/{uid}/...` subtree by `request.auth.uid == userId`. There is no new anonymous read permission or shared URL.
 - A cloud refresh can import history on a second device, with an explicit local/syncing/synchronized/pending status visible in the conversation-history pane. A browser `online` event also schedules account-checked reconciliation; there is no continuously active Firestore realtime listener.
-- Per-thread transactional writes merge messages by unique ID. A device cannot silently replace the other device's independent messages. Existing message timestamps remain stable across local re-saves; attempting to reuse a deleted thread ID fails visibly.
+- Per-thread transactional writes merge messages by unique ID. Outgoing chat saves publish **only the changed thread document**, avoiding a full collection read on every turn. Full server reads are reserved for workspace refresh and reconnect. Existing message timestamps remain stable across local re-saves; attempting to reuse a deleted thread ID fails visibly.
 - Conversation deletion first commits a durable **local tombstone**, then schedules a cloud tombstone. An offline deletion remains locally protected from a subsequent cloud pull; future sync retries the tombstone.
 - The modern history pane offers a compact two-step delete confirmation. The old lifecycle now searches the entire scoped local list to open older synced conversations, not merely the ten shown in its legacy menu.
 
@@ -25,7 +25,7 @@
 
 ## Existing limitations deliberately retained (not called complete)
 
-- Local cache still limits history to 30 threads and 60 messages per thread. The cloud transport respects this message cap and a 200-document query limit; paging beyond 200 documents is not implemented. Do **not** claim unlimited history.
+- Local cache still limits history to **30 threads** and **60 messages per thread**. The cloud transport rejects a 31st distinct incoming thread, a 61st distinct merged message, or an overlong imported message with a visible error rather than silently dropping records. A 200-document query limit remains; paging beyond 200 documents is not implemented. Do **not** claim unlimited history or full synchronization while a retention-limit error is present.
 - Attachments, voice media, exact business proposals, generated files, draft line-edit state and AI context execution receipts are **not** portable conversation history. Only text and safe metadata can be recovered.
 - Rename, structured server-side search, history archival and bulk deletion are not part of this patch.
 - The code does not deploy or change Firestore security rules; verify that the existing deployed rules match the reviewed UID rule and that collection creation is permitted on Production.
