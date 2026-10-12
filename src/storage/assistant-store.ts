@@ -1,4 +1,4 @@
-import { normalizeConversationKernel, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
+import { normalizeConversationKernel, reconcileCancelledApprovals, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, type AiConversationExperiencePreferences } from '../lib/ai-conversation-mode.js';
 import { getRecord, putRecord } from './db.js';
 import type { AssistantScope } from '../lib/ai-assistant-foundation.js';
@@ -75,20 +75,43 @@ export async function loadAssistantState(key:CryptoKey):Promise<AssistantStoreSt
   if(!record)return emptyState();
   try{return await decryptState(key,record);}catch{return emptyState();}
 }
-export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{
-  // Preserve an unreadable AI-only ciphertext before creating fresh local chat
-  // history. The business workspace, its keys, and all account records are untouched.
-  // Never swallow failed database reads, preservation, or encryption operations.
+// Serialize message-only and kernel writes on ONE queue. Previously the legacy
+// thread writer could overwrite an approval dismissal saved by the kernel writer.
+let assistantWriteQueue:Promise<unknown>=Promise.resolve();
+function queueAssistantWrite<T>(write:()=>Promise<T>):Promise<T>{
+  const next=assistantWriteQueue.catch(()=>undefined).then(write);
+  assistantWriteQueue=next;return next;
+}
+async function writeAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{
   const existing=await getRecord<any>(RECORD_ID as any,key) as EncryptedAssistantRecord|null;
+  let previous:AssistantStoreState|null=null;
   if(existing){
-    let readable=true;
-    try{await decryptState(key,existing);}catch{readable=false;}
-    if(!readable){
+    try{previous=await decryptState(key,existing);}catch{
+      // An unreadable legacy record must be preserved rather than erased.
       const archive={...existing,id:'assistant-state-inaccessible-'+crypto.randomUUID(),archivedAt:now()};
       await putRecord(archive as any,key);
     }
   }
-  await putRecord(await encryptState(key,normalizeAssistantState(state)) as any,key);
+  const next=normalizeAssistantState(state);
+  if(previous)for(const thread of next.threads){
+    const earlier=previous.threads.find(row=>row.id===thread.id&&row.scope===thread.scope&&row.workspaceId===thread.workspaceId&&row.branchId===thread.branchId);
+    if(!earlier?.kernel?.cancelledApprovals?.length)continue;
+    if(!thread.kernel)thread.kernel=structuredClone(earlier.kernel);
+    else thread.kernel=reconcileCancelledApprovals(thread.kernel,earlier.kernel);
+  }
+  await putRecord(await encryptState(key,next) as any,key);
+}
+export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{
+  await queueAssistantWrite(()=>writeAssistantState(key,state));
+}
+/** Atomic local read/modify/write shared by conversation and legacy history owners. */
+export async function mutateAssistantState(key:CryptoKey,mutate:(state:AssistantStoreState)=>AssistantStoreState):Promise<AssistantStoreState>{
+  return queueAssistantWrite(async()=>{
+    const state=await loadAssistantState(key);
+    const next=mutate(state);
+    await writeAssistantState(key,next);
+    return next;
+  });
 }
 
 function scopeMatches(thread:AssistantThread,scope:Exclude<AssistantScope,'temporary'>,workspaceId:string,branchId:string):boolean{
@@ -144,5 +167,8 @@ export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?
   return{state:next,thread};
 }
 export async function persistAssistantThread(key:CryptoKey,input:{threadId?:string;scope:Exclude<AssistantScope,'temporary'>;workspaceId:string;branchId:string;messages:MessageLike[]}):Promise<AssistantThread>{
-  const state=await loadAssistantState(key);const result=upsertAssistantThread(state,input);await saveAssistantState(key,result.state);return result.thread;
+  let thread:AssistantThread|null=null;
+  await mutateAssistantState(key,state=>{const result=upsertAssistantThread(state,input);thread=result.thread;return result.state;});
+  if(!thread)throw new Error('Conversation save did not complete.');
+  return thread;
 }
