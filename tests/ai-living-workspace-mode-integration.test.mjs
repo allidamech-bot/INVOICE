@@ -107,7 +107,7 @@ test('legacy personal-memory and attachment shortcuts do not prepare actions in 
     'legacy local commands must not surface a write proposal');
   assert.match(client,/No data was changed/, 'Advisor must state that no action was performed');
   assert.match(runtimeSource,/Advisor cannot revise documents/,'legacy revision shortcut requires Controller');
-  assert.match(runtimeSource,/host\.__workspaceModeSwitchBusy\|\|!proposal/,'approval cannot race tab switching');
+  assert.match(runtimeSource,/host\.__workspaceModeSwitchBusy\|\|host\.__workspaceDismissBusy\|\|!proposal/,'approval cannot race tab switching or a pending decline');
 });
 
 test('Malformed explicit mode cannot elevate Advisor to Controller through runtime or capability guard',()=>{
