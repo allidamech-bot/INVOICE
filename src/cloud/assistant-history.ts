@@ -102,9 +102,14 @@ function bytes(value:unknown):number{return new TextEncoder().encode(JSON.string
 /** Pure merge for tests and for the safe, never-destructive local install. */
 export function mergeAssistantCloudState(uid:string,localState:AssistantStoreState,remoteRows:CloudThread[]):AssistantStoreState{
   const local=normalizeAssistantState(localState),deleted={...(local.deletedThreads||{})};
-  const visibleRemote=remoteRows.filter(row=>!row.deletedAt&&!deleted[row.id]);
-  const newRemoteIds=visibleRemote.filter(row=>!local.threads.some(current=>current.id===row.id));
-  if(local.threads.length+newRemoteIds.length>MAX_LOCAL_THREADS)
+  // Validate before examining remote identity, then count only conversations
+  // surviving remote tombstones. A deleted slot can safely hold a new thread.
+  for(const row of remoteRows)if(!validCloud(row,uid))
+    throw new Error('Invalid cloud conversation format or account.');
+  const remoteDeleted=new Set(remoteRows.filter(row=>Boolean(row.deletedAt||deleted[row.id])).map(row=>row.id));
+  const survivors=local.threads.filter(row=>!remoteDeleted.has(row.id));
+  const incoming=remoteRows.filter(row=>!row.deletedAt&&!deleted[row.id]&&!survivors.some(current=>current.id===row.id));
+  if(survivors.length+incoming.length>MAX_LOCAL_THREADS)
     throw new Error('Cloud has more conversations than this device can safely retain. History was not overwritten; migrate retention before syncing.');
   const current=new Map(local.threads.map(row=>[row.id,row] as const));
   for(const remote of remoteRows){
