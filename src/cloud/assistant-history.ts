@@ -16,6 +16,9 @@ interface CloudThread {
   title:string;summary:string;mode:AiConversationMode;
   messages:AssistantStoredMessage[];createdAt:string;updatedAt:string;deletedAt?:string;
 }
+const CLOUD_FIELDS=new Set(['format','ownerUid','id','scope','workspaceId','branchId',
+  'title','summary','mode','messages','createdAt','updatedAt','deletedAt']);
+const MESSAGE_FIELDS=new Set(['id','role','text','createdAt']);
 const safeId=(value:string):boolean=>/^[A-Za-z0-9_-]{1,120}$/.test(value);
 const validTime=(value:unknown):value is string=>typeof value==='string'&&value.length<=40&&Number.isFinite(Date.parse(value));
 function checkAccount(uid:string):void{
@@ -32,13 +35,15 @@ function message(value:any):AssistantStoredMessage|null{
   return{id:value.id,role:value.role,text:value.text,createdAt:value.createdAt};
 }
 function validCloud(value:any,uid:string):value is CloudThread{
-  if(!value||value.format!==FORMAT||value.ownerUid!==uid||!safeId(value.id)
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!CLOUD_FIELDS.has(key))
+    ||value.format!==FORMAT||value.ownerUid!==uid||!safeId(value.id)
     ||!['business','personal'].includes(value.scope)||typeof value.workspaceId!=='string'||typeof value.branchId!=='string'
     ||value.workspaceId.length>120||value.branchId.length>120||typeof value.title!=='string'||value.title.length>100
     ||typeof value.summary!=='string'||value.summary.length>1200||!['controller','advisor'].includes(value.mode)
     ||!validTime(value.createdAt)||!validTime(value.updatedAt)
     ||(value.deletedAt!==undefined&&!validTime(value.deletedAt))||!Array.isArray(value.messages)||value.messages.length>MAX_MESSAGES)return false;
-  return value.messages.every((row:any)=>message(row)!==null);
+  return value.messages.every((row:any)=>row&&typeof row==='object'&&!Array.isArray(row)
+    &&Object.keys(row).every(key=>MESSAGE_FIELDS.has(key))&&message(row)!==null);
 }
 function toCloud(uid:string,thread:AssistantThread):CloudThread{
   if(!safeId(thread.id))throw new Error('Invalid conversation ID; no cloud history was changed.');
