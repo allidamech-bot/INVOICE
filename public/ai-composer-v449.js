@@ -41,7 +41,7 @@
   };
   const tone={camera:'slate',files:'slate',tools:'blue',back:'slate',inbox:'blue',quote:'indigo',product:'cyan',supplier:'amber',search:'violet',money:'emerald',compare:'orange',today:'rose',memory:'purple',shield:'red',history:'slate'};
 
-  function ar(panel){return panel?.getAttribute('dir')==='rtl'||document.documentElement.dir==='rtl';}
+  function ar(panel){const configured=panel?.getAttribute('data-ai-ui-language');return configured==='ar'||(configured!=='en'&&(panel?.getAttribute('dir')==='rtl'||document.documentElement.dir==='rtl'));}
   function text(panel,en,arText){return ar(panel)?arText:en;}
   function workflowButtons(panel){return Array.from(panel?.querySelectorAll(`${WORKFLOW_MOUNT}>.lourex-ai-tools button`)||[]);}
   function setExpanded(button,open){button?.setAttribute('aria-expanded',String(open));}
@@ -70,7 +70,7 @@
   function animatePlusMenu(menu,opening){
     const last=menuAnimations.get(menu);
     if(last){last.onfinish=null;last.cancel();menuAnimations.delete(menu);}
-    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const reduced=document.querySelector(PANEL)?.getAttribute('data-ai-motion')==='reduced'||window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     if(reduced||typeof menu.animate!=='function'){
       menu.hidden=!opening;
       return;

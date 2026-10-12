@@ -88,3 +88,41 @@ Existing personal/business/temporary scopes are independent from Controller/Advi
 - Verify dynamic switching and account-scoped thread hydration in authenticated Chromium and WebKit; fix any discovered regressions before promoting this draft.
 - Consolidate old CSS owners; complete grayscale chat palette, financial preview and inline approval UI, AI settings, audio and sources.
 - Preserve true execution authorization on all legacy workflow shortcuts; not all legacy routes have been live-audited.
+
+## 8. Batch 4 — financial document preview and inline approval (draft)
+
+- In the existing typed React workspace, the **Preview** tab no longer duplicates the horizontally scrolling edit grid. It presents all real scoped line items as legible cards, with deterministic `lineTotal` figures; blank/invalid quantities or prices display an unknown marker, never a fabricated amount or misleading 0.00.
+- Actual client/currency, saved-vs-working status, delivery/payment terms, complete diff, and approval blockers are visibly distinct. The item **subtotal is not final total**: tax, discount and freight are explicitly excluded. Color accents are scoped to the document preview (navy / blue, green, gold, warnings); chat remains grayscale.
+- Document action proposals in the chat use a short, animated inline **Review details** affordance. The original legacy proposal card is no longer duplicated or exposed in the typed chat for these document actions.
+- Opening a preview does not count as approval. After examining the document, **I reviewed the details** sets a volatile reference to the exact proposal under review and returns to chat; only then are the existing callback-bearing **Approve** and **Dismiss** buttons shown as compact accessible pills. Draft blockers disable completion. A subsequently revised proposal does not inherit the earlier review acknowledgement.
+- The pre-existing approval execution callbacks and foundation envelopes remain responsible for applying/rejecting mutations. This code does not implement new raw mutation endpoints.
+- A new targeted test, `tests/ai-living-workspace-preview-batch4.test.mjs`, covers deterministic amounts, scoped invoice preview fixture, every row/term/diff, visual semantic sections and reviewed-before-approval contract.
+
+**Still unverified:** full TypeScript / production build, authenticated live navigation and preview rendering on iPhone/iPad/desktop, source JS layering. This PR must remain Draft until validation. Legacy orchestration-specific tool approval surfaces beyond the typed proposal node require later consolidation.
+
+## 9. Batch 4 continued — AI settings and general suggestions (Draft)
+
+- `src/storage/assistant-store.ts` now stores normalized **AI-only interface/reply language, response detail and motion preferences** in the existing per-account encrypted assistant state, not in site/company settings. Thread upserts preserve them and malformed legacy values reset safely.
+- `src/lib/ai-intelligence-runtime.ts` saves preferences through the same promise queue as thread persistence; it checks authenticated account identity again before a write and after saving to prevent cross-account confusion. UI surfaces save errors. Explicit AR/EN response language is passed to LOUREX AI contexts and deterministic tool orchestration; server/model language compliance still requires an end-to-end check.
+- A small AI settings panel now exposes inherit/Arabic/English UI language, automatic/Arabic/English answer language, balanced/brief/detailed answer length request, and system/reduced animation. The AI shell and composer use its independent interface locale and RTL/LTR direction. The full legacy Gemini response body and every old extension have not yet been audited for locale override compliance.
+- Reduced motion preference disables the unified plus animation and optional robot idle movement; device-level `prefers-reduced-motion` stays respected.
+- Ordinary non-document proposals using the legacy `lourex-ai-proposal` React node now display compact navigation/actions rather than a blocking card. Non-navigation approvals are shown only after opening details and acknowledging review. Original execution callbacks remain intact; declining remains available without forcing review, including for blocked documents. Separate orchestration-specific approval components still need QA.
+- Tests: `tests/ai-living-workspace-preferences-batch4.test.mjs` covers normalization and persistence through separate threads; expanded preview tests cover compact suggestions and review-gated approval.
+- Verification completed here: fourteen source/runtime-helper checks and an extracted account-safe preferences save function test with a fake store. These are **not** real IndexedDB, TypeScript, production build, browser, provider or Firebase end-to-end tests.
+
+**Outstanding:** real-browser verification of the 160ms safe decline exit, full mobile/iPad/desktop live QA, CSS owner consolidation, actual provider style compliance and safe release acceptance. No branch here should be merged as the finished product solely from static checks.
+
+## 10. Inline rejection completion
+
+- Both document and non-document suggestion surfaces expose **Decline** immediately, even for blocked documents; accepting a change remains gated on explicit review.
+- On normal-motion devices, rejecting animates out for 160ms, then invokes the preexisting dismissal callback. The callback is skipped if the proposal was superseded, and timers are cancelled on unmount or proposal change. No business mutation is performed by this animation.
+- Device-level and AI-specific reduced-motion preferences bypass the delay and motion. The behavior has source contract coverage but still requires live browser QA.
+
+## 9. Encrypted AI preferences and server-side Advisor trust
+
+- AI preferences are stored independently of the LOUREX site locale in the existing encrypted assistant state (not company settings), normalized on recovery and preserved by thread upserts. Saves share the serialized assistant-store queue to prevent lost preference writes.
+- Interface language may inherit the site or use AR/EN. Answer-language preferences support explicit AR/EN and automatic detection of the actual user question; short neutral questions fall back to site locale. These choices do not change document output language.
+- Preferred answer length (brief/balanced/detailed) is sanitized in the AI Core and Advisor V2 API handlers and passed into their model instructions. No accounting numbers are supplied by the model rather than deterministic LOUREX calculation engines.
+- `conversationMode` is copied from authenticated thread state into AI requests. Core suppresses ALL proposals when the request comes from Advisor, and corrects false claims of saved documents; Advisor V2 also suppresses even navigation proposals in Advisor mode. Controller remains subject to normal guarded review/approval.
+- Source-level JS syntax checks passed for Core, Advisor V2 and composer. Direct executable smoke tests of the actual extracted policy functions verified five Controller/Advisor allow/deny cases. The automatic reply-language helper passed four executable checks. Persistent test coverage was added to the repository.
+- **Still required:** full TypeScript build and complete regression suite, live Firebase-account switch and encrypted preference persistence tests, real network/provider response validation, actual iOS/WebKit/desktop visual QA. These remain release blockers; keep stacked PRs in draft.

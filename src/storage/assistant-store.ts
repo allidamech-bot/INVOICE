@@ -1,4 +1,5 @@
 import { normalizeConversationKernel, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
+import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, type AiConversationExperiencePreferences } from '../lib/ai-conversation-mode.js';
 import { getRecord, putRecord } from './db.js';
 import type { AssistantScope } from '../lib/ai-assistant-foundation.js';
 
@@ -16,7 +17,7 @@ export interface AssistantThread{
   createdAt:string;
   updatedAt:string;
 }
-export interface AssistantStoreState{version:1;threads:AssistantThread[];currentBusinessThreadId:string;currentPersonalThreadId:string;updatedAt:string;}
+export interface AssistantStoreState{version:1;threads:AssistantThread[];currentBusinessThreadId:string;currentPersonalThreadId:string;aiPreferences:AiConversationExperiencePreferences;updatedAt:string;}
 interface EncryptedAssistantRecord{id:'assistant-state';version:1;iv:string;cipher:string;updatedAt:string;}
 interface MessageLike{id?:string;role:'user'|'assistant';text:string;createdAt?:string;}
 
@@ -31,7 +32,7 @@ const PROVIDER_SUMMARY_PREFIX='Earlier conversation summary: ';
 function safeText(value:unknown,max:number):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function now():string{return new Date().toISOString();}
 function makeId(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;}
-function emptyState():AssistantStoreState{return{version:1,threads:[],currentBusinessThreadId:'',currentPersonalThreadId:'',updatedAt:now()};}
+function emptyState():AssistantStoreState{return{version:1,threads:[],currentBusinessThreadId:'',currentPersonalThreadId:'',aiPreferences:{...DEFAULT_AI_CONVERSATION_PREFERENCES},updatedAt:now()};}
 function bytesToB64(bytes:Uint8Array):string{let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));return btoa(binary);}
 function b64ToArrayBuffer(value:string):ArrayBuffer{const binary=atob(value),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer;}
 function normalizedMessage(value:any):AssistantStoredMessage|null{
@@ -53,7 +54,7 @@ export function normalizeAssistantState(value:any):AssistantStoreState{
   if(!value||typeof value!=='object'||value.version!==1)return emptyState();
   const threads:AssistantThread[]=Array.isArray(value.threads)?value.threads.map((row:any)=>normalizedThread(row)).filter((row:AssistantThread|null):row is AssistantThread=>Boolean(row)).sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS):[];
   const currentBusinessThreadId=safeText(value.currentBusinessThreadId,120),currentPersonalThreadId=safeText(value.currentPersonalThreadId,120);
-  return{version:1,threads,currentBusinessThreadId:threads.some((row:AssistantThread)=>row.id===currentBusinessThreadId&&row.scope==='business')?currentBusinessThreadId:'',currentPersonalThreadId:threads.some((row:AssistantThread)=>row.id===currentPersonalThreadId&&row.scope==='personal')?currentPersonalThreadId:'',updatedAt:safeText(value.updatedAt,40)||now()};
+  return{version:1,threads,currentBusinessThreadId:threads.some((row:AssistantThread)=>row.id===currentBusinessThreadId&&row.scope==='business')?currentBusinessThreadId:'',currentPersonalThreadId:threads.some((row:AssistantThread)=>row.id===currentPersonalThreadId&&row.scope==='personal')?currentPersonalThreadId:'',aiPreferences:normalizeAiConversationPreferences(value.aiPreferences),updatedAt:safeText(value.updatedAt,40)||now()};
 }
 async function encryptState(key:CryptoKey,state:AssistantStoreState):Promise<EncryptedAssistantRecord>{
   const iv=crypto.getRandomValues(new Uint8Array(12));
@@ -125,7 +126,7 @@ export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?
   const messages:AssistantStoredMessage[]=input.messages.map((row:MessageLike)=>normalizedMessage(row)).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
   const thread:AssistantThread={...base,title:titleFrom(messages,base.title),summary:summarizeAssistantConversation(messages),messages,updatedAt:now()};
   const threads=[thread,...normalized.threads.filter((row:AssistantThread)=>row.id!==thread.id)].sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS);
-  const next:AssistantStoreState={version:1,threads,currentBusinessThreadId:input.scope==='business'?thread.id:normalized.currentBusinessThreadId,currentPersonalThreadId:input.scope==='personal'?thread.id:normalized.currentPersonalThreadId,updatedAt:now()};
+  const next:AssistantStoreState={version:1,threads,currentBusinessThreadId:input.scope==='business'?thread.id:normalized.currentBusinessThreadId,currentPersonalThreadId:input.scope==='personal'?thread.id:normalized.currentPersonalThreadId,aiPreferences:normalized.aiPreferences,updatedAt:now()};
   return{state:next,thread};
 }
 export async function persistAssistantThread(key:CryptoKey,input:{threadId?:string;scope:Exclude<AssistantScope,'temporary'>;workspaceId:string;branchId:string;messages:MessageLike[]}):Promise<AssistantThread>{

@@ -21,7 +21,7 @@ test('failed scoped conversation hydration exposes retry instead of an endless l
   const source=await read('src/components/AiConversationWorkspace.tsx');
   assert.match(source,/if\(classes\.includes\('lourex-ai-messages'\)\)return react\.cloneElement\(child,undefined,host\.state\.__workspaceLoadError/);
   assert.match(source,/<div role="alert" className="lxw-load-error">/);
-  assert.match(source,/workspaceError\(host\.props\.language==='ar',String\(host\.state\.__workspaceLoadError\)\)/);
+  assert.match(source,/workspaceError\(aiUiAr\(host\),String\(host\.state\.__workspaceLoadError\)\)/);
   assert.match(source,/host\.setState\(\{__workspaceLoadError:''\},\(\)=>void host\.__workspaceRefresh\?\.\(\)\)/);
   assert.match(source,/role="status"[^\n]*Loading scoped conversation/);
   assert.match(source,/if\(classes\.includes\('lourex-ai-proposal'\)\)return null/);

@@ -88,7 +88,23 @@ test('Workspace exposes two modes and preserves separate thread scopes',()=>{
   assert.match(runtimeSource,/Advisor cannot approve actions/);
   assert.match(runtimeSource,/Advisor can analyze but cannot edit a workspace/);
   assert.match(runtimeSource,/conversationMode:requestedMode/);
+  assert.match(runtimeSource,/context\.allowedCapabilities=context\.allowedCapabilities\.filter/,'Advisor provider input must remove execution and navigation capabilities');
+  assert.match(runtimeSource,/conversationModePermitsCapability\('advisor',capability\)/,'model capability filtering is deny-only');
   assert.match(gateway,/panel\.dataset\.workspaceMode==='advisor'/);
   assert.match(styles,/\.lxw-mode-description\{/);
   assert.match(styles,/\.lxw-mode-tabs button\[aria-selected='true'\]/);
+});
+
+test('legacy personal-memory and attachment shortcuts do not prepare actions in Advisor',()=>{
+  const client=read('src/lib/ai-tool-client.ts');
+  const runtimeSource=read('src/lib/ai-intelligence-runtime.ts');
+  assert.match(client,/runtime\.conversationMode!=='advisor'&&sources\.every\(row=>row\.route==='product_list'\)/,
+    'product list review must not silently propose a product import in Advisor');
+  assert.match(client,/runtime\.conversationMode!=='advisor'&&requestedAiProductImport\(input\.message\)/,
+    'attachment import requests must bypass the executor in Advisor');
+  assert.match(client,/runtime\.conversationMode==='advisor'&&local\.proposal/,
+    'legacy local commands must not surface a write proposal');
+  assert.match(client,/No data was changed/, 'Advisor must state that no action was performed');
+  assert.match(runtimeSource,/Advisor cannot revise documents/,'legacy revision shortcut requires Controller');
+  assert.match(runtimeSource,/host\.__workspaceModeSwitchBusy\|\|!proposal/,'approval cannot race tab switching');
 });

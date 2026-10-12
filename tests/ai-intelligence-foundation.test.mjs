@@ -111,11 +111,11 @@ async function runtimeHarness(){
  const workspaces=await import('../dist/src/lib/workspaces.js');
  const records=new Map();
  globalThis.__foundationDb={getRecord:async id=>records.get(id)||null,putRecord:async record=>{records.set(record.id,structuredClone(record));}};
- const storeSource=(await readFile('dist/src/storage/assistant-store.js','utf8')).replace(/import .* from '.*';/g,line=>line.includes("'./db.js'")?'const {getRecord,putRecord}=globalThis.__foundationDb;':line.replace("'../lib/ai-conversation-kernel.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-kernel.js',import.meta.url).href)));
+ const storeSource=(await readFile('dist/src/storage/assistant-store.js','utf8')).replace(/import .* from '.*';/g,line=>line.includes("'./db.js'")?'const {getRecord,putRecord}=globalThis.__foundationDb;':line.replace("'../lib/ai-conversation-kernel.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-kernel.js',import.meta.url).href)).replace("'../lib/ai-conversation-mode.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-mode.js',import.meta.url).href)));
  const store=await import('data:text/javascript;base64,'+Buffer.from(storeSource).toString('base64')+'#'+crypto.randomUUID());
  const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
  const session={key,vault:emptyVault()};
- globalThis.__foundationRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__foundationDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
+ globalThis.__foundationRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__foundationDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...(await import('../dist/src/lib/ai-conversation-mode.js')),...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
  let runtimeSource=await readFile('dist/src/lib/ai-intelligence-runtime.js','utf8');
  runtimeSource=runtimeSource.replace(/import \{([\s\S]*?)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.__foundationRuntimeModules;`);
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(runtimeSource).toString('base64')+'#'+crypto.randomUUID());
@@ -127,13 +127,13 @@ test('real runtime adapter encrypts/reloads drafts and refuses approval replay a
  await h.ask('prepare');const prepared=h.state.proposal;assert.ok(prepared.foundationApproval);
  const encrypted=records.get('assistant-state');assert.ok(encrypted.cipher);assert.ok(!JSON.stringify(encrypted).includes('Item 2'));
  const reloaded=host();await reloaded.ask('unrelated question');assert.equal(reloaded.state.proposal.items.length,3);
- let writes=0;await runtime.intelligenceApprove(reloaded,reloaded.state.proposal,async()=>{writes++;return{summary:'verified',id:'saved'};});assert.equal(writes,1);
+ reloaded.state.__workspaceReviewedProposal=reloaded.state.proposal;let writes=0;await runtime.intelligenceApprove(reloaded,reloaded.state.proposal,async()=>{writes++;return{summary:'verified',id:'saved'};});assert.equal(writes,1);
  const state=await store.loadAssistantState(session.key);assert.equal(state.threads[0].foundationReceipts[0].state,'applied');assert.ok(state.threads[0].messages.some(row=>row.text==='unrelated question'));
  const restarted=host();await restarted.ask('hello');await runtime.intelligenceApprove(restarted,prepared,async()=>{writes++;return{summary:'bad replay'};});assert.equal(writes,1);assert.match(restarted.state.error,/already attempted/);
 });
 test('runtime rejects stale approval and an in-flight double click without any duplicate write',async()=>{
  const {runtime,session,host}=await runtimeHarness();const h=host();await h.ask('prepare');
- const p=h.state.proposal;session.vault.customers.push(person('new','Changed'));let writes=0;
+ const p=h.state.proposal;h.state.__workspaceReviewedProposal=p;session.vault.customers.push(person('new','Changed'));let writes=0;
  await runtime.intelligenceApprove(h,p,async()=>{writes++;});assert.equal(writes,0);assert.match(h.state.error,/changed since review/);
  session.vault.customers=[];h.state.error='';let release;const pending=new Promise(resolve=>release=resolve);
  const one=runtime.intelligenceApprove(h,p,async()=>{writes++;await pending;return{id:'one',summary:'saved'};});

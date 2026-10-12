@@ -25,7 +25,7 @@ html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lour
   display:none!important;
 }
 /* Launcher motion belongs to the existing visual owner; no runtime patch. */
-#root .lourex-ai-launcher:not([aria-expanded='true']):not(:hover):not(:focus-visible){
+#root .lourex-ai-launcher:not([aria-expanded='true']):not([data-ai-motion='reduced']):not(:hover):not(:focus-visible){
   animation:lourexLivingLauncherIdle 11s ease-in-out infinite;
 }
 @keyframes lourexLivingLauncherIdle{
