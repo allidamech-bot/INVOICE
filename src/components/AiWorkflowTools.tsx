@@ -73,7 +73,7 @@ function canonicalSearchQuery(result:AiBusinessSearchResult):string{if(result.ki
 function sourceCommercialTerms(draft:QuoteAiSourceDraft):string[]{return [draft.incoterm,draft.paymentTerms,draft.deliveryTime,draft.validity,draft.remarks,draft.notes].map(value=>value.trim()).filter(Boolean);}
 
 export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRoute?:AiInboxRoute;disabled?:boolean},State>{
-  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
+  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceCaptureTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
   state:State={open:false,view:'menu',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false,voiceStarting:false,jobs:readAiJobHistory(),currentJobId:'',savedReference:''};
   componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);}
   componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);this.cancelAnalysis();this.stopVoice();}
@@ -156,8 +156,10 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     if(holdingLease)detail.active=true;
     detail.readyAt=Math.max(detail.readyAt||0,this.voiceReleaseUntil);
   };
+  private clearVoiceCaptureTimer=()=>{if(this.voiceCaptureTimer){clearTimeout(this.voiceCaptureTimer);this.voiceCaptureTimer=null;}};
   private stopVoice=()=>{
     this.voiceGeneration++;
+    this.clearVoiceCaptureTimer();
     if(this.voiceRetryTimer){clearTimeout(this.voiceRetryTimer);this.voiceRetryTimer=null;}
     const active=this.recognition;this.recognition=null;
     if(active){
@@ -165,6 +167,15 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
       this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
       try{active.abort();}catch{try{active.stop();}catch{}}
     }
+  };
+  private armVoiceDeadline=(recognition:any,generation:number,delay:number,starting:boolean)=>{
+    this.clearVoiceCaptureTimer();
+    this.voiceCaptureTimer=setTimeout(()=>{
+      this.voiceCaptureTimer=null;
+      if(!this.mounted||this.recognition!==recognition||generation!==this.voiceGeneration)return;
+      this.stopVoice();
+      this.setState({listening:false,voiceStarting:false,error:starting?t('Microphone did not become ready. Try again.','لم يجهز الميكروفون في الوقت المحدد. حاول مجددًا.'):t('Voice recording timed out. Try again.','انتهت مهلة التسجيل الصوتي. حاول مجددًا.')});
+    },delay);
   };
   private startVoiceSession=(generation:number,attempt:number):void=>{
     if(!this.mounted||generation!==this.voiceGeneration)return;
@@ -180,6 +191,11 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     try{recognition=new Constructor();}catch{this.setState({listening:false,voiceStarting:false,error:t('Microphone could not be started. Retry.','تعذّر بدء الميكروفون. حاول مجددًا.')});return;}
     this.recognition=recognition;
     recognition.lang=isArabic()?'ar-SA':'en-US';recognition.continuous=false;recognition.interimResults=false;recognition.maxAlternatives=1;
+    recognition.onstart=()=>{
+      if(this.recognition!==recognition||generation!==this.voiceGeneration)return;
+      this.armVoiceDeadline(recognition,generation,30000,false);
+      this.setState({listening:true,voiceStarting:false,error:''});
+    };
     recognition.onresult=(event:any)=>{
       if(this.recognition!==recognition)return;
       const transcript=Array.from(event.results||[]).map((row:any)=>String(row?.[0]?.transcript||'').trim()).filter(Boolean).join(' ').trim();
@@ -195,13 +211,15 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     };
     recognition.onend=()=>{
       if(this.recognition!==recognition)return;
-      this.recognition=null;this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
+      this.clearVoiceCaptureTimer();this.recognition=null;this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
       if(this.mounted)this.setState({listening:false,voiceStarting:false,error:t('No speech detected. Retry.','لم يتم التعرف على كلام. حاول مجددًا.')});
     };
-    try{recognition.start();this.setState({listening:true,voiceStarting:false,error:''});}
+    this.armVoiceDeadline(recognition,generation,12000,true);
+    this.setState({listening:false,voiceStarting:true,error:''});
+    try{recognition.start();}
     catch(error){
       if(this.recognition!==recognition)return;
-      this.recognition=null;recognition.onresult=null;recognition.onerror=null;recognition.onend=null;
+      this.clearVoiceCaptureTimer();this.recognition=null;recognition.onresult=null;recognition.onerror=null;recognition.onend=null;recognition.onstart=null;
       try{recognition.abort?.();}catch{}
       const name=String((error as any)?.name||'').toLowerCase(),message=String((error as any)?.message||'').toLowerCase();
       const denied=name==='notallowederror'||name==='securityerror';
