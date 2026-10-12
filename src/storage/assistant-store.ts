@@ -122,9 +122,16 @@ export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?
   const normalized=normalizeAssistantState(state);
   const requestedId=safeText(input.threadId,120);
   const existing=requestedId?normalized.threads.find((row:AssistantThread)=>row.id===requestedId&&scopeMatches(row,input.scope,input.workspaceId,input.branchId)):findAssistantThread(normalized,input.scope,input.workspaceId,input.branchId);
+  if(requestedId&&normalized.deletedThreads?.[requestedId])
+    throw new Error('Conversation was deleted. Start a new conversation instead of restoring its old ID.');
   const created=newAssistantThread(input.scope,input.workspaceId,input.branchId);
   const base=existing??(requestedId?{...created,id:requestedId}:created);
-  const messages:AssistantStoredMessage[]=input.messages.map((row:MessageLike)=>normalizedMessage(row)).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
+  const previousTimes=new Map(base.messages.map(row=>[row.id,row.createdAt] as const));
+  // The runtime supplies message IDs but often omits createdAt. Keep their first
+  // timestamp stable so another device cannot reorder a conversation on save.
+  const messages:AssistantStoredMessage[]=input.messages.map((row:MessageLike)=>normalizedMessage({
+    ...row,createdAt:row.createdAt||previousTimes.get(String(row.id||'')),
+  })).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
   const thread:AssistantThread={...base,title:titleFrom(messages,base.title),summary:summarizeAssistantConversation(messages),messages,updatedAt:now()};
   const threads=[thread,...normalized.threads.filter((row:AssistantThread)=>row.id!==thread.id)].sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS);
   const next:AssistantStoreState={version:1,threads,currentBusinessThreadId:input.scope==='business'?thread.id:normalized.currentBusinessThreadId,currentPersonalThreadId:input.scope==='personal'?thread.id:normalized.currentPersonalThreadId,aiPreferences:normalized.aiPreferences,updatedAt:now(),deletedThreads:normalized.deletedThreads};
