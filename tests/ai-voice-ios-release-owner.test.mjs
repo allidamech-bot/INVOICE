@@ -37,6 +37,7 @@ test('WebKit browser QA reproduces a native release delay that exceeds the previ
   assert.match(visual,/releaseDelay:engine\.name\(\)==='webkit'\?1450:260/);
   assert.match(visual,/native microphone is still owned/);
   assert.match(visual,/overlappingStarts\),0/);
-  assert.match(visual,/sessions:12/);
+  assert.match(visual,/sessions:14/);
+  assert.match(visual,/crossOwnerHandoff:'PASS'/);
   assert.match(visual,/repeat session/);
 });
