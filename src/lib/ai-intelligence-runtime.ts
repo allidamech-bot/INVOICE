@@ -34,6 +34,17 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
       if(vault&&kernelScopeKey(scopeFor(host,vault))===kernelScopeKey(scope)&&scope.scope==='business'){
         const store=await loadAssistantState(key);
         if(activeAccountStorageUid()!==uid||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,vault))!==kernelScopeKey(scope))return;
+        const remoteCurrent=store.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
+        const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+        if(kernel&&kernelScopeKey(kernel.scope)===kernelScopeKey(scope)&&
+           (!remoteCurrent||normalizeAiConversationMode(remoteCurrent.kernel?.mode)!==normalizeAiConversationMode(kernel.mode)||
+            (Boolean(kernel.artifact||host.state.proposal)&&!remoteCurrent.kernel?.artifact))){
+          // Invalidate an on-screen approval/draft whose local authority no
+          // longer matches the reconciled history. Never auto-execute a stale one.
+          host.__intelligenceKernel=undefined;host.__foundationReceipts=[];
+          host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceOpen:false,
+            __workspaceHistorySyncError:'Conversation changed on another device. Reopen it before editing.'});
+        }
         host.__businessThreads=store.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===uid))
           .map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
       }
