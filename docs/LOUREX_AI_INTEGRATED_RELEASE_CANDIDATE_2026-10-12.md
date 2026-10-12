@@ -30,6 +30,21 @@ These are *limited engineering checks*, not a release certification. No full loc
 
 **Additional verification (isolated, not built):** The full set of **22/22 authored cloud-history test bodies passed** when evaluated against TypeScript-stripped cloud merge and local-store functions with controlled stubs for storage normalization, time and other dependencies. This does NOT mean the compiled `node --test` suite, Firebase emulator, Safari or production passed. 
 
+## Verified CI run — 2026-10-12 (no deployment)
+
+The integration branch now has a real, successful **Node.js 24** GitHub Actions run:
+- [LOUREX AI Batches 1–7 Release Candidate QA — run #38304211562](https://github.com/allidamech-bot/INVOICE/actions/runs/38304211562).
+- Runner: standard `ubuntu-latest`, public repo, read-only token permissions; no paid/larger runner, no Firebase secrets, no production deployment.
+- Locked install: **PASS** (`npm ci --no-audit --no-fund`).
+- Strict TypeScript: **PASS** (`npm run typecheck`).
+- Entire production build pipeline: **PASS** (`npm run build`, local `dist` only).
+- Targeted release candidate tests: **32 passed / 0 failed / 0 skipped**.
+- Whole repository Node test suite: **2,589 passed / 0 failed / 0 skipped** (`node --test --test-concurrency=2 tests/*.test.mjs`).
+- Build/test failures during prior runs #38302924804, #38303076110, #38303280033, #38303399136, #38303757925, and #38304008404 were diagnosed and corrected; they should not be mistaken for current failing tests.
+- A non-blocking GitHub Actions deprecation warning requests eventual upgrade from `actions/checkout@v4` and `actions/setup-node@v4`; Node 24 job passed.
+
+**Still not proven**: Firebase emulator integration using independent authenticated devices, physical iPhone Safari voice repeats, PDF A4 output on real Safari, uploaded images/files, authenticated live UI workflows and production behavior. No release approval or merge implied.
+
 ## Mandatory release acceptance gates
 
 ### Gate A — build and regression
