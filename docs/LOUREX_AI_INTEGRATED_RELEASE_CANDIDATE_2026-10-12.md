@@ -22,9 +22,9 @@ Do not mark individual stacked PRs merged or ready for production just because t
 ## Validations executed during authoring
 1. Batch 1 + 2 source-level checks in the integrated head: **11/11 passed**.
 2. Batch 3–6 isolated source/formatter checks in stacked head prior to integration: **16/16 passed**.
-3. Batch 7 cloud synchronization behavior exercised with a JavaScript-adapted extract of the current cloud merge functions: **6/6 passed**.
+3. Batch 7 cloud synchronization behavior exercised with a JavaScript-adapted extract of the current cloud merge functions: **9/9 passed**.
 4. Integrated branch release-candidate source-contract checks: **7/7 passed**.
-5. **14 authored** compiled Batch 7 Node tests (two-device merge and conflict, deletion, privacy, retention) exist but have **not** been run against actual TypeScript output.
+5. **16 authored** compiled Batch 7 Node tests (two-device merge and conflict, deletion, privacy, retention) exist but have **not** been run against actual TypeScript output.
 
 These are *limited engineering checks*, not a release certification. No full local checkout/CI was possible in the current environment.
 
