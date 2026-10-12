@@ -383,6 +383,7 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
     <p className="lxw-history-sync" role="status">
       {host.state.__workspaceHistorySyncStatus==='syncing'?label(ar,'Syncing account conversations…','جارٍ مزامنة محادثات الحساب…'):
        host.state.__workspaceHistorySyncStatus==='synced'?label(ar,'Account conversation history synchronized','تمت مزامنة سجل محادثات الحساب'):
+       host.state.__workspaceHistorySyncStatus==='uploaded'?label(ar,'Conversation changes saved to cloud; refresh to receive other-device changes.','حُفظت تغييرات المحادثة في السحابة؛ حدّث السجل لجلب تغييرات الأجهزة الأخرى.'):
        label(ar,'Conversations are saved locally. Cloud sync is pending or unavailable.','المحادثات محفوظة محليًا. المزامنة السحابية معلقة أو غير متاحة.')}
     </p>
     {host.state.__workspaceHistorySyncError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistorySyncError))}</p>:null}
