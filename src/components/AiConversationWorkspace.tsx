@@ -7,6 +7,8 @@ import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntel
 import { normalizeAiConversationMode, conversationModeDescription, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 import { kernelScopeKey, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { activeAccountStorageUid } from '../storage/db.js';
+import { resumeVaultSession } from '../storage/vault.js';
+import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 
 // Narrow compatibility adapter: existing chat, composer, history, voice and guarded
@@ -359,6 +361,8 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
     host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
     try{
       await host.__lourexDeleteThread(id);
+      const session=await resumeVaultSession();
+      if(!session||!(await loadAssistantState(session.key)).deletedThreads?.[id])throw new Error('Conversation deletion was not confirmed. Retry.');
       // The lifecycle owner commits a deletion tombstone locally before
       // scheduling cloud publication. A failed cloud push remains retryable.
       host.__businessThreads=(host.__businessThreads||[]).filter((row:any)=>row.id!==id);
