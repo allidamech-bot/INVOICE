@@ -27,6 +27,12 @@ test('workflow releases microphone when composer claims ownership and cancels de
   assert.match(workflow,/generation!==this\.voiceGeneration/);
   assert.match(workflow,/voiceStarting:boolean/);
   assert.match(workflow,/voiceStarting:true,error:''/);
+  assert.match(workflow,/voiceCaptureTimer:ReturnType<typeof setTimeout>\\|null=null/);
+  assert.match(workflow,/this\.armVoiceDeadline\(recognition,generation,12000,true\)/);
+  assert.match(workflow,/this\.armVoiceDeadline\(recognition,generation,30000,false\)/);
+  assert.match(workflow,/this\.clearVoiceCaptureTimer\(\);/);
+  assert.match(workflow,/Microphone did not become ready/);
+  assert.match(workflow,/Voice recording timed out/);
   assert.match(workflow,/Starting…/);
 });
 
