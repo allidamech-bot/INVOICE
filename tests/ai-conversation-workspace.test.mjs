@@ -82,15 +82,41 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  await runtime.updateIntelligenceWorkspace(h,cmd(h.__intelligenceKernel,{kind:'cell',lineId:h.__intelligenceKernel.artifact.lineIds[2],field:'unitPrice',value:'26'}));assert.ok(h.state.proposal.foundationApproval);assert.equal(h.state.proposal.items[2].unitPrice,'26');assert.equal(h.state.review.blockers.length,0);
  assert.ok(records.get('assistant-state').cipher);assert.ok(!JSON.stringify(records.get('assistant-state')).includes('Item 3'));assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact.proposal.items[2].unitPrice,'26');
  const before=structuredClone(h.__intelligenceKernel),stale=cmd(h.__intelligenceKernel,{kind:'customer',entityId:'c2'});session.vault=structuredClone(v);session.vault.teamMembers[0].role='viewer';await runtime.updateIntelligenceWorkspace(h,stale);const after=structuredClone(h.__intelligenceKernel);assert.equal(after.diagnostics.length,before.diagnostics.length+1);assert.equal(after.diagnostics.at(-1).state,'failed');delete after.diagnostics;delete before.diagnostics;assert.deepEqual(after,before);assert.match(h.state.error,/role|changed/i);
- session.vault=v;await runtime.dismissIntelligenceWorkspace(h);assert.equal(h.__intelligenceKernel.artifact,undefined);assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact,undefined);assert.equal(v.documents.length,0);
+ session.vault=v;
+ const pending=h.__intelligenceKernel.missions.find(m=>m.steps.some(s=>s.status==='needs_approval'));
+ assert.ok(pending);
+ pending.steps.unshift({...pending.steps[0],id:'earlier-completed-step',approvalId:'earlier-completed-approval',status:'completed',resultRef:'existing-business-record'});
+ const rejected=h.state.proposal;
+ // The original UI dismiss handler clears proposal before the kernel callback.
+ h.state.proposal=null;
+ await runtime.dismissIntelligenceWorkspace(h,rejected);
+ assert.equal(h.__intelligenceKernel.artifact,undefined);
+ assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact,undefined);
+ assert.ok(pending.steps.every(s=>s.status!=='needs_approval'));
+ assert.equal(pending.steps[0].status,'completed');assert.equal(pending.steps[0].resultRef,'existing-business-record');
+ h.__intelligenceKernel=undefined;
+ await runtime.refreshIntelligenceWorkspace(h);
+ assert.equal(h.state.proposal,null,'rejected proposal must not return after persisted session hydration');
+ assert.equal(h.__intelligenceKernel.artifact,undefined);
+ assert.equal(h.__intelligenceKernel.missions[0].steps[0].status,'completed');
+ assert.equal(v.documents.length,0);
 });
 test('final render adapter moves exact approval into workspace and hides stale/private facts',async()=>{
  globalThis.React={createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),isValidElement:value=>value&&typeof value==='object'&&'type'in value,cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}};
  const {renderConversationWorkspace,RegisteredWorkspaceCard}=await import('../dist/src/components/AiConversationWorkspace.js');const {k,v}=fixture();k.scope.accountId='';const props={language:'ar'};
  const h={props,__workspaceObservedProps:props,__intelligenceKernel:k,__foundationVault:v,__lourexAssistantThreadId:'thread',state:{assistantScope:'business',proposal:k.artifact.proposal,__workspaceOpen:true,messages:[]}};
- const e=React.createElement,approval=e('section',{className:'lourex-ai-proposal'},'EXACT APPROVAL'),tree=e('aside',{id:'lourex-ai-panel'},e('header',{className:'lourex-ai-head'}),e('div',{className:'lourex-ai-context'}),e('div',{className:'lourex-ai-messages'}),approval,e('footer',{className:'lourex-ai-compose'}));
+ const e=React.createElement,approval=e('section',{className:'lourex-ai-proposal'},'EXACT APPROVAL'),tree=e('aside',{id:'lourex-ai-panel'},e('header',{className:'lourex-ai-head'}),e('div',{className:'lourex-ai-context'},e('button',{},'Business scope')),e('div',{className:'lourex-ai-messages'}),approval,e('footer',{className:'lourex-ai-compose'},e('textarea',{}),e('button',{},'Send')));
  const result=renderConversationWorkspace(h,tree);assert.equal(result.props['data-workspace-ready'],'true');const body=result.props.children.at(-1),workspace=body.props.children[1];assert.equal(workspace.props.approval.props.children,'EXACT APPROVAL');const containsExactApproval=(node)=>node===approval||(Array.isArray(node)?node.some(containsExactApproval):node&&typeof node==='object'&&containsExactApproval(node.props?.children));assert.equal(containsExactApproval(body.props.children[0]),false);
- h.props={language:'en'};assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');h.__workspaceObservedProps=h.props;k.scope.scope='personal';h.state.assistantScope='personal';assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');
+ let copied=0;const copy=()=>copied++,message=e('div',{className:'lourex-ai-message user'},e('div',{className:'lourex-ai-user-copy'},'Short question'),e('div',{className:'lourex-ai-message-actions'},e('button',{className:'lourex-ai-message-action is-copy',onClick:copy},'Copy')));
+ const turn=renderConversationWorkspace(h,message);assert.equal(turn.props.className,'lxw-message-turn is-user');const bubble=turn.props.children[0],actions=turn.props.children[1];assert.equal(bubble.props.dir,'auto');assert.equal(bubble.props.children.props.className,'lourex-ai-user-copy');assert.equal(actions.props.className,'lourex-ai-message-actions');assert.equal(actions.props.children.props.onClick,copy);actions.props.children.props.onClick();assert.equal(copied,1,'moving actions out of the bubble preserves the real callback');
+ h.props={language:'en'};
+ const loading=renderConversationWorkspace(h,tree);assert.equal(loading.props['data-workspace-ready'],'false');
+ assert.equal(loading.props['aria-label'],'LOUREX AI');
+ const loadingTabs=loading.props.children.find(child=>child?.props?.className==='lxw-mode-tabs');assert.equal(loadingTabs.props.children.length,2);assert.ok(loadingTabs.props.children.every(child=>child.props.disabled&&!child.props['aria-selected']),'two inert mode tabs remain present without claiming an unverified mode');
+ assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-context'),'legacy Business scope must not flash during scoped hydration');
+ const locked=loading.props.children.find(child=>child?.props?.className==='lourex-ai-compose');assert.ok(locked.props.children.every(child=>child.props.disabled),'typing and sending stay disabled until the current scope is hydrated');
+ assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-proposal'));
+ h.__workspaceObservedProps=h.props;k.scope.scope='personal';h.state.assistantScope='personal';assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');
  assert.equal(RegisteredWorkspaceCard({descriptor:{component:'javascript',rows:[]}}),null);
 });
 
@@ -154,6 +180,7 @@ test('workspace presentation localizes known validation failures without alterin
  const {workspaceText,workspaceError}=await import('../dist/src/lib/ai-workspace-presentation.js');
  assert.match(workspaceError(true,'Whole cartons and whole units per carton are required.'),/عددًا صحيحًا/);
  assert.match(workspaceError(true,'Flow needs a unique ID, currency, direction and date after baseline within horizon.'),/ضمن مدة السيناريو/);
+ const sizeError='Scanned PDF/image must be below 2.6 MB for safe AI analysis.';assert.match(workspaceError(true,sizeError),/2\.6 ميغابايت/);assert.equal(workspaceError(false,sizeError),sizeError);
  assert.equal(workspaceText(true,'customer-document'),'مستند العميل');assert.equal(workspaceText(false,'Business document draft'),'Business document draft');
  assert.equal(workspaceText(true,'My custom quote'),'My custom quote');assert.equal(workspaceText(true,'QUO-2026-0007'),'QUO-2026-0007');
 });

@@ -28,6 +28,17 @@ test('correction with no last exact edit and currency mismatch fail without edit
  assert.equal(reviseKernelDraft(k,p,'عدل line 3 وخليه 26 EUR',drafting,'en').changed,false);
  assert.equal(k.artifact.proposal.items[2].unitPrice,'25');
 });
+test('explicit conversational undo phrases restore drafts but combined or quoted requests do not',()=>{
+ for(const text of ['أرجع التعديل الأخير','ارجع التعديل الاخير','undo the last change','revert last change']){
+  const k=newConversationKernel(scope),p=proposal();stageKernelArtifact(k,p);
+  const changed=reviseKernelDraft(k,p,'set price item 2 to 26 USD',drafting,'en');
+  const undone=reviseKernelDraft(k,changed.proposal,text,drafting,'ar');assert.equal(undone.changed,true);assert.equal(undone.proposal.items[1].unitPrice,'25');assert.match(undone.message,/لم أحفظ/);
+ }
+ for(const text of ['أرجع التعديل الأخير واعتمد الفاتورة','explain undo the last change','"undo"']){
+  const k=newConversationKernel(scope),p=proposal();stageKernelArtifact(k,p);const changed=reviseKernelDraft(k,p,'set price item 2 to 26 USD',drafting,'en');
+  const before=structuredClone(k.artifact);const result=reviseKernelDraft(k,changed.proposal,text,drafting,'en');assert.ok(!result?.changed);assert.deepEqual(k.artifact,before);
+ }
+});
 test('selection is from a specific display list; previous uses the selected ID',()=>{
  const k=newConversationKernel(scope);assert.throws(()=>resolveKernelSelection(k,'الثاني'),/قائمة/);
  k.selection={id:'visible-1',items:[{entityType:'customer',entityId:'c10',label:'Duplicate'},{entityType:'customer',entityId:'c2',label:'Duplicate'}]};
@@ -119,7 +130,7 @@ async function runtimeHarness(){
  let runtimeSource=await readFile('dist/src/lib/ai-intelligence-runtime.js','utf8');
  runtimeSource=runtimeSource.replace(/import \{([\s\S]*?)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.__foundationRuntimeModules;`);
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(runtimeSource).toString('base64')+'#'+crypto.randomUUID());
- function host(){const h={props:{screen:'home',language:'ar'},mounted:true,state:{assistantScope:'business',messages:[],proposal:null,error:'',busy:false},__lourexAssistantThreadId:'t1',__lourexAssistantWorkspaceKey:'default|main',__lourexLoadPromise:Promise.resolve(),setState(update,done){Object.assign(this.state,typeof update==='function'?update(this.state):update);done?.();},async ask(raw){this.state.messages.push({role:'user',text:raw});if(raw==='prepare')this.state.proposal=proposal();},async approveProposal(){this.state.proposal=null;this.state.error='';}};runtime.installIntelligenceRuntime(h);return h;}
+ function host(legacyAsk){const h={props:{screen:'home',language:'ar'},mounted:true,state:{assistantScope:'business',messages:[],proposal:null,error:'',busy:false},__lourexAssistantThreadId:'t1',__lourexAssistantWorkspaceKey:'default|main',__lourexLoadPromise:Promise.resolve(),setState(update,done){Object.assign(this.state,typeof update==='function'?update(this.state):update);done?.();},async ask(raw){this.state.messages.push({role:'user',text:raw});if(raw==='prepare')this.state.proposal=proposal();else if(legacyAsk)await legacyAsk.call(this,raw);},async approveProposal(){this.state.proposal=null;this.state.error='';}};runtime.installIntelligenceRuntime(h);return h;}
  return{runtime,session,store,records,host};
 }
 test('real runtime adapter encrypts/reloads drafts and refuses approval replay after remount',async()=>{
@@ -138,6 +149,21 @@ test('runtime rejects stale approval and an in-flight double click without any d
  session.vault.customers=[];h.state.error='';let release;const pending=new Promise(resolve=>release=resolve);
  const one=runtime.intelligenceApprove(h,p,async()=>{writes++;await pending;return{id:'one',summary:'saved'};});
  const two=runtime.intelligenceApprove(h,p,async()=>{writes++;return{id:'two'};});release();await Promise.all([one,two]);assert.equal(writes,1);
+});
+test('conversational undo receives a fresh review and rejection cannot restore a superseded price',async()=>{
+ const {runtime,session,store,host}=await runtimeHarness();
+ const h=host(function(raw){const r=runtime.intelligenceReviseDraft(this,this.state.proposal,raw,drafting,'en');if(r?.changed)this.state.proposal=r.proposal;});
+ await h.ask('prepare');const original=h.state.proposal.foundationApproval.id;
+ await h.ask('set price item 2 to 26 USD');const edited=h.state.proposal.foundationApproval.id;assert.notEqual(edited,original);
+ h.state.__workspaceReviewedProposal=h.state.proposal;
+ await h.ask('undo');const restored=h.state.proposal;
+ assert.equal(restored.items[1].unitPrice,'25');assert.notEqual(restored.foundationApproval.id,original);assert.notEqual(restored.foundationApproval.id,edited);
+ assert.notEqual(h.state.__workspaceReviewedProposal,restored);
+ assert.equal(h.__intelligenceKernel.missions.flatMap(m=>m.steps).filter(s=>s.status==='needs_approval').length,1);
+ assert.equal(h.__intelligenceKernel.missions.flatMap(m=>m.steps).find(s=>s.approvalId===edited).status,'cancelled');
+ h.state.proposal=null;await runtime.dismissIntelligenceWorkspace(h,restored);
+ const persisted=await store.loadAssistantState(session.key);assert.ok(persisted.threads[0].kernel.missions.every(m=>m.steps.every(s=>s.status!=='needs_approval')));
+ const restarted=host();await restarted.ask('hello');assert.equal(restarted.state.proposal,null);assert.equal(restarted.__intelligenceKernel.artifact,undefined);assert.equal(session.vault.documents.length,0);
 });
 test('undo restores the same line IDs after removal; review envelope does not create duplicate undo',()=>{
  const k=newConversationKernel(scope),p=proposal();stageKernelArtifact(k,p);const ids=[...k.artifact.lineIds];

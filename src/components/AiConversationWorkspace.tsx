@@ -3,7 +3,7 @@ import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from '
 import { strictAiActor } from '../lib/ai-foundation-approval.js';
 import { CommercialWorkspace, MissionWorkspace } from './AiCommercialWorkspace.js';
 import { workspaceDocument, workspaceDrafting, validateWorkspaceCard, type WorkspaceCard, type WorkspaceComponent, type WorkspaceDocument, type WorkspaceCommand } from '../lib/ai-workspace-model.js';
-import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, assignIntelligenceConversationMode, currentAiExperiencePreferences, updateAiExperiencePreferences } from '../lib/ai-intelligence-runtime.js';
+import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, assignIntelligenceConversationMode, currentAiExperiencePreferences, updateAiExperiencePreferences, currentAiInterfaceLanguage } from '../lib/ai-intelligence-runtime.js';
 import { normalizeAiConversationMode, conversationModeDescription, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 import { kernelScopeKey, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { activeAccountStorageUid } from '../storage/db.js';
@@ -13,25 +13,57 @@ import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 // approval owners remain intact. All new presentation is precompiled TSX.
 type Host=any;
 const react=React as any;
+// Text is rendered as React nodes only. Never interpret provider HTML or links.
+function markdownInline(value:any,key:string):any {
+  if(typeof value!=='string')return value; // preserve scoped evidence callbacks
+  return value.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g).map((part,i)=>{
+    const id=key+'-'+i;
+    if(part.startsWith('**')&&part.endsWith('**'))return <strong key={id}>{part.slice(2,-2)}</strong>;
+    if(part.startsWith('`')&&part.endsWith('`'))return <code key={id}>{part.slice(1,-1)}</code>;
+    if(part.startsWith('*')&&part.endsWith('*'))return <em key={id}>{part.slice(1,-1)}</em>;
+    return part;
+  });
+}
+function markdownParagraphs(children:any[]):any[] {
+  const result:any[]=[];let list:any[]=[];let listType='';
+  const flush=()=>{if(list.length){result.push(react.createElement(listType,{key:'list-'+result.length},...list));list=[];listType='';}};
+  children=children.flatMap(child=>{
+    if(!react.isValidElement(child)||child.type!=='p')return [child];
+    const parts=react.Children.toArray(child.props.children);
+    if(!parts.every((part:any)=>typeof part==='string'))return [child];
+    // Some providers flatten paragraph separators. Recover explicit heading
+    // markers without inventing semantic blocks from ordinary punctuation.
+    return parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n').split(/\r?\n/).filter(Boolean).map((line:string,i:number)=>react.createElement('p',{key:i},line));
+  });
+  children.forEach((child,index)=>{
+    if(!react.isValidElement(child)||child.type!=='p'){flush();result.push(child);return;}
+    const parts=react.Children.toArray(child.props.children),first=typeof parts[0]==='string'?parts[0]:'';
+    const heading=first.match(/^\s*(#{1,6})\s+/),bullet=first.match(/^\s*(?:[-*•]|\d+[.)])\s+/);
+    if(heading||bullet)parts[0]=first.slice((heading||bullet)![0].length);
+    const formatted=parts.map((part:any,i:number)=>markdownInline(part,index+'-'+i));
+    if(bullet){const kind=/\d/.test(bullet[0])?'ol':'ul';if(listType&&listType!==kind)flush();listType=kind;list.push(<li key={index}>{formatted}</li>);}
+    else{flush();result.push(react.createElement(heading?((heading[1]||'').length<=2?'h3':'h4'):'p',{key:index},...formatted));}
+  });flush();return result;
+}
 const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
 const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy);
 function dispatch(host:Host,command:WorkspaceCommand){void updateIntelligenceWorkspace(host,command);}
-const aiUiAr=(host:Host):boolean=>{const pref=currentAiExperiencePreferences(host).interfaceLanguage;return pref==='ar'||(pref==='inherit'&&host.props.language==='ar');};
+const aiUiAr=(host:Host):boolean=>currentAiInterfaceLanguage(host)==='ar';
 function CardRows({card}:{card:WorkspaceCard}):any {
   return <dl className="lxw-facts">{card.rows.map(row=><div key={row.id}><dt>{row.label}</dt><dd>{row.detail||'—'}</dd></div>)}</dl>;
 }
-function Picker({card,onPick,busy}:{card:WorkspaceCard;onPick?:(id:string)=>void;busy?:boolean}):any {
+function Picker({card,onPick,busy,ar=false}:{ar?:boolean;card:WorkspaceCard;onPick?:(id:string)=>void;busy?:boolean}):any {
   const [query,setQuery]=React.useState(''),[page,setPage]=React.useState(0);
   const rows=card.rows.filter(row=>(row.label+' '+row.detail).normalize('NFKC').toLowerCase().includes(query.normalize('NFKC').toLowerCase()));
-  const ar=document.documentElement.lang==='ar',visible=rows.slice(page*12,page*12+12);
+  const visible=rows.slice(page*12,page*12+12);
   return <div className="lxw-picker"><input type="search" value={query} aria-label={label(ar,'Filter records','تصفية السجلات')} placeholder={label(ar,'Search name or SKU','ابحث بالاسم أو SKU')} onChange={(event:any)=>{setQuery(event.target.value);setPage(0);}}/><small>{rows.length} {label(ar,'matching records','سجل مطابق')}</small><div className="lxw-picker-list">{visible.map(row=><button type="button" key={row.id} disabled={busy||!onPick} onClick={()=>onPick?.(row.id)}><strong>{row.label}</strong><small>{row.detail}</small><code>{row.id}</code></button>)}{!rows.length?<p>{label(ar,'No matching records.','لا توجد سجلات مطابقة.')}</p>:null}</div>{rows.length>12?<nav className="lxw-pagination" aria-label={label(ar,'Record pages','صفحات السجلات')}><button type="button" disabled={page===0} onClick={()=>setPage(page-1)}>{label(ar,'Previous','السابق')}</button><span>{page+1} / {Math.ceil(rows.length/12)}</span><button type="button" disabled={(page+1)*12>=rows.length} onClick={()=>setPage(page+1)}>{label(ar,'Next','التالي')}</button></nav>:null}</div>;
 }
 const CARD_RENDERERS:Record<WorkspaceComponent,(props:any)=>any>={CustomerPicker:Picker,ProductPicker:Picker,EditablePricingGrid:CardRows,QuotePreview:CardRows,QuoteDiff:CardRows,AttachmentGallery:CardRows,EvidencePopover:CardRows,ApprovalDiff:CardRows,WorkflowProgress:CardRows,FinanceScenario:CardRows,SourceCompare:CardRows};
 /** Descriptors choose a registered display only. Callbacks come exclusively from the host. */
-export function RegisteredWorkspaceCard({descriptor,onPick,busy}:{descriptor:unknown;onPick?:(id:string)=>void;busy?:boolean}):any {
+export function RegisteredWorkspaceCard({descriptor,onPick,busy,ar=false}:{ar?:boolean;descriptor:unknown;onPick?:(id:string)=>void;busy?:boolean}):any {
   const card=validateWorkspaceCard(descriptor);if(!card)return null;
-  const Component=CARD_RENDERERS[card.component];return <section data-workspace-component={card.component}><Component card={card} onPick={onPick} busy={busy}/></section>;
+  const Component=CARD_RENDERERS[card.component];return <section data-workspace-component={card.component}><Component card={card} onPick={onPick} busy={busy} ar={ar}/></section>;
 }
 function CellEditor({value,numeric,onCommit,name,busy}:{value:string;numeric:boolean;onCommit:(value:string)=>void;name:string;busy:boolean}):any {
   const [input,setInput]=React.useState(value);
@@ -194,8 +226,9 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
   const actions=react.Children.toArray(approval.props?.children).find((child:any)=>
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const originalButtons=actions?react.Children.toArray((actions as any).props.children):[];
-  const confirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
-  const decline=originalButtons.filter((button:any)=>button!==confirm).map((button:any)=>dismissal.wrap(button));
+  const originalConfirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
+  const confirm=originalConfirm?react.cloneElement(originalConfirm,{'aria-label':label(ar,'Approve draft','اعتماد المسودة')},label(ar,'Approve draft','اعتماد المسودة')):null;
+  const decline=originalButtons.filter((button:any)=>button!==originalConfirm).map((button:any)=>react.cloneElement(dismissal.wrap(button),{'aria-label':label(ar,'Decline','رفض')},label(ar,'Decline','رفض')));
   return <section className="lxw-inline-approval" data-exiting={dismissal.exiting?'true':'false'} aria-label={label(ar,'Document approval suggestion','اقتراح اعتماد مستند')}>
     <div className="lxw-inline-approval-title">
       <strong>{label(ar,'Draft ready for review','المسودة جاهزة للمراجعة')}</strong>
@@ -227,7 +260,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const drafting=workspaceDrafting(vault,kernel.artifact?.proposal.capability==='document.updateDraft'?kernel.artifact.proposal.documentId:'');
   const pick=(kind:'customer'|'product',id:string)=>{if(doc?.status==='draft')dispatch(host,{kind,artifactId:doc.id,revision:doc.revision,entityId:id});};
   const evidence=host.__lourexLatestContext?.advisorV2?.evidence||[];
-  return <aside className="lxw-artifact" aria-label={label(ar,'Document workspace','مساحة المستند')}><header className="lxw-artifact-head"><div><strong>{workspaceText(ar,doc?.title||'')||label(ar,'Your workspace','مساحة عملك')}</strong><span className={'lxw-badge '+(doc?.status||'draft')}>{doc?.status==='saved'?label(ar,'Saved in LOUREX','محفوظ في LOUREX'):label(ar,'Draft · unsaved','مسودة · غير محفوظة')}</span></div><button type="button" className="lxw-back" onClick={()=>host.setState({__workspacePane:'chat',__workspaceOpen:false})}>{label(ar,'Back to chat','العودة للمحادثة')}</button></header><div className="lxw-view-navigation">
+  return <aside className="lxw-artifact" aria-label={label(ar,'Document workspace','مساحة المستند')}><header className="lxw-artifact-head"><div><strong>{workspaceText(ar,doc?.title||'')||label(ar,'Your workspace','مساحة عملك')}</strong><span className={'lxw-badge '+(doc?.status||'empty')}>{!doc?label(ar,'No document open','لا يوجد مستند مفتوح'):doc.status==='saved'?label(ar,'Saved in LOUREX','محفوظ في LOUREX'):label(ar,'Draft · unsaved','مسودة · غير محفوظة')}</span></div><button type="button" className="lxw-back" onClick={()=>host.setState({__workspacePane:'chat',__workspaceOpen:false})}>{label(ar,'Back to chat','العودة للمحادثة')}</button></header><div className="lxw-view-navigation">
     <nav className="lxw-view-groups" aria-label={label(ar,'Workspace areas','أقسام مساحة العمل')}>
       {viewGroups.map(group=><button key={group.id} type="button" aria-pressed={activeGroup.id===group.id} onClick={()=>chooseGroup(group.id)}>{group.label}</button>)}
     </nav>
@@ -246,16 +279,16 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
       </>}
     </section>:null}
     {(tab==='preview'||tab==='edit')&&!doc?<p>{label(ar,'Ask LOUREX to prepare a quotation, or open a saved document from the chat.','اطلب من LOUREX تجهيز عرض سعر، أو افتح مستندًا محفوظًا من المحادثة.')}</p>:null}
-    {tab==='customer'?<><h3>{label(ar,'Choose the exact customer','اختر العميل المحدد')}</h3><RegisteredWorkspaceCard descriptor={{component:'CustomerPicker',rows:drafting.customers.map(row=>({id:row.id,label:row.name,detail:row.preferredCurrency+' · '+row.paymentTerms}))}} busy={disabled(host)||doc?.status!=='draft'||kernel.artifact?.proposal.capability!=='document.createDraft'} onPick={id=>pick('customer',id)}/></>:null}
-    {tab==='product'?<><h3>{label(ar,'Add a product to this draft','أضف صنفًا لهذه المسودة')}</h3><RegisteredWorkspaceCard descriptor={{component:'ProductPicker',rows:drafting.items.map(row=>({id:row.id,label:row.name,detail:[row.sku,row.unit,row.lastUnitPrice,row.lastCurrency].filter(Boolean).join(' · ')}))}} busy={disabled(host)||doc?.status!=='draft'} onPick={id=>pick('product',id)}/><p className="lxw-note">{label(ar,'A recorded price is used only when its currency matches. Otherwise enter a price; no FX rate is inferred.','يستخدم السعر المسجل عند تطابق العملة فقط. خلاف ذلك أدخل السعر؛ لا يُفترض سعر صرف.')}</p></>:null}
+    {tab==='customer'?<><h3>{label(ar,'Choose the exact customer','اختر العميل المحدد')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'CustomerPicker',rows:drafting.customers.map(row=>({id:row.id,label:row.name,detail:row.preferredCurrency+' · '+row.paymentTerms}))}} busy={disabled(host)||doc?.status!=='draft'||kernel.artifact?.proposal.capability!=='document.createDraft'} onPick={id=>pick('customer',id)}/></>:null}
+    {tab==='product'?<><h3>{label(ar,'Add a product to this draft','أضف صنفًا لهذه المسودة')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'ProductPicker',rows:drafting.items.map(row=>({id:row.id,label:row.name,detail:[row.sku,row.unit,row.lastUnitPrice,row.lastCurrency].filter(Boolean).join(' · ')}))}} busy={disabled(host)||doc?.status!=='draft'} onPick={id=>pick('product',id)}/><p className="lxw-note">{label(ar,'A recorded price is used only when its currency matches. Otherwise enter a price; no FX rate is inferred.','يستخدم السعر المسجل عند تطابق العملة فقط. خلاف ذلك أدخل السعر؛ لا يُفترض سعر صرف.')}</p></>:null}
     {tab==='knowledge'?<KnowledgeWorkspace key={kernelScopeKey(kernel.scope)} host={host}/>:null}
     {tab==='reliability'?<ReliabilityWorkspace key={kernelScopeKey(kernel.scope)} host={host}/>:null}
     {tab==='diagnostics'?<DiagnosticsWorkspace key={kernelScopeKey(kernel.scope)} host={host}/>:null}
     {tab==='commercial'?<CommercialWorkspace key={doc?.id||'new'} host={host} doc={doc}/>:null}
     {tab==='missions'?<MissionWorkspace host={host}/>:null}
     {tab==='files'?<AttachmentGallery host={host}/>:null}
-    {tab==='revisions'?<><h3>{label(ar,'Latest revision diff','فروق آخر تعديل')}</h3><RegisteredWorkspaceCard descriptor={{component:'QuoteDiff',rows:(doc?.diff||[]).map((row,i)=>({id:String(i),label:fieldLabel(ar,row.field),detail:(row.before||'—')+' → '+(row.after||'—')}))}}/><p>{kernel.artifact?.undo.length||0} {label(ar,'earlier working revisions. Undo changes drafts only.','تعديل سابق في المسودة. التراجع يغير المسودة فقط.')}</p><RevisionTimeline host={host}/></>:null}
-    {tab==='evidence'?<><h3>{label(ar,'Evidence','الأدلة')}</h3><RegisteredWorkspaceCard descriptor={{component:'EvidencePopover',rows:evidence.map((row:any,i:number)=>({id:String(row.id||i),label:String(row.source||''),detail:String(row.fact||'')}))}}/>{!evidence.length?<p>{label(ar,'No evidence in the current response.','لا يوجد دليل في الرد الحالي.')}</p>:null}<span className="lxw-badge saved">{label(ar,'Scoped LOUREX evidence','أدلة LOUREX ضمن النطاق')}</span></>:null}
+    {tab==='revisions'?<><h3>{label(ar,'Latest revision diff','فروق آخر تعديل')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'QuoteDiff',rows:(doc?.diff||[]).map((row,i)=>({id:String(i),label:fieldLabel(ar,row.field),detail:(row.before||'—')+' → '+(row.after||'—')}))}}/><p>{kernel.artifact?.undo.length||0} {label(ar,'earlier working revisions. Undo changes drafts only.','تعديل سابق في المسودة. التراجع يغير المسودة فقط.')}</p><RevisionTimeline host={host}/></>:null}
+    {tab==='evidence'?<><h3>{label(ar,'Evidence','الأدلة')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'EvidencePopover',rows:evidence.map((row:any,i:number)=>({id:String(row.id||i),label:String(row.source||''),detail:String(row.fact||'')}))}}/>{!evidence.length?<p>{label(ar,'No evidence in the current response.','لا يوجد دليل في الرد الحالي.')}</p>:null}<span className="lxw-badge saved">{label(ar,'Scoped LOUREX evidence','أدلة LOUREX ضمن النطاق')}</span></>:null}
     {approval&&doc?.status==='draft'?<section className="lxw-approval" data-workspace-component="ApprovalDiff">
       <h3>{label(ar,'Review before saving','راجع قبل الحفظ')}</h3>
       <p>{label(ar,'Check the full contents, missing data and differences. Confirm review to reveal the decision buttons in chat.','افحص جميع البنود والبيانات الناقصة والفروق، ثم أكّد المراجعة لإظهار زري القرار في المحادثة.')}</p>
@@ -269,14 +302,54 @@ function workspaceVisible(host:Host):boolean {
   try{strictAiActor(v);}catch{return false;}
   return k.scope.accountId===(activeAccountStorageUid()||'')&&k.scope.scope===(host.state.assistantScope||'business')&&k.scope.threadId===host.__lourexAssistantThreadId&&k.scope.workspaceId===(v.appSettings.activeWorkspaceId||'default')&&k.scope.branchId===(v.appSettings.activeBranchId||'main');
 }
+export function clearConversationToolPresentation(host:Host):void {
+  host.__lourexToolPresentation=null;
+  host.__lourexLastToolAudit='';
+  host.__foundationToolOutcomes=[];
+}
+function conversationModeTabs(host:Host,mode:AiConversationMode|undefined,locked:boolean):any {
+  const ar=aiUiAr(host);
+  return <nav className="lxw-mode-tabs" role="tablist" aria-label={label(ar,'Conversation modes','نوع المحادثة')}>
+    {(['controller','advisor'] as const).map(value=><button key={value} type="button" role="tab" aria-selected={mode===value} disabled={locked} onClick={()=>void host.__workspaceSwitchMode?.(value)}>{value==='controller'?label(ar,'Controller','المتحكم'):label(ar,'Advisor','المستشار')}</button>)}
+  </nav>;
+}
 export function renderConversationWorkspace(host:Host,tree:any):any {
   const transform=(node:any):any=>{
     if(typeof node==='string')return workspaceText(aiUiAr(host),node);
     if(!react.isValidElement(node))return node;
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    if(cn.split(' ').includes('lourex-ai-busy'))return react.cloneElement(node,undefined,label(aiUiAr(host),'LOUREX AI is reviewing…','LOUREX AI يراجع الطلب…'));
+    if(cn.split(' ').includes('lourex-ai-premium-textarea')){
+      const prompt=label(aiUiAr(host),'Ask LOUREX…','اسأل LOUREX…');
+      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt});
+    }
+    if(cn.split(' ').includes('lourex-ai-message-action')){
+      const actions:Record<string,[string,string]>={copy:['Copy','نسخ'],edit:['Edit','تعديل'],retry:['Retry','إعادة المحاولة'],reask:['Re-ask','اسأل مجددًا'],helpful:['Helpful','مفيد'],'not-helpful':['Not helpful','غير مفيد'],more:['More','المزيد']};
+      const action=Object.entries(actions).find(([key])=>cn.split(' ').includes('is-'+key));
+      if(action){const name=label(aiUiAr(host),...action[1]);return react.cloneElement(node,{'aria-label':name,title:name},...children);}
+    }
+    if(cn.split(' ').includes('lourex-ai-close'))return react.cloneElement(node,{'aria-label':label(aiUiAr(host),'Close','إغلاق'),title:label(aiUiAr(host),'Close','إغلاق')},...children);
+    if(cn.split(' ').includes('lourex-ai-overflow-trigger'))return react.cloneElement(node,{'aria-label':label(aiUiAr(host),'Conversation menu','قائمة المحادثة')},...children);
+    if(cn.split(' ').includes('lourex-ai-overflow-menu')){
+      const names=[label(aiUiAr(host),'New conversation','محادثة جديدة'),label(aiUiAr(host),'Conversations','المحادثات')];
+      return react.cloneElement(node,undefined,...children.map((button:any,i:number)=>{
+        if(!react.isValidElement(button)||!names[i])return button;
+        const parts=react.Children.toArray(button.props.children);
+        return react.cloneElement(button,undefined,parts[0],<span>{names[i]}</span>);
+      }));
+    }
+    if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
+    if(cn.split(' ').includes('lourex-ai-message')&&(cn.split(' ').includes('user')||cn.split(' ').includes('assistant'))){
+      const sender=cn.split(' ').includes('user')?'user':'assistant';
+      const actions=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
+      const content=children.filter((child:any)=>!actions.includes(child));
+      // Keep the bubble sized to its content. Action controls remain outside it
+      // and retain their original copy/edit/retry/evidence callbacks.
+      return react.createElement('div',{className:'lxw-message-turn is-'+sender},react.cloneElement(node,{dir:'auto'},...content),...actions);
+    }
     if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
-    if(cn.split(' ').includes('lourex-ai-head')&&workspaceVisible(host)){
-      const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
+    if(cn.split(' ').includes('lourex-ai-head')){
+      const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" disabled={!workspaceVisible(host)} aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
       return react.cloneElement(node,undefined,...children.slice(0,-1),settings,...children.slice(-1));
     }
     if(cn.split(' ').includes('lourex-ai-title')){
@@ -300,6 +373,10 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       const documentId=host.state.messages?.find((message:any)=>message.artifact?.document?.number===number)?.artifact?.document?.id;
       if(documentId)return react.cloneElement(node,undefined,...children,<button type="button" onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:documentId})}>{label(aiUiAr(host),'Read-only preview','معاينة للقراءة')}</button>);
     }
+    if(cn.split(' ').includes('lourex-ai-empty')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
+      const ar=aiUiAr(host),prompts=ar?['أعطني ملخص الأعمال اليوم','أنشئ مسودة عرض سعر']:['Give me today’s business brief','Create a quotation draft'];
+      return react.cloneElement(node,undefined,<strong>{label(ar,'What would you like to work on?','ما الذي تريد إنجازه؟')}</strong>,<p>{label(ar,'Discuss your business, review documents and prepare changes. Nothing is saved without your approval.','ناقش أعمالك، راجع المستندات وجهّز التعديلات. لن يُحفظ أي تغيير دون موافقتك.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} disabled={disabled(host)} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
+    }
     if(cn.split(' ').includes('lourex-ai-empty')&&host.state.assistantScope==='personal'){
       const ar=aiUiAr(host),prompts=ar?['ذكرني غدًا بمراجعة أهدافي','ما الذي تتذكره عن تفضيلاتي؟']:['Remind me tomorrow to review my goals','What do you remember about my preferences?'];
       return react.cloneElement(node,undefined,<strong>{label(ar,'Your personal assistant','مساعدك الشخصي')}</strong>,<p>{label(ar,'Plan tasks and manage personal reminders and preferences in this separate conversation.','نظّم مهامك وتذكيراتك وتفضيلاتك الشخصية في هذه المحادثة المستقلة.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
@@ -316,34 +393,44 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(!workspaceVisible(host)){
       const k=host.__intelligenceKernel as ConversationKernel|undefined;
       const personalReady=k?.scope.scope==='personal'&&host.state.assistantScope==='personal'&&host.__workspaceObservedProps===host.props&&k.scope.accountId===(activeAccountStorageUid()||'')&&k.scope.threadId===host.__lourexAssistantThreadId;
-      const safe=personalReady?children:children.map((child:any)=>{
+      const withoutLegacyScope=children.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
+      const lockComposer=(child:any):any=>{
+        if(!react.isValidElement(child))return child;
+        const props=['button','input','textarea','select'].includes(child.type)?{disabled:true}:{};
+        return react.cloneElement(child,props,...react.Children.toArray(child.props?.children).map(lockComposer));
+      };
+      const safe=personalReady?withoutLegacyScope:withoutLegacyScope.map((child:any)=>{
         const classes=String(child?.props?.className||'').split(' ');
         if(classes.includes('lourex-ai-proposal'))return null;
+        if(classes.includes('lourex-ai-compose'))return lockComposer(child);
         if(classes.includes('lourex-ai-messages'))return react.cloneElement(child,undefined,host.state.__workspaceLoadError
           ?<div role="alert" className="lxw-load-error"><p>{label(aiUiAr(host),'Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><small>{workspaceError(aiUiAr(host),String(host.state.__workspaceLoadError))}</small><button type="button" onClick={()=>host.setState({__workspaceLoadError:''},()=>void host.__workspaceRefresh?.())}>{label(aiUiAr(host),'Retry loading','إعادة المحاولة')}</button></div>
           :<p role="status">{label(aiUiAr(host),'Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
         return child;
       });
-      return react.cloneElement(node,{'data-lourex-workspace':'2','data-workspace-ready':'false'},...safe);
+      const ar=aiUiAr(host);
+      const heads=safe.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-head')).map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],<span className="lxw-header-slot" aria-hidden="true"/>,...parts.slice(1));});
+      const body=safe.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-head'));
+      return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-workspace-ready':'false'},...heads,conversationModeTabs(host,undefined,true),<div className="lxw-mode-description" role="status">{label(ar,'Loading conversation…','جارٍ تحميل المحادثة…')}</div>,...body);
     }
     const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
-    const header=children.filter((child:any)=>['lourex-ai-head','lourex-ai-context'].some(name=>String(child?.props?.className||'').split(' ').includes(name)));
-    const content=children.filter((child:any)=>!header.includes(child));
+    const legacyContext=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
+    const header=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-head'));
+    const content=children.filter((child:any)=>!header.includes(child)&&!legacyContext.includes(child));
     const proposalNode=content.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
     const approval=['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability)?proposalNode:null;
     const generalProposal=proposalNode&&!approval?proposalNode:null;
     const mode=normalizeAiConversationMode(k.mode),open=mode==='controller'&&Boolean(host.state.__workspaceOpen),pane=host.state.__workspacePane||'chat';
     const switching=Boolean(host.state.__workspaceSwitching),inactive=disabled(host)||switching;
-    const tabs=<nav className="lxw-mode-tabs" role="tablist" aria-label={label(ar,'Conversation modes','نوع المحادثة')}>
-      {(['controller','advisor'] as const).map(value=><button key={value} type="button" role="tab" aria-selected={mode===value} disabled={inactive} onClick={()=>void host.__workspaceSwitchMode?.(value)}>{value==='controller'?label(ar,'Controller','المتحكم'):label(ar,'Advisor','المستشار')}</button>)}
-    </nav>;
+    const tabs=conversationModeTabs(host,mode,inactive);
     const description=<div className="lxw-mode-description" dir={ar?'rtl':'ltr'} aria-live="polite">
       <span className="lxw-mode-symbol" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{mode==='controller'?<><path d="M4 7h16M4 17h16"/><path d="M8 4v6M16 14v6"/></>:<><path d="M20 11.5a8 8 0 0 1-8.5 8 8 8 0 0 1-3.8-1L4 20l1.5-3.7A8 8 0 1 1 20 11.5Z"/><path d="M8 11h8M8 14h5"/></>}</svg></span>
       <span>{conversationModeDescription(mode,ar?'ar':'en')}</span>
     </div>;
-    const toolbar=mode==='controller'?<div className="lxw-toolbar"><button type="button" disabled={inactive} aria-expanded={open} onClick={()=>host.setState({__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}>{label(ar,'Workspace','مساحة العمل')}{k.artifact?' · '+k.artifact.revision:''}</button></div>:null;
+    const toolbar=mode==='controller'?<button type="button" className="lxw-workspace-trigger" disabled={inactive} aria-label={label(ar,'Workspace','مساحة العمل')} title={label(ar,'Workspace','مساحة العمل')} aria-expanded={open} onClick={()=>host.setState({__workspaceSettingsOpen:false,__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>:<span className="lxw-header-slot" aria-hidden="true"/>;
+    const compactHeader=header.map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],toolbar,...parts.slice(1));});
     const safeContent=content.filter((child:any)=>child!==proposalNode);
-    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...header,tabs,description,toolbar,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}{mode==='controller'&&generalProposal?<InlineGeneralProposal host={host} proposalNode={generalProposal} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}{mode==='controller'&&generalProposal?<InlineGeneralProposal host={host} proposalNode={generalProposal} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
@@ -385,13 +472,13 @@ export function installConversationWorkspace(host:Host):void {
   };
   const toggle=host.toggle.bind(host);host.toggle=()=>{const opening=!host.state.open;toggle();if(opening)void refresh();};
   const ask=host.ask.bind(host);host.ask=async(raw?:string)=>{if(host.__workspaceModeSwitchBusy)return;await ask(raw);if(host.state.open)await refresh();};
-  const dismiss=host.dismissProposal.bind(host);host.dismissProposal=()=>{if(disabled(host))return;dismiss();void dismissIntelligenceWorkspace(host).catch((error:Error)=>host.setState({error:error.message}));};
+  const dismiss=host.dismissProposal.bind(host);host.dismissProposal=()=>{if(disabled(host)||host.__foundationApprovalBusy)return;const proposal=host.state.proposal;dismiss();void dismissIntelligenceWorkspace(host,proposal).catch((error:Error)=>host.setState({error:error.message}));};
   // Immediately remove volatile UI references during scope/thread changes. Hydrate
   // the requested thread before redisplaying its encrypted working artifact.
   for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
     const old=host[name]?.bind(host);if(!old)continue;
     if(name==='__lourexSetScope')host.__workspaceBaseSetScope=old;
-    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
+    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
   }
   // Each mode opens its own scoped thread. Never relabel an existing turn.
   const drafts=new Map<string,string>();
@@ -410,11 +497,12 @@ export function installConversationWorkspace(host:Host):void {
       if(!host.__intelligenceKernel)throw new Error('The selected conversation could not be loaded.');
       if(normalizeAiConversationMode(host.__intelligenceKernel.mode)!==target)await assignIntelligenceConversationMode(host,target);
       const current=host.__intelligenceKernel as ConversationKernel;
-      host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSwitching:false,__workspaceSettingsOpen:false});
+      host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSettingsOpen:false});
     }catch(error){
-      host.setState({__workspaceSwitching:false,error:error instanceof Error?error.message:String(error)});
+      host.setState({error:error instanceof Error?error.message:String(error)});
     }finally{
       host.__workspaceModeSwitchBusy=false;host.__workspaceInternalModeSwitch=false;
+      host.setState({__workspaceSwitching:false});
     }
   };
   host.__workspaceRefresh=refresh;
@@ -429,6 +517,6 @@ function syncWorkspaceViewport():void {
 }
 export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
-  if(previous!==host.props){host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
+  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
 }
 export function unmountConversationWorkspace(host:Host):void {host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}

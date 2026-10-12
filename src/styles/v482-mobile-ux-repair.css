@@ -153,15 +153,8 @@
     overflow:hidden!important;
   }
   html body #lourex-ai-panel .lourex-ai-head{
-    display:grid!important;
-    grid-template-columns:minmax(0,1fr) auto!important;
-    align-items:center!important;
-    min-height:80px!important;
-    padding:12px 14px!important;
-    gap:10px!important;
   }
   html body #lourex-ai-panel .lourex-ai-title{
-    min-width:0!important;
     overflow:hidden!important;
   }
   html body #lourex-ai-panel .lourex-ai-title strong{
@@ -181,12 +174,7 @@
     line-height:1.4!important;
   }
   html body #lourex-ai-panel .lourex-ai-head-actions{
-    display:flex!important;
-    align-items:center!important;
     justify-content:flex-end!important;
-    gap:6px!important;
-    min-width:0!important;
-    max-width:min(48vw,190px)!important;
   }
   html body #lourex-ai-panel .lourex-ai-new-conversation{
     width:auto!important;
@@ -368,9 +356,9 @@
   html body #root .app-ui .ta-sheet-group>p{grid-column:1/-1!important;}
   html body #root .app-ui .ta-sheet-link-copy{min-width:0!important;}
   html body #root .app-ui .ta-sheet-link-copy strong{overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;}
-  html body #lourex-ai-panel .lourex-ai-head{padding:10px 12px!important;gap:6px!important;}
+  html body #lourex-ai-panel .lourex-ai-head{}
   html body #lourex-ai-panel .lourex-ai-title small{display:none!important;}
-  html body #lourex-ai-panel .lourex-ai-head-actions{max-width:52vw!important;gap:4px!important;}
+  html body #lourex-ai-panel .lourex-ai-head-actions{}
   html body #lourex-ai-panel .lourex-ai-new-conversation{max-width:106px!important;padding-inline:8px!important;font-size:10.5px!important;}
   html body .global-search-destinations{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
 }

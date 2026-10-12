@@ -12,7 +12,7 @@ runtime+=`
 ;(()=>{'use strict';
 const __lourexConversationDesignBatch2=true;
 let scheduled=false;
-const isAr=()=>document.documentElement.lang==='ar'||document.documentElement.dir==='rtl';
+const isAr=()=>{const language=panel()?.getAttribute('data-ai-ui-language');return language==='ar'||(language!=='en'&&(document.documentElement.lang==='ar'||document.documentElement.dir==='rtl'));};
 const panel=()=>document.getElementById('lourex-ai-panel');
 
 function closeScopeMenu(root,returnFocus=false){
@@ -88,10 +88,11 @@ function decorateToolActivity(){
     if(!(card instanceof HTMLElement))return;
     const head=card.querySelector('.lourex-ai-tool-activity-head');
     if(!(head instanceof HTMLElement))return;
+    const disclosureLabel=isAr()?'إظهار أو إخفاء تفاصيل نشاط LOUREX':'Show or hide LOUREX activity details';
+    if(head.getAttribute('aria-label')!==disclosureLabel)head.setAttribute('aria-label',disclosureLabel);
     if(card.dataset.lourexDesign2==='true')return;
     card.dataset.lourexDesign2='true';
     head.setAttribute('role','button');head.setAttribute('tabindex','0');head.setAttribute('aria-expanded','false');
-    head.setAttribute('aria-label',isAr()?'إظهار أو إخفاء تفاصيل نشاط LOUREX':'Show or hide LOUREX activity details');
     const chevron=document.createElement('span');chevron.className='lourex-ai-tool-disclosure';chevron.setAttribute('aria-hidden','true');chevron.textContent='⌄';head.append(chevron);
     const toggle=()=>{
       const expanded=!card.classList.contains('is-expanded');

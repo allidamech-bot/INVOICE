@@ -24,8 +24,8 @@ for(const source of [null,{},[],undefined])test(`missing generic source (${JSON.
 test('mixed file selection preserves ten sources and enforces count and total budgets',()=>{
  const h=fixture(),files=[new File(['a'],'a.txt',{type:'text/plain'}),new File(['a,b'],'b.csv',{type:'text/csv'}),new File([new Uint8Array(signatures[0][2])],'c.png',{type:'image/png'}),new File([new Uint8Array(signatures[3][2])],'d.pdf',{type:'application/pdf'})];const ten=Array.from({length:10},(_,i)=>files[i%4]);assert.deepEqual([...h.validateConversationFiles(ten)],ten);assert.throws(()=>h.validateConversationFiles([...ten,files[0]]),/up to 10/);assert.throws(()=>h.validateConversationFiles([{size:16_000_001}]),/16 MB/);
 });
-function generatedFunction(name,globals={}){
- const path='dist/src/components/AiCopilot.js',source=read(path),ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);let fn;function visit(n){if(ts.isFunctionDeclaration(n)&&n.name?.text===name)fn=n;ts.forEachChild(n,visit);}visit(ast);assert.ok(fn,'actual final emitted function');const ctx={AbortController,DOMException,...globals};vm.runInNewContext(fn.getText(ast)+'\nthis.run='+name+';',ctx);return ctx.run;
+function generatedFunction(name,globals={},path='dist/src/components/AiCopilot.js'){
+ const source=read(path),ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);let fn;function visit(n){if(ts.isFunctionDeclaration(n)&&n.name?.text===name)fn=n;ts.forEachChild(n,visit);}visit(ast);assert.ok(fn,'actual final emitted function');const ctx={AbortController,DOMException,...globals};vm.runInNewContext(fn.getText(ast)+'\nthis.run='+name+';',ctx);return ctx.run;
 }
 function instance(){return{mounted:true,state:{conversationAttachments:[{id:'row',status:'ready',file:{name:'a.txt'}}]},setState(change){this.state={...this.state,...(typeof change==='function'?change(this.state):change)};}};}
 test('cancelled older analysis cannot clear the newer controller or busy state, or install a late source',async()=>{
@@ -51,6 +51,15 @@ for(const webKit of [false,true])test(`emitted voice owner (${webKit?'WebKit':'d
 });
 test('emitted voice owner reports denied permission without retrying',()=>{
  const f=voiceFixture(),recognition={start(){throw Object.assign(Error('denied'),{name:'NotAllowedError'});}};f.ctx.recognition=recognition;f.ctx.start(recognition,f.panel);assert.equal(f.timers.length,0);assert.equal(f.stops.length,1);assert.equal(f.stops[0][3],'voiceDenied');
+});
+test('voice permission error stays actionable until replaced while completion still auto-hides',()=>{
+ class Element{constructor(){this.dataset={};this.tokens=new Set();this.classList={toggle:(name,on)=>on?this.tokens.add(name):this.tokens.delete(name),remove:(...names)=>names.forEach(name=>this.tokens.delete(name))};}setAttribute(){}querySelector(){return this.copy;}}
+ const status=new Element(),mic=new Element(),timers=[];status.copy={textContent:''};
+ const panel={querySelector:selector=>selector.includes('voice-status')?status:mic};
+ const run=generatedFunction('composerStatus',{HTMLElement:Element,HTMLButtonElement:Element,messageFor:(_panel,key)=>key,statusSequence:0,window:{setTimeout:callback=>timers.push(callback)}},'dist/ai-composer-v449.js');
+ run(panel,'error','voiceDenied',4200);assert.equal(timers.length,0);assert.equal(status.dataset.messageKey,'voiceDenied');assert.ok(status.tokens.has('is-visible'));assert.ok(status.tokens.has('is-error'));
+ run(panel,'starting','starting');assert.equal(status.dataset.state,'starting');assert.ok(!status.tokens.has('is-error'));
+ run(panel,'done','voiceAdded',1200);assert.equal(timers.length,1);timers[0]();assert.ok(!status.tokens.has('is-visible'));assert.equal(status.dataset.state,'');
 });
 test('voice retry cannot restart an obsolete recognition instance after cancellation or panel removal',()=>{
  const f=voiceFixture();let calls=0;const recognition={start(){calls++;throw Object.assign(Error('busy'),{name:'InvalidStateError'});}};f.ctx.recognition=recognition;f.ctx.start(recognition,f.panel);f.ctx.recognition=null;f.timers.shift()();assert.equal(calls,1);f.ctx.recognition=recognition;f.panel.isConnected=false;f.ctx.start(recognition,f.panel);assert.equal(calls,1);
@@ -86,4 +95,14 @@ test('compiled conversation analyzer uses two workers at most and retains origin
  assert.deepEqual(Array.from(analyses,x=>x.source.id),['1','2','3','4']);
  assert.equal(h.state.attachmentBusy,false);
  assert.ok(h.state.conversationAttachments.every(row=>row.status==='done'));
+});
+test('one failed extraction resets cancelled sibling progress and allows a clean retry',async()=>{
+ const pending=[];let fail=true;
+ const run=generatedFunction('__lourexAnalyzeAttachments',{analyzeConversationAttachment:(file,_signal,progress)=>fail?new Promise((resolve,reject)=>pending.push({file,resolve,reject,progress})):Promise.resolve({file,source:{id:file.name}})});
+ const h=instance(),rows=[{id:'pdf',status:'ready',file:{name:'test.pdf'}},{id:'image',status:'ready',file:{name:'test.png'}}],retained={id:'older',status:'done',source:{id:'verified'},file:{name:'old.txt'}};
+ h.state.conversationAttachments=[...rows,retained];const job=run(h,rows),rejection=assert.rejects(job,/provider unavailable/);
+ pending[1].progress('extracting');pending[0].reject(new Error('provider unavailable'));await rejection;
+ assert.equal(h.state.attachmentBusy,false);assert.equal(h.state.conversationAttachments[0].status,'error');assert.equal(h.state.conversationAttachments[1].status,'ready');assert.equal(h.state.conversationAttachments[1].phase,undefined);assert.equal(h.state.conversationAttachments[2],retained);
+ const stable=JSON.stringify(h.state);pending[1].progress('complete');pending[1].resolve({file:rows[1].file,source:{id:'stale'}});await new Promise(resolve=>setImmediate(resolve));assert.equal(JSON.stringify(h.state),stable,'aborted worker cannot resurrect progress or install a stale source');
+ fail=false;const retry=await run(h,h.state.conversationAttachments.slice(0,2));assert.deepEqual(Array.from(retry,x=>x.source.id),['test.pdf','test.png']);assert.ok(h.state.conversationAttachments.every(row=>row.status==='done'));assert.equal(h.state.attachmentBusy,false);
 });

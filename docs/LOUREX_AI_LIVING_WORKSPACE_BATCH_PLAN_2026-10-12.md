@@ -1,3 +1,5 @@
+> **Current post-release update (2026-10-12):** PRs #703–#706 are merged; Production baseline is `ff512a8`. The entries below describe delivery history, including superseded Draft statuses. The current assistant-only contract is independent black chrome in all site themes, Controller/Advisor only, and no visible Business scope dropdown. Internal data isolation and historical conversations remain intact. See `LOUREX_AI_LIVING_WORKSPACE_RELEASE_QA.md` for the current evidence and blocked acceptance of Draft PR #708.
+
 # LOUREX AI — Living Workspace: Approved Design & Delivery Ledger
 
 **Baseline:** `main` at `27ed9d54f615ecfea8dd73ab34fc072d3a4dcfa3` (checked 2026-10-12). The new experience is not yet shipped.  

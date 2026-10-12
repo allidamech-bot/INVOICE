@@ -3,7 +3,7 @@ import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory
 import { financialReviewAllowed } from './ai-reliability-intelligence.js';
 import { loadAssistantMemory, scopedAssistantMemories } from '../storage/assistant-memory-store.js';
 import { commercialDraftCommand, savedDocumentPreviewId } from './ai-commercial-conversation.js';
-import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, type MissionStep } from './ai-mission-runner.js';
+import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
 import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor } from './ai-foundation-approval.js';
@@ -24,6 +24,10 @@ let storeQueue:Promise<unknown>=Promise.resolve();
 const flush=(host:Host)=>new Promise<void>(resolve=>host.setState({},resolve));
 const currentConversationMode=(host:Host):AiConversationMode=>normalizeAiConversationMode(host.__intelligenceKernel?.mode);
 export const currentAiExperiencePreferences=(host:Host):AiConversationExperiencePreferences=>normalizeAiConversationPreferences(host.__aiConversationPreferences||DEFAULT_AI_CONVERSATION_PREFERENCES);
+export function currentAiInterfaceLanguage(host:Host):'ar'|'en'{
+  const preference=currentAiExperiencePreferences(host).interfaceLanguage;
+  return preference==='ar'||(preference==='inherit'&&host.props.language==='ar')?'ar':'en';
+}
 function scopeFor(host:Host,vault:VaultPayload):KernelScope{
   const scope=host.state.assistantScope||'business';
   const runtime=prepareAssistantContext(vault,host.props.screen,'',null,scope).runtime;
@@ -135,10 +139,14 @@ async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Prom
   }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
   finally{host.__workspaceCommandBusy=false;await flush(host);}
 }
-export async function dismissIntelligenceWorkspace(host:Host):Promise<void>{
-  if(host.__workspaceCommandBusy||host.applying||host.state.busy)return;
+export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state.proposal||host.__intelligenceKernel?.artifact?.proposal):Promise<void>{
+  if(host.__workspaceCommandBusy||host.__foundationApprovalBusy||host.applying||host.state.busy)return;
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  const steps=proposal?.capability==='tool.plan'?proposal.steps:[proposal];
+  const cancelled=new Set();
+  for(const step of steps||[]){const found=missionStep(kernel?.missions||[],step);if(found&&!cancelled.has(found.mission)){cancelMission(found.mission);cancelled.add(found.mission);}}
   if(host.__intelligenceKernel)host.__intelligenceKernel.artifact=undefined;
-  host.setState({proposal:null,review:null,__workspaceSavedId:'',__workspaceEditing:false});await flush(host);await persistKernel(host);
+  host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceSavedId:'',__workspaceEditing:false});await flush(host);await persistKernel(host);
 }
 /** Encrypted AI-only preferences are account-scoped and independent from
  * LOUREX site locale. Uses the same serialized store queue as chat persistence
@@ -227,7 +235,11 @@ export function intelligenceRequestMessage(host:Host,message:string,legacy:strin
 export function intelligenceReviseDraft(host:Host,proposal:any,message:string,drafting:any,language:'en'|'ar'){
   if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot revise documents. Switch to Controller.');
   const kernel=host.__intelligenceKernel as ConversationKernel;
-  return reviseKernelDraft(kernel,proposal,message,drafting,language);
+  const revised=reviseKernelDraft(kernel,proposal,message,drafting,resolveAiConversationReplyLanguage(currentAiExperiencePreferences(host).replyLanguage,message,language));
+  // Undo may restore a snapshot with a cancelled review envelope. Every actual
+  // revision needs a new identity, even when its prices equal an earlier draft.
+  if(revised?.changed){delete (revised.proposal as any).foundationApproval;if(kernel.artifact)delete (kernel.artifact.proposal as any).foundationApproval;}
+  return revised;
 }
 export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_approval'|'failed'|'blocked'; toolId:string; data:unknown; evidenceRefs:string[]; }
 export function foundationToolOutcomes(result:AiToolOrchestrationResult):FoundationToolOutcome[]{return result.results.map(row=>({callId:row.id,state:row.ok?(row.class==='execute'?'needs_approval':'prepared'):row.class==='high-impact'?'blocked':'failed',toolId:row.tool,data:row.data,evidenceRefs:[row.source]}));}
@@ -237,7 +249,12 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
   const responseLanguage=resolveAiConversationReplyLanguage(preferences.replyLanguage,input.message,input.language);
   const result=await orchestrateAiToolRequest({...input,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
   const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
-  if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
+  if(result){
+    // The final legacy formatter must preserve the reply locale already resolved
+    // from the user's question and independent AI answer preference.
+    (result as any).foundationReplyLanguage=responseLanguage;
+    (result as any).foundationInterfaceLanguage=currentAiInterfaceLanguage(host);
+    host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
     kernel.toolEvidence=host.__foundationToolOutcomes.map((row:FoundationToolOutcome)=>({...row,at:new Date().toISOString()}));
     const search=result.results.find(row=>row.ok&&row.tool==='search.records');

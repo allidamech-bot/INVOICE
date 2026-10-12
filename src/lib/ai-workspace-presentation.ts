@@ -1,5 +1,7 @@
 /** Presentation only: never translate identifiers, user text or planner contracts. */
 const arabic:Record<string,string>={
+  '＋ New conversation':'＋ محادثة جديدة',
+  'Conversations':'المحادثات',
   'Business document draft':'مسودة مستند تجاري',
   'Prepared by user in the conversation workspace.':'جهّزت هذه المسودة من مساحة المحادثة؛ راجعها قبل الحفظ.',
   'Draft revised; review the new revision.':'تغيّرت المسودة؛ راجع التعديل الجديد.',
@@ -7,6 +9,13 @@ const arabic:Record<string,string>={
   'Whole cartons and whole units per carton are required.':'أدخل عددًا صحيحًا موجبًا للكراتين والوحدات في كل كرتون.',
   'Enter an explicit valid decimal. / أدخل رقمًا عشريًا واضحًا.':'أدخل رقمًا عشريًا صالحًا دون اختصارات أو أسس.',
   'Use a three-letter currency.':'أدخل رمز العملة من ثلاثة أحرف، مثل USD.',
+  'Scanned PDF/image must be below 2.6 MB for safe AI analysis.':'يجب أن يقل حجم الصورة أو PDF الممسوح عن 2.6 ميغابايت لتحليله بأمان.',
+  'PDF must be 12 MB or smaller.':'حجم ملف PDF يجب ألا يتجاوز 12 ميغابايت.',
+  'Text file is too large.':'الملف النصي كبير جدًا؛ الحد الأقصى ميغابايت واحد.',
+  'Text file is empty.':'الملف النصي فارغ؛ اختر ملفًا يحتوي نصًا.',
+  'Attached files exceed the 16 MB conversation limit.':'مجموع المرفقات يتجاوز حد المحادثة البالغ 16 ميغابايت.',
+  'Attach up to 10 files at a time.':'يمكن إرفاق 10 ملفات كحد أقصى في المرة الواحدة.',
+  'Attachment content does not match its PDF/image type. Choose a valid supported file.':'محتوى المرفق لا يطابق نوع PDF أو الصورة؛ اختر ملفًا صالحًا ومدعومًا.',
   'An explicit valid valuation date is required.':'أدخل تاريخ تقييم صالحًا بصيغة YYYY-MM-DD.',
   'Use a supported Incoterm and an explicit named place.':'أدخل شرط تسليم معتمدًا واسم المكان أو الميناء.',
   'Choose a valid review date.':'اختر تاريخ مراجعة صالحًا.',
