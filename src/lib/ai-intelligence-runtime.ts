@@ -272,6 +272,17 @@ function stageReviewedMission(kernel:ConversationKernel,proposal:any):void{
   if(all.length>=10){const i=all.findIndex(m=>m.steps.every(s=>['completed','cancelled'].includes(s.status)));if(i<0)throw new Error('Review or cancel pending missions before preparing another.');all.splice(i,1);}
   kernel.missions=[...all,createMission(kernel.scope,proposal,kernel.toolEvidence||[])];
 }
+/** Match the exact visible proposal or a step of its currently displayed plan.
+ * A stale proposal cannot become actionable just because its envelope was valid. */
+function approvalIsCurrent(host:Host,proposal:any):boolean{
+  const active=host.state.proposal;
+  return active===proposal||(active?.capability==='tool.plan'&&Array.isArray(active.steps)&&active.steps.includes(proposal));
+}
+/** Reviewing a whole plan acknowledges only steps still belonging to that plan. */
+function approvalWasReviewed(host:Host,proposal:any):boolean{
+  return approvalIsCurrent(host,proposal)&&
+    (host.state.__workspaceReviewedProposal===proposal||host.state.__workspaceReviewedProposal===host.state.proposal);
+}
 async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{
   if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||!proposal)return;host.__foundationApprovalBusy=true;
   let receipt:any,step:MissionStep|undefined;
@@ -282,9 +293,11 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot approve actions. Switch to Controller and review again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
     assertFoundationApproval(resumed.vault,proposal);
-    // UI visibility alone is not authorization: all non-navigation business writes
-    // require acknowledgement of this exact proposal before entering the executor.
-    if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&host.state.__workspaceReviewedProposal!==proposal)
+    // Block stale actions, including steps detached from a superseded plan.
+    if(!approvalIsCurrent(host,proposal))throw new Error('The proposed action changed. Review it again.');
+    // UI visibility alone is not authorization: acknowledge the exact active
+    // proposal, or the current plan containing this step, before execution.
+    if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&!approvalWasReviewed(host,proposal))
       throw new Error('Review and acknowledge this exact action before approval.');
     if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft'){
       const review=reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');
@@ -301,9 +314,9 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     // proposal afterwards so switching account, thread or mode cannot race apply().
     const live=await resumeVaultSession();
     if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(kernel.scope)||
-       currentConversationMode(host)!=='controller'||host.state.proposal!==proposal)
+       currentConversationMode(host)!=='controller'||!approvalIsCurrent(host,proposal))
       throw new Error('Account, company, conversation or action changed during approval. Nothing was applied.');
-    if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&host.state.__workspaceReviewedProposal!==proposal)
+    if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&!approvalWasReviewed(host,proposal))
       throw new Error('The action review changed during approval. Nothing was applied.');
     assertFoundationApproval(live.vault,proposal);
     const result=await apply();await flush(host);
