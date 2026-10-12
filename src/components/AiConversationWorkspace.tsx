@@ -379,15 +379,23 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(!workspaceVisible(host)){
       const k=host.__intelligenceKernel as ConversationKernel|undefined;
       const personalReady=k?.scope.scope==='personal'&&host.state.assistantScope==='personal'&&host.__workspaceObservedProps===host.props&&k.scope.accountId===(activeAccountStorageUid()||'')&&k.scope.threadId===host.__lourexAssistantThreadId;
-      const safe=personalReady?children:children.map((child:any)=>{
+      const withoutLegacyScope=children.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
+      const lockComposer=(child:any):any=>{
+        if(!react.isValidElement(child))return child;
+        const props=['button','input','textarea','select'].includes(child.type)?{disabled:true}:{};
+        return react.cloneElement(child,props,...react.Children.toArray(child.props?.children).map(lockComposer));
+      };
+      const safe=personalReady?withoutLegacyScope:withoutLegacyScope.map((child:any)=>{
         const classes=String(child?.props?.className||'').split(' ');
         if(classes.includes('lourex-ai-proposal'))return null;
+        if(classes.includes('lourex-ai-compose'))return lockComposer(child);
         if(classes.includes('lourex-ai-messages'))return react.cloneElement(child,undefined,host.state.__workspaceLoadError
           ?<div role="alert" className="lxw-load-error"><p>{label(aiUiAr(host),'Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><small>{workspaceError(aiUiAr(host),String(host.state.__workspaceLoadError))}</small><button type="button" onClick={()=>host.setState({__workspaceLoadError:''},()=>void host.__workspaceRefresh?.())}>{label(aiUiAr(host),'Retry loading','إعادة المحاولة')}</button></div>
           :<p role="status">{label(aiUiAr(host),'Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
         return child;
       });
-      return react.cloneElement(node,{'data-lourex-workspace':'2','data-workspace-ready':'false'},...safe);
+      const ar=aiUiAr(host);
+      return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-workspace-ready':'false'},...safe);
     }
     const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
     const legacyContext=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));

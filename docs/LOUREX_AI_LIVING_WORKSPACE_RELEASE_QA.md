@@ -177,7 +177,15 @@ Fix: capture the exact proposal before the original dismiss callback; cancel its
 
 Regression: the actual runtime/store test rejects after the UI proposal is cleared, retains an earlier completed step/result, rehydrates from persisted state and asserts no returned proposal or artifact and no document write. Additional presentation fixes localize the busy label and activity disclosure; direct draft revision follows the independent reply preference.
 
-Latest resumed session: the previous authenticated browser session is unavailable; the fresh browser shows sign-in. Live retest and Production acceptance remain pending; do not mark this defect FIXED until reload is tested on the new Preview.
+Resumed live retest: secure sign-in completed; Vercel Preview `dpl_66y5EMQrqR1oYquwQzsdDidTirBZ` is READY (37s), exact source `c29661b5f57ec404aacfd6974419456aaf9e8261`. Applied the PWA update with no open editor. Controller → Workspace → Business → prepare unsaved commercial draft → Decline → reload → reopen assistant/workspace: no proposal restored and the pane states no document open. **FIXED** for direct rejection persistence. No business document saved. Current complete build/typecheck and 2530/0/0 Node suite passed again.
+
+Live retest also verified black settings/Plus/composer over the Light site, independent EN assistant over AR site, English activity disclosure and message actions, and Advisor denying a combined navigation/delete/stock/invoice request with no route change or approval. Advisor Plus contains only Camera and Photos/files. Captured actual Chrome settings and Plus screenshots; these are not iPhone/iPad Safari retests.
+
+### Transient legacy scope flash — additional live defect
+
+Reproduction on `c29661b`: click Advisor and immediately inspect while its scoped conversation loads. The legacy Business dropdown briefly returned; typing was possible before hydration and then discarded when the target draft loaded. After hydration the dropdown disappeared.
+
+Cause: the fail-closed render branch hid stale messages/proposals but returned legacy context and interactive composer unchanged. Fix in the same render owner: strip legacy context in both ready and loading states; disable all composer controls during unverified hydration; retain the LOUREX AI identity and explicit interface direction. The actual compiled render test now asserts absence of legacy scope, disabled input/send and absence of a stale proposal when props invalidate scope. Personal history remains retained. TypeScript, complete build and all 2530 tests passed. New Preview/live transition retest remains pending; Production acceptance stays open.
 
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.

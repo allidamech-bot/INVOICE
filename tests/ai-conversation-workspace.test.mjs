@@ -105,9 +105,15 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  globalThis.React={createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),isValidElement:value=>value&&typeof value==='object'&&'type'in value,cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}};
  const {renderConversationWorkspace,RegisteredWorkspaceCard}=await import('../dist/src/components/AiConversationWorkspace.js');const {k,v}=fixture();k.scope.accountId='';const props={language:'ar'};
  const h={props,__workspaceObservedProps:props,__intelligenceKernel:k,__foundationVault:v,__lourexAssistantThreadId:'thread',state:{assistantScope:'business',proposal:k.artifact.proposal,__workspaceOpen:true,messages:[]}};
- const e=React.createElement,approval=e('section',{className:'lourex-ai-proposal'},'EXACT APPROVAL'),tree=e('aside',{id:'lourex-ai-panel'},e('header',{className:'lourex-ai-head'}),e('div',{className:'lourex-ai-context'}),e('div',{className:'lourex-ai-messages'}),approval,e('footer',{className:'lourex-ai-compose'}));
+ const e=React.createElement,approval=e('section',{className:'lourex-ai-proposal'},'EXACT APPROVAL'),tree=e('aside',{id:'lourex-ai-panel'},e('header',{className:'lourex-ai-head'}),e('div',{className:'lourex-ai-context'},e('button',{},'Business scope')),e('div',{className:'lourex-ai-messages'}),approval,e('footer',{className:'lourex-ai-compose'},e('textarea',{}),e('button',{},'Send')));
  const result=renderConversationWorkspace(h,tree);assert.equal(result.props['data-workspace-ready'],'true');const body=result.props.children.at(-1),workspace=body.props.children[1];assert.equal(workspace.props.approval.props.children,'EXACT APPROVAL');const containsExactApproval=(node)=>node===approval||(Array.isArray(node)?node.some(containsExactApproval):node&&typeof node==='object'&&containsExactApproval(node.props?.children));assert.equal(containsExactApproval(body.props.children[0]),false);
- h.props={language:'en'};assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');h.__workspaceObservedProps=h.props;k.scope.scope='personal';h.state.assistantScope='personal';assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');
+ h.props={language:'en'};
+ const loading=renderConversationWorkspace(h,tree);assert.equal(loading.props['data-workspace-ready'],'false');
+ assert.equal(loading.props['aria-label'],'LOUREX AI');
+ assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-context'),'legacy Business scope must not flash during scoped hydration');
+ const locked=loading.props.children.find(child=>child?.props?.className==='lourex-ai-compose');assert.ok(locked.props.children.every(child=>child.props.disabled),'typing and sending stay disabled until the current scope is hydrated');
+ assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-proposal'));
+ h.__workspaceObservedProps=h.props;k.scope.scope='personal';h.state.assistantScope='personal';assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');
  assert.equal(RegisteredWorkspaceCard({descriptor:{component:'javascript',rows:[]}}),null);
 });
 
