@@ -83,7 +83,7 @@ function datedOnOrBefore(value:string,asOf:string):boolean{return /^\d{4}-\d{2}-
  * A bounded recent list never limits exact number searches or the total counts. */
 export function buildAdvisorDocumentRegistry(vault:VaultPayload,asOf:string,query=''):AdvisorDocumentRegistry{
   const source=scopeVault(vault).documents.filter(row=>!row.createdAt||datedOnOrBefore(row.createdAt,asOf));
-  const records:AdvisorDocumentRecord[]=source.map(doc=>({
+  const records:AdvisorDocumentRecord[]=source.map((doc):AdvisorDocumentRecord=>({
     id:doc.id,number:String(doc.number||'').trim(),kind:doc.kind,
     state:doc.lifecycleStatus==='voided'?'voided':doc.status==='final'?'issued':'saved-draft',
     status:doc.status,lifecycleStatus:doc.lifecycleStatus,
