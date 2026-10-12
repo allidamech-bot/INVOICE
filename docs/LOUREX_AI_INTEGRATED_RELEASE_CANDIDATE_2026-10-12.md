@@ -23,8 +23,8 @@ Do not mark individual stacked PRs merged or ready for production just because t
 1. Batch 1 + 2 voice/Advisor source checks plus server API mode/capability sanitizer probes in the integrated head: **22/22 passed**.
 2. Batch 3–6 isolated source/formatter checks in stacked head prior to integration: **16/16 passed**.
 3. Batch 7 cloud synchronization behavior exercised with a JavaScript-adapted extract of the current cloud merge functions: **9/9 passed**. Five separate isolated checks of the actual local thread-save function passed, including stable message timestamps, overflow rejection, scope isolation and deletion-ID rejection. After the latest source changes, the merge code rejects same-ID conflicts, accidental resurrection, 31st local thread, 61st unique message, cross-account data and overlong text; a deletion can free a slot for a replacement conversation.
-4. Integrated branch release-candidate source-contract checks: **8/8 passed**.
-5. **19 authored** Batch 7 Node tests (requiring compiled TypeScript) (two-device merge and conflict, deletion, privacy, retention) exist but have **not** been run against actual TypeScript output.
+4. Integrated branch release-candidate source-contract checks: **10/10 passed**.
+5. **22 authored** Batch 7 Node tests (requiring compiled TypeScript) (two-device merge and conflict, deletion, privacy, retention) exist but have **not** been run against actual TypeScript output.
 
 These are *limited engineering checks*, not a release certification. No full local checkout/CI was possible in the current environment. A read-only Vercel check identified production deployment `c4254d5aa105206e0284f4424019e4c333c9b172` on `main`, and **zero deployments for this integration branch**. GitHub reported **zero workflow runs and zero statuses** for the integrated PR head. Therefore there is no evidenced full build, Vercel preview, browser QA or physical Safari acceptance for this candidate.
 
