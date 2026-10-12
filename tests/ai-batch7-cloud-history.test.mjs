@@ -116,3 +116,25 @@ test('new cloud messages drop stale local controller approvals even without a mo
   assert.equal(merged.kernel?.artifact,undefined);
   assert.deepEqual(merged.foundationReceipts,[]);
 });
+test('cross-device union refuses to silently discard the 61st message',()=>{
+  const older=cloud('t-overflow',Array.from({length:60},(_,i)=>msg('m'+i,'line'+i,i)));
+  const fromSecondDevice=cloud('t-overflow',[msg('additional','another device',62)]);
+  assert.throws(()=>mergeAssistantCloudThread(older,fromSecondDevice),/60-message retention limit/i);
+});
+
+test('cloud reader refuses to advertise a complete sync if local 30-thread retention cannot hold it',()=>{
+  const thirty=Array.from({length:30},(_,i)=>thread('t-local-'+i));
+  assert.throws(()=>mergeAssistantCloudState(uid,local(thirty),[cloud('remote-31')]),/more conversations than this device/i);
+});
+
+test('oversized imported text is rejected rather than implicitly truncated',()=>{
+  assert.throws(()=>mergeAssistantCloudState(uid,local(),[cloud('large-message',[msg('m-long','a'.repeat(4001))])]),/Invalid cloud conversation/i);
+});
+
+test('an outgoing chat turn targets one Firestore document, not the full collection',()=>{
+  assert.match(origin,/changedThreadId\?:string/);
+  assert.match(origin,/if\(options\.installRemote===false&&options\.changedThreadId\)/);
+  assert.match(origin,/\.doc\(candidate\.id\)/);
+  assert.match(runtime,/queueHistorySync\(host,uid,resumed\.key,undefined,undefined,false,kernel\.scope\.threadId\)/);
+  assert.match(build,/installRemote:false,changedThreadId:threadId/);
+});
