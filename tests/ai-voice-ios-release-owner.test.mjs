@@ -29,7 +29,8 @@ test('WebKit voice restart uses an extended native lease and bounded transient s
   assert.match(owner,/ios-release-v3-cross-owner/);
   assert.match(owner,/lourex-ai-composer-voice-request/);
   assert.match(owner,/lourex-ai-workflow-voice-request/);
-  assert.match(owner,/abortVoice\(\);detail.active=true/);
+  assert.match(owner,/abortVoice\(\);const handoffPanel=/);
+  assert.match(owner,/composerStatus\(handoffPanel,'',''\)/);
   assert.match(owner,/nativeReleaseUntil=Math.max\(nativeReleaseUntil,Number\(handoff.readyAt\)\|\|0\)/);
 });
 
