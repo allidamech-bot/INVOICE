@@ -79,7 +79,7 @@ test('source never uploads draft proposals, approval receipts, or local device c
   assert.doesNotMatch(writer,/artifact\s*:/);
   assert.doesNotMatch(writer,/cipher\s*:/);
   assert.doesNotMatch(writer,/kernel\s*:/);
-  assert.match(writer,/thread\.kernel\?\.scope\.accountId!==uid/);
+  assert.match(writer,/thread\.kernel\?\.scope\.accountId&&thread\.kernel\.scope\.accountId!==uid/);
   assert.match(origin,/\.collection\('users'\)\.doc\(uid\)\.collection\('assistantHistory'\)/);
   assert.match(origin,/get\(\{source:'server'\}\)/);
   assert.match(origin,/db\(\)\.runTransaction/);
