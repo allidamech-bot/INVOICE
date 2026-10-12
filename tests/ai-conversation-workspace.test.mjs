@@ -92,8 +92,11 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  await runtime.dismissIntelligenceWorkspace(h,rejected);
  assert.equal(h.__intelligenceKernel.artifact,undefined);
  assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact,undefined);
- assert.ok(pending.steps.every(s=>s.status!=='needs_approval'));
- assert.equal(pending.steps[0].status,'completed');assert.equal(pending.steps[0].resultRef,'existing-business-record');
+ // Decline now copies the kernel so a failed persistence can roll back safely.
+ // Inspect the committed live kernel, not the pre-decline object reference.
+ const committed=h.__intelligenceKernel.missions.find(m=>m.id===pending.id);
+ assert.ok(committed.steps.every(s=>s.status!=='needs_approval'));
+ assert.equal(committed.steps[0].status,'completed');assert.equal(committed.steps[0].resultRef,'existing-business-record');
  h.__intelligenceKernel=undefined;
  await runtime.refreshIntelligenceWorkspace(h);
  assert.equal(h.state.proposal,null,'rejected proposal must not return after persisted session hydration');
