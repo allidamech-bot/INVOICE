@@ -105,5 +105,5 @@ jobs:
           done
           curl -fsS http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html >/dev/null
           node tests/visual/run-ai-voice-reliability-batch5.cjs
-          node tests/visual/run-ai-conversation-final-batch5.cjs
           node tests/visual/run-v542-pagination-parity.cjs
+          node tests/visual/run-ai-batches1-7-current-workspace.cjs
