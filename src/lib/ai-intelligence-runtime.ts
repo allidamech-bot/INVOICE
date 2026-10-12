@@ -49,7 +49,7 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
           .map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
       }
     }
-    host.setState({__workspaceHistorySyncStatus:'synced',__workspaceHistorySyncError:needsReopen?'Conversation changed on another device. Reopen it before editing.':'',__workspaceHistoryRemoteCount:result.downloaded});
+    host.setState({__workspaceHistorySyncStatus:installRemote?'synced':'uploaded',__workspaceHistorySyncError:needsReopen?'Conversation changed on another device. Reopen it before editing.':'',__workspaceHistoryRemoteCount:result.downloaded});
   };
   // Incoming cloud merges can rewrite the local assistant cache. Serialize
   // their install behind local kernel saves, and make later saves wait for them.
