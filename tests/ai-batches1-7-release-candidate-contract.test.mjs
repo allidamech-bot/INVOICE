@@ -100,3 +100,11 @@ test('cloud history refuses stale deleted writes and avoids duplicate Firestore 
   assert.match(cloud,/if\(remote&&sameCloudThread\(remote,candidate\)\)continue/);
   assert.match(rules,/request\.auth\.uid == userId/);
 });
+
+test('imported conversation messages reject hidden artifacts and executable fields',()=>{
+  const cloud=read('src/cloud/assistant-history.ts');
+  assert.match(cloud,/const CLOUD_FIELDS=new Set\(/);
+  assert.match(cloud,/const MESSAGE_FIELDS=new Set\(/);
+  assert.match(cloud,/Object\.keys\(value\)\.some\(key=>!CLOUD_FIELDS\.has\(key\)\)/);
+  assert.match(cloud,/Object\.keys\(row\)\.every\(key=>MESSAGE_FIELDS\.has\(key\)\)/);
+});
