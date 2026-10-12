@@ -71,7 +71,9 @@ export function mergeAssistantCloudThread(local:CloudThread,remote:CloudThread):
     updatedAt:local.updatedAt>=remote.updatedAt?local.updatedAt:remote.updatedAt};
 }
 function restore(uid:string,row:CloudThread,local?:AssistantThread):AssistantThread{
-  const matching=Boolean(local?.kernel&&normalizeAiConversationMode(local.kernel.mode)===row.mode);
+  const sameMessages=Boolean(local&&local.messages.length===row.messages.length
+    &&local.messages.every((msg,index)=>msg.id===row.messages[index]?.id&&msg.text===row.messages[index]?.text));
+  const matching=Boolean(sameMessages&&local?.kernel&&normalizeAiConversationMode(local.kernel.mode)===row.mode);
   const kernel=matching?local!.kernel:{
     version:1 as const,
     scope:{scope:row.scope,workspaceId:row.workspaceId,branchId:row.branchId,threadId:row.id,accountId:uid},
