@@ -22,8 +22,8 @@ await writeFile(target,source);execFileSync(process.execPath,['--check',target])
 const css=await readFile('src/styles/ai-conversation-workspace.css','utf8');
 // Retire obsolete visual declarations for elements now owned by the typed
 // workspace. Keep menu motion, focus, voice state and every behavioral selector.
-const canonicalElements=/\.(?:lourex-ai-head|lourex-ai-title|lourex-ai-head-actions|lourex-ai-message\.(?:user|assistant)|lourex-ai-compose form|lourex-ai-premium-textarea|lourex-ai-send|lourex-ai-composer-plus|lourex-ai-composer-mic)(?:\[dir=['"](?:rtl|ltr)['"]\])?$/;
-const ownedProperties=new Set(['background','background-color','color','border','border-radius','box-shadow','padding','padding-inline','min-height','height','display','flex-direction','align-items','gap','align-self','max-width','grid-template-columns']);
+const canonicalElements=/\.(?:lourex-ai-head|lourex-ai-title|lourex-ai-head-actions|lourex-ai-message(?:\.(?:user|assistant))?|lourex-ai-message-actions(?::hover|:focus-within)?|lourex-ai-error|lourex-ai-compose form|lourex-ai-premium-textarea|lourex-ai-send|lourex-ai-composer-plus|lourex-ai-composer-mic)(?:\[dir=['"](?:rtl|ltr)['"]\])?$/;
+const ownedProperties=new Set(['background','background-color','color','border','border-radius','box-shadow','padding','padding-inline','min-height','height','display','flex-direction','align-items','gap','align-self','max-width','grid-template-columns','font','font-family','font-size','font-weight','line-height','margin','margin-inline-start','margin-inline-end','min-width','opacity','pointer-events']);
 const migrateCss=previousCss=>previousCss.replace(/([^{}]+)\{([^{}]*)\}/g,(rule,selectors,declarations)=>{
   const list=selectors.trim().split(',').map(selector=>selector.trim());
   if(!list.length||!list.every(selector=>canonicalElements.test(selector)))return rule;

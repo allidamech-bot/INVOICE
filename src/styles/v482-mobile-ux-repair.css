@@ -155,7 +155,6 @@
   html body #lourex-ai-panel .lourex-ai-head{
   }
   html body #lourex-ai-panel .lourex-ai-title{
-    min-width:0!important;
     overflow:hidden!important;
   }
   html body #lourex-ai-panel .lourex-ai-title strong{
@@ -176,7 +175,6 @@
   }
   html body #lourex-ai-panel .lourex-ai-head-actions{
     justify-content:flex-end!important;
-    min-width:0!important;
   }
   html body #lourex-ai-panel .lourex-ai-new-conversation{
     width:auto!important;

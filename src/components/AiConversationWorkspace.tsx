@@ -339,6 +339,14 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       }));
     }
     if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
+    if(cn.split(' ').includes('lourex-ai-message')&&(cn.split(' ').includes('user')||cn.split(' ').includes('assistant'))){
+      const sender=cn.split(' ').includes('user')?'user':'assistant';
+      const actions=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
+      const content=children.filter((child:any)=>!actions.includes(child));
+      // Keep the bubble sized to its content. Action controls remain outside it
+      // and retain their original copy/edit/retry/evidence callbacks.
+      return react.createElement('div',{className:'lxw-message-turn is-'+sender},react.cloneElement(node,{dir:'auto'},...content),...actions);
+    }
     if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
     if(cn.split(' ').includes('lourex-ai-head')){
       const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" disabled={!workspaceVisible(host)} aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;

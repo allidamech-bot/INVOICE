@@ -211,6 +211,20 @@ Attachments live on `faae47d`: file chooser reports multiple=true; selected two 
 
 Latest source `9d0ad284af38d82aeb19b53dd1e912da3f0e9939` (tested code tree `44968b471409496e3842325e41b6b1f71ae1b54a`): Vercel Create Preview returned `An unexpected internal error occurred`, and one bounded retry returned the same error without a new deployment. **BLOCKED** for latest rejection-after-Undo live retest. Last usable Preview remains `faae47d`. No merge/Production remediation release. Authenticated browser session retained for continuation; no password recorded in this ledger.
 
+### Live PDF, image, voice and message typography follow-up
+
+Browser inventory: Chrome/CDP only, no native apps or Safari/WebKit surface. **BLOCKED** for real Safari/iPhone/iPad and keyboard/device acceptance; neither a simulated WebKit unit case nor a user-agent string counts as that test.
+
+Created a synthetic selectable-text PDF and a PNG render with QA Valve 2×10=20, QA Filter 3×20=60 and printed subtotal 80 USD, plus Arabic digits. No customer or business data. Live `faae47d`: selected both together; both chips appeared, no auto-send. **PASS** for mixed PDF/image selection. Explicit read-only content request returned providers-not-configured; **BLOCKED** for content extraction/interpretation on this Preview.
+
+**FAIL pending live fix retest:** one extraction failed while the sibling chip remained stuck at Extracting details although the batch had stopped. Cause: Promise.all aborted the sibling but cleanup cleared busy without normalizing its processing status. Existing analyzer owner now resets only attempted processing rows to ready, retains done/error/other rows, and prevents late aborted progress or source installation. Generated-final-function regression covers failure, sibling reset, retained completed source, late callbacks and clean retry.
+
+Voice: clicked microphone twice in the same session; Starting microphone appeared, then explicit Microphone access denied. No transcript or auto-send; typing remained editable after the error. **PASS** for denied-permission feedback and editable composer; **BLOCKED** for successful recording/transcription/re-record in this browser. The error/retry vanished after its old timer, making recovery harder. Source fix retains actionable errors until another action replaces them; completion still auto-hides. Actual emitted voice-status regression added. This does not certify microphone success.
+
+User requested refined message/typography throughout the assistant. Live computed styles explained the oversized short-message bubble: a hidden 44px action strip lived inside it (single-line bubble height 97.3px); desktop opacity=0/pointer-events=none left reserved blank space and invisible tools. Existing typed render now moves exact action nodes outside the bubble, preserving original callbacks; existing CSS/build owner retires conflicting message/action typography/opacity rules. User and AI have distinct charcoal/dark bubbles, content-based height, automatic text direction, 16px message/field text, consistent family and readable settings labels. Main-site styling remains unaffected. Live Before captured; After and current full validation remain pending.
+
+Consolidated follow-up validation: TypeScript PASS; complete build PASS; final emitted SW includes current module/style and voice identities; full Node suite **2534 PASS / 0 FAIL / 0 SKIPPED**. Generated-runtime tests retain copy callbacks after moving actions, persist voice errors until replacement, and reset aborted extraction siblings while preserving successful rows. Obsolete v482 header min-width declarations were removed at their source; the unchanged standalone CSS integrity test passes. Preview/live After and media-failure recovery retests remain required before merge.
+
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.
 - Base `main` at kickoff: `27ed9d54f615ecfea8dd73ab34fc072d3a4dcfa3`.

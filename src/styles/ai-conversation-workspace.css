@@ -4,6 +4,8 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2']{
   width:min(760px,calc(100vw - 32px))!important;max-width:760px!important;
   --lxw-bg:#080808;--lxw-surface:#111111;--lxw-text:#f5f5f7;--lxw-muted:#a1a1a6;--lxw-line:#2c2c2e;--lxw-accent:#f5f5f7;
   --lxw-selected:#eeeeee;--lxw-on-selected:#171717;
+  --lxw-font:"LOUREX Tajawal",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+  font-family:var(--lxw-font)!important;font-size:16px!important;line-height:1.7!important;
   /* Legacy descendants consume these aliases locally; the site keeps its tokens. */
   --lx485-canvas:var(--lxw-bg);--lx485-surface:var(--lxw-surface);--lx485-surface-2:#1c1c1e;
   --lx485-text:var(--lxw-text);--lx485-text-2:var(--lxw-muted);--lx485-muted:var(--lxw-muted);--lx485-line:var(--lxw-line);
@@ -278,7 +280,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-artifact-head s
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-head>div{display:grid;gap:4px;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-head strong{font-size:15px;}
-#lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-head small{font-size:11px;color:var(--lxw-text);}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-head small{font-size:12px;color:var(--lxw-text);}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-head button{
   flex:0 0 auto;min-height:44px;border:1px solid var(--lxw-line);border-radius:999px;
   background:var(--lxw-surface);color:var(--lxw-text);padding:7px 15px;cursor:pointer;
@@ -287,12 +289,12 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-artifact-head s
   display:grid;gap:8px;min-width:0;padding:15px 0;border:0;border-bottom:1px solid var(--lxw-line);
   border-radius:0;background:transparent;color:var(--lxw-text);
 }
-#lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-field strong{font-size:12.5px;}
-#lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-field small{font-size:11px;color:var(--lxw-text);line-height:1.55;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-field strong{font-size:14px;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-field small{font-size:12px;color:var(--lxw-text);line-height:1.6;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-field select{
   min-width:0;width:100%;min-height:44px;padding:8px 10px;
   border:1px solid var(--lxw-line);border-radius:10px;
-  background:var(--lxw-surface);color:var(--lxw-text);font-family:inherit;font-size:13px;cursor:pointer;
+  background:var(--lxw-surface);color:var(--lxw-text);font-family:inherit;font-size:16px;cursor:pointer;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-field select:focus-visible{outline:2px solid var(--lxw-text);outline-offset:2px;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings-field select:disabled{opacity:.6;cursor:wait;}
@@ -370,7 +372,8 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-a
 
 /* Canonical conversation chrome: the workspace build retires older rules for
    these exact elements before this stylesheet is installed. No site selectors. */
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(input,select,textarea){background:#1c1c1e!important;color:var(--lxw-text)!important;border:1px solid var(--lxw-line)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(input,select,textarea){font-family:inherit!important;font-size:16px!important;line-height:1.5!important;background:#1c1c1e!important;color:var(--lxw-text)!important;border:1px solid var(--lxw-line)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] button{font-family:inherit!important;font-size:14px!important;line-height:1.4!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings :is(strong,label){color:var(--lxw-text)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-settings :is(small,p){color:var(--lxw-muted)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head{
@@ -385,8 +388,17 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-header-slot{dis
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-workspace-trigger{display:grid;place-items:center;flex:0 0 44px;width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--lxw-muted);cursor:pointer;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-workspace-trigger:focus-visible{outline:2px solid var(--lxw-text);outline-offset:2px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions button{height:44px!important;min-height:44px!important;width:44px!important;border:0!important;background:transparent!important;color:var(--lxw-muted)!important;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.user{align-self:flex-end!important;max-width:85%!important;padding:12px 15px!important;border:0!important;border-radius:18px 18px 5px 18px!important;background:#2a2a2d!important;color:var(--lxw-text)!important;box-shadow:none!important;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.assistant{align-self:stretch!important;max-width:none!important;padding:0!important;border:0!important;background:transparent!important;color:var(--lxw-text)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn{display:flex;flex-direction:column;gap:4px;min-width:0;margin-block:8px;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user{align-self:flex-end;align-items:flex-end;max-width:85%;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant{align-self:stretch;align-items:flex-start;max-width:100%;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message{font:inherit!important;line-height:1.75!important;margin:0!important;min-width:0!important;min-height:0!important;overflow-wrap:anywhere;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.user{align-self:flex-end!important;max-width:100%!important;padding:11px 16px!important;border:0!important;border-radius:20px 20px 7px 20px!important;background:#2a2a2d!important;color:var(--lxw-text)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.assistant{align-self:stretch!important;max-width:100%!important;padding:15px 18px!important;border:0!important;border-radius:20px 20px 20px 7px!important;background:#111111!important;color:var(--lxw-text)!important;box-shadow:none!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-actions{display:flex!important;flex-wrap:wrap;align-items:center!important;gap:2px!important;margin:0!important;opacity:1!important;pointer-events:auto!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-actions button{border:0!important;border-radius:12px!important;background:transparent!important;color:var(--lxw-muted)!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-actions button:is(:hover,:focus-visible){color:var(--lxw-text)!important;background:#1c1c1e!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-user-copy,.lourex-ai-answer-copy,.lourex-ai-answer-list){font-size:16px!important;line-height:1.75!important;text-align:start!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-error{background:#1c1c1e!important;color:var(--lxw-text)!important;border:1px solid var(--lxw-line)!important;padding:10px 12px!important;border-radius:12px!important;font-size:14px!important;line-height:1.6!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-compose form{display:flex!important;flex-direction:row!important;direction:ltr!important;align-items:center!important;min-height:54px!important;padding:4px!important;gap:3px!important;border:1px solid var(--lxw-line)!important;border-radius:28px!important;background:#1c1c1e!important;box-shadow:none!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-premium-textarea{background:transparent!important;color:var(--lxw-text)!important;border:0!important;border-radius:0!important;box-shadow:none!important;font-size:16px!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-send{display:grid!important;place-items:center!important;width:44px!important;height:44px!important;min-height:44px!important;border-radius:50%!important;background:#f5f5f7!important;color:#080808!important;border:0!important;box-shadow:none!important;}
@@ -399,7 +411,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-plus-item
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-plus-item:is(:hover,:focus-visible){background:#1c1c1e!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-answer-copy,.lourex-ai-answer-list,.lourex-ai-answer-heading,.lourex-ai-kpi-card strong){color:var(--lxw-text)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(h3,h4){margin:12px 0 6px!important;font-size:16px!important;line-height:1.5!important;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown p{margin:0 0 8px!important;white-space:pre-wrap!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown p{margin:0 0 8px!important;white-space:pre-wrap!important;font-size:inherit!important;line-height:inherit!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(ul,ol){margin:6px 0 12px!important;padding-inline-start:24px!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown code{font-family:monospace!important;background:#1c1c1e!important;padding:2px 5px!important;border-radius:4px!important;}
 
@@ -410,6 +422,7 @@ html body #root .modal.modal-assistant[role='dialog']{
  --ft-surface:#111111;--ft-surface-2:#1c1c1e;--ft-input:#1c1c1e;--ft-text:#f5f5f7;--ft-text-soft:#a1a1a6;--ft-line:#2c2c2e;--ft-accent:#f5f5f7;
  --lx485-surface:#111111;--lx485-surface-2:#1c1c1e;--lx485-canvas-2:#1c1c1e;--lx485-text:#f5f5f7;--lx485-text-2:#a1a1a6;--lx485-muted:#a1a1a6;--lx485-line:#2c2c2e;--lx485-blue:#f5f5f7;
  --lx480-text:#f5f5f7;--lx480-canvas-2:#1c1c1e;--lx481-text:#f5f5f7;--lx484-text:#f5f5f7;--lx484-canvas-2:#1c1c1e;
+ font-family:"LOUREX Tajawal",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif!important;font-size:16px!important;line-height:1.7!important;
  background:#080808!important;color:#f5f5f7!important;border:1px solid #2c2c2e!important;border-radius:20px!important;
 }
 html body #root [data-assistant-overlay='true']{background:rgba(0,0,0,.66)!important;}
@@ -417,6 +430,6 @@ html body #root .modal.modal-assistant[role='dialog'] :is(.modal-header,.modal-b
 html body #root .modal.modal-assistant[role='dialog'] .modal-header{display:flex!important;align-items:center!important;min-height:60px!important;padding:8px 16px!important;}
 html body #root .modal.modal-assistant[role='dialog'] :is(h2,h3,strong,label,.field-label,p){color:#f5f5f7!important;}
 html body #root .modal.modal-assistant[role='dialog'] :is(small,.field-hint){color:#a1a1a6!important;}
-html body #root .modal.modal-assistant[role='dialog'] :is(input,select,textarea){background:#1c1c1e!important;color:#f5f5f7!important;border:1px solid #2c2c2e!important;box-shadow:none!important;}
-html body #root .modal.modal-assistant[role='dialog'] :is(button,.btn){background:#1c1c1e!important;background-image:none!important;color:#f5f5f7!important;border-color:#2c2c2e!important;box-shadow:none!important;min-height:44px!important;}
+html body #root .modal.modal-assistant[role='dialog'] :is(input,select,textarea){font-family:inherit!important;font-size:16px!important;line-height:1.5!important;background:#1c1c1e!important;color:#f5f5f7!important;border:1px solid #2c2c2e!important;box-shadow:none!important;}
+html body #root .modal.modal-assistant[role='dialog'] :is(button,.btn){font-family:inherit!important;font-size:14px!important;line-height:1.4!important;background:#1c1c1e!important;background-image:none!important;color:#f5f5f7!important;border-color:#2c2c2e!important;box-shadow:none!important;min-height:44px!important;}
 html body #root .modal.modal-assistant[role='dialog'] :is(button.primary,.btn.primary){background:#f5f5f7!important;color:#080808!important;}

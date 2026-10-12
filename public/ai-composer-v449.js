@@ -63,7 +63,9 @@
     const status=panel?.querySelector('.lourex-ai-voice-status');const mic=panel?.querySelector('.lourex-ai-composer-mic');if(!(status instanceof HTMLElement))return;
     const message=messageFor(panel,messageKey);const sequence=String(++statusSequence);status.dataset.state=state||'';status.dataset.messageKey=messageKey||'';status.dataset.messageSequence=sequence;status.classList.toggle('is-visible',Boolean(message));status.classList.toggle('is-error',state==='error');const copy=status.querySelector('span:last-child');if(copy&&copy.textContent!==message)copy.textContent=message;
     if(mic instanceof HTMLButtonElement){const listening=state==='listening';mic.classList.toggle('is-listening',listening);mic.setAttribute('aria-pressed',String(listening));}
-    if(autoHide>0&&message)window.setTimeout(()=>{if(status.dataset.messageSequence===sequence){status.classList.remove('is-visible','is-error');status.dataset.state='';status.dataset.messageKey='';}},autoHide);
+    // Keep actionable errors readable, with retry available, until a new action
+    // explicitly replaces the status. Only informational completion auto-hides.
+    if(state!=='error'&&autoHide>0&&message)window.setTimeout(()=>{if(status.dataset.messageSequence===sequence){status.classList.remove('is-visible','is-error');status.dataset.state='';status.dataset.messageKey='';}},autoHide);
   }
 
   function withWorkflowReady(callback,attempt=0,originPanel=null){const panel=document.querySelector(PANEL);if(!(panel instanceof HTMLElement))return;const origin=originPanel||panel;if(panel!==origin||!origin.isConnected)return;const buttons=workflowButtons(panel);if(buttons.length>=3){callback(panel,buttons);return;}if(attempt<40){window.setTimeout(()=>withWorkflowReady(callback,attempt+1,origin),75);return;}composerStatus(panel,'error','loadingTools',3200);}
