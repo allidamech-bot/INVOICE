@@ -111,12 +111,39 @@ export function mergeAssistantCloudState(uid:string,localState:AssistantStoreSta
   }
   return normalizeAssistantState({...local,threads:[...current.values()],deletedThreads:deleted});
 }
+async function publishThread(uid:string,candidate:CloudThread):Promise<boolean>{
+  checkAccount(uid);
+  if(bytes(candidate)>MAX_DOCUMENT_BYTES)throw new Error('AI history entry exceeds Firestore safe size; no truncated upload was made.');
+  const ref=collection(uid).doc(candidate.id);
+  const changed=await db().runTransaction(async(tx:any)=>{
+    checkAccount(uid);
+    const snapshot=await tx.get(ref);checkAccount(uid);
+    const record=snapshot.exists?snapshot.data():null;
+    if(record&&(!validCloud(record,uid)||record.id!==candidate.id))throw new Error('Remote conversation identity or format changed.');
+    const merged=record?mergeAssistantCloudThread(candidate,record):candidate;
+    if(bytes(merged)>MAX_DOCUMENT_BYTES)throw new Error('Merged history exceeds Firestore safe document size.');
+    if(record&&JSON.stringify(record)===JSON.stringify(merged))return false;
+    checkAccount(uid);tx.set(ref,merged);return true;
+  });
+  checkAccount(uid);return changed;
+}
 /** Called only on an authenticated account; one full sync at a time per device.
  * Transactional per-thread merges prevent simultaneous devices from silently winning.
  * A rejected network request leaves the durable local encrypted cache untouched. */
-export async function synchronizeAssistantHistory(uid:string,key:CryptoKey,options:{installRemote?:boolean}={}):Promise<{uploaded:number;downloaded:number}>{
+export async function synchronizeAssistantHistory(uid:string,key:CryptoKey,options:{installRemote?:boolean;changedThreadId?:string}={}):Promise<{uploaded:number;downloaded:number}>{
   checkAccount(uid);
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Offline: AI history remains saved locally. Cloud sync will retry.');
+  // Outgoing saves and deletions publish ONLY the changed thread. Scanning
+  // every Firestore history document for each chat turn exhausts free quotas.
+  if(options.installRemote===false&&options.changedThreadId){
+    const id=options.changedThreadId;if(!safeId(id))throw new Error('Invalid conversation identifier.');
+    const state=await loadAssistantState(key);checkAccount(uid);
+    const deletedAt=state.deletedThreads?.[id],thread=state.threads.find(row=>row.id===id);
+    if(!deletedAt&&!thread)return{uploaded:0,downloaded:0};
+    const candidate=deletedAt?deletion(uid,id,deletedAt):toCloud(uid,thread!);
+    const changed=await publishThread(uid,candidate);
+    return{uploaded:changed?1:0,downloaded:0};
+  }
   const local=await loadAssistantState(key);checkAccount(uid);
   const snap=await collection(uid).orderBy('updatedAt','desc').limit(MAX_CLOUD_THREADS).get({source:'server'});
   checkAccount(uid);
@@ -137,21 +164,9 @@ export async function synchronizeAssistantHistory(uid:string,key:CryptoKey,optio
   let uploaded=0;
   for(const candidate of requests){
     checkAccount(uid);
-    if(bytes(candidate)>MAX_DOCUMENT_BYTES)throw new Error('AI history entry exceeds Firestore safe size; no truncated upload was made.');
     const remote=remoteById.get(candidate.id);
     if(remote&&JSON.stringify(remote)===JSON.stringify(candidate))continue;
-    const ref=collection(uid).doc(candidate.id);
-    const changed=await db().runTransaction(async(tx:any)=>{
-      checkAccount(uid);
-      const latest=await tx.get(ref);checkAccount(uid);
-      const record=latest.exists?latest.data():null;
-      if(record&&(!validCloud(record,uid)||record.id!==candidate.id))throw new Error('Remote thread format changed.');
-      const merged=record?mergeAssistantCloudThread(candidate,record):candidate;
-      if(bytes(merged)>MAX_DOCUMENT_BYTES)throw new Error('Merged history exceeds safe document size.');
-      if(record&&JSON.stringify(record)===JSON.stringify(merged))return false;
-      checkAccount(uid);tx.set(ref,merged);return true;
-    });
-    checkAccount(uid);if(changed)uploaded++;
+    if(await publishThread(uid,candidate))uploaded++;
   }
   // During outgoing auto-save, do not overwrite concurrent local edits with
   // an asynchronous cloud read. The next explicit refresh performs the pull.
