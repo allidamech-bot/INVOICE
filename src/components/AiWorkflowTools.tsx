@@ -148,11 +148,12 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
   private onComposerVoiceRequest=(event:Event)=>{
     const detail=(event as CustomEvent<{active?:boolean;readyAt?:number}>).detail;
     if(!detail)return;
+    const holdingLease=Boolean(this.recognition||this.voiceRetryTimer||this.voiceReleaseUntil>Date.now());
     if(this.recognition||this.voiceRetryTimer){
       this.stopVoice();
       if(this.mounted)this.setState({listening:false});
-      detail.active=true;
     }
+    if(holdingLease)detail.active=true;
     detail.readyAt=Math.max(detail.readyAt||0,this.voiceReleaseUntil);
   };
   private stopVoice=()=>{
