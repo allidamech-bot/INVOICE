@@ -8,9 +8,10 @@ test('built iOS voice composer hands off microphone in both directions and clear
   if(!existsSync(path))return t.skip('Build first: npm run build');
   let code=readFileSync(path,'utf8');
   assert.match(code,/ios-release-v3-cross-owner/);
-  const last=code.lastIndexOf('})();');
-  assert.ok(last>=0,'runtime IIFE terminator missing');
-  code=code.slice(0,last)+"window.__voiceProbe={toggleVoice,abortVoice,recognition:()=>recognition,release:()=>nativeReleaseUntil};"+code.slice(last);
+  // Build postprocessors may append additional closures; instrument the canonical source IIFE, not the last one.
+  const last=code.indexOf('\n})();');
+  assert.ok(last>=0,'canonical composer IIFE terminator missing');
+  code=code.slice(0,last+1)+"window.__voiceProbe={toggleVoice,abortVoice,recognition:()=>recognition,release:()=>nativeReleaseUntil};\n"+code.slice(last+1);
   class ElementStub{
     constructor(){
       this.dataset={};this.isConnected=true;
