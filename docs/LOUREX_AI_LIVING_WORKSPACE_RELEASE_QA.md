@@ -1,3 +1,53 @@
+# Post-release live audit — 2026-10-12 (current status)
+
+**Acceptance: BLOCKED. PR #708 is Draft and has not been merged or deployed.**
+The pre-release notes below are historical. PRs #703–#706 are already merged.
+The verified Production baseline is `ff512a8bbd983e65dc63d5238fe2befe754fd681`, deployment `dpl_HDqfgDF8xCn12oNYmHtMvfrFjoTU`, state READY, with the official domain assigned to it (Vercel API evidence).
+
+## Current approved visual contract
+
+The assistant window alone stays black (`#080808`), with raised black / charcoal surfaces, white text and gray borders regardless of site Light/Dark mode. Remove the Business scope dropdown from the visible conversation; preserve internal account/company/branch scoping and historical data. Controller and Advisor are the only visible modes. No changes to the main site's design.
+
+## Executed evidence
+
+| Scenario | Status | Actual evidence |
+|---|---|---|
+| Firebase sign-in | PASS (live, limited) | Manual Google sign-in completed; authenticated Production dashboard rendered. Does not certify email sign-in or cross-device sync. |
+| Two mode tabs / RTL order | PASS (live) | Controller physically on the right, Advisor on the left in Arabic. Switching restored separate empty Controller and populated Advisor conversations. |
+| Arabic composer ordering | PASS (live desktop) | SEND / MIC / separator / textarea / PLUS from right to left in screenshot. Mobile keyboard remains untested. |
+| Advisor hostile request | PASS (live, limited) | Requested invoice creation, price change, customer deletion and product navigation. Returned read-only rejection, no route change or approval UI. Does not replace server/crafted-call coverage. |
+| Advisor Plus menu | PASS (live) | Only camera and files shown. Escape closed the menu and restored focus to Plus. |
+| Independent AI interface locale | PASS (live, limited) | Changing AI UI to English left the site's Arabic dashboard unchanged. Cross-account persistence is not yet tested. |
+| Light mode contrast / site palette leakage | FAIL baseline; correction in #708 pending live retest | Active tab computed color `rgb(248,248,248)` over pale background. Scope/header/chat surfaces conflict with site palette. |
+| Redundant Business dropdown / header stacking | FAIL baseline; correction in #708 pending live retest | Production DOM has a 61px header plus separate 57px scope strip. User Safari screenshots also show wrapped header tools. |
+| Raw Markdown | FAIL baseline; correction in #708 pending live retest | User Safari screenshots show raw headings and emphasis. New compiled-renderer tests cover headings, emphasis, lists, flattened headings, inert HTML and preserved evidence callbacks. |
+| Preview-only document request | NOT IMPLEMENTED / incomplete presentation observed | Two-item request returned textual preview-only tool result (2 × 10 and 3 × 20 USD) but no dedicated structured financial review opened. No approval or save was performed. |
+| TypeScript / full production build | PASS (local automation) | `npm run typecheck`, `npm run build`, Node 24.19.0. This is not a live acceptance status. |
+| Full Node regression | PASS (local automation) | 2523 PASS / 0 FAIL / 0 SKIPPED including 3 new executable Markdown renderer tests. |
+| New preview deployment | BLOCKED | No automatic branch deployment; Vercel create-preview returned 403: permission denied for invoice. No authenticated Vercel CLI is installed. |
+| Local build in cloud browser | BLOCKED | Local server started via Python; cloud browser returned ERR_CONNECTION_REFUSED for localhost. No visual test was completed on changed code. |
+| iPhone/iPad WebKit, keyboard, all requested widths | BLOCKED / not run | Available browser is desktop Chrome; no viewport/WebKit capability advertised. User Safari screenshots are baseline evidence, not a retest. |
+| Voice, uploads, interrupted approval, account/branch switching | BLOCKED / not run | Remaining authenticated scenarios must be completed; no microphone result or financial mutation is claimed. |
+
+## Repair implementation / ownership
+
+PR #708 (`fix/post-release-live-audit-20261012`) contains the following changes:
+
+1. `src/styles/ai-conversation-workspace.css`: independent grayscale assistant tokens; no Light-mode override; local aliases for legacy descendant tokens only. Canonical compact header, charcoal user bubbles, single composer and simplified settings rows. Financial preview semantic colors remain scoped.
+2. `scripts/ai-conversation-workspace.mjs`: existing build stage retires legacy declarations only for exact conversation elements owned by the typed stylesheet, retaining behavioral/menu/voice selectors. No new build stage or stylesheet.
+3. `src/components/AiConversationWorkspace.tsx`: omits legacy context/scope strip from the ready conversation shell while keeping internal scope and data; safe React Markdown formatting retains original evidence buttons/callbacks and never interprets provider HTML.
+4. `tests/ai-post-release-markdown.test.mjs`: executable tests against the compiled production helpers, including HTML-inertness and evidence identity.
+
+Reproduction for visual defects: sign in on baseline Production, use site Light mode, open AI; inspect active mode, scope strip, settings; then compare the supplied Safari screenshots with a long response and Plus open. **None of these repairs is marked FIXED until the modified build is rendered and retested in a real browser.**
+
+## Outstanding acceptance work
+
+Create a Preview for PR #708's exact head in the existing invoice project, inspect its build/commit, then run visual and authenticated regression scenarios. Fix any resulting issues before marking ready or merging. Verify the new Production SHA and official domain after an approved, passing merge. The original broader audit is still open; do not present this slice as full acceptance.
+
+---
+
+# Historical pre-release evidence (superseded status)
+
 ## Independent pre-acceptance review — 2026-10-12
 
 The release remains **BLOCKED / NOT APPROVED**. Review surfaced and repaired two approval-boundary defects on the existing **Draft PR #706** branch, without touching `main` or Production:
