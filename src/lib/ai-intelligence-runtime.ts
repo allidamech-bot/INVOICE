@@ -29,6 +29,7 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
     host.setState({__workspaceHistorySyncStatus:'syncing',__workspaceHistorySyncError:''});
     const result=await synchronizeAssistantHistory(uid,key,{installRemote});
     if(activeAccountStorageUid()!==uid||host.mounted===false)return;
+    let needsReopen=false;
     if(scope&&generation===host.__workspaceLoadGeneration){
       const vault=host.__foundationVault as VaultPayload|undefined;
       if(vault&&kernelScopeKey(scopeFor(host,vault))===kernelScopeKey(scope)&&scope.scope==='business'){
@@ -41,15 +42,14 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
             (Boolean(kernel.artifact||host.state.proposal)&&!remoteCurrent.kernel?.artifact))){
           // Invalidate an on-screen approval/draft whose local authority no
           // longer matches the reconciled history. Never auto-execute a stale one.
-          host.__intelligenceKernel=undefined;host.__foundationReceipts=[];
-          host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceOpen:false,
-            __workspaceHistorySyncError:'Conversation changed on another device. Reopen it before editing.'});
+          host.__intelligenceKernel=undefined;host.__foundationReceipts=[];needsReopen=true;
+          host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceOpen:false});
         }
         host.__businessThreads=store.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===uid))
           .map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
       }
     }
-    host.setState({__workspaceHistorySyncStatus:'synced',__workspaceHistorySyncError:'',__workspaceHistoryRemoteCount:result.downloaded});
+    host.setState({__workspaceHistorySyncStatus:'synced',__workspaceHistorySyncError:needsReopen?'Conversation changed on another device. Reopen it before editing.':'',__workspaceHistoryRemoteCount:result.downloaded});
   };
   // Incoming cloud merges can rewrite the local assistant cache. Serialize
   // their install behind local kernel saves, and make later saves wait for them.
