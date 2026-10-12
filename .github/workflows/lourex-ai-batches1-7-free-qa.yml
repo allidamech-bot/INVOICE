@@ -1,0 +1,36 @@
+name: LOUREX AI Batches 1-7 Release Candidate QA
+on:
+  push:
+    branches:
+      - integration/ai-batches1-7-qa-20261012
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-ai-batches-1-7-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Node 24 build, targeted regressions and full Node suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout integration branch (no deployment)
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript check
+        run: npm run typecheck
+      - name: Complete production build locally (no publication)
+        run: npm run build
+      - name: AI cross-batch and Firebase history regressions
+        run: node --test --test-concurrency=2 tests/ai-batches1-7-release-candidate-contract.test.mjs tests/ai-batch7-cloud-history.test.mjs
+      - name: Entire existing Node test suite
+        run: node --test --test-concurrency=2 tests/*.test.mjs
