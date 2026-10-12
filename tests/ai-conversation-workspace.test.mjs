@@ -180,6 +180,7 @@ test('workspace presentation localizes known validation failures without alterin
  const {workspaceText,workspaceError}=await import('../dist/src/lib/ai-workspace-presentation.js');
  assert.match(workspaceError(true,'Whole cartons and whole units per carton are required.'),/عددًا صحيحًا/);
  assert.match(workspaceError(true,'Flow needs a unique ID, currency, direction and date after baseline within horizon.'),/ضمن مدة السيناريو/);
+ const sizeError='Scanned PDF/image must be below 2.6 MB for safe AI analysis.';assert.match(workspaceError(true,sizeError),/2\.6 ميغابايت/);assert.equal(workspaceError(false,sizeError),sizeError);
  assert.equal(workspaceText(true,'customer-document'),'مستند العميل');assert.equal(workspaceText(false,'Business document draft'),'Business document draft');
  assert.equal(workspaceText(true,'My custom quote'),'My custom quote');assert.equal(workspaceText(true,'QUO-2026-0007'),'QUO-2026-0007');
 });

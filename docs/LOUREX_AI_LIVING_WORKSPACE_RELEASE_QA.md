@@ -225,6 +225,10 @@ User requested refined message/typography throughout the assistant. Live compute
 
 Consolidated follow-up validation: TypeScript PASS; complete build PASS; final emitted SW includes current module/style and voice identities; full Node suite **2534 PASS / 0 FAIL / 0 SKIPPED**. Generated-runtime tests retain copy callbacks after moving actions, persist voice errors until replacement, and reset aborted extraction siblings while preserving successful rows. Obsolete v482 header min-width declarations were removed at their source; the unchanged standalone CSS integrity test passes. Preview/live After and media-failure recovery retests remain required before merge.
 
+Live large-image boundary: a synthetic valid PNG with trailing padding at 2,700,000 bytes was selected; explicit read-only analysis rejected it with the below-2.6-MB limit, without sending a chat turn or writing any business record. Attachment removal and editable composer recovered. **PASS** for this individual image-size boundary. The error appeared in English over AR UI; known attachment quota/format errors now have exact presentation translations, retaining numeric limits and untouched English/custom text. This follow-up needs revalidation with the combined source.
+
+Vercel reference resolution for consolidated `5e1f201` is currently blocked by GitHub secondary-rate-limit HTTP403. The provider explicitly asks to wait a few minutes. No deployment was created and no alternate source/permission workaround was attempted. Browser sessions remain authenticated; Production unchanged.
+
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.
 - Base `main` at kickoff: `27ed9d54f615ecfea8dd73ab34fc072d3a4dcfa3`.
