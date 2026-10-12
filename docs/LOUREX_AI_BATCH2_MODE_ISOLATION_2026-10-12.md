@@ -16,7 +16,7 @@ Scope: AI conversation orchestration, tool authorization, and AI API mode sanita
 6. Server instructions encourage detailed discussion of a proposed business decision while prohibiting claims of execution.
 
 ## Verification reality
-- Source-level checks performed against branch code: 18 business-mode/server sanitization cases plus 2 client/source guards passed, after correcting an isolated checker that did not parse multiline test imports. Existing test files were extended to verify malformed-mode fallback and Advisor conversational routing.
+- Source-level checks performed against branch code: 16 server mode/capability sanity cases, 2 client/source guard checks and 2 test-file JavaScript syntax checks passed. The isolated syntax checker was corrected to handle multiline imports. Existing test files were extended to verify malformed-mode fallback and Advisor conversational routing.
 - Complete repo TypeScript typecheck, build, Node suite, integrated browsers, authenticated AI providers, and Safari device tests **not executed** in the current environment (GitHub clone DNS resolution unavailable and Vercel access denied).
 
 ## Acceptance before merge
