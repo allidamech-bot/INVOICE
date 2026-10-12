@@ -293,6 +293,9 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(currentConversationMode(host)!=='controller')throw new Error('Advisor cannot approve actions. Switch to Controller and review again.');
     if(!proposal.foundationApproval)throw new Error('This action has no current review envelope. Ask to prepare it again.');
     assertFoundationApproval(resumed.vault,proposal);
+    // Give an attempted receipt its precise non-replayable failure before
+    // generic stale-view checks; never start a second write for the same ID.
+    if((host.__foundationReceipts||[]).some((r:any)=>r.id===proposal.foundationApproval.id))throw new Error('This approval was already attempted. Check the saved record before preparing a new action.');
     // Block stale actions, including steps detached from a superseded plan.
     if(!approvalIsCurrent(host,proposal))throw new Error('The proposed action changed. Review it again.');
     // UI visibility alone is not authorization: acknowledge the exact active
@@ -304,7 +307,6 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
       host.setState({review});
       if(review.blockers.length)throw new Error(review.blockers.join(' '));
     }
-    if((host.__foundationReceipts||[]).some((r:any)=>r.id===proposal.foundationApproval.id))throw new Error('This approval was already attempted. Check the saved record before preparing a new action.');
     if(!missionStep(kernel.missions||[],proposal))stageReviewedMission(kernel,proposal);
     step=beginMissionStep(kernel.missions||[],proposal);
     receipt={id:proposal.foundationApproval.id,state:'applying',at:new Date().toISOString(),actorId:proposal.foundationApproval.actorId,action:proposal.tool||proposal.capability,payload:proposal.foundationApproval.payload};
