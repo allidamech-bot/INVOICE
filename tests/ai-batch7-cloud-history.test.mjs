@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mergeAssistantCloudState,mergeAssistantCloudThread} from '../dist/src/cloud/assistant-history.js';
+import {normalizeAssistantState,upsertAssistantThread} from '../dist/src/storage/assistant-store.js';
 const origin=readFileSync(new URL('../src/cloud/assistant-history.ts',import.meta.url),'utf8');
 const storage=readFileSync(new URL('../src/storage/assistant-store.ts',import.meta.url),'utf8');
 const runtime=readFileSync(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
@@ -95,4 +96,23 @@ test('cloud transport respects an explicit doc size and limited collection reads
   assert.match(origin,/\.limit\(MAX_CLOUD_THREADS\)/);
   assert.match(origin,/if\(bytes\(candidate\)>MAX_DOCUMENT_BYTES\)throw/);
   assert.match(origin,/No truncated upload was made|no truncated upload was made/);
+});
+
+test('repeated local saves preserve original message timestamps and reject a tombstoned ID',()=>{
+  const first=upsertAssistantThread(normalizeAssistantState(local()),{threadId:'t-8',scope:'business',workspaceId:'company-a',branchId:'main',
+    messages:[{id:'m1',role:'user',text:'Quote'}]}).state;
+  const originalTime=first.threads[0].messages[0].createdAt;
+  const second=upsertAssistantThread(first,{threadId:'t-8',scope:'business',workspaceId:'company-a',branchId:'main',
+    messages:[{id:'m1',role:'user',text:'Quote'},{id:'m2',role:'assistant',text:'Analyzed'}]}).state;
+  assert.equal(second.threads[0].messages[0].createdAt,originalTime);
+  const deleted=normalizeAssistantState({...second,threads:[],deletedThreads:{'t-8':'2026-10-12T15:00:00.000Z'}});
+  assert.throws(()=>upsertAssistantThread(deleted,{threadId:'t-8',scope:'business',workspaceId:'company-a',branchId:'main',messages:[]}),/deleted/i);
+});
+test('new cloud messages drop stale local controller approvals even without a mode switch',()=>{
+  const previous=thread('t-9',[msg('m1','Original')],'controller');
+  previous.kernel.artifact={id:'draft-stale',revision:1,proposal:{},lineIds:[],undo:[],redo:[]};
+  previous.foundationReceipts=[{id:'receipt',state:'applying',at}];
+  const merged=mergeAssistantCloudState(uid,local([previous]),[cloud('t-9',[msg('m1','Original'),msg('m2','New from second device',1)],{mode:'controller'})]).threads[0];
+  assert.equal(merged.kernel?.artifact,undefined);
+  assert.deepEqual(merged.foundationReceipts,[]);
 });
