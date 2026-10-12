@@ -99,7 +99,7 @@ export function mergeAssistantCloudState(uid:string,localState:AssistantStoreSta
 /** Called only on an authenticated account; one full sync at a time per device.
  * Transactional per-thread merges prevent simultaneous devices from silently winning.
  * A rejected network request leaves the durable local encrypted cache untouched. */
-export async function synchronizeAssistantHistory(uid:string,key:CryptoKey):Promise<{uploaded:number;downloaded:number}>{
+export async function synchronizeAssistantHistory(uid:string,key:CryptoKey,options:{installRemote?:boolean}={}):Promise<{uploaded:number;downloaded:number}>{
   checkAccount(uid);
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Offline: AI history remains saved locally. Cloud sync will retry.');
   const local=await loadAssistantState(key);checkAccount(uid);
@@ -138,6 +138,9 @@ export async function synchronizeAssistantHistory(uid:string,key:CryptoKey):Prom
     });
     checkAccount(uid);if(changed)uploaded++;
   }
+  // During outgoing auto-save, do not overwrite concurrent local edits with
+  // an asynchronous cloud read. The next explicit refresh performs the pull.
+  if(options.installRemote===false)return{uploaded,downloaded:0};
   // Refetch authoritative rows after concurrent remote writes. Existing device
   // kernels and financial approvals remain local-only, never imported from cloud.
   const finalSnap=await collection(uid).orderBy('updatedAt','desc').limit(MAX_CLOUD_THREADS).get({source:'server'});
