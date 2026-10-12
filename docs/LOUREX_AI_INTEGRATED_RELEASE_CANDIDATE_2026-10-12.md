@@ -20,13 +20,13 @@ Do not mark individual stacked PRs merged or ready for production just because t
 - Firebase: account-specific text history with transactional per-thread merges, UID rules, tombstones, conflict detection and limited Firestore read fanout. No device cache AES key, approval artifact or financial vault goes to cloud
 
 ## Validations executed during authoring
-1. Batch 1 + 2 source-level checks in the integrated head: **11/11 passed**.
+1. Batch 1 + 2 voice/Advisor source checks plus server API mode/capability sanitizer probes in the integrated head: **22/22 passed**.
 2. Batch 3–6 isolated source/formatter checks in stacked head prior to integration: **16/16 passed**.
-3. Batch 7 cloud synchronization behavior exercised with a JavaScript-adapted extract of the current cloud merge functions: **9/9 passed**.
+3. Batch 7 cloud synchronization behavior exercised with a JavaScript-adapted extract of the current cloud merge functions: **9/9 passed**. After the latest source changes, the merge code rejects same-ID conflicts, accidental resurrection, 31st local thread, 61st unique message, cross-account data and overlong text; a deletion can free a slot for a replacement conversation.
 4. Integrated branch release-candidate source-contract checks: **7/7 passed**.
-5. **16 authored** compiled Batch 7 Node tests (two-device merge and conflict, deletion, privacy, retention) exist but have **not** been run against actual TypeScript output.
+5. **16 authored** Batch 7 Node tests (requiring compiled TypeScript) (two-device merge and conflict, deletion, privacy, retention) exist but have **not** been run against actual TypeScript output.
 
-These are *limited engineering checks*, not a release certification. No full local checkout/CI was possible in the current environment.
+These are *limited engineering checks*, not a release certification. No full local checkout/CI was possible in the current environment. A read-only Vercel check identified production deployment `c4254d5aa105206e0284f4424019e4c333c9b172` on `main`, and **zero deployments for this integration branch**. GitHub reported **zero workflow runs and zero statuses** for the integrated PR head. Therefore there is no evidenced full build, Vercel preview, browser QA or physical Safari acceptance for this candidate.
 
 ## Mandatory release acceptance gates
 
