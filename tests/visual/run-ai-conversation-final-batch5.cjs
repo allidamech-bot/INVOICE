@@ -59,7 +59,9 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.equal(await panel.getAttribute('data-lourex-conversation-remediation'),'3','final conversation presentation owner must be mounted');
         const panelVisual=await panel.evaluate(node=>{const style=getComputedStyle(node);return{theme:document.documentElement.dataset.uiTheme,bg:style.backgroundColor,text:style.color,chatBg:style.getPropertyValue('--lx-chat-bg').trim(),chatMuted:style.getPropertyValue('--lx-chat-muted').trim(),chatAccent:style.getPropertyValue('--lx-chat-accent').trim()};});
         assert.equal(panelVisual.theme,theme,'fixture theme must reach the conversation');
-        assert.equal(panelVisual.bg,theme==='dark'?'rgb(11, 12, 14)':'rgb(255, 255, 255)','conversation canvas must visibly follow the selected theme');
+        // AI conversation has its own immutable matte-black visual identity,
+        // independent of the accounting site's light/dark theme preference.
+        assert.equal(panelVisual.bg,'rgb(8, 8, 8)','AI conversation must remain matte black for either site theme');
         assert.ok(contrast(panelVisual.text,panelVisual.bg)>=4.5,'conversation base text contrast must meet WCAG AA');
 
         const textarea=panel.locator('.lourex-ai-premium-textarea');
