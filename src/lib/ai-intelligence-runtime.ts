@@ -23,11 +23,11 @@ import { conversationModePermitsCapability, normalizeAiConversationMode, type Ai
 type Host=any;
 let storeQueue:Promise<unknown>=Promise.resolve();
 let cloudHistoryQueue:Promise<unknown>=Promise.resolve();
-function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,generation?:number,installRemote=false):void{
+function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,generation?:number,installRemote=false,changedThreadId?:string):void{
   const run=async()=>{
     if(activeAccountStorageUid()!==uid)return;
     host.setState({__workspaceHistorySyncStatus:'syncing',__workspaceHistorySyncError:''});
-    const result=await synchronizeAssistantHistory(uid,key,{installRemote});
+    const result=await synchronizeAssistantHistory(uid,key,{installRemote,changedThreadId});
     if(activeAccountStorageUid()!==uid||host.mounted===false)return;
     let needsReopen=false;
     if(scope&&generation===host.__workspaceLoadGeneration){
@@ -86,7 +86,7 @@ async function persistKernel(host:Host):Promise<void>{
     const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
     const store=saved.state,thread=saved.thread;
     thread.kernel=kernel;thread.foundationReceipts=receipts;await saveAssistantState(resumed.key,store);
-    const uid=activeAccountStorageUid();if(uid)queueHistorySync(host,uid,resumed.key);
+    const uid=activeAccountStorageUid();if(uid)queueHistorySync(host,uid,resumed.key,undefined,undefined,false,kernel.scope.threadId);
   };
   const next=storeQueue.catch(()=>undefined).then(run);storeQueue=next;await next;
 }
