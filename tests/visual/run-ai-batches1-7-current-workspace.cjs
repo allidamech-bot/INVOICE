@@ -25,7 +25,9 @@ const report=[];
    page.on('pageerror',e=>errors.push(String(e)));
    await page.route('**/api/**',route=>{requests.push(route.request().url());return route.fulfill({status:503,body:'No provider in local QA'});});
    await page.goto('http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang='+c.lang+'&theme='+c.theme,{waitUntil:'networkidle'});
-   await page.locator('[data-lourex-proactive-assistant-mount]').waitFor();
+   // This is an intentionally hidden React portal mount, not visible UI.
+   // Wait for attachment here; visible assertions follow on the opened panel.
+   await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
    await page.evaluate(async theme=>{
     const [{setupVault},{emptyVault},{establishSession},{setUiThemePreference}]=await Promise.all([
       import('/dist/src/storage/vault.js'),
