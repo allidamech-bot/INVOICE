@@ -433,3 +433,62 @@ html body #root .modal.modal-assistant[role='dialog'] :is(small,.field-hint){col
 html body #root .modal.modal-assistant[role='dialog'] :is(input,select,textarea){font-family:inherit!important;font-size:16px!important;line-height:1.5!important;background:#1c1c1e!important;color:#f5f5f7!important;border:1px solid #2c2c2e!important;box-shadow:none!important;}
 html body #root .modal.modal-assistant[role='dialog'] :is(button,.btn){font-family:inherit!important;font-size:14px!important;line-height:1.4!important;background:#1c1c1e!important;background-image:none!important;color:#f5f5f7!important;border-color:#2c2c2e!important;box-shadow:none!important;min-height:44px!important;}
 html body #root .modal.modal-assistant[role='dialog'] :is(button.primary,.btn.primary){background:#f5f5f7!important;color:#080808!important;}
+
+/* Batch 3 — visible scoped chat history. Kept inside the AI shell only. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger{
+  display:grid;place-items:center;flex:0 0 38px;min-width:38px;min-height:44px;
+  padding:0;border:0;border-radius:10px;background:transparent;color:var(--lxw-muted);cursor:pointer;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger[aria-expanded='true'],
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger:hover{background:var(--lxw-surface);color:var(--lxw-text);}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger:disabled{opacity:.5;cursor:wait;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history{
+  display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;
+  overflow:hidden;background:var(--lxw-bg);color:var(--lxw-text);
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 14px;border-bottom:1px solid var(--lxw-line);
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-head strong{font-size:16px;font-weight:700;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-head button{
+  min-width:44px;min-height:44px;padding:7px 12px;border:1px solid var(--lxw-line);
+  border-radius:11px;color:var(--lxw-text);background:var(--lxw-surface);
+  font:inherit;font-size:13px;cursor:pointer;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-head button:disabled{opacity:.5;cursor:wait;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-search{
+  flex:0 0 auto;box-sizing:border-box;width:calc(100% - 28px);min-height:44px;
+  margin:12px 14px;padding:10px 12px;border-radius:11px;border:1px solid var(--lxw-line);
+  background:var(--lxw-surface);color:var(--lxw-text);font:inherit;font-size:16px;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-list{
+  flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  padding:0 14px 12px;scrollbar-color:var(--lxw-line) var(--lxw-bg);
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-row{
+  display:flex;flex-direction:column;gap:3px;text-align:start;width:100%;
+  padding:10px 12px;margin:0 0 6px;min-height:58px;border-radius:11px;
+  border:1px solid transparent;background:var(--lxw-surface);color:var(--lxw-text);
+  font:inherit;cursor:pointer;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-row:hover,
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-row[aria-current='page']{
+  border-color:var(--lxw-line);background:#1c1c1e;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-row:disabled{opacity:.55;cursor:wait;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-row-title{
+  font-size:14px;font-weight:600;line-height:1.5;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-row-meta{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:12px;line-height:1.4;color:var(--lxw-muted);
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-empty,
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-error{
+  margin:12px 0;padding:12px;font-size:13px;line-height:1.6;color:var(--lxw-muted);
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-error{border:1px solid var(--lxw-line);border-radius:10px;color:var(--lxw-text);}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history :is(button,input):focus-visible,
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger:focus-visible{outline:2px solid var(--lxw-text);outline-offset:2px;}
