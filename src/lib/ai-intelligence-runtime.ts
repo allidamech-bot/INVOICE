@@ -237,7 +237,11 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
   const responseLanguage=resolveAiConversationReplyLanguage(preferences.replyLanguage,input.message,input.language);
   const result=await orchestrateAiToolRequest({...input,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
   const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
-  if(result){host.__foundationToolOutcomes=foundationToolOutcomes(result);
+  if(result){
+    // The final legacy formatter must preserve the reply locale already resolved
+    // from the user's question and independent AI answer preference.
+    (result as any).foundationReplyLanguage=responseLanguage;
+    host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
     kernel.toolEvidence=host.__foundationToolOutcomes.map((row:FoundationToolOutcome)=>({...row,at:new Date().toISOString()}));
     const search=result.results.find(row=>row.ok&&row.tool==='search.records');
