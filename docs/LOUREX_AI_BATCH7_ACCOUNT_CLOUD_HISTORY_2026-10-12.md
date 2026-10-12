@@ -8,8 +8,8 @@
 
 - Logged-in users' **text conversation history** is queued for synchronization under `users/{uid}/assistantHistory/{threadId}` in Firestore, separate from financial workspace documents.
 - The existing Firestore security rules guard the entire `users/{uid}/...` subtree by `request.auth.uid == userId`. There is no new anonymous read permission or shared URL.
-- A cloud refresh can import history on a second device, with an explicit local/syncing/synchronized/pending status visible in the conversation-history pane.
-- Per-thread transactional writes merge messages by unique ID. A device cannot silently replace the other device's independent messages.
+- A cloud refresh can import history on a second device, with an explicit local/syncing/synchronized/pending status visible in the conversation-history pane. A browser `online` event also schedules account-checked reconciliation; there is no continuously active Firestore realtime listener.
+- Per-thread transactional writes merge messages by unique ID. A device cannot silently replace the other device's independent messages. Existing message timestamps remain stable across local re-saves; attempting to reuse a deleted thread ID fails visibly.
 - Conversation deletion first commits a durable **local tombstone**, then schedules a cloud tombstone. An offline deletion remains locally protected from a subsequent cloud pull; future sync retries the tombstone.
 - The modern history pane offers a compact two-step delete confirmation. The old lifecycle now searches the entire scoped local list to open older synced conversations, not merely the ten shown in its legacy menu.
 
@@ -18,7 +18,7 @@
 - The per-device IndexedDB AES-GCM history cache remains local. **Its CryptoKey/ciphertext is not uploaded.**
 - Firestore stores account-protected **plaintext** messages and metadata (thread ID, scope, company, branch, mode, title, summary, timestamps). This is not end-to-end encryption; confidentiality relies on Firebase Auth, Firestore UID rules, TLS, platform security and account controls.
 - Cloud documents **never contain** `kernel`, executable proposals, working draft artifacts, approval receipts, mission state, financial vaults or the PIN-era encrypted cache.
-- Downloaded threads receive a minimal safe kernel without pending actions. A conflicting Controller/Advisor mode is downgraded to Advisor, and no local executable draft/approval is inherited from a conflicting kernel.
+- Downloaded threads receive a minimal safe kernel without pending actions. A conflicting Controller/Advisor mode is downgraded to Advisor. When remote messages differ from the current local copy, old local executable drafts/approvals are also discarded even if the modes agree.
 - Malformed UID, mismatched account, changed workspace/branch, corrupt document, invalid Firestore format or unknown network state cause failure rather than a silent overwrite.
 - Local writes always happen before outgoing cloud publication. During a pull, local kernel saves are serialized so cloud does not overwrite in-flight local state. After a remote transaction commits, the authoritative version is re-fetched before installing local changes.
 - A local failure leaves cloud data intact; a cloud failure leaves local ciphertext intact. The UI must not claim synchronized history until the network path succeeds.
