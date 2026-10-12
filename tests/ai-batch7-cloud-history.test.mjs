@@ -153,3 +153,10 @@ test('a remote deletion frees space for a replacement thread at the local retent
   assert.ok(!merged.threads.some(row=>row.id==='old-0'));
   assert.ok(merged.threads.some(row=>row.id==='replacement'));
 });
+
+test('cloud pull restores an idle conversation kernel after remote changes',()=>{
+  assert.ok(runtime.includes('const wasDeleted=Boolean(!remoteCurrent'));
+  assert.ok(runtime.includes('await hydrateKernel(host,vault)'));
+  assert.ok(runtime.includes("host.__lourexAssistantThreadId=''"));
+  assert.ok(runtime.includes("__workspaceHistorySyncStatus:needsReopen?'pending'"));
+});
