@@ -564,7 +564,17 @@ export function installConversationWorkspace(host:Host):void {
   };
   const toggle=host.toggle.bind(host);host.toggle=()=>{const opening=!host.state.open;toggle();if(opening)void refresh();};
   const ask=host.ask.bind(host);host.ask=async(raw?:string)=>{if(host.__workspaceModeSwitchBusy)return;await ask(raw);if(host.state.open)await refresh();};
-  const dismiss=host.dismissProposal.bind(host);host.dismissProposal=()=>{if(disabled(host)||host.__foundationApprovalBusy)return;const proposal=host.state.proposal;dismiss();void dismissIntelligenceWorkspace(host,proposal).catch((error:Error)=>host.setState({error:error.message}));};
+  const dismiss=host.dismissProposal.bind(host);host.dismissProposal=()=>{
+    if(disabled(host)||host.__foundationApprovalBusy||host.__workspaceDismissBusy)return;
+    const proposal=host.state.proposal;if(!proposal)return;
+    host.__workspaceDismissBusy=true;
+    void dismissIntelligenceWorkspace(host,proposal).then(()=>{
+      // Record the legacy dismissal audit only after the cancellation is durable.
+      // The runtime already cleared the proposal, so restore only for the audit callback.
+      if(host.state.proposal===null){host.setState({proposal});dismiss();}
+    }).catch((error:Error)=>host.setState({error:error.message}))
+      .finally(()=>{host.__workspaceDismissBusy=false;});
+  };
   // Immediately remove volatile UI references during scope/thread changes. Hydrate
   // the requested thread before redisplaying its encrypted working artifact.
   for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
