@@ -79,3 +79,13 @@ test('combined release candidate does not reintroduce a PIN requirement',()=>{
   assert.match(read('src/cloud/plain-workspace.ts'),/PIN-free Firebase format/);
   assert.doesNotMatch(cloud,/getAccountVaultSecret|derivePin|unlockWithPin/);
 });
+
+test('local retention and tombstones are fail-closed, not silently discarded',()=>{
+  const source=read('src/storage/assistant-store.ts');
+  assert.match(source,/if\(input\.messages\.length>MAX_MESSAGES\)/);
+  assert.match(source,/if\(!existing&&normalized\.threads\.length>=MAX_THREADS\)/);
+  assert.match(source,/Conversation belongs to a different workspace or branch/);
+  assert.match(source,/Nothing was evicted/);
+  assert.match(source,/No previous messages were discarded/);
+  assert.doesNotMatch(source,/slice\(0,200\)\) as Record<string,string>/);
+});
