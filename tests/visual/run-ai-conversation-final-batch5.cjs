@@ -70,18 +70,16 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await textarea.waitFor({state:'visible'});
         const plusBox=await plus.boundingBox();
         assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'unified plus target remains touch safe');
-        const scopeTrigger=panel.locator('.lourex-ai-scope-trigger');
-        await scopeTrigger.waitFor({state:'visible'});
-        const scopeTriggerBox=await scopeTrigger.boundingBox();
-        assert.ok(scopeTriggerBox&&scopeTriggerBox.width>=44&&scopeTriggerBox.height>=(width<=720?44:36),'consolidated scope trigger remains touch safe');
-        assert.equal(await panel.locator('.lourex-ai-scope-button:visible').count(),0,'legacy three-tab scope chrome is visually retired');
-        await scopeTrigger.click();
-        const scopeMenu=panel.locator('.lourex-ai-scope-menu');
-        await scopeMenu.waitFor({state:'visible'});
-        assert.equal(await scopeMenu.locator('.lourex-ai-scope-option').count(),3,'scope selector keeps Business, Personal and Temporary available');
-        if(width<=720){for(let i=0;i<3;i++){const box=await scopeMenu.locator('.lourex-ai-scope-option').nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile scope option remains 44px touch safe');}}
-        await page.keyboard.press('Escape');
-        await scopeMenu.waitFor({state:'hidden'});
+        const modeTabs=panel.locator('.lxw-mode-tabs[role="tablist"]');
+        await modeTabs.waitFor({state:'visible'});
+        const tabs=modeTabs.locator('button[role="tab"]');
+        assert.equal(await tabs.count(),2,'only Controller and Advisor mode tabs must appear');
+        assert.deepEqual((await tabs.allTextContents()).map(text=>text.trim()),lang==='ar'?['المتحكم','المستشار']:['Controller','Advisor']);
+        for(let i=0;i<2;i++){
+          const box=await tabs.nth(i).boundingBox();
+          assert.ok(box&&box.width>=44&&box.height>=44,'mobile conversation mode requires touch target');
+        }
+        assert.equal(await panel.locator('.lourex-ai-scopes:visible').count(),0,'legacy scope selector must be hidden');
         assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
         await textarea.fill(lang==='ar'?'سطر أول':'First line');
         await textarea.press('Shift+Enter');
