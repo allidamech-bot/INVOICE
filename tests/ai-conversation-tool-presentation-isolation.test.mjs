@@ -46,3 +46,28 @@ test('successful and failed mode switches render the final unlocked controls aft
     if(fail)assert.match(host.state.error,/storage unavailable/);
   }
 });
+
+test('localized draft controls preserve distinct approve/decline callbacks and hide approval until review',()=>{
+  const React={createElement:(type,props,...children)=>({type,props:{...props,children:children.flat(Infinity).filter(Boolean)}}),Children:{toArray:v=>[v].flat(Infinity).filter(Boolean)},cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,children:children.length?children.flat(Infinity):node.props.children}})};
+  let saved=0,rejected=0;
+  const apply=()=>saved++,reject=()=>rejected++,proposal={capability:'document.createDraft'},host={state:{proposal}};
+  const approval=React.createElement('section',null,React.createElement('div',{className:'lourex-ai-proposal-actions'},React.createElement('button',{className:'primary',onClick:apply},'old approve'),React.createElement('button',{onClick:reject},'old reject')));
+  const start=compiled.indexOf('function InlineDocumentApproval('),end=compiled.indexOf('function ArtifactWorkspace(',start);
+  assert.ok(start>=0&&end>start);
+  const context=vm.createContext({React,react:React,label:(ar,en,arabic)=>ar?arabic:en,useInlineDecline:()=>({exiting:false,wrap:button=>button})});
+  const busyStart=compiled.indexOf('const disabled ='),busyEnd=compiled.indexOf('function dispatch(',busyStart);
+  assert.ok(busyStart>=0&&busyEnd>busyStart);
+  vm.runInContext(compiled.slice(busyStart,busyEnd),context);
+  vm.runInContext(compiled.slice(start,end),context);
+  const buttons=node=>[...(node?.type==='button'?[node]:[]),...(node?.props?.children||[]).flatMap(buttons)];
+  let tree=context.InlineDocumentApproval({host,approval,ar:false});
+  const before=buttons(tree);
+  assert.equal(before.some(b=>b.props.onClick===apply),false);
+  const decline=before.find(b=>b.props['aria-label']==='Decline');
+  assert.equal(decline.props.onClick,reject);
+  decline.props.onClick();assert.equal(saved,0);assert.equal(rejected,1);
+  host.state.__workspaceReviewedProposal=proposal;
+  tree=context.InlineDocumentApproval({host,approval,ar:false});
+  const confirm=buttons(tree).find(b=>b.props['aria-label']==='Approve draft');
+  assert.equal(confirm.props.onClick,apply);
+});

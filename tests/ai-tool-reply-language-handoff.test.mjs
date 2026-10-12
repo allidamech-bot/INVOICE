@@ -17,13 +17,18 @@ test('actual tool runtime and final chat formatter honor question/answer prefere
     const result={answer:'',results:[],plan:{calls:[]}},scope={accountId:'a',workspaceId:'w',branchId:'b',threadId:'t'};
     const host={__intelligenceKernel:{scope},props:{language:site}};
     const context=vm.createContext({host,input:{message,language:site,context:{}},toolResult:result,
-      currentConversationMode:()=> 'controller',currentAiExperiencePreferences:()=>({replyLanguage:preference}),resolveAiConversationReplyLanguage,
+      currentConversationMode:()=> 'controller',currentAiExperiencePreferences:()=>({replyLanguage:preference,interfaceLanguage:'en'}),resolveAiConversationReplyLanguage,
       orchestrateAiToolRequest:async()=>result,resumeVaultSession:async()=>({vault:{}}),scopeFor:()=>scope,kernelScopeKey:s=>JSON.stringify(s),foundationToolOutcomes:()=>[],
       __lourexNaturalizeToolAnswer:(_result,locale)=>locale,
     });
+    const uiStart=runtime.indexOf('export function currentAiInterfaceLanguage(');
+    const uiEnd=runtime.indexOf('\n}',uiStart)+2;
+    assert.ok(uiStart>=0&&uiEnd>uiStart);
+    vm.runInContext(runtime.slice(uiStart,uiEnd).replace('export function','function'),context);
     vm.runInContext(runtime.slice(start,end),context);
     await context.runIntelligenceTools(host,context.input);
     assert.equal(result.foundationReplyLanguage,expected);
+    assert.equal(result.foundationInterfaceLanguage,'en','interface locale stays independent from answer and site');
     assert.equal(vm.runInContext('(function(){return '+expression+';}).call(host)',context),expected);
   }
 });

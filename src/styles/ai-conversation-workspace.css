@@ -1,5 +1,6 @@
 /* Phase 2: one scoped AI workspace owner; no non-AI selectors. */
 html body #root #lourex-ai-panel[data-lourex-workspace='2']{
+  color-scheme:dark;scrollbar-color:#2c2c2e #080808;
   width:min(760px,calc(100vw - 32px))!important;max-width:760px!important;
   --lxw-bg:#080808;--lxw-surface:#111111;--lxw-text:#f5f5f7;--lxw-muted:#a1a1a6;--lxw-line:#2c2c2e;--lxw-accent:#f5f5f7;
   --lxw-selected:#eeeeee;--lxw-on-selected:#171717;
@@ -403,6 +404,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown code{f
 
 /* AI tool portals opt in explicitly. Main-site modals retain their own theme. */
 html body #root .modal.modal-assistant[role='dialog']{
+  color-scheme:dark;scrollbar-color:#2c2c2e #080808;
  --lxw-bg:#080808;--lxw-surface:#111111;--lxw-text:#f5f5f7;--lxw-muted:#a1a1a6;--lxw-line:#2c2c2e;
  --ft-surface:#111111;--ft-surface-2:#1c1c1e;--ft-input:#1c1c1e;--ft-text:#f5f5f7;--ft-text-soft:#a1a1a6;--ft-line:#2c2c2e;--ft-accent:#f5f5f7;
  --lx485-surface:#111111;--lx485-surface-2:#1c1c1e;--lx485-canvas-2:#1c1c1e;--lx485-text:#f5f5f7;--lx485-text-2:#a1a1a6;--lx485-muted:#a1a1a6;--lx485-line:#2c2c2e;--lx485-blue:#f5f5f7;

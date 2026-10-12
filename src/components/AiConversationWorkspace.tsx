@@ -3,7 +3,7 @@ import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from '
 import { strictAiActor } from '../lib/ai-foundation-approval.js';
 import { CommercialWorkspace, MissionWorkspace } from './AiCommercialWorkspace.js';
 import { workspaceDocument, workspaceDrafting, validateWorkspaceCard, type WorkspaceCard, type WorkspaceComponent, type WorkspaceDocument, type WorkspaceCommand } from '../lib/ai-workspace-model.js';
-import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, assignIntelligenceConversationMode, currentAiExperiencePreferences, updateAiExperiencePreferences } from '../lib/ai-intelligence-runtime.js';
+import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, assignIntelligenceConversationMode, currentAiExperiencePreferences, updateAiExperiencePreferences, currentAiInterfaceLanguage } from '../lib/ai-intelligence-runtime.js';
 import { normalizeAiConversationMode, conversationModeDescription, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 import { kernelScopeKey, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { activeAccountStorageUid } from '../storage/db.js';
@@ -49,21 +49,21 @@ const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
 const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy);
 function dispatch(host:Host,command:WorkspaceCommand){void updateIntelligenceWorkspace(host,command);}
-const aiUiAr=(host:Host):boolean=>{const pref=currentAiExperiencePreferences(host).interfaceLanguage;return pref==='ar'||(pref==='inherit'&&host.props.language==='ar');};
+const aiUiAr=(host:Host):boolean=>currentAiInterfaceLanguage(host)==='ar';
 function CardRows({card}:{card:WorkspaceCard}):any {
   return <dl className="lxw-facts">{card.rows.map(row=><div key={row.id}><dt>{row.label}</dt><dd>{row.detail||'—'}</dd></div>)}</dl>;
 }
-function Picker({card,onPick,busy}:{card:WorkspaceCard;onPick?:(id:string)=>void;busy?:boolean}):any {
+function Picker({card,onPick,busy,ar=false}:{ar?:boolean;card:WorkspaceCard;onPick?:(id:string)=>void;busy?:boolean}):any {
   const [query,setQuery]=React.useState(''),[page,setPage]=React.useState(0);
   const rows=card.rows.filter(row=>(row.label+' '+row.detail).normalize('NFKC').toLowerCase().includes(query.normalize('NFKC').toLowerCase()));
-  const ar=document.documentElement.lang==='ar',visible=rows.slice(page*12,page*12+12);
+  const visible=rows.slice(page*12,page*12+12);
   return <div className="lxw-picker"><input type="search" value={query} aria-label={label(ar,'Filter records','تصفية السجلات')} placeholder={label(ar,'Search name or SKU','ابحث بالاسم أو SKU')} onChange={(event:any)=>{setQuery(event.target.value);setPage(0);}}/><small>{rows.length} {label(ar,'matching records','سجل مطابق')}</small><div className="lxw-picker-list">{visible.map(row=><button type="button" key={row.id} disabled={busy||!onPick} onClick={()=>onPick?.(row.id)}><strong>{row.label}</strong><small>{row.detail}</small><code>{row.id}</code></button>)}{!rows.length?<p>{label(ar,'No matching records.','لا توجد سجلات مطابقة.')}</p>:null}</div>{rows.length>12?<nav className="lxw-pagination" aria-label={label(ar,'Record pages','صفحات السجلات')}><button type="button" disabled={page===0} onClick={()=>setPage(page-1)}>{label(ar,'Previous','السابق')}</button><span>{page+1} / {Math.ceil(rows.length/12)}</span><button type="button" disabled={(page+1)*12>=rows.length} onClick={()=>setPage(page+1)}>{label(ar,'Next','التالي')}</button></nav>:null}</div>;
 }
 const CARD_RENDERERS:Record<WorkspaceComponent,(props:any)=>any>={CustomerPicker:Picker,ProductPicker:Picker,EditablePricingGrid:CardRows,QuotePreview:CardRows,QuoteDiff:CardRows,AttachmentGallery:CardRows,EvidencePopover:CardRows,ApprovalDiff:CardRows,WorkflowProgress:CardRows,FinanceScenario:CardRows,SourceCompare:CardRows};
 /** Descriptors choose a registered display only. Callbacks come exclusively from the host. */
-export function RegisteredWorkspaceCard({descriptor,onPick,busy}:{descriptor:unknown;onPick?:(id:string)=>void;busy?:boolean}):any {
+export function RegisteredWorkspaceCard({descriptor,onPick,busy,ar=false}:{ar?:boolean;descriptor:unknown;onPick?:(id:string)=>void;busy?:boolean}):any {
   const card=validateWorkspaceCard(descriptor);if(!card)return null;
-  const Component=CARD_RENDERERS[card.component];return <section data-workspace-component={card.component}><Component card={card} onPick={onPick} busy={busy}/></section>;
+  const Component=CARD_RENDERERS[card.component];return <section data-workspace-component={card.component}><Component card={card} onPick={onPick} busy={busy} ar={ar}/></section>;
 }
 function CellEditor({value,numeric,onCommit,name,busy}:{value:string;numeric:boolean;onCommit:(value:string)=>void;name:string;busy:boolean}):any {
   const [input,setInput]=React.useState(value);
@@ -226,8 +226,9 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
   const actions=react.Children.toArray(approval.props?.children).find((child:any)=>
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const originalButtons=actions?react.Children.toArray((actions as any).props.children):[];
-  const confirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
-  const decline=originalButtons.filter((button:any)=>button!==confirm).map((button:any)=>dismissal.wrap(button));
+  const originalConfirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
+  const confirm=originalConfirm?react.cloneElement(originalConfirm,{'aria-label':label(ar,'Approve draft','اعتماد المسودة')},label(ar,'Approve draft','اعتماد المسودة')):null;
+  const decline=originalButtons.filter((button:any)=>button!==originalConfirm).map((button:any)=>react.cloneElement(dismissal.wrap(button),{'aria-label':label(ar,'Decline','رفض')},label(ar,'Decline','رفض')));
   return <section className="lxw-inline-approval" data-exiting={dismissal.exiting?'true':'false'} aria-label={label(ar,'Document approval suggestion','اقتراح اعتماد مستند')}>
     <div className="lxw-inline-approval-title">
       <strong>{label(ar,'Draft ready for review','المسودة جاهزة للمراجعة')}</strong>
@@ -259,7 +260,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const drafting=workspaceDrafting(vault,kernel.artifact?.proposal.capability==='document.updateDraft'?kernel.artifact.proposal.documentId:'');
   const pick=(kind:'customer'|'product',id:string)=>{if(doc?.status==='draft')dispatch(host,{kind,artifactId:doc.id,revision:doc.revision,entityId:id});};
   const evidence=host.__lourexLatestContext?.advisorV2?.evidence||[];
-  return <aside className="lxw-artifact" aria-label={label(ar,'Document workspace','مساحة المستند')}><header className="lxw-artifact-head"><div><strong>{workspaceText(ar,doc?.title||'')||label(ar,'Your workspace','مساحة عملك')}</strong><span className={'lxw-badge '+(doc?.status||'draft')}>{doc?.status==='saved'?label(ar,'Saved in LOUREX','محفوظ في LOUREX'):label(ar,'Draft · unsaved','مسودة · غير محفوظة')}</span></div><button type="button" className="lxw-back" onClick={()=>host.setState({__workspacePane:'chat',__workspaceOpen:false})}>{label(ar,'Back to chat','العودة للمحادثة')}</button></header><div className="lxw-view-navigation">
+  return <aside className="lxw-artifact" aria-label={label(ar,'Document workspace','مساحة المستند')}><header className="lxw-artifact-head"><div><strong>{workspaceText(ar,doc?.title||'')||label(ar,'Your workspace','مساحة عملك')}</strong><span className={'lxw-badge '+(doc?.status||'empty')}>{!doc?label(ar,'No document open','لا يوجد مستند مفتوح'):doc.status==='saved'?label(ar,'Saved in LOUREX','محفوظ في LOUREX'):label(ar,'Draft · unsaved','مسودة · غير محفوظة')}</span></div><button type="button" className="lxw-back" onClick={()=>host.setState({__workspacePane:'chat',__workspaceOpen:false})}>{label(ar,'Back to chat','العودة للمحادثة')}</button></header><div className="lxw-view-navigation">
     <nav className="lxw-view-groups" aria-label={label(ar,'Workspace areas','أقسام مساحة العمل')}>
       {viewGroups.map(group=><button key={group.id} type="button" aria-pressed={activeGroup.id===group.id} onClick={()=>chooseGroup(group.id)}>{group.label}</button>)}
     </nav>
@@ -278,16 +279,16 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
       </>}
     </section>:null}
     {(tab==='preview'||tab==='edit')&&!doc?<p>{label(ar,'Ask LOUREX to prepare a quotation, or open a saved document from the chat.','اطلب من LOUREX تجهيز عرض سعر، أو افتح مستندًا محفوظًا من المحادثة.')}</p>:null}
-    {tab==='customer'?<><h3>{label(ar,'Choose the exact customer','اختر العميل المحدد')}</h3><RegisteredWorkspaceCard descriptor={{component:'CustomerPicker',rows:drafting.customers.map(row=>({id:row.id,label:row.name,detail:row.preferredCurrency+' · '+row.paymentTerms}))}} busy={disabled(host)||doc?.status!=='draft'||kernel.artifact?.proposal.capability!=='document.createDraft'} onPick={id=>pick('customer',id)}/></>:null}
-    {tab==='product'?<><h3>{label(ar,'Add a product to this draft','أضف صنفًا لهذه المسودة')}</h3><RegisteredWorkspaceCard descriptor={{component:'ProductPicker',rows:drafting.items.map(row=>({id:row.id,label:row.name,detail:[row.sku,row.unit,row.lastUnitPrice,row.lastCurrency].filter(Boolean).join(' · ')}))}} busy={disabled(host)||doc?.status!=='draft'} onPick={id=>pick('product',id)}/><p className="lxw-note">{label(ar,'A recorded price is used only when its currency matches. Otherwise enter a price; no FX rate is inferred.','يستخدم السعر المسجل عند تطابق العملة فقط. خلاف ذلك أدخل السعر؛ لا يُفترض سعر صرف.')}</p></>:null}
+    {tab==='customer'?<><h3>{label(ar,'Choose the exact customer','اختر العميل المحدد')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'CustomerPicker',rows:drafting.customers.map(row=>({id:row.id,label:row.name,detail:row.preferredCurrency+' · '+row.paymentTerms}))}} busy={disabled(host)||doc?.status!=='draft'||kernel.artifact?.proposal.capability!=='document.createDraft'} onPick={id=>pick('customer',id)}/></>:null}
+    {tab==='product'?<><h3>{label(ar,'Add a product to this draft','أضف صنفًا لهذه المسودة')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'ProductPicker',rows:drafting.items.map(row=>({id:row.id,label:row.name,detail:[row.sku,row.unit,row.lastUnitPrice,row.lastCurrency].filter(Boolean).join(' · ')}))}} busy={disabled(host)||doc?.status!=='draft'} onPick={id=>pick('product',id)}/><p className="lxw-note">{label(ar,'A recorded price is used only when its currency matches. Otherwise enter a price; no FX rate is inferred.','يستخدم السعر المسجل عند تطابق العملة فقط. خلاف ذلك أدخل السعر؛ لا يُفترض سعر صرف.')}</p></>:null}
     {tab==='knowledge'?<KnowledgeWorkspace key={kernelScopeKey(kernel.scope)} host={host}/>:null}
     {tab==='reliability'?<ReliabilityWorkspace key={kernelScopeKey(kernel.scope)} host={host}/>:null}
     {tab==='diagnostics'?<DiagnosticsWorkspace key={kernelScopeKey(kernel.scope)} host={host}/>:null}
     {tab==='commercial'?<CommercialWorkspace key={doc?.id||'new'} host={host} doc={doc}/>:null}
     {tab==='missions'?<MissionWorkspace host={host}/>:null}
     {tab==='files'?<AttachmentGallery host={host}/>:null}
-    {tab==='revisions'?<><h3>{label(ar,'Latest revision diff','فروق آخر تعديل')}</h3><RegisteredWorkspaceCard descriptor={{component:'QuoteDiff',rows:(doc?.diff||[]).map((row,i)=>({id:String(i),label:fieldLabel(ar,row.field),detail:(row.before||'—')+' → '+(row.after||'—')}))}}/><p>{kernel.artifact?.undo.length||0} {label(ar,'earlier working revisions. Undo changes drafts only.','تعديل سابق في المسودة. التراجع يغير المسودة فقط.')}</p><RevisionTimeline host={host}/></>:null}
-    {tab==='evidence'?<><h3>{label(ar,'Evidence','الأدلة')}</h3><RegisteredWorkspaceCard descriptor={{component:'EvidencePopover',rows:evidence.map((row:any,i:number)=>({id:String(row.id||i),label:String(row.source||''),detail:String(row.fact||'')}))}}/>{!evidence.length?<p>{label(ar,'No evidence in the current response.','لا يوجد دليل في الرد الحالي.')}</p>:null}<span className="lxw-badge saved">{label(ar,'Scoped LOUREX evidence','أدلة LOUREX ضمن النطاق')}</span></>:null}
+    {tab==='revisions'?<><h3>{label(ar,'Latest revision diff','فروق آخر تعديل')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'QuoteDiff',rows:(doc?.diff||[]).map((row,i)=>({id:String(i),label:fieldLabel(ar,row.field),detail:(row.before||'—')+' → '+(row.after||'—')}))}}/><p>{kernel.artifact?.undo.length||0} {label(ar,'earlier working revisions. Undo changes drafts only.','تعديل سابق في المسودة. التراجع يغير المسودة فقط.')}</p><RevisionTimeline host={host}/></>:null}
+    {tab==='evidence'?<><h3>{label(ar,'Evidence','الأدلة')}</h3><RegisteredWorkspaceCard ar={ar} descriptor={{component:'EvidencePopover',rows:evidence.map((row:any,i:number)=>({id:String(row.id||i),label:String(row.source||''),detail:String(row.fact||'')}))}}/>{!evidence.length?<p>{label(ar,'No evidence in the current response.','لا يوجد دليل في الرد الحالي.')}</p>:null}<span className="lxw-badge saved">{label(ar,'Scoped LOUREX evidence','أدلة LOUREX ضمن النطاق')}</span></>:null}
     {approval&&doc?.status==='draft'?<section className="lxw-approval" data-workspace-component="ApprovalDiff">
       <h3>{label(ar,'Review before saving','راجع قبل الحفظ')}</h3>
       <p>{label(ar,'Check the full contents, missing data and differences. Confirm review to reveal the decision buttons in chat.','افحص جميع البنود والبيانات الناقصة والفروق، ثم أكّد المراجعة لإظهار زري القرار في المحادثة.')}</p>

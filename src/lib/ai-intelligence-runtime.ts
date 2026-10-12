@@ -24,6 +24,10 @@ let storeQueue:Promise<unknown>=Promise.resolve();
 const flush=(host:Host)=>new Promise<void>(resolve=>host.setState({},resolve));
 const currentConversationMode=(host:Host):AiConversationMode=>normalizeAiConversationMode(host.__intelligenceKernel?.mode);
 export const currentAiExperiencePreferences=(host:Host):AiConversationExperiencePreferences=>normalizeAiConversationPreferences(host.__aiConversationPreferences||DEFAULT_AI_CONVERSATION_PREFERENCES);
+export function currentAiInterfaceLanguage(host:Host):'ar'|'en'{
+  const preference=currentAiExperiencePreferences(host).interfaceLanguage;
+  return preference==='ar'||(preference==='inherit'&&host.props.language==='ar')?'ar':'en';
+}
 function scopeFor(host:Host,vault:VaultPayload):KernelScope{
   const scope=host.state.assistantScope||'business';
   const runtime=prepareAssistantContext(vault,host.props.screen,'',null,scope).runtime;
@@ -241,6 +245,7 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
     // The final legacy formatter must preserve the reply locale already resolved
     // from the user's question and independent AI answer preference.
     (result as any).foundationReplyLanguage=responseLanguage;
+    (result as any).foundationInterfaceLanguage=currentAiInterfaceLanguage(host);
     host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
     kernel.toolEvidence=host.__foundationToolOutcomes.map((row:FoundationToolOutcome)=>({...row,at:new Date().toISOString()}));
