@@ -181,7 +181,7 @@ function InlineGeneralProposal({host,proposalNode,ar}:{host:Host;proposalNode:an
       </div>
       {expanded?<div className="lxw-inline-general-detail" role="region" aria-label={label(ar,'Action details','تفاصيل الإجراء')}>
         {children.filter((child:any)=>child!==actions)}
-        {!reviewed?<button type="button" className="lxw-inline-review-confirm" disabled={disabled(host)} onClick={()=>{setReviewedProposal(proposal);setExpanded(false);}}>{label(ar,'I reviewed this action','اطلعت على الإجراء')}</button>:null}
+        {!reviewed?<button type="button" className="lxw-inline-review-confirm" disabled={disabled(host)} onClick={()=>{host.setState({__workspaceReviewedProposal:proposal});setReviewedProposal(proposal);setExpanded(false);}}>{label(ar,'I reviewed this action','اطلعت على الإجراء')}</button>:null}
       </div>:null}
       {reviewed&&!buttons.length?<p role="status">{label(ar,'Action controls are unavailable. Nothing was executed.','أزرار الإجراء غير متاحة. لم يُنفّذ أي شيء.')}</p>:null}
     </>}
