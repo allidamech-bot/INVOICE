@@ -72,9 +72,9 @@ test('F14 close handler persists cancellation before clearing proposal or record
   const runtime=await readFile(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
   const ui=await readFile(new URL('../src/components/AiConversationWorkspace.tsx',import.meta.url),'utf8');
   const dismiss=runtime.slice(runtime.indexOf('export async function dismissIntelligenceWorkspace('),runtime.indexOf('/** Encrypted AI-only preferences'));
-  assert.match(dismiss,/await persistKernel\(host\)/);
+  assert.match(dismiss,/await persistKernel\(host,true\)/);
   assert.match(dismiss,/reconcileCancelledApprovals\(next\)/);
-  assert.ok(dismiss.indexOf('await persistKernel(host)')<dismiss.indexOf('host.setState({review:null'));
+  assert.ok(dismiss.indexOf('await persistKernel(host,true)')<dismiss.indexOf('host.setState({review:null'));
   assert.match(ui,/dismissIntelligenceWorkspace\(host,proposal\)\.then\(\(\)=>/);
   assert.match(ui,/host\.__workspaceDismissBusy=true/);
 });
