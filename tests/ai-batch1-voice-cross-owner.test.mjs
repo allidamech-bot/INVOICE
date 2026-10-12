@@ -9,7 +9,8 @@ const visual=read('tests/visual/run-ai-voice-reliability-batch5.cjs');
 
 test('composer hands off native microphone ownership to workflow, without concurrently starting',()=>{
   assert.match(composerOwner,/lourex-ai-workflow-voice-request/);
-  assert.match(composerOwner,/if\(active\)\{abortVoice\(\);detail\.active=true;\}/);
+  assert.match(composerOwner,/if\(active\)\{abortVoice\(\);const handoffPanel=document\.querySelector\(PANEL\);/);
+  assert.match(composerOwner,/composerStatus\(handoffPanel,'',''\);detail\.active=true/);
   assert.match(composerOwner,/detail\.readyAt=Math\.max\(Number\(detail\.readyAt\)\|\|0,nativeReleaseUntil\)/);
   assert.match(composerOwner,/lourex-ai-composer-voice-request/);
   assert.match(composerOwner,/nativeReleaseUntil=Math\.max\(nativeReleaseUntil,Number\(handoff\.readyAt\)\|\|0\)/);
