@@ -11,6 +11,8 @@ test('composer hands off native microphone ownership to workflow, without concur
   assert.match(composerOwner,/lourex-ai-workflow-voice-request/);
   assert.match(composerOwner,/if\(active\)\{abortVoice\(\);const handoffPanel=document\.querySelector\(PANEL\);/);
   assert.match(composerOwner,/composerStatus\(handoffPanel,'',''\);detail\.active=true/);
+  assert.match(composerOwner,/const priorPanel=recognitionPanel/);
+  assert.match(composerOwner,/if\(priorPanel\?\.isConnected\)composerStatus\(priorPanel,'',''\)/);
   assert.match(composerOwner,/detail\.readyAt=Math\.max\(Number\(detail\.readyAt\)\|\|0,nativeReleaseUntil\)/);
   assert.match(composerOwner,/lourex-ai-composer-voice-request/);
   assert.match(composerOwner,/nativeReleaseUntil=Math\.max\(nativeReleaseUntil,Number\(handoff\.readyAt\)\|\|0\)/);
