@@ -24,6 +24,17 @@ html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-conversation
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-title small{
   display:none!important;
 }
+/* Launcher motion belongs to the existing visual owner; no runtime patch. */
+#root .lourex-ai-launcher:not([aria-expanded='true']):not(:hover):not(:focus-visible){
+  animation:lourexLivingLauncherIdle 11s ease-in-out infinite;
+}
+@keyframes lourexLivingLauncherIdle{
+  0%,89%,100%{transform:translateY(0);}
+  95%{transform:translateY(-2px);}
+}
+@media(prefers-reduced-motion:reduce){
+  #root .lourex-ai-launcher{animation:none!important;}
+}
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-context-shell{
   min-height:44px!important;
   padding:5px 12px 6px!important;
@@ -103,17 +114,17 @@ html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lour
   padding:9px 12px max(11px,env(safe-area-inset-bottom,0px))!important;
 }
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-compose form{
-  min-height:60px!important;
-  gap:2px!important;
-  padding:5px!important;
-  border-radius:28px!important;
+  min-height:52px!important;
+  gap:3px!important;
+  padding:3px 4px!important;
+  border-radius:999px!important;
   background:var(--lx-chat-surface)!important;
   box-shadow:0 6px 22px rgba(0,0,0,.12)!important;
 }
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-premium-textarea{
-  min-height:46px!important;
+  min-height:44px!important;
   max-height:136px!important;
-  padding:10px 7px 8px!important;
+  padding:9px 7px 7px!important;
   font-size:16px!important;
   line-height:1.5!important;
 }
@@ -133,8 +144,14 @@ html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lour
   height:44px!important;
   min-height:44px!important;
   border-radius:50%!important;
+  border:1px solid rgba(255,255,255,.84)!important;
+  background:#f1f1f1!important;
+  color:#141414!important;
   box-shadow:none!important;
 }
+/* A single composer surface: a quiet hairline separates voice from text. */
+html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-composer-mic{position:relative!important;}
+html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-composer-mic:before{content:'';position:absolute;left:-4px;top:calc(50% - 11px);width:1px;height:22px;background:color-mix(in srgb,var(--lx-chat-text-2) 32%,transparent);pointer-events:none;}
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-send svg{
   transform:rotate(90deg)!important;
   transform-origin:center!important;
