@@ -55,8 +55,10 @@ test('built iOS voice composer hands off microphone in both directions and clear
     querySelector:selector=>selector==='#lourex-ai-panel'?panel:null,
     addEventListener(){}
   };
+  const microtasks=[];
   const context={
     window:win,document:doc,
+    queueMicrotask:fn=>microtasks.push(fn),
     navigator:{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) AppleWebKit'},
     MutationObserver:class{observe(){}},
     HTMLElement:ElementStub,HTMLButtonElement:ButtonStub,HTMLInputElement:InputStub,
@@ -64,6 +66,8 @@ test('built iOS voice composer hands off microphone in both directions and clear
     Date:{now:()=>clock}
   };
   runInNewContext(code,context,{timeout:3000});
+  for(let n=0;microtasks.length&&n<30;n++)microtasks.shift()();
+  assert.equal(microtasks.length,0,'voice runtime microtasks must settle');
   assert.ok(win.__voiceProbe,'runtime voice probe failed');
   win.__voiceProbe.toggleVoice(panel);
   assert.equal(SpeechStub.instances.length,1);
