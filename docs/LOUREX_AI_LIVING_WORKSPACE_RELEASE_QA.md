@@ -144,8 +144,40 @@ The release remains **BLOCKED / NOT APPROVED**. Review surfaced and repaired two
 
 # LOUREX AI Living Workspace — release QA gate
 
-**Audit date:** 2026-10-12. **Release state: BLOCKED / NOT APPROVED.**
+**Audit date:** 2026-10-12. **Release state: audit open; PR #708 Draft, no remediation Production release.**
 This checklist is an execution gate, not an assertion that all checks passed.
+
+## Post-release audit — current evidence supersedes the historical checklist below
+
+PRs #703–#706 are merged. The actual audit baseline is main `ff512a8bbd983e65dc63d5238fe2befe754fd681`; do not merge the old stack again. Remediation is confined to feature branch `fix/post-release-live-audit-20261012`, PR #708. The original checklist below records the pre-release situation only.
+
+Recorded live Chrome Preview inspection at PR head `522fbd79b143d3a191a2584caa38663770c597b5`, deployment `dpl_C5qJDBUYq5T4tFdbfL95ZFLnHXZ5`:
+
+| Status | Scenario | Evidence / limit |
+|---|---|---|
+| FIXED | Black assistant, compact single header/composer, redundant Business dropdown, raw Markdown, white AI tool portals | Source owners consolidated in existing workspace/build stages; live assistant/settings/CFO inspected. Main site theme remains independent. |
+| FIXED | Mode controls remained disabled after switching; transient tool presentation leaked across threads | Render after busy guard release; clear transient presentation on scope/thread changes. Live repeated mode switches verified. Saved messages retained. |
+| FIXED | Assistant interface/reply locale overwritten by site locale | Independent interface preference and resolved answer locale carried through final formatter; live EN assistant over AR site and English local response verified. |
+| PASS | Advisor hostile navigation request and restricted Plus menu | Read-only denial, no navigation or approval; only attachment controls exposed. This does not replace server/tool security tests. |
+| PASS | Unsaved deterministic two-line document preview | Synthetic 2×10 + 3×20 = 80 USD; explicit item-two price 25 gives 95; UI Undo returns 80. Customer missing warning, approval withheld. No business record saved. |
+| PASS | Assistant reduced motion | Saved Reduce motion preference; visible menu computed animation/transition 0s. Restored Follow device afterward. |
+| FAIL pending live retest | Rejected proposal returns after reload | Dismiss cleared artifact but left mission steps awaiting approval; hydration reconstructed the rejected proposal. |
+| BLOCKED | Provider-backed drafting/discussion on Preview | Deployment returns providers-not-configured error. No credentials or environment configuration changed. |
+| NOT IMPLEMENTED / incomplete | Preview-only planner result and natural-language Undo | Read-only prepare result lacks a dedicated artifact bridge; UI Undo works, conversational Undo not certified. |
+| BLOCKED | Safari/iPhone/iPad, virtual keyboard, eight-width device matrix | Available browser is Chrome; no real WebKit or viewport/device control. User Safari baselines are not Safari retest evidence. |
+| BLOCKED / incomplete | Successful voice transcription, uploads, cross-device/account matrix | Not certified live. Do not infer PASS from Node coverage. |
+
+### Rejected proposal restoration — remediation awaiting Preview retest
+
+Reproduction: Controller → Workspace → Business → Deal studio → prepare an unsaved quotation → Decline → reload → reopen assistant. The proposal returned on Preview `522fbd7` despite direct rejection.
+
+Cause: `dismissIntelligenceWorkspace` discarded only the artifact; `pendingMissionProposal` reconstructed a still-waiting mission during hydration. The original UI callback also cleared the proposal before the runtime callback could match it.
+
+Fix: capture the exact proposal before the original dismiss callback; cancel its matching mission's waiting steps, clear the review identity, persist the cancellation. Block dismissal while approval/execution is busy. Preserve completed/uncertain results and all business records. Files: `src/components/AiConversationWorkspace.tsx`, `src/lib/ai-intelligence-runtime.ts`.
+
+Regression: the actual runtime/store test rejects after the UI proposal is cleared, retains an earlier completed step/result, rehydrates from persisted state and asserts no returned proposal or artifact and no document write. Additional presentation fixes localize the busy label and activity disclosure; direct draft revision follows the independent reply preference.
+
+Latest resumed session: the previous authenticated browser session is unavailable; the fresh browser shows sign-in. Live retest and Production acceptance remain pending; do not mark this defect FIXED until reload is tested on the new Preview.
 
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.
