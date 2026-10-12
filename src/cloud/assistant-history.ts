@@ -39,6 +39,8 @@ function validCloud(value:any,uid:string):value is CloudThread{
 }
 function toCloud(uid:string,thread:AssistantThread):CloudThread{
   if(!safeId(thread.id))throw new Error('Invalid conversation ID; no cloud history was changed.');
+  if(thread.kernel?.scope.accountId&&thread.kernel.scope.accountId!==uid)
+    throw new Error('Conversation belongs to a different Firebase account. Sync cancelled.');
   return{format:FORMAT,ownerUid:uid,id:thread.id,scope:thread.scope,
     workspaceId:thread.scope==='business'?thread.workspaceId:'',branchId:thread.scope==='business'?thread.branchId:'',
     title:thread.title.slice(0,100),summary:thread.summary.slice(0,1200),
