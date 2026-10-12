@@ -73,7 +73,7 @@ test('Batch 2 remains workspace/branch isolated by consuming the Batch 1 scoped 
 test('Batch 2 build/runtime contracts keep actions on AI Core and read-only advice on Advisor V2',async()=>{
   const [pkg,installer,endpoint]=await Promise.all([readFile(new URL('../package.json',import.meta.url),'utf8'),readFile(new URL('../scripts/ai-batch2-advisor-data-v2.mjs',import.meta.url),'utf8'),readFile(new URL('../api/ai-advisor-v2.js',import.meta.url),'utf8')]);
   assert.match(pkg,/ai-batch1-entity-context-fix\.mjs && node scripts\/ai-batch2-advisor-data-v2\.mjs/);
-  assert.match(installer,/buildAdvisorDataV2\(scopedVault, finance, business, prepared\.runtime\.scope\)/);
+  assert.match(installer,/buildAdvisorDataV2\(scopedVault, finance, business, prepared\.runtime\.scope, message\)/);
   assert.match(installer,/advisorV2ReadOnly/);assert.match(installer,/\? '\/api\/ai-advisor-v2' : '\/api\/ai-core'/);
   assert.match(endpoint,/sameOriginRequest/);assert.match(endpoint,/routeAiStructured/);assert.match(endpoint,/recorded FX rates are evidence only/i);assert.match(endpoint,/Never combine currencies/i);assert.match(endpoint,/Never create a numeric health score/i);assert.match(endpoint,/enum:\['workspace\.navigate'\]/);assert.doesNotMatch(endpoint,/document\.createDraft|item\.archive|item\.updateMetadata/);
 });
