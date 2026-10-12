@@ -187,6 +187,12 @@ Reproduction on `c29661b`: click Advisor and immediately inspect while its scope
 
 Cause: the fail-closed render branch hid stale messages/proposals but returned legacy context and interactive composer unchanged. Fix in the same render owner: strip legacy context in both ready and loading states; disable all composer controls during unverified hydration; retain the LOUREX AI identity and explicit interface direction. The actual compiled render test now asserts absence of legacy scope, disabled input/send and absence of a stale proposal when props invalidate scope. Personal history remains retained. TypeScript, complete build and all 2530 tests passed. New Preview/live transition retest remains pending; Production acceptance stays open.
 
+Live retest of `88624ab`: first Preview failed before source build with Git information retrieval failed. One normal Preview redeploy succeeded: `dpl_BjMxqksUT9PT9uFYXo1FSQETJHVm`, READY 33s, exact commit verified. Applied the PWA update with no editor open. Advisor → Controller immediately during hydration: no Business selector, both input fields and Plus/Send disabled. After hydration Controller controls recovered. **FIXED** for legacy selector flash and typing-before-hydration.
+
+The same retest found a remaining presentation discontinuity: tabs/settings disappeared during hydration and tools shifted when Advisor removed the workspace trigger. Follow-up keeps the same two disabled, unselected tabs during unverified loading, retains the disabled settings slot, and uses an inert 44px workspace slot in loading/Advisor instead of exposing Controller actions. A single mode-tabs renderer serves both states. Regression asserts exactly two inert tabs without selecting an unverified mode. Live retest of this follow-up remains pending.
+
+Site Light/Dark independence verified live on `c29661b`: assistant computed background rgb(8,8,8), text rgb(245,245,247); original Light site and inherited assistant UI preference restored. No accounting write, saved document, customer deletion or stock adjustment occurred.
+
 ## Repository / PR stack
 - Repository: `allidamech-bot/INVOICE` only.
 - Base `main` at kickoff: `27ed9d54f615ecfea8dd73ab34fc072d3a4dcfa3`.

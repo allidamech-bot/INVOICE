@@ -110,6 +110,7 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  h.props={language:'en'};
  const loading=renderConversationWorkspace(h,tree);assert.equal(loading.props['data-workspace-ready'],'false');
  assert.equal(loading.props['aria-label'],'LOUREX AI');
+ const loadingTabs=loading.props.children.find(child=>child?.props?.className==='lxw-mode-tabs');assert.equal(loadingTabs.props.children.length,2);assert.ok(loadingTabs.props.children.every(child=>child.props.disabled&&!child.props['aria-selected']),'two inert mode tabs remain present without claiming an unverified mode');
  assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-context'),'legacy Business scope must not flash during scoped hydration');
  const locked=loading.props.children.find(child=>child?.props?.className==='lourex-ai-compose');assert.ok(locked.props.children.every(child=>child.props.disabled),'typing and sending stay disabled until the current scope is hydrated');
  assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-proposal'));

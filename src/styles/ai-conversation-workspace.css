@@ -381,6 +381,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head{
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-title{display:flex!important;align-items:center!important;gap:8px!important;flex:1!important;min-width:0!important;color:var(--lxw-text)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-title :is(strong,span){color:var(--lxw-text)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions{display:flex!important;align-items:center!important;gap:2px!important;flex:0 0 auto!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-header-slot{display:block;flex:0 0 44px;width:44px;height:44px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-workspace-trigger{display:grid;place-items:center;flex:0 0 44px;width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--lxw-muted);cursor:pointer;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-workspace-trigger:focus-visible{outline:2px solid var(--lxw-text);outline-offset:2px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions button{height:44px!important;min-height:44px!important;width:44px!important;border:0!important;background:transparent!important;color:var(--lxw-muted)!important;}
