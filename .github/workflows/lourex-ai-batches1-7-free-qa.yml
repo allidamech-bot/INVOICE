@@ -96,14 +96,14 @@ jobs:
       - name: Test mock native microphone handoff and quoted tool conversation in both browser engines
         run: |
           set -euo pipefail
-          ./node_modules/.bin/http-server dist -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-ai-visual.log 2>&1 &
+          ./node_modules/.bin/http-server . -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-ai-visual.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            if curl -fsS http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html >/dev/null; then break; fi
             sleep 0.5
           done
-          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          curl -fsS http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html >/dev/null
           node tests/visual/run-ai-voice-reliability-batch5.cjs
           node tests/visual/run-ai-conversation-final-batch5.cjs
           node tests/visual/run-v542-pagination-parity.cjs
