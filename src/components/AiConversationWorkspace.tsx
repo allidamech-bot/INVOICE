@@ -139,7 +139,7 @@ function AiExperienceSettings({host}:{host:Host}):any {
  * animation without ever authorizing or changing a business record. */
 function useInlineDecline(host:Host,proposal:any):{exiting:boolean;wrap:(button:any)=>any}{
   const [exiting,setExiting]=React.useState(false);
-  const timer=React.useRef<any>(null);
+  const timer=react.useRef(null);
   React.useEffect(()=>{setExiting(false);return()=>{if(timer.current)window.clearTimeout(timer.current);};},[proposal]);
   const wrap=(button:any)=>react.cloneElement(button,{
     disabled:Boolean(button.props?.disabled||exiting),
@@ -216,13 +216,13 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
   const tab=host.state.__workspaceTab||'preview',editable=Boolean(host.state.__workspaceEditing&&doc?.status==='draft');
   const choose=(value:string)=>host.setState({__workspaceTab:value});
-  const viewGroups=[
+  const viewGroups:Array<{id:string;label:string;views:Array<[string,string,string]>}>=[
     {id:'document',label:label(ar,'Document','المستند'),views:[['preview','Preview','المعاينة'],['edit','Edit','تعديل'],['customer','Customer','العميل'],['product','Products','الأصناف'],['files','Files','الملفات'],['revisions','Revisions','التعديلات']]},
     {id:'commercial',label:label(ar,'Business','الأعمال'),views:[['commercial','Deal studio','استوديو الصفقة'],['missions','Missions','المهام']]},
     {id:'analysis',label:label(ar,'Insights','التحليلات'),views:[['evidence','Evidence','الأدلة'],['knowledge','Memory','الذاكرة'],['reliability','Review','المراجعة'],['diagnostics','Reliability','الموثوقية']]},
   ];
-  const activeGroup=viewGroups.find(group=>group.views.some(view=>view[0]===tab))||viewGroups[0];
-  const chooseGroup=(id:string)=>{const group=viewGroups.find(row=>row.id===id);if(group)host.setState({__workspaceTab:group.views[0][0]});};
+  const activeGroup=viewGroups.find(group=>group.views.some(view=>view[0]===tab))||viewGroups[0]!;
+  const chooseGroup=(id:string)=>{const group=viewGroups.find(row=>row.id===id);const first=group?.views[0];if(first)host.setState({__workspaceTab:first[0]});};
 
   const drafting=workspaceDrafting(vault,kernel.artifact?.proposal.capability==='document.updateDraft'?kernel.artifact.proposal.documentId:'');
   const pick=(kind:'customer'|'product',id:string)=>{if(doc?.status==='draft')dispatch(host,{kind,artifactId:doc.id,revision:doc.revision,entityId:id});};
