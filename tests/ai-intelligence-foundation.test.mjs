@@ -127,13 +127,13 @@ test('real runtime adapter encrypts/reloads drafts and refuses approval replay a
  await h.ask('prepare');const prepared=h.state.proposal;assert.ok(prepared.foundationApproval);
  const encrypted=records.get('assistant-state');assert.ok(encrypted.cipher);assert.ok(!JSON.stringify(encrypted).includes('Item 2'));
  const reloaded=host();await reloaded.ask('unrelated question');assert.equal(reloaded.state.proposal.items.length,3);
- let writes=0;await runtime.intelligenceApprove(reloaded,reloaded.state.proposal,async()=>{writes++;return{summary:'verified',id:'saved'};});assert.equal(writes,1);
+ reloaded.state.__workspaceReviewedProposal=reloaded.state.proposal;let writes=0;await runtime.intelligenceApprove(reloaded,reloaded.state.proposal,async()=>{writes++;return{summary:'verified',id:'saved'};});assert.equal(writes,1);
  const state=await store.loadAssistantState(session.key);assert.equal(state.threads[0].foundationReceipts[0].state,'applied');assert.ok(state.threads[0].messages.some(row=>row.text==='unrelated question'));
  const restarted=host();await restarted.ask('hello');await runtime.intelligenceApprove(restarted,prepared,async()=>{writes++;return{summary:'bad replay'};});assert.equal(writes,1);assert.match(restarted.state.error,/already attempted/);
 });
 test('runtime rejects stale approval and an in-flight double click without any duplicate write',async()=>{
  const {runtime,session,host}=await runtimeHarness();const h=host();await h.ask('prepare');
- const p=h.state.proposal;session.vault.customers.push(person('new','Changed'));let writes=0;
+ const p=h.state.proposal;h.state.__workspaceReviewedProposal=p;session.vault.customers.push(person('new','Changed'));let writes=0;
  await runtime.intelligenceApprove(h,p,async()=>{writes++;});assert.equal(writes,0);assert.match(h.state.error,/changed since review/);
  session.vault.customers=[];h.state.error='';let release;const pending=new Promise(resolve=>release=resolve);
  const one=runtime.intelligenceApprove(h,p,async()=>{writes++;await pending;return{id:'one',summary:'saved'};});
