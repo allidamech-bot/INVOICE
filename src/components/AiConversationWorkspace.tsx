@@ -328,16 +328,17 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
   const openThread=async(id:string)=>{
     if(busy)return;
     host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
-    try{await host.__lourexOpenThread(id);host.setState({__workspaceHistoryOpen:false});}
+    try{await host.__lourexOpenThread(id);if(host.__lourexAssistantThreadId!==id)throw new Error('Conversation was not opened. Retry.');host.setState({__workspaceHistoryOpen:false});}
     catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
     finally{host.setState({__workspaceHistoryBusy:false});}
   };
   const newThread=async()=>{
     if(busy)return;
-    const previousMode=normalizeAiConversationMode(host.__intelligenceKernel?.mode);
+    const previousMode=normalizeAiConversationMode(host.__intelligenceKernel?.mode),previousId=host.__lourexAssistantThreadId;
     host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
     try{
       await host.__lourexNewConversation();
+      if(!host.__lourexAssistantThreadId||host.__lourexAssistantThreadId===previousId)throw new Error('New conversation was not created. Retry.');
       if(previousMode==='advisor')await assignIntelligenceConversationMode(host,'advisor');
       host.setState({__workspaceHistoryOpen:false});
     }catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
