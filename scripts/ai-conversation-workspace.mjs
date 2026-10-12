@@ -20,7 +20,18 @@ AiCopilot.prototype.componentWillUnmount=function(){unmountConversationWorkspace
 `;
 await writeFile(target,source);execFileSync(process.execPath,['--check',target]);
 const css=await readFile('src/styles/ai-conversation-workspace.css','utf8');
-await writeFile('dist/ai-composer-v449.css',(await readFile('dist/ai-composer-v449.css','utf8'))+'\n'+css);
+// Retire obsolete visual declarations for elements now owned by the typed
+// workspace. Keep menu motion, focus, voice state and every behavioral selector.
+const canonicalElements=/\.(?:lourex-ai-head|lourex-ai-title|lourex-ai-head-actions|lourex-ai-message\.(?:user|assistant)|lourex-ai-compose form|lourex-ai-premium-textarea|lourex-ai-send|lourex-ai-composer-plus|lourex-ai-composer-mic)(?:\[dir=['"](?:rtl|ltr)['"]\])?$/;
+const ownedProperties=new Set(['background','background-color','color','border','border-radius','box-shadow','padding','min-height','height','display','flex-direction','align-items','gap','align-self','max-width']);
+const previousCss=await readFile('dist/ai-composer-v449.css','utf8');
+const migratedCss=previousCss.replace(/([^{}]+)\{([^{}]*)\}/g,(rule,selectors,declarations)=>{
+  const list=selectors.trim().split(',').map(selector=>selector.trim());
+  if(!list.length||!list.every(selector=>selector.includes('#lourex-ai-panel')&&canonicalElements.test(selector)))return rule;
+  const kept=declarations.split(';').filter(declaration=>!ownedProperties.has(declaration.split(':')[0].trim())).join(';');
+  return selectors+'{'+kept+'}';
+});
+await writeFile('dist/ai-composer-v449.css',migratedCss+'\n'+css);
 console.log('[LOUREX AI] Conversation Workspace typed presentation boundary installed.');
 
 // Imported TS modules have stable URLs. Change SW bytes when their content changes

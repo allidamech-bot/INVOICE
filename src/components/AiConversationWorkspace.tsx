@@ -13,6 +13,38 @@ import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 // approval owners remain intact. All new presentation is precompiled TSX.
 type Host=any;
 const react=React as any;
+// Text is rendered as React nodes only. Never interpret provider HTML or links.
+function markdownInline(value:any,key:string):any {
+  if(typeof value!=='string')return value; // preserve scoped evidence callbacks
+  return value.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g).map((part,i)=>{
+    const id=key+'-'+i;
+    if(part.startsWith('**')&&part.endsWith('**'))return <strong key={id}>{part.slice(2,-2)}</strong>;
+    if(part.startsWith('`')&&part.endsWith('`'))return <code key={id}>{part.slice(1,-1)}</code>;
+    if(part.startsWith('*')&&part.endsWith('*'))return <em key={id}>{part.slice(1,-1)}</em>;
+    return part;
+  });
+}
+function markdownParagraphs(children:any[]):any[] {
+  const result:any[]=[];let list:any[]=[];let listType='';
+  const flush=()=>{if(list.length){result.push(react.createElement(listType,{key:'list-'+result.length},...list));list=[];listType='';}};
+  children=children.flatMap(child=>{
+    if(!react.isValidElement(child)||child.type!=='p')return [child];
+    const parts=react.Children.toArray(child.props.children);
+    if(!parts.every((part:any)=>typeof part==='string'))return [child];
+    // Some providers flatten paragraph separators. Recover explicit heading
+    // markers without inventing semantic blocks from ordinary punctuation.
+    return parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n').split(/\r?\n/).filter(Boolean).map((line:string,i:number)=>react.createElement('p',{key:i},line));
+  });
+  children.forEach((child,index)=>{
+    if(!react.isValidElement(child)||child.type!=='p'){flush();result.push(child);return;}
+    const parts=react.Children.toArray(child.props.children),first=typeof parts[0]==='string'?parts[0]:'';
+    const heading=first.match(/^\s*(#{1,6})\s+/),bullet=first.match(/^\s*(?:[-*•]|\d+[.)])\s+/);
+    if(heading||bullet)parts[0]=first.slice((heading||bullet)![0].length);
+    const formatted=parts.map((part:any,i:number)=>markdownInline(part,index+'-'+i));
+    if(bullet){const kind=/\d/.test(bullet[0])?'ol':'ul';if(listType&&listType!==kind)flush();listType=kind;list.push(<li key={index}>{formatted}</li>);}
+    else{flush();result.push(react.createElement(heading?((heading[1]||'').length<=2?'h3':'h4'):'p',{key:index},...formatted));}
+  });flush();return result;
+}
 const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
 const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy);
@@ -274,6 +306,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(typeof node==='string')return workspaceText(aiUiAr(host),node);
     if(!react.isValidElement(node))return node;
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
     if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
     if(cn.split(' ').includes('lourex-ai-head')&&workspaceVisible(host)){
       const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
@@ -327,8 +360,9 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       return react.cloneElement(node,{'data-lourex-workspace':'2','data-workspace-ready':'false'},...safe);
     }
     const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
-    const header=children.filter((child:any)=>['lourex-ai-head','lourex-ai-context'].some(name=>String(child?.props?.className||'').split(' ').includes(name)));
-    const content=children.filter((child:any)=>!header.includes(child));
+    const legacyContext=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
+    const header=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-head'));
+    const content=children.filter((child:any)=>!header.includes(child)&&!legacyContext.includes(child));
     const proposalNode=content.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
     const approval=['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability)?proposalNode:null;
     const generalProposal=proposalNode&&!approval?proposalNode:null;
