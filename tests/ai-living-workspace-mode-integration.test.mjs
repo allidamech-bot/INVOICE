@@ -6,7 +6,8 @@ import { newConversationKernel, normalizeConversationKernel } from '../dist/src/
 import {
   createAiToolRuntime, aiToolPlannerCatalog, validateAiToolPlan, executeAiToolCall,
 } from '../dist/src/lib/ai-tool-orchestrator.js';
-import { conversationModePermitsToolClass } from '../dist/src/lib/ai-conversation-mode.js';
+import { conversationModePermitsToolClass, conversationModePermitsCapability } from '../dist/src/lib/ai-conversation-mode.js';
+import { orchestrateAiToolRequest } from '../dist/src/lib/ai-tool-client.js';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'mode-thread',accountId:'user-1'};
@@ -107,4 +108,37 @@ test('legacy personal-memory and attachment shortcuts do not prepare actions in 
   assert.match(client,/No data was changed/, 'Advisor must state that no action was performed');
   assert.match(runtimeSource,/Advisor cannot revise documents/,'legacy revision shortcut requires Controller');
   assert.match(runtimeSource,/host\.__workspaceModeSwitchBusy\|\|!proposal/,'approval cannot race tab switching');
+});
+
+test('Malformed explicit mode cannot elevate Advisor to Controller through runtime or capability guard',()=>{
+  const malformed=createAiToolRuntime(emptyVault(),{
+    conversationMode:'legacy-operator',
+    assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'},
+  });
+  assert.equal(malformed.conversationMode,'advisor');
+  assert.equal(conversationModePermitsCapability('legacy-operator','document.createDraft'),false);
+  assert.equal(conversationModePermitsCapability('legacy-operator','finance.explain'),true);
+  assert.equal(conversationModePermitsToolClass('legacy-operator','execute'),false);
+  const blocked=executeAiToolCall(malformed,call('document.createDraft',{kind:'proforma'}));
+  assert.equal(blocked.ok,false);
+  assert.equal(blocked.source,'advisor-read-only-guard');
+  assert.equal(blocked.data,null);
+});
+
+test('Advisor imperatives return to normal chat instead of planning a navigation or mutation',async()=>{
+  const vault=emptyVault();
+  const context={conversationMode:'advisor',screen:'items',assistantRuntime:{
+    scope:'temporary',workspaceId:'default',branchId:'main',
+  }};
+  for(const message of ['افتح الفواتير','Create a quotation','Update all product prices']){
+    const result=await orchestrateAiToolRequest({message,vault,context,language:'en'});
+    assert.equal(result,null, message+' should be discussed without an action proposal');
+  }
+  const read=await orchestrateAiToolRequest({
+    message:'ما وضع الشركة المالي؟',vault,context,language:'ar'
+  });
+  assert.ok(read,'Advisor must retain deterministic read-only financial analysis');
+  assert.equal(read.proposal,null);
+  assert.equal(read.plan.calls[0]?.tool,'finance.getSummary');
+  assert.ok(read.results.every(row=>row.class==='read'||row.class==='calculate'));
 });
