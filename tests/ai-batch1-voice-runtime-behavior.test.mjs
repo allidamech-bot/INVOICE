@@ -10,7 +10,7 @@ test('built iOS voice composer hands off microphone in both directions and clear
   assert.match(code,/ios-release-v3-cross-owner/);
   const last=code.lastIndexOf('})();');
   assert.ok(last>=0,'runtime IIFE terminator missing');
-  code=code.slice(0,last)+"window.__voiceProbe={toggleVoice,recognition:()=>recognition,release:()=>nativeReleaseUntil};"+code.slice(last);
+  code=code.slice(0,last)+"window.__voiceProbe={toggleVoice,abortVoice,recognition:()=>recognition,release:()=>nativeReleaseUntil};"+code.slice(last);
   class ElementStub{
     constructor(){
       this.dataset={};this.isConnected=true;
@@ -92,4 +92,8 @@ test('built iOS voice composer hands off microphone in both directions and clear
   assert.ok(clock>=workflowLease,'restarted before workflow lease expiry');
   assert.equal(status.dataset.state,'listening');
   assert.equal(mic['aria-pressed'],'true');
+  win.__voiceProbe.abortVoice();
+  assert.equal(SpeechStub.instances[1].aborted,true,'close/unmount must release the active recognition');
+  assert.equal(status.dataset.state,'','close/unmount must clear the listening UI');
+  assert.equal(mic['aria-pressed'],'false');
 });
