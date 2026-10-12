@@ -73,10 +73,10 @@ function canonicalSearchQuery(result:AiBusinessSearchResult):string{if(result.ki
 function sourceCommercialTerms(draft:QuoteAiSourceDraft):string[]{return [draft.incoterm,draft.paymentTerms,draft.deliveryTime,draft.validity,draft.remarks,draft.notes].map(value=>value.trim()).filter(Boolean);}
 
 export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRoute?:AiInboxRoute;disabled?:boolean},State>{
-  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;
+  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
   state:State={open:false,view:'menu',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false,jobs:readAiJobHistory(),currentJobId:'',savedReference:''};
-  componentDidMount():void{this.mounted=true;}
-  componentWillUnmount():void{this.mounted=false;this.cancelAnalysis();this.stopVoice();}
+  componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);}
+  componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);this.cancelAnalysis();this.stopVoice();}
   private cancelAnalysis=()=>{this.generation++;this.pending=false;this.abort?.abort();this.abort=null;};
   private current=(generation:number,controller:AbortController)=>this.mounted&&generation===this.generation&&!controller.signal.aborted;
   private refreshJobs=()=>this.setState({jobs:readAiJobHistory()});
@@ -143,18 +143,86 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
   private runMode=(mode:AiWorkflowMode)=>{this.setState({open:false});advisorInput(aiWorkflowPrompt(mode,isArabic()),true);};
   private search=async()=>{const query=this.state.searchQuery.trim();if(!query||this.state.searchBusy)return;this.setState({searchBusy:true,error:''});try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Account workspace is not ready to search records. Sign in or retry.','مساحة عمل الحساب غير جاهزة للبحث في السجلات. سجّل الدخول أو أعد المحاولة.'));this.setState({searchResults:searchBusinessRecords(resumed.vault,query),searchBusy:false});}catch(error){this.setState({searchBusy:false,error:error instanceof Error?error.message:String(error)});}};
   private askAbout=(result:AiBusinessSearchResult)=>{this.setState({open:false});window.dispatchEvent(new CustomEvent('lourex-global-search-open',{detail:{query:canonicalSearchQuery(result),autoOpenUnique:true}}));};
-  private stopVoice=()=>{const active=this.recognition;this.recognition=null;if(active){active.onresult=null;active.onerror=null;active.onend=null;try{active.abort();}catch{try{active.stop();}catch{}}}};
-  private voice=()=>{
-    if(this.recognition){this.stopVoice();this.setState({listening:false});return;}
-    const Constructor=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
-    if(!Constructor){this.setState({error:t('Voice input is not supported by this browser.','الإدخال الصوتي غير مدعوم في هذا المتصفح.')});return;}
-    const recognition=new Constructor();this.recognition=recognition;recognition.lang=isArabic()?'ar-SA':'en-US';recognition.continuous=false;recognition.interimResults=false;recognition.maxAlternatives=1;
-    recognition.onresult=(event:any)=>{if(this.recognition!==recognition)return;const text=String(event.results?.[0]?.[0]?.transcript||'').trim();this.stopVoice();if(text)advisorInput(text,false);this.setState({listening:false,error:''});};
-    recognition.onerror=()=>{if(this.recognition!==recognition)return;this.stopVoice();this.setState({listening:false,error:t('Voice capture stopped before a usable command was received.','توقف التقاط الصوت قبل استلام أمر قابل للاستخدام.')});};
-    recognition.onend=()=>{if(this.recognition!==recognition)return;this.recognition=null;this.setState({listening:false});};
-    this.setState({listening:true,error:''});try{recognition.start();}catch{this.stopVoice();this.setState({listening:false});}
+  // Workflow quick-mic and conversation composer must never own the native microphone together.
+  // Safari can report a final transcript before its speech engine releases the device.
+  private onComposerVoiceRequest=(event:Event)=>{
+    const detail=(event as CustomEvent<{active?:boolean;readyAt?:number}>).detail;
+    if(!detail)return;
+    if(this.recognition||this.voiceRetryTimer){
+      this.stopVoice();
+      if(this.mounted)this.setState({listening:false});
+      detail.active=true;
+    }
+    detail.readyAt=Math.max(detail.readyAt||0,this.voiceReleaseUntil);
   };
-
+  private stopVoice=()=>{
+    this.voiceGeneration++;
+    if(this.voiceRetryTimer){clearTimeout(this.voiceRetryTimer);this.voiceRetryTimer=null;}
+    const active=this.recognition;this.recognition=null;
+    if(active){
+      active.onresult=null;active.onerror=null;active.onend=null;active.onstart=null;
+      this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
+      try{active.abort();}catch{try{active.stop();}catch{}}
+    }
+  };
+  private startVoiceSession=(generation:number,attempt:number):void=>{
+    if(!this.mounted||generation!==this.voiceGeneration)return;
+    const remaining=this.voiceReleaseUntil-Date.now();
+    if(remaining>0){
+      this.voiceRetryTimer=setTimeout(()=>{this.voiceRetryTimer=null;this.startVoiceSession(generation,attempt);},Math.max(20,remaining));
+      return;
+    }
+    const Constructor=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
+    if(!Constructor){this.setState({listening:false,error:t('Voice input is not supported by this browser.','الإدخال الصوتي غير مدعوم في هذا المتصفح.')});return;}
+    let recognition:any;
+    try{recognition=new Constructor();}catch{this.setState({listening:false,error:t('Microphone could not be started. Retry.','تعذّر بدء الميكروفون. حاول مجددًا.')});return;}
+    this.recognition=recognition;
+    recognition.lang=isArabic()?'ar-SA':'en-US';recognition.continuous=false;recognition.interimResults=false;recognition.maxAlternatives=1;
+    recognition.onresult=(event:any)=>{
+      if(this.recognition!==recognition)return;
+      const transcript=Array.from(event.results||[]).map((row:any)=>String(row?.[0]?.transcript||'').trim()).filter(Boolean).join(' ').trim();
+      this.stopVoice();
+      if(transcript)advisorInput(transcript,false);
+      if(this.mounted)this.setState({listening:false,error:transcript?'':t('No speech detected. Retry.','لم يتم التعرف على كلام. حاول مجددًا.')});
+    };
+    recognition.onerror=(event:any)=>{
+      if(this.recognition!==recognition)return;
+      const code=String(event?.error||'');
+      this.stopVoice();
+      if(this.mounted)this.setState({listening:false,error:code==='not-allowed'||code==='service-not-allowed'?t('Microphone access was denied. Check Safari microphone permission.','رُفض إذن الميكروفون. تحقق من إذن الميكروفون في Safari.'):code==='audio-capture'?t('Microphone is unavailable. Close other recordings and retry.','الميكروفون غير متاح. أغلق التسجيلات الأخرى ثم حاول مجددًا.'):t('Voice recognition stopped. Retry.','توقف التعرف على الصوت. حاول مجددًا.')});
+    };
+    recognition.onend=()=>{
+      if(this.recognition!==recognition)return;
+      this.recognition=null;this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
+      if(this.mounted)this.setState({listening:false,error:t('No speech detected. Retry.','لم يتم التعرف على كلام. حاول مجددًا.')});
+    };
+    try{recognition.start();this.setState({listening:true,error:''});}
+    catch(error){
+      if(this.recognition!==recognition)return;
+      this.recognition=null;recognition.onresult=null;recognition.onerror=null;recognition.onend=null;
+      try{recognition.abort?.();}catch{}
+      const name=String((error as any)?.name||'').toLowerCase(),message=String((error as any)?.message||'').toLowerCase();
+      const denied=name==='notallowederror'||name==='securityerror';
+      const transient=!denied&&(name==='invalidstateerror'||name==='aborterror'||name==='notreadableerror'||/microphone|already.*start|busy|in use/.test(message));
+      if(transient&&attempt<6){
+        this.voiceReleaseUntil=Date.now()+320;
+        this.voiceRetryTimer=setTimeout(()=>{this.voiceRetryTimer=null;this.startVoiceSession(generation,attempt+1);},320);
+        this.setState({listening:false,error:''});
+        return;
+      }
+      this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
+      this.setState({listening:false,error:denied?t('Microphone access was denied. Check Safari microphone permission.','رُفض إذن الميكروفون. تحقق من إذن الميكروفون في Safari.'):t('Microphone did not restart. Retry after a moment.','لم يُعد تشغيل الميكروفون. حاول بعد لحظات.')});
+    }
+  };
+  private voice=()=>{
+    if(this.recognition||this.voiceRetryTimer){this.stopVoice();this.setState({listening:false});return;}
+    const handoff:{active?:boolean;readyAt?:number}={active:false,readyAt:0};
+    window.dispatchEvent(new CustomEvent('lourex-ai-workflow-voice-request',{detail:handoff}));
+    this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,handoff.readyAt||0);
+    const generation=++this.voiceGeneration;
+    this.setState({listening:false,error:''});
+    this.startVoiceSession(generation,0);
+  };
   private renderMenu=():any=><div><p>{t('Use one clear entry point for LOUREX AI workflows. Deterministic tools open directly; record changes still require review and confirmation.','استخدم مدخلًا واحدًا واضحًا لمسارات ذكاء LOUREX. الأدوات الحتمية تفتح مباشرة، وتبقى تغييرات السجلات بحاجة للمراجعة والتأكيد.')}</p><div className="ta-customer-modal-actions ai-workflow-actions"><Button icon="upload" onClick={()=>this.resetInbox(null)}>{t('AI Inbox','صندوق AI')}</Button><Button icon="file" onClick={()=>this.resetInbox('quote_request')}>{t('File → Quote','ملف ← عرض سعر')}</Button><Button icon="search" onClick={()=>this.openTool('lourex-ai-open-business-search')}>{t('Ask Anything','اسأل عن أي شيء')}</Button><Button icon="file" onClick={()=>this.setState({view:'history',jobs:readAiJobHistory(),error:''})}>{t('Job History','سجل المهام')}</Button></div><div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.runMode('guardian')}>{t('Accounting Guardian','حارس المحاسبة')}</Button><Button onClick={()=>this.openTool('lourex-ai-open-collections')}>{t('Collections','التحصيل')}</Button><Button onClick={()=>this.openTool('lourex-ai-open-cfo')}>CFO</Button><Button onClick={()=>this.openTool('lourex-ai-open-procurement')}>{t('Compare Supplier Offers','مقارنة عروض الموردين')}</Button></div><div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.openTool('lourex-ai-open-daily')}>{t('What matters today','ما المهم اليوم')}</Button><Button onClick={()=>this.openTool('lourex-ai-open-memory')}>{t('Business Memory','ذاكرة الأعمال')}</Button><Button onClick={()=>this.resetInbox('product_list')}>{t('Product AI','ذكاء المنتجات')}</Button><Button onClick={()=>this.resetInbox('supplier')}>{t('Supplier AI','ذكاء الموردين')}</Button></div></div>;
   private renderSearch=():any=><div><Field label={t('Search all LOUREX business records','ابحث في جميع سجلات أعمال LOUREX')}><Input autoFocus value={this.state.searchQuery} onChange={(event:any)=>this.setState({searchQuery:event.target.value})} onKeyDown={(event:any)=>{if(event.key==='Enter'){event.preventDefault();void this.search();}}}/></Field><div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.setState({view:'menu',error:''})}>{t('Back','رجوع')}</Button><Button variant="primary" disabled={this.state.searchBusy||!this.state.searchQuery.trim()} onClick={()=>void this.search()}>{this.state.searchBusy?t('Searching…','جارٍ البحث…'):t('Search','بحث')}</Button></div>{this.state.searchResults.length?<div>{this.state.searchResults.map(result=><button type="button" key={`${result.kind}:${result.id}`} onClick={()=>this.askAbout(result)} style={{display:'block',width:'100%',textAlign:isArabic()?'right':'left',padding:'10px',marginTop:'6px'}}><strong>{result.label}</strong><small style={{display:'block'}}>{result.kind} · {result.detail||'—'}</small></button>)}</div>:this.state.searchQuery&&!this.state.searchBusy?<p>{t('No matching records yet.','لا توجد سجلات مطابقة حتى الآن.')}</p>:null}</div>;
   private renderHistory=():any=><div><p>{t('Session-only processing history. File contents are not stored here.','سجل معالجة لهذه الجلسة فقط. لا يتم تخزين محتوى الملفات هنا.')}</p>{this.state.jobs.length?<div>{this.state.jobs.map(job=><article key={job.id} style={{padding:'10px 0'}}><strong><bdi dir="auto">{job.sourceName}</bdi></strong><small style={{display:'block'}}>{job.documentType||'—'} · {job.route||'—'} · {jobStatusLabel(job.status)}</small>{job.note?<small style={{display:'block'}}><bdi dir="auto">{job.note}</bdi></small>:null}</article>)}</div>:<p>{t('No AI jobs in this session yet.','لا توجد مهام AI في هذه الجلسة بعد.')}</p>}<div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.setState({view:'menu'})}>{t('Back','رجوع')}</Button><Button disabled={!this.state.jobs.length} onClick={()=>{clearAiJobHistory();this.setState({jobs:[]});}}>{t('Clear history','مسح السجل')}</Button></div></div>;
