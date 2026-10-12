@@ -3,6 +3,9 @@ import { activeAccountStorageUid } from '../storage/db.js';
 import { loadAssistantState, normalizeAssistantState, saveAssistantState, type AssistantStoreState, type AssistantThread, type AssistantStoredMessage } from '../storage/assistant-store.js';
 import { normalizeAiConversationMode, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 
+// Firebase SDK is loaded as an application-level global, as in plain-workspace.ts.
+declare const firebase:any;
+
 /** PIN-free Firebase account-history transport. Local AES-GCM device keys never leave IndexedDB.
  * Only inert messages and scope/mode metadata go to Firestore — never proposals,
  * tool approvals, receipts, pending missions, draft artifacts or financial vault data. */
