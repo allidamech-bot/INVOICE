@@ -24,6 +24,9 @@ test('workflow releases microphone when composer claims ownership and cancels de
   assert.match(workflow,/if\(this\.voiceRetryTimer\)\{clearTimeout\(this\.voiceRetryTimer\)/);
   assert.match(workflow,/window\.dispatchEvent\(new CustomEvent\('lourex-ai-workflow-voice-request',\{detail:handoff\}\)\)/);
   assert.match(workflow,/generation!==this\.voiceGeneration/);
+  assert.match(workflow,/voiceStarting:boolean/);
+  assert.match(workflow,/voiceStarting:true,error:''/);
+  assert.match(workflow,/Starting…/);
 });
 
 test('workflow provides bounded native restart and preserves explicit editable submission',()=>{
