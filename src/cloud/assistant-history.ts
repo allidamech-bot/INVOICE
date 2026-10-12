@@ -6,7 +6,7 @@ import { normalizeAiConversationMode, type AiConversationMode } from '../lib/ai-
 /** PIN-free Firebase account-history transport. Local AES-GCM device keys never leave IndexedDB.
  * Only inert messages and scope/mode metadata go to Firestore — never proposals,
  * tool approvals, receipts, pending missions, draft artifacts or financial vault data. */
-const FORMAT='LOUREX_AI_THREAD_V1',MAX_CLOUD_THREADS=200,MAX_DOCUMENT_BYTES=700_000,MAX_MESSAGES=60;
+const FORMAT='LOUREX_AI_THREAD_V1',MAX_CLOUD_THREADS=200,MAX_LOCAL_THREADS=30,MAX_DOCUMENT_BYTES=700_000,MAX_MESSAGES=60;
 type Scope='business'|'personal';
 interface CloudThread {
   format:typeof FORMAT;ownerUid:string;id:string;scope:Scope;workspaceId:string;branchId:string;
@@ -41,10 +41,13 @@ function toCloud(uid:string,thread:AssistantThread):CloudThread{
   if(!safeId(thread.id))throw new Error('Invalid conversation ID; no cloud history was changed.');
   if(thread.kernel?.scope.accountId&&thread.kernel.scope.accountId!==uid)
     throw new Error('Conversation belongs to a different Firebase account. Sync cancelled.');
+  const messages=thread.messages.map(row=>message(row));
+  if(messages.some(row=>!row)||messages.length!==thread.messages.length)
+    throw new Error('Conversation contains an invalid message. Nothing was silently omitted.');
   return{format:FORMAT,ownerUid:uid,id:thread.id,scope:thread.scope,
     workspaceId:thread.scope==='business'?thread.workspaceId:'',branchId:thread.scope==='business'?thread.branchId:'',
     title:thread.title.slice(0,100),summary:thread.summary.slice(0,1200),
-    mode:normalizeAiConversationMode(thread.kernel?.mode),messages:thread.messages.map(row=>message(row)).filter((row):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES),
+    mode:normalizeAiConversationMode(thread.kernel?.mode),messages:messages as AssistantStoredMessage[],
     createdAt:thread.createdAt,updatedAt:thread.updatedAt};
 }
 function deletion(uid:string,id:string,deletedAt:string):CloudThread{
@@ -88,6 +91,10 @@ function bytes(value:unknown):number{return new TextEncoder().encode(JSON.string
 /** Pure merge for tests and for the safe, never-destructive local install. */
 export function mergeAssistantCloudState(uid:string,localState:AssistantStoreState,remoteRows:CloudThread[]):AssistantStoreState{
   const local=normalizeAssistantState(localState),deleted={...(local.deletedThreads||{})};
+  const visibleRemote=remoteRows.filter(row=>!row.deletedAt&&!deleted[row.id]);
+  const newRemoteIds=visibleRemote.filter(row=>!local.threads.some(current=>current.id===row.id));
+  if(local.threads.length+newRemoteIds.length>MAX_LOCAL_THREADS)
+    throw new Error('Cloud has more conversations than this device can safely retain. History was not overwritten; migrate retention before syncing.');
   const current=new Map(local.threads.map(row=>[row.id,row] as const));
   for(const remote of remoteRows){
     if(!validCloud(remote,uid))throw new Error('Invalid cloud conversation format or account.');
