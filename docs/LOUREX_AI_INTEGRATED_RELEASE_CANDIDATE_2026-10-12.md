@@ -28,6 +28,8 @@ Do not mark individual stacked PRs merged or ready for production just because t
 
 These are *limited engineering checks*, not a release certification. No full local checkout/CI was possible in the current environment. A read-only Vercel check identified production deployment `c4254d5aa105206e0284f4424019e4c333c9b172` on `main`, and **zero deployments for this integration branch**. GitHub reported **zero workflow runs and zero statuses** for the integrated PR head. Therefore there is no evidenced full build, Vercel preview, browser QA or physical Safari acceptance for this candidate.
 
+**Additional verification (isolated, not built):** The full set of **22/22 authored cloud-history test bodies passed** when evaluated against TypeScript-stripped cloud merge and local-store functions with controlled stubs for storage normalization, time and other dependencies. This does NOT mean the compiled `node --test` suite, Firebase emulator, Safari or production passed. 
+
 ## Mandatory release acceptance gates
 
 ### Gate A — build and regression
