@@ -69,6 +69,15 @@ PR #709 and #710 have independently changed AI code. Do not assume they are part
 4. **Unverified full build/QA:** no CI, Playwright or authenticated Production browser run evidenced.
 5. **Original-source provenance in truncated tool answers:** a compact answer cannot serve as a full audit record. Always retain source records and explicitly show missing/omitted information.
 
+## Verified cloud-history architecture boundary
+
+- The authenticated accounting workspace already uses a PIN-free Firebase Firestore collection at `users/{uid}/workspace` (see `src/cloud/plain-workspace.ts`), with UID checks.
+- `firestore.rules` currently grants access to `users/{userId}/...` only when the authenticated UID equals `userId`.
+- In contrast, `src/storage/assistant-store.ts` persists `assistant-state` locally, encrypted with a UID-bound device cache key from `src/storage/db.ts`. A ciphertext copied to a different device would **not** automatically be readable with its different cache key.
+- An eventual cloud-history implementation must therefore use an **explicit UID-scoped Firestore document format** (or a separately agreed portable encryption/key strategy), with carefully reviewed rules and account checks; it cannot simply upload the current device ciphertext.
+- Minimum migration requirements: preserve the readable local threads before first cloud sync; never overwrite newer server data with older device copies; use stable thread IDs, monotonic revisions or transactions for concurrent devices; isolate workspace and branch; use bounded fetch/pagination; ensure sign-out cancels pending writes; retain local history when cloud is offline; don't show a cloud-success badge until acknowledged.
+- Security/retention review is mandatory: user-visible delete and retention policy, field-size limits, role/permission scope, App Check, and full-device account-switch tests. New format should remain independent of the financial vault and should not reintroduce PIN authentication.
+
 ## Acceptance rule
 
 Keep all PRs Draft / **NO-GO** until a clean combined release-candidate checkout passes the build, automated suites, and the relevant real iOS Safari QA. A success in the source-level contract suite must not be represented as complete production readiness. Once the full suite passes, resolve merge/rebase conflicts on the dependent PRs one by one and only then merge with user authorization.
