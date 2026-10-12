@@ -2,6 +2,7 @@ name: LOUREX AI Batches 1-7 Release Candidate QA
 on:
   push:
     branches:
+      - fix/ai-batches1-7-qa-20261012
       - integration/ai-batches1-7-qa-20261012
   workflow_dispatch:
 
