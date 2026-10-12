@@ -1,7 +1,7 @@
 import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
-import { t } from '../lib/i18n.js';
+import { assistantToolText as t } from '../lib/ai-tool-presentation.js';
 import { buildAiSupplierPurchaseDraft } from '../lib/ai-supplier-purchase-draft.js';
 import { combineSupplierImportDrafts, extractSupplierDraftFromSheets, type SupplierImportDraft } from '../lib/supplier-document-import.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
@@ -173,7 +173,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
     const footer=draft&&this.state.stage==='ready'?<div className="supplier-import-footer"><Button onClick={this.close}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={this.saveInFlight} onClick={()=>void this.saveDraft()}>{t('Confirm & Save Draft','تأكيد وحفظ المسودة')}</Button></div>:this.state.stage==='saved'?<div className="supplier-import-footer"><span/><Button variant="primary" icon="check" onClick={this.close}>{t('Done','تم')}</Button></div>:undefined;
     return <>
       <Button icon="upload" onClick={this.openPicker}>{t('Import Supplier Document','استيراد مستند مورد')}</Button>
-      <Modal portal open={this.state.open} title={t('Supplier Document → Purchase Draft','مستند مورد ← مسودة شراء')} size="lg" onClose={this.close} footer={footer}>
+      <Modal portal appearance="assistant" open={this.state.open} title={t('Supplier Document → Purchase Draft','مستند مورد ← مسودة شراء')} size="lg" onClose={this.close} footer={footer}>
         <div className={`supplier-import-shell stage-${this.state.stage}`} data-supplier-import-stage={this.state.stage} aria-busy={this.busy()}>
           <input ref={(node:any)=>{this.input=node;}} className="supplier-import-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,application/pdf,image/png,image/jpeg,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple onChange={(event:any)=>void this.chooseFiles(Array.from(event.target.files??[]) as File[])}/>
           {this.state.stage==='idle'?<div className="supplier-import-start"><span className="supplier-import-icon"><Icon name="upload"/></span><div><p className="eyebrow">{t('Review-first purchasing','مشتريات تبدأ بالمراجعة')}</p><h3>{t('Create a purchase draft from related supplier files','أنشئ مسودة شراء من ملفات المورد المترابطة')}</h3><p>{t('Select up to four files for the same supplier document. Every worksheet and file is checked; conflicting currencies or incomplete lines block the draft. No inventory or accounting is posted.','اختر حتى أربعة ملفات لنفس مستند المورد. يتم فحص كل ورقة وكل ملف؛ اختلاف العملات أو نقص البنود يمنع إنشاء المسودة. لا يُرحّل أي مخزون أو حسابات.')}</p></div><Button icon="upload" onClick={()=>this.input?.click()}>{t('Choose files (up to 4)','اختر ملفات (حتى 4)')}</Button></div>:null}

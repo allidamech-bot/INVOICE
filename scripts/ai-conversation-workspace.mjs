@@ -43,10 +43,13 @@ console.log('[LOUREX AI] Conversation Workspace typed presentation boundary inst
 // Imported TS modules have stable URLs. Change SW bytes when their content changes
 // so installed local-first clients recache them with the existing reload contract.
 const workspaceModules=['components/AiConversationWorkspace','components/AiCommercialWorkspace','lib/ai-conversation-kernel','lib/ai-conversation-mode','lib/ai-intelligence-runtime','lib/ai-workspace-model','lib/ai-workspace-presentation','lib/ai-commercial-intelligence','lib/ai-commercial-conversation','lib/ai-mission-runner','components/AiReliabilityWorkspace','lib/ai-business-memory-graph','lib/ai-reliability-intelligence','lib/ai-local-diagnostics','lib/ai-foundation-approval','storage/assistant-memory-store'];
+const toolPresentationModules=['lib/ai-tool-presentation','components/UI','components/AiWorkflowTools','components/BusinessMemoryTool','components/BusinessSearchTool','components/CfoScenarioTool','components/CollectionsAiTool','components/CustomerAiCapture','components/DailyCommandCenterTool','components/ProcurementAiCompare','components/ProductAiSourceReview','components/SupplierDocumentImport'];
+const toolPresentationHash=createHash('sha256');
+for(const name of toolPresentationModules){const asset='./src/'+name+'.js';if(!(await readFile('dist/sw.js','utf8')).includes(asset))throw new Error('AI tool presentation module missing from precache: '+asset);toolPresentationHash.update(name).update(await readFile('dist/src/'+name+'.js'));}
 const moduleHash=createHash('sha256');
 // Styles are changed after the earlier precache stage. Include their final
 // emitted bytes so installed clients cannot retain an old visual generation.
 const styleHash=createHash('sha256').update(css);
 for(const file of (await readdir('dist',{recursive:true})).filter(file=>file.endsWith('.css')).sort())styleHash.update(file).update(await readFile('dist/'+file));
 for(const name of workspaceModules){const asset='./src/'+name+'.js';const sw=await readFile('dist/sw.js','utf8');if(!sw.includes(asset))throw new Error('Workspace module missing from precache: '+asset);moduleHash.update(name).update(await readFile('dist/src/'+name+'.js'));}
-await writeFile('dist/sw.js',(await readFile('dist/sw.js','utf8'))+'\n// LOUREX AI workspace modules SHA256 '+moduleHash.digest('hex')+'\n// LOUREX AI workspace styles SHA256 '+styleHash.digest('hex')+'\n');
+await writeFile('dist/sw.js',(await readFile('dist/sw.js','utf8'))+'\n// LOUREX AI workspace modules SHA256 '+moduleHash.digest('hex')+'\n// LOUREX AI workspace styles SHA256 '+styleHash.digest('hex')+'\n// LOUREX AI tool presentation SHA256 '+toolPresentationHash.digest('hex')+'\n');

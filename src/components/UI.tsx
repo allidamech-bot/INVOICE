@@ -1,6 +1,7 @@
 import { containOverlayFocus, lockOverlayScroll, overlayFocusables, ownsOverlay, restoreOverlayFocus, unlockOverlayScroll } from '../lib/overlay-focus.js';
 import type { UiLanguage } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
+import { assistantToolLanguage, assistantToolText } from '../lib/ai-tool-presentation.js';
 import { displayPackingPreset } from '../lib/packing-display.js';
 import {
   PACKING_COUNT_CHOICES,
@@ -210,7 +211,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 
 let modalFrameSequence=0;
 
-interface ModalFrameProps { title:string; children:any; onClose:()=>void; size:'sm'|'md'|'lg'|'xl'; footer?:any; }
+interface ModalFrameProps { title:string; children:any; onClose:()=>void; size:'sm'|'md'|'lg'|'xl'; footer?:any; appearance?:'assistant'; }
 class ModalFrame extends React.Component<ModalFrameProps> {
   private backdrop:HTMLDivElement|null=null;
   private dialog:HTMLElement|null=null;
@@ -298,14 +299,14 @@ class ModalFrame extends React.Component<ModalFrameProps> {
     if(!(active instanceof Node)||!this.dialog.contains(active)){event.preventDefault();(event.shiftKey?last:first)?.focus();}
   };
   render():any{
-    const {title,children,onClose,size,footer}=this.props;
-    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onPointerDown={(e:any) => { if (e.target === e.currentTarget&&this.isTopModal()) onClose(); }}><section ref={(node:any)=>{this.dialog=node;}} className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-labelledby={this.titleId} tabIndex={-1}><header className="modal-header"><h2 id={this.titleId}>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
+    const {title,children,onClose,size,footer,appearance}=this.props;
+    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" data-assistant-overlay={appearance==='assistant'?'true':undefined} role="presentation" onPointerDown={(e:any) => { if (e.target === e.currentTarget&&this.isTopModal()) onClose(); }}><section ref={(node:any)=>{this.dialog=node;}} className={`modal modal-${size}${appearance==='assistant'?' modal-assistant':''}`} dir={appearance==='assistant'?(assistantToolLanguage()==='ar'?'rtl':'ltr'):undefined} role="dialog" aria-modal="true" aria-labelledby={this.titleId} tabIndex={-1}><header className="modal-header"><h2 id={this.titleId}>{title}</h2>{appearance==='assistant'?<IconButton icon="x" label={assistantToolText('Close','إغلاق')} onClick={onClose}/>:<IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/>}</header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
   }
 }
 
-export function Modal({ open, title, children, onClose, size = 'md', footer, portal = false }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any; portal?: boolean }): any {
+export function Modal({ open, title, children, onClose, size = 'md', footer, portal = false, appearance }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any; portal?: boolean; appearance?:'assistant' }): any {
   if (!open) return null;
-  const frame=<ModalFrame title={title} size={size} onClose={onClose} footer={footer}>{children}</ModalFrame>;
+  const frame=<ModalFrame title={title} size={size} onClose={onClose} footer={footer} appearance={appearance}>{children}</ModalFrame>;
   // AI tools live in a filtered chat panel. Portal only those overlays so fixed
   // sheets use the viewport and do not inherit composer control dimensions.
   return portal?ReactDOM.createPortal(frame,document.querySelector('#root .app-ui')||document.getElementById('root')||document.body):frame;

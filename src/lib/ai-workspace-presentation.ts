@@ -1,5 +1,7 @@
 /** Presentation only: never translate identifiers, user text or planner contracts. */
 const arabic:Record<string,string>={
+  '＋ New conversation':'＋ محادثة جديدة',
+  'Conversations':'المحادثات',
   'Business document draft':'مسودة مستند تجاري',
   'Prepared by user in the conversation workspace.':'جهّزت هذه المسودة من مساحة المحادثة؛ راجعها قبل الحفظ.',
   'Draft revised; review the new revision.':'تغيّرت المسودة؛ راجع التعديل الجديد.',
