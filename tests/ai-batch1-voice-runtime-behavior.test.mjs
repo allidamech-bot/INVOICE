@@ -18,7 +18,7 @@ test('built iOS voice composer hands off microphone in both directions and clear
       const names=new Set();
       this.classList={toggle:(name,on)=>on?names.add(name):names.delete(name),remove:(...items)=>items.forEach(name=>names.delete(name)),contains:name=>names.has(name)};
     }
-    querySelector(){return null;}getAttribute(){return null;}setAttribute(name,value){this[name]=value;}
+    querySelector(){return null;}querySelectorAll(){return [];}getAttribute(){return null;}setAttribute(name,value){this[name]=value;}
   }
   class ButtonStub extends ElementStub{}
   class InputStub extends ElementStub{
