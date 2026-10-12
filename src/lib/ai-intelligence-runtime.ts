@@ -191,7 +191,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
 }
 async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{
   if(currentConversationMode(host)!=='controller')throw new Error('Advisor can analyze but cannot edit a workspace. Switch to Controller.');
-  if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;
+  if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy||host.__workspaceDismissBusy)return;
   host.__workspaceCommandBusy=true;
   try{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
@@ -464,7 +464,7 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy)return;host.__foundationTurnBusy=true;const started=performance.now();let turnScope='';
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;const started=performance.now();let turnScope='';
     try{
       await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
