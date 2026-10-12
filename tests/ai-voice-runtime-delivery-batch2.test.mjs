@@ -38,7 +38,7 @@ test('production build ships the exact final composer hash and current voice own
   const source=composer.toString('utf8');
   const html=readFileSync(htmlUrl,'utf8');
   const sw=readFileSync(swUrl,'utf8');
-  assert.match(source,/__LOUREX_VOICE_RUNTIME_OWNER__='ios-release-v2'/);
+  assert.match(source,/__LOUREX_VOICE_RUNTIME_OWNER__='ios-release-v3-cross-owner'/);
   assert.ok(html.includes(expected),`production HTML must reference final composer bytes as ${expected}`);
   assert.ok(sw.includes(expected),`service worker must precache final composer bytes as ${expected}`);
 });

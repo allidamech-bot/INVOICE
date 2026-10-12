@@ -1,5 +1,5 @@
 import type { VaultPayload } from '../types.js';
-import { conversationModePermitsToolClass, type AiConversationMode } from './ai-conversation-mode.js';
+import { conversationModePermitsToolClass, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 import { calculateTotals, decimalToScaled, lineTotal, normalizeDecimalInput } from './money.js';
 import { customerReceivables, customerStatement, receivableCustomerId } from './receivables.js';
 import { inventoryBalances, purchaseTotals } from './operations.js';
@@ -140,7 +140,7 @@ export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='bu
 }
 export function createAiToolRuntime(vault:VaultPayload,context:any):AiToolRuntime{
   const scope=(context?.assistantRuntime?.scope==='personal'?'personal':context?.assistantRuntime?.scope==='temporary'?'temporary':'business') as AiToolRuntime['scope'];
-  return{vault,context,scope,workspaceId:clean(context?.assistantRuntime?.workspaceId,120),branchId:clean(context?.assistantRuntime?.branchId,120),conversationMode:context?.conversationMode==='advisor'?'advisor':'controller'};
+  return{vault,context,scope,workspaceId:clean(context?.assistantRuntime?.workspaceId,120),branchId:clean(context?.assistantRuntime?.branchId,120),conversationMode:context?.conversationMode===undefined?'controller':normalizeAiConversationMode(context.conversationMode)};
 }
 export function validateAiToolPlan(value:unknown,scope:'business'|'personal'|'temporary'='business',mode:AiConversationMode='controller'):AiToolPlan|null{
   if(!value||typeof value!=='object')return null;const raw=value as any;if(raw.version!==1||!Array.isArray(raw.calls)||raw.calls.length>5)return null;const allowed=new Set(aiToolPlannerCatalog(scope,mode).map(row=>row.id));const calls:AiToolCall[]=[];
@@ -237,7 +237,7 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
 }
 export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolResult{
   const def=DEF_BY_ID.get(call.tool);if(!def)return{id:call.id,tool:call.tool,ok:false,class:'read',data:null,summary:'Unknown tool.',source:'tool-registry'};
-  if(!conversationModePermitsToolClass(runtime.conversationMode||'controller',def.class))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Advisor is read-only. Switch to Controller for navigation, drafts or actions.',source:'advisor-read-only-guard'};
+  if(!conversationModePermitsToolClass(normalizeAiConversationMode(runtime.conversationMode),def.class))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Advisor is read-only. Switch to Controller for navigation, drafts or actions.',source:'advisor-read-only-guard'};
   if(runtime.scope==='personal'&&!['message.prepare','reminder.prepare','task.create'].includes(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Business tools are unavailable in Personal scope.',source:'scope-guard'};
   if(HIGH_IMPACT.has(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'High-impact financial actions are never executed by LOUREX AI. Open the relevant workspace and complete the protected workflow manually.',source:'high-impact-guard'};
   if(EXECUTE.has(call.tool)){try{const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'approval-preflight'};}}
