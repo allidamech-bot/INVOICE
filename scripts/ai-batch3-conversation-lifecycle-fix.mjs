@@ -64,6 +64,38 @@ if(source.includes('__lourexConversationSources.length'))throw new Error('Batch 
 if(source.includes(brokenEvidence))throw new Error('Batch 3 evidence-panel syntax repair did not apply.');
 if(source.includes(duplicateComposer))throw new Error('Batch 3 duplicate composer transform survived hardening.');
 if(!source.includes("className:'lourex-ai-attachment-inputs'"))throw new Error('Batch 3 attachment inputs did not preserve the legacy direct-input selector.');
+
+/** Attachment evidence lives only with its exact Controller conversation.
+ * Subsequent explicit "convert this uploaded file" turns can read the same
+ * parsed source without asking the user to upload it twice. */
+const wrappedAsk="instance.ask=async raw=>{if(instance.state.attachmentBusy)return;const rows=instance.state.conversationAttachments||[];if(!rows.length)return baseAsk(raw);";
+if(!source.includes(wrappedAsk))throw new Error('Scoped follow-up attachment wrapper target changed.');
+source=source.replace(wrappedAsk,[
+ "instance.ask=async raw=>{if(instance.state.attachmentBusy)return;",
+ "const rows=instance.state.conversationAttachments||[];",
+ "if(!rows.length){",
+ " const currentKey=attachmentScopeKey(instance.__intelligenceKernel?.scope,instance.__intelligenceKernel?.mode);",
+ " const cached=instance.__lourexLastConversationSources||[];",
+ " const prompt=String(raw??instance.state.input??'');",
+ " if(currentKey&&currentKey===instance.__lourexLastConversationSourceScope&&cached.length&&explicitAttachedFileFollowup(prompt)){",
+ "   __lourexSetConversationSources(cached.slice());",
+ "   try{return await baseAsk(raw);}finally{__lourexSetConversationSources([]);}",
+ " }",
+ " return baseAsk(raw);",
+ "}"
+].join(''));
+const newUpload="validateConversationFiles(rows.map(row=>row.file));instance.setState({conversationAttachments:rows,error:''});";
+if(!source.includes(newUpload))throw new Error('Attachment selection cache invalidation target changed.');
+source=source.replace(newUpload,"validateConversationFiles(rows.map(row=>row.file));if(rows.length>existing.length){instance.__lourexLastConversationSources=[];instance.__lourexLastConversationFiles=[];instance.__lourexLastConversationSourceScope='';if(typeof __lourexSetConversationSources==='function')__lourexSetConversationSources([]);}instance.setState({conversationAttachments:rows,error:''});");
+
+const retained="instance.__lourexLastConversationSources=__lourexGetConversationSources().slice();";
+if(!source.includes(retained))throw new Error('Previous extracted evidence owner changed.');
+source=source.replace(retained,retained+"instance.__lourexLastConversationSourceScope=attachmentScopeKey(instance.__intelligenceKernel?.scope,instance.__intelligenceKernel?.mode);");
+const reset="__lourexSetConversationSources([]);}};";
+if(!source.includes(reset))throw new Error('Existing attachment finally cleanup changed.');
+source="import {attachmentScopeKey,explicitAttachedFileFollowup} from '../lib/ai-attachment-followup.js';\n"+source;
+if(!source.includes('instance.__lourexLastConversationSourceScope=attachmentScopeKey'))throw new Error('Scoped attachment evidence retention missing.');
+
 source+='\nconst __lourexConversationLifecycleFixBatch3=true;\n';
 await writeFile(target,source);
 
