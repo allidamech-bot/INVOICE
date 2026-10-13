@@ -142,6 +142,28 @@ export function reviseKernelDraft(kernel:ConversationKernel,proposal:Draft,messa
     if(match){index=/الثالث|third/iu.test(match[1]!)?2:/الأخير|آخر|last/iu.test(match[1]!)?rows.length-1:Number(match[1])-1;field=/كمية|quantity|qty/iu.test(match[2]||'')?'quantity':'unitPrice';value=match[3]!;command=`set ${field==='quantity'?'quantity':'price'} line ${index+1} to ${value}${match[4]?' '+match[4]:''}`;}
     else{const exact=text.match(/^(?:set|change|update|عدل|عدّل|غير|غيّر)\s+(price|quantity|qty|سعر|السعر|كمية|الكمية)\s+(?:line|item|الصنف|البند)\s*(\d+)\s*(?:to|إلى|الى|=|بسعر)\s*(\S+)(?:\s+[A-Z]{3})?$/iu);if(exact){index=Number(exact[2])-1;field=/كمية|quantity|qty/iu.test(exact[1]!)?'quantity':'unitPrice';value=exact[3]!;}}
   }
+  // Named-line edits are bounded to one exact, unique line in this scoped draft.
+  // No partial product-name matching and no price guessing.
+  if(index<0&&!correction){
+    const named=text.match(/^(?:غيّر|غير|عدّل|عدل|set|change|update)\s+(سعر|السعر|كمية|الكمية|price|quantity|qty)\s+(?:الصنف|صنف|البند|item|product)\s+(.{1,160}?)\s+(?:إلى|الى|to|=|بسعر)\s+(\d+(?:[.,]\d+)?)(?:\s+([A-Z]{3}))?[.!؟\s]*$/iu);
+    if(named){
+      const normalizeName=(s:string)=>s.normalize('NFKC').replace(/[\u064b-\u065f\u0670]/gu,'').replace(/\s+/gu,' ').trim().toLocaleLowerCase();
+      const requested=normalizeName(named[2]!);
+      const allRows=proposal.capability==='document.createDraft'
+        ?proposal.items:[...(drafting.activeDocument?.items||[]),...proposal.addItems];
+      const matches=allRows.map((row,i)=>{
+        const source='savedItemId'in row?drafting.items.find(item=>item.id===row.savedItemId):undefined;
+        const names=[row.descriptionEn,row.descriptionAr,source?.descriptionEn,source?.descriptionAr]
+          .filter((name):name is string=>typeof name==='string'&&Boolean(name.trim()));
+        return names.some(name=>normalizeName(name)===requested)?i:-1;
+      }).filter(i=>i>=0);
+      if(matches.length!==1)return reject(matches.length?'This product name occurs on multiple lines; provide the exact line number.':'Product name not found as an exact line in this draft.');
+      index=matches[0]!;
+      field=/كمية|quantity|qty/iu.test(named[1]!)?'quantity':'unitPrice';
+      value=named[3]!;
+      command='set '+(field==='quantity'?'quantity':'price')+' line '+(index+1)+' to '+value+(named[4]?' '+named[4]:'');
+    }
+  }
   const result=reviseAiPendingDocumentDraft(base,command,drafting,language);
   if(result?.changed){artifact.undo.push(structuredClone(proposal));artifact.undoLineIds=[...(artifact.undoLineIds||[]),[...artifact.lineIds]].slice(-aiDraftUndoDepth(result.proposal.capability==='document.createDraft'?result.proposal.items.length:result.proposal.addItems.length));artifact.redoLineIds=[];artifact.undo=artifact.undo.slice(-aiDraftUndoDepth(result.proposal.capability==='document.createDraft'?result.proposal.items.length:result.proposal.addItems.length));artifact.redo=[];artifact.proposal=structuredClone(result.proposal);artifact.revision++;
     if(index>=0&&artifact.lineIds[index]){artifact.selectedLineId=artifact.lineIds[index];artifact.lastEdit={lineId:artifact.lineIds[index]!,field,value,before:structuredClone(base)};}else artifact.lastEdit=undefined;
