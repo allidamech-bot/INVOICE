@@ -318,13 +318,11 @@
     }
   };
 
-  const buildPdfFile = async () => {
-    if (pendingPdfFile) return pendingPdfFile;
-    if (pendingPdfPromise) return pendingPdfPromise;
-    pendingPdfPromise = (async () => {
-      await ensurePdfLibraries();
-      const sourcePages = Array.from(document.querySelectorAll('.print-portal .invoice-page'));
-      if (!sourcePages.length) throw new Error('Printable document is not ready.');
+  // Reuse the exact existing LOUREX A4, Arabic stabilization, and signature
+  // export pipeline for both the native output and AI chat PDF previews.
+  const renderPdfPages = async (sourcePages,filename) => {
+    await ensurePdfLibraries();
+    if (!sourcePages.length) throw new Error('Printable document is not ready.');
       const stage = document.createElement('div');
       // Preserve the canonical parent and page order: template CSS uses direct
       // children plus first/continued-page selectors during preview pagination.
@@ -371,11 +369,33 @@
           canvas.width=1; canvas.height=1;
         }
         const blob = pdf.output('blob');
-        const file = new File([blob],`${safeFilename(document.title)}.pdf`,{type:'application/pdf',lastModified:Date.now()});
-        pendingPdfFile = file; return file;
+        const file = new File([blob],`${safeFilename(filename)}.pdf`,{type:'application/pdf',lastModified:Date.now()});
+        return file;
       } finally { stage.remove(); }
-    })().catch(error=>{ pendingPdfPromise=null; throw error; });
+  };
+  const buildPdfFile = async () => {
+    if (pendingPdfFile) return pendingPdfFile;
+    if (pendingPdfPromise) return pendingPdfPromise;
+    pendingPdfPromise=renderPdfPages(Array.from(document.querySelectorAll('.print-portal .invoice-page')),document.title)
+      .then(file=>{pendingPdfFile=file;return file;})
+      .catch(error=>{pendingPdfPromise=null;throw error;});
     return pendingPdfPromise;
+  };
+  /** Build a real PDF file from the isolated AI preview DOM, without calling
+   * window.print, touching printDoc, reserving a number, or saving a record. */
+  window.__LOUREX_BUILD_CHAT_PDF__ = async (root,filename) => {
+    if (!(root instanceof Element)||!root.isConnected) throw new Error('The preview was closed or changed.');
+    await Promise.resolve(document.fonts?.ready);
+    const deadline=Date.now()+8000;
+    while (root.isConnected) {
+      const pages=root.querySelector('.invoice-pages');
+      if (pages?.getAttribute('data-pagination-ready')==='true') break;
+      if (Date.now()>deadline) throw new Error('Document pagination did not finish.');
+      await new Promise(resolve=>setTimeout(resolve,80));
+    }
+    if (!root.isConnected) throw new Error('The preview was closed.');
+    const pages=Array.from(root.querySelectorAll('.invoice-page'));
+    return renderPdfPages(pages,filename);
   };
 
   const pdfUrlFor = (file) => { if (!pendingPdfUrl) pendingPdfUrl = URL.createObjectURL(file); return pendingPdfUrl; };
