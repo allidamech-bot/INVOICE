@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {newConversationKernel,normalizeConversationKernel,stageKernelArtifact} from '../dist/src/lib/ai-conversation-kernel.js';
-import {resumableWorkingApproval} from '../dist/src/lib/ai-draft-resumption.js';
+import {resumableWorkingApproval,retireWorkingApproval} from '../dist/src/lib/ai-draft-resumption.js';
 import {prepareFoundationApproval} from '../dist/src/lib/ai-foundation-approval.js';
 import {createMission} from '../dist/src/lib/ai-mission-runner.js';
 
@@ -72,4 +72,30 @@ test('F09 runtime restores approved document only, not every kernel artifact',as
  const matches=Function('message','return '+candidate+'.test(message);');
  for(const command of ['احفظها','اعتمد النسخة','اعتمد عرض السعر','approve this draft','save this draft'])assert.equal(matches(command),true,command);
  for(const command of ['هل العرض جاهز؟','لا تحفظ','لا تعتمد النسخة','قيم السعر','اعتمد كل الفواتير'])assert.equal(matches(command),false,command);
+});
+
+test('F09 editing an approved working draft cancels its previous review and keeps all lines',()=>{
+ const {vault,kernel,scope,proposal}=fixture();
+ const signed={...structuredClone(proposal),foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
+ kernel.artifact.proposal=signed;kernel.missions=[createMission(scope,signed)];
+ const next=structuredClone(kernel),id=signed.foundationApproval.id;
+ next.artifact.proposal.items[0].unitPrice='20';
+ delete next.artifact.proposal.foundationApproval;
+ retireWorkingApproval(next,id);
+ assert.equal(next.artifact.proposal.items[0].unitPrice,'20');
+ assert.equal(next.artifact.proposal.foundationApproval,undefined);
+ assert.equal(next.missions[0].steps[0].status,'cancelled');
+ assert.deepEqual(next.cancelledApprovals,[id]);
+ assert.equal(vault.documents.length,0);
+});
+test('F09 direct commercial changes do not mint approvals or save unless asked',async()=>{
+ const source=await readFile(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
+ const from=source.indexOf('if(commercialCommand){'),to=source.indexOf('const draftOnly=',from);
+ assert.ok(from>0&&to>from);
+ const section=source.slice(from,to);
+ assert.match(section,/retireWorkingApproval\(next,previousApproval.id\)/);
+ assert.match(section,/delete p.foundationApproval/);
+ assert.match(section,/proposal:null,review:null/);
+ assert.doesNotMatch(section,/stampProposal\(host,p/);
+ assert.doesNotMatch(section,/stageReviewedMission\(next,p\)/);
 });
