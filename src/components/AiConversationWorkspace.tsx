@@ -265,15 +265,18 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
 }
 function ConversationDocumentCard({host}:{host:Host}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
+  // A saved document reference survives chat reload in the scoped kernel.
+  // Never let an earlier saved document hide a newer unsaved working draft.
+  const savedId=String(kernel.artifact?'':(host.state.__workspaceSavedId||
+    (kernel.entity?.entityType==='document'?kernel.entity.entityId:'')));
   let doc:WorkspaceDocument|null=null;
-  try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||'');}catch{}
+  try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',savedId);}catch{}
   const pdfStage=react.useRef(null as HTMLDivElement|null);
   const [PdfRenderer,setPdfRenderer]=React.useState(null as any);
   const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string}|null);
   const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
-  const savedId=String(host.state.__workspaceSavedId||'');
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
   React.useEffect(()=>{setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');},[pdfIdentity]);
   React.useEffect(()=>()=>{if(pdfResult?.url)URL.revokeObjectURL(pdfResult.url);},[pdfResult?.url]);
