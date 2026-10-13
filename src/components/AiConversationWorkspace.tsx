@@ -356,7 +356,12 @@ function ConversationDocumentCard({host}:{host:Host}):any {
         const file=await build(stage,'LOUREX-'+pdfSource.document.number);
         if(!(file instanceof Blob)||file.type!=='application/pdf'||file.size<256)throw new Error('PDF file bytes were not generated correctly.');
         const active=host.__intelligenceKernel as ConversationKernel|undefined;
-        const identity=active?kernelScopeKey(active.scope)+'|'+String(host.state.__workspaceSavedId||'')+'|'+String(active.artifact?.id||'')+'|'+String(active.artifact?.revision||0):'';
+        // The same saved identity must be used at the start AND completion of
+        // PDF rendering. After a reload the scoped kernel entity is durable,
+        // while the transient __workspaceSavedId UI field can still be empty.
+        const activeSavedId=active?String(active.artifact?'':(host.state.__workspaceSavedId||
+          (active.entity?.entityType==='document'?active.entity.entityId:''))):'';
+        const identity=active?kernelScopeKey(active.scope)+'|'+activeSavedId+'|'+String(active.artifact?.id||'')+'|'+String(active.artifact?.revision||0):'';
         if(identity!==pdfSource.identity)throw new Error('The document changed while rendering. Generate a new PDF.');
         if(cancelled)return;
         const url=URL.createObjectURL(file);
