@@ -17,6 +17,7 @@ import {operationalDeliveryDraftRequested,requestedDeliverySalesOrderNumber} fro
 import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest} from './ai-operational-delivery-confirmation.js';
 import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
 import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
+import {isAiMatchedBillPostingIntent,parseAiMatchedBillPosting} from './ai-operational-supplier-invoice-posting.js';
 import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
 import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
 import {isAiSupplierSettlementIntent,parseAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
@@ -254,6 +255,25 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       ?'جهزت مراجعة مسودة فاتورة من سند التسليم المؤكد '+number+' بجميع البنود وأسعارها. الحفظ يتطلب موافقتك، والإصدار والتحصيل إجراءان منفصلان.'
       :'Prepared a complete invoice draft review from confirmed delivery '+number+'. Saving requires separate approval; issuance and collection are separate.')
       :executed.results.map(row=>row.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Matched supplier bill posting is a separate purchase, inventory and
+  // payable action; a match event never opens an implicit liability.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiMatchedBillPostingIntent(input.message)){
+    const request=parseAiMatchedBillPosting(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:request?
+      [{id:'matched-bill-posting-exact',tool:'procurement.postMatchedSupplierBill',
+        args:{posting:request},reason:'Exact matched supplier bill and explicit ordered catalog SKUs from the user.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+      ?'للترحيل: اكتب رحّل فاتورة المورد المطابقة لأمر الشراء PO-...، مرجع الفاتورة BILL-...، أكواد SKU بالترتيب CK-200,CN-50. يلزم ربط كل بند وموافقة مستقلة. لم أرحّل شيئًا.'
+      :'To post: post matched supplier invoice for PO-..., reference BILL-..., SKUs in order CK-200,CN-50. Every line must have an exact SKU and posting needs separate approval. Nothing posted.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal
+      ?(input.language==='ar'
+         ?'حضّرت مراجعة ترحيل فاتورة المورد '+request.invoiceReference+' مع كل البنود وأثر المخزون والذمم. لم يُرحّل شراء أو مخزون بعد. الموافقة المستقلة لازمة، ولا يتم سداد المورد.'
+         :'Prepared matched supplier bill '+request.invoiceReference+' posting with full line mappings, stock and payable impacts. No posting or payment yet; separate approval required.')
+      :executed.results.map(x=>x.summary).join('\n'),
       proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
   }
   // Supplier payment is REAL cash and only attaches to an existing POSTED
