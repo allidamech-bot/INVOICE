@@ -8,6 +8,8 @@ import {applyAiSupplierInvoiceMatchApproval,type AiSupplierInvoiceMatchReview} f
 import {applyAiConfirmedDeliveryInvoiceApproval,type AiConfirmedDeliveryInvoiceReview} from './ai-operational-delivery-invoice-draft.js';
 import {applyAiCustomerCollection,type AiCustomerCollectionReview} from './ai-operational-customer-collection.js';
 import {applyAiSupplierSettlement,type AiSupplierSettlementReview} from './ai-operational-supplier-settlement.js';
+import {applyAiSupplierPosting,type AiSupplierPostingReview} from './ai-operational-supplier-posting.js';
+import {assertMatchedSupplierInvoicePostingIntegrity} from './supplier-invoice-posting.js';
 import {linkedDeliveryInvoice} from './sales-delivery-invoice.js';
 import {matchedSupplierInvoices} from './supplier-invoice-flow.js';
 import {salesDeliveryStockIssues} from './sales-delivery-stock.js';
@@ -22,7 +24,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -97,6 +99,35 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
     if(recorded.length!==1)throw new Error('Matched supplier invoice cannot be verified.');
     return{summary:'Vendor bill '+review.invoiceReference+' matched to confirmed receiving after signed approval. No payable, stock or payment posted.',
       id:review.purchaseOrderId};
+  }
+  if(proposal.tool==='procurement.postMatchedSupplierBill'){
+    if(!proposal.foundationApproval)
+      throw new Error('Independent signed owner/admin approval is required before posting vendor bill stock and payable.');
+    const review=proposal.args as unknown as AiSupplierPostingReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiSupplierPosting(vault,review).vault;
+    });
+    assertMatchedSupplierInvoicePostingIntegrity(saved);
+    const purchases=saved.purchases.filter(p=>p.sourceSupplierInvoiceEventId===review.matchEventId&&
+      p.sourcePurchaseOrderId===review.purchaseOrderId&&p.status==='posted'&&
+      p.currency===review.currency&&p.items.length===review.lineCount);
+    if(purchases.length===1){
+      const purchase=purchases[0]!;
+      if(saved.inventoryMovements.filter(m=>m.type==='purchase'&&m.sourceId===purchase.id).length!==review.lineCount)
+        throw new Error('Purchase posted without full inventory movements. Stop and reconcile ledger.');
+      return{summary:'Matched vendor bill '+review.invoiceReference+' POSTED once as purchase '+
+        purchase.number+'. Accounts payable +'+review.total+' '+review.currency+
+        ', primary warehouse inventory +'+review.lineCount+' movements. No supplier payment made.',
+        id:purchase.id};
+    }
+    if(purchases.length>1)throw new Error('Duplicate supplier bill postings found. Stop and reconcile.');
+    const pending=saved.approvalRequests.filter(a=>a.action==='post-purchase'&&
+      a.entityId==='purchase-from-'+review.matchEventId&&a.status==='pending');
+    if(pending.length!==1)throw new Error('Neither a verified vendor bill posting nor one pending legacy approval was found.');
+    return{summary:'Supplier bill '+review.invoiceReference+
+      ' is NOT POSTED. Existing purchase approval policy requires an additional approval. No stock, payable or cash was posted.',
+      id:pending[0]!.id};
   }
   if(proposal.tool==='sales.issueConfirmedStock'){
     if(!proposal.foundationApproval)throw new Error('A signed and explicit inventory-deduction approval is required.');
