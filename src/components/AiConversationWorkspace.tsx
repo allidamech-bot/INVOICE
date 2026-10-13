@@ -11,6 +11,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
+import { prepareAdvisorControllerHandoff } from '../lib/ai-advisor-controller-handoff.js';
 import type { LourexDocument } from '../types.js';
 
 
@@ -675,11 +676,18 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const approval=['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability)?proposalNode:null;
     const generalProposal=proposalNode&&!approval?proposalNode:null;
     const mode=normalizeAiConversationMode(k.mode),open=mode==='controller'&&Boolean(host.state.__workspaceOpen),pane=host.state.__workspacePane||'chat';
+    const latestAdvisorReply=mode==='advisor'?[...(host.state.messages||[])].reverse().find((m:any)=>m.role==='assistant'&&typeof m.text==='string'&&m.text.trim()):null;
     const switching=Boolean(host.state.__workspaceSwitching),inactive=disabled(host)||switching;
     const tabs=conversationModeTabs(host,mode,inactive);
     const description=<div className="lxw-mode-description" dir={ar?'rtl':'ltr'} aria-live="polite">
       <span className="lxw-mode-symbol" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{mode==='controller'?<><path d="M4 7h16M4 17h16"/><path d="M8 4v6M16 14v6"/></>:<><path d="M20 11.5a8 8 0 0 1-8.5 8 8 8 0 0 1-3.8-1L4 20l1.5-3.7A8 8 0 1 1 20 11.5Z"/><path d="M8 11h8M8 14h5"/></>}</svg></span>
       <span>{conversationModeDescription(mode,ar?'ar':'en')}</span>
+      {mode==='advisor'?<button type="button" className="lxw-advisor-controller-handoff"
+        disabled={inactive||!latestAdvisorReply||Boolean(host.__workspaceAdvisorHandoffBusy)}
+        title={label(ar,'Copy latest Advisor proposal into Controller for review only','إرسال أحدث اقتراح للمتحكم للمراجعة فقط')}
+        onClick={()=>void host.__workspaceSendAdvisorProposal?.(latestAdvisorReply?.text||'')}>
+        {label(ar,'Send proposal to Controller','إرسال الاقتراح إلى المتحكم')}
+      </button>:null}
     </div>;
     const toolbar=mode==='controller'?<button type="button" className="lxw-workspace-trigger" disabled={inactive} aria-label={label(ar,'Workspace','مساحة العمل')} title={label(ar,'Workspace','مساحة العمل')} aria-expanded={open} onClick={()=>host.setState({__workspaceSettingsOpen:false,__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>:<span className="lxw-header-slot" aria-hidden="true"/>;
     const historyButton=<button type="button" className="lxw-history-trigger" disabled={inactive} aria-label={label(ar,'Conversation history','سجل المحادثات')} title={label(ar,'Conversation history','سجل المحادثات')} aria-expanded={Boolean(host.state.__workspaceHistoryOpen)} onClick={()=>host.setState({__workspaceHistoryOpen:!host.state.__workspaceHistoryOpen,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.6 5.9"/><path d="M4 5v6h6M12 7v5l4 2"/></svg></button>;
@@ -768,6 +776,29 @@ export function installConversationWorkspace(host:Host):void {
       host.__workspaceModeSwitchBusy=false;host.__workspaceInternalModeSwitch=false;
       host.setState({__workspaceSwitching:false});
     }
+  };
+  host.__workspaceSendAdvisorProposal=async(text:string)=>{
+    if(disabled(host)||host.__workspaceAdvisorHandoffBusy||host.__workspaceModeSwitchBusy)return;
+    const from=host.__intelligenceKernel as ConversationKernel|undefined;
+    if(!from||normalizeAiConversationMode(from.mode)!=='advisor'||from.scope.scope!=='business'){
+      host.setState({error:'An Advisor business conversation is required for a handoff.'});return;
+    }
+    const scopedFrom={...from.scope};
+    host.__workspaceAdvisorHandoffBusy=true;
+    try{
+      if(!String(text||'').trim()||text.length>4000)throw new Error('Select one specific, concise Advisor response.');
+      await host.__workspaceSwitchMode('controller');
+      const destination=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(!destination||normalizeAiConversationMode(destination.mode)!=='controller')
+        throw new Error('Controller was not opened. No handoff was made.');
+      if(String(host.state.input||'').trim())
+        throw new Error('Controller already has an unsent message. Preserve or send it before handing off this proposal.');
+      const prepared=prepareAdvisorControllerHandoff(text,scopedFrom,destination.scope,currentAiInterfaceLanguage(host));
+      // Draft text in the composer only. No call to ask(), stageKernelArtifact,
+      // approveProposal or any document/customer/product writer occurs here.
+      host.setState({input:prepared,error:'',__workspaceSettingsOpen:false,__workspaceHistoryOpen:false});
+    }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
+    finally{host.__workspaceAdvisorHandoffBusy=false;}
   };
   host.__workspaceRefresh=refresh;
   const viewport=()=>syncWorkspaceViewport();host.__workspaceViewport=viewport;
