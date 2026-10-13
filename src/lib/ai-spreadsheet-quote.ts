@@ -47,16 +47,19 @@ export interface DeterministicQuoteSheet{
 export function exactSpreadsheetQuote(sheets:SpreadsheetSheet[]):DeterministicQuoteSheet|null{
   if(!sheets.length)return null;
   const items:DeterministicQuoteSheet['items']=[];
+  // Do not silently skip a cover sheet or earlier sheet containing rows when
+  // a later worksheet contains an RFQ header. All nonempty sheets must map.
+  const detected=sheets.map(sheet=>sheet.matrix.slice(0,30).flatMap((row,i)=>{
+    const map=headerFor(row);return map?[{map,index:i}]:[];
+  }));
+  if(detected.every(matches=>matches.length===0))return null;
+  if(detected.some(matches=>matches.length!==1))
+    throw new Error('SOURCE_INCOMPLETE: Every nonempty worksheet needs exactly one unambiguous quotation header. No worksheets omitted.');
   let sheetsWithRows=0,allCurrency='';
   for(const sheet of sheets){
     if(!Array.isArray(sheet.matrix)||!sheet.matrix.length)continue;
-    const found=sheet.matrix.slice(0,30).flatMap((row,i)=>{const map=headerFor(row);return map?[{map,index:i}]:[];});
-    if(found.length!==1){
-      // No recognized quote header: caller may continue with usual AI source
-      // classification. But once some sheets were mapped, do not omit another.
-      if(sheetsWithRows||found.length>1)throw new Error('SOURCE_INCOMPLETE: Worksheet '+sheet.name+' has no single unambiguous quotation header.');
-      return null;
-    }
+    const sheetIndex=sheets.indexOf(sheet);
+    const found=detected[sheetIndex]!;
     sheetsWithRows++;
     const {map,index}=found[0]!;
     for(let i=index+1;i<sheet.matrix.length;i++){
