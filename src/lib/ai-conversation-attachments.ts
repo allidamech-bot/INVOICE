@@ -15,6 +15,8 @@ export interface ConversationAttachmentSource{
   confidence:number;
   reason:string;
   extracted:string;
+  /** Complete deterministic worksheet quote, retained even if model classification differs. */
+  quoteSheetCandidate?:string;
 }
 export interface ConversationAttachmentAnalysis{source:ConversationAttachmentSource;file:File;}
 export type ConversationAttachmentPhase='reading'|'classifying'|'extracting'|'fallback'|'complete';
@@ -131,6 +133,16 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
     }
   }
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  // Read exact named-column spreadsheet rows *before* depending on an AI
+  // classification. A model can label an RFQ as 'product_list' or 'unknown';
+  // retain a separate complete deterministic quote candidate for the user's
+  // later explicit instruction without reclassifying other import workflows.
+  let quoteSheetCandidate='';
+  if(/\.(?:xlsx|xls|csv)$/i.test(file.name)&&payload.kind==='text'){
+    const mapped=exactSpreadsheetQuote(await readSpreadsheetFile(file));
+    if(mapped)quoteSheetCandidate=completeSourceJson(mapped,MAX_PRODUCT_LIST_EXTRACT_CHARS);
+  }
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('classifying');
   let classification:ConversationAttachmentClassification={route:'unknown',documentType:'unknown',confidence:0,reason:'LOUREX Inbox could not classify this source reliably; general read-only extraction was used.'};
   try{
@@ -143,21 +155,18 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   // Exact named columns in a customer RFQ need no generative extraction: a
   // 100-line spreadsheet must not be reduced to a 20-line model response.
   // Keep product catalogs and supplier sheets on their own workflows.
-  if(classification.route==='quote_request'&&
-    /\.(?:xlsx|xls|csv)$/i.test(file.name)&&payload.kind==='text'){
-    const mapped=exactSpreadsheetQuote(await readSpreadsheetFile(file));
-    if(mapped){
-      const extracted=completeSourceJson(mapped,MAX_PRODUCT_LIST_EXTRACT_CHARS);
-      onProgress?.('complete');
-      return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),
-        size:file.size,route:'quote_request',documentType:classification.documentType,confidence:1,
-        reason:'Exact customer quote worksheet columns, '+mapped.sourceRowCount+' complete original rows. No LLM row extraction.',
-        extracted}};
-    }
+  if(classification.route==='quote_request'&&quoteSheetCandidate){
+    onProgress?.('complete');
+    return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),
+      size:file.size,route:'quote_request',documentType:classification.documentType,confidence:1,
+      reason:'Exact customer quote worksheet columns. Complete original rows were preserved; no LLM row extraction.',
+      extracted:quoteSheetCandidate,quoteSheetCandidate}};
   }
   let extracted='';const endpoint=extractionEndpoint(classification.route);
   if(!endpoint){
-    extracted=await genericExtraction(file.name,payload,signal);
+    // Generic classification unavailable: preserve complete exact source as
+    // reviewable DATA, rather than erroring out on a second AI request.
+    extracted=quoteSheetCandidate||await genericExtraction(file.name,payload,signal);
   }else{
     try{
       const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
@@ -177,7 +186,7 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   }
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('complete');
-  return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),size:file.size,route:classification.route,documentType:classification.documentType,confidence:classification.confidence,reason:classification.reason,extracted}};
+  return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),size:file.size,route:classification.route,documentType:classification.documentType,confidence:classification.confidence,reason:classification.reason,extracted,quoteSheetCandidate:quoteSheetCandidate||undefined}};
 }
 
 export function conversationSourcePrompt(sources:ConversationAttachmentSource[]):string{
