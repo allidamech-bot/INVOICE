@@ -280,6 +280,10 @@ function ConversationRecordList({host}:{host:Host}):any {
   const busy=disabled(host);
   const update=(ids:string[])=>dispatch(host,{kind:'selection-set',selectionId:selection.id,entityIds:ids});
   const kind=rows[0]?.entityType||'record';
+  const vault=host.__foundationVault;
+  const isRed=(id:string):boolean=>Boolean(vault&&(kind==='customer'
+    ?vault.customers?.some((r:any)=>r.id===id&&(r.workspaceId||'default')===(vault.appSettings.activeWorkspaceId||'default')&&r.highlightColor==='red')
+    :kind==='supplier'&&vault.suppliers?.some((r:any)=>r.id===id&&(r.workspaceId||'default')===(vault.appSettings.activeWorkspaceId||'default')&&r.highlightColor==='red')));
   return <section className="lxw-picker lxw-records-picker" data-record-selection-id={selection.id}
     aria-label={label(ar,'Company records in conversation','سجلات الشركة داخل المحادثة')}>
     <header><strong>{label(ar,'Company records','سجلات الشركة')} · {kind}</strong>
@@ -297,7 +301,7 @@ function ConversationRecordList({host}:{host:Host}):any {
       {visible.map(row=><label key={row.entityId} className="lxw-record-option">
         <input type="checkbox" disabled={busy} checked={chosen.has(row.entityId)}
           onChange={(event:any)=>update(event.target.checked?[...chosen,row.entityId]:[...chosen].filter(id=>id!==row.entityId))}/>
-        <span><strong>{row.label}</strong>
+        <span><strong>{row.label}{isRed(row.entityId)?<span aria-label={label(ar,'Red mark','علامة حمراء')} title={label(ar,'Red mark','علامة حمراء')} style={{color:'#db4444',paddingInlineStart:6}}>●</span>:null}</strong>
           <small dir="ltr">{row.entityId}</small></span>
       </label>)}
       {!filtered.length?<p>{label(ar,'No matching records.','لا توجد سجلات مطابقة.')}</p>:null}
