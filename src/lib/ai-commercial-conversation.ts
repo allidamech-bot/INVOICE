@@ -3,16 +3,37 @@ import type { VaultPayload } from '../types.js';
 import { workspaceDocument, type WorkspaceCommand } from './ai-workspace-model.js';
 import { scopeVault } from './workspaces.js';
 
-/** Explicit exact references open a scoped saved preview, never a navigation approval. */
+/** Read-only document requests must resolve an exact saved reference in the
+ * current company/branch before the PDF workspace opens. Never infer the
+ * "latest" document or use a partial number, and never save or issue here. */
 export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayload,message:string):string|null{
  if(kernel.scope.scope==='personal')return null;
- const text=message.normalize('NFKC').trim();
- const match=text.match(/^(?:افتح\s+معاينة\s+(?:(?:عرض السعر|الفاتورة|المستند)\s+)?|open\s+(?:a\s+)?(?:read-only\s+)?preview\s+(?:of\s+)?(?:quotation\s+|invoice\s+|document\s+)?)([a-z0-9_-]{1,120})(?:\s+فقط دون تعديل أو حفظ أي سجل|\s+دون تعديل أو حفظ|\s+only without (?:editing or saving|changes)|\s+فقط)?[.!؟]?$/iu);
- if(!match)return null;
- const reference=match[1]!.toUpperCase();
- const rows=scopeVault(vault).documents.filter(row=>row.kind!=='draft'&&(row.id.toUpperCase()===reference||row.number.toUpperCase()===reference));
- if(rows.length!==1)throw new Error(rows.length?'Document reference is ambiguous. Choose an exact record.':'Document not found in this company and branch.');
- return rows[0]!.id;
+ const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
+ const normalize=(value:string)=>value.normalize('NFKC')
+  .replace(/[٠-٩۰-۹]/g,ch=>String(ar.includes(ch)?ar.indexOf(ch):fa.indexOf(ch))).trim();
+ const text=normalize(String(message||''));
+ if(!text||text.length>1200)return null;
+ const strict=text.match(/^(?:افتح\s+معاينة\s+(?:(?:عرض السعر|الفاتورة|المستند)\s+)?|open\s+(?:a\s+)?(?:read-only\s+)?preview\s+(?:of\s+)?(?:quotation\s+|invoice\s+|document\s+)?)([a-z0-9_-]{1,120})(?:\s+فقط دون تعديل أو حفظ أي سجل|\s+دون تعديل أو حفظ|\s+only without (?:editing or saving|changes)|\s+فقط)?[.!؟]?$/iu);
+ const action=/^(?:افتح(?:\s+لي)?|أفتح(?:\s+لي)?|اعرض|أعرض|ارني|أرني|اظهر|أظهر|أعطني|اعطني|أرسل|ارسل|هات|جهز|جهّز|open|show|preview|download|give|send|generate)(?:\s|$)/iu.test(text);
+ const subject=/(?:\bpdf\b|بي\s*دي\s*[إأا]ف|معاين[ةه]|(?:ال)?فاتور[ةه]|عرض\s*(?:ال)?سعر|(?:ال)?مستند|(?:ال)?وثيق[ةه]|\b(?:invoice|quotation|document|quote|preview)\b)/iu.test(text);
+ // A question about a document or report navigation is not PDF authorization.
+ if(!strict&&(!action||!subject||/^(?:افتح|أفتح)\s+(?:التقرير|تقرير)/iu.test(text)))return null;
+ const scoped=scopeVault(vault);
+ const escaped=(value:string)=>value.replace(/[.*+?^$()|[\]{}]/g,'\\$&');
+ const contains=(reference:string)=>{
+   if(!reference||reference.length>120)return false;
+   return new RegExp('(^|[^\\p{L}\\p{N}_-])'+escaped(normalize(reference))+'(?=$|[^\\p{L}\\p{N}_-])','iu').test(text);
+ };
+ const matches=scoped.documents.filter(row=>row.kind!=='draft'&&
+   (contains(String(row.id||''))||contains(String(row.number||''))));
+ if(matches.length>1)throw new Error('Document reference is ambiguous. Choose exactly one saved document.');
+ if(matches.length===1)return matches[0]!.id;
+ // A user supplied an exact reference but it is not in the scoped vault.
+ // Never substitute the last unrelated document or generic navigation.
+ if(strict||/(?:رقم|number|#)\s*[:#]?\s*[A-Z0-9][A-Z0-9_-]{2,119}/iu.test(text)||
+   /\b[A-Z]{2,10}[-_]\d{2,}(?:[-_]\d{1,})+\b/iu.test(text))
+   throw new Error('Document not found in this company and branch.');
+ return null;
 }
 /** Exact local commands only. Ambiguous trade instructions use the existing review planner. */
 export function commercialDraftCommand(kernel:ConversationKernel,vault:VaultPayload,message:string):WorkspaceCommand|null {
