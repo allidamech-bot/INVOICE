@@ -31,6 +31,21 @@ test('85 extracted rows survive a model patch, recalculation and one-step undo/r
  assert.equal(workspaceDocument(next,vault,'en').subtotal,'1732.00');
  assert.deepEqual(vault,before);
 });
+test('source quotation applies an explicitly requested 10% gross margin to all 85 rows, without mutation',()=>{
+ const {vault}=fixture(),before=structuredClone(vault);
+ const matrix=[['Product','Quantity','Unit','Unit Price','Currency'],...Array.from({length:85},(_,i)=>['Product '+(i+1),'2','CTN','10','USD'])];
+ const rows=exactSpreadsheetQuote([{name:'Products',matrix}]);
+ const runtime=createAiToolRuntime(vault,{conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}});
+ const makeSource=data=>[{fileName:'supplier.xlsx',route:'quote_request',confidence:1,extracted:JSON.stringify(data)}];
+ const full=quoteSourceWorkingDraft(makeSource(rows),runtime,'حوّل هذا الملف إلى عرض سعر، أضف هامش ربح 10%');
+ assert.equal(full.items.length,85);
+ assert.ok(full.items.every(row=>row.unitPrice==='11.12'));
+ assert.match(full.rationale,/10% gross margin/);
+ assert.equal(quoteSourceWorkingDraft(makeSource(rows),runtime,'convert this file to a quotation').items[2].unitPrice,'10');
+ assert.throws(()=>quoteSourceWorkingDraft(makeSource({...rows,items:rows.items.map((row,i)=>i===4?{...row,unitPrice:''}:row)}),runtime,'حوّل الملف إلى عرض سعر، أضف هامش ربح 10%'),/SOURCE_INCOMPLETE/);
+ assert.throws(()=>quoteSourceWorkingDraft(makeSource(rows),runtime,'حوّل الملف إلى عرض سعر، أضف هامش ربح 100%'),/SOURCE_INCOMPLETE/);
+ assert.deepEqual(vault,before,'unsaved price calculation must not change the source vault');
+});
 test('stale, fabricated, negative, cross-scope and Advisor patches are refused atomically',()=>{
  for(const mutate of [p=>p.revision++,p=>p.operations[0].lineId='foreign',p=>p.operations[0].value='99',p=>p.operations.push({...p.operations[0],lineId:'foreign'}),p=>p.operations[0].field='status']){
   const {vault,kernel,plan}=fixture(),before=structuredClone(kernel);mutate(plan);
