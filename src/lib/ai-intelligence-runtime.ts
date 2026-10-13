@@ -2,7 +2,7 @@ import { diagnosticSample, normalizeDiagnostics, type DiagnosticOperation } from
 import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory-graph.js';
 import { financialReviewAllowed } from './ai-reliability-intelligence.js';
 import { loadAssistantMemory, scopedAssistantMemories } from '../storage/assistant-memory-store.js';
-import { commercialDraftCommand, savedDocumentPreviewId } from './ai-commercial-conversation.js';
+import { commercialDraftCommand, savedDocumentPreviewId, exactSavedDraftLineEdit } from './ai-commercial-conversation.js';
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
@@ -536,6 +536,34 @@ export function installIntelligenceRuntime(host:Host):void{
       if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
       const requestLanguage=resolveAiConversationReplyLanguage(currentAiExperiencePreferences(host).replyLanguage,message,host.props.language==='ar'?'ar':'en');
+      // Explicit saved-number updates are a new *unsaved* working review, not
+      // a generic navigation or an immediate approved persistence operation.
+      const savedLineEdit=currentConversationMode(host)==='controller'
+        ?exactSavedDraftLineEdit(kernel,resumed.vault,message):null;
+      if(savedLineEdit){
+        if(kernel.artifact)throw new Error('An unsaved working draft is already active. Finish or discard it before preparing a different saved-document edit.');
+        if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
+        const fresh=await resumeVaultSession();
+        if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)
+          throw new Error('The document scope changed. Nothing was modified.');
+        const rechecked=exactSavedDraftLineEdit(kernel,fresh.vault,message);
+        if(!rechecked||rechecked.documentId!==savedLineEdit.documentId||
+           JSON.stringify(rechecked.itemEdits)!==JSON.stringify(savedLineEdit.itemEdits))
+          throw new Error('The saved document or target line changed. Start a fresh review.');
+        const drafting=workspaceDrafting(fresh.vault,savedLineEdit.documentId);
+        const review=reviewAiDocumentProposal(savedLineEdit,drafting,requestLanguage);
+        if(review.blockers.length)throw new Error('The requested draft line cannot be safely reviewed. No change was made.');
+        stageKernelArtifact(kernel,savedLineEdit);
+        host.__foundationVault=fresh.vault;
+        host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,
+          __workspaceReviewedProposal:null,__workspaceOpen:true,__workspacePane:'workspace',
+          __workspaceTab:'preview',__workspaceSavedId:'',
+          messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+            {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+              ?'حضّرت تعديل السطر المحدد من الفاتورة المحفوظة داخل مسودة عمل فقط. لم أحفظ أو أصدر شيئًا. راجع الفرق، ثم اطلب الحفظ للموافقة المنفصلة.'
+              :'Prepared an unsaved working revision of the exact saved document line. Nothing was saved or issued. Review the difference; saving requires a separate approval.'}]}));
+        await flush(host);await persistKernel(host);return;
+      }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
         /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعملي|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
