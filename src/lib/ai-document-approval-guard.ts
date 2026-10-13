@@ -1,5 +1,6 @@
 import type {VaultPayload} from '../types.js';
 import {aiProductArchived} from './ai-business.js';
+import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 
 interface LineInput{savedItemId?:string;descriptionEn?:string;descriptionAr?:string;quantity?:string;unitPrice?:string;}
 interface DraftApproval{customerId?:string;customerDraft?:{companyNameEn?:string;companyNameAr?:string;email?:string}|null;currency:string;items:LineInput[];}
@@ -32,7 +33,7 @@ function validateLine(vault:VaultPayload,line:LineInput,currency:string,scope:st
 /** Run *inside* the one vault mutation, against the freshest company/products. */
 export function assertAiDocumentCreateApproval(vault:VaultPayload,proposal:DraftApproval):void{
   const active=vault.appSettings.activeWorkspaceId||'default';
-  if(!proposal||!/^[A-Z]{3}$/.test(String(proposal.currency||''))||!Array.isArray(proposal.items)||!proposal.items.length||proposal.items.length>20)
+  if(!proposal||!/^[A-Z]{3}$/.test(String(proposal.currency||''))||!Array.isArray(proposal.items)||!proposal.items.length||proposal.items.length>AI_WORKING_QUOTE_MAX_LINES)
     throw new Error('Invalid reviewed document currency or item count.');
   if(!proposal.customerId&&!proposal.customerDraft)throw new Error('Document requires an existing or explicitly named new customer before approval.');
   if(proposal.customerId&&proposal.customerDraft)throw new Error('Document customer identity is ambiguous; choose only one source.');
