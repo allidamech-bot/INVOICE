@@ -12,6 +12,7 @@ import {prepareAiSalesStockIssue} from './ai-operational-stock-issue.js';
 import {prepareAiSupplierInvoiceMatch} from './ai-operational-supplier-invoice-match.js';
 import {prepareAiConfirmedDeliveryInvoice} from './ai-operational-delivery-invoice-draft.js';
 import {prepareAiCustomerCollection} from './ai-operational-customer-collection.js';
+import {prepareAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
 import { treasuryAccountBalance, treasuryProjection, treasuryTotals } from './treasury-ledger.js';
 import { fxRateMatchForDate, convertWithFxMatch } from './fx-rates.js';
 import { todayIso } from './id.js';
@@ -31,13 +32,13 @@ export type AiToolId=
   |'pricing.margin'|'pricing.markup'|'pricing.targetPrice'|'landedCost.calculate'|'scenario.calculate'|'fx.convertUsingRecordedRate'|'receivables.aging'|'breakEven.calculate'|'inventory.coverage'
   |'quotation.prepare'|'invoice.prepare'|'customer.prepare'|'supplier.prepare'|'purchase.prepare'|'reminder.prepare'|'message.prepare'|'report.prepare'
   |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'navigation.open'|'task.create'
-  |'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
+  |'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
 
 export interface AiToolDefinition{id:AiToolId;class:AiToolClass;description:string;approval:boolean;mutation:boolean;maxResultChars:number;}
 export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;reason:string;}
 export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
 export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
-export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
+export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
 export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;conversationMode?:AiConversationMode;}
 
 const DEFS:AiToolDefinition[]=[
@@ -71,6 +72,7 @@ const DEFS:AiToolDefinition[]=[
   ['reminder.prepare','prepare','Prepare a reminder without scheduling or sending it.',true,false,2500],
   ['message.prepare','prepare','Prepare external communication without sending it.',true,false,2500],
   ['report.prepare','prepare','Prepare a report specification without changing records.',true,false,2500],
+  ['procurement.recordSupplierPayment','execute','Record exact cash supplier settlement against a posted purchase only after independent signed finance approval.',true,true,10000],
   ['sales.recordCustomerCollection','execute','Record exact issued-invoice customer collection after independently signed approval, with remaining-balance and duplicate-proof review.',true,true,10000],
   ['sales.createConfirmedInvoiceDraft','execute','Create one UNISSUED sales invoice draft from exactly one confirmed delivery after signed approval; never deduct stock or record collection.',true,true,10000],
   ['procurement.matchSupplierBill','execute','Review exact PO, physically received GRN and supplier invoice line quantities/prices/total before matching; never post payables or inventory.',true,true,10000],
@@ -213,6 +215,17 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
     const batch=prepareAiPartyMaster(runtime.vault,intent);
     return{capability:'tool.execute',tool:call.tool,args:batch,preview:[batch.preview],label:(batch.mode==='create'?'Create ':'Update ')+batch.party, rationale:'Review the exact customer/supplier contact information before one approved local save.'};
   }
+  if(call.tool==='procurement.recordSupplierPayment'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Supplier settlement can only be reviewed in Controller business mode.');
+    const request=args.settlement as any;
+    if(!request||typeof request!=='object'||Array.isArray(request))
+      throw new Error('A fully specified posted-purchase settlement is required.');
+    const review=prepareAiSupplierSettlement(runtime.vault,request);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review supplier payment '+review.purchaseNumber,
+      rationale:'Real supplier payable payment only. Separate signed finance approval, no purchase or stock modification.'};
+  }
   if(call.tool==='sales.recordCustomerCollection'){
     if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
       throw new Error('Only Controller may prepare an actual customer collection.');
@@ -343,7 +356,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
  * prerequisite/read/high-impact step fails, do not offer a subset of actions:
  * those approvals would silently turn a multi-step request into partial work. */
 export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{
-  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
+  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
   const results=plan.calls.map(call=>executeAiToolCall(runtime,call));
   const blockedHighImpact=results.some(row=>row.class==='high-impact');
   const hasExecutable=results.some(row=>row.class==='execute');

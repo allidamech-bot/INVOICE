@@ -7,6 +7,7 @@ import {applyAiSalesStockIssue,type AiSalesStockIssueReview} from './ai-operatio
 import {applyAiSupplierInvoiceMatchApproval,type AiSupplierInvoiceMatchReview} from './ai-operational-supplier-invoice-match.js';
 import {applyAiConfirmedDeliveryInvoiceApproval,type AiConfirmedDeliveryInvoiceReview} from './ai-operational-delivery-invoice-draft.js';
 import {applyAiCustomerCollection,type AiCustomerCollectionReview} from './ai-operational-customer-collection.js';
+import {applyAiSupplierSettlement,type AiSupplierSettlementReview} from './ai-operational-supplier-settlement.js';
 import {linkedDeliveryInvoice} from './sales-delivery-invoice.js';
 import {matchedSupplierInvoices} from './supplier-invoice-flow.js';
 import {salesDeliveryStockIssues} from './sales-delivery-stock.js';
@@ -21,7 +22,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -34,6 +35,24 @@ async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExec
   if(!row||row.scope!==scope||(scope==='business'&&(row.workspaceId!==approval.scope.workspaceId||row.branchId!==approval.scope.branchId)))throw new Error('Task or memory is unavailable in this conversation scope.');
 }
 export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
+  if(proposal.tool==='procurement.recordSupplierPayment'){
+    if(!proposal.foundationApproval)
+      throw new Error('A separately signed finance approval is required before recording supplier payment.');
+    const review=proposal.args as unknown as AiSupplierSettlementReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiSupplierSettlement(vault,review).vault;
+    });
+    const exact=saved.supplierPayments.filter(p=>p.purchaseId===review.purchaseId&&
+      p.supplierId===review.supplierId&&p.reference.toUpperCase()===review.reference&&
+      p.amount===review.amount&&p.currency===review.currency&&p.date===review.date&&
+      p.method===review.method&&!p.voidedAt);
+    if(exact.length!==1)throw new Error('The exact approved supplier payment could not be verified.');
+    return{summary:'Supplier payment '+exact[0]!.amount+' '+review.currency+
+      ' recorded on posted purchase '+review.purchaseNumber+
+      ' after signed financial approval. Remaining payable: '+review.afterRemaining+
+      '. No inventory or supplier invoice changed.',id:exact[0]!.id};
+  }
   if(proposal.tool==='sales.recordCustomerCollection'){
     if(!proposal.foundationApproval)throw new Error('An independent signed customer collection approval is required.');
     const review=proposal.args as unknown as AiCustomerCollectionReview;

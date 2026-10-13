@@ -19,6 +19,7 @@ import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-st
 import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
 import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
 import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
+import {isAiSupplierSettlementIntent,parseAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -255,6 +256,28 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       :executed.results.map(row=>row.summary).join('\n'),
       proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
   }
+  // Supplier payment is REAL cash and only attaches to an existing POSTED
+  // purchase. A matched supplier invoice or PO is never a payable by itself.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiSupplierSettlementIntent(input.message)){
+    let request:ReturnType<typeof parseAiSupplierSettlement>=null;
+    try{request=parseAiSupplierSettlement(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No supplier payment recorded.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:request?[{id:'supplier-payment-exact',tool:'procurement.recordSupplierPayment',
+        args:{settlement:request},reason:'Exact posted purchase, amount, currency, date, method and external reference from user.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+       ?'لسداد مورد: اذكر رقم الشراء المُرحّل PUR والمبلغ والعملة والتاريخ والطريقة والمرجع البنكي. لا يجوز السداد بمجرد وجود PO أو فاتورة مطابقة، ولم أسجل دفعة.'
+       :'Specify one posted PUR purchase number, exact amount/currency, date, method and unique external reference. A PO or matched bill alone cannot be paid. Nothing recorded.',
+       proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+       ?'جهزت مراجعة سداد المورد '+request.amount+' '+request.currency+' مقابل الشراء المُرحّل '+request.purchaseNumber+'. لم أسجل السداد؛ يعتمد على موافقة مالية منفصلة وإعادة فحص الرصيد.'
+       :'Prepared '+request.amount+' '+request.currency+' supplier settlement for posted purchase '+request.purchaseNumber+'. Nothing paid yet; separate finance approval and fresh payable verification required.')
+       :executed.results.map(x=>x.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
   // Customer collection records real MONEY and is strictly user-grounded.
   // Never infer an amount, currency or external bank reference from model data.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiCustomerCollectionIntent(input.message)){
@@ -421,7 +444,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
