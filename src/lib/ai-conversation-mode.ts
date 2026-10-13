@@ -54,6 +54,18 @@ export function normalizeAiConversationMode(value: unknown): AiConversationMode 
   return value === 'controller' ? 'controller' : 'advisor';
 }
 
+/** Mode is the sole endpoint authority; an attachment never grants execution.
+ * Unknown modes fail closed to read-only Advisor. Capability classification,
+ * file content, and language must not override the selected mode.
+ */
+export function resolveAiConversationEndpoint(
+  mode: unknown,
+  hasCurrentSources: boolean,
+): '/api/ai-core' | '/api/ai-advisor-v2' | '/api/ai-conversation-v3' {
+  if (normalizeAiConversationMode(mode) === 'controller') return '/api/ai-core';
+  return hasCurrentSources ? '/api/ai-conversation-v3' : '/api/ai-advisor-v2';
+}
+
 /**
  * An additional deny-only check. Returning true NEVER authorizes an action:
  * the existing role, company/branch scope and approval guard remain required.
