@@ -14,6 +14,7 @@ import {summarizeReadOnlyProductSources} from './ai-product-source-review.js';
 import {operationalPoDraftRequested,requestedPoRfqNumber} from './ai-operational-po-draft.js';
 import {isAiGoodsReceiptRequest,parseAiGoodsReceiptRequest} from './ai-operational-goods-receipt.js';
 import {operationalDeliveryDraftRequested,requestedDeliverySalesOrderNumber} from './ai-operational-dn-draft.js';
+import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest} from './ai-operational-delivery-confirmation.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -185,6 +186,28 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
   }
+  // User-provided physical confirmation with one explicit DN, reference
+  // and date. NEVER equate issuing a DN with actual physical delivery.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiConfirmPhysicalDeliveryIntent(input.message)){
+    let requested:ReturnType<typeof parseAiConfirmPhysicalDeliveryRequest>=null;
+    try{requested=parseAiConfirmPhysicalDeliveryRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No records changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:requested?
+      [{id:'review-physical-delivery',tool:'sales.confirmPhysicalDelivery',args:{confirmation:requested},
+        reason:'User supplied one exact physical delivery note, reference and date.'}]:[]};
+    if(!requested)return{answer:input.language==='ar'
+      ?'لتأكيد التسليم فعليًا، اذكر رقم سند التسليم DN، والمرجع الميداني، والتاريخ. لا يُخصم المخزون من مجرد التأكيد.'
+      :'To record physical delivery, specify the exact issued DN number, proof reference and date. No stock is deducted by confirmation.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal
+       ?(input.language==='ar'?'جهّزت مراجعة تأكيد التسليم الفعلي لسند '+requested.deliveryNoteNumber+'. يتطلب التسجيل موافقة منفصلة، دون خصم مخزون أو إصدار فاتورة.'
+          :'Prepared physical delivery confirmation for '+requested.deliveryNoteNumber+'. Recording requires separate approval; no stock or invoice is posted.')
+       :executed.results.map(r=>r.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
   // Exact Sales Order -> unissued delivery note. Never infer shipment,
   // confirm delivery or prepare a stock-issuing action from this request.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&operationalDeliveryDraftRequested(input.message)){
@@ -305,7 +328,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic

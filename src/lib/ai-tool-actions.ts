@@ -2,6 +2,8 @@ import { assertFoundationApproval, type FoundationApproval } from './ai-foundati
 import {applyOperationalPoDraftApproval,type AiOperationalPoReview} from './ai-operational-po-draft.js';
 import {applyAiGoodsReceiptApproval,type AiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
 import {applyOperationalDeliveryDraftApproval,type AiOperationalDeliveryDraftReview} from './ai-operational-dn-draft.js';
+import {applyAiDeliveryConfirmation,type AiDeliveryConfirmationReview} from './ai-operational-delivery-confirmation.js';
+import {confirmedSalesDeliveries} from './sales-delivery-flow.js';
 import {confirmedGoodsReceipts} from './goods-receipt-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { applyAiBulkProductUpdate, type AiBulkProductBatch } from './ai-product-bulk-update.js';
@@ -12,7 +14,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -25,6 +27,19 @@ async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExec
   if(!row||row.scope!==scope||(scope==='business'&&(row.workspaceId!==approval.scope.workspaceId||row.branchId!==approval.scope.branchId)))throw new Error('Task or memory is unavailable in this conversation scope.');
 }
 export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
+  if(proposal.tool==='sales.confirmPhysicalDelivery'){
+    if(!proposal.foundationApproval)throw new Error('Signed approval of exact physical delivery proof is required.');
+    const review=proposal.args as unknown as AiDeliveryConfirmationReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiDeliveryConfirmation(vault,review).vault;
+    });
+    const confirmations=confirmedSalesDeliveries(review.deliveryNoteId,saved.documentEvents);
+    if(confirmations.length!==1||confirmations[0]!.reference!==review.reference)
+      throw new Error('Approved delivery confirmation proof was not verified.');
+    return{summary:'Physical delivery '+review.reference+' confirmed after explicit approval. No stock was deducted or invoice issued.',
+      id:review.deliveryNoteId};
+  }
   if(proposal.tool==='sales.createDeliveryDraft'){
     if(!proposal.foundationApproval)throw new Error('Signed delivery-draft approval is required.');
     const review=proposal.args as unknown as AiOperationalDeliveryDraftReview;
