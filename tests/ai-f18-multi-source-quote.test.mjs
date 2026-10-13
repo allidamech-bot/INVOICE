@@ -36,7 +36,10 @@ test('F18 explicit unified 3-file quote retains exactly 84 complete rows in orig
  const kernel=newConversationKernel(scope);stageKernelArtifact(kernel,draft);
  assert.equal(new Set(kernel.artifact.lineIds).size,84);
  assert.equal(workspaceDocument(kernel,vault,'en').subtotal,'588.00');
- assert.equal(prepareAiPdfPreview(kernel,vault,'en').items.length,84);
+ assert.throws(()=>prepareAiPdfPreview(kernel,vault,'en'),/Complete all required document fields/, 'missing buyer must block PDF rather than invent a customer');
+ const withExplicitBuyer={...draft,customerDraft:{companyNameEn:'User-confirmed QA Buyer',companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''}};
+ const reviewed=newConversationKernel(scope);stageKernelArtifact(reviewed,withExplicitBuyer);
+ assert.equal(prepareAiPdfPreview(reviewed,vault,'en').items.length,84);
  assert.deepEqual(vault,before);
  assert.equal(vault.documentEvents.length,0);
  const routed=await orchestrateAiToolRequest({message,vault,context:{conversationMode:'controller',assistantRuntime:metadata,conversationSources:parts},language:'ar'});
