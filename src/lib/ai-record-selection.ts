@@ -70,6 +70,12 @@ export function exactNamedRecordSelection(kernel:ConversationKernel,vault:VaultP
  for(const name of names){
   const matches=selection.items.filter(row=>normalizeName(row.label)===name||normalizeName(row.entityId)===name);
   if(matches.length!==1)throw new Error(matches.length?'Duplicate record name; select the exact record ID.':'Record not found in the displayed list: '+name);
+  // An identical name added after the list was shown makes a spoken name
+  // ambiguous even if the old card still contains only one matching row.
+  const current=scopedRecordRows(vault,matches[0]!.entityType as RecordListKind);
+  const latest=current.filter(row=>normalizeName(row.label)===name||normalizeName(row.entityId)===name);
+  if(latest.length!==1||latest[0]?.entityId!==matches[0]!.entityId)
+    throw new Error('Duplicate record name or stale list; select the exact record ID.');
   ids.push(matches[0]!.entityId);
  }
  return setExactRecordSelection(kernel,vault,selection.id,[...new Set(ids)]);
