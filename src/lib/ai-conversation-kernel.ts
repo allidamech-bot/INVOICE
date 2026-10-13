@@ -67,11 +67,11 @@ export function reviseKernelDraft(kernel:ConversationKernel,proposal:Draft,messa
   const reject=(reason:string)=>reply(proposal,false,language==='ar'?'لم أغيّر المسودة: '+reason:'Draft unchanged: '+reason);
   // Natural correction refers to the last exact price/quantity edit only;
   // never reinterpret a multi-line trade change as a single-value revert.
-  const priceUndo=/^(?:[أا]رجع|رجع|رجّع|restore|revert)\\s+(?:السعر|price)\\s+(?:السابق|previous)[.!؟\\s]*$/iu.test(text);
-  const quantityUndo=/^(?:[أا]رجع|رجع|رجّع|restore|revert)\\s+(?:الكمية|quantity)\\s+(?:السابقة|previous)[.!؟\\s]*$/iu.test(text);
+  const priceUndo=/^(?:[أا]رجع|رجع|رجّع|restore|revert)\s+(?:السعر|price)\s+(?:السابق|previous)[.!؟\s]*$/iu.test(text);
+  const quantityUndo=/^(?:[أا]رجع|رجع|رجّع|restore|revert)\s+(?:الكمية|quantity)\s+(?:السابقة|previous)[.!؟\s]*$/iu.test(text);
   if((priceUndo&&artifact.lastEdit?.field!=='unitPrice')||(quantityUndo&&artifact.lastEdit?.field!=='quantity'))
     return reject('The last change is not an exact edit of that field; identify the line.');
-  const undo=priceUndo||quantityUndo||/^(?:undo(?: the last change| last change)?|revert (?:the )?last change|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل (?:الأخير|الاخير))[.!؟\\s]*$/iu.test(text);
+  const undo=priceUndo||quantityUndo||/^(?:undo(?: the last change| last change)?|revert (?:the )?last change|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل (?:الأخير|الاخير))[.!؟\s]*$/iu.test(text);
   const redo=/^(?:redo|أعد التعديل|اعد التعديل)[.!؟\s]*$/iu.test(text);
   if(undo||redo){
     const from=undo?artifact.undo:artifact.redo,to=undo?artifact.redo:artifact.undo;
