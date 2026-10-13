@@ -7,6 +7,17 @@ const items=[
   {id:'item-3',descriptionEn:'Eti popkek 60 gr*24',descriptionAr:'إيتي بوب كيك',hsCode:'',origin:'Türkiye',packing:'24 PCS / Carton',quantity:'6800',unit:'Carton',unitPrice:'9.5',unitCost:'0'}
 ];
 
+const requestedRows=Number(new URLSearchParams(window.location.search).get('rows')||3);
+if(requestedRows>3){
+  if(!Number.isInteger(requestedRows)||requestedRows>120)throw new Error('Invalid large PDF QA row count');
+  items.length=0;
+  for(let index=0;index<requestedRows;index++){
+    const label=String(index+1).padStart(3,'0');
+    items.push({id:'qa-item-'+label,descriptionEn:'Verified product '+label,descriptionAr:'الصنف رقم '+label,
+      hsCode:'',origin:'Türkiye',packing:'24 units / carton',
+      quantity:'2',unit:'CTN',unitPrice:'3.50',unitCost:'0'});
+  }
+}
 const documentData={
   id:'v542-quotation',kind:'proforma',role:'standard',status:'final',lifecycleStatus:'active',revision:2,creditForId:'',creditForNumber:'',voidedAt:'',voidReason:'',bankAccountId:'',paymentTermPresetId:'',number:'QUO-2026-0046',issueDate:'2026-10-04',dueDate:'2026-10-11',currency:'USD',language:'bilingual',
   customerSnapshot:{sourceCustomerId:'customer',companyNameEn:'Customer',companyNameAr:'العميل',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''},
