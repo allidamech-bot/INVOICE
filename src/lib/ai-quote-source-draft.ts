@@ -5,7 +5,7 @@ import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 
 /** The structured /api/quote-source-ai result is evidence, never an instruction
  * or authorization to write. Preserve all rows or stage no working document. */
-interface QuoteSourceFact{fileName:string;route:string;documentType:string;confidence:number;extracted:string;}
+interface QuoteSourceFact{fileName:string;route:string;documentType:string;confidence:number;extracted:string;quoteSheetCandidate?:string;}
 export function explicitQuoteConversionIntent(message:string):boolean{
   const q=String(message||'').normalize('NFKC').trim();
   return /(?:حوّل|حول|جهز|جهّز|أنشئ|انشئ|اصنع|اعمل|سوي|حضّر|حضر|convert|create|prepare|make|build|draft).{0,100}(?:عرض\s*سعر|عرض\s*السعر|فاتورة\s*مبدئية|quotation|quote|proforma)/iu.test(q)||
@@ -34,14 +34,20 @@ function matchCustomer(runtime:AiToolRuntime,name:string,email:string):string{
 }
 export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiToolRuntime,message:string):AiDocumentDraftProposal|null{
   if(runtime.scope!=='business'||runtime.conversationMode!=='controller'||!explicitQuoteConversionIntent(message))return null;
-  const selected=sources.filter(row=>row?.route==='quote_request');
+  const selected=sources.filter(row=>row?.route==='quote_request'||Boolean(row?.quoteSheetCandidate));
   if(!selected.length)return null;
   if(sources.length!==1||selected.length!==1)throw new Error('SOURCE_INCOMPLETE: Multiple attachment sources need a combined row-by-row review. No partial quotation was staged.');
   const source=selected[0]!;
-  if(source.confidence<.65)throw new Error('SOURCE_INCOMPLETE: Document classification is uncertain. Confirm it is a customer quotation request before creating a draft.');
-  if(!source.extracted?.trim())throw new Error('SOURCE_INCOMPLETE: The attached quotation has no complete structured extraction.');
+  const exactSource=typeof source.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.trim()
+    ?source.quoteSheetCandidate:null;
+  // A complete exact worksheet is authoritative *for row transfer*, regardless
+  // of the AI classifier. Non-spreadsheet model extractions still require high
+  // confidence and must never turn a product catalog into a quote by default.
+  if(!exactSource&&source.confidence<.65)throw new Error('SOURCE_INCOMPLETE: Document classification is uncertain. Confirm it is a customer quotation request before creating a draft.');
+  const evidence=exactSource||source.extracted;
+  if(!evidence?.trim())throw new Error('SOURCE_INCOMPLETE: The attached quotation has no complete structured extraction.');
   let parsed:unknown;
-  try{parsed=JSON.parse(source.extracted);}catch{throw new Error('SOURCE_INCOMPLETE: Attachment extraction is not a complete JSON quotation. No items were staged.');}
+  try{parsed=JSON.parse(evidence);}catch{throw new Error('SOURCE_INCOMPLETE: Attachment extraction is not a complete JSON quotation. No items were staged.');}
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('SOURCE_INCOMPLETE: Attachment is not a structured quotation.');
   const data=parsed as Record<string,unknown>,raw=data.items;
   if(!Array.isArray(raw)||raw.length===0||raw.length>AI_WORKING_QUOTE_MAX_LINES)throw new Error('SOURCE_INCOMPLETE: Quotation must contain 1–'+AI_WORKING_QUOTE_MAX_LINES+' complete lines. No rows omitted.');
