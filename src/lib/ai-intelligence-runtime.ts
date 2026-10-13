@@ -131,12 +131,19 @@ async function persistKernel(host:Host,requireScope=false):Promise<void>{
  * unrelated newer working draft. Only its exact signed approval ID can retire
  * the obsolete staged copy, and the saved record must still exist in scope. */
 function reconcileSavedConversationDocument(host:Host,kernel:ConversationKernel,vault:VaultPayload):void{
-  const receipts=(host.__foundationReceipts||[]) as Array<{id:string;state:string;action?:string;resultId?:string}>;
+  const receipts=(host.__foundationReceipts||[]) as Array<{id:string;state:string;action?:string;resultId?:string;draftId?:string;draftRevision?:number;payload?:string}>;
   const scoped=scopeVault(vault).documents;
   const approved=receipts.filter(r=>r.state==='applied'&&
     (r.action==='document.createDraft'||r.action==='document.updateDraft')&&r.resultId);
-  const currentId=(kernel.artifact?.proposal as any)?.foundationApproval?.id;
-  const match=currentId?approved.find(r=>r.id===currentId):undefined;
+  const artifact=kernel.artifact;
+  const currentId=(artifact?.proposal as any)?.foundationApproval?.id;
+  const match=artifact?approved.find(r=>
+    // An applied signed approval may have lost its envelope after hydration.
+    // The immutable working ID and revision must still match exactly; a newer
+    // draft or edited revision cannot be silently retired.
+    (currentId&&r.id===currentId)||
+    (r.draftId===artifact.id&&r.draftRevision===artifact.revision&&
+      r.payload===canonicalFoundationJson(artifact.proposal))):undefined;
   if(match){
     const doc=scoped.find(row=>row.id===match.resultId&&row.kind!=='draft');
     if(doc){kernel.artifact=undefined;kernel.entity={entityType:'document',entityId:doc.id,label:doc.number};}
@@ -493,7 +500,11 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     }
     if(!missionStep(kernel.missions||[],proposal))stageReviewedMission(kernel,proposal);
     step=beginMissionStep(kernel.missions||[],proposal);
-    receipt={id:proposal.foundationApproval.id,state:'applying',at:new Date().toISOString(),actorId:proposal.foundationApproval.actorId,action:proposal.tool||proposal.capability,payload:proposal.foundationApproval.payload};
+    const approvedDraft=kernel.artifact&&['document.createDraft','document.updateDraft'].includes(proposal.capability)&&
+      canonicalFoundationJson(kernel.artifact.proposal)===proposal.foundationApproval.payload
+      ?{id:kernel.artifact.id,revision:kernel.artifact.revision}:null;
+    receipt={id:proposal.foundationApproval.id,state:'applying',at:new Date().toISOString(),actorId:proposal.foundationApproval.actorId,action:proposal.tool||proposal.capability,payload:proposal.foundationApproval.payload,
+      ...(approvedDraft?{draftId:approvedDraft.id,draftRevision:approvedDraft.revision}:{})};
     host.__foundationReceipts=[...(host.__foundationReceipts||[]),receipt].slice(-100);
     await persistKernel(host); // Crash after commit cannot silently replay an uncertain action.
     // Persistence can await IndexedDB. Re-check the live session and visible
@@ -518,8 +529,9 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
         const saved=scopeVault(latest.vault).documents.find(doc=>doc.id===receipt.resultId&&doc.kind!=='draft');
         if(saved){
           host.__foundationVault=latest.vault;
-          const economic=(value:any)=>JSON.stringify(value,(key,item)=>key==='foundationApproval'?undefined:item);
-          if(kernel.artifact&&economic(kernel.artifact.proposal)===economic(proposal))
+          if(kernel.artifact&&receipt.draftId===kernel.artifact.id&&
+            receipt.draftRevision===kernel.artifact.revision&&
+            receipt.payload===canonicalFoundationJson(kernel.artifact.proposal))
             kernel.artifact=undefined;
           kernel.entity={entityType:'document',entityId:saved.id,label:saved.number};
           host.setState({__workspaceSavedId:saved.id});
