@@ -26,7 +26,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck && npm run build
       - name: Targeted document and approval tests
-        run: node --test tests/ai-selected-products-price.test.mjs tests/ai-record-selection.test.mjs tests/ai-working-draft-plan.test.mjs tests/ai-f01-real-pdf-preview.test.mjs tests/ai-f03-scoped-document-followups.test.mjs tests/ai-f14-approval-dismissal-race.test.mjs tests/ai-f17-natural-saved-document-preview.test.mjs tests/ai-f08-high-volume-quote.test.mjs
+        run: node --test tests/ai-advisor-controller-handoff.test.mjs tests/ai-selected-products-price.test.mjs tests/ai-record-selection.test.mjs tests/ai-working-draft-plan.test.mjs tests/ai-f01-real-pdf-preview.test.mjs tests/ai-f03-scoped-document-followups.test.mjs tests/ai-f14-approval-dismissal-race.test.mjs tests/ai-f17-natural-saved-document-preview.test.mjs tests/ai-f08-high-volume-quote.test.mjs
       - run: npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
       - name: Isolated file-to-document journey (provider translation stub, actual files and persistence)
         run: |
