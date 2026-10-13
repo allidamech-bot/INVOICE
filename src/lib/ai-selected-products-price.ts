@@ -8,7 +8,7 @@ export function requestedSelectedProductRepricing(message:string):string|null{
  const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
  const text=String(message||'').normalize('NFKC').replace(/[٠-٩۰-۹]/gu,c=>String(ar.includes(c)?ar.indexOf(c):fa.indexOf(c)))
   .replace(/[\u064b-\u065f\u0670]/gu,'').trim();
- const match=text.match(/^(خفض|قلل|انقص|نقص|ارفع|زود|زد|increase|raise|reduce|decrease|lower)\s+(?:أسعار|اسعار|أسعارها|اسعارها|سعر|prices?)\s*(?:(?:هذه\s+)?(?:المنتجات|الأصناف|الاصناف|المحددة|المختارة|selected\s+products|these\s+products))?\s*(?:بنسبة\s*|by\s*)?(\d{1,3}(?:[.,]\d{1,2})?)\s*[%٪][.!؟\s]*$/iu);
+ const match=text.match(/^(خفض|قلل|انقص|نقص|ارفع|زود|زد|increase|raise|reduce|decrease|lower)\s+(?:أسعار|اسعار|أسعارها|اسعارها|سعر|prices?)\s*(?:(?:هذه\s+)?(?:(?:المنتجات|الأصناف|الاصناف)(?:\s+(?:المحددة|المختارة))?|المحددة|المختارة|selected\s+products|these\s+products))?\s*(?:بنسبة\s*|by\s*)?(\d{1,3}(?:[.,]\d{1,2})?)\s*[%٪][.!؟\s]*$/iu);
  if(!match)return null;
  const percent=normalizeDecimalInput(match[2]!.replace(',','.'));
  if(!isNonNegativeDecimalInput(percent)||decimalToScaled(percent,4)<=0n||decimalToScaled(percent,4)>1000000n)
