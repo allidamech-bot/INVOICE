@@ -1,6 +1,7 @@
 import type {AiDocumentDraftProposal, AiCustomerDraftInput} from '../components/AiCopilot.js';
 import type {AiToolRuntime} from './ai-tool-orchestrator.js';
 import {isNonNegativeDecimalInput,normalizeDecimalInput} from './money.js';
+import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 
 /** The structured /api/quote-source-ai result is evidence, never an instruction
  * or authorization to write. Preserve all rows or stage no working document. */
@@ -43,7 +44,8 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
   try{parsed=JSON.parse(source.extracted);}catch{throw new Error('SOURCE_INCOMPLETE: Attachment extraction is not a complete JSON quotation. No items were staged.');}
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('SOURCE_INCOMPLETE: Attachment is not a structured quotation.');
   const data=parsed as Record<string,unknown>,raw=data.items;
-  if(!Array.isArray(raw)||raw.length===0||raw.length>20)throw new Error('SOURCE_INCOMPLETE: Quotation must contain 1–20 complete lines. Use the full document importer for larger quotes; no rows omitted.');
+  if(!Array.isArray(raw)||raw.length===0||raw.length>AI_WORKING_QUOTE_MAX_LINES)throw new Error('SOURCE_INCOMPLETE: Quotation must contain 1–'+AI_WORKING_QUOTE_MAX_LINES+' complete lines. No rows omitted.');
+  if(data.sourceRowCount!==undefined&&(!Number.isInteger(data.sourceRowCount)||data.sourceRowCount!==raw.length))throw new Error('SOURCE_INCOMPLETE: Extracted row count does not match the declared source rows. No partial quote staged.');
   const items=raw.map((value,index)=>{
     if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('SOURCE_INCOMPLETE: Invalid quotation row '+(index+1));
     const row=value as Record<string,unknown>;
