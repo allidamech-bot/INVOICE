@@ -54,7 +54,7 @@ test('F20 no prior exact price edit cannot revert a guessed line',()=>{
  assert.equal(result.changed,false);
  assert.deepEqual(kernel,before);
 });
-test('F20 exact English undo is allowed but unrelated or multi-operation instructions do not match',()=>{
+test('F20 exact English undo is allowed but unrelated or multi-operation instructions do not match',async()=>{
  const {vault,kernel}=fixture();
  edit(vault,kernel,'12');
  assert.equal(revise(vault,kernel,'undo, restore price to 10','en').changed,true);
