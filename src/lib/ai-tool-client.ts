@@ -17,6 +17,7 @@ import {operationalDeliveryDraftRequested,requestedDeliverySalesOrderNumber} fro
 import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest} from './ai-operational-delivery-confirmation.js';
 import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
 import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
+import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -234,6 +235,25 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       :executed.results.map(r=>r.summary).join('\n'),
       proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
   }
+  // A confirmed delivery invoice is created as an unissued draft only;
+  // original source quantities and unit prices are supplied by the ledger,
+  // never guessed by a model or from attachment instructions.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiConfirmedInvoiceDraftIntent(input.message)){
+    const number=requestedInvoiceDeliveryNumber(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:number?[{id:'confirmed-dn-to-invoice-draft',tool:'sales.createConfirmedInvoiceDraft',
+        args:{deliveryNoteNumber:number},reason:'User explicitly named one confirmed delivery for a separately reviewed sales invoice DRAFT.'}]:[]};
+    if(!number)return{answer:input.language==='ar'
+      ?'حدّد رقم سند تسليم مؤكد DN-... واحدًا بالكامل لتجهيز مسودة فاتورة، دون إصدارها أو تعديل المخزون.'
+      :'Give one exact confirmed DN number to prepare an invoice draft. Nothing is issued or posted.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+      ?'جهزت مراجعة مسودة فاتورة من سند التسليم المؤكد '+number+' بجميع البنود وأسعارها. الحفظ يتطلب موافقتك، والإصدار والتحصيل إجراءان منفصلان.'
+      :'Prepared a complete invoice draft review from confirmed delivery '+number+'. Saving requires separate approval; issuance and collection are separate.')
+      :executed.results.map(row=>row.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
   // User-provided physical confirmation with one explicit DN, reference
   // and date. NEVER equate issuing a DN with actual physical delivery.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiConfirmPhysicalDeliveryIntent(input.message)){
@@ -376,7 +396,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery'||call.tool==='sales.issueConfirmedStock'||call.tool==='procurement.matchSupplierBill')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery'||call.tool==='sales.issueConfirmedStock'||(call.tool==='procurement.matchSupplierBill'||call.tool==='sales.createConfirmedInvoiceDraft')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic

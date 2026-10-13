@@ -5,6 +5,8 @@ import {applyOperationalDeliveryDraftApproval,type AiOperationalDeliveryDraftRev
 import {applyAiDeliveryConfirmation,type AiDeliveryConfirmationReview} from './ai-operational-delivery-confirmation.js';
 import {applyAiSalesStockIssue,type AiSalesStockIssueReview} from './ai-operational-stock-issue.js';
 import {applyAiSupplierInvoiceMatchApproval,type AiSupplierInvoiceMatchReview} from './ai-operational-supplier-invoice-match.js';
+import {applyAiConfirmedDeliveryInvoiceApproval,type AiConfirmedDeliveryInvoiceReview} from './ai-operational-delivery-invoice-draft.js';
+import {linkedDeliveryInvoice} from './sales-delivery-invoice.js';
 import {matchedSupplierInvoices} from './supplier-invoice-flow.js';
 import {salesDeliveryStockIssues} from './sales-delivery-stock.js';
 import {confirmedSalesDeliveries} from './sales-delivery-flow.js';
@@ -18,7 +20,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -31,6 +33,22 @@ async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExec
   if(!row||row.scope!==scope||(scope==='business'&&(row.workspaceId!==approval.scope.workspaceId||row.branchId!==approval.scope.branchId)))throw new Error('Task or memory is unavailable in this conversation scope.');
 }
 export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
+  if(proposal.tool==='sales.createConfirmedInvoiceDraft'){
+    if(!proposal.foundationApproval)throw new Error('A signed invoice DRAFT approval is required before saving.');
+    const review=proposal.args as unknown as AiConfirmedDeliveryInvoiceReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiConfirmedDeliveryInvoiceApproval(vault,review).vault;
+    });
+    const invoice=linkedDeliveryInvoice(review.deliveryNoteId,saved.documents,saved.documentEvents);
+    if(!invoice||invoice.kind!=='invoice'||invoice.status!=='draft'||
+       invoice.number!==review.expectedInvoiceNumber||
+       invoice.items.length!==review.lineCount||
+       invoice.customerSnapshot?.sourceCustomerId!==review.customerId)
+      throw new Error('Approved draft invoice cannot be verified in the saved ledger.');
+    return{summary:'Invoice DRAFT '+invoice.number+' saved from confirmed delivery '+
+      review.deliveryNoteNumber+' after explicit approval. Not issued. No stock or collection posted.',id:invoice.id};
+  }
   if(proposal.tool==='procurement.matchSupplierBill'){
     if(!proposal.foundationApproval)throw new Error('A signed vendor bill three-way matching approval is required.');
     const review=proposal.args as unknown as AiSupplierInvoiceMatchReview;
