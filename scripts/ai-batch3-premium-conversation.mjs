@@ -71,7 +71,7 @@ const progressTarget="row.source?.documentType&&row.source.documentType!=='unkno
 const oldProgress="(index+1)+'/'+rows.length+' · '+("+progressTarget+")";
 if(!source.includes(oldProgress))throw new Error('Attachment progress UI changed: expected pre-integrated source count label.');
 source=source.replace(oldProgress,"fileProgressLabel(rows,row,instance.props.language==='ar')");
-source="import {fileProgressLabel} from '../lib/ai-file-progress.js';\\n"+source;
+source="import {fileProgressLabel} from '../lib/ai-file-progress.js';\n"+source;
 
 if(!source.includes("'/api/ai-conversation-v3'"))throw new Error('AI Batch 3 source-aware endpoint routing is missing.');
 if(!source.includes('lourex-ai-premium-textarea'))throw new Error('AI Batch 3 premium composer is missing.');
