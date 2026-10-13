@@ -23,8 +23,10 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
  // This read-only shortcut may satisfy only one exact reference. Requests
  // combining preview with modification, issue, posting or deletion must not
  // silently execute just the preview half of a multi-step instruction.
- if(/(?:\b(?:delete|remove|finalize|issue|post|modify|edit|update)\b|(?:احذف|أحذف|امسح|عدّل|عدل|غيّر|غير|اصدر|أصدر|رحّل|رحل|اعتمد)(?:\s|$))/iu.test(text) &&
-    !/(?:لا\s+(?:تحذف|تعدل|تعدّل|تغير|تغيّر|تصدر|ترحل|تعتمد)|دون\s+(?:تعديل|حفظ|اعتماد|إصدار))\b/iu.test(text))return null;
+ const withoutMutations=text
+  .replace(/(?:دون|بدون|لا)\s+(?:تعديل|تعدّل|تعديلها|تعديله|تغيير|تغيّر|حفظ|حذف|إصدار|اعتماد|ترحيل)(?:\s+أو\s+(?:حفظ|تعديل|حذف|اعتماد|إصدار))*/giu,' ')
+  .replace(/\b(?:without|do not|don't)\s+(?:editing|saving|changes|deleting|issuing)(?:\s+(?:or|and)\s+(?:editing|saving|deleting|issuing))*/giu,' ');
+ if(/(?:\b(?:delete|remove|finalize|issue|post|modify|edit|update)\b|(?:احذف|أحذف|امسح|عدّل|عدل|غيّر|غير|اصدر|أصدر|رحّل|رحل|اعتمد)(?:\s|$))/iu.test(withoutMutations))return null;
  const referencedNumbers=[...text.matchAll(/\b[A-Z]{2,10}[-_]\d{2,}(?:[-_]\d{1,})+\b/giu)].map(m=>m[0]!.toUpperCase());
  if(new Set(referencedNumbers).size>1)throw new Error('Document reference is ambiguous. Choose exactly one saved document.');
  const scoped=scopeVault(vault);
