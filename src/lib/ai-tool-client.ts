@@ -15,6 +15,7 @@ import {operationalPoDraftRequested,requestedPoRfqNumber} from './ai-operational
 import {isAiGoodsReceiptRequest,parseAiGoodsReceiptRequest} from './ai-operational-goods-receipt.js';
 import {operationalDeliveryDraftRequested,requestedDeliverySalesOrderNumber} from './ai-operational-dn-draft.js';
 import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest} from './ai-operational-delivery-confirmation.js';
+import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -186,6 +187,30 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
   }
+  // Inventory posting is a distinct high-impact action. Only user-provided
+  // exact warehouse and SKU mappings can stage its separate approval.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiStockIssueIntent(input.message)){
+    let requested:ReturnType<typeof parseAiStockIssueRequest>=null;
+    try{requested=parseAiStockIssueRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No changes applied.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:requested?
+      [{id:'review-confirmed-stock-issue',tool:'sales.issueConfirmedStock',args:{issue:requested},
+        reason:'User explicitly supplied one confirmed delivery, warehouse code and line-ordered SKUs.'}]:[]};
+    if(!requested)return{answer:input.language==='ar'
+      ?'لتجهيز صرف المخزون: حدّد سند DN المؤكد، كود المستودع، وكود SKU لكل بند بالترتيب. سيتم عرض الرصيد قبل وبعد الصرف، ثم تتطلب العملية موافقة منفصلة.'
+      :'To prepare stock deduction, specify one confirmed DN, the warehouse code and an exact SKU for every line in order. Review balances before a separate approval.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal
+      ?(input.language==='ar'?'جهزت مراجعة صرف المخزون لسند '+requested.deliveryNoteNumber+
+        ' مع الرصيد قبل وبعد الصرف. لم أخصم شيئًا بعد؛ يحتاج الترحيل موافقتك المستقلة.'
+        :'Prepared an inventory issue review for '+requested.deliveryNoteNumber+
+        ' with before/after balances. No stock was deducted yet; posting needs separate approval.')
+      :executed.results.map(r=>r.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
   // User-provided physical confirmation with one explicit DN, reference
   // and date. NEVER equate issuing a DN with actual physical delivery.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiConfirmPhysicalDeliveryIntent(input.message)){
@@ -328,7 +353,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery'||call.tool==='sales.issueConfirmedStock')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
