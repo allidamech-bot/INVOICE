@@ -99,7 +99,7 @@ test('Draft cannot be approved after delivery, numbering, customer or scope chan
  assert.throws(()=>applyAiConfirmedDeliveryInvoiceApproval(revision,review));
  const unissued={...f.vault,documents:f.vault.documents.map(x=>x.id===f.delivery.id?{...x,status:'draft'}:x)};
  assert.throws(()=>prepareAiConfirmedDeliveryInvoice(unissued,f.delivery.number),/issued and active/);
- const renumber={...f.vault,appSettings:{...f.vault.appSettings,numbering:{...f.vault.appSettings.numbering,invoice:999}}};
+ const renumber={...f.vault,appSettings:{...f.vault.appSettings,numbering:{...f.vault.appSettings.numbering,invoiceLast:999}}};
  assert.throws(()=>applyAiConfirmedDeliveryInvoiceApproval(renumber,review),/numbering|changed/);
  const viewer={...f.vault,teamMembers:[{...f.vault.teamMembers[0],role:'viewer'}]};
  assert.throws(()=>applyAiConfirmedDeliveryInvoiceApproval(viewer,review));
