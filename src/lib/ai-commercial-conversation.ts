@@ -98,14 +98,14 @@ export function exactSavedDraftLineEdit(
  if(!isEdit||!refs.length||!/(?:سعر|السعر|كمية|الكمية|\bprice\b|\bquantity\b)/iu.test(text))return null;
  if(refs.length!==1)throw new Error('Select exactly one saved document number. No draft was changed.');
  // Accept an explicitly referenced row ordinal, never infer "first/latest".
- const ordinal='(?:الأول|الاول|الثاني|الثالث|الرابع|الخامس|آخر|الاخير|الأخير|\\d{1,3})';
+ const ordinal='(?:الأول|الاول|أول|اول|الثاني|ثاني|الثالث|ثالث|الرابع|الخامس|آخر|الاخير|الأخير|\\d{1,3})';
  const arStart=new RegExp('^(?:عدل|عدّل|غير|غيّر|تعديل|تغيير)\\s+(سعر|السعر|كمية|الكمية)\\s+(?:(?:السطر|سطر|البند|بند)\\s+('+ordinal+')|('+ordinal+')\\s+(?:سطر|بند))\\s+(?:(?:في|من)\\s+)?(?:(?:الفاتورة|فاتورة|المستند|مستند|عرض\\s+السعر)\\s+(?:رقم\\s+)?)?('+refs[0]!.replace(/[.*+?^$()|[\]{}]/g,'\\$&')+')\\s+(?:الى|إلى|=|بسعر)\\s+(\\d{1,13}(?:[.,]\\d{1,6})?)(?:\\s+([A-Z]{3}))?(?:\\s+(?:ولا\\s+تحفظ|دون\\s+حفظ|بدون\\s+حفظ|مع\\s+عدم\\s+الحفظ|لا\\s+تحفظ(?:ها)?))?[.!؟\\s]*$','iu');
  const arMatch=text.match(arStart);
  const enMatch=text.match(new RegExp('^(?:change|set|update)\\s+(price|quantity)\\s+(?:of\\s+)?(?:line|item)\\s+(\\d{1,3}|first|second|third|fourth|last)\\s+(?:in\\s+)?(?:invoice|quotation|document)\\s+(?:number\\s+)?('+refs[0]!.replace(/[.*+?^$()|[\]{}]/g,'\\$&')+')\\s+(?:to|=)\\s+(\\d{1,13}(?:[.,]\\d{1,6})?)(?:\\s+([A-Z]{3}))?(?:[,\\s]+(?:do\\s+not\\s+save|without\\s+saving))?[.!?\\s]*$','iu'));
  if(!arMatch&&!enMatch)throw new Error('Give one exact line, price or quantity, and the complete saved document number. Nothing changed.');
  const quantity=/^(?:كمية|الكمية|quantity)$/iu.test((arMatch?.[1]||enMatch?.[1])!);
  const ordinalText=arMatch?(arMatch[2]||arMatch[3]||''):enMatch![2]!;
- const ordinalMap:Record<string,number>={الأول:1,الاول:1,الثاني:2,الثالث:3,الرابع:4,الخامس:5,first:1,second:2,third:3,fourth:4};
+ const ordinalMap:Record<string,number>={الأول:1,الاول:1,أول:1,اول:1,الثاني:2,ثاني:2,الثالث:3,ثالث:3,الرابع:4,الخامس:5,first:1,second:2,third:3,fourth:4};
  const key=ordinalText.toLowerCase();
  const index=/^(?:آخر|الاخير|الأخير|last)$/iu.test(key)?-1:(ordinalMap[key]||Number(key))-1;
  const supplied=normalizeDecimalInput((arMatch?arMatch[5]:enMatch![4])!.replace(',','.'));
