@@ -77,9 +77,21 @@ async function run(engine,name){
   await panel.locator('.lxw-inline-approval').getByRole('button',{name:'Review details',exact:true}).click();
   await panel.getByRole('button',{name:'I reviewed this draft',exact:true}).click();
   await panel.getByRole('button',{name:'Approve draft',exact:true}).click();
-  await page.waitForFunction(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length===1,null,{timeout:30000});
-  const saved=await page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents[0]);
-  assert.equal(saved.items.length,85);assert.equal(saved.items[2].unitPrice,'26');
+  // The UI confirmation occurs after the transaction and its document artifact
+  // are returned. An isolated one-off count can race another vault writer.
+  await panel.locator('.lourex-ai-created-artifact').waitFor({timeout:30000});
+  const saved=await page.evaluate(async()=>{
+   const {resumeVaultSession}=await import('/dist/src/storage/vault.js');
+   const first=await resumeVaultSession(),second=await resumeVaultSession();
+   return {first:first?.vault.documents.map(d=>({id:d.id,count:d.items.length,price:d.items[2]?.unitPrice}))||[],
+     second:second?.vault.documents.map(d=>({id:d.id,count:d.items.length,price:d.items[2]?.unitPrice}))||[],
+     error:document.querySelector('.lourex-ai-error')?.textContent||''};
+  });
+  assert.equal(saved.first.length,1,'first durable vault read: '+JSON.stringify(saved));
+  assert.equal(saved.second.length,1,'second durable vault read: '+JSON.stringify(saved));
+  assert.equal(saved.first[0].id,saved.second[0].id,'saved document identity must remain stable');
+  assert.equal(saved.second[0].count,85);
+  assert.equal(saved.second[0].price,'26');
   await page.reload({waitUntil:'networkidle'});assert.equal(await count(),1,'reload must not execute twice');
   assert.deepEqual(errors,[]);
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
