@@ -17,6 +17,7 @@ on:
       - fix/ai-f11-large-quote-pdf-pagination-20261013
       - fix/ai-f12-mission-step-gating-20261013
       - fix/ai-f13-unsaved-resume-integration-20261013
+      - fix/ai-f15-scoped-attachment-followups-20261013
   workflow_dispatch:
 
 permissions:
