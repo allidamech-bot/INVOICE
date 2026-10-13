@@ -80,6 +80,26 @@ function verify(vault:VaultPayload,input:{deliveryNoteNumber:string;warehouseCod
   const line=delivery.items.find(row=>row.id===proofs[0]!.lines[i]?.deliveryLineId);
   if(!line||item.unit.trim().toLowerCase()!==line.unit.trim().toLowerCase())
    throw new Error('SKU '+sku+' has no matching confirmed delivery line/unit.');
+  // Delivery lines have no structural SKU, so the chosen SKU must also
+  // uniquely identify the *same product*, not merely share Carton/Box unit.
+  // Reject conflicting bilingual descriptions and same-name catalog clones.
+  const canonical=(value:string)=>String(value||'').normalize('NFKC')
+   .replace(/[\u064b-\u065f\u0670]/gu,'').replace(/\s+/gu,' ').trim().toLowerCase();
+  const equalName=(candidate:typeof item)=>{
+   const pairs:[string,string][]=[
+    [line.descriptionEn,candidate.descriptionEn],
+    [line.descriptionAr,candidate.descriptionAr]
+   ];
+   const comparable=pairs.filter(([a,b])=>canonical(a)!==''&&canonical(b)!=='');
+   return comparable.length>0&&comparable.every(([a,b])=>canonical(a)===canonical(b));
+  };
+  if(!equalName(item))throw new Error(
+   'SKU '+sku+' describes a different product than this confirmed delivery line. Correct the catalog mapping before deducting stock.');
+  const nameMatches=scoped.savedItems.filter(candidate=>!candidate.archived&&
+   candidate.unit.trim().toLowerCase()===line.unit.trim().toLowerCase()&&
+   equalName(candidate));
+  if(nameMatches.length!==1||nameMatches[0]!.id!==item.id)
+   throw new Error('Multiple inventory SKUs match this delivery description. Add a unique product identity before stock deduction.');
   return item;
  });
  const command={deliveryNoteId:delivery.id,expectedDeliveryNoteUpdatedAt:delivery.updatedAt,

@@ -21,7 +21,7 @@ function fixture(){
    vatTaxNumber:'',commercialRegistration:'',createdAt:now,updatedAt:now};
  v.customers=[customer];
  const make=(id,sku,name)=>({id,sku,createdAt:now,updatedAt:now,
-  descriptionEn:name,descriptionAr:name,hsCode:'',origin:'',packing:'',
+  descriptionEn:name,descriptionAr:name==='Item A'?'صنف أ':'صنف ب',hsCode:'',origin:'',packing:'',
   unit:'Carton',lastUnitPrice:'',lastCurrency:'USD',lastUnitCost:'',lastCostCurrency:'',
   usageCount:0,lastUsedAt:'',workspaceId:'default',branchId:'main'});
  v.savedItems=[make('item-a','SKU-A','Item A'),make('item-b','SKU-B','Item B')];
@@ -117,4 +117,27 @@ test('Only owner/admin can authorize stock posting with exact unmodified envelop
  const source=await readFile(new URL('../src/lib/ai-tool-actions.ts',import.meta.url),'utf8');
  assert.match(source,/A signed and explicit inventory-deduction approval is required/);
  assert.match(source,/applyAiSalesStockIssue\(vault,review\)/);
+});
+
+test('Wrong same-unit SKU cannot deduct a different delivered product',()=>{
+ const f=fixture(),before=structuredClone(f.vault),request=parseAiStockIssueRequest(cmd(f.note,f.warehouse,'SKU-B,SKU-A'));
+ assert.deepEqual(request.skus,['SKU-B','SKU-A']);
+ assert.throws(()=>prepareAiSalesStockIssue(f.vault,request),/describes a different product/);
+ assert.deepEqual(f.vault,before);
+});
+test('Ambiguous duplicate catalog names fail closed even when requested SKU has enough stock',()=>{
+ const f=fixture(),before=structuredClone(f.vault);
+ const duplicate={...f.vault.savedItems[0],id:'duplicate-a',sku:'SKU-SECOND-A'};
+ const conflicted={...f.vault,savedItems:[...f.vault.savedItems,duplicate]};
+ assert.throws(()=>prepareAiSalesStockIssue(conflicted,parseAiStockIssueRequest(cmd(f.note,f.warehouse))),
+  /Multiple inventory SKUs match/);
+ assert.deepEqual(f.vault,before);
+});
+test('Changed bilingual descriptions cannot silently relink a saved stock issue',()=>{
+ const f=fixture(),before=structuredClone(f.vault);
+ const changed={...f.vault,savedItems:f.vault.savedItems.map((row,i)=>i===0?
+  {...row,descriptionAr:'Different brand'}:row)};
+ assert.throws(()=>prepareAiSalesStockIssue(changed,parseAiStockIssueRequest(cmd(f.note,f.warehouse))),
+  /describes a different product/);
+ assert.deepEqual(f.vault,before);
 });
