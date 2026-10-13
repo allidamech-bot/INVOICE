@@ -11,7 +11,6 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
-import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import type { LourexDocument } from '../types.js';
 
 
@@ -263,6 +262,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
   let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
   const pdfStage=react.useRef(null as HTMLDivElement|null);
+  const [PdfRenderer,setPdfRenderer]=React.useState(null as any);
   const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string}|null);
   const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
@@ -271,10 +271,14 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
   React.useEffect(()=>{setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');},[pdfIdentity]);
   React.useEffect(()=>()=>{if(pdfResult?.url)URL.revokeObjectURL(pdfResult.url);},[pdfResult?.url]);
-  const createPdf=()=>{
+  const createPdf=async()=>{
     if(pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
     try{
       const document=prepareAiPdfPreview(kernel,vault,ar?'ar':'en',savedId);
+      // No renderer initialization on ordinary chat turns. The canonical A4
+      // React class is loaded only after a Controller expressly asks for PDF.
+      const {TemplateRenderer}=await import('../templates/TemplateRenderer.js');
+      setPdfRenderer(()=>TemplateRenderer);
       setPdfResult(null);setPdfError('');setPdfBusy(true);setPdfSource({document,identity:pdfIdentity});
     }catch(e){setPdfError(e instanceof Error?e.message:String(e));}
   };
@@ -366,7 +370,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
     </section>:null}
   </div>{pdfSource?<div className="print-portal lxw-ai-pdf-render-target" ref={pdfStage}
     aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
-    <TemplateRenderer document={pdfSource.document} scale={1}/>
+    {PdfRenderer?<PdfRenderer document={pdfSource.document} scale={1}/>:null}
   </div>:null}</aside>;
 }
 function workspaceVisible(host:Host):boolean {
