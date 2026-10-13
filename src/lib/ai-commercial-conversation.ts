@@ -7,7 +7,9 @@ import { scopeVault } from './workspaces.js';
  * current company/branch before the PDF workspace opens. Never infer the
  * "latest" document or use a partial number, and never save or issue here. */
 export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayload,message:string):string|null{
- if(kernel.scope.scope==='personal')return null;
+ if(kernel.scope.scope!=='business'||kernel.mode!=='controller'||
+    kernel.scope.workspaceId!==(vault.appSettings.activeWorkspaceId||'default')||
+    kernel.scope.branchId!==(vault.appSettings.activeBranchId||'main'))return null;
  const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
  const normalize=(value:string)=>value.normalize('NFKC')
   .replace(/[٠-٩۰-۹]/g,ch=>String(ar.includes(ch)?ar.indexOf(ch):fa.indexOf(ch))).trim();
