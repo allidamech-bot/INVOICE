@@ -40,7 +40,7 @@ test('product picker never converts a price with an incompatible currency',()=>{
  v.savedItems[0].lastCurrency='USD';const another=fixture().k;applyWorkspaceCommand(another,v,cmd(another,{kind:'product',entityId:'product'}));assert.equal(another.artifact.proposal.items.at(-1).unitPrice,'5.25');
 });
 test('product add cap rejects rather than silently losing rows',()=>{
- const {k,v}=fixture();for(let i=3;i<20;i++)applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'}));assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'})),/20/);assert.equal(k.artifact.proposal.items.length,20);
+ const {k,v}=fixture();for(let i=3;i<120;i++)applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'}));assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'})),/limit/);assert.equal(k.artifact.proposal.items.length,120);
 });
 test('saved preview preserves 30 bilingual rows and enforces branch isolation',()=>{
  const {k,v}=fixture();const d=createBlankDocument('proforma','PI-LONG',v.company);d.items=Array.from({length:30},(_,i)=>({id:'line'+i,descriptionEn:'Long '+i,descriptionAr:'وصف طويل '+i,quantity:'2',unit:'CTN',unitPrice:'0.10'}));d.number='PI-TEST';v.documents.push(d);
@@ -131,12 +131,12 @@ test('manual lines work without a catalog, normalize Arabic digits and undo as o
  applyWorkspaceCommand(k,v,cmd(k,{kind:'undo'}));assert.deepEqual(k.artifact.lineIds,ids);assert.equal(k.artifact.proposal.items.length,3);
  applyWorkspaceCommand(k,v,cmd(k,{kind:'redo'}));assert.equal(k.artifact.lineIds.at(-1),line);assert.equal(k.artifact.proposal.items.length,4);
 });
-test('manual line validation rejects unsafe values atomically and enforces 20-line limit',()=>{
+test('manual line validation rejects unsafe values atomically and enforces 120-line limit',()=>{
  const {k,v}=fixture(),line={kind:'add-line',descriptionEn:'Alpha',descriptionAr:'',quantity:'1',unit:'CTN',unitPrice:'0'};
  for(const patch of [{quantity:'0'},{quantity:'-1'},{quantity:'1e3'},{unitPrice:'-1'},{unitPrice:''},{descriptionEn:''},{unit:''},{descriptionEn:'x'.repeat(161)},{unit:'x'.repeat(41)},{descriptionAr:'x\u0000'}]){
   const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{...line,...patch})));assert.deepEqual(k,before);
  }
- for(let i=3;i<20;i++)applyWorkspaceCommand(k,v,cmd(k,line));const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,line)),/20/);assert.deepEqual(k,before);
+ for(let i=3;i<120;i++)applyWorkspaceCommand(k,v,cmd(k,line));const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,line)),/limit/);assert.deepEqual(k,before);
 });
 test('manual append to an existing draft preserves base and new IDs through undo',()=>{
  const {k,v}=fixture(),d=createBlankDocument('proforma','PI',v.company);d.items=[{id:'base',descriptionEn:'Original',descriptionAr:'',quantity:'1',unit:'CTN',unitPrice:'2'}];v.documents=[d];k.artifact=undefined;
