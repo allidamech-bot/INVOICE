@@ -7,7 +7,7 @@ import {isNonNegativeDecimalInput,normalizeDecimalInput} from './money.js';
 interface QuoteSourceFact{fileName:string;route:string;documentType:string;confidence:number;extracted:string;}
 export function explicitQuoteConversionIntent(message:string):boolean{
   const q=String(message||'').normalize('NFKC').trim();
-  return /(?:حوّل|حول|جهز|جهّز|أنشئ|انشئ|اصنع|اعمل|سوي|حضّر|حضر|convert|create|prepare|make|build|draft)\b?.{0,100}(?:عرض\s*سعر|عرض\s*السعر|فاتورة\s*مبدئية|quotation|quote|proforma)/iu.test(q)||
+  return /(?:حوّل|حول|جهز|جهّز|أنشئ|انشئ|اصنع|اعمل|سوي|حضّر|حضر|convert|create|prepare|make|build|draft).{0,100}(?:عرض\s*سعر|عرض\s*السعر|فاتورة\s*مبدئية|quotation|quote|proforma)/iu.test(q)||
     /(?:عرض\s*سعر|quotation|quote|proforma).{0,100}(?:من\s*(?:الملف|المرفق|الصورة)|from\s*(?:this\s*)?(?:file|attachment))/iu.test(q);
 }
 function sourceText(value:unknown,max:number):string{
