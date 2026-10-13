@@ -69,5 +69,6 @@ test('F09 separate quote candidate survives nonquote classification without chan
  assert.match(read,/quoteSheetCandidate:quoteSheetCandidate\|\|undefined/);
  assert.match(read,/classification\.route==='quote_request'&&quoteSheetCandidate/);
  assert.match(read,/extracted=quoteSheetCandidate\|\|await genericExtraction/);
+ assert.match(read,/if\(quoteSheetCandidate\)\{[\s\S]*?classification=\{route:'unknown',documentType:'exact-spreadsheet-columns',confidence:0/);
  assert.match(tool,/quoteSheetCandidate\.length>0/);
 });
