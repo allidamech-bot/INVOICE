@@ -18,7 +18,7 @@ export function attachmentRowCountEvidence(source:SourceProgressRow['source']):{
    const object=JSON.parse(raw) as {items?:unknown;products?:unknown;sourceRowCount?:unknown;parser?:unknown};
    const items=Array.isArray(object.items)?object.items:Array.isArray(object.products)?object.products:null;
    if(!items||items.length<1||items.length>120)return null;
-   const verified=object.parser==='exact-spreadsheet-columns'&&Number.isInteger(object.sourceRowCount)&&object.sourceRowCount===items.length;
+   const verified=exact&&object.parser==='exact-spreadsheet-columns'&&Number.isInteger(object.sourceRowCount)&&object.sourceRowCount===items.length;
    return{count:items.length,verified};
  }catch{return null;}
 }
