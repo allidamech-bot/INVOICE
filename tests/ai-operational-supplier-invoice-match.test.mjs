@@ -56,7 +56,7 @@ test('Controller prepares entire three-way supplier bill, Advisor stages no acti
  assert.equal(result.plannedBy,'local');
  assert.equal(result.proposal?.tool,'procurement.matchSupplierBill');
  assert.equal(result.proposal?.args?.purchaseOrderId,f.order.id);
- assert.equal(result.proposal?.preview?.length,7);
+ assert.equal(result.proposal?.preview?.length,8);
  assert.match(result.answer,/موافقة منفصلة/);
  const advisor=await orchestrateAiToolRequest({message,vault:f.vault,context:ctx('advisor'),language:'ar'});
  assert.notEqual(advisor?.proposal?.tool,'procurement.matchSupplierBill');
@@ -65,7 +65,7 @@ test('Controller prepares entire three-way supplier bill, Advisor stages no acti
 test('Signed matching records vendor bill evidence only: no payable, stock, purchase or payment',()=>{
  const f=fixture(),before=structuredClone(f.vault),parsed=parseAiSupplierInvoiceMatchRequest(request(f.order.number));
  const review=prepareAiSupplierInvoiceMatch(f.vault,parsed);
- assert.equal(review.preview.length,7);
+ assert.equal(review.preview.length,8);
  assert.match(review.preview.join('\n'),/Physically received\/unbilled 7.2/);
  const applied=applyAiSupplierInvoiceMatchApproval(f.vault,review);
  const matches=matchedSupplierInvoices(f.order.id,applied.vault.documentEvents);
