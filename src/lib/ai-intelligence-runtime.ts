@@ -19,6 +19,7 @@ import {requestAiJson} from './ai-request.js';
 import {applyWorkingDraftPlan} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
+import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
@@ -631,6 +632,23 @@ export function installIntelligenceRuntime(host:Host):void{
               {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
                 ?'عرضت '+selected.items.length+' سجلاً من بيانات الشركة الحالية. يمكنك البحث والتحديد هنا دون تعديل أو حفظ أي سجل.'
                 :'Displayed '+selected.items.length+' records from this company. Search or select here; no business record was changed.'}]}));
+          await flush(host);await persistKernel(host);return;
+        }
+        const selectedPricePercent=requestedSelectedProductRepricing(message);
+        if(selectedPricePercent!==null){
+          if(host.state.proposal)throw new Error('Finish or decline the earlier approval before preparing selected product prices.');
+          if(!graphKindAllowed(strictAiActor(resumed.vault).role,'product'))
+            throw new Error('This role cannot change product prices.');
+          const batch=prepareSelectedProductRepricing(kernel,resumed.vault,selectedPricePercent);
+          const p:any={capability:'tool.execute',tool:'product.bulkUpdate',args:batch,
+            preview:batch.rows.map(row=>row.preview),label:'Review '+batch.rows.length+' selected product price changes',
+            rationale:'Exact selected records only. All old and proposed prices require one independent approval; nothing has been saved.'};
+          stampProposal(host,p,resumed.vault);stageReviewedMission(kernel,p);
+          host.setState((state:any)=>({input:'',error:'',proposal:p,review:null,__workspaceReviewedProposal:null,
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                ?'جهزت مراجعة أسعار '+batch.rows.length+' منتج محدد. اعرض الأسعار القديمة والجديدة ووافق صراحةً قبل حفظ أي تغيير.'
+                :'Prepared the exact before/after price review for '+batch.rows.length+' selected products. Explicit approval is required before saving.'}]}));
           await flush(host);await persistKernel(host);return;
         }
         if(kernel.selection){
