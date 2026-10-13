@@ -16,6 +16,8 @@ test('F17 exact sheet source count is marked verified only with complete same-si
  assert.deepEqual(attachmentRowCountEvidence(complete),{count:84,verified:true});
  const mismatch={extracted:JSON.stringify({parser:'exact-spreadsheet-columns',sourceRowCount:85,items})};
  assert.deepEqual(attachmentRowCountEvidence(mismatch),{count:84,verified:false});
+ const spoofed={extracted:JSON.stringify({parser:'exact-spreadsheet-columns',sourceRowCount:84,items})};
+ assert.deepEqual(attachmentRowCountEvidence(spoofed),{count:84,verified:false},'model-supplied parser marker is not verification evidence');
 });
 test('F17 model/OCR-derived item number is disclosed as unverified, not a complete file guarantee',()=>{
  assert.deepEqual(attachmentRowCountEvidence({extracted:JSON.stringify({items:[{descriptionEn:'only one recognized'}]})}),{count:1,verified:false});
