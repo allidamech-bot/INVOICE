@@ -19,7 +19,7 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
  if(!text||text.length>1200)return null;
  const strict=text.match(/^(?:افتح\s+معاينة\s+(?:(?:عرض السعر|الفاتورة|المستند)\s+)?|open\s+(?:a\s+)?(?:read-only\s+)?preview\s+(?:of\s+)?(?:quotation\s+|invoice\s+|document\s+)?)([a-z0-9_-]{1,120})(?:\s+فقط دون تعديل أو حفظ أي سجل|\s+دون تعديل أو حفظ|\s+only without (?:editing or saving|changes)|\s+فقط)?[.!؟]?$/iu);
  const action=/^(?:افتح(?:\s+لي)?|أفتح(?:\s+لي)?|اعرض|أعرض|ارني|أرني|اظهر|أظهر|أعطني|اعطني|أرسل|ارسل|هات|جهز|جهّز|open|show|preview|download|give|send|generate)(?:\s|$)/iu.test(text);
- const subject=/(?:\bpdf\b|بي\s*دي\s*[إأا]ف|معاين[ةه]|(?:ال)?فاتور[ةه]|عرض\s*(?:ال)?سعر|(?:ال)?مستند|(?:ال)?وثيق[ةه]|\b(?:invoice|quotation|document|quote|preview)\b)/iu.test(text);
+ const subject=/(?:\bpdf\b|بي\s*دي\s*[إأا]ف|معاين[ةه]|(?:ال)?فاتور[ةه]|عرض\s*(?:ال)?سعر|(?:ال)?مستند|(?:أمر|طلب)\s*(?:ال)?شراء|(?:سند|إشعار)\s*(?:تسليم|استلام)|(?:ال)?وثيق[ةه]|\b(?:invoice|quotation|document|quote|preview|purchase\s*order|delivery\s*note|goods\s*receipt|\bPO\b|\bDN\b|\bGRN\b)\b)/iu.test(text);
  // A question about a document or report navigation is not PDF authorization.
  if(!strict&&(!action||!subject||/^(?:افتح|أفتح)\s+(?:التقرير|تقرير)/iu.test(text)))return null;
  // This read-only shortcut may satisfy only one exact reference. Requests
@@ -31,6 +31,19 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
  if(/(?:\b(?:delete|remove|finalize|issue|post|modify|edit|update)\b|(?:احذف|أحذف|امسح|عدّل|عدل|غيّر|غير|اصدر|أصدر|رحّل|رحل|اعتمد)(?:\s|$))/iu.test(withoutMutations))return null;
  const referencedNumbers=[...text.matchAll(/\b[A-Z]{2,10}[-_]\d{2,}(?:[-_]\d{1,})+\b/giu)].map(m=>m[0]!.toUpperCase());
  if(new Set(referencedNumbers).size>1)throw new Error('Document reference is ambiguous. Choose exactly one saved document.');
+ // Operational documents are not invoices: validate the requested kind as
+ // well as the exact visible number. GRNs are not a saved DocumentKind yet.
+ const asksGoodsReceipt=/(?:سند|إشعار)\s*استلام|\bgoods[\s-]*receipt\b|\bgrn\b/iu.test(text);
+ if(asksGoodsReceipt)throw new Error('Goods receipt (GRN) is not a saved document type. Check the supplier receiving workflow; no GRN or stock movement was created.');
+ const explicitKinds=[
+   /(?:أمر|طلب)\s*(?:ال)?شراء|\bpurchase[\s-]*order\b|\bPO[-_]\d/iu.test(text)?'purchase-order':null,
+   /(?:سند|إشعار)\s*تسليم|\bdelivery[\s-]*note\b|\bDN[-_]\d/iu.test(text)?'delivery-note':null,
+   /(?:ال)?فاتور[ةه]|\binvoice\b|\bINV[-_]\d/iu.test(text)?'invoice':null,
+   /عرض\s*(?:ال)?سعر|\bquotation\b|\bquote\b|\bQUO[-_]\d/iu.test(text)?'proforma':null
+ ].filter((kind):kind is 'purchase-order'|'delivery-note'|'invoice'|'proforma'=>kind!==null);
+ const requestedKinds=[...new Set(explicitKinds)];
+ if(requestedKinds.length>1)throw new Error('Different document kinds appear in the request. Select only one exact document.');
+
  const scoped=scopeVault(vault);
  const escaped=(value:string)=>value.replace(/[.*+?^$()|[\]{}]/g,'\\$&');
  const contains=(reference:string)=>{
@@ -40,7 +53,11 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
  const matches=scoped.documents.filter(row=>row.kind!=='draft'&&
    (contains(String(row.id||''))||contains(String(row.number||''))));
  if(matches.length>1)throw new Error('Document reference is ambiguous. Choose exactly one saved document.');
- if(matches.length===1)return matches[0]!.id;
+ if(matches.length===1){
+   if(requestedKinds.length&&matches[0]!.kind!==requestedKinds[0])
+     throw new Error('Document number exists but its kind does not match the requested purchase order, delivery note, invoice or quotation.');
+   return matches[0]!.id;
+ }
  // A user supplied an exact reference but it is not in the scoped vault.
  // Never substitute the last unrelated document or generic navigation.
  if(strict||/(?:رقم|number|#)\s*[:#]?\s*[A-Z0-9][A-Z0-9_-]{2,119}/iu.test(text)||

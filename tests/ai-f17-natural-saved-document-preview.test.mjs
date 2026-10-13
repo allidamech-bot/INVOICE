@@ -86,3 +86,45 @@ test('F17 exact saved reference is resolved BEFORE the navigation planner and ca
  assert.match(source,/prepareAiPdfPreview\(kernel,fresh\.vault,requestLanguage,previewId\|\|''\)/);
  assert.match(source,/text:requestLanguage==='ar'/);
 });
+
+test('Operational PO and delivery-note PDF references resolve exact scoped saved type',()=>{
+ const {vault,kernel}=fixture();
+ const po=createBlankDocument('purchase-order','PO-2026-0009',vault.company);
+ const dn=createBlankDocument('delivery-note','DN-2026-0012',vault.company);
+ po.workspaceId='default';po.branchId='main';
+ dn.workspaceId='default';dn.branchId='main';
+ vault.documents.push(po,dn);
+ const before=structuredClone(vault);
+ for(const message of [
+  'افتح لي PDF أمر الشراء PO-2026-0009',
+  'افتح معاينة طلب الشراء رقم PO-2026-0009',
+  'Open PDF purchase order PO-2026-0009',
+ ]){
+  assert.equal(savedDocumentPreviewId(kernel,vault,message),po.id,message);
+ }
+ for(const message of [
+  'اعرض سند تسليم DN-2026-0012',
+  'افتح PDF سند التسليم DN-2026-0012',
+  'Show PDF delivery note DN-2026-0012',
+ ]){
+  assert.equal(savedDocumentPreviewId(kernel,vault,message),dn.id,message);
+ }
+ assert.deepEqual(vault,before,'read-only saved operational PDFs never write state');
+});
+test('Operational PDF routing never resolves the wrong document kind or a GRN it cannot save',()=>{
+ const {vault,kernel}=fixture();
+ const po=createBlankDocument('purchase-order','PO-2026-0009',vault.company);
+ po.workspaceId='default';po.branchId='main';vault.documents.push(po);
+ for(const msg of [
+  'افتح PDF سند التسليم PO-2026-0009',
+  'Open PDF invoice PO-2026-0009',
+  'افتح PDF أمر الشراء INV-2026-0001',
+ ]){
+  assert.throws(()=>savedDocumentPreviewId(kernel,vault,msg),/Different document kinds|kind does not match/,msg);
+ }
+ assert.throws(()=>savedDocumentPreviewId(kernel,vault,'افتح PDF سند استلام GRN-2026-0012'),/GRN is not a saved document type/);
+ kernel.mode='advisor';
+ assert.equal(savedDocumentPreviewId(kernel,vault,'افتح PDF أمر الشراء PO-2026-0009'),null);
+ kernel.mode='controller';kernel.scope.branchId='other';
+ assert.equal(savedDocumentPreviewId(kernel,vault,'افتح PDF أمر الشراء PO-2026-0009'),null);
+});
