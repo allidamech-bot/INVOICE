@@ -9,6 +9,8 @@ import {confirmGoodsReceipt} from '../dist/src/lib/goods-receipt-flow.js';
 import {matchSupplierInvoice} from '../dist/src/lib/supplier-invoice-flow.js';
 import {invoicePostingForMatch} from '../dist/src/lib/supplier-invoice-posting.js';
 import {purchasePayableSummary} from '../dist/src/lib/payables.js';
+import {prepareAiSupplierSettlement,applyAiSupplierSettlement} from '../dist/src/lib/ai-operational-supplier-settlement.js';
+import {aiToolPlannerCatalog} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {foundationActionAllowed,prepareFoundationApproval,assertFoundationApproval} from '../dist/src/lib/ai-foundation-approval.js';
 import {orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
 import {todayIso} from '../dist/src/lib/id.js';
@@ -139,6 +141,31 @@ test('Purchasing/owner/admin approve signed posting; finance, sales and viewer c
   const v={...f.vault,teamMembers:[{...f.vault.teamMembers[0],role}]};
   assert.equal(foundationActionAllowed(v,proposal,scope),false,role);
  }
+});
+
+test('Full purchasing chain supports a later, separately approved partial supplier settlement with no second stock receipt',()=>{
+ const f=fixture(),review=prepareAiMatchedBillPosting(f.vault,parseAiMatchedBillPosting(command(f.order)));
+ const posted=applyAiMatchedBillPosting(f.vault,review);
+ assert.equal(posted.posted,true);
+ const purchase=posted.vault.purchases.find(p=>p.id===posted.purchaseId);
+ const inventory=structuredClone(posted.vault.inventoryMovements);
+ const paymentReview=prepareAiSupplierSettlement(posted.vault,{
+  purchaseNumber:purchase.number,amount:'25',currency:'USD',date:todayIso(),
+  method:'bank-transfer',reference:'VENDOR-BANK-100'
+ });
+ assert.equal(paymentReview.beforeRemaining,'125.60');
+ assert.equal(paymentReview.afterRemaining,'100.60');
+ const paid=applyAiSupplierSettlement(posted.vault,paymentReview).vault;
+ assert.equal(paid.supplierPayments.length,1);
+ assert.equal(purchasePayableSummary(purchase,paid.supplierPayments).remaining,'100.60');
+ assert.deepEqual(paid.inventoryMovements,inventory);
+ assert.equal(paid.purchases.length,1);
+ assert.throws(()=>applyAiSupplierSettlement(paid,paymentReview),/changed|duplicate/);
+});
+
+test('LLM tool catalog cannot invent high-impact vendor posting from a vague prompt',()=>{
+ assert.equal(aiToolPlannerCatalog('business','controller').some(x=>x.id==='procurement.postMatchedSupplierBill'),false);
+ assert.equal(aiToolPlannerCatalog('business','advisor').some(x=>x.id==='procurement.postMatchedSupplierBill'),false);
 });
 
 test('Optional manual governance policy remains a second explicit gate, not a silent posting',()=>{
