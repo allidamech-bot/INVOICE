@@ -479,7 +479,7 @@ export function installIntelligenceRuntime(host:Host):void{
       if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
-      const pdfRequested=/\\bpdf\\b|بي\\s*دي\\s*[إأا]ف/iu.test(message)&&
+      const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
         /أعطني|اعطني|أرسل|ارسل|طلع|هات|جهز|أنشئ|انشئ|اعملي|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
