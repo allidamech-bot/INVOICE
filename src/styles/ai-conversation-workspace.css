@@ -53,6 +53,15 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2']{
   border-radius:11px;background:var(--lxw-surface);color:var(--lxw-text);
   font-family:inherit;font-size:13px;font-weight:500;line-height:1.5;text-align:center;
 }
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description{flex-wrap:wrap;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-advisor-controller-handoff{
+  flex:0 0 auto;min-height:30px;max-width:100%;padding:5px 10px;
+  background:var(--lxw-surface);border:1px solid var(--lxw-line);
+  color:var(--lxw-text);border-radius:10px;font:600 11px/1.4 inherit;
+  cursor:pointer;white-space:normal;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-advisor-controller-handoff:disabled{opacity:.48;cursor:default;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-advisor-controller-handoff:focus-visible{outline:2px solid var(--lxw-text);outline-offset:2px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description>span{color:var(--lxw-text)!important;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description>span:last-child{
   min-width:0;direction:inherit;overflow-wrap:normal;
