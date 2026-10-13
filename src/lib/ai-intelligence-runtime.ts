@@ -613,7 +613,8 @@ export function installIntelligenceRuntime(host:Host):void{
       const visible=host.state.proposal;
       const isReviewedDraft=Boolean(visible&&kernel.artifact&&
         ['document.createDraft','document.updateDraft'].includes(visible.capability)&&
-        visible.foundationApproval?.id===(kernel.artifact.proposal as any).foundationApproval?.id);
+        visible.capability===kernel.artifact.proposal.capability&&
+        (visible.capability!=='document.updateDraft'||visible.documentId===(kernel.artifact.proposal as any).documentId));
       if((draftOnly||isReviewedDraft)&&exactDraftFollowup){
         const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
         if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
