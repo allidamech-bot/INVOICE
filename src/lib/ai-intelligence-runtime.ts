@@ -124,6 +124,26 @@ async function persistKernel(host:Host,requireScope=false):Promise<void>{
   };
   const next=storeQueue.catch(()=>undefined).then(run);storeQueue=next;await next;
 }
+/** Recover a verified saved document after an interrupted/reloaded approval.
+ * An applied receipt is not permission to recreate a document or to remove an
+ * unrelated newer working draft. Only its exact signed approval ID can retire
+ * the obsolete staged copy, and the saved record must still exist in scope. */
+function reconcileSavedConversationDocument(host:Host,kernel:ConversationKernel,vault:VaultPayload):void{
+  const receipts=(host.__foundationReceipts||[]) as Array<{id:string;state:string;action?:string;resultId?:string}>;
+  const scoped=scopeVault(vault).documents;
+  const approved=receipts.filter(r=>r.state==='applied'&&
+    (r.action==='document.createDraft'||r.action==='document.updateDraft')&&r.resultId);
+  const currentId=(kernel.artifact?.proposal as any)?.foundationApproval?.id;
+  const match=currentId?approved.find(r=>r.id===currentId):undefined;
+  if(match){
+    const doc=scoped.find(row=>row.id===match.resultId&&row.kind!=='draft');
+    if(doc){kernel.artifact=undefined;kernel.entity={entityType:'document',entityId:doc.id,label:doc.number};}
+  }else if(!kernel.artifact&&!kernel.entity){
+    const last=[...approved].reverse().find(r=>scoped.some(doc=>doc.id===r.resultId&&doc.kind!=='draft'));
+    const doc=last&&scoped.find(row=>row.id===last.resultId);
+    if(doc)kernel.entity={entityType:'document',entityId:doc.id,label:doc.number};
+  }
+}
 async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   if(!host.__lourexAssistantThreadId)host.__lourexAssistantThreadId='ai-thread-'+crypto.randomUUID();
   const scope=scopeFor(host,vault);
@@ -141,6 +161,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   // valid mode metadata fail closed to Advisor; never infer elevated permission.
   host.__intelligenceKernel=thread?normalizeConversationKernel(thread.kernel,scope):newConversationKernel(scope);
   host.__foundationReceipts=thread?.foundationReceipts||[];
+  reconcileSavedConversationDocument(host,host.__intelligenceKernel,vault);
   host.__foundationVault=vault;
   // Read-only Advisor must never surface or re-stage a stored execution proposal.
   if(currentConversationMode(host)==='advisor'){
@@ -186,8 +207,13 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     throw new Error('Account, conversation or workspace changed during loading.');
   const proposal=host.state.proposal;
   if(currentConversationMode(host)==='controller'&&(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')){
-    stageKernelArtifact(host.__intelligenceKernel,proposal);
-    host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
+    const alreadyApplied=(host.__foundationReceipts||[]).some((receipt:any)=>
+      receipt.state==='applied'&&proposal.foundationApproval?.id&&receipt.id===proposal.foundationApproval.id);
+    if(alreadyApplied){host.setState({proposal:null,review:null});}
+    else{
+      stageKernelArtifact(host.__intelligenceKernel,proposal);
+      host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
+    }
   }
   await flush(host);
   // Sync inert thread messages without importing executable approvals or drafts.
