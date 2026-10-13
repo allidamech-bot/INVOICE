@@ -595,6 +595,9 @@ export function installIntelligenceRuntime(host:Host):void{
         }
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot prepare a document save.');
         stampProposal(host,p,resumed.vault);stageReviewedMission(kernel,p);
+        // The review is an explicit user request. Persist its exact envelope
+        // with the document; only this verified envelope may resume after reload.
+        kernel.artifact!.proposal=p;
         host.setState((state:any)=>({input:'',error:'',proposal:p,review,__workspaceReviewedProposal:null,
           __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
