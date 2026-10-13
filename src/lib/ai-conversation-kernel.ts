@@ -8,6 +8,7 @@ import type { CommercialState } from './ai-commercial-intelligence.js';
 import { reviseAiPendingDocumentDraft } from './ai-document-conversation.js';
 import {aiDraftUndoDepth,AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 import { normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
+import {normalizeDecimalInput} from './money.js';
 
 export interface KernelScope { scope:AssistantScope; workspaceId:string; branchId:string; threadId:string; accountId?:string; }
 export interface WorkingSelection { id:string; items:{entityType:AssistantEntityType;entityId:string;label:string}[]; selectedId?:string; }
@@ -103,11 +104,27 @@ export function reviseKernelDraft(kernel:ConversationKernel,proposal:Draft,messa
   const reject=(reason:string)=>reply(proposal,false,language==='ar'?'لم أغيّر المسودة: '+reason:'Draft unchanged: '+reason);
   // Natural correction refers to the last exact price/quantity edit only;
   // never reinterpret a multi-line trade change as a single-value revert.
+  // A natural-language correction containing an expected price may undo ONLY
+  // when the previous exact revision and line identity prove that price. This
+  // never writes the vault and never invents a replacement draft/price.
+  const naturalPriceUndo=text.match(/^(?:تراجع(?:\s+عن\s+(?:التعديل|آخر\s+تعديل))?|undo)\s*(?:…|\.{2,3}|[،,.;:]|\s+ثم\s+|\s+and\s+)\s*(?:[أا]عد|ارجع|رجع|رجّع|restore|revert)\s+(?:السعر|price)\s+(?:إلى|الى|to)\s*(\d+(?:[.,]\d+)?)(?:\s+([A-Z]{3}))?[.!؟\s]*$/iu);
+  if(naturalPriceUndo){
+    const last=artifact.lastEdit,previous=artifact.undo.at(-1);
+    if(!last||last.field!=='unitPrice'||!previous||previous.capability!=='document.createDraft')
+      return reject('The last exact price edit cannot be verified. Use the revision buttons or identify the line.');
+    const index=artifact.lineIds.indexOf(last.lineId);
+    if(index<0||!previous.items[index])return reject('The earlier line identity is unavailable.');
+    const expected=normalizeDecimalInput(naturalPriceUndo[1]!.replace(',','.'));
+    const actual=normalizeDecimalInput(previous.items[index]!.unitPrice||'');
+    if(!actual||actual!==expected)return reject('The requested previous price does not match the recorded revision.');
+    if(naturalPriceUndo[2]&&naturalPriceUndo[2]!.toUpperCase()!==
+      (previous.currency||'').toUpperCase())return reject('The requested price currency differs from the draft.');
+  }
   const priceUndo=/^(?:[أا]رجع|رجع|رجّع|restore|revert)\s+(?:السعر|price)\s+(?:السابق|previous)[.!؟\s]*$/iu.test(text);
   const quantityUndo=/^(?:[أا]رجع|رجع|رجّع|restore|revert)\s+(?:الكمية|quantity)\s+(?:السابقة|previous)[.!؟\s]*$/iu.test(text);
   if((priceUndo&&artifact.lastEdit?.field!=='unitPrice')||(quantityUndo&&artifact.lastEdit?.field!=='quantity'))
     return reject('The last change is not an exact edit of that field; identify the line.');
-  const undo=priceUndo||quantityUndo||/^(?:undo(?: the last change| last change)?|revert (?:the )?last change|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل (?:الأخير|الاخير))[.!؟\s]*$/iu.test(text);
+  const undo=Boolean(naturalPriceUndo)||priceUndo||quantityUndo||/^(?:undo(?: the last change| last change)?|revert (?:the )?last change|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل (?:الأخير|الاخير))[.!؟\s]*$/iu.test(text);
   const redo=/^(?:redo|أعد التعديل|اعد التعديل)[.!؟\s]*$/iu.test(text);
   if(undo||redo){
     const from=undo?artifact.undo:artifact.redo,to=undo?artifact.redo:artifact.undo;
