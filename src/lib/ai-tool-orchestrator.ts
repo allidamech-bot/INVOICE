@@ -32,14 +32,14 @@ export type AiToolId=
   |'document.get'|'purchase.get'|'finance.getSummary'|'treasury.getSnapshot'|'reports.getMetrics'|'inventory.getStatus'|'search.records'
   |'pricing.margin'|'pricing.markup'|'pricing.targetPrice'|'landedCost.calculate'|'scenario.calculate'|'fx.convertUsingRecordedRate'|'receivables.aging'|'breakEven.calculate'|'inventory.coverage'
   |'quotation.prepare'|'invoice.prepare'|'customer.prepare'|'supplier.prepare'|'purchase.prepare'|'reminder.prepare'|'message.prepare'|'report.prepare'
-  |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'navigation.open'|'task.create'
+  |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'customer.bulkHighlight'|'supplier.bulkHighlight'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'navigation.open'|'task.create'
   |'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
 
 export interface AiToolDefinition{id:AiToolId;class:AiToolClass;description:string;approval:boolean;mutation:boolean;maxResultChars:number;}
 export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;reason:string;}
 export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
 export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
-export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
+export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.bulkHighlight'|'supplier.bulkHighlight'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
 export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;conversationMode?:AiConversationMode;}
 
 const DEFS:AiToolDefinition[]=[
@@ -88,6 +88,8 @@ const DEFS:AiToolDefinition[]=[
   ['customer.update','execute','Update customer master data after visible approval.',true,true,2500],
   ['customer.master','execute','Review an exact new or existing customer master record before one guarded save.',true,true,3000],
   ['supplier.update','execute','Update supplier master data after visible approval.',true,true,2500],
+  ['customer.bulkHighlight','execute','Mark explicitly selected customer IDs red only after one signed atomic approval.',true,true,3500],
+  ['supplier.bulkHighlight','execute','Mark explicitly selected supplier IDs red only after one signed atomic approval.',true,true,3500],
   ['supplier.master','execute','Review an exact new or existing supplier master record before one guarded save.',true,true,3000],
   ['product.updateMetadata','execute','Update product metadata after visible approval.',true,true,2500],
   ['product.bulkUpdate','execute','Stage bounded exact matched product SKU, price or category edits for one reviewable approval.',true,true,3200],
@@ -339,6 +341,10 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
     }
     return{capability:'document.updateDraft',documentId:target.id,language:args.language,addItems,itemEdits,termsPatch:safeObject(args.termsPatch),notes:typeof args.notes==='string'?clean(args.notes,500):undefined,label:clean(args.label,80)||'Update draft',rationale:call.reason||'Prepared draft update.'};
   }
+  // Approval payload for this operation is produced only from the exact
+  // currently selected kernel IDs, never from provider-supplied fuzzy names.
+  if(call.tool==='customer.bulkHighlight'||call.tool==='supplier.bulkHighlight')
+    throw new Error('Use the Controller selection and its reviewed red-mark proposal; arbitrary model record lists are not executable.');
   if(call.tool==='customer.update'||call.tool==='supplier.update'){
     if(runtime.scope!=='business')throw new Error('Customer/supplier changes require Business scope.');
     const active=runtime.vault.appSettings.activeWorkspaceId||'default';
@@ -369,7 +375,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
  * prerequisite/read/high-impact step fails, do not offer a subset of actions:
  * those approvals would silently turn a multi-step request into partial work. */
 export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{
-  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
+  if(plan.calls.some(call=>['customer.bulkHighlight','supplier.bulkHighlight','product.bulkUpdate','product.importSource','procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
   const results=plan.calls.map(call=>executeAiToolCall(runtime,call));
   const blockedHighImpact=results.some(row=>row.class==='high-impact');
   const hasExecutable=results.some(row=>row.class==='execute');
