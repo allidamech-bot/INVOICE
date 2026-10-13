@@ -9,6 +9,7 @@ import { aiToolPlannerCatalog } from './ai-tool-orchestrator.js';
 import {requestedAiProductImport,requestedAiProductSkuGeneration} from './ai-product-source-import.js';
 import {reviseAiProductImportDraft,parseAiProductDraftCommand} from './ai-product-import-draft.js';
 import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
+import {explicitQuoteConversionIntent,quoteSourceWorkingDraft} from './ai-quote-source-draft.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -114,6 +115,23 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const sources=aiPlannerSourceFacts(input.context?.conversationSources);
   const hasSources=sources.length>0;
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  // A complete structured RFQ already contains the source's actual rows.
+  // Never re-send only the first 2800 chars to a planner which might silently
+  // lose trailing products. Stage the whole verified quote as UNSAVED.
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&sources.some(source=>source.route==='quote_request')){
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
+    try{
+      const workingDraft=quoteSourceWorkingDraft(input.context.conversationSources,runtime,input.message);
+      if(!workingDraft)throw new Error('SOURCE_INCOMPLETE: The RFQ could not be prepared as a complete unsaved quotation.');
+      const message=input.language==='ar'
+        ?'استخرجت '+workingDraft.items.length+' صنفًا من المرفق وأنشأت مسودة عرض سعر داخل المحادثة فقط. لم أحفظها أو أصدرها. أي سعر أو عملة أو وحدة ناقصة تبقى فارغة وتحتاج مراجعتك قبل إنشاء PDF أو طلب الحفظ.'
+        :'Extracted '+workingDraft.items.length+' source lines into an unsaved quotation working draft. Nothing was saved or issued. Missing prices, currency or units remain blank until reviewed before PDF or save.';
+      return{answer:message,proposal:null,workingDraft,plan,results:[],plannedBy:'local'};
+    }catch(error){
+      return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
+        proposal:null,plan,results:[],plannedBy:'local'};
+    }
+  }
   // An explicitly pending in-memory draft belongs to this company/thread only.
   // No upload contents, model output or prior assistant replies may authorize edits.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&input.context?.pendingProductImport){
