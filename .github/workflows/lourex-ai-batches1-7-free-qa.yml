@@ -12,6 +12,7 @@ on:
       - fix/ai-f05-f16-source-integrity-20261013
       - fix/ai-f16-scanned-pdf-vision-fallback-20261013
       - fix/ai-f08-high-volume-quote-rows-20261013
+      - fix/ai-f09-unsaved-draft-resume-20261013
   workflow_dispatch:
 
 permissions:
