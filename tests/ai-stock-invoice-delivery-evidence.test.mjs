@@ -30,6 +30,20 @@ function link({vault,invoice,delivery}){
   }),amount:'',currency:invoice.currency
  });
 }
+function confirm({vault,delivery}){
+ vault.documentEvents.push({
+  id:'evt-confirmed-delivery',documentId:delivery.id,documentNumber:delivery.number,type:'audit',
+  at:'2026-10-01T00:00:00.000Z',relatedDocumentId:'',relatedDocumentNumber:'',
+  note:'@lourex:sales-order:delivery-confirmed:v1:'+JSON.stringify({
+   quotationId:'q1',salesOrderNumber:'SO-2026-0001',
+   deliveryNoteId:delivery.id,deliveryNoteNumber:delivery.number,
+   deliveryNoteUpdatedAt:delivery.updatedAt,customerId:'customer-1',
+   currency:'USD',deliveredDate:'2026-10-01',reference:'DN proof',
+   notes:'',confirmedByMemberId:'member-1',
+   lines:[{salesOrderLineId:'order-line',deliveryLineId:'delivery-line',quantity:'3',unit:'CTN'}]
+  }),amount:'',currency:'USD'
+ });
+}
 function issue({vault,delivery},valid=true){
  vault.inventoryMovements.push({
   id:'sales-delivery-stock:'+delivery.id+':delivery-line',workspaceId:'default',branchId:'main',
@@ -58,6 +72,8 @@ test('An issued invoice without delivery stock evidence cannot be called a stock
 });
 test('Only a valid linked stock issue supports actual deduction, and never leaks another branch',()=>{
  const f=fixture();link(f);issue(f);
+ assert.match(aiInvoiceStockEvidence(f.vault,ask,'ar'),/غير مثبت كتسليم مؤكد/);
+ confirm(f);
  const before=structuredClone(f.vault);
  const text=aiInvoiceStockEvidence(f.vault,ask,'ar');
  assert.match(text,/وجدت 1 حركة صرف مخزون مثبتة/);

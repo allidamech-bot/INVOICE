@@ -2,6 +2,7 @@ import type {VaultPayload} from '../types.js';
 import {scopeVault} from './workspaces.js';
 import {invoiceSourceDelivery} from './sales-delivery-invoice.js';
 import {salesDeliveryStockIssues} from './sales-delivery-stock.js';
+import {confirmedSalesDeliveries} from './sales-delivery-flow.js';
 import {inventoryMovementAccountingIsValid} from './operations.js';
 
 /** Exact, read-only reply to "Did invoice NUMBER deduct stock?" The sales
@@ -47,6 +48,13 @@ export function aiInvoiceStockEvidence(vault:VaultPayload,message:string,languag
   return arabic
    ?'الفاتورة '+invoice.number+' صادرة، لكن لا يوجد رابط سند تسليم موثق لها في هذا الفرع. إصدار الفاتورة وحده لا يثبت خصم المخزون، ولا يمكن استنتاج أن مخزونًا خُصم أو لم يُخصم بحركة مستقلة.'
    :'Invoice '+invoice.number+' is issued, but no verified delivery-note link was found in this branch. Invoice issuance alone is not stock-deduction evidence. Unrelated movements cannot be inferred.';
+ const confirmations=confirmedSalesDeliveries(delivery.id,scoped.documentEvents);
+ if(delivery.status!=='final'||delivery.lifecycleStatus==='voided'||confirmations.length!==1||
+    confirmations[0]!.deliveryNoteNumber!==delivery.number||
+    confirmations[0]!.deliveryNoteUpdatedAt!==delivery.updatedAt)
+   return arabic
+    ?'سند التسليم '+delivery.number+' غير مثبت كتسليم مؤكد صالح مطابق لهذه الفاتورة؛ لا يمكن تأكيد خصم المخزون.'
+    :'Delivery '+delivery.number+' lacks one valid confirmed-delivery proof matching the saved note; stock deduction cannot be confirmed.';
  const linked=salesDeliveryStockIssues(delivery.id,scoped.inventoryMovements);
  if(linked.some(m=>!inventoryMovementAccountingIsValid(m)))
   return arabic?'وجدت حركة صرف مرتبطة بسند التسليم لكنها غير صالحة محاسبيًا؛ لا يمكن تأكيد الخصم حتى إصلاح السجل.'
