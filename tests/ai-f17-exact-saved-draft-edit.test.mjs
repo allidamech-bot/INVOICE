@@ -73,3 +73,21 @@ test('F17 natural saved edit intercepts Controller before broad navigation and r
  assert.match(source,/proposal:null,review:null/,'no immediate save approval is granted');
  assert.match(source,/saving requires a separate approval/);
 });
+
+test('F17 exact saved financial edit cannot silently mutate a PO or delivery note',()=>{
+ const {vault,kernel}=fixture();
+ for(const kind of ['purchase-order','delivery-note']){
+  const number=kind==='purchase-order'?'PO-2026-0003':'DN-2026-0004';
+  const doc=createBlankDocument(kind,number,vault.company);
+  doc.workspaceId='default';doc.branchId='main';doc.status='draft';
+  doc.items=[{...vault.documents[0].items[0],id:'operation-line',quantity:'3',unitPrice:'10'}].filter(Boolean);
+  vault.documents.push(doc);
+  const before=structuredClone(vault);
+  assert.throws(
+   ()=>exactSavedDraftLineEdit(kernel,vault,'عدل سعر أول سطر '+number+' إلى 12'),
+   /require their own verified edit workflow/,
+   kind
+  );
+  assert.deepEqual(vault,before);
+ }
+});

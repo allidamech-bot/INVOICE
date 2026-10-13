@@ -34,7 +34,7 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
  // Operational documents are not invoices: validate the requested kind as
  // well as the exact visible number. GRNs are not a saved DocumentKind yet.
  const asksGoodsReceipt=/(?:سند|إشعار)\s*(?:ال)?استلام|\bgoods[\s-]*receipt\b|\bgrn\b/iu.test(text);
- if(asksGoodsReceipt)throw new Error('Goods receipt (GRN) is not a saved document type. Check the supplier receiving workflow; no GRN or stock movement was created.');
+ if(asksGoodsReceipt)throw new Error('GRN is not a saved document type. Check the supplier receiving workflow; no GRN or stock movement was created.');
  const explicitKinds=[
    /(?:أمر|طلب)\s*(?:ال)?شراء|\bpurchase[\s-]*order\b|\bPO[-_]\d/iu.test(text)?'purchase-order':null,
    /(?:سند|إشعار)\s*(?:ال)?تسليم|\bdelivery[\s-]*note\b|\bDN[-_]\d/iu.test(text)?'delivery-note':null,
@@ -132,6 +132,7 @@ export function exactSavedDraftLineEdit(
   (String(row.number||'').toUpperCase()===reference||String(row.id||'').toUpperCase()===reference));
  if(candidates.length!==1)throw new Error('Saved document number was not found uniquely in the active company and branch.');
  const doc=candidates[0]!;
+ if(doc.kind!=='invoice'&&doc.kind!=='proforma')throw new Error('Operational purchase orders and deliveries require their own verified edit workflow; no change was prepared.');
  if(doc.status!=='draft'||doc.lifecycleStatus==='voided')throw new Error('Final or voided documents cannot be edited in chat.');
  const selectedIndex=index===-1?doc.items.length-1:index;
  if(!Number.isSafeInteger(selectedIndex)||selectedIndex<0||selectedIndex>=doc.items.length)
