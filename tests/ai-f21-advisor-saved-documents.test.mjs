@@ -144,6 +144,11 @@ test('F21 no content/price/customer payload is leaked to provider by the documen
   row.items=[{id:'one',descriptionEn:'PRIVATE PRODUCT',quantity:'1',unit:'CTN',unitPrice:'250'}];
   const index=buildAdvisorDocumentRegistry(vault,AS_OF,'هل فاتورة INV-2026-0001 محفوظة؟');
   assert.ok(!JSON.stringify(index).includes('PRIVATE'));
-  assert.ok(!JSON.stringify(index).includes('250'));
+  for(const record of [...index.recent,...index.matched]){
+    assert.equal('items' in record,false,'document line contents must never appear in the Advisor registry');
+    assert.equal('unitPrice' in record,false,'product prices must never appear in the Advisor registry');
+    assert.equal('customerSnapshot' in record,false,'customer identities must never appear in the Advisor registry');
+    assert.equal('notes' in record,false,'private notes must never appear in the Advisor registry');
+  }
   assert.ok(!JSON.stringify(index).includes('ACCOUNT'));
 });
