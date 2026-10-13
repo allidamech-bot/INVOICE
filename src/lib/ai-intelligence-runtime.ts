@@ -606,7 +606,15 @@ export function installIntelligenceRuntime(host:Host):void{
         await flush(host);await persistKernel(host);return;
       }
       const exactDraftFollowup=/^(?:(?:في نفس المسودة)[،,]?\s*)?(?:غيّر|غير|عدّل|عدل|اجعل|أضف|اضف|احذف|حذف|امسح|set|change|update|add|remove|delete)\s+(?:سعر|السعر|كمية|الكمية|price|quantity|qty|line|item|الصنف|البند|منتج|شروط|شروط الدفع|payment terms|الإنكوترمز|incoterm|مدة التسليم|delivery time|الصلاحية|validity|الملاحظات|notes|التعبئة|packing)|^(?:undo|redo|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل(?: الأخير| الاخير)?|أعد التعديل|اعد التعديل|لا[،,]?\s*اللي قبله|previous one|(?:[أا]رجع|رجع|رجّع)\s+(?:السعر|الكمية)\s+(?:السابق|السابقة))[.!؟\s]*$/iu.test(message);
-      if(draftOnly&&exactDraftFollowup){
+      // Exact edits must also work while a previous save review is displayed.
+      // Changing one value revokes that review; it is never an implicit approval.
+      const visible=host.state.proposal;
+      const isReviewedDraft=Boolean(visible&&kernel.artifact&&
+        ['document.createDraft','document.updateDraft'].includes(visible.capability)&&
+        visible.foundationApproval?.id===(kernel.artifact.proposal as any).foundationApproval?.id);
+      if((draftOnly||isReviewedDraft)&&exactDraftFollowup){
+        const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
+        if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
         const next=structuredClone(kernel);
         const original=next.artifact!.proposal;
         const drafting=workspaceDrafting(resumed.vault,original.capability==='document.updateDraft'?original.documentId:'');
@@ -614,6 +622,7 @@ export function installIntelligenceRuntime(host:Host):void{
         if(result?.changed){
           const revised=next.artifact!.proposal as any;
           delete revised.foundationApproval;
+          if(previousId)retireWorkingApproval(next,previousId);
           host.__intelligenceKernel=next;
           host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,__workspaceReviewedProposal:null,
             __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
