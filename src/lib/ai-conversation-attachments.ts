@@ -25,6 +25,19 @@ export type ConversationAttachmentProgress=(phase:ConversationAttachmentPhase)=>
 type AiPayload={kind:'text'|'file'|'pages';mimeType:string;text?:string;data?:string;pages?:{index:number;pageCount:number;mimeType:'image/jpeg';data:string}[]};
 
 export const CONVERSATION_ATTACHMENT_ACCEPT='.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,.pdf,.xlsx,.xls,.csv,.txt,text/plain,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+/** Safari Files may provide no MIME or application/octet-stream for valid PDFs.
+ * Guess only from an allowed filename extension, then verify file signatures.
+ * A declared non-generic type is NOT silently overridden by the extension. */
+export function conversationAttachmentMime(file:Pick<File,'name'|'type'>):string{
+ const name=String(file.name||'').toLowerCase(),type=String(file.type||'').toLowerCase().trim();
+ if(type&&type!=='application/octet-stream'&&type!=='binary/octet-stream')return type;
+ if(name.endsWith('.pdf'))return'application/pdf';
+ if(name.endsWith('.png'))return'image/png';
+ if(/\.jpe?g$/i.test(name))return'image/jpeg';
+ if(name.endsWith('.webp'))return'image/webp';
+ return type;
+}
+
 export const MAX_CONVERSATION_ATTACHMENTS=10;
 export const MAX_CONVERSATION_ATTACHMENT_TOTAL_BYTES=16_000_000;
 const MAX_BINARY_BYTES=2_600_000;
@@ -67,7 +80,7 @@ async function verifyBinarySource(file:File,mime:string):Promise<void>{
 
 export async function conversationAttachmentPayload(file:File):Promise<AiPayload>{
   const name=file.name.toLowerCase();
-  if(name.endsWith('.pdf')||file.type==='application/pdf'){
+  if(name.endsWith('.pdf')||conversationAttachmentMime(file)==='application/pdf'){
     if(file.size>MAX_DOCUMENT_BYTES)throw new Error('PDF must be 12 MB or smaller.');
     await verifyBinarySource(file,'application/pdf');
     const text=await readablePdfText(file,MAX_TEXT_CHARS);
@@ -87,7 +100,7 @@ export async function conversationAttachmentPayload(file:File):Promise<AiPayload
     const text=await file.text();if(!text.trim())throw new Error('Text file is empty.');if(text.length>MAX_TEXT_CHARS)throw new Error('Text exceeds the analysis limit.');
     return{kind:'text',mimeType:'text/plain',text};
   }
-  const mime=file.type||(name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');
+  const mime=conversationAttachmentMime(file);
   if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error('Supported images are PNG, JPG and WebP. Convert HEIC/GIF to JPG or PNG first; PDF, Excel, CSV and TXT are also supported.');
   if(file.size>MAX_BINARY_BYTES)throw new Error('Scanned PDF/image must be below 2.6 MB for safe AI analysis. Compress the scanned PDF or export readable PDF text; every page must be reviewed.');
   await verifyBinarySource(file,mime);

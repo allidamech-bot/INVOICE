@@ -1,5 +1,10 @@
 import { t } from './i18n.js';
-// Read selectable PDF text locally. Image-only PDFs keep the native AI route.
+// Read selectable PDF text locally. Pages with only a sparse OCR overlay
+// must be analyzed as images; a short header is not the full scanned invoice.
+export function hasReadablePdfPageText(text:string,containsImage=false):boolean{
+ const count=Array.from(String(text||'').matchAll(/[\p{L}\p{N}]/gu)).length;
+ return count>=24&&(!containsImage||count>=150);
+}
 export async function readablePdfText(file:File,maxChars=120000):Promise<string>{
   const url=new URL('../../vendor/pdf.mjs',import.meta.url).href;
   const pdfjs=await import(url);
@@ -16,8 +21,20 @@ export async function readablePdfText(file:File,maxChars=120000):Promise<string>
       const text=content.items.map((item:any)=>typeof item.str==='string'?item.str+(item.hasEOL?'\n':' '):'').join('');
       chars+=text.length;if(chars>maxChars)throw new Error(t('PDF text exceeds the analysis limit. Split the source into smaller files.','نص PDF يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));
       page.cleanup();
-      // A mixed scanned/text PDF must retain every page through the vision route.
-      if(!text.trim())return '';
+      // Text around a logo/scanned invoice may be only a header/partial OCR.
+      // Check image operators only for short text to avoid extra work on
+      // standard searchable PDFs. Never return a partial set of text pages.
+      const visibleCount=Array.from(text.matchAll(/[\p{L}\p{N}]/gu)).length;
+      let embeddedImage=false;
+      if(visibleCount<150){
+        const list=await page.getOperatorList();
+        const ops=pdfjs.OPS||{};
+        const imageCodes=[ops.paintImageXObject,ops.paintImageXObjectRepeat,
+          ops.paintJpegXObject,ops.paintInlineImageXObject,ops.paintInlineImageXObjectGroup]
+          .filter((value:unknown)=>typeof value==='number');
+        embeddedImage=list.fnArray.some((value:number)=>imageCodes.includes(value));
+      }
+      if(!hasReadablePdfPageText(text,embeddedImage))return '';
       pages.push(`Page ${index}\n${text}`);
     }
     return pages.some(text=>text.replace(/Page \d+/, '').trim())?pages.join('\n\n'):'';

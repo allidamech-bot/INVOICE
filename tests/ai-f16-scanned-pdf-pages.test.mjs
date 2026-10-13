@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {conversationAttachmentMime} from '../dist/src/lib/ai-conversation-attachments.js';
+import {hasReadablePdfPageText} from '../dist/src/lib/pdf-source.js';
 import {cleanVisionPageAttachments,MAX_VISION_PDF_PAGES,MAX_VISION_PDF_BASE64_CHARS} from '../api/_ai/source-page-images.js';
 
 const base64='/9j/'+ 'A'.repeat(100);
@@ -75,4 +77,25 @@ test('F16 extended OCR remains capped by actual free model image support',async(
  assert.match(router,/model\.maxImages>=imageCount/,'never send eight images to a three-image model');
  assert.match(pdf,/if\(pdf\.numPages>8\)return null/,'PDFs above eight pages keep native document routing');
  assert.match(pdf,/if\(blobs\.length!==pdf\.numPages\)throw/,'raster page count must match all source pages');
+});
+
+test('F16 iOS Files MIME-less and generic PDF uploads are safely sniffed by extension',()=>{
+ for(const type of ['', 'application/octet-stream', 'binary/octet-stream']){
+   assert.equal(conversationAttachmentMime({name:'supplier-scan.PDF',type}),'application/pdf');
+   assert.equal(conversationAttachmentMime({name:'photo.JPG',type}),'image/jpeg');
+ }
+ assert.equal(conversationAttachmentMime({name:'supplier-scan.pdf',type:'image/png'}),'image/png',
+   'do not override conflicting declared non-generic MIME');
+ assert.equal(conversationAttachmentMime({name:'malware.exe',type:''}),'');
+});
+test('F16 sparse PDF OCR overlays do not masquerade as complete page extraction',async()=>{
+ assert.equal(hasReadablePdfPageText('1'),false);
+ assert.equal(hasReadablePdfPageText('Page 1 - INVOICE'),false);
+ assert.equal(hasReadablePdfPageText('Company name and address 23 Main Road'),true);
+ assert.equal(hasReadablePdfPageText('Company name and address 23 Main Road',true),false,
+   'short selectable text over an embedded page scan is insufficient');
+ assert.equal(hasReadablePdfPageText('A'.repeat(150),true),true);
+ const code=await readFile(new URL('../src/lib/pdf-source.ts',import.meta.url),'utf8');
+ assert.match(code,/page\.getOperatorList\(\)/);
+ assert.match(code,/if\(!hasReadablePdfPageText\(text,embeddedImage\)\)return ''/);
 });
