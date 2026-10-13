@@ -68,6 +68,10 @@ function verify(vault:VaultPayload,data:{
  // Reject corrupted or conflicting historical receipts rather than using them
  // as a trustworthy basis for an additional physical receipt.
  assertGoodsReceiptIntegrity(scoped.documents,scoped.documentEvents);
+ const evidence=scoped.documentEvents.filter(ev=>ev.documentId===order.id&&ev.type==='audit'&&
+   ev.note.startsWith('@lourex:goods-receipt:confirmed:v1:'));
+ if(confirmedGoodsReceipts(order.id,scoped.documentEvents).length!==evidence.length)
+   throw new Error('Corrupted physical receipt evidence exists for this purchase order; do not add another receipt before reconciliation.');
  const input:ConfirmGoodsReceiptInput={purchaseOrderId:order.id,
    expectedPurchaseOrderUpdatedAt:order.updatedAt,reference:data.reference,
    receivedDate:data.receivedDate,notes:'',quantities:[...data.quantities]};
