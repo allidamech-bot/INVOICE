@@ -67,8 +67,10 @@ test('An issued invoice without delivery stock evidence cannot be called a stock
  assert.doesNotMatch(result,/وجدت .* حركة صرف مخزون مثبتة/);
  assert.deepEqual(f.vault,before,'read-only audit cannot mutate vault');
  link(f);
- const onlyDelivery=aiInvoiceStockEvidence(f.vault,ask,'ar');
- assert.match(onlyDelivery,/لم أجد حركة صرف مخزون موثقة/);
+ assert.match(aiInvoiceStockEvidence(f.vault,ask,'ar'),/غير مثبت كتسليم مؤكد/);
+ confirm(f);
+ const confirmedNoIssue=aiInvoiceStockEvidence(f.vault,ask,'ar');
+ assert.match(confirmedNoIssue,/لم أجد حركة صرف مخزون موثقة/);
 });
 test('Only a valid linked stock issue supports actual deduction, and never leaks another branch',()=>{
  const f=fixture();link(f);issue(f);
