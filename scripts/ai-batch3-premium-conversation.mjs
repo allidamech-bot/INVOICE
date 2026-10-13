@@ -68,7 +68,7 @@ source+=`\n\nconst __lourexPremiumConversationBatch3=true;\nconst __lourexConver
 const progressTarget="row.source?.documentType&&row.source.documentType!=='unknown'?row.source.documentType:__lourexAttachmentLabel(row.status,row.phase)";
 if(!source.includes(progressTarget))throw new Error('Batch 3 attachment progress target changed.');
 source=source.replace(progressTarget,"fileProgressLabel(rows,row,instance.props.language==='ar')");
-source="import {fileProgressLabel} from '../lib/ai-file-progress.js';\\n".replace('\\n','\\n')+source;
+source="import {fileProgressLabel} from '../lib/ai-file-progress.js';\n"+source;
 
 if(!source.includes("'/api/ai-conversation-v3'"))throw new Error('AI Batch 3 source-aware endpoint routing is missing.');
 if(!source.includes('lourex-ai-premium-textarea'))throw new Error('AI Batch 3 premium composer is missing.');
