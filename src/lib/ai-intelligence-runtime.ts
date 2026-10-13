@@ -464,6 +464,23 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
 
     }
     finishMissionStep(step,receipt.state==='applied',receipt.resultId||'');
+    if(receipt.state==='applied'&&step){
+      const mission=missionStep(kernel.missions||[],proposal)?.mission;
+      const ready=mission?pendingMissionProposal(mission):null;
+      // Never execute the next action here. Offer only its fresh approved
+      // envelope with review reset so each change needs a distinct user click.
+      if(ready&&currentConversationMode(host)==='controller'&&
+        kernelScopeKey(scopeFor(host,(await resumeVaultSession())?.vault||live.vault))===kernelScopeKey(kernel.scope)){
+        const label=mission!.steps.find(s=>s.approvalId===ready.foundationApproval?.id)?.label||'';
+        const progress=mission!.steps.filter(s=>s.status==='completed').length;
+        host.setState((state:any)=>({proposal:ready,review:null,__workspaceReviewedProposal:null,
+          messages:[...state.messages,{id:crypto.randomUUID(),role:'assistant',
+            text:host.props.language==='ar'
+              ?'اكتملت الخطوة '+progress+' من '+mission!.steps.length+'. الخطوة التالية: '+label+'. راجعها ووافق عليها بشكل مستقل؛ لم تُنفذ بعد.'
+              :'Step '+progress+' of '+mission!.steps.length+' completed. Next: '+label+'. Review and approve separately; it has NOT executed.'}]}));
+        await flush(host);
+      }
+    }
     await persistKernel(host);return result;
   }catch(error){if(receipt){receipt.state='uncertain';finishMissionStep(step,false);await persistKernel(host).catch(()=>undefined);}host.setState({busy:false,error:error instanceof Error?error.message:String(error)});return undefined;}
   finally{host.__foundationApprovalBusy=false;}
