@@ -33,7 +33,7 @@ export function parseAiStockIssueRequest(message:string):{
  const skus=list[1]!.split(/\s*[,،;]\s*/).map(x=>x.toUpperCase());
  if(!skus.length||new Set(skus).size!==skus.length)throw new Error('Select one distinct SKU for every confirmed DN line.');
  const leftover=s.replace(/^(?:جهز|جهّز|حضّر|حضر|prepare)\s+(?:(?:صرف\s+(?:ال)?مخزون)|(?:stock\s+issue))/iu,'')
-  .replace(/(?:(?:لسند|للسند|من\s+(?:سند|السند)|for\s+(?:delivery\s+note\s+)?))?\s*DN[-_]\d{4}[-_]\d{1,12}/iu,'')
+  .replace(/(?:(?:لسند|للسند|من\s+(?:سند|السند))\s*(?:ال)?تسليم\s*|(?:لسند|للسند)\s*|for\s+(?:delivery\s+note\s+)?)?\s*DN[-_]\d{4}[-_]\d{1,12}/iu,'')
   .replace(/(?:المستودع|مستودع|warehouse)\s*[:：]?\s*[A-Z0-9_-]{2,24}/iu,'')
   .replace(/(?:الأصناف|اصناف|أصناف|skus|items)\s*[:：]?\s*[A-Z0-9_-]+(?:\s*[,،;]\s*[A-Z0-9_-]+){0,119}/iu,'')
   .replace(/[\s،,;:.!?؟-]/g,'');
