@@ -96,7 +96,7 @@ test('F01 canonical bridge creates actual File from A4 page canvases without pri
  assert.match(ui,/normalizeAiConversationMode\(kernel\.mode\)==='controller'/);
  const css=await readFile(new URL('../src/styles/a4-mobile-print-v73.css',import.meta.url),'utf8');
  const vercel=await readFile(new URL('../vercel.json',import.meta.url),'utf8');
- assert.match(vercel,/frame-src 'self' blob: https:\/\/*.firebaseapp.com/);
+ assert.ok(vercel.includes("frame-src 'self' blob: https://*.firebaseapp.com"));
  assert.match(vercel,/object-src 'none'/);
  assert.match(ui,/className="lxw-ai-pdf-render-target"/);
  assert.doesNotMatch(ui,/className="print-portal lxw-ai-pdf-render-target"/);
