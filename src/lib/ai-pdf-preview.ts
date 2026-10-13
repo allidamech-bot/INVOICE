@@ -4,13 +4,14 @@ import {workspaceDocument} from './ai-workspace-model.js';
 import {createBlankDocument} from './documents.js';
 import {customerSnapshotFrom} from './defaults.js';
 import {scopeVault} from './workspaces.js';
+import {normalizeAiConversationMode} from './ai-conversation-mode.js';
 
 /** Build an A4 rendering input entirely in memory: NEVER reserve a document
  * number, save a vault record, issue an invoice, or mutate the proposal. */
 export function prepareAiPdfPreview(
   kernel:ConversationKernel,vault:VaultPayload,language:'ar'|'en',savedId=''
 ):LourexDocument{
-  if(kernel.scope.scope!=='business')throw new Error('Only Controller business documents can be exported.');
+  if(kernel.scope.scope!=='business'||normalizeAiConversationMode(kernel.mode)!=='controller')throw new Error('Only Controller business documents can be exported.');
   const scoped=scopeVault(vault);
   if(kernel.scope.workspaceId!==scoped.appSettings.activeWorkspaceId||
      kernel.scope.branchId!==scoped.appSettings.activeBranchId)throw new Error('The company or branch changed. Reopen the document.');
