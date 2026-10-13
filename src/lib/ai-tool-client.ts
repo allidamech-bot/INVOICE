@@ -2,7 +2,7 @@ import type { VaultPayload } from '../types.js';
 import { requestAiJson, AiRequestError } from './ai-request.js';
 import { scopeVault } from './workspaces.js';
 import { resumeVaultSession } from '../storage/vault.js';
-import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult, type AiToolId } from './ai-tool-orchestrator.js';
+import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, proposalForExecutableTool, type AiToolPlan, type AiToolResult, type AiToolId, type AiToolRuntime } from './ai-tool-orchestrator.js';
 import { buildCfoBrief, buildDealDeskDecision, formatCfoBrief, formatDealDeskDecision, isCfoIntent, isDealDeskIntent } from './ai-cfo-deal-desk.js';
 import { handleAssistantLocalCommand } from './ai-personal-assistant.js';
 import { aiToolPlannerCatalog } from './ai-tool-orchestrator.js';
@@ -10,7 +10,7 @@ import {requestedAiProductImport,requestedAiProductSkuGeneration} from './ai-pro
 import {reviseAiProductImportDraft,parseAiProductDraftCommand} from './ai-product-import-draft.js';
 import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
 
-export interface AiToolOrchestrationResult{answer:string;proposal:any|null;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
+export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function formatData(data:unknown,max=2200):string{try{const text=JSON.stringify(data,null,2);return text.length<=max?text:`${text.slice(0,max)}\n…`;}catch{return clean(data,max);}}
 function titleFor(tool:string,ar:boolean):string{const map:Record<string,[string,string]>={
@@ -50,6 +50,28 @@ export function promoteDocumentCreationPlan(plan:AiToolPlan,message:string):AiTo
   const calls=[...plan.calls],current=calls[index]!;
   calls[index]={...current,tool:'document.createDraft',args:{...current.args,kind,label:clean((current.args as any)?.label,80)||(kind==='invoice'?'Create invoice draft':'Create quotation draft')},reason:current.reason||'Create a real LOUREX draft after visible approval.'};
   return{...plan,calls};
+}
+
+/** Preserve PREPARE-only quotes as edit-ready, unsaved conversation artifacts.
+ * This is NOT an approval proposal: it must never reach any vault writer. */
+export function previewOnlyWorkingDraft(plan:AiToolPlan,results:AiToolResult[],runtime:AiToolRuntime):any|null{
+  if(runtime.scope!=='business'||runtime.conversationMode!=='controller')return null;
+  // One exact preview only. A mixed/executable plan is not a safe source of
+  // implicitly staged quote data; it requires its own approval path.
+  if(plan.calls.length!==1||results.length!==1||results[0]?.ok!==true||results[0]?.class!=='prepare')return null;
+  const call=plan.calls[0]!,result=results[0]!;
+  if(!['quotation.prepare','invoice.prepare'].includes(call.tool)||result.tool!==call.tool||result.id!==call.id)return null;
+  const data=result.data as any;
+  if(!data||data.status!=='preview-only'||data.approvalRequired!==false||!Array.isArray(data.items)||data.kind!==(call.tool==='quotation.prepare'?'proforma':'invoice'))return null;
+  // Reject truncated or inconsistent results rather than silently losing rows.
+  const converted=proposalForExecutableTool({
+    ...call,tool:'document.createDraft',
+    args:{...call.args,kind:data.kind},
+    reason:'Unsaved working review from a prepare-only action; never approved for saving.'
+  },runtime);
+  if(!converted||converted.capability!=='document.createDraft'||!Array.isArray(converted.items)||!converted.items.length)return null;
+  if(JSON.stringify(converted.items)!==JSON.stringify(data.items))return null;
+  return converted;
 }
 
 /** Attachments are untrusted data; never pass their contents as user
@@ -204,7 +226,18 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
   }
   if(runtime.conversationMode!=='advisor')plan=promoteDocumentCreationPlan(plan,input.message);
-  const execution=executeAiToolPlan(runtime,plan);const answer=dealDesk?formatDealDeskDecision(buildDealDeskDecision(plan,execution.results),input.language):formatAnswer(plan,execution.results,input.language);return{answer,proposal:execution.proposal,plan,results:execution.results,plannedBy};
+  const execution=executeAiToolPlan(runtime,plan);
+  // An incomplete/truncated attachment cannot become a supposedly complete
+  // working quote simply because the LLM chose the PREPARE tool.
+  const workingDraft=hasSources&&sources.some(source=>source.truncated)
+    ?null:previewOnlyWorkingDraft(plan,execution.results,runtime);
+  const baseAnswer=dealDesk?formatDealDeskDecision(buildDealDeskDecision(plan,execution.results),input.language):formatAnswer(plan,execution.results,input.language);
+  const previewPrepared=plan.calls.length===1&&['quotation.prepare','invoice.prepare'].includes(plan.calls[0]!.tool);
+  const note=workingDraft
+    ?(input.language==='ar'?'\n\nمسودة عمل جاهزة داخل المحادثة (غير محفوظة). يمكنك تعديل الأصناف، التراجع، أو طلب PDF قبل أي اعتماد.':'\n\nUnsaved working draft available in this conversation. Revise lines, undo, or request PDF without approving or saving.')
+    :previewPrepared&&hasSources&&sources.some(source=>source.truncated)
+      ?(input.language==='ar'?'\n\nالمرفق ناقص في سياق التخطيط، لذلك لم أجهّز مسودة عمل قابلة للاعتماد. أعد رفع ملف قابل للقراءة بالكامل.':'\n\nAttachment content was truncated; no complete working draft was staged. Provide a fully readable source.'): '';
+  return{answer:(baseAnswer+note).slice(0,5000),proposal:execution.proposal,workingDraft:workingDraft||undefined,plan,results:execution.results,plannedBy};
 }
 
 export function aiToolAuditSummary(result:AiToolOrchestrationResult):string{return JSON.stringify({plannedBy:result.plannedBy,goal:result.plan.goal,tools:compactToolResults(result.results).map(row=>({tool:row.tool,ok:row.ok,source:row.source}))});}
