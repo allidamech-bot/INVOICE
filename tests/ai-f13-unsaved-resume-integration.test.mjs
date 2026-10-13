@@ -31,6 +31,7 @@ test('F09 only a verified scoped, explicit stamped approval can appear in review
  const {vault,kernel,scope,proposal}=fixture();
  const reviewed={...structuredClone(proposal),foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
  kernel.artifact.proposal=reviewed;
+ kernel.missions=[createMission(scope,reviewed)];
  const result=resumableWorkingApproval(kernel,vault);
  assert.equal(result.foundationApproval.id,reviewed.foundationApproval.id);
  assert.equal(result.items[0].descriptionEn,'A');
@@ -98,4 +99,39 @@ test('F09 direct commercial changes do not mint approvals or save unless asked',
  assert.match(section,/proposal:null,review:null/);
  assert.doesNotMatch(section,/stampProposal\(host,p/);
  assert.doesNotMatch(section,/stageReviewedMission\(next,p\)/);
+});
+
+test('F13 orphan or already executed approvals are never offered again after reload',()=>{
+ for(const state of ['orphan','completed','applying','uncertain','cancelled']){
+   const {vault,kernel,scope,proposal}=fixture();
+   const reviewed={...structuredClone(proposal),foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
+   kernel.artifact.proposal=reviewed;
+   if(state!=='orphan'){
+     kernel.missions=[createMission(scope,reviewed)];
+     kernel.missions[0].steps[0].status=state;
+   }
+   const restored=normalizeConversationKernel(JSON.parse(JSON.stringify(kernel)),scope);
+   assert.equal(resumableWorkingApproval(restored,vault),null,state);
+   assert.equal(restored.artifact.proposal.foundationApproval,undefined,state);
+   assert.equal(restored.artifact.proposal.items[0].quantity,'3');
+   assert.ok(restored.cancelledApprovals.includes(reviewed.foundationApproval.id));
+   assert.equal(vault.documents.length,0);
+ }
+});
+test('F13 edited draft retains complete lines after reload while cancelled approval stays retired',()=>{
+ const {vault,kernel,scope,proposal}=fixture();
+ const original={...structuredClone(proposal),foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
+ kernel.artifact.proposal=original;kernel.missions=[createMission(scope,original)];
+ const edited=structuredClone(kernel);
+ edited.artifact.proposal.items[0].quantity='26';
+ delete edited.artifact.proposal.foundationApproval;
+ retireWorkingApproval(edited,original.foundationApproval.id);
+ const restored=normalizeConversationKernel(JSON.parse(JSON.stringify(edited)),scope);
+ assert.equal(restored.artifact.proposal.items[0].quantity,'26');
+ assert.equal(restored.artifact.proposal.items.length,1);
+ assert.equal(restored.artifact.proposal.foundationApproval,undefined);
+ assert.equal(resumableWorkingApproval(restored,vault),null);
+ assert.deepEqual(restored.cancelledApprovals,[original.foundationApproval.id]);
+ assert.equal(restored.missions[0].steps[0].status,'cancelled');
+ assert.deepEqual(vault.documents,[]);
 });
