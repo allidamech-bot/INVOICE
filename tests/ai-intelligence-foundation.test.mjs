@@ -126,7 +126,7 @@ async function runtimeHarness(){
  const store=await import('data:text/javascript;base64,'+Buffer.from(storeSource).toString('base64')+'#'+crypto.randomUUID());
  const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
  const session={key,vault:emptyVault()};
- globalThis.__foundationRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__foundationDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...(await import('../dist/src/lib/ai-conversation-mode.js')),...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
+ globalThis.__foundationRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__foundationDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...(await import('../dist/src/lib/ai-conversation-mode.js')),...(await import('../dist/src/lib/ai-pdf-preview.js')),...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
  let runtimeSource=await readFile('dist/src/lib/ai-intelligence-runtime.js','utf8');
  runtimeSource=runtimeSource.replace(/import \{([\s\S]*?)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.__foundationRuntimeModules;`);
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(runtimeSource).toString('base64')+'#'+crypto.randomUUID());
@@ -141,6 +141,22 @@ test('real runtime adapter encrypts/reloads drafts and refuses approval replay a
  reloaded.state.__workspaceReviewedProposal=reloaded.state.proposal;let writes=0;await runtime.intelligenceApprove(reloaded,reloaded.state.proposal,async()=>{writes++;return{summary:'verified',id:'saved'};});assert.equal(writes,1);
  const state=await store.loadAssistantState(session.key);assert.equal(state.threads[0].foundationReceipts[0].state,'applied');assert.ok(state.threads[0].messages.some(row=>row.text==='unrelated question'));
  const restarted=host();await restarted.ask('hello');await runtime.intelligenceApprove(restarted,prepared,async()=>{writes++;return{summary:'bad replay'};});assert.equal(writes,1);assert.match(restarted.state.error,/already attempted/);
+});
+test('Controller Arabic PDF request opens real file generator without saving or issuing a draft',async()=>{
+ const {session,host,store}=await runtimeHarness(),h=host();
+ await h.ask('prepare');
+ const before=structuredClone(session.vault);
+ await h.ask('أعطني PDF');
+ assert.equal(h.state.__workspacePane,'workspace');
+ assert.equal(h.state.__workspaceTab,'preview');
+ assert.equal(h.state.__workspaceOpen,true);
+ assert.equal(h.state.__workspacePdfAutoStart?.includes('t1'),true);
+ assert.ok(h.state.messages.some(row=>row.text?.includes('ملف PDF فعلي')));
+ assert.deepEqual(session.vault,before);
+ assert.equal(session.vault.documents.length,0);
+ const saved=await store.loadAssistantState(session.key);
+ assert.ok(saved.threads[0].kernel.artifact);
+ assert.equal(saved.threads[0].kernel.artifact.proposal.items.length,3);
 });
 test('runtime rejects stale approval and an in-flight double click without any duplicate write',async()=>{
  const {runtime,session,host}=await runtimeHarness();const h=host();await h.ask('prepare');
