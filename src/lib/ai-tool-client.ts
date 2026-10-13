@@ -12,6 +12,7 @@ import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
 import {explicitQuoteConversionIntent,quoteSourceWorkingDraft} from './ai-quote-source-draft.js';
 import {summarizeReadOnlyProductSources} from './ai-product-source-review.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
+import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
@@ -185,6 +186,12 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   // ledger is the only supported evidence, including in read-only Advisor mode.
   if(!hasSources&&runtime.scope==='business'&&isAiInvoiceStockEvidenceIntent(input.message)){
     return{answer:aiInvoiceStockEvidence(scopedVault,input.message,input.language),proposal:null,
+      plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+  }
+  // Business operational status reads are proof-bound and never stage
+  // a receipt, issue a delivery, save a purchase order or change stock.
+  if(!hasSources&&runtime.scope==='business'&&isOperationalDocumentStatusIntent(input.message)){
+    return{answer:operationalDocumentStatus(scopedVault,input.message,input.language),proposal:null,
       plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
   // F19: Advisor and Controller read the real issued-invoice ledger for the
