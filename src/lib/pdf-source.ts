@@ -20,7 +20,6 @@ export async function readablePdfText(file:File,maxChars=120000):Promise<string>
       const page=await pdf.getPage(index),content=await page.getTextContent();
       const text=content.items.map((item:any)=>typeof item.str==='string'?item.str+(item.hasEOL?'\n':' '):'').join('');
       chars+=text.length;if(chars>maxChars)throw new Error(t('PDF text exceeds the analysis limit. Split the source into smaller files.','نص PDF يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));
-      page.cleanup();
       // Text around a logo/scanned invoice may be only a header/partial OCR.
       // Check image operators only for short text to avoid extra work on
       // standard searchable PDFs. Never return a partial set of text pages.
@@ -34,6 +33,7 @@ export async function readablePdfText(file:File,maxChars=120000):Promise<string>
           .filter((value:unknown)=>typeof value==='number');
         embeddedImage=list.fnArray.some((value:number)=>imageCodes.includes(value));
       }
+      page.cleanup();
       if(!hasReadablePdfPageText(text,embeddedImage))return '';
       pages.push(`Page ${index}\n${text}`);
     }
