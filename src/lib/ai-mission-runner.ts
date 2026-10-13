@@ -35,7 +35,7 @@ export function readyMissionStep(mission:MissionState):MissionStep|null{
   if(mission.steps.some(step=>step.status==='uncertain'||step.status==='applying'))return null;
   const pending=mission.steps.filter(step=>step.status==='needs_approval');
   if(!pending.length)return null;
-  return pending.find(step=>Boolean(step.proposal)&&step.dependencies.every(id=>
+  return pending.find(step=>Boolean(step.proposal)&&Array.isArray(step.dependencies)&&step.dependencies.every(id=>
     mission.steps.find(previous=>previous.id===id)?.status==='completed'))||null;
 }
 export function missionProgress(mission:MissionState):{completed:number;total:number;pending:number;blocked:boolean}{
