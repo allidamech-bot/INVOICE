@@ -142,7 +142,20 @@ async function run(engine,name){
   assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id);
   assert.match(await restored.innerText(),/Saved/);
   await restored.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
-  await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:90000});
+  try{
+   await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:45000});
+  }catch(error){
+   const details=await page.evaluate(()=>{
+    const card=document.querySelector('#lourex-ai-panel .lxw-chat-document');
+    return {cardId:card?.getAttribute('data-artifact-id'),error:card?.querySelector('[role=alert]')?.textContent,
+      busy:card?.querySelector('.lxw-ai-pdf-actions button')?.textContent,
+      pdfStage:Boolean(card?.querySelector('.lxw-ai-pdf-render-target')),
+      pdfEngine:typeof window.__LOUREX_BUILD_CHAT_PDF__,
+      assistantError:document.querySelector('.lourex-ai-error')?.textContent,
+      cardText:card?.textContent?.slice(-1500)};
+   });
+   throw new Error('Saved document PDF not produced after reload: '+JSON.stringify(details)+'; '+String(error));
+  }
   // A saved draft cannot shadow the subsequent in-chat business list. The
   // Controller must render a real selectable customer record after reload.
   await say('show all customers');
