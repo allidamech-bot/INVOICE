@@ -94,5 +94,11 @@ test('F01 canonical bridge creates actual File from A4 page canvases without pri
  assert.match(ui,/href=\{pdfResult\.url\} download=\{pdfResult\.name\}/);
  assert.match(ui,/<iframe title=\{label\(ar,'LOUREX PDF file preview'/);
  assert.match(ui,/normalizeAiConversationMode\(kernel\.mode\)==='controller'/);
+ const css=await readFile(new URL('../src/styles/a4-mobile-print-v73.css',import.meta.url),'utf8');
+ assert.match(ui,/className="lxw-ai-pdf-render-target"/);
+ assert.doesNotMatch(ui,/className="print-portal lxw-ai-pdf-render-target"/);
+ assert.match(css,/\.lxw-ai-pdf-render-target \.invoice-page/);
+ assert.match(css,/width:210mm!important/);
+ assert.match(bridge,/document\.querySelectorAll\('\.print-portal \.invoice-page'\)/);
  assert.doesNotMatch(app,/__LOUREX_BUILD_CHAT_PDF__/,'App must not call the chat-only PDF builder during save/print/issue');
 });
