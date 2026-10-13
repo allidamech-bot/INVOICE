@@ -19,6 +19,7 @@ on:
       - fix/ai-f13-unsaved-resume-integration-20261013
       - integration/ai-parallel-streams-safe-20261013
       - fix/ai-batch1-pr-reconciliation-f17-20261013
+      - feat/ai-ops-supplier-invoice-post-20261013
   workflow_dispatch:
 
 permissions:
