@@ -46,3 +46,14 @@ test('F10 ordinary short drafts retain full exact provider context for safe exis
  assert.ok(text.includes('Highly detailed product 3'));
  assert.doesNotMatch(text,/rowsNotIncludedInModel/);
 });
+
+test('F10 provider memory with 12 long turns never exceeds API context limit or destroys stored thread',()=>{
+ const k=newConversationKernel(scope);stageKernelArtifact(k,quote(120));
+ const turns=Array.from({length:12},(_,i)=>({role:i%2?'assistant':'user',text:'Message-'+i+' '+'long '.repeat(200)}));
+ const original=structuredClone(turns);
+ const result=composeKernelMemory(k,turns);
+ assert.ok(result.length<=34000,'server-side working-memory capacity remains respected');
+ assert.ok(result.includes('Message-11'));
+ assert.equal(k.artifact.proposal.items.length,120);
+ assert.deepEqual(turns,original);
+});
