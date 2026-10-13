@@ -35,7 +35,12 @@ async function run(engine,name){
   });
   await panel.locator('input[type=file][multiple]').setInputFiles({name:'controller-85.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(bytes)});
   async function say(text){
+   const oldCount=await panel.locator('.lourex-ai-message.user').count();
    const input=panel.locator('textarea');await input.fill(text);await panel.locator('.lourex-ai-send').click();
+   // Local revision commands do not use the model streaming spinner.
+   // Wait for the full controller turn and its state update before inspecting the draft.
+   await page.waitForFunction(previous=>document.querySelectorAll('#lourex-ai-panel .lourex-ai-message.user').length>previous
+     && document.querySelector('#lourex-ai-panel .lourex-ai-send')?.getAttribute('data-turn-pending')==='false',oldCount,{timeout:45000});
    await page.waitForFunction(()=>!document.querySelector('#lourex-ai-panel .lourex-ai-send.is-stop'),null,{timeout:45000});
   }
   await say('Convert this file to a quotation');
@@ -62,6 +67,7 @@ async function run(engine,name){
   await page.waitForFunction(()=>document.querySelector('.lxw-chat-document')?.textContent.includes('1732.00')||document.querySelector('.lxw-chat-document')?.textContent.includes('1,732.00'));
   assert.equal(await card.locator('a[download]').count(),0,'old PDF must be invalidated');
   await say('undo');assert.match(await card.innerText(),/1,?700\.00/);
+  assert.ok(Number(await card.getAttribute('data-artifact-revision'))>1,'undo must advance the tracked draft revision');
   await say('redo');assert.match(await card.innerText(),/1,?732\.00/);
   assert.notEqual(await pdf(),firstPdf);
   await say('save this draft');
