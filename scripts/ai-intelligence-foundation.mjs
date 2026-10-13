@@ -8,10 +8,6 @@ const replace=(before,after)=>{if(source.split(before).length!==2)throw new Erro
 replace('this.__lourexLatestContext=context;','intelligenceContext(this,context);this.__lourexLatestContext=context;');
 replace('reviseAiPendingDocumentDraft(pendingDocumentProposal, message, context.drafting, this.props.language)','intelligenceReviseDraft(this,pendingDocumentProposal, message, context.drafting, this.props.language)');
 replace('const advisorV2ReadOnly =','context.conversationWorkingMemory = intelligenceRequestMessage(this,"", requestMessage);\n            requestMessage = message;\n            const advisorV2ReadOnly =');
-// Route strictly from the active thread mode. Intent classification and file
-// presence can never make Controller claim to be Advisor. Missing mode fails
-// closed to Advisor, without granting write permission.
-replace("const advisorEndpoint = __lourexConversationSources.length ? '/api/ai-conversation-v3' : (advisorV2ReadOnly ? '/api/ai-advisor-v2' : '/api/ai-core');","const advisorEndpoint = context.conversationMode === 'controller' ? '/api/ai-core' : (__lourexConversationSources.length ? '/api/ai-conversation-v3' : '/api/ai-advisor-v2');");
 replace('await orchestrateAiToolRequest({ message, vault: resumed.vault, context:','await intelligenceTools(this,{ message, vault: resumed.vault, context:');
 replace('const result=await applyApprovedToolExecution(step);','const result=await intelligenceApprove(instance,step,()=>applyApprovedToolExecution(step));if(!result)throw new Error(instance.state.error||"Approval blocked.");');
 // Branch is part of every pending import identity, including Temporary threads.
