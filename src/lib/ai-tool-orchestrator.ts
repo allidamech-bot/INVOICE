@@ -4,6 +4,7 @@ import { calculateTotals, decimalToScaled, lineTotal, normalizeDecimalInput } fr
 import { customerReceivables, customerStatement, receivableCustomerId } from './receivables.js';
 import { inventoryBalances, purchaseTotals } from './operations.js';
 import { supplierPayablesByCurrency } from './payables.js';
+import {prepareOperationalPoFromRfq} from './ai-operational-po-draft.js';
 import { treasuryAccountBalance, treasuryProjection, treasuryTotals } from './treasury-ledger.js';
 import { fxRateMatchForDate, convertWithFxMatch } from './fx-rates.js';
 import { todayIso } from './id.js';
@@ -23,13 +24,13 @@ export type AiToolId=
   |'pricing.margin'|'pricing.markup'|'pricing.targetPrice'|'landedCost.calculate'|'scenario.calculate'|'fx.convertUsingRecordedRate'|'receivables.aging'|'breakEven.calculate'|'inventory.coverage'
   |'quotation.prepare'|'invoice.prepare'|'customer.prepare'|'supplier.prepare'|'purchase.prepare'|'reminder.prepare'|'message.prepare'|'report.prepare'
   |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'navigation.open'|'task.create'
-  |'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
+  |'procurement.createPoFromRfq'|'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
 
 export interface AiToolDefinition{id:AiToolId;class:AiToolClass;description:string;approval:boolean;mutation:boolean;maxResultChars:number;}
 export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;reason:string;}
 export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
 export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
-export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
+export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
 export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;conversationMode?:AiConversationMode;}
 
 const DEFS:AiToolDefinition[]=[
@@ -63,6 +64,7 @@ const DEFS:AiToolDefinition[]=[
   ['reminder.prepare','prepare','Prepare a reminder without scheduling or sending it.',true,false,2500],
   ['message.prepare','prepare','Prepare external communication without sending it.',true,false,2500],
   ['report.prepare','prepare','Prepare a report specification without changing records.',true,false,2500],
+  ['procurement.createPoFromRfq','execute','Create a linked PO DRAFT from one issued RFQ after full review and approval; never post stock.',true,true,8000],
   ['document.createDraft','execute','Create a LOUREX draft only after visible approval.',true,true,3000],
   ['document.updateDraft','execute','Update an existing LOUREX draft only after visible approval.',true,true,3000],
   ['customer.update','execute','Update customer master data after visible approval.',true,true,2500],
@@ -197,6 +199,12 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
     const batch=prepareAiPartyMaster(runtime.vault,intent);
     return{capability:'tool.execute',tool:call.tool,args:batch,preview:[batch.preview],label:(batch.mode==='create'?'Create ':'Update ')+batch.party, rationale:'Review the exact customer/supplier contact information before one approved local save.'};
   }
+  if(call.tool==='procurement.createPoFromRfq'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')throw new Error('Only Controller business mode can stage a purchase order.');
+    const number=clean(args.rfqNumber,50).toUpperCase();
+    const review=prepareOperationalPoFromRfq(runtime.vault,number);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,label:'Review purchase order from '+review.sourceNumber,rationale:'Unissued purchase-order draft only. Requires explicit approval; never receives goods or posts inventory.'};
+  }
   if(call.tool==='product.importSource'){if(runtime.scope!=='business')throw new Error('Product registration requires Business scope.');const batch=prepareAiProductSourceImport(runtime.vault,args.sources,{generateMissingSku:args.generateMissingSku===true});return{capability:'tool.execute',tool:'product.importSource',args:batch,preview:batch.rows.map(row=>({...row.preview,fileName:row.fileName})),label:'Review '+batch.rows.length+' extracted products',rationale:'These rows were extracted from your attachments. Verify every description, price, currency and SKU before approving creation.'};}
   if(call.tool==='product.bulkUpdate'){if(runtime.scope!=='business')throw new Error('Bulk product edits require Business scope.');const batch=Object.hasOwn(args,'groupPrice')?prepareAiProductGroupPrice(runtime.vault,args.groupPrice):Object.hasOwn(args,'transform')?prepareAiBulkProductTransform(runtime.vault,args.transform):prepareAiBulkProductUpdate(runtime.vault,args.updates);return{capability:'tool.execute',tool:'product.bulkUpdate',args:batch,preview:batch.rows.map(row=>row.preview),label:'Review '+batch.rows.length+' product changes',rationale:'Review every old and new value before approving one atomic catalog update.'};}
   if(call.tool==='document.createDraft'){const kind=clean(args.kind,30)==='invoice'?'invoice':'proforma',customer=documentCustomerMatch(runtime,args),customerDraft=customer?null:documentCustomerDraft(args);return{capability:'document.createDraft',kind,customerId:customer?.id||'',customerDraft,currency:currency(args.currency)||runtime.vault.company.defaultCurrency||'USD',language:clean(args.language,12)==='ar'?'ar':clean(args.language,12)==='bilingual'?'bilingual':'en',items:documentDraftItems(args),incoterm:clean(args.incoterm,80),paymentTerms:clean(args.paymentTerms,120),deliveryTime:clean(args.deliveryTime,120),validity:clean(args.validity,100),remarks:clean(args.remarks,500),notes:clean(args.notes,500),label:clean(args.label,80)||'Create draft',rationale:call.reason||'Prepared draft creation.'};}
@@ -251,7 +259,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
  * prerequisite/read/high-impact step fails, do not offer a subset of actions:
  * those approvals would silently turn a multi-step request into partial work. */
 export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{
-  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
+  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','procurement.createPoFromRfq','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
   const results=plan.calls.map(call=>executeAiToolCall(runtime,call));
   const blockedHighImpact=results.some(row=>row.class==='high-impact');
   const hasExecutable=results.some(row=>row.class==='execute');

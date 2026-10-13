@@ -11,6 +11,7 @@ import {reviseAiProductImportDraft,parseAiProductDraftCommand} from './ai-produc
 import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
 import {explicitQuoteConversionIntent,quoteSourceWorkingDraft} from './ai-quote-source-draft.js';
 import {summarizeReadOnlyProductSources} from './ai-product-source-review.js';
+import {operationalPoDraftRequested,requestedPoRfqNumber} from './ai-operational-po-draft.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -182,6 +183,18 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
   }
+  // Deterministic PO request from a user-named exact RFQ. File/model text
+  // cannot identify the source or authorize saving or inventory movement.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&operationalPoDraftRequested(input.message)){
+    const number=requestedPoRfqNumber(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:number?[{id:'local-po-from-rfq',tool:'procurement.createPoFromRfq',args:{rfqNumber:number},reason:'The user explicitly requested a PO draft from one identified issued RFQ.'}]:[]};
+    if(!number)return{answer:input.language==='ar'?'حدّد رقم RFQ صادرًا واحدًا بالكامل لتجهيز مسودة أمر الشراء. لم أنشئ شيئًا أو أغيّر المخزون.':'Specify one exact issued RFQ number to prepare the purchase order draft. No records or stock changed.',proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    const summary=executed.proposal
+      ?input.language==='ar'?'جهزت مراجعة مسودة أمر شراء من '+number+' بكل البنود. لن يتم حفظ المسودة إلا بعد موافقتك. لا يوجد استلام بضاعة أو ترحيل مخزون.':'Prepared a complete linked PO draft review from '+number+'. Saving the draft requires your approval. No receipt or stock posting.'
+      :executed.results.map(row=>row.summary).join('\n');
+    return{answer:summary,proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
   // Invoice issuance cannot imply stock deduction: the linked delivery stock
   // ledger is the only supported evidence, including in read-only Advisor mode.
   if(!hasSources&&runtime.scope==='business'&&isAiInvoiceStockEvidenceIntent(input.message)){
@@ -247,6 +260,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
+    if(plan.calls.some(call=>call.tool==='procurement.createPoFromRfq'))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
