@@ -18,9 +18,15 @@ function file(items=sourceItems){return{fileName:'candy.pdf',route:'product_list
 function ctx(extra={}){return{assistantRuntime:{scope:'business',workspaceId:'default',threadId:'review-1',branchId:'default'},...extra};}
 function vault(){return emptyVault();}
 const result=(message,v,pending)=>orchestrateAiToolRequest({message,vault:v,context:ctx(pending?{pendingProductImport:pending}:{}),language:'ar'});
-test('B05: user file analysis stages a complete read-only preview, then three conversational edits, then one approval',async()=>{
+test('B05: analysis is strictly read-only; explicit registration stages editable rows before approval',async()=>{
  const v=vault(),before=JSON.stringify(v);
- const first=await orchestrateAiToolRequest({message:'حلل الملف واعطني تفاصيل الأصناف',vault:v,context:ctx({conversationSources:[file()]}),language:'ar'});
+ const analysis=await orchestrateAiToolRequest({message:'حلل الملف واعطني تفاصيل الأصناف',vault:v,context:ctx({conversationSources:[file()]}),language:'ar'});
+ assert.ok(analysis);
+ assert.equal(analysis.proposal,null);
+ assert.equal(analysis.plan.calls.length,0);
+ assert.match(analysis.answer,/4 صنف/);
+ assert.equal(JSON.stringify(v),before);
+ const first=await orchestrateAiToolRequest({message:'سجل جميع الأصناف من الملف',vault:v,context:ctx({conversationSources:[file()]}),language:'ar'});
  assert.equal(first.proposal?.tool,'product.importSource');
  assert.equal(first.proposal.preview.length,4);
  assert.match(first.answer,/لم أسجّل|لم أسجل/);
