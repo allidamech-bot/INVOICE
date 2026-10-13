@@ -48,7 +48,7 @@ export function safeAiReportPeriod(value:unknown):AiReportPeriod|null{
  if(typeof from!=='string'||typeof to!=='string')return null;
  if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to))return null;
  const valid=(date:string)=>{
-  const [year,month,day]=date.split('-').map(Number);
+  const [year=0,month=0,day=0]=date.split('-').map(Number);
   return year>=2000&&year<=2099&&month>=1&&month<=12&&day>=1&&
    day<=new Date(Date.UTC(year,month,0)).getUTCDate();
  };
