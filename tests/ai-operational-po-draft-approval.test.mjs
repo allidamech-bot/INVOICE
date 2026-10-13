@@ -32,7 +32,9 @@ test('Operational PO command recognizes exact single sourced RFQ; rejects high i
   assert.equal(requestedPoRfqNumber(q),'RFQ-2026-0001');
  }
  for(const q of ['اعتمد أمر الشراء RFQ-2026-0001','أنشئ أمر شراء ثم أصدره من RFQ-2026-0001',
- 'افتح PDF أمر الشراء PO-2026-0001']){
+ 'افتح PDF أمر الشراء PO-2026-0001',
+ 'أنشئ أمر شراء من RFQ-2026-0001 ثم أضف البضاعة للمخزون',
+ 'Create purchase order from RFQ-2026-0001 and receive goods to inventory']){
   assert.equal(operationalPoDraftRequested(q),false,q);
  }
  assert.equal(requestedPoRfqNumber('أنشئ أمر شراء من RFQ-2026-0001 و RFQ-2026-0002'),null);
