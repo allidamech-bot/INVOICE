@@ -15,7 +15,7 @@ export function operationalPoDraftRequested(message:string):boolean{
  const m=norm(message);
  return m.length<=450&&/^(?:انشئ|أنشئ|جهز|جهّز|حضّر|حضر|سوي|سوّي|create|prepare|make|draft)\s+/iu.test(m)&&
    /(?:أمر|طلب)\s*(?:ال)?شراء|\bpurchase[\s-]*order\b|\bpo\b/iu.test(m)&&
-   !/(?:اعتمد|اصدر|أصدر|رحّل|رحل|post|issue|finalize|confirm)/iu.test(m);
+   !/(?:اعتمد|اصدر|أصدر|رحّل|رحل|ترحيل|استلام|استلم|المخزون|مخزون|اخصم|أخصم|خصم|أضف|اضف|دفع|سدد|\b(?:post|issue|finalize|confirm|receive|receipt|stock|inventory|deduct|pay)\b)/iu.test(m);
 }
 export function requestedPoRfqNumber(message:string):string|null{
  if(!operationalPoDraftRequested(message))return null;
