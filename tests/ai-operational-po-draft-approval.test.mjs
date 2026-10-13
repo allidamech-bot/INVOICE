@@ -7,6 +7,8 @@ import {prepareOperationalPoFromRfq,applyOperationalPoDraftApproval,
  operationalPoDraftRequested,requestedPoRfqNumber} from '../dist/src/lib/ai-operational-po-draft.js';
 import {orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
 import {confirmedGoodsReceipts} from '../dist/src/lib/goods-receipt-flow.js';
+import {readFile} from 'node:fs/promises';
+import {prepareFoundationApproval,assertFoundationApproval,foundationActionAllowed} from '../dist/src/lib/ai-foundation-approval.js';
 
 const request='أنشئ مسودة أمر شراء من طلب عرض السعر RFQ-2026-0001';
 function fixture(){
@@ -89,4 +91,27 @@ test('Only Controller can stage PO; missing exact RFQ fails closed and Advisor r
  assert.equal(missing.proposal,null);
  assert.equal(missing.plan.calls.length,0);
  assert.deepEqual(vault,before);
+});
+
+test('RFQ-to-PO approval envelope is signed for purchaser; sales, viewer and stale source cannot approve',()=>{
+ const {vault,rfq}=fixture(),args=prepareOperationalPoFromRfq(vault,rfq.number);
+ const proposal={capability:'tool.execute',tool:'procurement.createPoFromRfq',args,
+  label:'Review linked PO',rationale:'Exact source only'};
+ const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'po'};
+ vault.teamMembers[0].role='purchasing';
+ assert.equal(foundationActionAllowed(vault,proposal,scope),true);
+ const signed={...proposal,foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
+ assert.doesNotThrow(()=>assertFoundationApproval(vault,signed));
+ const changed={...vault,documents:[{...rfq,updatedAt:'2099-02-01T00:00:00.000Z'}]};
+ assert.throws(()=>assertFoundationApproval(changed,signed),/changed since review/);
+ vault.teamMembers[0].role='sales';
+ assert.equal(foundationActionAllowed(vault,proposal,scope),false);
+ vault.teamMembers[0].role='viewer';
+ assert.equal(foundationActionAllowed(vault,proposal,scope),false);
+});
+test('Operational PO save path explicitly requires a signed review envelope',async()=>{
+ const source=await readFile(new URL('../src/lib/ai-tool-actions.ts',import.meta.url),'utf8');
+ assert.match(source,/if\(!proposal\.foundationApproval\)throw new Error\('An explicit signed purchase-order approval/);
+ assert.match(source,/assertFoundationApproval\(vault,proposal\)/);
+ assert.match(source,/applyOperationalPoDraftApproval\(vault,review\)/);
 });
