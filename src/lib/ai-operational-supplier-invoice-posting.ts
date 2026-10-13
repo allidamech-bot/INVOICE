@@ -83,7 +83,7 @@ function inspect(vault:VaultPayload,request:AiMatchedBillPostingRequest){
     if(!/^[A-Z0-9_-]{1,80}$/.test(sku)||seen.has(sku))
       throw new Error('SKU mappings must be exact, valid and unique.');
     seen.add(sku);
-    const found=scoped.savedItems.filter(item=>item.sku.trim().toUpperCase()===sku&&!item.archived);
+    const found=scoped.savedItems.filter(item=>String(item.sku||'').trim().toUpperCase()===sku&&!item.archived);
     if(found.length!==1)throw new Error('SKU '+sku+' must identify exactly one active catalog item.');
     return found[0]!;
   });
@@ -150,7 +150,7 @@ export function applyAiMatchedBillPosting(vault:VaultPayload,review:AiMatchedBil
     latest.invoice.total!==review.invoiceTotal||
     latest.savedItemIds.length!==review.savedItemIds.length||
     latest.savedItemIds.some((id,i)=>id!==review.savedItemIds[i])||
-    latest.items.some((item,i)=>item.sku.toUpperCase()!==review.skus[i]?.toUpperCase()))
+    latest.items.some((item,i)=>String(item.sku||'').toUpperCase()!==review.skus[i]?.toUpperCase()))
     throw new Error('Supplier invoice, mappings or ledger changed. Review and approve again.');
   const result=postMatchedSupplierInvoice(vault,latest.postInput);
   if(result.posted){
