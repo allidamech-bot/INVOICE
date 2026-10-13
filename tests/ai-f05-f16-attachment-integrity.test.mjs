@@ -82,7 +82,7 @@ test('F05 routes full quote extraction before any model re-planning, with no app
  ]);
  assert.match(client,/quoteSourceWorkingDraft\(input\.context\.conversationSources,runtime,input\.message\)/);
  assert.match(client,/workingDraft,plan,results:\[\],plannedBy:'local'/);
- assert.match(reader,/completeSourceJson\(result,classification\.route==='product_list'/);
+ assert.match(reader,/completeSourceJson\(result,\(classification\.route==='product_list'\|\|classification\.route==='quote_request'\)/);
  assert.match(reader,/mustKeepStructuredExtraction\(error\)/);
  assert.match(reader,/SOURCE_INCOMPLETE/);
  assert.doesNotMatch(reader,/JSON\.stringify\(value\)\.slice/);
