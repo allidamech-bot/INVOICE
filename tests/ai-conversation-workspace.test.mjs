@@ -79,10 +79,11 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64')+'#'+crypto.randomUUID());
  const h={props:{screen:'home',language:'ar'},state:{assistantScope:'business',messages:[],proposal:null,busy:false,error:''},__lourexAssistantThreadId:'thread',__lourexAssistantWorkspaceKey:'default|main',setState(update,done){Object.assign(this.state,typeof update==='function'?update(this.state):update);done?.();}};
  await runtime.refreshIntelligenceWorkspace(h);stageKernelArtifact(h.__intelligenceKernel,p);h.state.proposal=p;
- await runtime.updateIntelligenceWorkspace(h,cmd(h.__intelligenceKernel,{kind:'cell',lineId:h.__intelligenceKernel.artifact.lineIds[2],field:'unitPrice',value:'26'}));assert.ok(h.state.proposal.foundationApproval);assert.equal(h.state.proposal.items[2].unitPrice,'26');assert.equal(h.state.review.blockers.length,0);
+ await runtime.updateIntelligenceWorkspace(h,cmd(h.__intelligenceKernel,{kind:'cell',lineId:h.__intelligenceKernel.artifact.lineIds[2],field:'unitPrice',value:'26'}));assert.equal(h.state.proposal,null,'editing cannot create a save approval');assert.equal(h.__intelligenceKernel.artifact.proposal.items[2].unitPrice,'26');assert.equal(h.state.review,null);
  assert.ok(records.get('assistant-state').cipher);assert.ok(!JSON.stringify(records.get('assistant-state')).includes('Item 3'));assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact.proposal.items[2].unitPrice,'26');
  const before=structuredClone(h.__intelligenceKernel),stale=cmd(h.__intelligenceKernel,{kind:'customer',entityId:'c2'});session.vault=structuredClone(v);session.vault.teamMembers[0].role='viewer';await runtime.updateIntelligenceWorkspace(h,stale);const after=structuredClone(h.__intelligenceKernel);assert.equal(after.diagnostics.length,before.diagnostics.length+1);assert.equal(after.diagnostics.at(-1).state,'failed');delete after.diagnostics;delete before.diagnostics;assert.deepEqual(after,before);assert.match(h.state.error,/role|changed/i);
  session.vault=v;
+ h.ask=async()=>{};h.approveProposal=async()=>{};h.__lourexLoadPromise=Promise.resolve();runtime.installIntelligenceRuntime(h);await h.ask('احفظها');assert.ok(h.state.proposal?.foundationApproval,'explicit save must create the review');
  const pending=h.__intelligenceKernel.missions.find(m=>m.steps.some(s=>s.status==='needs_approval'));
  assert.ok(pending);
  pending.steps.unshift({...pending.steps[0],id:'earlier-completed-step',approvalId:'earlier-completed-approval',status:'completed',resultRef:'existing-business-record'});
@@ -192,8 +193,9 @@ test('workspace presentation localizes known validation failures without alterin
 test('hydrating a restored incomplete draft recomputes review and blocks approval before side effects',async()=>{
  const {compiledReliabilityHarness}=await import('./helpers/ai-reliability-runtime.mjs');const {v}=fixture(),harness=await compiledReliabilityHarness(v),h=harness.host();
  await harness.runtime.refreshIntelligenceWorkspace(h);await harness.runtime.updateIntelligenceWorkspace(h,{kind:'composer',documentKind:'proforma',currency:'USD'});
- assert.ok(h.state.review.blockers.length);const id=h.__intelligenceKernel.artifact.id;
+ assert.equal(h.state.review,null);assert.equal(h.state.proposal,null);const id=h.__intelligenceKernel.artifact.id;
  h.__intelligenceKernel=undefined;h.state.proposal=null;h.state.review=null;
- await harness.runtime.refreshIntelligenceWorkspace(h);assert.equal(h.__intelligenceKernel.artifact.id,id);assert.ok(h.state.review.blockers.length);
- let writes=0;await harness.runtime.intelligenceApprove(h,h.state.proposal,async()=>{writes++;return{id:'should-not-write'};});assert.equal(writes,0);assert.equal(h.__foundationReceipts.length,0);assert.equal(v.documents.length,0);assert.ok(h.state.error);
+ await harness.runtime.refreshIntelligenceWorkspace(h);assert.equal(h.__intelligenceKernel.artifact.id,id);assert.equal(h.state.proposal,null);
+ harness.runtime.installIntelligenceRuntime(h);await h.ask('احفظها');
+ let writes=0;await harness.runtime.intelligenceApprove(h,h.state.proposal,async()=>{writes++;return{id:'should-not-write'};});assert.equal(writes,0);assert.equal(h.__foundationReceipts.length,0);assert.equal(v.documents.length,0);assert.equal(h.state.proposal,null);
 });
