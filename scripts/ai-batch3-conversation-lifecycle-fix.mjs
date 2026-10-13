@@ -86,7 +86,7 @@ source=source.replace(wrappedAsk,[
 ].join(''));
 const newUpload="validateConversationFiles(rows.map(row=>row.file));instance.setState({conversationAttachments:rows,error:''});";
 if(!source.includes(newUpload))throw new Error('Attachment selection cache invalidation target changed.');
-source=source.replace(newUpload,"validateConversationFiles(rows.map(row=>row.file));instance.__lourexLastConversationSources=[];instance.__lourexLastConversationFiles=[];instance.__lourexLastConversationSourceScope='';__lourexSetConversationSources([]);instance.setState({conversationAttachments:rows,error:''});");
+source=source.replace(newUpload,"validateConversationFiles(rows.map(row=>row.file));if(rows.length>existing.length){instance.__lourexLastConversationSources=[];instance.__lourexLastConversationFiles=[];instance.__lourexLastConversationSourceScope='';if(typeof __lourexSetConversationSources==='function')__lourexSetConversationSources([]);}instance.setState({conversationAttachments:rows,error:''});");
 
 const retained="instance.__lourexLastConversationSources=__lourexGetConversationSources().slice();";
 if(!source.includes(retained))throw new Error('Previous extracted evidence owner changed.');
