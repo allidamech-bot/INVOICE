@@ -20,6 +20,7 @@ import {applyWorkingDraftPlan} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
 import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
+import {requestedPartyHighlight,prepareSelectedPartyHighlight} from './ai-party-highlights.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
@@ -645,6 +646,24 @@ export function installIntelligenceRuntime(host:Host):void{
               {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
                 ?'عرضت '+selected.items.length+' سجلاً من بيانات الشركة الحالية. يمكنك البحث والتحديد هنا دون تعديل أو حفظ أي سجل.'
                 :'Displayed '+selected.items.length+' records from this company. Search or select here; no business record was changed.'}]}));
+          await flush(host);await persistKernel(host);return;
+        }
+        const mark=requestedPartyHighlight(message);
+        if(mark==='red'){
+          if(kernel.artifact)throw new Error('Finish or dismiss the current unsaved document before preparing a separate master-record change.');
+          if(host.state.proposal)throw new Error('Finish or decline the previous approval before reviewing red marks.');
+          const batch=prepareSelectedPartyHighlight(kernel,resumed.vault);
+          if(!graphKindAllowed(strictAiActor(resumed.vault).role,batch.party))
+            throw new Error('The current role cannot mark those master records.');
+          const p:any={capability:'tool.execute',tool:batch.party+'.bulkHighlight',args:batch,
+            preview:batch.preview,label:'Mark '+batch.rows.length+' selected '+batch.party+' records red',
+            rationale:'Review the exact selected record IDs and before/after marks. No records were changed; separate signed approval required.'};
+          stampProposal(host,p,resumed.vault);stageReviewedMission(kernel,p);
+          host.setState((state:any)=>({input:'',error:'',proposal:p,review:null,__workspaceReviewedProposal:null,
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                ?'جهزت معاينة العلامة الحمراء لـ '+batch.rows.length+' سجل محدد. لم أحفظ أي تغيير. راجع الأسماء والمعرفات ثم وافق بصورة مستقلة.'
+                :'Prepared a red-mark preview for '+batch.rows.length+' exact records. Nothing saved; review IDs and explicitly approve.'}]}));
           await flush(host);await persistKernel(host);return;
         }
         const selectedPricePercent=requestedSelectedProductRepricing(message);
