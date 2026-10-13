@@ -18,6 +18,7 @@ import { applyWorkspaceCommand, workspaceDrafting, workspaceDocument, type Works
 import {requestAiJson} from './ai-request.js';
 import {applyWorkingDraftPlan} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
+import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
@@ -616,6 +617,33 @@ export function installIntelligenceRuntime(host:Host):void{
               ?'حضّرت تعديل السطر المحدد من الفاتورة المحفوظة داخل مسودة عمل فقط. لم أحفظ أو أصدر شيئًا. راجع الفرق، ثم اطلب الحفظ للموافقة المنفصلة.'
               :'Prepared an unsaved working revision of the exact saved document line. Nothing was saved or issued. Review the difference; saving requires a separate approval.'}]}));
         await flush(host);await persistKernel(host);return;
+      }
+      // Scoped in-chat listings and selection are read-only kernel operations.
+      // Never navigate to another section or write master data for "show all".
+      if(currentConversationMode(host)==='controller'&&!kernel.artifact){
+        const listKind=requestedRecordList(message);
+        if(listKind){
+          if(!graphKindAllowed(strictAiActor(resumed.vault).role,listKind))
+            throw new Error('This role cannot list those business records.');
+          const selected=stageScopedRecordList(kernel,resumed.vault,listKind);
+          host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                ?'عرضت '+selected.items.length+' سجلاً من بيانات الشركة الحالية. يمكنك البحث والتحديد هنا دون تعديل أو حفظ أي سجل.'
+                :'Displayed '+selected.items.length+' records from this company. Search or select here; no business record was changed.'}]}));
+          await flush(host);await persistKernel(host);return;
+        }
+        if(kernel.selection){
+          const updated=exactNamedRecordSelection(kernel,resumed.vault,message);
+          if(updated){
+            host.setState((state:any)=>({input:'',error:'',
+              messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+                {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                  ?'تم تحديد '+(updated.selectedIds||[]).length+' سجل بدقة. لم يتم تعديل أو حفظ أي بيانات.'
+                  :'Selected '+(updated.selectedIds||[]).length+' exact records. No business data was edited or saved.'}]}));
+            await flush(host);await persistKernel(host);return;
+          }
+        }
       }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
