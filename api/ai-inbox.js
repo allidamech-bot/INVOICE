@@ -1,4 +1,5 @@
 import {cleanVisionPageAttachments} from './_ai/source-page-images.js';
+import {planWorkingDraft} from './_ai/draft-plan.js';
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
@@ -73,6 +74,7 @@ export default async function handler(request,response){
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'AI Inbox is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid AI request.'});return;}
   if(body?.mode==='tool-plan'){await handleToolPlan(body,response);return;}
+  if(body?.mode==='working-draft-plan'){const result=await planWorkingDraft(body);sendJson(response,result.status,result.body);return;}
   const kind=body?.kind==='text'?'text':body?.kind==='file'?'file':body?.kind==='pages'?'pages':'';const mimeType=cleanText(body?.mimeType,100);const fileName=cleanText(body?.fileName,180)||'Pasted text';const text=kind==='text'?String(body?.text||'').slice(0,120000):'';const data=kind==='file'?String(body?.data||''):'';
   const pageAttachments=cleanVisionPageAttachments(body);
   if(!kind||(kind==='text'&&!text.trim())||(kind==='file'&&(!data||data.length>3_600_000||!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)))||(kind==='pages'&&!pageAttachments)){sendJson(response,400,{code:'INVALID_SOURCE',message:'Use PDF, image, spreadsheet text, CSV or pasted text.'});return;}

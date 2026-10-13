@@ -85,8 +85,8 @@ test('F03 Controller source intercepts exact edits before model and prepares sav
  assert.match(flow,/host\.__intelligenceKernel=next/);
  assert.match(flow,/proposal:null,review:null/);
  assert.doesNotMatch(flow,/mutateVaultSafely|saveDocument\(|postInvoice\(/);
- const confirmAt=flow.indexOf('if(draftOnly&&saveWorkingDraft)'),editAt=flow.indexOf('if((draftOnly||isReviewedDraft)&&exactDraftFollowup)');
- assert.ok(confirmAt<editAt,'explicit save goes through approval preparation; edit is no-save');
+ const confirmAt=flow.indexOf('if(draftOnly&&saveWorkingDraft)'),editAt=flow.indexOf('draftRevision: if((draftOnly||isReviewedDraft)');
+ assert.ok(confirmAt>=0&&editAt>confirmAt,'explicit save goes through approval preparation; edit is no-save');
  const askAt=source.indexOf('await ask(raw);');
  assert.ok(end<askAt,'follow-up is handled before generic AI planner');
 });

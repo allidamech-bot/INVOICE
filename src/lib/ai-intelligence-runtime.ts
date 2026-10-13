@@ -14,7 +14,9 @@ import { prepareAssistantContext } from './ai-assistant-foundation.js';
 import { scopeVault } from './workspaces.js';
 import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-tool-client.js';
 import type { VaultPayload } from '../types.js';
-import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
+import { applyWorkspaceCommand, workspaceDrafting, workspaceDocument, type WorkspaceCommand } from './ai-workspace-model.js';
+import {requestAiJson} from './ai-request.js';
+import {applyWorkingDraftPlan} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
@@ -228,6 +230,9 @@ export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state
   const session=await resumeVaultSession();
   if(!session||kernelScopeKey(scopeFor(host,session.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Reopen the action.');
   const next=structuredClone(kernel),steps=proposal.capability==='tool.plan'?proposal.steps:[proposal];
+  const declinedDraft=next.artifact&&['document.createDraft','document.updateDraft'].includes(next.artifact.proposal.capability)&&
+    steps?.some((row:any)=>row?.foundationApproval?.id&&(next.artifact?.proposal as any)?.foundationApproval?.id===row.foundationApproval.id)
+    ?structuredClone(next.artifact):null;
   const cancelled=new Set<unknown>(),ids=new Set(next.cancelledApprovals||[]);
   for(const row of steps||[]){
     const id=row?.foundationApproval?.id;
@@ -239,6 +244,12 @@ export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state
   reconcileCancelledApprovals(next);
   // Do not remove an unrelated working document when declining a different action.
   if(next.artifact&&steps?.some((row:any)=>row?.foundationApproval?.id&&(next.artifact?.proposal as any)?.foundationApproval?.id===row.foundationApproval.id))next.artifact=undefined;
+  // Declining permission to SAVE does not discard the user's working document.
+  // Strip all approval envelopes, including undo snapshots, before retaining it.
+  if(declinedDraft){
+    for(const draft of [declinedDraft.proposal,...declinedDraft.undo,...declinedDraft.redo])delete (draft as any).foundationApproval;
+    declinedDraft.revision++;next.artifact=declinedDraft;
+  }
   host.__intelligenceKernel=next;
   try{
     // A declined decision is complete only AFTER the tombstone is durable.
@@ -380,8 +391,8 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
       stageKernelArtifact(kernel,result.workingDraft);
       host.__foundationPreviewStaged={scope:kernelScopeKey(kernel.scope),artifactId:kernel.artifact!.id,revision:kernel.artifact!.revision};
       host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,
-        __workspaceSavedId:'',__workspaceEditing:false,__workspaceOpen:true,
-        __workspacePane:'workspace',__workspaceTab:'preview'});
+        __workspaceSavedId:'',__workspaceEditing:false,__workspaceOpen:false,
+        __workspacePane:'chat',__workspaceTab:'preview'});
     }
     const search=result.results.find(row=>row.ok&&row.tool==='search.records');
     if(search&&Array.isArray(search.data)&&!result.proposal){
@@ -556,7 +567,7 @@ export function installIntelligenceRuntime(host:Host):void{
         stageKernelArtifact(kernel,savedLineEdit);
         host.__foundationVault=fresh.vault;
         host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,
-          __workspaceReviewedProposal:null,__workspaceOpen:true,__workspacePane:'workspace',
+          __workspaceReviewedProposal:null,__workspaceOpen:false,__workspacePane:'chat',
           __workspaceTab:'preview',__workspaceSavedId:'',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
@@ -566,7 +577,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
-        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعملي|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
+        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
@@ -574,7 +585,7 @@ export function installIntelligenceRuntime(host:Host):void{
         prepareAiPdfPreview(kernel,fresh.vault,requestLanguage,previewId||'');
         host.__foundationVault=fresh.vault;
         const identity=turnScope+'|'+(previewId||'')+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
-        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',
           __workspaceSavedId:previewId||'',__workspacePdfAutoStart:identity,
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
@@ -587,7 +598,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||savedDocumentPreviewId(kernel,fresh.vault,message)!==previewId)throw new Error('Document scope changed. Ask for the preview again.');
         host.__foundationVault=fresh.vault;
-        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
+        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
         await flush(host);await persistKernel(host);return;
       }
       const commercialCommand=currentConversationMode(host)==='controller'?commercialDraftCommand(kernel,resumed.vault,message):null;
@@ -598,7 +609,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const p=next.artifact!.proposal as any;delete p.foundationApproval;
         if(previousApproval?.id)retireWorkingApproval(next,previousApproval.id);
         host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:null,review:null,__workspaceReviewedProposal:null,error:'',
-          __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
+          __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:'',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
               ?'عدّلت مسودة العمل فقط، ولم أحفظ أو أصدر أي مستند. راجع الفروق ثم اطلب الحفظ إذا أردت.'
@@ -616,7 +627,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const drafting=workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:'');
         const review=reviewAiDocumentProposal(p,drafting,requestLanguage==='ar'?'ar':'en');
         if(review.blockers.length){
-          host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+          host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',
             messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
               {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
                 ?'المسودة غير مكتملة. راجع الحقول الناقصة في المعاينة أولاً. لم أحفظ شيئاً.'
@@ -629,7 +640,7 @@ export function installIntelligenceRuntime(host:Host):void{
         // with the document; only this verified envelope may resume after reload.
         kernel.artifact!.proposal=p;
         host.setState((state:any)=>({input:'',error:'',proposal:p,review,__workspaceReviewedProposal:null,
-          __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+          __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
               ?'جهزت طلب حفظ المسودة للمراجعة فقط. لم يُحفظ أي مستند. راجع التفاصيل ثم اضغط زر الموافقة بنفسك.'
@@ -644,20 +655,43 @@ export function installIntelligenceRuntime(host:Host):void{
         ['document.createDraft','document.updateDraft'].includes(visible.capability)&&
         visible.capability===kernel.artifact.proposal.capability&&
         (visible.capability!=='document.updateDraft'||visible.documentId===(kernel.artifact.proposal as any).documentId));
-      if((draftOnly||isReviewedDraft)&&exactDraftFollowup){
+      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy){
+        if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
         if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
-        const next=structuredClone(kernel);
+        let next=structuredClone(kernel);
         const original=next.artifact!.proposal;
         const drafting=workspaceDrafting(resumed.vault,original.capability==='document.updateDraft'?original.documentId:'');
-        const result=reviseKernelDraft(next,original,message,drafting,requestLanguage);
+        let result=reviseKernelDraft(next,original,message,drafting,requestLanguage);
+        if(!result?.changed){
+          const controller=new AbortController();host.requestController=controller;
+          host.setState({busy:true,error:''});await flush(host);
+          try{
+            const response=await requestAiJson('/api/ai-inbox',{mode:'working-draft-plan',conversationMode:'controller',
+              scope:'business',message,draft:workspaceDocument(kernel,resumed.vault,requestLanguage),customers:drafting.customers.map(row=>({id:row.id,name:row.name}))},controller.signal,15000);
+            const fresh=await resumeVaultSession();
+            if(controller.signal.aborted||!fresh||currentConversationMode(host)!=='controller'||host.__intelligenceKernel!==kernel||
+              kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||
+              response.plan?.artifactId!==kernel.artifact?.id||response.plan?.revision!==kernel.artifact?.revision)
+              throw new Error('The working document or account changed during planning. Nothing was modified.');
+            if(response.plan.action==='unrelated'&&!exactDraftFollowup)break draftRevision;
+            if(response.plan.action==='edit'){
+              next=applyWorkingDraftPlan(kernel,fresh.vault,response.plan,message);
+              result={proposal:next.artifact!.proposal,changed:next!==kernel,message:requestLanguage==='ar'
+                ?'عدّلت السطور المطلوبة في مسودة العمل وأعدت حساب الإجمالي. لم أحفظ أي سجل.'
+                :'Updated the requested working-draft lines and recalculated the subtotal. No record was saved.'};
+              host.__foundationVault=fresh.vault;
+            }else result={proposal:original,changed:false,message:String(response.plan.question||
+              (requestLanguage==='ar'?'حدّد السطر والقيمة المطلوبة؛ لم أغيّر المسودة.':'Specify the line and replacement value; the draft is unchanged.')).slice(0,1000)};
+          }finally{if(host.requestController===controller)host.requestController=null;host.setState({busy:false});await flush(host);}
+        }
         if(result?.changed){
           const revised=next.artifact!.proposal as any;
           delete revised.foundationApproval;
           if(previousId)retireWorkingApproval(next,previousId);
           host.__intelligenceKernel=next;
           host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,__workspaceReviewedProposal:null,
-            __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
+            __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:'',
             messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
               {id:crypto.randomUUID(),role:'assistant',text:result.message+
                 (requestLanguage==='ar'?' يمكنك المتابعة بالتعديل أو طلب PDF دون حفظ.':' You can continue revising or request PDF without saving.') }]}));

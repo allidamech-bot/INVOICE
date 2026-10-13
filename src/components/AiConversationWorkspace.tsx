@@ -235,6 +235,7 @@ function InlineGeneralProposal({host,proposalNode,ar}:{host:Host;proposalNode:an
 }
 function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:boolean}):any {
   const dismissal=useInlineDecline(host,host.state.proposal);
+  const [expanded,setExpanded]=React.useState(false);
   if(!approval||!host.state.proposal)return null;
   const reviewed=host.state.__workspaceReviewedProposal===host.state.proposal;
   const actions=react.Children.toArray(approval.props?.children).find((child:any)=>
@@ -249,18 +250,23 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
       <small>{label(ar,'No changes are saved by previewing.','المعاينة لا تحفظ أي تغيير.')}</small>
     </div>
     <div className="lxw-inline-approval-row">
-      <button type="button" className="lxw-inline-preview-button" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',__workspaceEditing:false})}>
+      <button type="button" className="lxw-inline-preview-button" disabled={disabled(host)} aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>
         {label(ar,'Review details','عرض التفاصيل')}
       </button>
       {originalButtons.length?<div className="lxw-inline-approval-buttons" role="group" aria-label={label(ar,'Approval decision','قرار الاعتماد')}>{decline}{reviewed&&confirm?confirm:null}</div>:null}
     </div>
+    {expanded?<div className="lxw-inline-general-detail">
+      <QuotePreviewSummary doc={workspaceDocument(host.__intelligenceKernel,host.__foundationVault,ar?'ar':'en')!} ar={ar}/>
+      <button type="button" disabled={disabled(host)||Boolean(host.state.review?.blockers.length)} onClick={()=>{host.setState({__workspaceReviewedProposal:host.state.proposal});setExpanded(false);}}>{label(ar,'I reviewed this draft','اطلعت على المسودة')}</button>
+    </div>:null}
     {reviewed&&!originalButtons.length?<p role="status" className="lxw-review-unknown">{label(ar,'Approval controls could not load. No action was executed.','تعذر تحميل أزرار الاعتماد. لم يُنفّذ أي إجراء.')}</p>:null}
   </section>;
 }
-function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
+function ConversationDocumentCard({host}:{host:Host}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
-  let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
+  let doc:WorkspaceDocument|null=null;
+  try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||'');}catch{}
   const pdfStage=react.useRef(null as HTMLDivElement|null);
   const [PdfRenderer,setPdfRenderer]=React.useState(null as any);
   const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string}|null);
@@ -312,6 +318,42 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
     },0);
     return()=>{cancelled=true;window.clearTimeout(timer);};
   },[pdfSource]);
+
+  if(!doc)return null;
+  return <section className="lxw-chat-document" aria-label={label(ar,'Conversation document','مستند المحادثة')} data-artifact-id={doc.id} data-artifact-revision={doc.revision}>
+    <header><strong>{workspaceText(ar,doc.title)}</strong><span>{doc.status==='saved'?label(ar,'Saved','محفوظ'):label(ar,'Unsaved draft','مسودة غير محفوظة')}</span></header>
+    <p>{doc.customer} · {doc.rows.length} {label(ar,'items','صنف')} · <bdi>{doc.subtotal??'—'} {doc.currency}</bdi></p>
+    <details><summary>{label(ar,'Preview all lines','معاينة جميع السطور')}</summary><QuotePreviewSummary doc={doc} ar={ar}/></details>
+    {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label>{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
+    <div className="lxw-chat-document-controls">
+      <button type="button" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'edit',__workspaceEditing:true})}>{label(ar,'Edit','تعديل')}</button>
+      {doc.status==='draft'?<>
+        <button type="button" disabled={disabled(host)||!kernel.artifact?.undo.length} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Undo','تراجع')}</button>
+        <button type="button" disabled={disabled(host)||!kernel.artifact?.redo.length} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Redo','إعادة')}</button>
+        <button type="button" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{label(ar,'Review save','مراجعة الحفظ')}</button>
+      </>:null}
+    </div>
+        <section className="lxw-ai-pdf-actions" aria-label={label(ar,'Real PDF document','مستند PDF فعلي')}>
+          <button type="button" disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
+            onClick={createPdf}>{pdfBusy?label(ar,'Generating A4 PDF…','جارٍ إنشاء PDF بحجم A4…'):label(ar,'Generate PDF · no save','إنشاء PDF · دون حفظ')}</button>
+          <p>{label(ar,'This is a real LOUREX template PDF preview. Generating it does not save or issue the document.','هذه معاينة PDF فعلية من قالب LOUREX. إنشاء الملف لا يحفظ المستند ولا يصدره.')}</p>
+          {pdfError?<p role="alert">{workspaceError(ar,pdfError)}</p>:null}
+          {pdfResult?<div className="lxw-ai-pdf-result">
+            <a href={pdfResult.url} target="_blank" rel="noopener noreferrer">{label(ar,'Open actual PDF','فتح ملف PDF الفعلي')}</a>
+            <a href={pdfResult.url} download={pdfResult.name}>{label(ar,'Download PDF','تحميل PDF')}</a>
+            <span>{Math.ceil(pdfResult.bytes/1024)} KB</span>
+            <iframe title={label(ar,'LOUREX PDF file preview','معاينة ملف PDF من LOUREX')} src={pdfResult.url}
+              style={{width:'100%',height:440,maxWidth:'100%',border:'1px solid #555',borderRadius:8,background:'#fff'}}/>
+          </div>:null}
+        </section>
+{pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
+    aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
+    {PdfRenderer?<PdfRenderer document={pdfSource.document} scale={1}/>:null}
+  </div>:null}</section>;
+}
+function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
+  const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
+  let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
   const tab=host.state.__workspaceTab||'preview',editable=Boolean(host.state.__workspaceEditing&&doc?.status==='draft');
   const choose=(value:string)=>host.setState({__workspaceTab:value});
   const viewGroups=[
@@ -336,19 +378,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
     {(tab==='preview'||tab==='edit')&&doc?<section data-workspace-component="QuotePreview">
       {tab==='preview'?<>
         <QuotePreviewSummary doc={doc} ar={ar}/>
-        {normalizeAiConversationMode(kernel.mode)==='controller'?<section className="lxw-ai-pdf-actions" aria-label={label(ar,'Real PDF document','مستند PDF فعلي')}>
-          <button type="button" disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
-            onClick={createPdf}>{pdfBusy?label(ar,'Generating A4 PDF…','جارٍ إنشاء PDF بحجم A4…'):label(ar,'Generate PDF · no save','إنشاء PDF · دون حفظ')}</button>
-          <p>{label(ar,'This is a real LOUREX template PDF preview. Generating it does not save or issue the document.','هذه معاينة PDF فعلية من قالب LOUREX. إنشاء الملف لا يحفظ المستند ولا يصدره.')}</p>
-          {pdfError?<p role="alert">{workspaceError(ar,pdfError)}</p>:null}
-          {pdfResult?<div className="lxw-ai-pdf-result">
-            <a href={pdfResult.url} target="_blank" rel="noopener noreferrer">{label(ar,'Open actual PDF','فتح ملف PDF الفعلي')}</a>
-            <a href={pdfResult.url} download={pdfResult.name}>{label(ar,'Download PDF','تحميل PDF')}</a>
-            <span>{Math.ceil(pdfResult.bytes/1024)} KB</span>
-            <iframe title={label(ar,'LOUREX PDF file preview','معاينة ملف PDF من LOUREX')} src={pdfResult.url}
-              style={{width:'100%',height:440,maxWidth:'100%',border:'1px solid #555',borderRadius:8,background:'#fff'}}/>
-          </div>:null}
-        </section>:null}
+        <p>{label(ar,'The document PDF is available in the conversation card.','ملف PDF متاح في بطاقة المستند داخل المحادثة.')}</p>
       </>:<>
         <p><strong>{doc.customer||label(ar,'Select a customer','حدد العميل')}</strong> · <b dir="ltr">{doc.currency}</b></p>
         {doc.status==='draft'?<div className="lxw-revision-controls"><span>{label(ar,'Revision','التعديل')} {doc.revision}</span><button type="button" disabled={!kernel.artifact?.undo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Undo','تراجع')}</button><button type="button" disabled={!kernel.artifact?.redo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Redo','إعادة')}</button><button type="button" aria-pressed={editable} disabled={disabled(host)} onClick={()=>host.setState({__workspaceEditing:!editable})}>{label(ar,editable?'Finish editing':'Edit draft cells',editable?'إنهاء التعديل':'تعديل خانات المسودة')}</button></div>:null}
@@ -375,10 +405,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
       <button type="button" className="lxw-review-complete" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>host.setState({__workspaceReviewedProposal:host.state.proposal,__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview'})}>{label(ar,'I reviewed the details','اطلعت على التفاصيل')}</button>
       {doc.blockers.length?<p role="status" className="lxw-review-unknown">{label(ar,'Resolve the listed issues before approval.','يجب معالجة الملاحظات المعروضة قبل الاعتماد.')}</p>:null}
     </section>:null}
-  </div>{pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
-    aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
-    {PdfRenderer?<PdfRenderer document={pdfSource.document} scale={1}/>:null}
-  </div>:null}</aside>;
+  </div></aside>;
 }
 function workspaceVisible(host:Host):boolean {
   const k=host.__intelligenceKernel as ConversationKernel|undefined,v=host.__foundationVault;if(!k||!v||k.scope.scope==='personal'||host.__workspaceObservedProps!==host.props)return false;
@@ -526,6 +553,9 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         return react.cloneElement(child,undefined,...text);
       });
       return react.cloneElement(node,undefined,...branded);
+    }
+    if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
+      return react.cloneElement(node,undefined,...children,<ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>);
     }
     if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
       // Retain the historic document number but never expose route-changing buttons.

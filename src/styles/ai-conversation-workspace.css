@@ -729,3 +729,12 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history :is(.lxw-history-delete,.lxw-history-delete-confirm button):focus-visible{
   outline:2px solid var(--lxw-text);outline-offset:2px;
 }
+
+/* The working document and its actual PDF share the conversation scroll. */
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document{border:1px solid #343434;border-radius:14px;padding:12px;margin:12px 0;background:#161616;color:#fff;min-width:0;overflow-wrap:anywhere;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document :is(button,a,summary){min-height:44px;display:inline-flex;align-items:center;padding:8px 10px;border:1px solid #444;border-radius:8px;background:#222;color:#fff;font:inherit;cursor:pointer;text-decoration:none;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document :is(button,a,summary):focus-visible{outline:2px solid white;outline-offset:2px;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document button:disabled{opacity:.45;cursor:default;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document-controls{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document details{max-width:100%;overflow:auto;}
