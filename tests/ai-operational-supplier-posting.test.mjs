@@ -9,6 +9,7 @@ import {confirmGoodsReceipt} from '../dist/src/lib/goods-receipt-flow.js';
 import {matchSupplierInvoice} from '../dist/src/lib/supplier-invoice-flow.js';
 import {assertMatchedSupplierInvoicePostingIntegrity} from '../dist/src/lib/supplier-invoice-posting.js';
 import {purchasePayableSummary} from '../dist/src/lib/payables.js';
+import {prepareAiSupplierSettlement,applyAiSupplierSettlement} from '../dist/src/lib/ai-operational-supplier-settlement.js';
 import {defaultWarehouseId,warehouseItemQuantity} from '../dist/src/lib/warehouses.js';
 import {todayIso} from '../dist/src/lib/id.js';
 import {decideApprovalRequest} from '../dist/src/lib/governance.js';
@@ -153,4 +154,31 @@ test('Only owner/admin can sign exact vendor bill posting, not finance/purchasin
  const actions=await readFile(new URL('../src/lib/ai-tool-actions.ts',import.meta.url),'utf8');
  assert.match(actions,/Independent signed owner\/admin approval is required/);
  assert.match(actions,/applyAiSupplierPosting\(vault,review\)/);
+});
+
+test('End-to-end RFQ → accepted quote → issued PO → GRN → matched bill → posted payable → two supplier payments closes exactly once',()=>{
+ const f=fixture();
+ const posting=prepareAiSupplierPosting(f.vault,parseAiSupplierPosting(command(f)));
+ const posted=applyAiSupplierPosting(f.vault,posting).vault;
+ const purchase=posted.purchases[0];
+ assert.ok(purchase?.sourceSupplierInvoiceEventId);
+ assert.equal(purchasePayableSummary(purchase,posted.supplierPayments).remaining,'125.60');
+ const first={purchaseNumber:purchase.number,amount:'25.60',currency:'USD',
+  date:todayIso(),method:'bank-transfer',reference:'BANK-SETTLE-001'};
+ const reviewedOne=prepareAiSupplierSettlement(posted,first);
+ const afterOne=applyAiSupplierSettlement(posted,reviewedOne).vault;
+ assert.equal(purchasePayableSummary(purchase,afterOne.supplierPayments).remaining,'100.00');
+ const second={...first,amount:'100.00',reference:'BANK-SETTLE-002'};
+ const reviewedTwo=prepareAiSupplierSettlement(afterOne,second);
+ const fullyPaid=applyAiSupplierSettlement(afterOne,reviewedTwo).vault;
+ assert.equal(purchasePayableSummary(purchase,fullyPaid.supplierPayments).remaining,'0.00');
+ assert.equal(fullyPaid.supplierPayments.length,2);
+ assert.deepEqual(fullyPaid.inventoryMovements,posted.inventoryMovements);
+ assert.deepEqual(fullyPaid.documents,posted.documents);
+ assert.deepEqual(fullyPaid.documentEvents,posted.documentEvents);
+ assert.deepEqual(fullyPaid.purchases,posted.purchases);
+ assert.throws(()=>applyAiSupplierSettlement(fullyPaid,reviewedTwo));
+ assert.throws(()=>applyAiSupplierPosting(fullyPaid,posting));
+ assert.throws(()=>prepareAiSupplierSettlement(fullyPaid,{...first,reference:'BANK-SETTLE-003'}),/already fully paid/);
+ assert.doesNotThrow(()=>assertMatchedSupplierInvoicePostingIntegrity(fullyPaid));
 });
