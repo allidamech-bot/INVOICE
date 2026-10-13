@@ -16,6 +16,7 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
+import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
 import { conversationModePermitsCapability, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
@@ -144,7 +145,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
     if(host.state.proposal||host.state.review){host.setState({proposal:null,review:null});await flush(host);}
   }else{
     if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
-    if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;const review=reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');host.setState({proposal,review});await flush(host);}
+    if(host.__intelligenceKernel.artifact){const proposal=resumableWorkingApproval(host.__intelligenceKernel,vault);const review=proposal?reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en'):null;host.setState({proposal,review});await flush(host);}
   }
 }
 /** Refresh when opening/switching workspace, not only when sending a model request. */
@@ -202,14 +203,16 @@ async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Prom
     // Reject stale reviewed business state before changing an existing proposal.
     if(changesDraft&&kernel.artifact?.proposal&&(kernel.artifact.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact.proposal);
     const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,command);
-    let review;
     if(changesDraft&&next.artifact){
-      const p=next.artifact.proposal as any;delete p.foundationApproval;stampProposal(host,p,resumed.vault);
-      review=reviewAiDocumentProposal(p,workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:''),host.props.language==='ar'?'ar':'en');
+      const previous=(kernel.artifact?.proposal as any)?.foundationApproval;
+      const p=next.artifact.proposal as any;
+      delete p.foundationApproval;
+      if(previous?.id)retireWorkingApproval(next,previous.id);
     }
-    if(changesDraft&&next.artifact)stageReviewedMission(next,next.artifact.proposal);
+    // Editing the working artifact is not a save approval. Explicitly ask
+    // "احفظها" to prepare a fresh review; all original line IDs survive here.
     host.__intelligenceKernel=next;host.__foundationVault=resumed.vault;
-    if(changesDraft&&next.artifact)host.setState({proposal:next.artifact.proposal,review,error:''});
+    if(changesDraft&&next.artifact)host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,error:''});
     if(command.kind==='cancel-mission'){const p=host.state.proposal,steps=p?.capability==='tool.plan'?p.steps:[p];if(steps?.some((s:any)=>missionStep(next.missions||[],s)?.mission.id===command.missionId))host.setState({proposal:null,review:null});}
     host.setState({error:''});await flush(host);await persistKernel(host);
   }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
@@ -334,7 +337,12 @@ export function intelligenceReviseDraft(host:Host,proposal:any,message:string,dr
   const revised=reviseKernelDraft(kernel,proposal,message,drafting,resolveAiConversationReplyLanguage(currentAiExperiencePreferences(host).replyLanguage,message,language));
   // Undo may restore a snapshot with a cancelled review envelope. Every actual
   // revision needs a new identity, even when its prices equal an earlier draft.
-  if(revised?.changed){delete (revised.proposal as any).foundationApproval;if(kernel.artifact)delete (kernel.artifact.proposal as any).foundationApproval;}
+  if(revised?.changed){
+    const oldId=String(proposal?.foundationApproval?.id||'');
+    delete (revised.proposal as any).foundationApproval;
+    if(kernel.artifact)delete (kernel.artifact.proposal as any).foundationApproval;
+    if(oldId)retireWorkingApproval(kernel,oldId);
+  }
   return revised;
 }
 export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_approval'|'failed'|'blocked'; toolId:string; data:unknown; evidenceRefs:string[]; }
@@ -513,6 +521,16 @@ export function installIntelligenceRuntime(host:Host):void{
       if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
       await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
       strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel;turnScope=kernelScopeKey(kernel.scope);kernel.turn++;
+      if(currentConversationMode(host)==='controller'&&kernel.artifact){
+        const approved=resumableWorkingApproval(kernel,resumed.vault);
+        const shown=host.state.proposal;
+        if(approved&&shown?.foundationApproval?.id!==approved.foundationApproval?.id){
+          host.setState({proposal:approved,review:reviewAiDocumentProposal(approved,workspaceDrafting(resumed.vault,approved.capability==='document.updateDraft'?approved.documentId:''),host.props.language==='ar'?'ar':'en')});
+          await flush(host);
+        }else if(!approved&&shown&&['document.createDraft','document.updateDraft'].includes(shown.capability)){
+          host.setState({proposal:null,review:null,__workspaceReviewedProposal:null});await flush(host);
+        }
+      }
       if(currentConversationMode(host)==='controller'&&!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
       if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
@@ -544,18 +562,24 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       const commercialCommand=currentConversationMode(host)==='controller'?commercialDraftCommand(kernel,resumed.vault,message):null;
       if(commercialCommand){
-        if((kernel.artifact!.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
+        const previousApproval=(kernel.artifact!.proposal as any).foundationApproval;
+        if(previousApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
         const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,commercialCommand);
-        const p=next.artifact!.proposal as any;delete p.foundationApproval;stampProposal(host,p,resumed.vault);stageReviewedMission(next,p);
-        const review=reviewAiDocumentProposal(p,workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:''),host.props.language==='ar'?'ar':'en');
-        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:p,review,error:'',__workspaceSavedId:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'عدّلت المسودة فقط. راجع الفروق والشروط قبل الحفظ.':'Draft revised only. Review its diff and terms before saving.'}]}));await flush(host);await persistKernel(host);return;
+        const p=next.artifact!.proposal as any;delete p.foundationApproval;
+        if(previousApproval?.id)retireWorkingApproval(next,previousApproval.id);
+        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:null,review:null,__workspaceReviewedProposal:null,error:'',
+          __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
+          messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+            {id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'
+              ?'عدّلت مسودة العمل فقط، ولم أحفظ أو أصدر أي مستند. راجع الفروق ثم اطلب الحفظ إذا أردت.'
+              :'Working draft revised only; nothing was saved or issued. Review the changes, then explicitly request saving.'}]}));await flush(host);await persistKernel(host);return;
       }
 
       // A prepare-only preview has no actionable proposal. Interpret exact
       // editing follow-ups against the full scoped kernel draft BEFORE asking a
       // general model, which could otherwise omit old lines or trade terms.
       const draftOnly= currentConversationMode(host)==='controller'&&Boolean(kernel.artifact)&&!host.state.proposal;
-      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?)[.!؟\s]*$/iu.test(message);
+      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|احفظ العرض|اعتمد النسخة|اعتمد المسودة|اعتمد عرض السعر|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?|approve (?:the|this) draft)[.!؟\s]*$/iu.test(message);
       if(draftOnly&&saveWorkingDraft){
         const p=structuredClone(kernel.artifact!.proposal) as any;
         delete p.foundationApproval;
