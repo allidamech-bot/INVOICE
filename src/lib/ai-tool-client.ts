@@ -168,8 +168,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   // In particular, 'حلل الملف' must not create an Approve/Reject business action.
   // Verified rows are summarized locally without allowing file instructions to
   // invoke model-planned mutations; explicit registration is handled below.
-  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&
-     sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
     return{answer:summarizeReadOnlyProductSources(input.context.conversationSources,input.language),
       proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
