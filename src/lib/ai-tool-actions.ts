@@ -29,7 +29,7 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
       assertFoundationApproval(vault,proposal);
       return applyOperationalPoDraftApproval(vault,review).vault;
     });
-    const order=saved.documents.find(row=>row.kind==='purchase-order'&&
+    const order=saved.documents.find(row=>row.kind==='purchase-order'&&row.lifecycleStatus!=='voided'&&
       saved.documentEvents.some(event=>event.type==='created'&&event.documentId===row.id&&event.relatedDocumentId===review.sourceId));
     if(!order)throw new Error('Approved PO draft save could not be verified.');
     return{summary:'Linked PO draft '+order.number+' saved after explicit approval. Goods have NOT been received; no stock or supplier payable was posted.',id:order.id};

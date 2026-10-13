@@ -115,3 +115,15 @@ test('Operational PO save path explicitly requires a signed review envelope',asy
  assert.match(source,/assertFoundationApproval\(vault,proposal\)/);
  assert.match(source,/applyOperationalPoDraftApproval\(vault,review\)/);
 });
+
+test('Voided linked PO may be replaced, but approved-save verification must select only active replacement',()=>{
+ const {vault,rfq}=fixture(),first=applyOperationalPoDraftApproval(vault,prepareOperationalPoFromRfq(vault,rfq.number));
+ const voided={...first.vault,documents:first.vault.documents.map(doc=>
+  doc.id===first.document.id?{...doc,lifecycleStatus:'voided'}:doc)};
+ const freshReview=prepareOperationalPoFromRfq(voided,rfq.number);
+ const next=applyOperationalPoDraftApproval(voided,freshReview);
+ assert.notEqual(next.document.id,first.document.id);
+ assert.equal(next.document.lifecycleStatus,'active');
+ assert.equal(next.vault.documents.filter(d=>d.kind==='purchase-order').length,2);
+ assert.equal(next.vault.inventoryMovements.length,0);
+});
