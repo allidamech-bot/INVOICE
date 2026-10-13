@@ -485,7 +485,8 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
       // Link it only after finding the exact recorded document in this scope.
       if(latest&&receipt.resultId&&['document.createDraft','document.updateDraft'].includes(proposal.capability)){
         const saved=scopeVault(latest.vault).documents.find(doc=>doc.id===receipt.resultId&&doc.kind!=='draft');
-        if(saved){kernel.entity={entityType:'document',entityId:saved.id,label:saved.number};
+        if(saved){host.__foundationVault=latest.vault;
+          kernel.entity={entityType:'document',entityId:saved.id,label:saved.number};
           host.setState({__workspaceSavedId:saved.id});}
       }
       if(latest&&mission){const visible=host.state.proposal?.capability==='tool.plan'?host.state.proposal.steps:[host.state.proposal];for(const pending of mission.steps){if(pending===step||pending.status!=='needs_approval'||!pending.proposal)continue;const oldId=pending.approvalId,p=structuredClone(pending.proposal);delete p.foundationApproval;stampProposal(host,p,latest.vault);pending.approvalId=p.foundationApproval.id;pending.proposal=p;pending.payload=canonicalFoundationJson(p);for(const row of visible||[])if(row?.foundationApproval?.id===oldId)row.foundationApproval=p.foundationApproval;}}
