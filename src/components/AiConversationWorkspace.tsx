@@ -263,6 +263,52 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
     {reviewed&&!originalButtons.length?<p role="status" className="lxw-review-unknown">{label(ar,'Approval controls could not load. No action was executed.','تعذر تحميل أزرار الاعتماد. لم يُنفّذ أي إجراء.')}</p>:null}
   </section>;
 }
+/** Real, scoped business records are rendered as an accessible, paged chat
+ * table, not as model-generated Markdown or navigation buttons. Selection is
+ * conversation-only until a separately reviewed business mutation is prepared. */
+function ConversationRecordList({host}:{host:Host}):any {
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  const selection=kernel?.selection;
+  const [query,setQuery]=React.useState('');
+  const [page,setPage]=React.useState(0);
+  if(!selection)return null;
+  const ar=aiUiAr(host),rows=selection.items||[],chosen=new Set(selection.selectedIds||[]);
+  const match=query.normalize('NFKC').toLocaleLowerCase();
+  const filtered=rows.filter(row=>(row.label+' '+row.entityId).normalize('NFKC').toLocaleLowerCase().includes(match));
+  const visible=filtered.slice(page*12,page*12+12),pages=Math.max(1,Math.ceil(filtered.length/12));
+  const busy=disabled(host);
+  const update=(ids:string[])=>dispatch(host,{kind:'selection-set',selectionId:selection.id,entityIds:ids});
+  const kind=rows[0]?.entityType||'record';
+  return <section className="lxw-picker lxw-records-picker" data-record-selection-id={selection.id}
+    aria-label={label(ar,'Company records in conversation','سجلات الشركة داخل المحادثة')}>
+    <header><strong>{label(ar,'Company records','سجلات الشركة')} · {kind}</strong>
+      <small>{rows.length} {label(ar,'records','سجل')} · {chosen.size} {label(ar,'selected','محدد')}</small></header>
+    <input type="search" value={query} disabled={busy}
+      aria-label={label(ar,'Filter company records','تصفية سجلات الشركة')}
+      placeholder={label(ar,'Search names or IDs','ابحث بالاسم أو المعرّف')}
+      onChange={(event:any)=>{setQuery(event.target.value);setPage(0);}}/>
+    <div className="lxw-record-actions">
+      <button type="button" disabled={busy||!filtered.length}
+        onClick={()=>update([...new Set([...chosen,...filtered.map(row=>row.entityId)])])}>{label(ar,'Select all matching','تحديد كل المطابق')}</button>
+      <button type="button" disabled={busy||!chosen.size} onClick={()=>update([])}>{label(ar,'Clear selection','إلغاء التحديد')}</button>
+    </div>
+    <div className="lxw-picker-list" role="group" aria-label={label(ar,'Select exact records','تحديد سجلات دقيقة')}>
+      {visible.map(row=><label key={row.entityId} className="lxw-record-option">
+        <input type="checkbox" disabled={busy} checked={chosen.has(row.entityId)}
+          onChange={(event:any)=>update(event.target.checked?[...chosen,row.entityId]:[...chosen].filter(id=>id!==row.entityId))}/>
+        <span><strong>{row.label}</strong>
+          <small dir="ltr">{row.entityId}</small></span>
+      </label>)}
+      {!filtered.length?<p>{label(ar,'No matching records.','لا توجد سجلات مطابقة.')}</p>:null}
+    </div>
+    {pages>1?<nav className="lxw-pagination" aria-label={label(ar,'Record pages','صفحات السجلات')}>
+      <button type="button" disabled={busy||page===0} onClick={()=>setPage(page-1)}>{label(ar,'Previous','السابق')}</button>
+      <span>{page+1} / {pages}</span>
+      <button type="button" disabled={busy||page+1>=pages} onClick={()=>setPage(page+1)}>{label(ar,'Next','التالي')}</button>
+    </nav>:null}
+    <small>{label(ar,'Selection only. No records are changed until a separate approval.','التحديد فقط؛ لا تتغير السجلات دون موافقة مستقلة.')}</small>
+  </section>;
+}
 function ConversationDocumentCard({host}:{host:Host}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
   // A saved document reference survives chat reload in the scoped kernel.
@@ -563,7 +609,9 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       return react.cloneElement(node,undefined,...branded);
     }
     if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
-      return react.cloneElement(node,undefined,...children,<ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>);
+      return react.cloneElement(node,undefined,...children,
+        <ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>,
+        <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>);
     }
     if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
       // Retain the historic document number but never expose route-changing buttons.
