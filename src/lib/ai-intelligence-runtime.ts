@@ -7,7 +7,7 @@ import { createMission, missionStep, beginMissionStep, finishMissionStep, pendin
 import { activeAccountStorageUid } from '../storage/db.js';
 import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
 import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, reconcileCancelledApprovals, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
-import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor } from './ai-foundation-approval.js';
+import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor, foundationActionAllowed } from './ai-foundation-approval.js';
 import { loadAssistantState, saveAssistantState, mutateAssistantState, upsertAssistantThread } from '../storage/assistant-store.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { prepareAssistantContext } from './ai-assistant-foundation.js';
@@ -200,6 +200,8 @@ async function runIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Prom
     strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
     if(!kernel||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))throw new Error('Company, branch, account or conversation changed. Reopen the workspace.');
     const changesDraft=['cell','customer','product','add-line','undo','redo','reprice','terms','composer'].includes(command.kind);
+    if(changesDraft&&!foundationActionAllowed(resumed.vault,{capability:'document.createDraft'},kernel.scope))
+      throw new Error('Your role cannot edit a business document draft. No changes applied.');
     // Reject stale reviewed business state before changing an existing proposal.
     if(changesDraft&&kernel.artifact?.proposal&&(kernel.artifact.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact.proposal);
     const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,command);
