@@ -5,6 +5,8 @@ import {applyOperationalDeliveryDraftApproval,type AiOperationalDeliveryDraftRev
 import {applyAiDeliveryConfirmation,type AiDeliveryConfirmationReview} from './ai-operational-delivery-confirmation.js';
 import {applyAiSalesStockIssue,type AiSalesStockIssueReview} from './ai-operational-stock-issue.js';
 import {applyAiSupplierInvoiceMatchApproval,type AiSupplierInvoiceMatchReview} from './ai-operational-supplier-invoice-match.js';
+import {applyAiMatchedBillPosting,type AiMatchedBillPostingReview} from './ai-operational-supplier-invoice-posting.js';
+import {invoicePostingForMatch} from './supplier-invoice-posting.js';
 import {applyAiConfirmedDeliveryInvoiceApproval,type AiConfirmedDeliveryInvoiceReview} from './ai-operational-delivery-invoice-draft.js';
 import {applyAiCustomerCollection,type AiCustomerCollectionReview} from './ai-operational-customer-collection.js';
 import {applyAiSupplierSettlement,type AiSupplierSettlementReview} from './ai-operational-supplier-settlement.js';
@@ -22,7 +24,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -83,6 +85,33 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
       throw new Error('Approved draft invoice cannot be verified in the saved ledger.');
     return{summary:'Invoice DRAFT '+invoice.number+' saved from confirmed delivery '+
       review.deliveryNoteNumber+' after explicit approval. Not issued. No stock or collection posted.',id:invoice.id};
+  }
+  if(proposal.tool==='procurement.postMatchedSupplierBill'){
+    if(!proposal.foundationApproval)
+      throw new Error('A separately signed matched vendor bill posting approval is required.');
+    const review=proposal.args as unknown as AiMatchedBillPostingReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiMatchedBillPosting(vault,review).vault;
+    });
+    const posted=invoicePostingForMatch(review.matchEventId,saved.documentEvents);
+    if(posted){
+      const matches=saved.purchases.filter(p=>p.id===posted.purchaseId&&
+        p.status==='posted'&&p.sourceSupplierInvoiceEventId===review.matchEventId&&
+        p.sourcePurchaseOrderId===review.purchaseOrderId);
+      if(matches.length!==1||posted.lineTotal!==review.invoiceTotal||
+        posted.currency!==review.currency||matches[0]!.items.length!==review.skus.length)
+        throw new Error('Posted supplier payable and inventory evidence could not be verified.');
+      return{summary:'Supplier invoice '+review.invoiceReference+' posted as purchase '+
+        matches[0]!.number+' with exact inventory receipts and a new payable of '+
+        review.invoiceTotal+' '+review.currency+'. No supplier payment made.',id:matches[0]!.id};
+    }
+    const pending=saved.approvalRequests.filter(x=>x.status==='pending'&&
+      x.action==='post-purchase'&&x.entityId==='purchase-from-'+review.matchEventId);
+    if(pending.length!==1)throw new Error('Supplier invoice was neither posted nor queued for additional governance approval.');
+    return{summary:'Supplier invoice '+review.invoiceReference+
+      ' is awaiting the separate post-purchase governance decision. No stock, payable or payment posted.',
+      id:pending[0]!.id};
   }
   if(proposal.tool==='procurement.matchSupplierBill'){
     if(!proposal.foundationApproval)throw new Error('A signed vendor bill three-way matching approval is required.');
