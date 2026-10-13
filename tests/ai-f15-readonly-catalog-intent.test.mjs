@@ -44,7 +44,7 @@ test('F15 summaries are truthful about 120-row source and never claim omitted ro
  assert.match(text,/Product 0/);
  assert.doesNotMatch(text,/Product 119/);
  assert.match(text,/price not provided/);
- assert.doesNotMatch(text,/product registration was prepared/i);
+ assert.match(text,/No product registration was prepared and no records changed/);
 });
 test('F15 incomplete, untrusted or low-confidence extraction cannot become a fake successful preview',async()=>{
  const all=[
