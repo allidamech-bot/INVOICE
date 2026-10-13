@@ -6,6 +6,7 @@ import type { HandoffPreview } from './ai-business-memory-graph.js';
 import type { CashSimulation } from './ai-reliability-intelligence.js';
 import type { CommercialState } from './ai-commercial-intelligence.js';
 import { reviseAiPendingDocumentDraft } from './ai-document-conversation.js';
+import {aiDraftUndoDepth,AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 import { normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 
 export interface KernelScope { scope:AssistantScope; workspaceId:string; branchId:string; threadId:string; accountId?:string; }
@@ -41,7 +42,9 @@ export function stageKernelArtifact(kernel:ConversationKernel,proposal:Draft):vo
   if(old&&economic(old.proposal)===economic(proposal)){old.proposal=structuredClone(proposal);return;}
   const id=proposal.capability==='document.updateDraft'?proposal.documentId:old?.proposal.capability==='document.createDraft'?old.id:crypto.randomUUID();
   const count=proposal.capability==='document.createDraft'?proposal.items.length:proposal.addItems.length;
-  kernel.artifact={id,revision:(old?.id===id?old.revision:0)+1,proposal:structuredClone(proposal),lineIds:Array.from({length:count},(_,i)=>old?.id===id?old.lineIds[i]||crypto.randomUUID():crypto.randomUUID()),undo:old?.id===id?[...old.undo,structuredClone(old.proposal)].slice(-50):[],redo:[],undoLineIds:old?.id===id?[...(old.undoLineIds||[]),[...old.lineIds]].slice(-50):[],redoLineIds:[]};
+  if(proposal.capability==='document.createDraft'&&count>AI_WORKING_QUOTE_MAX_LINES)throw new Error('Document exceeds the complete working line limit. No rows were omitted.');
+  const undoDepth=aiDraftUndoDepth(count);
+  kernel.artifact={id,revision:(old?.id===id?old.revision:0)+1,proposal:structuredClone(proposal),lineIds:Array.from({length:count},(_,i)=>old?.id===id?old.lineIds[i]||crypto.randomUUID():crypto.randomUUID()),undo:old?.id===id?[...old.undo,structuredClone(old.proposal)].slice(-undoDepth):[],redo:[],undoLineIds:old?.id===id?[...(old.undoLineIds||[]),[...old.lineIds]].slice(-undoDepth):[],redoLineIds:[]};
 }
 export function composeKernelMemory(kernel:ConversationKernel,messages:{role:string;text:string}[]):string{
   const state={turn:kernel.turn,focus:kernel.focus,commercial:kernel.commercial,knowledge:kernel.knowledge?{selectedNodeId:kernel.knowledge.selectedNodeId,reviewDate:kernel.knowledge.reviewDate}:undefined,toolEvidence:kernel.toolEvidence?.map(e=>({callId:e.callId,toolId:e.toolId,state:e.state,evidenceRefs:e.evidenceRefs,at:e.at})),missions:kernel.missions?.map(m=>({id:m.id,goal:m.goal,steps:m.steps.map(s=>({id:s.id,status:s.status,resultRef:s.resultRef})),interruptedReason:m.interruptedReason})),entity:kernel.entity,selection:kernel.selection,artifact:kernel.artifact?{id:kernel.artifact.id,revision:kernel.artifact.revision,lineIds:kernel.artifact.lineIds,selectedLineId:kernel.artifact.selectedLineId,proposal:JSON.parse(JSON.stringify(kernel.artifact.proposal,(key,value)=>key==='foundationApproval'?undefined:value))}:undefined};
@@ -90,7 +93,7 @@ export function reviseKernelDraft(kernel:ConversationKernel,proposal:Draft,messa
     else{const exact=text.match(/^(?:set|change|update|عدل|عدّل|غير|غيّر)\s+(price|quantity|qty|سعر|السعر|كمية|الكمية)\s+(?:line|item|الصنف|البند)\s*(\d+)\s*(?:to|إلى|الى|=|بسعر)\s*(\S+)(?:\s+[A-Z]{3})?$/iu);if(exact){index=Number(exact[2])-1;field=/كمية|quantity|qty/iu.test(exact[1]!)?'quantity':'unitPrice';value=exact[3]!;}}
   }
   const result=reviseAiPendingDocumentDraft(base,command,drafting,language);
-  if(result?.changed){artifact.undo.push(structuredClone(proposal));artifact.undoLineIds=[...(artifact.undoLineIds||[]),[...artifact.lineIds]].slice(-50);artifact.redoLineIds=[];artifact.undo=artifact.undo.slice(-50);artifact.redo=[];artifact.proposal=structuredClone(result.proposal);artifact.revision++;
+  if(result?.changed){artifact.undo.push(structuredClone(proposal));artifact.undoLineIds=[...(artifact.undoLineIds||[]),[...artifact.lineIds]].slice(-aiDraftUndoDepth(result.proposal.capability==='document.createDraft'?result.proposal.items.length:result.proposal.addItems.length));artifact.redoLineIds=[];artifact.undo=artifact.undo.slice(-aiDraftUndoDepth(result.proposal.capability==='document.createDraft'?result.proposal.items.length:result.proposal.addItems.length));artifact.redo=[];artifact.proposal=structuredClone(result.proposal);artifact.revision++;
     if(index>=0&&artifact.lineIds[index]){artifact.selectedLineId=artifact.lineIds[index];artifact.lastEdit={lineId:artifact.lineIds[index]!,field,value,before:structuredClone(base)};}else artifact.lastEdit=undefined;
     if(result.proposal.capability==='document.createDraft'&&result.proposal.items.length!==(proposal.capability==='document.createDraft'?proposal.items.length:-1)){artifact.lineIds=result.proposal.items.map(row=>{const i=proposal.capability==='document.createDraft'?proposal.items.indexOf(row):-1;return i>=0?artifact.lineIds[i]!:crypto.randomUUID();});}
   }
