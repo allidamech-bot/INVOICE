@@ -18,7 +18,7 @@ export function operationalDeliveryDraftRequested(message:string):boolean{
  const text=norm(message);
  return text.length<=550&&
   /^(?:أنشئ|انشئ|جهز|جهّز|حضّر|حضر|create|prepare|make|draft)\s+(?:(?:مسودة|draft)\s+)?(?:(?:سند|إشعار)\s*(?:ال)?تسليم|delivery[\s-]*note)(?:\s|$)/iu.test(text)&&
-  !/(?:اعتمد|أصدر|اصدر|أكد|اكّد|سلّم|سلم|ارحل|رحّل|رحل|\b(?:issue|confirm|finalize|post|stock)\b)/iu.test(text);
+  !/(?:اعتمد|أصدر|اصدر|أكد|اكّد|سلّم|سلم|ارحل|رحّل|رحل|المخزون|مخزون|اخصم|أخصم|خصم|ترحيل|\b(?:issue|confirm|finalize|post|stock|inventory|deduct)\b)/iu.test(text);
 }
 export function requestedDeliverySalesOrderNumber(message:string):string|null{
  if(!operationalDeliveryDraftRequested(message))return null;
