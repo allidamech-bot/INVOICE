@@ -38,14 +38,17 @@ test('F17 preview needs exact reference: no guessed latest or substring match',(
    'هل الفاتورة INV-2026-0001 محفوظة؟',
    'أريد مقارنة الفواتير',
    'لا تفتح الفاتورة INV-2026-0001',
+   'افتح PDF الفاتورة INV-2026-0001 ثم عدل سعرها',
+   'Open PDF invoice INV-2026-0001 and delete it',
  ]){
   assert.equal(savedDocumentPreviewId(kernel,vault,message),null,message);
  }
  for(const message of [
+   'افتح PDF الفاتورة INV-2026-0001 والفاتورة INV-2026-0099',
    'افتح معاينة الفاتورة رقم INV-2026-000',
    'افتح معاينة الفاتورة رقم INV-2026-0009',
  ]){
-  assert.throws(()=>savedDocumentPreviewId(kernel,vault,message),/Document not found/,message);
+  assert.throws(()=>savedDocumentPreviewId(kernel,vault,message),/Document not found|ambiguous/,message);
  }
 });
 test('F17 branch/mode isolation, ambiguous references and missing records fail closed',()=>{
