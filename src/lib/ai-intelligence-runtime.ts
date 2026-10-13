@@ -138,12 +138,13 @@ function reconcileSavedConversationDocument(host:Host,kernel:ConversationKernel,
   const artifact=kernel.artifact;
   const currentId=(artifact?.proposal as any)?.foundationApproval?.id;
   const match=artifact?approved.find(r=>
-    // An applied signed approval may have lost its envelope after hydration.
-    // The immutable working ID and revision must still match exactly; a newer
-    // draft or edited revision cannot be silently retired.
-    (currentId&&r.id===currentId)||
-    (r.draftId===artifact.id&&r.draftRevision===artifact.revision&&
-      r.payload===canonicalFoundationJson(artifact.proposal))):undefined;
+    // Current receipts require exact draft identity + revision + payload.
+    // Legacy receipts have no version stamp: permit only the original signed
+    // envelope match, never a guessed "most recent" document.
+    r.draftId
+      ?r.draftId===artifact.id&&r.draftRevision===artifact.revision&&
+        r.payload===canonicalFoundationJson(artifact.proposal)
+      :Boolean(currentId&&r.id===currentId)):undefined;
   if(match){
     const doc=scoped.find(row=>row.id===match.resultId&&row.kind!=='draft');
     if(doc){kernel.artifact=undefined;kernel.entity={entityType:'document',entityId:doc.id,label:doc.number};}
