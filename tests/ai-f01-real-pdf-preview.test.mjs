@@ -70,7 +70,9 @@ test('F01 incomplete price, wrong company, and Advisor refuse PDF preparation',(
  assert.throws(()=>prepareAiPdfPreview(kernel,vault,'ar'),/Complete|required|price|ال/);
  kernel.artifact.proposal.items[0].unitPrice='20';
  kernel.scope.scope='personal';assert.throws(()=>prepareAiPdfPreview(kernel,vault,'en'),/business/);
- kernel.scope.scope='business';kernel.scope.branchId='foreign';
+ kernel.scope.scope='business';kernel.mode='advisor';
+ assert.throws(()=>prepareAiPdfPreview(kernel,vault,'en'),/Only Controller/);
+ kernel.mode='controller';kernel.scope.branchId='foreign';
  assert.throws(()=>prepareAiPdfPreview(kernel,vault,'en'),/company or branch/);
 });
 test('F01 canonical bridge creates actual File from A4 page canvases without print or approval',async()=>{
