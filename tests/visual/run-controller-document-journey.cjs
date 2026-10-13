@@ -19,14 +19,48 @@ async function run(engine,name){
   await page.goto('http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=en&theme=dark',{waitUntil:'networkidle'});
   for(const file of ['vendor/html2canvas.min.js','vendor/jspdf.umd.min.js','ios-print-bridge.js','vendor/xlsx.full.min.js'])await page.addScriptTag({url:'/dist/'+file});
   await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
-  await page.evaluate(async()=>{
-   const [{setupVault},{emptyVault},{establishSession},{blankCustomer}]=await Promise.all([
-    import('/dist/src/storage/vault.js'),import('/dist/src/lib/defaults.js'),import('/dist/src/storage/session.js'),import('/dist/src/components/CustomersPage.js')]);
-   const vault=emptyVault();vault.company.nameEn='Isolated Controller QA';
-   vault.customers=[{...blankCustomer(),id:'qa-buyer',workspaceId:'default',branchId:'main',companyNameEn:'QA Buyer'}];
-   const {key}=await setupVault('2468',vault);if(!await establishSession(key))throw Error('No test session');
-   window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa'}}));
-  });
+  async function installPinlessFixture(){
+   await page.evaluate(async()=>{
+    const uid='isolated-controller-qa';
+    const [{activateAccountStorage,getPlainWorkspace,savePlainWorkspace,getAccountAssistantCacheKey},
+     {emptyVault},{blankCustomer},{registerWorkspaceSessionReader,registerVaultMutationBridge},
+     {scopeVaultForExternalMutation,applyWorkspaceScope,mergeScopedVault},{mergeVaultIntent},
+     {appendAuditEventsForVaultDiff}]=await Promise.all([
+      import('/dist/src/storage/db.js'),import('/dist/src/lib/defaults.js'),
+      import('/dist/src/components/CustomersPage.js'),import('/dist/src/storage/vault-mutation-bridge.js'),
+      import('/dist/src/lib/workspaces.js'),import('/dist/src/storage/vault-merge.js'),
+      import('/dist/src/lib/audit-diff.js')]);
+    await activateAccountStorage(uid);
+    const existing=await getPlainWorkspace();
+    if(!existing){
+     const vault=emptyVault();vault.company.nameEn='Isolated Controller QA';
+     vault.customers=[{...blankCustomer(),id:'qa-buyer',workspaceId:'default',branchId:'main',companyNameEn:'QA Buyer'}];
+     await savePlainWorkspace(uid,vault,null,null);
+    }
+    // Mirror the production bridge rather than invoking the retired PIN vault.
+    registerWorkspaceSessionReader(async()=>{
+     const record=await getPlainWorkspace();
+     return record?{key:await getAccountAssistantCacheKey(uid),vault:structuredClone(record.payload)}:null;
+    });
+    let queue=Promise.resolve();
+    registerVaultMutationBridge(mutation=>{
+     const job=queue.then(async()=>{
+      const record=await getPlainWorkspace();
+      if(!record)throw new Error('Scoped test workspace disappeared before mutation.');
+      const scoped=scopeVaultForExternalMutation(record.payload);
+      const intended=applyWorkspaceScope(scoped,mutation(scoped));
+      const validated=mergeVaultIntent(scoped,intended,scoped);
+      const next=mergeScopedVault(record.payload,appendAuditEventsForVaultDiff(scoped,validated));
+      await savePlainWorkspace(uid,next,record.baseCloudRevision,record.baseCloudSha256);
+      return next;
+     });
+     queue=job.then(()=>undefined,()=>undefined);
+     return job;
+    });
+    window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid}}));
+   });
+  }
+  await installPinlessFixture();
   await page.locator('.lourex-ai-launcher').click();
   const panel=page.locator('#lourex-ai-panel[data-workspace-ready="true"]');await panel.waitFor();
   const bytes=await page.evaluate(()=>{
@@ -92,7 +126,8 @@ async function run(engine,name){
   assert.equal(saved.first[0].id,saved.second[0].id,'saved document identity must remain stable');
   assert.equal(saved.second[0].count,85);
   assert.equal(saved.second[0].price,'26');
-  await page.reload({waitUntil:'networkidle'});assert.equal(await count(),1,'reload must not execute twice');
+  await page.reload({waitUntil:'networkidle'});await installPinlessFixture();
+  assert.equal(await count(),1,'reload must not execute twice');
   assert.deepEqual(errors,[]);
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
  }finally{await browser.close();}
