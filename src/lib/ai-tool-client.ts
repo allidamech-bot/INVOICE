@@ -20,6 +20,7 @@ import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from 
 import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
 import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
 import {isAiSupplierSettlementIntent,parseAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
+import {isAiSupplierPostingIntent,parseAiSupplierPosting} from './ai-operational-supplier-posting.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -212,6 +213,27 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
        :'Prepared vendor bill '+request.invoiceReference+' three-way match. Recording needs separate approval and does not post payables or stock.')
        :executed.results.map(x=>x.summary).join('\n'),
       proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Post exactly one ALREADY MATCHED vendor bill as a new posted purchase.
+  // No model-generated SKU selection or combined cash instruction is accepted.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiSupplierPostingIntent(input.message)){
+    let request:ReturnType<typeof parseAiSupplierPosting>=null;
+    try{request=parseAiSupplierPosting(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No changes applied.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:request?
+      [{id:'exact-matched-vendor-bill-posting',tool:'procurement.postMatchedSupplierBill',args:{posting:request},
+        reason:'User specified one already matched vendor bill, primary warehouse and exact line-ordered catalog SKUs.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+      ?'لترحيل فاتورة مورد مطابقة: اذكر رقم PO، مرجع فاتورة المورد المطابقة، كود المستودع الرئيسي والأصناف SKU لكل بند بالترتيب. لا يمكن دمج الترحيل مع السداد أو تعليمات أخرى.'
+      :'For matched vendor bill posting, supply one exact PO number, matched bill reference, primary warehouse code and ordered SKU list. Posting cannot be bundled with payment.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+      ?'جهزت مراجعة ترحيل الفاتورة المطابقة '+request.invoiceReference+' إلى المخزون والذمم الدائنة، دون أي سداد. يلزم توقيع موافقة المالك أو المسؤول أولًا، وقد تلزم موافقة سياسة ترحيل الشراء إن كانت مفعلة.'
+      :'Prepared a complete stock and payable posting preview for the matched bill '+request.invoiceReference+'. No cash payment. Independent owner/admin approval is required, plus any enabled purchase posting policy.')
+      :executed.results.map(x=>x.summary).join('\n'),proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
   }
   // Inventory posting is a distinct high-impact action. Only user-provided
   // exact warehouse and SKU mappings can stage its separate approval.
@@ -444,7 +466,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
