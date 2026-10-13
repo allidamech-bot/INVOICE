@@ -1,6 +1,7 @@
 import { assertFoundationApproval, type FoundationApproval } from './ai-foundation-approval.js';
 import {applyOperationalPoDraftApproval,type AiOperationalPoReview} from './ai-operational-po-draft.js';
 import {applyAiGoodsReceiptApproval,type AiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
+import {confirmedGoodsReceipts} from './goods-receipt-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { applyAiBulkProductUpdate, type AiBulkProductBatch } from './ai-product-bulk-update.js';
 import {applyAiProductSourceImport,type AiProductSourceImportBatch} from './ai-product-source-import.js';
@@ -30,8 +31,11 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
       assertFoundationApproval(vault,proposal);
       return applyAiGoodsReceiptApproval(vault,review).vault;
     });
-    const recorded=saved.documentEvents.some(ev=>ev.documentId===review.purchaseOrderId&&
-      ev.type==='audit'&&ev.note.includes('@lourex:goods-receipt:confirmed:v1:')&&ev.note.includes(review.reference));
+    const recorded=confirmedGoodsReceipts(review.purchaseOrderId,saved.documentEvents)
+      .some(row=>row.purchaseOrderNumber===review.purchaseOrderNumber&&
+        row.purchaseOrderUpdatedAt===review.expectedPurchaseOrderUpdatedAt&&
+        row.reference===review.reference&&row.receivedDate===review.receivedDate&&
+        row.supplierId===review.supplierId);
     if(!recorded)throw new Error('Approved receipt record was not verified. Check the purchase-order receipt register.');
     return{summary:'Goods receipt '+review.reference+' recorded after explicit approval. No inventory was posted or supplier payable created.',
       id:review.purchaseOrderId};

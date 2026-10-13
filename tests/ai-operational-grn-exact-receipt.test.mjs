@@ -6,6 +6,7 @@ import {createBlankDocument,validateDocument} from '../dist/src/lib/documents.js
 import {createSupplier,supplierSnapshotFrom} from '../dist/src/lib/operations.js';
 import {todayIso} from '../dist/src/lib/id.js';
 import {confirmedGoodsReceipts} from '../dist/src/lib/goods-receipt-flow.js';
+import {createDocumentEvent} from '../dist/src/lib/document-lifecycle.js';
 import {prepareFoundationApproval,assertFoundationApproval,foundationActionAllowed} from '../dist/src/lib/ai-foundation-approval.js';
 import {isAiGoodsReceiptRequest,parseAiGoodsReceiptRequest,prepareAiGoodsReceiptReview,applyAiGoodsReceiptApproval} from '../dist/src/lib/ai-operational-goods-receipt.js';
 import {orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
@@ -115,4 +116,18 @@ test('Signed GRN proposal permits purchasing but rejects sales and tampering',as
  assert.match(actions,/if\(!proposal\.foundationApproval\)throw new Error\('A signed physical goods receipt approval is required/);
  assert.match(actions,/assertFoundationApproval\(vault,proposal\)/);
  assert.match(actions,/applyAiGoodsReceiptApproval\(vault,review\)/);
+});
+
+test('Corrupted prior physical receipt proof blocks a new GRN rather than allowing silent over-receipt',()=>{
+ const f=fixture(),row=createDocumentEvent(f.order,'audit',
+   '@lourex:goods-receipt:confirmed:v1:{"purchaseOrderId":"tampered","reference":"DUPLICATE"}');
+ const vault={...f.vault,documentEvents:[...f.vault.documentEvents,row]};
+ assert.throws(()=>prepareAiGoodsReceiptReview(vault,parseAiGoodsReceiptRequest(command())));
+ assert.equal(vault.inventoryMovements.length,0);
+});
+test('Saved GRN receipt verification matches exact PO, supplier, reference and date, never substring',async()=>{
+ const actions=await readFile(new URL('../src/lib/ai-tool-actions.ts',import.meta.url),'utf8');
+ assert.match(actions,/confirmedGoodsReceipts\(review\.purchaseOrderId,saved\.documentEvents\)/);
+ assert.match(actions,/row\.reference===review\.reference/);
+ assert.match(actions,/row\.supplierId===review\.supplierId/);
 });

@@ -1,7 +1,7 @@
 import type {VaultPayload,LourexDocument} from '../types.js';
 import {scopeVault} from './workspaces.js';
 import {assertGovernancePermission} from './governance.js';
-import {confirmGoodsReceipt,goodsReceiptBalances,confirmedGoodsReceipts,type ConfirmGoodsReceiptInput} from './goods-receipt-flow.js';
+import {confirmGoodsReceipt,goodsReceiptBalances,confirmedGoodsReceipts,assertGoodsReceiptIntegrity,type ConfirmGoodsReceiptInput} from './goods-receipt-flow.js';
 
 export interface AiGoodsReceiptReview {
   purchaseOrderId:string;purchaseOrderNumber:string;expectedPurchaseOrderUpdatedAt:string;
@@ -65,6 +65,9 @@ function verify(vault:VaultPayload,data:{
  if(data.quantities.length!==order.items.length)
   throw new Error('One received quantity is required for every PO line, including explicit zero for unreceived lines.');
  assertGovernancePermission(vault,'record-goods-receipt');
+ // Reject corrupted or conflicting historical receipts rather than using them
+ // as a trustworthy basis for an additional physical receipt.
+ assertGoodsReceiptIntegrity(scoped.documents,scoped.documentEvents);
  const input:ConfirmGoodsReceiptInput={purchaseOrderId:order.id,
    expectedPurchaseOrderUpdatedAt:order.updatedAt,reference:data.reference,
    receivedDate:data.receivedDate,notes:'',quantities:[...data.quantities]};
