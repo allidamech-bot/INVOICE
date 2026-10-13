@@ -13,7 +13,7 @@ export interface AiOperationalPoReview{
 const norm=(value:unknown)=>String(value??'').normalize('NFKC').trim();
 export function operationalPoDraftRequested(message:string):boolean{
  const m=norm(message);
- return m.length<=450&&/^(?:انشئ|أنشئ|جهز|جهّز|حضّر|حضر|سوي|سوّي|create|prepare|make|draft)\b?\s+/iu.test(m)&&
+ return m.length<=450&&/^(?:انشئ|أنشئ|جهز|جهّز|حضّر|حضر|سوي|سوّي|create|prepare|make|draft)\s+/iu.test(m)&&
    /(?:أمر|طلب)\s*(?:ال)?شراء|\bpurchase[\s-]*order\b|\bpo\b/iu.test(m)&&
    !/(?:اعتمد|اصدر|أصدر|رحّل|رحل|post|issue|finalize|confirm)/iu.test(m);
 }
@@ -29,7 +29,7 @@ export function requestedPoRfqNumber(message:string):string|null{
 const signature=(doc:LourexDocument):string=>JSON.stringify({
  id:doc.id,updatedAt:doc.updatedAt,status:doc.status,life:doc.lifecycleStatus,
  supplierId:doc.supplierSnapshot?.sourceSupplierId,number:doc.number,currency:doc.currency,
- items:doc.items.map(x=>[x.id,x.descriptionEn,x.descriptionAr,x.quantity,x.unit,x.unitPrice,x.sku])
+ items:doc.items.map(x=>[x.id,x.descriptionEn,x.descriptionAr,x.quantity,x.unit,x.unitPrice])
 });
 export function prepareOperationalPoFromRfq(vault:VaultPayload,rfqNumber:string):AiOperationalPoReview{
  const scoped=scopeVault(vault),active=vault.appSettings.activeWorkspaceId||'default',
