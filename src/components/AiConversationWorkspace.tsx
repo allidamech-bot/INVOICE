@@ -10,6 +10,10 @@ import { activeAccountStorageUid } from '../storage/db.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
+import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
+import { TemplateRenderer } from '../templates/TemplateRenderer.js';
+import type { LourexDocument } from '../types.js';
+
 
 // Narrow compatibility adapter: existing chat, composer, history, voice and guarded
 // approval owners remain intact. All new presentation is precompiled TSX.
@@ -258,6 +262,45 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
 function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
   let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
+  const pdfStage=React.useRef(null as HTMLDivElement|null);
+  const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string}|null);
+  const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
+  const [pdfBusy,setPdfBusy]=React.useState(false);
+  const [pdfError,setPdfError]=React.useState('');
+  const savedId=String(host.state.__workspaceSavedId||'');
+  const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
+  React.useEffect(()=>{setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');},[pdfIdentity]);
+  React.useEffect(()=>()=>{if(pdfResult?.url)URL.revokeObjectURL(pdfResult.url);},[pdfResult?.url]);
+  const createPdf=()=>{
+    if(pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
+    try{
+      const document=prepareAiPdfPreview(kernel,vault,ar?'ar':'en',savedId);
+      setPdfResult(null);setPdfError('');setPdfBusy(true);setPdfSource({document,identity:pdfIdentity});
+    }catch(e){setPdfError(e instanceof Error?e.message:String(e));}
+  };
+  React.useEffect(()=>{
+    if(!pdfSource)return;
+    let cancelled=false;
+    const timer=window.setTimeout(async()=>{
+      try{
+        const build=(window as any).__LOUREX_BUILD_CHAT_PDF__;
+        if(typeof build!=='function')throw new Error('The LOUREX PDF engine is not available. Reload and retry.');
+        const stage=pdfStage.current;
+        if(!stage)throw new Error('The A4 preview renderer is not mounted.');
+        const file=await build(stage,'LOUREX-'+pdfSource.document.number);
+        if(!(file instanceof Blob)||file.type!=='application/pdf'||file.size<256)throw new Error('PDF file bytes were not generated correctly.');
+        const active=host.__intelligenceKernel as ConversationKernel|undefined;
+        const identity=active?kernelScopeKey(active.scope)+'|'+String(host.state.__workspaceSavedId||'')+'|'+String(active.artifact?.id||'')+'|'+String(active.artifact?.revision||0):'';
+        if(identity!==pdfSource.identity)throw new Error('The document changed while rendering. Generate a new PDF.');
+        if(cancelled)return;
+        const url=URL.createObjectURL(file);
+        if(cancelled){URL.revokeObjectURL(url);return;}
+        setPdfResult({url,name:(file as File).name||'LOUREX-Preview.pdf',bytes:file.size});
+      }catch(error){if(!cancelled)setPdfError(error instanceof Error?error.message:String(error));}
+      finally{if(!cancelled)setPdfBusy(false);}
+    },0);
+    return()=>{cancelled=true;window.clearTimeout(timer);};
+  },[pdfSource]);
   const tab=host.state.__workspaceTab||'preview',editable=Boolean(host.state.__workspaceEditing&&doc?.status==='draft');
   const choose=(value:string)=>host.setState({__workspaceTab:value});
   const viewGroups=[
@@ -280,7 +323,22 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
     </nav>
   </div><div className="lxw-artifact-content">{error||host.state.error?<p role="alert">{workspaceError(ar,error||host.state.error)}</p>:null}
     {(tab==='preview'||tab==='edit')&&doc?<section data-workspace-component="QuotePreview">
-      {tab==='preview'?<QuotePreviewSummary doc={doc} ar={ar}/>:<>
+      {tab==='preview'?<>
+        <QuotePreviewSummary doc={doc} ar={ar}/>
+        {normalizeAiConversationMode(kernel.mode)==='controller'?<section className="lxw-ai-pdf-actions" aria-label={label(ar,'Real PDF document','مستند PDF فعلي')}>
+          <button type="button" disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
+            onClick={createPdf}>{pdfBusy?label(ar,'Generating A4 PDF…','جارٍ إنشاء PDF بحجم A4…'):label(ar,'Generate PDF · no save','إنشاء PDF · دون حفظ')}</button>
+          <p>{label(ar,'This is a real LOUREX template PDF preview. Generating it does not save or issue the document.','هذه معاينة PDF فعلية من قالب LOUREX. إنشاء الملف لا يحفظ المستند ولا يصدره.')}</p>
+          {pdfError?<p role="alert">{workspaceError(ar,pdfError)}</p>:null}
+          {pdfResult?<div className="lxw-ai-pdf-result">
+            <a href={pdfResult.url} target="_blank" rel="noopener noreferrer">{label(ar,'Open actual PDF','فتح ملف PDF الفعلي')}</a>
+            <a href={pdfResult.url} download={pdfResult.name}>{label(ar,'Download PDF','تحميل PDF')}</a>
+            <span>{Math.ceil(pdfResult.bytes/1024)} KB</span>
+            <iframe title={label(ar,'LOUREX PDF file preview','معاينة ملف PDF من LOUREX')} src={pdfResult.url}
+              style={{width:'100%',height:440,maxWidth:'100%',border:'1px solid #555',borderRadius:8,background:'#fff'}}/>
+          </div>:null}
+        </section>:null}
+      </>:<>
         <p><strong>{doc.customer||label(ar,'Select a customer','حدد العميل')}</strong> · <b dir="ltr">{doc.currency}</b></p>
         {doc.status==='draft'?<div className="lxw-revision-controls"><span>{label(ar,'Revision','التعديل')} {doc.revision}</span><button type="button" disabled={!kernel.artifact?.undo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Undo','تراجع')}</button><button type="button" disabled={!kernel.artifact?.redo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Redo','إعادة')}</button><button type="button" aria-pressed={editable} disabled={disabled(host)} onClick={()=>host.setState({__workspaceEditing:!editable})}>{label(ar,editable?'Finish editing':'Edit draft cells',editable?'إنهاء التعديل':'تعديل خانات المسودة')}</button></div>:null}
         <PricingGrid key={doc.id+':edit'} host={host} doc={doc} editable={editable}/>
@@ -306,7 +364,10 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
       <button type="button" className="lxw-review-complete" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>host.setState({__workspaceReviewedProposal:host.state.proposal,__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview'})}>{label(ar,'I reviewed the details','اطلعت على التفاصيل')}</button>
       {doc.blockers.length?<p role="status" className="lxw-review-unknown">{label(ar,'Resolve the listed issues before approval.','يجب معالجة الملاحظات المعروضة قبل الاعتماد.')}</p>:null}
     </section>:null}
-  </div></aside>;
+  </div>{pdfSource?<div className="print-portal lxw-ai-pdf-render-target" ref={pdfStage}
+    aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
+    <TemplateRenderer document={pdfSource.document} scale={1}/>
+  </div>:null}</aside>;
 }
 function workspaceVisible(host:Host):boolean {
   const k=host.__intelligenceKernel as ConversationKernel|undefined,v=host.__foundationVault;if(!k||!v||k.scope.scope==='personal'||host.__workspaceObservedProps!==host.props)return false;
