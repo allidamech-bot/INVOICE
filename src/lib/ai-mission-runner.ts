@@ -27,7 +27,23 @@ export function recoverMissions(value:unknown,scope:KernelScope):MissionState[]{
   return value.filter(m=>m&&JSON.stringify([m.scope?.accountId||'',m.scope?.scope,m.scope?.workspaceId,m.scope?.branchId,m.scope?.threadId])===JSON.stringify([scope.accountId||'',scope.scope,scope.workspaceId,scope.branchId,scope.threadId])&&typeof m.id==='string'&&Array.isArray(m.steps)&&m.steps.length<=5&&m.steps.every((s:any)=>s&&typeof s.id==='string'&&Array.isArray(s.dependencies)&&typeof s.payload==='string'&&typeof s.approvalId==='string'&&['needs_approval','completed','applying','uncertain','cancelled'].includes(s.status))).slice(-10).map(m=>({...structuredClone(m),steps:m.steps.map((s:MissionStep)=>({...s,status:s.status==='applying'?'uncertain':s.status})),interruptedReason:m.steps.some((s:MissionStep)=>s.status==='applying')?'Execution interrupted; verify records before preparing a new action.':m.interruptedReason}));
 }
 
+/** Only a dependency-complete, explicitly reviewed step may be offered.
+ * Showing all remaining approvals makes the UI look executable out of order. */
+export function readyMissionStep(mission:MissionState):MissionStep|null{
+  // An uncertain/applying action blocks all successor approvals until a human
+  // verifies the recorded result and prepares a completely new review.
+  if(mission.steps.some(step=>step.status==='uncertain'||step.status==='applying'))return null;
+  const pending=mission.steps.filter(step=>step.status==='needs_approval');
+  if(!pending.length)return null;
+  return pending.find(step=>Boolean(step.proposal)&&step.dependencies.every(id=>
+    mission.steps.find(previous=>previous.id===id)?.status==='completed'))||null;
+}
+export function missionProgress(mission:MissionState):{completed:number;total:number;pending:number;blocked:boolean}{
+  const completed=mission.steps.filter(step=>step.status==='completed').length;
+  const pending=mission.steps.filter(step=>step.status==='needs_approval').length;
+  return{completed,total:mission.steps.length,pending,blocked:pending>0&&!readyMissionStep(mission)};
+}
 export function pendingMissionProposal(mission:MissionState):any|null {
- const steps=mission.steps.filter(s=>s.status==='needs_approval'&&s.proposal).map(s=>structuredClone(s.proposal));
- return steps.length===1?steps[0]:steps.length?{capability:'tool.plan',steps,label:mission.goal,rationale:'Resume reviewed mission; each step revalidates current records.'}:null;
+  const ready=readyMissionStep(mission);
+  return ready?.proposal?structuredClone(ready.proposal):null;
 }
