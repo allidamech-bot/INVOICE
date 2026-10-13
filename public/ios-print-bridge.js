@@ -320,6 +320,38 @@
 
   // Reuse the exact existing LOUREX A4, Arabic stabilization, and signature
   // export pipeline for both the native output and AI chat PDF previews.
+  /** Export only if the canonical paginated DOM contains every original row
+   * exactly once and in order. Long descriptions may add continuation rows,
+   * which are not separate commercial items and cannot inflate the count. */
+  const assertCompletePdfPagination = (pageRoot,sourcePages) => {
+    const root=pageRoot?.classList?.contains('invoice-pages')?pageRoot:pageRoot?.querySelector?.('.invoice-pages');
+    if (!root) throw new Error('The full A4 document is not ready for PDF export.');
+    if(root.getAttribute('data-pagination-ready')!=='true')throw new Error('PDF pages are not fully paginated yet.');
+    const expected=Number(root.getAttribute('data-source-item-count'));
+    if(!Number.isInteger(expected)||expected<0)throw new Error('PDF item source count is missing.');
+    const articles=Array.from(sourcePages);
+    if(!articles.length)throw new Error('No A4 pages were rendered.');
+    const all=articles.flatMap(article=>Array.from(article.querySelectorAll('.items-table tbody tr[data-source-item-id]')));
+    const first=all.filter(row=>row.getAttribute('data-source-fragment')==='0');
+    if(first.length!==expected)throw new Error('PDF is missing or duplicating quotation rows ('+first.length+' of '+expected+').');
+    const originalIds=new Set();
+    for(let i=0;i<first.length;i++){
+      const row=first[i],id=row.getAttribute('data-source-item-id'),index=Number(row.getAttribute('data-source-item-index'));
+      if(!id||originalIds.has(id)||index!==i+1)throw new Error('PDF row order/identity changed during pagination. No incomplete document exported.');
+      originalIds.add(id);
+    }
+    for(const row of all){
+      if(!originalIds.has(row.getAttribute('data-source-item-id')))throw new Error('An orphan PDF continuation row was detected.');
+    }
+    for(let i=0;i<articles.length;i++){
+      const page=articles[i],hasItems=Boolean(page.querySelector('.items-table tbody tr'));
+      const hasClosing=Boolean(page.querySelector('.final-details'));
+      if(!hasItems&&!(i===articles.length-1&&hasClosing))
+        throw new Error('A blank/intermediate PDF page was detected. Export cancelled.');
+    }
+    if(!articles[articles.length-1].querySelector('.final-details'))
+      throw new Error('PDF commercial totals/closing content is missing.');
+  };
   const renderPdfPages = async (sourcePages,filename) => {
     await ensurePdfLibraries();
     if (!sourcePages.length) throw new Error('Printable document is not ready.');
@@ -375,6 +407,9 @@
   };
   const buildPdfFile = async () => {
     if (pendingPdfFile) return pendingPdfFile;
+    const printRoot=document.querySelector('.print-portal .invoice-pages');
+    const printPages=Array.from(document.querySelectorAll('.print-portal .invoice-page'));
+    assertCompletePdfPagination(printRoot,printPages);
     if (pendingPdfPromise) return pendingPdfPromise;
     pendingPdfPromise=renderPdfPages(Array.from(document.querySelectorAll('.print-portal .invoice-page')),document.title)
       .then(file=>{pendingPdfFile=file;return file;})
@@ -386,7 +421,7 @@
   window.__LOUREX_BUILD_CHAT_PDF__ = async (root,filename) => {
     if (!(root instanceof Element)||!root.isConnected) throw new Error('The preview was closed or changed.');
     await Promise.resolve(document.fonts?.ready);
-    const deadline=Date.now()+8000;
+    const deadline=Date.now()+20000; // long documents need complete all-page A4 measurement on iPhone
     while (root.isConnected) {
       const pages=root.querySelector('.invoice-pages');
       if (pages?.getAttribute('data-pagination-ready')==='true') break;
@@ -395,6 +430,7 @@
     }
     if (!root.isConnected) throw new Error('The preview was closed.');
     const pages=Array.from(root.querySelectorAll('.invoice-page'));
+    assertCompletePdfPagination(root,pages);
     return renderPdfPages(pages,filename);
   };
 
