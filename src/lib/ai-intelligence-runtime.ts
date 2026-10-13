@@ -353,6 +353,25 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
     host.__foundationToolOutcomes=foundationToolOutcomes(result);
     const kernel=host.__intelligenceKernel as ConversationKernel;
     kernel.toolEvidence=host.__foundationToolOutcomes.map((row:FoundationToolOutcome)=>({...row,at:new Date().toISOString()}));
+    if(result.workingDraft){
+      if(requestedMode!=='controller'||kernel.scope.scope!=='business')
+        throw new Error('Only Controller can stage an unsaved business document.');
+      // A PREPARE-only result is NOT a save/issue approval. Keep the entire
+      // reviewable draft in the scoped conversation kernel, not in the vault.
+      // Replacing a previous proposal must also cancel its old pending review.
+      const previous=host.state.proposal;
+      const previousApprovals=previous?.capability==='tool.plan'
+        ?(previous.steps||[]).map((step:any)=>step?.foundationApproval?.id).filter(Boolean)
+        :[previous?.foundationApproval?.id].filter(Boolean);
+      if(previousApprovals.length)for(const mission of kernel.missions||[]){
+        if(mission.steps.some(step=>step.status==='needs_approval'&&previousApprovals.includes(step.approvalId)))
+          cancelMission(mission);
+      }
+      stageKernelArtifact(kernel,result.workingDraft);
+      host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,
+        __workspaceSavedId:'',__workspaceEditing:false,__workspaceOpen:true,
+        __workspacePane:'workspace',__workspaceTab:'preview'});
+    }
     const search=result.results.find(row=>row.ok&&row.tool==='search.records');
     if(search&&Array.isArray(search.data)&&!result.proposal){
       const items=search.data.filter((r:any)=>r&&typeof r.id==='string'&&typeof r.label==='string'&&['customer','supplier','product','document','purchase'].includes(r.type)).map((r:any)=>({entityType:r.type,entityId:r.id,label:r.label}));
