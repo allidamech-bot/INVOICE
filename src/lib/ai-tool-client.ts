@@ -396,7 +396,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery'||call.tool==='sales.issueConfirmedStock'||(call.tool==='procurement.matchSupplierBill'||call.tool==='sales.createConfirmedInvoiceDraft')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
