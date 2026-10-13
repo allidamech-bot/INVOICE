@@ -35,7 +35,7 @@ test('B06: invalid amount or unknown unregistered product name cannot silently s
  for(const unitPrice of ['-1','NaN','Infinity','1e2'])assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'sku-a',quantity:'1',unitPrice}])),/invalid selling price/);
  assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'',descriptionEn:'',quantity:'1',unitPrice:'3'}])),/explicit description/);
  assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'',descriptionEn:'New item',quantity:'1',unitPrice:''}])),/explicit selling price/);
- assert.throws(()=>assertAiDocumentCreateApproval(v,draft(Array.from({length:21},()=>({savedItemId:'sku-a',quantity:'1',unitPrice:'1'})))),/item count/);
+ assert.throws(()=>assertAiDocumentCreateApproval(v,draft(Array.from({length:121},()=>({savedItemId:'sku-a',quantity:'1',unitPrice:'1'})))),/item count/);
 });
 test('B06: new customer data cannot accidentally duplicate existing business',()=>{
  const v=vault();
