@@ -17,8 +17,8 @@ function fixture(){
  rfq.workspaceId='default';rfq.branchId='main';rfq.status='final';
  rfq.currency='USD';rfq.language='bilingual';
  rfq.supplierSnapshot=supplierSnapshotFrom(supplier);
- rfq.items=[{...rfq.items[0],id:'line-1',descriptionEn:'Monster 500 ml',descriptionAr:'',quantity:'300',unit:'Carton',unitPrice:''},
-  {...rfq.items[0],id:'line-2',descriptionEn:'Red Bull 250 ml',descriptionAr:'',quantity:'400',unit:'Carton',unitPrice:''}];
+ rfq.items=[{...rfq.items[0],id:'line-1',descriptionEn:'Monster 500 ml',descriptionAr:'مونستر 500 مل',quantity:'300',unit:'Carton',unitPrice:''},
+  {...rfq.items[0],id:'line-2',descriptionEn:'Red Bull 250 ml',descriptionAr:'ريد بول 250 مل',quantity:'400',unit:'Carton',unitPrice:''}];
  vault.documents=[rfq];assert.deepEqual(validateDocument(rfq),{});
  return{vault,rfq,supplier};
 }
