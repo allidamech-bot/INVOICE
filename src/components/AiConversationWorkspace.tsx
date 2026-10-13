@@ -262,7 +262,7 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
 function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
   let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
-  const pdfStage=React.useRef(null as HTMLDivElement|null);
+  const pdfStage=react.useRef(null as HTMLDivElement|null);
   const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string}|null);
   const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
