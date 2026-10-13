@@ -90,3 +90,20 @@ test('F03 Controller source intercepts exact edits before model and prepares sav
  const askAt=source.indexOf('await ask(raw);');
  assert.ok(end<askAt,'follow-up is handled before generic AI planner');
 });
+
+test('F03 live command regex recognizes exact Arabic edits and save gate, but not generic business talk',async()=>{
+ const source=await readFile(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
+ const literal=name=>{
+   const line=source.split('\\n').find(row=>row.includes('const '+name+'='));
+   assert.ok(line,name+' must exist');
+   const code=line.slice(line.indexOf('=')+1,line.lastIndexOf('.test(message);'));
+   return Function('message','return '+code+'.test(message);');
+ };
+ const revise=literal('exactDraftFollowup'),save=literal('saveWorkingDraft');
+ for(const command of ['غيّر كمية الصنف 3 إلى 26','غيّر سعر الصنف 3 إلى 26','ارجع السعر السابق','undo','change quantity line 3 to 26'])
+   assert.equal(revise(command),true,command);
+ for(const command of ['احفظها','احفظ المسودة','prepare to save this draft'])assert.equal(save(command),true,command);
+ for(const command of ['حلّل الأرباح','كم فاتورة صدرت؟','هل هذا السعر جيد؟']){
+   assert.equal(revise(command),false,command);assert.equal(save(command),false,command);
+ }
+});
