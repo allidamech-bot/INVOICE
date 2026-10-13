@@ -11,7 +11,7 @@ import { normalizeAiConversationMode, type AiConversationMode } from './ai-conve
 import {normalizeDecimalInput} from './money.js';
 
 export interface KernelScope { scope:AssistantScope; workspaceId:string; branchId:string; threadId:string; accountId?:string; }
-export interface WorkingSelection { id:string; items:{entityType:AssistantEntityType;entityId:string;label:string}[]; selectedId?:string; }
+export interface WorkingSelection { id:string; items:{entityType:AssistantEntityType;entityId:string;label:string}[]; selectedId?:string; selectedIds?:string[]; }
 type Draft=AiDocumentDraftProposal|AiDocumentUpdateProposal;
 export interface WorkingArtifact { id:string; revision:number; proposal:Draft; lineIds:string[]; selectedLineId?:string; lastEdit?:{lineId:string;field:'quantity'|'unitPrice';value:string;before:Draft}; undo:Draft[]; redo:Draft[]; undoLineIds?:string[][]; redoLineIds?:string[][]; }
 export interface ConversationKernel { version:1; scope:KernelScope; turn:number; mode?:AiConversationMode; focus:'auto'|'operator'|'advisor'|'financial'; selection?:WorkingSelection; entity?:WorkingSelection['items'][number]; artifact?:WorkingArtifact; commercial?:CommercialState; missions?:MissionState[]; cancelledApprovals?:string[]; toolEvidence?:MissionEvidence[]; diagnostics?:DiagnosticSample[]; knowledge?:{selectedNodeId?:string;cash?:CashSimulation;handoff?:HandoffPreview;reviewDate?:string}; }
