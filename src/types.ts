@@ -96,6 +96,7 @@ export interface CompanySettings {
 }
 
 export interface Supplier extends WorkspaceScopeFields {
+  highlightColor?:'red';
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -235,6 +236,8 @@ export interface WarehouseRecord extends WorkspaceScopeFields {
 }
 
 export interface Customer extends WorkspaceScopeFields {
+  /** Optional user-reviewed visual mark; never financial classification. */
+  highlightColor?:'red';
   id: string;
   createdAt: string;
   updatedAt: string;

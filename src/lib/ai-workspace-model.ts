@@ -11,6 +11,7 @@ import { cancelMission } from './ai-mission-runner.js';
 import { stageKernelArtifact } from './ai-conversation-kernel.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import {AI_WORKING_QUOTE_MAX_LINES,aiDraftUndoDepth} from './ai-document-limits.js';
+import {setExactRecordSelection} from './ai-record-selection.js';
 
 export type WorkspaceDraft = AiDocumentDraftProposal | AiDocumentUpdateProposal;
 export interface WorkspaceLine { id:string; descriptionEn:string; descriptionAr:string; quantity:string; unit:string; unitPrice:string; savedItemId:string; }
@@ -18,6 +19,7 @@ export interface WorkspaceDiff { field:string; before:string; after:string; }
 export interface WorkspaceDocument { id:string; revision:number; status:'draft'|'saved'; title:string; currency:string; customer:string; rows:WorkspaceLine[]; subtotal:string|null; terms:{label:string;value:string}[]; blockers:string[]; diff:WorkspaceDiff[]; }
 export interface PickerRow { id:string; label:string; detail:string; }
 export type WorkspaceCommand =
+  | { kind:'selection-set'; selectionId:string; entityIds:string[] }
   | { kind:'graph-select'; nodeId:string }
   | { kind:'handoff-preview'; nodeId:string; recipientId:string }
   | { kind:'review-date'; asOf:string }
@@ -93,6 +95,7 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
   if(kernel.scope.scope==='personal')throw new Error('Business editing is unavailable in Personal.');
   if(kernel.scope.workspaceId!==(vault.appSettings.activeWorkspaceId||'default')||kernel.scope.branchId!==(vault.appSettings.activeBranchId||'main'))throw new Error('Company or branch changed.');
   const knowledge=()=>kernel.knowledge||(kernel.knowledge={});
+  if(command.kind==='selection-set'){setExactRecordSelection(kernel,vault,command.selectionId,command.entityIds);return;}
   if(command.kind==='graph-select'){const node=buildBusinessMemoryGraph(vault,kernel.scope).nodes.find(n=>n.id===command.nodeId);if(!node)throw new Error('Exact graph record is no longer available.');knowledge().selectedNodeId=node.id;knowledge().handoff=undefined;if(['customer','supplier','product','document','purchase'].includes(node.kind))kernel.entity={entityType:node.kind as any,entityId:node.recordId,label:node.label};return;}
   if(command.kind==='handoff-preview'){const result=prepareBusinessHandoff(vault,buildBusinessMemoryGraph(vault,kernel.scope),command.nodeId,command.recipientId);knowledge().handoff=result;return;}
   if(command.kind==='review-date'){reliabilityReview(vault,kernel.scope,command.asOf);knowledge().reviewDate=command.asOf;return;}

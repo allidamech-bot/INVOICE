@@ -1,0 +1,36 @@
+name: LOUREX Controller Document Journey
+on:
+  push:
+    branches: [feat/ai-controller-execution]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: controller-document-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  isolated-journey:
+    runs-on: ubuntu-latest
+    # This pinned official Playwright image already contains matching Chromium,
+    # WebKit and native browser libraries (no apt-get or external paid service).
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck && npm run build
+      - name: Targeted document and approval tests
+        run: node --test tests/ai-party-highlights.test.mjs tests/ai-advisor-controller-handoff.test.mjs tests/ai-selected-products-price.test.mjs tests/ai-record-selection.test.mjs tests/ai-working-draft-plan.test.mjs tests/ai-f01-real-pdf-preview.test.mjs tests/ai-f03-scoped-document-followups.test.mjs tests/ai-f14-approval-dismissal-race.test.mjs tests/ai-f17-natural-saved-document-preview.test.mjs tests/ai-f08-high-volume-quote.test.mjs
+      - run: npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+      - name: Isolated file-to-document journey (provider translation stub, actual files and persistence)
+        run: |
+          ./node_modules/.bin/http-server . -a 127.0.0.1 -p 4173 -c-1 >/tmp/qa-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          node tests/visual/run-controller-document-journey.cjs

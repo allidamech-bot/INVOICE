@@ -45,6 +45,18 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
  if(requestedKinds.length>1)throw new Error('Different document kinds appear in the request. Select only one exact document.');
 
  const scoped=scopeVault(vault);
+ // Resolve a unique most-recent quotation on an explicit request, without an AI guess.
+ const newestQuoteRequested=/(?:آخر|اخر|أحدث|احدث)\s+عرض\s*(?:ال)?سعر|عرض\s*(?:ال)?سعر\s*(?:الأخير|الاخير)|\b(?:latest|last)\s+(?:quotation|quote)\b/iu.test(text);
+ if(newestQuoteRequested&&!referencedNumbers.length){
+   if(requestedKinds.length!==1||requestedKinds[0]!=='proforma')throw new Error('Specify one exact document kind.');
+   const candidates=scoped.documents.filter(row=>row.kind==='proforma');
+   if(!candidates.length)throw new Error('There is no saved quotation in this company.');
+   const ranked=candidates.map(doc=>({doc,created:Date.parse(String(doc.createdAt||''))}));
+   if(ranked.some(row=>!Number.isFinite(row.created)))throw new Error('Quotation dates are incomplete; specify an exact number.');
+   ranked.sort((a,b)=>b.created-a.created);
+   if(ranked.length>1&&ranked[0]!.created===ranked[1]!.created)throw new Error('Several quotations have the same latest date; specify an exact number.');
+   return ranked[0]!.doc.id;
+ }
  const escaped=(value:string)=>value.replace(/[.*+?^$()|[\]{}]/g,'\\$&');
  const contains=(reference:string)=>{
    if(!reference||reference.length>120)return false;

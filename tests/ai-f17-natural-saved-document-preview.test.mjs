@@ -30,6 +30,28 @@ test('F17 Controller resolves saved invoice number from a natural Arabic/English
  }
  assert.deepEqual(vault,before,'read-only selection cannot change saved finance data');
 });
+test('Controller opens the unique latest quotation by creation date without a document number',()=>{
+ const {vault,kernel}=fixture();
+ const old=createBlankDocument('proforma','QUO-2026-0004',vault.company);
+ const latest=createBlankDocument('proforma','QUO-2026-0005',vault.company);
+ for(const doc of [old,latest]){doc.workspaceId='default';doc.branchId='main';doc.status='draft';}
+ old.createdAt='2026-10-11T10:00:00.000Z';
+ latest.createdAt='2026-10-13T10:00:00.000Z';
+ vault.documents.push(old,latest);
+ const prior=structuredClone(vault);
+ for(const message of ['افتح آخر عرض سعر','افتح عرض السعر الأخير','افتح PDF آخر عرض سعر','Open latest quotation']){
+  assert.equal(savedDocumentPreviewId(kernel,vault,message),latest.id,message);
+ }
+ assert.deepEqual(vault,prior,'latest quotation resolution never mutates the business vault');
+ latest.createdAt=old.createdAt;
+ assert.throws(()=>savedDocumentPreviewId(kernel,vault,'افتح آخر عرض سعر'),/same latest date/);
+ latest.createdAt='not-a-date';
+ assert.throws(()=>savedDocumentPreviewId(kernel,vault,'افتح آخر عرض سعر'),/dates are incomplete/);
+ kernel.mode='advisor';assert.equal(savedDocumentPreviewId(kernel,vault,'افتح آخر عرض سعر'),null);
+ kernel.mode='controller';kernel.scope.branchId='different';
+ assert.equal(savedDocumentPreviewId(kernel,vault,'افتح آخر عرض سعر'),null);
+});
+
 test('F17 preview needs exact reference: no guessed latest or substring match',()=>{
  const {vault,kernel}=fixture();
  for(const message of [

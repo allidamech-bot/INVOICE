@@ -14,8 +14,13 @@ import { prepareAssistantContext } from './ai-assistant-foundation.js';
 import { scopeVault } from './workspaces.js';
 import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-tool-client.js';
 import type { VaultPayload } from '../types.js';
-import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
+import { applyWorkspaceCommand, workspaceDrafting, workspaceDocument, type WorkspaceCommand } from './ai-workspace-model.js';
+import {requestAiJson} from './ai-request.js';
+import {applyWorkingDraftPlan} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
+import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
+import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
+import {requestedPartyHighlight,prepareSelectedPartyHighlight} from './ai-party-highlights.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
@@ -122,6 +127,34 @@ async function persistKernel(host:Host,requireScope=false):Promise<void>{
   };
   const next=storeQueue.catch(()=>undefined).then(run);storeQueue=next;await next;
 }
+/** Recover a verified saved document after an interrupted/reloaded approval.
+ * An applied receipt is not permission to recreate a document or to remove an
+ * unrelated newer working draft. Only its exact signed approval ID can retire
+ * the obsolete staged copy, and the saved record must still exist in scope. */
+function reconcileSavedConversationDocument(host:Host,kernel:ConversationKernel,vault:VaultPayload):void{
+  const receipts=(host.__foundationReceipts||[]) as Array<{id:string;state:string;action?:string;resultId?:string;draftId?:string;draftRevision?:number;payload?:string}>;
+  const scoped=scopeVault(vault).documents;
+  const approved=receipts.filter(r=>r.state==='applied'&&
+    (r.action==='document.createDraft'||r.action==='document.updateDraft')&&r.resultId);
+  const artifact=kernel.artifact;
+  const currentId=(artifact?.proposal as any)?.foundationApproval?.id;
+  const match=artifact?approved.find(r=>
+    // Current receipts require exact draft identity + revision + payload.
+    // Legacy receipts have no version stamp: permit only the original signed
+    // envelope match, never a guessed "most recent" document.
+    r.draftId
+      ?r.draftId===artifact.id&&r.draftRevision===artifact.revision&&
+        r.payload===canonicalFoundationJson(artifact.proposal)
+      :Boolean(currentId&&r.id===currentId)):undefined;
+  if(match){
+    const doc=scoped.find(row=>row.id===match.resultId&&row.kind!=='draft');
+    if(doc){kernel.artifact=undefined;kernel.entity={entityType:'document',entityId:doc.id,label:doc.number};}
+  }else if(!kernel.artifact&&!kernel.entity){
+    const last=[...approved].reverse().find(r=>scoped.some(doc=>doc.id===r.resultId&&doc.kind!=='draft'));
+    const doc=last&&scoped.find(row=>row.id===last.resultId);
+    if(doc)kernel.entity={entityType:'document',entityId:doc.id,label:doc.number};
+  }
+}
 async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   if(!host.__lourexAssistantThreadId)host.__lourexAssistantThreadId='ai-thread-'+crypto.randomUUID();
   const scope=scopeFor(host,vault);
@@ -139,6 +172,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   // valid mode metadata fail closed to Advisor; never infer elevated permission.
   host.__intelligenceKernel=thread?normalizeConversationKernel(thread.kernel,scope):newConversationKernel(scope);
   host.__foundationReceipts=thread?.foundationReceipts||[];
+  reconcileSavedConversationDocument(host,host.__intelligenceKernel,vault);
   host.__foundationVault=vault;
   // Read-only Advisor must never surface or re-stage a stored execution proposal.
   if(currentConversationMode(host)==='advisor'){
@@ -184,8 +218,13 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     throw new Error('Account, conversation or workspace changed during loading.');
   const proposal=host.state.proposal;
   if(currentConversationMode(host)==='controller'&&(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')){
-    stageKernelArtifact(host.__intelligenceKernel,proposal);
-    host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
+    const alreadyApplied=(host.__foundationReceipts||[]).some((receipt:any)=>
+      receipt.state==='applied'&&proposal.foundationApproval?.id&&receipt.id===proposal.foundationApproval.id);
+    if(alreadyApplied){host.setState({proposal:null,review:null});}
+    else{
+      stageKernelArtifact(host.__intelligenceKernel,proposal);
+      host.setState({review:reviewAiDocumentProposal(proposal,workspaceDrafting(resumed.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en')});
+    }
   }
   await flush(host);
   // Sync inert thread messages without importing executable approvals or drafts.
@@ -228,6 +267,9 @@ export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state
   const session=await resumeVaultSession();
   if(!session||kernelScopeKey(scopeFor(host,session.vault))!==kernelScopeKey(kernel.scope))throw new Error('Conversation scope changed. Reopen the action.');
   const next=structuredClone(kernel),steps=proposal.capability==='tool.plan'?proposal.steps:[proposal];
+  const declinedDraft=next.artifact&&['document.createDraft','document.updateDraft'].includes(next.artifact.proposal.capability)&&
+    steps?.some((row:any)=>row?.foundationApproval?.id&&(next.artifact?.proposal as any)?.foundationApproval?.id===row.foundationApproval.id)
+    ?structuredClone(next.artifact):null;
   const cancelled=new Set<unknown>(),ids=new Set(next.cancelledApprovals||[]);
   for(const row of steps||[]){
     const id=row?.foundationApproval?.id;
@@ -239,6 +281,12 @@ export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state
   reconcileCancelledApprovals(next);
   // Do not remove an unrelated working document when declining a different action.
   if(next.artifact&&steps?.some((row:any)=>row?.foundationApproval?.id&&(next.artifact?.proposal as any)?.foundationApproval?.id===row.foundationApproval.id))next.artifact=undefined;
+  // Declining permission to SAVE does not discard the user's working document.
+  // Strip all approval envelopes, including undo snapshots, before retaining it.
+  if(declinedDraft){
+    for(const draft of [declinedDraft.proposal,...declinedDraft.undo,...declinedDraft.redo])delete (draft as any).foundationApproval;
+    declinedDraft.revision++;next.artifact=declinedDraft;
+  }
   host.__intelligenceKernel=next;
   try{
     // A declined decision is complete only AFTER the tombstone is durable.
@@ -380,8 +428,8 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
       stageKernelArtifact(kernel,result.workingDraft);
       host.__foundationPreviewStaged={scope:kernelScopeKey(kernel.scope),artifactId:kernel.artifact!.id,revision:kernel.artifact!.revision};
       host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,
-        __workspaceSavedId:'',__workspaceEditing:false,__workspaceOpen:true,
-        __workspacePane:'workspace',__workspaceTab:'preview'});
+        __workspaceSavedId:'',__workspaceEditing:false,__workspaceOpen:false,
+        __workspacePane:'chat',__workspaceTab:'preview'});
     }
     const search=result.results.find(row=>row.ok&&row.tool==='search.records');
     if(search&&Array.isArray(search.data)&&!result.proposal){
@@ -454,7 +502,11 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     }
     if(!missionStep(kernel.missions||[],proposal))stageReviewedMission(kernel,proposal);
     step=beginMissionStep(kernel.missions||[],proposal);
-    receipt={id:proposal.foundationApproval.id,state:'applying',at:new Date().toISOString(),actorId:proposal.foundationApproval.actorId,action:proposal.tool||proposal.capability,payload:proposal.foundationApproval.payload};
+    const approvedDraft=kernel.artifact&&['document.createDraft','document.updateDraft'].includes(proposal.capability)&&
+      canonicalFoundationJson(kernel.artifact.proposal)===proposal.foundationApproval.payload
+      ?{id:kernel.artifact.id,revision:kernel.artifact.revision}:null;
+    receipt={id:proposal.foundationApproval.id,state:'applying',at:new Date().toISOString(),actorId:proposal.foundationApproval.actorId,action:proposal.tool||proposal.capability,payload:proposal.foundationApproval.payload,
+      ...(approvedDraft?{draftId:approvedDraft.id,draftRevision:approvedDraft.revision}:{})};
     host.__foundationReceipts=[...(host.__foundationReceipts||[]),receipt].slice(-100);
     await persistKernel(host); // Crash after commit cannot silently replay an uncertain action.
     // Persistence can await IndexedDB. Re-check the live session and visible
@@ -468,8 +520,26 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     assertFoundationApproval(live.vault,proposal);
     const result=await apply();await flush(host);
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
-    else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';if((kernel.artifact?.proposal as any)?.foundationApproval?.id===proposal.foundationApproval.id)kernel.artifact=undefined;
+    else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';
       const latest=await resumeVaultSession(),mission=missionStep(kernel.missions||[],proposal)?.mission;
+      if(latest&&kernelScopeKey(scopeFor(host,latest.vault))===kernelScopeKey(kernel.scope))host.__foundationVault=latest.vault;
+      // Only retire the exact working version that was actually saved. The
+      // approved proposal and kernel artifact are clones; comparing envelope
+      // IDs alone fails if an async reload recreated the approval proposal.
+      // Verify BOTH the immutable economic payload and the durable document
+      // before closing the draft; never hide a newer, unapproved revision.
+      if(latest&&receipt.resultId&&['document.createDraft','document.updateDraft'].includes(proposal.capability)){
+        const saved=scopeVault(latest.vault).documents.find(doc=>doc.id===receipt.resultId&&doc.kind!=='draft');
+        if(saved){
+          host.__foundationVault=latest.vault;
+          if(kernel.artifact&&receipt.draftId===kernel.artifact.id&&
+            receipt.draftRevision===kernel.artifact.revision&&
+            receipt.payload===canonicalFoundationJson(kernel.artifact.proposal))
+            kernel.artifact=undefined;
+          kernel.entity={entityType:'document',entityId:saved.id,label:saved.number};
+          host.setState({__workspaceSavedId:saved.id});
+        }
+      }
       if(latest&&mission){const visible=host.state.proposal?.capability==='tool.plan'?host.state.proposal.steps:[host.state.proposal];for(const pending of mission.steps){if(pending===step||pending.status!=='needs_approval'||!pending.proposal)continue;const oldId=pending.approvalId,p=structuredClone(pending.proposal);delete p.foundationApproval;stampProposal(host,p,latest.vault);pending.approvalId=p.foundationApproval.id;pending.proposal=p;pending.payload=canonicalFoundationJson(p);for(const row of visible||[])if(row?.foundationApproval?.id===oldId)row.foundationApproval=p.foundationApproval;}}
 
     }
@@ -513,7 +583,7 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.setState({__workspaceTurnPending:true});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
     try{
       await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
@@ -556,7 +626,7 @@ export function installIntelligenceRuntime(host:Host):void{
         stageKernelArtifact(kernel,savedLineEdit);
         host.__foundationVault=fresh.vault;
         host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,
-          __workspaceReviewedProposal:null,__workspaceOpen:true,__workspacePane:'workspace',
+          __workspaceReviewedProposal:null,__workspaceOpen:false,__workspacePane:'chat',
           __workspaceTab:'preview',__workspaceSavedId:'',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
@@ -564,9 +634,72 @@ export function installIntelligenceRuntime(host:Host):void{
               :'Prepared an unsaved working revision of the exact saved document line. Nothing was saved or issued. Review the difference; saving requires a separate approval.'}]}));
         await flush(host);await persistKernel(host);return;
       }
+      // Scoped in-chat listings and selection are read-only kernel operations.
+      // Never navigate to another section or write master data for "show all".
+      if(currentConversationMode(host)==='controller'){
+        const listKind=requestedRecordList(message);
+        if(listKind){
+          if(!graphKindAllowed(strictAiActor(resumed.vault).role,listKind))
+            throw new Error('This role cannot list those business records.');
+          const selected=stageScopedRecordList(kernel,resumed.vault,listKind);
+          host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                ?'عرضت '+selected.items.length+' سجلاً من بيانات الشركة الحالية. يمكنك البحث والتحديد هنا دون تعديل أو حفظ أي سجل.'
+                :'Displayed '+selected.items.length+' records from this company. Search or select here; no business record was changed.'}]}));
+          await flush(host);await persistKernel(host);return;
+        }
+        const mark=requestedPartyHighlight(message);
+        if(mark==='red'){
+          if(kernel.artifact)throw new Error('Finish or dismiss the current unsaved document before preparing a separate master-record change.');
+          if(host.state.proposal)throw new Error('Finish or decline the previous approval before reviewing red marks.');
+          const batch=prepareSelectedPartyHighlight(kernel,resumed.vault);
+          if(!graphKindAllowed(strictAiActor(resumed.vault).role,batch.party))
+            throw new Error('The current role cannot mark those master records.');
+          const p:any={capability:'tool.execute',tool:batch.party+'.bulkHighlight',args:batch,
+            preview:batch.preview,label:'Mark '+batch.rows.length+' selected '+batch.party+' records red',
+            rationale:'Review the exact selected record IDs and before/after marks. No records were changed; separate signed approval required.'};
+          stampProposal(host,p,resumed.vault);stageReviewedMission(kernel,p);
+          host.setState((state:any)=>({input:'',error:'',proposal:p,review:null,__workspaceReviewedProposal:null,
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                ?'جهزت معاينة العلامة الحمراء لـ '+batch.rows.length+' سجل محدد. لم أحفظ أي تغيير. راجع الأسماء والمعرفات ثم وافق بصورة مستقلة.'
+                :'Prepared a red-mark preview for '+batch.rows.length+' exact records. Nothing saved; review IDs and explicitly approve.'}]}));
+          await flush(host);await persistKernel(host);return;
+        }
+        const selectedPricePercent=requestedSelectedProductRepricing(message);
+        if(selectedPricePercent!==null){
+          if(kernel.artifact)throw new Error('Finish or dismiss the current working document before preparing a separate bulk product approval. The document draft remains intact.');
+          if(host.state.proposal)throw new Error('Finish or decline the earlier approval before preparing selected product prices.');
+          if(!graphKindAllowed(strictAiActor(resumed.vault).role,'product'))
+            throw new Error('This role cannot change product prices.');
+          const batch=prepareSelectedProductRepricing(kernel,resumed.vault,selectedPricePercent);
+          const p:any={capability:'tool.execute',tool:'product.bulkUpdate',args:batch,
+            preview:batch.rows.map(row=>row.preview),label:'Review '+batch.rows.length+' selected product price changes',
+            rationale:'Exact selected records only. All old and proposed prices require one independent approval; nothing has been saved.'};
+          stampProposal(host,p,resumed.vault);stageReviewedMission(kernel,p);
+          host.setState((state:any)=>({input:'',error:'',proposal:p,review:null,__workspaceReviewedProposal:null,
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                ?'جهزت مراجعة أسعار '+batch.rows.length+' منتج محدد. اعرض الأسعار القديمة والجديدة ووافق صراحةً قبل حفظ أي تغيير.'
+                :'Prepared the exact before/after price review for '+batch.rows.length+' selected products. Explicit approval is required before saving.'}]}));
+          await flush(host);await persistKernel(host);return;
+        }
+        if(kernel.selection){
+          const updated=exactNamedRecordSelection(kernel,resumed.vault,message);
+          if(updated){
+            host.setState((state:any)=>({input:'',error:'',
+              messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+                {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+                  ?'تم تحديد '+(updated.selectedIds||[]).length+' سجل بدقة. لم يتم تعديل أو حفظ أي بيانات.'
+                  :'Selected '+(updated.selectedIds||[]).length+' exact records. No business data was edited or saved.'}]}));
+            await flush(host);await persistKernel(host);return;
+          }
+        }
+      }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
-        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعملي|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
+        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
@@ -574,7 +707,7 @@ export function installIntelligenceRuntime(host:Host):void{
         prepareAiPdfPreview(kernel,fresh.vault,requestLanguage,previewId||'');
         host.__foundationVault=fresh.vault;
         const identity=turnScope+'|'+(previewId||'')+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
-        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',
           __workspaceSavedId:previewId||'',__workspacePdfAutoStart:identity,
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
@@ -587,7 +720,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||savedDocumentPreviewId(kernel,fresh.vault,message)!==previewId)throw new Error('Document scope changed. Ask for the preview again.');
         host.__foundationVault=fresh.vault;
-        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
+        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
         await flush(host);await persistKernel(host);return;
       }
       const commercialCommand=currentConversationMode(host)==='controller'?commercialDraftCommand(kernel,resumed.vault,message):null;
@@ -598,7 +731,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const p=next.artifact!.proposal as any;delete p.foundationApproval;
         if(previousApproval?.id)retireWorkingApproval(next,previousApproval.id);
         host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:null,review:null,__workspaceReviewedProposal:null,error:'',
-          __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
+          __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:'',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
               ?'عدّلت مسودة العمل فقط، ولم أحفظ أو أصدر أي مستند. راجع الفروق ثم اطلب الحفظ إذا أردت.'
@@ -609,14 +742,14 @@ export function installIntelligenceRuntime(host:Host):void{
       // editing follow-ups against the full scoped kernel draft BEFORE asking a
       // general model, which could otherwise omit old lines or trade terms.
       const draftOnly= currentConversationMode(host)==='controller'&&Boolean(kernel.artifact)&&!host.state.proposal;
-      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|احفظ العرض|اعتمد النسخة|اعتمد المسودة|اعتمد عرض السعر|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?|approve (?:the|this) draft)[.!؟\s]*$/iu.test(message);
+      const saveWorkingDraft=/^(?:(?:تمام|طيب|أوكي|اوكي)[،,]?\s*)?(?:احفظ|احفظه|احفظها|احفظ المسودة|احفظ العرض|احفظ عرض السعر|احفظ هذا العرض|اعتمد النسخة|اعتمد المسودة|اعتمد عرض السعر|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?|approve (?:the|this) draft)[.!؟\s]*$/iu.test(message);
       if(draftOnly&&saveWorkingDraft){
         const p=structuredClone(kernel.artifact!.proposal) as any;
         delete p.foundationApproval;
         const drafting=workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:'');
         const review=reviewAiDocumentProposal(p,drafting,requestLanguage==='ar'?'ar':'en');
         if(review.blockers.length){
-          host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+          host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',
             messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
               {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
                 ?'المسودة غير مكتملة. راجع الحقول الناقصة في المعاينة أولاً. لم أحفظ شيئاً.'
@@ -629,7 +762,7 @@ export function installIntelligenceRuntime(host:Host):void{
         // with the document; only this verified envelope may resume after reload.
         kernel.artifact!.proposal=p;
         host.setState((state:any)=>({input:'',error:'',proposal:p,review,__workspaceReviewedProposal:null,
-          __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+          __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
               ?'جهزت طلب حفظ المسودة للمراجعة فقط. لم يُحفظ أي مستند. راجع التفاصيل ثم اضغط زر الموافقة بنفسك.'
@@ -644,20 +777,43 @@ export function installIntelligenceRuntime(host:Host):void{
         ['document.createDraft','document.updateDraft'].includes(visible.capability)&&
         visible.capability===kernel.artifact.proposal.capability&&
         (visible.capability!=='document.updateDraft'||visible.documentId===(kernel.artifact.proposal as any).documentId));
-      if((draftOnly||isReviewedDraft)&&exactDraftFollowup){
+      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy){
+        if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
         if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
-        const next=structuredClone(kernel);
+        let next=structuredClone(kernel);
         const original=next.artifact!.proposal;
         const drafting=workspaceDrafting(resumed.vault,original.capability==='document.updateDraft'?original.documentId:'');
-        const result=reviseKernelDraft(next,original,message,drafting,requestLanguage);
+        let result=reviseKernelDraft(next,original,message,drafting,requestLanguage);
+        if(!result?.changed){
+          const controller=new AbortController();host.requestController=controller;
+          host.setState({busy:true,error:''});await flush(host);
+          try{
+            const response=await requestAiJson('/api/ai-inbox',{mode:'working-draft-plan',conversationMode:'controller',
+              scope:'business',message,draft:workspaceDocument(kernel,resumed.vault,requestLanguage),customers:drafting.customers.map(row=>({id:row.id,name:row.name}))},controller.signal,15000);
+            const fresh=await resumeVaultSession();
+            if(controller.signal.aborted||!fresh||currentConversationMode(host)!=='controller'||host.__intelligenceKernel!==kernel||
+              kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||
+              response.plan?.artifactId!==kernel.artifact?.id||response.plan?.revision!==kernel.artifact?.revision)
+              throw new Error('The working document or account changed during planning. Nothing was modified.');
+            if(response.plan.action==='unrelated'&&!exactDraftFollowup)break draftRevision;
+            if(response.plan.action==='edit'){
+              next=applyWorkingDraftPlan(kernel,fresh.vault,response.plan,message);
+              result={proposal:next.artifact!.proposal,changed:next!==kernel,message:requestLanguage==='ar'
+                ?'عدّلت السطور المطلوبة في مسودة العمل وأعدت حساب الإجمالي. لم أحفظ أي سجل.'
+                :'Updated the requested working-draft lines and recalculated the subtotal. No record was saved.'};
+              host.__foundationVault=fresh.vault;
+            }else result={proposal:original,changed:false,message:String(response.plan.question||
+              (requestLanguage==='ar'?'حدّد السطر والقيمة المطلوبة؛ لم أغيّر المسودة.':'Specify the line and replacement value; the draft is unchanged.')).slice(0,1000)};
+          }finally{if(host.requestController===controller)host.requestController=null;host.setState({busy:false});await flush(host);}
+        }
         if(result?.changed){
           const revised=next.artifact!.proposal as any;
           delete revised.foundationApproval;
           if(previousId)retireWorkingApproval(next,previousId);
           host.__intelligenceKernel=next;
           host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,__workspaceReviewedProposal:null,
-            __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
+            __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:'',
             messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
               {id:crypto.randomUUID(),role:'assistant',text:result.message+
                 (requestLanguage==='ar'?' يمكنك المتابعة بالتعديل أو طلب PDF دون حفظ.':' You can continue revising or request PDF without saving.') }]}));
@@ -688,7 +844,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }else if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
     }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
-    finally{host.__foundationTurnBusy=false;await recordDiagnostic(host,'turn',started,turnScope);}
+    finally{host.__foundationTurnBusy=false;host.setState({__workspaceTurnPending:false});await recordDiagnostic(host,'turn',started,turnScope);}
   };
 }
 

@@ -85,8 +85,8 @@ test('F03 Controller source intercepts exact edits before model and prepares sav
  assert.match(flow,/host\.__intelligenceKernel=next/);
  assert.match(flow,/proposal:null,review:null/);
  assert.doesNotMatch(flow,/mutateVaultSafely|saveDocument\(|postInvoice\(/);
- const confirmAt=flow.indexOf('if(draftOnly&&saveWorkingDraft)'),editAt=flow.indexOf('if((draftOnly||isReviewedDraft)&&exactDraftFollowup)');
- assert.ok(confirmAt<editAt,'explicit save goes through approval preparation; edit is no-save');
+ const confirmAt=flow.indexOf('if(draftOnly&&saveWorkingDraft)'),editAt=flow.indexOf('draftRevision: if((draftOnly||isReviewedDraft)');
+ assert.ok(confirmAt>=0&&editAt>confirmAt,'explicit save goes through approval preparation; edit is no-save');
  const askAt=source.indexOf('await ask(raw);');
  assert.ok(end<askAt,'follow-up is handled before generic AI planner');
 });
@@ -102,7 +102,8 @@ test('F03 live command regex recognizes exact Arabic edits and save gate, but no
  const revise=literal('exactDraftFollowup'),save=literal('saveWorkingDraft');
  for(const command of ['غيّر كمية الصنف 3 إلى 26','غيّر سعر الصنف 3 إلى 26','ارجع السعر السابق','undo','change quantity line 3 to 26'])
    assert.equal(revise(command),true,command);
- for(const command of ['احفظها','احفظ المسودة','prepare to save this draft'])assert.equal(save(command),true,command);
+ for(const command of ['احفظها','احفظه','احفظ المسودة','تمام احفظ','احفظ عرض السعر','prepare to save this draft'])assert.equal(save(command),true,command);
+ for(const command of ['لا تحفظها','احفظها واصدر الفاتورة','تمام احذف المستند'])assert.equal(save(command),false,command);
  for(const command of ['حلّل الأرباح','كم فاتورة صدرت؟','هل هذا السعر جيد؟']){
    assert.equal(revise(command),false,command);assert.equal(save(command),false,command);
  }

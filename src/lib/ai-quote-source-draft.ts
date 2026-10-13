@@ -1,6 +1,6 @@
 import type {AiDocumentDraftProposal, AiCustomerDraftInput} from '../components/AiCopilot.js';
 import type {AiToolRuntime} from './ai-tool-orchestrator.js';
-import {isNonNegativeDecimalInput,normalizeDecimalInput} from './money.js';
+import {decimalToScaled,isNonNegativeDecimalInput,normalizeDecimalInput} from './money.js';
 import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 
 /** The structured /api/quote-source-ai result is evidence, never an instruction
@@ -10,6 +10,36 @@ export function explicitQuoteConversionIntent(message:string):boolean{
   const q=String(message||'').normalize('NFKC').trim();
   return /(?:حوّل|حول|جهز|جهّز|أنشئ|انشئ|اصنع|اعمل|سوي|حضّر|حضر|ادمج|اجمع|combine|merge|convert|create|prepare|make|build|draft).{0,100}(?:عرض\s*سعر|عرض\s*السعر|فاتورة\s*مبدئية|quotation|quote|proforma)/iu.test(q)||
     /(?:عرض\s*سعر|quotation|quote|proforma).{0,100}(?:من\s*(?:الملف|المرفق|الصورة)|from\s*(?:this\s*)?(?:file|attachment))/iu.test(q);
+}
+/** A gross margin is a share of SALES, not a markup on supplier cost.
+ * Parse only an explicit margin request; ambiguous percentages never silently
+ * change 85 supplier prices. The cost itself stays in the source evidence. */
+function requestedGrossMargin(message:string):string|null{
+  const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
+  const text=String(message||'').normalize('NFKC')
+    .replace(/[٠-٩۰-۹]/gu,c=>String(ar.includes(c)?ar.indexOf(c):fa.indexOf(c)))
+    .replace(/[ً-ٰٟ]/gu,'').replace(/٫/g,'.');
+  const keyword=/(?:هامش\s*(?:ال)?ربح|هامش\s*إجمالي|gross\s+(?:profit\s+)?margin)/iu;
+  if(!keyword.test(text))return null;
+  const exact=text.match(/(?:هامش\s*(?:ال)?ربح|هامش\s*إجمالي|gross\s+(?:profit\s+)?margin)\s*(?:بنسبة\s*)?(\d{1,3}(?:[.,]\d{1,4})?)\s*(?:[%٪]|بالمئة|بالمائة|percent)?/iu);
+  if(!exact)throw new Error('SOURCE_INCOMPLETE: Supply an explicit gross margin percentage. No quotation was prepared.');
+  const value=normalizeDecimalInput(exact[1]!.replace(',','.'));
+  const scaled=decimalToScaled(value,4);
+  if(!/^(?:0|[1-9]\d{0,2})(?:\.\d{1,4})?$/.test(value)||scaled<0n||scaled>=1000000n)
+    throw new Error('SOURCE_INCOMPLETE: Gross profit margin must be between 0% and less than 100%.');
+  return value;
+}
+function sellingPriceForGrossMargin(sourceUnitPrice:string,margin:string):string{
+  if(!sourceUnitPrice)throw new Error('SOURCE_INCOMPLETE: A supplier unit price is missing; cannot calculate the requested margin for every line.');
+  const rawCost=decimalToScaled(sourceUnitPrice,6);
+  const denominator=1000000n-decimalToScaled(margin,4);
+  // Selling price = cost / (1 - gross-margin). Round UP to cents so the
+  // achieved margin does not fall below the requested rate.
+  const cents=(rawCost*100n+denominator-1n)/denominator;
+  const amount=String(cents/100n)+'.'+String(cents%100n).padStart(2,'0');
+  if(!/^(?:0|[1-9]\d{0,12})\.\d{2}$/.test(amount))
+    throw new Error('SOURCE_INCOMPLETE: Margin would exceed the supported document price range.');
+  return amount;
 }
 function sourceText(value:unknown,max:number):string{
   if(typeof value!=='string'||value.length>max)return '';
@@ -81,6 +111,7 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
   let parsed:unknown;
   try{parsed=JSON.parse(evidence);}catch{throw new Error('SOURCE_INCOMPLETE: Attachment extraction is not a complete JSON quotation. No items were staged.');}
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('SOURCE_INCOMPLETE: Attachment is not a structured quotation.');
+  const margin=requestedGrossMargin(message);
   const data=parsed as Record<string,unknown>,raw=data.items;
   if(!Array.isArray(raw)||raw.length===0||raw.length>AI_WORKING_QUOTE_MAX_LINES)throw new Error('SOURCE_INCOMPLETE: Quotation must contain 1–'+AI_WORKING_QUOTE_MAX_LINES+' complete lines. No rows omitted.');
   if(data.sourceRowCount!==undefined&&(!Number.isInteger(data.sourceRowCount)||data.sourceRowCount!==raw.length))throw new Error('SOURCE_INCOMPLETE: Extracted row count does not match the declared source rows. No partial quote staged.');
@@ -92,7 +123,8 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     const quantity=numeric(row.quantity,true);
     // Ambiguous source quantities are never placed in a priced document.
     if(row.quantityAmbiguous===true||Number(row.quantityConfidence)<.5)throw new Error('SOURCE_INCOMPLETE: Quantity or pack unit is uncertain on line '+(index+1)+'. Confirm the source before building a quotation.');
-    const unit=sourceText(row.unit,40),unitPrice=numeric(row.unitPrice,false);
+    const unit=sourceText(row.unit,40),sourcePrice=numeric(row.unitPrice,false);
+    const unitPrice=margin===null?sourcePrice:sellingPriceForGrossMargin(sourcePrice,margin);
     return{savedItemId:'',descriptionEn:descriptionEn||sku,descriptionAr,quantity,unit,unitPrice};
   });
   const currency=sourceText(data.currency,3).toUpperCase();
@@ -108,6 +140,6 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     deliveryTime:sourceText(data.deliveryTime,160),validity:sourceText(data.validity,100),
     remarks:sourceText(data.remarks,500),notes:sourceText(data.notes,500),
     label:'Unsaved quotation from '+sourceText(source.fileName,120),
-    rationale:'User requested a quotation from structured attachment evidence. This is an unsaved working draft, not permission to save or issue.'
+    rationale:'User requested a quotation from structured attachment evidence. '+(margin===null?'Source unit prices retained exactly.':'Applied '+margin+'% gross margin (on selling price, not markup) to all '+items.length+' supplier unit prices, rounded UP to cents; source costs remain in the attachment evidence. ')+'This is an unsaved working draft, not permission to save or issue.'
   };
 }

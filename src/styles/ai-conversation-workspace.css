@@ -53,6 +53,15 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2']{
   border-radius:11px;background:var(--lxw-surface);color:var(--lxw-text);
   font-family:inherit;font-size:13px;font-weight:500;line-height:1.5;text-align:center;
 }
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description{flex-wrap:wrap;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-advisor-controller-handoff{
+  flex:0 0 auto;min-height:30px;max-width:100%;padding:5px 10px;
+  background:var(--lxw-surface);border:1px solid var(--lxw-line);
+  color:var(--lxw-text);border-radius:10px;font-family:inherit;font-weight:600;font-size:11px;line-height:1.4;
+  cursor:pointer;white-space:normal;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-advisor-controller-handoff:disabled{opacity:.48;cursor:default;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-advisor-controller-handoff:focus-visible{outline:2px solid var(--lxw-text);outline-offset:2px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description>span{color:var(--lxw-text)!important;}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description>span:last-child{
   min-width:0;direction:inherit;overflow-wrap:normal;
@@ -729,3 +738,12 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history-trigger
 #lourex-ai-panel[data-lourex-workspace='2'] .lxw-history :is(.lxw-history-delete,.lxw-history-delete-confirm button):focus-visible{
   outline:2px solid var(--lxw-text);outline-offset:2px;
 }
+
+/* The working document and its actual PDF share the conversation scroll. */
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document{border:1px solid #343434;border-radius:14px;padding:12px;margin:12px 0;background:#161616;color:#fff;min-width:0;overflow-wrap:anywhere;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document :is(button,a,summary){min-height:44px;display:inline-flex;align-items:center;padding:8px 10px;border:1px solid #444;border-radius:8px;background:#222;color:#fff;font:inherit;cursor:pointer;text-decoration:none;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document :is(button,a,summary):focus-visible{outline:2px solid white;outline-offset:2px;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document button:disabled{opacity:.45;cursor:default;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document-controls{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document details{max-width:100%;overflow:auto;}
