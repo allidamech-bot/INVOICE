@@ -1,0 +1,52 @@
+name: LOUREX final merged release branch closeout
+on:
+  push:
+    branches:
+      - cleanup/pr741-final-20261013
+    paths:
+      - .github/workflows/lourex-pr741-final-cleanup-20261013.yml
+permissions:
+  contents: write
+jobs:
+  final:
+    if: github.repository == 'allidamech-bot/INVOICE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Archive exact merged PR 741 and delete its branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.GH_TOKEN,repo='allidamech-bot/INVOICE',target='fix/ai-batch1-pr-reconciliation-f17-20261013',expected='0dbd1a35cfe44f041893f0261e0310b9ff073713',cleanup='cleanup/pr741-final-20261013';
+          async function api(method,path,body){
+           const response=await fetch('https://api.github.com/repos/'+repo+'/'+path,{
+           method,headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+           const raw=await response.text();let data={};try{data=JSON.parse(raw)}catch{}
+           if(!response.ok&&response.status!==404)throw Error(method+' '+path+' HTTP '+response.status+' '+JSON.stringify(data).slice(0,250));
+           return{status:response.status,ok:response.ok,data};
+          }
+          const main=await api('GET','git/ref/heads/main');
+          if(main.data.object?.sha!=='bf11e420581e10d61ec47b52089367a07831ea1f')throw Error('Main moved; aborting cleanup.');
+          const active=await api('GET','pulls?state=open&per_page=100');
+          if(!active.ok||!Array.isArray(active.data)||active.data.length!==0)throw Error('PRs open; aborting cleanup');
+          const r=await api('GET','git/ref/heads/'+target);
+          if(!r.ok||r.data.object?.sha!==expected)throw Error('Merged PR branch changed; aborting cleanup');
+          const tag='archive/lourex-pr-closeout-20261013/pr-741';
+          const old=await api('GET','git/ref/tags/'+tag);
+          if(old.status===404)await api('POST','git/refs',{ref:'refs/tags/'+tag,sha:expected});
+          else if(old.data.object?.sha!==expected)throw Error('Archive tag collision');
+          const latest=await api('GET','git/ref/heads/'+target);
+          if(latest.data.object?.sha!==expected)throw Error('Branch advanced after archival; no deletion');
+          await api('DELETE','git/refs/heads/'+target);
+          console.log('Archived and deleted merged release branch '+target);
+          const self=await api('GET','git/ref/heads/'+cleanup);
+          if(self.ok&&self.data.object?.sha===process.env.GITHUB_SHA){
+           const selfTag='archive/lourex-pr-closeout-20261013/final-workflow';
+           const prev=await api('GET','git/ref/tags/'+selfTag);
+           if(prev.status===404)await api('POST','git/refs',{ref:'refs/tags/'+selfTag,sha:process.env.GITHUB_SHA});
+           await api('DELETE','git/refs/heads/'+cleanup);
+           console.log('Deleted temporary closeout branch');
+          }
+          console.log('Final PR closeout complete. Main untouched.');
+          NODE
