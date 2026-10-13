@@ -16,7 +16,7 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
-import {resumableWorkingApproval} from './ai-draft-resumption.js';
+import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
 import { conversationModePermitsCapability, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
@@ -538,11 +538,20 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       const commercialCommand=currentConversationMode(host)==='controller'?commercialDraftCommand(kernel,resumed.vault,message):null;
       if(commercialCommand){
-        if((kernel.artifact!.proposal as any).foundationApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
+        const previousApproval=(kernel.artifact!.proposal as any).foundationApproval;
+        if(previousApproval)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
         const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,commercialCommand);
-        const p=next.artifact!.proposal as any;delete p.foundationApproval;stampProposal(host,p,resumed.vault);stageReviewedMission(next,p);
-        const review=reviewAiDocumentProposal(p,workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:''),host.props.language==='ar'?'ar':'en');
-        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:p,review,error:'',__workspaceSavedId:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'عدّلت المسودة فقط. راجع الفروق والشروط قبل الحفظ.':'Draft revised only. Review its diff and terms before saving.'}]}));await flush(host);await persistKernel(host);return;
+        const p=next.artifact!.proposal as any;delete p.foundationApproval;
+        if(previousApproval?.id)retireWorkingApproval(next,previousApproval.id);
+        // Editing a quote is never permission to persist it. An explicit
+        // subsequent "save/approve draft" request must create a NEW review.
+        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:null,review:null,error:'',
+          __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
+          messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+            {id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'
+              ?'عدّلت مسودة العمل فقط، ولم أحفظ أو أصدر أي مستند. راجع الفروق ثم اطلب الحفظ إذا أردت.'
+              :'Working draft revised only; nothing was saved or issued. Review the changes, then explicitly request saving.'}]}));
+        await flush(host);await persistKernel(host);return;
       }
 
       // A prepare-only preview has no actionable proposal. Interpret exact
