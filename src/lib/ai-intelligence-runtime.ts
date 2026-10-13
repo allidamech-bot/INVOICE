@@ -537,7 +537,7 @@ export function installIntelligenceRuntime(host:Host):void{
       await ask(raw);await flush(host);await host.__lourexAssistantPersistQueue;
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
       const previewStaged=host.__foundationPreviewStaged;host.__foundationPreviewStaged=undefined;
-      if(previewStaged&&previewStaged.scope===kernelScopeKey(kernel.scope)&&kernel.artifact?.id===previewStaged.artifactId&&kernel.artifact.revision===previewStaged.revision){
+      if(previewStaged&&previewStaged.scope===kernelScopeKey(kernel.scope)&&kernel.artifact?.id===previewStaged.artifactId&&kernel.artifact?.revision===previewStaged.revision){
         // Legacy chat can restore a previously captured pending proposal after
         // the tool callback. A PREPARE-only review must never inherit it.
         if(host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
