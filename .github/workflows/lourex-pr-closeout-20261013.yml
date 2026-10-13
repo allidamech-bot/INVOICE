@@ -1,0 +1,71 @@
+name: LOUREX safe archived PR branch closeout
+on:
+  push:
+    branches:
+      - cleanup/pr-closeout-20261013
+    paths:
+      - '.github/workflows/lourex-pr-closeout-20261013.yml'
+permissions:
+  contents: write
+jobs:
+  archive-delete:
+    if: github.repository == 'allidamech-bot/INVOICE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Archive exact PR heads and remove only superseded branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const repository='allidamech-bot/INVOICE',expectedMain='bf11e420581e10d61ec47b52089367a07831ea1f',cleanupBranch='cleanup/pr-closeout-20261013';
+          const manifest=[{"branch":"feature/lourex-ai-living-workspace-batch5-quality-gates-20261012","sha":"5ba647021e7c851e7dfcba815ada58d5e0887873","prs":[707]},{"branch":"fix/ai-batch1-voice-stability-20261012","sha":"78b05d892db87715b5f9960369e7f4d01f9252b7","prs":[709]},{"branch":"fix/ai-batch2-advisor-conversation-safety-20261012","sha":"b83784c75f78e14f500ed12079e8ff31b9617c6f","prs":[710]},{"branch":"fix/ai-batch3-conversation-history-20261012","sha":"c4faafdb52bd33721762e61f48e09c2aa6b2b4f1","prs":[711]},{"branch":"fix/ai-batch4-compact-evidence-review-20261012","sha":"903f3a34c38cca354696548dacdeb9cc24847e13","prs":[713]},{"branch":"fix/ai-batch4-mobile-data-density-20261012","sha":"be571c23f737c7b612c459218794abd513d54184","prs":[712]},{"branch":"fix/ai-batch5-tool-result-completeness-20261012","sha":"8c4461c0722d946b30b8037eed9195f97675df70","prs":[714]},{"branch":"fix/ai-batch6-qa-mobile-import-reviews-20261012","sha":"42d449e46b145bf8447cd1496aa36adbc3dd560c","prs":[715]},{"branch":"fix/ai-batch7-account-cloud-history-20261012","sha":"1d11b51b74ce40438ca2eff9e2d7aea089402f85","prs":[716]},{"branch":"fix/ai-f01-real-chat-pdf-preview-20261013","sha":"bc0fcdbb0ce7cf18e7aa810d043ffcaaa5247db3","prs":[723]},{"branch":"fix/ai-f02-durable-preview-only-drafts-20261013","sha":"50e30d54e716dc96c4ed92d4cec3e118b4dcc94e","prs":[724]},{"branch":"fix/ai-f03-contextual-draft-followups-20261013","sha":"2ee173c3007a35fe4ad7570817087c4bad48e022","prs":[725]},{"branch":"fix/ai-f04-server-mode-planner-20261013","sha":"0bc3a3983a8526f7cb8ec7213cd9ce5cbe1a8d9d","prs":[720]},{"branch":"fix/ai-f05-f16-source-integrity-20261013","sha":"b3bfaaddf8250b2e3799791df4ab1976da96cb63","prs":[726]},{"branch":"fix/ai-f08-high-volume-quote-rows-20261013","sha":"5705db2448b58b90869479415740dfe9e493daaf","prs":[728]},{"branch":"fix/ai-f09-classifier-independent-rfq-20261013","sha":"a69896be7aa25af87df1d96697833c4395362830","prs":[730]},{"branch":"fix/ai-f09-unsaved-draft-resume-20261013","sha":"2963e7e30e1c9ec6e45eaa2a6ebc523a73b94a51","prs":[729]},{"branch":"fix/ai-f10-bounded-large-draft-context-20261013","sha":"b110596b8eee4d8666f1d0e7ec483235d09089b1","prs":[731]},{"branch":"fix/ai-f11-large-quote-pdf-pagination-20261013","sha":"3b121e320a64da54af42689431343238b529b12e","prs":[732]},{"branch":"fix/ai-f12-mission-step-gating-20261013","sha":"999d2c4cb7b3e8d1fb9944c1c9ff4eeb2c02371d","prs":[733]},{"branch":"fix/ai-f13-unsaved-resume-integration-20261013","sha":"23fd48a5590c1154999a4d689240a91194c1179f","prs":[734]},{"branch":"fix/ai-f14-rejected-approval-replay-20261013","sha":"a999861f1daa1ed3fd734d9b77b43139c3180430","prs":[721]},{"branch":"fix/ai-f15-scoped-attachment-followups-20261013","sha":"2f0719f472a468c9186479d02abedff92d0c0fe4","prs":[738]},{"branch":"fix/ai-f15-voice-background-lifecycle-20261013","sha":"0f7cddfac9e294addd3b872f548cc209bb1bea68","prs":[735]},{"branch":"fix/ai-f16-honest-attachment-progress-20261013","sha":"33f6fdd94d6a8722400edcf97a9d876025dbce52","prs":[739]},{"branch":"fix/ai-f16-scanned-pdf-vision-fallback-20261013","sha":"bec1a5d7d2282da6b10be7558d6b1d7b540703ac","prs":[727]},{"branch":"fix/ai-f17-attachment-progress-20261013","sha":"cdff82097e2eb35f32eddd6c20866ee54130765f","prs":[736]},{"branch":"fix/ai-f18-multisource-quote-bundles-20261013","sha":"0db44c8b01fdf017556cb04587f203291735a0dd","prs":[737]},{"branch":"fix/ai-f21-advisor-document-evidence-20261013","sha":"50dd27b191f25c71ff5808e094bd526fcc214542","prs":[722]},{"branch":"integration/ai-batches-1-7-release-candidate-20261012","sha":"90b0ecffb8d0875e47b5a4f6ed27938643be7f35","prs":[717]},{"branch":"integration/ai-batches1-7-qa-20261012","sha":"e01a178a878d997b20919f4586b22c95b6487ef6","prs":[718,719]},{"branch":"integration/ai-parallel-streams-safe-20261013","sha":"7f845d9771028952d13fe3855941c30e04997118","prs":[740]}];
+          const token=process.env.GH_TOKEN;
+          if(!token)throw Error('Missing GitHub workflow token');
+          async function api(method,path,body){
+           const response=await fetch('https://api.github.com/repos/'+repository+'/'+path,{
+            method,headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'lourex-safe-branch-closeout',...(body?{'Content-Type':'application/json'}:{})},
+            ...(body?{body:JSON.stringify(body)}:{})
+           });
+           const raw=await response.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{data={raw:raw.slice(0,500)}}
+           if(!response.ok&&response.status!==404)return Promise.reject(new Error(method+' '+path+' failed HTTP '+response.status+': '+JSON.stringify(data).slice(0,350)));
+           return{ok:response.ok,status:response.status,data};
+          }
+          const main=await api('GET','git/ref/heads/main');
+          if(!main.ok||main.data.object?.sha!==expectedMain)throw Error('Default branch moved or is wrong. No cleanup.');
+          const prs=await api('GET','pulls?state=open&per_page=100');
+          if(!prs.ok||!Array.isArray(prs.data)||prs.data.length)throw Error('Open PRs found. Stop branch cleanup.');
+          const pathFor=b=>'git/ref/heads/'+b.split('/').map(encodeURIComponent).join('/');
+          const toDelete=[];
+          for(const item of manifest){
+           if(item.branch==='main'||!/^((fix|feature|integration)\/)/.test(item.branch))throw Error('Unexpected branch '+item.branch);
+           const ref=await api('GET',pathFor(item.branch));
+           if(ref.status===404){console.log('Already deleted: '+item.branch);continue;}
+           if(ref.data.object?.sha!==item.sha)throw Error('Branch moved: '+item.branch+'. Not deleting any refs.');
+           const tag='archive/lourex-pr-closeout-20261013/pr-'+item.prs.join('-');
+           const existing=await api('GET','git/ref/tags/'+tag);
+           if(existing.status===404){const made=await api('POST','git/refs',{ref:'refs/tags/'+tag,sha:item.sha});if(!made.ok)throw Error('Archive failed '+item.branch);}
+           else if(existing.data.object?.sha!==item.sha)throw Error('Archive tag points elsewhere: '+tag);
+           toDelete.push(item);
+          }
+          console.log('Archived '+toDelete.length+' exact historical PR branch heads. Starting deletion with fresh lease checks.');
+          let deleted=0;
+          for(const item of toDelete){
+           const ref=await api('GET',pathFor(item.branch));
+           if(ref.status===404)continue;
+           if(ref.data.object?.sha!==item.sha)throw Error('Concurrent branch change: '+item.branch);
+           const out=await api('DELETE','git/refs/heads/'+item.branch.split('/').map(encodeURIComponent).join('/'));
+           if(!out.ok)throw Error('Failed delete '+item.branch);
+           deleted++;
+           console.log('Deleted '+item.branch+' (historical refs archived)');
+          }
+          const active=await api('GET',pathFor(cleanupBranch));
+          if(active.ok&&active.data.object?.sha===process.env.GITHUB_SHA){
+           const archiveTag='archive/lourex-pr-closeout-20261013/workflow';
+           const existing=await api('GET','git/ref/tags/'+archiveTag);
+           if(existing.status===404)await api('POST','git/refs',{ref:'refs/tags/'+archiveTag,sha:process.env.GITHUB_SHA});
+           const final=await api('DELETE','git/refs/heads/'+cleanupBranch);
+           if(final.ok)console.log('Deleted temporary cleanup branch as well.');
+          }
+          console.log('SUCCESS. Closed-PR branches removed: '+deleted+'/'+manifest.length+'. Main stayed '+expectedMain);
+          NODE
