@@ -17,7 +17,8 @@ async function run(engine,name){
    return route.fulfill({status:503,json:{code:'AI_NOT_CONFIGURED'}});
   });
   await page.goto('http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=en&theme=dark',{waitUntil:'networkidle'});
-  for(const file of ['vendor/html2canvas.min.js','vendor/jspdf.umd.min.js','ios-print-bridge.js','vendor/xlsx.full.min.js'])await page.addScriptTag({url:'/dist/'+file});
+  const pdfDependencies=['vendor/html2canvas.min.js','vendor/jspdf.umd.min.js','ios-print-bridge.js','vendor/xlsx.full.min.js'];
+  for(const file of pdfDependencies)await page.addScriptTag({url:'/dist/'+file});
   await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
   async function installPinlessFixture(){
    await page.evaluate(async()=>{
@@ -126,7 +127,13 @@ async function run(engine,name){
   assert.equal(saved.first[0].id,saved.second[0].id,'saved document identity must remain stable');
   assert.equal(saved.second[0].count,85);
   assert.equal(saved.second[0].price,'26');
-  await page.reload({waitUntil:'networkidle'});await installPinlessFixture();
+  await page.reload({waitUntil:'networkidle'});
+  // This isolated fixture manually injects the canonical PDF engine. A browser
+  // reload discards those script tags; production's full application bootstrap
+  // loads them itself, so restore the same dependencies before asserting PDF.
+  for(const file of pdfDependencies)await page.addScriptTag({url:'/dist/'+file});
+  assert.equal(await page.evaluate(()=>typeof window.__LOUREX_BUILD_CHAT_PDF__),'function','PDF engine must be reinitialized after browser reload');
+  await installPinlessFixture();
   assert.equal(await count(),1,'reload must not execute twice');
   // The saved document identity, not a temporary PDF blob URL, survives reload.
   await page.locator('.lourex-ai-launcher').click();
