@@ -14,7 +14,7 @@ export function requestedAiReportPeriod(message:string,today=todayIso()):AiRepor
   .replace(/[٠-٩۰-۹]/gu,ch=>String(ar.includes(ch)?ar.indexOf(ch):fa.indexOf(ch)))
   .replace(/[\u064b-\u065f\u0670]/gu,'').trim();
  if(!text||text.length>600||!/(?:تقرير|تقارير|\breports?\b)/iu.test(text)||
-    !/^(?:افتح|أفتح|اعرض|أعرض|اظهر|أظهر|وريني|ورني|show|open|view|display)\b?/iu.test(text)||
+    !/^(?:افتح|أفتح|اعرض|أعرض|اظهر|أظهر|وريني|ورني|show|open|view|display)(?:\s|$)/iu.test(text)||
     /^(?:لا\s+|do\s+not\s+|don't\s+|without\s+)/iu.test(text))return null;
  const names:[RegExp,number][]=[
   [/(?:يناير|كانون\s+الثاني|january|jan)/iu,1],
