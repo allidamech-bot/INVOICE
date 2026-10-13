@@ -49,10 +49,10 @@ test('F05 missing selling prices/currency stay missing — no guessed zeros or U
   assert.equal(draft.items[1].unitPrice,'');
   assert.throws(()=>prepareAiPdfPreview((()=>{const k=newConversationKernel({scope:'business',workspaceId:'default',branchId:'main',threadId:'F05'});stageKernelArtifact(k,draft);return k})(),runtime.vault,'en'),/Complete/);
 });
-test('F05 never stages a partial 21-row quote, ambiguous quantity or incorrect scope',()=>{
+test('F05 never stages a partial 121-row quote, ambiguous quantity or incorrect scope',()=>{
   const {runtime,source,vault}=fixture();const base=JSON.parse(source.extracted);
-  base.items=Array.from({length:21},(_,i)=>({...base.items[0],sku:'RFQ-'+i}));
-  assert.throws(()=>quoteSourceWorkingDraft([{...source,extracted:JSON.stringify(base)}],runtime,request),/1–20/);
+  base.items=Array.from({length:121},(_,i)=>({...base.items[0],sku:'RFQ-'+i}));
+  assert.throws(()=>quoteSourceWorkingDraft([{...source,extracted:JSON.stringify(base)}],runtime,request),/1–120/);
   base.items=[{...base.items[0],quantityAmbiguous:true}];
   assert.throws(()=>quoteSourceWorkingDraft([{...source,extracted:JSON.stringify(base)}],runtime,request),/uncertain/);
   assert.throws(()=>quoteSourceWorkingDraft([source,{...source,fileName:'second.pdf'}],runtime,request),/Multiple/);
