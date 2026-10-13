@@ -76,6 +76,9 @@ test('F02 server planner outcome is stored in kernel, not written to vault or tu
  assert.match(runtime,/stageKernelArtifact\(kernel,result\.workingDraft\)/);
  assert.match(runtime,/__workspaceOpen:true/);
  assert.match(runtime,/__workspacePane:'workspace',__workspaceTab:'preview'/);
+ assert.match(runtime,/host\.__foundationPreviewStaged=\{scope:kernelScopeKey\(kernel\.scope\)/);
+ assert.match(runtime,/const previewStaged=host\.__foundationPreviewStaged/);
+ assert.match(runtime,/if\(host\.state\.proposal\)\{host\.setState\(\{proposal:null,review:null\}\)/);
  assert.match(runtime,/host\.setState\(\{proposal:null,review:null/);
  assert.match(client,/result\.data as any/);
  assert.match(client,/previewOnlyWorkingDraft\(plan,execution\.results,runtime\)/);
