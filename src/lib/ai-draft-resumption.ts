@@ -1,6 +1,7 @@
 import type {ConversationKernel} from './ai-conversation-kernel.js';
 import {kernelScopeKey} from './ai-conversation-kernel.js';
 import {assertFoundationApproval} from './ai-foundation-approval.js';
+import {readyMissionStep} from './ai-mission-runner.js';
 import type {VaultPayload} from '../types.js';
 
 /** A working artifact is NOT a pending approval.
@@ -29,8 +30,14 @@ export function resumableWorkingApproval(kernel:ConversationKernel,vault:VaultPa
     if(!approval.scope||kernelScopeKey(approval.scope)!==kernelScopeKey(kernel.scope))
       throw new Error('Approval belongs to a different account, company, branch or conversation.');
     if(kernel.cancelledApprovals?.includes(approval.id))throw new Error('Declined approval cannot resume.');
-    const recorded=(kernel.missions||[]).flatMap(m=>m.steps).find(step=>step.approvalId===approval.id);
-    if(recorded&&recorded.status!=='needs_approval')throw new Error('A previously attempted/cancelled approval cannot resume.');
+    // An orphan approval with no mission receipt could have been applied
+    // before a crash. Never resurrect a clickable save from that alone.
+    const recordedMission=(kernel.missions||[]).find(m=>m.steps.some(step=>step.approvalId===approval.id));
+    const recorded=recordedMission?.steps.find(step=>step.approvalId===approval.id);
+    if(!recorded||recorded.status!=='needs_approval'||readyMissionStep(recordedMission!)?.id!==recorded.id)
+      throw new Error('Only the next unattempted, dependency-ready mission approval may resume.');
+    if(recorded.payload!==approval.payload)
+      throw new Error('Approval payload and recorded mission differ.');
     assertFoundationApproval(vault,proposal);
     return proposal;
   }catch{
