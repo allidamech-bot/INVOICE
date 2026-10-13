@@ -85,6 +85,18 @@ async function run(engine,name){
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
   const count=()=>page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length);
   assert.equal(await count(),0);
+  // A customer list must remain available without losing an UNSAVED 85-line
+  // working quotation. Listing and checkbox selection are read-only.
+  const workingArtifact=await card.getAttribute('data-artifact-id');
+  await say('show all customers');
+  const inDraftRecords=panel.locator('.lxw-records-picker');
+  await inDraftRecords.waitFor({timeout:30000});
+  assert.match(await inDraftRecords.innerText(),/QA Buyer/);
+  assert.equal(await card.getAttribute('data-artifact-id'),workingArtifact);
+  assert.equal(await count(),0,'reading customers while drafting must not persist');
+  await inDraftRecords.locator('input[type=checkbox]').check();
+  await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
+  assert.equal(await count(),0,'selecting customers while drafting must not persist');
   async function pdf(){
    await card.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
    const link=card.getByRole('link',{name:'Download PDF',exact:true});await link.waitFor({timeout:90000});
