@@ -11,6 +11,7 @@ import {reviseAiProductImportDraft,parseAiProductDraftCommand} from './ai-produc
 import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
 import {explicitQuoteConversionIntent,quoteSourceWorkingDraft} from './ai-quote-source-draft.js';
 import {summarizeReadOnlyProductSources} from './ai-product-source-review.js';
+import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -178,6 +179,13 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'source-registration-1',tool:'product.importSource',args:{sources:input.context.conversationSources,generateMissingSku:requestedAiProductSkuGeneration(input.message)},reason:'User explicitly asked to register the attached product list.'}]};
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
+  }
+  // F19: Advisor and Controller read the real issued-invoice ledger for the
+  // highest customer receivables, rather than falling into generic search.
+  // This is strictly read-only and never sums currencies or includes drafts.
+  if(!hasSources&&runtime.scope==='business'&&isAiReceivablesRankingIntent(input.message)){
+    return{answer:aiReceivablesRanking(scopedVault,input.message,input.language),proposal:null,
+      plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
   if(!hasSources&&runtime.scope!=='temporary'){
     const resumed=await resumeVaultSession();
