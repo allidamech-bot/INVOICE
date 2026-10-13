@@ -136,6 +136,19 @@ async function run(engine,name){
   assert.match(await restored.innerText(),/Saved/);
   await restored.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
   await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:90000});
+  // A saved draft cannot shadow the subsequent in-chat business list. The
+  // Controller must render a real selectable customer record after reload.
+  await say('show all customers');
+  const records=reopened.locator('.lxw-records-picker');
+  await records.waitFor({timeout:30000});
+  assert.match(await records.innerText(),/QA Buyer/);
+  assert.equal(await records.locator('input[type=checkbox]').count(),1);
+  await records.locator('input[type=checkbox]').check();
+  await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
+  assert.equal(await count(),1,'record selection must not write a second document');
+  await say('إلغاء التحديد');
+  await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('0 selected'));
+  assert.equal(await count(),1,'clearing the selection must not mutate documents');
   assert.deepEqual(errors,[]);
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
  }finally{await browser.close();}
