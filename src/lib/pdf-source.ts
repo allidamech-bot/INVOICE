@@ -32,6 +32,7 @@ export async function rasterScannedPdfPages(file:File,signal?:AbortSignal):Promi
   const pdfjs=await import(url);
   pdfjs.GlobalWorkerOptions.workerSrc=new URL('../../vendor/pdf.worker.mjs',import.meta.url).href;
   const task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false});
+  task.onPassword=()=>{void task.destroy();};
   let pdf:any;
   try{
     pdf=await task.promise;
