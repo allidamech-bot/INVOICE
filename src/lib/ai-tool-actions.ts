@@ -17,6 +17,7 @@ import {confirmedSalesDeliveries} from './sales-delivery-flow.js';
 import {confirmedGoodsReceipts} from './goods-receipt-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { applyAiBulkProductUpdate, type AiBulkProductBatch } from './ai-product-bulk-update.js';
+import {applySelectedPartyHighlight,type AiPartyHighlightBatch} from './ai-party-highlights.js';
 import {applyAiProductSourceImport,type AiProductSourceImportBatch} from './ai-product-source-import.js';
 import {applyAiPartyMaster,type AiPartyMasterBatch} from './ai-party-master.js';
 import {applyApprovedPartyPatch,type ApprovedPartyPatch} from './ai-approved-party-patch.js';
@@ -24,7 +25,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.bulkHighlight'|'supplier.bulkHighlight'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -214,6 +215,22 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
     const next=await mutateVaultSafely(vault=>{assertFoundationApproval(vault,proposal);return applyAiBulkProductUpdate(vault,batch);});
     if(batch.rows.some(row=>!next.savedItems.some(item=>item.id===row.itemId&&item.updatedAt!==row.beforeUpdatedAt)))throw new Error('Bulk product save could not be verified. Review your catalog before retrying.');
     return{summary:String(batch.rows.length)+' product records updated after explicit approval.',id:'bulk-products-'+batch.rows.length};
+  }
+  if(proposal.tool==='customer.bulkHighlight'||proposal.tool==='supplier.bulkHighlight'){
+    if(!proposal.foundationApproval)throw new Error('Exact signed review required before marking records.');
+    const batch=proposal.args as unknown as AiPartyHighlightBatch;
+    if(!batch||batch.party!==(proposal.tool==='customer.bulkHighlight'?'customer':'supplier'))
+      throw new Error('Approved customer/supplier mark type changed.');
+    const next=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applySelectedPartyHighlight(vault,batch);
+    });
+    const records=batch.party==='customer'?next.customers:next.suppliers;
+    if(batch.rows.some(row=>!records.some(record=>record.id===row.id&&
+      record.highlightColor==='red'&&record.updatedAt!==row.updatedAt)))
+      throw new Error('Approved marks could not be confirmed in saved master data.');
+    return{summary:String(batch.rows.length)+' exact '+batch.party+' records marked red after explicit approval.',
+      id:'marked-'+batch.party+'-'+batch.rows.length};
   }
   if(proposal.tool==='customer.update'||proposal.tool==='supplier.update'){
     const batch=proposal.args as unknown as ApprovedPartyPatch;
