@@ -535,20 +535,21 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
+      const requestLanguage=resolveAiConversationReplyLanguage(currentAiExperiencePreferences(host).replyLanguage,message,host.props.language==='ar'?'ar':'en');
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
-        /أعطني|اعطني|أرسل|ارسل|طلع|هات|جهز|أنشئ|انشئ|اعملي|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
+        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعملي|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)throw new Error('Document scope changed before PDF preparation.');
-        prepareAiPdfPreview(kernel,fresh.vault,host.props.language==='ar'?'ar':'en',previewId||'');
+        prepareAiPdfPreview(kernel,fresh.vault,requestLanguage,previewId||'');
         host.__foundationVault=fresh.vault;
         const identity=turnScope+'|'+(previewId||'')+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
         host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
           __workspaceSavedId:previewId||'',__workspacePdfAutoStart:identity,
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
-            {id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'
+            {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
               ?'سأجهّز ملف PDF فعليًا من قالب LOUREX للمعاينة والتحميل، دون حفظ أو إصدار المستند.'
               :'Generating a real LOUREX template PDF for preview and download, without saving or issuing the document.'}]}));
         await flush(host);await persistKernel(host);return;
@@ -558,7 +559,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||savedDocumentPreviewId(kernel,fresh.vault,message)!==previewId)throw new Error('Document scope changed. Ask for the preview again.');
         host.__foundationVault=fresh.vault;
-        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
+        host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
         await flush(host);await persistKernel(host);return;
       }
       const commercialCommand=currentConversationMode(host)==='controller'?commercialDraftCommand(kernel,resumed.vault,message):null;
