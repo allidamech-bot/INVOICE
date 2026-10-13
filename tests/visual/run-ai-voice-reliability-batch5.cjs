@@ -56,6 +56,18 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    assert.match(await input.inputValue(),/after workflow handoff$/,'composer recovers after workflow takes the microphone');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'handoff cannot start overlapping recognizers');
 
+   // F15: tab suspension must terminate a native owner and preserve already
+   // transcribed text, so returning to the page allows a clean next session.
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===16);
+   const retainedBefore=await input.inputValue();
+   await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
+   await page.waitForFunction(()=>window.speechInstances[15].abortCalled===true);
+   assert.equal(await input.inputValue(),retainedBefore,'pagehide keeps the existing editable voice transcript');
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===17);
+   await page.evaluate(()=>{window.speechInstances[16].result('voice after background');window.speechInstances[16].end();});
+   assert.match(await input.inputValue(),/voice after background$/,'recording restarts after Safari background suspension');
+   assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'background transition may not overlap native sessions');
+
    await input.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await input.press('Enter');
    await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
    const toolActivity=page.locator('.lourex-ai-tool-activity').last();await toolActivity.waitFor({state:'visible'});
@@ -100,7 +112,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     unifiedAssistant='PASS';
    }
 
-   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:15,crossOwnerHandoff:'PASS',restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',repeatSessions:'PASS',runtimeOwner:await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
+   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:17,backgroundSuspension:'PASS',crossOwnerHandoff:'PASS',restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',repeatSessions:'PASS',runtimeOwner:await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
   }finally{await browser.close();}
- }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + 12-session delayed Safari native release PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; Controller/Advisor and saved-history isolation smoke PASS in Chromium.');
+ }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + 17-session delayed Safari native release and background cleanup PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; Controller/Advisor and saved-history isolation smoke PASS in Chromium.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
