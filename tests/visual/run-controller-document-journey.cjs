@@ -94,7 +94,7 @@ async function run(engine,name){
   assert.match(await inDraftRecords.innerText(),/QA Buyer/);
   assert.equal(await card.getAttribute('data-artifact-id'),workingArtifact);
   assert.equal(await count(),0,'reading customers while drafting must not persist');
-  await inDraftRecords.locator('input[type=checkbox]').check();
+  await inDraftRecords.locator('input[type=checkbox]').click();
   await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
   assert.equal(await count(),0,'selecting customers while drafting must not persist');
   async function pdf(){
@@ -175,7 +175,7 @@ async function run(engine,name){
   await records.waitFor({timeout:30000});
   assert.match(await records.innerText(),/QA Buyer/);
   assert.equal(await records.locator('input[type=checkbox]').count(),1);
-  await records.locator('input[type=checkbox]').check();
+  await records.locator('input[type=checkbox]').click();
   await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
   assert.equal(await count(),1,'record selection must not write a second document');
   await say('إلغاء التحديد');
