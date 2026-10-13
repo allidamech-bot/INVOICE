@@ -23,6 +23,7 @@ async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExec
 }
 export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
   if(proposal.tool==='procurement.createPoFromRfq'){
+    if(!proposal.foundationApproval)throw new Error('An explicit signed purchase-order approval is required before saving any draft.');
     const review=proposal.args as unknown as AiOperationalPoReview;
     const saved=await mutateVaultSafely(vault=>{
       assertFoundationApproval(vault,proposal);
