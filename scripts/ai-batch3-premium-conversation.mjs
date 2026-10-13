@@ -7,13 +7,13 @@ let source=await readFile(copilotTarget,'utf8');
 if(source.includes('__lourexPremiumConversationBatch3'))throw new Error('AI Batch 3 premium conversation runtime is already installed.');
 if(!source.includes('__lourexAdvisorDataV2Batch2'))throw new Error('AI Batch 3 requires merged Advisor Data V2 runtime.');
 
-source=`import { analyzeConversationAttachment, CONVERSATION_ATTACHMENT_ACCEPT, validateConversationFiles } from '../lib/ai-conversation-attachments.js';\nimport {attachmentProgressSummary,attachmentRowCountEvidence} from '../lib/ai-source-progress.js';\nlet __lourexConversationSources=[];\n`+source;
+source=`import { resolveAiConversationEndpoint } from '../lib/ai-conversation-mode.js';\nimport { analyzeConversationAttachment, CONVERSATION_ATTACHMENT_ACCEPT, validateConversationFiles } from '../lib/ai-conversation-attachments.js';\nimport {attachmentProgressSummary,attachmentRowCountEvidence} from '../lib/ai-source-progress.js';\nlet __lourexConversationSources=[];\n`+source;
 const envelopeToken='assistantRuntime: prepared.runtime, advisorV2 };';
 if(!source.includes(envelopeToken))throw new Error('AI Batch 3 could not find Advisor V2 context envelope.');
 source=source.replace(envelopeToken,'assistantRuntime: prepared.runtime, advisorV2, conversationSources: __lourexConversationSources };');
 const endpointToken="const advisorEndpoint = advisorV2ReadOnly ? '/api/ai-advisor-v2' : '/api/ai-core';";
 if(!source.includes(endpointToken))throw new Error('AI Batch 3 could not find Advisor V2 endpoint selection.');
-source=source.replace(endpointToken,"const advisorEndpoint = __lourexConversationSources.length ? '/api/ai-conversation-v3' : (advisorV2ReadOnly ? '/api/ai-advisor-v2' : '/api/ai-core');");
+source=source.replace(endpointToken,"const advisorEndpoint = resolveAiConversationEndpoint(context.conversationMode, __lourexConversationSources.length > 0);");
 const contextPattern=/const context\s*=\s*buildAiContext\(([^;]+)\);/;
 if(!contextPattern.test(source))throw new Error('AI Batch 3 could not find canonical conversation context creation.');
 source=source.replace(contextPattern,match=>`${match}\n            this.__lourexLatestContext=context;`);
@@ -73,7 +73,7 @@ if(!source.includes(oldProgress))throw new Error('Attachment progress UI changed
 source=source.replace(oldProgress,"fileProgressLabel(rows,row,instance.props.language==='ar')");
 source="import {fileProgressLabel} from '../lib/ai-file-progress.js';\n"+source;
 
-if(!source.includes("'/api/ai-conversation-v3'"))throw new Error('AI Batch 3 source-aware endpoint routing is missing.');
+if(!source.includes('resolveAiConversationEndpoint(context.conversationMode'))throw new Error('AI Batch 3 mode-first endpoint routing is missing.');
 if(!source.includes('lourex-ai-premium-textarea'))throw new Error('AI Batch 3 premium composer is missing.');
 await writeFile(copilotTarget,source);
 
