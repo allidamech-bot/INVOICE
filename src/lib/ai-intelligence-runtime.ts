@@ -533,6 +533,60 @@ export function installIntelligenceRuntime(host:Host):void{
         host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:p,review,error:'',__workspaceSavedId:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'?'عدّلت المسودة فقط. راجع الفروق والشروط قبل الحفظ.':'Draft revised only. Review its diff and terms before saving.'}]}));await flush(host);await persistKernel(host);return;
       }
 
+      // A prepare-only preview has no actionable proposal. Interpret exact
+      // editing follow-ups against the full scoped kernel draft BEFORE asking a
+      // general model, which could otherwise omit old lines or trade terms.
+      const draftOnly= currentConversationMode(host)==='controller'&&Boolean(kernel.artifact)&&!host.state.proposal;
+      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?)[.!؟\\s]*$/iu.test(message);
+      if(draftOnly&&saveWorkingDraft){
+        const p=structuredClone(kernel.artifact!.proposal) as any;
+        delete p.foundationApproval;
+        const drafting=workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:'');
+        const review=reviewAiDocumentProposal(p,drafting,host.props.language==='ar'?'ar':'en');
+        if(review.blockers.length){
+          host.setState((state:any)=>({input:'',error:'',__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'
+                ?'المسودة غير مكتملة. راجع الحقول الناقصة في المعاينة أولاً. لم أحفظ شيئاً.'
+                :'The working draft has missing fields. Review them first; nothing was saved.'}]}));
+          await flush(host);await persistKernel(host);return;
+        }
+        if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot prepare a document save.');
+        stampProposal(host,p,resumed.vault);stageReviewedMission(kernel,p);
+        host.setState((state:any)=>({input:'',error:'',proposal:p,review,__workspaceReviewedProposal:null,
+          __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',
+          messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+            {id:crypto.randomUUID(),role:'assistant',text:host.props.language==='ar'
+              ?'جهزت طلب حفظ المسودة للمراجعة فقط. لم يُحفظ أي مستند. راجع التفاصيل ثم اضغط زر الموافقة بنفسك.'
+              :'Prepared a draft-save approval for review only. No record has been saved. Review the details and explicitly approve.'}]}));
+        await flush(host);await persistKernel(host);return;
+      }
+      const exactDraftFollowup=/^(?:(?:في نفس المسودة)[،,]?\\s*)?(?:غيّر|غير|عدّل|عدل|اجعل|أضف|اضف|احذف|حذف|امسح|set|change|update|add|remove|delete)\\s+(?:سعر|السعر|كمية|الكمية|price|quantity|qty|line|item|الصنف|البند|منتج|شروط|شروط الدفع|payment terms|الإنكوترمز|incoterm|مدة التسليم|delivery time|الصلاحية|validity|الملاحظات|notes|التعبئة|packing)|^(?:undo|redo|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل(?: الأخير| الاخير)?|أعد التعديل|اعد التعديل|لا[،,]?\\s*اللي قبله|previous one)[.!؟\\s]*$/iu.test(message);
+      if(draftOnly&&exactDraftFollowup){
+        const next=structuredClone(kernel);
+        const original=next.artifact!.proposal;
+        const drafting=workspaceDrafting(resumed.vault,original.capability==='document.updateDraft'?original.documentId:'');
+        const result=reviseKernelDraft(next,original,message,drafting,host.props.language==='ar'?'ar':'en');
+        if(result?.changed){
+          const revised=next.artifact!.proposal as any;
+          delete revised.foundationApproval;
+          host.__intelligenceKernel=next;
+          host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,__workspaceReviewedProposal:null,
+            __workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:'',
+            messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+              {id:crypto.randomUUID(),role:'assistant',text:result.message+
+                (host.props.language==='ar'?' يمكنك المتابعة بالتعديل أو طلب PDF دون حفظ.':' You can continue revising or request PDF without saving.') }]}));
+        }else{
+          // Never let an unsupported edit fall through to a model that may
+          // invent a replacement quote or silently drop the original items.
+          host.setState((state:any)=>({input:'',error:'',messages:[...state.messages,
+            {id:crypto.randomUUID(),role:'user',text:message},
+            {id:crypto.randomUUID(),role:'assistant',text:result?.message||
+              (host.props.language==='ar'?'الأمر غير محدد بما يكفي. اذكر رقم الصنف والتعديل المطلوب دون إعادة إنشاء المسودة.':'Specify the exact line and change; the existing draft remains intact.')}]}));
+        }
+        await flush(host);await persistKernel(host);return;
+      }
+
       if(!kernel.artifact){const selected=resolveKernelSelection(kernel,message);if(selected){const scoped=scopeVault(resumed.vault);const rows=selected.entityType==='customer'?scoped.customers:selected.entityType==='supplier'?scoped.suppliers:selected.entityType==='product'?scoped.savedItems:selected.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===selected.entityId)){kernel.selection=undefined;kernel.entity=undefined;throw new Error('The displayed selection is stale. Search again.');}host.setState((state:any)=>({input:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:selected.label}]}));await flush(host);await persistKernel(host);return;}}
       await ask(raw);await flush(host);await host.__lourexAssistantPersistQueue;
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
