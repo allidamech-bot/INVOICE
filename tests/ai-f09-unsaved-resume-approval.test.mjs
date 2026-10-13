@@ -41,7 +41,7 @@ test('F09 changed financial baseline retires stale approval without deleting dra
  const signed={...structuredClone(proposal),foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
  kernel.artifact.proposal=signed;
  kernel.missions=[createMission(scope,signed)];
- vault.company.defaultCurrency='EUR';
+ vault.company.defaultCurrency=vault.company.defaultCurrency==='USD'?'EUR':'USD';
  assert.equal(resumableWorkingApproval(kernel,vault),null);
  assert.equal(kernel.artifact.proposal.foundationApproval,undefined);
  assert.equal(kernel.artifact.proposal.items.length,1);
