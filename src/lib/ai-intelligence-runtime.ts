@@ -531,7 +531,6 @@ export function installIntelligenceRuntime(host:Host):void{
           host.setState({proposal:null,review:null,__workspaceReviewedProposal:null});await flush(host);
         }
       }
-      if(currentConversationMode(host)==='controller'&&!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
       if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
