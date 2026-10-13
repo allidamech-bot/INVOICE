@@ -62,7 +62,7 @@ test('Exact Arabic/English matched bill posting parses every ordered SKU and ref
   ', reference BILL-001, SKUs in order CK-200,CN-50';
  assert.deepEqual(parseAiMatchedBillPosting(en),parseAiMatchedBillPosting(message));
  for(const bad of [message+' ثم سدّد المورد',message+' and pay it',
-  command(f.order,'CK-200,CK-200'),command(f.order,'CK-200'),
+  command(f.order,'CK-200,CK-200'),
   command(f.order,'CK-200,CN-50,STOCK-EXTRA')+' and delete PO']){
   assert.equal(parseAiMatchedBillPosting(bad),null,'compound or incomplete instruction blocked');
  }
@@ -109,6 +109,7 @@ test('Fresh signed review posts exactly one purchase, stock and payable; no paym
 
 test('Stale review, missing mapped SKU, duplicate catalog SKU, changed role, scope or supplier evidence all fail closed',()=>{
  const f=fixture(),request=parseAiMatchedBillPosting(command(f.order)),review=prepareAiMatchedBillPosting(f.vault,request);
+ assert.throws(()=>prepareAiMatchedBillPosting(f.vault,{...request,skus:['CK-200']}),/Every matched invoice line/);
  assert.throws(()=>prepareAiMatchedBillPosting(f.vault,{...request,skus:['CK-200','MISSING']}),/exactly one active/);
  assert.throws(()=>prepareAiMatchedBillPosting(f.vault,{...request,skus:['CK-200','CK-200']}),/unique/);
  const duplicated={...f.vault,savedItems:[...f.vault.savedItems,{...f.vault.savedItems[0],id:'same-sku'}]};
