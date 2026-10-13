@@ -375,7 +375,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
       <button type="button" className="lxw-review-complete" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>host.setState({__workspaceReviewedProposal:host.state.proposal,__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview'})}>{label(ar,'I reviewed the details','اطلعت على التفاصيل')}</button>
       {doc.blockers.length?<p role="status" className="lxw-review-unknown">{label(ar,'Resolve the listed issues before approval.','يجب معالجة الملاحظات المعروضة قبل الاعتماد.')}</p>:null}
     </section>:null}
-  </div>{pdfSource?<div className="print-portal lxw-ai-pdf-render-target" ref={pdfStage}
+  </div>{pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
     aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
     {PdfRenderer?<PdfRenderer document={pdfSource.document} scale={1}/>:null}
   </div>:null}</aside>;
