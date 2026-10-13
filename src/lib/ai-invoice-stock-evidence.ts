@@ -12,7 +12,7 @@ export function isAiInvoiceStockEvidenceIntent(message:string):boolean{
  if(m.length<8||m.length>500)return false;
  return /(?:المخزون|مخزون|stock|inventory)/iu.test(m)&&
    /(?:فاتور[ةه]|invoice)/iu.test(m)&&
-   /(?:خصم|نقص|سحب|صرف|ترحيل|تأثير|حرك[ةه]|deduct|decreas|reduc|issu|post|affect|movements?)/iu.test(m);
+   /(?:خصم|نقص|سحب|صرف|ترحيل|تأثير|أثر|اثر|حرك[ةه]|deduct|decreas|reduc|issu|post|affect|movements?)/iu.test(m);
 }
 const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
 const digits=(text:string)=>text.normalize('NFKC').replace(/[٠-٩۰-۹]/gu,

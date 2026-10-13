@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from '../dist/src/lib/ai-invoice-stock-evidence.js';
@@ -90,4 +91,13 @@ test('Advisor and Controller return the same source-scoped read-only answer with
   assert.match(result.answer,/إصدار الفاتورة وحده لا يثبت خصم المخزون/);
  }
  assert.deepEqual(f.vault,before);
+});
+
+test('AI provider prompts cannot infer inventory deduction from issued invoice status',()=>{
+ for(const path of ['api/ai-core.js','api/ai-advisor-v2.js','api/ai-conversation-v3.js']){
+  const source=readFileSync(new URL('../'+path,import.meta.url),'utf8');
+  assert.match(source,/Issuing an invoice never proves inventory was deducted|An issued invoice is not proof of stock deduction/,path);
+  assert.match(source,/Delivery Note/,path);
+  assert.match(source,/unverified/,path);
+ }
 });
