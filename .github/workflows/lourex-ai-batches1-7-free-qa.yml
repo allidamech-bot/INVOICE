@@ -14,6 +14,7 @@ on:
       - fix/ai-f08-high-volume-quote-rows-20261013
       - fix/ai-f09-classifier-independent-rfq-20261013
       - fix/ai-f10-bounded-large-draft-context-20261013
+      - fix/ai-f11-large-quote-pdf-pagination-20261013
   workflow_dispatch:
 
 permissions:
@@ -116,4 +117,5 @@ jobs:
           curl -fsS http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html >/dev/null
           node tests/visual/run-ai-voice-reliability-batch5.cjs
           node tests/visual/run-v542-pagination-parity.cjs
+          node tests/visual/run-f11-large-a4-quote.cjs
           node tests/visual/run-ai-batches1-7-current-workspace.cjs
