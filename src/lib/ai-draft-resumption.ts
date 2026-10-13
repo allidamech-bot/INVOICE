@@ -8,6 +8,18 @@ import type {VaultPayload} from '../types.js';
  * real approval envelope is verified against current account, company, actor,
  * branch, exact payload and vault baseline. An ordinary unsaved review returns
  * null and keeps its editable source rows in the conversation kernel. */
+/** Any edit to a reviewed draft invalidates the prior approval; re-review is
+ * required explicitly. Do not turn an edit into an automatic save request. */
+export function retireWorkingApproval(kernel:ConversationKernel,id:string):void{
+  if(!id)return;
+  kernel.cancelledApprovals=[...new Set([...(kernel.cancelledApprovals||[]),id])].slice(-100);
+  for(const mission of kernel.missions||[]){
+    if(mission.steps.some(step=>step.approvalId===id&&step.status==='needs_approval')){
+      for(const step of mission.steps)if(step.status==='needs_approval')step.status='cancelled';
+      mission.interruptedReason='Previous reviewed approval is no longer current. Review a fresh proposal before saving.';
+    }
+  }
+}
 export function resumableWorkingApproval(kernel:ConversationKernel,vault:VaultPayload):any|null{
   if(kernel.scope.scope!=='business'||!kernel.artifact)return null;
   const proposal=kernel.artifact.proposal as any;
@@ -24,15 +36,7 @@ export function resumableWorkingApproval(kernel:ConversationKernel,vault:VaultPa
     delete next.foundationApproval;
     kernel.artifact.proposal=next;
     const id=typeof approval.id==='string'?approval.id:'';
-    if(id){
-      kernel.cancelledApprovals=[...new Set([...(kernel.cancelledApprovals||[]),id])].slice(-100);
-      for(const mission of kernel.missions||[]){
-        if(mission.steps.some(step=>step.approvalId===id&&step.status==='needs_approval')){
-          for(const step of mission.steps)if(step.status==='needs_approval')step.status='cancelled';
-          mission.interruptedReason='Previous approval no longer matches the active data. Review and approve a fresh proposal.';
-        }
-      }
-    }
+    retireWorkingApproval(kernel,id);
     return null;
   }
 }
