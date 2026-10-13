@@ -16,6 +16,7 @@ import {isAiGoodsReceiptRequest,parseAiGoodsReceiptRequest} from './ai-operation
 import {operationalDeliveryDraftRequested,requestedDeliverySalesOrderNumber} from './ai-operational-dn-draft.js';
 import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest} from './ai-operational-delivery-confirmation.js';
 import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
+import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -187,6 +188,28 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
   }
+  // Three-way supplier bill match: exact issued PO + physically received
+  // goods + every user-supplied invoice price, total and due date.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiSupplierInvoiceMatchIntent(input.message)){
+    let request:ReturnType<typeof parseAiSupplierInvoiceMatchRequest>=null;
+    try{request=parseAiSupplierInvoiceMatchRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No records changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:request?
+      [{id:'local-vendor-bill-three-way-match',tool:'procurement.matchSupplierBill',args:{match:request},
+        reason:'Exact supplier bill, PO, received quantities, unit prices, dates and total were supplied by the user.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+      ?'لمطابقة فاتورة المورد: حدّد رقم PO، مرجع الفاتورة، تاريخها، الاستحقاق، كميات وأسعار جميع البنود، والإجمالي. لم أغيّر البيانات.'
+      :'Supply exact PO, vendor bill reference, invoice and due dates, every quantity and price, and total. No records changed.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+       ?'جهّزت مطابقة فاتورة المورد '+request.invoiceReference+' مع أمر الشراء والاستلامات. تسجيل المطابقة يحتاج موافقة منفصلة، ولا ينشئ ذمة أو يرحّل مخزونًا.'
+       :'Prepared vendor bill '+request.invoiceReference+' three-way match. Recording needs separate approval and does not post payables or stock.')
+       :executed.results.map(x=>x.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
   // Inventory posting is a distinct high-impact action. Only user-provided
   // exact warehouse and SKU mappings can stage its separate approval.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiStockIssueIntent(input.message)){
@@ -353,7 +376,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery'||call.tool==='sales.issueConfirmedStock')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt'||call.tool==='sales.createDeliveryDraft'||call.tool==='sales.confirmPhysicalDelivery'||call.tool==='sales.issueConfirmedStock'||call.tool==='procurement.matchSupplierBill')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
