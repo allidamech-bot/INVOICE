@@ -1,4 +1,5 @@
 import type {AiDocumentDraftProposal,AiDocumentUpdateProposal,AiDraftItemInput,AiContextEnvelope} from '../components/AiCopilot.js';
+import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 
 type Proposal=AiDocumentDraftProposal|AiDocumentUpdateProposal;
 type DraftReference=AiContextEnvelope['drafting'];
@@ -125,7 +126,7 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
       const parsed=parseAddedLine(input);
       if(!parsed)throw new Error('Invalid item fields.');
       const count=proposal.capability==='document.createDraft'?proposal.items.length:proposal.addItems.length;
-      if(count>=20)throw new Error('Maximum of 20 newly prepared lines. No row was dropped.');
+      if(count>=(proposal.capability==='document.createDraft'?AI_WORKING_QUOTE_MAX_LINES:20))throw new Error('Document line limit reached. No row was dropped.');
       const match=parsed.sku?drafting.items.filter(row=>row.sku&&row.sku.toLowerCase()===parsed.sku.toLowerCase()):[];
       if(parsed.sku&&match.length!==1)throw new Error('SKU must identify exactly one product in the active company.');
       const row:AiDraftItemInput={savedItemId:match[0]?.id||'',descriptionEn:parsed.name,descriptionAr:'',quantity:parsed.quantity,unitPrice:parsed.unitPrice,unit:parsed.unit||match[0]?.unit||''};
