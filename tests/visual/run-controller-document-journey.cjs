@@ -84,6 +84,25 @@ async function run(engine,name){
   await card.locator('summary').click();
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
   const count=()=>page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length);
+  async function assistantMeta(){
+   return page.evaluate(async()=>{
+    const [{getAccountAssistantCacheKey},{loadAssistantState}]=await Promise.all([
+      import('/dist/src/storage/db.js'),import('/dist/src/storage/assistant-store.js')]);
+    const key=await getAccountAssistantCacheKey('isolated-controller-qa');
+    const state=await loadAssistantState(key);
+    return{current:state.currentBusinessThreadId,threads:state.threads.filter(t=>t.scope==='business').map(t=>({
+      id:t.id,updatedAt:t.updatedAt,
+      artifact:t.kernel?.artifact?{id:t.kernel.artifact.id,revision:t.kernel.artifact.revision,
+        approvalId:t.kernel.artifact.proposal?.foundationApproval?.id||'',
+        capability:t.kernel.artifact.proposal?.capability}:null,
+      entity:t.kernel?.entity,
+      receipts:(t.foundationReceipts||[]).map(r=>({id:r.id,state:r.state,action:r.action,
+        resultId:r.resultId,draftId:r.draftId,draftRevision:r.draftRevision,
+        payloadMatchesArtifact:Boolean(t.kernel?.artifact&&r.payload&&
+         r.payload===JSON.stringify(t.kernel.artifact.proposal,(key,value)=>key==='foundationApproval'?undefined:value))}))
+    }))};
+   });
+  }
   assert.equal(await count(),0);
   // A customer list must remain available without losing an UNSAVED 85-line
   // working quotation. Listing and checkbox selection are read-only.
@@ -139,6 +158,7 @@ async function run(engine,name){
   assert.equal(saved.first[0].id,saved.second[0].id,'saved document identity must remain stable');
   assert.equal(saved.second[0].count,85);
   assert.equal(saved.second[0].price,'26');
+  const beforeReloadMeta=await assistantMeta();
   await page.reload({waitUntil:'networkidle'});
   // This isolated fixture manually injects the canonical PDF engine. A browser
   // reload discards those script tags; production's full application bootstrap
@@ -151,7 +171,9 @@ async function run(engine,name){
   await page.locator('.lourex-ai-launcher').click();
   const reopened=page.locator('#lourex-ai-panel[data-workspace-ready="true"]');await reopened.waitFor();
   const restored=reopened.locator('.lxw-chat-document');await restored.waitFor({timeout:30000});
-  assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id);
+  const afterReloadMeta=await assistantMeta();
+  assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id,
+    'Restored document must match durable storage: '+JSON.stringify({beforeReloadMeta,afterReloadMeta}));
   assert.match(await restored.innerText(),/Saved/);
   await restored.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
   try{
