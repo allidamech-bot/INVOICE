@@ -118,7 +118,8 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   // A complete structured RFQ already contains the source's actual rows.
   // Never re-send only the first 2800 chars to a planner which might silently
   // lose trailing products. Stage the whole verified quote as UNSAVED.
-  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&sources.some(source=>source.route==='quote_request')){
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&(sources.some(source=>source.route==='quote_request')||
+    input.context.conversationSources?.some?.((source:any)=>typeof source?.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.length>0))){
     const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
     try{
       const workingDraft=quoteSourceWorkingDraft(input.context.conversationSources,runtime,input.message);
