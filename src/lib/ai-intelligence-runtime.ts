@@ -621,7 +621,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       // Scoped in-chat listings and selection are read-only kernel operations.
       // Never navigate to another section or write master data for "show all".
-      if(currentConversationMode(host)==='controller'&&!kernel.artifact){
+      if(currentConversationMode(host)==='controller'){
         const listKind=requestedRecordList(message);
         if(listKind){
           if(!graphKindAllowed(strictAiActor(resumed.vault).role,listKind))
@@ -636,6 +636,7 @@ export function installIntelligenceRuntime(host:Host):void{
         }
         const selectedPricePercent=requestedSelectedProductRepricing(message);
         if(selectedPricePercent!==null){
+          if(kernel.artifact)throw new Error('Finish or dismiss the current working document before preparing a separate bulk product approval. The document draft remains intact.');
           if(host.state.proposal)throw new Error('Finish or decline the earlier approval before preparing selected product prices.');
           if(!graphKindAllowed(strictAiActor(resumed.vault).role,'product'))
             throw new Error('This role cannot change product prices.');
