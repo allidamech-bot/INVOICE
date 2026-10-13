@@ -78,4 +78,11 @@ test('F17 exact saved reference is resolved BEFORE the navigation planner and ca
  assert.match(source,/__workspaceSavedId:previewId\|\|''/);
  assert.match(source,/__workspacePdfAutoStart:identity/);
  assert.match(source,/savedDocumentPreviewId\(kernel,fresh\.vault,message\)!==previewId/,'scope must revalidate after async work');
+ // The full Arabic instruction must generate a PDF rather than stopping at a
+ // read-only workspace, and reply language must follow this message.
+ const pdfAction=source.match(/const pdfRequested=[\s\S]*?\.test\(message\);/)?.[0]||'';
+ assert.match(pdfAction,/افتح\|أفتح\|اعرض\|أعرض/);
+ assert.match(source,/const requestLanguage=resolveAiConversationReplyLanguage\(currentAiExperiencePreferences\(host\)\.replyLanguage,message/);
+ assert.match(source,/prepareAiPdfPreview\(kernel,fresh\.vault,requestLanguage,previewId\|\|''\)/);
+ assert.match(source,/text:requestLanguage==='ar'/);
 });
