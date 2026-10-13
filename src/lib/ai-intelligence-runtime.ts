@@ -368,6 +368,7 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
           cancelMission(mission);
       }
       stageKernelArtifact(kernel,result.workingDraft);
+      host.__foundationPreviewStaged={scope:kernelScopeKey(kernel.scope),artifactId:kernel.artifact!.id,revision:kernel.artifact!.revision};
       host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,
         __workspaceSavedId:'',__workspaceEditing:false,__workspaceOpen:true,
         __workspacePane:'workspace',__workspaceTab:'preview'});
@@ -484,7 +485,7 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;const started=performance.now();let turnScope='';
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
     try{
       await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
@@ -535,6 +536,13 @@ export function installIntelligenceRuntime(host:Host):void{
       if(!kernel.artifact){const selected=resolveKernelSelection(kernel,message);if(selected){const scoped=scopeVault(resumed.vault);const rows=selected.entityType==='customer'?scoped.customers:selected.entityType==='supplier'?scoped.suppliers:selected.entityType==='product'?scoped.savedItems:selected.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===selected.entityId)){kernel.selection=undefined;kernel.entity=undefined;throw new Error('The displayed selection is stale. Search again.');}host.setState((state:any)=>({input:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:selected.label}]}));await flush(host);await persistKernel(host);return;}}
       await ask(raw);await flush(host);await host.__lourexAssistantPersistQueue;
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
+      const previewStaged=host.__foundationPreviewStaged;host.__foundationPreviewStaged=undefined;
+      if(previewStaged&&previewStaged.scope===kernelScopeKey(kernel.scope)&&kernel.artifact?.id===previewStaged.artifactId&&kernel.artifact.revision===previewStaged.revision){
+        // Legacy chat can restore a previously captured pending proposal after
+        // the tool callback. A PREPARE-only review must never inherit it.
+        if(host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
+        await persistKernel(host);return;
+      }
       const proposal=host.state.proposal;
       if(currentConversationMode(host)==='advisor'){
         if(proposal){host.setState({proposal:null,review:null});await flush(host);}
