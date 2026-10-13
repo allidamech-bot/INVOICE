@@ -28,6 +28,9 @@ export function resumableWorkingApproval(kernel:ConversationKernel,vault:VaultPa
   try{
     if(!approval.scope||kernelScopeKey(approval.scope)!==kernelScopeKey(kernel.scope))
       throw new Error('Approval belongs to a different account, company, branch or conversation.');
+    if(kernel.cancelledApprovals?.includes(approval.id))throw new Error('Declined approval cannot resume.');
+    const recorded=(kernel.missions||[]).flatMap(m=>m.steps).find(step=>step.approvalId===approval.id);
+    if(recorded&&recorded.status!=='needs_approval')throw new Error('A previously attempted/cancelled approval cannot resume.');
     assertFoundationApproval(vault,proposal);
     return proposal;
   }catch{
