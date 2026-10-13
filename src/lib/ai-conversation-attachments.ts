@@ -1,6 +1,7 @@
 import { requestAiJson } from './ai-request.js';
 import { readablePdfText, rasterScannedPdfPages } from './pdf-source.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from './spreadsheet-reader.js';
+import {exactSpreadsheetQuote} from './ai-spreadsheet-quote.js';
 
 export type ConversationAttachmentRoute='customer'|'supplier'|'supplier_purchase'|'quote_request'|'product_list'|'unknown';
 export interface ConversationAttachmentClassification{route:ConversationAttachmentRoute;documentType:string;confidence:number;reason:string;}
@@ -139,6 +140,21 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   }catch(error){if(signal?.aborted)throw error;}
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('extracting');
+  // Exact named columns in a customer RFQ need no generative extraction: a
+  // 100-line spreadsheet must not be reduced to a 20-line model response.
+  // Keep product catalogs and supplier sheets on their own workflows.
+  if(classification.route==='quote_request'&&
+    /\.(?:xlsx|xls|csv)$/i.test(file.name)&&payload.kind==='text'){
+    const mapped=exactSpreadsheetQuote(await readSpreadsheetFile(file));
+    if(mapped){
+      const extracted=completeSourceJson(mapped,MAX_PRODUCT_LIST_EXTRACT_CHARS);
+      onProgress?.('complete');
+      return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),
+        size:file.size,route:'quote_request',documentType:classification.documentType,confidence:1,
+        reason:'Exact customer quote worksheet columns, '+mapped.sourceRowCount+' complete original rows. No LLM row extraction.',
+        extracted}};
+    }
+  }
   let extracted='';const endpoint=extractionEndpoint(classification.route);
   if(!endpoint){
     extracted=await genericExtraction(file.name,payload,signal);
@@ -147,7 +163,7 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
       const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
       const result=extractedPayload(classification.route,body);
       if(!result||typeof result!=='object'||Array.isArray(result)||!Object.keys(result).length)throw new Error('Specific extraction returned no structured data.');
-      extracted=completeSourceJson(result,classification.route==='product_list'?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
+      extracted=completeSourceJson(result,(classification.route==='product_list'||classification.route==='quote_request')?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
     }catch(error){
       if(signal?.aborted||mustKeepStructuredExtraction(error))throw error;
       onProgress?.('fallback');
