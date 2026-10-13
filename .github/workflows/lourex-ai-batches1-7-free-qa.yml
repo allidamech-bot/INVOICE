@@ -9,6 +9,7 @@ on:
       - fix/ai-f01-real-chat-pdf-preview-20261013
       - fix/ai-f02-durable-preview-only-drafts-20261013
       - fix/ai-f03-contextual-draft-followups-20261013
+      - fix/ai-f05-f16-source-integrity-20261013
   workflow_dispatch:
 
 permissions:
