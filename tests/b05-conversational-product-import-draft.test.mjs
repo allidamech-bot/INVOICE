@@ -29,7 +29,7 @@ test('B05: analysis is strictly read-only; explicit registration stages editable
  const first=await orchestrateAiToolRequest({message:'سجل جميع الأصناف من الملف',vault:v,context:ctx({conversationSources:[file()]}),language:'ar'});
  assert.equal(first.proposal?.tool,'product.importSource');
  assert.equal(first.proposal.preview.length,4);
- assert.match(first.answer,/لم أسجّل|لم أسجل/);
+ assert.match(first.answer,/موافقتك|موافقة|لم يتم تنفيذ أي تغيير غير معتمد/);
  assert.equal(JSON.stringify(v),before);
  const step1=await result('غيّر تصنيف جميع الأصناف إلى Snacks',v,first.proposal.args);
  assert.equal(step1.proposal.preview.length,4);
