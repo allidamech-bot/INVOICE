@@ -10,6 +10,7 @@ import {requestedAiProductImport,requestedAiProductSkuGeneration} from './ai-pro
 import {reviseAiProductImportDraft,parseAiProductDraftCommand} from './ai-product-import-draft.js';
 import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
 import {explicitQuoteConversionIntent,quoteSourceWorkingDraft} from './ai-quote-source-draft.js';
+import {summarizeReadOnlyProductSources} from './ai-product-source-review.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -163,17 +164,14 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
         proposal,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
     }
   }
-  // For a classified product-list upload, make a review-only proposal even
-  // when the user first asks to analyze the file. Nothing is registered without
-  // a separate explicit click, and incomplete extraction fails closed.
-  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
-    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'source-review-1',tool:'product.importSource',args:{sources:input.context.conversationSources},reason:'Review attachment product rows; approval required before registration.'}]};
-    const execution=executeAiToolPlan(runtime,plan);
-    if(execution.proposal){
-      const count=execution.proposal.preview?.length||0;
-      return{answer:input.language==='ar'?'استخرجت '+count+' صنفًا للمراجعة فقط. لم أسجّل شيئًا. راجع البيانات، ثم يمكنك طلب تغيير التصنيف أو السعر أو إنشاء SKU قبل الموافقة.':'Prepared '+count+' extracted products for review only. Nothing was registered. You can change category, price or missing SKU before approving.',proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
-    }
-    return{answer:formatAnswer(plan,execution.results,input.language),proposal:null,plan,results:execution.results,plannedBy:'local'};
+  // Reading or analyzing a product list never prepares a registration proposal.
+  // In particular, 'حلل الملف' must not create an Approve/Reject business action.
+  // Verified rows are summarized locally without allowing file instructions to
+  // invoke model-planned mutations; explicit registration is handled below.
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&
+     sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
+    return{answer:summarizeReadOnlyProductSources(input.context.conversationSources,input.language),
+      proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
   // The user's own message must expressly request registration. Untrusted file
   // instructions never authorize a write, and source rows are not truncated here.
