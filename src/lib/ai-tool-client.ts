@@ -124,9 +124,10 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     try{
       const workingDraft=quoteSourceWorkingDraft(input.context.conversationSources,runtime,input.message);
       if(!workingDraft)throw new Error('SOURCE_INCOMPLETE: The RFQ could not be prepared as a complete unsaved quotation.');
+      const sourceCount=Array.isArray(input.context.conversationSources)?input.context.conversationSources.length:1;
       const message=input.language==='ar'
-        ?'استخرجت '+workingDraft.items.length+' صنفًا من المرفق وأنشأت مسودة عرض سعر داخل المحادثة فقط. لم أحفظها أو أصدرها. أي سعر أو عملة أو وحدة ناقصة تبقى فارغة وتحتاج مراجعتك قبل إنشاء PDF أو طلب الحفظ.'
-        :'Extracted '+workingDraft.items.length+' source lines into an unsaved quotation working draft. Nothing was saved or issued. Missing prices, currency or units remain blank until reviewed before PDF or save.';
+        ?'استخرجت '+workingDraft.items.length+' صنفًا من '+sourceCount+' ملف/ملفات، وجهزت مسودة عرض سعر موحدة داخل المحادثة فقط. لم أحفظها أو أصدرها. أي سعر أو عملة أو وحدة ناقصة تبقى فارغة وتحتاج مراجعتك قبل إنشاء PDF أو طلب الحفظ.'
+        :'Extracted '+workingDraft.items.length+' source lines from '+sourceCount+' attachment(s) into an unsaved quotation working draft. Nothing was saved or issued. Missing prices, currency or units remain blank until reviewed before PDF or save.';
       return{answer:message,proposal:null,workingDraft,plan,results:[],plannedBy:'local'};
     }catch(error){
       return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
