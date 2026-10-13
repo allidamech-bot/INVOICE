@@ -283,6 +283,13 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
     }catch(e){setPdfError(e instanceof Error?e.message:String(e));}
   };
   React.useEffect(()=>{
+    if(host.state.__workspacePdfAutoStart!==pdfIdentity)return;
+    // One shot: a chat PDF request opens this workspace and starts generation
+    // only after the correct scoped document revision is mounted.
+    host.setState({__workspacePdfAutoStart:''});
+    void createPdf();
+  },[pdfIdentity,host.state.__workspacePdfAutoStart]);
+  React.useEffect(()=>{
     if(!pdfSource)return;
     let cancelled=false;
     const timer=window.setTimeout(async()=>{
