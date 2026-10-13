@@ -174,10 +174,20 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
       if(!result||typeof result!=='object'||Array.isArray(result)||!Object.keys(result).length)throw new Error('Specific extraction returned no structured data.');
       extracted=completeSourceJson(result,(classification.route==='product_list'||classification.route==='quote_request')?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
     }catch(error){
-      if(signal?.aborted||mustKeepStructuredExtraction(error))throw error;
-      onProgress?.('fallback');
-      extracted=await genericExtraction(file.name,payload,signal);
-      classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+      if(signal?.aborted)throw error;
+      if(quoteSheetCandidate){
+        // The product/RFQ model failed, but deterministic evidence was already
+        // validated. Keep it as a *quote candidate* and drop the model's
+        // product-list classification to prevent accidental catalog imports.
+        extracted=quoteSheetCandidate;
+        classification={route:'unknown',documentType:'exact-spreadsheet-columns',confidence:0,
+          reason:'AI extraction failed; original spreadsheet rows remain available for explicit quote conversion only.'};
+      }else{
+        if(mustKeepStructuredExtraction(error))throw error;
+        onProgress?.('fallback');
+        extracted=await genericExtraction(file.name,payload,signal);
+        classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+      }
     }
   }
   if(!extracted&&payload.kind==='text'){
