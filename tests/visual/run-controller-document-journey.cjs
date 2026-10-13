@@ -128,6 +128,14 @@ async function run(engine,name){
   assert.equal(saved.second[0].price,'26');
   await page.reload({waitUntil:'networkidle'});await installPinlessFixture();
   assert.equal(await count(),1,'reload must not execute twice');
+  // The saved document identity, not a temporary PDF blob URL, survives reload.
+  await page.locator('.lourex-ai-launcher').click();
+  const reopened=page.locator('#lourex-ai-panel[data-workspace-ready="true"]');await reopened.waitFor();
+  const restored=reopened.locator('.lxw-chat-document');await restored.waitFor({timeout:30000});
+  assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id);
+  assert.match(await restored.innerText(),/Saved/);
+  await restored.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
+  await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:90000});
   assert.deepEqual(errors,[]);
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
  }finally{await browser.close();}
