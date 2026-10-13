@@ -1,5 +1,5 @@
 import { requestAiJson } from './ai-request.js';
-import { readablePdfText } from './pdf-source.js';
+import { readablePdfText, rasterScannedPdfPages } from './pdf-source.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from './spreadsheet-reader.js';
 
 export type ConversationAttachmentRoute='customer'|'supplier'|'supplier_purchase'|'quote_request'|'product_list'|'unknown';
@@ -19,7 +19,7 @@ export interface ConversationAttachmentAnalysis{source:ConversationAttachmentSou
 export type ConversationAttachmentPhase='reading'|'classifying'|'extracting'|'fallback'|'complete';
 export type ConversationAttachmentProgress=(phase:ConversationAttachmentPhase)=>void;
 
-type AiPayload={kind:'text'|'file';mimeType:string;text?:string;data?:string};
+type AiPayload={kind:'text'|'file'|'pages';mimeType:string;text?:string;data?:string;pages?:{index:number;pageCount:number;mimeType:'image/jpeg';data:string}[]};
 
 export const CONVERSATION_ATTACHMENT_ACCEPT='.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,.pdf,.xlsx,.xls,.csv,.txt,text/plain,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
 export const MAX_CONVERSATION_ATTACHMENTS=10;
@@ -113,7 +113,22 @@ async function genericExtraction(fileName:string,payload:AiPayload,signal?:Abort
 export async function analyzeConversationAttachment(file:File,signal?:AbortSignal,onProgress?:ConversationAttachmentProgress):Promise<ConversationAttachmentAnalysis>{
   onProgress?.('reading');
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
-  const payload=await conversationAttachmentPayload(file);
+  let payload=await conversationAttachmentPayload(file);
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  if(payload.kind==='file'&&payload.mimeType==='application/pdf'){
+    // OCR fallback: short scanned PDFs are treated as an ordered set of
+    // high-resolution page images. Native PDF remains for longer sources.
+    const rendered=await rasterScannedPdfPages(file,signal);
+    if(rendered){
+      const pages=await Promise.all(rendered.map(async(blob,index)=>({
+        index:index+1,pageCount:rendered.length,mimeType:'image/jpeg' as const,
+        data:bytesToBase64(await blob.arrayBuffer())
+      })));
+      const total=pages.reduce((n,page)=>n+page.data.length,0);
+      if(total>2_600_000)throw new Error('SOURCE_INCOMPLETE: Scanned PDF page images exceed the vision size limit. All pages are required; compress the PDF and retry.');
+      payload={kind:'pages',mimeType:'application/pdf',pages};
+    }
+  }
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('classifying');
   let classification:ConversationAttachmentClassification={route:'unknown',documentType:'unknown',confidence:0,reason:'LOUREX Inbox could not classify this source reliably; general read-only extraction was used.'};
