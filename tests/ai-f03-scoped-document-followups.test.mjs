@@ -94,7 +94,7 @@ test('F03 Controller source intercepts exact edits before model and prepares sav
 test('F03 live command regex recognizes exact Arabic edits and save gate, but not generic business talk',async()=>{
  const source=await readFile(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
  const literal=name=>{
-   const line=source.split('\\n').find(row=>row.includes('const '+name+'='));
+   const line=source.split('\n').find(row=>row.includes('const '+name+'='));
    assert.ok(line,name+' must exist');
    const code=line.slice(line.indexOf('=')+1,line.lastIndexOf('.test(message);'));
    return Function('message','return '+code+'.test(message);');
