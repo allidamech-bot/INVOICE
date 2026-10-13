@@ -6,6 +6,7 @@ on:
       - integration/ai-batches1-7-qa-20261012
       - fix/ai-f14-rejected-approval-replay-20261013
       - fix/ai-f21-advisor-document-evidence-20261013
+      - fix/ai-f01-real-chat-pdf-preview-20261013
   workflow_dispatch:
 
 permissions:
