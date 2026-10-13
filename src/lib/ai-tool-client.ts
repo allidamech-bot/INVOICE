@@ -18,6 +18,7 @@ import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest}
 import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
 import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
 import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
+import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -254,6 +255,30 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       :executed.results.map(row=>row.summary).join('\n'),
       proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
   }
+  // Customer collection records real MONEY and is strictly user-grounded.
+  // Never infer an amount, currency or external bank reference from model data.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiCustomerCollectionIntent(input.message)){
+    let request:ReturnType<typeof parseAiCustomerCollection>=null;
+    try{request=parseAiCustomerCollection(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No payment recorded.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:request?[{id:'exact-invoice-collection',tool:'sales.recordCustomerCollection',
+       args:{collection:request},reason:'User supplied exact issued invoice, amount, currency, date, method and distinct reference.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+      ?'لتحصيل فاتورة: اذكر رقم INV والمبلغ والعملة والتاريخ والطريقة والمرجع. مثال: سجّل تحصيل فاتورة INV-2026-0001، المبلغ 100 USD، التاريخ 2026-10-13، الطريقة bank-transfer، المرجع BANK-123. لم أسجّل دفعة.'
+      :'Specify invoice number, amount and currency, date, method and unique reference. No payment recorded.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const result=executeAiToolPlan(runtime,plan);
+    return{answer:result.proposal?(input.language==='ar'
+      ?'حضّرت مراجعة تحصيل '+request.amount+' '+request.currency+' للفاتورة '+request.invoiceNumber+
+        '. لم أسجّل الدفعة بعد؛ الموافقة المستقلة لازمة ويعاد فحص الرصيد عند الحفظ.'
+      :'Prepared '+request.amount+' '+request.currency+' collection review for '+request.invoiceNumber+
+        '. No payment was recorded; separate approval and balance revalidation are required.')
+      :result.results.map(x=>x.summary).join('\n'),
+      proposal:result.proposal,plan,results:result.results,plannedBy:'local'};
+  }
   // User-provided physical confirmation with one explicit DN, reference
   // and date. NEVER equate issuing a DN with actual physical delivery.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiConfirmPhysicalDeliveryIntent(input.message)){
@@ -396,7 +421,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
