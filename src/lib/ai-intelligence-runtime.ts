@@ -537,7 +537,7 @@ export function installIntelligenceRuntime(host:Host):void{
       // editing follow-ups against the full scoped kernel draft BEFORE asking a
       // general model, which could otherwise omit old lines or trade terms.
       const draftOnly= currentConversationMode(host)==='controller'&&Boolean(kernel.artifact)&&!host.state.proposal;
-      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?)[.!؟\\s]*$/iu.test(message);
+      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?)[.!؟\s]*$/iu.test(message);
       if(draftOnly&&saveWorkingDraft){
         const p=structuredClone(kernel.artifact!.proposal) as any;
         delete p.foundationApproval;
@@ -561,7 +561,7 @@ export function installIntelligenceRuntime(host:Host):void{
               :'Prepared a draft-save approval for review only. No record has been saved. Review the details and explicitly approve.'}]}));
         await flush(host);await persistKernel(host);return;
       }
-      const exactDraftFollowup=/^(?:(?:في نفس المسودة)[،,]?\\s*)?(?:غيّر|غير|عدّل|عدل|اجعل|أضف|اضف|احذف|حذف|امسح|set|change|update|add|remove|delete)\\s+(?:سعر|السعر|كمية|الكمية|price|quantity|qty|line|item|الصنف|البند|منتج|شروط|شروط الدفع|payment terms|الإنكوترمز|incoterm|مدة التسليم|delivery time|الصلاحية|validity|الملاحظات|notes|التعبئة|packing)|^(?:undo|redo|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل(?: الأخير| الاخير)?|أعد التعديل|اعد التعديل|لا[،,]?\\s*اللي قبله|previous one)[.!؟\\s]*$/iu.test(message);
+      const exactDraftFollowup=/^(?:(?:في نفس المسودة)[،,]?\s*)?(?:غيّر|غير|عدّل|عدل|اجعل|أضف|اضف|احذف|حذف|امسح|set|change|update|add|remove|delete)\s+(?:سعر|السعر|كمية|الكمية|price|quantity|qty|line|item|الصنف|البند|منتج|شروط|شروط الدفع|payment terms|الإنكوترمز|incoterm|مدة التسليم|delivery time|الصلاحية|validity|الملاحظات|notes|التعبئة|packing)|^(?:undo|redo|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل(?: الأخير| الاخير)?|أعد التعديل|اعد التعديل|لا[،,]?\s*اللي قبله|previous one|(?:[أا]رجع|رجع|رجّع)\s+(?:السعر|الكمية)\s+(?:السابق|السابقة))[.!؟\s]*$/iu.test(message);
       if(draftOnly&&exactDraftFollowup){
         const next=structuredClone(kernel);
         const original=next.artifact!.proposal;
