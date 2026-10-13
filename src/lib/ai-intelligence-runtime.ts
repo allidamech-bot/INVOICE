@@ -505,15 +505,23 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     assertFoundationApproval(live.vault,proposal);
     const result=await apply();await flush(host);
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
-    else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';if((kernel.artifact?.proposal as any)?.foundationApproval?.id===proposal.foundationApproval.id)kernel.artifact=undefined;
+    else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';
       const latest=await resumeVaultSession(),mission=missionStep(kernel.missions||[],proposal)?.mission;
-      // A saved document card must be reconstructible after chat reload.
-      // Link it only after finding the exact recorded document in this scope.
+      // Only retire the exact working version that was actually saved. The
+      // approved proposal and kernel artifact are clones; comparing envelope
+      // IDs alone fails if an async reload recreated the approval proposal.
+      // Verify BOTH the immutable economic payload and the durable document
+      // before closing the draft; never hide a newer, unapproved revision.
       if(latest&&receipt.resultId&&['document.createDraft','document.updateDraft'].includes(proposal.capability)){
         const saved=scopeVault(latest.vault).documents.find(doc=>doc.id===receipt.resultId&&doc.kind!=='draft');
-        if(saved){host.__foundationVault=latest.vault;
+        if(saved){
+          host.__foundationVault=latest.vault;
+          const economic=(value:any)=>JSON.stringify(value,(key,item)=>key==='foundationApproval'?undefined:item);
+          if(kernel.artifact&&economic(kernel.artifact.proposal)===economic(proposal))
+            kernel.artifact=undefined;
           kernel.entity={entityType:'document',entityId:saved.id,label:saved.number};
-          host.setState({__workspaceSavedId:saved.id});}
+          host.setState({__workspaceSavedId:saved.id});
+        }
       }
       if(latest&&mission){const visible=host.state.proposal?.capability==='tool.plan'?host.state.proposal.steps:[host.state.proposal];for(const pending of mission.steps){if(pending===step||pending.status!=='needs_approval'||!pending.proposal)continue;const oldId=pending.approvalId,p=structuredClone(pending.proposal);delete p.foundationApproval;stampProposal(host,p,latest.vault);pending.approvalId=p.foundationApproval.id;pending.proposal=p;pending.payload=canonicalFoundationJson(p);for(const row of visible||[])if(row?.foundationApproval?.id===oldId)row.foundationApproval=p.foundationApproval;}}
 
