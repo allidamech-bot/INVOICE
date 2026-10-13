@@ -1,6 +1,7 @@
 import { assertFoundationApproval, type FoundationApproval } from './ai-foundation-approval.js';
 import {applyOperationalPoDraftApproval,type AiOperationalPoReview} from './ai-operational-po-draft.js';
 import {applyAiGoodsReceiptApproval,type AiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
+import {applyOperationalDeliveryDraftApproval,type AiOperationalDeliveryDraftReview} from './ai-operational-dn-draft.js';
 import {confirmedGoodsReceipts} from './goods-receipt-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { applyAiBulkProductUpdate, type AiBulkProductBatch } from './ai-product-bulk-update.js';
@@ -11,7 +12,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -24,6 +25,19 @@ async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExec
   if(!row||row.scope!==scope||(scope==='business'&&(row.workspaceId!==approval.scope.workspaceId||row.branchId!==approval.scope.branchId)))throw new Error('Task or memory is unavailable in this conversation scope.');
 }
 export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
+  if(proposal.tool==='sales.createDeliveryDraft'){
+    if(!proposal.foundationApproval)throw new Error('Signed delivery-draft approval is required.');
+    const review=proposal.args as unknown as AiOperationalDeliveryDraftReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyOperationalDeliveryDraftApproval(vault,review).vault;
+    });
+    const note=saved.documents.find(d=>d.kind==='delivery-note'&&d.lifecycleStatus!=='voided'&&d.status==='draft'&&
+      saved.documentEvents.some(e=>e.type==='created'&&e.documentId===d.id&&e.relatedDocumentId===review.quotationId));
+    if(!note)throw new Error('Approved delivery draft could not be verified.');
+    return{summary:'Delivery Note draft '+note.number+' saved after explicit approval. No delivery confirmation or stock issue was recorded.',
+       id:note.id};
+  }
   if(proposal.tool==='procurement.recordGoodsReceipt'){
     if(!proposal.foundationApproval)throw new Error('A signed physical goods receipt approval is required.');
     const review=proposal.args as unknown as AiGoodsReceiptReview;
