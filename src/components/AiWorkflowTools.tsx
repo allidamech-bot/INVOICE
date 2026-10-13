@@ -75,8 +75,8 @@ function sourceCommercialTerms(draft:QuoteAiSourceDraft):string[]{return [draft.
 export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRoute?:AiInboxRoute;disabled?:boolean},State>{
   private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceCaptureTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
   state:State={open:false,view:'menu',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false,voiceStarting:false,jobs:readAiJobHistory(),currentJobId:'',savedReference:''};
-  componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);}
-  componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);this.cancelAnalysis();this.stopVoice();}
+  componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.addEventListener('pagehide',this.onVoicePageHide);document.addEventListener('visibilitychange',this.onVoiceVisibilityChange);}
+  componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.removeEventListener('pagehide',this.onVoicePageHide);document.removeEventListener('visibilitychange',this.onVoiceVisibilityChange);this.cancelAnalysis();this.stopVoice();}
   private cancelAnalysis=()=>{this.generation++;this.pending=false;this.abort?.abort();this.abort=null;};
   private current=(generation:number,controller:AbortController)=>this.mounted&&generation===this.generation&&!controller.signal.aborted;
   private refreshJobs=()=>this.setState({jobs:readAiJobHistory()});
@@ -143,6 +143,14 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
   private runMode=(mode:AiWorkflowMode)=>{this.setState({open:false});advisorInput(aiWorkflowPrompt(mode,isArabic()),true);};
   private search=async()=>{const query=this.state.searchQuery.trim();if(!query||this.state.searchBusy)return;this.setState({searchBusy:true,error:''});try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Account workspace is not ready to search records. Sign in or retry.','مساحة عمل الحساب غير جاهزة للبحث في السجلات. سجّل الدخول أو أعد المحاولة.'));this.setState({searchResults:searchBusinessRecords(resumed.vault,query),searchBusy:false});}catch(error){this.setState({searchBusy:false,error:error instanceof Error?error.message:String(error)});}};
   private askAbout=(result:AiBusinessSearchResult)=>{this.setState({open:false});window.dispatchEvent(new CustomEvent('lourex-global-search-open',{detail:{query:canonicalSearchQuery(result),autoOpenUnique:true}}));};
+  // Safari may background/suspend without delivering recognition.onend.
+  // Cancel the active native lease and retry callbacks, not the editable text.
+  private onVoicePageHide=()=>{
+    if(!this.recognition&&!this.voiceRetryTimer)return;
+    this.stopVoice();
+    if(this.mounted)this.setState({listening:false,voiceStarting:false,error:''});
+  };
+  private onVoiceVisibilityChange=()=>{if(document.hidden)this.onVoicePageHide();};
   // Workflow quick-mic and conversation composer must never own the native microphone together.
   // Safari can report a final transcript before its speech engine releases the device.
   private onComposerVoiceRequest=(event:Event)=>{
