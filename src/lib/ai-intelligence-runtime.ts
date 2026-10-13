@@ -522,6 +522,7 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
     else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';
       const latest=await resumeVaultSession(),mission=missionStep(kernel.missions||[],proposal)?.mission;
+      if(latest&&kernelScopeKey(scopeFor(host,latest.vault))===kernelScopeKey(kernel.scope))host.__foundationVault=latest.vault;
       // Only retire the exact working version that was actually saved. The
       // approved proposal and kernel artifact are clones; comparing envelope
       // IDs alone fails if an async reload recreated the approval proposal.
