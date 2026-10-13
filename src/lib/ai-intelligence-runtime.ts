@@ -16,6 +16,7 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, type WorkspaceCommand } from './ai-workspace-model.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
+import {resumableWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, resolveAiConversationReplyLanguage, type AiConversationExperiencePreferences } from './ai-conversation-mode.js';
 import { conversationModePermitsCapability, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
@@ -144,7 +145,7 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
     if(host.state.proposal||host.state.review){host.setState({proposal:null,review:null});await flush(host);}
   }else{
     if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
-    if(host.__intelligenceKernel.artifact){const proposal=host.__intelligenceKernel.artifact.proposal;const review=reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');host.setState({proposal,review});await flush(host);}
+    if(host.__intelligenceKernel.artifact){const proposal=resumableWorkingApproval(host.__intelligenceKernel,vault);const review=proposal?reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en'):null;host.setState({proposal,review});await flush(host);}
   }
 }
 /** Refresh when opening/switching workspace, not only when sending a model request. */
@@ -495,7 +496,18 @@ export function installIntelligenceRuntime(host:Host):void{
       if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
       await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
       strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel;turnScope=kernelScopeKey(kernel.scope);kernel.turn++;
-      if(currentConversationMode(host)==='controller'&&!host.state.proposal&&kernel.artifact){host.setState({proposal:kernel.artifact.proposal});await flush(host);}
+      if(currentConversationMode(host)==='controller'&&kernel.artifact){
+        const approved=resumableWorkingApproval(kernel,resumed.vault);
+        const shown=host.state.proposal;
+        if(approved&&shown?.foundationApproval?.id!==approved.foundationApproval?.id){
+          host.setState({proposal:approved,review:reviewAiDocumentProposal(approved,workspaceDrafting(resumed.vault,approved.capability==='document.updateDraft'?approved.documentId:''),host.props.language==='ar'?'ar':'en')});
+          await flush(host);
+        }else if(!approved&&shown&&['document.createDraft','document.updateDraft'].includes(shown.capability)){
+          // The working review has no valid approval envelope. Do not convert
+          // it back into a clickable save proposal merely by starting a turn.
+          host.setState({proposal:null,review:null});await flush(host);
+        }
+      }
       if(currentConversationMode(host)==='advisor'&&host.state.proposal){host.setState({proposal:null,review:null});await flush(host);}
       const message=String(raw??host.state.input).trim();
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
@@ -537,7 +549,7 @@ export function installIntelligenceRuntime(host:Host):void{
       // editing follow-ups against the full scoped kernel draft BEFORE asking a
       // general model, which could otherwise omit old lines or trade terms.
       const draftOnly= currentConversationMode(host)==='controller'&&Boolean(kernel.artifact)&&!host.state.proposal;
-      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?)[.!؟\s]*$/iu.test(message);
+      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|احفظ العرض|اعتمد النسخة|اعتمد المسودة|اعتمد عرض السعر|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?|approve (?:the|this) draft)[.!؟\s]*$/iu.test(message);
       if(draftOnly&&saveWorkingDraft){
         const p=structuredClone(kernel.artifact!.proposal) as any;
         delete p.foundationApproval;
