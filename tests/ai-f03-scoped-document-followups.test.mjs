@@ -102,7 +102,8 @@ test('F03 live command regex recognizes exact Arabic edits and save gate, but no
  const revise=literal('exactDraftFollowup'),save=literal('saveWorkingDraft');
  for(const command of ['غيّر كمية الصنف 3 إلى 26','غيّر سعر الصنف 3 إلى 26','ارجع السعر السابق','undo','change quantity line 3 to 26'])
    assert.equal(revise(command),true,command);
- for(const command of ['احفظها','احفظ المسودة','prepare to save this draft'])assert.equal(save(command),true,command);
+ for(const command of ['احفظها','احفظه','احفظ المسودة','تمام احفظ','احفظ عرض السعر','prepare to save this draft'])assert.equal(save(command),true,command);
+ for(const command of ['لا تحفظها','احفظها واصدر الفاتورة','تمام احذف المستند'])assert.equal(save(command),false,command);
  for(const command of ['حلّل الأرباح','كم فاتورة صدرت؟','هل هذا السعر جيد؟']){
    assert.equal(revise(command),false,command);assert.equal(save(command),false,command);
  }
