@@ -481,6 +481,13 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
     else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';if((kernel.artifact?.proposal as any)?.foundationApproval?.id===proposal.foundationApproval.id)kernel.artifact=undefined;
       const latest=await resumeVaultSession(),mission=missionStep(kernel.missions||[],proposal)?.mission;
+      // A saved document card must be reconstructible after chat reload.
+      // Link it only after finding the exact recorded document in this scope.
+      if(latest&&receipt.resultId&&['document.createDraft','document.updateDraft'].includes(proposal.capability)){
+        const saved=scopeVault(latest.vault).documents.find(doc=>doc.id===receipt.resultId&&doc.kind!=='draft');
+        if(saved){kernel.entity={entityType:'document',entityId:saved.id,label:saved.number};
+          host.setState({__workspaceSavedId:saved.id});}
+      }
       if(latest&&mission){const visible=host.state.proposal?.capability==='tool.plan'?host.state.proposal.steps:[host.state.proposal];for(const pending of mission.steps){if(pending===step||pending.status!=='needs_approval'||!pending.proposal)continue;const oldId=pending.approvalId,p=structuredClone(pending.proposal);delete p.foundationApproval;stampProposal(host,p,latest.vault);pending.approvalId=p.foundationApproval.id;pending.proposal=p;pending.payload=canonicalFoundationJson(p);for(const row of visible||[])if(row?.foundationApproval?.id===oldId)row.foundationApproval=p.foundationApproval;}}
 
     }
