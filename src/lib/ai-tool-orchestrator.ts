@@ -13,6 +13,7 @@ import {parseAiBulkProductTransformIntent,prepareAiBulkProductTransform} from '.
 import {parseAiProductGroupPriceIntent,prepareAiProductGroupPrice} from './ai-product-group-price.js';
 import {parseAiPartyMasterIntent,prepareAiPartyMaster} from './ai-party-master.js';
 import {prepareApprovedPartyPatch} from './ai-approved-party-patch.js';
+import {requestedAiReportPeriod,safeAiReportPeriod} from './ai-report-period.js';
 
 export type AiToolClass='read'|'calculate'|'prepare'|'execute'|'high-impact';
 export type AiToolId=
@@ -187,7 +188,7 @@ function prepare(tool:AiToolId,runtime:AiToolRuntime,args:Record<string,unknown>
 
 export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime):any|null{
   const args=safeObject(call.args);
-  if(call.tool==='navigation.open'){const target=clean(args.target,30);if(!['home','documents','customers','receivables','reports','items','operations'].includes(target))return null;return{capability:'workspace.navigate',target,label:clean(args.label,80)||`Open ${target}`,rationale:call.reason||'Requested navigation.'};}
+  if(call.tool==='navigation.open'){const target=clean(args.target,30);if(!['home','documents','customers','receivables','reports','items','operations'].includes(target))return null;const reportPeriod=target==='reports'?safeAiReportPeriod(args.reportPeriod):null;return{capability:'workspace.navigate',target,label:clean(args.label,80)||`Open ${target}`,rationale:call.reason||'Requested navigation.',...(reportPeriod?{reportPeriod}:{})};}
   if(call.tool==='product.updateMetadata'){const item=findProduct(runtime,args);if(!item)return null;const patch=safeObject(args.patch);return{capability:'item.updateMetadata',itemId:item.id,relatedItemId:'',patch,label:clean(args.label,80)||'Update product',rationale:call.reason||'Prepared product metadata update.'};}
   if(call.tool==='customer.master'||call.tool==='supplier.master'){
     if(runtime.scope!=='business')throw new Error('Party changes require Business scope.');
@@ -278,6 +279,8 @@ export function deterministicAiToolPlan(message:string,runtime:AiToolRuntime):Ai
     const transform=parseAiBulkProductTransformIntent(message);
     if(transform)return call('product.bulkUpdate',{transform},'Review the selected product SKU or price changes before one approved save.');
   }
+  const reportPeriod=requestedAiReportPeriod(message);
+  if(reportPeriod)return call('navigation.open',{target:'reports',reportPeriod},'Open Reports using the exact month in this user message.');
   if(/(?:open|go to|navigate|افتح|روح|اذهب)/i.test(q)){if(/(?:invoice|فاتورة|quotation|quote|عرض)/i.test(q))return call('navigation.open',{target:'documents'},'Open the Documents workspace.');if(/(?:customer|عميل)/i.test(q))return call('navigation.open',{target:'customers'},'Open Customers.');if(/(?:receivable|overdue|تحصيل|متأخر)/i.test(q))return call('navigation.open',{target:'receivables'},'Open Receivables.');if(/(?:report|تقرير|تقارير)/i.test(q))return call('navigation.open',{target:'reports'},'Open Reports.');if(/(?:product|inventory|مخزون|منتج)/i.test(q))return call('navigation.open',{target:'items'},'Open Products & Inventory.');if(/(?:supplier|purchase|مورد|شراء|مشتريات)/i.test(q))return call('navigation.open',{target:'operations'},'Open Purchasing/Operations.');}
   if(entity?.type==='customer'&&/(?:overdue|receivable|outstanding|متأخر|مستحق|ذمم)/i.test(q))return call('customer.getReceivables',{customerId:entity.id},'Read the current customer receivables.');
   if(entity?.type==='customer'&&/(?:history|account|summary|وضع|حساب|تاريخ)/i.test(q))return call('customer.getSummary',{customerId:entity.id},'Read the current customer summary.');
