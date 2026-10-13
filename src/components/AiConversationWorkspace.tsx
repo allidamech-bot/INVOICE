@@ -619,7 +619,7 @@ export function installConversationWorkspace(host:Host):void {
       if(host.mounted===false||host.__workspaceLoadGeneration!==generation)return;
       if(previous&&previous!==kernelScopeKey(host.__intelligenceKernel.scope)){
         host.__lourexLatestContext=undefined;host.__businessMemories=[];
-        host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];
+        host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.__lourexLastConversationSourceScope='';(globalThis as any).__lourexConversationSourcesV3=[];
       }
       host.__workspaceObservedProps=host.props;
       host.setState({__workspaceLoadError:''});
@@ -651,7 +651,7 @@ export function installConversationWorkspace(host:Host):void {
   for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
     const old=host[name]?.bind(host);if(!old)continue;
     if(name==='__lourexSetScope')host.__workspaceBaseSetScope=old;
-    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:'',__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
+    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.__lourexLastConversationSourceScope='';(globalThis as any).__lourexConversationSourcesV3=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:'',__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
   }
   // Each mode opens its own scoped thread. Never relabel an existing turn.
   const drafts=new Map<string,string>();
