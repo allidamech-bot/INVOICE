@@ -12,6 +12,7 @@ import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
 import {explicitQuoteConversionIntent,quoteSourceWorkingDraft} from './ai-quote-source-draft.js';
 import {summarizeReadOnlyProductSources} from './ai-product-source-review.js';
 import {operationalPoDraftRequested,requestedPoRfqNumber} from './ai-operational-po-draft.js';
+import {isAiGoodsReceiptRequest,parseAiGoodsReceiptRequest} from './ai-operational-goods-receipt.js';
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
@@ -183,6 +184,31 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
   }
+  // A goods receipt is PHYSICAL evidence, never inferred from PO quantities.
+  // The user must state the PO, dated receiving reference and EACH measured
+  // line quantity before a separately approved record can be prepared.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiGoodsReceiptRequest(input.message)){
+    let requested:ReturnType<typeof parseAiGoodsReceiptRequest>=null;
+    try{requested=parseAiGoodsReceiptRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No records changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:requested?[{id:'local-reviewed-goods-receipt',tool:'procurement.recordGoodsReceipt',args:{receipt:requested},
+        reason:'Explicit PO, physical receipt reference, date and every counted quantity supplied by the user.'}]:[]};
+    if(!requested)return{answer:input.language==='ar'
+      ?'لتجهيز استلام بضاعة: اذكر أمر الشراء PO، ومرجع الاستلام، والتاريخ، وكميات كل سطر بالترتيب (اكتب صفرًا للسطر غير المستلم). لا يوجد حفظ أو ترحيل.'
+      :'To prepare receipt, specify the exact PO, receipt reference, date and all line quantities in order, including zero for unreceived lines. Nothing saved or posted.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    const answer=executed.proposal?(input.language==='ar'
+      ?'أعددت مراجعة استلام '+requested.reference+' لكميات جميع بنود '+requested.purchaseOrderNumber+
+        '. لا يسجل الاستلام إلا بموافقة مستقلة، ولن يرحّل المخزون أو ينشئ فاتورة.'
+      :'Prepared physical receipt '+requested.reference+' for all lines in '+requested.purchaseOrderNumber+
+        '. Recording requires separate approval; it does not post inventory or issue a supplier invoice.')
+      :executed.results.map(row=>row.summary).join('\n');
+    return{answer,proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
   // Deterministic PO request from a user-named exact RFQ. File/model text
   // cannot identify the source or authorize saving or inventory movement.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&operationalPoDraftRequested(input.message)){
@@ -260,7 +286,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>call.tool==='procurement.createPoFromRfq'))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>(call.tool==='procurement.createPoFromRfq'||call.tool==='procurement.recordGoodsReceipt')))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
