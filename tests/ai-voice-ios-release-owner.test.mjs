@@ -38,7 +38,8 @@ test('WebKit browser QA reproduces delayed native release and verifies fifteen s
   assert.match(visual,/releaseDelay:engine\.name\(\)==='webkit'\?1450:260/);
   assert.match(visual,/native microphone is still owned/);
   assert.match(visual,/overlappingStarts\),0/);
-  assert.match(visual,/sessions:15/);
+  assert.match(visual,/sessions:17/);
+  assert.match(visual,/backgroundSuspension:'PASS'/);
   assert.match(visual,/crossOwnerHandoff:'PASS'/);
   assert.match(visual,/repeat session/);
 });
