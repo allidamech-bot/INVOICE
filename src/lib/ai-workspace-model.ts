@@ -10,6 +10,7 @@ import { commercialScenario, convertPack, externalQuote, compareSuppliers, compa
 import { cancelMission } from './ai-mission-runner.js';
 import { stageKernelArtifact } from './ai-conversation-kernel.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
+import {AI_WORKING_QUOTE_MAX_LINES,aiDraftUndoDepth} from './ai-document-limits.js';
 
 export type WorkspaceDraft = AiDocumentDraftProposal | AiDocumentUpdateProposal;
 export interface WorkspaceLine { id:string; descriptionEn:string; descriptionAr:string; quantity:string; unit:string; unitPrice:string; savedItemId:string; }
@@ -144,12 +145,12 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
     const row=drafting.customers.find(row=>row.id===command.entityId);if(!row)throw new Error('Customer is no longer available.');p.customerId=row.id;p.customerDraft=null;
   }else if(command.kind==='product'){
     const row=drafting.items.find(row=>row.id===command.entityId);if(!row)throw new Error('Product is no longer available.');
-    const list=p.capability==='document.createDraft'?p.items:p.addItems;if(list.length>=20)throw new Error('The existing approval limit is 20 added lines. No line was dropped.');
+    const list=p.capability==='document.createDraft'?p.items:p.addItems;if(list.length>=(p.capability==='document.createDraft'?AI_WORKING_QUOTE_MAX_LINES:20))throw new Error('The working document line limit was reached. No line was dropped.');
     const currency=p.capability==='document.createDraft'?p.currency:drafting.activeDocument!.currency;
     list.push({savedItemId:row.id,descriptionEn:row.descriptionEn,descriptionAr:row.descriptionAr,quantity:'1',unit:row.unit,unitPrice:row.lastCurrency===currency?row.lastUnitPrice:''});
   }else if(command.kind==='add-line'){
     const list=p.capability==='document.createDraft'?p.items:p.addItems;
-    if(list.length>=20)throw new Error('The existing approval limit is 20 added lines. No line was dropped.');
+    if(list.length>=(p.capability==='document.createDraft'?AI_WORKING_QUOTE_MAX_LINES:20))throw new Error('The working document line limit was reached. No line was dropped.');
     const descriptionEn=command.descriptionEn.trim(),descriptionAr=command.descriptionAr.trim(),unit=command.unit.trim();
     if((!descriptionEn&&!descriptionAr)||descriptionEn.length>160||descriptionAr.length>160||!unit||unit.length>40||/[\u0000-\u001f]/.test(descriptionEn+descriptionAr+unit))throw new Error('Enter a description and unit within their limits.');
     const quantity=normalizeDecimalInput(command.quantity),unitPrice=normalizeDecimalInput(command.unitPrice);
@@ -166,7 +167,8 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
     else {const existing=drafting.activeDocument!.items.find(item=>item.id===command.lineId);if(existing){let edit=p.itemEdits.find(edit=>edit.itemId===existing.id);if(!edit){if(p.itemEdits.length>=30)throw new Error('The existing limit is 30 edited lines.');edit={itemId:existing.id};p.itemEdits.push(edit);}edit[command.field]=value;}else {const index=rows.findIndex(row=>row.id===command.lineId)-drafting.activeDocument!.items.length;if(!p.addItems[index])throw new Error('Line identity mismatch.');p.addItems[index]![command.field]=value;}}
   }else throw new Error('Unsupported workspace command.');
   const previous=structuredClone(a.proposal);
-  a.undo=[...a.undo,previous].slice(-50);a.undoLineIds=[...(a.undoLineIds||[]),[...a.lineIds]].slice(-50);a.redo=[];a.redoLineIds=[];a.proposal=p;a.revision++;a.lastEdit=undefined;
+  const undoLimit=aiDraftUndoDepth(p.capability==='document.createDraft'?p.items.length:p.addItems.length);
+  a.undo=[...a.undo,previous].slice(-undoLimit);a.undoLineIds=[...(a.undoLineIds||[]),[...a.lineIds]].slice(-undoLimit);a.redo=[];a.redoLineIds=[];a.proposal=p;a.revision++;a.lastEdit=undefined;
   if(p.capability==='document.updateDraft'){
     const base=drafting.activeDocument!.items.map(row=>row.id),isFull=base.every((id,i)=>a.lineIds[i]===id);a.lineIds=[...base,...(isFull?a.lineIds.slice(base.length):a.lineIds)];
   }

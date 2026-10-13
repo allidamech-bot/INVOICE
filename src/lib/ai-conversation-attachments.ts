@@ -1,6 +1,7 @@
 import { requestAiJson } from './ai-request.js';
-import { readablePdfText } from './pdf-source.js';
+import { readablePdfText, rasterScannedPdfPages } from './pdf-source.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from './spreadsheet-reader.js';
+import {exactSpreadsheetQuote} from './ai-spreadsheet-quote.js';
 
 export type ConversationAttachmentRoute='customer'|'supplier'|'supplier_purchase'|'quote_request'|'product_list'|'unknown';
 export interface ConversationAttachmentClassification{route:ConversationAttachmentRoute;documentType:string;confidence:number;reason:string;}
@@ -14,14 +15,29 @@ export interface ConversationAttachmentSource{
   confidence:number;
   reason:string;
   extracted:string;
+  /** Complete deterministic worksheet quote, retained even if model classification differs. */
+  quoteSheetCandidate?:string;
 }
 export interface ConversationAttachmentAnalysis{source:ConversationAttachmentSource;file:File;}
 export type ConversationAttachmentPhase='reading'|'classifying'|'extracting'|'fallback'|'complete';
 export type ConversationAttachmentProgress=(phase:ConversationAttachmentPhase)=>void;
 
-type AiPayload={kind:'text'|'file';mimeType:string;text?:string;data?:string};
+type AiPayload={kind:'text'|'file'|'pages';mimeType:string;text?:string;data?:string;pages?:{index:number;pageCount:number;mimeType:'image/jpeg';data:string}[]};
 
-export const CONVERSATION_ATTACHMENT_ACCEPT='image/*,.pdf,.xlsx,.xls,.csv,.txt,text/plain,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+export const CONVERSATION_ATTACHMENT_ACCEPT='.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,.pdf,.xlsx,.xls,.csv,.txt,text/plain,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+/** Safari Files may provide no MIME or application/octet-stream for valid PDFs.
+ * Guess only from an allowed filename extension, then verify file signatures.
+ * A declared non-generic type is NOT silently overridden by the extension. */
+export function conversationAttachmentMime(file:Pick<File,'name'|'type'>):string{
+ const name=String(file.name||'').toLowerCase(),type=String(file.type||'').toLowerCase().trim();
+ if(type&&type!=='application/octet-stream'&&type!=='binary/octet-stream')return type;
+ if(name.endsWith('.pdf'))return'application/pdf';
+ if(name.endsWith('.png'))return'image/png';
+ if(/\.jpe?g$/i.test(name))return'image/jpeg';
+ if(name.endsWith('.webp'))return'image/webp';
+ return type;
+}
+
 export const MAX_CONVERSATION_ATTACHMENTS=10;
 export const MAX_CONVERSATION_ATTACHMENT_TOTAL_BYTES=16_000_000;
 const MAX_BINARY_BYTES=2_600_000;
@@ -35,10 +51,21 @@ const MAX_PRODUCT_LIST_EXTRACT_CHARS=72_000;
 function id():string{return`conversation-source-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;}
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));return btoa(binary);}
 function boundedText(value:unknown,max=MAX_EXTRACT_CHARS):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
-function compactJson(value:unknown,max=MAX_EXTRACT_CHARS):string{try{return JSON.stringify(value).slice(0,max);}catch{return boundedText(value,max);}}
+/** Partial JSON has a plausible-looking prefix but omits source rows. It is
+ * never safe to treat truncated model output as evidence for a document. */
+export function completeSourceJson(value:unknown,max=MAX_EXTRACT_CHARS):string{
+  let json:string;
+  try{json=JSON.stringify(value);}catch{throw new Error('Source extraction could not be serialized. No document was prepared.');}
+  if(!json||json.length>max)throw new Error('SOURCE_INCOMPLETE: Extracted source is larger than the complete review limit. Split the file into smaller complete sections; no document was prepared.');
+  return json;
+}
+function mustKeepStructuredExtraction(error:unknown):boolean{
+  return error instanceof Error&&error.message.startsWith('SOURCE_INCOMPLETE:');
+}
 
 export function validateConversationFiles(files:File[]):File[]{
   const selected=files.filter(Boolean).slice(0,MAX_CONVERSATION_ATTACHMENTS);
+  for(const file of selected){if(!file?.size)throw new Error('Empty attachments are not supported.');}
   if(files.length>MAX_CONVERSATION_ATTACHMENTS)throw new Error(`Attach up to ${MAX_CONVERSATION_ATTACHMENTS} files at a time.`);
   const total=selected.reduce((sum,file)=>sum+file.size,0);if(total>MAX_CONVERSATION_ATTACHMENT_TOTAL_BYTES)throw new Error('Attached files exceed the 16 MB conversation limit.');
   return selected;
@@ -53,7 +80,7 @@ async function verifyBinarySource(file:File,mime:string):Promise<void>{
 
 export async function conversationAttachmentPayload(file:File):Promise<AiPayload>{
   const name=file.name.toLowerCase();
-  if(name.endsWith('.pdf')||file.type==='application/pdf'){
+  if(name.endsWith('.pdf')||conversationAttachmentMime(file)==='application/pdf'){
     if(file.size>MAX_DOCUMENT_BYTES)throw new Error('PDF must be 12 MB or smaller.');
     await verifyBinarySource(file,'application/pdf');
     const text=await readablePdfText(file,MAX_TEXT_CHARS);
@@ -73,9 +100,9 @@ export async function conversationAttachmentPayload(file:File):Promise<AiPayload
     const text=await file.text();if(!text.trim())throw new Error('Text file is empty.');if(text.length>MAX_TEXT_CHARS)throw new Error('Text exceeds the analysis limit.');
     return{kind:'text',mimeType:'text/plain',text};
   }
-  const mime=file.type||(name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');
-  if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error('Use PDF, image, Excel, CSV or TXT.');
-  if(file.size>MAX_BINARY_BYTES)throw new Error('Scanned PDF/image must be below 2.6 MB for safe AI analysis.');
+  const mime=conversationAttachmentMime(file);
+  if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error('Supported images are PNG, JPG and WebP. Convert HEIC/GIF to JPG or PNG first; PDF, Excel, CSV and TXT are also supported.');
+  if(file.size>MAX_BINARY_BYTES)throw new Error('Scanned PDF/image must be below 2.6 MB for safe AI analysis. Compress the scanned PDF or export readable PDF text; every page must be reviewed.');
   await verifyBinarySource(file,mime);
   return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
@@ -96,13 +123,38 @@ function extractedPayload(route:ConversationAttachmentRoute,body:any):unknown{
 async function genericExtraction(fileName:string,payload:AiPayload,signal?:AbortSignal):Promise<string>{
   const body=await requestAiJson('/api/ai-inbox',{mode:'source-summary',fileName,...payload},signal,30_000);
   if(!body?.source||typeof body.source!=='object'||Array.isArray(body.source)||!Object.keys(body.source).length)throw new Error('Source extraction returned no readable data. Try again or use a clearer file.');
-  return compactJson(body.source);
+  return completeSourceJson(body.source);
 }
 
 export async function analyzeConversationAttachment(file:File,signal?:AbortSignal,onProgress?:ConversationAttachmentProgress):Promise<ConversationAttachmentAnalysis>{
   onProgress?.('reading');
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
-  const payload=await conversationAttachmentPayload(file);
+  let payload=await conversationAttachmentPayload(file);
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  if(payload.kind==='file'&&payload.mimeType==='application/pdf'){
+    // OCR fallback: short scanned PDFs are treated as an ordered set of
+    // high-resolution page images. Native PDF remains for longer sources.
+    const rendered=await rasterScannedPdfPages(file,signal);
+    if(rendered){
+      const pages=await Promise.all(rendered.map(async(blob,index)=>({
+        index:index+1,pageCount:rendered.length,mimeType:'image/jpeg' as const,
+        data:bytesToBase64(await blob.arrayBuffer())
+      })));
+      const total=pages.reduce((n,page)=>n+page.data.length,0);
+      if(total>2_600_000)throw new Error('SOURCE_INCOMPLETE: Scanned PDF page images exceed the vision size limit. All pages are required; compress the PDF and retry.');
+      payload={kind:'pages',mimeType:'application/pdf',pages};
+    }
+  }
+  if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  // Read exact named-column spreadsheet rows *before* depending on an AI
+  // classification. A model can label an RFQ as 'product_list' or 'unknown';
+  // retain a separate complete deterministic quote candidate for the user's
+  // later explicit instruction without reclassifying other import workflows.
+  let quoteSheetCandidate='';
+  if(/\.(?:xlsx|xls|csv)$/i.test(file.name)&&payload.kind==='text'){
+    const mapped=exactSpreadsheetQuote(await readSpreadsheetFile(file));
+    if(mapped)quoteSheetCandidate=completeSourceJson(mapped,MAX_PRODUCT_LIST_EXTRACT_CHARS);
+  }
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('classifying');
   let classification:ConversationAttachmentClassification={route:'unknown',documentType:'unknown',confidence:0,reason:'LOUREX Inbox could not classify this source reliably; general read-only extraction was used.'};
@@ -113,26 +165,51 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   }catch(error){if(signal?.aborted)throw error;}
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('extracting');
+  // Exact named columns in a customer RFQ need no generative extraction: a
+  // 100-line spreadsheet must not be reduced to a 20-line model response.
+  // Keep product catalogs and supplier sheets on their own workflows.
+  if(classification.route==='quote_request'&&quoteSheetCandidate){
+    onProgress?.('complete');
+    return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),
+      size:file.size,route:'quote_request',documentType:classification.documentType,confidence:1,
+      reason:'Exact customer quote worksheet columns. Complete original rows were preserved; no LLM row extraction.',
+      extracted:quoteSheetCandidate,quoteSheetCandidate}};
+  }
   let extracted='';const endpoint=extractionEndpoint(classification.route);
   if(!endpoint){
-    extracted=await genericExtraction(file.name,payload,signal);
+    // Generic classification unavailable: preserve complete exact source as
+    // reviewable DATA, rather than erroring out on a second AI request.
+    extracted=quoteSheetCandidate||await genericExtraction(file.name,payload,signal);
   }else{
     try{
       const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
       const result=extractedPayload(classification.route,body);
       if(!result||typeof result!=='object'||Array.isArray(result)||!Object.keys(result).length)throw new Error('Specific extraction returned no structured data.');
-      extracted=compactJson(result,classification.route==='product_list'?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
+      extracted=completeSourceJson(result,(classification.route==='product_list'||classification.route==='quote_request')?MAX_PRODUCT_LIST_EXTRACT_CHARS:MAX_EXTRACT_CHARS);
     }catch(error){
       if(signal?.aborted)throw error;
-      onProgress?.('fallback');
-      extracted=await genericExtraction(file.name,payload,signal);
-      classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+      if(quoteSheetCandidate){
+        // The product/RFQ model failed, but deterministic evidence was already
+        // validated. Keep it as a *quote candidate* and drop the model's
+        // product-list classification to prevent accidental catalog imports.
+        extracted=quoteSheetCandidate;
+        classification={route:'unknown',documentType:'exact-spreadsheet-columns',confidence:0,
+          reason:'AI extraction failed; original spreadsheet rows remain available for explicit quote conversion only.'};
+      }else{
+        if(mustKeepStructuredExtraction(error))throw error;
+        onProgress?.('fallback');
+        extracted=await genericExtraction(file.name,payload,signal);
+        classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+      }
     }
   }
-  if(!extracted&&payload.kind==='text')extracted=boundedText(payload.text,MAX_EXTRACT_CHARS);
+  if(!extracted&&payload.kind==='text'){
+    if((payload.text||'').length>MAX_EXTRACT_CHARS)throw new Error('SOURCE_INCOMPLETE: Text extraction is too large for a complete preview. Split the source.');
+    extracted=boundedText(payload.text,MAX_EXTRACT_CHARS);
+  }
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('complete');
-  return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),size:file.size,route:classification.route,documentType:classification.documentType,confidence:classification.confidence,reason:classification.reason,extracted}};
+  return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),size:file.size,route:classification.route,documentType:classification.documentType,confidence:classification.confidence,reason:classification.reason,extracted,quoteSheetCandidate:quoteSheetCandidate||undefined}};
 }
 
 export function conversationSourcePrompt(sources:ConversationAttachmentSource[]):string{

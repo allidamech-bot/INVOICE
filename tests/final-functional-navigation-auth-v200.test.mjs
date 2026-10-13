@@ -13,7 +13,7 @@ test('v200 mobile navigation never leaves Create and More surfaces open together
   assert.match(shell,/private closeCreateMenu=\(\)=>\{if\(this\.props\.newMenu\)this\.props\.onToggleNew\(\);\}/);
   assert.match(shell,/private toggleCreate=\(\)=>\{[\s\S]*this\.closeMore\(\);[\s\S]*this\.props\.onToggleNew\(\);/);
   assert.match(shell,/private toggleMore=\(\)=>\{[\s\S]*this\.closeCreateMenu\(\);[\s\S]*moreOpen:!state\.moreOpen/);
-  assert.match(shell,/private navigate=\(screen:NavTarget\)=>\{[\s\S]*this\.closeCreateMenu\(\);[\s\S]*this\.closeMore\(\);[\s\S]*this\.props\.onNavigate\(screen\);/);
+  assert.match(shell,/private navigate=\(screen:NavTarget,reportPeriod\?:AiReportPeriod\)=>\{[\s\S]*this\.closeCreateMenu\(\);[\s\S]*this\.closeMore\(\);[\s\S]*this\.props\.onNavigate\(screen,reportPeriod\);/);
   assert.match(shell,/onClick=\{this\.toggleCreate\}/);
   assert.match(shell,/onClick=\{this\.toggleMore\}/);
 });

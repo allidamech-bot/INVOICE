@@ -1,4 +1,20 @@
 import { assertFoundationApproval, type FoundationApproval } from './ai-foundation-approval.js';
+import {applyOperationalPoDraftApproval,type AiOperationalPoReview} from './ai-operational-po-draft.js';
+import {applyAiGoodsReceiptApproval,type AiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
+import {applyOperationalDeliveryDraftApproval,type AiOperationalDeliveryDraftReview} from './ai-operational-dn-draft.js';
+import {applyAiDeliveryConfirmation,type AiDeliveryConfirmationReview} from './ai-operational-delivery-confirmation.js';
+import {applyAiSalesStockIssue,type AiSalesStockIssueReview} from './ai-operational-stock-issue.js';
+import {applyAiSupplierInvoiceMatchApproval,type AiSupplierInvoiceMatchReview} from './ai-operational-supplier-invoice-match.js';
+import {applyAiConfirmedDeliveryInvoiceApproval,type AiConfirmedDeliveryInvoiceReview} from './ai-operational-delivery-invoice-draft.js';
+import {applyAiCustomerCollection,type AiCustomerCollectionReview} from './ai-operational-customer-collection.js';
+import {applyAiSupplierSettlement,type AiSupplierSettlementReview} from './ai-operational-supplier-settlement.js';
+import {applyAiSupplierPosting,type AiSupplierPostingReview} from './ai-operational-supplier-posting.js';
+import {assertMatchedSupplierInvoicePostingIntegrity} from './supplier-invoice-posting.js';
+import {linkedDeliveryInvoice} from './sales-delivery-invoice.js';
+import {matchedSupplierInvoices} from './supplier-invoice-flow.js';
+import {salesDeliveryStockIssues} from './sales-delivery-stock.js';
+import {confirmedSalesDeliveries} from './sales-delivery-flow.js';
+import {confirmedGoodsReceipts} from './goods-receipt-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { applyAiBulkProductUpdate, type AiBulkProductBatch } from './ai-product-bulk-update.js';
 import {applyAiProductSourceImport,type AiProductSourceImportBatch} from './ai-product-source-import.js';
@@ -8,7 +24,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { loadAssistantMemory, createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{foundationApproval?:FoundationApproval;capability:'tool.execute';tool:'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExecutionProposal):Promise<void>{
@@ -21,6 +37,164 @@ async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExec
   if(!row||row.scope!==scope||(scope==='business'&&(row.workspaceId!==approval.scope.workspaceId||row.branchId!==approval.scope.branchId)))throw new Error('Task or memory is unavailable in this conversation scope.');
 }
 export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
+  if(proposal.tool==='procurement.recordSupplierPayment'){
+    if(!proposal.foundationApproval)
+      throw new Error('A separately signed finance approval is required before recording supplier payment.');
+    const review=proposal.args as unknown as AiSupplierSettlementReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiSupplierSettlement(vault,review).vault;
+    });
+    const exact=saved.supplierPayments.filter(p=>p.purchaseId===review.purchaseId&&
+      p.supplierId===review.supplierId&&p.reference.toUpperCase()===review.reference&&
+      p.amount===review.amount&&p.currency===review.currency&&p.date===review.date&&
+      p.method===review.method&&!p.voidedAt);
+    if(exact.length!==1)throw new Error('The exact approved supplier payment could not be verified.');
+    return{summary:'Supplier payment '+exact[0]!.amount+' '+review.currency+
+      ' recorded on posted purchase '+review.purchaseNumber+
+      ' after signed financial approval. Remaining payable: '+review.afterRemaining+
+      '. No inventory or supplier invoice changed.',id:exact[0]!.id};
+  }
+  if(proposal.tool==='sales.recordCustomerCollection'){
+    if(!proposal.foundationApproval)throw new Error('An independent signed customer collection approval is required.');
+    const review=proposal.args as unknown as AiCustomerCollectionReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiCustomerCollection(vault,review).vault;
+    });
+    const payments=saved.payments.filter(p=>p.invoiceId===review.invoiceId&&
+      p.reference.toUpperCase()===review.reference&&p.amount===review.amount&&
+      p.currency===review.currency&&p.date===review.date&&p.method===review.method);
+    if(payments.length!==1)throw new Error('The exact approved collection could not be verified.');
+    return{summary:'Customer payment '+payments[0]!.amount+' '+review.currency+
+      ' recorded on issued invoice '+review.invoiceNumber+' after signed approval. Remaining: '+
+      review.afterRemaining+'. No delivery or inventory change.',id:payments[0]!.id};
+  }
+  if(proposal.tool==='sales.createConfirmedInvoiceDraft'){
+    if(!proposal.foundationApproval)throw new Error('A signed invoice DRAFT approval is required before saving.');
+    const review=proposal.args as unknown as AiConfirmedDeliveryInvoiceReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiConfirmedDeliveryInvoiceApproval(vault,review).vault;
+    });
+    const invoice=linkedDeliveryInvoice(review.deliveryNoteId,saved.documents,saved.documentEvents);
+    if(!invoice||invoice.kind!=='invoice'||invoice.status!=='draft'||
+       invoice.number!==review.expectedInvoiceNumber||
+       invoice.items.length!==review.lineCount||
+       invoice.customerSnapshot?.sourceCustomerId!==review.customerId)
+      throw new Error('Approved draft invoice cannot be verified in the saved ledger.');
+    return{summary:'Invoice DRAFT '+invoice.number+' saved from confirmed delivery '+
+      review.deliveryNoteNumber+' after explicit approval. Not issued. No stock or collection posted.',id:invoice.id};
+  }
+  if(proposal.tool==='procurement.matchSupplierBill'){
+    if(!proposal.foundationApproval)throw new Error('A signed vendor bill three-way matching approval is required.');
+    const review=proposal.args as unknown as AiSupplierInvoiceMatchReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiSupplierInvoiceMatchApproval(vault,review).vault;
+    });
+    const recorded=matchedSupplierInvoices(review.purchaseOrderId,saved.documentEvents)
+      .filter(x=>x.purchaseOrderNumber===review.purchaseOrderNumber&&
+        x.invoiceReference===review.invoiceReference&&x.supplierId===review.supplierId);
+    if(recorded.length!==1)throw new Error('Matched supplier invoice cannot be verified.');
+    return{summary:'Vendor bill '+review.invoiceReference+' matched to confirmed receiving after signed approval. No payable, stock or payment posted.',
+      id:review.purchaseOrderId};
+  }
+  if(proposal.tool==='procurement.postMatchedSupplierBill'){
+    if(!proposal.foundationApproval)
+      throw new Error('Independent signed owner/admin approval is required before posting vendor bill stock and payable.');
+    const review=proposal.args as unknown as AiSupplierPostingReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiSupplierPosting(vault,review).vault;
+    });
+    assertMatchedSupplierInvoicePostingIntegrity(saved);
+    const purchases=saved.purchases.filter(p=>p.sourceSupplierInvoiceEventId===review.matchEventId&&
+      p.sourcePurchaseOrderId===review.purchaseOrderId&&p.status==='posted'&&
+      p.currency===review.currency&&p.items.length===review.lineCount);
+    if(purchases.length===1){
+      const purchase=purchases[0]!;
+      if(saved.inventoryMovements.filter(m=>m.type==='purchase'&&m.sourceId===purchase.id).length!==review.lineCount)
+        throw new Error('Purchase posted without full inventory movements. Stop and reconcile ledger.');
+      return{summary:'Matched vendor bill '+review.invoiceReference+' POSTED once as purchase '+
+        purchase.number+'. Accounts payable +'+review.total+' '+review.currency+
+        ', primary warehouse inventory +'+review.lineCount+' movements. No supplier payment made.',
+        id:purchase.id};
+    }
+    if(purchases.length>1)throw new Error('Duplicate supplier bill postings found. Stop and reconcile.');
+    const pending=saved.approvalRequests.filter(a=>a.action==='post-purchase'&&
+      a.entityId==='purchase-from-'+review.matchEventId&&a.status==='pending');
+    if(pending.length!==1)throw new Error('Neither a verified vendor bill posting nor one pending legacy approval was found.');
+    return{summary:'Supplier bill '+review.invoiceReference+
+      ' is NOT POSTED. Existing purchase approval policy requires an additional approval. No stock, payable or cash was posted.',
+      id:pending[0]!.id};
+  }
+  if(proposal.tool==='sales.issueConfirmedStock'){
+    if(!proposal.foundationApproval)throw new Error('A signed and explicit inventory-deduction approval is required.');
+    const review=proposal.args as unknown as AiSalesStockIssueReview;
+    const updated=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiSalesStockIssue(vault,review).vault;
+    });
+    if(salesDeliveryStockIssues(review.deliveryNoteId,updated.inventoryMovements).length!==review.lineCount)
+      throw new Error('Stock issue evidence is incomplete after save.');
+    return{summary:'Inventory issue for confirmed delivery '+review.deliveryNoteNumber+
+      ' posted after explicit approval. No invoice or payment was created.',id:review.deliveryNoteId};
+  }
+  if(proposal.tool==='sales.confirmPhysicalDelivery'){
+    if(!proposal.foundationApproval)throw new Error('Signed approval of exact physical delivery proof is required.');
+    const review=proposal.args as unknown as AiDeliveryConfirmationReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiDeliveryConfirmation(vault,review).vault;
+    });
+    const confirmations=confirmedSalesDeliveries(review.deliveryNoteId,saved.documentEvents);
+    if(confirmations.length!==1||confirmations[0]!.reference!==review.reference)
+      throw new Error('Approved delivery confirmation proof was not verified.');
+    return{summary:'Physical delivery '+review.reference+' confirmed after explicit approval. No stock was deducted or invoice issued.',
+      id:review.deliveryNoteId};
+  }
+  if(proposal.tool==='sales.createDeliveryDraft'){
+    if(!proposal.foundationApproval)throw new Error('Signed delivery-draft approval is required.');
+    const review=proposal.args as unknown as AiOperationalDeliveryDraftReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyOperationalDeliveryDraftApproval(vault,review).vault;
+    });
+    const note=saved.documents.find(d=>d.kind==='delivery-note'&&d.lifecycleStatus!=='voided'&&d.status==='draft'&&
+      saved.documentEvents.some(e=>e.type==='created'&&e.documentId===d.id&&e.relatedDocumentId===review.quotationId));
+    if(!note)throw new Error('Approved delivery draft could not be verified.');
+    return{summary:'Delivery Note draft '+note.number+' saved after explicit approval. No delivery confirmation or stock issue was recorded.',
+       id:note.id};
+  }
+  if(proposal.tool==='procurement.recordGoodsReceipt'){
+    if(!proposal.foundationApproval)throw new Error('A signed physical goods receipt approval is required.');
+    const review=proposal.args as unknown as AiGoodsReceiptReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyAiGoodsReceiptApproval(vault,review).vault;
+    });
+    const recorded=confirmedGoodsReceipts(review.purchaseOrderId,saved.documentEvents)
+      .some(row=>row.purchaseOrderNumber===review.purchaseOrderNumber&&
+        row.purchaseOrderUpdatedAt===review.expectedPurchaseOrderUpdatedAt&&
+        row.reference===review.reference&&row.receivedDate===review.receivedDate&&
+        row.supplierId===review.supplierId);
+    if(!recorded)throw new Error('Approved receipt record was not verified. Check the purchase-order receipt register.');
+    return{summary:'Goods receipt '+review.reference+' recorded after explicit approval. No inventory was posted or supplier payable created.',
+      id:review.purchaseOrderId};
+  }
+  if(proposal.tool==='procurement.createPoFromRfq'){
+    if(!proposal.foundationApproval)throw new Error('An explicit signed purchase-order approval is required before saving any draft.');
+    const review=proposal.args as unknown as AiOperationalPoReview;
+    const saved=await mutateVaultSafely(vault=>{
+      assertFoundationApproval(vault,proposal);
+      return applyOperationalPoDraftApproval(vault,review).vault;
+    });
+    const order=saved.documents.find(row=>row.kind==='purchase-order'&&row.lifecycleStatus!=='voided'&&
+      saved.documentEvents.some(event=>event.type==='created'&&event.documentId===row.id&&event.relatedDocumentId===review.sourceId));
+    if(!order)throw new Error('Approved PO draft save could not be verified.');
+    return{summary:'Linked PO draft '+order.number+' saved after explicit approval. Goods have NOT been received; no stock or supplier payable was posted.',id:order.id};
+  }
   if(proposal.tool==='customer.master'||proposal.tool==='supplier.master'){
     const batch=proposal.args as unknown as AiPartyMasterBatch;
     if(!batch||batch.party!==(proposal.tool==='customer.master'?'customer':'supplier'))throw new Error('Approved party action type mismatch.');

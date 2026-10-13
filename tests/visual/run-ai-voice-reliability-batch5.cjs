@@ -20,10 +20,12 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     window.SpeechRecognition=Recognition;window.webkitSpeechRecognition=Recognition;
    },{releaseDelay:engine.name()==='webkit'?1450:260});
    await page.goto(`http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html?lang=${lang}`,{waitUntil:'networkidle'});await page.locator('.lourex-ai-launcher').click();const mic=page.locator('.lourex-ai-composer-mic'),input=page.locator('.lourex-ai-compose form>input'),textarea=page.locator('.lourex-ai-premium-textarea');await mic.waitFor();
-   assert.equal(await page.locator('.lourex-ai-scope-button').count(),3,'unified assistant retains Business, Personal and Temporary scope capabilities');
-   const scopeTrigger=page.locator('.lourex-ai-scope-trigger');await scopeTrigger.waitFor({state:'visible'});
-   assert.equal(await page.locator('.lourex-ai-scope-button:visible').count(),0,'three persistent scope tabs are visually consolidated');
-   assert.equal(await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),'ios-release-v2','final composer exposes the current iOS voice owner');
+   const modes=page.locator('#lourex-ai-panel .lxw-mode-tabs [role="tab"]');
+   await modes.first().waitFor({state:'visible'});
+   assert.equal(await modes.count(),2,'assistant exposes Controller and Advisor modes only');
+   assert.deepEqual((await modes.allTextContents()).map(x=>x.trim()),lang==='ar'?['المتحكم','المستشار']:['Controller','Advisor']);
+   assert.equal(await page.locator('.lourex-ai-scope-button:visible').count(),0,'deprecated scope tabs remain hidden');
+   assert.equal(await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),'ios-release-v3-cross-owner','final composer exposes the cross-owner Safari voice runtime');
    await mic.click();await page.evaluate(()=>{window.staleResult=window.speechInstances[0].onresult;window.speechInstances[0].result('first session');});assert.equal(await input.inputValue(),'first session');
    await mic.click();assert.equal(await page.evaluate(()=>window.speechInstances.length),1,'restart waits for native onend');await page.evaluate(()=>window.speechInstances[0].end());await page.waitForFunction(()=>window.speechInstances.length===2);
    await mic.click();await page.evaluate(()=>{window.speechInstances[1].result('second session');window.speechInstances[1].end();});assert.equal(await input.inputValue(),'first session second session','manual stop accepts final transcript');
@@ -32,12 +34,39 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===5);await page.locator('.lourex-ai-close').click();await page.waitForFunction(()=>window.speechInstances[4].abortCalled);await page.locator('.lourex-ai-launcher').click();await mic.click();await page.waitForFunction(()=>window.speechInstances.length===6);await page.evaluate(()=>window.speechInstances[5].end());
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===7);await page.evaluate(()=>window.speechInstances[6].result('fallback cleanup'));await page.waitForFunction(()=>window.speechInstances[6].abortCalled);await mic.click();await page.waitForFunction(()=>window.speechInstances.length===8);await page.evaluate(()=>window.speechInstances[7].end());
 
-   for(let cycle=0;cycle<4;cycle+=1){
+   for(let cycle=0;cycle<5;cycle+=1){
     const expected=9+cycle;await mic.click();await page.waitForFunction(count=>window.speechInstances.length===count,expected);await page.evaluate(({index,cycle})=>{window.speechInstances[index].result(`repeat session ${cycle+1}`);window.speechInstances[index].end();},{index:expected-1,cycle});
    }
-   assert.equal(await page.evaluate(()=>window.speechInstances.length),12,'twelve independent speech sessions must be constructible in one open app lifecycle');
-   assert.match(await input.inputValue(),/repeat session 4$/,'twelfth session transcript reaches the editable composer');
+   assert.equal(await page.evaluate(()=>window.speechInstances.length),13,'thirteen independent speech sessions must be constructible in one open app lifecycle');
+   assert.match(await input.inputValue(),/repeat session 5$/,'thirteenth session transcript reaches the editable composer');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'Safari delayed release must never receive overlapping recognition.start() calls');assert.deepEqual(errors,[]);assert.deepEqual(requests,[],'voice must not call providers before explicit Send');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));const box=await mic.boundingBox();assert.ok(box.width>=44&&box.height>=44);
+
+   // A workflow-initiated recording must first revoke the composer microphone.
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===14);
+   const workflowHandoff=await page.evaluate(()=>{
+     const detail={active:false,readyAt:0};
+     window.dispatchEvent(new CustomEvent('lourex-ai-workflow-voice-request',{detail}));
+     return {active:detail.active,readyAt:detail.readyAt,aborted:window.speechInstances[13].abortCalled};
+   });
+   assert.equal(workflowHandoff.active,true,'secondary microphone request must revoke the active composer');
+   assert.equal(workflowHandoff.aborted,true,'native microphone release must be initiated');
+   assert.ok(workflowHandoff.readyAt>Date.now(),'handoff advertises an upcoming safe restart time');
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===15);
+   await page.evaluate(()=>{window.speechInstances[14].result('after workflow handoff');window.speechInstances[14].end();});
+   assert.match(await input.inputValue(),/after workflow handoff$/,'composer recovers after workflow takes the microphone');
+   assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'handoff cannot start overlapping recognizers');
+
+   // F15: tab suspension must terminate a native owner and preserve already
+   // transcribed text, so returning to the page allows a clean next session.
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===16);
+   const retainedBefore=await input.inputValue();
+   await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
+   await page.waitForFunction(()=>window.speechInstances[15].abortCalled===true);
+   assert.equal(await input.inputValue(),retainedBefore,'pagehide keeps the existing editable voice transcript');
+   await mic.click();await page.waitForFunction(()=>window.speechInstances.length===17);
+   await page.evaluate(()=>{window.speechInstances[16].result('voice after background');window.speechInstances[16].end();});
+   assert.match(await input.inputValue(),/voice after background$/,'recording restarts after Safari background suspension');
+   assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'background transition may not overlap native sessions');
 
    await input.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await input.press('Enter');
    await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
@@ -68,26 +97,22 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     await overflow.click();
     await overflowMenu.waitFor({state:'visible'});
     await overflowMenu.getByRole('menuitem',{name:/Conversations|المحادثات/}).click();
-    await page.locator('.lourex-ai-thread-row').first().waitFor({state:'visible'});
-    assert.ok((await page.locator('.lourex-ai-thread-row').count())>=1,'saved assistant conversation must appear in recent chats');
-    await page.locator('.lourex-ai-thread-open').first().click();
+    const historyRows=page.locator('#lourex-ai-panel .lxw-history-row');
+    await historyRows.first().waitFor({state:'visible'});
+    assert.ok((await historyRows.count())>=1,'saved conversation is available in the new history panel');
+    await historyRows.first().click();
     await page.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).waitFor({state:'visible'});
-    const switchScope=async label=>{
-      await scopeTrigger.click();
-      const scopeMenu=page.locator('.lourex-ai-scope-menu');await scopeMenu.waitFor({state:'visible'});
-      await scopeMenu.getByRole('menuitemradio',{name:label,exact:true}).click();
-    };
-    const personalLabel=lang==='ar'?'شخصي':'Personal',temporaryLabel=lang==='ar'?'مؤقت':'Temporary',businessLabel=lang==='ar'?'الأعمال':'Business';
-    await switchScope(personalLabel);await page.waitForFunction(()=>document.querySelectorAll('.lourex-ai-scope-button')[1]?.getAttribute('aria-selected')==='true');
-    assert.equal(await page.locator('.lourex-ai-message').count(),0,'personal scope must not inherit business conversation');
-    await switchScope(temporaryLabel);await page.waitForFunction(()=>document.querySelectorAll('.lourex-ai-scope-button')[2]?.getAttribute('aria-selected')==='true');
-    assert.equal(await page.locator('.lourex-ai-history-button').count(),0,'temporary scope must not expose durable chat history');
-    await switchScope(businessLabel);await page.waitForFunction(()=>document.querySelectorAll('.lourex-ai-scope-button')[0]?.getAttribute('aria-selected')==='true');
+    await modes.nth(1).click();
+    await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel')?.dataset.workspaceMode==='advisor');
+    assert.equal(await modes.nth(1).getAttribute('aria-selected'),'true','Advisor tab must become active');
+    assert.equal(await page.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).count(),0,'Advisor never inherits the Controller thread');
+    await modes.nth(0).click();
+    await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel')?.dataset.workspaceMode==='controller');
     await page.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).waitFor({state:'visible'});
     unifiedAssistant='PASS';
    }
 
-   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:12,restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',repeatSessions:'PASS',runtimeOwner:await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
+   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:17,backgroundSuspension:'PASS',crossOwnerHandoff:'PASS',restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',repeatSessions:'PASS',runtimeOwner:await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
   }finally{await browser.close();}
- }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + 12-session delayed Safari native release PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; unified encrypted conversation/scopes smoke PASS in Chromium.');
+ }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + 17-session delayed Safari native release and background cleanup PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; Controller/Advisor and saved-history isolation smoke PASS in Chromium.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

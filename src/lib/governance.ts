@@ -1,12 +1,12 @@
 import type { ApprovalAction, ApprovalPolicyRecord, ApprovalRequestRecord, TeamMemberRecord, TeamRole, VaultPayload } from '../types.js';
 import { makeId } from './id.js';
 
-export type GovernanceCapability='issue-document'|'post-purchase'|'reverse-purchase'|'approve'|'approve-supplier-quote'|'record-goods-receipt'|'match-supplier-invoice'|'accept-sales-order'|'confirm-sales-delivery'|'issue-sales-stock';
+export type GovernanceCapability='issue-document'|'post-purchase'|'reverse-purchase'|'approve'|'approve-supplier-quote'|'record-goods-receipt'|'match-supplier-invoice'|'accept-sales-order'|'confirm-sales-delivery'|'issue-sales-stock'|'record-customer-payment'|'record-supplier-payment';
 
 const ROLE_CAPABILITIES:Record<TeamRole,GovernanceCapability[]>={
-  owner:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery','issue-sales-stock'],
-  admin:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery','issue-sales-stock'],
-  finance:['issue-document','approve','match-supplier-invoice'],
+  owner:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery','issue-sales-stock','record-customer-payment','record-supplier-payment'],
+  admin:['issue-document','post-purchase','reverse-purchase','approve','approve-supplier-quote','record-goods-receipt','match-supplier-invoice','accept-sales-order','confirm-sales-delivery','issue-sales-stock','record-customer-payment','record-supplier-payment'],
+  finance:['issue-document','approve','match-supplier-invoice','record-customer-payment','record-supplier-payment'],
   sales:['issue-document','accept-sales-order','confirm-sales-delivery'],
   purchasing:['post-purchase','reverse-purchase','approve-supplier-quote','record-goods-receipt'],
   viewer:[]

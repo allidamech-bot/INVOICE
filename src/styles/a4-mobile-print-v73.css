@@ -72,6 +72,35 @@
   }
 }
 
+/* An AI file preview must match the canonical paper geometry but MUST NOT be
+   a .print-portal: the real print bridge selects that portal independently. */
+@media screen {
+  html body #root .lxw-ai-pdf-render-target,
+  html body #root .lxw-ai-pdf-render-target .invoice-pages {
+    width:210mm!important;
+    min-width:210mm!important;
+    max-width:none!important;
+  }
+  html body #root .lxw-ai-pdf-render-target .invoice-pages {
+    gap:0!important;
+    transform:none!important;
+    margin:0!important;
+    flex:none!important;
+  }
+  html body #root .lxw-ai-pdf-render-target .invoice-page {
+    box-sizing:border-box!important;
+    width:210mm!important;
+    min-width:210mm!important;
+    max-width:210mm!important;
+    height:297mm!important;
+    min-height:297mm!important;
+    margin:0!important;
+  }
+}
+@media print {
+  .lxw-ai-pdf-render-target {display:none!important;}
+}
+
 /* Keep the commercial totals column at its authored A4 width even when it is
    the only child in the lower grid (for example when no commercial terms exist). */
 .invoice-page .lower-grid > .totals-block {

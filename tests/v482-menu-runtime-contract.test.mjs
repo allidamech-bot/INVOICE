@@ -7,7 +7,7 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 test('More navigation remains in-app and does not own page reloads',async()=>{
   const shell=await read('src/components/AppShell.tsx');
   const navigate=shell.slice(shell.indexOf('private navigate='),shell.indexOf('private toggleCreate='));
-  assert.match(navigate,/this\.props\.onNavigate\(screen\)/,'More navigation lost the in-app navigation callback');
+  assert.match(navigate,/this\.props\.onNavigate\(screen,reportPeriod\)/,'More navigation lost the in-app navigation callback');
   assert.doesNotMatch(navigate,/location\.(?:reload|replace|assign)|history\.go/,'More navigation must never reload the document');
 });
 

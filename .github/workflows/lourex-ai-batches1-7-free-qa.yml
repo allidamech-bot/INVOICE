@@ -1,0 +1,125 @@
+name: LOUREX AI Batches 1-7 Release Candidate QA
+on:
+  push:
+    branches:
+      - fix/ai-batches1-7-qa-20261012
+      - integration/ai-batches1-7-qa-20261012
+      - fix/ai-f14-rejected-approval-replay-20261013
+      - fix/ai-f21-advisor-document-evidence-20261013
+      - fix/ai-f01-real-chat-pdf-preview-20261013
+      - fix/ai-f02-durable-preview-only-drafts-20261013
+      - fix/ai-f03-contextual-draft-followups-20261013
+      - fix/ai-f05-f16-source-integrity-20261013
+      - fix/ai-f16-scanned-pdf-vision-fallback-20261013
+      - fix/ai-f08-high-volume-quote-rows-20261013
+      - fix/ai-f09-classifier-independent-rfq-20261013
+      - fix/ai-f10-bounded-large-draft-context-20261013
+      - fix/ai-f11-large-quote-pdf-pagination-20261013
+      - fix/ai-f12-mission-step-gating-20261013
+      - fix/ai-f13-unsaved-resume-integration-20261013
+      - integration/ai-parallel-streams-safe-20261013
+      - fix/ai-batch1-pr-reconciliation-f17-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-ai-batches-1-7-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Node 24 build, targeted regressions and full Node suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout integration branch (no deployment)
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript check
+        run: npm run typecheck
+      - name: Complete production build locally (no publication)
+        run: npm run build
+      - name: AI cross-batch and Firebase history regressions
+        run: node --test --test-concurrency=2 tests/ai-batches1-7-release-candidate-contract.test.mjs tests/ai-batch7-cloud-history.test.mjs
+      - name: Entire existing Node test suite
+        run: node --test --test-concurrency=2 tests/*.test.mjs
+
+  firestore-emulator:
+    name: Real Firestore rules and two-device transaction tests (emulator only)
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      FIREBASE_CLI_DISABLE_UPDATE_CHECK: 'true'
+      CI: 'true'
+    steps:
+      - name: Checkout candidate — no production credentials
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Java 21 for offline Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Restore exact project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install test-only Firebase emulator and rules SDK (no lockfile edits)
+        run: npm install --no-save --package-lock=false --no-audit --no-fund firebase@12.1.0 @firebase/rules-unit-testing@5.0.2 firebase-tools@14.12.1
+      - name: Build application modules for transaction tests
+        run: npm run build
+      - name: Verify real Firestore owner rules and cross-device transactions
+        run: ./node_modules/.bin/firebase emulators:exec --only firestore --config firebase.ai-ci.json --project demo-lourex-ai-integration-719 "node --test tests/emulator/ai-history.test.mjs"
+
+  webkit-visual:
+    name: Chromium/WebKit login, AI voice, conversation and PDF QA
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout integration code without deploying
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install pinned browser tools temporarily
+        run: npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0 http-server@14.1.1
+      - name: Install Chromium and WebKit with system browser dependencies
+        run: ./node_modules/.bin/playwright install --with-deps chromium webkit
+      - name: Compile the complete app for local-only browser inspection
+        run: npm run build
+      - name: Test PIN-free gateway on iPhone, iPad and desktop WebKit
+        run: node scripts/qa-pinless-webkit.mjs
+      - name: Test mock native microphone handoff and quoted tool conversation in both browser engines
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/http-server . -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-ai-visual.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html >/dev/null
+          node tests/visual/run-ai-voice-reliability-batch5.cjs
+          node tests/visual/run-v542-pagination-parity.cjs
+          node tests/visual/run-f11-large-a4-quote.cjs
+          node tests/visual/run-ai-batches1-7-current-workspace.cjs

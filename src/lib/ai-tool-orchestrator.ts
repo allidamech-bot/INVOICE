@@ -1,9 +1,19 @@
 import type { VaultPayload } from '../types.js';
-import { conversationModePermitsToolClass, type AiConversationMode } from './ai-conversation-mode.js';
+import { conversationModePermitsToolClass, normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 import { calculateTotals, decimalToScaled, lineTotal, normalizeDecimalInput } from './money.js';
 import { customerReceivables, customerStatement, receivableCustomerId } from './receivables.js';
 import { inventoryBalances, purchaseTotals } from './operations.js';
 import { supplierPayablesByCurrency } from './payables.js';
+import {prepareOperationalPoFromRfq} from './ai-operational-po-draft.js';
+import {prepareAiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
+import {prepareOperationalDeliveryDraft} from './ai-operational-dn-draft.js';
+import {prepareAiDeliveryConfirmation} from './ai-operational-delivery-confirmation.js';
+import {prepareAiSalesStockIssue} from './ai-operational-stock-issue.js';
+import {prepareAiSupplierInvoiceMatch} from './ai-operational-supplier-invoice-match.js';
+import {prepareAiConfirmedDeliveryInvoice} from './ai-operational-delivery-invoice-draft.js';
+import {prepareAiCustomerCollection} from './ai-operational-customer-collection.js';
+import {prepareAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
+import {prepareAiSupplierPosting} from './ai-operational-supplier-posting.js';
 import { treasuryAccountBalance, treasuryProjection, treasuryTotals } from './treasury-ledger.js';
 import { fxRateMatchForDate, convertWithFxMatch } from './fx-rates.js';
 import { todayIso } from './id.js';
@@ -13,6 +23,7 @@ import {parseAiBulkProductTransformIntent,prepareAiBulkProductTransform} from '.
 import {parseAiProductGroupPriceIntent,prepareAiProductGroupPrice} from './ai-product-group-price.js';
 import {parseAiPartyMasterIntent,prepareAiPartyMaster} from './ai-party-master.js';
 import {prepareApprovedPartyPatch} from './ai-approved-party-patch.js';
+import {requestedAiReportPeriod,safeAiReportPeriod} from './ai-report-period.js';
 
 export type AiToolClass='read'|'calculate'|'prepare'|'execute'|'high-impact';
 export type AiToolId=
@@ -22,13 +33,13 @@ export type AiToolId=
   |'pricing.margin'|'pricing.markup'|'pricing.targetPrice'|'landedCost.calculate'|'scenario.calculate'|'fx.convertUsingRecordedRate'|'receivables.aging'|'breakEven.calculate'|'inventory.coverage'
   |'quotation.prepare'|'invoice.prepare'|'customer.prepare'|'supplier.prepare'|'purchase.prepare'|'reminder.prepare'|'message.prepare'|'report.prepare'
   |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'navigation.open'|'task.create'
-  |'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
+  |'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
 
 export interface AiToolDefinition{id:AiToolId;class:AiToolClass;description:string;approval:boolean;mutation:boolean;maxResultChars:number;}
 export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;reason:string;}
 export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
 export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
-export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
+export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'customer.master'|'supplier.master'|'product.updateMetadata'|'product.bulkUpdate'|'product.importSource'|'procurement.createPoFromRfq'|'procurement.recordGoodsReceipt'|'sales.createDeliveryDraft'|'sales.confirmPhysicalDelivery'|'sales.issueConfirmedStock'|'procurement.matchSupplierBill'|'procurement.postMatchedSupplierBill'|'sales.createConfirmedInvoiceDraft'|'sales.recordCustomerCollection'|'procurement.recordSupplierPayment'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
 export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;conversationMode?:AiConversationMode;}
 
 const DEFS:AiToolDefinition[]=[
@@ -62,6 +73,16 @@ const DEFS:AiToolDefinition[]=[
   ['reminder.prepare','prepare','Prepare a reminder without scheduling or sending it.',true,false,2500],
   ['message.prepare','prepare','Prepare external communication without sending it.',true,false,2500],
   ['report.prepare','prepare','Prepare a report specification without changing records.',true,false,2500],
+  ['procurement.recordSupplierPayment','execute','Record exact cash supplier settlement against a posted purchase only after independent signed finance approval.',true,true,10000],
+  ['sales.recordCustomerCollection','execute','Record exact issued-invoice customer collection after independently signed approval, with remaining-balance and duplicate-proof review.',true,true,10000],
+  ['sales.createConfirmedInvoiceDraft','execute','Create one UNISSUED sales invoice draft from exactly one confirmed delivery after signed approval; never deduct stock or record collection.',true,true,10000],
+  ['procurement.matchSupplierBill','execute','Review exact PO, physically received GRN and supplier invoice line quantities/prices/total before matching; never post payables or inventory.',true,true,10000],
+  ['procurement.postMatchedSupplierBill','execute','Post exactly one previously matched and approved vendor bill to one purchase payable and primary warehouse inventory only after separate signed owner/admin approval.',true,true,10000],
+  ['sales.issueConfirmedStock','execute','Deduct verified stock for a confirmed DN only after distinct signed inventory approval, matching exact warehouse and SKUs.',true,true,10000],
+  ['sales.confirmPhysicalDelivery','execute','Confirm actual physical delivery of one issued DN after a signed explicit review, without stock issue or billing.',true,true,8000],
+  ['sales.createDeliveryDraft','execute','Prepare a linked unissued delivery note draft from an accepted Sales Order after separate approval; never confirm delivery or post stock.',true,true,8000],
+  ['procurement.recordGoodsReceipt','execute','Record exact physical receipt quantities against an issued purchase order only after separate approval. Does not post inventory.',true,true,8000],
+  ['procurement.createPoFromRfq','execute','Create a linked PO DRAFT from one issued RFQ after full review and approval; never post stock.',true,true,8000],
   ['document.createDraft','execute','Create a LOUREX draft only after visible approval.',true,true,3000],
   ['document.updateDraft','execute','Update an existing LOUREX draft only after visible approval.',true,true,3000],
   ['customer.update','execute','Update customer master data after visible approval.',true,true,2500],
@@ -140,7 +161,7 @@ export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='bu
 }
 export function createAiToolRuntime(vault:VaultPayload,context:any):AiToolRuntime{
   const scope=(context?.assistantRuntime?.scope==='personal'?'personal':context?.assistantRuntime?.scope==='temporary'?'temporary':'business') as AiToolRuntime['scope'];
-  return{vault,context,scope,workspaceId:clean(context?.assistantRuntime?.workspaceId,120),branchId:clean(context?.assistantRuntime?.branchId,120),conversationMode:context?.conversationMode==='advisor'?'advisor':'controller'};
+  return{vault,context,scope,workspaceId:clean(context?.assistantRuntime?.workspaceId,120),branchId:clean(context?.assistantRuntime?.branchId,120),conversationMode:context?.conversationMode===undefined?'controller':normalizeAiConversationMode(context.conversationMode)};
 }
 export function validateAiToolPlan(value:unknown,scope:'business'|'personal'|'temporary'='business',mode:AiConversationMode='controller'):AiToolPlan|null{
   if(!value||typeof value!=='object')return null;const raw=value as any;if(raw.version!==1||!Array.isArray(raw.calls)||raw.calls.length>5)return null;const allowed=new Set(aiToolPlannerCatalog(scope,mode).map(row=>row.id));const calls:AiToolCall[]=[];
@@ -187,7 +208,7 @@ function prepare(tool:AiToolId,runtime:AiToolRuntime,args:Record<string,unknown>
 
 export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime):any|null{
   const args=safeObject(call.args);
-  if(call.tool==='navigation.open'){const target=clean(args.target,30);if(!['home','documents','customers','receivables','reports','items','operations'].includes(target))return null;return{capability:'workspace.navigate',target,label:clean(args.label,80)||`Open ${target}`,rationale:call.reason||'Requested navigation.'};}
+  if(call.tool==='navigation.open'){const target=clean(args.target,30);if(!['home','documents','customers','receivables','reports','items','operations'].includes(target))return null;const reportPeriod=target==='reports'?safeAiReportPeriod(args.reportPeriod):null;return{capability:'workspace.navigate',target,label:clean(args.label,80)||`Open ${target}`,rationale:call.reason||'Requested navigation.',...(reportPeriod?{reportPeriod}:{})};}
   if(call.tool==='product.updateMetadata'){const item=findProduct(runtime,args);if(!item)return null;const patch=safeObject(args.patch);return{capability:'item.updateMetadata',itemId:item.id,relatedItemId:'',patch,label:clean(args.label,80)||'Update product',rationale:call.reason||'Prepared product metadata update.'};}
   if(call.tool==='customer.master'||call.tool==='supplier.master'){
     if(runtime.scope!=='business')throw new Error('Party changes require Business scope.');
@@ -195,6 +216,104 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
     if(!intent||intent.party!==(call.tool==='customer.master'?'customer':'supplier'))throw new Error('Invalid party action type.');
     const batch=prepareAiPartyMaster(runtime.vault,intent);
     return{capability:'tool.execute',tool:call.tool,args:batch,preview:[batch.preview],label:(batch.mode==='create'?'Create ':'Update ')+batch.party, rationale:'Review the exact customer/supplier contact information before one approved local save.'};
+  }
+  if(call.tool==='procurement.recordSupplierPayment'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Supplier settlement can only be reviewed in Controller business mode.');
+    const request=args.settlement as any;
+    if(!request||typeof request!=='object'||Array.isArray(request))
+      throw new Error('A fully specified posted-purchase settlement is required.');
+    const review=prepareAiSupplierSettlement(runtime.vault,request);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review supplier payment '+review.purchaseNumber,
+      rationale:'Real supplier payable payment only. Separate signed finance approval, no purchase or stock modification.'};
+  }
+  if(call.tool==='sales.recordCustomerCollection'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Only Controller may prepare an actual customer collection.');
+    const request=args.collection as any;
+    if(!request||typeof request!=='object'||Array.isArray(request))
+      throw new Error('Exact customer payment fields are required.');
+    const review=prepareAiCustomerCollection(runtime.vault,request);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review collection '+review.reference+' for '+review.invoiceNumber,
+      rationale:'Actual customer payment ledger write only after separate approval; no other accounting or inventory action.'};
+  }
+  if(call.tool==='sales.createConfirmedInvoiceDraft'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Only business Controller may prepare a delivery-linked sales invoice.');
+    const number=clean(args.deliveryNoteNumber,100).toUpperCase();
+    const review=prepareAiConfirmedDeliveryInvoice(runtime.vault,number);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review unissued sales invoice from '+review.deliveryNoteNumber,
+      rationale:'One exact confirmed delivery to invoice DRAFT; separate explicit approval required. No stock, issuance or payment.'};
+  }
+  if(call.tool==='procurement.matchSupplierBill'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Only Controller business mode can stage vendor bill matching.');
+    const request=args.match as any;
+    if(!request||typeof request!=='object'||Array.isArray(request))
+      throw new Error('Exact supplier invoice information is required.');
+    const review=prepareAiSupplierInvoiceMatch(runtime.vault,request);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review supplier invoice '+review.invoiceReference+' vs '+review.purchaseOrderNumber,
+      rationale:'Records a matched supplier bill event only after a distinct signed approval; no inventory, payable or payment.'};
+  }
+  if(call.tool==='procurement.postMatchedSupplierBill'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Only business Controller can prepare a matched supplier bill posting.');
+    const request=args.posting as any;
+    if(!request||typeof request!=='object'||Array.isArray(request))
+      throw new Error('Exact matched invoice, primary warehouse and ordered SKUs are required.');
+    const review=prepareAiSupplierPosting(runtime.vault,request);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review supplier bill posting '+review.invoiceReference,
+      rationale:'One previously matched supplier invoice to the actual stock and payable ledgers; independent signed owner/admin approval, no cash payment.'};
+  }
+  if(call.tool==='sales.issueConfirmedStock'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Only Controller business mode may prepare confirmed inventory issue.');
+    const input=args.issue as any;
+    if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('Exact warehouse and SKU mapping required.');
+    const review=prepareAiSalesStockIssue(runtime.vault,input);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review inventory deduction '+review.deliveryNoteNumber,
+      rationale:'This deducts warehouse stock ONLY after a separate explicit approval. No documents or payments are created.'};
+  }
+  if(call.tool==='sales.confirmPhysicalDelivery'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Physical delivery can only be prepared in Controller business mode.');
+    const data=args.confirmation as any;
+    if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Exact physical delivery evidence is required.');
+    const review=prepareAiDeliveryConfirmation(runtime.vault,data);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review physical delivery confirmation '+review.deliveryNoteNumber,
+      rationale:'Confirmation proof only after signed approval. No stock issue, invoicing or payment.'};
+  }
+  if(call.tool==='sales.createDeliveryDraft'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Only Controller in a business workspace can stage delivery drafts.');
+    const number=clean(args.salesOrderNumber,100).toUpperCase();
+    const review=prepareOperationalDeliveryDraft(runtime.vault,number);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review delivery draft for '+number,
+      rationale:'Unissued DN only; approval creates a traceable working document but never confirms delivery or deducts inventory.'};
+  }
+  if(call.tool==='procurement.recordGoodsReceipt'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
+      throw new Error('Only Controller business mode can prepare physical receiving.');
+    const data=args.receipt as any;
+    if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Missing exact physical receipt details.');
+    const review=prepareAiGoodsReceiptReview(runtime.vault,data);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
+      label:'Review physical goods receipt '+review.reference,
+      rationale:'Physical receiving evidence only, after explicit approval. This never posts stock or creates an invoice.'};
+  }
+  if(call.tool==='procurement.createPoFromRfq'){
+    if(runtime.scope!=='business'||runtime.conversationMode!=='controller')throw new Error('Only Controller business mode can stage a purchase order.');
+    const number=clean(args.rfqNumber,50).toUpperCase();
+    const review=prepareOperationalPoFromRfq(runtime.vault,number);
+    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,label:'Review purchase order from '+review.sourceNumber,rationale:'Unissued purchase-order draft only. Requires explicit approval; never receives goods or posts inventory.'};
   }
   if(call.tool==='product.importSource'){if(runtime.scope!=='business')throw new Error('Product registration requires Business scope.');const batch=prepareAiProductSourceImport(runtime.vault,args.sources,{generateMissingSku:args.generateMissingSku===true});return{capability:'tool.execute',tool:'product.importSource',args:batch,preview:batch.rows.map(row=>({...row.preview,fileName:row.fileName})),label:'Review '+batch.rows.length+' extracted products',rationale:'These rows were extracted from your attachments. Verify every description, price, currency and SKU before approving creation.'};}
   if(call.tool==='product.bulkUpdate'){if(runtime.scope!=='business')throw new Error('Bulk product edits require Business scope.');const batch=Object.hasOwn(args,'groupPrice')?prepareAiProductGroupPrice(runtime.vault,args.groupPrice):Object.hasOwn(args,'transform')?prepareAiBulkProductTransform(runtime.vault,args.transform):prepareAiBulkProductUpdate(runtime.vault,args.updates);return{capability:'tool.execute',tool:'product.bulkUpdate',args:batch,preview:batch.rows.map(row=>row.preview),label:'Review '+batch.rows.length+' product changes',rationale:'Review every old and new value before approving one atomic catalog update.'};}
@@ -237,7 +356,7 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
 }
 export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolResult{
   const def=DEF_BY_ID.get(call.tool);if(!def)return{id:call.id,tool:call.tool,ok:false,class:'read',data:null,summary:'Unknown tool.',source:'tool-registry'};
-  if(!conversationModePermitsToolClass(runtime.conversationMode||'controller',def.class))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Advisor is read-only. Switch to Controller for navigation, drafts or actions.',source:'advisor-read-only-guard'};
+  if(!conversationModePermitsToolClass(normalizeAiConversationMode(runtime.conversationMode),def.class))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Advisor is read-only. Switch to Controller for navigation, drafts or actions.',source:'advisor-read-only-guard'};
   if(runtime.scope==='personal'&&!['message.prepare','reminder.prepare','task.create'].includes(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Business tools are unavailable in Personal scope.',source:'scope-guard'};
   if(HIGH_IMPACT.has(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'High-impact financial actions are never executed by LOUREX AI. Open the relevant workspace and complete the protected workflow manually.',source:'high-impact-guard'};
   if(EXECUTE.has(call.tool)){try{const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'approval-preflight'};}}
@@ -250,7 +369,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
  * prerequisite/read/high-impact step fails, do not offer a subset of actions:
  * those approvals would silently turn a multi-step request into partial work. */
 export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{
-  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
+  if(plan.calls.some(call=>['product.bulkUpdate','product.importSource','procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment','customer.master','supplier.master'].includes(call.tool))&&plan.calls.length!==1){return{results:plan.calls.map(call=>({id:call.id,tool:call.tool,ok:false,class:DEF_BY_ID.get(call.tool)?.class||'execute',data:null,summary:'Bulk product changes must be reviewed as one isolated atomic plan. No actions were applied.',source:'bulk-plan-guard'})),proposal:null,blockedHighImpact:plan.calls.some(call=>HIGH_IMPACT.has(call.tool))};}
   const results=plan.calls.map(call=>executeAiToolCall(runtime,call));
   const blockedHighImpact=results.some(row=>row.class==='high-impact');
   const hasExecutable=results.some(row=>row.class==='execute');
@@ -278,6 +397,8 @@ export function deterministicAiToolPlan(message:string,runtime:AiToolRuntime):Ai
     const transform=parseAiBulkProductTransformIntent(message);
     if(transform)return call('product.bulkUpdate',{transform},'Review the selected product SKU or price changes before one approved save.');
   }
+  const reportPeriod=requestedAiReportPeriod(message);
+  if(reportPeriod)return call('navigation.open',{target:'reports',reportPeriod},'Open Reports using the exact month in this user message.');
   if(/(?:open|go to|navigate|افتح|روح|اذهب)/i.test(q)){if(/(?:invoice|فاتورة|quotation|quote|عرض)/i.test(q))return call('navigation.open',{target:'documents'},'Open the Documents workspace.');if(/(?:customer|عميل)/i.test(q))return call('navigation.open',{target:'customers'},'Open Customers.');if(/(?:receivable|overdue|تحصيل|متأخر)/i.test(q))return call('navigation.open',{target:'receivables'},'Open Receivables.');if(/(?:report|تقرير|تقارير)/i.test(q))return call('navigation.open',{target:'reports'},'Open Reports.');if(/(?:product|inventory|مخزون|منتج)/i.test(q))return call('navigation.open',{target:'items'},'Open Products & Inventory.');if(/(?:supplier|purchase|مورد|شراء|مشتريات)/i.test(q))return call('navigation.open',{target:'operations'},'Open Purchasing/Operations.');}
   if(entity?.type==='customer'&&/(?:overdue|receivable|outstanding|متأخر|مستحق|ذمم)/i.test(q))return call('customer.getReceivables',{customerId:entity.id},'Read the current customer receivables.');
   if(entity?.type==='customer'&&/(?:history|account|summary|وضع|حساب|تاريخ)/i.test(q))return call('customer.getSummary',{customerId:entity.id},'Read the current customer summary.');

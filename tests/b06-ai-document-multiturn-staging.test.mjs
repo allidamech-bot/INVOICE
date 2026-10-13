@@ -48,10 +48,10 @@ test('B06: missing new item fields and overly long additions never become partia
   assert.equal(result.changed,false);assert.deepEqual(result.proposal,original);
  }
 });
-test('B06: 20-line staging limit is enforced without silent truncation',()=>{
- const input={...create(),items:Array.from({length:20},(_,i)=>({savedItemId:'',descriptionEn:'Product '+i,descriptionAr:'',quantity:'1',unit:'box',unitPrice:'2'}))};
+test('B06: 120-line staging limit is enforced without silent truncation',()=>{
+ const input={...create(),items:Array.from({length:120},(_,i)=>({savedItemId:'',descriptionEn:'Product '+i,descriptionAr:'',quantity:'1',unit:'box',unitPrice:'2'}))};
  const result=reviseAiPendingDocumentDraft(input,'add item: Extra; quantity: 2; price: 5',context,'en');
- assert.equal(result.changed,false);assert.equal(result.proposal.items.length,20);
+ assert.equal(result.changed,false);assert.equal(result.proposal.items.length,120);
 });
 test('B06: chat approval never performs saving, it reminds user to click explicitly',()=>{
  const r=reviseAiPendingDocumentDraft(create(),'اعتمد',context,'ar');

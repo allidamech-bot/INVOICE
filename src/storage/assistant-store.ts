@@ -1,4 +1,4 @@
-import { normalizeConversationKernel, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
+import { normalizeConversationKernel, reconcileCancelledApprovals, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, type AiConversationExperiencePreferences } from '../lib/ai-conversation-mode.js';
 import { getRecord, putRecord } from './db.js';
 import type { AssistantScope } from '../lib/ai-assistant-foundation.js';
@@ -17,7 +17,7 @@ export interface AssistantThread{
   createdAt:string;
   updatedAt:string;
 }
-export interface AssistantStoreState{version:1;threads:AssistantThread[];currentBusinessThreadId:string;currentPersonalThreadId:string;aiPreferences:AiConversationExperiencePreferences;updatedAt:string;}
+export interface AssistantStoreState{version:1;threads:AssistantThread[];currentBusinessThreadId:string;currentPersonalThreadId:string;aiPreferences:AiConversationExperiencePreferences;updatedAt:string;deletedThreads?:Record<string,string>;}
 interface EncryptedAssistantRecord{id:'assistant-state';version:1;iv:string;cipher:string;updatedAt:string;}
 interface MessageLike{id?:string;role:'user'|'assistant';text:string;createdAt?:string;}
 
@@ -32,7 +32,7 @@ const PROVIDER_SUMMARY_PREFIX='Earlier conversation summary: ';
 function safeText(value:unknown,max:number):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function now():string{return new Date().toISOString();}
 function makeId(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;}
-function emptyState():AssistantStoreState{return{version:1,threads:[],currentBusinessThreadId:'',currentPersonalThreadId:'',aiPreferences:{...DEFAULT_AI_CONVERSATION_PREFERENCES},updatedAt:now()};}
+function emptyState():AssistantStoreState{return{version:1,threads:[],currentBusinessThreadId:'',currentPersonalThreadId:'',aiPreferences:{...DEFAULT_AI_CONVERSATION_PREFERENCES},updatedAt:now(),deletedThreads:{}};}
 function bytesToB64(bytes:Uint8Array):string{let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));return btoa(binary);}
 function b64ToArrayBuffer(value:string):ArrayBuffer{const binary=atob(value),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer;}
 function normalizedMessage(value:any):AssistantStoredMessage|null{
@@ -52,9 +52,10 @@ function normalizedThread(value:any):AssistantThread|null{
 }
 export function normalizeAssistantState(value:any):AssistantStoreState{
   if(!value||typeof value!=='object'||value.version!==1)return emptyState();
-  const threads:AssistantThread[]=Array.isArray(value.threads)?value.threads.map((row:any)=>normalizedThread(row)).filter((row:AssistantThread|null):row is AssistantThread=>Boolean(row)).sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS):[];
+  const deletedThreads=Object.fromEntries(Object.entries(value.deletedThreads&&typeof value.deletedThreads==='object'?value.deletedThreads:{}).filter(([id,date])=>/^[A-Za-z0-9_-]{1,120}$/.test(id)&&typeof date==='string'&&Number.isFinite(Date.parse(date))).sort((a,b)=>String(b[1]).localeCompare(String(a[1])))) as Record<string,string>;
+  const threads:AssistantThread[]=Array.isArray(value.threads)?value.threads.map((row:any)=>normalizedThread(row)).filter((row:AssistantThread|null):row is AssistantThread=>row!==null&&!deletedThreads[row.id]).sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS):[];
   const currentBusinessThreadId=safeText(value.currentBusinessThreadId,120),currentPersonalThreadId=safeText(value.currentPersonalThreadId,120);
-  return{version:1,threads,currentBusinessThreadId:threads.some((row:AssistantThread)=>row.id===currentBusinessThreadId&&row.scope==='business')?currentBusinessThreadId:'',currentPersonalThreadId:threads.some((row:AssistantThread)=>row.id===currentPersonalThreadId&&row.scope==='personal')?currentPersonalThreadId:'',aiPreferences:normalizeAiConversationPreferences(value.aiPreferences),updatedAt:safeText(value.updatedAt,40)||now()};
+  return{version:1,threads,currentBusinessThreadId:threads.some((row:AssistantThread)=>row.id===currentBusinessThreadId&&row.scope==='business')?currentBusinessThreadId:'',currentPersonalThreadId:threads.some((row:AssistantThread)=>row.id===currentPersonalThreadId&&row.scope==='personal')?currentPersonalThreadId:'',aiPreferences:normalizeAiConversationPreferences(value.aiPreferences),updatedAt:safeText(value.updatedAt,40)||now(),deletedThreads};
 }
 async function encryptState(key:CryptoKey,state:AssistantStoreState):Promise<EncryptedAssistantRecord>{
   const iv=crypto.getRandomValues(new Uint8Array(12));
@@ -74,20 +75,43 @@ export async function loadAssistantState(key:CryptoKey):Promise<AssistantStoreSt
   if(!record)return emptyState();
   try{return await decryptState(key,record);}catch{return emptyState();}
 }
-export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{
-  // Preserve an unreadable AI-only ciphertext before creating fresh local chat
-  // history. The business workspace, its keys, and all account records are untouched.
-  // Never swallow failed database reads, preservation, or encryption operations.
+// Serialize message-only and kernel writes on ONE queue. Previously the legacy
+// thread writer could overwrite an approval dismissal saved by the kernel writer.
+let assistantWriteQueue:Promise<unknown>=Promise.resolve();
+function queueAssistantWrite<T>(write:()=>Promise<T>):Promise<T>{
+  const next=assistantWriteQueue.catch(()=>undefined).then(write);
+  assistantWriteQueue=next;return next;
+}
+async function writeAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{
   const existing=await getRecord<any>(RECORD_ID as any,key) as EncryptedAssistantRecord|null;
+  let previous:AssistantStoreState|null=null;
   if(existing){
-    let readable=true;
-    try{await decryptState(key,existing);}catch{readable=false;}
-    if(!readable){
+    try{previous=await decryptState(key,existing);}catch{
+      // An unreadable legacy record must be preserved rather than erased.
       const archive={...existing,id:'assistant-state-inaccessible-'+crypto.randomUUID(),archivedAt:now()};
       await putRecord(archive as any,key);
     }
   }
-  await putRecord(await encryptState(key,normalizeAssistantState(state)) as any,key);
+  const next=normalizeAssistantState(state);
+  if(previous)for(const thread of next.threads){
+    const earlier=previous.threads.find(row=>row.id===thread.id&&row.scope===thread.scope&&row.workspaceId===thread.workspaceId&&row.branchId===thread.branchId);
+    if(!earlier?.kernel?.cancelledApprovals?.length)continue;
+    if(!thread.kernel)thread.kernel=structuredClone(earlier.kernel);
+    else thread.kernel=reconcileCancelledApprovals(thread.kernel,earlier.kernel);
+  }
+  await putRecord(await encryptState(key,next) as any,key);
+}
+export async function saveAssistantState(key:CryptoKey,state:AssistantStoreState):Promise<void>{
+  await queueAssistantWrite(()=>writeAssistantState(key,state));
+}
+/** Atomic local read/modify/write shared by conversation and legacy history owners. */
+export async function mutateAssistantState(key:CryptoKey,mutate:(state:AssistantStoreState)=>AssistantStoreState):Promise<AssistantStoreState>{
+  return queueAssistantWrite(async()=>{
+    const state=await loadAssistantState(key);
+    const next=mutate(state);
+    await writeAssistantState(key,next);
+    return next;
+  });
 }
 
 function scopeMatches(thread:AssistantThread,scope:Exclude<AssistantScope,'temporary'>,workspaceId:string,branchId:string):boolean{
@@ -121,14 +145,30 @@ export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?
   const normalized=normalizeAssistantState(state);
   const requestedId=safeText(input.threadId,120);
   const existing=requestedId?normalized.threads.find((row:AssistantThread)=>row.id===requestedId&&scopeMatches(row,input.scope,input.workspaceId,input.branchId)):findAssistantThread(normalized,input.scope,input.workspaceId,input.branchId);
+  if(requestedId&&normalized.threads.some((row:AssistantThread)=>row.id===requestedId&&!scopeMatches(row,input.scope,input.workspaceId,input.branchId)))
+    throw new Error('Conversation belongs to a different workspace or branch. Nothing was overwritten.');
+  if(input.messages.length>MAX_MESSAGES)
+    throw new Error('Conversation exceeds the 60-message local retention limit. No previous messages were discarded; archive or expand retention before continuing.');
+  if(!existing&&normalized.threads.length>=MAX_THREADS)
+    throw new Error('The device already contains 30 conversations. Nothing was evicted; free space or expand history retention first.');
+  if(requestedId&&normalized.deletedThreads?.[requestedId])
+    throw new Error('Conversation was deleted. Start a new conversation instead of restoring its old ID.');
   const created=newAssistantThread(input.scope,input.workspaceId,input.branchId);
   const base=existing??(requestedId?{...created,id:requestedId}:created);
-  const messages:AssistantStoredMessage[]=input.messages.map((row:MessageLike)=>normalizedMessage(row)).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
+  const previousTimes=new Map(base.messages.map(row=>[row.id,row.createdAt] as const));
+  // The runtime supplies message IDs but often omits createdAt. Keep their first
+  // timestamp stable so another device cannot reorder a conversation on save.
+  const messages:AssistantStoredMessage[]=input.messages.map((row:MessageLike)=>normalizedMessage({
+    ...row,createdAt:row.createdAt||previousTimes.get(String(row.id||'')),
+  })).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
   const thread:AssistantThread={...base,title:titleFrom(messages,base.title),summary:summarizeAssistantConversation(messages),messages,updatedAt:now()};
   const threads=[thread,...normalized.threads.filter((row:AssistantThread)=>row.id!==thread.id)].sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS);
-  const next:AssistantStoreState={version:1,threads,currentBusinessThreadId:input.scope==='business'?thread.id:normalized.currentBusinessThreadId,currentPersonalThreadId:input.scope==='personal'?thread.id:normalized.currentPersonalThreadId,aiPreferences:normalized.aiPreferences,updatedAt:now()};
+  const next:AssistantStoreState={version:1,threads,currentBusinessThreadId:input.scope==='business'?thread.id:normalized.currentBusinessThreadId,currentPersonalThreadId:input.scope==='personal'?thread.id:normalized.currentPersonalThreadId,aiPreferences:normalized.aiPreferences,updatedAt:now(),deletedThreads:normalized.deletedThreads};
   return{state:next,thread};
 }
 export async function persistAssistantThread(key:CryptoKey,input:{threadId?:string;scope:Exclude<AssistantScope,'temporary'>;workspaceId:string;branchId:string;messages:MessageLike[]}):Promise<AssistantThread>{
-  const state=await loadAssistantState(key);const result=upsertAssistantThread(state,input);await saveAssistantState(key,result.state);return result.thread;
+  let thread:AssistantThread|null=null;
+  await mutateAssistantState(key,state=>{const result=upsertAssistantThread(state,input);thread=result.thread;return result.state;});
+  if(!thread)throw new Error('Conversation save did not complete.');
+  return thread;
 }

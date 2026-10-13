@@ -102,7 +102,7 @@ test('AI proposal schema permits only bounded safe actions and always returns ex
   assert.match(api,/patch:\{type:'OBJECT',nullable:true/);
   assert.match(api,/documentId:\{type:'STRING'\}/);
   assert.match(copilot,/capabilityRequiresApproval\(proposal\.capability\)/);
-  assert.match(copilot,/this\.props\.onNavigate\(proposal\.target\)/);
+  assert.match(copilot,/this\.props\.onNavigate\(proposal\.target,proposal\.reportPeriod\)/,'approved navigation may pass only its validated report period');
   assert.match(copilot,/value\.capability==='document\.updateDraft'/);
   assert.match(copilot,/active\.status!=='draft'/);
   assert.match(copilot,/status:'draft'/);

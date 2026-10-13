@@ -126,7 +126,7 @@ async function runtimeHarness(){
  const store=await import('data:text/javascript;base64,'+Buffer.from(storeSource).toString('base64')+'#'+crypto.randomUUID());
  const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
  const session={key,vault:emptyVault()};
- globalThis.__foundationRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__foundationDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...(await import('../dist/src/lib/ai-conversation-mode.js')),...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
+ globalThis.__foundationRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__foundationDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),...(await import('../dist/src/lib/ai-draft-resumption.js')),activeAccountStorageUid:()=>null,...kernelModule,...approvalModule,...foundationModule,...workspaces,...(await import('../dist/src/lib/ai-conversation-mode.js')),...(await import('../dist/src/lib/ai-pdf-preview.js')),...store,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
  let runtimeSource=await readFile('dist/src/lib/ai-intelligence-runtime.js','utf8');
  runtimeSource=runtimeSource.replace(/import \{([\s\S]*?)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.__foundationRuntimeModules;`);
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(runtimeSource).toString('base64')+'#'+crypto.randomUUID());
@@ -137,10 +137,26 @@ test('real runtime adapter encrypts/reloads drafts and refuses approval replay a
  const {runtime,session,store,records,host}=await runtimeHarness();const h=host();
  await h.ask('prepare');const prepared=h.state.proposal;assert.ok(prepared.foundationApproval);
  const encrypted=records.get('assistant-state');assert.ok(encrypted.cipher);assert.ok(!JSON.stringify(encrypted).includes('Item 2'));
- const reloaded=host();await reloaded.ask('unrelated question');assert.equal(reloaded.state.proposal.items.length,3);
+ const reloaded=host();await reloaded.ask('unrelated question');assert.equal(reloaded.__intelligenceKernel.artifact.proposal.items.length,3);if(!reloaded.state.proposal)await reloaded.ask('احفظها');assert.ok(reloaded.state.proposal?.foundationApproval?.id,'save remains a separate reviewed request: '+JSON.stringify({error:reloaded.state.error,hasArtifact:Boolean(reloaded.__intelligenceKernel?.artifact),messages:reloaded.state.messages?.slice(-2)}));
  reloaded.state.__workspaceReviewedProposal=reloaded.state.proposal;let writes=0;await runtime.intelligenceApprove(reloaded,reloaded.state.proposal,async()=>{writes++;return{summary:'verified',id:'saved'};});assert.equal(writes,1);
  const state=await store.loadAssistantState(session.key);assert.equal(state.threads[0].foundationReceipts[0].state,'applied');assert.ok(state.threads[0].messages.some(row=>row.text==='unrelated question'));
  const restarted=host();await restarted.ask('hello');await runtime.intelligenceApprove(restarted,prepared,async()=>{writes++;return{summary:'bad replay'};});assert.equal(writes,1);assert.match(restarted.state.error,/already attempted/);
+});
+test('Controller Arabic PDF request opens real file generator without saving or issuing a draft',async()=>{
+ const {session,host,store}=await runtimeHarness(),h=host();
+ await h.ask('prepare');assert.ok(h.__intelligenceKernel.artifact,'Controller must retain source PDF draft');
+ const before=structuredClone(session.vault);
+ await h.ask('أعطني PDF');
+ assert.equal(h.state.__workspacePane,'workspace',JSON.stringify({error:h.state.error,artifact:Boolean(h.__intelligenceKernel?.artifact),proposal:Boolean(h.state.proposal),messages:h.state.messages?.slice(-2)}));
+ assert.equal(h.state.__workspaceTab,'preview');
+ assert.equal(h.state.__workspaceOpen,true);
+ assert.equal(h.state.__workspacePdfAutoStart?.includes('t1'),true);
+ assert.ok(h.state.messages.some(row=>row.text?.includes('ملف PDF فعلي')));
+ assert.deepEqual(session.vault,before);
+ assert.equal(session.vault.documents.length,0);
+ const saved=await store.loadAssistantState(session.key);
+ assert.ok(saved.threads[0].kernel.artifact);
+ assert.equal(saved.threads[0].kernel.artifact.proposal.items.length,3);
 });
 test('runtime rejects stale approval and an in-flight double click without any duplicate write',async()=>{
  const {runtime,session,host}=await runtimeHarness();const h=host();await h.ask('prepare');
@@ -154,14 +170,13 @@ test('conversational undo receives a fresh review and rejection cannot restore a
  const {runtime,session,store,host}=await runtimeHarness();
  const h=host(function(raw){const r=runtime.intelligenceReviseDraft(this,this.state.proposal,raw,drafting,'en');if(r?.changed)this.state.proposal=r.proposal;});
  await h.ask('prepare');const original=h.state.proposal.foundationApproval.id;
- await h.ask('set price item 2 to 26 USD');const edited=h.state.proposal.foundationApproval.id;assert.notEqual(edited,original);
+ await h.ask('set price item 2 to 26 USD');const edited=(h.__intelligenceKernel.artifact.proposal).items[1].unitPrice;assert.equal(edited,'26',JSON.stringify({error:h.state.error,proposal:h.state.proposal?.capability,items:h.__intelligenceKernel.artifact?.proposal.items?.map(x=>x.unitPrice)}));assert.equal(h.state.proposal,null);
  h.state.__workspaceReviewedProposal=h.state.proposal;
- await h.ask('undo');const restored=h.state.proposal;
- assert.equal(restored.items[1].unitPrice,'25');assert.notEqual(restored.foundationApproval.id,original);assert.notEqual(restored.foundationApproval.id,edited);
- assert.notEqual(h.state.__workspaceReviewedProposal,restored);
- assert.equal(h.__intelligenceKernel.missions.flatMap(m=>m.steps).filter(s=>s.status==='needs_approval').length,1);
- assert.equal(h.__intelligenceKernel.missions.flatMap(m=>m.steps).find(s=>s.approvalId===edited).status,'cancelled');
- h.state.proposal=null;await runtime.dismissIntelligenceWorkspace(h,restored);
+ await h.ask('undo');const restored=h.__intelligenceKernel.artifact.proposal;
+ assert.equal(restored.items[1].unitPrice,'25');assert.equal(h.state.proposal,null);
+ assert.ok(h.__intelligenceKernel.missions.every(m=>m.steps.every(s=>s.status!=='needs_approval')));
+ await h.ask('احفظها');assert.ok(h.state.proposal?.foundationApproval?.id);assert.notEqual(h.state.proposal.foundationApproval.id,original);
+ const approved=h.state.proposal;h.state.proposal=null;await runtime.dismissIntelligenceWorkspace(h,approved);
  const persisted=await store.loadAssistantState(session.key);assert.ok(persisted.threads[0].kernel.missions.every(m=>m.steps.every(s=>s.status!=='needs_approval')));
  const restarted=host();await restarted.ask('hello');assert.equal(restarted.state.proposal,null);assert.equal(restarted.__intelligenceKernel.artifact,undefined);assert.equal(session.vault.documents.length,0);
 });
@@ -207,6 +222,6 @@ test('actual final compiled ask preserves the user instruction, composes DATA me
  const actual=new Harness();const compiledAsk=actual.ask;const fake=host();Object.assign(actual,fake);actual.ask=compiledAsk;actual.__intelligenceInstalled=false;actual.currentRequest=()=>true;actual.addAudit=()=>{};actual.requestGeneration=0;runtime.installIntelligenceRuntime(actual);
  const long='Prepare a quotation with explicit data. '.repeat(40);await actual.ask(long);
  assert.equal(requests.length,1,actual.state.error);assert.equal(requests[0].message,long.trim());assert.ok(requests[0].context.conversationWorkingMemory.includes('Scoped working references'));assert.ok(requests[0].context.conversationWorkingMemory.includes('Approved personal/business'));
- await actual.ask('عدل line 3 وخليه 26 USD');assert.equal(actual.state.proposal.items[2].unitPrice,'26');
- await actual.ask('لا، اللي قبله');assert.deepEqual(Array.from(actual.state.proposal.items,r=>r.unitPrice),['25','26','25']);assert.equal(requests.length,1,'exact corrections remain deterministic; no provider writes');
+ await actual.ask('عدل line 3 وخليه 26 USD');assert.equal(actual.__intelligenceKernel.artifact.proposal.items[2].unitPrice,'26',JSON.stringify({error:actual.state.error,proposal:actual.state.proposal?.capability}));assert.equal(actual.state.proposal,null);
+ await actual.ask('لا، اللي قبله');assert.deepEqual(Array.from(actual.__intelligenceKernel.artifact.proposal.items,r=>r.unitPrice),['25','26','25']);assert.equal(requests.length,1,'exact corrections remain deterministic; no provider writes');
 });

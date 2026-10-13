@@ -77,10 +77,11 @@ function pdfHarness(language){
     remove(){this.removed=true;}
   }
   const body=new Element('body'),pages=Array.from({length:3},(_,index)=>{const page=new Element('page');page.attrs.lang=language;page.textContent=`${language} item ${index*15+1} total 225.00 footer ${index+1} / 3`;return page;});
-  const captured=[],context={pendingPdfFile:null,pendingPdfPromise:null,ensurePdfLibraries:async()=>{},document:{body,title:'Synthetic audit',querySelectorAll:()=>pages,createElement:()=>new Element('stage')},requestAnimationFrame:fn=>fn(),waitForCloneAssets:async()=>{},sanitizeUnsupportedColors:()=>{},stabilizeDocumentDirection:()=>{},collectSharpMedia:()=>[],addSharpMedia:async()=>{},safeFilename:s=>s,File,Date,window:{devicePixelRatio:1.5,jspdf:{jsPDF:class{addPage(){}addImage(){}output(){return new Blob(['synthetic'],{type:'application/pdf'});}}},html2canvas:async page=>{captured.push(page);return {toDataURL:()=>'',width:1,height:1};}}};
+  const captured=[],context={assertCompletePdfPagination:()=>{},pendingPdfFile:null,pendingPdfPromise:null,ensurePdfLibraries:async()=>{},document:{body,title:'Synthetic audit',querySelectorAll:()=>pages,querySelector:()=>({}),createElement:()=>new Element('stage')},requestAnimationFrame:fn=>fn(),waitForCloneAssets:async()=>{},sanitizeUnsupportedColors:()=>{},stabilizeDocumentDirection:()=>{},collectSharpMedia:()=>[],addSharpMedia:async()=>{},safeFilename:s=>s,File,Date,window:{devicePixelRatio:1.5,jspdf:{jsPDF:class{addPage(){}addImage(){}output(){return new Blob(['synthetic'],{type:'application/pdf'});}}},html2canvas:async page=>{captured.push(page);return {toDataURL:()=>'',width:1,height:1};}}};
   const source=read('public/ios-print-bridge.js'),ast=ts.createSourceFile('bridge.js',source,ts.ScriptTarget.Latest,true);
-  let declaration;const visit=node=>{if(ts.isVariableDeclaration(node)&&node.name.getText(ast)==='buildPdfFile')declaration=node.getText(ast);ts.forEachChild(node,visit);};visit(ast);assert.ok(declaration);
-  vm.runInNewContext('const '+declaration+';globalThis.runPdf=buildPdfFile;',context);
+  const declarations=new Map();const visit=node=>{if(ts.isVariableDeclaration(node)&&['renderPdfPages','buildPdfFile'].includes(node.name.getText(ast)))declarations.set(node.name.getText(ast),node.getText(ast));ts.forEachChild(node,visit);};visit(ast);
+  assert.equal(declarations.size,2,'Both canonical PDF construction and cache wrapper must be present');
+  vm.runInNewContext('const '+declarations.get('renderPdfPages')+';const '+declarations.get('buildPdfFile')+';globalThis.runPdf=buildPdfFile;',context);
   return {context,pages,captured,body};
 }
 for(const language of ['en','ar','bilingual'])test('actual PDF bridge preserves '+language+' page order, canonical parent and source snapshot',async()=>{

@@ -40,7 +40,7 @@ test('product picker never converts a price with an incompatible currency',()=>{
  v.savedItems[0].lastCurrency='USD';const another=fixture().k;applyWorkspaceCommand(another,v,cmd(another,{kind:'product',entityId:'product'}));assert.equal(another.artifact.proposal.items.at(-1).unitPrice,'5.25');
 });
 test('product add cap rejects rather than silently losing rows',()=>{
- const {k,v}=fixture();for(let i=3;i<20;i++)applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'}));assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'})),/20/);assert.equal(k.artifact.proposal.items.length,20);
+ const {k,v}=fixture();for(let i=3;i<120;i++)applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'}));assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{kind:'product',entityId:'product'})),/limit/);assert.equal(k.artifact.proposal.items.length,120);
 });
 test('saved preview preserves 30 bilingual rows and enforces branch isolation',()=>{
  const {k,v}=fixture();const d=createBlankDocument('proforma','PI-LONG',v.company);d.items=Array.from({length:30},(_,i)=>({id:'line'+i,descriptionEn:'Long '+i,descriptionAr:'وصف طويل '+i,quantity:'2',unit:'CTN',unitPrice:'0.10'}));d.number='PI-TEST';v.documents.push(d);
@@ -74,15 +74,16 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  const storeSource=(await readFile('dist/src/storage/assistant-store.js','utf8')).replace(/import .* from '.*';/g,line=>line.includes("'./db.js'")?'const {getRecord,putRecord}=globalThis.__workspaceDb;':line.replace("'../lib/ai-conversation-kernel.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-kernel.js',import.meta.url).href)).replace("'../lib/ai-conversation-mode.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-mode.js',import.meta.url).href)));
  const store=await import('data:text/javascript;base64,'+Buffer.from(storeSource).toString('base64')+'#'+crypto.randomUUID());
  const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']),{v,p}=fixture(),session={key,vault:v};
- globalThis.__workspaceRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__workspaceDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),...model,...kernel,...approval,...foundation,...workspaces,...review,...(await import('../dist/src/lib/ai-conversation-mode.js')),...store,activeAccountStorageUid:()=>null,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
+ globalThis.__workspaceRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__workspaceDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),...(await import('../dist/src/lib/ai-draft-resumption.js')),...model,...kernel,...approval,...foundation,...workspaces,...review,...(await import('../dist/src/lib/ai-conversation-mode.js')),...store,activeAccountStorageUid:()=>null,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
  const source=(await readFile('dist/src/lib/ai-intelligence-runtime.js','utf8')).replace(/import \{([\s\S]*?)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.__workspaceRuntimeModules;`);
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64')+'#'+crypto.randomUUID());
  const h={props:{screen:'home',language:'ar'},state:{assistantScope:'business',messages:[],proposal:null,busy:false,error:''},__lourexAssistantThreadId:'thread',__lourexAssistantWorkspaceKey:'default|main',setState(update,done){Object.assign(this.state,typeof update==='function'?update(this.state):update);done?.();}};
  await runtime.refreshIntelligenceWorkspace(h);stageKernelArtifact(h.__intelligenceKernel,p);h.state.proposal=p;
- await runtime.updateIntelligenceWorkspace(h,cmd(h.__intelligenceKernel,{kind:'cell',lineId:h.__intelligenceKernel.artifact.lineIds[2],field:'unitPrice',value:'26'}));assert.ok(h.state.proposal.foundationApproval);assert.equal(h.state.proposal.items[2].unitPrice,'26');assert.equal(h.state.review.blockers.length,0);
+ await runtime.updateIntelligenceWorkspace(h,cmd(h.__intelligenceKernel,{kind:'cell',lineId:h.__intelligenceKernel.artifact.lineIds[2],field:'unitPrice',value:'26'}));assert.equal(h.state.proposal,null,'editing cannot create a save approval');assert.equal(h.__intelligenceKernel.artifact.proposal.items[2].unitPrice,'26');assert.equal(h.state.review,null);
  assert.ok(records.get('assistant-state').cipher);assert.ok(!JSON.stringify(records.get('assistant-state')).includes('Item 3'));assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact.proposal.items[2].unitPrice,'26');
  const before=structuredClone(h.__intelligenceKernel),stale=cmd(h.__intelligenceKernel,{kind:'customer',entityId:'c2'});session.vault=structuredClone(v);session.vault.teamMembers[0].role='viewer';await runtime.updateIntelligenceWorkspace(h,stale);const after=structuredClone(h.__intelligenceKernel);assert.equal(after.diagnostics.length,before.diagnostics.length+1);assert.equal(after.diagnostics.at(-1).state,'failed');delete after.diagnostics;delete before.diagnostics;assert.deepEqual(after,before);assert.match(h.state.error,/role|changed/i);
  session.vault=v;
+ h.ask=async()=>{};h.approveProposal=async()=>{};h.__lourexLoadPromise=Promise.resolve();runtime.installIntelligenceRuntime(h);await h.ask('احفظها');assert.ok(h.state.proposal?.foundationApproval,'explicit save must create the review: '+JSON.stringify({error:h.state.error,artifact:Boolean(h.__intelligenceKernel?.artifact),messages:h.state.messages?.slice(-2)}));
  const pending=h.__intelligenceKernel.missions.find(m=>m.steps.some(s=>s.status==='needs_approval'));
  assert.ok(pending);
  pending.steps.unshift({...pending.steps[0],id:'earlier-completed-step',approvalId:'earlier-completed-approval',status:'completed',resultRef:'existing-business-record'});
@@ -92,8 +93,11 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  await runtime.dismissIntelligenceWorkspace(h,rejected);
  assert.equal(h.__intelligenceKernel.artifact,undefined);
  assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact,undefined);
- assert.ok(pending.steps.every(s=>s.status!=='needs_approval'));
- assert.equal(pending.steps[0].status,'completed');assert.equal(pending.steps[0].resultRef,'existing-business-record');
+ // Decline now copies the kernel so a failed persistence can roll back safely.
+ // Inspect the committed live kernel, not the pre-decline object reference.
+ const committed=h.__intelligenceKernel.missions.find(m=>m.id===pending.id);
+ assert.ok(committed.steps.every(s=>s.status!=='needs_approval'));
+ assert.equal(committed.steps[0].status,'completed');assert.equal(committed.steps[0].resultRef,'existing-business-record');
  h.__intelligenceKernel=undefined;
  await runtime.refreshIntelligenceWorkspace(h);
  assert.equal(h.state.proposal,null,'rejected proposal must not return after persisted session hydration');
@@ -128,12 +132,12 @@ test('manual lines work without a catalog, normalize Arabic digits and undo as o
  applyWorkspaceCommand(k,v,cmd(k,{kind:'undo'}));assert.deepEqual(k.artifact.lineIds,ids);assert.equal(k.artifact.proposal.items.length,3);
  applyWorkspaceCommand(k,v,cmd(k,{kind:'redo'}));assert.equal(k.artifact.lineIds.at(-1),line);assert.equal(k.artifact.proposal.items.length,4);
 });
-test('manual line validation rejects unsafe values atomically and enforces 20-line limit',()=>{
+test('manual line validation rejects unsafe values atomically and enforces 120-line limit',()=>{
  const {k,v}=fixture(),line={kind:'add-line',descriptionEn:'Alpha',descriptionAr:'',quantity:'1',unit:'CTN',unitPrice:'0'};
  for(const patch of [{quantity:'0'},{quantity:'-1'},{quantity:'1e3'},{unitPrice:'-1'},{unitPrice:''},{descriptionEn:''},{unit:''},{descriptionEn:'x'.repeat(161)},{unit:'x'.repeat(41)},{descriptionAr:'x\u0000'}]){
   const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,{...line,...patch})));assert.deepEqual(k,before);
  }
- for(let i=3;i<20;i++)applyWorkspaceCommand(k,v,cmd(k,line));const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,line)),/20/);assert.deepEqual(k,before);
+ for(let i=3;i<120;i++)applyWorkspaceCommand(k,v,cmd(k,line));const before=structuredClone(k);assert.throws(()=>applyWorkspaceCommand(k,v,cmd(k,line)),/limit/);assert.deepEqual(k,before);
 });
 test('manual append to an existing draft preserves base and new IDs through undo',()=>{
  const {k,v}=fixture(),d=createBlankDocument('proforma','PI',v.company);d.items=[{id:'base',descriptionEn:'Original',descriptionAr:'',quantity:'1',unit:'CTN',unitPrice:'2'}];v.documents=[d];k.artifact=undefined;
@@ -189,8 +193,9 @@ test('workspace presentation localizes known validation failures without alterin
 test('hydrating a restored incomplete draft recomputes review and blocks approval before side effects',async()=>{
  const {compiledReliabilityHarness}=await import('./helpers/ai-reliability-runtime.mjs');const {v}=fixture(),harness=await compiledReliabilityHarness(v),h=harness.host();
  await harness.runtime.refreshIntelligenceWorkspace(h);await harness.runtime.updateIntelligenceWorkspace(h,{kind:'composer',documentKind:'proforma',currency:'USD'});
- assert.ok(h.state.review.blockers.length);const id=h.__intelligenceKernel.artifact.id;
+ assert.equal(h.state.review,null);assert.equal(h.state.proposal,null);const id=h.__intelligenceKernel.artifact.id;
  h.__intelligenceKernel=undefined;h.state.proposal=null;h.state.review=null;
- await harness.runtime.refreshIntelligenceWorkspace(h);assert.equal(h.__intelligenceKernel.artifact.id,id);assert.ok(h.state.review.blockers.length);
- let writes=0;await harness.runtime.intelligenceApprove(h,h.state.proposal,async()=>{writes++;return{id:'should-not-write'};});assert.equal(writes,0);assert.equal(h.__foundationReceipts.length,0);assert.equal(v.documents.length,0);assert.ok(h.state.error);
+ await harness.runtime.refreshIntelligenceWorkspace(h);assert.equal(h.__intelligenceKernel.artifact.id,id);assert.equal(h.state.proposal,null);
+ harness.runtime.installIntelligenceRuntime(h);await h.ask('احفظها');
+ let writes=0;await harness.runtime.intelligenceApprove(h,h.state.proposal,async()=>{writes++;return{id:'should-not-write'};});assert.equal(writes,0);assert.equal(h.__foundationReceipts.length,0);assert.equal(v.documents.length,0);assert.equal(h.state.proposal,null);
 });

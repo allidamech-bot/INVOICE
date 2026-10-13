@@ -18,22 +18,24 @@ source=source.replace(messageToken,"if(tokens.has('lourex-ai-messages')&&(instan
 /* Keep executive response structure fully localized. Stage 4 originally emitted
    English section headings even when the conversation language was Arabic. */
 const localizedSections=[
-  ["ar?'Summary':'Summary'","ar?'الملخص':'Summary'"],
-  ["ar?'Known':'Known'","ar?'البيانات المؤكدة':'Known'"],
-  ["ar?'Actions':'Actions'","ar?'الإجراءات':'Actions'"],
+  ["ar?'Summary':'Summary'","ar?'ملخص':'Summary'"],
+  ["ar?'Known':'Known'","ar?'معلومات مسجلة':'Known'"],
+  ["ar?'Actions':'Actions'","ar?'إجراءات للمراجعة':'Actions'"],
   ["ar?'Warning':'Warning'","ar?'تنبيه':'Warning'"],
-  ["ar?'Risk':'Risk'","ar?'المخاطر':'Risk'"],
+  ["ar?'Risk':'Risk'","ar?'مخاطر':'Risk'"],
   ["instance.props.language==='ar'?'Actions: تم تطبيق الخطوة بعد موافقتك. ':'Actions: Step applied after your approval. '","instance.props.language==='ar'?'الإجراءات: تم تطبيق الخطوة بعد موافقتك. ':'Actions: Step applied after your approval. '"]
 ];
 for(const [before,after] of localizedSections){
-  if(!source.includes(before))throw new Error(`AI conversation Batch 4 closeout could not localize section token: ${before}`);
-  source=source.replaceAll(before,after);
+  // Stage 4 may already have localized headings during a later AI repair.
+  // Accept the canonical Arabic output, but do not silently accept a missing owner.
+  if(source.includes(before))source=source.replaceAll(before,after);
+  else if(!source.includes(after))throw new Error(`AI conversation Batch 4 closeout could not localize section token: ${before}`);
 }
 
 source+='\nconst __lourexNaturalLanguageOsBatch4Closeout=true;\n';
 if(!source.includes("__lourexAdvanceToolPresentation(instance,'dismissed')"))throw new Error('AI conversation Batch 4 closeout failed to retain cancellation handling.');
 if(!source.includes("tokens.has('lourex-ai-messages')&&(instance.state?.messages||[]).length"))throw new Error('AI conversation Batch 4 closeout failed to hide stale tool activity in blank conversations.');
-if(!source.includes("ar?'الملخص':'Summary'")||!source.includes("ar?'البيانات المؤكدة':'Known'")||!source.includes("ar?'الإجراءات':'Actions'")||!source.includes("ar?'تنبيه':'Warning'")||!source.includes("ar?'المخاطر':'Risk'"))throw new Error('AI conversation Batch 4 closeout failed to localize Arabic executive sections.');
+if(!source.includes("ar?'ملخص':'Summary'")||!source.includes("ar?'معلومات مسجلة':'Known'")||!source.includes("ar?'إجراءات للمراجعة':'Actions'")||!source.includes("ar?'تنبيه':'Warning'")||!source.includes("ar?'مخاطر':'Risk'"))throw new Error('AI conversation Batch 4 closeout failed to localize Arabic executive sections.');
 await writeFile(target,source);
 execFileSync(process.execPath,['--check',target],{stdio:'inherit'});
 console.log('[LOUREX AI] Conversation Batch 4 closeout installed: dismissed plans clear all pending approval states, blank conversations cannot show stale tool activity, and executive sections remain localized in Arabic.');

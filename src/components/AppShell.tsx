@@ -5,6 +5,7 @@ import { signOutCloudUser } from '../cloud/firebase.js';
 import { clearSession } from '../storage/session.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
+import type {AiReportPeriod} from '../lib/ai-report-period.js';
 import { ThemeControl } from './ThemeControl.js';
 import { ProductInfoModal, type ProductInfoSection } from './ProductInfoModal.js';
 import { NotificationCenterLive, openNotificationCenter } from './NotificationCenterLive.js';
@@ -28,7 +29,7 @@ interface Props {
   cloudState:CloudState;
   cloudLabel:string;
   cloudMessage:string;
-  onNavigate:(screen:NavTarget)=>void;
+  onNavigate:(screen:NavTarget,reportPeriod?:AiReportPeriod)=>void;
   onToggleNew:()=>void;
   onNew:(kind:DocumentKind)=>void;
   onCreditNote:()=>void;
@@ -193,10 +194,10 @@ export class AppShell extends React.Component<Props,State>{
   private closeCreateMenu=()=>{if(this.props.newMenu)this.props.onToggleNew();};
   private closeMore=()=>{if(this.state.moreOpen)this.setState({moreOpen:false});};
 
-  private navigate=(screen:NavTarget)=>{
+  private navigate=(screen:NavTarget,reportPeriod?:AiReportPeriod)=>{
     this.closeCreateMenu();
     this.closeMore();
-    this.props.onNavigate(screen);
+    this.props.onNavigate(screen,reportPeriod);
   };
 
   private toggleCreate=()=>{
@@ -484,7 +485,7 @@ export class AppShell extends React.Component<Props,State>{
       </>:null}
 
       <ProductInfoModal open={Boolean(this.state.infoSection)} section={this.state.infoSection||'help'} language={this.props.language} onSection={section=>this.setState({infoSection:section})} onClose={()=>this.setState({infoSection:null})}/>
-      <AiCopilot screen={this.props.screen} language={this.props.language} activeDocument={this.activeEditorDocument()} onNavigate={screen=>this.navigate(screen)}/>
+      <AiCopilot screen={this.props.screen} language={this.props.language} activeDocument={this.activeEditorDocument()} onNavigate={(screen,period)=>this.navigate(screen,period)}/>
     </div>;
   }
 }

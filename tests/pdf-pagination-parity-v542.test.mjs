@@ -24,7 +24,8 @@ test('iOS PDF bridge consumes only pagination-ready print portal pages',async()=
   assert.match(bridge,/\.print-portal \[data-pagination-ready\]/);
   assert.match(bridge,/data-pagination-ready['"]\)===['"]true['"]/);
   assert.match(bridge,/querySelectorAll\(['"]\.print-portal \.invoice-page['"]\)/);
-  assert.match(bridge,/const sourcePages = Array\.from/);
+  assert.match(bridge,/const renderPdfPages = async \(sourcePages,filename\)/);
+  assert.match(bridge,/renderPdfPages\(Array\.from\(document\.querySelectorAll\('\.print-portal \.invoice-page'\)\),document\.title\)/);
 });
 
 test('mobile PDF bridge sanitizes CSS Color 4 on elements and pseudo-elements before canvas capture',async()=>{

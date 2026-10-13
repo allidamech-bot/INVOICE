@@ -59,7 +59,7 @@ export function normalizeAiConversationMode(value: unknown): AiConversationMode 
  * the existing role, company/branch scope and approval guard remain required.
  */
 export function conversationModePermitsCapability(mode: AiConversationMode, capability: string): boolean {
-  return mode === 'advisor' ? ADVISOR_READ_CAPABILITIES.includes(capability) : true;
+  return normalizeAiConversationMode(mode) === 'advisor' ? ADVISOR_READ_CAPABILITIES.includes(capability) : true;
 }
 
 /** Typed read/calculate operations may inform an Advisor response only. */
@@ -67,7 +67,7 @@ export function conversationModePermitsToolClass(
   mode: AiConversationMode,
   toolClass: 'read' | 'calculate' | 'prepare' | 'execute' | 'high-impact',
 ): boolean {
-  return mode === 'controller' || toolClass === 'read' || toolClass === 'calculate';
+  return normalizeAiConversationMode(mode) === 'controller' || toolClass === 'read' || toolClass === 'calculate';
 }
 
 /**

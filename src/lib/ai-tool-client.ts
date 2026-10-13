@@ -2,15 +2,30 @@ import type { VaultPayload } from '../types.js';
 import { requestAiJson, AiRequestError } from './ai-request.js';
 import { scopeVault } from './workspaces.js';
 import { resumeVaultSession } from '../storage/vault.js';
-import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult, type AiToolId } from './ai-tool-orchestrator.js';
+import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, proposalForExecutableTool, type AiToolPlan, type AiToolResult, type AiToolId, type AiToolRuntime } from './ai-tool-orchestrator.js';
 import { buildCfoBrief, buildDealDeskDecision, formatCfoBrief, formatDealDeskDecision, isCfoIntent, isDealDeskIntent } from './ai-cfo-deal-desk.js';
 import { handleAssistantLocalCommand } from './ai-personal-assistant.js';
 import { aiToolPlannerCatalog } from './ai-tool-orchestrator.js';
 import {requestedAiProductImport,requestedAiProductSkuGeneration} from './ai-product-source-import.js';
 import {reviseAiProductImportDraft,parseAiProductDraftCommand} from './ai-product-import-draft.js';
 import {type AiProductSourceImportBatch} from './ai-product-source-import.js';
+import {explicitQuoteConversionIntent,quoteSourceWorkingDraft} from './ai-quote-source-draft.js';
+import {summarizeReadOnlyProductSources} from './ai-product-source-review.js';
+import {operationalPoDraftRequested,requestedPoRfqNumber} from './ai-operational-po-draft.js';
+import {isAiGoodsReceiptRequest,parseAiGoodsReceiptRequest} from './ai-operational-goods-receipt.js';
+import {operationalDeliveryDraftRequested,requestedDeliverySalesOrderNumber} from './ai-operational-dn-draft.js';
+import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest} from './ai-operational-delivery-confirmation.js';
+import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
+import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
+import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
+import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
+import {isAiSupplierSettlementIntent,parseAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
+import {isAiSupplierPostingIntent,parseAiSupplierPosting} from './ai-operational-supplier-posting.js';
+import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
+import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
+import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
 
-export interface AiToolOrchestrationResult{answer:string;proposal:any|null;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
+export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function formatData(data:unknown,max=2200):string{try{const text=JSON.stringify(data,null,2);return text.length<=max?text:`${text.slice(0,max)}\n…`;}catch{return clean(data,max);}}
 function titleFor(tool:string,ar:boolean):string{const map:Record<string,[string,string]>={
@@ -50,6 +65,28 @@ export function promoteDocumentCreationPlan(plan:AiToolPlan,message:string):AiTo
   const calls=[...plan.calls],current=calls[index]!;
   calls[index]={...current,tool:'document.createDraft',args:{...current.args,kind,label:clean((current.args as any)?.label,80)||(kind==='invoice'?'Create invoice draft':'Create quotation draft')},reason:current.reason||'Create a real LOUREX draft after visible approval.'};
   return{...plan,calls};
+}
+
+/** Preserve PREPARE-only quotes as edit-ready, unsaved conversation artifacts.
+ * This is NOT an approval proposal: it must never reach any vault writer. */
+export function previewOnlyWorkingDraft(plan:AiToolPlan,results:AiToolResult[],runtime:AiToolRuntime):any|null{
+  if(runtime.scope!=='business'||runtime.conversationMode!=='controller')return null;
+  // One exact preview only. A mixed/executable plan is not a safe source of
+  // implicitly staged quote data; it requires its own approval path.
+  if(plan.calls.length!==1||results.length!==1||results[0]?.ok!==true||results[0]?.class!=='prepare')return null;
+  const call=plan.calls[0]!,result=results[0]!;
+  if(!['quotation.prepare','invoice.prepare'].includes(call.tool)||result.tool!==call.tool||result.id!==call.id)return null;
+  const data=result.data as any;
+  if(!data||data.status!=='preview-only'||data.approvalRequired!==false||!Array.isArray(data.items)||data.kind!==(call.tool==='quotation.prepare'?'proforma':'invoice'))return null;
+  // Reject truncated or inconsistent results rather than silently losing rows.
+  const converted=proposalForExecutableTool({
+    ...call,tool:'document.createDraft',
+    args:{...call.args,kind:data.kind},
+    reason:'Unsaved working review from a prepare-only action; never approved for saving.'
+  },runtime);
+  if(!converted||converted.capability!=='document.createDraft'||!Array.isArray(converted.items)||!converted.items.length)return null;
+  if(JSON.stringify(converted.items)!==JSON.stringify(data.items))return null;
+  return converted;
 }
 
 /** Attachments are untrusted data; never pass their contents as user
@@ -92,6 +129,25 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const sources=aiPlannerSourceFacts(input.context?.conversationSources);
   const hasSources=sources.length>0;
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  // A complete structured RFQ already contains the source's actual rows.
+  // Never re-send only the first 2800 chars to a planner which might silently
+  // lose trailing products. Stage the whole verified quote as UNSAVED.
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&(sources.some(source=>source.route==='quote_request')||
+    input.context.conversationSources?.some?.((source:any)=>typeof source?.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.length>0))){
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
+    try{
+      const workingDraft=quoteSourceWorkingDraft(input.context.conversationSources,runtime,input.message);
+      if(!workingDraft)throw new Error('SOURCE_INCOMPLETE: The RFQ could not be prepared as a complete unsaved quotation.');
+      const sourceCount=Array.isArray(input.context.conversationSources)?input.context.conversationSources.length:1;
+      const message=input.language==='ar'
+        ?'استخرجت '+workingDraft.items.length+' صنفًا من '+sourceCount+' ملف/ملفات، وجهزت مسودة عرض سعر موحدة داخل المحادثة فقط. لم أحفظها أو أصدرها. أي سعر أو عملة أو وحدة ناقصة تبقى فارغة وتحتاج مراجعتك قبل إنشاء PDF أو طلب الحفظ.'
+        :'Extracted '+workingDraft.items.length+' source lines from '+sourceCount+' attachment(s) into an unsaved quotation working draft. Nothing was saved or issued. Missing prices, currency or units remain blank until reviewed before PDF or save.';
+      return{answer:message,proposal:null,workingDraft,plan,results:[],plannedBy:'local'};
+    }catch(error){
+      return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
+        proposal:null,plan,results:[],plannedBy:'local'};
+    }
+  }
   // An explicitly pending in-memory draft belongs to this company/thread only.
   // No upload contents, model output or prior assistant replies may authorize edits.
   if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&input.context?.pendingProductImport){
@@ -121,17 +177,13 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
         proposal,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
     }
   }
-  // For a classified product-list upload, make a review-only proposal even
-  // when the user first asks to analyze the file. Nothing is registered without
-  // a separate explicit click, and incomplete extraction fails closed.
+  // Reading or analyzing a product list never prepares a registration proposal.
+  // In particular, 'حلل الملف' must not create an Approve/Reject business action.
+  // Verified rows are summarized locally without allowing file instructions to
+  // invoke model-planned mutations; explicit registration is handled below.
   if(hasSources&&runtime.scope==='business'&&runtime.conversationMode!=='advisor'&&sources.every(row=>row.route==='product_list')&&!requestedAiProductImport(input.message)){
-    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'source-review-1',tool:'product.importSource',args:{sources:input.context.conversationSources},reason:'Review attachment product rows; approval required before registration.'}]};
-    const execution=executeAiToolPlan(runtime,plan);
-    if(execution.proposal){
-      const count=execution.proposal.preview?.length||0;
-      return{answer:input.language==='ar'?'استخرجت '+count+' صنفًا للمراجعة فقط. لم أسجّل شيئًا. راجع البيانات، ثم يمكنك طلب تغيير التصنيف أو السعر أو إنشاء SKU قبل الموافقة.':'Prepared '+count+' extracted products for review only. Nothing was registered. You can change category, price or missing SKU before approving.',proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
-    }
-    return{answer:formatAnswer(plan,execution.results,input.language),proposal:null,plan,results:execution.results,plannedBy:'local'};
+    return{answer:summarizeReadOnlyProductSources(input.context.conversationSources,input.language),
+      proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
   // The user's own message must expressly request registration. Untrusted file
   // instructions never authorize a write, and source rows are not truncated here.
@@ -140,12 +192,240 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const execution=executeAiToolPlan(runtime,plan);
     return{answer:formatAnswer(plan,execution.results,input.language),proposal:execution.proposal,plan,results:execution.results,plannedBy:'local'};
   }
+  // Three-way supplier bill match: exact issued PO + physically received
+  // goods + every user-supplied invoice price, total and due date.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiSupplierInvoiceMatchIntent(input.message)){
+    let request:ReturnType<typeof parseAiSupplierInvoiceMatchRequest>=null;
+    try{request=parseAiSupplierInvoiceMatchRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No records changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:request?
+      [{id:'local-vendor-bill-three-way-match',tool:'procurement.matchSupplierBill',args:{match:request},
+        reason:'Exact supplier bill, PO, received quantities, unit prices, dates and total were supplied by the user.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+      ?'لمطابقة فاتورة المورد: حدّد رقم PO، مرجع الفاتورة، تاريخها، الاستحقاق، كميات وأسعار جميع البنود، والإجمالي. لم أغيّر البيانات.'
+      :'Supply exact PO, vendor bill reference, invoice and due dates, every quantity and price, and total. No records changed.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+       ?'جهّزت مطابقة فاتورة المورد '+request.invoiceReference+' مع أمر الشراء والاستلامات. تسجيل المطابقة يحتاج موافقة منفصلة، ولا ينشئ ذمة أو يرحّل مخزونًا.'
+       :'Prepared vendor bill '+request.invoiceReference+' three-way match. Recording needs separate approval and does not post payables or stock.')
+       :executed.results.map(x=>x.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Post exactly one ALREADY MATCHED vendor bill as a new posted purchase.
+  // No model-generated SKU selection or combined cash instruction is accepted.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiSupplierPostingIntent(input.message)){
+    let request:ReturnType<typeof parseAiSupplierPosting>=null;
+    try{request=parseAiSupplierPosting(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No changes applied.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:request?
+      [{id:'exact-matched-vendor-bill-posting',tool:'procurement.postMatchedSupplierBill',args:{posting:request},
+        reason:'User specified one already matched vendor bill, primary warehouse and exact line-ordered catalog SKUs.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+      ?'لترحيل فاتورة مورد مطابقة: اذكر رقم PO، مرجع فاتورة المورد المطابقة، كود المستودع الرئيسي والأصناف SKU لكل بند بالترتيب. لا يمكن دمج الترحيل مع السداد أو تعليمات أخرى.'
+      :'For matched vendor bill posting, supply one exact PO number, matched bill reference, primary warehouse code and ordered SKU list. Posting cannot be bundled with payment.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+      ?'جهزت مراجعة ترحيل الفاتورة المطابقة '+request.invoiceReference+' إلى المخزون والذمم الدائنة، دون أي سداد. يلزم توقيع موافقة المالك أو المسؤول أولًا، وقد تلزم موافقة سياسة ترحيل الشراء إن كانت مفعلة.'
+      :'Prepared a complete stock and payable posting preview for the matched bill '+request.invoiceReference+'. No cash payment. Independent owner/admin approval is required, plus any enabled purchase posting policy.')
+      :executed.results.map(x=>x.summary).join('\n'),proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Inventory posting is a distinct high-impact action. Only user-provided
+  // exact warehouse and SKU mappings can stage its separate approval.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiStockIssueIntent(input.message)){
+    let requested:ReturnType<typeof parseAiStockIssueRequest>=null;
+    try{requested=parseAiStockIssueRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No changes applied.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:requested?
+      [{id:'review-confirmed-stock-issue',tool:'sales.issueConfirmedStock',args:{issue:requested},
+        reason:'User explicitly supplied one confirmed delivery, warehouse code and line-ordered SKUs.'}]:[]};
+    if(!requested)return{answer:input.language==='ar'
+      ?'لتجهيز صرف المخزون: حدّد سند DN المؤكد، كود المستودع، وكود SKU لكل بند بالترتيب. سيتم عرض الرصيد قبل وبعد الصرف، ثم تتطلب العملية موافقة منفصلة.'
+      :'To prepare stock deduction, specify one confirmed DN, the warehouse code and an exact SKU for every line in order. Review balances before a separate approval.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal
+      ?(input.language==='ar'?'جهزت مراجعة صرف المخزون لسند '+requested.deliveryNoteNumber+
+        ' مع الرصيد قبل وبعد الصرف. لم أخصم شيئًا بعد؛ يحتاج الترحيل موافقتك المستقلة.'
+        :'Prepared an inventory issue review for '+requested.deliveryNoteNumber+
+        ' with before/after balances. No stock was deducted yet; posting needs separate approval.')
+      :executed.results.map(r=>r.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // A confirmed delivery invoice is created as an unissued draft only;
+  // original source quantities and unit prices are supplied by the ledger,
+  // never guessed by a model or from attachment instructions.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiConfirmedInvoiceDraftIntent(input.message)){
+    const number=requestedInvoiceDeliveryNumber(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:number?[{id:'confirmed-dn-to-invoice-draft',tool:'sales.createConfirmedInvoiceDraft',
+        args:{deliveryNoteNumber:number},reason:'User explicitly named one confirmed delivery for a separately reviewed sales invoice DRAFT.'}]:[]};
+    if(!number)return{answer:input.language==='ar'
+      ?'حدّد رقم سند تسليم مؤكد DN-... واحدًا بالكامل لتجهيز مسودة فاتورة، دون إصدارها أو تعديل المخزون.'
+      :'Give one exact confirmed DN number to prepare an invoice draft. Nothing is issued or posted.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+      ?'جهزت مراجعة مسودة فاتورة من سند التسليم المؤكد '+number+' بجميع البنود وأسعارها. الحفظ يتطلب موافقتك، والإصدار والتحصيل إجراءان منفصلان.'
+      :'Prepared a complete invoice draft review from confirmed delivery '+number+'. Saving requires separate approval; issuance and collection are separate.')
+      :executed.results.map(row=>row.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Supplier payment is REAL cash and only attaches to an existing POSTED
+  // purchase. A matched supplier invoice or PO is never a payable by itself.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiSupplierSettlementIntent(input.message)){
+    let request:ReturnType<typeof parseAiSupplierSettlement>=null;
+    try{request=parseAiSupplierSettlement(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No supplier payment recorded.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:request?[{id:'supplier-payment-exact',tool:'procurement.recordSupplierPayment',
+        args:{settlement:request},reason:'Exact posted purchase, amount, currency, date, method and external reference from user.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+       ?'لسداد مورد: اذكر رقم الشراء المُرحّل PUR والمبلغ والعملة والتاريخ والطريقة والمرجع البنكي. لا يجوز السداد بمجرد وجود PO أو فاتورة مطابقة، ولم أسجل دفعة.'
+       :'Specify one posted PUR purchase number, exact amount/currency, date, method and unique external reference. A PO or matched bill alone cannot be paid. Nothing recorded.',
+       proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal?(input.language==='ar'
+       ?'جهزت مراجعة سداد المورد '+request.amount+' '+request.currency+' مقابل الشراء المُرحّل '+request.purchaseNumber+'. لم أسجل السداد؛ يعتمد على موافقة مالية منفصلة وإعادة فحص الرصيد.'
+       :'Prepared '+request.amount+' '+request.currency+' supplier settlement for posted purchase '+request.purchaseNumber+'. Nothing paid yet; separate finance approval and fresh payable verification required.')
+       :executed.results.map(x=>x.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Customer collection records real MONEY and is strictly user-grounded.
+  // Never infer an amount, currency or external bank reference from model data.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiCustomerCollectionIntent(input.message)){
+    let request:ReturnType<typeof parseAiCustomerCollection>=null;
+    try{request=parseAiCustomerCollection(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No payment recorded.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:request?[{id:'exact-invoice-collection',tool:'sales.recordCustomerCollection',
+       args:{collection:request},reason:'User supplied exact issued invoice, amount, currency, date, method and distinct reference.'}]:[]};
+    if(!request)return{answer:input.language==='ar'
+      ?'لتحصيل فاتورة: اذكر رقم INV والمبلغ والعملة والتاريخ والطريقة والمرجع. مثال: سجّل تحصيل فاتورة INV-2026-0001، المبلغ 100 USD، التاريخ 2026-10-13، الطريقة bank-transfer، المرجع BANK-123. لم أسجّل دفعة.'
+      :'Specify invoice number, amount and currency, date, method and unique reference. No payment recorded.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const result=executeAiToolPlan(runtime,plan);
+    return{answer:result.proposal?(input.language==='ar'
+      ?'حضّرت مراجعة تحصيل '+request.amount+' '+request.currency+' للفاتورة '+request.invoiceNumber+
+        '. لم أسجّل الدفعة بعد؛ الموافقة المستقلة لازمة ويعاد فحص الرصيد عند الحفظ.'
+      :'Prepared '+request.amount+' '+request.currency+' collection review for '+request.invoiceNumber+
+        '. No payment was recorded; separate approval and balance revalidation are required.')
+      :result.results.map(x=>x.summary).join('\n'),
+      proposal:result.proposal,plan,results:result.results,plannedBy:'local'};
+  }
+  // User-provided physical confirmation with one explicit DN, reference
+  // and date. NEVER equate issuing a DN with actual physical delivery.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiConfirmPhysicalDeliveryIntent(input.message)){
+    let requested:ReturnType<typeof parseAiConfirmPhysicalDeliveryRequest>=null;
+    try{requested=parseAiConfirmPhysicalDeliveryRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No records changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:requested?
+      [{id:'review-physical-delivery',tool:'sales.confirmPhysicalDelivery',args:{confirmation:requested},
+        reason:'User supplied one exact physical delivery note, reference and date.'}]:[]};
+    if(!requested)return{answer:input.language==='ar'
+      ?'لتأكيد التسليم فعليًا، اذكر رقم سند التسليم DN، والمرجع الميداني، والتاريخ. لا يُخصم المخزون من مجرد التأكيد.'
+      :'To record physical delivery, specify the exact issued DN number, proof reference and date. No stock is deducted by confirmation.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    return{answer:executed.proposal
+       ?(input.language==='ar'?'جهّزت مراجعة تأكيد التسليم الفعلي لسند '+requested.deliveryNoteNumber+'. يتطلب التسجيل موافقة منفصلة، دون خصم مخزون أو إصدار فاتورة.'
+          :'Prepared physical delivery confirmation for '+requested.deliveryNoteNumber+'. Recording requires separate approval; no stock or invoice is posted.')
+       :executed.results.map(r=>r.summary).join('\n'),
+      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Exact Sales Order -> unissued delivery note. Never infer shipment,
+  // confirm delivery or prepare a stock-issuing action from this request.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&operationalDeliveryDraftRequested(input.message)){
+    const number=requestedDeliverySalesOrderNumber(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:number?[{id:'local-dn-from-so',tool:'sales.createDeliveryDraft',args:{salesOrderNumber:number},
+        reason:'User explicitly identified one accepted Sales Order for a draft delivery note.'}]:[]};
+    if(!number)return{answer:input.language==='ar'
+       ?'اذكر رقم أمر البيع المعتمد SO-... بدقة حتى أجهز مسودة سند تسليم فقط، دون تأكيد أو صرف مخزون.'
+       :'Provide an exact accepted Sales Order number to prepare an unissued DN draft without confirming delivery or posting stock.',
+       proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    const answer=executed.proposal?(input.language==='ar'
+       ?'حضّرت مراجعة مسودة سند تسليم لكل الكميات المتبقية في '+number+'. الحفظ يتطلب موافقتك؛ لا يوجد تأكيد تسليم أو صرف مخزون.'
+       :'Prepared the complete remaining-line delivery draft for '+number+'. Saving requires your approval; no delivery confirmation or stock posting.')
+       :executed.results.map(row=>row.summary).join('\n');
+    return{answer,proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // A goods receipt is PHYSICAL evidence, never inferred from PO quantities.
+  // The user must state the PO, dated receiving reference and EACH measured
+  // line quantity before a separately approved record can be prepared.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiGoodsReceiptRequest(input.message)){
+    let requested:ReturnType<typeof parseAiGoodsReceiptRequest>=null;
+    try{requested=parseAiGoodsReceiptRequest(input.message);}catch(error){
+      return{answer:(error instanceof Error?error.message:String(error))+' No records changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),
+      calls:requested?[{id:'local-reviewed-goods-receipt',tool:'procurement.recordGoodsReceipt',args:{receipt:requested},
+        reason:'Explicit PO, physical receipt reference, date and every counted quantity supplied by the user.'}]:[]};
+    if(!requested)return{answer:input.language==='ar'
+      ?'لتجهيز استلام بضاعة: اذكر أمر الشراء PO، ومرجع الاستلام، والتاريخ، وكميات كل سطر بالترتيب (اكتب صفرًا للسطر غير المستلم). لا يوجد حفظ أو ترحيل.'
+      :'To prepare receipt, specify the exact PO, receipt reference, date and all line quantities in order, including zero for unreceived lines. Nothing saved or posted.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    const answer=executed.proposal?(input.language==='ar'
+      ?'أعددت مراجعة استلام '+requested.reference+' لكميات جميع بنود '+requested.purchaseOrderNumber+
+        '. لا يسجل الاستلام إلا بموافقة مستقلة، ولن يرحّل المخزون أو ينشئ فاتورة.'
+      :'Prepared physical receipt '+requested.reference+' for all lines in '+requested.purchaseOrderNumber+
+        '. Recording requires separate approval; it does not post inventory or issue a supplier invoice.')
+      :executed.results.map(row=>row.summary).join('\n');
+    return{answer,proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Deterministic PO request from a user-named exact RFQ. File/model text
+  // cannot identify the source or authorize saving or inventory movement.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&operationalPoDraftRequested(input.message)){
+    const number=requestedPoRfqNumber(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:number?[{id:'local-po-from-rfq',tool:'procurement.createPoFromRfq',args:{rfqNumber:number},reason:'The user explicitly requested a PO draft from one identified issued RFQ.'}]:[]};
+    if(!number)return{answer:input.language==='ar'?'حدّد رقم RFQ صادرًا واحدًا بالكامل لتجهيز مسودة أمر الشراء. لم أنشئ شيئًا أو أغيّر المخزون.':'Specify one exact issued RFQ number to prepare the purchase order draft. No records or stock changed.',proposal:null,plan,results:[],plannedBy:'local'};
+    const executed=executeAiToolPlan(runtime,plan);
+    const summary=executed.proposal
+      ?input.language==='ar'?'جهزت مراجعة مسودة أمر شراء من '+number+' بكل البنود. لن يتم حفظ المسودة إلا بعد موافقتك. لا يوجد استلام بضاعة أو ترحيل مخزون.':'Prepared a complete linked PO draft review from '+number+'. Saving the draft requires your approval. No receipt or stock posting.'
+      :executed.results.map(row=>row.summary).join('\n');
+    return{answer:summary,proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  }
+  // Invoice issuance cannot imply stock deduction: the linked delivery stock
+  // ledger is the only supported evidence, including in read-only Advisor mode.
+  if(!hasSources&&runtime.scope==='business'&&isAiInvoiceStockEvidenceIntent(input.message)){
+    return{answer:aiInvoiceStockEvidence(scopedVault,input.message,input.language),proposal:null,
+      plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+  }
+  // Business operational status reads are proof-bound and never stage
+  // a receipt, issue a delivery, save a purchase order or change stock.
+  if(!hasSources&&runtime.scope==='business'&&isOperationalDocumentStatusIntent(input.message)){
+    return{answer:operationalDocumentStatus(scopedVault,input.message,input.language),proposal:null,
+      plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+  }
+  // F19: Advisor and Controller read the real issued-invoice ledger for the
+  // highest customer receivables, rather than falling into generic search.
+  // This is strictly read-only and never sums currencies or includes drafts.
+  if(!hasSources&&runtime.scope==='business'&&isAiReceivablesRankingIntent(input.message)){
+    return{answer:aiReceivablesRanking(scopedVault,input.message,input.language),proposal:null,
+      plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+  }
   if(!hasSources&&runtime.scope!=='temporary'){
     const resumed=await resumeVaultSession();
     if(resumed){
       const local=await handleAssistantLocalCommand(resumed.key,{message:input.message,scope:runtime.scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,language:input.language,threadId:clean(input.context?.assistantRuntime?.threadId,120)});
       if(local){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
-        if(runtime.conversationMode==='advisor'&&local.proposal)return{answer:input.language==='ar'?'المستشار مخصص للنقاش والتحليل فقط. انتقل إلى المتحكم لهذه المهمة. لم يتم تعديل أي بيانات.':'Advisor is for discussion and analysis only. Switch to Controller for this task. No data was changed.',proposal:null,plan,results:[],plannedBy:'local'};
+        if(runtime.conversationMode==='advisor'&&local.proposal)return null; // Discuss the request without preparing an action.
         return{answer:local.answer,proposal:local.proposal,plan,results:[],plannedBy:'local'};}
     }
   }
@@ -156,7 +436,17 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
   }
   const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
+  // Advisor remains a genuine conversation. An imperative may be discussed or
+  // evaluated, but a deterministic mutation/navigation plan must not replace
+  // the advisor's reply with execution errors or a proposed action.
+  if(runtime.conversationMode==='advisor'){
+    const permitted=new Set(aiToolPlannerCatalog(runtime.scope,'advisor').map(row=>row.id));
+    if(plan?.calls.some(call=>!permitted.has(call.tool)))return null;
+  }
   if(!plan){
+    // Controller must report failed action planning; Advisor instead answers
+    // through the regular conversational model without triggering tool planning.
+    if(runtime.conversationMode==='advisor'&&explicitAiActionRequest(input.message))return null;
     // Explicit user commands must always reach the planner, including short
     // Arabic commands such as "احفظ جميع الأصناف" with no attachment.
     if(!likelyToolIntent(input.message,input.context)&&!explicitAiActionRequest(input.message))return null;
@@ -165,7 +455,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const actionRequested=explicitAiActionRequest(input.message);
     let payload:any;
     try{
-      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',workingMemory:input.context?.conversationWorkingMemory||'',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
+      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',conversationMode:runtime.conversationMode==='controller'?'controller':'advisor',workingMemory:input.context?.conversationWorkingMemory||'',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
     }catch(error){
       if(input.signal?.aborted)throw error;
       if(!actionRequested)return null;
@@ -176,6 +466,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
+    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     // Catalog-wide transformations are authorized ONLY by the deterministic
@@ -194,7 +485,18 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
   }
   if(runtime.conversationMode!=='advisor')plan=promoteDocumentCreationPlan(plan,input.message);
-  const execution=executeAiToolPlan(runtime,plan);const answer=dealDesk?formatDealDeskDecision(buildDealDeskDecision(plan,execution.results),input.language):formatAnswer(plan,execution.results,input.language);return{answer,proposal:execution.proposal,plan,results:execution.results,plannedBy};
+  const execution=executeAiToolPlan(runtime,plan);
+  // An incomplete/truncated attachment cannot become a supposedly complete
+  // working quote simply because the LLM chose the PREPARE tool.
+  const workingDraft=hasSources&&sources.some(source=>source.truncated)
+    ?null:previewOnlyWorkingDraft(plan,execution.results,runtime);
+  const baseAnswer=dealDesk?formatDealDeskDecision(buildDealDeskDecision(plan,execution.results),input.language):formatAnswer(plan,execution.results,input.language);
+  const previewPrepared=plan.calls.length===1&&['quotation.prepare','invoice.prepare'].includes(plan.calls[0]!.tool);
+  const note=workingDraft
+    ?(input.language==='ar'?'\n\nمسودة عمل جاهزة داخل المحادثة (غير محفوظة). يمكنك تعديل الأصناف، التراجع، أو طلب PDF قبل أي اعتماد.':'\n\nUnsaved working draft available in this conversation. Revise lines, undo, or request PDF without approving or saving.')
+    :previewPrepared&&hasSources&&sources.some(source=>source.truncated)
+      ?(input.language==='ar'?'\n\nالمرفق ناقص في سياق التخطيط، لذلك لم أجهّز مسودة عمل قابلة للاعتماد. أعد رفع ملف قابل للقراءة بالكامل.':'\n\nAttachment content was truncated; no complete working draft was staged. Provide a fully readable source.'): '';
+  return{answer:(baseAnswer+note).slice(0,5000),proposal:execution.proposal,workingDraft:workingDraft||undefined,plan,results:execution.results,plannedBy};
 }
 
 export function aiToolAuditSummary(result:AiToolOrchestrationResult):string{return JSON.stringify({plannedBy:result.plannedBy,goal:result.plan.goal,tools:compactToolResults(result.results).map(row=>({tool:row.tool,ok:row.ok,source:row.source}))});}

@@ -2,17 +2,68 @@ import type { ConversationKernel } from './ai-conversation-kernel.js';
 import type { VaultPayload } from '../types.js';
 import { workspaceDocument, type WorkspaceCommand } from './ai-workspace-model.js';
 import { scopeVault } from './workspaces.js';
+import type { AiDocumentUpdateProposal } from '../components/AiCopilot.js';
+import { normalizeDecimalInput } from './money.js';
 
-/** Explicit exact references open a scoped saved preview, never a navigation approval. */
+/** Read-only document requests must resolve an exact saved reference in the
+ * current company/branch before the PDF workspace opens. Never infer the
+ * "latest" document or use a partial number, and never save or issue here. */
 export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayload,message:string):string|null{
- if(kernel.scope.scope==='personal')return null;
- const text=message.normalize('NFKC').trim();
- const match=text.match(/^(?:افتح\s+معاينة\s+(?:(?:عرض السعر|الفاتورة|المستند)\s+)?|open\s+(?:a\s+)?(?:read-only\s+)?preview\s+(?:of\s+)?(?:quotation\s+|invoice\s+|document\s+)?)([a-z0-9_-]{1,120})(?:\s+فقط دون تعديل أو حفظ أي سجل|\s+دون تعديل أو حفظ|\s+only without (?:editing or saving|changes)|\s+فقط)?[.!؟]?$/iu);
- if(!match)return null;
- const reference=match[1]!.toUpperCase();
- const rows=scopeVault(vault).documents.filter(row=>row.kind!=='draft'&&(row.id.toUpperCase()===reference||row.number.toUpperCase()===reference));
- if(rows.length!==1)throw new Error(rows.length?'Document reference is ambiguous. Choose an exact record.':'Document not found in this company and branch.');
- return rows[0]!.id;
+ if(kernel.scope.scope!=='business'||kernel.mode!=='controller'||
+    kernel.scope.workspaceId!==(vault.appSettings.activeWorkspaceId||'default')||
+    kernel.scope.branchId!==(vault.appSettings.activeBranchId||'main'))return null;
+ const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
+ const normalize=(value:string)=>value.normalize('NFKC')
+  .replace(/[٠-٩۰-۹]/g,ch=>String(ar.includes(ch)?ar.indexOf(ch):fa.indexOf(ch))).trim();
+ const text=normalize(String(message||''));
+ if(!text||text.length>1200)return null;
+ const strict=text.match(/^(?:افتح\s+معاينة\s+(?:(?:عرض السعر|الفاتورة|المستند)\s+)?|open\s+(?:a\s+)?(?:read-only\s+)?preview\s+(?:of\s+)?(?:quotation\s+|invoice\s+|document\s+)?)([a-z0-9_-]{1,120})(?:\s+فقط دون تعديل أو حفظ أي سجل|\s+دون تعديل أو حفظ|\s+only without (?:editing or saving|changes)|\s+فقط)?[.!؟]?$/iu);
+ const action=/^(?:افتح(?:\s+لي)?|أفتح(?:\s+لي)?|اعرض|أعرض|ارني|أرني|اظهر|أظهر|أعطني|اعطني|أرسل|ارسل|هات|جهز|جهّز|open|show|preview|download|give|send|generate)(?:\s|$)/iu.test(text);
+ const subject=/(?:\bpdf\b|بي\s*دي\s*[إأا]ف|معاين[ةه]|(?:ال)?فاتور[ةه]|عرض\s*(?:ال)?سعر|(?:ال)?مستند|(?:أمر|طلب)\s*(?:ال)?شراء|(?:سند|إشعار)\s*(?:ال)?(?:تسليم|استلام)|(?:ال)?وثيق[ةه]|\b(?:invoice|quotation|document|quote|preview|purchase\s*order|delivery\s*note|goods\s*receipt|\bPO\b|\bDN\b|\bGRN\b)\b)/iu.test(text);
+ // A question about a document or report navigation is not PDF authorization.
+ if(!strict&&(!action||!subject||/^(?:افتح|أفتح)\s+(?:التقرير|تقرير)/iu.test(text)))return null;
+ // This read-only shortcut may satisfy only one exact reference. Requests
+ // combining preview with modification, issue, posting or deletion must not
+ // silently execute just the preview half of a multi-step instruction.
+ const withoutMutations=text
+  .replace(/(?:دون|بدون|لا)\s+(?:تعديل|تعدّل|تعديلها|تعديله|تغيير|تغيّر|حفظ|حذف|إصدار|اعتماد|ترحيل)(?:\s+أو\s+(?:حفظ|تعديل|حذف|اعتماد|إصدار))*/giu,' ')
+  .replace(/\b(?:without|do not|don't)\s+(?:editing|saving|changes|deleting|issuing)(?:\s+(?:or|and)\s+(?:editing|saving|deleting|issuing))*/giu,' ');
+ if(/(?:\b(?:delete|remove|finalize|issue|post|modify|edit|update)\b|(?:احذف|أحذف|امسح|عدّل|عدل|غيّر|غير|اصدر|أصدر|رحّل|رحل|اعتمد)(?:\s|$))/iu.test(withoutMutations))return null;
+ const referencedNumbers=[...text.matchAll(/\b[A-Z]{2,10}[-_]\d{2,}(?:[-_]\d{1,})+\b/giu)].map(m=>m[0]!.toUpperCase());
+ if(new Set(referencedNumbers).size>1)throw new Error('Document reference is ambiguous. Choose exactly one saved document.');
+ // Operational documents are not invoices: validate the requested kind as
+ // well as the exact visible number. GRNs are not a saved DocumentKind yet.
+ const asksGoodsReceipt=/(?:سند|إشعار)\s*(?:ال)?استلام|\bgoods[\s-]*receipt\b|\bgrn\b/iu.test(text);
+ if(asksGoodsReceipt)throw new Error('GRN is not a saved document type. Check the supplier receiving workflow; no GRN or stock movement was created.');
+ const explicitKinds=[
+   /(?:أمر|طلب)\s*(?:ال)?شراء|\bpurchase[\s-]*order\b|\bPO[-_]\d/iu.test(text)?'purchase-order':null,
+   /(?:سند|إشعار)\s*(?:ال)?تسليم|\bdelivery[\s-]*note\b|\bDN[-_]\d/iu.test(text)?'delivery-note':null,
+   /(?:ال)?فاتور[ةه]|\binvoice\b|\bINV[-_]\d/iu.test(text)?'invoice':null,
+   /عرض\s*(?:ال)?سعر|\bquotation\b|\bquote\b|\bQUO[-_]\d/iu.test(text)?'proforma':null
+ ].filter((kind):kind is 'purchase-order'|'delivery-note'|'invoice'|'proforma'=>kind!==null);
+ const requestedKinds=[...new Set(explicitKinds)];
+ if(requestedKinds.length>1)throw new Error('Different document kinds appear in the request. Select only one exact document.');
+
+ const scoped=scopeVault(vault);
+ const escaped=(value:string)=>value.replace(/[.*+?^$()|[\]{}]/g,'\\$&');
+ const contains=(reference:string)=>{
+   if(!reference||reference.length>120)return false;
+   return new RegExp('(^|[^\\p{L}\\p{N}_-])'+escaped(normalize(reference))+'(?=$|[^\\p{L}\\p{N}_-])','iu').test(text);
+ };
+ const matches=scoped.documents.filter(row=>row.kind!=='draft'&&
+   (contains(String(row.id||''))||contains(String(row.number||''))));
+ if(matches.length>1)throw new Error('Document reference is ambiguous. Choose exactly one saved document.');
+ if(matches.length===1){
+   if(requestedKinds.length&&matches[0]!.kind!==requestedKinds[0])
+     throw new Error('Document number exists but its kind does not match the requested purchase order, delivery note, invoice or quotation.');
+   return matches[0]!.id;
+ }
+ // A user supplied an exact reference but it is not in the scoped vault.
+ // Never substitute the last unrelated document or generic navigation.
+ if(strict||/(?:رقم|number|#)\s*[:#]?\s*[A-Z0-9][A-Z0-9_-]{2,119}/iu.test(text)||
+   /\b[A-Z]{2,10}[-_]\d{2,}(?:[-_]\d{1,})+\b/iu.test(text))
+   throw new Error('Document not found in this company and branch.');
+ return null;
 }
 /** Exact local commands only. Ambiguous trade instructions use the existing review planner. */
 export function commercialDraftCommand(kernel:ConversationKernel,vault:VaultPayload,message:string):WorkspaceCommand|null {
@@ -41,4 +92,59 @@ export function commercialDraftCommand(kernel:ConversationKernel,vault:VaultPayl
  const terms=m.match(/^(?:change delivery to|غير التسليم إلى|غيّر التسليم إلى|عدل التسليم إلى)\s+((?:EXW|FCA|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP)\s+.{1,140})$/iu);
  if(terms)return{kind:'terms',artifactId:doc.id,revision:doc.revision,incoterm:terms[1]!,paymentTerms:doc.terms.find(t=>t.label==='paymentTerms')?.value||'',deliveryTime:doc.terms.find(t=>t.label==='deliveryTime')?.value||''};
  return null;
+}
+
+
+/** F17: user's exact visible document number -> a fully scoped *unsaved*
+ * one-line change. Never call this on a provider-generated text or source file.
+ * An actual save is a separate document.updateDraft approval after preview. */
+export function exactSavedDraftLineEdit(
+ kernel:ConversationKernel,vault:VaultPayload,message:string
+):AiDocumentUpdateProposal|null {
+ if(kernel.mode!=='controller'||kernel.scope.scope!=='business'||
+    kernel.scope.workspaceId!==(vault.appSettings.activeWorkspaceId||'default')||
+    kernel.scope.branchId!==(vault.appSettings.activeBranchId||'main'))return null;
+ const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
+ const text=String(message||'').normalize('NFKC').replace(/[٠-٩۰-۹]/gu,
+  ch=>String(ar.includes(ch)?ar.indexOf(ch):fa.indexOf(ch)))
+  .replace(/[\u064b-\u065f\u0670]/gu,'').trim();
+ if(!text||text.length>450)return null;
+ const isEdit=/^(?:عدل|عدّل|غيّر|غير|تعديل|تغيير|change|set|update)\s+/iu.test(text);
+ const referencePattern=/\b[A-Z]{2,12}[-_]\d{2,}(?:[-_]\d{1,})+\b/giu;
+ const refs=[...text.matchAll(referencePattern)].map(x=>x[0]!.toUpperCase());
+ if(!isEdit||!refs.length||!/(?:سعر|السعر|كمية|الكمية|\bprice\b|\bquantity\b)/iu.test(text))return null;
+ if(refs.length!==1)throw new Error('Select exactly one saved document number. No draft was changed.');
+ // Accept an explicitly referenced row ordinal, never infer "first/latest".
+ const ordinal='(?:الأول|الاول|أول|اول|الثاني|ثاني|الثالث|ثالث|الرابع|الخامس|آخر|الاخير|الأخير|\\d{1,3})';
+ const arStart=new RegExp('^(?:عدل|عدّل|غير|غيّر|تعديل|تغيير)\\s+(سعر|السعر|كمية|الكمية)\\s+(?:(?:السطر|سطر|البند|بند)\\s+('+ordinal+')|('+ordinal+')\\s+(?:سطر|بند))\\s+(?:(?:في|من)\\s+)?(?:(?:الفاتورة|فاتورة|المستند|مستند|عرض\\s+السعر)\\s+(?:رقم\\s+)?)?('+refs[0]!.replace(/[.*+?^$()|[\]{}]/g,'\\$&')+')\\s+(?:الى|إلى|=|بسعر)\\s+(\\d{1,13}(?:[.,]\\d{1,6})?)(?:\\s+([A-Z]{3}))?(?:\\s+(?:ولا\\s+تحفظ|دون\\s+حفظ|بدون\\s+حفظ|مع\\s+عدم\\s+الحفظ|لا\\s+تحفظ(?:ها)?))?[.!؟\\s]*$','iu');
+ const arMatch=text.match(arStart);
+ const enMatch=text.match(new RegExp('^(?:change|set|update)\\s+(price|quantity)\\s+(?:of\\s+)?(?:line|item)\\s+(\\d{1,3}|first|second|third|fourth|last)\\s+(?:in\\s+)?(?:invoice|quotation|document)\\s+(?:number\\s+)?('+refs[0]!.replace(/[.*+?^$()|[\]{}]/g,'\\$&')+')\\s+(?:to|=)\\s+(\\d{1,13}(?:[.,]\\d{1,6})?)(?:\\s+([A-Z]{3}))?(?:[,\\s]+(?:do\\s+not\\s+save|without\\s+saving))?[.!?\\s]*$','iu'));
+ if(!arMatch&&!enMatch)throw new Error('Give one exact line, price or quantity, and the complete saved document number. Nothing changed.');
+ const quantity=/^(?:كمية|الكمية|quantity)$/iu.test((arMatch?.[1]||enMatch?.[1])!);
+ const ordinalText=arMatch?(arMatch[2]||arMatch[3]||''):enMatch![2]!;
+ const ordinalMap:Record<string,number>={الأول:1,الاول:1,أول:1,اول:1,الثاني:2,ثاني:2,الثالث:3,ثالث:3,الرابع:4,الخامس:5,first:1,second:2,third:3,fourth:4};
+ const key=ordinalText.toLowerCase();
+ const index=/^(?:آخر|الاخير|الأخير|last)$/iu.test(key)?-1:(ordinalMap[key]||Number(key))-1;
+ const supplied=normalizeDecimalInput((arMatch?arMatch[5]:enMatch![4])!.replace(',','.'));
+ const value=/^(?:0|[1-9]\d{0,12})(?:\.\d{1,6})?$/.test(supplied)?supplied:'';
+ if(!value||(quantity&&Number(value)===0))throw new Error('Invalid requested amount or quantity. Nothing changed.');
+ const reference=refs[0]!,candidates=scopeVault(vault).documents.filter(row=>row.kind!=='draft'&&
+  (String(row.number||'').toUpperCase()===reference||String(row.id||'').toUpperCase()===reference));
+ if(candidates.length!==1)throw new Error('Saved document number was not found uniquely in the active company and branch.');
+ const doc=candidates[0]!;
+ if(doc.kind!=='invoice'&&doc.kind!=='proforma')throw new Error('Operational purchase orders and deliveries require their own verified edit workflow; no change was prepared.');
+ if(doc.status!=='draft'||doc.lifecycleStatus==='voided')throw new Error('Final or voided documents cannot be edited in chat.');
+ const selectedIndex=index===-1?doc.items.length-1:index;
+ if(!Number.isSafeInteger(selectedIndex)||selectedIndex<0||selectedIndex>=doc.items.length)
+  throw new Error('The requested line does not exist in the saved draft.');
+ const curr=(arMatch?arMatch[6]:enMatch![5])?.toUpperCase();
+ if(curr&&curr!==doc.currency.toUpperCase())throw new Error('The requested currency does not match the document.');
+ const row=doc.items[selectedIndex]!;
+ if(!row.id)throw new Error('The saved line lacks an exact identity.');
+ const field=quantity?'quantity':'unitPrice';
+ if(normalizeDecimalInput(row[field])===value)throw new Error('The saved line already has that value.');
+ return{capability:'document.updateDraft',documentId:doc.id,addItems:[],
+  itemEdits:[{itemId:row.id,[field]:value}],termsPatch:{},
+  label:'Review '+doc.number+' line '+String(selectedIndex+1)+' change',
+  rationale:'User referenced the exact saved draft and line. This prepares review only; saving needs a separate approval.'};
 }

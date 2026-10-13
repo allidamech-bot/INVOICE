@@ -31,7 +31,7 @@ interface PendingSource{route:'customer'|'product_list';file:File;createdAt:numb
 interface State{
   open:boolean;view:ToolView;stage:InboxStage;file:File|null;pastedText:string;classification:AiInboxClassification|null;forcedRoute:AiInboxRoute|null;
   quote:QuoteAiSourceDraft|null;quoteReview:QuoteAiReview|null;quoteCommand:string;quoteCommandMessage:string;supplier:SupplierImportDraft|null;supplierProposal:SupplierAiProposal|null;error:string;model:string;savedLabel:string;
-  searchQuery:string;searchBusy:boolean;searchResults:AiBusinessSearchResult[];listening:boolean;jobs:AiJobHistoryEntry[];currentJobId:string;savedReference:string;
+  searchQuery:string;searchBusy:boolean;searchResults:AiBusinessSearchResult[];listening:boolean;voiceStarting:boolean;jobs:AiJobHistoryEntry[];currentJobId:string;savedReference:string;
 }
 
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
@@ -73,10 +73,10 @@ function canonicalSearchQuery(result:AiBusinessSearchResult):string{if(result.ki
 function sourceCommercialTerms(draft:QuoteAiSourceDraft):string[]{return [draft.incoterm,draft.paymentTerms,draft.deliveryTime,draft.validity,draft.remarks,draft.notes].map(value=>value.trim()).filter(Boolean);}
 
 export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRoute?:AiInboxRoute;disabled?:boolean},State>{
-  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;
-  state:State={open:false,view:'menu',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false,jobs:readAiJobHistory(),currentJobId:'',savedReference:''};
-  componentDidMount():void{this.mounted=true;}
-  componentWillUnmount():void{this.mounted=false;this.cancelAnalysis();this.stopVoice();}
+  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceCaptureTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
+  state:State={open:false,view:'menu',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false,voiceStarting:false,jobs:readAiJobHistory(),currentJobId:'',savedReference:''};
+  componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.addEventListener('pagehide',this.onVoicePageHide);document.addEventListener('visibilitychange',this.onVoiceVisibilityChange);}
+  componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.removeEventListener('pagehide',this.onVoicePageHide);document.removeEventListener('visibilitychange',this.onVoiceVisibilityChange);this.cancelAnalysis();this.stopVoice();}
   private cancelAnalysis=()=>{this.generation++;this.pending=false;this.abort?.abort();this.abort=null;};
   private current=(generation:number,controller:AbortController)=>this.mounted&&generation===this.generation&&!controller.signal.aborted;
   private refreshJobs=()=>this.setState({jobs:readAiJobHistory()});
@@ -84,7 +84,7 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
   private busy=()=>this.pending||this.saving||['reading','classifying','extracting','pricing','saving'].includes(this.state.stage);
   private resetInbox=(forcedRoute:AiInboxRoute|null=null)=>{if(this.saving)return;if(this.pending)this.markJob({status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')});this.cancelAnalysis();this.setState({view:'inbox',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',currentJobId:'',savedReference:''});};
   private openMenu=()=>{if(this.busy())return;this.setState({open:true,view:'menu',error:'',savedLabel:'',jobs:readAiJobHistory()});};
-  private close=()=>{if(this.saving||this.state.stage==='saving')return;if(this.busy())this.markJob({status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')});this.cancelAnalysis();this.stopVoice();this.setState({open:false,stage:'idle',error:'',listening:false});};
+  private close=()=>{if(this.saving||this.state.stage==='saving')return;if(this.busy())this.markJob({status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')});this.cancelAnalysis();this.stopVoice();this.setState({open:false,stage:'idle',error:'',listening:false,voiceStarting:false});};
   private openTool=(eventName:string)=>{if(this.busy())return;this.setState({open:false,error:''});window.setTimeout(()=>window.dispatchEvent(new Event(eventName)),0);};
   private chooseFile=(file:File|null)=>{if(!file||this.busy())return;this.setState({file,pastedText:'',classification:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',stage:'idle',savedLabel:'',currentJobId:'',savedReference:''});if(this.input)this.input.value='';};
   private payload=async():Promise<{fileName:string;payload:AiPayload}>=>{if(this.state.file)return{fileName:this.state.file.name,payload:await sourcePayload(this.state.file)};const text=this.state.pastedText.trim();if(!text)throw new Error(t('Choose a file or paste business text first.','اختر ملفًا أو الصق نص أعمال أولًا.'));if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));return{fileName:t('Pasted text','النص الملصق'),payload:{kind:'text',mimeType:'text/plain',text}};};
@@ -143,18 +143,114 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
   private runMode=(mode:AiWorkflowMode)=>{this.setState({open:false});advisorInput(aiWorkflowPrompt(mode,isArabic()),true);};
   private search=async()=>{const query=this.state.searchQuery.trim();if(!query||this.state.searchBusy)return;this.setState({searchBusy:true,error:''});try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Account workspace is not ready to search records. Sign in or retry.','مساحة عمل الحساب غير جاهزة للبحث في السجلات. سجّل الدخول أو أعد المحاولة.'));this.setState({searchResults:searchBusinessRecords(resumed.vault,query),searchBusy:false});}catch(error){this.setState({searchBusy:false,error:error instanceof Error?error.message:String(error)});}};
   private askAbout=(result:AiBusinessSearchResult)=>{this.setState({open:false});window.dispatchEvent(new CustomEvent('lourex-global-search-open',{detail:{query:canonicalSearchQuery(result),autoOpenUnique:true}}));};
-  private stopVoice=()=>{const active=this.recognition;this.recognition=null;if(active){active.onresult=null;active.onerror=null;active.onend=null;try{active.abort();}catch{try{active.stop();}catch{}}}};
-  private voice=()=>{
-    if(this.recognition){this.stopVoice();this.setState({listening:false});return;}
-    const Constructor=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
-    if(!Constructor){this.setState({error:t('Voice input is not supported by this browser.','الإدخال الصوتي غير مدعوم في هذا المتصفح.')});return;}
-    const recognition=new Constructor();this.recognition=recognition;recognition.lang=isArabic()?'ar-SA':'en-US';recognition.continuous=false;recognition.interimResults=false;recognition.maxAlternatives=1;
-    recognition.onresult=(event:any)=>{if(this.recognition!==recognition)return;const text=String(event.results?.[0]?.[0]?.transcript||'').trim();this.stopVoice();if(text)advisorInput(text,false);this.setState({listening:false,error:''});};
-    recognition.onerror=()=>{if(this.recognition!==recognition)return;this.stopVoice();this.setState({listening:false,error:t('Voice capture stopped before a usable command was received.','توقف التقاط الصوت قبل استلام أمر قابل للاستخدام.')});};
-    recognition.onend=()=>{if(this.recognition!==recognition)return;this.recognition=null;this.setState({listening:false});};
-    this.setState({listening:true,error:''});try{recognition.start();}catch{this.stopVoice();this.setState({listening:false});}
+  // Safari may background/suspend without delivering recognition.onend.
+  // Cancel the active native lease and retry callbacks, not the editable text.
+  private onVoicePageHide=()=>{
+    if(!this.recognition&&!this.voiceRetryTimer)return;
+    this.stopVoice();
+    if(this.mounted)this.setState({listening:false,voiceStarting:false,error:''});
   };
-
+  private onVoiceVisibilityChange=()=>{if(document.hidden)this.onVoicePageHide();};
+  // Workflow quick-mic and conversation composer must never own the native microphone together.
+  // Safari can report a final transcript before its speech engine releases the device.
+  private onComposerVoiceRequest=(event:Event)=>{
+    const detail=(event as CustomEvent<{active?:boolean;readyAt?:number}>).detail;
+    if(!detail)return;
+    const holdingLease=Boolean(this.recognition||this.voiceRetryTimer||this.voiceReleaseUntil>Date.now());
+    if(this.recognition||this.voiceRetryTimer){
+      this.stopVoice();
+      if(this.mounted)this.setState({listening:false,voiceStarting:false});
+    }
+    if(holdingLease)detail.active=true;
+    detail.readyAt=Math.max(detail.readyAt||0,this.voiceReleaseUntil);
+  };
+  private clearVoiceCaptureTimer=()=>{if(this.voiceCaptureTimer){clearTimeout(this.voiceCaptureTimer);this.voiceCaptureTimer=null;}};
+  private stopVoice=()=>{
+    this.voiceGeneration++;
+    this.clearVoiceCaptureTimer();
+    if(this.voiceRetryTimer){clearTimeout(this.voiceRetryTimer);this.voiceRetryTimer=null;}
+    const active=this.recognition;this.recognition=null;
+    if(active){
+      active.onresult=null;active.onerror=null;active.onend=null;active.onstart=null;
+      this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
+      try{active.abort();}catch{try{active.stop();}catch{}}
+    }
+  };
+  private armVoiceDeadline=(recognition:any,generation:number,delay:number,starting:boolean)=>{
+    this.clearVoiceCaptureTimer();
+    this.voiceCaptureTimer=setTimeout(()=>{
+      this.voiceCaptureTimer=null;
+      if(!this.mounted||this.recognition!==recognition||generation!==this.voiceGeneration)return;
+      this.stopVoice();
+      this.setState({listening:false,voiceStarting:false,error:starting?t('Microphone did not become ready. Try again.','لم يجهز الميكروفون في الوقت المحدد. حاول مجددًا.'):t('Voice recording timed out. Try again.','انتهت مهلة التسجيل الصوتي. حاول مجددًا.')});
+    },delay);
+  };
+  private startVoiceSession=(generation:number,attempt:number):void=>{
+    if(!this.mounted||generation!==this.voiceGeneration)return;
+    const remaining=this.voiceReleaseUntil-Date.now();
+    if(remaining>0){
+      this.voiceRetryTimer=setTimeout(()=>{this.voiceRetryTimer=null;this.startVoiceSession(generation,attempt);},Math.max(20,remaining));
+      this.setState({listening:false,voiceStarting:true,error:''});
+      return;
+    }
+    const Constructor=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
+    if(!Constructor){this.setState({listening:false,voiceStarting:false,error:t('Voice input is not supported by this browser.','الإدخال الصوتي غير مدعوم في هذا المتصفح.')});return;}
+    let recognition:any;
+    try{recognition=new Constructor();}catch{this.setState({listening:false,voiceStarting:false,error:t('Microphone could not be started. Retry.','تعذّر بدء الميكروفون. حاول مجددًا.')});return;}
+    this.recognition=recognition;
+    recognition.lang=isArabic()?'ar-SA':'en-US';recognition.continuous=false;recognition.interimResults=false;recognition.maxAlternatives=1;
+    recognition.onstart=()=>{
+      if(this.recognition!==recognition||generation!==this.voiceGeneration)return;
+      this.armVoiceDeadline(recognition,generation,30000,false);
+      this.setState({listening:true,voiceStarting:false,error:''});
+    };
+    recognition.onresult=(event:any)=>{
+      if(this.recognition!==recognition)return;
+      const transcript=Array.from(event.results||[]).map((row:any)=>String(row?.[0]?.transcript||'').trim()).filter(Boolean).join(' ').trim();
+      this.stopVoice();
+      if(transcript)advisorInput(transcript,false);
+      if(this.mounted)this.setState({listening:false,voiceStarting:false,error:transcript?'':t('No speech detected. Retry.','لم يتم التعرف على كلام. حاول مجددًا.')});
+    };
+    recognition.onerror=(event:any)=>{
+      if(this.recognition!==recognition)return;
+      const code=String(event?.error||'');
+      this.stopVoice();
+      if(this.mounted)this.setState({listening:false,voiceStarting:false,error:code==='not-allowed'||code==='service-not-allowed'?t('Microphone access was denied. Check Safari microphone permission.','رُفض إذن الميكروفون. تحقق من إذن الميكروفون في Safari.'):code==='audio-capture'?t('Microphone is unavailable. Close other recordings and retry.','الميكروفون غير متاح. أغلق التسجيلات الأخرى ثم حاول مجددًا.'):t('Voice recognition stopped. Retry.','توقف التعرف على الصوت. حاول مجددًا.')});
+    };
+    recognition.onend=()=>{
+      if(this.recognition!==recognition)return;
+      this.clearVoiceCaptureTimer();this.recognition=null;this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
+      if(this.mounted)this.setState({listening:false,voiceStarting:false,error:t('No speech detected. Retry.','لم يتم التعرف على كلام. حاول مجددًا.')});
+    };
+    this.armVoiceDeadline(recognition,generation,12000,true);
+    this.setState({listening:false,voiceStarting:true,error:''});
+    try{recognition.start();}
+    catch(error){
+      if(this.recognition!==recognition)return;
+      this.clearVoiceCaptureTimer();this.recognition=null;recognition.onresult=null;recognition.onerror=null;recognition.onend=null;recognition.onstart=null;
+      try{recognition.abort?.();}catch{}
+      const name=String((error as any)?.name||'').toLowerCase(),message=String((error as any)?.message||'').toLowerCase();
+      const denied=name==='notallowederror'||name==='securityerror';
+      const transient=!denied&&(name==='invalidstateerror'||name==='aborterror'||name==='notreadableerror'||/microphone|already.*start|busy|in use/.test(message));
+      if(transient&&attempt<6){
+        this.voiceReleaseUntil=Date.now()+320;
+        this.voiceRetryTimer=setTimeout(()=>{this.voiceRetryTimer=null;this.startVoiceSession(generation,attempt+1);},320);
+        this.setState({listening:false,voiceStarting:true,error:''});
+        return;
+      }
+      this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,Date.now()+1600);
+      this.setState({listening:false,voiceStarting:false,error:denied?t('Microphone access was denied. Check Safari microphone permission.','رُفض إذن الميكروفون. تحقق من إذن الميكروفون في Safari.'):t('Microphone did not restart. Retry after a moment.','لم يُعد تشغيل الميكروفون. حاول بعد لحظات.')});
+    }
+  };
+  private voice=()=>{
+    if(this.recognition||this.voiceRetryTimer){this.stopVoice();this.setState({listening:false,voiceStarting:false});return;}
+    const handoff:{active?:boolean;readyAt?:number}={active:false,readyAt:0};
+    window.dispatchEvent(new CustomEvent('lourex-ai-workflow-voice-request',{detail:handoff}));
+    this.voiceReleaseUntil=Math.max(this.voiceReleaseUntil,handoff.readyAt||0);
+    const generation=++this.voiceGeneration;
+    this.setState({listening:false,voiceStarting:true,error:''});
+    this.startVoiceSession(generation,0);
+  };
   private renderMenu=():any=><div><p>{t('Use one clear entry point for LOUREX AI workflows. Deterministic tools open directly; record changes still require review and confirmation.','استخدم مدخلًا واحدًا واضحًا لمسارات ذكاء LOUREX. الأدوات الحتمية تفتح مباشرة، وتبقى تغييرات السجلات بحاجة للمراجعة والتأكيد.')}</p><div className="ta-customer-modal-actions ai-workflow-actions"><Button icon="upload" onClick={()=>this.resetInbox(null)}>{t('AI Inbox','صندوق AI')}</Button><Button icon="file" onClick={()=>this.resetInbox('quote_request')}>{t('File → Quote','ملف ← عرض سعر')}</Button><Button icon="search" onClick={()=>this.openTool('lourex-ai-open-business-search')}>{t('Ask Anything','اسأل عن أي شيء')}</Button><Button icon="file" onClick={()=>this.setState({view:'history',jobs:readAiJobHistory(),error:''})}>{t('Job History','سجل المهام')}</Button></div><div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.runMode('guardian')}>{t('Accounting Guardian','حارس المحاسبة')}</Button><Button onClick={()=>this.openTool('lourex-ai-open-collections')}>{t('Collections','التحصيل')}</Button><Button onClick={()=>this.openTool('lourex-ai-open-cfo')}>CFO</Button><Button onClick={()=>this.openTool('lourex-ai-open-procurement')}>{t('Compare Supplier Offers','مقارنة عروض الموردين')}</Button></div><div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.openTool('lourex-ai-open-daily')}>{t('What matters today','ما المهم اليوم')}</Button><Button onClick={()=>this.openTool('lourex-ai-open-memory')}>{t('Business Memory','ذاكرة الأعمال')}</Button><Button onClick={()=>this.resetInbox('product_list')}>{t('Product AI','ذكاء المنتجات')}</Button><Button onClick={()=>this.resetInbox('supplier')}>{t('Supplier AI','ذكاء الموردين')}</Button></div></div>;
   private renderSearch=():any=><div><Field label={t('Search all LOUREX business records','ابحث في جميع سجلات أعمال LOUREX')}><Input autoFocus value={this.state.searchQuery} onChange={(event:any)=>this.setState({searchQuery:event.target.value})} onKeyDown={(event:any)=>{if(event.key==='Enter'){event.preventDefault();void this.search();}}}/></Field><div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.setState({view:'menu',error:''})}>{t('Back','رجوع')}</Button><Button variant="primary" disabled={this.state.searchBusy||!this.state.searchQuery.trim()} onClick={()=>void this.search()}>{this.state.searchBusy?t('Searching…','جارٍ البحث…'):t('Search','بحث')}</Button></div>{this.state.searchResults.length?<div>{this.state.searchResults.map(result=><button type="button" key={`${result.kind}:${result.id}`} onClick={()=>this.askAbout(result)} style={{display:'block',width:'100%',textAlign:isArabic()?'right':'left',padding:'10px',marginTop:'6px'}}><strong>{result.label}</strong><small style={{display:'block'}}>{result.kind} · {result.detail||'—'}</small></button>)}</div>:this.state.searchQuery&&!this.state.searchBusy?<p>{t('No matching records yet.','لا توجد سجلات مطابقة حتى الآن.')}</p>:null}</div>;
   private renderHistory=():any=><div><p>{t('Session-only processing history. File contents are not stored here.','سجل معالجة لهذه الجلسة فقط. لا يتم تخزين محتوى الملفات هنا.')}</p>{this.state.jobs.length?<div>{this.state.jobs.map(job=><article key={job.id} style={{padding:'10px 0'}}><strong><bdi dir="auto">{job.sourceName}</bdi></strong><small style={{display:'block'}}>{job.documentType||'—'} · {job.route||'—'} · {jobStatusLabel(job.status)}</small>{job.note?<small style={{display:'block'}}><bdi dir="auto">{job.note}</bdi></small>:null}</article>)}</div>:<p>{t('No AI jobs in this session yet.','لا توجد مهام AI في هذه الجلسة بعد.')}</p>}<div className="ta-customer-modal-actions ai-workflow-actions"><Button onClick={()=>this.setState({view:'menu'})}>{t('Back','رجوع')}</Button><Button disabled={!this.state.jobs.length} onClick={()=>{clearAiJobHistory();this.setState({jobs:[]});}}>{t('Clear history','مسح السجل')}</Button></div></div>;
@@ -165,5 +261,5 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     {route==='supplier_purchase'&&supplier?<div><h3>{t('Purchase draft preview','معاينة مسودة الشراء')}</h3><p>{supplier.supplierName||t('Supplier not identified','لم يتم تحديد المورد')} · {supplier.currency||'—'} · {supplier.items.length} {t('items','أصناف')}</p><ul>{supplier.items.map((item,index)=><li key={index}>{item.sku?`${item.sku} · `:''}{item.descriptionEn||item.descriptionAr} · {item.quantity} {item.unit||t('unit missing','الوحدة مفقودة')} · {item.unitCost}</li>)}</ul><p>{t('Confirming saves a purchase DRAFT only. Missing source date, currency, unit or landed-cost fields remain blank for Operations review. It does not post inventory or accounting.','التأكيد يحفظ مسودة شراء فقط. تبقى حقول التاريخ أو العملة أو الوحدة أو تكاليف الوصول المفقودة فارغة لمراجعتها في العمليات. لا يرحّل مخزونًا أو محاسبة.')}</p><Button variant="primary" disabled={busy} onClick={()=>void this.saveSupplier()}>{t('Confirm & Save Purchase Draft','تأكيد وحفظ مسودة الشراء')}</Button></div>:null}
     {route==='quote_request'&&quote&&review?<div><h3>{t('Quotation draft & pricing review','مراجعة مسودة عرض السعر والتسعير')}</h3><p>{quote.customerName||t('Customer not identified','لم يتم تحديد العميل')} · {review.currency||t('Currency missing','العملة مفقودة')} · {quote.items.length} {t('items','أصناف')} · {review.warningCount} {t('warnings','تنبيهات')}</p>{review.customer.customerId?<p><strong>{t('Customer match','مطابقة العميل')}:</strong> {review.customer.customerName} · {Math.round(review.customer.matchConfidence*100)}%</p>:quote.customerName?<p><strong>{t('Customer match','مطابقة العميل')}:</strong> {t('No unique exact saved customer match. The draft will remain unlinked until manual review.','لا توجد مطابقة دقيقة وفريدة مع عميل محفوظ. ستبقى المسودة غير مرتبطة حتى المراجعة اليدوية.')}</p>:null}<div className="product-import-mapping-note"><Icon name="file"/><span>{sourceCommercialTerms(quote).length?<><strong>{t('Commercial terms explicitly found in the source','الشروط التجارية الموجودة صراحةً في المصدر')}:</strong> <bdi dir="auto">{sourceCommercialTerms(quote).join(' · ')}</bdi></>:t('No commercial terms were explicitly found in the source. LOUREX will keep them blank in this AI draft instead of inserting company/customer defaults silently.','لم يتم العثور على شروط تجارية صريحة في المصدر. سيبقي LOUREX هذه الحقول فارغة في مسودة AI بدل إدخال إعدادات الشركة/العميل بصمت.')}</span></div><div className="product-import-table-wrap"><table className="product-import-table"><thead><tr><th>{t('Product','الصنف')}</th><th>{t('Qty','الكمية')}</th><th>{t('Match','المطابقة')}</th><th>{t('Price','السعر')}</th><th>{t('Cost','التكلفة')}</th><th>{t('Margin','الهامش')}</th><th>{t('Review','المراجعة')}</th></tr></thead><tbody>{quote.items.map((item,index)=>{const row=review.items[index];return <tr key={`${item.sku}-${index}`}><td><strong><bdi dir="auto">{item.descriptionEn||item.descriptionAr||item.sku}</bdi></strong>{item.sku?<small style={{display:'block'}}><bdi dir="ltr">{item.sku}</bdi></small>:null}</td><td><bdi dir="ltr">{item.quantity} {item.unit||'—'}</bdi>{item.quantityConfidence?<small style={{display:'block'}}>{Math.round(item.quantityConfidence*100)}%</small>:null}</td><td>{row?.matchedItemId?<><span>{row.matchedItemName}</span><small style={{display:'block'}}>{Math.round(row.matchConfidence*100)}%</small></>:row?.matchedItemName?<><span>{row.matchedItemName}</span><small style={{display:'block'}}>{t('Likely match — not linked automatically','مطابقة محتملة — لا يتم ربطها تلقائيًا')}</small></>:t('Unknown','غير معروف')}</td><td>{row?.effectiveUnitPrice?<><bdi dir="ltr">{row.effectiveUnitPrice} {review.currency||'?'}</bdi><small style={{display:'block'}}>{priceSourceLabel(row.priceSource)}{row.suggestedPrice&&row.suggestedPrice!==row.effectiveUnitPrice?` · ${t('Policy','السياسة')}: ${row.suggestedPrice}`:''}</small></>:'—'}</td><td>{row?.cost?<bdi dir="ltr">{row.cost} {row.costCurrency||'?'}</bdi>:'—'}</td><td>{row?.marginPercent?<bdi dir="ltr">{row.marginPercent}%</bdi>:'—'}</td><td>{row?.warnings.length?row.warnings.map(warning=><small key={warning} style={{display:'block'}}>{quoteWarningLabel(warning)}</small>):<span>{t('Ready','جاهز')}</span>}{item.quantityNote?<small style={{display:'block'}}><bdi dir="auto">{item.quantityNote}</bdi></small>:null}</td></tr>;})}</tbody></table></div><Field label={t('Pricing command','أمر التسعير')} hint={t('Margin 15%, use last customer price, raise prices 4%, or use company pricing policy. AI interprets the intent; LOUREX calculates locally.','هامش 15%، استخدم آخر سعر للعميل، ارفع الأسعار 4%، أو استخدم سياسة تسعير الشركة. AI يفسر المقصود وLOUREX يحسب محليًا.')}><Input disabled={busy} value={this.state.quoteCommand} onChange={(event:any)=>this.setState({quoteCommand:event.target.value,quoteCommandMessage:''})} onKeyDown={(event:any)=>{if(event.key==='Enter'){event.preventDefault();void this.applyQuoteCommand();}}}/></Field><div className="ta-customer-modal-actions ai-workflow-actions"><Button disabled={busy||!this.state.quoteCommand.trim()} onClick={()=>void this.applyQuoteCommand()}>{t('Apply pricing command','تطبيق أمر التسعير')}</Button><Button variant="primary" disabled={busy} onClick={()=>void this.saveQuote()}>{t('Confirm & Save Quotation Draft','تأكيد وحفظ مسودة عرض السعر')}</Button></div>{this.state.quoteCommandMessage?<p role="status">{this.state.quoteCommandMessage}</p>:null}<p>{review.blockingAttentionCount?t(`${review.blockingAttentionCount} line(s) need explicit manual attention before finalizing later. Saving here creates a draft only.`,`${review.blockingAttentionCount} سطر يحتاج انتباهًا يدويًا صريحًا قبل الإصدار لاحقًا. الحفظ هنا ينشئ مسودة فقط.`):t('Deterministic pricing review found no blocking attention flags. Saving still creates a draft only.','لم تجد مراجعة التسعير الحتمية مؤشرات انتباه مانعة. الحفظ يبقى لمسودة فقط.')}</p></div>:null}
     {this.state.stage==='done'?<div role="status" className="lourex-ai-saved-result"><Icon name="check"/><strong>{this.state.savedLabel}</strong>{this.state.savedReference?<Button variant="primary" onClick={()=>{const reference=this.state.savedReference;this.setState({open:false});window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-global-search-open',{detail:{query:reference,autoOpenUnique:true}})),0);}}>{t('Open saved record','فتح السجل المحفوظ')}</Button>:null}</div>:null}{this.state.error?<div role="alert">{this.state.error}</div>:null}<div className="ta-customer-modal-actions ai-workflow-actions"><Button disabled={busy} onClick={()=>this.setState({view:'menu',stage:'idle',error:''})}>{t('Back','رجوع')}</Button></div></div>;};
-  render():any{return <>{this.props.compact?<Button icon="upload" disabled={this.props.disabled} onClick={()=>{this.setState({open:true});this.resetInbox(this.props.defaultRoute??null);}}>{t('Create from file','إنشاء من ملف')}</Button>:<div className="lourex-ai-tools"><Button icon="upload" onClick={()=>{this.setState({open:true});this.resetInbox(null);}}>{t('AI Inbox','صندوق AI')}</Button><Button icon="bot" onClick={this.openMenu}>{t('AI Tools','أدوات AI')}</Button><Button icon={this.state.listening?'x':'microphone'} onClick={this.voice}>{this.state.listening?t('Stop','إيقاف'):t('Voice','صوت')}</Button></div>}{this.state.error&&!this.state.open?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}<Modal portal appearance="assistant" open={this.state.open} title={this.state.view==='inbox'?t('LOUREX AI Inbox','صندوق LOUREX AI'):this.state.view==='search'?t('LOUREX Business Search','بحث أعمال LOUREX'):this.state.view==='history'?t('AI Job History','سجل مهام AI'):t('LOUREX AI Workflows','مسارات LOUREX AI')} size="lg" onClose={this.close}>{this.state.view==='menu'?this.renderMenu():this.state.view==='search'?this.renderSearch():this.state.view==='history'?this.renderHistory():this.renderInbox()}</Modal></>;}
+  render():any{return <>{this.props.compact?<Button icon="upload" disabled={this.props.disabled} onClick={()=>{this.setState({open:true});this.resetInbox(this.props.defaultRoute??null);}}>{t('Create from file','إنشاء من ملف')}</Button>:<div className="lourex-ai-tools"><Button icon="upload" onClick={()=>{this.setState({open:true});this.resetInbox(null);}}>{t('AI Inbox','صندوق AI')}</Button><Button icon="bot" onClick={this.openMenu}>{t('AI Tools','أدوات AI')}</Button><Button icon={this.state.listening?'x':'microphone'} onClick={this.voice}>{this.state.listening?t('Stop','إيقاف'):this.state.voiceStarting?t('Starting…','جارٍ البدء…'):t('Voice','صوت')}</Button></div>}{this.state.error&&!this.state.open?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}<Modal portal appearance="assistant" open={this.state.open} title={this.state.view==='inbox'?t('LOUREX AI Inbox','صندوق LOUREX AI'):this.state.view==='search'?t('LOUREX Business Search','بحث أعمال LOUREX'):this.state.view==='history'?t('AI Job History','سجل مهام AI'):t('LOUREX AI Workflows','مسارات LOUREX AI')} size="lg" onClose={this.close}>{this.state.view==='menu'?this.renderMenu():this.state.view==='search'?this.renderSearch():this.state.view==='history'?this.renderHistory():this.renderInbox()}</Modal></>;}
 }

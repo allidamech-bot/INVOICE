@@ -4,6 +4,7 @@ import type { AiFinanceContext } from './ai-finance.js';
 import { validateFxRate } from './fx-rates.js';
 import { isIsoDate, todayIso } from './id.js';
 import { buildAiFinanceContext } from './ai-finance.js';
+import { scopeVault } from './workspaces.js';
 import { decimalToScaled } from './money.js';
 import { expenseAccountingIsValid, inventoryBalances, purchaseAccountingIsValid, spendByCurrency } from './operations.js';
 import { supplierPayablesByCurrency } from './payables.js';
@@ -33,11 +34,22 @@ export interface AdvisorResponseContract {
   missingDataPolicy:'state-missing-data-never-invent';
   actionPolicy:'preview-only-user-approval-required';
 }
+export interface AdvisorDocumentRecord {
+  id:string;number:string;kind:VaultPayload['documents'][number]['kind'];
+  state:'saved-draft'|'issued'|'voided';status:'draft'|'final';lifecycleStatus:'active'|'voided';
+  issueDate:string;createdAt:string;updatedAt:string;
+}
+export interface AdvisorDocumentRegistry {
+  total:number;invoices:{total:number;savedDrafts:number;issued:number;voided:number};
+  recent:AdvisorDocumentRecord[];matched:AdvisorDocumentRecord[];
+  requestedNumber:string;recentTruncated:boolean;source:'scoped-saved-documents';
+}
 export interface AdvisorDataV2 {
   version:2;
   basis:'deterministic-advisor-data-v2';
   available:boolean;
   asOf:string;
+  documents:AdvisorDocumentRegistry;
   responseContract:AdvisorResponseContract;
   sales:{today:AiFinanceContext['today'];monthToDate:AiFinanceContext['monthToDate'];comparison:AiFinanceContext['comparisons']['monthToDateVsPreviousMonth'];};
   receivables:{byCurrency:AiFinanceContext['receivables'];highestOverdueByCurrency:AiFinanceContext['highestOverdueByCurrency'];};
@@ -67,8 +79,28 @@ function quantityState(value:string):'positive'|'zero'|'negative'{try{const scal
 function itemName(item:VaultPayload['savedItems'][number]):string{return(item.descriptionEn||item.descriptionAr||item.sku||'Unnamed item').trim();}
 function evidence(id:string,area:AdvisorArea,source:string,fact:string,severity:AdvisorEvidenceSeverity='info',currency='',amount='',count=0):AdvisorEvidence{return{id,area,source,fact,severity,currency,amount,count};}
 function datedOnOrBefore(value:string,asOf:string):boolean{return /^\d{4}-\d{2}-\d{2}/.test(value)&&value.slice(0,10)<=asOf;}
+/** Exact stored-document facts, not inferred from issued sales or receivables.
+ * A bounded recent list never limits exact number searches or the total counts. */
+export function buildAdvisorDocumentRegistry(vault:VaultPayload,asOf:string,query=''):AdvisorDocumentRegistry{
+  const source=scopeVault(vault).documents.filter(row=>!row.createdAt||datedOnOrBefore(row.createdAt,asOf));
+  const records:AdvisorDocumentRecord[]=source.map((doc):AdvisorDocumentRecord=>({
+    id:doc.id,number:String(doc.number||'').trim(),kind:doc.kind,
+    state:doc.lifecycleStatus==='voided'?'voided':doc.status==='final'?'issued':'saved-draft',
+    status:doc.status,lifecycleStatus:doc.lifecycleStatus,
+    issueDate:String(doc.issueDate||'').slice(0,10),createdAt:String(doc.createdAt||''),updatedAt:String(doc.updatedAt||''),
+  })).filter(row=>Boolean(row.id&&row.number)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.createdAt.localeCompare(a.createdAt)||a.number.localeCompare(b.number));
+  const numberTokens=String(query||'').match(/[A-Za-z]{2,12}[-/][A-Za-z0-9][A-Za-z0-9_/-]{3,39}/g)||[];
+  const requestedNumber=numberTokens.length?numberTokens[0]!.toUpperCase():'';
+  const matched=requestedNumber?records.filter(row=>row.number.toUpperCase()===requestedNumber).slice(0,5):[];
+  const invoiceRows=records.filter(row=>row.kind==='invoice');
+  return{
+    total:records.length,
+    invoices:{total:invoiceRows.length,savedDrafts:invoiceRows.filter(row=>row.state==='saved-draft').length,issued:invoiceRows.filter(row=>row.state==='issued').length,voided:invoiceRows.filter(row=>row.state==='voided').length},
+    recent:records.slice(0,16),matched,requestedNumber,recentTruncated:records.length>16,source:'scoped-saved-documents'
+  };
+}
 function redactedAdvisor(asOf:string):AdvisorDataV2{return{
-  version:2,basis:'deterministic-advisor-data-v2',available:false,asOf,responseContract:RESPONSE_CONTRACT,
+  version:2,basis:'deterministic-advisor-data-v2',available:false,asOf,responseContract:RESPONSE_CONTRACT,documents:{total:0,invoices:{total:0,savedDrafts:0,issued:0,voided:0},recent:[],matched:[],requestedNumber:'',recentTruncated:false,source:'scoped-saved-documents'},
   sales:{today:[],monthToDate:[],comparison:[]},receivables:{byCurrency:[],highestOverdueByCurrency:[]},payables:{byCurrency:[]},
   treasury:{accounts:[],activityByCurrency:[],unallocatedMovements:0},expenses:{byCurrency:[],count:0},inventory:{totalItems:0,positiveItems:0,zeroItems:0,negativeItems:0,rows:[]},
   purchasing:{byCurrency:[],postedPurchases:0,draftPurchases:0,reversedPurchases:0,costAlerts:[],supplierComparisons:[]},
@@ -77,10 +109,11 @@ function redactedAdvisor(asOf:string):AdvisorDataV2{return{
   limitations:['personal-scope-excludes-business-data','no-cross-currency-total-without-deterministic-fx-result','health-is-qualitative-not-a-numeric-score']
 };}
 
-export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,business:AiBusinessContext,scope:'business'|'personal'|'temporary'='business'):AdvisorDataV2{
+export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,business:AiBusinessContext,scope:'business'|'personal'|'temporary'='business',documentQuery=''):AdvisorDataV2{
   const asOf=business.asOf||finance.asOf||todayIso();
   if(scope==='personal')return redactedAdvisor(asOf);
   if(!isIsoDate(asOf))throw new Error('Advisor snapshot date is invalid.');
+  const documents=buildAdvisorDocumentRegistry(vault,asOf,documentQuery);
   const financeDateAligned=finance.asOf===asOf;
   if(!financeDateAligned)finance=buildAiFinanceContext({documents:vault.documents,payments:vault.payments,customers:vault.customers,activeDocument:null},'',asOf);
 
@@ -168,7 +201,7 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
     ...evidenceRows.filter(row=>!requiredEvidence.has(row.id))
   ].slice(0,32);
   return{
-    version:2,basis:'deterministic-advisor-data-v2',available:true,asOf,responseContract:RESPONSE_CONTRACT,
+    version:2,basis:'deterministic-advisor-data-v2',available:true,asOf,responseContract:RESPONSE_CONTRACT,documents,
     sales:{today:finance.today.slice(0,12),monthToDate:finance.monthToDate.slice(0,12),comparison:finance.comparisons.monthToDateVsPreviousMonth.slice(0,12)},
     receivables:{byCurrency:finance.receivables.slice(0,12),highestOverdueByCurrency:finance.highestOverdueByCurrency.slice(0,12)},
     payables:{byCurrency:payables.slice(0,12)},treasury:{accounts:treasuryAccounts,activityByCurrency,unallocatedMovements},expenses:{byCurrency:expensesByCurrency,count:expensesAsOf.filter(expenseAccountingIsValid).length},
