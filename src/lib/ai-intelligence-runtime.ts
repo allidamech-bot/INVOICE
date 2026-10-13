@@ -524,7 +524,7 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.setState({__workspaceTurnPending:true});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
     try{
       await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
@@ -722,7 +722,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }else if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
     }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
-    finally{host.__foundationTurnBusy=false;await recordDiagnostic(host,'turn',started,turnScope);}
+    finally{host.__foundationTurnBusy=false;host.setState({__workspaceTurnPending:false});await recordDiagnostic(host,'turn',started,turnScope);}
   };
 }
 
