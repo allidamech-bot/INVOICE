@@ -11,12 +11,12 @@ test('F16 multi-page scanned PDF image requests preserve every page in source or
  assert.equal(checked.length,3);
  assert.deepEqual(checked.map(p=>p.fileName),['rfq.pdf (page 1 of 3)','rfq.pdf (page 2 of 3)','rfq.pdf (page 3 of 3)']);
  assert.equal(checked.every(p=>p.kind==='image'&&p.mimeType==='image/jpeg'),true);
- assert.equal(MAX_VISION_PDF_PAGES,3);
+ assert.equal(MAX_VISION_PDF_PAGES,8);
  assert.equal(MAX_VISION_PDF_BASE64_CHARS,2600000);
 });
 test('F16 OCR aborts partial/out-of-order PDF pages instead of silently omitting source rows',()=>{
  for(const pages of [[],[page(1,2)],[page(2,2),page(1,2)],[page(1,3),page(2,2)],
-  Array.from({length:4},(_,i)=>page(i+1,4)),[page(1,1,'x'.repeat(120))],
+  Array.from({length:9},(_,i)=>page(i+1,9)),[page(1,1,'x'.repeat(120))],
   [page(1,1,'/9j/abc@&')],[{...page(1,1),mimeType:'image/png'}]]){
    assert.equal(cleanVisionPageAttachments({kind:'pages',pages}),null);
  }
@@ -46,9 +46,33 @@ test('F16 client only emits complete image pages; large PDFs stay on native-docu
  assert.match(reader,/pageCount:rendered\.length/);
  assert.match(reader,/if\(total>2_600_000\)throw new Error\('SOURCE_INCOMPLETE/);
  assert.match(reader,/payload=\{kind:'pages',mimeType:'application\/pdf',pages\}/);
- assert.match(pdf,/if\(pdf\.numPages>3\)return null/);
+ assert.match(pdf,/if\(pdf\.numPages>8\)return null/);
  assert.match(pdf,/for\(let index=1;index<=pdf\.numPages;index\+\+\)/);
  assert.match(pdf,/if\(blobs\.length!==pdf\.numPages\)throw/);
  assert.match(pdf,/canvas\.toBlob\(resolve,'image\/jpeg'/);
  assert.match(pdf,/pdf\.destroy\(\)/);
+});
+
+test('F16 four to eight scanned pages are accepted intact, with per-page and total budgets',()=>{
+ for(const count of [4,5,6,7,8]){
+  const pages=Array.from({length:count},(_,i)=>page(i+1,count));
+  const output=cleanVisionPageAttachments({kind:'pages',pages,fileName:'catalog.pdf'});
+  assert.equal(output?.length,count,'never silently drop a scanned page');
+  assert.equal(output[0].fileName,'catalog.pdf (page 1 of '+count+')');
+  assert.equal(output.at(-1).fileName,'catalog.pdf (page '+count+' of '+count+')');
+  const missing=pages.filter(p=>p.index!==Math.floor(count/2));
+  assert.equal(cleanVisionPageAttachments({kind:'pages',pages:missing}),null,'missing middle page must fail');
+ }
+ assert.equal(cleanVisionPageAttachments({kind:'pages',pages:Array.from({length:9},(_,i)=>page(i+1,9))}),null);
+ assert.equal(cleanVisionPageAttachments({kind:'pages',pages:Array.from({length:8},(_,i)=>page(i+1,8,'/9j/'+'A'.repeat(400_000)))}),null,'8-page oversized set is not partially accepted');
+});
+test('F16 extended OCR remains capped by actual free model image support',async()=>{
+ const [router,pdf]=await Promise.all([
+   readFile(new URL('../api/_ai/router.js',import.meta.url),'utf8'),
+   readFile(new URL('../src/lib/pdf-source.ts',import.meta.url),'utf8')
+ ]);
+ assert.match(router,/maxImages:8/,'at least one free vision model must accept eight images');
+ assert.match(router,/model\.maxImages>=imageCount/,'never send eight images to a three-image model');
+ assert.match(pdf,/if\(pdf\.numPages>8\)return null/,'PDFs above eight pages keep native document routing');
+ assert.match(pdf,/if\(blobs\.length!==pdf\.numPages\)throw/,'raster page count must match all source pages');
 });

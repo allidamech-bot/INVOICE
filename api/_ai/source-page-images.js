@@ -3,7 +3,7 @@
  * and ordered; an invalid/oversized page aborts the entire source. The server
  * never silently keeps just the first page or creates a saved record here.
  */
-export const MAX_VISION_PDF_PAGES=3;
+export const MAX_VISION_PDF_PAGES=8;
 export const MAX_VISION_PDF_BASE64_CHARS=2_600_000;
 export function cleanVisionPageAttachments(body){
   if(body?.kind!=='pages')return null;
