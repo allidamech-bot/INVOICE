@@ -38,4 +38,6 @@ test('F16 generated browser UI uses verified progress rather than just file clas
  assert.match(script,/fileProgressLabel\(rows,row,instance\.props\.language==='ar'\)/);
  assert.match(generated,/import \{fileProgressLabel\} from '\.\.\/lib\/ai-file-progress\.js'/);
  assert.match(generated,/fileProgressLabel\(rows,row,instance\.props\.language==='ar'\)/);
+ assert.match(generated,/validateConversationFiles\(rows\.map\(row=>row\.file\)\);instance\.__lourexLastConversationSources=\[\]/);
+ assert.match(generated,/instance\.__lourexLastConversationSourceScope='';__lourexSetConversationSources\(\[\]\);instance\.setState/);
 });
