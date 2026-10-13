@@ -31,6 +31,7 @@ test('F13 only a verified scoped, explicit stamped approval can appear in review
  const {vault,kernel,scope,proposal}=fixture();
  const reviewed={...structuredClone(proposal),foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
  kernel.artifact.proposal=reviewed;
+ kernel.missions=[createMission(scope,reviewed)];
  const result=resumableWorkingApproval(kernel,vault);
  assert.equal(result.foundationApproval.id,reviewed.foundationApproval.id);
  assert.equal(result.items[0].descriptionEn,'A');
