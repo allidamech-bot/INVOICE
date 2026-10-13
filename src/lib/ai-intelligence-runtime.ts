@@ -628,7 +628,7 @@ export function installIntelligenceRuntime(host:Host):void{
       // editing follow-ups against the full scoped kernel draft BEFORE asking a
       // general model, which could otherwise omit old lines or trade terms.
       const draftOnly= currentConversationMode(host)==='controller'&&Boolean(kernel.artifact)&&!host.state.proposal;
-      const saveWorkingDraft=/^(?:احفظها|احفظ المسودة|احفظ العرض|اعتمد النسخة|اعتمد المسودة|اعتمد عرض السعر|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?|approve (?:the|this) draft)[.!؟\s]*$/iu.test(message);
+      const saveWorkingDraft=/^(?:(?:تمام|طيب|أوكي|اوكي)[،,]?\s*)?(?:احفظ|احفظه|احفظها|احفظ المسودة|احفظ العرض|احفظ عرض السعر|احفظ هذا العرض|اعتمد النسخة|اعتمد المسودة|اعتمد عرض السعر|جهز الحفظ|جهّز الحفظ|حضّر الحفظ|حضر الحفظ|prepare (?:to )?save(?: this draft)?|save (?:it|this draft)|review (?:and )?save(?: this draft)?|approve (?:the|this) draft)[.!؟\s]*$/iu.test(message);
       if(draftOnly&&saveWorkingDraft){
         const p=structuredClone(kernel.artifact!.proposal) as any;
         delete p.foundationApproval;
