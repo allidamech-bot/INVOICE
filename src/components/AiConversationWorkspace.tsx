@@ -52,7 +52,7 @@ function markdownParagraphs(children:any[]):any[] {
 }
 const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
-const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy);
+const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||host.__foundationTurnBusy);
 function dispatch(host:Host,command:WorkspaceCommand){void updateIntelligenceWorkspace(host,command);}
 const aiUiAr=(host:Host):boolean=>currentAiInterfaceLanguage(host)==='ar';
 function CardRows({card}:{card:WorkspaceCard}):any {
@@ -508,6 +508,11 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(typeof node==='string')return workspaceText(aiUiAr(host),node);
     if(!react.isValidElement(node))return node;
     const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    if(cn.split(' ').includes('lourex-ai-send'))return react.cloneElement(node,{
+      disabled:Boolean(node.props.disabled||host.state.__workspaceTurnPending),
+      'data-turn-pending':host.state.__workspaceTurnPending?'true':'false',
+      'aria-busy':Boolean(host.state.__workspaceTurnPending)
+    },...children);
     if(cn.split(' ').includes('lourex-ai-busy'))return react.cloneElement(node,undefined,label(aiUiAr(host),'LOUREX AI is reviewing…','LOUREX AI يراجع الطلب…'));
     if(cn.split(' ').includes('lourex-ai-premium-textarea')){
       const prompt=label(aiUiAr(host),'Ask LOUREX…','اسأل LOUREX…');
