@@ -89,7 +89,8 @@ test('F01 canonical bridge creates actual File from A4 page canvases without pri
  assert.match(bridge,/data-pagination-ready/);
  assert.match(ui,/prepareAiPdfPreview\(kernel,vault/);
  assert.match(ui,/__LOUREX_BUILD_CHAT_PDF__/);
- assert.match(ui,/<TemplateRenderer document=\{pdfSource\.document\}/);
+ assert.match(ui,/import\('\.\.\/templates\/TemplateRenderer\.js'\)/);
+ assert.match(ui,/<PdfRenderer document=\{pdfSource\.document\}/);
  assert.match(ui,/href=\{pdfResult\.url\} download=\{pdfResult\.name\}/);
  assert.match(ui,/<iframe title=\{label\(ar,'LOUREX PDF file preview'/);
  assert.match(ui,/normalizeAiConversationMode\(kernel\.mode\)==='controller'/);
