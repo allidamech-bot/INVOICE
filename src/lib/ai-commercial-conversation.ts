@@ -20,6 +20,13 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
  const subject=/(?:\bpdf\b|بي\s*دي\s*[إأا]ف|معاين[ةه]|(?:ال)?فاتور[ةه]|عرض\s*(?:ال)?سعر|(?:ال)?مستند|(?:ال)?وثيق[ةه]|\b(?:invoice|quotation|document|quote|preview)\b)/iu.test(text);
  // A question about a document or report navigation is not PDF authorization.
  if(!strict&&(!action||!subject||/^(?:افتح|أفتح)\s+(?:التقرير|تقرير)/iu.test(text)))return null;
+ // This read-only shortcut may satisfy only one exact reference. Requests
+ // combining preview with modification, issue, posting or deletion must not
+ // silently execute just the preview half of a multi-step instruction.
+ if(/(?:\b(?:delete|remove|finalize|issue|post|modify|edit|update)\b|(?:احذف|أحذف|امسح|عدّل|عدل|غيّر|غير|اصدر|أصدر|رحّل|رحل|اعتمد)(?:\s|$))/iu.test(text) &&
+    !/(?:لا\s+(?:تحذف|تعدل|تعدّل|تغير|تغيّر|تصدر|ترحل|تعتمد)|دون\s+(?:تعديل|حفظ|اعتماد|إصدار))\b/iu.test(text))return null;
+ const referencedNumbers=[...text.matchAll(/\b[A-Z]{2,10}[-_]\d{2,}(?:[-_]\d{1,})+\b/giu)].map(m=>m[0]!.toUpperCase());
+ if(new Set(referencedNumbers).size>1)throw new Error('Document reference is ambiguous. Choose exactly one saved document.');
  const scoped=scopeVault(vault);
  const escaped=(value:string)=>value.replace(/[.*+?^$()|[\]{}]/g,'\\$&');
  const contains=(reference:string)=>{
