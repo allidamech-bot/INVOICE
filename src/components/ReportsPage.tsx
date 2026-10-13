@@ -11,7 +11,7 @@ import { TaxVatCenter } from './TaxVatCenter.js';
 import { ProfitabilityReports } from './ProfitabilityReports.js';
 import { Button, Icon, Input, Select } from './UI.js';
 
-interface Props{company:CompanySettings;customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];suppliers:Supplier[];purchases:PurchaseRecord[];items:SavedItem[];}
+interface Props{company:CompanySettings;customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];suppliers:Supplier[];purchases:PurchaseRecord[];items:SavedItem[];initialPeriod?:{from:string;to:string};}
 type PeriodPreset='month'|'quarter'|'year'|'all';
 interface State{view:'performance'|'profitability'|'tax';from:string;to:string;currency:string;query:string;preset:PeriodPreset|null;}
 
@@ -39,7 +39,7 @@ function csvCell(value:string|number):string{
 }
 
 export class ReportsPage extends React.Component<Props,State>{
-  state:State={view:'performance',from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:'',preset:'year'};
+  state:State={view:'performance',from:this.props.initialPeriod?.from||`${todayIso().slice(0,4)}-01-01`,to:this.props.initialPeriod?.to||todayIso(),currency:'ALL',query:'',preset:this.props.initialPeriod?null:'year'};
 
   componentDidMount():void{ensureTaxVatStyles();window.addEventListener('afterprint',this.afterPrint);}
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-financial-report');}
