@@ -9,7 +9,7 @@ export async function reliabilityRuntimeModules(database){
 export async function compiledReliabilityHarness(vault,router=async()=>null){
  const records=new Map(),database={getRecord:async id=>records.get(id)||null,putRecord:async r=>records.set(r.id,structuredClone(r))};
  const modules=await reliabilityRuntimeModules(database);
- for(const name of ['ai-conversation-kernel','ai-conversation-mode','ai-foundation-approval','ai-assistant-foundation','workspaces','ai-workspace-model','ai-document-review','ai-mission-runner','ai-commercial-conversation'])Object.assign(modules,await import(`../../dist/src/lib/${name}.js`));
+ for(const name of ['ai-conversation-kernel','ai-conversation-mode','ai-foundation-approval','ai-assistant-foundation','workspaces','ai-workspace-model','ai-document-review','ai-mission-runner','ai-commercial-conversation','ai-draft-resumption')Object.assign(modules,await import(`../../dist/src/lib/${name}.js`));
  const key='__storeFixture'+crypto.randomUUID().replaceAll('-','');globalThis[key]=database;
  let source=await readFile(new URL('../../dist/src/storage/assistant-store.js',import.meta.url),'utf8');source=source.replace(/import .* from '.*';/g,line=>line.includes("'./db.js'")?`const {getRecord,putRecord}=globalThis.${key};`:line.replace("'../lib/ai-conversation-kernel.js'",JSON.stringify(new URL('../../dist/src/lib/ai-conversation-kernel.js',import.meta.url).href)).replace("'../lib/ai-conversation-mode.js'",JSON.stringify(new URL('../../dist/src/lib/ai-conversation-mode.js',import.meta.url).href)));
  const store=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64')+'#'+crypto.randomUUID());delete globalThis[key];
