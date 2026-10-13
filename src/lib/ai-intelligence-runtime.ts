@@ -469,8 +469,9 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
       const ready=mission?pendingMissionProposal(mission):null;
       // Never execute the next action here. Offer only its fresh approved
       // envelope with review reset so each change needs a distinct user click.
-      if(ready&&currentConversationMode(host)==='controller'&&
-        kernelScopeKey(scopeFor(host,(await resumeVaultSession())?.vault||live.vault))===kernelScopeKey(kernel.scope)){
+      const rechecked=ready?await resumeVaultSession():null;
+      if(ready&&rechecked&&currentConversationMode(host)==='controller'&&
+        kernelScopeKey(scopeFor(host,rechecked.vault))===kernelScopeKey(kernel.scope)){
         const label=mission!.steps.find(s=>s.approvalId===ready.foundationApproval?.id)?.label||'';
         const progress=mission!.steps.filter(s=>s.status==='completed').length;
         host.setState((state:any)=>({proposal:ready,review:null,__workspaceReviewedProposal:null,
