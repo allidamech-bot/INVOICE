@@ -81,7 +81,7 @@ function verify(vault:VaultPayload,request:AiCustomerCollectionRequest){
 }
 export function prepareAiCustomerCollection(vault:VaultPayload,request:AiCustomerCollectionRequest):AiCustomerCollectionReview{
  const v=verify(vault,request);
- return{...request,invoiceId:v.invoice.id,workspaceId:v.payment.workspaceId||'default',
+ return{...request,amount:v.payment.amount,invoiceId:v.invoice.id,workspaceId:v.payment.workspaceId||'default',
   branchId:v.payment.branchId||'main',customerId:v.payment.customerId,
   expectedUpdatedAt:v.invoice.updatedAt,evidenceSignature:v.signature,
   beforeRemaining:v.before.remaining,afterRemaining:v.after.remaining,
