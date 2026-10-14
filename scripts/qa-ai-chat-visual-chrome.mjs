@@ -94,6 +94,22 @@ try{
     for(const [name,ratio] of Object.entries(d.actionContrast))assert.ok(ratio>=4.5,'Low text contrast for '+name+' at '+width+': '+ratio);
    assert.ok(d.viewportOverflow<=3,'Page horizontal overflow '+d.viewportOverflow);
  }
+
+ // Simulate iPadOS visualViewport height contraction when the keyboard is up.
+ // We check computed CSS and footer bounds, not native Safari behavior.
+ await send('Emulation.setDeviceMetricsOverride',{width:820,height:1180,deviceScaleFactor:1,mobile:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:4182/'+file});
+ await until(async()=>{const x=await send('Runtime.evaluate',{expression:'document.readyState',returnByValue:true});return x.result?.value==='complete';},12000);
+ const keyboard=await send('Runtime.evaluate',{
+   expression:"(()=>{const p=document.getElementById('lourex-ai-panel');p.style.setProperty('--lxw-viewport-height','540px');p.style.setProperty('--lxw-viewport-top','0px');const box=p.getBoundingClientRect(),composer=p.querySelector('.lourex-ai-compose').getBoundingClientRect();return {top:box.top,bottom:box.bottom,height:box.height,composerBottom:composer.bottom,width:innerWidth};})()",
+   returnByValue:true
+ });
+ const kb=keyboard.result?.value;
+ assert.equal(kb?.width,820,'Keyboard test must use iPad CSS viewport');
+ assert.ok(kb.height>=500&&kb.height<=540,'Chat shell should shrink to the iPad visual viewport: '+JSON.stringify(kb));
+ assert.ok(kb.bottom<=540&&kb.composerBottom<=540,'Composer must remain above the simulated keyboard: '+JSON.stringify(kb));
+ console.log('PASS iPad simulated keyboard viewport: '+JSON.stringify(kb));
+
 }finally{
  ws?.close();
  for(const child of children.reverse())if(child.exitCode===null)child.kill('SIGTERM');
