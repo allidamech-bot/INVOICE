@@ -139,3 +139,24 @@ test('rules: an authenticated account can list only its own business history', a
   const fromBob = await assertSucceeds(getDocs(collection(bob, 'users', 'account-b', 'assistantHistory')));
   assert.equal(fromBob.docs.some((d) => d.id === 'owner-access'), false);
 });
+
+
+test('authorization boundary: a different Firebase UID cannot impersonate the owning workspace', async () => {
+  const target=doc(bob,'users','account-a','qaAuthorization','uid-separation');
+  await assertFails(setDoc(target,{workspaceId:'company-main',branchId:'main',operatorRole:'owner',amount:'100'}));
+  const safe=doc(alice,'users','account-a','qaAuthorization','uid-separation');
+  await assertSucceeds(setDoc(safe,{workspaceId:'company-main',branchId:'main',operatorRole:'owner',amount:'100'}));
+  const stored=await assertSucceeds(getDoc(safe));
+  assert.equal(stored.data().amount,'100');
+});
+
+test('known migration blocker: current UID-only Firestore rules do NOT enforce operator role or branch inside an owner vault', async () => {
+  // Demonstrate the precise current server limitation, without touching production.
+  // Passing this test is NOT evidence of secure independent employee permissions.
+  const target=doc(aliceSecondDevice,'users','account-a','qaAuthorization','uid-separation');
+  await assertSucceeds(setDoc(target,{workspaceId:'company-other',branchId:'foreign-branch',operatorRole:'viewer',amount:'999'}));
+  const saved=await assertSucceeds(getDoc(target));
+  assert.equal(saved.data().operatorRole,'viewer');
+  assert.equal(saved.data().workspaceId,'company-other');
+  assert.equal(saved.data().branchId,'foreign-branch');
+});
