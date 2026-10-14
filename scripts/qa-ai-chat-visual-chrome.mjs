@@ -71,7 +71,11 @@ try{
      "const small=controls.flatMap(s=>Array.from(document.querySelectorAll(s)).filter(e=>e.getBoundingClientRect().height<43).map(e=>({label:e.textContent.trim(),height:Math.round(e.getBoundingClientRect().height)})));",
      "const colors={};for(const [key,s] of [['edit','.lxw-chat-document-controls>button:first-child'],['save','.lxw-document-save'],['createPDF','.lxw-ai-pdf-actions>button'],['preview','.lxw-pdf-preview'],['download','.lxw-pdf-download'],['approve','.lxw-inline-approval-buttons>.primary'],['reject','.lxw-inline-approval-buttons>button:first-child']])colors[key]=style(s).backgroundColor;",
      "const fonts={message:parseFloat(style('.lourex-ai-message').fontSize),review:parseFloat(style('.lxw-review-item dd').fontSize),button:parseFloat(style('.lxw-document-save').fontSize)};",
-     "return {ok:true,width:innerWidth,rtl:RTL,overflows,small,colors,fonts,spacing:{messages:style('.lourex-ai-messages').rowGap,document:style('.lxw-chat-document').rowGap},viewportOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth};",
+     "const p=get('#lourex-ai-panel').getBoundingClientRect(),user=get('.lxw-message-turn.is-user').getBoundingClientRect(),assistant=get('.lourex-ai-message.assistant').getBoundingClientRect(),history=get('.lourex-ai-messages').getBoundingClientRect(),footer=get('.lourex-ai-compose').getBoundingClientRect();",
+     "const position={userRight:Math.round(p.right-user.right),assistantLeft:Math.round(assistant.left-p.left),footerTop:Math.round(footer.top),historyBottom:Math.round(history.bottom)};",
+     "const rgb=c=>c.match(/[0-9.]+/g)?.slice(0,3).map(Number)||[0,0,0],lum=c=>{const v=rgb(c).map(x=>{const y=x/255;return y<=.04045?y/12.92:Math.pow((y+.055)/1.055,2.4)});return v[0]*.2126+v[1]*.7152+v[2]*.0722},contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};",
+     "const actionContrast={};for(const [key,selector] of [['save','.lxw-document-save'],['approve','.lxw-inline-approval-buttons>.primary'],['reject','.lxw-inline-approval-buttons>button:first-child'],['pdf','.lxw-ai-pdf-actions>button'],['preview','.lxw-pdf-preview'],['download','.lxw-pdf-download']]){const cs=style(selector);actionContrast[key]=Math.round(contrast(cs.color,cs.backgroundColor)*10)/10;}",
+     "return {ok:true,width:innerWidth,rtl:RTL,overflows,small,colors,fonts,position,actionContrast,spacing:{messages:style('.lourex-ai-messages').rowGap,document:style('.lxw-chat-document').rowGap},viewportOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth};",
      "})().catch(e=>({error:String(e.stack||e)}))"
    ].join('').replaceAll('RTL',String(rtl));
    const response=await send('Runtime.evaluate',{expression:code,awaitPromise:true,returnByValue:true});
@@ -84,6 +88,10 @@ try{
    assert.ok(d.fonts.message>=15&&d.fonts.review>=12&&d.fonts.button>=13,'Tiny text '+JSON.stringify(d.fonts));
    assert.notEqual(d.colors.approve,d.colors.reject,'Approve and decline must use distinct states');
    assert.notEqual(d.colors.save,d.colors.createPDF,'Save and create PDF must be visually different');
+    assert.ok(d.position.userRight<=60,'User bubble must be on the physical right: '+JSON.stringify(d.position));
+    assert.ok(d.position.assistantLeft<=65,'Assistant reply must be on the physical left: '+JSON.stringify(d.position));
+    assert.ok(d.position.footerTop>=d.position.historyBottom-3,'Composer must follow message region: '+JSON.stringify(d.position));
+    for(const [name,ratio] of Object.entries(d.actionContrast))assert.ok(ratio>=4.5,'Low text contrast for '+name+' at '+width+': '+ratio);
    assert.ok(d.viewportOverflow<=3,'Page horizontal overflow '+d.viewportOverflow);
  }
 }finally{
