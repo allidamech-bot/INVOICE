@@ -188,7 +188,7 @@ test('all three AI import routes revalidate the selected operator inside the vau
   }
   const inbox=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
   assert.match(inbox,/assertAiImportSaveAllowed\(vault,'quotation-draft'\);assertAiInboxQuoteReviewFresh/);
-  assert.match(inbox,/assertAiImportSaveAllowed\(vault,'supplier-purchase-draft'\);const purchase=/);
+  assert.match(inbox,/assertAiImportSaveAllowed\(vault,'supplier-purchase-draft'\);const scoped=scopeVault\(vault\);const purchase=/);
 });
 
 test('draft numbering and offer comparison never include purchases from other branches',async()=>{
