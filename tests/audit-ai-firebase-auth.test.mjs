@@ -94,3 +94,16 @@ test('quote pricing intent accepts the canonical production alias but rejects fo
   assert.equal(denied.statusCode,403);
   assert.equal(denied.body?.code,'ORIGIN_REJECTED');
 });
+
+
+test('AI endpoints reject forged same-origin hints with an untrusted Origin',async()=>{
+  const handlers=[core,advisor,conversation,inbox,customer,supplier,supplierDocument,product,mapping,quote,quotePricing,removeBackground];
+  for(const handler of handlers){
+    const req=request('', 'https://untrusted.example');
+    req.headers['sec-fetch-site']='same-origin';
+    req.headers['x-forwarded-host']='untrusted.example';
+    req.headers['x-original-host']='untrusted.example';
+    const res=response();await handler(req,res);
+    assert.equal(res.statusCode,403,handler.name+' must reject an untrusted explicit Origin');
+  }
+});
