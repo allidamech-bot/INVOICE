@@ -146,7 +146,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   // A complete structured RFQ already contains the source's actual rows.
   // Never re-send only the first 2800 chars to a planner which might silently
   // lose trailing products. Stage the whole verified quote as UNSAVED.
-  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&(sources.some(source=>source.route==='quote_request')||
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&(sources.some(source=>source.route==='quote_request'||source.route==='supplier_purchase')||
     input.context.conversationSources?.some?.((source:any)=>typeof source?.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.length>0))){
     const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
     try{
@@ -154,8 +154,8 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       if(!workingDraft)throw new Error('SOURCE_INCOMPLETE: The RFQ could not be prepared as a complete unsaved quotation.');
       const sourceCount=Array.isArray(input.context.conversationSources)?input.context.conversationSources.length:1;
       const message=input.language==='ar'
-        ?'استخرجت '+workingDraft.items.length+' صنفًا من '+sourceCount+' ملف/ملفات، وجهزت مسودة عرض سعر موحدة داخل المحادثة فقط. لم أحفظها أو أصدرها. أي سعر أو عملة أو وحدة ناقصة تبقى فارغة وتحتاج مراجعتك قبل إنشاء PDF أو طلب الحفظ.'
-        :'Extracted '+workingDraft.items.length+' source lines from '+sourceCount+' attachment(s) into an unsaved quotation working draft. Nothing was saved or issued. Missing prices, currency or units remain blank until reviewed before PDF or save.';
+        ?'استخرجت '+workingDraft.items.length+' صنفًا من '+sourceCount+' ملف/ملفات، وجهزت مسودة عرض سعر داخل المحادثة فقط. لم أحفظها أو أصدرها. تكلفة المورد لا تتحول تلقائيًا إلى سعر بيع: الأسعار الناقصة تحتاج تحديدك، ويمكنك طلب هامش ربح محدد. راجع العميل والعملة والوحدات قبل PDF أو الحفظ.'
+        :'Extracted '+workingDraft.items.length+' source lines from '+sourceCount+' attachment(s) into an unsaved quotation draft. Nothing was saved or issued. Supplier costs never become customer selling prices automatically. Supply a selling price or request an explicit gross margin, and review the buyer, currency and units before PDF or save.';
       return{answer:message,proposal:null,workingDraft,plan,results:[],plannedBy:'local'};
     }catch(error){
       return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
