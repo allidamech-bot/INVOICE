@@ -32,6 +32,8 @@ test('AI Chat: final compiled conversation owns one scoped scroll observer in bo
     'legacy unconditional scroll must not fight the scoped user-preserving observer');
   assert.match(source,/__workspaceSwitchMode=async/);
   assert.match(source,/__workspaceSwitching:true/);
+  assert.match(source,/recentModeThread\.set\(keyFor\(target\),current\.scope\.threadId\)/);
+  assert.match(source,/current\.scope\.accountId!==previous\.scope\.accountId/);
   assert.match(source,/Opening conversation…/);
 });
 
