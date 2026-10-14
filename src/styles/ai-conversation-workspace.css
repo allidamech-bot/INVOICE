@@ -1105,3 +1105,17 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message[d
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document :is(button,a,summary):disabled{
   cursor:not-allowed;opacity:.5;
 }
+
+/* iPad Safari visual viewport resize: preserve visible composer above keyboard. */
+@media(min-width:721px) and (max-width:1024px){
+  html body #root #lourex-ai-panel[data-lourex-workspace='2']{
+    top:calc(var(--lxw-viewport-top,0px) + 8px)!important;
+    bottom:auto!important;
+    height:max(0px,calc(var(--lxw-viewport-height,100dvh) - 16px))!important;
+    max-height:max(0px,calc(var(--lxw-viewport-height,100dvh) - 16px))!important;
+  }
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-compose{
+    flex:0 0 auto!important;
+    min-width:0!important;
+  }
+}
