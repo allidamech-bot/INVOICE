@@ -9,6 +9,7 @@ import {workspaceDrafting} from '../dist/src/lib/ai-workspace-model.js';
 import {requestedSourceMarkup} from '../dist/src/lib/ai-quote-source-draft.js';
 import {workspaceDocument} from '../dist/src/lib/ai-workspace-model.js';
 import {prepareAiPdfPreview} from '../dist/src/lib/ai-pdf-preview.js';
+import {exactSpreadsheetQuote} from '../dist/src/lib/ai-spreadsheet-quote.js';
 
 const metadata={scope:'business',workspaceId:'default',branchId:'main'};
 const scope={...metadata,threadId:'supplier-conversion'};
@@ -75,6 +76,24 @@ test('explicit 3 percent markup produces 10.30, not a 3 percent gross-margin pri
   assert.throws(()=>quoteSourceWorkingDraft([supplierSource(2)],runtime(vault),
     'حوّل عرض المورد إلى عرض سعر بهامش ربح 20% وأضف 3% على الأسعار'),/gross margin OR markup/);
   assert.deepEqual(vault.documents,[]);
+});
+
+test('B1 supplier-classified exact worksheet cannot leak acquisition prices as customer prices',()=>{
+  const vault=emptyVault();
+  const matrix=[['SKU','Description','Quantity','Unit','Unit Price','Currency'],
+    ['SUP-1','Industrial juice',2,'CTN',10,'USD'],
+    ['SUP-2','Industrial water',3,'CTN',20,'USD']];
+  const complete=JSON.stringify(exactSpreadsheetQuote([{name:'Supplier offer',matrix}]));
+  const src={...supplierSource(2,'vendor.xlsx'),quoteSheetCandidate:complete,
+    route:'supplier_purchase'};
+  const empty=quoteSourceWorkingDraft([src],runtime(vault),request);
+  assert.equal(empty.items.length,2);
+  assert.deepEqual(empty.items.map(row=>row.unitPrice),['','']);
+  assert.equal(empty.paymentTerms,'');
+  assert.equal(empty.customerId,'');
+  const priced=quoteSourceWorkingDraft([src],runtime(vault),'حوّل ملف المورد إلى عرض سعر وأضف 3% على الأسعار');
+  assert.deepEqual(priced.items.map(row=>row.unitPrice),['10.30','20.60']);
+  assert.equal(vault.documents.length,0);
 });
 
 test('B1 markup parser requires a price reference and distinguishes both word orders',()=>{
