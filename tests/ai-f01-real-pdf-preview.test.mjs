@@ -92,7 +92,9 @@ test('F01 canonical bridge creates actual File from A4 page canvases without pri
  assert.match(ui,/import\('\.\.\/templates\/TemplateRenderer\.js'\)/);
  assert.match(ui,/<PdfRenderer document=\{pdfSource\.document\}/);
  assert.match(ui,/href=\{pdfResult\.url\} download=\{pdfResult\.name\}/);
- assert.match(ui,/<iframe title=\{label\(ar,'LOUREX PDF file preview'/);
+ assert.doesNotMatch(ui,/<iframe title=\{label\(ar,'LOUREX PDF file preview'/,'avoid blank blob PDF iframe on iPad Safari');
+  assert.match(ui,/className="lxw-ai-pdf-file"/,'real generated file remains downloadable without embedding an unreliable iframe');
+  assert.match(ui,/className="lxw-pdf-preview"/);
  assert.match(ui,/normalizeAiConversationMode\(kernel\.mode\)!=='controller'\)return/);
  const css=await readFile(new URL('../src/styles/a4-mobile-print-v73.css',import.meta.url),'utf8');
  const vercel=await readFile(new URL('../vercel.json',import.meta.url),'utf8');
