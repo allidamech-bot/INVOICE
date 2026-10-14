@@ -1,4 +1,6 @@
 import type { Customer, VaultPayload } from '../types.js';
+import { buildQuoteAiReview, type QuoteAiSourceDraft, type QuoteAiReview } from './quote-ai-review.js';
+import { scopeVault } from './workspaces.js';
 
 /**
  * AI Inbox may propose an existing party, but that match is not authority.
@@ -29,4 +31,32 @@ export function assertAiInboxQuoteProductScope(vault: VaultPayload, itemId: stri
 export function aiInboxUnlinkedCustomerNote(name: string): string {
   const safe=String(name||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,160);
   return safe?'Customer identified in AI source (NOT linked to a customer record; verify before issuing): '+safe:'';
+}
+
+/**
+ * An AI preview is not permission to reuse stale customer links, costs or
+ * automatically suggested prices. Check the complete reviewed pricing against
+ * the latest scoped vault BEFORE reserving a document number or writing rows.
+ * AI instructions may provide data, but cannot bypass this confirmation.
+ */
+export function assertAiInboxQuoteReviewFresh(vault:VaultPayload,draft:QuoteAiSourceDraft,review:QuoteAiReview):void {
+  const latest=buildQuoteAiReview(scopeVault(vault),draft);
+  const row=(value:QuoteAiReview['items'][number])=>({
+    matchedItemId:value.matchedItemId,
+    matchBasis:value.matchBasis,
+    effectiveUnitPrice:value.effectiveUnitPrice,
+    priceSource:value.priceSource,
+    cost:value.cost,
+    costCurrency:value.costCurrency,
+    suggestedPrice:value.suggestedPrice,
+    warnings:value.warnings
+  });
+  const fingerprint=(value:QuoteAiReview)=>JSON.stringify({
+    currency:value.currency,customerId:value.customer.customerId,
+    customerBasis:value.customer.matchBasis,
+    items:value.items.map(row),warningCount:value.warningCount,
+    blockingAttentionCount:value.blockingAttentionCount
+  });
+  if(!review||fingerprint(latest)!==fingerprint(review))
+    throw new Error('Quotation source, customer match or pricing changed. Refresh and review every line before saving.');
 }
