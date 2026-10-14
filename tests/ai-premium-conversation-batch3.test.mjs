@@ -22,7 +22,7 @@ test('Premium composer supports multiline keyboard-safe sending and explicit sto
   for(const token of ['lourex-ai-premium-textarea','event.shiftKey','isComposing','requestSubmit','__lourexStopConversation','Retry','Re-ask','Edit','Copy'])assert.match(source,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   assert.match(source,/max-height:132px/);
   assert.match(source,/min-height:44px/);
-  assert.match(source,/scrollTop=box\.scrollHeight/);
+  assert.doesNotMatch(source,/scrollTop=box\.scrollHeight/,'conversation workspace now owns intentional bottom following');
   assert.match(source,/lourex-ai-compose-bridge/,'legacy input bridge must remain for existing AI tools and voice');
   assert.match(lifecycle,/lourex-ai-attachment-inputs/,'file/camera controls must not become direct form inputs and break the legacy voice selector');
 });
