@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - 'src/components/AiWorkflowTools.tsx'
+      - 'src/components/SupplierDocumentImport.tsx'
+      - 'src/components/ProcurementAiCompare.tsx'
       - 'src/lib/ai-tool-client.ts'
       - 'src/lib/ai-workflow-quote-guard.ts'
       - 'src/styles/ai-conversation-workspace.css'
@@ -48,5 +50,8 @@ jobs:
           tests/ai-f18-multi-source-quote.test.mjs
           tests/audit-ai-branch-isolation.test.mjs
           tests/audit-ai-firebase-auth.test.mjs
+          tests/b02-supplier-import-integrity.test.mjs
+          tests/procurement-ai-consistency-v450.test.mjs
+          tests/quote-ai-source-faithful-v450.test.mjs
       - name: Final AI tool modal visual contract (compiled CSS, four viewports)
         run: node scripts/qa-ai-tool-modal-chrome.mjs
