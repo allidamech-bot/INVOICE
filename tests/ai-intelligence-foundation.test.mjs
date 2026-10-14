@@ -178,7 +178,7 @@ test('conversational undo receives a fresh review and rejection cannot restore a
  await h.ask('احفظها');assert.ok(h.state.proposal?.foundationApproval?.id);assert.notEqual(h.state.proposal.foundationApproval.id,original);
  const approved=h.state.proposal;h.state.proposal=null;await runtime.dismissIntelligenceWorkspace(h,approved);
  const persisted=await store.loadAssistantState(session.key);assert.ok(persisted.threads[0].kernel.missions.every(m=>m.steps.every(s=>s.status!=='needs_approval')));
- const restarted=host();await restarted.ask('hello');assert.equal(restarted.state.proposal,null);assert.equal(restarted.__intelligenceKernel.artifact,undefined);assert.equal(session.vault.documents.length,0);
+ const restarted=host();await restarted.ask('hello');assert.equal(restarted.state.proposal,null);assert.ok(restarted.__intelligenceKernel.artifact,'declining an approval must retain the unsaved working draft without re-approving it');assert.equal(session.vault.documents.length,0);
 });
 test('undo restores the same line IDs after removal; review envelope does not create duplicate undo',()=>{
  const k=newConversationKernel(scope),p=proposal();stageKernelArtifact(k,p);const ids=[...k.artifact.lineIds];
