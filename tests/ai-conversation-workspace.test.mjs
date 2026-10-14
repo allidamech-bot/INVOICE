@@ -91,8 +91,10 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  // The original UI dismiss handler clears proposal before the kernel callback.
  h.state.proposal=null;
  await runtime.dismissIntelligenceWorkspace(h,rejected);
- assert.equal(h.__intelligenceKernel.artifact,undefined);
- assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact,undefined);
+ assert.ok(h.__intelligenceKernel.artifact,'declining SAVE must retain the unsaved working quotation');
+ assert.equal(h.__intelligenceKernel.artifact.proposal.foundationApproval,undefined,'declined approval cannot remain executable');
+ assert.ok((await store.loadAssistantState(key)).threads[0].kernel.artifact,'working draft remains encrypted and recoverable');
+ assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact.proposal.foundationApproval,undefined);
  // Decline now copies the kernel so a failed persistence can roll back safely.
  // Inspect the committed live kernel, not the pre-decline object reference.
  const committed=h.__intelligenceKernel.missions.find(m=>m.id===pending.id);
@@ -101,7 +103,8 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  h.__intelligenceKernel=undefined;
  await runtime.refreshIntelligenceWorkspace(h);
  assert.equal(h.state.proposal,null,'rejected proposal must not return after persisted session hydration');
- assert.equal(h.__intelligenceKernel.artifact,undefined);
+ assert.ok(h.__intelligenceKernel.artifact,'reloading after declined SAVE must preserve working draft');
+ assert.equal(h.__intelligenceKernel.artifact.proposal.foundationApproval,undefined);
  assert.equal(h.__intelligenceKernel.missions[0].steps[0].status,'completed');
  assert.equal(v.documents.length,0);
 });
