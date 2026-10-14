@@ -81,7 +81,8 @@ test('Workspace exposes two modes and preserves separate thread scopes',()=>{
   assert.match(component,/conversationModeDescription\(mode,ar\?'ar':'en'\)/);
   assert.doesNotMatch(component,/<select value=\{k\.focus\}/,'four old focus choices must not be the visible mode UI');
   assert.match(component,/__workspaceSwitchMode=async/);
-  assert.match(component,/host\.__lourexOpenThread\(matching\[0\]\.id\)/);
+  assert.match(component,/host\.__lourexOpenThread\(selected\.id\)/);
+   assert.match(component,/recentModeThread\.get\(keyFor\(target\)\)/,'mode switching must return to the last selected thread within the scope');
   assert.match(component,/host\.__lourexNewConversation\(\)/);
   assert.match(component,/drafts\.set\(kernelScopeKey\(previous\.scope\)/);
   assert.match(runtimeSource,/mode:normalizeAiConversationMode\(t\.kernel\?\.mode\)/);

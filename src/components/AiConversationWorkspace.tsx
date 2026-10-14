@@ -11,6 +11,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
+import { attachAiChatScrollFollower, type AiChatScrollFollower } from '../lib/ai-chat-scroll.js';
 import { prepareAdvisorControllerHandoff } from '../lib/ai-advisor-controller-handoff.js';
 import type { LourexDocument } from '../types.js';
 
@@ -243,7 +244,9 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const originalButtons=actions?react.Children.toArray((actions as any).props.children):[];
   const originalConfirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
-  const confirm=originalConfirm?react.cloneElement(originalConfirm,{'aria-label':label(ar,'Approve draft','اعتماد المسودة')},label(ar,'Approve draft','اعتماد المسودة')):null;
+  const quotation=host.state.proposal?.capability==='document.createDraft'&&host.state.proposal.kind==='proforma';
+  const saveText=quotation?label(ar,'Confirm quotation save','تأكيد حفظ عرض السعر'):label(ar,'Confirm draft save','تأكيد حفظ المسودة');
+  const confirm=originalConfirm?react.cloneElement(originalConfirm,{'aria-label':saveText},saveText):null;
   const decline=originalButtons.filter((button:any)=>button!==originalConfirm).map((button:any)=>react.cloneElement(dismissal.wrap(button),{'aria-label':label(ar,'Decline','رفض')},label(ar,'Decline','رفض')));
   return <section className="lxw-inline-approval" data-exiting={dismissal.exiting?'true':'false'} aria-label={label(ar,'Document approval suggestion','اقتراح اعتماد مستند')}>
     <div className="lxw-inline-approval-title">
@@ -379,30 +382,35 @@ function ConversationDocumentCard({host}:{host:Host}):any {
   },[pdfSource]);
 
   if(!doc)return null;
+  const saveReviewPending=doc.status==='draft'&&['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability);
   return <section className="lxw-chat-document" aria-label={label(ar,'Conversation document','مستند المحادثة')} data-artifact-id={doc.id} data-artifact-revision={doc.revision}>
     <header><strong>{workspaceText(ar,doc.title)}</strong><span>{doc.status==='saved'?label(ar,'Saved','محفوظ'):label(ar,'Unsaved draft','مسودة غير محفوظة')}</span></header>
     <p>{doc.customer} · {doc.rows.length} {label(ar,'items','صنف')} · <bdi>{doc.subtotal??'—'} {doc.currency}</bdi></p>
     <details><summary>{label(ar,'Preview all lines','معاينة جميع السطور')}</summary><QuotePreviewSummary doc={doc} ar={ar}/></details>
     {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label>{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
     <div className="lxw-chat-document-controls">
-      <button type="button" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'edit',__workspaceEditing:true})}>{label(ar,'Edit','تعديل')}</button>
+      <button type="button" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:doc.status==='draft'?'edit':'preview',__workspaceEditing:doc.status==='draft'})}>{doc.status==='draft'?label(ar,'Edit','تعديل'):label(ar,'View document','عرض المستند')}</button>
       {doc.status==='draft'?<>
         <button type="button" disabled={disabled(host)||!kernel.artifact?.undo.length} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Undo','تراجع')}</button>
         <button type="button" disabled={disabled(host)||!kernel.artifact?.redo.length} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Redo','إعادة')}</button>
-        <button type="button" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{label(ar,'Review save','مراجعة الحفظ')}</button>
+        <button type="button" className="lxw-document-save" data-state={saveReviewPending?'pending':'ready'} disabled={disabled(host)||Boolean(doc.blockers.length)||saveReviewPending} title={saveReviewPending?label(ar,'Finish the pending review below','أكمل المراجعة والموافقة الموجودة أدناه'):label(ar,'Review and explicitly confirm before the document is saved','راجع ووافق قبل حفظ المستند')} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{saveReviewPending?label(ar,'Awaiting approval','بانتظار الموافقة'):kernel.artifact?.proposal.capability==='document.createDraft'&&kernel.artifact.proposal.kind==='proforma'?label(ar,'Save quotation','حفظ عرض السعر'):label(ar,'Save draft','حفظ المسودة')}</button>
       </>:null}
     </div>
+    {doc.status==='draft'?<small className="lxw-save-guidance">{label(ar,'Saving requires reviewing and approving the draft. PDF preview never saves it.','الحفظ يتطلب مراجعة المسودة وتأكيد الموافقة. معاينة PDF لا تحفظ العرض.')}</small>:null}
         <section className="lxw-ai-pdf-actions" aria-label={label(ar,'Real PDF document','مستند PDF فعلي')}>
-          <button type="button" disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
-            onClick={createPdf}>{pdfBusy?label(ar,'Generating A4 PDF…','جارٍ إنشاء PDF بحجم A4…'):label(ar,'Generate PDF · no save','إنشاء PDF · دون حفظ')}</button>
+          <button type="button" aria-busy={pdfBusy} disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
+            onClick={createPdf}>{pdfBusy?<><span className="lxw-inline-spinner" aria-hidden="true"/>{label(ar,'Generating PDF…','جارٍ إنشاء PDF…')}</>:label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')}</button>
           <p>{label(ar,'This is a real LOUREX template PDF preview. Generating it does not save or issue the document.','هذه معاينة PDF فعلية من قالب LOUREX. إنشاء الملف لا يحفظ المستند ولا يصدره.')}</p>
           {pdfError?<p role="alert">{workspaceError(ar,pdfError)}</p>:null}
           {pdfResult?<div className="lxw-ai-pdf-result">
-            <a href={pdfResult.url} target="_blank" rel="noopener noreferrer">{label(ar,'Open actual PDF','فتح ملف PDF الفعلي')}</a>
-            <a href={pdfResult.url} download={pdfResult.name}>{label(ar,'Download PDF','تحميل PDF')}</a>
-            <span>{Math.ceil(pdfResult.bytes/1024)} KB</span>
-            <iframe title={label(ar,'LOUREX PDF file preview','معاينة ملف PDF من LOUREX')} src={pdfResult.url}
-              style={{width:'100%',height:440,maxWidth:'100%',border:'1px solid #555',borderRadius:8,background:'#fff'}}/>
+            <div className="lxw-ai-pdf-file" role="group" aria-label={label(ar,'Generated PDF file','ملف PDF المنشأ')}>
+              <span className="lxw-pdf-symbol" aria-hidden="true">PDF</span>
+              <div className="lxw-pdf-file-meta"><strong dir="auto">{pdfResult.name}</strong><small><bdi>{Math.ceil(pdfResult.bytes/1024)} KB</bdi> · {label(ar,'Ready to open or download','جاهز للفتح أو التنزيل')}</small></div>
+            </div>
+            <div className="lxw-ai-pdf-file-actions">
+              <a className="lxw-pdf-preview" href={pdfResult.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{label(ar,'Preview PDF','معاينة PDF')}</a>
+              <a className="lxw-pdf-download" href={pdfResult.url} download={pdfResult.name}>{label(ar,'Download PDF','تنزيل PDF')}</a>
+            </div>
           </div>:null}
         </section>
 {pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
@@ -475,6 +483,35 @@ export function clearConversationToolPresentation(host:Host):void {
   host.__lourexToolPresentation=null;
   host.__lourexLastToolAudit='';
   host.__foundationToolOutcomes=[];
+}
+/** Keep the active chat at its newest turn without dragging a reader away from
+ * earlier messages. Unlike a message-count-only hook, this observes actual
+ * content growth (drafts, PDFs, tool cards and streamed replies) on iOS Safari. */
+function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUserId:string}):any {
+  const marker=react.useRef(null as HTMLSpanElement|null);
+  const follower=react.useRef(null as AiChatScrollFollower|null);
+  react.useEffect(()=>{
+    const box=marker.current?.closest('.lourex-ai-messages') as HTMLElement|null;
+    if(!box)return;
+    const attached=attachAiChatScrollFollower(box);
+    follower.current=attached;
+    return()=>{
+      attached.disconnect();
+      if(follower.current===attached)follower.current=null;
+    };
+  },[scopeKey]);
+  react.useEffect(()=>{
+    // Keep the user's freshly sent turn visible even if they had scrolled
+    // back through the history. Incoming content follows until manual scroll.
+    if(lastUserId)follower.current?.followNewMessage();
+  },[scopeKey,lastUserId]);
+  return <span ref={marker} className="lxw-chat-scroll-marker" aria-hidden="true"/>;
+}
+function ConversationThinkingIndicator({ar}:{ar:boolean}):any {
+  return <div className="lxw-thinking" role="status" aria-live="polite">
+    <span className="lxw-thinking-dots" aria-hidden="true"><i/><i/><i/></span>
+    <span>{label(ar,'LOUREX AI is working on your request…','LOUREX AI يعالج طلبك…')}</span>
+  </div>;
 }
 function conversationModeTabs(host:Host,mode:AiConversationMode|undefined,locked:boolean):any {
   const ar=aiUiAr(host);
@@ -575,7 +612,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(cn.split(' ').includes('lourex-ai-busy'))return react.cloneElement(node,undefined,label(aiUiAr(host),'LOUREX AI is reviewing…','LOUREX AI يراجع الطلب…'));
     if(cn.split(' ').includes('lourex-ai-premium-textarea')){
       const prompt=label(aiUiAr(host),'Ask LOUREX…','اسأل LOUREX…');
-      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt});
+      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt,dir:'auto'});
     }
     if(cn.split(' ').includes('lourex-ai-message-action')){
       const actions:Record<string,[string,string]>={copy:['Copy','نسخ'],edit:['Edit','تعديل'],retry:['Retry','إعادة المحاولة'],reask:['Re-ask','اسأل مجددًا'],helpful:['Helpful','مفيد'],'not-helpful':['Not helpful','غير مفيد'],more:['More','المزيد']};
@@ -618,10 +655,17 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       });
       return react.cloneElement(node,undefined,...branded);
     }
-    if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
+    if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
+       return react.cloneElement(node,undefined,...children,
+         (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null,
+         <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
+     }
+     if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
       return react.cloneElement(node,undefined,...children,
+        (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null,
         <ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>,
-        <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>);
+        <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>,
+         <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
     }
     if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
       // Retain the historic document number but never expose route-changing buttons.
@@ -685,7 +729,8 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const tabs=conversationModeTabs(host,mode,inactive);
     const description=<div className="lxw-mode-description" dir={ar?'rtl':'ltr'} aria-live="polite">
       <span className="lxw-mode-symbol" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{mode==='controller'?<><path d="M4 7h16M4 17h16"/><path d="M8 4v6M16 14v6"/></>:<><path d="M20 11.5a8 8 0 0 1-8.5 8 8 8 0 0 1-3.8-1L4 20l1.5-3.7A8 8 0 1 1 20 11.5Z"/><path d="M8 11h8M8 14h5"/></>}</svg></span>
-      <span>{conversationModeDescription(mode,ar?'ar':'en')}</span>
+      <span>{switching?label(ar,'Opening conversation…','جارٍ فتح المحادثة…'):conversationModeDescription(mode,ar?'ar':'en')}</span>
+      {switching?<span className="lxw-inline-spinner" aria-hidden="true"/>:null}
       {mode==='advisor'?<button type="button" className="lxw-advisor-controller-handoff"
         disabled={inactive||!latestAdvisorReply||Boolean(host.__workspaceAdvisorHandoffBusy)}
         title={label(ar,'Copy latest Advisor proposal into Controller for review only','إرسال أحدث اقتراح للمتحكم للمراجعة فقط')}
@@ -697,7 +742,22 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const historyButton=<button type="button" className="lxw-history-trigger" disabled={inactive} aria-label={label(ar,'Conversation history','سجل المحادثات')} title={label(ar,'Conversation history','سجل المحادثات')} aria-expanded={Boolean(host.state.__workspaceHistoryOpen)} onClick={()=>host.setState({__workspaceHistoryOpen:!host.state.__workspaceHistoryOpen,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.6 5.9"/><path d="M4 5v6h6M12 7v5l4 2"/></svg></button>;
     const compactHeader=header.map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],historyButton,toolbar,...parts.slice(1));});
     const safeContent=content.filter((child:any)=>child!==proposalNode);
-    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}{mode==='controller'&&generalProposal?<InlineGeneralProposal host={host} proposalNode={generalProposal} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    // Review controls belong to the conversation timeline, not AFTER the
+    // composer. Keeping approval below the footer shrinks the chat viewport,
+    // causes iPad layout jumps and hides buttons behind the soft keyboard.
+    // This keeps the original guarded approval callbacks and scroll observer.
+    const chatContent=safeContent.map((child:any)=>{
+      if(!react.isValidElement(child)||!String(child.props?.className||'').split(' ').includes('lourex-ai-messages'))return child;
+      const existing=react.Children.toArray(child.props?.children);
+      const beforeMarker=existing.findIndex((entry:any)=>entry?.type===ConversationScrollKeeper);
+      const index=beforeMarker<0?existing.length:beforeMarker;
+      const inline=mode==='controller'?[
+        ...(approval?[<InlineDocumentApproval key="review-document" host={host} approval={approval} ar={ar}/>] : []),
+        ...(generalProposal?[<InlineGeneralProposal key="review-action" host={host} proposalNode={generalProposal} ar={ar}/>] : [])
+      ]:[];
+      return react.cloneElement(child,undefined,...existing.slice(0,index),...inline,...existing.slice(index));
+    });
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{chatContent}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
@@ -758,6 +818,8 @@ export function installConversationWorkspace(host:Host):void {
   }
   // Each mode opens its own scoped thread. Never relabel an existing turn.
   const drafts=new Map<string,string>();
+  // Preserve the exact last-used thread separately for each mode and company.
+  const recentModeThread=new Map<string,string>();
   host.__workspaceSwitchMode=async(target:AiConversationMode)=>{
     if(target!=='controller'&&target!=='advisor')return;
     if(disabled(host)||host.__workspaceModeSwitchBusy)return;
@@ -765,14 +827,29 @@ export function installConversationWorkspace(host:Host):void {
     if(!previous||previous.scope.scope!=='business'||normalizeAiConversationMode(previous.mode)===target)return;
     host.__workspaceModeSwitchBusy=true;host.__workspaceInternalModeSwitch=true;
     drafts.set(kernelScopeKey(previous.scope),String(host.state.input||''));
+    const keyFor=(mode:AiConversationMode)=>JSON.stringify([previous.scope.accountId,previous.scope.workspaceId,previous.scope.branchId,mode]);
+    recentModeThread.set(keyFor(normalizeAiConversationMode(previous.mode)),previous.scope.threadId);
     host.setState({__workspaceSwitching:true,error:''});
     try{
       const matching=(host.__businessThreads||[]).filter((row:any)=>row.mode===target).sort((a:any,b:any)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
-      if(matching.length&&matching[0].id!==previous.scope.threadId)await host.__lourexOpenThread(matching[0].id);
+      const selected=matching.find((row:any)=>row.id===recentModeThread.get(keyFor(target)))||matching[0];
+      if(selected&&selected.id!==previous.scope.threadId)await host.__lourexOpenThread(selected.id);
       else await host.__lourexNewConversation();
       if(!host.__intelligenceKernel)throw new Error('The selected conversation could not be loaded.');
       if(normalizeAiConversationMode(host.__intelligenceKernel.mode)!==target)await assignIntelligenceConversationMode(host,target);
       const current=host.__intelligenceKernel as ConversationKernel;
+      if(normalizeAiConversationMode(current.mode)!==target||current.scope.accountId!==previous.scope.accountId||current.scope.workspaceId!==previous.scope.workspaceId||current.scope.branchId!==previous.scope.branchId)throw new Error('Selected conversation mode or scope did not match. Retry.');
+      recentModeThread.set(keyFor(target),current.scope.threadId);
+      // Mode assignment persisted the new empty thread, but refresh() took
+      // its list snapshot before that save. Make it immediately selectable
+      // so a rapid mode switch does not discard a new thread or its draft.
+      if(!(host.__businessThreads||[]).some((row:any)=>row.id===current.scope.threadId)){
+        host.__businessThreads=[{
+          id:current.scope.threadId,title:'',updatedAt:new Date().toISOString(),
+          mode:target,hasArtifact:Boolean(current.artifact),
+          artifactTitle:current.artifact?.proposal.label||''
+        },...(host.__businessThreads||[])];
+      }
       host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSettingsOpen:false});
     }catch(error){
       host.setState({error:error instanceof Error?error.message:String(error)});

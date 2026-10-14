@@ -74,7 +74,7 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  const storeSource=(await readFile('dist/src/storage/assistant-store.js','utf8')).replace(/import .* from '.*';/g,line=>line.includes("'./db.js'")?'const {getRecord,putRecord}=globalThis.__workspaceDb;':line.replace("'../lib/ai-conversation-kernel.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-kernel.js',import.meta.url).href)).replace("'../lib/ai-conversation-mode.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-mode.js',import.meta.url).href)));
  const store=await import('data:text/javascript;base64,'+Buffer.from(storeSource).toString('base64')+'#'+crypto.randomUUID());
  const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']),{v,p}=fixture(),session={key,vault:v};
- globalThis.__workspaceRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__workspaceDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),...(await import('../dist/src/lib/ai-draft-resumption.js')),...model,...kernel,...approval,...foundation,...workspaces,...review,...(await import('../dist/src/lib/ai-conversation-mode.js')),...store,activeAccountStorageUid:()=>null,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
+ globalThis.__workspaceRuntimeModules={...(await reliabilityRuntimeModules(globalThis.__workspaceDb)),...(await import('../dist/src/lib/ai-commercial-conversation.js')),...(await import('../dist/src/lib/ai-workspace-model.js')),...(await import('../dist/src/lib/ai-document-review.js')),...(await import('../dist/src/lib/ai-mission-runner.js')),...(await import('../dist/src/lib/ai-draft-resumption.js')),...model,...kernel,...approval,...foundation,...workspaces,...review,...(await import('../dist/src/lib/ai-conversation-mode.js')),...(await import('../dist/src/lib/ai-record-selection.js')),...(await import('../dist/src/lib/ai-party-highlights.js')),...(await import('../dist/src/lib/ai-selected-products-price.js')),...store,activeAccountStorageUid:()=>null,resumeVaultSession:async()=>session,orchestrateAiToolRequest:async()=>null};
  const source=(await readFile('dist/src/lib/ai-intelligence-runtime.js','utf8')).replace(/import \{([\s\S]*?)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.__workspaceRuntimeModules;`);
  const runtime=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64')+'#'+crypto.randomUUID());
  const h={props:{screen:'home',language:'ar'},state:{assistantScope:'business',messages:[],proposal:null,busy:false,error:''},__lourexAssistantThreadId:'thread',__lourexAssistantWorkspaceKey:'default|main',setState(update,done){Object.assign(this.state,typeof update==='function'?update(this.state):update);done?.();}};
@@ -91,8 +91,10 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  // The original UI dismiss handler clears proposal before the kernel callback.
  h.state.proposal=null;
  await runtime.dismissIntelligenceWorkspace(h,rejected);
- assert.equal(h.__intelligenceKernel.artifact,undefined);
- assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact,undefined);
+ assert.ok(h.__intelligenceKernel.artifact,'declining SAVE must retain the unsaved working quotation');
+ assert.equal(h.__intelligenceKernel.artifact.proposal.foundationApproval,undefined,'declined approval cannot remain executable');
+ assert.ok((await store.loadAssistantState(key)).threads[0].kernel.artifact,'working draft remains encrypted and recoverable');
+ assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact.proposal.foundationApproval,undefined);
  // Decline now copies the kernel so a failed persistence can roll back safely.
  // Inspect the committed live kernel, not the pre-decline object reference.
  const committed=h.__intelligenceKernel.missions.find(m=>m.id===pending.id);
@@ -101,7 +103,8 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  h.__intelligenceKernel=undefined;
  await runtime.refreshIntelligenceWorkspace(h);
  assert.equal(h.state.proposal,null,'rejected proposal must not return after persisted session hydration');
- assert.equal(h.__intelligenceKernel.artifact,undefined);
+ assert.ok(h.__intelligenceKernel.artifact,'reloading after declined SAVE must preserve working draft');
+ assert.equal(h.__intelligenceKernel.artifact.proposal.foundationApproval,undefined);
  assert.equal(h.__intelligenceKernel.missions[0].steps[0].status,'completed');
  assert.equal(v.documents.length,0);
 });
@@ -111,6 +114,18 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  const h={props,__workspaceObservedProps:props,__intelligenceKernel:k,__foundationVault:v,__lourexAssistantThreadId:'thread',state:{assistantScope:'business',proposal:k.artifact.proposal,__workspaceOpen:true,messages:[]}};
  const e=React.createElement,approval=e('section',{className:'lourex-ai-proposal'},'EXACT APPROVAL'),tree=e('aside',{id:'lourex-ai-panel'},e('header',{className:'lourex-ai-head'}),e('div',{className:'lourex-ai-context'},e('button',{},'Business scope')),e('div',{className:'lourex-ai-messages'}),approval,e('footer',{className:'lourex-ai-compose'},e('textarea',{}),e('button',{},'Send')));
  const result=renderConversationWorkspace(h,tree);assert.equal(result.props['data-workspace-ready'],'true');const body=result.props.children.at(-1),workspace=body.props.children[1];assert.equal(workspace.props.approval.props.children,'EXACT APPROVAL');const containsExactApproval=(node)=>node===approval||(Array.isArray(node)?node.some(containsExactApproval):node&&typeof node==='object'&&containsExactApproval(node.props?.children));assert.equal(containsExactApproval(body.props.children[0]),false);
+ // In-chat approval must stay inside the scrollable timeline, not after the
+ // footer. Retain the original guarded proposal callback object without cloning it.
+ const flatten=node=>Array.isArray(node)?node.flatMap(flatten):node&&typeof node==='object'&&'type'in node?[node,...flatten(node.props?.children)]:[];
+ const timeline=flatten(body.props.children[0]).find(node=>node.props?.className==='lourex-ai-messages');
+ assert.ok(timeline,'scoped conversation timeline must render');
+ const inline=React.Children.toArray(timeline.props.children);
+ const approvalIndex=inline.findIndex(node=>node?.type?.name==='InlineDocumentApproval');
+ const markerIndex=inline.findIndex(node=>node?.type?.name==='ConversationScrollKeeper');
+ assert.ok(approvalIndex>=0&&markerIndex>approvalIndex,'review action must be within timeline before bottom marker');
+ assert.equal(inline[approvalIndex].props.approval.props.children,approval.props.children,'retain the original approval payload when relocating it in chat');
+ assert.equal(flatten(body.props.children[0]).filter(node=>node?.type?.name==='InlineDocumentApproval').length,1,'no duplicate approval cards');
+ assert.ok(flatten(body.props.children[0]).some(node=>node.props?.className==='lourex-ai-compose'),'composer must remain distinct from scroll list');
  let copied=0;const copy=()=>copied++,message=e('div',{className:'lourex-ai-message user'},e('div',{className:'lourex-ai-user-copy'},'Short question'),e('div',{className:'lourex-ai-message-actions'},e('button',{className:'lourex-ai-message-action is-copy',onClick:copy},'Copy')));
  const turn=renderConversationWorkspace(h,message);assert.equal(turn.props.className,'lxw-message-turn is-user');const bubble=turn.props.children[0],actions=turn.props.children[1];assert.equal(bubble.props.dir,'auto');assert.equal(bubble.props.children.props.className,'lourex-ai-user-copy');assert.equal(actions.props.className,'lourex-ai-message-actions');assert.equal(actions.props.children.props.onClick,copy);actions.props.children.props.onClick();assert.equal(copied,1,'moving actions out of the bubble preserves the real callback');
  h.props={language:'en'};
