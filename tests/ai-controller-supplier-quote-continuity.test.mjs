@@ -105,6 +105,40 @@ test('B1 markup parser requires a price reference and distinguishes both word or
   assert.equal(requestedSourceMarkup('احذف الصنف 3'),null);
 });
 
+test('B1 negated pricing requests never silently increase imported supplier costs',()=>{
+  const vault=emptyVault(),source=[supplierSource(3)];
+  for(const message of [
+    'حوّل فاتورة المورد إلى عرض سعر لكن لا تضف 3% على الأسعار',
+    'حوّل فاتورة المورد إلى عرض سعر بدون هامش ربح 20%',
+    'حوّل فاتورة المورد إلى عرض سعر ولا تضف هامش ربح 20%',
+    'convert supplier offer to quotation, do not add 3% to prices',
+  ]){
+    const draft=quoteSourceWorkingDraft(source,runtime(vault),message);
+    assert.ok(draft,message);
+    assert.deepEqual(draft.items.map(row=>row.unitPrice),['','',''],message);
+    assert.equal(draft.customerId,'');
+  }
+  const explicit=quoteSourceWorkingDraft(source,runtime(vault),
+    'حوّل فاتورة المورد إلى عرض سعر بدون هامش ربح 20%، وأضف 3% على الأسعار');
+  assert.deepEqual(explicit.items.map(row=>row.unitPrice),['10.30','10.30','10.30']);
+  assert.equal(requestedSourceMarkup('لا تضف 3% على الأسعار'),null);
+  assert.equal(requestedSourceMarkup('do not add 3% to prices'),null);
+  assert.deepEqual(vault.documents,[]);
+});
+
+test('B1 a negated bulk edit is refused rather than forwarded to a model or applied',()=>{
+  const vault=emptyVault(),kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,quoteSourceWorkingDraft([supplierSource(3)],runtime(vault),withMargin));
+  const before=structuredClone(kernel);
+  for(const phrase of ['لا تضف 3% على الأسعار','do not add 3% to prices']){
+    const result=reviseKernelDraft(kernel,kernel.artifact.proposal,phrase,workspaceDrafting(vault),'ar');
+    assert.equal(result.changed,false,phrase);
+    assert.match(result.message,/explicitly negated/i);
+    assert.deepEqual(kernel,before,'negated edit did not even stage a new revision');
+  }
+  assert.deepEqual(vault.documents,[]);
+});
+
 test('B1 multi-turn supplier quote reprices ALL 24 lines and undo/redo survives reload',()=>{
   const vault=emptyVault(),before=structuredClone(vault);
   const draft=quoteSourceWorkingDraft([supplierSource(24)],runtime(vault),withMargin);
