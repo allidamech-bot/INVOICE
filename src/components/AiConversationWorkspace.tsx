@@ -11,7 +11,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
-import { aiChatNearBottom } from '../lib/ai-chat-scroll.js';
+import { attachAiChatScrollFollower, type AiChatScrollFollower } from '../lib/ai-chat-scroll.js';
 import { prepareAdvisorControllerHandoff } from '../lib/ai-advisor-controller-handoff.js';
 import type { LourexDocument } from '../types.js';
 
@@ -486,51 +486,21 @@ export function clearConversationToolPresentation(host:Host):void {
  * content growth (drafts, PDFs, tool cards and streamed replies) on iOS Safari. */
 function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUserId:string}):any {
   const marker=react.useRef(null as HTMLSpanElement|null);
-  const follow=react.useRef(true);
-  const pin=react.useRef(null as (()=>void)|null);
+  const follower=react.useRef(null as AiChatScrollFollower|null);
   react.useEffect(()=>{
     const box=marker.current?.closest('.lourex-ai-messages') as HTMLElement|null;
     if(!box)return;
-    follow.current=true;
-    let frame=0,programmatic=false,unlock=0;
-    const atBottom=()=>aiChatNearBottom(box.scrollTop,box.scrollHeight,box.clientHeight);
-    const settle=()=>{
-      if(!follow.current)return;
-      window.cancelAnimationFrame(frame);
-      frame=window.requestAnimationFrame(()=>{
-        if(!follow.current)return;
-        programmatic=true;
-        box.scrollTop=box.scrollHeight;
-        window.clearTimeout(unlock);
-        unlock=window.setTimeout(()=>{programmatic=false;},0);
-      });
-    };
-    pin.current=settle;
-    const onScroll=()=>{if(!programmatic)follow.current=atBottom();};
-    // iOS Safari can reflow a completed PDF card or font without changing text.
-    // Observe only the latest few nodes; avoid one observer per old chat turn.
-    const resize=typeof ResizeObserver==='function'?new ResizeObserver(settle):null;
-    const watchRecent=()=>{
-      if(!resize)return;
-      Array.from(box.children).slice(-8).forEach(child=>resize.observe(child));
-    };
-    const mutations=new MutationObserver(()=>{watchRecent();settle();});
-    mutations.observe(box,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['open']});
-    box.addEventListener('scroll',onScroll,{passive:true});
-    window.visualViewport?.addEventListener('resize',settle);
-    watchRecent();
-    settle();
+    const attached=attachAiChatScrollFollower(box);
+    follower.current=attached;
     return()=>{
-      mutations.disconnect();resize?.disconnect();box.removeEventListener('scroll',onScroll);
-      window.visualViewport?.removeEventListener('resize',settle);
-      window.cancelAnimationFrame(frame);window.clearTimeout(unlock);
-      pin.current=null;
+      attached.disconnect();
+      if(follower.current===attached)follower.current=null;
     };
   },[scopeKey]);
   react.useEffect(()=>{
-    // A message the user just sent must be visible even after manually
-    // reading older turns; incoming content then follows until they scroll up.
-    if(lastUserId){follow.current=true;pin.current?.();}
+    // Keep the user's freshly sent turn visible even if they had scrolled
+    // back through the history. Incoming content follows until manual scroll.
+    if(lastUserId)follower.current?.followNewMessage();
   },[scopeKey,lastUserId]);
   return <span ref={marker} className="lxw-chat-scroll-marker" aria-hidden="true"/>;
 }
