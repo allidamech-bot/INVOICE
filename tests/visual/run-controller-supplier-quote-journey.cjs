@@ -163,7 +163,7 @@ async function run(engine,name){
   await say('save this draft');
   await panel.locator('.lxw-inline-approval').getByRole('button',{name:'Review details',exact:true}).click();
   await panel.getByRole('button',{name:'I reviewed this draft',exact:true}).click();
-  await panel.getByRole('button',{name:'Approve draft',exact:true}).click();
+  await panel.getByRole('button',{name:'Confirm quotation save',exact:true}).click();
   // The UI confirmation occurs after the transaction and its document artifact
   // are returned. An isolated one-off count can race another vault writer.
   await panel.locator('.lourex-ai-created-artifact').waitFor({timeout:30000});
