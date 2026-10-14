@@ -55,6 +55,10 @@ export interface QuoteAiCustomerReview {
   matchBasis:'email'|'phone'|'name-en'|'name-ar'|'none';
 }
 export interface QuoteAiReview {
+  /** Exact source values the operator reviewed; changes to quantity, buyer,
+   * terms or line descriptions must force a fresh review even if the price
+   * projection did not change. Local-only, never sent to the model. */
+  sourceSnapshot?:string;
   currency:string;
   customer:QuoteAiCustomerReview;
   items:QuoteAiItemReview[];
@@ -128,7 +132,7 @@ export function buildQuoteAiReview(vault:VaultPayload,draft:QuoteAiSourceDraft):
     if(currency&&exactSaved&&effective&&cost&&costCurrency===currency){const priceScaled=decimalToScaled(effective,SCALE),costScaled=decimalToScaled(cost,SCALE);if(priceScaled<costScaled)warnings.push('below-cost');else if(suggested&&priceScaled<decimalToScaled(suggested,SCALE))warnings.push('below-policy');}
     return{index,matchedItemId:exactSaved?.id||'',matchedItemName:suggestedSaved?itemName(suggestedSaved):'',matchConfidence:match.confidence,matchBasis:match.basis,effectiveUnitPrice:effective,priceSource,lastCustomerPrice:customerPrice,cost,costCurrency,suggestedPrice:suggested,marginPercent:currency&&exactSaved&&effective&&cost&&costCurrency===currency?marginPercent(effective,cost):'',warnings};
   });
-  return{currency,customer,items,warningCount:items.reduce((sum,row)=>sum+row.warnings.length,0),blockingAttentionCount:items.filter(row=>row.warnings.some(warning=>['unknown-product','ambiguous-quantity','low-product-confidence','missing-currency','currency-mismatch','missing-selling-price'].includes(warning))).length};
+  return{sourceSnapshot:JSON.stringify(draft),currency,customer,items,warningCount:items.reduce((sum,row)=>sum+row.warnings.length,0),blockingAttentionCount:items.filter(row=>row.warnings.some(warning=>['unknown-product','ambiguous-quantity','low-product-confidence','missing-currency','currency-mismatch','missing-selling-price'].includes(warning))).length};
 }
 
 function latinDigits(value:string):string{return value.replace(/[٠-٩]/g,digit=>String(ARABIC_DIGITS.indexOf(digit))).replace(/[٪﹪]/g,'%');}
