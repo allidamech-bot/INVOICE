@@ -9,6 +9,8 @@ on:
       - 'src/components/AiWorkflowTools.tsx'
       - 'src/lib/ai-tool-client.ts'
       - 'src/lib/ai-workflow-quote-guard.ts'
+      - 'src/styles/ai-conversation-workspace.css'
+      - 'scripts/qa-ai-tool-modal-chrome.mjs'
       - 'tests/ai-batch1-quote-data-safety.test.mjs'
       - '.github/workflows/ai-batch1-data-safety.yml'
 
@@ -46,3 +48,5 @@ jobs:
           tests/ai-f18-multi-source-quote.test.mjs
           tests/audit-ai-branch-isolation.test.mjs
           tests/audit-ai-firebase-auth.test.mjs
+      - name: Final AI tool modal visual contract (compiled CSS, four viewports)
+        run: node scripts/qa-ai-tool-modal-chrome.mjs
