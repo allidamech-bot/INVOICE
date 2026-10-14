@@ -50,7 +50,7 @@ test('AI Chat: PDF remains real and downloadable but never renders blank embedde
 
 test('AI Chat: saving quotation requires existing reviewed action; PDF is preview-only',async()=>{
   const source=await read('src/components/AiConversationWorkspace.tsx');
-  assert.match(source,/Save quotation','quotation-specific action must exist');
+  assert.match(source,/Save quotation/,'quotation-specific action must exist');
   assert.match(source,/حفظ عرض السعر/);
   assert.match(source,/حفظ المسودة/);
   assert.match(source,/onClick=\{\(\)=>void host\.ask\(ar\?'احفظ المسودة':'save this draft'\)\}/,
