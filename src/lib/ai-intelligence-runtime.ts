@@ -518,6 +518,10 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&!approvalWasReviewed(host,proposal))
       throw new Error('The action review changed during approval. Nothing was applied.');
     assertFoundationApproval(live.vault,proposal);
+    // A failure from an earlier conversation turn must not turn an executed
+    // approval into an indeterminate receipt. Only errors raised by THIS
+    // specific apply attempt can mark its durable outcome uncertain.
+    host.setState({error:''});
     const result=await apply();await flush(host);
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
     else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';
