@@ -7,6 +7,7 @@ on:
       - 'src/styles/ai-conversation-workspace.css'
       - 'src/lib/ai-chat-scroll.ts'
       - 'scripts/qa-ai-chat-scroll-chrome.mjs'
+      - 'scripts/qa-ai-chat-visual-chrome.mjs'
       - 'scripts/ai-batch3-premium-conversation.mjs'
       - 'tests/ai-chat-ipad-conversation-20261014.test.mjs'
       - 'tests/ai-f01-real-pdf-preview.test.mjs'
@@ -46,3 +47,5 @@ jobs:
           tests/ai-premium-conversation-batch3.test.mjs
       - name: Real Chromium iPhone and iPad scroll behavior (local test fixture)
         run: node scripts/qa-ai-chat-scroll-chrome.mjs
+      - name: Real compiled CSS layout audit (8 RTL/LTR viewports, no login)
+        run: node scripts/qa-ai-chat-visual-chrome.mjs
