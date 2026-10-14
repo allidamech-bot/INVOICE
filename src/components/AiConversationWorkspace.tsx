@@ -11,6 +11,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
+import { assertGeneratedAiPdfFile } from '../lib/ai-pdf-file-validation.js';
 import { attachAiChatScrollFollower, type AiChatScrollFollower } from '../lib/ai-chat-scroll.js';
 import { prepareAdvisorControllerHandoff } from '../lib/ai-advisor-controller-handoff.js';
 import type { LourexDocument } from '../types.js';
@@ -332,18 +333,36 @@ function ConversationDocumentCard({host}:{host:Host}):any {
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
-  React.useEffect(()=>{setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');},[pdfIdentity]);
+  // A renderer import can resolve after changing conversation, branch or
+  // revision. Refs guard that async gap before any stale state is published.
+  const latestPdfIdentity=react.useRef(pdfIdentity);
+  const pdfSequence=react.useRef(0);
+  const pdfStarting=react.useRef(false);
+  latestPdfIdentity.current=pdfIdentity;
+  React.useEffect(()=>{
+    pdfSequence.current+=1;pdfStarting.current=false;
+    setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');
+  },[pdfIdentity]);
   React.useEffect(()=>()=>{if(pdfResult?.url)URL.revokeObjectURL(pdfResult.url);},[pdfResult?.url]);
   const createPdf=async()=>{
-    if(pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
+    if(pdfStarting.current||pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
+    const identity=pdfIdentity,request=++pdfSequence.current;
+    pdfStarting.current=true;
+    setPdfBusy(true);setPdfError('');setPdfResult(null);
     try{
       const document=prepareAiPdfPreview(kernel,vault,ar?'ar':'en',savedId);
       // No renderer initialization on ordinary chat turns. The canonical A4
       // React class is loaded only after a Controller expressly asks for PDF.
       const {TemplateRenderer}=await import('../templates/TemplateRenderer.js');
+      if(identity!==latestPdfIdentity.current||request!==pdfSequence.current)return;
       setPdfRenderer(()=>TemplateRenderer);
-      setPdfResult(null);setPdfError('');setPdfBusy(true);setPdfSource({document,identity:pdfIdentity});
-    }catch(e){setPdfError(e instanceof Error?e.message:String(e));}
+      setPdfSource({document,identity});
+    }catch(e){
+      if(identity===latestPdfIdentity.current&&request===pdfSequence.current){
+        setPdfError(e instanceof Error?e.message:String(e));
+        setPdfBusy(false);pdfStarting.current=false;
+      }
+    }
   };
   React.useEffect(()=>{
     if(host.state.__workspacePdfAutoStart!==pdfIdentity)return;
@@ -362,7 +381,7 @@ function ConversationDocumentCard({host}:{host:Host}):any {
         const stage=pdfStage.current;
         if(!stage)throw new Error('The A4 preview renderer is not mounted.');
         const file=await build(stage,'LOUREX-'+pdfSource.document.number);
-        if(!(file instanceof Blob)||file.type!=='application/pdf'||file.size<256)throw new Error('PDF file bytes were not generated correctly.');
+        await assertGeneratedAiPdfFile(file);
         const active=host.__intelligenceKernel as ConversationKernel|undefined;
         // The same saved identity must be used at the start AND completion of
         // PDF rendering. After a reload the scoped kernel entity is durable,
@@ -376,7 +395,7 @@ function ConversationDocumentCard({host}:{host:Host}):any {
         if(cancelled){URL.revokeObjectURL(url);return;}
         setPdfResult({url,name:(file as File).name||'LOUREX-Preview.pdf',bytes:file.size});
       }catch(error){if(!cancelled)setPdfError(error instanceof Error?error.message:String(error));}
-      finally{if(!cancelled)setPdfBusy(false);}
+      finally{if(!cancelled){setPdfBusy(false);pdfStarting.current=false;}}
     },0);
     return()=>{cancelled=true;window.clearTimeout(timer);};
   },[pdfSource]);
