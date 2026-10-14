@@ -23,6 +23,8 @@ test('AI Chat: final compiled conversation owns one scoped scroll observer in bo
   for(const content of [source,built]){
     assert.match(content,/ConversationScrollKeeper/);
     assert.match(content,/MutationObserver/);
+    assert.match(content,/ResizeObserver/,'follow Safari layout reflows after PDF and font rendering');
+    assert.match(content,/resize\?\.disconnect\(\)/,'the scroll observer must release its listeners on thread change');
     assert.match(content,/aiChatNearBottom/);
     assert.match(content,/lastUserId/);
   }
