@@ -1,8 +1,7 @@
 name: LOUREX AI Chat iPad Regression
 on:
-  push:
-    branches: [fix/ai-chat-ipad-scroll-pdf-mode-20261014]
   pull_request:
+    branches: [main]
     paths:
       - 'src/components/AiConversationWorkspace.tsx'
       - 'src/styles/ai-conversation-workspace.css'
