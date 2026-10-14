@@ -112,3 +112,30 @@ test('before saving a quote, the fresh pricing review runs inside mutation befor
   assert.match(source,/buildQuoteAiReview\(scopeVault\(resumed\.vault\),quote\)/);
   assert.match(source,/applyQuoteAiPricingCommand\(scopeVault\(resumed\.vault\),quote,canonical\)/);
 });
+
+test('supplier AI imports and procurement comparisons cannot match catalog masters from a foreign workspace',async()=>{
+  const {scopeVault}=await import('../dist/src/lib/workspaces.js');
+  const vault=emptyVault();
+  vault.suppliers=[
+    {id:'supplier-local',workspaceId:'default',nameEn:'Local supplier',nameAr:''},
+    {id:'supplier-foreign',workspaceId:'foreign',nameEn:'Foreign supplier',nameAr:''}
+  ];
+  vault.savedItems=[
+    {id:'sku-local',workspaceId:'default',sku:'SCOPED-1',descriptionEn:'Local item'},
+    {id:'sku-foreign',workspaceId:'foreign',sku:'SCOPED-2',descriptionEn:'Foreign item'}
+  ];
+  const scoped=scopeVault(vault);
+  assert.deepEqual(scoped.suppliers.map(x=>x.id),['supplier-local']);
+  assert.deepEqual(scoped.savedItems.map(x=>x.id),['sku-local']);
+  const tools=[
+    'src/components/AiWorkflowTools.tsx',
+    'src/components/SupplierDocumentImport.tsx',
+    'src/components/ProcurementAiCompare.tsx'
+  ];
+  for(const file of tools){
+    const source=readFileSync(new URL('../'+file,import.meta.url),'utf8');
+    assert.match(source,/scopeVault\(/,file+' must scope current master records before matching');
+    assert.doesNotMatch(source,/buildAiSupplierPurchaseDraft\([^\n]*,vault\.suppliers,vault\.savedItems\)/,
+      file+' must never match across all company masters at save');
+  }
+});
