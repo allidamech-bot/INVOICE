@@ -128,7 +128,12 @@ export function aiPlanningUnavailableResult(message:string,language:'en'|'ar',re
 export async function orchestrateAiToolRequest(input:{message:string;vault:VaultPayload;context:any;language:'en'|'ar';signal?:AbortSignal;}):Promise<AiToolOrchestrationResult|null>{
   const sources=aiPlannerSourceFacts(input.context?.conversationSources);
   const hasSources=sources.length>0;
-  const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  // Do not let an absent/malformed conversationMode inherit the legacy
+  // orchestrator's Controller default. The live boundary is deny-by-default;
+  // only the explicit selected Controller tab may stage an action.
+  const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
+  const scopedVault=scopeVault(input.vault);
+  const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
   // A complete structured RFQ already contains the source's actual rows.
   // Never re-send only the first 2800 chars to a planner which might silently
   // lose trailing products. Stage the whole verified quote as UNSAVED.
