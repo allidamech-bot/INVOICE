@@ -135,7 +135,7 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
   // An explicitly requested customer quotation may also originate from a
   // supplier offer. Supplier unitCost is NEVER silently copied to the selling
   // price: absent an explicit gross margin, every selling price stays blank.
-  const supplierSource=source.route==='supplier_purchase'&&!source.quoteSheetCandidate;
+  const supplierSource=source.route==='supplier_purchase';
   const exactSource=typeof source.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.trim()
     ?source.quoteSheetCandidate:null;
   // A complete exact worksheet is authoritative *for row transfer*, regardless
@@ -165,7 +165,9 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
       (quantityConfidence!==undefined&&(typeof quantityConfidence!=='number'||!Number.isFinite(quantityConfidence)||quantityConfidence<.5||quantityConfidence>1))||
       (productConfidence!==undefined&&(typeof productConfidence!=='number'||!Number.isFinite(productConfidence)||productConfidence<.5||productConfidence>1)))
       throw new Error('SOURCE_INCOMPLETE: Quantity, pack unit or product identity is uncertain on line '+(index+1)+'. Confirm the source before building a quotation.');
-    const unit=sourceText(row.unit,40),sourcePrice=numeric(supplierSource?row.unitCost:row.unitPrice,false);
+    // Exact supplier worksheet columns may call acquisition cost "unitPrice".
+    // Preserve the source value as COST evidence, never as a buyer price.
+    const unit=sourceText(row.unit,40),sourcePrice=numeric(supplierSource?(exactSource?row.unitPrice:row.unitCost):row.unitPrice,false);
     const unitPrice=margin!==null?sellingPriceForGrossMargin(sourcePrice,margin)
       :markup!==null?sellingPriceForMarkup(sourcePrice,markup)
       :supplierSource?'':sourcePrice;
