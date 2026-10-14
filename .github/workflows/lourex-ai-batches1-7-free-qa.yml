@@ -2,6 +2,7 @@ name: LOUREX AI Batches 1-7 Release Candidate QA
 on:
   push:
     branches:
+      - fix/ai-batch1-data-safety-20261014
       - fix/ai-batches1-7-qa-20261012
       - integration/ai-batches1-7-qa-20261012
       - fix/ai-f14-rejected-approval-replay-20261013
