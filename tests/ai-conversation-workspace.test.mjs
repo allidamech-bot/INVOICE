@@ -114,6 +114,18 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  const h={props,__workspaceObservedProps:props,__intelligenceKernel:k,__foundationVault:v,__lourexAssistantThreadId:'thread',state:{assistantScope:'business',proposal:k.artifact.proposal,__workspaceOpen:true,messages:[]}};
  const e=React.createElement,approval=e('section',{className:'lourex-ai-proposal'},'EXACT APPROVAL'),tree=e('aside',{id:'lourex-ai-panel'},e('header',{className:'lourex-ai-head'}),e('div',{className:'lourex-ai-context'},e('button',{},'Business scope')),e('div',{className:'lourex-ai-messages'}),approval,e('footer',{className:'lourex-ai-compose'},e('textarea',{}),e('button',{},'Send')));
  const result=renderConversationWorkspace(h,tree);assert.equal(result.props['data-workspace-ready'],'true');const body=result.props.children.at(-1),workspace=body.props.children[1];assert.equal(workspace.props.approval.props.children,'EXACT APPROVAL');const containsExactApproval=(node)=>node===approval||(Array.isArray(node)?node.some(containsExactApproval):node&&typeof node==='object'&&containsExactApproval(node.props?.children));assert.equal(containsExactApproval(body.props.children[0]),false);
+ // In-chat approval must stay inside the scrollable timeline, not after the
+ // footer. Retain the original guarded proposal callback object without cloning it.
+ const flatten=node=>Array.isArray(node)?node.flatMap(flatten):node&&typeof node==='object'&&'type'in node?[node,...flatten(node.props?.children)]:[];
+ const timeline=flatten(body.props.children[0]).find(node=>node.props?.className==='lourex-ai-messages');
+ assert.ok(timeline,'scoped conversation timeline must render');
+ const inline=React.Children.toArray(timeline.props.children);
+ const approvalIndex=inline.findIndex(node=>node?.type?.name==='InlineDocumentApproval');
+ const markerIndex=inline.findIndex(node=>node?.type?.name==='ConversationScrollKeeper');
+ assert.ok(approvalIndex>=0&&markerIndex>approvalIndex,'review action must be within timeline before bottom marker');
+ assert.equal(inline[approvalIndex].props.approval,approval,'preserve original proposal with guarded callback');
+ assert.equal(flatten(body.props.children[0]).filter(node=>node?.type?.name==='InlineDocumentApproval').length,1,'no duplicate approval cards');
+ assert.ok(flatten(body.props.children[0]).some(node=>node.props?.className==='lourex-ai-compose'),'composer must remain distinct from scroll list');
  let copied=0;const copy=()=>copied++,message=e('div',{className:'lourex-ai-message user'},e('div',{className:'lourex-ai-user-copy'},'Short question'),e('div',{className:'lourex-ai-message-actions'},e('button',{className:'lourex-ai-message-action is-copy',onClick:copy},'Copy')));
  const turn=renderConversationWorkspace(h,message);assert.equal(turn.props.className,'lxw-message-turn is-user');const bubble=turn.props.children[0],actions=turn.props.children[1];assert.equal(bubble.props.dir,'auto');assert.equal(bubble.props.children.props.className,'lourex-ai-user-copy');assert.equal(actions.props.className,'lourex-ai-message-actions');assert.equal(actions.props.children.props.onClick,copy);actions.props.children.props.onClick();assert.equal(copied,1,'moving actions out of the bubble preserves the real callback');
  h.props={language:'en'};
