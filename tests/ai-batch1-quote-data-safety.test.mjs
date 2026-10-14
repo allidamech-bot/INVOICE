@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const {emptyVault}=await import('../dist/src/lib/defaults.js');
-const {resolveAiInboxQuoteCustomer,assertAiInboxQuoteProductScope,aiInboxUnlinkedCustomerNote}=
+const {resolveAiInboxQuoteCustomer,assertAiInboxQuoteProductScope,assertAiInboxQuoteReviewFresh,aiInboxUnlinkedCustomerNote}=
   await import('../dist/src/lib/ai-workflow-quote-guard.js');
 
 function fixture(){
@@ -72,4 +72,43 @@ test('missing/malformed selected mode cannot be promoted into executable Control
   }
   const source=readFileSync(new URL('../src/lib/ai-tool-client.ts',import.meta.url),'utf8');
   assert.match(source,/safeMode=input\.context\?\.conversationMode==='controller'\?'controller':'advisor'/);
+});
+
+test('a changed customer match or product cost blocks stale quote save before numbering',async()=>{
+  const {buildQuoteAiReview}=await import('../dist/src/lib/quote-ai-review.js');
+  const {scopeVault}=await import('../dist/src/lib/workspaces.js');
+  const vault=emptyVault();
+  vault.savedItems.push({
+    id:'good-sku',workspaceId:vault.appSettings.activeWorkspaceId,branchId:vault.appSettings.activeBranchId,
+    archived:false,sku:'CHOC-01',descriptionEn:'Chocolate carton',descriptionAr:'',
+    lastUnitCost:'10.00',lastCostCurrency:'USD',lastUnitPrice:'15.00',lastCurrency:'USD'
+  });
+  const draft={
+    customerName:'Unregistered Buyer',customerEmail:'',customerPhone:'',
+    customerConfidence:1,customerNote:'',currency:'USD',incoterm:'',paymentTerms:'',
+    deliveryTime:'',validity:'',remarks:'',notes:'',
+    items:[{sku:'CHOC-01',descriptionEn:'Chocolate carton',descriptionAr:'',quantity:'50',unit:'CTN',
+      unitPrice:'20',quantityConfidence:1,quantityAmbiguous:false,quantityNote:'',
+      productConfidence:1,productNote:''}]
+  };
+  const review=buildQuoteAiReview(scopeVault(vault),draft);
+  assert.doesNotThrow(()=>assertAiInboxQuoteReviewFresh(vault,draft,review));
+  const differentBuyer={...draft,customerName:'Changed Buyer'};
+  assert.doesNotThrow(()=>assertAiInboxQuoteReviewFresh(vault,differentBuyer,review),'unmatched buyer names are kept as review-only metadata');
+  const saved=vault.savedItems.at(-1);
+  saved.lastUnitCost='11.00';
+  assert.throws(()=>assertAiInboxQuoteReviewFresh(vault,draft,review),/Refresh and review every line/);
+  saved.lastUnitCost='10.00';
+  vault.savedItems.push({...saved,id:'duplicate',sku:'CHOC-01'});
+  assert.throws(()=>assertAiInboxQuoteReviewFresh(vault,draft,review),/Refresh and review every line/);
+});
+
+test('before saving a quote, the fresh pricing review runs inside mutation before number reservation',()=>{
+  const source=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+  const save=source.slice(source.indexOf('private saveQuote=async()=>'),source.indexOf('private supplierProposalSaved='));
+  const reviewIndex=save.indexOf('assertAiInboxQuoteReviewFresh(vault,draft,review)');
+  const numberIndex=save.indexOf("nextDocumentNumber(vault,'proforma')");
+  assert.ok(reviewIndex>=0&&numberIndex>reviewIndex);
+  assert.match(source,/buildQuoteAiReview\(scopeVault\(resumed\.vault\),quote\)/);
+  assert.match(source,/applyQuoteAiPricingCommand\(scopeVault\(resumed\.vault\),quote,canonical\)/);
 });
