@@ -37,7 +37,7 @@ test('successful and failed mode switches render the final unlocked controls aft
       setState(patch){Object.assign(this.state,patch);frames.push({busy:Boolean(this.__workspaceModeSwitchBusy),switching:this.state.__workspaceSwitching});},
       async __lourexOpenThread(){if(fail)throw new Error('storage unavailable');this.__intelligenceKernel={mode:'advisor',scope:{scope:'business',threadId:'advisor'}};},
     };
-    const switchContext=vm.createContext({host,drafts:new Map(),disabled:h=>Boolean(h.__workspaceModeSwitchBusy),normalizeAiConversationMode:m=>m,kernelScopeKey:s=>s.threadId,assignIntelligenceConversationMode:async()=>{}});
+    const switchContext=vm.createContext({host,drafts:new Map(),recentModeThread:new Map(),disabled:h=>Boolean(h.__workspaceModeSwitchBusy),normalizeAiConversationMode:m=>m,kernelScopeKey:s=>s.threadId,assignIntelligenceConversationMode:async()=>{}});
     vm.runInContext(compiled.slice(start,end),switchContext);
     await host.__workspaceSwitchMode('advisor');
     assert.equal(frames.at(-1).busy,false);
@@ -48,7 +48,7 @@ test('successful and failed mode switches render the final unlocked controls aft
 });
 
 test('localized draft controls preserve distinct approve/decline callbacks and hide approval until review',()=>{
-  const React={createElement:(type,props,...children)=>({type,props:{...props,children:children.flat(Infinity).filter(Boolean)}}),Children:{toArray:v=>[v].flat(Infinity).filter(Boolean)},cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,children:children.length?children.flat(Infinity):node.props.children}})};
+  const React={useState:initial=>[initial,()=>{}],createElement:(type,props,...children)=>({type,props:{...props,children:children.flat(Infinity).filter(Boolean)}}),Children:{toArray:v=>[v].flat(Infinity).filter(Boolean)},cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,children:children.length?children.flat(Infinity):node.props.children}})};
   let saved=0,rejected=0;
   const apply=()=>saved++,reject=()=>rejected++,proposal={capability:'document.createDraft'},host={state:{proposal}};
   const approval=React.createElement('section',null,React.createElement('div',{className:'lourex-ai-proposal-actions'},React.createElement('button',{className:'primary',onClick:apply},'old approve'),React.createElement('button',{onClick:reject},'old reject')));
@@ -68,6 +68,6 @@ test('localized draft controls preserve distinct approve/decline callbacks and h
   decline.props.onClick();assert.equal(saved,0);assert.equal(rejected,1);
   host.state.__workspaceReviewedProposal=proposal;
   tree=context.InlineDocumentApproval({host,approval,ar:false});
-  const confirm=buttons(tree).find(b=>b.props['aria-label']==='Approve draft');
+  const confirm=buttons(tree).find(b=>b.props['aria-label']==='Confirm draft save');
   assert.equal(confirm.props.onClick,apply);
 });
