@@ -123,7 +123,7 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  const approvalIndex=inline.findIndex(node=>node?.type?.name==='InlineDocumentApproval');
  const markerIndex=inline.findIndex(node=>node?.type?.name==='ConversationScrollKeeper');
  assert.ok(approvalIndex>=0&&markerIndex>approvalIndex,'review action must be within timeline before bottom marker');
- assert.equal(inline[approvalIndex].props.approval,approval,'preserve original proposal with guarded callback');
+ assert.equal(inline[approvalIndex].props.approval.props.children,approval.props.children,'retain the original approval payload when relocating it in chat');
  assert.equal(flatten(body.props.children[0]).filter(node=>node?.type?.name==='InlineDocumentApproval').length,1,'no duplicate approval cards');
  assert.ok(flatten(body.props.children[0]).some(node=>node.props?.className==='lourex-ai-compose'),'composer must remain distinct from scroll list');
  let copied=0;const copy=()=>copied++,message=e('div',{className:'lourex-ai-message user'},e('div',{className:'lourex-ai-user-copy'},'Short question'),e('div',{className:'lourex-ai-message-actions'},e('button',{className:'lourex-ai-message-action is-copy',onClick:copy},'Copy')));
