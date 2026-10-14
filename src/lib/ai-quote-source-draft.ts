@@ -138,7 +138,9 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
   });
   const currency=sourceText(data.currency,3).toUpperCase();
   if(currency&&!/^[A-Z]{3}$/.test(currency))throw new Error('SOURCE_INCOMPLETE: The source currency is unclear.');
-  const customerName=sourceText(data.customerName,180),customerEmail=sourceText(data.customerEmail,180),customerPhone=sourceText(data.customerPhone,80);
+  // A supplier offer establishes supplier identity, never the customer's.
+  // Even an extra/injected customerName field in supplier evidence is ignored.
+  const customerName=supplierSource?'':sourceText(data.customerName,180),customerEmail=supplierSource?'':sourceText(data.customerEmail,180),customerPhone=supplierSource?'':sourceText(data.customerPhone,80);
   const customerId=matchCustomer(runtime,customerName,customerEmail);
   const customerDraft:AiCustomerDraftInput|null=customerId||!customerName?null:{
     companyNameEn:customerName,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:customerPhone,
