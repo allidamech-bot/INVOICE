@@ -41,6 +41,31 @@ function sellingPriceForGrossMargin(sourceUnitPrice:string,margin:string):string
     throw new Error('SOURCE_INCOMPLETE: Margin would exceed the supported document price range.');
   return amount;
 }
+/** An explicit increase on a unit cost is MARKUP, not gross sales margin.
+ * An unrelated number or a discount must never silently change prices. */
+function requestedSourceMarkup(message:string):string|null{
+  const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
+  const text=String(message||'').normalize('NFKC')
+    .replace(/[٠-٩۰-۹]/gu,c=>String(ar.includes(c)?ar.indexOf(c):fa.indexOf(c)))
+    .replace(/[ً-ٰٟ]/gu,'').replace(/٫/g,'.');
+  const exact=text.match(/(?:أضف|اضف|ضيف|زوّد|زود|زد|ارفع|زيادة|add|increase|markup)\s*(?:بنسبة\s*|by\s*)?\+?\s*(\d{1,3}(?:[.,]\d{1,4})?)\s*[%٪]/iu);
+  if(!exact)return null;
+  const value=normalizeDecimalInput(exact[1]!.replace(',','.'));
+  if(!/^(?:0|[1-9]\d{0,2})(?:\.\d{1,4})?$/.test(value)||decimalToScaled(value,4)>5000000n)
+    throw new Error('SOURCE_INCOMPLETE: An explicit markup must be between 0% and 500%.');
+  return value;
+}
+function sellingPriceForMarkup(sourceUnitPrice:string,markup:string):string{
+  if(!sourceUnitPrice)throw new Error('SOURCE_INCOMPLETE: A supplier unit price is missing; cannot apply markup to every line.');
+  const cost=decimalToScaled(sourceUnitPrice,6),factor=1000000n+decimalToScaled(markup,4);
+  // unit cost has 6 decimal places; percentage factor is scaled to 1e6.
+  const denominator=1000000000000n;
+  const cents=(cost*factor*100n+denominator-1n)/denominator;
+  const value=String(cents/100n)+'.'+String(cents%100n).padStart(2,'0');
+  if(!/^(?:0|[1-9]\d{0,12})\.\d{2}$/.test(value))
+    throw new Error('SOURCE_INCOMPLETE: Markup would exceed the supported document price range.');
+  return value;
+}
 function sourceText(value:unknown,max:number):string{
   if(typeof value!=='string'||value.length>max)return '';
   return value.normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim();
@@ -115,7 +140,8 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
   let parsed:unknown;
   try{parsed=JSON.parse(evidence);}catch{throw new Error('SOURCE_INCOMPLETE: Attachment extraction is not a complete JSON quotation. No items were staged.');}
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('SOURCE_INCOMPLETE: Attachment is not a structured quotation.');
-  const margin=requestedGrossMargin(message);
+  const margin=requestedGrossMargin(message),markup=requestedSourceMarkup(message);
+  if(margin!==null&&markup!==null)throw new Error('SOURCE_INCOMPLETE: Choose gross margin OR markup, not both. Nothing was prepared.');
   const data=parsed as Record<string,unknown>,raw=data.items;
   if(!Array.isArray(raw)||raw.length===0||raw.length>AI_WORKING_QUOTE_MAX_LINES)throw new Error('SOURCE_INCOMPLETE: Quotation must contain 1–'+AI_WORKING_QUOTE_MAX_LINES+' complete lines. No rows omitted.');
   if(data.sourceRowCount!==undefined&&(!Number.isInteger(data.sourceRowCount)||data.sourceRowCount!==raw.length))throw new Error('SOURCE_INCOMPLETE: Extracted row count does not match the declared source rows. No partial quote staged.');
@@ -133,7 +159,9 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
       (productConfidence!==undefined&&(typeof productConfidence!=='number'||!Number.isFinite(productConfidence)||productConfidence<.5||productConfidence>1)))
       throw new Error('SOURCE_INCOMPLETE: Quantity, pack unit or product identity is uncertain on line '+(index+1)+'. Confirm the source before building a quotation.');
     const unit=sourceText(row.unit,40),sourcePrice=numeric(supplierSource?row.unitCost:row.unitPrice,false);
-    const unitPrice=margin===null?(supplierSource?'':sourcePrice):sellingPriceForGrossMargin(sourcePrice,margin);
+    const unitPrice=margin!==null?sellingPriceForGrossMargin(sourcePrice,margin)
+      :markup!==null?sellingPriceForMarkup(sourcePrice,markup)
+      :supplierSource?'':sourcePrice;
     return{savedItemId:'',descriptionEn:descriptionEn||sku,descriptionAr,quantity,unit,unitPrice};
   });
   const currency=sourceText(data.currency,3).toUpperCase();
@@ -153,6 +181,6 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     deliveryTime:supplierSource?'':sourceText(data.deliveryTime,160),validity:supplierSource?'':sourceText(data.validity,100),
     remarks:supplierSource?'':sourceText(data.remarks,500),notes:supplierSource?'':sourceText(data.notes,500),
     label:'Unsaved quotation from '+sourceText(source.fileName,120),
-    rationale:'User requested a quotation from structured attachment evidence. '+(margin===null?(supplierSource?'Supplier unit costs are evidence only: every customer selling price must be explicitly set before PDF or save. ':'Source unit prices retained exactly. '):'Applied '+margin+'% gross margin (on selling price, not markup) to all '+items.length+' verified source unit prices, rounded UP to cents; supplier costs remain in the attachment evidence. ')+'This is an unsaved working draft, not permission to save or issue.'
+    rationale:'User requested a quotation from structured attachment evidence. '+(margin!==null?'Applied '+margin+'% gross margin (on selling price, not markup) to all '+items.length+' verified source unit prices, rounded UP to cents. ':markup!==null?'Applied an explicit '+markup+'% markup on '+items.length+' verified source unit prices, rounded UP to cents. ':supplierSource?'Supplier unit costs are evidence only: customer selling prices remain blank until explicitly set. ':'Source unit prices retained exactly. ')+(supplierSource?'Supplier terms and supplier identity were not copied into buyer-facing fields. ':'')+'This is an unsaved working draft, not permission to save or issue.'
   };
 }
