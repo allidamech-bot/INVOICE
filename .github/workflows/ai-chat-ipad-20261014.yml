@@ -9,6 +9,8 @@ on:
       - 'scripts/ai-batch3-premium-conversation.mjs'
       - 'tests/ai-chat-ipad-conversation-20261014.test.mjs'
       - 'tests/ai-f01-real-pdf-preview.test.mjs'
+      - 'tests/ai-conversation-workspace.test.mjs'
+      - 'tests/ai-premium-conversation-batch3.test.mjs'
       - '.github/workflows/ai-chat-ipad-20261014.yml'
 permissions:
   contents: read
