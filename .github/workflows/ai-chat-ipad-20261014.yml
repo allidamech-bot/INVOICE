@@ -6,6 +6,7 @@ on:
       - 'src/components/AiConversationWorkspace.tsx'
       - 'src/styles/ai-conversation-workspace.css'
       - 'src/lib/ai-chat-scroll.ts'
+      - 'scripts/qa-ai-chat-scroll-chrome.mjs'
       - 'scripts/ai-batch3-premium-conversation.mjs'
       - 'tests/ai-chat-ipad-conversation-20261014.test.mjs'
       - 'tests/ai-f01-real-pdf-preview.test.mjs'
@@ -43,3 +44,5 @@ jobs:
           tests/ai-advisor-controller-handoff.test.mjs
           tests/ai-001-controller-advisor-routing.test.mjs
           tests/ai-premium-conversation-batch3.test.mjs
+      - name: Real Chromium iPhone and iPad scroll behavior (local test fixture)
+        run: node scripts/qa-ai-chat-scroll-chrome.mjs
