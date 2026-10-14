@@ -81,3 +81,25 @@ test('F18 Advisor or personal mode never assemble quote from uploaded documents'
  assert.equal(quoteSourceWorkingDraft(parts,createAiToolRuntime(vault,{conversationMode:'advisor',assistantRuntime:metadata}),message),null);
  assert.equal(quoteSourceWorkingDraft(parts,createAiToolRuntime(vault,{conversationMode:'controller',assistantRuntime:{scope:'personal'}}),message),null);
 });
+
+
+test('F18 tool orchestration fails closed when more than ten attachments are supplied',async()=>{
+ const vault=emptyVault(),before=structuredClone(vault);
+ const eleven=Array.from({length:11},(_,index)=>({...source(index+1,1,index+1),fileName:'separate-'+index+'.xlsx'}));
+ const result=await orchestrateAiToolRequest({message:'ادمج كل الملفات في عرض سعر موحد',vault,context:{conversationMode:'controller',assistantRuntime:metadata,conversationSources:eleven},language:'ar'});
+ assert.equal(result.proposal,null);
+ assert.equal(result.workingDraft,undefined);
+ assert.equal(result.plan.calls.length,0);
+ assert.match(result.answer,/الحد الأقصى عشرة ملفات/);
+ assert.deepEqual(vault,before);
+});
+
+test('F18 invalid attachment metadata cannot cause a partial document proposal',async()=>{
+ const vault=emptyVault(),before=structuredClone(vault);
+ const files=[source(1,1,1),{...source(2,1,2),fileName:''}];
+ const result=await orchestrateAiToolRequest({message,vault,context:{conversationMode:'controller',assistantRuntime:metadata,conversationSources:files},language:'en'});
+ assert.equal(result.proposal,null);
+ assert.equal(result.workingDraft,undefined);
+ assert.match(result.answer,/No action was staged/);
+ assert.deepEqual(vault,before);
+});
