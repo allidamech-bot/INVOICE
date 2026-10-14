@@ -18,6 +18,8 @@ on:
       - 'tests/ai-tool-catalog-security-coverage.test.mjs'
       - 'tests/ai-workflow-advisor-handoff.test.mjs'
       - 'src/components/AiConversationWorkspace.tsx'
+      - 'src/lib/ai-pdf-file-validation.ts'
+      - 'tests/ai-generated-pdf-safety.test.mjs'
       - '.github/workflows/ai-batch1-data-safety.yml'
 
 permissions:
@@ -48,6 +50,9 @@ jobs:
           tests/ai-batch1-quote-data-safety.test.mjs
           tests/ai-tool-catalog-security-coverage.test.mjs
           tests/ai-workflow-advisor-handoff.test.mjs
+          tests/ai-generated-pdf-safety.test.mjs
+          tests/ai-f01-real-pdf-preview.test.mjs
+          tests/ai-f02-unsaved-tool-preview-continuity.test.mjs
           tests/ai-tool-orchestrator-batch4.test.mjs
           tests/ai-living-workspace-mode-integration.test.mjs
           tests/ai-review-safety-contract.test.mjs
