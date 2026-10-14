@@ -21,7 +21,8 @@ function sendJson(response,status,payload){
 // Use the actual request authority; forwarded host headers cannot grant origin trust.
 function sameOriginRequest(request){
   const origin=String(request.headers.origin||'').trim();
-  if(!origin||String(request.headers['x-requested-with']||'').trim()!=='LOUREX-Invoice')return false;
+  const requestedWith=String(request.headers['x-requested-with']||'').trim();
+  if(!origin||requestedWith!=='LOUREX-Invoice')return false;
   const host=String(request.headers.host||'').trim().toLowerCase();
   if(!host)return false;
   try{const parsed=new URL(origin);return parsed.protocol==='https:'&&!parsed.username&&!parsed.password&&parsed.pathname==='/'&&!parsed.search&&!parsed.hash&&parsed.host.toLowerCase()===host;}catch{return false;}
