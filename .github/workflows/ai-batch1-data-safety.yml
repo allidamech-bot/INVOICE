@@ -16,6 +16,8 @@ on:
       - 'scripts/qa-ai-tool-modal-chrome.mjs'
       - 'tests/ai-batch1-quote-data-safety.test.mjs'
       - 'tests/ai-tool-catalog-security-coverage.test.mjs'
+      - 'tests/ai-workflow-advisor-handoff.test.mjs'
+      - 'src/components/AiConversationWorkspace.tsx'
       - '.github/workflows/ai-batch1-data-safety.yml'
 
 permissions:
@@ -45,6 +47,7 @@ jobs:
           node --test --test-concurrency=2
           tests/ai-batch1-quote-data-safety.test.mjs
           tests/ai-tool-catalog-security-coverage.test.mjs
+          tests/ai-workflow-advisor-handoff.test.mjs
           tests/ai-tool-orchestrator-batch4.test.mjs
           tests/ai-living-workspace-mode-integration.test.mjs
           tests/ai-review-safety-contract.test.mjs
