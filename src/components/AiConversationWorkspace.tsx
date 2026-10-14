@@ -380,17 +380,18 @@ function ConversationDocumentCard({host}:{host:Host}):any {
   },[pdfSource]);
 
   if(!doc)return null;
+  const saveReviewPending=doc.status==='draft'&&['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability);
   return <section className="lxw-chat-document" aria-label={label(ar,'Conversation document','مستند المحادثة')} data-artifact-id={doc.id} data-artifact-revision={doc.revision}>
     <header><strong>{workspaceText(ar,doc.title)}</strong><span>{doc.status==='saved'?label(ar,'Saved','محفوظ'):label(ar,'Unsaved draft','مسودة غير محفوظة')}</span></header>
     <p>{doc.customer} · {doc.rows.length} {label(ar,'items','صنف')} · <bdi>{doc.subtotal??'—'} {doc.currency}</bdi></p>
     <details><summary>{label(ar,'Preview all lines','معاينة جميع السطور')}</summary><QuotePreviewSummary doc={doc} ar={ar}/></details>
     {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label>{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
     <div className="lxw-chat-document-controls">
-      <button type="button" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'edit',__workspaceEditing:true})}>{label(ar,'Edit','تعديل')}</button>
+      <button type="button" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:doc.status==='draft'?'edit':'preview',__workspaceEditing:doc.status==='draft'})}>{doc.status==='draft'?label(ar,'Edit','تعديل'):label(ar,'View document','عرض المستند')}</button>
       {doc.status==='draft'?<>
         <button type="button" disabled={disabled(host)||!kernel.artifact?.undo.length} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Undo','تراجع')}</button>
         <button type="button" disabled={disabled(host)||!kernel.artifact?.redo.length} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Redo','إعادة')}</button>
-        <button type="button" className="lxw-document-save" disabled={disabled(host)||Boolean(doc.blockers.length)} title={label(ar,'Review and explicitly confirm before the document is saved','راجع ووافق قبل حفظ المستند')} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{kernel.artifact?.proposal.capability==='document.createDraft'&&kernel.artifact.proposal.kind==='proforma'?label(ar,'Save quotation','حفظ عرض السعر'):label(ar,'Save draft','حفظ المسودة')}</button>
+        <button type="button" className="lxw-document-save" disabled={disabled(host)||Boolean(doc.blockers.length)||saveReviewPending} title={saveReviewPending?label(ar,'Finish the pending review below','أكمل المراجعة والموافقة الموجودة أدناه'):label(ar,'Review and explicitly confirm before the document is saved','راجع ووافق قبل حفظ المستند')} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{saveReviewPending?label(ar,'Awaiting approval','بانتظار الموافقة'):kernel.artifact?.proposal.capability==='document.createDraft'&&kernel.artifact.proposal.kind==='proforma'?label(ar,'Save quotation','حفظ عرض السعر'):label(ar,'Save draft','حفظ المسودة')}</button>
       </>:null}
     </div>
     {doc.status==='draft'?<small className="lxw-save-guidance">{label(ar,'Saving requires reviewing and approving the draft. PDF preview never saves it.','الحفظ يتطلب مراجعة المسودة وتأكيد الموافقة. معاينة PDF لا تحفظ العرض.')}</small>:null}
