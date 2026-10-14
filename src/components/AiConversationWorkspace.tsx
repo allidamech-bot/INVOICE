@@ -738,7 +738,22 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const historyButton=<button type="button" className="lxw-history-trigger" disabled={inactive} aria-label={label(ar,'Conversation history','سجل المحادثات')} title={label(ar,'Conversation history','سجل المحادثات')} aria-expanded={Boolean(host.state.__workspaceHistoryOpen)} onClick={()=>host.setState({__workspaceHistoryOpen:!host.state.__workspaceHistoryOpen,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.6 5.9"/><path d="M4 5v6h6M12 7v5l4 2"/></svg></button>;
     const compactHeader=header.map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],historyButton,toolbar,...parts.slice(1));});
     const safeContent=content.filter((child:any)=>child!==proposalNode);
-    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{safeContent}{mode==='controller'&&approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null}{mode==='controller'&&generalProposal?<InlineGeneralProposal host={host} proposalNode={generalProposal} ar={ar}/>:null}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    // Review controls belong to the conversation timeline, not AFTER the
+    // composer. Keeping approval below the footer shrinks the chat viewport,
+    // causes iPad layout jumps and hides buttons behind the soft keyboard.
+    // This keeps the original guarded approval callbacks and scroll observer.
+    const chatContent=safeContent.map((child:any)=>{
+      if(!react.isValidElement(child)||!String(child.props?.className||'').split(' ').includes('lourex-ai-messages'))return child;
+      const existing=react.Children.toArray(child.props?.children);
+      const beforeMarker=existing.findIndex((entry:any)=>entry?.type===ConversationScrollKeeper);
+      const index=beforeMarker<0?existing.length:beforeMarker;
+      const inline=mode==='controller'?[
+        ...(approval?[<InlineDocumentApproval key="review-document" host={host} approval={approval} ar={ar}/>] : []),
+        ...(generalProposal?[<InlineGeneralProposal key="review-action" host={host} proposalNode={generalProposal} ar={ar}/>] : [])
+      ]:[];
+      return react.cloneElement(child,undefined,...existing.slice(0,index),...inline,...existing.slice(index));
+    });
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{chatContent}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
