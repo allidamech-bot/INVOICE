@@ -11,6 +11,14 @@ export function explicitQuoteConversionIntent(message:string):boolean{
   return /(?:حوّل|حول|جهز|جهّز|أنشئ|انشئ|اصنع|اعمل|سوي|حضّر|حضر|ادمج|اجمع|combine|merge|convert|create|prepare|make|build|draft).{0,100}(?:عرض\s*سعر|عرض\s*السعر|فاتورة\s*مبدئية|quotation|quote|proforma)/iu.test(q)||
     /(?:عرض\s*سعر|quotation|quote|proforma).{0,100}(?:من\s*(?:الملف|المرفق|الصورة)|from\s*(?:this\s*)?(?:file|attachment))/iu.test(q);
 }
+/** Source documents and user text are untrusted as pricing permissions.
+ * "Do NOT add 3%"/"لا تضف 3%" is a veto, not a pricing instruction.
+ * Only a negative immediately preceding this exact directive is considered,
+ * so "without gross margin, add 3% to prices" remains an explicit markup. */
+function pricingDirectiveNegated(text:string,start:number):boolean{
+  const before=text.slice(Math.max(0,start-75),start);
+  return /(?:^|[\s،,;:])(?:لا|بدون|بلا|ليس|don't|do\s+not|without|never|not)\s*(?:(?:تضف|تضيف|اضف|أضف|ضيف|تطبق|طبق|تزود|زود|تزيد|زيادة|ضع|add|apply|increase|include|set)\s*)?$/iu.test(before);
+}
 /** A gross margin is a share of SALES, not a markup on supplier cost.
  * Parse only an explicit margin request; ambiguous percentages never silently
  * change 85 supplier prices. The cost itself stays in the source evidence. */
@@ -20,7 +28,8 @@ function requestedGrossMargin(message:string):string|null{
     .replace(/[٠-٩۰-۹]/gu,c=>String(ar.includes(c)?ar.indexOf(c):fa.indexOf(c)))
     .replace(/[ً-ٰٟ]/gu,'').replace(/٫/g,'.');
   const keyword=/(?:هامش\s*(?:ال)?ربح|هامش\s*إجمالي|gross\s+(?:profit\s+)?margin)/iu;
-  if(!keyword.test(text))return null;
+  const keywordMatch=text.match(keyword);
+  if(!keywordMatch||pricingDirectiveNegated(text,keywordMatch.index))return null;
   const exact=text.match(/(?:هامش\s*(?:ال)?ربح|هامش\s*إجمالي|gross\s+(?:profit\s+)?margin)\s*(?:بنسبة\s*)?(\d{1,3}(?:[.,]\d{1,4})?)\s*(?:[%٪]|بالمئة|بالمائة|percent)?/iu);
   if(!exact)throw new Error('SOURCE_INCOMPLETE: Supply an explicit gross margin percentage. No quotation was prepared.');
   const value=normalizeDecimalInput(exact[1]!.replace(',','.'));
@@ -56,7 +65,7 @@ export function requestedSourceMarkup(message:string):string|null{
   const before=new RegExp(verb+'\\s*(?:بنسبة\\s*|by\\s*)?\\+?\\s*'+amount+'\\s*[%٪]\\s*(?:(?:على|ل|to|on)\\s*)?'+price,'iu');
   const after=new RegExp(verb+'\\s*(?:(?:على|ل|to|on)\\s*)?'+price+'\\s*(?:بنسبة\\s*|by\\s*)?\\+?\\s*'+amount+'\\s*[%٪]','iu');
   const found=text.match(before)||text.match(after);
-  if(!found)return null;
+  if(!found||pricingDirectiveNegated(text,found.index))return null;
   const value=normalizeDecimalInput(found[1]!.replace(',','.'));
   if(!/^(?:0|[1-9]\d{0,2})(?:\.\d{1,4})?$/.test(value)||decimalToScaled(value,4)>5000000n)
     throw new Error('SOURCE_INCOMPLETE: An explicit markup must be between 0% and 500%.');
