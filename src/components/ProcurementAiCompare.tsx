@@ -1,6 +1,5 @@
 import { assertAiImportSaveAllowed } from '../lib/ai-import-authorization.js';
 import { scopeVault } from '../lib/workspaces.js';
-import { assertAiWorkflowDraftPermission } from '../lib/ai-workflow-draft-permissions.js';
 import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord } from '../types.js';
@@ -63,7 +62,7 @@ export class ProcurementAiCompare extends React.Component<Props,State>{
   };
   private saveSelected=async()=>{
     const offer=this.state.offers[this.state.selectedOfferIndex];if(!offer||this.saving||this.state.stage==='saving')return;this.saving=true;this.setState({stage:'saving',error:''});
-    try{const next=await mutateVaultSafely(vault=>{assertAiImportSaveAllowed(vault,'supplier-purchase-draft');assertAiWorkflowDraftPermission(vault,'supplier-purchase');const purchase=buildAiSupplierPurchaseDraft(offer.draft,vault.purchases,scopeVault(vault).suppliers,scopeVault(vault).savedItems);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',savedLabel:saved?t(`Purchase draft ${saved.number} saved for review`,`تم حفظ مسودة الشراء ${saved.number} للمراجعة`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
+    try{const next=await mutateVaultSafely(vault=>{assertAiImportSaveAllowed(vault,'supplier-purchase-draft');const purchase=buildAiSupplierPurchaseDraft(offer.draft,vault.purchases,scopeVault(vault).suppliers,scopeVault(vault).savedItems);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',savedLabel:saved?t(`Purchase draft ${saved.number} saved for review`,`تم حفظ مسودة الشراء ${saved.number} للمراجعة`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
     catch(error){this.setState({stage:'review',error:error instanceof Error?error.message:String(error)});}finally{this.saving=false;}
   };
   render():any{return <>
