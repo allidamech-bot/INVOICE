@@ -12,7 +12,9 @@ test('Hosted verification is limited to free feature-branch pushes and cannot pu
   assert.ok(workflows.length,'free feature-branch verification must exist');
   for(const name of workflows){
     const yaml=await read(new URL('.github/workflows/'+name,root));
-    assert.match(yaml,/\s+push:\s*\n\s+branches:\s*(?:\[[^\]]*(?:fix|feat)\/|\n\s+-\s+(?:fix|feat)\/)/,name);
+    assert.match(yaml,/^on:\s*\n(?:[\s\S]*?)(?:^  (?:push|pull_request):)/m,'safe QA trigger required: '+name);
+    const pushBlock=yaml.match(/^  push:\s*\n([\s\S]*?)(?=^  [a-z_]+:|^permissions:|^jobs:|$(?![\s\S]))/m)?.[1];
+    if(pushBlock)assert.match(pushBlock,/branches:\s*(?:\[[^\]]*(?:fix|feat)\/|\n\s+-\s+(?:fix|feat)\/)/,name+' must push only feature branches');
     assert.match(yaml,/runs-on:\s*ubuntu-latest/,name);
     assert.match(yaml,/permissions:\s*\n\s*contents:\s*read/,name);
     assert.doesNotMatch(yaml,/^\s*(?:pull_request_target|deployment|release|schedule):/m,name);
