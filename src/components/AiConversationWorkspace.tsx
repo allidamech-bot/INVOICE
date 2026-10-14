@@ -525,6 +525,12 @@ function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUse
   },[scopeKey,lastUserId]);
   return <span ref={marker} className="lxw-chat-scroll-marker" aria-hidden="true"/>;
 }
+function ConversationThinkingIndicator({ar}:{ar:boolean}):any {
+  return <div className="lxw-thinking" role="status" aria-live="polite">
+    <span className="lxw-thinking-dots" aria-hidden="true"><i/><i/><i/></span>
+    <span>{label(ar,'LOUREX AI is working on your request…','LOUREX AI يعالج طلبك…')}</span>
+  </div>;
+}
 function conversationModeTabs(host:Host,mode:AiConversationMode|undefined,locked:boolean):any {
   const ar=aiUiAr(host);
   return <nav className="lxw-mode-tabs" role="tablist" aria-label={label(ar,'Conversation modes','نوع المحادثة')}>
@@ -669,10 +675,12 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     }
     if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
        return react.cloneElement(node,undefined,...children,
+         {(host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null},
          <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
      }
      if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
       return react.cloneElement(node,undefined,...children,
+        {(host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null},
         <ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>,
         <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>,
          <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
@@ -739,7 +747,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const tabs=conversationModeTabs(host,mode,inactive);
     const description=<div className="lxw-mode-description" dir={ar?'rtl':'ltr'} aria-live="polite">
       <span className="lxw-mode-symbol" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{mode==='controller'?<><path d="M4 7h16M4 17h16"/><path d="M8 4v6M16 14v6"/></>:<><path d="M20 11.5a8 8 0 0 1-8.5 8 8 8 0 0 1-3.8-1L4 20l1.5-3.7A8 8 0 1 1 20 11.5Z"/><path d="M8 11h8M8 14h5"/></>}</svg></span>
-      <span>{conversationModeDescription(mode,ar?'ar':'en')}</span>
+      <span>{switching?label(ar,'Opening conversation…','جارٍ فتح المحادثة…'):conversationModeDescription(mode,ar?'ar':'en')}</span>
       {mode==='advisor'?<button type="button" className="lxw-advisor-controller-handoff"
         disabled={inactive||!latestAdvisorReply||Boolean(host.__workspaceAdvisorHandoffBusy)}
         title={label(ar,'Copy latest Advisor proposal into Controller for review only','إرسال أحدث اقتراح للمتحكم للمراجعة فقط')}
