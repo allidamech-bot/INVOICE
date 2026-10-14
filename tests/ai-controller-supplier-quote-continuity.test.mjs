@@ -64,6 +64,17 @@ test('explicit 20 percent gross margin computes selling prices, not a 20 percent
   assert.equal(vault.documents.length,0);
 });
 
+test('explicit 3 percent markup produces 10.30, not a 3 percent gross-margin price',()=>{
+  const vault=emptyVault();
+  const draft=quoteSourceWorkingDraft([supplierSource(3)],runtime(vault),'حوّل عرض المورد إلى عرض سعر وأضف 3% على الأسعار');
+  assert.ok(draft);
+  assert.deepEqual(draft.items.map(row=>row.unitPrice),['10.30','10.30','10.30']);
+  assert.match(draft.rationale,/3% markup/);
+  assert.throws(()=>quoteSourceWorkingDraft([supplierSource(2)],runtime(vault),
+    'حوّل عرض المورد إلى عرض سعر بهامش ربح 20% وأضف 3%'),/gross margin OR markup/);
+  assert.deepEqual(vault.documents,[]);
+});
+
 test('missing or invalid supplier costs never fabricate a requested margin or drop later rows',()=>{
   const vault=emptyVault(),src=supplierSource(24);
   const parsed=JSON.parse(src.extracted);
