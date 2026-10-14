@@ -58,7 +58,7 @@ export function requestedSourceMarkup(message:string):string|null{
   const found=text.match(before)||text.match(after);
   if(!found)return null;
   const value=normalizeDecimalInput(found[1]!.replace(',','.'));
-  if(!/^(?:0|[1-9]\\d{0,2})(?:\\.\\d{1,4})?$/.test(value)||decimalToScaled(value,4)>5000000n)
+  if(!/^(?:0|[1-9]\d{0,2})(?:\.\d{1,4})?$/.test(value)||decimalToScaled(value,4)>5000000n)
     throw new Error('SOURCE_INCOMPLETE: An explicit markup must be between 0% and 500%.');
   return value;
 }
