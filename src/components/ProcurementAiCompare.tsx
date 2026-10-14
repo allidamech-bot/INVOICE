@@ -1,3 +1,4 @@
+import { scopeVault } from '../lib/workspaces.js';
 import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord } from '../types.js';
@@ -51,7 +52,7 @@ export class ProcurementAiCompare extends React.Component<Props,State>{
       if(controller.signal.aborted)return;
       const ephemeral:PurchaseRecord[]=[];
       for(const [index,offer] of offers.entries()){
-        const purchase=buildAiSupplierPurchaseDraft(offer.draft,[...resumed.vault.purchases,...ephemeral],resumed.vault.suppliers,resumed.vault.savedItems);
+        const purchase=buildAiSupplierPurchaseDraft(offer.draft,[...resumed.vault.purchases,...ephemeral],scopeVault(resumed.vault).suppliers,scopeVault(resumed.vault).savedItems);
         ephemeral.push({...purchase,id:`ai-offer-${index}`,number:`AI-OFFER-${index+1}`});
       }
       const context=buildProcurementDraftContext({...resumed.vault,purchases:[...resumed.vault.purchases.filter(p=>p.status!=='draft'),...ephemeral]});
@@ -60,7 +61,7 @@ export class ProcurementAiCompare extends React.Component<Props,State>{
   };
   private saveSelected=async()=>{
     const offer=this.state.offers[this.state.selectedOfferIndex];if(!offer||this.saving||this.state.stage==='saving')return;this.saving=true;this.setState({stage:'saving',error:''});
-    try{const next=await mutateVaultSafely(vault=>{const purchase=buildAiSupplierPurchaseDraft(offer.draft,vault.purchases,vault.suppliers,vault.savedItems);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',savedLabel:saved?t(`Purchase draft ${saved.number} saved for review`,`تم حفظ مسودة الشراء ${saved.number} للمراجعة`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
+    try{const next=await mutateVaultSafely(vault=>{const purchase=buildAiSupplierPurchaseDraft(offer.draft,vault.purchases,scopeVault(vault).suppliers,scopeVault(vault).savedItems);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',savedLabel:saved?t(`Purchase draft ${saved.number} saved for review`,`تم حفظ مسودة الشراء ${saved.number} للمراجعة`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
     catch(error){this.setState({stage:'review',error:error instanceof Error?error.message:String(error)});}finally{this.saving=false;}
   };
   render():any{return <>
