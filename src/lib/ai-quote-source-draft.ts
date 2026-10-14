@@ -17,7 +17,7 @@ export function explicitQuoteConversionIntent(message:string):boolean{
  * so "without gross margin, add 3% to prices" remains an explicit markup. */
 function pricingDirectiveNegated(text:string,start:number):boolean{
   const before=text.slice(Math.max(0,start-75),start);
-  return /(?:^|[\s،,;:])(?:لا|بدون|بلا|ليس|don't|do\s+not|without|never|not)\s*(?:(?:تضف|تضيف|اضف|أضف|ضيف|تطبق|طبق|تزود|زود|تزيد|زيادة|ضع|add|apply|increase|include|set)\s*)?$/iu.test(before);
+  return /(?:^|[\s،,;:])و?(?:لا|بدون|بلا|ليس|don't|do\s+not|without|never|not)\s*(?:(?:تضف|تضيف|اضف|أضف|ضيف|تطبق|طبق|تزود|زود|تزيد|زيادة|ضع|add|apply|increase|include|set)\s*)?$/iu.test(before);
 }
 /** A gross margin is a share of SALES, not a markup on supplier cost.
  * Parse only an explicit margin request; ambiguous percentages never silently
