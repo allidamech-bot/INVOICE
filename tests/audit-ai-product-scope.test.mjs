@@ -26,6 +26,7 @@ test('AI product archive, restore and metadata approvals reject another company 
     t:english=>english,
     mutateVaultSafely:async update=>{const next=await update(vault);vault=next;return next;},
     aiProductArchived:product=>product.archived===true,
+    assertAiBusinessWriteAuthorized:()=>{},
     findSavedItemDuplicate:()=>null
   };
   vm.runInNewContext(code,context);
