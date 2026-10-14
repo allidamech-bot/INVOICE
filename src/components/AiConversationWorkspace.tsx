@@ -851,6 +851,16 @@ export function installConversationWorkspace(host:Host):void {
       const current=host.__intelligenceKernel as ConversationKernel;
       if(normalizeAiConversationMode(current.mode)!==target||current.scope.accountId!==previous.scope.accountId||current.scope.workspaceId!==previous.scope.workspaceId||current.scope.branchId!==previous.scope.branchId)throw new Error('Selected conversation mode or scope did not match. Retry.');
       recentModeThread.set(keyFor(target),current.scope.threadId);
+      // Mode assignment persisted the new empty thread, but refresh() took
+      // its list snapshot before that save. Make it immediately selectable
+      // so a rapid mode switch does not discard a new thread or its draft.
+      if(!(host.__businessThreads||[]).some((row:any)=>row.id===current.scope.threadId)){
+        host.__businessThreads=[{
+          id:current.scope.threadId,title:'',updatedAt:new Date().toISOString(),
+          mode:target,hasArtifact:Boolean(current.artifact),
+          artifactTitle:current.artifact?.proposal.label||''
+        },...(host.__businessThreads||[])];
+      }
       host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSettingsOpen:false});
     }catch(error){
       host.setState({error:error instanceof Error?error.message:String(error)});
