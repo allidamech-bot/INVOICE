@@ -1,5 +1,6 @@
 import type {AiDocumentDraftProposal,AiDocumentUpdateProposal,AiDraftItemInput,AiContextEnvelope} from '../components/AiCopilot.js';
 import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
+import {requestedSourceMarkup, sellingPriceForMarkup} from './ai-quote-source-draft.js';
 
 type Proposal=AiDocumentDraftProposal|AiDocumentUpdateProposal;
 type DraftReference=AiContextEnvelope['drafting'];
@@ -79,10 +80,31 @@ function setLineValue(proposal:Proposal,drafting:DraftReference,index:number,fie
 /** Edits only a user-reviewed proposal, never the vault. A new command with
  * unsupported syntax returns null so other business requests retain normal routing. */
 function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,drafting:DraftReference,language:'en'|'ar'):StagedDocumentRevision|null{
-  const input=String(message||'').trim().slice(0,6000);if(!input)return null;
+  const input=String(message||'').trim().slice(0,6000).replace(/^في\s+نفس\s+المسودة[،,]?\s*/iu,'');if(!input)return null;
   const ar=language==='ar';
   if(/^(?:موافق|اعتمد|احفظ|سجّل|سجل|approve|confirm|save|register)(?:\s+المسودة|\s+draft)?[.!؟\s]*$/iu.test(input))
     return rejected(proposal,ar?'الحفظ يتطلب الضغط على زر الموافقة؛ لا تنفّذ المحادثة الحفظ.':'Saving requires the approval button; a chat message cannot authorize persistence.',ar);
+  // Follow-up price increases are applied to the *existing complete working
+  // quotation*, never to the vault, the product catalogue, or a partial AI
+  // excerpt. One user turn creates exactly one undoable revision.
+  const markup=requestedSourceMarkup(input);
+  if(markup!==null&&/^(?:أضف|اضف|ضيف|زوّد|زود|زد|ارفع|زيادة|add|increase|markup)\s/iu.test(input)){
+    if(proposal.capability!=='document.createDraft')return rejected(proposal,
+      'Bulk repricing of a saved document is not available; use a separate reviewed document edit.',ar);
+    try{
+      // Validate ALL source prices before changing even the first row.
+      // Missing prices (common in imported supplier offers) must not turn
+      // into zero-cost or invented customer prices.
+      const previousPrices=proposal.items.map((row,index)=>{
+        const price=String(row.unitPrice||'').trim();
+        if(!/^(?:0|[1-9]\d{0,12})(?:\.\d{1,6})?$/.test(price))
+          throw new Error('Line '+(index+1)+' has no complete supported selling price. Set prices first; no line was changed.');
+        return price;
+      });
+      const items=proposal.items.map((row,index)=>({...row,unitPrice:sellingPriceForMarkup(previousPrices[index]!,markup)}));
+      return result({...proposal,items},ar);
+    }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
+  }
   const change=quantityOrPriceChange(input);
   if(change){
     try{
