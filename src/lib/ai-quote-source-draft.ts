@@ -29,7 +29,7 @@ function requestedGrossMargin(message:string):string|null{
     .replace(/[ً-ٰٟ]/gu,'').replace(/٫/g,'.');
   const keyword=/(?:هامش\s*(?:ال)?ربح|هامش\s*إجمالي|gross\s+(?:profit\s+)?margin)/iu;
   const keywordMatch=text.match(keyword);
-  if(!keywordMatch||pricingDirectiveNegated(text,keywordMatch.index))return null;
+  if(!keywordMatch||pricingDirectiveNegated(text,keywordMatch.index??0))return null;
   const exact=text.match(/(?:هامش\s*(?:ال)?ربح|هامش\s*إجمالي|gross\s+(?:profit\s+)?margin)\s*(?:بنسبة\s*)?(\d{1,3}(?:[.,]\d{1,4})?)\s*(?:[%٪]|بالمئة|بالمائة|percent)?/iu);
   if(!exact)throw new Error('SOURCE_INCOMPLETE: Supply an explicit gross margin percentage. No quotation was prepared.');
   const value=normalizeDecimalInput(exact[1]!.replace(',','.'));
@@ -65,7 +65,7 @@ export function requestedSourceMarkup(message:string):string|null{
   const before=new RegExp(verb+'\\s*(?:بنسبة\\s*|by\\s*)?\\+?\\s*'+amount+'\\s*[%٪]\\s*(?:(?:على|ل|to|on)\\s*)?'+price,'iu');
   const after=new RegExp(verb+'\\s*(?:(?:على|ل|to|on)\\s*)?'+price+'\\s*(?:بنسبة\\s*|by\\s*)?\\+?\\s*'+amount+'\\s*[%٪]','iu');
   const found=text.match(before)||text.match(after);
-  if(!found||pricingDirectiveNegated(text,found.index))return null;
+  if(!found||pricingDirectiveNegated(text,found.index??0))return null;
   const value=normalizeDecimalInput(found[1]!.replace(',','.'));
   if(!/^(?:0|[1-9]\d{0,2})(?:\.\d{1,4})?$/.test(value)||decimalToScaled(value,4)>5000000n)
     throw new Error('SOURCE_INCOMPLETE: An explicit markup must be between 0% and 500%.');
