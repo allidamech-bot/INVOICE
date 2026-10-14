@@ -18,6 +18,9 @@ on:
       - 'tests/ai-tool-catalog-security-coverage.test.mjs'
       - 'tests/ai-workflow-advisor-handoff.test.mjs'
       - 'src/components/AiConversationWorkspace.tsx'
+      - 'src/components/AiCopilot.tsx'
+      - 'src/lib/ai-business-write-authorization.ts'
+      - 'tests/ai-controller-write-authorization.test.mjs'
       - 'src/lib/ai-pdf-file-validation.ts'
       - 'tests/ai-generated-pdf-safety.test.mjs'
       - '.github/workflows/ai-batch1-data-safety.yml'
@@ -51,6 +54,7 @@ jobs:
           tests/ai-tool-catalog-security-coverage.test.mjs
           tests/ai-workflow-advisor-handoff.test.mjs
           tests/ai-generated-pdf-safety.test.mjs
+          tests/ai-controller-write-authorization.test.mjs
           tests/ai-f01-real-pdf-preview.test.mjs
           tests/ai-f02-unsaved-tool-preview-continuity.test.mjs
           tests/ai-tool-orchestrator-batch4.test.mjs
