@@ -54,7 +54,7 @@ jobs:
 
   firestore-emulator:
     name: Real Firestore rules and two-device transaction tests (emulator only)
-    needs: integration
+    # Independent isolated QA: run even when unrelated legacy Node contracts fail.
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
@@ -85,7 +85,7 @@ jobs:
 
   webkit-visual:
     name: Chromium/WebKit login, AI voice, conversation and PDF QA
-    needs: integration
+    # Independent isolated QA: run even when unrelated legacy Node contracts fail.
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
