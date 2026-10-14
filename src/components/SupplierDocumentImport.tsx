@@ -163,7 +163,8 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
       await mutateVaultSafely(vault=>{
         assertAiImportSaveAllowed(vault,'supplier-purchase-draft');
         
-        const purchase=buildAiSupplierPurchaseDraft(extracted,vault.purchases,scopeVault(vault).suppliers,scopeVault(vault).savedItems);
+        const scoped=scopeVault(vault);
+        const purchase=buildAiSupplierPurchaseDraft(extracted,scoped.purchases,scoped.suppliers,scoped.savedItems);
         return {...vault,purchases:[...vault.purchases,purchase]};
       });
       this.setState({stage:'saved',draft:null,error:''});
