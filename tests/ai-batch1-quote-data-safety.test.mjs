@@ -94,7 +94,22 @@ test('a changed customer match or product cost blocks stale quote save before nu
   const review=buildQuoteAiReview(scopeVault(vault),draft);
   assert.doesNotThrow(()=>assertAiInboxQuoteReviewFresh(vault,draft,review));
   const differentBuyer={...draft,customerName:'Changed Buyer'};
-  assert.doesNotThrow(()=>assertAiInboxQuoteReviewFresh(vault,differentBuyer,review),'unmatched buyer names are kept as review-only metadata');
+  assert.throws(()=>assertAiInboxQuoteReviewFresh(vault,differentBuyer,review),/Quotation source changed since review/,'buyer identity must be re-reviewed even without a saved customer match');
+  for(const [change,details] of [
+    [{customerPhone:'+9050012345'},'customer phone'],
+    [{incoterm:'FOB Istanbul'},'delivery term'],
+    [{paymentTerms:'30% deposit'},'payment term'],
+    [{validity:'7 days'},'validity'],
+    [{notes:'Unreviewed special instructions'},'notes'],
+    [{items:[{...draft.items[0],quantity:'500'}]},'quantity'],
+    [{items:[{...draft.items[0],descriptionEn:'Different SKU line'}]},'description'],
+    [{items:[{...draft.items[0],unit:'PCS'}]},'unit']
+  ]){
+    assert.throws(()=>assertAiInboxQuoteReviewFresh(vault,{...draft,...change},review),
+      /Quotation source changed since review/,details+' must require a new preview');
+  }
+  assert.throws(()=>assertAiInboxQuoteReviewFresh(vault,draft,{...review,sourceSnapshot:undefined}),
+    /Quotation source changed since review/,'legacy unbound review cannot be saved');
   const saved=vault.savedItems.at(-1);
   saved.lastUnitCost='11.00';
   assert.throws(()=>assertAiInboxQuoteReviewFresh(vault,draft,review),/Refresh and review every line/);
