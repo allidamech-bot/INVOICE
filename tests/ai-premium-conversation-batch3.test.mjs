@@ -10,7 +10,7 @@ test('Batch 3 is installed after unified assistant and deterministic Advisor V2'
   assert.match(pkg,/ai-batch2-advisor-data-v2\.mjs && node scripts\/ai-batch3-premium-conversation\.mjs && node scripts\/ai-batch3-conversation-lifecycle-fix\.mjs/);
   assert.match(installer,/__lourexUnifiedAssistantBatch1|__lourexAdvisorDataV2Batch2/);
   assert.match(installer,/conversationSources: __lourexConversationSources/);
-  assert.match(installer,/__lourexConversationSources\.length \? '\/api\/ai-conversation-v3'/);
+  assert.match(installer,/resolveAiConversationEndpoint\(context\.conversationMode, __lourexConversationSources\.length > 0\)/);
   assert.match(installer,/__lourexLatestContext=context/);
   assert.match(lifecycle,/instance\.ask\(__lourexCleanUserText\(last\.text\)\)/,'retry must pass through final encrypted-thread wrapper');
   assert.match(lifecycle,/__lourexAttachmentStopped=true/);

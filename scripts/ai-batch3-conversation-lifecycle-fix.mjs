@@ -16,14 +16,14 @@ source=source.replace(lexical,"function __lourexGetConversationSources(){const v
 
 const requiredStateTargets=[
   'conversationSources: __lourexConversationSources',
-  "__lourexConversationSources.length ? '/api/ai-conversation-v3'",
+  'resolveAiConversationEndpoint(context.conversationMode, __lourexConversationSources.length > 0)',
   '__lourexConversationSources=analyses.map(item=>item.source);',
   'instance.__lourexLastConversationSources=__lourexConversationSources.slice();',
   '__lourexConversationSources=sources.slice();'
 ];
 for(const token of requiredStateTargets)if(!source.includes(token))throw new Error(`Batch 3 source-state target changed: ${token}`);
 source=source.replaceAll('conversationSources: __lourexConversationSources','conversationSources: __lourexGetConversationSources()');
-source=source.replaceAll("__lourexConversationSources.length ? '/api/ai-conversation-v3'","__lourexGetConversationSources().length ? '/api/ai-conversation-v3'");
+source=source.replaceAll('resolveAiConversationEndpoint(context.conversationMode, __lourexConversationSources.length > 0)','resolveAiConversationEndpoint(context.conversationMode, __lourexGetConversationSources().length > 0)');
 source=source.replaceAll('__lourexConversationSources=analyses.map(item=>item.source);','__lourexSetConversationSources(analyses.map(item=>item.source));');
 source=source.replaceAll('instance.__lourexLastConversationSources=__lourexConversationSources.slice();','instance.__lourexLastConversationSources=__lourexGetConversationSources().slice();');
 source=source.replaceAll('__lourexConversationSources=sources.slice();','__lourexSetConversationSources(sources.slice());');
