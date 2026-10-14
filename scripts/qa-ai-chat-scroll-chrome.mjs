@@ -21,7 +21,7 @@ const processes=[];
 let socket;
 const filename='__lourex_ai_chat_scroll_qa__.html';
 try{
-  await writeFile('dist/'+filename,'<!doctype html><html><head><meta charset="UTF-8"><title>AI chat scroll test</title></head><body></body></html>');
+  await writeFile('dist/'+filename,'<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>AI chat scroll test</title></head><body></body></html>');
   const server=spawn(process.execPath,['./node_modules/http-server/bin/http-server','dist','-p','4181','-a','127.0.0.1','-c-1'],{stdio:'ignore'});
   processes.push(server);
   await until(async()=>{const r=await fetch('http://127.0.0.1:4181/'+filename);return r.ok;},12000);
@@ -111,6 +111,7 @@ try{
     const result=await cmd('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
     const value=result.result?.value;
     assert.ok(value?.ok,name+' real browser scroll regression failed: '+JSON.stringify(value));
+    assert.equal(value.width,width,name+' must run at its intended CSS viewport, not the default mobile 980px layout');
     console.log('PASS '+name+' real compiled scroll follower: '+JSON.stringify(value));
   }
 }finally{
