@@ -18,21 +18,13 @@ function sendJson(response,status,payload){
   response.end(JSON.stringify(payload));
 }
 
-function forwardedHost(request){
-  const raw=String(request.headers['x-forwarded-host']||request.headers.host||'');
-  return raw.split(',')[0]?.trim().toLowerCase()||'';
-}
-
+// Use the actual request authority; forwarded host headers cannot grant origin trust.
 function sameOriginRequest(request){
   const origin=String(request.headers.origin||'').trim();
-  const requestedWith=String(request.headers['x-requested-with']||'').trim();
-  if(!origin||requestedWith!=='LOUREX-Invoice')return false;
-  const host=forwardedHost(request);
+  if(!origin||String(request.headers['x-requested-with']||'').trim()!=='LOUREX-Invoice')return false;
+  const host=String(request.headers.host||'').trim().toLowerCase();
   if(!host)return false;
-  try{
-    const parsed=new URL(origin);
-    return parsed.protocol==='https:'&&parsed.host.toLowerCase()===host;
-  }catch{return false;}
+  try{const parsed=new URL(origin);return parsed.protocol==='https:'&&!parsed.username&&!parsed.password&&parsed.pathname==='/'&&!parsed.search&&!parsed.hash&&parsed.host.toLowerCase()===host;}catch{return false;}
 }
 
 function requestIp(request){if(request.aiVerifiedUid)return `uid:${request.aiVerifiedUid}`;
