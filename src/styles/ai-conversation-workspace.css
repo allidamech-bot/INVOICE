@@ -926,6 +926,13 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-messages{
   padding:16px 18px 22px!important;gap:16px!important;overflow-x:hidden!important;
   scroll-padding-block-end:22px;min-width:0!important;
 }
+/* Retire the legacy forced LTR chat-track in Arabic conversations. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='rtl'] .lourex-ai-messages{
+  direction:rtl!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='ltr'] .lourex-ai-messages{
+  direction:ltr!important;
+}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn{
   box-sizing:border-box;max-width:100%;gap:6px;min-width:0;
 }
