@@ -507,13 +507,21 @@ function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUse
     };
     pin.current=settle;
     const onScroll=()=>{if(!programmatic)follow.current=atBottom();};
-    const mutations=new MutationObserver(settle);
-    mutations.observe(box,{childList:true,characterData:true,subtree:true});
+    // iOS Safari can reflow a completed PDF card or font without changing text.
+    // Observe only the latest few nodes; avoid one observer per old chat turn.
+    const resize=typeof ResizeObserver==='function'?new ResizeObserver(settle):null;
+    const watchRecent=()=>{
+      if(!resize)return;
+      Array.from(box.children).slice(-8).forEach(child=>resize.observe(child));
+    };
+    const mutations=new MutationObserver(()=>{watchRecent();settle();});
+    mutations.observe(box,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['open']});
     box.addEventListener('scroll',onScroll,{passive:true});
     window.visualViewport?.addEventListener('resize',settle);
+    watchRecent();
     settle();
     return()=>{
-      mutations.disconnect();box.removeEventListener('scroll',onScroll);
+      mutations.disconnect();resize?.disconnect();box.removeEventListener('scroll',onScroll);
       window.visualViewport?.removeEventListener('resize',settle);
       window.cancelAnimationFrame(frame);window.clearTimeout(unlock);
       pin.current=null;
