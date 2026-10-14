@@ -1,6 +1,5 @@
 import { assertAiImportSaveAllowed } from '../lib/ai-import-authorization.js';
 import { scopeVault } from '../lib/workspaces.js';
-import { assertAiWorkflowDraftPermission } from '../lib/ai-workflow-draft-permissions.js';
 import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
@@ -163,7 +162,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
     try{
       await mutateVaultSafely(vault=>{
         assertAiImportSaveAllowed(vault,'supplier-purchase-draft');
-        assertAiWorkflowDraftPermission(vault,'supplier-purchase');
+        
         const purchase=buildAiSupplierPurchaseDraft(extracted,vault.purchases,scopeVault(vault).suppliers,scopeVault(vault).savedItems);
         return {...vault,purchases:[...vault.purchases,purchase]};
       });
