@@ -126,9 +126,23 @@ export function aiPlanningUnavailableResult(message:string,language:'en'|'ar',re
 }
 
 export async function orchestrateAiToolRequest(input:{message:string;vault:VaultPayload;context:any;language:'en'|'ar';signal?:AbortSignal;}):Promise<AiToolOrchestrationResult|null>{
-  const sources=aiPlannerSourceFacts(input.context?.conversationSources);
+  const rawSources=input.context?.conversationSources;
+  const sources=aiPlannerSourceFacts(rawSources);
+  // Never silently analyze only the first ten files or omit an invalid file.
+  // This boundary precedes any provider request or executable proposal.
+  if(Array.isArray(rawSources)&&rawSources.length&&(rawSources.length>10||sources.length!==rawSources.length)){
+    return{answer:input.language==='ar'
+      ?'تعذر تحليل جميع المرفقات بأمان: الحد الأقصى عشرة ملفات، ويجب أن يكون لكل ملف اسم ومصدر صالح. قسّم الملفات أو أعد رفع الملف غير الصالح. لم يُجهّز إجراء ولم يُغيّر أي سجل.'
+      :'Unable to safely analyze every attachment: at most ten supported, named sources are permitted. Split the files or replace the invalid source. No action was staged and no records changed.',
+      proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+  }
   const hasSources=sources.length>0;
-  const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  // Do not let an absent/malformed conversationMode inherit the legacy
+  // orchestrator's Controller default. The live boundary is deny-by-default;
+  // only the explicit selected Controller tab may stage an action.
+  const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
+  const scopedVault=scopeVault(input.vault);
+  const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
   // A complete structured RFQ already contains the source's actual rows.
   // Never re-send only the first 2800 chars to a planner which might silently
   // lose trailing products. Stage the whole verified quote as UNSAVED.

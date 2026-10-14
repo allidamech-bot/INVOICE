@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {aiPlanningUnavailableResult,orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 
-const context={screen:'items',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}};
+// Explicitly opt into Controller. Missing mode must remain Advisor (fail-closed).
+const context={screen:'items',conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}};
 async function withPlannerReply(reply,run){
   const existingFetch=globalThis.fetch,existingWindow=globalThis.window,existingFirebase=globalThis.firebase;
   globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture-user',getIdToken:async()=> 'signed-test-token'}})};

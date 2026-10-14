@@ -74,8 +74,8 @@ test('F02 server planner outcome is stored in kernel, not written to vault or tu
  ]);
  assert.match(runtime,/if\(result\.workingDraft\)/);
  assert.match(runtime,/stageKernelArtifact\(kernel,result\.workingDraft\)/);
- assert.match(runtime,/__workspaceOpen:true/);
- assert.match(runtime,/__workspacePane:'workspace',__workspaceTab:'preview'/);
+ assert.match(runtime,/__workspaceOpen:false/,'the working draft stays in the in-chat artifact card, not the old overlay');
+ assert.match(runtime,/__workspacePane:'chat',__workspaceTab:'preview'/,'the chat preview is the current workspace design');
  assert.match(runtime,/host\.__foundationPreviewStaged=\{scope:kernelScopeKey\(kernel\.scope\)/);
  assert.match(runtime,/const previewStaged=host\.__foundationPreviewStaged/);
  assert.match(runtime,/if\(host\.state\.proposal\)\{host\.setState\(\{proposal:null,review:null\}\)/);

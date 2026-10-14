@@ -85,7 +85,7 @@ test('F20 runtime routes scoped edits before the generic planner and speaks requ
  assert.match(line,/سعر\|السعر\|كمية\|الكمية/);
  assert.match(source,/reviseKernelDraft\(next,original,message,drafting,requestLanguage\)/);
  assert.match(source,/text:requestLanguage==='ar'/);
- const revision=source.indexOf('const result=reviseKernelDraft('),ask=source.indexOf('await ask(raw);');
- assert.ok(revision>0&&revision<ask);
+ const revision=source.indexOf('reviseKernelDraft(next,original,message,drafting,requestLanguage)'),ask=source.indexOf('await ask(raw);');
+ assert.ok(revision>0&&revision<ask,'deterministic edit must precede the generic provider call');
  assert.doesNotMatch(source.slice(start,ask),/mutateVaultSafely\(|saveDocument\(|postInvoice\(/);
 });

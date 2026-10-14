@@ -1,0 +1,76 @@
+name: LOUREX AI Batch 1 Data Safety
+
+on:
+  push:
+    branches: [fix/ai-batch1-data-safety-20261014]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/AiWorkflowTools.tsx'
+      - 'src/components/SupplierDocumentImport.tsx'
+      - 'src/components/ProcurementAiCompare.tsx'
+      - 'src/lib/ai-tool-client.ts'
+      - 'src/lib/ai-workflow-quote-guard.ts'
+      - 'src/lib/ai-import-authorization.ts'
+      - 'src/styles/ai-conversation-workspace.css'
+      - 'scripts/qa-ai-tool-modal-chrome.mjs'
+      - 'tests/ai-batch1-quote-data-safety.test.mjs'
+      - 'tests/ai-tool-catalog-security-coverage.test.mjs'
+      - 'tests/ai-workflow-advisor-handoff.test.mjs'
+      - 'src/components/AiConversationWorkspace.tsx'
+      - 'src/components/AiCopilot.tsx'
+      - 'src/lib/ai-business-write-authorization.ts'
+      - 'tests/ai-controller-write-authorization.test.mjs'
+      - 'src/lib/ai-pdf-file-validation.ts'
+      - 'tests/ai-generated-pdf-safety.test.mjs'
+      - 'tests/ai-source-advisor-integrity.test.mjs'
+      - 'tests/audit-ai-firebase-auth.test.mjs'
+      - 'api/**'
+      - '.github/workflows/ai-batch1-data-safety.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: ai-batch1-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Production build, without deployment
+        run: npm run build
+      - name: Data safety and execution boundaries
+        run: >
+          node --test --test-concurrency=2
+          tests/ai-batch1-quote-data-safety.test.mjs
+          tests/ai-tool-catalog-security-coverage.test.mjs
+          tests/ai-workflow-advisor-handoff.test.mjs
+          tests/ai-generated-pdf-safety.test.mjs
+          tests/ai-source-advisor-integrity.test.mjs
+          tests/ai-controller-write-authorization.test.mjs
+          tests/ai-f01-real-pdf-preview.test.mjs
+          tests/ai-f02-unsaved-tool-preview-continuity.test.mjs
+          tests/ai-tool-orchestrator-batch4.test.mjs
+          tests/ai-living-workspace-mode-integration.test.mjs
+          tests/ai-review-safety-contract.test.mjs
+          tests/b06-ai-document-approval-guards.test.mjs
+          tests/ai-f08-high-volume-quote.test.mjs
+          tests/ai-f18-multi-source-quote.test.mjs
+          tests/audit-ai-branch-isolation.test.mjs
+          tests/audit-ai-firebase-auth.test.mjs
+          tests/b02-supplier-import-integrity.test.mjs
+          tests/procurement-ai-consistency-v450.test.mjs
+          tests/quote-ai-source-faithful-v450.test.mjs
+      - name: Final AI tool modal visual contract (compiled CSS, four viewports)
+        run: node scripts/qa-ai-tool-modal-chrome.mjs

@@ -15,7 +15,7 @@ const sourceItems=[
  {sku:'MARS-50',descriptionEn:'Mars 50g',salePrice:'7',saleCurrency:'USD',category:'Confectionery',unit:'CTN'}
 ];
 function file(items=sourceItems){return{fileName:'candy.pdf',route:'product_list',confidence:.96,extracted:JSON.stringify({items})};}
-function ctx(extra={}){return{assistantRuntime:{scope:'business',workspaceId:'default',threadId:'review-1',branchId:'default'},...extra};}
+function ctx(extra={}){return{conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',threadId:'review-1',branchId:'default'},...extra};}
 function vault(){return emptyVault();}
 const result=(message,v,pending)=>orchestrateAiToolRequest({message,vault:v,context:ctx(pending?{pendingProductImport:pending}:{}),language:'ar'});
 test('B05: analysis is strictly read-only; explicit registration stages editable rows before approval',async()=>{

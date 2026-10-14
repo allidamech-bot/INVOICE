@@ -1,3 +1,5 @@
+import { assertAiImportSaveAllowed } from '../lib/ai-import-authorization.js';
+import { scopeVault } from '../lib/workspaces.js';
 import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord } from '../types.js';
@@ -49,18 +51,19 @@ export class ProcurementAiCompare extends React.Component<Props,State>{
       const offers:OfferProposal[]=[];const failures:string[]=[];for(const file of this.state.files){try{offers.push(await extractOffer(file,controller.signal));}catch(error){if(controller.signal.aborted)return;failures.push(`${file.name}: ${error instanceof Error?error.message:String(error)}`);}}
       if(offers.length<2)throw new Error(failures[0]||t('At least two readable supplier offers are required.','يلزم عرضان موردان قابلان للقراءة على الأقل.'));
       if(controller.signal.aborted)return;
-      const ephemeral:PurchaseRecord[]=[];
+      const scoped=scopeVault(resumed.vault);
+       const ephemeral:PurchaseRecord[]=[];
       for(const [index,offer] of offers.entries()){
-        const purchase=buildAiSupplierPurchaseDraft(offer.draft,[...resumed.vault.purchases,...ephemeral],resumed.vault.suppliers,resumed.vault.savedItems);
+        const purchase=buildAiSupplierPurchaseDraft(offer.draft,[...scoped.purchases,...ephemeral],scoped.suppliers,scoped.savedItems);
         ephemeral.push({...purchase,id:`ai-offer-${index}`,number:`AI-OFFER-${index+1}`});
       }
-      const context=buildProcurementDraftContext({...resumed.vault,purchases:[...resumed.vault.purchases.filter(p=>p.status!=='draft'),...ephemeral]});
+      const context=buildProcurementDraftContext({...scoped,purchases:[...scoped.purchases.filter(p=>p.status!=='draft'),...ephemeral]});
       this.setState({stage:'review',offers,comparisons:context.comparisons,selectedOfferIndex:-1,error:failures.length?failures.join('\n'):''});
     }catch(error){if(controller.signal.aborted)return;this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}finally{if(this.abort===controller)this.abort=null;}
   };
   private saveSelected=async()=>{
     const offer=this.state.offers[this.state.selectedOfferIndex];if(!offer||this.saving||this.state.stage==='saving')return;this.saving=true;this.setState({stage:'saving',error:''});
-    try{const next=await mutateVaultSafely(vault=>{const purchase=buildAiSupplierPurchaseDraft(offer.draft,vault.purchases,vault.suppliers,vault.savedItems);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',savedLabel:saved?t(`Purchase draft ${saved.number} saved for review`,`تم حفظ مسودة الشراء ${saved.number} للمراجعة`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
+    try{const next=await mutateVaultSafely(vault=>{assertAiImportSaveAllowed(vault,'supplier-purchase-draft');const scoped=scopeVault(vault);const purchase=buildAiSupplierPurchaseDraft(offer.draft,scoped.purchases,scoped.suppliers,scoped.savedItems);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',savedLabel:saved?t(`Purchase draft ${saved.number} saved for review`,`تم حفظ مسودة الشراء ${saved.number} للمراجعة`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
     catch(error){this.setState({stage:'review',error:error instanceof Error?error.message:String(error)});}finally{this.saving=false;}
   };
   render():any{return <>

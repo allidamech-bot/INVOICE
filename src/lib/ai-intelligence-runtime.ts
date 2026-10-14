@@ -29,6 +29,17 @@ import { conversationModePermitsCapability, normalizeAiConversationMode, type Ai
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
 type Host=any;
 let storeQueue:Promise<unknown>=Promise.resolve();
+// Older conversation owners can supply messages without stable IDs. Retain
+// one fallback ID per live message object to prevent duplicate history on
+// successive kernel/approval persistence, without mutating React state.
+const legacyMessageIds=new WeakMap<object,string>();
+function stableHistoryMessageId(row:any):string{
+  if(typeof row?.id==='string'&&row.id.trim())return row.id;
+  if(!row||typeof row!=='object')return crypto.randomUUID();
+  let id=legacyMessageIds.get(row);
+  if(!id){id=crypto.randomUUID();legacyMessageIds.set(row,id);}
+  return id;
+}
 let cloudHistoryQueue:Promise<unknown>=Promise.resolve();
 function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,generation?:number,installRemote=false,changedThreadId?:string):void{
   const run=async()=>{
@@ -110,15 +121,21 @@ async function persistKernel(host:Host,requireScope=false):Promise<void>{
   if(!host.__intelligenceKernel||host.__intelligenceKernel.scope.scope==='temporary')return;
   const kernel=structuredClone(host.__intelligenceKernel) as ConversationKernel;
   const receipts=structuredClone(host.__foundationReceipts||[]);
-  const messages=(host.state.messages||[]).map((row:any)=>({id:row.id,role:row.role,text:row.text}));
+  const messages=(host.state.messages||[]).map((row:any)=>({id:stableHistoryMessageId(row),role:row.role,text:row.text}));
   const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready to save this conversation. Sign in and retry.');
     if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope)){
       if(requireScope)throw new Error('Account, company or conversation changed before the declined approval was saved.');
       return;
     }
     await mutateAssistantState(resumed.key,current=>{
-      const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
       const earlier=current.threads.find(row=>row.id===kernel.scope.threadId&&row.scope===kernel.scope.scope&&row.workspaceId===kernel.scope.workspaceId&&row.branchId===kernel.scope.branchId);
+      // Kernel/approval writes can happen before the conversation history UI
+      // has hydrated after remount. Preserve already persisted messages rather
+      // than replacing them with an incomplete (or empty) local view.
+      const visibleIds=new Set(messages.map((row:{id:string})=>String(row.id||'')).filter(Boolean));
+      const retained=(earlier?.messages||[]).filter(row=>!visibleIds.has(row.id));
+      const completeMessages=[...retained,...messages];
+      const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages:completeMessages});
       saved.thread.kernel=reconcileCancelledApprovals(kernel,earlier?.kernel);
       saved.thread.foundationReceipts=receipts;
       return saved.state;
@@ -518,6 +535,10 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
     if(kernel.scope.scope==='business'&&proposal.capability!=='workspace.navigate'&&!approvalWasReviewed(host,proposal))
       throw new Error('The action review changed during approval. Nothing was applied.');
     assertFoundationApproval(live.vault,proposal);
+    // A failure from an earlier conversation turn must not turn an executed
+    // approval into an indeterminate receipt. Only errors raised by THIS
+    // specific apply attempt can mark its durable outcome uncertain.
+    host.setState({error:''});
     const result=await apply();await flush(host);
     if(host.state.error||(result===undefined&&host.state.proposal===proposal)){receipt.state='uncertain';}
     else{receipt.state='applied';receipt.completedAt=new Date().toISOString();receipt.resultId=(result as any)?.id||host.state.messages?.at(-1)?.artifact?.document?.id||'';

@@ -11,6 +11,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
+import { assertGeneratedAiPdfFile } from '../lib/ai-pdf-file-validation.js';
 import { attachAiChatScrollFollower, type AiChatScrollFollower } from '../lib/ai-chat-scroll.js';
 import { prepareAdvisorControllerHandoff } from '../lib/ai-advisor-controller-handoff.js';
 import type { LourexDocument } from '../types.js';
@@ -332,18 +333,36 @@ function ConversationDocumentCard({host}:{host:Host}):any {
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
-  React.useEffect(()=>{setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');},[pdfIdentity]);
+  // A renderer import can resolve after changing conversation, branch or
+  // revision. Refs guard that async gap before any stale state is published.
+  const latestPdfIdentity=react.useRef(pdfIdentity);
+  const pdfSequence=react.useRef(0);
+  const pdfStarting=react.useRef(false);
+  latestPdfIdentity.current=pdfIdentity;
+  React.useEffect(()=>{
+    pdfSequence.current+=1;pdfStarting.current=false;
+    setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');
+  },[pdfIdentity]);
   React.useEffect(()=>()=>{if(pdfResult?.url)URL.revokeObjectURL(pdfResult.url);},[pdfResult?.url]);
   const createPdf=async()=>{
-    if(pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
+    if(pdfStarting.current||pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
+    const identity=pdfIdentity,request=++pdfSequence.current;
+    pdfStarting.current=true;
+    setPdfBusy(true);setPdfError('');setPdfResult(null);
     try{
       const document=prepareAiPdfPreview(kernel,vault,ar?'ar':'en',savedId);
       // No renderer initialization on ordinary chat turns. The canonical A4
       // React class is loaded only after a Controller expressly asks for PDF.
       const {TemplateRenderer}=await import('../templates/TemplateRenderer.js');
+      if(identity!==latestPdfIdentity.current||request!==pdfSequence.current)return;
       setPdfRenderer(()=>TemplateRenderer);
-      setPdfResult(null);setPdfError('');setPdfBusy(true);setPdfSource({document,identity:pdfIdentity});
-    }catch(e){setPdfError(e instanceof Error?e.message:String(e));}
+      setPdfSource({document,identity});
+    }catch(e){
+      if(identity===latestPdfIdentity.current&&request===pdfSequence.current){
+        setPdfError(e instanceof Error?e.message:String(e));
+        setPdfBusy(false);pdfStarting.current=false;
+      }
+    }
   };
   React.useEffect(()=>{
     if(host.state.__workspacePdfAutoStart!==pdfIdentity)return;
@@ -362,7 +381,7 @@ function ConversationDocumentCard({host}:{host:Host}):any {
         const stage=pdfStage.current;
         if(!stage)throw new Error('The A4 preview renderer is not mounted.');
         const file=await build(stage,'LOUREX-'+pdfSource.document.number);
-        if(!(file instanceof Blob)||file.type!=='application/pdf'||file.size<256)throw new Error('PDF file bytes were not generated correctly.');
+        await assertGeneratedAiPdfFile(file);
         const active=host.__intelligenceKernel as ConversationKernel|undefined;
         // The same saved identity must be used at the start AND completion of
         // PDF rendering. After a reload the scoped kernel entity is durable,
@@ -376,7 +395,7 @@ function ConversationDocumentCard({host}:{host:Host}):any {
         if(cancelled){URL.revokeObjectURL(url);return;}
         setPdfResult({url,name:(file as File).name||'LOUREX-Preview.pdf',bytes:file.size});
       }catch(error){if(!cancelled)setPdfError(error instanceof Error?error.message:String(error));}
-      finally{if(!cancelled)setPdfBusy(false);}
+      finally{if(!cancelled){setPdfBusy(false);pdfStarting.current=false;}}
     },0);
     return()=>{cancelled=true;window.clearTimeout(timer);};
   },[pdfSource]);
@@ -882,6 +901,48 @@ export function installConversationWorkspace(host:Host):void {
     finally{host.__workspaceAdvisorHandoffBusy=false;}
   };
   host.__workspaceRefresh=refresh;
+  // AI workflow tools use this single, checked bridge into the Advisor.
+  // No action is routed through Controller and no message is sent if the
+  // account/scope, selected mode, or existing unsent draft is unsafe.
+  const receiveWorkflowAdvisor=(event:Event)=>{
+    const detail=(event as CustomEvent).detail as {prompt?:unknown;submit?:unknown;handled?:boolean}|undefined;
+    const prompt=typeof detail?.prompt==='string'?detail.prompt.trim().slice(0,1000):'';
+    if(!prompt||host.mounted===false||host.__workspaceWorkflowHandoffBusy||host.__workspaceModeSwitchBusy)return;
+    if(detail)detail.handled=true;
+    host.__workspaceWorkflowHandoffBusy=true;
+    void (async()=>{
+      if(!host.state.open){
+        host.toggle();
+        // Wait for the state transition; the context tool just closed its
+        // portal and the legacy toggle may refuse while another modal exists.
+        await new Promise<void>(resolve=>host.setState({},resolve));
+        if(!host.state.open)throw new Error('The LOUREX conversation could not be opened. No Advisor request was sent.');
+        await refresh();
+      }else if(!host.__intelligenceKernel)await refresh();
+      const current=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(!host.state.open||!current||current.scope.scope!=='business')
+        throw new Error('Open the LOUREX business conversation and retry the Advisor request.');
+      if(normalizeAiConversationMode(current.mode)!=='advisor'){
+        await host.__workspaceSwitchMode('advisor');
+        // The selected thread's composer draft is set asynchronously by
+        // React; wait before deciding whether it is safe to insert a prompt.
+        await new Promise<void>(resolve=>host.setState({},resolve));
+        const selected=host.__intelligenceKernel as ConversationKernel|undefined;
+        if(!selected||normalizeAiConversationMode(selected.mode)!=='advisor'||selected.scope.accountId!==current.scope.accountId||
+          selected.scope.workspaceId!==current.scope.workspaceId||selected.scope.branchId!==current.scope.branchId)
+          throw new Error('Advisor mode was not opened. No request was sent.');
+      }
+      if(disabled(host))throw new Error('The conversation is busy. Retry this Advisor request after the current operation.');
+      if(String(host.state.input||'').trim())throw new Error('Advisor has an unsent message. Send or clear it before opening another analysis.');
+      host.setState({input:prompt,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,error:''});
+      // Submission uses the actual selected Advisor conversation and the
+      // existing authenticated ask/response pipeline, never tool.execute.
+      if(detail?.submit===true)await host.ask(prompt);
+    })().catch((error:Error)=>host.setState({error:error.message||String(error)}))
+      .finally(()=>{host.__workspaceWorkflowHandoffBusy=false;});
+  };
+  host.__workspaceWorkflowHandoffHandler=receiveWorkflowAdvisor;
+  window.addEventListener('lourex-ai-workflow-advisor',receiveWorkflowAdvisor);
   const viewport=()=>syncWorkspaceViewport();host.__workspaceViewport=viewport;
   window.visualViewport?.addEventListener('resize',viewport);window.visualViewport?.addEventListener('scroll',viewport);window.addEventListener('resize',viewport);
   void host.__lourexLoadPromise?.then(refresh);
@@ -895,4 +956,4 @@ export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
   if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
 }
-export function unmountConversationWorkspace(host:Host):void {host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
+export function unmountConversationWorkspace(host:Host):void {if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
