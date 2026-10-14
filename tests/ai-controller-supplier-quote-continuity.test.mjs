@@ -130,7 +130,7 @@ test('B1 a negated bulk edit is refused rather than forwarded to a model or appl
   const vault=emptyVault(),kernel=newConversationKernel(scope);
   stageKernelArtifact(kernel,quoteSourceWorkingDraft([supplierSource(3)],runtime(vault),withMargin));
   const before=structuredClone(kernel);
-  for(const phrase of ['لا تضف 3% على الأسعار','do not add 3% to prices']){
+  for(const phrase of ['لا تضف 3% على الأسعار','ولا تضف 3% على الأسعار','do not add 3% to prices']){
     const result=reviseKernelDraft(kernel,kernel.artifact.proposal,phrase,workspaceDrafting(vault),'ar');
     assert.equal(result.changed,false,phrase);
     assert.match(result.message,/explicitly negated/i);
