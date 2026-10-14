@@ -110,6 +110,47 @@ test('B1 multi-turn supplier quote reprices ALL 24 lines and undo/redo survives 
   assert.deepEqual(vault,before,'only scoped in-chat quote was changed');
 });
 
+test('B1 exact customer selection in chat completes supplier quotation PDF without saving',()=>{
+  const vault=emptyVault(),buyer={id:'qa-b1-buyer',workspaceId:'default',
+    companyNameEn:'Verified Buyer',companyNameAr:'',contactPerson:'',addressEn:'',
+    addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',
+    commercialRegistration:''};
+  vault.customers=[buyer];
+  const before=structuredClone(vault);
+  const draft=quoteSourceWorkingDraft([supplierSource(3)],runtime(vault),withMargin);
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'عيّن العميل Verified Buyer',workspaceDrafting(vault),'ar').changed,true);
+  assert.equal(kernel.artifact.proposal.customerId,buyer.id);
+  assert.equal(kernel.artifact.proposal.customerDraft,null);
+  const pdf=prepareAiPdfPreview(kernel,vault,'ar');
+  assert.equal(pdf.number,'UNSAVED-PREVIEW');
+  assert.equal(pdf.items.length,3);
+  assert.equal(pdf.items[2].unitPrice,'12.50');
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'undo',workspaceDrafting(vault),'ar').changed,true);
+  assert.equal(kernel.artifact.proposal.customerId,'');
+  assert.deepEqual(vault,before);
+});
+
+test('B1 missing, duplicate and foreign company customer identities never change the draft',()=>{
+  const vault=emptyVault(),buyer=id=>({id,workspaceId:'default',companyNameEn:'Same Buyer',
+    companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',
+    phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
+  vault.customers=[buyer('qa-one'),buyer('qa-two'),{...buyer('qa-other'),workspaceId:'other',companyNameEn:'Foreign Buyer'}];
+  const draft=quoteSourceWorkingDraft([supplierSource(2)],runtime(vault),withMargin);
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  const before=structuredClone(kernel);
+  for(const command of ['عيّن العميل Same Buyer','عيّن العميل Foreign Buyer','عيّن العميل Unknown Buyer']){
+    const attempt=reviseKernelDraft(kernel,kernel.artifact.proposal,command,workspaceDrafting(vault),'ar');
+    assert.equal(attempt.changed,false);
+    assert.deepEqual(kernel,before);
+  }
+  assert.deepEqual(vault.documents,[]);
+});
+
 test('B1 incomplete or invalid customer prices reject a bulk repricing atomically',()=>{
   const vault=emptyVault();
   const draft=quoteSourceWorkingDraft([supplierSource(24)],runtime(vault),request);
