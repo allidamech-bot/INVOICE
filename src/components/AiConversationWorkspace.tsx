@@ -398,8 +398,8 @@ function ConversationDocumentCard({host}:{host:Host}):any {
     </div>
     {doc.status==='draft'?<small className="lxw-save-guidance">{label(ar,'Saving requires reviewing and approving the draft. PDF preview never saves it.','الحفظ يتطلب مراجعة المسودة وتأكيد الموافقة. معاينة PDF لا تحفظ العرض.')}</small>:null}
         <section className="lxw-ai-pdf-actions" aria-label={label(ar,'Real PDF document','مستند PDF فعلي')}>
-          <button type="button" disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
-            onClick={createPdf}>{pdfBusy?label(ar,'Generating PDF…','جارٍ إنشاء PDF…'):label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')}</button>
+          <button type="button" aria-busy={pdfBusy} disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
+            onClick={createPdf}>{pdfBusy?<><span className="lxw-inline-spinner" aria-hidden="true"/>{label(ar,'Generating PDF…','جارٍ إنشاء PDF…')}</>:label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')}</button>
           <p>{label(ar,'This is a real LOUREX template PDF preview. Generating it does not save or issue the document.','هذه معاينة PDF فعلية من قالب LOUREX. إنشاء الملف لا يحفظ المستند ولا يصدره.')}</p>
           {pdfError?<p role="alert">{workspaceError(ar,pdfError)}</p>:null}
           {pdfResult?<div className="lxw-ai-pdf-result">
@@ -730,6 +730,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     const description=<div className="lxw-mode-description" dir={ar?'rtl':'ltr'} aria-live="polite">
       <span className="lxw-mode-symbol" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{mode==='controller'?<><path d="M4 7h16M4 17h16"/><path d="M8 4v6M16 14v6"/></>:<><path d="M20 11.5a8 8 0 0 1-8.5 8 8 8 0 0 1-3.8-1L4 20l1.5-3.7A8 8 0 1 1 20 11.5Z"/><path d="M8 11h8M8 14h5"/></>}</svg></span>
       <span>{switching?label(ar,'Opening conversation…','جارٍ فتح المحادثة…'):conversationModeDescription(mode,ar?'ar':'en')}</span>
+      {switching?<span className="lxw-inline-spinner" aria-hidden="true"/>:null}
       {mode==='advisor'?<button type="button" className="lxw-advisor-controller-handoff"
         disabled={inactive||!latestAdvisorReply||Boolean(host.__workspaceAdvisorHandoffBusy)}
         title={label(ar,'Copy latest Advisor proposal into Controller for review only','إرسال أحدث اقتراح للمتحكم للمراجعة فقط')}
