@@ -96,10 +96,14 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
       rationale:'Explicit user request for a single draft assembled in source upload order from '+sources.length+' complete consistent quotations. No save or issue authorized.'
     };
   }
-  const selected=sources.filter(row=>row?.route==='quote_request'||Boolean(row?.quoteSheetCandidate));
+  const selected=sources.filter(row=>row?.route==='quote_request'||row?.route==='supplier_purchase'||Boolean(row?.quoteSheetCandidate));
   if(!selected.length)return null;
   if(sources.length!==1||selected.length!==1)throw new Error('SOURCE_INCOMPLETE: Multiple attachment sources need a combined row-by-row review. No partial quotation was staged.');
   const source=selected[0]!;
+  // An explicitly requested customer quotation may also originate from a
+  // supplier offer. Supplier unitCost is NEVER silently copied to the selling
+  // price: absent an explicit gross margin, every selling price stays blank.
+  const supplierSource=source.route==='supplier_purchase'&&!source.quoteSheetCandidate;
   const exactSource=typeof source.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.trim()
     ?source.quoteSheetCandidate:null;
   // A complete exact worksheet is authoritative *for row transfer*, regardless
@@ -128,8 +132,8 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
       (quantityConfidence!==undefined&&(typeof quantityConfidence!=='number'||!Number.isFinite(quantityConfidence)||quantityConfidence<.5||quantityConfidence>1))||
       (productConfidence!==undefined&&(typeof productConfidence!=='number'||!Number.isFinite(productConfidence)||productConfidence<.5||productConfidence>1)))
       throw new Error('SOURCE_INCOMPLETE: Quantity, pack unit or product identity is uncertain on line '+(index+1)+'. Confirm the source before building a quotation.');
-    const unit=sourceText(row.unit,40),sourcePrice=numeric(row.unitPrice,false);
-    const unitPrice=margin===null?sourcePrice:sellingPriceForGrossMargin(sourcePrice,margin);
+    const unit=sourceText(row.unit,40),sourcePrice=numeric(supplierSource?row.unitCost:row.unitPrice,false);
+    const unitPrice=margin===null?(supplierSource?'':sourcePrice):sellingPriceForGrossMargin(sourcePrice,margin);
     return{savedItemId:'',descriptionEn:descriptionEn||sku,descriptionAr,quantity,unit,unitPrice};
   });
   const currency=sourceText(data.currency,3).toUpperCase();
@@ -141,10 +145,12 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     email:customerEmail,vatTaxNumber:'',commercialRegistration:''
   };
   return{capability:'document.createDraft',kind:'proforma',customerId,customerDraft,currency,language:'bilingual',items,
-    incoterm:sourceText(data.incoterm,80),paymentTerms:sourceText(data.paymentTerms,160),
-    deliveryTime:sourceText(data.deliveryTime,160),validity:sourceText(data.validity,100),
-    remarks:sourceText(data.remarks,500),notes:sourceText(data.notes,500),
+    // Supplier payment/lead-time/notes belong to purchasing, not to the buyer.
+    // Never copy supplier-side trade terms into a customer quotation.
+    incoterm:supplierSource?'':sourceText(data.incoterm,80),paymentTerms:supplierSource?'':sourceText(data.paymentTerms,160),
+    deliveryTime:supplierSource?'':sourceText(data.deliveryTime,160),validity:supplierSource?'':sourceText(data.validity,100),
+    remarks:supplierSource?'':sourceText(data.remarks,500),notes:supplierSource?'':sourceText(data.notes,500),
     label:'Unsaved quotation from '+sourceText(source.fileName,120),
-    rationale:'User requested a quotation from structured attachment evidence. '+(margin===null?'Source unit prices retained exactly.':'Applied '+margin+'% gross margin (on selling price, not markup) to all '+items.length+' supplier unit prices, rounded UP to cents; source costs remain in the attachment evidence. ')+'This is an unsaved working draft, not permission to save or issue.'
+    rationale:'User requested a quotation from structured attachment evidence. '+(margin===null?(supplierSource?'Supplier unit costs are evidence only: every customer selling price must be explicitly set before PDF or save. ':'Source unit prices retained exactly. '):'Applied '+margin+'% gross margin (on selling price, not markup) to all '+items.length+' verified source unit prices, rounded UP to cents; supplier costs remain in the attachment evidence. ')+'This is an unsaved working draft, not permission to save or issue.'
   };
 }
