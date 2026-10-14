@@ -190,3 +190,32 @@ test('all three AI import routes revalidate the selected operator inside the vau
   assert.match(inbox,/assertAiImportSaveAllowed\(vault,'quotation-draft'\);assertAiInboxQuoteReviewFresh/);
   assert.match(inbox,/assertAiImportSaveAllowed\(vault,'supplier-purchase-draft'\);const purchase=/);
 });
+
+test('draft numbering and offer comparison never include purchases from other branches',async()=>{
+  const {buildAiSupplierPurchaseDraft}=await import('../dist/src/lib/ai-supplier-purchase-draft.js');
+  const {scopeVault}=await import('../dist/src/lib/workspaces.js');
+  const vault=emptyVault(),now=new Date().toISOString();
+  vault.branches.push({id:'second',workspaceId:'default',name:'Second Branch',code:'SECOND',active:true,createdAt:now,updatedAt:now});
+  vault.purchases=[
+    {id:'main-p',number:'PUR-2026-0001',status:'draft',workspaceId:'default',branchId:'main'},
+    {id:'branch-p',number:'PUR-2026-0099',status:'posted',workspaceId:'default',branchId:'second'},
+    {id:'foreign-p',number:'PUR-2026-0500',status:'posted',workspaceId:'outside',branchId:'main'}
+  ];
+  const scoped=scopeVault(vault);
+  assert.deepEqual(scoped.purchases.map(p=>p.id),['main-p']);
+  const draft={supplierName:'No saved supplier',supplierTaxId:'',documentNumber:'PO-Test',date:'2026-10-14',
+    currency:'USD',freight:'',duty:'',otherCosts:'',paymentTerms:'',notes:'',
+    items:[{sku:'',descriptionEn:'One test line',descriptionAr:'',quantity:'3',unit:'CTN',unitCost:'9.5'}]};
+  const purchase=buildAiSupplierPurchaseDraft(draft,scoped.purchases,scoped.suppliers,scoped.savedItems);
+  assert.match(purchase.number,/^PUR-\d{4}-0002$/,'foreign company and branch records must not advance this branch numbering');
+  const read=(path)=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+  const compare=read('src/components/ProcurementAiCompare.tsx');
+  assert.match(compare,/buildProcurementDraftContext\(\{\.\.\.scoped,purchases:\[\.\.\.scoped\.purchases\.filter/);
+  assert.doesNotMatch(compare,/resumed\.vault\.purchases\.filter\(p=>p\.status!=='draft'\)/,
+    'comparison must not mix foreign branch procurement records');
+  for(const path of ['src/components/AiWorkflowTools.tsx','src/components/SupplierDocumentImport.tsx','src/components/ProcurementAiCompare.tsx']){
+    const source=read(path);
+    assert.match(source,/buildAiSupplierPurchaseDraft\([^\n]*scoped\.purchases,scoped\.suppliers,scoped\.savedItems\)/,
+      path+' must number and link against the current company and branch');
+  }
+});
