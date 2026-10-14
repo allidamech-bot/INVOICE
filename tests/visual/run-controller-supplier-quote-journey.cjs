@@ -96,14 +96,14 @@ async function run(engine,name){
   assert.match(await card.innerText(),/24/);
   assert.match(await card.innerText(),/600\.00/);
   assert.equal(await card.getByLabel('Draft customer',{exact:true}).inputValue(),'');
-  assert.equal(await card.getByRole('button',{name:'Generate PDF · no save',exact:true}).isDisabled(),true,
+  assert.equal(await card.getByRole('button',{name:'Generate PDF preview',exact:true}).isDisabled(),true,
    'buyer is missing, so no PDF or save may happen');
   await say('عيّن العميل QA Buyer');
   assert.equal(await card.getByLabel('Draft customer',{exact:true}).inputValue(),'qa-buyer');
   assert.match(await card.innerText(),/600\.00/);
   await say('في نفس المسودة، أضف 3% على الأسعار');
   assert.match(await card.innerText(),/618\.24/);
-  assert.equal(await card.getByRole('button',{name:'Generate PDF · no save',exact:true}).isEnabled(),true);
+  assert.equal(await card.getByRole('button',{name:'Generate PDF preview',exact:true}).isEnabled(),true);
   const count=()=>page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length);
   async function assistantMeta(){
    return page.evaluate(async()=>{
@@ -138,7 +138,7 @@ async function run(engine,name){
   await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
   assert.equal(await count(),0,'selecting customers while drafting must not persist');
   async function pdf(){
-   await card.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
+   await card.getByRole('button',{name:'Generate PDF preview',exact:true}).click();
    const link=card.getByRole('link',{name:'Download PDF',exact:true});await link.waitFor({timeout:90000});
    const href=await link.getAttribute('href');
    const result=await page.evaluate(async href=>{
@@ -196,7 +196,7 @@ async function run(engine,name){
   assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id,
     'Restored document must match durable storage: '+JSON.stringify({beforeReloadMeta,afterReloadMeta}));
   assert.match(await restored.innerText(),/Saved/);
-  await restored.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
+  await restored.getByRole('button',{name:'Generate PDF preview',exact:true}).click();
   try{
    await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:45000});
   }catch(error){
