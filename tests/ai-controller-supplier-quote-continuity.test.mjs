@@ -4,7 +4,9 @@ import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createAiToolRuntime} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {quoteSourceWorkingDraft} from '../dist/src/lib/ai-quote-source-draft.js';
 import {orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
-import {newConversationKernel,stageKernelArtifact} from '../dist/src/lib/ai-conversation-kernel.js';
+import {newConversationKernel,stageKernelArtifact,normalizeConversationKernel,reviseKernelDraft} from '../dist/src/lib/ai-conversation-kernel.js';
+import {workspaceDrafting} from '../dist/src/lib/ai-workspace-model.js';
+import {requestedSourceMarkup} from '../dist/src/lib/ai-quote-source-draft.js';
 import {workspaceDocument} from '../dist/src/lib/ai-workspace-model.js';
 import {prepareAiPdfPreview} from '../dist/src/lib/ai-pdf-preview.js';
 
@@ -73,6 +75,64 @@ test('explicit 3 percent markup produces 10.30, not a 3 percent gross-margin pri
   assert.throws(()=>quoteSourceWorkingDraft([supplierSource(2)],runtime(vault),
     'حوّل عرض المورد إلى عرض سعر بهامش ربح 20% وأضف 3%'),/gross margin OR markup/);
   assert.deepEqual(vault.documents,[]);
+});
+
+test('B1 markup parser requires a price reference and distinguishes both word orders',()=>{
+  assert.equal(requestedSourceMarkup('أضف 3% على جميع الأسعار'),'3');
+  assert.equal(requestedSourceMarkup('زود الأسعار بنسبة ٣٪'),'3');
+  assert.equal(requestedSourceMarkup('increase all prices by 3%'),'3');
+  assert.equal(requestedSourceMarkup('أضف 3% ضريبة'),null);
+  assert.equal(requestedSourceMarkup('أضف 3%'),null);
+  assert.equal(requestedSourceMarkup('احذف الصنف 3'),null);
+});
+
+test('B1 multi-turn supplier quote reprices ALL 24 lines and undo/redo survives reload',()=>{
+  const vault=emptyVault(),before=structuredClone(vault);
+  const draft=quoteSourceWorkingDraft([supplierSource(24)],runtime(vault),withMargin);
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  assert.equal(workspaceDocument(kernel,vault,'en').subtotal,'600.00');
+  const originalIds=[...kernel.artifact.lineIds];
+  const edit=reviseKernelDraft(kernel,kernel.artifact.proposal,'في نفس المسودة، أضف 3% على الأسعار',workspaceDrafting(vault),'ar');
+  assert.equal(edit.changed,true);
+  assert.equal(kernel.artifact.proposal.items.length,24);
+  assert.ok(kernel.artifact.proposal.items.every(row=>row.unitPrice==='12.88'));
+  assert.equal(workspaceDocument(kernel,vault,'en').subtotal,'618.24');
+  assert.deepEqual(kernel.artifact.lineIds,originalIds);
+  assert.equal(kernel.artifact.undo.length,1);
+  const loaded=normalizeConversationKernel(JSON.parse(JSON.stringify(kernel)),scope);
+  assert.ok(loaded.artifact.proposal.items.every(row=>row.unitPrice==='12.88'));
+  assert.equal(reviseKernelDraft(loaded,loaded.artifact.proposal,'undo',workspaceDrafting(vault),'ar').changed,true);
+  assert.ok(loaded.artifact.proposal.items.every(row=>row.unitPrice==='12.50'));
+  assert.equal(workspaceDocument(loaded,vault,'en').subtotal,'600.00');
+  assert.equal(reviseKernelDraft(loaded,loaded.artifact.proposal,'redo',workspaceDrafting(vault),'ar').changed,true);
+  assert.equal(workspaceDocument(loaded,vault,'en').subtotal,'618.24');
+  assert.deepEqual(vault,before,'only scoped in-chat quote was changed');
+});
+
+test('B1 incomplete or invalid customer prices reject a bulk repricing atomically',()=>{
+  const vault=emptyVault();
+  const draft=quoteSourceWorkingDraft([supplierSource(24)],runtime(vault),request);
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  const before=structuredClone(kernel);
+  const edited=reviseKernelDraft(kernel,kernel.artifact.proposal,'أضف 3% على الأسعار',workspaceDrafting(vault),'ar');
+  assert.equal(edited.changed,false);
+  assert.match(edited.message,/Line 1/);
+  assert.deepEqual(kernel,before);
+  assert.equal(kernel.artifact.proposal.items.length,24);
+  assert.deepEqual(vault.documents,[]);
+});
+
+test('B1 unrelated percentage does not edit a working document',()=>{
+  const vault=emptyVault();
+  const draft=quoteSourceWorkingDraft([supplierSource(4)],runtime(vault),withMargin);
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  const before=structuredClone(kernel);
+  const edited=reviseKernelDraft(kernel,kernel.artifact.proposal,'أضف ضريبة 3%',workspaceDrafting(vault),'ar');
+  assert.equal(edited,null);
+  assert.deepEqual(kernel,before);
 });
 
 test('missing or invalid supplier costs never fabricate a requested margin or drop later rows',()=>{
