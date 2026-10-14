@@ -891,9 +891,14 @@ export function installConversationWorkspace(host:Host):void {
     if(detail)detail.handled=true;
     host.__workspaceWorkflowHandoffBusy=true;
     void (async()=>{
-      if(!host.state.open)host.toggle();
-      if(!host.state.open&&!host.__intelligenceKernel)await refresh();
-      if(!host.__intelligenceKernel)await refresh();
+      if(!host.state.open){
+        host.toggle();
+        // Wait for the state transition; the context tool just closed its
+        // portal and the legacy toggle may refuse while another modal exists.
+        await new Promise<void>(resolve=>host.setState({},resolve));
+        if(!host.state.open)throw new Error('The LOUREX conversation could not be opened. No Advisor request was sent.');
+        await refresh();
+      }else if(!host.__intelligenceKernel)await refresh();
       const current=host.__intelligenceKernel as ConversationKernel|undefined;
       if(!host.state.open||!current||current.scope.scope!=='business')
         throw new Error('Open the LOUREX business conversation and retry the Advisor request.');
