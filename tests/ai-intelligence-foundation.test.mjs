@@ -147,9 +147,9 @@ test('Controller Arabic PDF request opens real file generator without saving or 
  await h.ask('prepare');assert.ok(h.__intelligenceKernel.artifact,'Controller must retain source PDF draft');
  const before=structuredClone(session.vault);
  await h.ask('أعطني PDF');
- assert.equal(h.state.__workspacePane,'workspace',JSON.stringify({error:h.state.error,artifact:Boolean(h.__intelligenceKernel?.artifact),proposal:Boolean(h.state.proposal),messages:h.state.messages?.slice(-2)}));
+ assert.equal(h.state.__workspacePane,'chat',JSON.stringify({error:h.state.error,artifact:Boolean(h.__intelligenceKernel?.artifact),proposal:Boolean(h.state.proposal),messages:h.state.messages?.slice(-2)}));
  assert.equal(h.state.__workspaceTab,'preview');
- assert.equal(h.state.__workspaceOpen,true);
+ assert.equal(h.state.__workspaceOpen,false,'PDF preview is requested inline without forcing navigation');
  assert.equal(h.state.__workspacePdfAutoStart?.includes('t1'),true);
  assert.ok(h.state.messages.some(row=>row.text?.includes('ملف PDF فعلي')));
  assert.deepEqual(session.vault,before);
