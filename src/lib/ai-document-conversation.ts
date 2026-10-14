@@ -84,6 +84,21 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
   const ar=language==='ar';
   if(/^(?:موافق|اعتمد|احفظ|سجّل|سجل|approve|confirm|save|register)(?:\s+المسودة|\s+draft)?[.!؟\s]*$/iu.test(input))
     return rejected(proposal,ar?'الحفظ يتطلب الضغط على زر الموافقة؛ لا تنفّذ المحادثة الحفظ.':'Saving requires the approval button; a chat message cannot authorize persistence.',ar);
+  // Buyer selection uses only the exact unique customer in the CURRENT
+  // company. Never treat a supplier's identity or a model guess as a buyer.
+  const buyer=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\s+(?:العميل|عميل|customer|buyer)\s*(?:إلى|الى|to|=|:)?\s+(.{1,180})$/iu);
+  if(buyer){
+    if(proposal.capability!=='document.createDraft')return rejected(proposal,'Set the customer in the saved-document editor.',ar);
+    const normalized=(name:string)=>name.normalize('NFKC').replace(/[\u064b-\u065f\u0670]/gu,'').replace(/\s+/gu,' ').trim().toLocaleLowerCase();
+    const name=normalized(buyer[1]!);
+    const matches=drafting.customers.filter(row=>normalized(row.name)===name);
+    if(matches.length!==1)return rejected(proposal,matches.length
+      ?'Multiple customers share this exact name. Select the customer ID in the review.'
+      :'No exact saved customer matches this name in the active company. Select a customer in the review.',ar);
+    if(proposal.customerId===matches[0]!.id&&!proposal.customerDraft)
+      return rejected(proposal,'This customer is already selected.',ar);
+    return result({...proposal,customerId:matches[0]!.id,customerDraft:null},ar);
+  }
   // Follow-up price increases are applied to the *existing complete working
   // quotation*, never to the vault, the product catalogue, or a partial AI
   // excerpt. One user turn creates exactly one undoable revision.
