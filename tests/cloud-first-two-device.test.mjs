@@ -190,3 +190,55 @@ test('invalid business arrays cannot become authoritative Firebase data even wit
   await assert.rejects(a.api.uploadPlainCloudWorkspace('user-1',a.state.local),/AssertionError|false|documents|array/i);
   assert.equal(firebase.docs.size,0,'no manifest or business-data chunk is written');
 });
+
+
+test('V2 company identity guard catches removal of the current logo and profile',async()=>{
+  const firestore=fakeFirebase(),account=await client(firestore,'user-1');
+  account.state.local=local({...payload(),company:{nameEn:'LOUREX',logoDataUrl:'data:image/png;base64,ABC'}});
+  assert.equal(await account.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  const original=await account.api.getPlainCloudMeta('user-1');
+  account.state.local={...account.state.local,localRevision:webcrypto.randomUUID(),
+    payload:{...account.state.local.payload,company:{nameEn:'',logoDataUrl:''}}};
+  await assert.rejects(account.api.reconcilePlainCloudWorkspace('user-1'),
+    /Company details disappeared/);
+  const unchanged=await account.api.getPlainCloudMeta('user-1');
+  assert.equal(unchanged.revision,original.revision,
+    'the good V2 snapshot must not be overwritten');
+  assert.equal(unchanged.sha256,original.sha256);
+});
+
+test('V2 guard detects erasure of one company even when another is still populated',async()=>{
+  const firestore=fakeFirebase(),account=await client(firestore,'user-1');
+  const before={...payload(),company:{nameEn:'LOUREX'},
+    appSettings:{activeWorkspaceId:'a'},workspaces:[
+      {id:'a',company:{nameEn:'LOUREX'}},
+      {id:'b',company:{nameEn:'Client B',logoDataUrl:'data:image/png;base64,ABC'}}
+    ]};
+  const after={...before,workspaces:[
+    {id:'a',company:{nameEn:'LOUREX'}},
+    {id:'b',company:{nameEn:'',logoDataUrl:''}}
+  ]};
+  assert.equal(account.api.losesCommittedCompanyIdentity(before,after),true);
+  assert.equal(account.api.losesCommittedCompanyIdentity(before,before),false);
+  account.state.local=local(before);
+  assert.equal(await account.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  account.state.local={...account.state.local,localRevision:webcrypto.randomUUID(),payload:after};
+  await assert.rejects(account.api.uploadPlainCloudWorkspace('user-1',account.state.local,true),
+    /Company details disappeared/);
+});
+
+test('V2 protection permits ordinary updates to existing populated profiles',async()=>{
+  const firestore=fakeFirebase(),account=await client(firestore,'user-1');
+  account.state.local=local({...payload(),company:{nameEn:'LOUREX'}});
+  assert.equal(await account.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  const previous=(await account.api.getPlainCloudMeta('user-1')).revision;
+  account.state.local={...account.state.local,localRevision:webcrypto.randomUUID(),
+    payload:{...account.state.local.payload,company:{nameEn:'LOUREX Trading'},
+      documents:[{id:'invoice-2'}]}};
+  assert.equal(await account.api.reconcilePlainCloudWorkspace('user-1'),'pushed');
+  const updated=await account.api.getPlainCloudMeta('user-1');
+  assert.notEqual(updated.revision,previous);
+  assert.equal(updated.companyRootPresent,true);
+  assert.deepEqual(Array.from(updated.companyWorkspaceIds),[]);
+  assert.ok(firestore.docs.has('users/user-1/workspaceHistory/'+previous));
+});
