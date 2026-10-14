@@ -88,6 +88,33 @@ function decodeB64(value:string):Uint8Array {
   for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
   return bytes;
 }
+/**
+ * Reject accidental removal of company profiles already committed in a
+ * PIN-free workspace. The active profile AND every workspace directory entry
+ * are important: a healthy sibling company must not mask an erased company.
+ *
+ * This only compares V2 workspaces; it never imports or reads PIN-era vaults.
+ */
+function populatedCompanyIdentity(company:any):boolean{
+  if(!company||typeof company!=='object')return false;
+  return ['nameEn','nameAr','logoDataUrl','phone','email','website','commercialRegistration']
+    .some(key=>typeof company[key]==='string'&&company[key].trim().length>0);
+}
+export function losesCommittedCompanyIdentity(previous:VaultPayload,next:VaultPayload):boolean{
+  const previousWorkspaces=Array.isArray(previous?.workspaces)?previous.workspaces:[];
+  const nextWorkspaces=Array.isArray(next?.workspaces)?next.workspaces:[];
+  for(const workspace of previousWorkspaces){
+    if(!populatedCompanyIdentity(workspace?.company))continue;
+    const updated=nextWorkspaces.find(candidate=>candidate?.id===workspace.id);
+    if(!updated||!populatedCompanyIdentity(updated.company))return true;
+  }
+  const beforeId=previous?.appSettings?.activeWorkspaceId;
+  const afterId=next?.appSettings?.activeWorkspaceId;
+  return Boolean(beforeId===afterId
+    &&populatedCompanyIdentity(previous?.company)
+    &&!populatedCompanyIdentity(next?.company));
+}
+
 function chunkId(revision:string,index:number):string {
   return 'chunk-'+revision+'-'+String(index).padStart(5,'0');
 }
@@ -152,6 +179,13 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
   }
   if(!replaceRemote&&(previous?.revision??null)!==(local.baseCloudRevision??null))
     return 'remote-changed';
+  // A stale, empty or corrupted company profile must not silently become the
+  // Firebase authority over any already committed V2 company identity.
+  if(previous){
+    const old=await downloadPlainCloudWorkspace(uid,previous);
+    if(old&&losesCommittedCompanyIdentity(old.payload,local.payload))
+      throw new Error('Company details disappeared from a pending upload. Firebase was not overwritten. Preserve this device and restore the last valid V2 revision.');
+  }
   const revision=newRevision(),count=Math.ceil(bytes.length/CHUNK_BYTES);
   const meta:PlainCloudMeta={
     format:FORMAT,version:2,revision,schemaVersion:local.schemaVersion,
@@ -236,6 +270,9 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   if(!localClean)return 'diverged';
   const result=await downloadPlainCloudWorkspace(uid,remote);
   if(!result)return 'diverged';
+  // An apparently clean local cache can contain the last surviving company
+  // identity. Do not auto-hydrate a remote revision that erases it.
+  if(losesCommittedCompanyIdentity(local.payload,result.payload))return 'diverged';
   const replacement:PlainWorkspaceRecord={
     id:'workspace-v2',uid,payload:result.payload,schemaVersion:result.payload.schemaVersion,
     updatedAt:result.meta.updatedAt,localRevision:crypto.randomUUID(),
