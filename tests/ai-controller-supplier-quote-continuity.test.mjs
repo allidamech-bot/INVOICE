@@ -73,7 +73,7 @@ test('explicit 3 percent markup produces 10.30, not a 3 percent gross-margin pri
   assert.deepEqual(draft.items.map(row=>row.unitPrice),['10.30','10.30','10.30']);
   assert.match(draft.rationale,/3% markup/);
   assert.throws(()=>quoteSourceWorkingDraft([supplierSource(2)],runtime(vault),
-    'حوّل عرض المورد إلى عرض سعر بهامش ربح 20% وأضف 3%'),/gross margin OR markup/);
+    'حوّل عرض المورد إلى عرض سعر بهامش ربح 20% وأضف 3% على الأسعار'),/gross margin OR markup/);
   assert.deepEqual(vault.documents,[]);
 });
 
