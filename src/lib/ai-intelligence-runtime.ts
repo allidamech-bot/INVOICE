@@ -29,6 +29,17 @@ import { conversationModePermitsCapability, normalizeAiConversationMode, type Ai
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
 type Host=any;
 let storeQueue:Promise<unknown>=Promise.resolve();
+// Older conversation owners can supply messages without stable IDs. Retain
+// one fallback ID per live message object to prevent duplicate history on
+// successive kernel/approval persistence, without mutating React state.
+const legacyMessageIds=new WeakMap<object,string>();
+function stableHistoryMessageId(row:any):string{
+  if(typeof row?.id==='string'&&row.id.trim())return row.id;
+  if(!row||typeof row!=='object')return crypto.randomUUID();
+  let id=legacyMessageIds.get(row);
+  if(!id){id=crypto.randomUUID();legacyMessageIds.set(row,id);}
+  return id;
+}
 let cloudHistoryQueue:Promise<unknown>=Promise.resolve();
 function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,generation?:number,installRemote=false,changedThreadId?:string):void{
   const run=async()=>{
@@ -110,7 +121,7 @@ async function persistKernel(host:Host,requireScope=false):Promise<void>{
   if(!host.__intelligenceKernel||host.__intelligenceKernel.scope.scope==='temporary')return;
   const kernel=structuredClone(host.__intelligenceKernel) as ConversationKernel;
   const receipts=structuredClone(host.__foundationReceipts||[]);
-  const messages=(host.state.messages||[]).map((row:any)=>({id:row.id,role:row.role,text:row.text}));
+  const messages=(host.state.messages||[]).map((row:any)=>({id:stableHistoryMessageId(row),role:row.role,text:row.text}));
   const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready to save this conversation. Sign in and retry.');
     if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope)){
       if(requireScope)throw new Error('Account, company or conversation changed before the declined approval was saved.');
