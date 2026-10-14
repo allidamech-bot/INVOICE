@@ -10,8 +10,8 @@ test('GitHub QA uses only safe read-only free branch runners, never production d
     const yaml=await readFile(new URL('.github/workflows/'+file,root),'utf8');
     assert.match(yaml,/runs-on:\s*ubuntu-latest/,file);
     assert.match(yaml,/permissions:\s*\n\s*contents:\s*read/,file);
-    assert.match(yaml,/\s+push:\s*\n\s+branches:\s*\n\s+-\s+fix\//,file);
-    assert.doesNotMatch(yaml,/^\s*(?:pull_request|pull_request_target|deployment|release|schedule):/m,file);
+    assert.match(yaml,/\s+push:\s*\n\s+branches:\s*(?:\[[^\]]*(?:fix|feat)\/|\n\s+-\s+(?:fix|feat)\/)/,file);
+    assert.doesNotMatch(yaml,/^\s*(?:pull_request_target|deployment|release|schedule):/m,file);
     assert.doesNotMatch(yaml,/^\s+-\s+main\s*$/m,file);
     assert.doesNotMatch(yaml,/\b(?:vercel\s+(?:deploy|promote|--prod)|gh\s+pr\s+merge|git\s+push\s+origin\s+main)\b/i,file);
     assert.doesNotMatch(yaml,/\b(?:secrets\.|environment:\s*production)/i,file);
