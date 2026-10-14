@@ -122,7 +122,12 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     if(!descriptionEn&&!descriptionAr&&!sku)throw new Error('SOURCE_INCOMPLETE: Product identity is missing on line '+(index+1));
     const quantity=numeric(row.quantity,true);
     // Ambiguous source quantities are never placed in a priced document.
-    if(row.quantityAmbiguous===true||Number(row.quantityConfidence)<.5)throw new Error('SOURCE_INCOMPLETE: Quantity or pack unit is uncertain on line '+(index+1)+'. Confirm the source before building a quotation.');
+    const quantityConfidence=row.quantityConfidence,productConfidence=row.productConfidence;
+    // Reject malformed/out-of-range AI confidence instead of treating NaN as sufficient evidence.
+    if((row.quantityAmbiguous!==undefined&&row.quantityAmbiguous!==false)||
+      (quantityConfidence!==undefined&&(typeof quantityConfidence!=='number'||!Number.isFinite(quantityConfidence)||quantityConfidence<.5||quantityConfidence>1))||
+      (productConfidence!==undefined&&(typeof productConfidence!=='number'||!Number.isFinite(productConfidence)||productConfidence<.5||productConfidence>1)))
+      throw new Error('SOURCE_INCOMPLETE: Quantity, pack unit or product identity is uncertain on line '+(index+1)+'. Confirm the source before building a quotation.');
     const unit=sourceText(row.unit,40),sourcePrice=numeric(row.unitPrice,false);
     const unitPrice=margin===null?sourcePrice:sellingPriceForGrossMargin(sourcePrice,margin);
     return{savedItemId:'',descriptionEn:descriptionEn||sku,descriptionAr,quantity,unit,unitPrice};
