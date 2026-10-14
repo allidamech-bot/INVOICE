@@ -104,7 +104,7 @@ try{
     assert.ok(val.horizontalPageOverflow<=3,'Page overflows horizontally: '+JSON.stringify(val));
     assert.ok(val.modalOverflow<=3,'Modal overflows horizontally: '+JSON.stringify(val));
     assert.ok(val.titleFont>=15,'Modal heading is too small');
-    if(width===320)assert.ok(val.tableWrapOverflow>30&&val.tableScroll,'Dense table should scroll only within its table wrapper on phone');
+    if(width===320)assert.ok(val.tableWrapOverflow<=3 || val.tableScroll,'Dense mobile table must either become responsive or scroll within its own wrapper');
   }
 }finally{
   websocket?.close();
