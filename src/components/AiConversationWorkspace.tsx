@@ -389,20 +389,24 @@ function ConversationDocumentCard({host}:{host:Host}):any {
       {doc.status==='draft'?<>
         <button type="button" disabled={disabled(host)||!kernel.artifact?.undo.length} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Undo','تراجع')}</button>
         <button type="button" disabled={disabled(host)||!kernel.artifact?.redo.length} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Redo','إعادة')}</button>
-        <button type="button" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{label(ar,'Review save','مراجعة الحفظ')}</button>
+        <button type="button" className="lxw-document-save" disabled={disabled(host)||Boolean(doc.blockers.length)} title={label(ar,'Review and explicitly confirm before the document is saved','راجع ووافق قبل حفظ المستند')} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{kernel.artifact?.proposal.capability==='document.createDraft'&&kernel.artifact.proposal.kind==='proforma'?label(ar,'Save quotation','حفظ عرض السعر'):label(ar,'Save draft','حفظ المسودة')}</button>
       </>:null}
     </div>
+    {doc.status==='draft'?<small className="lxw-save-guidance">{label(ar,'Saving requires reviewing and approving the draft. PDF preview never saves it.','الحفظ يتطلب مراجعة المسودة وتأكيد الموافقة. معاينة PDF لا تحفظ العرض.')}</small>:null}
         <section className="lxw-ai-pdf-actions" aria-label={label(ar,'Real PDF document','مستند PDF فعلي')}>
           <button type="button" disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null}
-            onClick={createPdf}>{pdfBusy?label(ar,'Generating A4 PDF…','جارٍ إنشاء PDF بحجم A4…'):label(ar,'Generate PDF · no save','إنشاء PDF · دون حفظ')}</button>
+            onClick={createPdf}>{pdfBusy?label(ar,'Generating PDF…','جارٍ إنشاء PDF…'):label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')}</button>
           <p>{label(ar,'This is a real LOUREX template PDF preview. Generating it does not save or issue the document.','هذه معاينة PDF فعلية من قالب LOUREX. إنشاء الملف لا يحفظ المستند ولا يصدره.')}</p>
           {pdfError?<p role="alert">{workspaceError(ar,pdfError)}</p>:null}
           {pdfResult?<div className="lxw-ai-pdf-result">
-            <a href={pdfResult.url} target="_blank" rel="noopener noreferrer">{label(ar,'Open actual PDF','فتح ملف PDF الفعلي')}</a>
-            <a href={pdfResult.url} download={pdfResult.name}>{label(ar,'Download PDF','تحميل PDF')}</a>
-            <span>{Math.ceil(pdfResult.bytes/1024)} KB</span>
-            <iframe title={label(ar,'LOUREX PDF file preview','معاينة ملف PDF من LOUREX')} src={pdfResult.url}
-              style={{width:'100%',height:440,maxWidth:'100%',border:'1px solid #555',borderRadius:8,background:'#fff'}}/>
+            <div className="lxw-ai-pdf-file" role="group" aria-label={label(ar,'Generated PDF file','ملف PDF المنشأ')}>
+              <span className="lxw-pdf-symbol" aria-hidden="true">PDF</span>
+              <div className="lxw-pdf-file-meta"><strong dir="auto">{pdfResult.name}</strong><small><bdi>{Math.ceil(pdfResult.bytes/1024)} KB</bdi> · {label(ar,'Ready to open or download','جاهز للفتح أو التنزيل')}</small></div>
+            </div>
+            <div className="lxw-ai-pdf-file-actions">
+              <a className="lxw-pdf-preview" href={pdfResult.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{label(ar,'Preview PDF','معاينة PDF')}</a>
+              <a className="lxw-pdf-download" href={pdfResult.url} download={pdfResult.name}>{label(ar,'Download PDF','تنزيل PDF')}</a>
+            </div>
           </div>:null}
         </section>
 {pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
