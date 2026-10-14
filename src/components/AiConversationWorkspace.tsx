@@ -821,6 +821,8 @@ export function installConversationWorkspace(host:Host):void {
   }
   // Each mode opens its own scoped thread. Never relabel an existing turn.
   const drafts=new Map<string,string>();
+  // Preserve the exact last-used thread separately for each mode and company.
+  const recentModeThread=new Map<string,string>();
   host.__workspaceSwitchMode=async(target:AiConversationMode)=>{
     if(target!=='controller'&&target!=='advisor')return;
     if(disabled(host)||host.__workspaceModeSwitchBusy)return;
@@ -828,14 +830,19 @@ export function installConversationWorkspace(host:Host):void {
     if(!previous||previous.scope.scope!=='business'||normalizeAiConversationMode(previous.mode)===target)return;
     host.__workspaceModeSwitchBusy=true;host.__workspaceInternalModeSwitch=true;
     drafts.set(kernelScopeKey(previous.scope),String(host.state.input||''));
+    const keyFor=(mode:AiConversationMode)=>JSON.stringify([previous.scope.accountId,previous.scope.workspaceId,previous.scope.branchId,mode]);
+    recentModeThread.set(keyFor(normalizeAiConversationMode(previous.mode)),previous.scope.threadId);
     host.setState({__workspaceSwitching:true,error:''});
     try{
       const matching=(host.__businessThreads||[]).filter((row:any)=>row.mode===target).sort((a:any,b:any)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
-      if(matching.length&&matching[0].id!==previous.scope.threadId)await host.__lourexOpenThread(matching[0].id);
+      const selected=matching.find((row:any)=>row.id===recentModeThread.get(keyFor(target)))||matching[0];
+      if(selected&&selected.id!==previous.scope.threadId)await host.__lourexOpenThread(selected.id);
       else await host.__lourexNewConversation();
       if(!host.__intelligenceKernel)throw new Error('The selected conversation could not be loaded.');
       if(normalizeAiConversationMode(host.__intelligenceKernel.mode)!==target)await assignIntelligenceConversationMode(host,target);
       const current=host.__intelligenceKernel as ConversationKernel;
+      if(normalizeAiConversationMode(current.mode)!==target||current.scope.accountId!==previous.scope.accountId||current.scope.workspaceId!==previous.scope.workspaceId||current.scope.branchId!==previous.scope.branchId)throw new Error('Selected conversation mode or scope did not match. Retry.');
+      recentModeThread.set(keyFor(target),current.scope.threadId);
       host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSettingsOpen:false});
     }catch(error){
       host.setState({error:error instanceof Error?error.message:String(error)});
