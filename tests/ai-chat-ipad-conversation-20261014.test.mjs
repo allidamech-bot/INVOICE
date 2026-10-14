@@ -71,6 +71,16 @@ test('AI Chat: saving quotation requires existing reviewed action; PDF is previe
   assert.match(source,/Saving requires reviewing and approving the draft/);
   assert.match(source,/Generate PDF preview/);
   assert.match(source,/prepareAiPdfPreview\(kernel,vault/);
+  assert.match(source,/saveReviewPending=doc\.status==='draft'/,'once a review is staged, saving must not be requested again');
+  assert.match(source,/Boolean\(doc\.blockers\.length\)\|\|saveReviewPending/);
+  assert.match(source,/Awaiting approval/);
+  assert.match(source,/Confirm quotation save/);
+  assert.match(source,/تأكيد حفظ عرض السعر/);
+  assert.match(source,/Confirm draft save/);
+  assert.match(source,/aria-busy=\{pdfBusy\}/);
+  assert.match(source,/className="lxw-inline-spinner"/);
+  assert.match(source,/dir:'auto'/,'RTL and LTR user input must auto-detect paragraph direction');
+  assert.match(source,/chatContent=safeContent\.map/,'approval actions must be inside the scroll track');
   assert.match(source,/ConversationThinkingIndicator/);
   assert.match(source,/lxw-thinking-dots/);
   assert.doesNotMatch(source,/await host\.approveProposal\(/,'save button must not bypass explicit approval');
