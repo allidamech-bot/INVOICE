@@ -103,3 +103,16 @@ test('F18 invalid attachment metadata cannot cause a partial document proposal',
  assert.match(result.answer,/No action was staged/);
  assert.deepEqual(vault,before);
 });
+
+
+test('F18 malformed confidence and ambiguous source flags cannot stage an actionable quotation',()=>{
+ const vault=emptyVault();
+ for(const patch of [{quantityConfidence:'unknown'},{quantityConfidence:1.5},{quantityAmbiguous:'false'},{productConfidence:-1},{productConfidence:NaN}]){
+   const file=source('qa',1,1);
+   const extracted=JSON.parse(file.quoteSheetCandidate);
+   Object.assign(extracted.items[0],patch);
+   file.quoteSheetCandidate=JSON.stringify(extracted);
+   assert.throws(()=>quoteSourceWorkingDraft([file],runtime(vault),'أنشئ عرض سعر من الملف'),/SOURCE_INCOMPLETE/);
+ }
+ assert.equal(vault.documents.length,0);
+});
