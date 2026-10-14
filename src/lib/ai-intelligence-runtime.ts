@@ -117,8 +117,14 @@ async function persistKernel(host:Host,requireScope=false):Promise<void>{
       return;
     }
     await mutateAssistantState(resumed.key,current=>{
-      const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages});
       const earlier=current.threads.find(row=>row.id===kernel.scope.threadId&&row.scope===kernel.scope.scope&&row.workspaceId===kernel.scope.workspaceId&&row.branchId===kernel.scope.branchId);
+      // Kernel/approval writes can happen before the conversation history UI
+      // has hydrated after remount. Preserve already persisted messages rather
+      // than replacing them with an incomplete (or empty) local view.
+      const visibleIds=new Set(messages.map(row=>String(row.id||'')).filter(Boolean));
+      const retained=(earlier?.messages||[]).filter(row=>!visibleIds.has(row.id));
+      const completeMessages=[...retained,...messages];
+      const saved=upsertAssistantThread(current,{threadId:kernel.scope.threadId,scope:kernel.scope.scope as 'business'|'personal',workspaceId:kernel.scope.workspaceId,branchId:kernel.scope.branchId,messages:completeMessages});
       saved.thread.kernel=reconcileCancelledApprovals(kernel,earlier?.kernel);
       saved.thread.foundationReceipts=receipts;
       return saved.state;
