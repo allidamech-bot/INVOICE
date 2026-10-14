@@ -39,8 +39,7 @@ const markup=[
 '<section class="lxw-inline-approval"><div class="lxw-inline-approval-title"><strong>المسودة جاهزة للمراجعة</strong><small>المعاينة لا تحفظ أي تغيير</small></div>',
 '<div class="lxw-inline-approval-row"><button class="lxw-inline-preview-button">عرض التفاصيل</button><div class="lxw-inline-approval-buttons"><button>رفض</button><button class="primary">اعتماد المسودة</button></div></div></section>',
 '<div class="lxw-thinking"><span class="lxw-thinking-dots"><i></i><i></i><i></i></span><span>LOUREX AI يعالج طلبك…</span></div>',
-'<div class="lourex-ai-attachment-strip"><div class="lourex-ai-attachment-chip"><strong class="lourex-ai-attachment-name">International-Quotation-Long-File-Name-TEST.pdf</strong><button class="lourex-ai-attachment-review">مراجعة</button><button class="lourex-ai-attachment-remove">×</button><small>جاهز للمراجعة · لم يحفظ</small></div></div>',
-'</div><footer class="lourex-ai-compose"><form><button class="lourex-ai-composer-plus">＋</button><textarea class="lourex-ai-premium-textarea" placeholder="اسأل LOUREX"></textarea><button class="lourex-ai-composer-mic">🎤</button><button class="lourex-ai-send">➤</button></form></footer>',
+'</div><footer class="lourex-ai-compose"><div class="lourex-ai-attachment-strip"><div class="lourex-ai-attachment-chip"><strong class="lourex-ai-attachment-name">International-Quotation-Long-File-Name-TEST.pdf</strong><button class="lourex-ai-attachment-review">مراجعة</button><button class="lourex-ai-attachment-remove">×</button><small>جاهز للمراجعة · لم يحفظ</small></div></div><form><button class="lourex-ai-composer-plus">＋</button><textarea class="lourex-ai-premium-textarea" placeholder="اسأل LOUREX"></textarea><button class="lourex-ai-composer-mic">🎤</button><button class="lourex-ai-send">➤</button></form></footer>',
 '</div></div></aside></div></body></html>'
 ].join('');
 const file='__lourex_ai_visual_qa__.html',profile=await mkdtemp(join(tmpdir(),'lourex-visual-'));
