@@ -40,6 +40,11 @@ export function aiInboxUnlinkedCustomerNote(name: string): string {
  * AI instructions may provide data, but cannot bypass this confirmation.
  */
 export function assertAiInboxQuoteReviewFresh(vault:VaultPayload,draft:QuoteAiSourceDraft,review:QuoteAiReview):void {
+  // An unchanged price calculation does not prove an unchanged buyer, quantity
+  // or delivery term. Bind approval to the entire reviewed draft, fail closed
+  // when an old unbound review is restored from prior session state.
+  if(!review?.sourceSnapshot||review.sourceSnapshot!==JSON.stringify(draft))
+    throw new Error('Quotation source changed since review. Refresh and review every line before saving.');
   const latest=buildQuoteAiReview(scopeVault(vault),draft);
   const row=(value:QuoteAiReview['items'][number])=>({
     matchedItemId:value.matchedItemId,
