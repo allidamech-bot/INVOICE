@@ -881,6 +881,7 @@ export function installConversationWorkspace(host:Host):void {
     }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
     finally{host.__workspaceAdvisorHandoffBusy=false;}
   };
+  host.__workspaceRefresh=refresh;
   // AI workflow tools use this single, checked bridge into the Advisor.
   // No action is routed through Controller and no message is sent if the
   // account/scope, selected mode, or existing unsent draft is unsafe.
@@ -923,7 +924,6 @@ export function installConversationWorkspace(host:Host):void {
   };
   host.__workspaceWorkflowHandoffHandler=receiveWorkflowAdvisor;
   window.addEventListener('lourex-ai-workflow-advisor',receiveWorkflowAdvisor);
-  host.__workspaceRefresh=refresh;
   const viewport=()=>syncWorkspaceViewport();host.__workspaceViewport=viewport;
   window.visualViewport?.addEventListener('resize',viewport);window.visualViewport?.addEventListener('scroll',viewport);window.addEventListener('resize',viewport);
   void host.__lourexLoadPromise?.then(refresh);
