@@ -39,6 +39,7 @@ const markup=[
 '<section class="lxw-inline-approval"><div class="lxw-inline-approval-title"><strong>المسودة جاهزة للمراجعة</strong><small>المعاينة لا تحفظ أي تغيير</small></div>',
 '<div class="lxw-inline-approval-row"><button class="lxw-inline-preview-button">عرض التفاصيل</button><div class="lxw-inline-approval-buttons"><button>رفض</button><button class="primary">اعتماد المسودة</button></div></div></section>',
 '<div class="lxw-thinking"><span class="lxw-thinking-dots"><i></i><i></i><i></i></span><span>LOUREX AI يعالج طلبك…</span></div>',
+'<div class="lourex-ai-attachment-strip"><div class="lourex-ai-attachment-chip"><strong class="lourex-ai-attachment-name">International-Quotation-Long-File-Name-TEST.pdf</strong><button class="lourex-ai-attachment-review">مراجعة</button><button class="lourex-ai-attachment-remove">×</button><small>جاهز للمراجعة · لم يحفظ</small></div></div>',
 '</div><footer class="lourex-ai-compose"><form><button class="lourex-ai-composer-plus">＋</button><textarea class="lourex-ai-premium-textarea" placeholder="اسأل LOUREX"></textarea><button class="lourex-ai-composer-mic">🎤</button><button class="lourex-ai-send">➤</button></form></footer>',
 '</div></div></aside></div></body></html>'
 ].join('');
@@ -65,9 +66,9 @@ try{
      "(async()=>{await document.fonts.ready;",
      "if(!RTL){document.documentElement.dir='ltr';document.getElementById('lourex-ai-panel').dir='ltr';}",
      "const get=s=>document.querySelector(s),style=s=>getComputedStyle(get(s));",
-     "const regions=['.lourex-ai-messages','.lxw-chat-document','.lxw-review-banner','.lxw-review-facts','.lxw-review-item','.lxw-review-subtotal','.lxw-ai-pdf-actions','.lxw-ai-pdf-file','.lxw-pdf-file-meta','.lxw-ai-pdf-file-actions','.lxw-chat-document-controls','.lxw-inline-approval','.lxw-inline-approval-buttons','.lxw-thinking','.lourex-ai-compose form','.lxw-mode-tabs'];",
+     "const regions=['.lourex-ai-messages','.lxw-chat-document','.lxw-review-banner','.lxw-review-facts','.lxw-review-item','.lxw-review-subtotal','.lxw-ai-pdf-actions','.lxw-ai-pdf-file','.lxw-pdf-file-meta','.lxw-ai-pdf-file-actions','.lxw-chat-document-controls','.lxw-inline-approval','.lxw-inline-approval-buttons','.lxw-thinking','.lourex-ai-attachment-chip','.lourex-ai-compose form','.lxw-mode-tabs'];",
      "const overflows=regions.flatMap(s=>{const el=get(s);return el.scrollWidth>el.clientWidth+2?[{s,pixels:el.scrollWidth-el.clientWidth}]:[];});",
-     "const controls=['.lxw-chat-document-controls>button','.lxw-ai-pdf-actions>button','.lxw-ai-pdf-file-actions>a','.lxw-inline-approval-buttons>button','.lxw-inline-preview-button','.lxw-mode-tabs>button'];",
+     "const controls=['.lxw-chat-document-controls>button','.lxw-ai-pdf-actions>button','.lxw-ai-pdf-file-actions>a','.lxw-inline-approval-buttons>button','.lxw-inline-preview-button','.lourex-ai-attachment-review','.lourex-ai-attachment-remove','.lourex-ai-composer-plus','.lourex-ai-composer-mic','.lourex-ai-send','.lxw-mode-tabs>button'];",
      "const small=controls.flatMap(s=>Array.from(document.querySelectorAll(s)).filter(e=>e.getBoundingClientRect().height<43).map(e=>({label:e.textContent.trim(),height:Math.round(e.getBoundingClientRect().height)})));",
      "const colors={};for(const [key,s] of [['edit','.lxw-chat-document-controls>button:first-child'],['save','.lxw-document-save'],['createPDF','.lxw-ai-pdf-actions>button'],['preview','.lxw-pdf-preview'],['download','.lxw-pdf-download'],['approve','.lxw-inline-approval-buttons>.primary'],['reject','.lxw-inline-approval-buttons>button:first-child']])colors[key]=style(s).backgroundColor;",
      "const fonts={message:parseFloat(style('.lourex-ai-message').fontSize),review:parseFloat(style('.lxw-review-item dd').fontSize),button:parseFloat(style('.lxw-document-save').fontSize)};",
