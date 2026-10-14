@@ -181,7 +181,12 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     return 'remote-changed';
   // A stale, empty or corrupted company profile must not silently become the
   // Firebase authority over any already committed V2 company identity.
-  if(previous){
+  // Avoid a full cloud download on ordinary edits to fully populated company
+  // profiles. Inspect the former revision when a company identity is missing.
+  const suspectProfile=!populatedCompanyIdentity(local.payload.company)
+    ||(Array.isArray(local.payload.workspaces)
+      &&local.payload.workspaces.some(workspace=>!populatedCompanyIdentity(workspace.company)));
+  if(previous&&suspectProfile){
     const old=await downloadPlainCloudWorkspace(uid,previous);
     if(old&&losesCommittedCompanyIdentity(old.payload,local.payload))
       throw new Error('Company details disappeared from a pending upload. Firebase was not overwritten. Preserve this device and restore the last valid V2 revision.');
