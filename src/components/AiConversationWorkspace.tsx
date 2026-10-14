@@ -476,6 +476,51 @@ export function clearConversationToolPresentation(host:Host):void {
   host.__lourexLastToolAudit='';
   host.__foundationToolOutcomes=[];
 }
+/** Keep the active chat at its newest turn without dragging a reader away from
+ * earlier messages. Unlike a message-count-only hook, this observes actual
+ * content growth (drafts, PDFs, tool cards and streamed replies) on iOS Safari. */
+function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUserId:string}):any {
+  const marker=react.useRef(null as HTMLSpanElement|null);
+  const follow=react.useRef(true);
+  const pin=react.useRef(null as (()=>void)|null);
+  react.useEffect(()=>{
+    const box=marker.current?.closest('.lourex-ai-messages') as HTMLElement|null;
+    if(!box)return;
+    follow.current=true;
+    let frame=0,programmatic=false,unlock=0;
+    const atBottom=()=>box.scrollHeight-box.clientHeight-box.scrollTop<120;
+    const settle=()=>{
+      if(!follow.current)return;
+      window.cancelAnimationFrame(frame);
+      frame=window.requestAnimationFrame(()=>{
+        if(!follow.current)return;
+        programmatic=true;
+        box.scrollTop=box.scrollHeight;
+        window.clearTimeout(unlock);
+        unlock=window.setTimeout(()=>{programmatic=false;},0);
+      });
+    };
+    pin.current=settle;
+    const onScroll=()=>{if(!programmatic)follow.current=atBottom();};
+    const mutations=new MutationObserver(settle);
+    mutations.observe(box,{childList:true,characterData:true,subtree:true});
+    box.addEventListener('scroll',onScroll,{passive:true});
+    window.visualViewport?.addEventListener('resize',settle);
+    settle();
+    return()=>{
+      mutations.disconnect();box.removeEventListener('scroll',onScroll);
+      window.visualViewport?.removeEventListener('resize',settle);
+      window.cancelAnimationFrame(frame);window.clearTimeout(unlock);
+      pin.current=null;
+    };
+  },[scopeKey]);
+  react.useEffect(()=>{
+    // A message the user just sent must be visible even after manually
+    // reading older turns; incoming content then follows until they scroll up.
+    if(lastUserId){follow.current=true;pin.current?.();}
+  },[scopeKey,lastUserId]);
+  return <span ref={marker} className="lxw-chat-scroll-marker" aria-hidden="true"/>;
+}
 function conversationModeTabs(host:Host,mode:AiConversationMode|undefined,locked:boolean):any {
   const ar=aiUiAr(host);
   return <nav className="lxw-mode-tabs" role="tablist" aria-label={label(ar,'Conversation modes','نوع المحادثة')}>
@@ -618,10 +663,15 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       });
       return react.cloneElement(node,undefined,...branded);
     }
-    if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
+    if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
+       return react.cloneElement(node,undefined,...children,
+         <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
+     }
+     if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
       return react.cloneElement(node,undefined,...children,
         <ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>,
-        <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>);
+        <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>,
+         <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
     }
     if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
       // Retain the historic document number but never expose route-changing buttons.
