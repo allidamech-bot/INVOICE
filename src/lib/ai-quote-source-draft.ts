@@ -43,20 +43,27 @@ function sellingPriceForGrossMargin(sourceUnitPrice:string,margin:string):string
 }
 /** An explicit increase on a unit cost is MARKUP, not gross sales margin.
  * An unrelated number or a discount must never silently change prices. */
-function requestedSourceMarkup(message:string):string|null{
+export function requestedSourceMarkup(message:string):string|null{
   const ar='٠١٢٣٤٥٦٧٨٩',fa='۰۱۲۳۴۵۶۷۸۹';
   const text=String(message||'').normalize('NFKC')
     .replace(/[٠-٩۰-۹]/gu,c=>String(ar.includes(c)?ar.indexOf(c):fa.indexOf(c)))
     .replace(/[ً-ٰٟ]/gu,'').replace(/٫/g,'.');
-  const exact=text.match(/(?:أضف|اضف|ضيف|زوّد|زود|زد|ارفع|زيادة|add|increase|markup)\s*(?:بنسبة\s*|by\s*)?\+?\s*(\d{1,3}(?:[.,]\d{1,4})?)\s*[%٪]/iu);
-  if(!exact)return null;
-  const value=normalizeDecimalInput(exact[1]!.replace(',','.'));
-  if(!/^(?:0|[1-9]\d{0,2})(?:\.\d{1,4})?$/.test(value)||decimalToScaled(value,4)>5000000n)
+  const verb='(?:أضف|اضف|ضيف|زوّد|زود|زد|ارفع|زيادة|add|increase|markup)';
+  const price='(?:(?:كل|جميع|all)\\s+)?(?:الأسعار|الاسعار|أسعار\\s+(?:كل\\s+)?(?:الأصناف|الاصناف|المنتجات)|اسعار\\s+(?:كل\\s+)?(?:الأصناف|الاصناف|المنتجات)|السعر|prices?|item\\s+prices?)';
+  const amount='(\\d{1,3}(?:[.,]\\d{1,4})?)';
+  // "أضف 3% على الأسعار", "زود الأسعار 3%" and "increase all prices by 3%".
+  // A bare percentage or tax instruction is NOT an authorization to reprice.
+  const before=new RegExp(verb+'\\s*(?:بنسبة\\s*|by\\s*)?\\+?\\s*'+amount+'\\s*[%٪]\\s*(?:(?:على|ل|to|on)\\s*)?'+price,'iu');
+  const after=new RegExp(verb+'\\s*(?:(?:على|ل|to|on)\\s*)?'+price+'\\s*(?:بنسبة\\s*|by\\s*)?\\+?\\s*'+amount+'\\s*[%٪]','iu');
+  const found=text.match(before)||text.match(after);
+  if(!found)return null;
+  const value=normalizeDecimalInput(found[1]!.replace(',','.'));
+  if(!/^(?:0|[1-9]\\d{0,2})(?:\\.\\d{1,4})?$/.test(value)||decimalToScaled(value,4)>5000000n)
     throw new Error('SOURCE_INCOMPLETE: An explicit markup must be between 0% and 500%.');
   return value;
 }
-function sellingPriceForMarkup(sourceUnitPrice:string,markup:string):string{
-  if(!sourceUnitPrice)throw new Error('SOURCE_INCOMPLETE: A supplier unit price is missing; cannot apply markup to every line.');
+export function sellingPriceForMarkup(sourceUnitPrice:string,markup:string):string{
+  if(!sourceUnitPrice)throw new Error('SOURCE_INCOMPLETE: A unit price is missing; cannot apply markup to every line.');
   const cost=decimalToScaled(sourceUnitPrice,6),factor=1000000n+decimalToScaled(markup,4);
   // unit cost has 6 decimal places; percentage factor is scaled to 1e6.
   const denominator=1000000000000n;
