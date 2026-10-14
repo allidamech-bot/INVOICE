@@ -904,6 +904,9 @@ export function installConversationWorkspace(host:Host):void {
         throw new Error('Open the LOUREX business conversation and retry the Advisor request.');
       if(normalizeAiConversationMode(current.mode)!=='advisor'){
         await host.__workspaceSwitchMode('advisor');
+        // The selected thread's composer draft is set asynchronously by
+        // React; wait before deciding whether it is safe to insert a prompt.
+        await new Promise<void>(resolve=>host.setState({},resolve));
         const selected=host.__intelligenceKernel as ConversationKernel|undefined;
         if(!selected||normalizeAiConversationMode(selected.mode)!=='advisor'||selected.scope.accountId!==current.scope.accountId||
           selected.scope.workspaceId!==current.scope.workspaceId||selected.scope.branchId!==current.scope.branchId)
