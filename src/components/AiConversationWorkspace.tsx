@@ -881,6 +881,40 @@ export function installConversationWorkspace(host:Host):void {
     }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
     finally{host.__workspaceAdvisorHandoffBusy=false;}
   };
+  // AI workflow tools use this single, checked bridge into the Advisor.
+  // No action is routed through Controller and no message is sent if the
+  // account/scope, selected mode, or existing unsent draft is unsafe.
+  const receiveWorkflowAdvisor=(event:Event)=>{
+    const detail=(event as CustomEvent).detail as {prompt?:unknown;submit?:unknown;handled?:boolean}|undefined;
+    const prompt=typeof detail?.prompt==='string'?detail.prompt.trim().slice(0,1000):'';
+    if(!prompt||host.mounted===false||host.__workspaceWorkflowHandoffBusy||host.__workspaceModeSwitchBusy)return;
+    if(detail)detail.handled=true;
+    host.__workspaceWorkflowHandoffBusy=true;
+    void (async()=>{
+      if(!host.state.open)host.toggle();
+      if(!host.state.open&&!host.__intelligenceKernel)await refresh();
+      if(!host.__intelligenceKernel)await refresh();
+      const current=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(!host.state.open||!current||current.scope.scope!=='business')
+        throw new Error('Open the LOUREX business conversation and retry the Advisor request.');
+      if(normalizeAiConversationMode(current.mode)!=='advisor'){
+        await host.__workspaceSwitchMode('advisor');
+        const selected=host.__intelligenceKernel as ConversationKernel|undefined;
+        if(!selected||normalizeAiConversationMode(selected.mode)!=='advisor'||selected.scope.accountId!==current.scope.accountId||
+          selected.scope.workspaceId!==current.scope.workspaceId||selected.scope.branchId!==current.scope.branchId)
+          throw new Error('Advisor mode was not opened. No request was sent.');
+      }
+      if(disabled(host))throw new Error('The conversation is busy. Retry this Advisor request after the current operation.');
+      if(String(host.state.input||'').trim())throw new Error('Advisor has an unsent message. Send or clear it before opening another analysis.');
+      host.setState({input:prompt,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,error:''});
+      // Submission uses the actual selected Advisor conversation and the
+      // existing authenticated ask/response pipeline, never tool.execute.
+      if(detail?.submit===true)await host.ask(prompt);
+    })().catch((error:Error)=>host.setState({error:error.message||String(error)}))
+      .finally(()=>{host.__workspaceWorkflowHandoffBusy=false;});
+  };
+  host.__workspaceWorkflowHandoffHandler=receiveWorkflowAdvisor;
+  window.addEventListener('lourex-ai-workflow-advisor',receiveWorkflowAdvisor);
   host.__workspaceRefresh=refresh;
   const viewport=()=>syncWorkspaceViewport();host.__workspaceViewport=viewport;
   window.visualViewport?.addEventListener('resize',viewport);window.visualViewport?.addEventListener('scroll',viewport);window.addEventListener('resize',viewport);
@@ -895,4 +929,4 @@ export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
   if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
 }
-export function unmountConversationWorkspace(host:Host):void {host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
+export function unmountConversationWorkspace(host:Host):void {if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
