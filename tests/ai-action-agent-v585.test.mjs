@@ -58,9 +58,13 @@ test('v585 chat action produces a tangible saved artifact with open-document aff
   assert.match(copilot,/MAX_MESSAGE_CHARS=6000/);
 });
 
-test('v585 File to Quote no longer drops a new customer and exposes the saved record',async()=>{
+test('current File to Quote requires an exact saved customer and keeps opening the saved document',async()=>{
   const tools=await read('src/components/AiWorkflowTools.tsx');
-  assert.match(tools,/Created from an approved LOUREX AI quotation source/);
+  const guard=await read('src/lib/ai-workflow-quote-guard.ts');
+  assert.match(tools,/assertAiInboxQuoteReviewFresh\(vault,draft,review\)/,'save must revalidate source review');
+  assert.match(tools,/resolveAiInboxQuoteCustomer\(numbered\.vault,review\.customer\.customerId\)/,'save must resolve an existing customer');
+  assert.match(guard,/resolveAiInboxQuoteCustomer/,'customer matching must be scoped and explicit');
+  assert.doesNotMatch(tools,/Created from an approved LOUREX AI quotation source/,'cannot silently create a customer from an attachment');
   assert.match(tools,/customerSnapshot:customerSnapshotFrom\(customer\)/);
   assert.match(tools,/savedReference:saved\?\.number\|\|''/);
   assert.match(tools,/Open saved record/);
