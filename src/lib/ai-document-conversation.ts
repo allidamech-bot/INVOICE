@@ -84,6 +84,12 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
   const ar=language==='ar';
   if(/^(?:موافق|اعتمد|احفظ|سجّل|سجل|approve|confirm|save|register)(?:\s+المسودة|\s+draft)?[.!؟\s]*$/iu.test(input))
     return rejected(proposal,ar?'الحفظ يتطلب الضغط على زر الموافقة؛ لا تنفّذ المحادثة الحفظ.':'Saving requires the approval button; a chat message cannot authorize persistence.',ar);
+  // Explicitly negated price changes must stop here, rather than falling
+  // through to a generative patch planner that could invert the instruction.
+  // This is a read-only refusal and never authorizes writing the vault.
+  const negatedReprice=/(?:^|[،,.;:]\s*)(?:لا\s*(?:تضف|تزيد|تزود|ترفع|تغير|تغيّر)|بدون\s*(?:إضافة|اضافة|زيادة|رفع)|don't\s+(?:add|increase|change)|do\s+not\s+(?:add|increase|change)|without\s+(?:adding|increasing))[\s\S]{0,65}(?:[%٪]|percent)[\s\S]{0,60}(?:الأسعار|الاسعار|السعر|prices?)/iu.test(input);
+  if(negatedReprice)return rejected(proposal,
+    'Price changes were explicitly negated; no working-draft line was modified.',ar);
   // Buyer selection uses only the exact unique customer in the CURRENT
   // company. Never treat a supplier's identity or a model guess as a buyer.
   const buyer=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\s+(?:العميل|عميل|customer|buyer)\s*(?:إلى|الى|to|=|:)?\s+(.{1,180})$/iu);
