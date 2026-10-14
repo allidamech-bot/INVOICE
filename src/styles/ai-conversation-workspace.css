@@ -1252,3 +1252,8 @@ html body #root .modal.modal-assistant[role='dialog'] :is([role='status'],.produ
 @media(prefers-reduced-motion:reduce){
   html body #root .modal.modal-assistant[role='dialog'] :is(button,.btn){transition:none!important;}
 }
+
+/* Chrome/iPad fractional font rounding reduced the reject button below 44px. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-buttons button {
+  min-height:48px!important;
+}
