@@ -1054,3 +1054,19 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-chat-document :
     transition:none!important;
   }
 }
+
+/* Explicit operation feedback; never animate if reduced motion is requested. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-spinner{
+  display:inline-block;flex:0 0 15px;width:15px;height:15px;
+  border:2px solid currentColor;border-inline-end-color:transparent;
+  border-radius:50%;vertical-align:middle;
+  animation:lxw-inline-spin .85s linear infinite;
+}
+@keyframes lxw-inline-spin{to{transform:rotate(360deg);}}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-ai-pdf-actions>button{
+  display:inline-flex;align-items:center;gap:9px;
+}
+@media(prefers-reduced-motion:reduce){
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-spinner{animation:none!important;}
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-ai-motion='reduced'] .lxw-inline-spinner{animation:none!important;}
