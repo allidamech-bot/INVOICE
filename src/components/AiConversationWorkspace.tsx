@@ -609,7 +609,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(cn.split(' ').includes('lourex-ai-busy'))return react.cloneElement(node,undefined,label(aiUiAr(host),'LOUREX AI is reviewing…','LOUREX AI يراجع الطلب…'));
     if(cn.split(' ').includes('lourex-ai-premium-textarea')){
       const prompt=label(aiUiAr(host),'Ask LOUREX…','اسأل LOUREX…');
-      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt});
+      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt,dir:'auto'});
     }
     if(cn.split(' ').includes('lourex-ai-message-action')){
       const actions:Record<string,[string,string]>={copy:['Copy','نسخ'],edit:['Edit','تعديل'],retry:['Retry','إعادة المحاولة'],reask:['Re-ask','اسأل مجددًا'],helpful:['Helpful','مفيد'],'not-helpful':['Not helpful','غير مفيد'],more:['More','المزيد']};
