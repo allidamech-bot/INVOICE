@@ -15,18 +15,24 @@ test('AI Chat: Safari scroll-follow respects the user reading prior turns',async
 });
 
 test('AI Chat: final compiled conversation owns one scoped scroll observer in both modes',async()=>{
-  const [source,built,legacy]=await Promise.all([
+  const [source,built,helper,compiledHelper,legacy]=await Promise.all([
     read('src/components/AiConversationWorkspace.tsx'),
     read('dist/src/components/AiConversationWorkspace.js'),
+    read('src/lib/ai-chat-scroll.ts'),
+    read('dist/src/lib/ai-chat-scroll.js'),
     read('dist/src/components/AiCopilot.js')
   ]);
   for(const content of [source,built]){
     assert.match(content,/ConversationScrollKeeper/);
-    assert.match(content,/MutationObserver/);
-    assert.match(content,/ResizeObserver/,'follow Safari layout reflows after PDF and font rendering');
-    assert.match(content,/resize\?\.disconnect\(\)/,'the scroll observer must release its listeners on thread change');
-    assert.match(content,/aiChatNearBottom/);
+    assert.match(content,/attachAiChatScrollFollower/);
     assert.match(content,/lastUserId/);
+    assert.match(content,/attached\.disconnect\(\)/,'thread switch must remove stale scroll observers');
+  }
+  for(const content of [helper,compiledHelper]){
+    assert.match(content,/MutationObserver/);
+    assert.match(content,/ResizeObserver/,'follow Safari PDF and font layout reflows');
+    assert.match(content,/resize\?\.disconnect\(\)/,'observer must clean up on conversation changes');
+    assert.match(content,/aiChatNearBottom/);
   }
   assert.match(source,/normalizeAiConversationMode\(host\.__intelligenceKernel\?\.mode\)==='advisor'/);
   assert.match(source,/normalizeAiConversationMode\(host\.__intelligenceKernel\?\.mode\)==='controller'/);
