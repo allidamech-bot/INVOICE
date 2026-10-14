@@ -1,0 +1,44 @@
+name: LOUREX AI Chat iPad Regression
+on:
+  push:
+    branches: [fix/ai-chat-ipad-scroll-pdf-mode-20261014]
+  pull_request:
+    paths:
+      - 'src/components/AiConversationWorkspace.tsx'
+      - 'src/styles/ai-conversation-workspace.css'
+      - 'src/lib/ai-chat-scroll.ts'
+      - 'scripts/ai-batch3-premium-conversation.mjs'
+      - 'tests/ai-chat-ipad-conversation-20261014.test.mjs'
+      - 'tests/ai-f01-real-pdf-preview.test.mjs'
+      - '.github/workflows/ai-chat-ipad-20261014.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ai-chat-ipad-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  chat-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Full production build including post-build UI patches
+        run: npm run build
+      - name: Scoped chat, mode and PDF regression tests
+        run: >
+          node --test --test-concurrency=2
+          tests/ai-chat-ipad-conversation-20261014.test.mjs
+          tests/ai-f01-real-pdf-preview.test.mjs
+          tests/ai-conversation-workspace.test.mjs
+          tests/ai-living-workspace-mode-integration.test.mjs
+          tests/ai-advisor-controller-handoff.test.mjs
+          tests/ai-001-controller-advisor-routing.test.mjs
+          tests/ai-premium-conversation-batch3.test.mjs
