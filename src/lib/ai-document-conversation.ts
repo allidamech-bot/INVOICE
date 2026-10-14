@@ -87,7 +87,7 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
   // Explicitly negated price changes must stop here, rather than falling
   // through to a generative patch planner that could invert the instruction.
   // This is a read-only refusal and never authorizes writing the vault.
-  const negatedReprice=/(?:^|[،,.;:]\s*)(?:لا\s*(?:تضف|تزيد|تزود|ترفع|تغير|تغيّر)|بدون\s*(?:إضافة|اضافة|زيادة|رفع)|don't\s+(?:add|increase|change)|do\s+not\s+(?:add|increase|change)|without\s+(?:adding|increasing))[\s\S]{0,65}(?:[%٪]|percent)[\s\S]{0,60}(?:الأسعار|الاسعار|السعر|prices?)/iu.test(input);
+  const negatedReprice=/(?:^|[،,.;:]\s*)و?(?:لا\s*(?:تضف|تزيد|تزود|ترفع|تغير|تغيّر)|بدون\s*(?:إضافة|اضافة|زيادة|رفع)|don't\s+(?:add|increase|change)|do\s+not\s+(?:add|increase|change)|without\s+(?:adding|increasing))[\s\S]{0,65}(?:[%٪]|percent)[\s\S]{0,60}(?:الأسعار|الاسعار|السعر|prices?)/iu.test(input);
   if(negatedReprice)return rejected(proposal,
     'Price changes were explicitly negated; no working-draft line was modified.',ar);
   // Buyer selection uses only the exact unique customer in the CURRENT
