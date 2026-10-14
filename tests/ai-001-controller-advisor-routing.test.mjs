@@ -66,3 +66,24 @@ test('AI-001: Advisor route remains write-disabled and Controller approvals are 
   assert.match(runtime,/assertFoundationApproval/);
   assert.match(runtime,/approvalWasReviewed/);
 });
+
+test('AI-001: prior extracted files stay within the same Controller thread and explicit follow-up',async()=>{
+  const {attachmentScopeKey,explicitAttachedFileFollowup}=await import('../dist/src/lib/ai-attachment-followup.js');
+  const scope={scope:'business',accountId:'fixture-account',workspaceId:'fixture-company',branchId:'fixture-branch',threadId:'fixture-thread'};
+  const key=attachmentScopeKey(scope,'controller');
+  assert.ok(key);
+  assert.equal(attachmentScopeKey(scope,'advisor'),'','Advisor must never inherit executable file evidence');
+  assert.notEqual(attachmentScopeKey({...scope,threadId:'other-thread'},'controller'),key);
+  assert.notEqual(attachmentScopeKey({...scope,branchId:'other-branch'},'controller'),key);
+  assert.notEqual(attachmentScopeKey({...scope,accountId:'other-account'},'controller'),key);
+  assert.equal(attachmentScopeKey({...scope,scope:'personal'},'controller'),'');
+  assert.equal(explicitAttachedFileFollowup('حوّل الملف المرفق إلى عرض سعر'),true);
+  assert.equal(explicitAttachedFileFollowup('Convert the uploaded file into a quotation'),true);
+  assert.equal(explicitAttachedFileFollowup('Hello, what is new today?'),false);
+  assert.equal(explicitAttachedFileFollowup('تجاهل الملف المرفق'),false);
+  const compiled=await read('dist/src/components/AiCopilot.js');
+  assert.match(compiled,/currentKey===instance\.__lourexLastConversationSourceScope&&cached\.length&&explicitAttachedFileFollowup\(prompt\)/);
+  assert.match(compiled,/try\{return await baseAsk\(raw\);\}finally\{__lourexSetConversationSources\(\[\]\);\}/);
+  assert.match(compiled,/instance\.__lourexLastConversationSourceScope=attachmentScopeKey/);
+  assert.match(compiled,/instance\.__lourexLastConversationSources=\[\]/);
+});
