@@ -41,7 +41,7 @@ jobs:
           tests/ai-tool-orchestrator-batch4.test.mjs
           tests/ai-living-workspace-mode-integration.test.mjs
           tests/ai-review-safety-contract.test.mjs
-          tests/ai-document-approval-guards.test.mjs
+          tests/b06-ai-document-approval-guards.test.mjs
           tests/ai-f08-high-volume-quote.test.mjs
           tests/ai-f18-multi-source-quote.test.mjs
           tests/audit-ai-branch-isolation.test.mjs
