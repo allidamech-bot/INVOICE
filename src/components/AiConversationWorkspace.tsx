@@ -244,7 +244,9 @@ function InlineDocumentApproval({host,approval,ar}:{host:Host;approval:any;ar:bo
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions'));
   const originalButtons=actions?react.Children.toArray((actions as any).props.children):[];
   const originalConfirm=originalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
-  const confirm=originalConfirm?react.cloneElement(originalConfirm,{'aria-label':label(ar,'Approve draft','اعتماد المسودة')},label(ar,'Approve draft','اعتماد المسودة')):null;
+  const quotation=host.state.proposal?.capability==='document.createDraft'&&host.state.proposal.kind==='proforma';
+  const saveText=quotation?label(ar,'Confirm quotation save','تأكيد حفظ عرض السعر'):label(ar,'Confirm draft save','تأكيد حفظ المسودة');
+  const confirm=originalConfirm?react.cloneElement(originalConfirm,{'aria-label':saveText},saveText):null;
   const decline=originalButtons.filter((button:any)=>button!==originalConfirm).map((button:any)=>react.cloneElement(dismissal.wrap(button),{'aria-label':label(ar,'Decline','رفض')},label(ar,'Decline','رفض')));
   return <section className="lxw-inline-approval" data-exiting={dismissal.exiting?'true':'false'} aria-label={label(ar,'Document approval suggestion','اقتراح اعتماد مستند')}>
     <div className="lxw-inline-approval-title">
