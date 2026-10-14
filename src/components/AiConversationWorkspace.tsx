@@ -11,6 +11,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
 import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
+import { aiChatNearBottom } from '../lib/ai-chat-scroll.js';
 import { prepareAdvisorControllerHandoff } from '../lib/ai-advisor-controller-handoff.js';
 import type { LourexDocument } from '../types.js';
 
@@ -492,7 +493,7 @@ function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUse
     if(!box)return;
     follow.current=true;
     let frame=0,programmatic=false,unlock=0;
-    const atBottom=()=>box.scrollHeight-box.clientHeight-box.scrollTop<120;
+    const atBottom=()=>aiChatNearBottom(box.scrollTop,box.scrollHeight,box.clientHeight);
     const settle=()=>{
       if(!follow.current)return;
       window.cancelAnimationFrame(frame);
