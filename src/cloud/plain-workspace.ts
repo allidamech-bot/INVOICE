@@ -30,6 +30,10 @@ export interface PlainCloudMeta {
   chunkCount:number;
   updatedAt:string;
   parentRevision:string|null;
+  /** Compact protection for each independently saved PIN-free company. */
+  companyWorkspaceIds?:string[];
+  companyRootPresent?:boolean;
+  activeWorkspaceId?:string;
 }
 export type PlainCloudSyncResult='empty'|'same'|'pushed'|'pulled'|'diverged'|'retry';
 
@@ -181,12 +185,20 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
     return 'remote-changed';
   // A stale, empty or corrupted company profile must not silently become the
   // Firebase authority over any already committed V2 company identity.
-  // Avoid a full cloud download on ordinary edits to fully populated company
-  // profiles. Inspect the former revision when a company identity is missing.
+  // The first post-hotfix upload verifies an older manifest once. Future
+  // uploads compare its compact company identity map without re-downloading
+  // the entire workspace on every ordinary save.
+  const currentProfiles=Array.isArray(local.payload.workspaces)?local.payload.workspaces:[];
+  const previousNamedIds=Array.isArray(previous?.companyWorkspaceIds)
+    ?previous.companyWorkspaceIds.filter((id:any):id is string=>typeof id==='string'):[];
   const suspectProfile=!populatedCompanyIdentity(local.payload.company)
-    ||(Array.isArray(local.payload.workspaces)
-      &&local.payload.workspaces.some(workspace=>!populatedCompanyIdentity(workspace.company)));
-  if(previous&&suspectProfile){
+    ||currentProfiles.some(workspace=>!populatedCompanyIdentity(workspace.company))
+    ||previousNamedIds.some(id=>!currentProfiles.some(row=>row.id===id&&populatedCompanyIdentity(row.company)))
+    ||Boolean(previous?.companyRootPresent
+      &&previous.activeWorkspaceId===local.payload.appSettings.activeWorkspaceId
+      &&!populatedCompanyIdentity(local.payload.company));
+  const legacyManifest=Boolean(previous&&!Array.isArray(previous.companyWorkspaceIds));
+  if(previous&&(suspectProfile||legacyManifest)){
     const old=await downloadPlainCloudWorkspace(uid,previous);
     if(old&&losesCommittedCompanyIdentity(old.payload,local.payload))
       throw new Error('Company details disappeared from a pending upload. Firebase was not overwritten. Preserve this device and restore the last valid V2 revision.');
@@ -195,7 +207,11 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
   const meta:PlainCloudMeta={
     format:FORMAT,version:2,revision,schemaVersion:local.schemaVersion,
     bytes:bytes.length,sha256:hash,chunkCount:count,
-    updatedAt:local.updatedAt,parentRevision:previous?.revision??null
+    updatedAt:local.updatedAt,parentRevision:previous?.revision??null,
+    companyWorkspaceIds:Array.isArray(local.payload.workspaces)
+      ?local.payload.workspaces.filter(row=>populatedCompanyIdentity(row.company)).map(row=>row.id):[],
+    companyRootPresent:populatedCompanyIdentity(local.payload.company),
+    activeWorkspaceId:local.payload.appSettings.activeWorkspaceId
   };
   try{
     for(let offset=0;offset<count;offset+=WRITE_BATCH_SIZE){
