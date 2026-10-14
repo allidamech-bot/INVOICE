@@ -139,3 +139,39 @@ test('supplier AI imports and procurement comparisons cannot match catalog maste
       file+' must never match across all company masters at save');
   }
 });
+
+test('AI import saving authorizes explicit operational roles and rejects viewer or inactive operator',async()=>{
+  const {assertAiImportSaveAllowed}=await import('../dist/src/lib/ai-import-authorization.js');
+  const fixtures=[
+    {role:'owner',quote:true,supplier:true},
+    {role:'admin',quote:true,supplier:true},
+    {role:'sales',quote:true,supplier:false},
+    {role:'finance',quote:true,supplier:false},
+    {role:'purchasing',quote:false,supplier:true},
+    {role:'viewer',quote:false,supplier:false}
+  ];
+  for(const row of fixtures){
+    const vault=emptyVault();
+    vault.teamMembers=[{id:'operator',displayName:'Test operator',role:row.role,status:'active'}];
+    vault.appSettings.activeTeamMemberId='operator';
+    for(const [kind,allowed] of [['quotation-draft',row.quote],['supplier-purchase-draft',row.supplier]]){
+      if(allowed)assert.doesNotThrow(()=>assertAiImportSaveAllowed(vault,kind),row.role+' must save '+kind);
+      else assert.throws(()=>assertAiImportSaveAllowed(vault,kind),/cannot save this AI import/,row.role+' must be denied '+kind);
+    }
+    vault.teamMembers[0].status='inactive';
+    for(const kind of ['quotation-draft','supplier-purchase-draft'])
+      assert.throws(()=>assertAiImportSaveAllowed(vault,kind),/operator is unavailable/);
+  }
+});
+
+test('all three AI import routes revalidate the selected operator inside the vault mutation',()=>{
+  const components=['src/components/AiWorkflowTools.tsx','src/components/SupplierDocumentImport.tsx','src/components/ProcurementAiCompare.tsx'];
+  for(const path of components){
+    const source=readFileSync(new URL('../'+path,import.meta.url),'utf8');
+    assert.match(source,/mutateVaultSafely\(vault=>\{assertAiImportSaveAllowed\(vault,/s.test(source)?/assertAiImportSaveAllowed\(vault,'(?:quotation-draft|supplier-purchase-draft)'\)/:/assertAiImportSaveAllowed\(vault,'(?:quotation-draft|supplier-purchase-draft)'\)/,
+      path+' must enforce the operator role inside a save');
+  }
+  const inbox=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+  assert.match(inbox,/assertAiImportSaveAllowed\(vault,'quotation-draft'\);assertAiInboxQuoteReviewFresh/);
+  assert.match(inbox,/assertAiImportSaveAllowed\(vault,'supplier-purchase-draft'\);const purchase=/);
+});
