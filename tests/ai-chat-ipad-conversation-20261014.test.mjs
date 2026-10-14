@@ -36,6 +36,9 @@ test('AI Chat: final compiled conversation owns one scoped scroll observer in bo
   assert.match(source,/__workspaceSwitching:true/);
   assert.match(source,/recentModeThread\.set\(keyFor\(target\),current\.scope\.threadId\)/);
   assert.match(source,/current\.scope\.accountId!==previous\.scope\.accountId/);
+  assert.match(source,/host\.__businessThreads=\[\{/,
+    'a newly persisted but initially unlisted conversation should remain selectable on immediate mode return');
+  assert.match(source,/mode:target,hasArtifact:Boolean\(current\.artifact\)/);
   assert.match(source,/Opening conversation…/);
 });
 
