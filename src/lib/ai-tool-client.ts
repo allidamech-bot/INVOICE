@@ -15,7 +15,7 @@ import {operationalPoDraftRequested,requestedPoRfqNumber} from './ai-operational
 import {isAiGoodsReceiptRequest,parseAiGoodsReceiptRequest} from './ai-operational-goods-receipt.js';
 import {operationalDeliveryDraftRequested,requestedDeliverySalesOrderNumber} from './ai-operational-dn-draft.js';
 import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest} from './ai-operational-delivery-confirmation.js';
-import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
+import {isAiStockIssueIntent} from './ai-operational-stock-issue.js';
 import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
 import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
 import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
@@ -249,29 +249,13 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       :'Prepared a complete stock and payable posting preview for the matched bill '+request.invoiceReference+'. No cash payment. Independent owner/admin approval is required, plus any enabled purchase posting policy.')
       :executed.results.map(x=>x.summary).join('\n'),proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
   }
-  // Inventory posting is a distinct high-impact action. Only user-provided
-  // exact warehouse and SKU mappings can stage its separate approval.
-  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&isAiStockIssueIntent(input.message)){
-    let requested:ReturnType<typeof parseAiStockIssueRequest>=null;
-    try{requested=parseAiStockIssueRequest(input.message);}catch(error){
-      return{answer:(error instanceof Error?error.message:String(error))+' No changes applied.',
-        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
-    }
-    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:requested?
-      [{id:'review-confirmed-stock-issue',tool:'sales.issueConfirmedStock',args:{issue:requested},
-        reason:'User explicitly supplied one confirmed delivery, warehouse code and line-ordered SKUs.'}]:[]};
-    if(!requested)return{answer:input.language==='ar'
-      ?'لتجهيز صرف المخزون: حدّد سند DN المؤكد، كود المستودع، وكود SKU لكل بند بالترتيب. سيتم عرض الرصيد قبل وبعد الصرف، ثم تتطلب العملية موافقة منفصلة.'
-      :'To prepare stock deduction, specify one confirmed DN, the warehouse code and an exact SKU for every line in order. Review balances before a separate approval.',
-      proposal:null,plan,results:[],plannedBy:'local'};
-    const executed=executeAiToolPlan(runtime,plan);
-    return{answer:executed.proposal
-      ?(input.language==='ar'?'جهزت مراجعة صرف المخزون لسند '+requested.deliveryNoteNumber+
-        ' مع الرصيد قبل وبعد الصرف. لم أخصم شيئًا بعد؛ يحتاج الترحيل موافقتك المستقلة.'
-        :'Prepared an inventory issue review for '+requested.deliveryNoteNumber+
-        ' with before/after balances. No stock was deducted yet; posting needs separate approval.')
-      :executed.results.map(r=>r.summary).join('\n'),
-      proposal:executed.proposal,plan,results:executed.results,plannedBy:'local'};
+  // Invoice issuance owns NEW sales stock deductions. Legacy delivery-note issue
+  // requests must not create an approval card or an action that could debit twice.
+  if(!hasSources&&runtime.scope==='business'&&isAiStockIssueIntent(input.message)){
+    return{answer:input.language==='ar'
+      ?'تم إيقاف الصرف المنفصل من سند التسليم. يصرف المخزون مرة واحدة عند إصدار فاتورة البيع النهائية، أو عبر حركة يدوية موثقة بالسبب وملف الإثبات. لم تُسجّل أي حركة.'
+      :'Separate stock deduction from Delivery Notes is retired. Stock is debited once when the final sales invoice is issued, or through a documented manual movement with a reason and evidence file. No movement was posted.',
+      proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
   // A confirmed delivery invoice is created as an unissued draft only;
   // original source quantities and unit prices are supplied by the ledger,
