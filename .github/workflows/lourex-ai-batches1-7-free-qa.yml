@@ -22,6 +22,12 @@ on:
       - fix/ai-batch1-pr-reconciliation-f17-20261013
       - fix/ai-controller-supplier-source-quote-20261015
   workflow_dispatch:
+    inputs:
+      provider_sandbox:
+        description: 'Use dedicated QA-only Groq key for one synthetic provider schema request (no business data)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -164,3 +170,23 @@ jobs:
           node tests/visual/run-v542-pagination-parity.cjs
           node tests/visual/run-f11-large-a4-quote.cjs
           node tests/visual/run-ai-batches1-7-current-workspace.cjs
+
+  provider-sandbox:
+    name: Optional QA-only real provider connectivity (synthetic payload)
+    if: github.event_name == 'workflow_dispatch' && inputs.provider_sandbox == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      LOUREX_AI_QA_CONFIRM: isolated-qa-no-customer-data
+      LOUREX_AI_QA_GROQ_API_KEY: ${{ secrets.LOUREX_AI_QA_GROQ_API_KEY }}
+    steps:
+      - name: Checkout isolated candidate (no Vercel/Firebase/production credentials)
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: One schema-constrained synthetic QA request; fail closed if no dedicated QA key
+        run: node scripts/qa-ai-provider-sandbox.mjs
