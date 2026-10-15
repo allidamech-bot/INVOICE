@@ -10,6 +10,10 @@ on:
       - 'src/styles/inventory-planning-batch7.css'
       - 'src/components/WarehouseLocationsPage.tsx'
       - 'src/components/EditorPageCore.tsx'
+      - 'src/components/ProductAiSourceReview.tsx'
+      - 'src/components/ProductLibraryWorkspace.tsx'
+      - 'src/styles/tailadmin-products-v320.css'
+      - 'src/styles/ai-conversation-workspace.css'
       - 'src/styles/editor-canonical-v314.css'
       - 'src/styles/roadmap-hardening-final.css'
       - 'tests/ux-rehab-*.test.mjs'
@@ -51,6 +55,10 @@ jobs:
             tests/ux-rehab-inventory-contrast-20261016.test.mjs \
             tests/ux-rehab-warehouse-locations-20261016.test.mjs \
             tests/ux-rehab-editor-item-tools-20261016.test.mjs \
+            tests/ux-rehab-ai-product-review-20261016.test.mjs \
+            tests/ux-rehab-import-chooser-20261016.test.mjs \
+            tests/ai-batch6-mobile-import-integrity.test.mjs \
+            tests/ai-batches1-7-release-candidate-contract.test.mjs \
             tests/saved-items-picker-mobile-v232.test.mjs \
             tests/saved-items-v95.test.mjs \
             tests/saved-items-library-v102.test.mjs
