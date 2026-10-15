@@ -47,7 +47,7 @@ test('general requests choose Groq Qwen first',async()=>{
   globalThis.fetch=async(url,options)=>{seen={url:String(url),body:JSON.parse(options.body)};return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});};
   const result=await routeAiStructured({taskType:'customer_capture',prompt:'extract',schema:schema()});
   assert.equal(result.success,true);assert.equal(result.provider,'groq');assert.equal(result.model,'qwen/qwen3.8-27b');
-  assert.match(seen.url,/api\.groq\.com/);assert.equal(seen.body.model,'qwen/qwen3.8-27b');assert.equal(seen.body.reasoning_format,'hidden');
+  assert.match(seen.url,/api\.groq\.com/);assert.equal(seen.body.model,'qwen/qwen3.8-27b');assert.equal(seen.body.reasoning_format,'hidden');assert.equal(seen.body.response_format.json_schema.strict,false);
 });
 
 test('429 falls through immediately from Groq to Cloudflare without paid substitution or retry storm',async()=>{
@@ -191,4 +191,25 @@ test('browser AI request maps provider failures to bilingual retry guidance',()=
   assert.match(source,/استغرق رد الذكاء الاصطناعي وقتًا أطول/);
   assert.match(source,/تحتاج جلسة حساب Firebase إلى التحديث/);
   assert.match(source,/new AiRequestError\(aiPublicErrorMessage\(code,response.status/);
+});
+
+test('supplier extraction requests strict JSON without bypassing schema or source validation',async()=>{
+  process.env.GROQ_API_KEY='test-groq';
+  delete process.env.CLOUDFLARE_AI_API_TOKEN;delete process.env.CLOUDFLARE_ACCOUNT_ID;delete process.env.GEMINI_API_KEY;
+  const purchaseSchema={type:'OBJECT',properties:{items:{type:'ARRAY',items:{type:'OBJECT',properties:{sku:{type:'STRING'},quantity:{type:'STRING'},unitCost:{type:'STRING'}},required:['sku','quantity','unitCost']}}},required:['items']};
+  let body,payload={items:[{sku:'QA-01',quantity:'10',unitCost:'1.00'}]};
+  globalThis.fetch=async(_url,options)=>{body=JSON.parse(options.body);return response(200,{choices:[{message:{content:JSON.stringify(payload)}}]});};
+  const request={taskType:'supplier_purchase_extract',prompt:'Extract QA-01 only',schema:purchaseSchema};
+  const accepted=await routeAiStructured(request);
+  assert.equal(accepted.success,true);
+  assert.equal(body.response_format.json_schema.strict,true);
+  assert.equal(body.response_format.json_schema.schema.additionalProperties,false);
+  assert.equal(body.response_format.json_schema.schema.properties.items.items.additionalProperties,false);
+  assert.deepEqual(body.response_format.json_schema.schema.properties.items.items.required,['sku','quantity','unitCost']);
+  payload={items:[{sku:'QA-01',quantity:10,unitCost:'1.00'}]};
+  const malformed=await routeAiStructured(request);
+  assert.equal(malformed.success,false);assert.equal(malformed.errorCode,'AI_INVALID_RESULT');
+  payload={items:[{sku:'QA-01',quantity:'10',unitCost:'1.00'}]};
+  const ungrounded=await routeAiStructured({...request,validate:()=>false});
+  assert.equal(ungrounded.success,false);assert.equal(ungrounded.errorCode,'AI_INVALID_RESULT');
 });
