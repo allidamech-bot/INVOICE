@@ -236,7 +236,7 @@ function groqReasoningOptions(model,reasoningLevel){
 async function callGroq(model,request){
   const apiKey=process.env.GROQ_API_KEY?.trim();if(!apiKey)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
   const schema=geminiSchemaToJsonSchema(request.schema);
-  const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:false,schema}},...groqReasoningOptions(model,request.reasoningLevel)};
+  const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:request.taskType==='supplier_purchase_extract',schema}},...groqReasoningOptions(model,request.reasoningLevel)};
   const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
   if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
