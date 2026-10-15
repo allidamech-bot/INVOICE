@@ -23,15 +23,15 @@ function quantityOrPriceChange(input:string):{index:number;field:'quantity'|'uni
   const field='(?:سعر|السعر|كمية|الكمية|price|quantity|qty)';
   const row='(?:الصنف|صنف|البند|بند|item|line)';
   const head='(?:غيّر|غير|عدّل|عدل|اجعل|خلي|خلّي|change|set|update)';
-  const a=new RegExp('^'+head+'\\s+('+field+')\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,2})\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
-  const b=new RegExp('^'+head+'\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,2})\\s+('+field+')\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
+  const a=new RegExp('^'+head+'\\s+('+field+')\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
+  const b=new RegExp('^'+head+'\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s+('+field+')\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
   const matchA=input.match(a),matchB=matchA?null:input.match(b);
   if(!matchA&&!matchB)return null;
   const rawField=String(matchA?matchA[1]:matchB![2]);
   return{index:Number(latinDigits(String(matchA?matchA[2]:matchB![1]))),field:/سعر|price/i.test(rawField)?'unitPrice':'quantity',value:String(matchA?matchA[3]:matchB![3])};
 }
 function removeLineIndex(input:string):number|null{
-  const match=input.match(/^(?:احذف|أحذف|امسح|remove|delete)\s+(?:الصنف|صنف|البند|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,2})$/iu);
+  const match=input.match(/^(?:احذف|أحذف|امسح|remove|delete)\s+(?:الصنف|صنف|البند|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,3})$/iu);
   return match?Number(latinDigits(match[1]!)):null;
 }
 function parseAddedLine(input:string):{name:string;quantity:string;unitPrice:string;unit:string;sku:string}|null{
