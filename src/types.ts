@@ -220,6 +220,8 @@ export interface InventoryMovementRecord extends WorkspaceScopeFields {
   salesReturn?: {invoiceId:string;invoiceLineId:string;creditNoteId:string;creditLineId:string;itemId:string;warehouseId:string;receiptId:string};
   /** Append-only reversal of a physical return receipt, with new independent proof. */
   salesReturnCorrection?: {receiptMovementId:string};
+  /** Full, proof-linked warehouse receipt against one voided invoice stock issue. */
+  invoiceVoidStock?: {invoiceId:string;invoiceLineId:string;issueMovementId:string;warehouseId:string;evidenceId:string};
   /** Encrypted workspace evidence: required for all newly posted manual movements. */
   evidence?: DocumentAttachment;
   reasonCategory?: string;
