@@ -105,3 +105,33 @@ test('QA smoke rejects invalid provider, missing QA keys, missing consent despit
   assert.doesNotMatch(result.stdout+result.stderr,/production-.*-is-not-qa/);
  }
 });
+
+test('Firestore production release is opt-in, rules-only and blocked without a reviewed backup',()=>{
+ const script=source('scripts/release-firestore-rules.mjs');
+ const config=JSON.parse(source('firebase.rules-release.json'));
+ assert.deepEqual(config,{firestore:{rules:'firestore.rules'}},'Release must not include indexes, auth, hosting, functions or databases');
+ assert.match(script,/--only','firestore:rules/);
+ assert.match(script,/--project',project/);
+ assert.match(script,/LOUREX_FIRESTORE_LIVE_BACKUP_REVIEWED/);
+ assert.match(script,/LOUREX_FIRESTORE_APPROVED_COMMIT/);
+ assert.match(script,/LOUREX_FIRESTORE_APPROVED_SHA256/);
+ assert.match(script,/version.stdout.trim\(\)!==approvedCli/);
+ assert.match(script,/if\(process\.env\.CI==='true'/);
+ const executable=new URL('../scripts/release-firestore-rules.mjs',import.meta.url);
+ const mock={...process.env,CI:'true',LOUREX_FIRESTORE_DEPLOY_APPROVED:'',
+  LOUREX_FIRESTORE_LIVE_BACKUP_REVIEWED:'',
+  LOUREX_FIRESTORE_APPROVED_COMMIT:'',
+  LOUREX_FIRESTORE_APPROVED_SHA256:''};
+ const check=spawnSync(process.execPath,[executable.pathname,'--dry-run'],{
+  encoding:'utf8',timeout:7000,env:mock
+ });
+ assert.equal(check.status,0,check.stderr);
+ assert.match(check.stdout,/DRY_RUN_ONLY/);
+ assert.match(check.stdout,/Rules SHA-256: [a-f0-9]{64}/);
+ const denied=spawnSync(process.execPath,[executable.pathname,'--deploy'],{
+  encoding:'utf8',timeout:7000,env:mock
+ });
+ assert.equal(denied.status,2,'No Firebase deploy may start inside CI or without explicit reviewed approvals');
+ assert.match(denied.stderr,/FIRESTORE_RELEASE_BLOCKED/);
+ assert.doesNotMatch(denied.stdout,/FIRESTORE_RULES_DEPLOYED/);
+});
