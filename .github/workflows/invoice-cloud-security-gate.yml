@@ -63,12 +63,8 @@ jobs:
       - name: Real browser login, cross-UID isolation and offline two-device synchronization (emulators only)
         shell: bash
         run: |
-          printf '%s\\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > firebase-auth-local-only.json
-          npx --yes firebase-tools@14 emulators:exec \\
-            --only auth,firestore \\
-            --project lourex-invoice \\
-            --config firebase-auth-local-only.json \\
-            "node scripts/qa-cloud-auth-emulator-browser.mjs"
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > firebase-auth-local-only.json
+          npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project lourex-invoice --config firebase-auth-local-only.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
       - name: Explicit security release boundary
         run: |
           echo 'PASS here validates only repository rules in a local emulator.' >> "$GITHUB_STEP_SUMMARY"
