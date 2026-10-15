@@ -417,3 +417,23 @@ test('B1 source quote allows deterministic edits and removal of line 120 without
   assert.equal(kernel.artifact.proposal.items.at(-1).descriptionEn,'Supplier product 120');
   assert.deepEqual(vault,before,'in-chat operations must never save or mutate accounting data');
 });
+
+
+test('B1 row edits accept the draft currency beyond four hard-coded codes',()=>{
+  const vault=emptyVault(),before=structuredClone(vault);
+  const draft=quoteSourceWorkingDraft([supplierSource(3,'supplier-aed.xlsx','AED')],runtime(vault),withMargin);
+  assert.equal(draft.currency,'AED');
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  const drafting=workspaceDrafting(vault);
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'غيّر سعر البند 3 إلى 15 AED',drafting,'ar').changed,true);
+  assert.equal(kernel.artifact.proposal.items[2].unitPrice,'15');
+  const after=structuredClone(kernel);
+  const mismatch=reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'change price line 2 to 17 USD',drafting,'en');
+  assert.equal(mismatch.changed,false);
+  assert.match(mismatch.message,/currency differs/i);
+  assert.deepEqual(kernel,after,'a mismatched currency must not alter the draft');
+  assert.deepEqual(vault,before,'a price revision never updates the stored accounting records');
+});
