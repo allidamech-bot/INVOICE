@@ -46,6 +46,9 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
 export function documentItemFromSavedItem(saved: SavedItem): DocumentItem {
   return {
     id:makeId('item'),
+    savedItemId:saved.id,
+    stockTreatment:saved.inventoryTracking==='non-stock'?'non-stock':'tracked',
+    skuSnapshot:saved.sku||'',
     descriptionEn:saved.descriptionEn,
     descriptionAr:saved.descriptionAr,
     hsCode:saved.hsCode,
@@ -118,6 +121,9 @@ export function sortSavedItems(items: SavedItem[]): SavedItem[] {
 export function findSavedItemMatch(items: SavedItem[], item: DocumentItem): SavedItem|undefined {
   const en=normalizeSavedItemIdentity(item.descriptionEn);
   const ar=normalizeSavedItemIdentity(item.descriptionAr);
+  if(item.savedItemId)return items.find(saved=>saved.id===item.savedItemId);
+  // Historical / free-text lines may be suggested for the editor, but a name match
+  // must never be treated as proof of stock identity by the posting engine.
   return items.find(saved=>(en&&normalizeSavedItemIdentity(saved.descriptionEn)===en)||(ar&&normalizeSavedItemIdentity(saved.descriptionAr)===ar));
 }
 
