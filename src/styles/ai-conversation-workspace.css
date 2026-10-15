@@ -1275,7 +1275,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval
    border:1px solid var(--lx485-line,var(--ft-line));
    background:var(--lx485-surface-2,var(--ft-surface-2));
    color:var(--lx485-text,var(--ft-text-strong));
-   font:650 12px/1.3 inherit;cursor:pointer;
+   font-size:12px;font-weight:650;line-height:1.3;font-family:inherit;cursor:pointer;
  }
  html body #root .modal.modal-assistant[role='dialog'] .lxw-ai-product-review-filters button[aria-pressed='true']{
    border-color:var(--lx485-blue,var(--ft-accent));
