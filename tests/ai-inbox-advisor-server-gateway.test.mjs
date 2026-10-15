@@ -117,3 +117,26 @@ test('Spoofed role, owner, UID or accounting permission in a tool-plan request c
     assert.equal(response.body.code,'NO_TOOL_PLAN');
   }
 });
+
+test('Temporary scope, unknown scope and omitted scope are read-only even when caller claims Controller',async()=>{
+ for(const scope of ['temporary','unknown','',null,undefined]){
+  for(const tool of ['document.createDraft','document.updateDraft','product.bulkUpdate','task.create','navigation.open']){
+   const gateway=makeGateway(plan(tool));
+   const response=await gateway.request({message:'Create invoice',conversationMode:'controller',scope});
+   assert.equal(response.statusCode,422,String(scope)+' '+tool);
+   assert.equal(response.body.code,'NO_TOOL_PLAN');
+   assert.ok(gateway.requests.length===1);
+   const offered=gateway.requests[0].schema.properties.calls.items.properties.tool.enum;
+   assert.equal(offered.includes(tool),false,'No execute tool in temporary or unknown scope: '+tool);
+   assert.ok(offered.includes('document.get'),'Temporary chats retain safe read access');
+  }
+ }
+});
+test('Controller tool planner requires an explicit valid business scope for document proposals',async()=>{
+ const gateway=makeGateway(plan('document.createDraft'));
+ const rejected=await gateway.request({message:'Create a document',conversationMode:'controller'});
+ assert.equal(rejected.statusCode,422);
+ const permitted=await gateway.request({message:'Create a document',scope:'business',conversationMode:'controller'});
+ assert.equal(permitted.statusCode,200);
+ assert.equal(permitted.body.plan.calls[0].tool,'document.createDraft');
+});
