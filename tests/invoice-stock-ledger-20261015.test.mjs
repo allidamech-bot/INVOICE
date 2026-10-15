@@ -165,3 +165,22 @@ test('posted invoice proof rejects a forged foreign invoice ID or changed SKU',(
  const renamed=corrupt(m=>({...m,sku:'SOME-OTHER-SKU'}));
  assert.throws(()=>postIssuedInvoiceStock(renamed,final),/immutable stock history/);
 });
+
+test('verified catalog services remain identifiable without reducing stock',()=>{
+ const {vault,item,document}=fixture();
+ const service={...item,id:'consulting-service',sku:'SVC-2026',unit:'Hour',inventoryTracking:'non-stock'};
+ const serviceVault={...vault,savedItems:[...vault.savedItems,service]};
+ const final={...document,status:'final',items:[{...document.items[0],savedItemId:service.id,
+   skuSnapshot:service.sku,stockTreatment:'non-stock',unit:service.unit,quantity:'2'}]};
+ const result=postIssuedInvoiceStock(serviceVault,final);
+ assert.equal(result.created,false);
+ assert.equal(balance(result.vault),'100');
+ assert.throws(()=>postIssuedInvoiceStock({...serviceVault,savedItems:[item,{...service,inventoryTracking:'tracked'}]},final),/Non-stock lines/);
+});
+test('a catalog item with posted history cannot change UOM or be reclassified as service',()=>{
+ const {vault,item}=fixture();
+ const asService={...vault,savedItems:[{...item,inventoryTracking:'non-stock'}]};
+ assert.throws(()=>mergeVaultIntent(vault,asService,vault),/Cannot change unit or inventory classification/);
+ const changedUnit={...vault,savedItems:[{...item,unit:'Piece'}]};
+ assert.throws(()=>mergeVaultIntent(vault,changedUnit,vault),/Cannot change unit or inventory classification/);
+});
