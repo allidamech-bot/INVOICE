@@ -12,6 +12,8 @@ on:
       - 'src/styles/roadmap-hardening-final.css'
       - 'tests/ux-rehab-*.test.mjs'
       - 'tests/visual/run-ux-rehab-picker-webkit-20261016.cjs'
+      - 'tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs'
+      - 'tests/visual/ux-rehab-warehouse-20261016.html'
       - '.github/workflows/lourex-ux-rehab-qa.yml'
 
 permissions:
@@ -81,11 +83,14 @@ jobs:
             sleep 1
           done
           node tests/visual/run-ux-rehab-picker-webkit-20261016.cjs
+          node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
       - name: Save isolated browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ux-rehab-picker-webkit
-          path: visual-qa-output/ux-rehab-picker-webkit/
+          path: |
+            visual-qa-output/ux-rehab-picker-webkit/
+            visual-qa-output/ux-rehab-warehouse-webkit/
           if-no-files-found: ignore
           retention-days: 7
