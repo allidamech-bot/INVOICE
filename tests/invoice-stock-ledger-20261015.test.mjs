@@ -7,7 +7,7 @@ import {postIssuedInvoiceStock,assertInvoiceStockLedgerContinuity} from '../dist
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
 import {inventoryBalances} from '../dist/src/lib/operations.js';
-import {proposalForExecutableTool} from '../dist/src/lib/ai-tool-orchestrator.js';
+import {proposalForExecutableTool,aiToolPlannerCatalog,validateAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {createWarehouse,createWarehouseTransfer,defaultWarehouseId} from '../dist/src/lib/warehouses.js';
 
 function fixture(stock='100'){
@@ -195,4 +195,12 @@ test('Controller can no longer initiate a separate delivery stock deduction',()=
   args:{issue:{deliveryNoteNumber:'DN-2026-0001',warehouseCode:'MAIN',skus:['SKU-100']}},
   reason:'User asks for separate DN deduction'
  },runtime),/Separate Delivery Note stock deduction is retired/);
+});
+
+test('retired delivery stock deduction is not advertised or plan-validated by AI Controller',()=>{
+ const catalog=aiToolPlannerCatalog('business','controller');
+ assert.equal(catalog.some(row=>row.id==='sales.issueConfirmedStock'),false);
+ const plan={version:1,goal:'deduct delivery note separately',calls:[
+  {id:'old',tool:'sales.issueConfirmedStock',args:{},reason:'retired'}]};
+ assert.equal(validateAiToolPlan(plan,'business','controller'),null);
 });
