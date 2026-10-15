@@ -330,7 +330,6 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     touched.add(movement.itemId);
     if(movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='transfer')continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
-    if(!isSalesDeliveryStockIssue(movement)&&!isIssuedInvoiceStockIssue(movement))validateManualMovementEvidence(movement);
     if(!savedItems.some(item=>item.id===movement.itemId))throw new Error('Inventory movement is linked to a missing saved item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
     const quantity=movementQuantity(movement);
@@ -338,6 +337,7 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     if(movement.type==='issue'&&quantity>0n)throw new Error('Stock issues must reduce inventory.');
     const cost=text(movement.unitCost).trim();
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Inventory movement unit cost must be zero or greater.');
+    if(!isSalesDeliveryStockIssue(movement)&&!isIssuedInvoiceStockIssue(movement))validateManualMovementEvidence(movement);
     if(movement.sourceId){
       if(movement.type==='issue'&&(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement)))continue;
       if(movement.type!=='adjustment')throw new Error('Only an adjustment can reverse a prior manual inventory movement.');
@@ -469,8 +469,8 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     guardPurchaseState(merged,purchases,movements,savedItems);
   }
   guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
-  guardNewWarehouseDebits(base,intended,latest);
   const touchedItems=guardNewManualMovements(base,intended,movements,savedItems);
+  guardNewWarehouseDebits(base,intended,latest);
   for(const id of affectedPurchases){const purchase=purchases.find(item=>item.id===id);for(const line of purchase?.items??[])if(line.savedItemId)touchedItems.add(line.savedItemId);}
   for(const itemId of touchedItems){
     const latestQuantity=inventoryQuantity(itemId,latest.inventoryMovements);
