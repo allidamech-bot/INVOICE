@@ -336,6 +336,14 @@ try{
   assert.equal(postedPhysical.debit,1);assert.equal(postedPhysical.receipts,1);
   console.log('PASS real Firebase browser D: issued invoice and evidenced credit-linked receipt uploaded atomically');
 
+  // Profile B previously signed in as the third, unrelated UID. Explicitly
+  // switch back to the owner and re-select only the owner's IndexedDB scope.
+  const backToOwner=await evaluate(b,`(async()=>{
+    await firebase.auth().signOut();
+    const {user}=await firebase.auth().signInWithEmailAndPassword(${JSON.stringify(email)},${JSON.stringify(password)});
+    return user.uid;
+  })()`);
+  assert.equal(backToOwner,signUp,'returning owner login must restore the right Firebase UID');
   const replicatedPhysical=await evaluate(b,`(async()=>{
     const {db,sync,user}=await ${modules};
     const ops=await import('./src/lib/operations.js');
