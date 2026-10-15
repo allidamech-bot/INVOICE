@@ -24,12 +24,15 @@ function normalized(s:string):string {
 export function isAiStoredQuotationInvoiceIntent(message:string):boolean{
  const q=normalized(message);
  if(q.length<17||q.length>650)return false;
- if(/^(?:لا|ولا|بدون|don't|do not|never)\s/iu.test(q))return false;
- const create=/(?:\b(?:create|prepare|make|draft|convert|generate)\b|أنشئ|انشئ|جهز|جهّز|حضّر|حضر|حوّل|حول)/iu.test(q);
- const output=/(?:\binvoice\b|فاتور[ةه])/iu.test(q);
- const source=/(?:\b(?:quotation|quote|proforma)\b|عرض\s*(?:ال)?سعر|بروفورما)/iu.test(q);
- const relation=/(?:\b(?:from|based\s+on|into|to)\b|من|إلى|الى)/iu.test(q);
- return create&&output&&source&&relation;
+ // A negated instruction anywhere in the request has no creation authority.
+ if(/(?:\b(?:do\s+not|don't|never|without)\s+(?:create|prepare|make|draft|convert|generate)\b|(?:^|[\s،,;])(?:لا|ولا|بدون)\s*(?:ت)?(?:نشئ|انشئ|أنشئ|جهز|جهّز|حضر|حضّر|حول|حوّل|إنشاء|انشاء))/iu.test(q))return false;
+ // Direction matters: "create a quotation from invoice" must NOT be treated
+ // as "create an invoice from quotation", even if both nouns are present.
+ const forwardEn=/^(?:please\s+)?(?:create|prepare|make|draft|generate)\s+(?:(?:me|a|an|the|new|sales|draft|customer)\s+){0,6}invoice\b.{0,160}\b(?:from|based\s+on)\s+(?:(?:a|an|the|existing|saved|customer)\s+){0,5}(?:quotation|quote|proforma)\b/iu;
+ const reverseEn=/^(?:please\s+)?convert\s+(?:(?:a|an|the|existing|saved)\s+){0,5}(?:quotation|quote|proforma)\b.{0,160}\b(?:into|to)\s+(?:(?:a|an|the|sales)\s+){0,5}invoice\b/iu;
+ const forwardAr=/^(?:أنشئ|انشئ|جهز|جهّز|حضّر|حضر)\s+(?:لي\s+)?(?:مسودة\s+)?فاتور[ةه].{0,160}\bمن\s+(?:(?:ال)?عرض\s*(?:ال)?سعر|بروفورما)/iu;
+ const reverseAr=/^(?:حوّل|حول)\s+(?:(?:ال)?عرض\s*(?:ال)?سعر|بروفورما).{0,160}(?:إلى|الى)\s+فاتور[ةه]/iu;
+ return forwardEn.test(q)||reverseEn.test(q)||forwardAr.test(q)||reverseAr.test(q);
 }
 export function requestedStoredQuotationNumber(message:string):string|null{
  if(!isAiStoredQuotationInvoiceIntent(message))return null;
