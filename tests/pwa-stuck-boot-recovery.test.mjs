@@ -64,7 +64,9 @@ test('12-second watchdog presents recovery options without reloading; only a use
   }
   const loading=new Element('div'),root=new Element('div');
   root.querySelector=selector=>selector===':scope > .loading-screen'?loading:null;
+  const body=new Element('body');
   const document={
+    body,
     getElementById:id=>id==='root'?root:null,
     querySelector:()=>null,
     createElement:tag=>new Element(tag),
@@ -79,14 +81,14 @@ test('12-second watchdog presents recovery options without reloading; only a use
     caches,
     __LOUREX_DIAGNOSTICS__:{mark:()=>{}}
   };
-  vm.runInNewContext(source,{window,document,HTMLElement:Element,navigator,caches,URL});
+  vm.runInNewContext(source,{window,document,HTMLElement:Element,navigator,caches,URL,MutationObserver:class{observe(){}disconnect(){}}});
   assert.equal(tasks.length,1);
   assert.equal(tasks[0].ms,12000);
   assert.deepEqual(calls,{unregister:0,cacheDelete:0,replace:0});
   tasks[0].fn();
-  assert.equal(loading.dataset.lourexStartupRecovery,'true');
+  assert.equal(body.children[0]?.id,'lourex-startup-recovery');
   assert.deepEqual(calls,{unregister:0,cacheDelete:0,replace:0});
-  const card=loading.children[0],actions=card?.children[2],retry=actions?.children[0];
+  const card=body.children[0]?.children[0],actions=card?.children[2],retry=actions?.children[0];
   assert.equal(retry?.tag,'button');
   assert.equal(typeof retry?.listeners.click,'function');
   retry.listeners.click();

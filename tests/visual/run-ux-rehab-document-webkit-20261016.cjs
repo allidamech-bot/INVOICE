@@ -12,6 +12,24 @@ const cases=[
  mkdirSync(output,{recursive:true});
  const browser=await webkit.launch({headless:true});
  try{
+  // A real React host commit after the watchdog's 12s timeout used to throw
+  // NotFoundError because recovery replaced the loading component's children.
+  {
+   const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+   try{
+    await page.goto('http://127.0.0.1:4173/tests/visual/ux-rehab-startup-late-hydration-20261016.html');
+    const original=await page.locator('#root').innerHTML();
+    await page.locator('#lourex-startup-recovery').waitFor({timeout:18000});
+    assert.equal(await page.locator('#root').innerHTML(),original,'timeout must preserve React-owned host nodes');
+    await page.evaluate(()=>window.finishStartup());
+    await page.locator('#lourex-startup-recovery').waitFor({state:'detached'});
+    await page.getByRole('textbox',{name:'Test editor'}).fill('Late startup works');
+    assert.equal(errors.length,0,'late React hydration must not throw '+errors.join(' | '));
+    await page.screenshot({path:output+'/startup-late-hydration.png'});
+    console.log('PASS WebKit late React startup after recovery timeout');
+   }finally{await page.close();}
+  }
   for(const c of cases){
    const key=[c.w,c.lang,c.theme].join('-');
    const page=await browser.newPage({viewport:{width:c.w,height:c.h},hasTouch:c.w<700,isMobile:c.w<700});

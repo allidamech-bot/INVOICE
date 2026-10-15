@@ -21,6 +21,8 @@ on:
       - 'src/styles/ai-conversation-workspace.css'
       - 'src/styles/editor-canonical-v314.css'
       - 'src/styles/roadmap-hardening-final.css'
+      - 'public/startup-watchdog-v321.js'
+      - 'tests/visual/ux-rehab-startup-late-hydration-20261016.html'
       - 'tests/ux-rehab-*.test.mjs'
       - 'tests/visual/run-ux-rehab-picker-webkit-20261016.cjs'
       - 'tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs'
