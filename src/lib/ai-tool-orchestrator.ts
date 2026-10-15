@@ -8,7 +8,6 @@ import {prepareOperationalPoFromRfq} from './ai-operational-po-draft.js';
 import {prepareAiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
 import {prepareOperationalDeliveryDraft} from './ai-operational-dn-draft.js';
 import {prepareAiDeliveryConfirmation} from './ai-operational-delivery-confirmation.js';
-import {prepareAiSalesStockIssue} from './ai-operational-stock-issue.js';
 import {prepareAiSupplierInvoiceMatch} from './ai-operational-supplier-invoice-match.js';
 import {prepareAiConfirmedDeliveryInvoice} from './ai-operational-delivery-invoice-draft.js';
 import {prepareAiCustomerCollection} from './ai-operational-customer-collection.js';
@@ -277,12 +276,7 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
       throw new Error('Only Controller business mode may prepare confirmed inventory issue.');
     const input=args.issue as any;
     if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('Exact warehouse and SKU mapping required.');
-    throw new Error('Separate Delivery Note stock deduction is retired. Issue the reviewed final sales invoice to debit inventory once, or use a documented manual inventory movement for samples/damage.');
-    // Legacy approval shape remains declared for compatibility; it is never prepared for new sales.
-    const review=prepareAiSalesStockIssue(runtime.vault,input);
-    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
-      label:'Review inventory deduction '+review.deliveryNoteNumber,
-      rationale:'This deducts warehouse stock ONLY after a separate explicit approval. No documents or payments are created.'};
+    throw new Error('Separate Delivery Note stock deduction is retired. Issue the final sales invoice to debit inventory once, or use a documented manual movement with written reason and supporting file.');
   }
   if(call.tool==='sales.confirmPhysicalDelivery'){
     if(runtime.scope!=='business'||runtime.conversationMode!=='controller')
