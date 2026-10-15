@@ -9,7 +9,7 @@ on:
       - 'src/components/ProductLibraryWorkspace.tsx'
       - 'src/styles/v485-visible-ui-corrections.css'
       - 'tests/visual/run-product-editor-webkit-v606.cjs'
-      - 'tests/visual/functional-products-operations-v197.html'
+      - 'tests/visual/product-editor-webkit-v606.html'
       - '.github/workflows/product-editor-webkit.yml'
 
 permissions:
@@ -41,7 +41,7 @@ jobs:
         run: |
           npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-webkit-http.log 2>&1 &
           for attempt in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:4173/tests/visual/functional-products-operations-v197.html >/dev/null; then break; fi
+            if curl -fsS http://127.0.0.1:4173/tests/visual/product-editor-webkit-v606.html >/dev/null; then break; fi
             sleep 1
           done
           node tests/visual/run-product-editor-webkit-v606.cjs
