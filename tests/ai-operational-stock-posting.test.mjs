@@ -107,10 +107,10 @@ test('Retired direct DN stock deductions are unapprovable for every role and rej
   assert.throws(()=>prepareFoundationApproval(vault,proposal,scope),/cannot approve/);
  }
  const permissions=await readFile(new URL('../src/lib/ai-foundation-approval.ts',import.meta.url),'utf8');
- assert.match(permissions,/proposal.tool==='sales.issueConfirmedStock'\\)return false/);
+ assert.ok(permissions.includes("proposal.tool==='sales.issueConfirmedStock')return false"));
  const executor=await readFile(new URL('../src/lib/ai-tool-actions.ts',import.meta.url),'utf8');
  assert.match(executor,/Separate Delivery Note stock deduction is retired/);
- assert.doesNotMatch(executor,/applyAiSalesStockIssue\\(vault,review\\)/);
+ assert.equal(executor.includes('applyAiSalesStockIssue(vault,review)'),false);
 });
 test('Wrong same-unit SKU cannot deduct a different delivered product',()=>{
  const f=fixture(),before=structuredClone(f.vault),request=parseAiStockIssueRequest(cmd(f.note,f.warehouse,'SKU-B,SKU-A'));
