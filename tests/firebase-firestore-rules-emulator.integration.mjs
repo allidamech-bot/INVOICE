@@ -53,7 +53,7 @@ test('Firestore rules isolate actual V2 workspace and recovery history by Fireba
   assert.equal(restore.status,200,'all unauthorized operations must leave owner data intact');
 });
 
-test('Signed viewer and invalid role claims cannot bypass Firestore cloud write authorization',async()=>{
+test('Owner-only release denies all delegated and invalid role claims at Firestore cloud write boundary',async()=>{
   const uid='qa-role-bound';
   const path='/users/'+uid+'/workspace/meta';
   const body={fields:{format:{stringValue:'LOUREX_PLAIN_WORKSPACE_V2'},revision:{stringValue:'roles-baseline'},payload:firebaseValue(subject)}};
@@ -62,7 +62,7 @@ test('Signed viewer and invalid role claims cannot bypass Firestore cloud write 
   const viewer={lourexAiRole:'viewer',lourexWorkspaceUid:uid};
   const canRead=await rest(uid,'GET',path,undefined,viewer);
   assert.equal(canRead.status,200,'verified viewer retains read-only access: '+canRead.body);
-  for(const claims of [viewer,{lourexAiRole:'invalid'},{lourexAiRole:null},
+  for(const claims of [viewer,...['admin','finance','sales','purchasing'].map(lourexAiRole=>({lourexAiRole,lourexWorkspaceUid:uid})),{lourexAiRole:'invalid'},{lourexAiRole:null},
     {lourexAiRole:'owner',lourexWorkspaceUid:'other-account'},
     {firebase:{identities:{},sign_in_provider:'anonymous'}}]){
     const write=await rest(uid,'PATCH',path,body,claims);
