@@ -96,6 +96,56 @@ test('B1 supplier-classified exact worksheet cannot leak acquisition prices as c
   assert.equal(vault.documents.length,0);
 });
 
+test('B1 missing source currency blocks PDF until customer explicitly confirms an ISO code',()=>{
+  const vault=emptyVault();
+  const buyer={id:'qa-currency-buyer',workspaceId:'default',companyNameEn:'Currency Buyer',
+    companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',
+    phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+  vault.customers=[buyer];
+  const before=structuredClone(vault);
+  const draft=quoteSourceWorkingDraft([supplierSource(3,'no-currency.pdf','')],runtime(vault),withMargin);
+  assert.equal(draft.currency,'');
+  assert.ok(draft.items.every(row=>row.unitPrice==='12.50'));
+  draft.customerId=buyer.id;
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  assert.ok(workspaceDocument(kernel,vault,'en').blockers.some(x=>/currency/.test(x)));
+  assert.throws(()=>prepareAiPdfPreview(kernel,vault,'en'),/Complete all required document fields/);
+  const confirmed=reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'حدّد العملة USD',workspaceDrafting(vault),'ar');
+  assert.equal(confirmed.changed,true);
+  assert.equal(kernel.artifact.proposal.currency,'USD');
+  const pdf=prepareAiPdfPreview(kernel,vault,'en');
+  assert.equal(pdf.currency,'USD');
+  assert.equal(pdf.items.length,3);
+  const revision=kernel.artifact.revision;
+  for(const request of ['غيّر العملة EUR','set currency 1234','set currency USD4']){
+    const denied=reviseKernelDraft(kernel,kernel.artifact.proposal,
+      request,workspaceDrafting(vault),'en');
+    assert.equal(denied.changed,false,request);
+    assert.equal(kernel.artifact.revision,revision,'rejected request must not change revision');
+    assert.equal(kernel.artifact.proposal.currency,'USD');
+  }
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'undo',workspaceDrafting(vault),'en').changed,true);
+  assert.equal(kernel.artifact.proposal.currency,'');
+  assert.throws(()=>prepareAiPdfPreview(kernel,vault,'en'),/Complete all required document fields/);
+  assert.deepEqual(vault,before,'source pricing and draft editing must not persist');
+});
+
+test('B1 currency can be corrected before prices are set, without implied FX conversion',()=>{
+  const vault=emptyVault(),kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,quoteSourceWorkingDraft([supplierSource(3)],runtime(vault),request));
+  assert.equal(kernel.artifact.proposal.currency,'USD');
+  assert.ok(kernel.artifact.proposal.items.every(row=>row.unitPrice===''));
+  const changed=reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'غيّر العملة EUR',workspaceDrafting(vault),'ar');
+  assert.equal(changed.changed,true);
+  assert.equal(kernel.artifact.proposal.currency,'EUR');
+  assert.ok(kernel.artifact.proposal.items.every(row=>row.unitPrice===''));
+  assert.deepEqual(vault.documents,[]);
+});
+
 test('B1 markup parser requires a price reference and distinguishes both word orders',()=>{
   assert.equal(requestedSourceMarkup('أضف 3% على جميع الأسعار'),'3');
   assert.equal(requestedSourceMarkup('زود الأسعار بنسبة ٣٪'),'3');
