@@ -20,6 +20,7 @@ import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity }
 import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, isSalesDeliveryStockIssue } from '../lib/sales-delivery-stock.js';
 import {assertInvoiceStockLedgerContinuity,assertPostedInvoiceStockDocumentIntegrity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
 import {validateManualMovementEvidence} from '../lib/inventory-evidence.js';
+import {assertSalesReturnIntegrity,assertSalesReturnLedgerContinuity,isSalesReturn} from '../lib/sales-returns.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -333,6 +334,9 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     if(baseIds.has(movement.id))continue;
     touched.add(movement.itemId);
     if(movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='transfer')continue;
+    // A physical customer return must be validated against its final credit note,
+    // original invoice and immutable issue before it can increase a warehouse.
+    if(isSalesReturn(movement))continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
     if(!savedItems.some(item=>item.id===movement.itemId&&item.inventoryTracking!=='non-stock'))throw new Error('Inventory movement needs a tracked catalog item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
@@ -624,6 +628,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertInvoiceStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  assertSalesReturnLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
@@ -641,6 +646,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     if(scopedStock.created)throw new Error('A final invoice must commit its stock issues atomically. Reopen and issue again.');
   }
   assertPostedInvoiceStockDocumentIntegrity(documents,inventoryMovements);
+  assertSalesReturnIntegrity({documents,inventoryMovements,warehouses,appSettings:latest.appSettings});
   assertSalesDeliveryStockIntegrity({documents,documentEvents,inventoryMovements,savedItems,warehouses,appSettings:latest.appSettings});
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {
