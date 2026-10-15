@@ -167,11 +167,15 @@ function savedItemSku(value:unknown):string{return text(value).normalize('NFKC')
 function savedItemIdentityChanged(before:SavedItem|undefined,item:SavedItem):boolean{
   return !before||normalizeSavedItemIdentity(text(before.descriptionEn))!==normalizeSavedItemIdentity(text(item.descriptionEn))||normalizeSavedItemIdentity(text(before.descriptionAr))!==normalizeSavedItemIdentity(text(item.descriptionAr))||savedItemSku(before.sku)!==savedItemSku(item.sku);
 }
-function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[]):void{
+function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[],movements:InventoryMovementRecord[]):void{
   if(intended===base)return;
   const baseById=new Map(base.map(item=>[item.id,item]));
   for(const item of intended){
     const before=baseById.get(item.id);
+    if(item.inventoryTracking&&item.inventoryTracking!=='tracked'&&item.inventoryTracking!=='non-stock')throw new Error('Invalid inventory classification.');
+    if(before&&movements.some(movement=>movement.itemId===item.id)
+      &&(before.unit!==item.unit||(before.inventoryTracking||'tracked')!==(item.inventoryTracking||'tracked')))
+      throw new Error('Cannot change unit or inventory classification of a product with stock history. Create a separate catalog item.');
     const identityChanged=savedItemIdentityChanged(before,item);
     const commercialChanged=!before||identityChanged||text(before.unit)!==text(item.unit)||text(before.lastUnitPrice)!==text(item.lastUnitPrice);
     const costChanged=!before||text(before.lastUnitCost)!==text(item.lastUnitCost)||text(before.lastCostCurrency)!==text(item.lastCostCurrency);
@@ -330,7 +334,7 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     touched.add(movement.itemId);
     if(movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='transfer')continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
-    if(!savedItems.some(item=>item.id===movement.itemId))throw new Error('Inventory movement is linked to a missing saved item.');
+    if(!savedItems.some(item=>item.id===movement.itemId&&item.inventoryTracking!=='non-stock'))throw new Error('Inventory movement needs a tracked catalog item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
     const quantity=movementQuantity(movement);
     if(movement.type==='opening'&&quantity<0n)throw new Error('Opening stock cannot be negative.');
@@ -613,7 +617,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardAllocatedPaymentChanges(base.supplierPayments,intended.supplierPayments,treasuryEntries,'supplier-payment','Supplier payment');
   for(const entry of treasuryEntries)if(!entry.voidedAt&&entry.sourceType==='supplier-payment'&&supplierPayments.some(payment=>payment.id===entry.sourceId&&payment.voidedAt))throw new Error('Active cash/bank entry references a voided supplier payment. Void the treasury entry first.');
   guardCustomerChanges(base.customers,intended.customers,customers);
-  guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
+  guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems,inventoryMovements);
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
