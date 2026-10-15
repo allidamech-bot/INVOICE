@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<base href="../../dist/"/><link rel="stylesheet" href="styles/app.bundle.css"/>
+<script>
+const q=new URLSearchParams(location.search),ar=q.get('lang')==='ar',theme=q.get('theme')==='light'?'light':'dark';
+document.documentElement.lang=ar?'ar':'en';
+document.documentElement.dir=ar?'rtl':'ltr';
+document.documentElement.dataset.uiTheme=theme;
+</script></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {DocumentsPage} from './src/components/DocumentsPage.js';
+import {AppShell} from './src/components/AppShell.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const q=new URLSearchParams(location.search),ar=q.get('lang')==='ar',h=React.createElement;
+setUiLanguage(ar?'ar':'en');
+const noop=()=>{};
+window.qaDocumentChoices=[];
+const props={
+ documents:[],payments:[],documentEvents:[],savedItems:[],
+ inventoryMovements:[],warehouses:[],workspaceId:'test-w',branchId:'test-b',
+ onNew:kind=>window.qaDocumentChoices.push(kind),
+ onOpen:noop,onDuplicate:noop,onPrint:async()=>{},onDelete:noop
+};
+ReactDOM.render(
+ h(AppShell,{
+  screen:'documents',language:ar?'ar':'en',logoDataUrl:'./brand/lourex-logo.svg',
+  newMenu:false,cloudState:'synced',cloudLabel:'QA',cloudMessage:'',
+  onNavigate:noop,onToggleNew:noop,onNew:noop,onCreditNote:noop,
+  onStatementAccount:noop,onSettings:noop,onCloud:noop
+ },h(DocumentsPage,props)),document.getElementById('root'));
+</script></body></html>
