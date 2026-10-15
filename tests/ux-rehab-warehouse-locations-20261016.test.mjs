@@ -35,5 +35,6 @@ test('warehouse card contrast and density follow approved v485 palette without s
  assert.match(block,/\.app-ui \.lx-warehouse-page \.lx-warehouse-balances-scroll:focus-visible/);
  assert.match(block,/\.app-ui \.lx-warehouse-page \.lx-warehouse-balances-scroll>\.ta-table\{[\s\S]*?min-width:550px/);
  assert.match(block,/\.app-ui \.lx-warehouse-page \.lx-form-grid :is\(input,select,textarea\)\{[\s\S]*?font-size:16px/);
+ assert.match(block,/@media screen and \(max-width:720px\)\{[\s\S]*?\.app-ui \.lx-warehouse-page :is\(input,select,textarea\)\{[\s\S]*?font-size:16px!important/);
  assert.doesNotMatch(block,/\.invoice-page|\.document-page|\.a4[-_]/i);
 });
