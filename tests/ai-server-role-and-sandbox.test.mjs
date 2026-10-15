@@ -95,7 +95,8 @@ test('QA smoke rejects invalid provider, missing QA keys, missing consent despit
   {LOUREX_AI_QA_PROVIDER:'unknown',LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data'},
   {LOUREX_AI_QA_PROVIDER:'gemini',LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',LOUREX_AI_QA_GEMINI_API_KEY:''},
   {LOUREX_AI_QA_PROVIDER:'cloudflare',LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',LOUREX_AI_QA_CLOUDFLARE_API_TOKEN:'long-qa-test-value',LOUREX_AI_QA_CLOUDFLARE_ACCOUNT_ID:''},
-  {LOUREX_AI_QA_PROVIDER:'groq',LOUREX_AI_QA_CONFIRM:'not-consented',LOUREX_AI_QA_GROQ_API_KEY:'long-qa-test-value'}
+  {LOUREX_AI_QA_PROVIDER:'groq',LOUREX_AI_QA_CONFIRM:'not-consented',LOUREX_AI_QA_GROQ_API_KEY:'long-qa-test-value'},
+  {LOUREX_AI_QA_PROVIDER:'groq',LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',LOUREX_AI_QA_GROQ_API_KEY:'production-groq-is-not-qa'}
  ];
  for(const patch of invalid){
   const result=spawnSync(process.execPath,[entry.pathname],{encoding:'utf8',timeout:8000,env:{...base,...patch}});
