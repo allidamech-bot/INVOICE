@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
+import {foundationActionAllowed} from '../dist/src/lib/ai-foundation-approval.js';
 import {
   AI_TOOL_REGISTRY, createAiToolRuntime, executeAiToolCall,
   executeAiToolPlan, aiToolPlannerCatalog, validateAiToolPlan
@@ -86,4 +87,38 @@ test('invalid AI tool plans cannot invent, repeat, or mix unsafe actions',()=>{
   const blocked=executeAiToolPlan(controller,mixed);
   assert.equal(blocked.proposal,null,'one high-impact action must prevent an unsafe mixed approval');
   assert.equal(JSON.stringify(controller.vault),before);
+});
+
+
+test('Temporary chats expose read-only tools but cannot stage non-durable mutations or bypass approval',()=>{
+  const vault=emptyVault();
+  vault.teamMembers=[{id:'temporary-owner',displayName:'QA Owner',role:'owner',status:'active'}];
+  vault.appSettings.activeTeamMemberId='temporary-owner';
+  const temporaryScope={scope:'temporary',workspaceId:'default',branchId:'main',threadId:'tmp-qa'};
+  const businessScope={...temporaryScope,scope:'business'};
+  const rt=createAiToolRuntime(vault,{conversationMode:'controller',assistantRuntime:temporaryScope});
+  const before=JSON.stringify(vault);
+  const allowed=new Set(aiToolPlannerCatalog('temporary','controller').map(row=>row.id));
+  assert.ok(allowed.has('finance.getSummary'),'temporary chats may analyze scoped financial data');
+  assert.ok(allowed.has('navigation.open'),'safe navigation stays available');
+  assert.ok(!allowed.has('document.createDraft'),'ephemeral threads cannot persist quotes');
+  assert.ok(!allowed.has('sales.recordCustomerCollection'),'ephemeral threads cannot record payments');
+  for(const definition of registry.filter(row=>row.mutation)){
+    const action=sample(definition.id);
+    assert.ok(!allowed.has(definition.id),definition.id+' must not be advertised');
+    assert.equal(validateAiToolPlan({version:1,calls:[action],goal:'write'},'temporary','controller'),null);
+    const blocked=executeAiToolCall(rt,action);
+    assert.equal(blocked.ok,false,definition.id);
+    assert.equal(blocked.data,null,definition.id);
+    assert.equal(blocked.source,'temporary-scope-guard',definition.id);
+  }
+  assert.equal(executeAiToolCall(rt,sample('finance.getSummary')).ok,true);
+  assert.equal(foundationActionAllowed(vault,{capability:'document.createDraft'},temporaryScope),false);
+  assert.equal(foundationActionAllowed(vault,{
+    capability:'tool.execute',tool:'sales.recordCustomerCollection',args:{}
+  },temporaryScope),false,'crafted approvals are blocked beyond the UI');
+  assert.equal(foundationActionAllowed(vault,{capability:'workspace.navigate'},temporaryScope),true);
+  assert.equal(foundationActionAllowed(vault,{capability:'document.createDraft'},businessScope),true,
+    'approved Business Controller workflows remain eligible');
+  assert.equal(JSON.stringify(vault),before,'scope checks cannot mutate financial data');
 });
