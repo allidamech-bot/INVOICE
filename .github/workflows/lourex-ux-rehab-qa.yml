@@ -11,6 +11,7 @@ on:
       - 'src/components/WarehouseLocationsPage.tsx'
       - 'src/components/EditorPageCore.tsx'
       - 'src/components/ProductAiSourceReview.tsx'
+      - 'src/components/AiConversationWorkspace.tsx'
       - 'src/lib/product-ai-review.ts'
       - 'src/components/ProductLibraryWorkspace.tsx'
       - 'src/styles/tailadmin-products-v320.css'
@@ -60,6 +61,7 @@ jobs:
             tests/ux-rehab-editor-item-tools-20261016.test.mjs \
             tests/ux-rehab-ai-product-review-20261016.test.mjs \
             tests/ux-rehab-ai-source-duplicates-20261016.test.mjs \
+            tests/ai-post-release-markdown.test.mjs \
             tests/ux-rehab-import-chooser-20261016.test.mjs \
             tests/ai-batch6-mobile-import-integrity.test.mjs \
             tests/ai-batches1-7-release-candidate-contract.test.mjs \
