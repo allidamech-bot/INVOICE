@@ -62,3 +62,45 @@ test('Server planner trusts signed token identity and ignores client-selected ro
  assert.match(api,/function plannerToolIds\(scope,conversationMode,verifiedRole='viewer'\)/);
  assert.match(api,/cleanToolPlan\(routed\.data,scope,conversationMode,verifiedRole\)/);
 });
+
+test('Each provider-only QA path uses only isolated credentials, validates synthetic schema and never touches internet in tests',()=>{
+ const entry=new URL('../scripts/qa-ai-provider-sandbox.mjs',import.meta.url);
+ const mock=new URL('./fixtures/qa-ai-provider-mock.mjs',import.meta.url);
+ const secret='qa-synthetic-token-0123456789012345';
+ for(const provider of ['groq','cloudflare','gemini']){
+  const env={...process.env,LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',
+    LOUREX_AI_QA_PROVIDER:provider,
+    LOUREX_AI_QA_GROQ_API_KEY:secret,
+    LOUREX_AI_QA_GEMINI_API_KEY:secret,
+    LOUREX_AI_QA_CLOUDFLARE_API_TOKEN:secret,
+    LOUREX_AI_QA_CLOUDFLARE_ACCOUNT_ID:'qa-account-id',
+    GROQ_API_KEY:'forbidden-production-groq',
+    GEMINI_API_KEY:'forbidden-production-gemini',
+    CLOUDFLARE_AI_API_TOKEN:'forbidden-production-cloudflare',
+    CLOUDFLARE_ACCOUNT_ID:'forbidden-production-account'};
+  const run=spawnSync(process.execPath,['--import',mock.pathname,entry.pathname],
+    {encoding:'utf8',env,timeout:8000});
+  assert.equal(run.status,0,provider+': '+run.stderr);
+  assert.match(run.stdout,new RegExp('SANDBOX_PASS: isolated '+provider+' provider'));
+  assert.doesNotMatch(run.stdout+run.stderr,/forbidden-production|qa-synthetic-token/);
+ }
+});
+
+test('QA smoke rejects invalid provider, missing QA keys, missing consent despite inherited production keys',()=>{
+ const entry=new URL('../scripts/qa-ai-provider-sandbox.mjs',import.meta.url);
+ const base={...process.env,GROQ_API_KEY:'production-groq-is-not-qa',
+  GEMINI_API_KEY:'production-gemini-is-not-qa',
+  CLOUDFLARE_AI_API_TOKEN:'production-cloudflare-is-not-qa'};
+ const invalid=[
+  {LOUREX_AI_QA_PROVIDER:'unknown',LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data'},
+  {LOUREX_AI_QA_PROVIDER:'gemini',LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',LOUREX_AI_QA_GEMINI_API_KEY:''},
+  {LOUREX_AI_QA_PROVIDER:'cloudflare',LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',LOUREX_AI_QA_CLOUDFLARE_API_TOKEN:'long-qa-test-value',LOUREX_AI_QA_CLOUDFLARE_ACCOUNT_ID:''},
+  {LOUREX_AI_QA_PROVIDER:'groq',LOUREX_AI_QA_CONFIRM:'not-consented',LOUREX_AI_QA_GROQ_API_KEY:'long-qa-test-value'}
+ ];
+ for(const patch of invalid){
+  const result=spawnSync(process.execPath,[entry.pathname],{encoding:'utf8',timeout:8000,env:{...base,...patch}});
+  assert.equal(result.status,2,'No provider may be contacted when opt-in is not fully configured');
+  assert.match(result.stderr,/SANDBOX_NOT_CONFIGURED/);
+  assert.doesNotMatch(result.stdout+result.stderr,/production-.*-is-not-qa/);
+ }
+});
