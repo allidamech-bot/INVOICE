@@ -75,3 +75,30 @@ test('Signed viewer and invalid role claims cannot bypass Firestore cloud write 
   const legacy=await rest(uid,'PATCH',path,body);
   assert.equal(legacy.status,200,'existing single-UID owners without custom claims remain supported: '+legacy.body);
 });
+
+test('Viewer cannot create, mutate or revoke owner share links; anonymous portal retains expiring read',async()=>{
+ const owner='qa-share-owner',shareId='Q'.repeat(43),path='/publicShares/'+shareId;
+ const payload={fields:{
+  format:{stringValue:'LOUREX_SECURE_SHARE_V1'},version:{integerValue:'1'},
+  ownerUid:{stringValue:owner},documentId:{stringValue:'issued-document'},
+  customerId:{stringValue:'customer-1'},expiresAt:{timestampValue:new Date(Date.now()+86400000).toISOString()},
+  revokedAt:{nullValue:null},viewedAt:{nullValue:null},
+  decision:{stringValue:''},customerComment:{stringValue:''}
+ }};
+ const viewer={lourexAiRole:'viewer'},signedOwner={lourexAiRole:'owner'};
+ const viewerCreate=await rest(owner,'PATCH',path,payload,viewer);
+ assert.equal(viewerCreate.status,403,'viewer cannot create public shares');
+ const created=await rest(owner,'PATCH',path,payload,signedOwner);
+ assert.equal(created.status,200,'owner must still create valid shares: '+created.body);
+ const anonymous={firebase:{identities:{},sign_in_provider:'anonymous'}};
+ const portalRead=await rest('qa-share-portal','GET',path,undefined,anonymous);
+ assert.equal(portalRead.status,200,'anonymous customer may read active opaque-token share: '+portalRead.body);
+ const viewerRead=await rest(owner,'GET',path,undefined,viewer);
+ assert.equal(viewerRead.status,200,'viewer may view links belonging to this UID');
+ const viewerUpdate=await rest(owner,'PATCH',path,payload,viewer);
+ assert.equal(viewerUpdate.status,403,'viewer cannot overwrite or revoke owner share');
+ const viewerDelete=await rest(owner,'DELETE',path,undefined,viewer);
+ assert.equal(viewerDelete.status,403,'viewer cannot delete owner share');
+ const stillActive=await rest('qa-share-portal','GET',path,undefined,anonymous);
+ assert.equal(stillActive.status,200,'failed viewer mutations must not revoke customer share');
+});
