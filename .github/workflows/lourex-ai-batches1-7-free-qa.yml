@@ -121,7 +121,7 @@ jobs:
       - name: Build application modules for transaction tests
         run: npm run build
       - name: Verify real Firestore owner rules and cross-device transactions
-        run: ./node_modules/.bin/firebase emulators:exec --only firestore --config firebase.ai-ci.json --project demo-lourex-ai-integration-719 "node --test tests/emulator/ai-history.test.mjs"
+        run: ./node_modules/.bin/firebase emulators:exec --only firestore --config firebase.ai-ci.json --project demo-lourex-ai-integration-719 "node --test --test-concurrency=1 tests/emulator/ai-history.test.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
 
   webkit-visual:
     name: Chromium/WebKit login, AI voice, conversation and PDF QA
