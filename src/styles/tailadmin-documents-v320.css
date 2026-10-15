@@ -321,3 +321,85 @@
     .app-ui .ta-doc-facts>div:last-child { border-bottom:0!important; }
   }
 }
+
+
+/* UX rehab C — grouped document creator; preserves the global special
+   Credit Note and Statement of Account launchers. Screen-only cascade. */
+@media screen{
+ html body #root .app-ui .ta-documents-header-actions{
+   overflow:visible!important;flex-wrap:wrap!important;
+ }
+ html body #root .app-ui .ta-documents-create-entry{
+   position:relative;min-width:0;max-width:100%;z-index:24;
+ }
+ html body #root .app-ui .ta-documents-create-entry>summary{
+   display:inline-flex;align-items:center;justify-content:center;
+   gap:7px;min-width:142px;min-height:44px;max-width:100%;
+   padding:9px 14px;border:1px solid var(--lx485-line,var(--ft-line));
+   border-radius:11px;list-style:none;cursor:pointer;
+   background:var(--lx485-blue,var(--ft-accent));
+   color:var(--lx485-surface,#fff);font-size:12px;font-weight:800;
+   line-height:1.3;
+ }
+ html body #root .app-ui .ta-documents-create-entry>summary::-webkit-details-marker{display:none}
+ html body #root .app-ui .ta-documents-create-entry>summary:focus-visible{
+   outline:2px solid var(--lx485-blue,var(--ft-accent));outline-offset:3px;
+ }
+ html body #root .app-ui .ta-documents-create-choices{
+   position:absolute;inset-inline-start:0;inset-block-start:calc(100% + 6px);
+   width:min(395px,calc(100vw - 32px));max-width:calc(100vw - 32px);
+   max-height:min(70dvh,620px);overflow-y:auto;
+   overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+   display:grid;gap:5px;padding:10px;
+   border:1px solid var(--lx485-line,var(--ft-line));
+   border-radius:13px;background:var(--lx485-surface,var(--ft-surface));
+   color:var(--lx485-text,var(--ft-text-strong));box-shadow:0 18px 35px rgba(0,0,0,.22);
+ }
+ html body #root .app-ui .ta-documents-create-group{
+   padding:9px 5px 4px;line-height:1.35;font-size:11px;
+   font-weight:850;color:var(--lx485-muted,var(--ft-muted));
+ }
+ html body #root .app-ui .ta-documents-create-choices>button{
+   box-sizing:border-box;display:flex;gap:10px;align-items:center;
+   min-width:0;min-height:48px;padding:8px 10px;
+   border:1px solid var(--lx485-line,var(--ft-line));
+   border-radius:10px;text-align:start;cursor:pointer;
+   background:var(--lx485-surface-2,var(--ft-surface-2));
+   color:var(--lx485-text,var(--ft-text-strong));
+ }
+ html body #root .app-ui .ta-documents-create-choices>button>span{
+   display:grid;gap:3px;min-width:0;
+ }
+ html body #root .app-ui .ta-documents-create-choices>button :is(strong,small){
+   overflow-wrap:anywhere;line-height:1.35;
+ }
+ html body #root .app-ui .ta-documents-create-choices>button strong{
+   font-size:12px;font-weight:780;
+ }
+ html body #root .app-ui .ta-documents-create-choices>button small{
+   color:var(--lx485-muted,var(--ft-muted));font-size:11px;
+ }
+ html body #root .app-ui .ta-documents-create-choices>button:focus-visible{
+   outline:2px solid var(--lx485-blue,var(--ft-accent));outline-offset:1px;
+ }
+ html body #root .app-ui .ta-documents-create-footnote{
+   padding:9px 7px 3px;border-top:1px solid var(--lx485-line,var(--ft-line));
+   color:var(--lx485-muted,var(--ft-muted));
+   font-size:11px;line-height:1.5;overflow-wrap:anywhere;
+ }
+}
+@media screen and (max-width:720px){
+ html body #root .app-ui .ta-documents-header-actions{
+   overflow:visible!important;flex-wrap:wrap!important;
+   justify-content:flex-start!important;gap:7px!important;
+ }
+ html body #root .app-ui .ta-documents-create-entry{
+   flex:1 1 150px;
+ }
+ html body #root .app-ui .ta-documents-create-entry>summary{
+   box-sizing:border-box;width:100%;
+ }
+ html body #root .app-ui .ta-documents-create-choices{
+   max-height:min(66dvh,530px);
+ }
+}
