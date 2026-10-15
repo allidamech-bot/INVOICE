@@ -18,6 +18,7 @@ on:
       - 'tests/ai-tool-catalog-security-coverage.test.mjs'
       - 'tests/ai-controller-supplier-quote-continuity.test.mjs'
       - 'src/lib/ai-quote-source-draft.ts'
+      - 'src/lib/ai-spreadsheet-quote.ts'
       - 'tests/ai-workflow-advisor-handoff.test.mjs'
       - 'src/components/AiConversationWorkspace.tsx'
       - 'src/components/AiCopilot.tsx'
