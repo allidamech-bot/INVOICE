@@ -150,3 +150,21 @@ export function assertInvoiceVoidStockContinuity(base:InventoryMovementRecord[],
    fail('Conflicting invoice cancellation between devices.');
  }
 }
+
+
+/** A voided source document carries the ONE physical-receipt PDF for all restored lines.
+ * Changing/removing it in a later offline edit would break the proof chain.
+ */
+export function assertInvoiceVoidDocumentContinuity(base:LourexDocument[],intended:LourexDocument[],latest:LourexDocument[],baseMovements:InventoryMovementRecord[]):void{
+ const expected=new Map(base.map(document=>[document.id,document]));
+ const desired=new Map(intended.map(document=>[document.id,document]));
+ const remote=new Map(latest.map(document=>[document.id,document]));
+ for(const m of baseMovements){
+  if(!isInvoiceVoidStockReceipt(m))continue;
+  const reference=expected.get(m.invoiceVoidStock?.invoiceId||'');
+  if(!reference||reference.lifecycleStatus!=='voided')fail('Cancelled invoice stock proof is orphaned.');
+  if(JSON.stringify(desired.get(reference.id))!==JSON.stringify(reference)
+   ||JSON.stringify(remote.get(reference.id))!==JSON.stringify(reference))
+   fail('A voided invoice and its physical receipt evidence are immutable.');
+ }
+}
