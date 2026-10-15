@@ -288,6 +288,71 @@ try{
   assert.ok(recovered.customers.includes('offline-qa-customer'),'offline edit survives recovery');
   console.log('PASS real Firebase browser D: clean-device restore of committed invoices and previously offline customer');
 
+  // End-to-end financial ledger on the real browser/Firestore emulator boundary.
+  // A final invoice must debit stock once; a linked final credit note does
+  // not restock; a physically evidenced partial receipt does.
+  const postedPhysical=await evaluate(recoveredDevice,`(async()=>{
+    const {db,sync,user}=await ${modules};
+    const ops=await import('./src/lib/operations.js');
+    const invoices=await import('./src/lib/invoice-stock.js');
+    const returns=await import('./src/lib/sales-returns.js');
+    const lifecycle=await import('./src/lib/document-lifecycle.js');
+    const before=await db.getPlainWorkspace();
+    const vault=before.payload,date=new Date().toISOString().slice(0,10),now=new Date().toISOString();
+    const workspaceId=vault.appSettings.activeWorkspaceId,branchId=vault.appSettings.activeBranchId;
+    const item={id:'firebase-qa-stock-item',sku:'QA-CARTON-STOCK',descriptionEn:'QA physical carton',descriptionAr:'كرتون تجريبي',
+      hsCode:'',origin:'',packing:'',unit:'Carton',createdAt:now,updatedAt:now,
+      lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'4.50',lastCostCurrency:'USD',
+      usageCount:0,lastUsedAt:now,workspaceId,branchId};
+    const encoded='JVBERi0xLjQKMSAwIG9iagplbmRvYmoK',proof={id:'qa-physical-return-proof',
+      name:'signed-qa-return.pdf',mimeType:'application/pdf',size:atob(encoded).length,
+      dataUrl:'data:application/pdf;base64,'+encoded,createdAt:now};
+    const opening={...ops.createManualInventoryMovement(item,'opening','10',date,'Verified QA opening count','4.50','USD'),
+      toWarehouseId:vault.warehouses[0].id,workspaceId,branchId,reasonCategory:'opening',createdBy:'owner',evidence:proof};
+    const added={...vault,savedItems:[...vault.savedItems,item],inventoryMovements:[...vault.inventoryMovements,opening]};
+    const invoice={...documents.createBlankDocument('invoice','INV-QA-STOCK-0001',added.company),status:'final',issueDate:date};
+    invoice.customerSnapshot={sourceCustomerId:'buyer-stock-qa',companyNameEn:'QA Stock Buyer',companyNameAr:'',
+      contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+    invoice.items=[{...invoice.items[0],id:'qa-stock-invoice-line',savedItemId:item.id,stockTreatment:'tracked',skuSnapshot:item.sku,
+      descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,unit:'Carton',quantity:'4',unitPrice:'10.00'}];
+    const issued=invoices.postIssuedInvoiceStock({...added,documents:[...added.documents,invoice]},invoice).vault;
+    const afterIssue=ops.inventoryBalances(issued.savedItems,issued.inventoryMovements).find(row=>row.item.id===item.id).quantity;
+    const credit={...lifecycle.createCreditNoteDraft(invoice,'CN-QA-STOCK-0001','40.00'),status:'final',issueDate:date};
+    credit.items=[{...credit.items[0],id:'qa-stock-credit-line',quantity:'2',unitPrice:'10.00'}];
+    const credited={...issued,documents:[...issued.documents,credit]};
+    const afterCredit=ops.inventoryBalances(credited.savedItems,credited.inventoryMovements).find(row=>row.item.id===item.id).quantity;
+    const received=returns.postSalesReturn(credited,{creditNoteId:credit.id,invoiceLineId:invoice.items[0].id,
+      creditLineId:credit.items[0].id,warehouseId:credited.warehouses[0].id,quantity:'1.5',date,
+      reason:'Returned sealed cartons checked and received by QA warehouse',evidence:proof,operatorId:'owner'}).vault;
+    const afterReceipt=ops.inventoryBalances(received.savedItems,received.inventoryMovements).find(row=>row.item.id===item.id).quantity;
+    if(!await db.updatePlainWorkspaceIfUnchanged(user.uid,before.localRevision,received))throw Error('Stock posting IndexedDB CAS failed');
+    const outcome=await sync.reconcilePlainCloudWorkspace(user.uid);
+    return {outcome,afterIssue,afterCredit,afterReceipt,
+      debit:received.inventoryMovements.filter(row=>row.sourceId===invoice.id&&row.type==='issue').length,
+      receipts:received.inventoryMovements.filter(row=>row.salesReturn?.invoiceId===invoice.id).length};
+  })()`);
+  assert.equal(postedPhysical.outcome,'pushed');
+  assert.deepEqual([postedPhysical.afterIssue,postedPhysical.afterCredit,postedPhysical.afterReceipt],['6','6','7.5']);
+  assert.equal(postedPhysical.debit,1);assert.equal(postedPhysical.receipts,1);
+  console.log('PASS real Firebase browser D: issued invoice and evidenced credit-linked receipt uploaded atomically');
+
+  const replicatedPhysical=await evaluate(b,`(async()=>{
+    const {db,sync,user}=await ${modules};
+    const ops=await import('./src/lib/operations.js');
+    const result=await sync.reconcilePlainCloudWorkspace(user.uid);
+    const vault=(await db.getPlainWorkspace()).payload;
+    const balance=ops.inventoryBalances(vault.savedItems,vault.inventoryMovements)
+      .find(row=>row.item.id==='firebase-qa-stock-item')?.quantity;
+    return {result,balance,invoice:vault.documents.some(d=>d.number==='INV-QA-STOCK-0001'),
+      credit:vault.documents.some(d=>d.number==='CN-QA-STOCK-0001'),
+      debit:vault.inventoryMovements.filter(m=>m.sourceNumber==='INV-QA-STOCK-0001'&&m.type==='issue').length,
+      receipts:vault.inventoryMovements.filter(m=>m.salesReturn?.creditNoteId===vault.documents.find(d=>d.number==='CN-QA-STOCK-0001')?.id).length};
+  })()`);
+  assert.equal(replicatedPhysical.result,'pulled');assert.equal(replicatedPhysical.balance,'7.5');
+  assert.equal(replicatedPhysical.invoice,true);assert.equal(replicatedPhysical.credit,true);
+  assert.equal(replicatedPhysical.debit,1);assert.equal(replicatedPhysical.receipts,1);
+  console.log('PASS real Firebase browser B: issued debit and partial return reconstruct exactly once on second device');
+
 }finally{
   for(const c of sessions){try{c.close();}catch{}}
   for(const child of running){try{child.kill('SIGTERM');}catch{}}
