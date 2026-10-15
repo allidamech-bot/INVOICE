@@ -53,14 +53,16 @@ const cases=[
       const template=document.querySelector('.editor-section .template-thumbnails')||document.querySelector('[class*=template-thumbnails]');
       const approval=design?.querySelector('.appearance-toggles');
       const bank=design?.querySelector('select');
-      const all=document.querySelectorAll('.editor-screen .appearance-toggles');
-      return {headings,sectionContents:sections.map(el=>el.innerText?.slice(0,55)),approvalCount:all.length,bank:!!bank,bankFont:bank?parseFloat(getComputedStyle(bank).fontSize):0,hasApproval:!!approval,templateOrder:!!template?Boolean(design.compareDocumentPosition(template)&Node.DOCUMENT_POSITION_FOLLOWING):true,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth};
+      const all=document.querySelectorAll('.editor-document-elements .appearance-toggles');
+      const tableColumns=document.querySelectorAll('.editor-screen .appearance-table-columns');
+      return {headings,sectionContents:sections.map(el=>el.innerText?.slice(0,55)),approvalCount:all.length,columnControls:tableColumns.length,bank:!!bank,bankFont:bank?parseFloat(getComputedStyle(bank).fontSize):0,hasApproval:!!approval,templateOrder:!!template?Boolean(design.compareDocumentPosition(template)&Node.DOCUMENT_POSITION_FOLLOWING):true,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth};
     });
     const terms=result.headings.findIndex(x=>/Commercial Terms|الشروط التجارية/.test(x));
     const totals=result.headings.findIndex(x=>/Totals|الإجماليات/.test(x));
     const design=result.headings.findIndex(x=>/Design|التصميم/.test(x));
     assert.ok(terms>=0&&totals>terms&&design>totals,'section order '+key+' '+JSON.stringify(result.headings));
     assert.equal(result.approvalCount,1,'approval display toggles unique '+key);
+    assert.equal(result.columnControls,1,'separate HS/origin/packing table options preserved '+key);
     assert.equal(result.bank,true,'bank select before template '+key);
     assert.equal(result.hasApproval,true,'signature and stamp controls present '+key);
     assert.equal(result.templateOrder,true,'visual templates after approvals '+key);
