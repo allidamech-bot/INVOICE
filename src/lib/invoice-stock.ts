@@ -171,8 +171,10 @@ export function assertPostedInvoiceStockDocumentIntegrity(
     const invoice=documents.find(doc=>doc.id===invoiceId);
     if(!invoice)throw new Error('Posted stock references a missing invoice.');
     if(invoice.kind!=='invoice'||invoice.role!=='standard'
-      ||invoice.status!=='final'||invoice.lifecycleStatus==='voided')
-      fail('Posted stock must reference an active final sales invoice.','حركة المخزون يجب أن ترتبط بفاتورة بيع نهائية وسارية.');
+      ||invoice.status!=='final')
+      fail('Posted stock must reference a final sales invoice.','حركة المخزون يجب أن ترتبط بفاتورة بيع نهائية.');
+    // Cancelled invoices retain the immutable original debit. The separate
+    // invoice-void proof validator guarantees its exact restoring receipt.
     const expected=new Set(invoice.items.filter(line=>line.stockTreatment==='tracked')
       .map(line=>movementId(invoice.id,line.id)));
     assertExistingInvoiceIssues(invoice,rows,expected,invoice.branchId||'main');
