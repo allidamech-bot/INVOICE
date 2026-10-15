@@ -21,7 +21,7 @@ import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, is
 import {assertInvoiceStockLedgerContinuity,assertPostedInvoiceStockDocumentIntegrity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
 import {validateManualMovementEvidence} from '../lib/inventory-evidence.js';
 import {assertSalesReturnIntegrity,assertSalesReturnLedgerContinuity,isSalesReturn,isSalesReturnCorrection} from '../lib/sales-returns.js';
-import {assertInvoiceVoidStockIntegrity,assertInvoiceVoidStockContinuity,isInvoiceVoidStockReceipt} from '../lib/invoice-void-stock.js';
+import {assertInvoiceVoidStockIntegrity,assertInvoiceVoidStockContinuity,assertInvoiceVoidDocumentContinuity,isInvoiceVoidStockReceipt} from '../lib/invoice-void-stock.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -631,6 +631,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertInvoiceStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertSalesReturnLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertInvoiceVoidStockContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  assertInvoiceVoidDocumentContinuity(base.documents,intended.documents,latest.documents,base.inventoryMovements);
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
