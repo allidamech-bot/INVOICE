@@ -14,11 +14,15 @@ const PERSONAL_TOOL_IDS=['reminder.prepare','message.prepare','task.create'];
 const ADVISOR_TOOL_IDS=Object.freeze(["customer.getSummary","customer.getReceivables","customer.getHistory","supplier.getSummary","product.getSummary","product.getCostHistory","document.get","purchase.get","finance.getSummary","treasury.getSnapshot","reports.getMetrics","inventory.getStatus","search.records","pricing.margin","pricing.markup","pricing.targetPrice","landedCost.calculate","scenario.calculate","fx.convertUsingRecordedRate","receivables.aging","breakEven.calculate","inventory.coverage"]);
 // Only Firebase's verified signing key can assign a scoped staff role.
 // A missing/malformed role in the request body is irrelevant.
+// Phase 1 is an owner-only account release. Staff roles cannot get signed
+// business mutation proposals before independent Firebase member identities,
+// per-record permissions, and a server-owned membership mapping exist.
 const ROLE_TOOL_IDS=Object.freeze({
-  owner:TOOL_IDS,admin:TOOL_IDS,
-  sales:[...ADVISOR_TOOL_IDS,'quotation.prepare','invoice.prepare','document.createDraft','document.updateDraft','customer.prepare','report.prepare'],
-  finance:[...ADVISOR_TOOL_IDS,'quotation.prepare','invoice.prepare','document.createDraft','document.updateDraft','report.prepare'],
-  purchasing:[...ADVISOR_TOOL_IDS,'supplier.prepare','purchase.prepare','product.updateMetadata','product.bulkUpdate','report.prepare'],
+  owner:TOOL_IDS,
+  admin:ADVISOR_TOOL_IDS,
+  finance:ADVISOR_TOOL_IDS,
+  sales:ADVISOR_TOOL_IDS,
+  purchasing:ADVISOR_TOOL_IDS,
   viewer:ADVISOR_TOOL_IDS
 });
 function plannerToolIds(scope,conversationMode,verifiedRole='viewer'){
@@ -27,7 +31,7 @@ function plannerToolIds(scope,conversationMode,verifiedRole='viewer'){
   if(conversationMode!=='controller')return scope==='personal'?[]:ADVISOR_TOOL_IDS;
   // High-impact accounting tools are never in TOOL_IDS. Server-side role
   // derives from the verified Firebase identity, not a selected UI operator.
-  if(scope==='personal')return verifiedRole==='viewer'?[]:PERSONAL_TOOL_IDS;
+  if(scope==='personal')return verifiedRole==='owner'?PERSONAL_TOOL_IDS:[];
   return ROLE_TOOL_IDS[verifiedRole]||ADVISOR_TOOL_IDS;
 }
 const TOOL_GUIDE={
