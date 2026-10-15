@@ -5,6 +5,7 @@ import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {createManualInventoryMovement} from '../dist/src/lib/operations.js';
 import {postIssuedInvoiceStock,assertInvoiceStockLedgerContinuity} from '../dist/src/lib/invoice-stock.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
+import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
 import {inventoryBalances} from '../dist/src/lib/operations.js';
 
 function fixture(stock='100'){
@@ -88,4 +89,20 @@ test('source-proof IDs are immutable, duplicate issue IDs and altered quantities
  assert.throws(()=>assertInvoiceStockLedgerContinuity(posted.inventoryMovements,
   posted.inventoryMovements.filter(m=>m.sourceId!==document.id),
   posted.inventoryMovements),/immutable/);
+});
+
+test('manual samples require both explicit reason and real PNG/PDF proof with valid bytes',()=>{
+ const {vault,item}=fixture();
+ const sample=createManualInventoryMovement(item,'issue','3',undefined,'Sample cartons approved for buyer', '','USD');
+ const png=Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]);
+ const proof={id:'evidence-sample',name:'signed-sample.png',mimeType:'image/png',size:png.length,dataUrl:'data:image/png;base64,'+png.toString('base64'),createdAt:new Date().toISOString()};
+ const complete={...sample,reasonCategory:'samples',createdBy:'owner',evidence:proof};
+ assert.throws(()=>validateManualMovementEvidence({...complete,note:''}),/written inventory movement reason/);
+ assert.throws(()=>validateManualMovementEvidence({...complete,evidence:undefined}),/PDF or image evidence/);
+ assert.throws(()=>validateManualMovementEvidence({...complete,evidence:{...proof,dataUrl:'data:image/png;base64,'+Buffer.from('not an image').toString('base64')}}),/content size|signature/);
+ assert.doesNotThrow(()=>validateManualMovementEvidence(complete));
+ const staged={...vault,inventoryMovements:[...vault.inventoryMovements,complete]};
+ const posted=mergeVaultIntent(vault,staged,vault);
+ assert.equal(balance(posted),'97');
+ assert.throws(()=>mergeVaultIntent(vault,{...vault,inventoryMovements:[...vault.inventoryMovements,sample]},vault),/written inventory movement reason/);
 });
