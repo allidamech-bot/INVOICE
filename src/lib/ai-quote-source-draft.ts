@@ -144,7 +144,6 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
   // An explicitly requested customer quotation may also originate from a
   // supplier offer. Supplier unitCost is NEVER silently copied to the selling
   // price: absent an explicit gross margin, every selling price stays blank.
-  const supplierSource=source.route==='supplier_purchase';
   const exactSource=typeof source.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.trim()
     ?source.quoteSheetCandidate:null;
   // A complete exact worksheet is authoritative *for row transfer*, regardless
@@ -161,6 +160,11 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
   const data=parsed as Record<string,unknown>,raw=data.items;
   if(!Array.isArray(raw)||raw.length===0||raw.length>AI_WORKING_QUOTE_MAX_LINES)throw new Error('SOURCE_INCOMPLETE: Quotation must contain 1–'+AI_WORKING_QUOTE_MAX_LINES+' complete lines. No rows omitted.');
   if(data.sourceRowCount!==undefined&&(!Number.isInteger(data.sourceRowCount)||data.sourceRowCount!==raw.length))throw new Error('SOURCE_INCOMPLETE: Extracted row count does not match the declared source rows. No partial quote staged.');
+  // An explicit acquisition-cost column is stronger evidence than the model's
+  // inferred document route. Even if a supplier worksheet is misclassified as
+  // a customer RFQ, its selling-price column must not become buyer pricing.
+  const hasCostColumn=Boolean(exactSource)&&raw.some(row=>row&&typeof row==='object'&&!Array.isArray(row)&&row.unitCostColumnPresent===true);
+  const supplierSource=source.route==='supplier_purchase'||hasCostColumn;
   const items=raw.map((value,index)=>{
     if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('SOURCE_INCOMPLETE: Invalid quotation row '+(index+1));
     const row=value as Record<string,unknown>;
