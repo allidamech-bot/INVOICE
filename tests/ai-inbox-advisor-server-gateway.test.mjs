@@ -144,10 +144,10 @@ test('Controller tool planner requires an explicit valid business scope for docu
 test('Only signed Firebase-derived role limits Controller planner capabilities; user role claims are ignored',async()=>{
  const cases=[
   ['owner',['document.createDraft','product.bulkUpdate','supplier.update','task.create'],[]],
-  ['admin',['document.createDraft','product.bulkUpdate'],[]],
-  ['sales',['document.createDraft','document.updateDraft'],['product.bulkUpdate','supplier.update']],
-  ['finance',['document.createDraft','invoice.prepare'],['product.bulkUpdate','supplier.update']],
-  ['purchasing',['product.updateMetadata','product.bulkUpdate'],['document.createDraft','customer.update']],
+  ['admin',['document.get','finance.getSummary'],['document.createDraft','product.bulkUpdate','supplier.update','task.create']],
+  ['sales',['document.get','finance.getSummary'],['document.createDraft','document.updateDraft','product.bulkUpdate','supplier.update','task.create']],
+  ['finance',['document.get','finance.getSummary'],['document.createDraft','invoice.prepare','product.bulkUpdate','supplier.update','task.create']],
+  ['purchasing',['document.get','finance.getSummary'],['product.updateMetadata','product.bulkUpdate','document.createDraft','customer.update','task.create']],
   ['viewer',['document.get','finance.getSummary'],['document.createDraft','product.bulkUpdate','navigation.open','task.create']],
   ['untrusted',['document.get'],['document.createDraft','product.bulkUpdate','task.create']]
  ];
@@ -180,4 +180,14 @@ test('Temporary scope and Advisor remain read-only even for verified owner',asyn
  const gateway=makeGateway(plan('document.createDraft'),'owner');
  const result=await gateway.request({scope:'business',conversationMode:'advisor',message:'Create'});
  assert.equal(result.statusCode,422);
+});
+
+test('Owner-only release refuses personal task mutations for non-owner signed claims',async()=>{
+ for(const verifiedRole of ['viewer','sales','finance','purchasing','admin','untrusted']){
+  const gateway=makeGateway(plan('task.create'),verifiedRole);
+  const result=await gateway.request({scope:'personal',conversationMode:'controller',message:'Schedule'});
+  assert.equal(result.statusCode,200,'Empty personal scope must return harmless plan for '+verifiedRole);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.body.plan.calls)),[]);
+  assert.equal(gateway.requests.length,0,'Non-owner personal scope must not call provider for '+verifiedRole);
+ }
 });
