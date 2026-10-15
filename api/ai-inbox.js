@@ -13,6 +13,9 @@ const PERSONAL_TOOL_IDS=['reminder.prepare','message.prepare','task.create'];
 // Server-owned strict read/calculate allowlist. Client filters and model prompts are NOT authorization.
 const ADVISOR_TOOL_IDS=Object.freeze(["customer.getSummary","customer.getReceivables","customer.getHistory","supplier.getSummary","product.getSummary","product.getCostHistory","document.get","purchase.get","finance.getSummary","treasury.getSnapshot","reports.getMetrics","inventory.getStatus","search.records","pricing.margin","pricing.markup","pricing.targetPrice","landedCost.calculate","scenario.calculate","fx.convertUsingRecordedRate","receivables.aging","breakEven.calculate","inventory.coverage"]);
 function plannerToolIds(scope,conversationMode){
+  // Missing, unknown and temporary scopes cannot stage business mutations.
+  // This check is enforced server-side even when a request claims Controller.
+  if(scope!=='business'&&scope!=='personal')return ADVISOR_TOOL_IDS;
   if(conversationMode!=='controller')return scope==='personal'?[]:ADVISOR_TOOL_IDS;
   // Model output is only a proposal, never approval. Omit high-impact
   // accounting tools at the API boundary, not only in the browser.
@@ -51,7 +54,7 @@ function cleanToolPlannerSources(raw){
   }).filter(row=>row.fileName);
 }
 async function handleToolPlan(body,response){
-  const message=cleanText(body?.message,6000),scope=body?.scope==='personal'?'personal':body?.scope==='temporary'?'temporary':'business',screen=cleanText(body?.screen,30),entityType=cleanText(body?.entity?.type,30),entityId=cleanText(body?.entity?.id,120),entityLabel=cleanText(body?.entity?.label,160);
+  const message=cleanText(body?.message,6000),scope=body?.scope==='business'?'business':body?.scope==='personal'?'personal':'temporary',screen=cleanText(body?.screen,30),entityType=cleanText(body?.entity?.type,30),entityId=cleanText(body?.entity?.id,120),entityLabel=cleanText(body?.entity?.label,160);
   if(String(body?.workingMemory||'').length>36000){sendJson(response,400,{code:'INVALID_CONTEXT',message:'Working context exceeds safe limits. No rows were omitted.'});return;}
   const workingMemory=String(body?.workingMemory||'');
   const sourceFacts=cleanToolPlannerSources(body?.sources);
