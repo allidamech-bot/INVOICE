@@ -380,3 +380,40 @@ test('multiple supplier offers require explicit one-quote instruction and reject
   assert.throws(()=>quoteSourceWorkingDraft([a,supplierSource(9,'vendor-b.pdf','EUR')],runtime(vault),'ادمج الملفين في عرض سعر موحد'),/different currency/);
   assert.deepEqual(vault.documents,[]);
 });
+
+
+test('B1 source quote allows deterministic edits and removal of line 120 without touching the vault',()=>{
+  const vault=emptyVault(),before=structuredClone(vault);
+  const draft=quoteSourceWorkingDraft([supplierSource(120)],runtime(vault),withMargin);
+  assert.equal(draft.items.length,120,'maximum supported source must stay complete');
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,draft);
+  const drafting=workspaceDrafting(vault);
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'غيّر سعر البند ١٢٠ إلى 15',drafting,'ar').changed,true);
+  assert.equal(kernel.artifact.proposal.items[119].unitPrice,'15');
+  assert.equal(kernel.artifact.proposal.items[118].unitPrice,'12.50');
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'change price line 100 to 14',drafting,'en').changed,true);
+  assert.equal(kernel.artifact.proposal.items[99].unitPrice,'14');
+  const invalid=structuredClone(kernel);
+  const outside=reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'غيّر سعر البند 121 إلى 5',drafting,'ar');
+  assert.equal(outside.changed,false,'never redirect an out-of-range row to an arbitrary line');
+  assert.deepEqual(kernel,invalid);
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'undo',drafting,'en').changed,true);
+  assert.equal(kernel.artifact.proposal.items[99].unitPrice,'12.50');
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'redo',drafting,'en').changed,true);
+  assert.equal(kernel.artifact.proposal.items[99].unitPrice,'14');
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'احذف البند رقم ١٢٠',drafting,'ar').changed,true);
+  assert.equal(kernel.artifact.proposal.items.length,119);
+  assert.equal(kernel.artifact.proposal.items.at(-1).descriptionEn,'Supplier product 119');
+  assert.equal(reviseKernelDraft(kernel,kernel.artifact.proposal,
+    'undo',drafting,'ar').changed,true);
+  assert.equal(kernel.artifact.proposal.items.length,120);
+  assert.equal(kernel.artifact.proposal.items.at(-1).descriptionEn,'Supplier product 120');
+  assert.deepEqual(vault,before,'in-chat operations must never save or mutate accounting data');
+});
