@@ -89,6 +89,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html >/dev/null
           node tests/visual/run-controller-supplier-quote-journey.cjs
+          node tests/visual/run-controller-supplier-cost-xlsx.cjs
 
   firestore-emulator:
     name: Real Firestore rules and two-device transaction tests (emulator only)
