@@ -40,6 +40,21 @@ export function requestedStoredQuotationNumber(message:string):string|null{
    .map(row=>row[0]!.toUpperCase());
  return ids.length===1?ids[0]!:null;
 }
+/** Fixed-size change fingerprint. This is NOT an authorization signature;
+ * the signed Foundation approval separately compares the complete business
+ * baseline at the instant of the write. Avoid embedding attached PDF bytes or
+ * customer records verbatim in tool approval arguments. */
+function evidenceFingerprint(value:unknown):string{
+ const data=JSON.stringify(value);let a=0x811c9dc5,b=0x9747b28c,c=0x85ebca6b,d=0xc2b2ae35;
+ for(let i=0;i<data.length;i++){
+   const ch=data.charCodeAt(i);
+   a=Math.imul(a^ch,16777619)>>>0;
+   b=Math.imul(b+ch,2246822519)>>>0;
+   c=Math.imul(c^(ch+i),3266489917)>>>0;
+   d=Math.imul(d+(ch^i),668265263)>>>0;
+ }
+ return data.length.toString(16)+'-'+[a,b,c,d].map(n=>n.toString(16).padStart(8,'0')).join('');
+}
 function verifiedSource(vault:VaultPayload,number:string) {
  const scoped=scopeVault(vault);
  const workspaceId=vault.appSettings.activeWorkspaceId||'default';
@@ -78,7 +93,7 @@ function verifiedSource(vault:VaultPayload,number:string) {
  const preset=paymentTermPresetById(scoped.company,invoice.paymentTermPresetId)||
    paymentTermPresetByLabel(scoped.company,invoice.terms.paymentTerms);
  if(preset)invoice=applyPaymentTermPreset(invoice,preset);
- const signature=JSON.stringify({
+ const signature=evidenceFingerprint({
    source,allDocuments:scoped.documents.map(doc=>[doc.id,doc.number,doc.convertedFromId,doc.status,doc.lifecycleStatus]),
    orders:scoped.documentEvents,customer:scoped.customers.find(row=>row.id===customerId),
    company:scoped.company,numbering:scoped.appSettings.numbering
