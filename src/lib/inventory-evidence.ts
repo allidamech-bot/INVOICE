@@ -2,8 +2,10 @@ import type {DocumentAttachment,InventoryMovementRecord} from '../types.js';
 import {makeId} from './id.js';
 
 /**
- * Evidence is stored with the account-encrypted workspace record, not on a
- * public bucket/CDN. Do not accept arbitrary remote URLs or inline SVG/HTML.
+ * Evidence is stored in the authenticated account's UID-scoped Firestore
+ * workspace record, not on a public bucket/CDN. The PIN-free workspace is
+ * JSON/base64 and is NOT client-side encrypted; Firestore owner rules are required.
+ * Do not accept arbitrary remote URLs or inline SVG/HTML.
  */
 const MAX_BYTES=2*1024*1024;
 const FILE_TYPES=new Set(['application/pdf','image/png','image/jpeg','image/webp','image/heic','image/heif']);
