@@ -23,8 +23,8 @@ function quantityOrPriceChange(input:string):{index:number;field:'quantity'|'uni
   const field='(?:سعر|السعر|كمية|الكمية|price|quantity|qty)';
   const row='(?:الصنف|صنف|البند|بند|item|line)';
   const head='(?:غيّر|غير|عدّل|عدل|اجعل|خلي|خلّي|change|set|update)';
-  const a=new RegExp('^'+head+'\\s+('+field+')\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
-  const b=new RegExp('^'+head+'\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s+('+field+')\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
+  const a=new RegExp('^'+head+'\\s+('+field+')\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*[A-Z]{3})?)$','iu');
+  const b=new RegExp('^'+head+'\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s+('+field+')\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*[A-Z]{3})?)$','iu');
   const matchA=input.match(a),matchB=matchA?null:input.match(b);
   if(!matchA&&!matchB)return null;
   const rawField=String(matchA?matchA[1]:matchB![2]);
