@@ -1424,3 +1424,85 @@ html body #root .app-ui .ta-ops-callout{display:flex;flex-wrap:wrap;align-items:
   html body .lourex-ios-output-card .lourex-ios-output-primary{background:var(--lx485-blue-strong,#315fad)!important;border-color:var(--lx485-blue-strong,#315fad)!important;color:#fff!important;}
   html body .lourex-ios-output-card .lourex-ios-output-secondary{background:var(--lx485-surface-2,#172d45)!important;border-color:var(--lx485-line-strong,rgba(145,190,247,.34))!important;color:var(--lx485-text,#f7faff)!important;}
 }
+
+/* v605 — iPhone manual product Add/Edit sheet.
+   The v320 <=1040px fallback sets the inner scroll to overflow:visible,
+   while v363 creates an 84svh bottom sheet above a persistent navigation dock.
+   Give the active editor a viewport-owned pane and a single vertical scroller.
+   Scope to mobile only; leave desktop product library and other modals intact. */
+@media screen and (max-width:900px){
+  html body #root .app-ui .ta-shell:has(.ta-product-editor.is-open){
+    padding-bottom:0!important;
+  }
+  html body #root .app-ui .ta-shell:has(.ta-product-editor.is-open)>.ta-main{
+    position:relative!important;
+    z-index:var(--lourex-z-sheet,1140)!important;
+  }
+  html body #root .app-ui .ta-shell:has(.ta-product-editor.is-open)>.ta-mobile-nav{
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+  html body #root .app-ui .ta-product-layout:has(>.ta-product-editor.is-open)::before{
+    z-index:calc(var(--lourex-z-sheet,1140) - 1)!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open{
+    position:fixed!important;
+    inset:max(8px,env(safe-area-inset-top,0px))
+          max(8px,env(safe-area-inset-right,0px))
+          max(8px,env(safe-area-inset-bottom,0px))
+          max(8px,env(safe-area-inset-left,0px))!important;
+    width:auto!important;
+    max-width:none!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    z-index:var(--lourex-z-sheet,1140)!important;
+    border-radius:18px!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open>.ta-product-editor-header,
+  html body #root .app-ui .ta-product-editor.is-open>.ta-product-editor-footer{
+    flex:0 0 auto!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open>.ta-product-editor-header{
+    min-height:62px!important;
+    padding:10px 12px!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open>.ta-product-editor-scroll{
+    display:block!important;
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    touch-action:pan-y!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
+    scroll-padding-block:12px 24px!important;
+    padding:12px!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open>.ta-product-editor-footer{
+    min-height:66px!important;
+    padding:10px 12px max(10px,env(safe-area-inset-bottom,0px))!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open .ta-product-editor-section>header strong{
+    font-size:13px!important;
+    line-height:1.5!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open .ta-product-form-grid :is(.field-label,.field>label){
+    font-size:13px!important;
+    line-height:1.5!important;
+  }
+  html body #root .app-ui .ta-product-editor.is-open :is(input,select,textarea){
+    font-size:16px!important;
+  }
+  /* iOS Safari shrinks visualViewport when the keyboard opens. Use the
+     AppShell-measured visible viewport, not the obscured full-height screen. */
+  html body #root .app-ui .ta-shell[data-editor-viewport-constrained="true"] .ta-product-editor.is-open{
+    top:var(--lx-editor-viewport-top,8px)!important;
+    bottom:auto!important;
+    height:var(--lx-editor-viewport-height,calc(100dvh - 16px))!important;
+    max-height:var(--lx-editor-viewport-height,calc(100dvh - 16px))!important;
+  }
+}
