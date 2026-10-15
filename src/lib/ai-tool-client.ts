@@ -57,7 +57,7 @@ function requestedDocumentKind(message:string):'proforma'|'invoice'|null{
     const after=q.slice(match.index+match[0].length,match.index+match[0].length+90);
     // "prepare a preview of invoice" is a preview request, not authorization
     // to create a durable document even when the planner selected PREPARE.
-    if(/^\s*(?:(?:me|an?|the|a|new|draft|لي|مسودة)\s+){0,4}(?:preview|معاينة)\b/iu.test(after))continue;
+    if(/^\s*(?:(?:me|an?|the|a|new|draft|لي|مسودة)\s+){0,4}(?:preview\b|معاينة)(?:\s|$)/iu.test(after))continue;
     const found=after.match(target);
     if(found)return /^(?:invoice|فاتورة)$/iu.test(found[1]!)?'invoice':'proforma';
   }
