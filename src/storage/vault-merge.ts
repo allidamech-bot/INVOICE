@@ -374,6 +374,35 @@ function guardNewWarehouseTransfers(base:VaultPayload,intended:VaultPayload,late
   }
 }
 
+/**
+ * A company-wide positive quantity must not conceal an overdrawn warehouse.
+ * Replay NEW debits against the latest location ledger, including concurrent
+ * transfers and invoice postings from other devices.
+ */
+function guardNewWarehouseDebits(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
+  if(intended.inventoryMovements===base.inventoryMovements)return;
+  const previous=new Set(base.inventoryMovements.map(row=>row.id));
+  const remote=new Set(latest.inventoryMovements.map(row=>row.id));
+  const ledger=[...latest.inventoryMovements];
+  for(const movement of intended.inventoryMovements){
+    if(previous.has(movement.id))continue;
+    if(remote.has(movement.id))throw new Error('Concurrent inventory movement already exists. Refresh before posting.');
+    if(!inventoryMovementAccountingIsValid(movement))
+      throw new Error('New inventory movement has invalid quantities or origin.');
+    if(movement.type!=='transfer'){
+      const delta=movementQuantity(movement);
+      if(delta<0n){
+        const fallback=defaultWarehouseId(movement.branchId||latest.appSettings.activeBranchId);
+        const source=movement.fromWarehouseId||fallback;
+        const available=warehouseItemQuantity(movement.itemId,source,ledger,fallback);
+        if(-delta>available)
+          throw new Error('Insufficient stock at the selected warehouse after concurrent changes.');
+      }
+    }
+    ledger.push(movement);
+  }
+}
+
 function guardSavedItemInventoryRemoval(base:VaultPayload,intended:VaultPayload,purchases:PurchaseRecord[],movements:InventoryMovementRecord[]):void{
   if(intended.savedItems===base.savedItems)return;
   const intendedIds=new Set(intended.savedItems.map(item=>item.id));
@@ -436,6 +465,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     guardPurchaseState(merged,purchases,movements,savedItems);
   }
   guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
+  guardNewWarehouseDebits(base,intended,latest);
   const touchedItems=guardNewManualMovements(base,intended,movements,savedItems);
   for(const id of affectedPurchases){const purchase=purchases.find(item=>item.id===id);for(const line of purchase?.items??[])if(line.savedItemId)touchedItems.add(line.savedItemId);}
   for(const itemId of touchedItems){
