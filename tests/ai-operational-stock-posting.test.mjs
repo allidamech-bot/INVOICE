@@ -63,17 +63,15 @@ test('Physical inventory issue parser cannot combine stock with documents or sil
  assert.equal(parseAiStockIssueRequest('جهّز صرف المخزون لسند '+f.note.number),null);
  assert.throws(()=>parseAiStockIssueRequest(cmd(f.note,f.warehouse,'SKU-A,SKU-A')),/distinct SKU/);
 });
-test('Controller prepares complete warehouse before/after review, Advisor cannot stage stock issue',async()=>{
- const f=fixture(),before=structuredClone(f.vault),q=cmd(f.note,f.warehouse);
- const controller=await orchestrateAiToolRequest({message:q,vault:f.vault,context:ctx('controller'),language:'ar'});
- assert.equal(controller?.plannedBy,'local');
- assert.equal(controller?.proposal?.tool,'sales.issueConfirmedStock');
- assert.equal(controller.proposal.args.lineCount,2);
- assert.match(controller.proposal.preview.join('\n'),/Stock: 10 → 6/);
- assert.match(controller.proposal.preview.join('\n'),/Stock: 7 → 5/);
- const advisor=await orchestrateAiToolRequest({message:q,vault:f.vault,context:ctx('advisor'),language:'ar'});
- assert.equal(advisor?.proposal?.tool==='sales.issueConfirmedStock',false);
- assert.deepEqual(f.vault,before);
+test('Controller and Advisor do not stage retired direct Delivery Note stock deductions',async()=>{
+ const f=fixture(),before=structuredClone(f.vault),request=cmd(f.note,f.warehouse);
+ for(const mode of ['controller','advisor']){
+  const response=await orchestrateAiToolRequest({message:request,vault:f.vault,context:ctx(mode),language:'ar'});
+  assert.notEqual(response?.proposal?.tool,'sales.issueConfirmedStock');
+  assert.equal(response?.proposal??null,null);
+  if(mode==='controller')assert.match(response?.answer||'',/إيقاف الصرف المنفصل|فاتورة البيع النهائية/);
+ }
+ assert.deepEqual(f.vault,before,'Retired commands must never mutate stock, documents or payments');
 });
 test('One authorized stock issue deducts only confirmed quantities and no invoice/payment',()=>{
  const f=fixture(),before=structuredClone(f.vault);
@@ -98,27 +96,22 @@ test('Stale balance, missing SKU, incorrect warehouse and excess stock requests 
  assert.throws(()=>prepareAiSalesStockIssue(f.vault,{deliveryNoteNumber:f.note.number,warehouseCode:f.warehouse.code,skus:['SKU-A','NOT-FOUND']}));
  assert.throws(()=>prepareAiSalesStockIssue(f.vault,{deliveryNoteNumber:f.note.number,warehouseCode:'OTHER',skus:['SKU-A','SKU-B']}));
 });
-test('Only owner/admin can authorize stock posting with exact unmodified envelope',async()=>{
+test('Retired direct DN stock deductions are unapprovable for every role and rejected by executor',async()=>{
  const f=fixture(),review=prepareAiSalesStockIssue(f.vault,parseAiStockIssueRequest(cmd(f.note,f.warehouse)));
  const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'inventory-issue'};
  const proposal={capability:'tool.execute',tool:'sales.issueConfirmedStock',args:review,
-  label:'Warehouse stock issue',rationale:'Actual confirmed delivery and physical warehouse'};
- for(const role of ['owner','admin']){
-  const vault={...f.vault,teamMembers:[{...f.vault.teamMembers[0],role}]};
-  assert.equal(foundationActionAllowed(vault,proposal,scope),true);
-  const signed={...proposal,foundationApproval:prepareFoundationApproval(vault,proposal,scope)};
-  assert.doesNotThrow(()=>assertFoundationApproval(vault,signed));
-  assert.throws(()=>assertFoundationApproval(vault,{...signed,args:{...review,warehouseCode:'DIFFERENT'}}),/payload changed/);
- }
- for(const role of ['sales','viewer','purchasing']){
+  label:'Retired direct warehouse stock issue',rationale:'Historical delivery note'};
+ for(const role of ['owner','admin','finance','sales','viewer','purchasing']){
   const vault={...f.vault,teamMembers:[{...f.vault.teamMembers[0],role}]};
   assert.equal(foundationActionAllowed(vault,proposal,scope),false);
+  assert.throws(()=>prepareFoundationApproval(vault,proposal,scope),/cannot approve/);
  }
- const source=await readFile(new URL('../src/lib/ai-tool-actions.ts',import.meta.url),'utf8');
- assert.match(source,/A signed and explicit inventory-deduction approval is required/);
- assert.match(source,/applyAiSalesStockIssue\(vault,review\)/);
+ const permissions=await readFile(new URL('../src/lib/ai-foundation-approval.ts',import.meta.url),'utf8');
+ assert.match(permissions,/proposal.tool==='sales.issueConfirmedStock'\\)return false/);
+ const executor=await readFile(new URL('../src/lib/ai-tool-actions.ts',import.meta.url),'utf8');
+ assert.match(executor,/Separate Delivery Note stock deduction is retired/);
+ assert.doesNotMatch(executor,/applyAiSalesStockIssue\\(vault,review\\)/);
 });
-
 test('Wrong same-unit SKU cannot deduct a different delivered product',()=>{
  const f=fixture(),before=structuredClone(f.vault),request=parseAiStockIssueRequest(cmd(f.note,f.warehouse,'SKU-B,SKU-A'));
  assert.deepEqual(request.skus,['SKU-B','SKU-A']);
