@@ -40,6 +40,7 @@ test('iPhone picker beats late modal-body overflow rules with one bounded scroll
  const css=await read('src/styles/saved-items-picker-v232.css');
  const section=css.split('/* UX rehab A WebKit finding:')[1];
  assert.ok(section,'WebKit scroll containment must survive future cascade changes');
+ assert.match(section,/html body #root \.app-ui \.modal:has\(\.saved-items-shell\.is-picker\)\{[\s\S]*?height:calc\(var\(--modal-visual-height/);
  assert.match(section,/html body #root \.app-ui \.modal:has\(\.saved-items-shell\.is-picker\)>\.modal-body\{[\s\S]*?height:0!important[\s\S]*?overflow:hidden!important/);
  assert.match(section,/html body #root \.app-ui \.saved-items-shell\.is-picker \.saved-items-list\{[\s\S]*?flex:1 1 0!important[\s\S]*?overflow-y:auto!important/);
  assert.match(section,/touch-action:pan-y!important/);
