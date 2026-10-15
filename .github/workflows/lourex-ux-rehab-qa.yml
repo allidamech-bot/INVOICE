@@ -1,9 +1,6 @@
 name: LOUREX UX Rehabilitation QA
 
 on:
-  push:
-    branches:
-      - 'rehab/ux-workflows-*'
   pull_request:
     branches: [main]
     paths:
