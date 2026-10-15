@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<base href="../../dist/"/><link rel="stylesheet" href="styles/app.bundle.css"/>
+<script>
+const q=new URLSearchParams(location.search),ar=q.get('lang')==='ar';
+document.documentElement.lang=ar?'ar':'en';
+document.documentElement.dir=ar?'rtl':'ltr';
+document.documentElement.dataset.uiTheme='light';
+document.title='INV-QA-2026-010';
+document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('printing'));
+</script></head>
+<body><div id="root"><div class="app-root"><div class="app-ui"></div><div id="qa-output" class="print-portal"></div></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {TemplateRenderer} from './src/templates/TemplateRenderer.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany,customerSnapshotFrom} from './src/lib/defaults.js';
+import {blankCustomer} from './src/components/CustomersPage.js';
+import {calculateTotals} from './src/lib/money.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');
+const company=defaultCompany();
+company.nameEn='LOUREX Synthetic QA';
+company.nameAr='لوريكس اختبار اصطناعي';
+const buyer={...blankCustomer(),id:'qa-buyer',companyNameEn:'Synthetic Buyer',companyNameAr:'عميل تجريبي',country:'Türkiye',city:'Istanbul'};
+const doc=createBlankDocument('invoice','INV-QA-2026-010',company);
+doc.status='final';doc.language=ar?'ar':'en';
+doc.issueDate='2026-10-16';doc.dueDate='2026-10-30';
+doc.customerSnapshot=customerSnapshotFrom(buyer);
+doc.items=[
+ {...doc.items[0],id:'qa-line-1',descriptionEn:'Synthetic valve assembly',descriptionAr:'مجموعة صمام تجريبية',unit:'PCS',quantity:'2',unitPrice:'125.00'},
+ {...doc.items[0],id:'qa-line-2',descriptionEn:'Synthetic fitting',descriptionAr:'وصلة تجريبية',unit:'PCS',quantity:'1',unitPrice:'75.00'}
+];
+doc.adjustments={...doc.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:true,taxPercent:'10'};
+doc.appearance={...doc.appearance,templateId:'obsidian',showBank:true,showSignature:false,showStamp:false};
+window.qaPrintable={number:doc.number,currency:doc.currency,totals:calculateTotals(doc.items,doc.adjustments),itemCount:doc.items.length};
+ReactDOM.render(React.createElement(TemplateRenderer,{document:doc,scale:1}),document.getElementById('qa-output'));
+</script></body></html>
