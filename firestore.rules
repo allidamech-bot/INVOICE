@@ -4,6 +4,24 @@ service cloud.firestore {
     function shareTokenValid(shareId) {
       return shareId.matches('^[A-Za-z0-9_-]{43}$');
     }
+    // Role claims can only originate from Firebase Admin SDK. In contrast,
+    // the workspace's locally selected operator is untrusted for cloud ACLs.
+    // Until separately authenticated team memberships exist, the entire
+    // plaintext workspace document must ONLY be writable by its signed-in
+    // Firebase owner, never by a signed finance/sales/purchasing staff claim.
+    // Existing single-UID accounts have no custom role claim and remain owner.
+    function businessAccount() {
+      return request.auth != null
+        && request.auth.token.firebase is map
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function trustedWorkspaceWriter() {
+      return businessAccount()
+        && (!('lourexAiRole' in request.auth.token)
+          || request.auth.token.lourexAiRole == 'owner')
+        && (!('lourexWorkspaceUid' in request.auth.token)
+          || request.auth.token.lourexWorkspaceUid == request.auth.uid);
+    }
     function ownerCreate() {
       return request.auth != null && request.resource.data.ownerUid == request.auth.uid;
     }
@@ -28,12 +46,15 @@ service cloud.firestore {
     }
 
     match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId && businessAccount();
+      // A verified viewer/invalid employee claim cannot mutate the plaintext
+      // workspace manifest, vault chunks, or history by bypassing the client.
+      allow write: if request.auth != null && request.auth.uid == userId && trustedWorkspaceWriter();
     }
 
     match /publicShares/{shareId} {
       allow create: if shareTokenValid(shareId)
-        && ownerCreate()
+        && ownerCreate() && trustedWorkspaceWriter()
         && request.resource.data.format == 'LOUREX_SECURE_SHARE_V1'
         && request.resource.data.version == 1
         && request.resource.data.documentId is string
@@ -45,8 +66,8 @@ service cloud.firestore {
         && request.resource.data.customerComment == '';
       allow get: if shareTokenValid(shareId) && (ownerExisting() || (anonymousPortal() && shareActive()));
       allow list: if ownerExisting();
-      allow update: if ownerExisting() || portalUpdateIsSafe();
-      allow delete: if ownerExisting();
+      allow update: if (ownerExisting() && trustedWorkspaceWriter()) || portalUpdateIsSafe();
+      allow delete: if ownerExisting() && trustedWorkspaceWriter();
     }
 
     match /{document=**} {

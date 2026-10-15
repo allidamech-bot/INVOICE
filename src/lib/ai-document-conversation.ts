@@ -1,5 +1,6 @@
 import type {AiDocumentDraftProposal,AiDocumentUpdateProposal,AiDraftItemInput,AiContextEnvelope} from '../components/AiCopilot.js';
 import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
+import {requestedSourceMarkup, sellingPriceForMarkup} from './ai-quote-source-draft.js';
 
 type Proposal=AiDocumentDraftProposal|AiDocumentUpdateProposal;
 type DraftReference=AiContextEnvelope['drafting'];
@@ -22,15 +23,15 @@ function quantityOrPriceChange(input:string):{index:number;field:'quantity'|'uni
   const field='(?:سعر|السعر|كمية|الكمية|price|quantity|qty)';
   const row='(?:الصنف|صنف|البند|بند|item|line)';
   const head='(?:غيّر|غير|عدّل|عدل|اجعل|خلي|خلّي|change|set|update)';
-  const a=new RegExp('^'+head+'\\s+('+field+')\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,2})\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
-  const b=new RegExp('^'+head+'\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,2})\\s+('+field+')\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*(?:USD|EUR|SAR|TRY))?)$','iu');
+  const a=new RegExp('^'+head+'\\s+('+field+')\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*[A-Z]{3})?)$','iu');
+  const b=new RegExp('^'+head+'\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s+('+field+')\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*[A-Z]{3})?)$','iu');
   const matchA=input.match(a),matchB=matchA?null:input.match(b);
   if(!matchA&&!matchB)return null;
   const rawField=String(matchA?matchA[1]:matchB![2]);
   return{index:Number(latinDigits(String(matchA?matchA[2]:matchB![1]))),field:/سعر|price/i.test(rawField)?'unitPrice':'quantity',value:String(matchA?matchA[3]:matchB![3])};
 }
 function removeLineIndex(input:string):number|null{
-  const match=input.match(/^(?:احذف|أحذف|امسح|remove|delete)\s+(?:الصنف|صنف|البند|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,2})$/iu);
+  const match=input.match(/^(?:احذف|أحذف|امسح|remove|delete)\s+(?:الصنف|صنف|البند|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,3})$/iu);
   return match?Number(latinDigits(match[1]!)):null;
 }
 function parseAddedLine(input:string):{name:string;quantity:string;unitPrice:string;unit:string;sku:string}|null{
@@ -79,10 +80,67 @@ function setLineValue(proposal:Proposal,drafting:DraftReference,index:number,fie
 /** Edits only a user-reviewed proposal, never the vault. A new command with
  * unsupported syntax returns null so other business requests retain normal routing. */
 function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,drafting:DraftReference,language:'en'|'ar'):StagedDocumentRevision|null{
-  const input=String(message||'').trim().slice(0,6000);if(!input)return null;
+  const input=String(message||'').trim().slice(0,6000).replace(/^في\s+نفس\s+المسودة[،,]?\s*/iu,'');if(!input)return null;
   const ar=language==='ar';
   if(/^(?:موافق|اعتمد|احفظ|سجّل|سجل|approve|confirm|save|register)(?:\s+المسودة|\s+draft)?[.!؟\s]*$/iu.test(input))
     return rejected(proposal,ar?'الحفظ يتطلب الضغط على زر الموافقة؛ لا تنفّذ المحادثة الحفظ.':'Saving requires the approval button; a chat message cannot authorize persistence.',ar);
+  // Explicitly negated price changes must stop here, rather than falling
+  // through to a generative patch planner that could invert the instruction.
+  // This is a read-only refusal and never authorizes writing the vault.
+  const negatedReprice=/(?:^|[،,.;:]\s*)و?(?:لا\s*(?:تضف|تزيد|تزود|ترفع|تغير|تغيّر)|بدون\s*(?:إضافة|اضافة|زيادة|رفع)|don't\s+(?:add|increase|change)|do\s+not\s+(?:add|increase|change)|without\s+(?:adding|increasing))[\s\S]{0,65}(?:[%٪]|percent)[\s\S]{0,60}(?:الأسعار|الاسعار|السعر|prices?)/iu.test(input);
+  if(negatedReprice)return rejected(proposal,
+    'Price changes were explicitly negated; no working-draft line was modified.',ar);
+  // Currency is an essential quote fact, not decoration on a subtotal.
+  // A user can explicitly provide it for an unknown-currency source, but an
+  // already-priced draft cannot silently relabel USD values as EUR values.
+  const currencySelection=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\s+(?:العملة|عملة|currency)\s*(?:إلى|الى|to|=|:)?\s+(.{1,20})$/iu);
+  if(currencySelection){
+    if(proposal.capability!=='document.createDraft')
+      return rejected(proposal,'Change the currency of a saved draft using its reviewed document editor.',ar);
+    const code=currencySelection[1]!.trim();
+    if(!/^[A-Za-z]{3}$/.test(code))return rejected(proposal,'Specify exactly one three-letter currency code, such as USD or EUR.',ar);
+    const target=code.toUpperCase();
+    if(proposal.currency===target)return rejected(proposal,'The draft already uses '+target+'.',ar);
+    if(proposal.currency&&proposal.items.some(row=>String(row.unitPrice||'').trim()))
+      return rejected(proposal,'Changing currency would silently relabel existing prices without FX conversion. Start a new quotation or clear/review the priced rows.',ar);
+    return result({...proposal,currency:target},ar);
+  }
+  // Buyer selection uses only the exact unique customer in the CURRENT
+  // company. Never treat a supplier's identity or a model guess as a buyer.
+  const buyer=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\s+(?:العميل|عميل|customer|buyer)\s*(?:إلى|الى|to|=|:)?\s+(.{1,180})$/iu);
+  if(buyer){
+    if(proposal.capability!=='document.createDraft')return rejected(proposal,'Set the customer in the saved-document editor.',ar);
+    const normalized=(name:string)=>name.normalize('NFKC').replace(/[\u064b-\u065f\u0670]/gu,'').replace(/\s+/gu,' ').trim().toLocaleLowerCase();
+    const name=normalized(buyer[1]!);
+    const matches=drafting.customers.filter(row=>normalized(row.name)===name);
+    if(matches.length!==1)return rejected(proposal,matches.length
+      ?'Multiple customers share this exact name. Select the customer ID in the review.'
+      :'No exact saved customer matches this name in the active company. Select a customer in the review.',ar);
+    if(proposal.customerId===matches[0]!.id&&!proposal.customerDraft)
+      return rejected(proposal,'This customer is already selected.',ar);
+    return result({...proposal,customerId:matches[0]!.id,customerDraft:null},ar);
+  }
+  // Follow-up price increases are applied to the *existing complete working
+  // quotation*, never to the vault, the product catalogue, or a partial AI
+  // excerpt. One user turn creates exactly one undoable revision.
+  const markup=requestedSourceMarkup(input);
+  if(markup!==null&&/^(?:أضف|اضف|ضيف|زوّد|زود|زد|ارفع|زيادة|add|increase|markup)\s/iu.test(input)){
+    if(proposal.capability!=='document.createDraft')return rejected(proposal,
+      'Bulk repricing of a saved document is not available; use a separate reviewed document edit.',ar);
+    try{
+      // Validate ALL source prices before changing even the first row.
+      // Missing prices (common in imported supplier offers) must not turn
+      // into zero-cost or invented customer prices.
+      const previousPrices=proposal.items.map((row,index)=>{
+        const price=String(row.unitPrice||'').trim();
+        if(!/^(?:0|[1-9]\d{0,12})(?:\.\d{1,6})?$/.test(price))
+          throw new Error('Line '+(index+1)+' has no complete supported selling price. Set prices first; no line was changed.');
+        return price;
+      });
+      const items=proposal.items.map((row,index)=>({...row,unitPrice:sellingPriceForMarkup(previousPrices[index]!,markup)}));
+      return result({...proposal,items},ar);
+    }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
+  }
   const change=quantityOrPriceChange(input);
   if(change){
     try{

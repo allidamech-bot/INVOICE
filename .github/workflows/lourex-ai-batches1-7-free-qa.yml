@@ -20,6 +20,7 @@ on:
       - fix/ai-f13-unsaved-resume-integration-20261013
       - integration/ai-parallel-streams-safe-20261013
       - fix/ai-batch1-pr-reconciliation-f17-20261013
+      - fix/ai-controller-supplier-source-quote-20261015
   workflow_dispatch:
 
 permissions:
@@ -52,6 +53,45 @@ jobs:
       - name: Entire existing Node test suite
         run: node --test --test-concurrency=2 tests/*.test.mjs
 
+  controller-supplier-journey:
+    name: Controller supplier quote E2E — Chromium and WebKit
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout candidate without production access
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated browser test dependencies
+        run: npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0 http-server@14.1.1
+      - name: Build real Controller interface (no deployment)
+        run: npm run build
+      - name: Run supplier attachment through quotation, PDF, approval, storage and reload
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/http-server . -a 127.0.0.1 -p 4173 -c-1 >/tmp/lourex-controller-e2e.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html >/dev/null
+          node tests/visual/run-controller-stored-quote-invoice.cjs
+          node tests/visual/run-controller-supplier-quote-journey.cjs
+          node tests/visual/run-controller-supplier-cost-xlsx.cjs
+
   firestore-emulator:
     name: Real Firestore rules and two-device transaction tests (emulator only)
     # Independent isolated QA: run even when unrelated legacy Node contracts fail.
@@ -81,7 +121,7 @@ jobs:
       - name: Build application modules for transaction tests
         run: npm run build
       - name: Verify real Firestore owner rules and cross-device transactions
-        run: ./node_modules/.bin/firebase emulators:exec --only firestore --config firebase.ai-ci.json --project demo-lourex-ai-integration-719 "node --test tests/emulator/ai-history.test.mjs"
+        run: ./node_modules/.bin/firebase emulators:exec --only firestore --config firebase.ai-ci.json --project demo-lourex-ai-integration-719 "node --test --test-concurrency=1 tests/emulator/ai-history.test.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
 
   webkit-visual:
     name: Chromium/WebKit login, AI voice, conversation and PDF QA

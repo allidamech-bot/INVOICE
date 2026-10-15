@@ -10,7 +10,7 @@ const registry=read('src/lib/ai-tool-orchestrator.ts');
 
 // Exercise the real server planner implementation with a mocked model. Never
 // contact an AI provider, Firestore or a business account in these tests.
-function makeGateway(modelOutput){
+function makeGateway(modelOutput,verifiedRole='owner'){
   const offset=api.indexOf('export default async function handler(');
   assert.ok(offset>0,'Expected AI Inbox handler boundary');
   const source=api.slice(0,offset).replace(/^import .+;\s*$/gm,'');
@@ -28,7 +28,7 @@ function makeGateway(modelOutput){
       setHeader(key,value){this.headers[key]=value;},
       end(json){this.body=JSON.parse(json);},
     };
-    await policy.handleToolPlan(body,response);
+    await policy.handleToolPlan(body,response,verifiedRole);
     return response;
   }
   return{...policy,requests,request};
@@ -93,4 +93,101 @@ test('Controller retains legacy proposals for review; personal Advisor cannot ca
 test('Client explicitly transmits bounded conversation mode to server planner',()=>{
   assert.match(client,/mode:'tool-plan',conversationMode:runtime\.conversationMode==='controller'\?'controller':'advisor'/);
   assert.match(client,/validateAiToolPlan\(payload\?\.plan,runtime\.scope,runtime\.conversationMode\)/);
+});
+
+test('Controller server planner cannot expose high-impact accounting actions, regardless of signed user intent',async()=>{
+  for(const tool of ['document.finalize','payment.record','inventory.adjust','financial.delete','accounting.post']){
+    const gateway=makeGateway(plan(tool));
+    const reply=await gateway.request({message:'Record and post the requested business operation',scope:'business',conversationMode:'controller'});
+    assert.equal(reply.statusCode,422,tool+' must be rejected after model output');
+    assert.equal(reply.body.code,'NO_TOOL_PLAN');
+    assert.equal(gateway.requests.length,1);
+    const allowed=gateway.requests[0].schema.properties.calls.items.properties.tool.enum;
+    assert.equal(allowed.includes(tool),false,tool+' must not appear in provider schema');
+    assert.equal(gateway.requests[0].prompt.includes(tool+':'),false,tool+' must not appear in provider tool catalog');
+  }
+});
+test('Spoofed role, owner, UID or accounting permission in a tool-plan request cannot unlock protected tools',async()=>{
+  for(const role of ['owner','admin','finance','sales','superuser']){
+    const gateway=makeGateway(plan('accounting.post'));
+    const response=await gateway.request({message:'Post journal',scope:'business',
+      conversationMode:'controller',role,teamRole:role,permissions:['*'],
+      uid:'claimed-owner',context:{role,owner:true,accountId:'claimed-owner'}});
+    assert.equal(response.statusCode,422,role);
+    assert.equal(response.body.code,'NO_TOOL_PLAN');
+  }
+});
+
+test('Temporary scope, unknown scope and omitted scope are read-only even when caller claims Controller',async()=>{
+ for(const scope of ['temporary','unknown','',null,undefined]){
+  for(const tool of ['document.createDraft','document.updateDraft','product.bulkUpdate','task.create','navigation.open']){
+   const gateway=makeGateway(plan(tool));
+   const response=await gateway.request({message:'Create invoice',conversationMode:'controller',scope});
+   assert.equal(response.statusCode,422,String(scope)+' '+tool);
+   assert.equal(response.body.code,'NO_TOOL_PLAN');
+   assert.ok(gateway.requests.length===1);
+   const offered=gateway.requests[0].schema.properties.calls.items.properties.tool.enum;
+   assert.equal(offered.includes(tool),false,'No execute tool in temporary or unknown scope: '+tool);
+   assert.ok(offered.includes('document.get'),'Temporary chats retain safe read access');
+  }
+ }
+});
+test('Controller tool planner requires an explicit valid business scope for document proposals',async()=>{
+ const gateway=makeGateway(plan('document.createDraft'));
+ const rejected=await gateway.request({message:'Create a document',conversationMode:'controller'});
+ assert.equal(rejected.statusCode,422);
+ const permitted=await gateway.request({message:'Create a document',scope:'business',conversationMode:'controller'});
+ assert.equal(permitted.statusCode,200);
+ assert.equal(permitted.body.plan.calls[0].tool,'document.createDraft');
+});
+
+test('Only signed Firebase-derived role limits Controller planner capabilities; user role claims are ignored',async()=>{
+ const cases=[
+  ['owner',['document.createDraft','product.bulkUpdate','supplier.update','task.create'],[]],
+  ['admin',['document.get','finance.getSummary'],['document.createDraft','product.bulkUpdate','supplier.update','task.create']],
+  ['sales',['document.get','finance.getSummary'],['document.createDraft','document.updateDraft','product.bulkUpdate','supplier.update','task.create']],
+  ['finance',['document.get','finance.getSummary'],['document.createDraft','invoice.prepare','product.bulkUpdate','supplier.update','task.create']],
+  ['purchasing',['document.get','finance.getSummary'],['product.updateMetadata','product.bulkUpdate','document.createDraft','customer.update','task.create']],
+  ['viewer',['document.get','finance.getSummary'],['document.createDraft','product.bulkUpdate','navigation.open','task.create']],
+  ['untrusted',['document.get'],['document.createDraft','product.bulkUpdate','task.create']]
+ ];
+ for(const [verifiedRole,allowed,denied] of cases){
+  for(const tool of allowed){
+   const gateway=makeGateway(plan(tool),verifiedRole);
+   const result=await gateway.request({scope:'business',conversationMode:'controller',message:'Please do this',
+     role:'owner',isAdmin:true,operatorRole:'owner',permissions:['*'],
+     context:{owner:true,role:'owner',permissions:['*']}});
+   assert.equal(result.statusCode,200,verifiedRole+' should allow '+tool);
+   assert.equal(result.body.plan.calls[0].tool,tool);
+  }
+  for(const tool of denied){
+   const gateway=makeGateway(plan(tool),verifiedRole);
+   const result=await gateway.request({scope:'business',conversationMode:'controller',message:'Please do this',
+     role:'owner',isAdmin:true,operatorRole:'owner',permissions:['*']});
+   assert.equal(result.statusCode,422,verifiedRole+' cannot plan '+tool);
+   assert.equal(result.body.code,'NO_TOOL_PLAN');
+   const schemaTools=gateway.requests[0].schema.properties.calls.items.properties.tool.enum;
+   assert.equal(schemaTools.includes(tool),false,verifiedRole+' provider schema must omit '+tool);
+  }
+ }
+});
+test('Temporary scope and Advisor remain read-only even for verified owner',async()=>{
+ for(const scope of ['temporary','bad-scope']){
+  const gateway=makeGateway(plan('document.createDraft'),'owner');
+  const result=await gateway.request({scope,conversationMode:'controller',message:'Create'});
+  assert.equal(result.statusCode,422);
+ }
+ const gateway=makeGateway(plan('document.createDraft'),'owner');
+ const result=await gateway.request({scope:'business',conversationMode:'advisor',message:'Create'});
+ assert.equal(result.statusCode,422);
+});
+
+test('Owner-only release refuses personal task mutations for non-owner signed claims',async()=>{
+ for(const verifiedRole of ['viewer','sales','finance','purchasing','admin','untrusted']){
+  const gateway=makeGateway(plan('task.create'),verifiedRole);
+  const result=await gateway.request({scope:'personal',conversationMode:'controller',message:'Schedule'});
+  assert.equal(result.statusCode,200,'Empty personal scope must return harmless plan for '+verifiedRole);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.body.plan.calls)),[]);
+  assert.equal(gateway.requests.length,0,'Non-owner personal scope must not call provider for '+verifiedRole);
+ }
 });

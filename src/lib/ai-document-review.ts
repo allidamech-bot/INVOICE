@@ -42,6 +42,9 @@ function previewRows(items:AiDraftItemInput[],drafting:Drafting,currency:string,
 export function reviewAiDocumentProposal(proposal:AiDocumentDraftProposal|AiDocumentUpdateProposal,drafting:Drafting,language:'ar'|'en'):AiDocumentReview{
   const ar=language==='ar',blockers:string[]=[];
   if(proposal.capability==='document.createDraft'){
+    // An extracted source may omit its currency; never render a plausible PDF
+    // total with a blank currency even though final vault save is already gated.
+    if(!/^[A-Z]{3}$/.test(proposal.currency))blockers.push(ar?'حدّد عملة العرض برمز من ثلاثة أحرف قبل المعاينة أو الحفظ.':'Choose a three-letter quotation currency before PDF preview or saving.');
     const existing=drafting.customers.find(row=>row.id===proposal.customerId);
     const customer=existing?.name||proposal.customerDraft?.companyNameEn||proposal.customerDraft?.companyNameAr||'';
     if(!customer)blockers.push(ar?'حدد عميلًا مسجلًا أو قدم اسم عميل جديدًا.':'Select an existing customer or provide a new customer name.');

@@ -45,6 +45,26 @@ function parsePart(value){
   return JSON.parse(Buffer.from(value,'base64url').toString('utf8'));
 }
 
+const TRUSTED_AI_ROLES=new Set(['owner','admin','finance','sales','purchasing','viewer']);
+/**
+ * Account data currently lives exclusively under /users/{uid}; an individual
+ * signed-in Firebase identity owns only that UID. The owner fallback preserves
+ * existing single-account users; it does NOT authorize acting for another UID.
+ * A scoped employee role may ONLY come from a signed Firebase custom claim,
+ * never a selected operator ID, request body, uploaded file or model reply.
+ */
+function verifiedAiRole(payload){
+  if(payload.firebase?.sign_in_provider==='anonymous')throw new Error('Invalid Firebase ID token.');
+  const claim=payload.lourexAiRole;
+  if(claim===undefined)return 'owner';
+  if(typeof claim!=='string'||!TRUSTED_AI_ROLES.has(claim))throw new Error('Invalid Firebase ID token.');
+  // Shared team vaults require a dedicated server-side account membership
+  // architecture. Prevent a cross-UID claim from appearing to grant access.
+  if(payload.lourexWorkspaceUid!==undefined&&payload.lourexWorkspaceUid!==payload.sub)
+    throw new Error('Invalid Firebase ID token.');
+  return claim;
+}
+
 export async function verifyFirebaseIdToken(token){
   if(typeof token!=='string'||token.length<100||token.length>MAX_TOKEN_LENGTH)throw new Error('Invalid Firebase ID token.');
   const parts=token.split('.');
@@ -67,7 +87,7 @@ export async function verifyFirebaseIdToken(token){
     valid=verifySignature('RSA-SHA256',Buffer.from(`${encodedHeader}.${encodedPayload}`),createPublicKey({key:jwk,format:'jwk'}),Buffer.from(encodedSignature,'base64url'));
   }catch{throw new Error('Invalid Firebase ID token.');}
   if(!valid)throw new Error('Invalid Firebase ID token.');
-  return{uid:payload.sub};
+  return{uid:payload.sub,role:verifiedAiRole(payload)};
 }
 
 export async function requireAiFirebaseAuth(request,response){
@@ -83,6 +103,7 @@ export async function requireAiFirebaseAuth(request,response){
   try{
     const identity=await verifyFirebaseIdToken(match[1]);
     request.aiVerifiedUid=identity.uid;
+    request.aiVerifiedRole=identity.role;
     return true;
   }catch(error){
     const unavailable=error instanceof AuthVerifierUnavailable;

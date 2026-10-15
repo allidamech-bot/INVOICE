@@ -14,6 +14,8 @@ const HEADERS={
   quantity:new Set(['quantity','qty','order quantity','requested quantity','order qty','requested qty','quantity ordered','الكمية','الكمية المطلوبة','الكمية المطلوبة للطلب','عدد الكراتين']),
   unit:new Set(['unit','uom','unit of measure','order unit','الوحدة','وحدة القياس','وحدة الطلب']),
   unitPrice:new Set(['unit price','price per unit','price','selling price','السعر','سعر الوحدة','سعر البيع']),
+  // Cost evidence is never implicitly a customer selling price.
+  unitCost:new Set(['unit cost','purchase price','cost price','supplier price','buying price','purchase unit price','cost per unit','سعر الشراء','تكلفة الوحدة','سعر التكلفة','سعر المورد','التكلفة']),
   sku:new Set(['sku','item code','product code','code','كود','رمز الصنف','كود الصنف']),
   currency:new Set(['currency','العملة']),
 } as const;
@@ -40,7 +42,7 @@ function decimal(raw:string,positive:boolean,sheet:string,row:number):string{
 export interface DeterministicQuoteSheet{
   customerName:string;customerEmail:string;customerPhone:string;currency:string;
   incoterm:string;paymentTerms:string;deliveryTime:string;validity:string;remarks:string;notes:string;
-  items:{sku:string;descriptionEn:string;descriptionAr:string;quantity:string;unit:string;unitPrice:string;
+  items:{sku:string;descriptionEn:string;descriptionAr:string;quantity:string;unit:string;unitPrice:string;unitCost:string;unitCostColumnPresent:boolean;
     quantityConfidence:number;quantityAmbiguous:boolean;quantityNote:string;productConfidence:number;productNote:string}[];
   sourceRowCount:number;sheetCount:number;parser:'exact-spreadsheet-columns';
 }
@@ -66,7 +68,7 @@ export function exactSpreadsheetQuote(sheets:SpreadsheetSheet[]):DeterministicQu
       const row=sheet.matrix[i]||[];
       if(!row.some(value=>String(value??'').trim()))continue;
       const name=cell(row,map.name),sku=cell(row,map.sku);
-      const qty=cell(row,map.quantity),rawPrice=cell(row,map.unitPrice);
+      const qty=cell(row,map.quantity),rawPrice=cell(row,map.unitPrice),rawCost=cell(row,map.unitCost);
       if(!name&&!sku||!qty)throw new Error('SOURCE_INCOMPLETE: Worksheet '+sheet.name+' row '+(i+1)+' has incomplete quote fields. No rows dropped.');
       if(name.length>180||sku.length>60)throw new Error('SOURCE_INCOMPLETE: Product field exceeds the quote size limit on row '+(i+1)+'.');
       const unit=cell(row,map.unit),money=cell(row,map.currency).toUpperCase();
@@ -76,7 +78,9 @@ export function exactSpreadsheetQuote(sheets:SpreadsheetSheet[]):DeterministicQu
       if(money)allCurrency=money;
       const arabic=/[\u0600-\u06ff]/u.test(name);
       items.push({sku,descriptionEn:arabic?'':name,descriptionAr:arabic?name:'',
-        quantity:decimal(qty,true,sheet.name,i+1),unit,unitPrice:decimal(rawPrice,false,sheet.name,i+1),
+        quantity:decimal(qty,true,sheet.name,i+1),unit,
+        unitPrice:decimal(rawPrice,false,sheet.name,i+1),
+        unitCost:decimal(rawCost,false,sheet.name,i+1),unitCostColumnPresent:map.unitCost!==undefined,
         quantityConfidence:1,quantityAmbiguous:false,quantityNote:unit?'':'Order unit was not present in the worksheet; review.',
         productConfidence:1,productNote:'Direct cell in '+sheet.name+' row '+(i+1)});
       if(items.length>AI_WORKING_QUOTE_MAX_LINES)throw new Error('SOURCE_INCOMPLETE: More than '+AI_WORKING_QUOTE_MAX_LINES+' rows; split into complete reviewed sections. Nothing saved.');

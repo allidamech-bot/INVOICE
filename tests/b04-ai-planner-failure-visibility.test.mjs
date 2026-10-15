@@ -108,3 +108,85 @@ test('B04: safe notices are bilingual and contain zero executable calls',()=>{
     assert.match(notice.answer,/لم/);
   }
 });
+
+
+test('B04 document target routing follows the new document, not a referenced source',async()=>{
+  const {promoteDocumentCreationPlan}=await import('../dist/src/lib/ai-tool-client.js');
+  const invoicePlan={version:1,goal:'invoice',calls:[{id:'invoice',tool:'invoice.prepare',args:{kind:'invoice',items:[]},reason:'review'}]};
+  const quotePlan={version:1,goal:'quotation',calls:[{id:'quote',tool:'quotation.prepare',args:{kind:'proforma',items:[]},reason:'review'}]};
+  for(const command of [
+    'Create invoice from quotation Q-2026-4',
+    'Please prepare a sales invoice based on the existing quote',
+    'أنشئ فاتورة من عرض السعر السابق',
+    'جهز لي فاتورة من عرض سعر العميل'
+  ]){
+    const promoted=promoteDocumentCreationPlan(invoicePlan,command);
+    assert.equal(promoted.calls[0].tool,'document.createDraft',command);
+    assert.equal(promoted.calls[0].args.kind,'invoice');
+  }
+  for(const command of [
+    'Create quotation from invoice INV-2026-4',
+    'Make a customer quote based on the purchase invoice',
+    'أنشئ عرض سعر من فاتورة المورد'
+  ]){
+    const promoted=promoteDocumentCreationPlan(quotePlan,command);
+    assert.equal(promoted.calls[0].tool,'document.createDraft',command);
+    assert.equal(promoted.calls[0].args.kind,'proforma');
+  }
+  for(const command of [
+    'Do not create an invoice',
+    "Don't create a quotation",
+    'لا انشئ فاتورة',
+    'لا تجهز عرض سعر',
+    'Create a report summarizing invoices',
+    'Prepare a preview of invoice',
+    'جهز لي معاينة فاتورة',
+  ]){
+    const plan=promoteDocumentCreationPlan(invoicePlan,command);
+    assert.equal(plan.calls[0].tool,'invoice.prepare',
+      'a negated or non-document request must not be promoted: '+command);
+  }
+});
+
+test('B04 model plans cannot reverse a negated document creation command or choose the wrong document',async()=>{
+  const create=(kind)=>ok({plan:{version:1,goal:'create draft',calls:[{id:'doc-1',tool:'document.createDraft',args:{kind,items:[{descriptionEn:'Test item',quantity:'1',unitPrice:'10'}]},reason:'model'}]}});
+  for(const [message,kind] of [
+    ['Do not create an invoice','invoice'],
+    ["Don't create a quotation",'proforma'],
+    ['لا تنشئ فاتورة','invoice'],
+    ['لا تجهز عرض سعر','proforma'],
+    ['Create a quotation from an invoice','invoice']
+  ]){
+    await withPlannerReply(create(kind),async calls=>{
+      const result=await request(message);
+      assert.equal(calls(),1,message);
+      assert.ok(result,message);
+      assert.equal(result.proposal,null,message);
+      assert.equal(result.plan.calls.length,0,message);
+      assert.match(result.answer,/No data was changed/,message);
+    });
+  }
+});
+
+
+test('B04 saved-quotation invoice commands never ask an AI model to invent source data',async()=>{
+ const maliciousPlanner=ok({plan:{version:1,goal:'fake invoice',calls:[{
+   id:'invoice-1',tool:'document.createDraft',
+   args:{kind:'invoice',items:[{descriptionEn:'Hallucinated line',quantity:'99',unitPrice:'0.01'}]},
+   reason:'invented from incomplete source'
+ }]}});
+ for(const message of [
+   'Create an invoice from a quotation',
+   'أنشئ فاتورة من عرض السعر',
+   'Create invoice from quotation Q-2026-04',
+   'أنشئ فاتورة من عرض السعر السابق'
+ ]){
+   await withPlannerReply(maliciousPlanner,async calls=>{
+     const result=await request(message);
+     assert.equal(calls(),0,'unspecified saved source must not use AI planning: '+message);
+     assert.equal(result?.proposal,null,message);
+     assert.equal(result?.plan.calls.length,0,message);
+     assert.match(result?.answer,/Provide exactly one complete saved quotation number/,message);
+   });
+ }
+});

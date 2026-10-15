@@ -18,6 +18,7 @@ import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest}
 import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
 import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
 import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
+import {isAiStoredQuotationInvoiceIntent,requestedStoredQuotationNumber,prepareAiStoredQuotationInvoice} from './ai-stored-quotation-invoice.js';
 import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
 import {isAiSupplierSettlementIntent,parseAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
 import {isAiSupplierPostingIntent,parseAiSupplierPosting} from './ai-operational-supplier-posting.js';
@@ -43,11 +44,31 @@ function mentionedDocumentKind(message:string):'proforma'|'invoice'|null{
   if(/(?:invoice|فاتورة)/i.test(q))return'invoice';
   return null;
 }
+/** Detect the *requested output*, not an unrelated input document. The
+ * first document named after a positive create verb is the new document;
+ * "create invoice from quotation" must never create another quotation. */
 function requestedDocumentKind(message:string):'proforma'|'invoice'|null{
   const q=clean(message,6000).toLowerCase();
   if(!q||previewOnlyDocumentIntent(q))return null;
-  const action=/(?:create|make|generate|build|draft|prepare|produce|أنشئ|انشئ|جهز|جهّز|حضّر|حضر|اعمل|سوي|سوّي)/i.test(q);
-  return action?mentionedDocumentKind(q):null;
+  const verb=/\b(?:create|make|generate|build|draft|prepare|produce)\b|(?:أنشئ|انشئ|إنشاء|انشاء|جهز|جهّز|تجهيز|حضّر|حضر|اعمل|سوي|سوّي)/giu;
+  const target=/^\s*(?:(?:me|an?|the|new|customer|client|sales|purchase|draft|one|commercial|لي|للعميل|العميل|مسودة|جديد|جديدة)\s+){0,6}(quotation|quote|proforma|عرض\s*سعر|بروفورما|invoice|فاتورة)/iu;
+  for(const match of q.matchAll(verb)){
+    const prefix=q.slice(Math.max(0,match.index-30),match.index);
+    if(/(?:\b(?:do\s+not|don't|never|not|without)\b|(?:^|[\s،,;])(?:لا|ولا|بدون))\s*(?:ت)?\s*$/iu.test(prefix))continue;
+    const after=q.slice(match.index+match[0].length,match.index+match[0].length+90);
+    // "prepare a preview of invoice" is a preview request, not authorization
+    // to create a durable document even when the planner selected PREPARE.
+    if(/^\s*(?:(?:me|an?|the|a|new|draft|لي|مسودة)\s+){0,4}(?:preview\b|معاينة)(?:\s|$)/iu.test(after))continue;
+    const found=after.match(target);
+    if(found)return /^(?:invoice|فاتورة)$/iu.test(found[1]!)?'invoice':'proforma';
+  }
+  return null;
+}
+/** Negated user instructions override any model-generated createDraft plan.
+ * Source text and planner guesses cannot reverse this prohibition. */
+function explicitlyNegatedDocumentCreation(message:string):boolean{
+  const q=clean(message,6000);
+  return /(?:\b(?:do\s+not|don't|never|without)\s+(?:create|make|generate|build|draft|prepare|produce)\b|(?:^|[\s،,;])(?:لا|ولا|بدون)\s*(?:ت)?(?:نشئ|نشيء|انشئ|أنشئ|جهز|جهّز|حضر|حضّر|عمل|اعمل|سوي|سوّي|إنشاء|انشاء|تجهيز))[^.!؟\n]{0,110}(?:invoice|quotation|quote|proforma|فاتورة|عرض\s*سعر|بروفورما)/iu.test(q);
 }
 export function promoteDocumentCreationPlan(plan:AiToolPlan,message:string):AiToolPlan{
   if(previewOnlyDocumentIntent(message)){
@@ -143,10 +164,38 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
   const scopedVault=scopeVault(input.vault);
   const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
+  // Exact saved quotation → invoice is a distinct canonical conversion, not
+  // model-synthesized invoice creation. Never infer lines or amounts from a
+  // conversation when an issued saved quotation was named as the source.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&
+      isAiStoredQuotationInvoiceIntent(input.message)){
+    const number=requestedStoredQuotationNumber(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
+    if(!number)return{answer:input.language==='ar'
+      ?'اذكر رقم عرض سعر محفوظ واحدًا بالكامل (مثل QUO-2026-0001) لإنشاء مسودة فاتورة مرتبطة به. لن أنسخ البنود من الذاكرة أو أعتمد طلبًا بلا مصدر.'
+      :'Provide exactly one complete saved quotation number (for example QUO-2026-0001). I will link the invoice draft to the saved record, not reconstruct its lines.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    try{
+      const review=prepareAiStoredQuotationInvoice(scopedVault,number);
+      const proposal={capability:'tool.execute' as const,tool:'document.createDraft' as const,
+        args:review,preview:review.preview,label:'Review invoice from '+review.sourceNumber,
+        rationale:'Convert one exact issued quotation through the original document lifecycle. This only creates an unissued linked invoice draft after approval.'};
+      return{answer:input.language==='ar'
+        ?'وجدت عرض السعر المحفوظ '+review.sourceNumber+' وجهزت مراجعة فاتورة '+review.expectedInvoiceNumber+
+         ' بكل '+review.lineCount+' بند وشروطها الأصلية. لم أحفظ أو أصدر الفاتورة. يلزم موافقتك لتسجيل المسودة المرتبطة بالمصدر.'
+        :'Found issued quotation '+review.sourceNumber+' and prepared invoice draft '+review.expectedInvoiceNumber+
+         ' from all '+review.lineCount+' original lines and terms. No draft has been saved or issued; your approval is required.',
+        proposal,plan,results:[],plannedBy:'local'};
+    }catch(error){
+      return{answer:(input.language==='ar'?'تعذر تحويل عرض السعر المحفوظ: ':'Saved quotation conversion blocked: ')+
+        (error instanceof Error?error.message:String(error))+' — No records changed.',
+        proposal:null,plan,results:[],plannedBy:'local'};
+    }
+  }
   // A complete structured RFQ already contains the source's actual rows.
   // Never re-send only the first 2800 chars to a planner which might silently
   // lose trailing products. Stage the whole verified quote as UNSAVED.
-  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&(sources.some(source=>source.route==='quote_request')||
+  if(hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&explicitQuoteConversionIntent(input.message)&&(sources.some(source=>source.route==='quote_request'||source.route==='supplier_purchase')||
     input.context.conversationSources?.some?.((source:any)=>typeof source?.quoteSheetCandidate==='string'&&source.quoteSheetCandidate.length>0))){
     const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
     try{
@@ -154,8 +203,8 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       if(!workingDraft)throw new Error('SOURCE_INCOMPLETE: The RFQ could not be prepared as a complete unsaved quotation.');
       const sourceCount=Array.isArray(input.context.conversationSources)?input.context.conversationSources.length:1;
       const message=input.language==='ar'
-        ?'استخرجت '+workingDraft.items.length+' صنفًا من '+sourceCount+' ملف/ملفات، وجهزت مسودة عرض سعر موحدة داخل المحادثة فقط. لم أحفظها أو أصدرها. أي سعر أو عملة أو وحدة ناقصة تبقى فارغة وتحتاج مراجعتك قبل إنشاء PDF أو طلب الحفظ.'
-        :'Extracted '+workingDraft.items.length+' source lines from '+sourceCount+' attachment(s) into an unsaved quotation working draft. Nothing was saved or issued. Missing prices, currency or units remain blank until reviewed before PDF or save.';
+        ?'استخرجت '+workingDraft.items.length+' صنفًا من '+sourceCount+' ملف/ملفات، وجهزت مسودة عرض سعر داخل المحادثة فقط. لم أحفظها أو أصدرها. تكلفة المورد لا تتحول تلقائيًا إلى سعر بيع: الأسعار الناقصة تحتاج تحديدك، ويمكنك طلب هامش ربح محدد. راجع العميل والعملة والوحدات قبل PDF أو الحفظ.'
+        :'Extracted '+workingDraft.items.length+' source lines from '+sourceCount+' attachment(s) into an unsaved quotation draft. Nothing was saved or issued. Supplier costs never become customer selling prices automatically. Supply a selling price or request an explicit gross margin, and review the buyer, currency and units before PDF or save.';
       return{answer:message,proposal:null,workingDraft,plan,results:[],plannedBy:'local'};
     }catch(error){
       return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
@@ -499,6 +548,21 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
   }
   if(runtime.conversationMode!=='advisor')plan=promoteDocumentCreationPlan(plan,input.message);
+  // A model-selected document kind must agree with the explicit user target,
+  // including "invoice from quotation" and "quote from invoice" requests.
+  // Fail closed rather than preparing the wrong approval payload.
+  if(runtime.conversationMode==='controller'){
+    const desiredKind=requestedDocumentKind(input.message);
+    const creates=plan.calls.filter(call=>call.tool==='document.createDraft');
+    if(creates.length&&explicitlyNegatedDocumentCreation(input.message))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(desiredKind&&creates.some(call=>(clean(call.args.kind,30)==='invoice'?'invoice':'proforma')!==desiredKind))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(desiredKind&&!creates.length&&plan.calls.some(call=>
+      (call.tool==='invoice.prepare'&&desiredKind!=='invoice')||
+      (call.tool==='quotation.prepare'&&desiredKind!=='proforma')))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+  }
   const execution=executeAiToolPlan(runtime,plan);
   // An incomplete/truncated attachment cannot become a supposedly complete
   // working quote simply because the LLM chose the PREPARE tool.

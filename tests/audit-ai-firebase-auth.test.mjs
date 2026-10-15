@@ -59,6 +59,20 @@ test('signed Google Firebase token is accepted while wrong project, issuer and e
   };
   try{
     assert.equal((await verifyFirebaseIdToken(token())).uid,'test-account');
+    assert.equal((await verifyFirebaseIdToken(token())).role,'owner','An existing account UID owns only its own workspace');
+    for(const role of ['owner','admin','finance','sales','purchasing','viewer']){
+      const identity=await verifyFirebaseIdToken(token({lourexAiRole:role,lourexWorkspaceUid:'test-account'}));
+      assert.deepEqual(identity,{uid:'test-account',role},'Roles must derive from signed Firebase claims');
+    }
+    for(const patch of [
+      {lourexAiRole:'superadmin'},
+      {lourexAiRole:'OWNER'},
+      {lourexAiRole:null},
+      {lourexAiRole:{role:'owner'}},
+      {lourexAiRole:'owner',lourexWorkspaceUid:'another-uid'},
+      {firebase:{sign_in_provider:'anonymous'}}
+    ])await assert.rejects(verifyFirebaseIdToken(token(patch)),/Invalid Firebase ID token/);
+
     const res=response();await core(request('Bearer '+token()),res);
     assert.equal(res.statusCode,400);
     assert.equal(res.body?.code,'INVALID_CONTEXT');

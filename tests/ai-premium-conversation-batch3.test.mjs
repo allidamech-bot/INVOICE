@@ -72,7 +72,7 @@ test('Generic source fallback is consolidated into AI Inbox, untrusted-data-only
   for(const forbidden of ['mutateVaultSafely','saveVault','document.createDraft','item.archive','postPurchase','createCustomer','createSupplier'])
     assert.ok(!summary.includes(forbidden),'read-only branch mentions executable action: '+forbidden);
   assert.match(summary,/sendJson\(response,200,\{source\}\);return;/);
-  assert.match(api,/if\(body\?\.mode==='tool-plan'\)\{await handleToolPlan\(body,response\);return;\}/);
+  assert.match(api,/if\(body\?\.mode==='tool-plan'\)\{await handleToolPlan\(body,response,request\.aiVerifiedRole\);return;\}/);
   const inbox=await import('../api/ai-inbox.js');assert.equal(typeof inbox.default,'function');
   const sourceAware=await import('../api/ai-conversation-v3.js');assert.equal(typeof sourceAware.default,'function');
 });
