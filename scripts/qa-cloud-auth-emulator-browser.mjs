@@ -292,7 +292,7 @@ try{
   // A final invoice must debit stock once; a linked final credit note does
   // not restock; a physically evidenced partial receipt does.
   const postedPhysical=await evaluate(recoveredDevice,`(async()=>{
-    const {db,sync,user}=await ${modules};
+    const {db,sync,user,documents}=await ${modules};
     const ops=await import('./src/lib/operations.js');
     const invoices=await import('./src/lib/invoice-stock.js');
     const returns=await import('./src/lib/sales-returns.js');
