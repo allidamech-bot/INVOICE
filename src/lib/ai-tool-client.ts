@@ -519,6 +519,21 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
   }
   if(runtime.conversationMode!=='advisor')plan=promoteDocumentCreationPlan(plan,input.message);
+  // A model-selected document kind must agree with the explicit user target,
+  // including "invoice from quotation" and "quote from invoice" requests.
+  // Fail closed rather than preparing the wrong approval payload.
+  if(runtime.conversationMode==='controller'){
+    const desiredKind=requestedDocumentKind(input.message);
+    const creates=plan.calls.filter(call=>call.tool==='document.createDraft');
+    if(creates.length&&explicitlyNegatedDocumentCreation(input.message))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(desiredKind&&creates.some(call=>(clean(call.args.kind,30)==='invoice'?'invoice':'proforma')!==desiredKind))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(desiredKind&&!creates.length&&plan.calls.some(call=>
+      (call.tool==='invoice.prepare'&&desiredKind!=='invoice')||
+      (call.tool==='quotation.prepare'&&desiredKind!=='proforma')))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+  }
   const execution=executeAiToolPlan(runtime,plan);
   // An incomplete/truncated attachment cannot become a supposedly complete
   // working quote simply because the LLM chose the PREPARE tool.
