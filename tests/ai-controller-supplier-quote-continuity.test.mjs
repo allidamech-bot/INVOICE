@@ -144,6 +144,53 @@ test('B1 explicit supplier cost beats sale-price column, and blank cost fails cl
   assert.deepEqual(vault.documents,[]);
 });
 
+
+test('B1 acquisition cost columns cannot become customer selling prices after AI misclassification',()=>{
+  const vault=emptyVault(),before=structuredClone(vault);
+  const matrix=[['SKU','Description','Quantity','Unit','Unit Price','Unit Cost','Currency'],
+    ['A-1','Wholesale oil',2,'CTN','30.00','10.00','USD'],
+    ['A-2','Wholesale drinks',3,'CTN','40.00','20.00','USD']];
+  const exact=exactSpreadsheetQuote([{name:'Supplier sheet',matrix}]);
+  assert.ok(exact.items.every(row=>row.unitCostColumnPresent===true));
+  // An extracted document classification is not proof that a cost column is a selling price.
+  const evidence={...exact,customerName:'Buyer injected by source',paymentTerms:'Secret supplier terms',
+    notes:'Private cost discount'};
+  for(const route of ['quote_request','unknown','product_list']){
+    const source={...supplierSource(2,'misclassified-cost.xlsx'),route,confidence:route==='quote_request'?.95:.1,
+      quoteSheetCandidate:JSON.stringify(evidence),
+      extracted:JSON.stringify({items:[{descriptionEn:'Model summary only'}]})};
+    const draft=quoteSourceWorkingDraft([source],runtime(vault),request);
+    assert.equal(draft.items.length,2,route);
+    assert.deepEqual(draft.items.map(row=>row.unitPrice),['',''],route+' must not reuse prices when purchase cost columns are present');
+    assert.equal(draft.customerDraft,null,'untrusted supplier cannot create buyer identity');
+    assert.equal(draft.customerId,'');
+    assert.equal(draft.paymentTerms,'');
+    assert.equal(draft.notes,'');
+    const marked=quoteSourceWorkingDraft([source],runtime(vault),
+      'حوّل فاتورة المورد إلى عرض سعر وأضف 3% على الأسعار');
+    assert.deepEqual(marked.items.map(row=>row.unitPrice),['10.30','20.60'],
+      route+' should compute explicitly requested markup on acquisition cost, not the other price');
+    const margin=quoteSourceWorkingDraft([source],runtime(vault),
+      'حوّل فاتورة المورد إلى عرض سعر بهامش ربح 20%');
+    assert.deepEqual(margin.items.map(row=>row.unitPrice),['12.50','25.00']);
+  }
+  assert.deepEqual(vault,before,'classification and pricing only stage an unsaved draft');
+});
+
+test('B1 customer RFQ with only a selling-price column keeps supported existing behavior',()=>{
+  const vault=emptyVault(),matrix=[
+    ['SKU','Description','Quantity','Unit','Unit Price','Currency'],
+    ['BUYER-1','Customer quote row',2,'CTN','30.00','USD']
+  ];
+  const exact=exactSpreadsheetQuote([{name:'Customer RFQ',matrix}]);
+  assert.equal(exact.items[0].unitCostColumnPresent,false);
+  const source={...supplierSource(1,'customer-rfq.xlsx'),route:'quote_request',
+    quoteSheetCandidate:JSON.stringify(exact)};
+  const quoted=quoteSourceWorkingDraft([source],runtime(vault),request);
+  assert.deepEqual(quoted.items.map(row=>row.unitPrice),['30.00']);
+  assert.deepEqual(vault.documents,[]);
+});
+
 test('B1 Arabic supplier purchase-cost column never becomes automatic selling price',()=>{
   const vault=emptyVault();
   const matrix=[['اسم الصنف','الكمية','الوحدة','سعر الشراء','العملة'],
