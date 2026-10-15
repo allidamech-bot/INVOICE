@@ -1,7 +1,8 @@
 import { handleTabKeyDown } from '../lib/tab-navigation.js';
 import { ContextualAdvisorAction } from './ContextualAdvisorAction.js';
 import { SalesReturnReceiptPanel } from './SalesReturnReceiptPanel.js';
-import type {SalesReturnInput} from '../lib/sales-returns.js';
+import { SalesReturnCorrectionPanel } from './SalesReturnCorrectionPanel.js';
+import type {SalesReturnInput,SalesReturnCorrectionInput} from '../lib/sales-returns.js';
 import type { DocumentAttachment, ExpenseRecord, InventoryMovementRecord, InventoryMovementType, LourexDocument, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, WarehouseRecord } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { setWorkspaceDirty } from '../lib/workspace-dirty.js';
@@ -38,6 +39,7 @@ interface Props{
   onSaveExpense:(expense:ExpenseRecord)=>Promise<void>;onDeleteExpense:(expense:ExpenseRecord)=>Promise<void>;
   onSaveInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;onDeleteInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;
   documents?:LourexDocument[];onRecordSalesReturn?:(input:SalesReturnInput)=>Promise<void>;
+  onCorrectSalesReturn?:(input:SalesReturnCorrectionInput)=>Promise<void>;
 }
 interface State{
   tab:Tab;search:string;error:string;busy:boolean;supplierEdit:Supplier|null;supplierProfileId:string;purchaseEdit:PurchaseRecord|null;expenseEdit:ExpenseRecord|null;
@@ -242,6 +244,7 @@ export class OperationsPage extends React.Component<Props,State>{
       {this.state.movementCorrectionSourceId?<small className="is-wide">{t('Reversal of movement','عكس الحركة')}: {this.state.movementCorrectionSourceId}</small>:null}
       </div><div className="ta-inventory-entry-action"><Button icon="plus" variant="primary" disabled={this.state.busy||this.state.movementFileBusy||!this.state.movementEvidence||this.state.movementNote.trim().length<5} onClick={()=>void this.saveMovement()}>{this.state.busy?t('Working…','جارٍ التنفيذ…'):t('Record Movement','تسجيل الحركة')}</Button></div></section>
       {this.props.documents&&this.props.onRecordSalesReturn?<SalesReturnReceiptPanel documents={this.props.documents} movements={this.props.inventoryMovements} warehouses={this.props.warehouses||[]} workspaceId={this.props.workspaceId||'default'} branchId={this.props.branchId||'main'} onRecord={this.props.onRecordSalesReturn}/>:null}
+      {this.props.onCorrectSalesReturn?<SalesReturnCorrectionPanel movements={this.props.inventoryMovements} workspaceId={this.props.workspaceId||'default'} branchId={this.props.branchId||'main'} onCorrect={this.props.onCorrectSalesReturn}/>:null}
       <section className="ta-ops-list-card ta-inventory-history">{this.panelHead(t('Audit trail','سجل التدقيق'),t('Recent Movements','الحركات الأخيرة'),t('Purchase receipts, reversals and manual inventory changes.','استلامات الشراء والعكس وحركات المخزون اليدوية.'))}
       <div className="ta-ops-form-grid ta-inventory-history-filters" role="group" aria-label={t('Filter inventory movements','تصفية حركات المخزون')}>
         <label>{t('Movement type','نوع الحركة')}<Select value={this.state.historyType} onChange={(e:any)=>this.setState({historyType:e.target.value})}>
