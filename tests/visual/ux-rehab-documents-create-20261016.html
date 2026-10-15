@@ -8,7 +8,7 @@ document.documentElement.lang=ar?'ar':'en';
 document.documentElement.dir=ar?'rtl':'ltr';
 document.documentElement.dataset.uiTheme=theme;
 </script></head>
-<body><div id="root" class="app-ui"></div>
+<body><div id="root"><div id="visual-app" class="app-ui"></div></div>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script type="module">
@@ -31,5 +31,5 @@ ReactDOM.render(
   newMenu:false,cloudState:'synced',cloudLabel:'QA',cloudMessage:'',
   onNavigate:noop,onToggleNew:noop,onNew:noop,onCreditNote:noop,
   onStatementAccount:noop,onSettings:noop,onCloud:noop
- },h(DocumentsPage,props)),document.getElementById('root'));
+ },h(DocumentsPage,props)),document.getElementById('visual-app'));
 </script></body></html>
