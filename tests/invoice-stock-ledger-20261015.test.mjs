@@ -7,6 +7,7 @@ import {postIssuedInvoiceStock,assertInvoiceStockLedgerContinuity} from '../dist
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
 import {inventoryBalances} from '../dist/src/lib/operations.js';
+import {createWarehouse,createWarehouseTransfer,defaultWarehouseId} from '../dist/src/lib/warehouses.js';
 
 function fixture(stock='100'){
  const vault=emptyVault(),now=new Date().toISOString();
@@ -123,4 +124,17 @@ test('issued invoice records resist post-issue line tampering or void, while arc
  const archived={...baseline,savedItems:baseline.savedItems.map(item=>({...item,archived:true}))};
  assert.doesNotThrow(()=>mergeVaultIntent(baseline,baseline,archived),
   'Archiving a catalog product must not retroactively invalidate a historically posted invoice');
+});
+
+test('warehouse debits honor concurrent transfers, even if company-wide stock stays positive',()=>{
+ const {vault,item,document}=fixture('5');
+ const final={...document,status:'final'};
+ const intended=postIssuedInvoiceStock({...vault,documents:[final]},final).vault;
+ const branchId=vault.appSettings.activeBranchId,workspaceId=vault.appSettings.activeWorkspaceId;
+ const destination=createWarehouse(workspaceId,branchId,'Overflow Storage','OVR');
+ const moved=createWarehouseTransfer(item,defaultWarehouseId(branchId),destination.id,'5');
+ const latest={...vault,warehouses:[...vault.warehouses,destination],
+   inventoryMovements:[...vault.inventoryMovements,moved]};
+ assert.equal(balance(latest),'5');
+ assert.throws(()=>mergeVaultIntent(vault,intended,latest),/Insufficient stock at the selected warehouse/);
 });
