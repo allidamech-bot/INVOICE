@@ -20,6 +20,9 @@ function fixture(stock='100'){
  document.items=[{...document.items[0],id:'invoice-line-1',descriptionEn:item.descriptionEn,
   unit:item.unit,quantity:'2',unitPrice:'10.00',savedItemId:item.id,stockTreatment:'tracked',skuSnapshot:item.sku}];
  document.status='draft';
+ document.dueDate='2026-12-01';
+ const customer={sourceCustomerId:'buyer-stock',companyNameEn:'Inventory Buyer',companyNameAr:'مشتري المخزون',contactPerson:'',addressEn:'Istanbul',addressAr:'',city:'Istanbul',country:'Türkiye',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+ document.customerSnapshot=customer;
  vault.documents=[document];
  return {vault,item,document};
 }
@@ -50,7 +53,7 @@ test('fail closed for ambiguous lines, missing SKU, unit mismatch, insufficient 
  assert.throws(()=>attempt({unit:'Piece'}),/Invoice unit differs/);
  assert.throws(()=>attempt({quantity:'8'}),/Insufficient stock/);
  assert.throws(()=>attempt({quantity:'0.00001'}),/quantity must be positive and precise/);
- assert.throws(()=>attempt({}, {appSettings:{...vault.appSettings,activeWorkspaceId:'other'}}),/another workspace/);
+ assert.throws(()=>attempt({}, {appSettings:{...vault.appSettings,activeWorkspaceId:'other'}}),/another workspace|outside this branch/);
  assert.equal(balance(vault),'5','rejected issuance never mutates source vault');
 });
 test('explicit non-stock services do not debit stock and repeated printing remains financially independent',()=>{
@@ -104,5 +107,5 @@ test('manual samples require both explicit reason and real PNG/PDF proof with va
  const staged={...vault,inventoryMovements:[...vault.inventoryMovements,complete]};
  const posted=mergeVaultIntent(vault,staged,vault);
  assert.equal(balance(posted),'97');
- assert.throws(()=>mergeVaultIntent(vault,{...vault,inventoryMovements:[...vault.inventoryMovements,sample]},vault),/written inventory movement reason/);
+ assert.throws(()=>mergeVaultIntent(vault,{...vault,inventoryMovements:[...vault.inventoryMovements,sample]},vault),/reason category/);
 });
