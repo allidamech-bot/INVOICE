@@ -159,6 +159,9 @@ function findPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):any|nul
 export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='business',mode:AiConversationMode='controller'):Array<{id:AiToolId;class:AiToolClass;description:string;approval:boolean}>{
   const allowed=AI_TOOL_REGISTRY.filter(row=>conversationModePermitsToolClass(mode,row.class));
   if(scope==='personal')return allowed.filter(row=>['message.prepare','reminder.prepare','task.create'].includes(row.id)).map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
+  // Temporary conversation state and approval receipts are intentionally ephemeral.
+  // Never advertise a mutation that cannot be replay-protected after a reload.
+  if(scope==='temporary')return allowed.filter(row=>!AI_TOOL_REGISTRY.find(def=>def.id===row.id)?.mutation).map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
   return allowed.map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
 }
 export function createAiToolRuntime(vault:VaultPayload,context:any):AiToolRuntime{
@@ -364,6 +367,7 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
   const def=DEF_BY_ID.get(call.tool);if(!def)return{id:call.id,tool:call.tool,ok:false,class:'read',data:null,summary:'Unknown tool.',source:'tool-registry'};
   if(!conversationModePermitsToolClass(normalizeAiConversationMode(runtime.conversationMode),def.class))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Advisor is read-only. Switch to Controller for navigation, drafts or actions.',source:'advisor-read-only-guard'};
   if(runtime.scope==='personal'&&!['message.prepare','reminder.prepare','task.create'].includes(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Business tools are unavailable in Personal scope.',source:'scope-guard'};
+  if(runtime.scope==='temporary'&&def.mutation)return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Temporary conversations cannot stage business writes. Use a Business Controller thread with durable approval receipts.',source:'temporary-scope-guard'};
   if(HIGH_IMPACT.has(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'High-impact financial actions are never executed by LOUREX AI. Open the relevant workspace and complete the protected workflow manually.',source:'high-impact-guard'};
   if(EXECUTE.has(call.tool)){try{const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'approval-preflight'};}}
   try{let data:unknown;
