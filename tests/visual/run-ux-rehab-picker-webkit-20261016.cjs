@@ -35,12 +35,25 @@ const cases=[
     }));
     assert.equal(full.whiteSpace,'normal','full product name must wrap '+key);
     const scroll=shell.locator('.saved-items-list');
-    const geometry=await scroll.evaluate(el=>({
-      scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,
-      overflow:getComputedStyle(el).overflowY
-    }));
-    assert.ok(['scroll','auto'].includes(geometry.overflow),'picker owns scroll '+key);
-    assert.ok(geometry.scrollHeight>geometry.clientHeight,'test products must require scrolling '+key);
+    const geometry=await scroll.evaluate(el=>{
+      const shell=el.closest('.saved-items-shell');
+      const pane=el.closest('.saved-items-list-pane');
+      const modal=el.closest('.modal');
+      const rect=node=>{const r=node.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height};};
+      return {
+        scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,
+        overflow:getComputedStyle(el).overflowY,
+        listRect:rect(el),paneRect:rect(pane),shellRect:rect(shell),modalRect:rect(modal),
+        paneOverflow:getComputedStyle(pane).overflowY,
+        shellOverflow:getComputedStyle(shell).overflowY,
+        viewport:innerHeight,rows:el.querySelectorAll('.saved-item-row').length
+      };
+    });
+    assert.ok(['scroll','auto'].includes(geometry.overflow),'picker owns scroll '+key+' '+JSON.stringify(geometry));
+    if(geometry.scrollHeight<=geometry.clientHeight){
+      await page.screenshot({path:output+'/'+key+'-scroll-diagnostic.png',fullPage:true,animations:'disabled'});
+    }
+    assert.ok(geometry.scrollHeight>geometry.clientHeight,'test products must require scrolling '+key+' '+JSON.stringify(geometry));
     const moved=await scroll.evaluate(el=>{el.scrollTop=el.scrollHeight;return el.scrollTop;});
     assert.ok(moved>0,'cannot reach final product row '+key);
     await scroll.evaluate(el=>{el.scrollTop=0;});
