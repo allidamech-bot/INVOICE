@@ -160,7 +160,8 @@ export function assertPostedInvoiceStockDocumentIntegrity(
   }
   for(const [invoiceId,rows] of grouped){
     const invoice=documents.find(doc=>doc.id===invoiceId);
-    if(!invoice||invoice.kind!=='invoice'||invoice.role!=='standard'
+    if(!invoice)throw new Error('Posted stock references a missing invoice.');
+    if(invoice.kind!=='invoice'||invoice.role!=='standard'
       ||invoice.status!=='final'||invoice.lifecycleStatus==='voided')
       fail('Posted stock must reference an active final sales invoice.','حركة المخزون يجب أن ترتبط بفاتورة بيع نهائية وسارية.');
     const expected=new Set(invoice.items.filter(line=>line.stockTreatment==='tracked')
