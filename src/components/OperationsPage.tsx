@@ -1,10 +1,13 @@
 import { handleTabKeyDown } from '../lib/tab-navigation.js';
 import { ContextualAdvisorAction } from './ContextualAdvisorAction.js';
-import type { ExpenseRecord, InventoryMovementRecord, InventoryMovementType, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord } from '../types.js';
+import type { DocumentAttachment, ExpenseRecord, InventoryMovementRecord, InventoryMovementType, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, WarehouseRecord } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { setWorkspaceDirty } from '../lib/workspace-dirty.js';
 import { formatMoney } from '../lib/money.js';
 import { todayIso } from '../lib/id.js';
+import {readManualMovementEvidence,validateManualMovementEvidence,MOVEMENT_REASON_CATEGORIES} from '../lib/inventory-evidence.js';
+import {defaultWarehouseId,warehouseItemQuantity} from '../lib/warehouses.js';
+import {decimalToScaled,isDecimalInput} from '../lib/money.js';
 import { allocateLandedCost, createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, inventoryMovementIsManual, operationsIntegritySummary, purchaseTotals, spendByCurrency, supplierSnapshotFrom, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { purchasePayableSummary, supplierPayablesByCurrency } from '../lib/payables.js';
 import { ensurePayablesStyles } from '../lib/payables-style.js';
@@ -25,6 +28,7 @@ type ConfirmAction=
 interface Props{
   embedded?:boolean;mode?:OperationsWorkspaceMode;inventoryView?:'all'|'balances'|'movements';focusItemId?:string;
   suppliers:Supplier[];purchases:PurchaseRecord[];supplierPayments?:SupplierPaymentRecord[];expenses:ExpenseRecord[];inventoryMovements:InventoryMovementRecord[];items:SavedItem[];defaultCurrency:string;
+  warehouses?:WarehouseRecord[];workspaceId?:string;branchId?:string;
   recurringWorkflows?:RecurringWorkflowRecord[];onMakeRecurringPurchase?:(purchase:PurchaseRecord)=>void;onOpenRecurring?:()=>void;
   onOpenSupplierFinance?:(supplierId:string)=>void;
   onSaveSupplier:(supplier:Supplier)=>Promise<void>;onDeleteSupplier:(supplier:Supplier)=>Promise<void>;
@@ -35,6 +39,7 @@ interface Props{
 interface State{
   tab:Tab;search:string;error:string;busy:boolean;supplierEdit:Supplier|null;supplierProfileId:string;purchaseEdit:PurchaseRecord|null;expenseEdit:ExpenseRecord|null;
   movementItemId:string;movementType:ManualMovementType;movementQuantity:string;movementDate:string;movementNote:string;movementCost:string;movementCurrency:string;
+  movementEvidence:DocumentAttachment|null;movementCategory:string;movementWarehouseId:string;movementCorrectionSourceId:string;movementFileBusy:boolean;
   confirmAction:ConfirmAction|null;reverseTarget:PurchaseRecord|null;reverseReason:string;
 }
 
@@ -57,13 +62,13 @@ function movementTypeLabel(type:InventoryMovementType):string{if(type==='purchas
 export class OperationsPage extends React.Component<Props,State>{
   private mutationInFlight=false;
   private editorBaseline:{supplier:string|null;purchase:string|null;expense:string|null}={supplier:null,purchase:null,expense:null};
-  state:State={tab:firstTab(this.props.mode),search:'',error:'',busy:false,supplierEdit:null,supplierProfileId:'',purchaseEdit:null,expenseEdit:null,movementItemId:'',movementType:'opening',movementQuantity:'',movementDate:todayIso(),movementNote:'',movementCost:'',movementCurrency:this.props.defaultCurrency||'USD',confirmAction:null,reverseTarget:null,reverseReason:''};
+  state:State={tab:firstTab(this.props.mode),search:'',error:'',busy:false,supplierEdit:null,supplierProfileId:'',purchaseEdit:null,expenseEdit:null,movementItemId:'',movementType:'opening',movementQuantity:'',movementDate:todayIso(),movementNote:'',movementCost:'',movementCurrency:this.props.defaultCurrency||'USD',movementEvidence:null,movementCategory:'samples',movementWarehouseId:'',movementCorrectionSourceId:'',movementFileBusy:false,confirmAction:null,reverseTarget:null,reverseReason:''};
 
   componentDidMount():void{ensurePayablesStyles();window.addEventListener('lourex-create-purchase',this.handleQuickPurchase);window.addEventListener('lourex-open-expense-editor',this.handleQuickExpense);window.addEventListener('lourex-open-purchase',this.handleOpenPurchase);window.addEventListener('lourex-open-supplier',this.handleOpenSupplier); window.addEventListener('beforeunload',this.handleBeforeUnload);this.applyFocusedItem();this.syncDirtyMarker();}
   componentWillUnmount():void{window.removeEventListener('lourex-create-purchase',this.handleQuickPurchase);window.removeEventListener('lourex-open-expense-editor',this.handleQuickExpense);window.removeEventListener('lourex-open-purchase',this.handleOpenPurchase);window.removeEventListener('lourex-open-supplier',this.handleOpenSupplier);window.removeEventListener('beforeunload',this.handleBeforeUnload);setWorkspaceDirty('operations',false);}
   componentDidUpdate(prev:Props):void{if(prev.mode!==this.props.mode){const allowed=tabsForMode(this.props.mode);if(!allowed.includes(this.state.tab))this.setState({tab:firstTab(this.props.mode),search:'',error:'',supplierProfileId:''});}if(this.state.supplierProfileId&&!this.props.suppliers.some(s=>s.id===this.state.supplierProfileId))this.setState({supplierProfileId:''});if(prev.focusItemId!==this.props.focusItemId)this.applyFocusedItem();this.syncDirtyMarker();}
   private supplierPayments=():SupplierPaymentRecord[]=>this.props.supplierPayments??[];
-  private hasUnsavedWorkspaceInput=():boolean=>{const supplier=this.state.supplierEdit,supplierDirty=Boolean(supplier&&JSON.stringify(supplier)!==this.editorBaseline.supplier);const purchase=this.state.purchaseEdit,purchaseDirty=Boolean(purchase&&purchase.status==='draft'&&JSON.stringify(purchase)!==this.editorBaseline.purchase);const expense=this.state.expenseEdit,expenseDirty=Boolean(expense&&JSON.stringify(expense)!==this.editorBaseline.expense);const movementDirty=Boolean(this.state.movementQuantity.trim()||this.state.movementNote.trim()||this.state.movementCost.trim());return supplierDirty||purchaseDirty||expenseDirty||movementDirty;};
+  private hasUnsavedWorkspaceInput=():boolean=>{const supplier=this.state.supplierEdit,supplierDirty=Boolean(supplier&&JSON.stringify(supplier)!==this.editorBaseline.supplier);const purchase=this.state.purchaseEdit,purchaseDirty=Boolean(purchase&&purchase.status==='draft'&&JSON.stringify(purchase)!==this.editorBaseline.purchase);const expense=this.state.expenseEdit,expenseDirty=Boolean(expense&&JSON.stringify(expense)!==this.editorBaseline.expense);const movementDirty=Boolean(this.state.movementQuantity.trim()||this.state.movementNote.trim()||this.state.movementCost.trim()||this.state.movementEvidence||this.state.movementCorrectionSourceId);return supplierDirty||purchaseDirty||expenseDirty||movementDirty;};
   private syncDirtyMarker=()=>setWorkspaceDirty('operations',this.hasUnsavedWorkspaceInput());
   private confirmDiscardCurrent=():boolean=>!this.hasUnsavedWorkspaceInput()||window.confirm(t('Discard the unsaved changes and continue?','تجاهل التعديلات غير المحفوظة والمتابعة؟'));
   private closeEditors=()=>{if(!this.confirmDiscardCurrent())return;this.editorBaseline={supplier:null,purchase:null,expense:null};this.setState({supplierEdit:null,purchaseEdit:null,expenseEdit:null,error:''});};
