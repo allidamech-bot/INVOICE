@@ -50,6 +50,12 @@ export function postVoidedInvoiceWithPhysicalReceipt(vault:VaultPayload,source:L
   fail('Original invoice stock issue cannot be reconciled safely.');
  const proofId=input.evidence.id;
  if(!proofId||!input.reason?.trim())fail('A physical stock receipt reason and proof are required.');
+ for(const issue of original){
+  if(!vault.warehouses.some(w=>w.id===issue.fromWarehouseId&&w.active
+    &&w.workspaceId===vault.appSettings.activeWorkspaceId
+    &&w.branchId===vault.appSettings.activeBranchId))
+    fail('Original warehouse is not active. Reconcile physical receipt location before cancellation.');
+ }
  const voidWithProof={...voided,attachments:[...(invoice.attachments||[]),input.evidence]};
  const movements:InventoryMovementRecord[]=original.map(issue=>{
   const proof:InvoiceVoidStockProof={...refundEventFor(invoice,issue),evidenceId:proofId};
@@ -123,7 +129,7 @@ export function assertInvoiceVoidStockIntegrity(documents:LourexDocument[],movem
  for(const [invoiceId,issues] of issuesByInvoice){
   const invoice=docs.get(invoiceId);
   if(invoice?.lifecycleStatus==='voided'&&issues.length&&!correctionsByInvoice.has(invoiceId))
-   fail('Voided invoice is missing its documented warehouse receipt.');
+   fail('Posted stock must reference an active final sales invoice or a voided invoice with documented warehouse receipt.');
  }
 }
 
