@@ -216,6 +216,8 @@ export interface InventoryMovementRecord extends WorkspaceScopeFields {
   note: string;
   fromWarehouseId?: string;
   toWarehouseId?: string;
+  /** Immutable credit-note-linked proof that returned goods were physically received. */
+  salesReturn?: {invoiceId:string;invoiceLineId:string;creditNoteId:string;creditLineId:string;itemId:string;warehouseId:string};
   /** Encrypted workspace evidence: required for all newly posted manual movements. */
   evidence?: DocumentAttachment;
   reasonCategory?: string;
