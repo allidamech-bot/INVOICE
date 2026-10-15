@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const project='demo-lourex-pinless';
+const project='demo-lourex-ai-integration-719';
 const origin='http://127.0.0.1:8080';
 const db='/v1/projects/'+project+'/databases/(default)/documents';
 const subject={company:{nameEn:'LOUREX QA'},documents:[],customers:[]};
