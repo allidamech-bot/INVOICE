@@ -29,6 +29,8 @@ export function foundationActionAllowed(vault:VaultPayload,proposal:any,scope:Ke
   const role=strictAiActor(vault).role;
   if(proposal.capability==='tool.plan')return Array.isArray(proposal.steps)&&proposal.steps.every((p:any)=>foundationActionAllowed(vault,p,scope));
   if(proposal.capability!=='tool.execute')return assistantCapabilityAllowed(vault,proposal.capability,scope.scope);
+  // Retired sales flow: even old signed proposals must never authorize standalone DN stock deduction.
+  if(proposal.tool==='sales.issueConfirmedStock')return false;
   if(/^task\./.test(proposal.tool)||/^memory\./.test(proposal.tool))return scope.scope==='personal'?(proposal.tool==='task.create'||proposal.tool==='memory.create'?proposal.args?.scope==='personal':proposal.args?.scope!=='business'):role!=='viewer';
   return scope.scope!=='personal'&&(role==='owner'||role==='admin'||(role==='finance'&&(proposal.tool==='procurement.matchSupplierBill'||(proposal.tool==='sales.recordCustomerCollection'||proposal.tool==='procurement.recordSupplierPayment')))||(role==='sales'&&(/^customer\./.test(proposal.tool)||(proposal.tool==='sales.createDeliveryDraft'||proposal.tool==='sales.confirmPhysicalDelivery'||proposal.tool==='sales.createConfirmedInvoiceDraft')))||(role==='purchasing'&&(/^(supplier|product)\./.test(proposal.tool)||(proposal.tool==='procurement.createPoFromRfq'||proposal.tool==='procurement.recordGoodsReceipt'))));
 }
