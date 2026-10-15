@@ -1,0 +1,43 @@
+name: LOUREX Invoice Stock Safety
+
+on:
+  push:
+    branches:
+      - feat/invoice-stock-evidence-ledger-20261015
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/invoice-stock.ts'
+      - 'src/lib/saved-items.ts'
+      - 'src/lib/sales-delivery-stock.ts'
+      - 'src/storage/vault-merge.ts'
+      - 'src/app/App.tsx'
+      - 'src/components/EditorPageCore.tsx'
+      - 'src/types.ts'
+      - 'tests/invoice-stock-ledger-20261015.test.mjs'
+      - '.github/workflows/invoice-stock-safety.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: invoice-stock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  invoice-stock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Build production bundle locally (no deployment)
+        run: npm run build
+      - name: Real domain and vault merge tests
+        run: node --test tests/invoice-stock-ledger-20261015.test.mjs tests/b07-sales-stock-issue.test.mjs tests/vault-merge.test.mjs tests/workflow-closeout.test.mjs
