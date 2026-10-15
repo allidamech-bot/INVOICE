@@ -9,6 +9,14 @@ function saved(id='sku1',name='Tracked',cost='10'){
   return {id,createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',sku:id.toUpperCase(),descriptionEn:name,descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'20',lastCurrency:'USD',lastUnitCost:cost,lastCostCurrency:cost?'USD':'',usageCount:0,lastUsedAt:'2026-01-01T00:00:00.000Z',category:'',tags:[],favorite:false};
 }
 
+function evidencedMovement(movement,id,reasonCategory='correction'){
+  const bytes=Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]);
+  return {...movement,reasonCategory,createdBy:'owner',evidence:{
+    id:'test-evidence-'+id,name:id+'.png',mimeType:'image/png',size:bytes.length,
+    dataUrl:'data:image/png;base64,'+bytes.toString('base64'),createdAt:new Date().toISOString()
+  }};
+}
+
 function draftPurchaseVault(){
   const vault=emptyVault();
   const supplier=createSupplier();supplier.nameEn='Supplier A';
@@ -61,8 +69,8 @@ test('concurrent reversal of one manual movement is rejected instead of double r
   const base=emptyVault();const item=saved();base.savedItems=[item];
   const opening=createManualInventoryMovement(item,'opening','10','2026-09-01','Opening');base.inventoryMovements=[opening];
   const latest=structuredClone(base),intended=structuredClone(base);
-  latest.inventoryMovements.push(reverseManualInventoryMovement(latest.inventoryMovements[0],'2026-09-02'));
-  intended.inventoryMovements.push(reverseManualInventoryMovement(intended.inventoryMovements[0],'2026-09-02'));
+  latest.inventoryMovements.push(evidencedMovement(reverseManualInventoryMovement(latest.inventoryMovements[0],'2026-09-02'),'rev-a'));
+  intended.inventoryMovements.push(evidencedMovement(reverseManualInventoryMovement(intended.inventoryMovements[0],'2026-09-02'),'rev-b'));
   assert.throws(()=>mergeVaultIntent(base,intended,latest),/already been reversed/i);
 });
 
@@ -70,9 +78,9 @@ test('concurrent stock issues cannot merge into negative inventory',()=>{
   const base=emptyVault();const item=saved();base.savedItems=[item];
   base.inventoryMovements=[createManualInventoryMovement(item,'opening','10','2026-09-01','Opening')];
   const latest=structuredClone(base),intended=structuredClone(base);
-  latest.inventoryMovements.push(createManualInventoryMovement(item,'issue','7','2026-09-02','Issue A'));
-  intended.inventoryMovements.push(createManualInventoryMovement(item,'issue','7','2026-09-02','Issue B'));
-  assert.throws(()=>mergeVaultIntent(base,intended,latest),/cannot fall below zero/i);
+  latest.inventoryMovements.push(evidencedMovement(createManualInventoryMovement(item,'issue','7','2026-09-02','Issue A'),'stock-a','samples'));
+  intended.inventoryMovements.push(evidencedMovement(createManualInventoryMovement(item,'issue','7','2026-09-02','Issue B'),'stock-b','samples'));
+  assert.throws(()=>mergeVaultIntent(base,intended,latest),/cannot fall below zero|Insufficient stock at the selected warehouse/i);
 });
 
 test('concurrent purchases cannot commit the same purchase number twice',()=>{

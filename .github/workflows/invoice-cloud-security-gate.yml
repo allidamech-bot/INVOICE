@@ -1,0 +1,77 @@
+name: LOUREX Invoice Cloud Security Gate
+
+on:
+  push:
+    branches: [feat/invoice-stock-evidence-ledger-20261015]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'firestore.rules'
+      - 'firebase.ai-ci.json'
+      - 'src/cloud/plain-workspace.ts'
+      - 'src/storage/db.ts'
+      - 'src/storage/vault-merge.ts'
+      - 'tests/cloud-first-*.test.mjs'
+      - 'tests/firebase-firestore-rules-emulator.integration.mjs'
+      - 'src/lib/backup.ts'
+      - 'tests/stock-backup-integrity-20261015.test.mjs'
+      - 'scripts/qa-cloud-auth-emulator-browser.mjs'
+      - '.github/workflows/invoice-cloud-security-gate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: invoice-cloud-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firebase-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install only repository dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify TypeScript and build without deployment
+        run: |
+          npm run typecheck
+          npm run build
+      - name: Two-device cloud, revision CAS, offline and account boundaries
+        run: |
+          node --test --test-concurrency=2 \
+            tests/cloud-first-pinless-contract.test.mjs \
+            tests/cloud-first-manifest-race.test.mjs \
+            tests/cloud-first-two-device.test.mjs \
+            tests/cloud-first-ack-lineage.test.mjs \
+            tests/cloud-first-listener-lifecycle.test.mjs \
+            tests/cloud-first-login-state-machine.test.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Imported recovery files must retain audited stock and financial history
+        run: node --test tests/stock-backup-integrity-20261015.test.mjs
+      - name: Real Firestore rules isolation in isolated local emulator
+        run: |
+          npx --yes firebase-tools@14 emulators:exec \
+            --only firestore \
+            --project demo-lourex-pinless \
+            --config firebase.ai-ci.json \
+            "node --test tests/firebase-firestore-rules-emulator.integration.mjs"
+      - name: Real browser login, cross-UID isolation and offline two-device synchronization (emulators only)
+        shell: bash
+        run: |
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > firebase-auth-local-only.json
+          npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project demo-lourex-pinless-auth --config firebase-auth-local-only.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
+      - name: Explicit security release boundary
+        run: |
+          echo 'PASS here validates only repository rules in a local emulator.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The live Firebase project was NOT queried, modified, or tested.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Workspace JSON/Base64 is NOT end-to-end encrypted. Firestore account rules are mandatory.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This gate does NOT authorize a production deployment.' >> "$GITHUB_STEP_SUMMARY"

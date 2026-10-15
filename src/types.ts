@@ -216,6 +216,16 @@ export interface InventoryMovementRecord extends WorkspaceScopeFields {
   note: string;
   fromWarehouseId?: string;
   toWarehouseId?: string;
+  /** Immutable credit-note-linked proof that returned goods were physically received. */
+  salesReturn?: {invoiceId:string;invoiceLineId:string;creditNoteId:string;creditLineId:string;itemId:string;warehouseId:string;receiptId:string};
+  /** Append-only reversal of a physical return receipt, with new independent proof. */
+  salesReturnCorrection?: {receiptMovementId:string};
+  /** Full, proof-linked warehouse receipt against one voided invoice stock issue. */
+  invoiceVoidStock?: {invoiceId:string;invoiceLineId:string;issueMovementId:string;warehouseId:string;evidenceId:string};
+  /** Encrypted workspace evidence: required for all newly posted manual movements. */
+  evidence?: DocumentAttachment;
+  reasonCategory?: string;
+  createdBy?: string;
   createdAt: string;
 }
 
@@ -298,6 +308,10 @@ export interface CompanySnapshot {
 
 export interface DocumentItem {
   id: string;
+  /** Stable catalog identity: never infer inventory movements from a display name. */
+  savedItemId?: string;
+  stockTreatment?: 'tracked' | 'non-stock';
+  skuSnapshot?: string;
   descriptionEn: string;
   descriptionAr: string;
   hsCode: string;
@@ -320,6 +334,7 @@ export interface DocumentAttachment {
 
 export interface SavedItem extends WorkspaceScopeFields {
   id: string;
+  inventoryTracking?: 'tracked' | 'non-stock';
   createdAt: string;
   updatedAt: string;
   sku?: string;

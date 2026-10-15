@@ -1,0 +1,51 @@
+name: LOUREX Invoice Main Merge Rehearsal
+
+on:
+  push:
+    branches: [feat/invoice-stock-evidence-ledger-20261015]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: invoice-main-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Dry-run integration with current main; no commits or branch writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          echo "Feature branch: $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Current main: $(git rev-parse --short origin/main)" >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          git merge-tree --write-tree --name-only origin/main HEAD > "$RUNNER_TEMP/invoice-merge-rehearsal.txt" 2>&1
+          merge_status=$?
+          set -e
+          if [ "$merge_status" -ne 0 ]; then
+            echo '### BLOCKED: main integration conflicts' >> "$GITHUB_STEP_SUMMARY"
+            echo 'No commit, branch update, or production deployment occurred.' >> "$GITHUB_STEP_SUMMARY"
+            grep -E '(^CONFLICT|^[A-Za-z0-9_./-]+\.(ts|tsx|js|mjs|json|rules|css|yml|yaml)$)' "$RUNNER_TEMP/invoice-merge-rehearsal.txt" | head -n 80 >> "$GITHUB_STEP_SUMMARY" || true
+            echo 'Dry-run merge detected conflicts; feature PR must remain Draft.'
+            exit 1
+          fi
+          echo '### No automatic conflicts in dry-run' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No PR was merged; live release gates still apply.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve isolated merge rehearsal report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: invoice-main-merge-rehearsal
+          path: ${{ runner.temp }}/invoice-merge-rehearsal.txt
+          retention-days: 7
+          if-no-files-found: ignore

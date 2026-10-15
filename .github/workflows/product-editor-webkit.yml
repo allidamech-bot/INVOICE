@@ -1,0 +1,67 @@
+name: LOUREX Product Editor WebKit QA
+
+on:
+  push:
+    branches: [feat/invoice-stock-evidence-ledger-20261015]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/ProductLibraryWorkspace.tsx'
+      - 'src/styles/v485-visible-ui-corrections.css'
+      - 'tests/visual/run-product-editor-webkit-v606.cjs'
+      - 'tests/visual/product-editor-webkit-v606.html'
+      - 'tests/visual/physical-sales-return-v607.html'
+      - 'tests/visual/run-physical-sales-return-v607.cjs'
+      - 'src/components/SalesReturnReceiptPanel.tsx'
+      - 'src/components/SalesReturnCorrectionPanel.tsx'
+      - 'src/components/DocumentLifecyclePanel.tsx'
+      - 'tests/visual/invoice-void-stock-v608.html'
+      - 'tests/visual/run-invoice-void-stock-v608.cjs'
+      - '.github/workflows/product-editor-webkit.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: product-editor-webkit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-webkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install production dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build real product editor
+        run: npm run build
+      - name: Install Playwright WebKit (test environment only)
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright
+          npx playwright install --with-deps webkit
+      - name: Test touch scroll, forms, Safari layout and save
+        run: |
+          npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-webkit-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/product-editor-webkit-v606.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/visual/run-product-editor-webkit-v606.cjs
+          node tests/visual/run-physical-sales-return-v607.cjs
+          node tests/visual/run-invoice-void-stock-v608.cjs
+      - name: Preserve screenshots and test metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-editor-webkit
+          path: |
+            visual-qa-output/product-editor-webkit-v606/
+            visual-qa-output/physical-sales-return-v607/
+            visual-qa-output/invoice-void-stock-v608/
+          if-no-files-found: ignore
+          retention-days: 7

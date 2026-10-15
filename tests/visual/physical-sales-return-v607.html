@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root"><div class="app-ui"><div class="ta-shell"><main class="ta-main"><div id="sales-return-fixture"></div></main></div></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {SalesReturnReceiptPanel} from './src/components/SalesReturnReceiptPanel.js';
+import {SalesReturnCorrectionPanel} from './src/components/SalesReturnCorrectionPanel.js';
+import {emptyVault} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {createCreditNoteDraft} from './src/lib/document-lifecycle.js';
+import {createManualInventoryMovement,inventoryBalances} from './src/lib/operations.js';
+import {postIssuedInvoiceStock} from './src/lib/invoice-stock.js';
+import {postSalesReturn,correctSalesReturn} from './src/lib/sales-returns.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const isArabic=new URLSearchParams(location.search).get('lang')==='ar';
+setUiLanguage(isArabic?'ar':'en');document.documentElement.lang=isArabic?'ar':'en';document.documentElement.dir=isArabic?'rtl':'ltr';
+const vault=emptyVault(),now=new Date().toISOString(),date=now.slice(0,10);
+const item={id:'return-qa-product',sku:'SKU-RETURN-QA',descriptionEn:'Returned cartons',descriptionAr:'كراتين مرتجعة',
+ createdAt:now,updatedAt:now,hsCode:'',origin:'',packing:'',unit:'Carton',
+ lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'4.50',lastCostCurrency:'USD',usageCount:0,lastUsedAt:now,
+ workspaceId:vault.appSettings.activeWorkspaceId,branchId:vault.appSettings.activeBranchId};
+vault.savedItems=[item];
+vault.inventoryMovements=[createManualInventoryMovement(item,'opening','10',date,'Legacy starting stock')];
+const invoice=createBlankDocument('invoice','INV-QA-RET',vault.company);
+invoice.issueDate=date;invoice.status='final';
+invoice.customerSnapshot={sourceCustomerId:'customer-qa',companyNameEn:'WebKit Buyer',companyNameAr:'عميل',
+ contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+invoice.items=[{...invoice.items[0],id:'sold-line-qa',savedItemId:item.id,stockTreatment:'tracked',skuSnapshot:item.sku,
+ unit:'Carton',descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,quantity:'4',unitPrice:'10.00'}];
+vault.documents=[invoice];
+const posted=postIssuedInvoiceStock(vault,invoice).vault;
+const credit={...createCreditNoteDraft(invoice,'CN-QA-RET','40.00'),status:'final',issueDate:date};
+credit.items=[{...credit.items[0],id:'credited-line-qa',quantity:'2',unitPrice:'10.00'}];
+const initial={...posted,documents:[invoice,credit]};
+window.recordAttempts=0;window.correctionAttempts=0;
+class Fixture extends React.Component{
+  state={vault:initial};
+  onRecord=async(input)=>{
+    window.recordAttempts+=1;
+    const updated=postSalesReturn(this.state.vault,{...input,operatorId:'owner'}).vault;
+    this.setState({vault:updated});
+  };
+  onCorrect=async(input)=>{
+    window.correctionAttempts+=1;
+    const updated=correctSalesReturn(this.state.vault,{...input,operatorId:'owner'}).vault;
+    this.setState({vault:updated});
+  };
+  render(){
+    window.returnQaState=()=>({balance:inventoryBalances(this.state.vault.savedItems,this.state.vault.inventoryMovements).find(x=>x.item.id===item.id)?.quantity,
+      returned:this.state.vault.inventoryMovements.filter(x=>x.salesReturn).map(x=>({quantity:x.quantity,proof:!!x.evidence,creditId:x.sourceId,cost:x.unitCost})),
+      corrections:this.state.vault.inventoryMovements.filter(x=>x.salesReturnCorrection).map(x=>({quantity:x.quantity,proof:!!x.evidence,origin:x.sourceId}))});
+    return React.createElement(React.Fragment,null,
+      React.createElement(SalesReturnReceiptPanel,{
+        documents:this.state.vault.documents,movements:this.state.vault.inventoryMovements,warehouses:this.state.vault.warehouses,
+        workspaceId:this.state.vault.appSettings.activeWorkspaceId,branchId:this.state.vault.appSettings.activeBranchId,onRecord:this.onRecord
+      }),
+      React.createElement(SalesReturnCorrectionPanel,{
+        movements:this.state.vault.inventoryMovements,workspaceId:this.state.vault.appSettings.activeWorkspaceId,
+        branchId:this.state.vault.appSettings.activeBranchId,onCorrect:this.onCorrect
+      })
+    );
+  }
+}
+ReactDOM.render(React.createElement(Fixture),document.getElementById('sales-return-fixture'));
+</script></body></html>

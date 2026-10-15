@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root"><div class="app-ui"><div class="ta-shell"><main class="ta-main"><div id="invoice-void-fixture"></div></main></div></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {DocumentLifecyclePanel} from './src/components/DocumentLifecyclePanel.js';
+import {emptyVault} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {createManualInventoryMovement,inventoryBalances} from './src/lib/operations.js';
+import {postIssuedInvoiceStock} from './src/lib/invoice-stock.js';
+import {postVoidedInvoiceWithPhysicalReceipt} from './src/lib/invoice-void-stock.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const arabic=new URLSearchParams(location.search).get('lang')==='ar';
+setUiLanguage(arabic?'ar':'en');document.documentElement.dir=arabic?'rtl':'ltr';document.documentElement.lang=arabic?'ar':'en';
+const now=new Date().toISOString(),date=now.slice(0,10),vault=emptyVault();
+const item={id:'webkit-void-product',sku:'SKU-VOID-QA',descriptionEn:'Delivered crates',descriptionAr:'صناديق',
+ createdAt:now,updatedAt:now,hsCode:'',origin:'',packing:'',unit:'Carton',lastUnitPrice:'12.00',
+ lastCurrency:'USD',lastUnitCost:'5.25',lastCostCurrency:'USD',usageCount:0,lastUsedAt:now,
+ workspaceId:vault.appSettings.activeWorkspaceId,branchId:vault.appSettings.activeBranchId};
+vault.savedItems=[item];vault.inventoryMovements=[createManualInventoryMovement(item,'opening','10',date,'Original stock')];
+const invoice=createBlankDocument('invoice','INV-VOID-WEBKIT-608',vault.company);
+invoice.issueDate=date;invoice.dueDate=date;invoice.status='final';
+invoice.customerSnapshot={sourceCustomerId:'buyer-webkit',companyNameEn:'WebKit Customer',companyNameAr:'عميل اختبار',contactPerson:'',
+ addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+invoice.items=[{...invoice.items[0],id:'webkit-void-line',savedItemId:item.id,stockTreatment:'tracked',skuSnapshot:item.sku,
+ descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,unit:'Carton',quantity:'3',unitPrice:'12.00'}];
+vault.documents=[invoice];const issued=postIssuedInvoiceStock(vault,invoice).vault;
+window.voidAttempts=0;window.voidErrors=[];
+class Fixture extends React.Component{
+ state={vault:issued};
+ onVoid=async(doc,reason,proof)=>{
+  window.voidAttempts++;
+  try{const next=postVoidedInvoiceWithPhysicalReceipt(this.state.vault,doc,{reason,evidence:proof,operatorId:'owner'}).vault;
+   this.setState({vault:next});}
+  catch(error){window.voidErrors.push(String(error));throw error;}
+ };
+ render(){
+  const current=this.state.vault.documents[0];
+  window.invoiceVoidQa=()=>({status:current.lifecycleStatus,balance:inventoryBalances(this.state.vault.savedItems,
+   this.state.vault.inventoryMovements).find(r=>r.item.id===item.id)?.quantity,
+   issues:this.state.vault.inventoryMovements.filter(m=>m.type==='issue').length,
+   receipts:this.state.vault.inventoryMovements.filter(m=>!!m.invoiceVoidStock).length,
+   proofs:current.attachments?.length||0});
+  return React.createElement(DocumentLifecyclePanel,{document:current,documents:this.state.vault.documents,
+   payments:[],events:[],revisions:[],requiresStockProof:true,
+   onVoid:this.onVoid,onDiscardRevision:async()=>{},onCreateCreditNote:async()=>{}});
+ }
+}
+ReactDOM.render(React.createElement(Fixture),document.getElementById('invoice-void-fixture'));
+</script></body></html>

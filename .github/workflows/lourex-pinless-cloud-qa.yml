@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > firebase-emulator.qa.json
-          npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project lourex-invoice --config firebase-emulator.qa.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
+          npx --yes firebase-tools@14 emulators:exec --only auth,firestore --project demo-lourex-pinless-auth --config firebase-emulator.qa.json "node scripts/qa-cloud-auth-emulator-browser.mjs"
       - name: Free real-browser smoke — 390/820/1440 Chromium viewport
         run: node scripts/qa-free-chrome-smoke.mjs
       - name: Actual Safari WebKit on iPhone, iPad, and desktop — no device PIN

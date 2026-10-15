@@ -1,7 +1,7 @@
 import { DraftDocumentEditor } from './DraftDocumentEditor.js';
 import { isLetterDocument } from '../lib/document-extras.js';
 import { documentCanConvertToInvoice } from '../lib/document-kinds.js';
-import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, DocumentItem, DocumentRevisionRecord, LourexDocument, PaymentRecord, SavedItem, Supplier } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, DocumentAttachment, DocumentEventRecord, DocumentItem, DocumentRevisionRecord, LourexDocument, PaymentRecord, SavedItem, Supplier } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
 import { EditorPage as EditorPageCore } from './EditorPageCore.js';
@@ -10,10 +10,10 @@ import { DocumentLifecyclePanel } from './DocumentLifecyclePanel.js';
 import { ProfitabilityPanel } from './ProfitabilityPanel.js';
 
 interface Props {
-  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; suppliers:Supplier[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; documentEvents:DocumentEventRecord[]; documentRevisions:DocumentRevisionRecord[]; smartDefaults:AppSettings['smartDefaults'];
+  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; suppliers:Supplier[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; documentEvents:DocumentEventRecord[]; documentRevisions:DocumentRevisionRecord[]; smartDefaults:AppSettings['smartDefaults']; requiresStockProof?:boolean;
   onEditActivity?:()=>void; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
-  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onSavePayment:(payment:PaymentRecord)=>Promise<void>; onDeletePayment:(payment:PaymentRecord)=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onDiscardRevision:(doc:LourexDocument)=>Promise<void>; onVoidDocument:(doc:LourexDocument,reason:string)=>Promise<void>; onCreateCreditNote:(doc:LourexDocument)=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
+  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onSavePayment:(payment:PaymentRecord)=>Promise<void>; onDeletePayment:(payment:PaymentRecord)=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onDiscardRevision:(doc:LourexDocument)=>Promise<void>; onVoidDocument:(doc:LourexDocument,reason:string,evidence?:DocumentAttachment)=>Promise<void>; onCreateCreditNote:(doc:LourexDocument)=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
 }
 
 interface EditorSectionNavItem {id:string;number:string;label:string;hasError:boolean;}
@@ -233,7 +233,7 @@ export class EditorPage extends React.Component<Props,State>{
     this.lifecyclePromises.set(key,operation);return operation;
   };
   private discardRevisionSingleFlight=(doc:LourexDocument)=>this.lifecycleSingleFlight('discard',()=>this.props.onDiscardRevision(doc));
-  private voidDocumentSingleFlight=(doc:LourexDocument,reason:string)=>this.lifecycleSingleFlight('void',()=>this.props.onVoidDocument(doc,reason));
+  private voidDocumentSingleFlight=(doc:LourexDocument,reason:string,evidence?:DocumentAttachment)=>this.lifecycleSingleFlight('void',()=>this.props.onVoidDocument(doc,reason,evidence));
   private createCreditNoteSingleFlight=(doc:LourexDocument)=>this.lifecycleSingleFlight('credit',()=>this.props.onCreateCreditNote(doc));
 
   private convertFinalQuote=()=>{
@@ -276,7 +276,7 @@ export class EditorPage extends React.Component<Props,State>{
     const editorScreen=typeof document==='undefined'?null:document.querySelector('.editor-screen');
     const sectionNavigator=this.renderSectionNavigator();
     const finalQuoteAction=finalQuote?this.renderQuoteAction(linkedInvoice,sourceIsProformaInvoice):null;
-    const supportPanels=<div className="ta-editor-support-panels"><DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>{props.document.kind==='invoice'?<InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>:null}{(props.document.kind==='proforma'||props.document.kind==='proforma-invoice'||props.document.kind==='invoice')?<ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>:null}</div>;
+    const supportPanels=<div className="ta-editor-support-panels"><DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} requiresStockProof={props.requiresStockProof} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>{props.document.kind==='invoice'?<InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>:null}{(props.document.kind==='proforma'||props.document.kind==='proforma-invoice'||props.document.kind==='invoice')?<ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>:null}</div>;
 
     return <div className="ta-editor-workspace" data-v320-editor="true">
       {this.state.persistenceError?<div className="ta-editor-persistence-error" role="alert"><span className="ta-editor-error-icon">!</span><div><strong>{t('Local save needs attention','الحفظ المحلي يحتاج انتباهك')}</strong><span>{this.state.persistenceError}</span></div></div>:null}

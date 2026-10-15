@@ -1,8 +1,9 @@
-import type { ExpenseRecord, InventoryMovementRecord, PurchaseRecord, SavedItem, Supplier, WarehouseRecord } from '../types.js';
+import type { ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, SavedItem, Supplier, WarehouseRecord } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { confirmWorkspaceDeparture } from '../lib/workspace-dirty.js';
 import { formatMoney } from '../lib/money.js';
 import { inventoryBalances } from '../lib/operations.js';
+import type {SalesReturnInput,SalesReturnCorrectionInput} from '../lib/sales-returns.js';
 import { ensurePricingStyles } from '../lib/pricing-style.js';
 import { SavedItemsPage } from './SavedItemsPage.js';
 import { ProductPriceLists } from './ProductPriceLists.js';
@@ -20,6 +21,8 @@ interface Props{
   onSavePurchase:(purchase:PurchaseRecord)=>Promise<void>;onDeletePurchase:(purchase:PurchaseRecord)=>Promise<void>;onPostPurchase:(purchase:PurchaseRecord)=>Promise<void>;onReversePurchase:(purchase:PurchaseRecord,reason:string)=>Promise<void>;
   onSaveExpense:(expense:ExpenseRecord)=>Promise<void>;onDeleteExpense:(expense:ExpenseRecord)=>Promise<void>;
   onSaveInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;onDeleteInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;
+  documents?:LourexDocument[];onRecordSalesReturn?:(input:SalesReturnInput)=>Promise<void>;
+  onCorrectSalesReturn?:(input:SalesReturnCorrectionInput)=>Promise<void>;
 }
 type Tab='products'|'prices'|'inventory'|'planning'|'locations'|'movements';
 function itemName(item:SavedItem):string{return t(item.descriptionEn||item.descriptionAr||item.sku||'Product',item.descriptionAr||item.descriptionEn||item.sku||'منتج');}
@@ -35,7 +38,7 @@ export function ProductsInventoryWorkspace(props:Props):any{
   },[props.items]);
   const history=historyItem?props.purchases.filter(purchase=>purchase.items.some(line=>line.savedItemId===historyItem.id)).sort((a,b)=>b.date.localeCompare(a.date)||b.updatedAt.localeCompare(a.updatedAt)):[];
   const stockQuantities=React.useMemo(()=>new Map(inventoryBalances(props.items,props.inventoryMovements).map(row=>[row.item.id,row.quantity])),[props.items,props.inventoryMovements]);
-  const operationsProps={suppliers:props.suppliers,purchases:props.purchases,expenses:props.expenses,inventoryMovements:props.inventoryMovements,items:props.items,defaultCurrency:props.defaultCurrency,onSaveSupplier:props.onSaveSupplier,onDeleteSupplier:props.onDeleteSupplier,onSavePurchase:props.onSavePurchase,onDeletePurchase:props.onDeletePurchase,onPostPurchase:props.onPostPurchase,onReversePurchase:props.onReversePurchase,onSaveExpense:props.onSaveExpense,onDeleteExpense:props.onDeleteExpense,onSaveInventoryMovement:props.onSaveInventoryMovement,onDeleteInventoryMovement:props.onDeleteInventoryMovement};
+  const operationsProps={warehouses:props.warehouses,workspaceId:props.workspaceId,branchId:props.branchId,suppliers:props.suppliers,purchases:props.purchases,expenses:props.expenses,inventoryMovements:props.inventoryMovements,items:props.items,defaultCurrency:props.defaultCurrency,onSaveSupplier:props.onSaveSupplier,onDeleteSupplier:props.onDeleteSupplier,onSavePurchase:props.onSavePurchase,onDeletePurchase:props.onDeletePurchase,onPostPurchase:props.onPostPurchase,onReversePurchase:props.onReversePurchase,onSaveExpense:props.onSaveExpense,onDeleteExpense:props.onDeleteExpense,documents:props.documents,onRecordSalesReturn:props.onRecordSalesReturn,onCorrectSalesReturn:props.onCorrectSalesReturn,onSaveInventoryMovement:props.onSaveInventoryMovement,onDeleteInventoryMovement:props.onDeleteInventoryMovement};
   const favorites=props.items.filter(item=>item.favorite).length,postedPurchases=props.purchases.filter(purchase=>purchase.status==='posted').length,movements=props.inventoryMovements.length;
   const openPricing=(item:SavedItem)=>{if(!props.items.some(row=>row.id===item.id)||!confirmWorkspaceDeparture())return;setTab('products');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-edit-product',{detail:{itemId:item.id,section:'pricing'}})),0);};
   return <section className="ta-products-workspace">

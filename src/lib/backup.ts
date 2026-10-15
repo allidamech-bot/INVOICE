@@ -1,6 +1,10 @@
 import type { EncryptedBackupFile, VaultPayload } from '../types.js';
 import { createEncryptedBackup, decryptBackup } from '../crypto/crypto.js';
 import { APP_SCHEMA_VERSION } from './defaults.js';
+import { assertPostedInvoiceStockDocumentIntegrity } from './invoice-stock.js';
+import { assertInvoiceVoidStockIntegrity } from './invoice-void-stock.js';
+import { assertSalesReturnIntegrity } from './sales-returns.js';
+import type { InventoryMovementRecord } from '../types.js';
 
 /** A separate, high-entropy export password is safer than the 4–12 digit
  * device-unlock PIN. Imported v1 backups remain decryptable with their legacy PIN. */
@@ -77,6 +81,28 @@ export function assertRestorableBackupVault(value:unknown):asserts value is Vaul
   }
   if(!Array.isArray(raw.workspaces)&&required)throw new Error('Backup workspaces are missing.');
   if(!Array.isArray(raw.branches)&&required)throw new Error('Backup branches are missing.');
+  // A structurally valid JSON file can still contain forged, orphaned or
+  // partially removed STOCK ledger entries. This guard runs before accepting
+  // a local import AND before hydrating a cloud snapshot. Historical vaults
+  // without the new invoice-based stock ledger remain fully compatible.
+  const movements=(raw.inventoryMovements??[]) as InventoryMovementRecord[];
+  if(movements.some(row=>{
+    const id=typeof row.id==='string'?row.id:'';
+    return id.startsWith('sales-invoice-stock:')||id.startsWith('sales-invoice-void-stock:')
+      ||id.startsWith('sales-credit-stock:')
+      ||Boolean(row.salesReturn||row.salesReturnCorrection||row.invoiceVoidStock)
+      ||typeof row.note==='string'&&row.note.startsWith('@lourex:invoice-stock:v1:');
+  })){
+    try{
+      const vault=value as VaultPayload;
+      assertPostedInvoiceStockDocumentIntegrity(vault.documents,vault.inventoryMovements);
+      assertInvoiceVoidStockIntegrity(vault.documents,vault.inventoryMovements);
+      assertSalesReturnIntegrity(vault);
+    }catch(error){
+      throw new Error('Backup posted-invoice stock ledger or physical receipt evidence is invalid. No existing workspace data was changed.',
+        {cause:error});
+    }
+  }
 }
 
 export async function readBackup(file: File, pin: string): Promise<VaultPayload> {
@@ -110,6 +136,44 @@ export async function exportPlainBackup(vault:VaultPayload):Promise<void>{
     }
   }
   downloadFallback(file);
+}
+
+/**
+ * Importing an older but structurally valid account copy must never silently
+ * erase final invoice stock debits or their immutable correction evidence.
+ * Users may still import a complete identical audit ledger plus newer unrelated
+ * records. True historical rollback requires a separately audited recovery path.
+ */
+export function assertPostedStockRestoreContinuity(current:VaultPayload,replacement:VaultPayload):void{
+  const protectedStock=(row:InventoryMovementRecord):boolean=>{
+    const id=row.id||'';
+    return id.startsWith('sales-invoice-stock:')
+      ||id.startsWith('sales-invoice-void-stock:')
+      ||id.startsWith('sales-credit-stock:')
+      ||id.startsWith('sales-credit-stock-correction:')
+      ||Boolean(row.salesReturn||row.salesReturnCorrection||row.invoiceVoidStock)
+      ||typeof row.note==='string'&&row.note.startsWith('@lourex:invoice-stock:v1:');
+  };
+  const previous=current.inventoryMovements.filter(protectedStock);
+  if(!previous.length)return;
+  const incoming=new Map(replacement.inventoryMovements.map(row=>[row.id,row]));
+  const requireSame=(original:unknown,other:unknown)=>{
+    if(JSON.stringify(original)!==JSON.stringify(other))
+      throw new Error('This older local copy would erase or modify posted invoice stock/return audit history. Existing account data was not replaced.');
+  };
+  const documentIds=new Set<string>();
+  for(const row of previous){
+    requireSame(row,incoming.get(row.id));
+    if(row.sourceId&&row.id.startsWith('sales-invoice-stock:'))documentIds.add(row.sourceId);
+    if(row.invoiceVoidStock?.invoiceId)documentIds.add(row.invoiceVoidStock.invoiceId);
+    if(row.salesReturn){
+      documentIds.add(row.salesReturn.invoiceId);
+      documentIds.add(row.salesReturn.creditNoteId);
+    }
+  }
+  const existingDocuments=new Map(current.documents.map(doc=>[doc.id,doc]));
+  const restoredDocuments=new Map(replacement.documents.map(doc=>[doc.id,doc]));
+  for(const id of documentIds)requireSame(existingDocuments.get(id),restoredDocuments.get(id));
 }
 
 export async function readPlainBackup(file:File):Promise<VaultPayload>{

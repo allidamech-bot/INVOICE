@@ -42,9 +42,15 @@ test('v197 Operations uses one synchronous mutation lane for suppliers purchases
   assert.match(lane,/if\(this\.mutationInFlight\)return false/);
   assert.ok(lane.indexOf('this.mutationInFlight=true')<lane.indexOf('await work()'));
   assert.match(lane,/finally\{this\.mutationInFlight=false;this\.setState\(\{busy:false\}\);\}/);
-  for(const callback of ['onSaveSupplier','onDeleteSupplier','onSavePurchase','onDeletePurchase','onPostPurchase','onReversePurchase','onSaveExpense','onDeleteExpense','onSaveInventoryMovement','onDeleteInventoryMovement']){
+  for(const callback of ['onSaveSupplier','onDeleteSupplier','onSavePurchase','onDeletePurchase','onPostPurchase','onReversePurchase','onSaveExpense','onDeleteExpense']){
     assert.match(source,new RegExp(`runMutation\\(async\\(\\)=>\\{[^}]*this\\.props\\.${callback}`,'s'),callback);
   }
+  const movementSave=source.slice(source.indexOf('private saveMovement='),source.indexOf('private deleteMovement='));
+  assert.match(movementSave,/await this\.runMutation\(async\(\)=>\{/);
+  assert.match(movementSave,/await this\.props\.onSaveInventoryMovement\(movement\)/);
+  const documentedReversal=source.slice(source.indexOf('private deleteMovement='),source.indexOf('private confirmAction='));
+  assert.match(documentedReversal,/reverseManualInventoryMovement/);
+  assert.doesNotMatch(documentedReversal,/onDeleteInventoryMovement/);
   assert.match(source,/aria-busy=\{this\.state\.busy\}/);
   assert.match(source,/fieldset disabled=\{edit\.status!=='draft'\|\|this\.state\.busy\}/);
 });

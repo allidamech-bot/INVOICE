@@ -18,6 +18,10 @@ import { assertSalesOrderIntegrity } from '../lib/sales-order-flow.js';
 import { assertSalesDeliveryIntegrity } from '../lib/sales-delivery-flow.js';
 import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity } from '../lib/sales-delivery-invoice.js';
 import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, isSalesDeliveryStockIssue } from '../lib/sales-delivery-stock.js';
+import {assertInvoiceStockLedgerContinuity,assertPostedInvoiceStockDocumentIntegrity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
+import {validateManualMovementEvidence} from '../lib/inventory-evidence.js';
+import {assertSalesReturnIntegrity,assertSalesReturnLedgerContinuity,isSalesReturn,isSalesReturnCorrection} from '../lib/sales-returns.js';
+import {assertInvoiceVoidStockIntegrity,assertInvoiceVoidStockContinuity,assertInvoiceVoidDocumentContinuity,isInvoiceVoidStockReceipt} from '../lib/invoice-void-stock.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -165,11 +169,15 @@ function savedItemSku(value:unknown):string{return text(value).normalize('NFKC')
 function savedItemIdentityChanged(before:SavedItem|undefined,item:SavedItem):boolean{
   return !before||normalizeSavedItemIdentity(text(before.descriptionEn))!==normalizeSavedItemIdentity(text(item.descriptionEn))||normalizeSavedItemIdentity(text(before.descriptionAr))!==normalizeSavedItemIdentity(text(item.descriptionAr))||savedItemSku(before.sku)!==savedItemSku(item.sku);
 }
-function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[]):void{
+function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[],movements:InventoryMovementRecord[]):void{
   if(intended===base)return;
   const baseById=new Map(base.map(item=>[item.id,item]));
   for(const item of intended){
     const before=baseById.get(item.id);
+    if(item.inventoryTracking&&item.inventoryTracking!=='tracked'&&item.inventoryTracking!=='non-stock')throw new Error('Invalid inventory classification.');
+    if(before&&movements.some(movement=>movement.itemId===item.id)
+      &&(before.unit!==item.unit||(before.inventoryTracking||'tracked')!==(item.inventoryTracking||'tracked')))
+      throw new Error('Cannot change unit or inventory classification of a product with stock history. Create a separate catalog item.');
     const identityChanged=savedItemIdentityChanged(before,item);
     const commercialChanged=!before||identityChanged||text(before.unit)!==text(item.unit)||text(before.lastUnitPrice)!==text(item.lastUnitPrice);
     const costChanged=!before||text(before.lastUnitCost)!==text(item.lastUnitCost)||text(before.lastCostCurrency)!==text(item.lastCostCurrency);
@@ -327,16 +335,20 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     if(baseIds.has(movement.id))continue;
     touched.add(movement.itemId);
     if(movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='transfer')continue;
+    // A physical customer return must be validated against its final credit note,
+    // original invoice and immutable issue before it can increase a warehouse.
+    if(isSalesReturn(movement)||isSalesReturnCorrection(movement)||isInvoiceVoidStockReceipt(movement))continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
-    if(!savedItems.some(item=>item.id===movement.itemId))throw new Error('Inventory movement is linked to a missing saved item.');
+    if(!savedItems.some(item=>item.id===movement.itemId&&item.inventoryTracking!=='non-stock'))throw new Error('Inventory movement needs a tracked catalog item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
     const quantity=movementQuantity(movement);
     if(movement.type==='opening'&&quantity<0n)throw new Error('Opening stock cannot be negative.');
     if(movement.type==='issue'&&quantity>0n)throw new Error('Stock issues must reduce inventory.');
     const cost=text(movement.unitCost).trim();
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Inventory movement unit cost must be zero or greater.');
+    if(!isSalesDeliveryStockIssue(movement)&&!isIssuedInvoiceStockIssue(movement))validateManualMovementEvidence(movement);
     if(movement.sourceId){
-      if(movement.type==='issue'&&isSalesDeliveryStockIssue(movement))continue;
+      if(movement.type==='issue'&&(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement)))continue;
       if(movement.type!=='adjustment')throw new Error('Only an adjustment can reverse a prior manual inventory movement.');
       const source=movements.find(item=>item.id===movement.sourceId);
       if(!source||!inventoryMovementIsManual(source))throw new Error('Manual inventory reversal is linked to an invalid source movement.');
@@ -367,6 +379,39 @@ function guardNewWarehouseTransfers(base:VaultPayload,intended:VaultPayload,late
       if(!warehouses.some(row=>row.id===locationId&&row.workspaceId===workspaceId&&row.branchId===branchId&&row.active))throw new Error('Warehouse transfer location is no longer active.');
     }
     if(movementQuantity(movement)>warehouseItemQuantity(movement.itemId,movement.fromWarehouseId!,ledger,defaultId))throw new Error('Transfer quantity exceeds the latest available stock at its source.');
+    ledger.push(movement);
+  }
+}
+
+/**
+ * A company-wide positive quantity must not conceal an overdrawn warehouse.
+ * Replay NEW debits against the latest location ledger, including concurrent
+ * transfers and invoice postings from other devices.
+ */
+function guardNewWarehouseDebits(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
+  if(intended.inventoryMovements===base.inventoryMovements)return;
+  const previous=new Set(base.inventoryMovements.map(row=>row.id));
+  const remote=new Set(latest.inventoryMovements.map(row=>row.id));
+  const ledger=[...latest.inventoryMovements];
+  for(const movement of intended.inventoryMovements){
+    if(previous.has(movement.id))continue;
+    if(remote.has(movement.id)){
+      // Retain the specialized immutable sales-ledger conflict messages and proof checks.
+      if(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement)||isInvoiceVoidStockReceipt(movement))continue;
+      throw new Error('Concurrent inventory movement already exists. Refresh before posting.');
+    }
+    if(!inventoryMovementAccountingIsValid(movement))
+      throw new Error('New inventory movement has invalid quantities or origin.');
+    if(movement.type!=='transfer'){
+      const delta=movementQuantity(movement);
+      if(delta<0n){
+        const fallback=defaultWarehouseId(movement.branchId||latest.appSettings.activeBranchId);
+        const source=movement.fromWarehouseId||fallback;
+        const available=warehouseItemQuantity(movement.itemId,source,ledger,fallback);
+        if(-delta>available)
+          throw new Error('Insufficient stock at the selected warehouse after concurrent changes.');
+      }
+    }
     ledger.push(movement);
   }
 }
@@ -434,6 +479,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   }
   guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
   const touchedItems=guardNewManualMovements(base,intended,movements,savedItems);
+  guardNewWarehouseDebits(base,intended,latest);
   for(const id of affectedPurchases){const purchase=purchases.find(item=>item.id===id);for(const line of purchase?.items??[])if(line.savedItemId)touchedItems.add(line.savedItemId);}
   for(const itemId of touchedItems){
     const latestQuantity=inventoryQuantity(itemId,latest.inventoryMovements);
@@ -576,18 +622,35 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardAllocatedPaymentChanges(base.supplierPayments,intended.supplierPayments,treasuryEntries,'supplier-payment','Supplier payment');
   for(const entry of treasuryEntries)if(!entry.voidedAt&&entry.sourceType==='supplier-payment'&&supplierPayments.some(payment=>payment.id===entry.sourceId&&payment.voidedAt))throw new Error('Active cash/bank entry references a voided supplier payment. Void the treasury entry first.');
   guardCustomerChanges(base.customers,intended.customers,customers);
-  guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
+  guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems,inventoryMovements);
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  assertInvoiceStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  assertSalesReturnLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  assertInvoiceVoidStockContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  assertInvoiceVoidDocumentContinuity(base.documents,intended.documents,latest.documents,base.inventoryMovements);
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
   assertSalesOrderIntegrity(documents,documentEvents);
   assertSalesDeliveryIntegrity(documents,documentEvents);
   assertDeliveryInvoiceIntegrity(documents,documentEvents);
+  // Block final invoice imports and concurrent merges that omit the mandatory stock movement.
+  // Existing historical issued invoices are intentionally grandfathered, never re-posted.
+  for(const doc of documents){
+    if(doc.kind!=='invoice'||doc.role!=='standard'||doc.status!=='final'||doc.lifecycleStatus==='voided')continue;
+    const old=base.documents.find(row=>row.id===doc.id);
+    const intendedDoc=intended.documents.find(row=>row.id===doc.id);
+    if(old?.status==='final'||intendedDoc?.status!=='final')continue;
+    const scopedStock=postIssuedInvoiceStock({...latest,documents,documentEvents,inventoryMovements,savedItems,warehouses},doc);
+    if(scopedStock.created)throw new Error('A final invoice must commit its stock issues atomically. Reopen and issue again.');
+  }
+  assertInvoiceVoidStockIntegrity(documents,inventoryMovements);
+  assertPostedInvoiceStockDocumentIntegrity(documents,inventoryMovements);
+  assertSalesReturnIntegrity({documents,inventoryMovements,warehouses,appSettings:latest.appSettings});
   assertSalesDeliveryStockIntegrity({documents,documentEvents,inventoryMovements,savedItems,warehouses,appSettings:latest.appSettings});
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {

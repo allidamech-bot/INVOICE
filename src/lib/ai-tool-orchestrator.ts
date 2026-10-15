@@ -8,7 +8,6 @@ import {prepareOperationalPoFromRfq} from './ai-operational-po-draft.js';
 import {prepareAiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
 import {prepareOperationalDeliveryDraft} from './ai-operational-dn-draft.js';
 import {prepareAiDeliveryConfirmation} from './ai-operational-delivery-confirmation.js';
-import {prepareAiSalesStockIssue} from './ai-operational-stock-issue.js';
 import {prepareAiSupplierInvoiceMatch} from './ai-operational-supplier-invoice-match.js';
 import {prepareAiConfirmedDeliveryInvoice} from './ai-operational-delivery-invoice-draft.js';
 import {prepareAiCustomerCollection} from './ai-operational-customer-collection.js';
@@ -157,7 +156,7 @@ function findDocument(runtime:AiToolRuntime,args:Record<string,unknown>):any|nul
 function findPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.purchaseId,120)||relevantEntity(runtime,'purchase');const number=clean(args.number||args.query,100);return runtime.vault.purchases.find(row=>(id&&row.id===id)||(number&&lower(row.number)===lower(number)))??null;}
 
 export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='business',mode:AiConversationMode='controller'):Array<{id:AiToolId;class:AiToolClass;description:string;approval:boolean}>{
-  const allowed=AI_TOOL_REGISTRY.filter(row=>conversationModePermitsToolClass(mode,row.class));
+  const allowed=AI_TOOL_REGISTRY.filter(row=>row.id!=='sales.issueConfirmedStock'&&conversationModePermitsToolClass(mode,row.class));
   if(scope==='personal')return allowed.filter(row=>['message.prepare','reminder.prepare','task.create'].includes(row.id)).map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
   // Temporary conversation state and approval receipts are intentionally ephemeral.
   // Never advertise a mutation that cannot be replay-protected after a reload.
@@ -280,10 +279,7 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
       throw new Error('Only Controller business mode may prepare confirmed inventory issue.');
     const input=args.issue as any;
     if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('Exact warehouse and SKU mapping required.');
-    const review=prepareAiSalesStockIssue(runtime.vault,input);
-    return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
-      label:'Review inventory deduction '+review.deliveryNoteNumber,
-      rationale:'This deducts warehouse stock ONLY after a separate explicit approval. No documents or payments are created.'};
+    throw new Error('Separate Delivery Note stock deduction is retired. Issue the final sales invoice to debit inventory once, or use a documented manual movement with written reason and supporting file.');
   }
   if(call.tool==='sales.confirmPhysicalDelivery'){
     if(runtime.scope!=='business'||runtime.conversationMode!=='controller')

@@ -26,6 +26,9 @@ function snapshot(vault:VaultPayload):string{
   return canonicalFoundationJson({company:scoped.company,documents:scoped.documents,customers:scoped.customers,suppliers:scoped.suppliers,savedItems:scoped.savedItems,numbering:scoped.appSettings.numbering});
 }
 export function foundationActionAllowed(vault:VaultPayload,proposal:any,scope:KernelScope):boolean{
+  // The retired Delivery Note stock issue route is forbidden in every mode,
+  // including previously signed owner/admin AI approvals.
+  if(proposal.tool==='sales.issueConfirmedStock')return false;
   const role=strictAiActor(vault).role;
   if(proposal.capability==='tool.plan')return Array.isArray(proposal.steps)&&proposal.steps.every((p:any)=>foundationActionAllowed(vault,p,scope));
   if(proposal.capability!=='tool.execute')return assistantCapabilityAllowed(vault,proposal.capability,scope.scope);

@@ -1,0 +1,55 @@
+name: LOUREX Invoice Stock Safety
+
+on:
+  push:
+    branches:
+      - feat/invoice-stock-evidence-ledger-20261015
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/invoice-stock.ts'
+      - 'src/lib/invoice-void-stock.ts'
+      - 'src/components/DocumentLifecyclePanel.tsx'
+      - 'src/components/EditorPage.tsx'
+      - 'src/lib/sales-returns.ts'
+      - 'src/components/SalesReturnReceiptPanel.tsx'
+      - 'src/components/SalesReturnCorrectionPanel.tsx'
+      - 'src/lib/saved-items.ts'
+      - 'src/lib/sales-delivery-stock.ts'
+      - 'src/storage/vault-merge.ts'
+      - 'src/app/App.tsx'
+      - 'src/components/EditorPageCore.tsx'
+      - 'src/types.ts'
+      - 'tests/invoice-stock-ledger-20261015.test.mjs'
+      - 'tests/invoice-void-stock-20261015.test.mjs'
+      - 'src/lib/backup.ts'
+      - 'tests/stock-backup-integrity-20261015.test.mjs'
+      - 'tests/sales-return-stock-20261015.test.mjs'
+      - '.github/workflows/invoice-stock-safety.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: invoice-stock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  invoice-stock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Build production bundle locally (no deployment)
+        run: npm run build
+      - name: Real domain and vault merge tests
+        run: node --test tests/stock-backup-integrity-20261015.test.mjs tests/invoice-void-stock-20261015.test.mjs tests/sales-return-stock-20261015.test.mjs tests/invoice-stock-ledger-20261015.test.mjs tests/b07-sales-stock-issue.test.mjs tests/vault-merge.test.mjs tests/workflow-closeout.test.mjs
+      - name: Full Node regression suite (including unchanged historical contracts)
+        run: node --test --test-concurrency=2 tests/*.test.mjs

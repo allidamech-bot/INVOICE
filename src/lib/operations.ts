@@ -254,6 +254,8 @@ export function reverseManualInventoryMovement(movement:InventoryMovementRecord,
   if(quantity===0n)throw new Error('Movement quantity cannot be zero.');
   return {
     ...movement,id:makeId('stock'),date,type:'adjustment',quantity:trimFixed(fixed(-quantity,4)),sourceId:movement.id,sourceNumber:movement.sourceNumber||movement.id,
+    // A reversal is NEW evidence: never reuse the original attachment, reason or operator.
+    evidence:undefined,reasonCategory:undefined,createdBy:undefined,
     note:[`Reversal of ${movement.type}`,movement.note].filter(Boolean).join(' — '),createdAt:nowIso()
   };
 }
@@ -293,7 +295,7 @@ export function inventoryBalances(items:SavedItem[],movements:InventoryMovementR
   });
 }
 
-export function inventoryMovementIsManual(movement:InventoryMovementRecord):boolean{return movement.type==='opening'||movement.type==='issue'||movement.type==='adjustment';}
+export function inventoryMovementIsManual(movement:InventoryMovementRecord):boolean{return !movement.salesReturn&&!movement.salesReturnCorrection&&!movement.invoiceVoidStock&&(movement.type==='opening'||movement.type==='issue'||movement.type==='adjustment');}
 
 export function spendByCurrency(purchases:PurchaseRecord[],expenses:ExpenseRecord[]):Array<{currency:string;purchases:string;expenses:string;total:string}>{
   const map=new Map<string,{purchase:bigint;expense:bigint}>();

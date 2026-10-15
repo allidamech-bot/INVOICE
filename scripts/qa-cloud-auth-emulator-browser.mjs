@@ -44,14 +44,14 @@ function cdpClient(address){
   });
 }
 const running=[],profiles=[],sessions=[];
-const authProject='lourex-invoice';
+const authProject='demo-lourex-pinless-auth';
 const port=4199;
 const browserSource=`<!doctype html><html><head><meta charset="utf-8"></head><body>
   <script src="./vendor/firebase-app-compat.js?v=12.19.0"></script>
   <script src="./vendor/firebase-auth-compat.js?v=12.19.0"></script>
   <script src="./vendor/firebase-firestore-compat.js?v=12.19.0"></script>
   <script>
-    firebase.initializeApp({apiKey:'qa-local-fake-key',authDomain:'lourex-invoice.firebaseapp.com',projectId:'lourex-invoice',appId:'1:985119320046:web:test-local-only'});
+    firebase.initializeApp({apiKey:'qa-local-fake-key',authDomain:'demo-lourex-pinless-auth.firebaseapp.com',projectId:'demo-lourex-pinless-auth',appId:'1:985119320046:web:test-local-only'});
     firebase.auth().useEmulator('http://127.0.0.1:9099',{disableWarnings:true});
     firebase.firestore().useEmulator('127.0.0.1',8080);
     window.LourexEmulatorsReady=true;
@@ -235,6 +235,132 @@ try{
   })()`);
   assert.equal(loggedOut.uid,null);assert.equal(loggedOut.denied,true);
   console.log('PASS browser B: authenticated access revoked on sign-out');
+
+  // A third Firebase UID, created in the same isolated emulator, must not
+  // read or overwrite the original owner's manifest, even using the raw SDK.
+  // Also verify that local IndexedDB starts in a separate empty account scope.
+  const outsiderUid=await evaluate(b,`firebase.auth().createUserWithEmailAndPassword(
+    ${JSON.stringify('lourex.qa.outsider.'+Date.now()+'@example.test')},
+    ${JSON.stringify(password)}
+  ).then(r=>r.user.uid)`);
+  assert.notEqual(outsiderUid,signUp,'third account must have a distinct Firebase UID');
+  const outsider=await evaluate(b,`(async()=>{
+    const db=await import('./src/storage/db.js');
+    await db.activateAccountStorage(firebase.auth().currentUser.uid);
+    const local=await db.getPlainWorkspace();
+    const ref=firebase.firestore().collection('users').doc(${JSON.stringify(signUp)})
+      .collection('workspace').doc('meta');
+    let readDenied=false,writeDenied=false;
+    try{await ref.get();}catch(error){readDenied=error.code==='permission-denied';}
+    try{await ref.set({revision:'forged'});}catch(error){writeDenied=error.code==='permission-denied';}
+    return {readDenied,writeDenied,localEmpty:local===null,
+      signedInUid:firebase.auth().currentUser.uid};
+  })()`);
+  assert.equal(outsider.signedInUid,outsiderUid);
+  assert.ok(outsider.readDenied,'outsider must not read the original owner workspace');
+  assert.ok(outsider.writeDenied,'outsider must not overwrite the original owner workspace');
+  assert.ok(outsider.localEmpty,'a different UID must not inherit original account IndexedDB state');
+  const stillSafe=await evaluate(a,`(async()=>{
+    const {sync,user}=await ${modules};
+    const meta=await sync.getPlainCloudMeta(user.uid);
+    return {ok:Boolean(meta?.revision),uid:user.uid};
+  })()`);
+  assert.equal(stillSafe.uid,signUp);
+  assert.equal(stillSafe.ok,true,'unauthorized attempts must not corrupt original account');
+  console.log('PASS real Firebase browser C: cross-account read/write denied and local data isolated');
+  // New, clean device recovery: use only the authenticated owner's committed
+  // emulator snapshot. Never restore a conflicting unsynced draft from A.
+  const recoveredDevice=await openProfile(chrome,'D-recovery');
+  const recoveredUid=await evaluate(recoveredDevice,`firebase.auth().signInWithEmailAndPassword(${JSON.stringify(email)},${JSON.stringify(password)}).then(r=>r.user.uid)`);
+  assert.equal(recoveredUid,signUp);
+  const recovered=await evaluate(recoveredDevice,`(async()=>{
+    const {db,sync,user}=await ${modules};
+    const before=await db.getPlainWorkspace();
+    const outcome=await sync.reconcilePlainCloudWorkspace(user.uid);
+    const current=await db.getPlainWorkspace();
+    return {fresh:before===null,outcome,
+      numbers:current?.payload.documents.map(d=>d.number)||[],
+      customers:current?.payload.customers.map(c=>c.id)||[]};
+  })()`);
+  assert.equal(recovered.fresh,true,'new profile starts without a business database');
+  assert.equal(recovered.outcome,'pulled','restore only the committed Firebase workspace');
+  assert.deepEqual(recovered.numbers,['INV-QA-0001','PI-QA-0002','INV-B-0003']);
+  assert.ok(recovered.customers.includes('offline-qa-customer'),'offline edit survives recovery');
+  console.log('PASS real Firebase browser D: clean-device restore of committed invoices and previously offline customer');
+
+  // End-to-end financial ledger on the real browser/Firestore emulator boundary.
+  // A final invoice must debit stock once; a linked final credit note does
+  // not restock; a physically evidenced partial receipt does.
+  const postedPhysical=await evaluate(recoveredDevice,`(async()=>{
+    const {db,sync,user,documents}=await ${modules};
+    const ops=await import('./src/lib/operations.js');
+    const invoices=await import('./src/lib/invoice-stock.js');
+    const returns=await import('./src/lib/sales-returns.js');
+    const lifecycle=await import('./src/lib/document-lifecycle.js');
+    const before=await db.getPlainWorkspace();
+    const vault=before.payload,date=new Date().toISOString().slice(0,10),now=new Date().toISOString();
+    const workspaceId=vault.appSettings.activeWorkspaceId,branchId=vault.appSettings.activeBranchId;
+    const item={id:'firebase-qa-stock-item',sku:'QA-CARTON-STOCK',descriptionEn:'QA physical carton',descriptionAr:'كرتون تجريبي',
+      hsCode:'',origin:'',packing:'',unit:'Carton',createdAt:now,updatedAt:now,
+      lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'4.50',lastCostCurrency:'USD',
+      usageCount:0,lastUsedAt:now,workspaceId,branchId};
+    const encoded='JVBERi0xLjQKMSAwIG9iagplbmRvYmoK',proof={id:'qa-physical-return-proof',
+      name:'signed-qa-return.pdf',mimeType:'application/pdf',size:atob(encoded).length,
+      dataUrl:'data:application/pdf;base64,'+encoded,createdAt:now};
+    const opening={...ops.createManualInventoryMovement(item,'opening','10',date,'Verified QA opening count','4.50','USD'),
+      toWarehouseId:vault.warehouses[0].id,workspaceId,branchId,reasonCategory:'opening',createdBy:'owner',evidence:proof};
+    const added={...vault,savedItems:[...vault.savedItems,item],inventoryMovements:[...vault.inventoryMovements,opening]};
+    const invoice={...documents.createBlankDocument('invoice','INV-QA-STOCK-0001',added.company),status:'final',issueDate:date};
+    invoice.customerSnapshot={sourceCustomerId:'buyer-stock-qa',companyNameEn:'QA Stock Buyer',companyNameAr:'',
+      contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+    invoice.items=[{...invoice.items[0],id:'qa-stock-invoice-line',savedItemId:item.id,stockTreatment:'tracked',skuSnapshot:item.sku,
+      descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,unit:'Carton',quantity:'4',unitPrice:'10.00'}];
+    const issued=invoices.postIssuedInvoiceStock({...added,documents:[...added.documents,invoice]},invoice).vault;
+    const afterIssue=ops.inventoryBalances(issued.savedItems,issued.inventoryMovements).find(row=>row.item.id===item.id).quantity;
+    const credit={...lifecycle.createCreditNoteDraft(invoice,'CN-QA-STOCK-0001','40.00'),status:'final',issueDate:date};
+    credit.items=[{...credit.items[0],id:'qa-stock-credit-line',quantity:'2',unitPrice:'10.00'}];
+    const credited={...issued,documents:[...issued.documents,credit]};
+    const afterCredit=ops.inventoryBalances(credited.savedItems,credited.inventoryMovements).find(row=>row.item.id===item.id).quantity;
+    const received=returns.postSalesReturn(credited,{creditNoteId:credit.id,invoiceLineId:invoice.items[0].id,
+      creditLineId:credit.items[0].id,warehouseId:credited.warehouses[0].id,quantity:'1.5',date,
+      reason:'Returned sealed cartons checked and received by QA warehouse',evidence:proof,operatorId:'owner'}).vault;
+    const afterReceipt=ops.inventoryBalances(received.savedItems,received.inventoryMovements).find(row=>row.item.id===item.id).quantity;
+    if(!await db.updatePlainWorkspaceIfUnchanged(user.uid,before.localRevision,received))throw Error('Stock posting IndexedDB CAS failed');
+    const outcome=await sync.reconcilePlainCloudWorkspace(user.uid);
+    return {outcome,afterIssue,afterCredit,afterReceipt,
+      debit:received.inventoryMovements.filter(row=>row.sourceId===invoice.id&&row.type==='issue').length,
+      receipts:received.inventoryMovements.filter(row=>row.salesReturn?.invoiceId===invoice.id).length};
+  })()`);
+  assert.equal(postedPhysical.outcome,'pushed');
+  assert.deepEqual([postedPhysical.afterIssue,postedPhysical.afterCredit,postedPhysical.afterReceipt],['6','6','7.5']);
+  assert.equal(postedPhysical.debit,1);assert.equal(postedPhysical.receipts,1);
+  console.log('PASS real Firebase browser D: issued invoice and evidenced credit-linked receipt uploaded atomically');
+
+  // Profile B previously signed in as the third, unrelated UID. Explicitly
+  // switch back to the owner and re-select only the owner's IndexedDB scope.
+  const backToOwner=await evaluate(b,`(async()=>{
+    await firebase.auth().signOut();
+    const {user}=await firebase.auth().signInWithEmailAndPassword(${JSON.stringify(email)},${JSON.stringify(password)});
+    return user.uid;
+  })()`);
+  assert.equal(backToOwner,signUp,'returning owner login must restore the right Firebase UID');
+  const replicatedPhysical=await evaluate(b,`(async()=>{
+    const {db,sync,user}=await ${modules};
+    const ops=await import('./src/lib/operations.js');
+    const result=await sync.reconcilePlainCloudWorkspace(user.uid);
+    const vault=(await db.getPlainWorkspace()).payload;
+    const balance=ops.inventoryBalances(vault.savedItems,vault.inventoryMovements)
+      .find(row=>row.item.id==='firebase-qa-stock-item')?.quantity;
+    return {result,balance,invoice:vault.documents.some(d=>d.number==='INV-QA-STOCK-0001'),
+      credit:vault.documents.some(d=>d.number==='CN-QA-STOCK-0001'),
+      debit:vault.inventoryMovements.filter(m=>m.sourceNumber==='INV-QA-STOCK-0001'&&m.type==='issue').length,
+      receipts:vault.inventoryMovements.filter(m=>m.salesReturn?.creditNoteId===vault.documents.find(d=>d.number==='CN-QA-STOCK-0001')?.id).length};
+  })()`);
+  assert.equal(replicatedPhysical.result,'pulled');assert.equal(replicatedPhysical.balance,'7.5');
+  assert.equal(replicatedPhysical.invoice,true);assert.equal(replicatedPhysical.credit,true);
+  assert.equal(replicatedPhysical.debit,1);assert.equal(replicatedPhysical.receipts,1);
+  console.log('PASS real Firebase browser B: issued debit and partial return reconstruct exactly once on second device');
+
 }finally{
   for(const c of sessions){try{c.close();}catch{}}
   for(const child of running){try{child.kill('SIGTERM');}catch{}}

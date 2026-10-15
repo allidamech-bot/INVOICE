@@ -3,7 +3,6 @@ import {applyOperationalPoDraftApproval,type AiOperationalPoReview} from './ai-o
 import {applyAiGoodsReceiptApproval,type AiGoodsReceiptReview} from './ai-operational-goods-receipt.js';
 import {applyOperationalDeliveryDraftApproval,type AiOperationalDeliveryDraftReview} from './ai-operational-dn-draft.js';
 import {applyAiDeliveryConfirmation,type AiDeliveryConfirmationReview} from './ai-operational-delivery-confirmation.js';
-import {applyAiSalesStockIssue,type AiSalesStockIssueReview} from './ai-operational-stock-issue.js';
 import {applyAiSupplierInvoiceMatchApproval,type AiSupplierInvoiceMatchReview} from './ai-operational-supplier-invoice-match.js';
 import {applyAiConfirmedDeliveryInvoiceApproval,type AiConfirmedDeliveryInvoiceReview} from './ai-operational-delivery-invoice-draft.js';
 import {applyAiStoredQuotationInvoiceApproval,type AiStoredQuotationInvoiceReview} from './ai-stored-quotation-invoice.js';
@@ -13,7 +12,6 @@ import {applyAiSupplierPosting,type AiSupplierPostingReview} from './ai-operatio
 import {assertMatchedSupplierInvoicePostingIntegrity} from './supplier-invoice-posting.js';
 import {linkedDeliveryInvoice} from './sales-delivery-invoice.js';
 import {matchedSupplierInvoices} from './supplier-invoice-flow.js';
-import {salesDeliveryStockIssues} from './sales-delivery-stock.js';
 import {confirmedSalesDeliveries} from './sales-delivery-flow.js';
 import {confirmedGoodsReceipts} from './goods-receipt-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
@@ -151,16 +149,8 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
       id:pending[0]!.id};
   }
   if(proposal.tool==='sales.issueConfirmedStock'){
-    if(!proposal.foundationApproval)throw new Error('A signed and explicit inventory-deduction approval is required.');
-    const review=proposal.args as unknown as AiSalesStockIssueReview;
-    const updated=await mutateVaultSafely(vault=>{
-      assertFoundationApproval(vault,proposal);
-      return applyAiSalesStockIssue(vault,review).vault;
-    });
-    if(salesDeliveryStockIssues(review.deliveryNoteId,updated.inventoryMovements).length!==review.lineCount)
-      throw new Error('Stock issue evidence is incomplete after save.');
-    return{summary:'Inventory issue for confirmed delivery '+review.deliveryNoteNumber+
-      ' posted after explicit approval. No invoice or payment was created.',id:review.deliveryNoteId};
+    // Reject even previously prepared approvals so older AI sessions cannot debit from a DN.
+    throw new Error('Separate Delivery Note stock deduction is retired. Issue a final sales invoice or use an evidenced manual stock movement.');
   }
   if(proposal.tool==='sales.confirmPhysicalDelivery'){
     if(!proposal.foundationApproval)throw new Error('Signed approval of exact physical delivery proof is required.');
