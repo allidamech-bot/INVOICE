@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mergeAssistantCloudState,mergeAssistantCloudThread} from '../dist/src/cloud/assistant-history.js';
 import {normalizeAssistantState,upsertAssistantThread} from '../dist/src/storage/assistant-store.js';
+import {stageKernelArtifact} from '../dist/src/lib/ai-conversation-kernel.js';
 const origin=readFileSync(new URL('../src/cloud/assistant-history.ts',import.meta.url),'utf8');
 const storage=readFileSync(new URL('../src/storage/assistant-store.ts',import.meta.url),'utf8');
 const runtime=readFileSync(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
@@ -213,4 +214,20 @@ test('cloud messages cannot import approval artifacts or unexpected document fie
   assert.throws(()=>mergeAssistantCloudState(uid,local(),[
     {...entry,messages:[{...entry.messages[0],toolEvidence:[]}]}
   ]),/Invalid cloud conversation/i);
+});
+
+test('cloud ordering of identical same-time messages preserves the exact local working draft',()=>{
+  const previous=thread('same-time-draft',[msg('z-user','Create QA quote'),{...msg('a-assistant','Prepared QA quote'),role:'assistant'}],'controller');
+  stageKernelArtifact(previous.kernel,{capability:'document.createDraft',kind:'proforma',customerId:'',customerDraft:null,currency:'USD',language:'en',items:[{savedItemId:'',descriptionEn:'QA item',descriptionAr:'',quantity:'10',unit:'PCS',unitPrice:'1.03'}],incoterm:'',paymentTerms:'',deliveryTime:'',validity:'',remarks:'',notes:'',label:'QA quotation',rationale:''});
+  assert.ok(previous.kernel.artifact,'fixture must contain a working draft');
+  const remote=cloud(previous.id,[...previous.messages].reverse(),{mode:'controller'});
+  const merged=mergeAssistantCloudState(uid,local([previous]),[remote]).threads[0];
+  assert.deepEqual(merged.messages.map(row=>row.id),['a-assistant','z-user']);
+  assert.equal(merged.kernel?.artifact?.id,previous.kernel.artifact.id);
+  assert.deepEqual(merged.kernel?.artifact?.proposal,previous.kernel.artifact.proposal);
+  const changed=mergeAssistantCloudState(uid,local([previous]),[{...remote,messages:[...remote.messages,msg('new-message','Changed on another device',1)]}]).threads[0];
+  assert.equal(changed.kernel?.artifact,undefined,'new remote content invalidates the executable draft');
+  const modeConflict=mergeAssistantCloudState(uid,local([previous]),[{...remote,mode:'advisor'}]).threads[0];
+  assert.equal(modeConflict.kernel?.artifact,undefined,'a mode conflict cannot retain execution state');
+  assert.equal(modeConflict.kernel?.mode,'advisor');
 });
