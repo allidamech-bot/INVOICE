@@ -108,7 +108,14 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
   const created:InventoryMovementRecord[]=[];
   for(const line of doc.items){
     if(line.stockTreatment==='non-stock'){
-      if(line.savedItemId)fail('Non-stock lines cannot point to tracked stock.','البند غير المخزني لا يجوز ربطه بمخزون قابل للخصم.');
+      if(line.savedItemId){
+        const service=vault.savedItems.find(item=>item.id===line.savedItemId&&!item.archived);
+        if(!service||service.inventoryTracking!=='non-stock'
+          ||service.workspaceId&&service.workspaceId!==workspaceId
+          ||service.branchId&&service.branchId!==branchId
+          ||line.skuSnapshot!==(service.sku||''))
+          fail('Non-stock lines cannot point to tracked stock.','البند غير المخزني لا يجوز ربطه بمخزون قابل للخصم.');
+      }
       continue;
     }
     if(!line.savedItemId||line.stockTreatment!=='tracked')
