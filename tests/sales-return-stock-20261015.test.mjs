@@ -5,7 +5,7 @@ import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {createCreditNoteDraft} from '../dist/src/lib/document-lifecycle.js';
 import {createManualInventoryMovement,inventoryBalances} from '../dist/src/lib/operations.js';
 import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
-import {postSalesReturn,assertSalesReturnIntegrity,assertSalesReturnLedgerContinuity} from '../dist/src/lib/sales-returns.js';
+import {postSalesReturn,correctSalesReturn,assertSalesReturnIntegrity,assertSalesReturnLedgerContinuity} from '../dist/src/lib/sales-returns.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 
 const date=new Date().toISOString().slice(0,10);
@@ -96,4 +96,42 @@ test('concurrent goods receipts cannot return more than the original invoice qua
  const intended={...first,documents:base.documents};
  const second=postSalesReturn(base,{...f.input,creditNoteId:credit2.id,creditLineId:'credited-line-2',quantity:'3'}).vault;
  assert.throws(()=>mergeVaultIntent(base,intended,second),/exceed the original invoiced quantity/);
+});
+
+
+const distinctProof=()=>{const bytes=Buffer.from('%PDF-1.4\\n2 0 obj\\nendobj\\n');return{
+ id:'new-correction-'+Math.random(),name:'stock-correction.pdf',mimeType:'application/pdf',
+ size:bytes.length,dataUrl:'data:application/pdf;base64,'+bytes.toString('base64'),createdAt:new Date().toISOString()
+};};
+test('a wrongly received customer return can only be offset by a NEW evidenced correction',()=>{
+ const f=setup(),posted=postSalesReturn(f.vault,f.input).vault;
+ const receipt=posted.inventoryMovements.find(x=>x.salesReturn);
+ const correctionInput={receiptMovementId:receipt.id,date,reason:'Physically miscounted goods; correction authorized',
+   evidence:distinctProof(),operatorId:'owner'};
+ assert.throws(()=>correctSalesReturn(posted,{...correctionInput,evidence:f.input.evidence}),/NEW proof/);
+ const corrected=correctSalesReturn(posted,correctionInput);
+ assert.equal(corrected.movement.quantity,'-1.5000');
+ assert.equal(corrected.movement.fromWarehouseId,receipt.toWarehouseId);
+ assert.equal(corrected.movement.unitCost,receipt.unitCost);
+ assert.equal(balance(corrected.vault),'6');
+ assert.equal(corrected.vault.inventoryMovements.filter(x=>x.salesReturn).length,1,'never erase original receipt');
+ assert.equal(corrected.vault.inventoryMovements.filter(x=>x.salesReturnCorrection).length,1);
+ assert.throws(()=>correctSalesReturn(corrected.vault,{...correctionInput,evidence:distinctProof()}),/already been corrected/);
+ assert.doesNotThrow(()=>assertSalesReturnIntegrity(corrected.vault));
+ const merged=mergeVaultIntent(posted,corrected.vault,posted);
+ assert.equal(balance(merged),'6');
+});
+test('documented return correction is immutable and cannot exceed its source receipt',()=>{
+ const f=setup(),posted=postSalesReturn(f.vault,f.input).vault;
+ const receipt=posted.inventoryMovements.find(x=>x.salesReturn);
+ const corrected=correctSalesReturn(posted,{receiptMovementId:receipt.id,date,
+   reason:'Erroneous goods receipt corrected with supervisor approval',evidence:distinctProof(),operatorId:'owner'}).vault;
+ for(const bad of [
+  {quantity:'-1'}, {fromWarehouseId:'unknown'}, {unitCost:'99.00'},
+  {salesReturnCorrection:{receiptMovementId:'unrelated'}}, {evidence:receipt.evidence}
+ ]){
+  const tampered={...corrected,inventoryMovements:corrected.inventoryMovements.map(m=>m.salesReturnCorrection?{...m,...bad}:m)};
+  assert.throws(()=>assertSalesReturnIntegrity(tampered),/return reversal|independent physical correction/);
+  assert.throws(()=>mergeVaultIntent(corrected,tampered,corrected),/immutable/);
+ }
 });
