@@ -39,7 +39,8 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
     lastUsedAt:now,
     category:existing?.category??'',
     tags:[...(existing?.tags??[])],
-    favorite:Boolean(existing?.favorite)
+    favorite:Boolean(existing?.favorite),
+    inventoryTracking:existing?.inventoryTracking??(item.stockTreatment==='non-stock'?'non-stock':'tracked')
   };
 }
 
