@@ -21,6 +21,9 @@ export function isAiConfirmedInvoiceDraftIntent(message:string):boolean{
  const s=normalized(message);
  return s.length>=18&&s.length<=650&&
   /^(?:أنشئ|انشئ|جهز|جهّز|حضر|حضّر|create|prepare|make|draft)\s+(?:(?:مسودة|draft)\s+)?(?:(?:فاتور[ةه](?:\s+(?:ال)?مبيعات)?)|(?:sales\s+)?invoice)(?:\s|$)/iu.test(s)&&
+  // This operational route is ONLY for confirmed delivery notes. Generic
+  // "create invoice from quotation" must reach the normal document planner.
+  /(?:\bDN[-_]\d{4}[-_]\d{1,12}\b|(?:من|عن)\s+(?:سند\s*(?:ال)?تسليم|التسليم\s+المؤكد)|\b(?:from|for|based\s+on)\s+(?:(?:a|an|the|one)\s+)?(?:confirmed\s+)?delivery(?:\s+note)?\b)/iu.test(s)&&
   !/(?:اعتمد|أصدر|اصدر|ثبّت|ثبت|خصم|مخزون|ترحيل|رحّل|رحل|دفع|تحصيل|سدّد|سدد|\b(?:issue|finalize|post|deduct|stock|inventory|collect|pay)\b)/iu.test(s);
 }
 export function requestedInvoiceDeliveryNumber(message:string):string|null{
