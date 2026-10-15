@@ -2,7 +2,7 @@ const {webkit}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
 const output='visual-qa-output/product-editor-webkit-v606';
-const origin='http://127.0.0.1:4173/tests/visual/functional-products-operations-v197.html';
+const origin='http://127.0.0.1:4173/tests/visual/product-editor-webkit-v606.html';
 const configurations=[
   {width:320,height:700,lang:'en'},
   {width:375,height:812,lang:'en'},
