@@ -14,7 +14,7 @@ import {INVOICE_STOCK_PREFIX} from './invoice-stock.js';
 export const SALES_RETURN_PREFIX='sales-credit-stock:';
 export interface SalesReturnProof{
   invoiceId:string;invoiceLineId:string;creditNoteId:string;creditLineId:string;
-  itemId:string;warehouseId:string;
+  itemId:string;warehouseId:string;receiptId:string;
 }
 export interface SalesReturnInput{
   creditNoteId:string;invoiceLineId:string;creditLineId:string;warehouseId:string;
@@ -22,7 +22,7 @@ export interface SalesReturnInput{
 }
 const qty=(x:string)=>decimalToScaled(x,4);
 const fixed=(q:bigint):string=>String(q/10000n)+'.'+String(q%10000n).padStart(4,'0');
-const returnId=(p:SalesReturnProof)=>SALES_RETURN_PREFIX+p.creditNoteId+':'+p.creditLineId+':'+p.invoiceLineId;
+const returnId=(p:SalesReturnProof)=>SALES_RETURN_PREFIX+p.creditNoteId+':'+p.creditLineId+':'+p.invoiceLineId+':'+p.receiptId;
 function fail(message:string):never{throw new Error(message);}
 function eligibleInvoice(doc:LourexDocument|undefined):doc is LourexDocument{
   return !!doc&&doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided';
@@ -47,7 +47,7 @@ export function assertSalesReturnIntegrity(vault:Pick<VaultPayload,'documents'|'
     if(byId.has(m.id))fail('Duplicate physical return movement ID.');
     byId.add(m.id);
     const p=m.salesReturn;
-    if(!p||m.id!==returnId(p)||m.type!=='adjustment'||!inventoryMovementAccountingIsValid(m)
+    if(!p||!p.receiptId||m.evidence?.id!==p.receiptId||m.id!==returnId(p)||m.type!=='adjustment'||!inventoryMovementAccountingIsValid(m)
       ||!isDecimalInput(m.quantity)||qty(m.quantity)<=0n
       ||m.sourceId!==p.creditNoteId||m.toWarehouseId!==p.warehouseId||m.fromWarehouseId
       ||m.itemId!==p.itemId||!isIsoDate(m.date))
@@ -131,7 +131,7 @@ export function postSalesReturn(vault:VaultPayload,input:SalesReturnInput):{vaul
   if(!isDecimalInput(input.quantity)||qty(input.quantity)<=0n)fail('Received quantity must be positive and precise.');
   if(!isIsoDate(input.date))fail('Return receipt date is invalid.');
   const p:SalesReturnProof={invoiceId:invoice.id,invoiceLineId:original.id,creditNoteId:credit.id,
-    creditLineId:credited.id,itemId:original.savedItemId,warehouseId:input.warehouseId};
+    creditLineId:credited.id,itemId:original.savedItemId,warehouseId:input.warehouseId,receiptId:input.evidence?.id||''};
   const id=returnId(p);
   if(vault.inventoryMovements.some(m=>m.id===id))fail('This credited item has already been received. Reverse with a dedicated audited correction.');
   const m:InventoryMovementRecord={
