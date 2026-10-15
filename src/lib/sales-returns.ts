@@ -23,7 +23,7 @@ export interface SalesReturnInput{
 const qty=(x:string)=>decimalToScaled(x,4);
 // Inventory is carried at four decimal places. Reject a fifth digit rather
 // than silently rounding received quantities into a different physical count.
-const exactQty=(x:string)=>isDecimalInput(x)&&/^(?:\\d+(?:\\.\\d{0,4})?|\\.\\d{1,4})$/.test(normalizeDecimalInput(x).replace(/^-/,''));
+const exactQty=(x:string)=>isDecimalInput(x)&&/^(?:\d+(?:\.\d{0,4})?|\.\d{1,4})$/.test(normalizeDecimalInput(x).replace(/^-/,''));
 const fixed=(q:bigint):string=>String(q/10000n)+'.'+String(q%10000n).padStart(4,'0');
 const returnId=(p:SalesReturnProof)=>SALES_RETURN_PREFIX+p.creditNoteId+':'+p.creditLineId+':'+p.invoiceLineId+':'+p.receiptId;
 function fail(message:string):never{throw new Error(message);}
