@@ -295,7 +295,7 @@ export function inventoryBalances(items:SavedItem[],movements:InventoryMovementR
   });
 }
 
-export function inventoryMovementIsManual(movement:InventoryMovementRecord):boolean{return movement.type==='opening'||movement.type==='issue'||movement.type==='adjustment';}
+export function inventoryMovementIsManual(movement:InventoryMovementRecord):boolean{return !movement.salesReturn&&(movement.type==='opening'||movement.type==='issue'||movement.type==='adjustment');}
 
 export function spendByCurrency(purchases:PurchaseRecord[],expenses:ExpenseRecord[]):Array<{currency:string;purchases:string;expenses:string;total:string}>{
   const map=new Map<string,{purchase:bigint;expense:bigint}>();
