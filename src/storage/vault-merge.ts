@@ -18,6 +18,7 @@ import { assertSalesOrderIntegrity } from '../lib/sales-order-flow.js';
 import { assertSalesDeliveryIntegrity } from '../lib/sales-delivery-flow.js';
 import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity } from '../lib/sales-delivery-invoice.js';
 import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, isSalesDeliveryStockIssue } from '../lib/sales-delivery-stock.js';
+import {assertInvoiceStockLedgerContinuity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -336,7 +337,7 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     const cost=text(movement.unitCost).trim();
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Inventory movement unit cost must be zero or greater.');
     if(movement.sourceId){
-      if(movement.type==='issue'&&isSalesDeliveryStockIssue(movement))continue;
+      if(movement.type==='issue'&&(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement)))continue;
       if(movement.type!=='adjustment')throw new Error('Only an adjustment can reverse a prior manual inventory movement.');
       const source=movements.find(item=>item.id===movement.sourceId);
       if(!source||!inventoryMovementIsManual(source))throw new Error('Manual inventory reversal is linked to an invalid source movement.');
@@ -582,12 +583,23 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  assertInvoiceStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
   assertSalesOrderIntegrity(documents,documentEvents);
   assertSalesDeliveryIntegrity(documents,documentEvents);
   assertDeliveryInvoiceIntegrity(documents,documentEvents);
+  // Block final invoice imports and concurrent merges that omit the mandatory stock movement.
+  // Existing historical issued invoices are intentionally grandfathered, never re-posted.
+  for(const doc of documents){
+    if(doc.kind!=='invoice'||doc.role!=='standard'||doc.status!=='final'||doc.lifecycleStatus==='voided')continue;
+    const old=base.documents.find(row=>row.id===doc.id);
+    const intendedDoc=intended.documents.find(row=>row.id===doc.id);
+    if(old?.status==='final'||intendedDoc?.status!=='final')continue;
+    const scopedStock=postIssuedInvoiceStock({...latest,documents,documentEvents,inventoryMovements,savedItems,warehouses},doc);
+    if(scopedStock.created)throw new Error('A final invoice must commit its stock issues atomically. Reopen and issue again.');
+  }
   assertSalesDeliveryStockIntegrity({documents,documentEvents,inventoryMovements,savedItems,warehouses,appSettings:latest.appSettings});
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {
