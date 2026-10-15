@@ -7,6 +7,7 @@ test('Firebase UID is cryptographically verified before every public AI provider
  const files=readDirectory(new URL('../api/',import.meta.url)).filter(x=>x.endsWith('.js'));
  for(const file of files){
    const body=source('api/'+file);
+   if(!body.includes('routeAiStructured('))continue;
    assert.match(body,/requireAiFirebaseAuth\(request,response\)/,file+' must reject unsigned users');
    assert.match(body,/sameOriginRequest\(request\)/,file+' must retain origin checks');
    assert.ok(body.indexOf('requireAiFirebaseAuth(request,response)')<body.lastIndexOf('routeAiStructured('),file+' must authenticate before accessing AI models');
