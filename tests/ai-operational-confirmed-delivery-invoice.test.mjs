@@ -41,6 +41,21 @@ function fixture(){
 }
 const command=number=>'أنشئ مسودة فاتورة من سند التسليم '+number;
 const context=mode=>({conversationMode:mode,assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}});
+test('Generic customer invoices and quotations do not enter the confirmed-DN-only route',()=>{
+ for(const message of [
+   'أنشئ فاتورة من عرض السعر الحالي',
+   'جهز فاتورة من عرض سعر العميل',
+   'Create invoice from quotation Q-2026-12',
+   'Prepare sales invoice from customer quotation',
+   'Create invoice draft for a customer',
+ ]){
+   assert.equal(isAiConfirmedInvoiceDraftIntent(message),false,message);
+   assert.equal(requestedInvoiceDeliveryNumber(message),null,message);
+ }
+ assert.equal(isAiConfirmedInvoiceDraftIntent('أنشئ مسودة فاتورة من سند التسليم المؤكد'),true);
+ assert.equal(isAiConfirmedInvoiceDraftIntent('Create invoice draft from confirmed delivery'),true);
+});
+
 test('Confirmed DN invoice intent requires exact single source, never mixes issuance and payment',()=>{
  const {delivery}=fixture();
  for(const q of [command(delivery.number),'Create invoice draft from confirmed delivery '+delivery.number]){
