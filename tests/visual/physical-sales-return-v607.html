@@ -4,12 +4,13 @@
 <script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
 <script type="module">
 import {SalesReturnReceiptPanel} from './src/components/SalesReturnReceiptPanel.js';
+import {SalesReturnCorrectionPanel} from './src/components/SalesReturnCorrectionPanel.js';
 import {emptyVault} from './src/lib/defaults.js';
 import {createBlankDocument} from './src/lib/documents.js';
 import {createCreditNoteDraft} from './src/lib/document-lifecycle.js';
 import {createManualInventoryMovement,inventoryBalances} from './src/lib/operations.js';
 import {postIssuedInvoiceStock} from './src/lib/invoice-stock.js';
-import {postSalesReturn} from './src/lib/sales-returns.js';
+import {postSalesReturn,correctSalesReturn} from './src/lib/sales-returns.js';
 import {setUiLanguage} from './src/lib/i18n.js';
 const isArabic=new URLSearchParams(location.search).get('lang')==='ar';
 setUiLanguage(isArabic?'ar':'en');document.documentElement.lang=isArabic?'ar':'en';document.documentElement.dir=isArabic?'rtl':'ltr';
@@ -31,7 +32,7 @@ const posted=postIssuedInvoiceStock(vault,invoice).vault;
 const credit={...createCreditNoteDraft(invoice,'CN-QA-RET','40.00'),status:'final',issueDate:date};
 credit.items=[{...credit.items[0],id:'credited-line-qa',quantity:'2',unitPrice:'10.00'}];
 const initial={...posted,documents:[invoice,credit]};
-window.recordAttempts=0;
+window.recordAttempts=0;window.correctionAttempts=0;
 class Fixture extends React.Component{
   state={vault:initial};
   onRecord=async(input)=>{
@@ -39,13 +40,25 @@ class Fixture extends React.Component{
     const updated=postSalesReturn(this.state.vault,{...input,operatorId:'owner'}).vault;
     this.setState({vault:updated});
   };
+  onCorrect=async(input)=>{
+    window.correctionAttempts+=1;
+    const updated=correctSalesReturn(this.state.vault,{...input,operatorId:'owner'}).vault;
+    this.setState({vault:updated});
+  };
   render(){
     window.returnQaState=()=>({balance:inventoryBalances(this.state.vault.savedItems,this.state.vault.inventoryMovements).find(x=>x.item.id===item.id)?.quantity,
-      returned:this.state.vault.inventoryMovements.filter(x=>x.salesReturn).map(x=>({quantity:x.quantity,proof:!!x.evidence,creditId:x.sourceId,cost:x.unitCost}))});
-    return React.createElement(SalesReturnReceiptPanel,{
-      documents:this.state.vault.documents,movements:this.state.vault.inventoryMovements,warehouses:this.state.vault.warehouses,
-      workspaceId:this.state.vault.appSettings.activeWorkspaceId,branchId:this.state.vault.appSettings.activeBranchId,onRecord:this.onRecord
-    });
+      returned:this.state.vault.inventoryMovements.filter(x=>x.salesReturn).map(x=>({quantity:x.quantity,proof:!!x.evidence,creditId:x.sourceId,cost:x.unitCost})),
+      corrections:this.state.vault.inventoryMovements.filter(x=>x.salesReturnCorrection).map(x=>({quantity:x.quantity,proof:!!x.evidence,origin:x.sourceId}))});
+    return React.createElement(React.Fragment,null,
+      React.createElement(SalesReturnReceiptPanel,{
+        documents:this.state.vault.documents,movements:this.state.vault.inventoryMovements,warehouses:this.state.vault.warehouses,
+        workspaceId:this.state.vault.appSettings.activeWorkspaceId,branchId:this.state.vault.appSettings.activeBranchId,onRecord:this.onRecord
+      }),
+      React.createElement(SalesReturnCorrectionPanel,{
+        movements:this.state.vault.inventoryMovements,workspaceId:this.state.vault.appSettings.activeWorkspaceId,
+        branchId:this.state.vault.appSettings.activeBranchId,onCorrect:this.onCorrect
+      })
+    );
   }
 }
 ReactDOM.render(React.createElement(Fixture),document.getElementById('sales-return-fixture'));
