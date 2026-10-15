@@ -397,7 +397,7 @@ function guardNewWarehouseDebits(base:VaultPayload,intended:VaultPayload,latest:
     if(previous.has(movement.id))continue;
     if(remote.has(movement.id)){
       // Retain the specialized immutable sales-ledger conflict messages and proof checks.
-      if(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement))continue;
+      if(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement)||isInvoiceVoidStockReceipt(movement))continue;
       throw new Error('Concurrent inventory movement already exists. Refresh before posting.');
     }
     if(!inventoryMovementAccountingIsValid(movement))
