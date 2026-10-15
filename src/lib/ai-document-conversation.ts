@@ -93,11 +93,13 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
   // Currency is an essential quote fact, not decoration on a subtotal.
   // A user can explicitly provide it for an unknown-currency source, but an
   // already-priced draft cannot silently relabel USD values as EUR values.
-  const currencySelection=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\\s+(?:العملة|عملة|currency)\\s*(?:إلى|الى|to|=|:)?\\s+([A-Za-z]{3})$/iu);
+  const currencySelection=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\\s+(?:العملة|عملة|currency)\\s*(?:إلى|الى|to|=|:)?\\s+(.{1,20})$/iu);
   if(currencySelection){
     if(proposal.capability!=='document.createDraft')
       return rejected(proposal,'Change the currency of a saved draft using its reviewed document editor.',ar);
-    const target=currencySelection[1]!.toUpperCase();
+    const code=currencySelection[1]!.trim();
+    if(!/^[A-Za-z]{3}$/.test(code))return rejected(proposal,'Specify exactly one three-letter currency code, such as USD or EUR.',ar);
+    const target=code.toUpperCase();
     if(proposal.currency===target)return rejected(proposal,'The draft already uses '+target+'.',ar);
     if(proposal.currency&&proposal.items.some(row=>String(row.unitPrice||'').trim()))
       return rejected(proposal,'Changing currency would silently relabel existing prices without FX conversion. Start a new quotation or clear/review the priced rows.',ar);
