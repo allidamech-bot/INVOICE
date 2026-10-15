@@ -290,7 +290,7 @@ export class DocumentsPage extends React.Component<Props,State>{
   };
 
   private postCustomerDeliveryStock=async(input:PostSalesDeliveryStockInput):Promise<void>=>{
-    await mutateVaultSafely(vault=>postSalesDeliveryStock(vault,input).vault);
+    throw new Error(t('Stock deduction now occurs when the final sales invoice is issued, not from the Delivery Note.','يُخصم المخزون الآن عند إصدار فاتورة البيع النهائية، وليس من سند التسليم.'));
   };
   private confirmCustomerDelivery=async(input:ConfirmSalesDeliveryInput):Promise<void>=>{
     await mutateVaultSafely(vault=>confirmSalesDelivery(vault,input).vault);
@@ -485,7 +485,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           <CommercialFlowPanel document={doc} documents={this.props.documents} events={this.props.documentEvents} onOpenDocument={(related)=>this.setState({detailId:related.id,menuId:''})}/>
           {(doc.kind==='proforma'||doc.kind==='proforma-invoice')?<SalesOrderReview quotation={doc} events={this.props.documentEvents} documents={this.props.documents} payments={this.props.payments} onAccept={this.acceptCustomerSalesOrder}/>:null}
-          {doc.kind==='delivery-note'?<SalesDeliveryReview deliveryNote={doc} documents={this.props.documents} events={this.props.documentEvents} onConfirm={this.confirmCustomerDelivery} savedItems={this.props.savedItems} inventoryMovements={this.props.inventoryMovements} warehouses={this.props.warehouses} workspaceId={this.props.workspaceId} branchId={this.props.branchId} onPostStock={this.postCustomerDeliveryStock} onCreateInvoice={this.props.onCreateDeliveryInvoice?()=>this.props.onCreateDeliveryInvoice?.(doc):undefined}/>:null}
+          {doc.kind==='delivery-note'?<SalesDeliveryReview deliveryNote={doc} documents={this.props.documents} events={this.props.documentEvents} onConfirm={this.confirmCustomerDelivery} savedItems={this.props.savedItems} inventoryMovements={this.props.inventoryMovements} warehouses={this.props.warehouses} workspaceId={this.props.workspaceId} branchId={this.props.branchId} onCreateInvoice={this.props.onCreateDeliveryInvoice?()=>this.props.onCreateDeliveryInvoice?.(doc):undefined}/>:null}
           {doc.kind==='rfq'?<SupplierQuotationReview rfq={doc} documents={this.props.documents} events={this.props.documentEvents} onAccept={this.acceptSupplierQuote} onOpenPurchaseOrder={(related)=>this.setState({detailId:related.id,menuId:''})}/>:null}
           {doc.kind==='purchase-order'?<><GoodsReceiptReview order={doc} events={this.props.documentEvents} onConfirm={this.confirmGoodsDelivery}/><SupplierInvoiceReview order={doc} events={this.props.documentEvents} onMatch={this.matchSupplierBill}/><SupplierInvoicePostingReview order={doc} events={this.props.documentEvents} savedItems={this.props.savedItems} onPost={this.postMatchedSupplierBill}/></>:null}
 
