@@ -1,9 +1,9 @@
 import type { EncryptedBackupFile, VaultPayload } from '../types.js';
 import { createEncryptedBackup, decryptBackup } from '../crypto/crypto.js';
 import { APP_SCHEMA_VERSION } from './defaults.js';
-import { assertPostedInvoiceStockDocumentIntegrity, isIssuedInvoiceStockIssue } from './invoice-stock.js';
-import { assertInvoiceVoidStockIntegrity, isInvoiceVoidStockReceipt } from './invoice-void-stock.js';
-import { assertSalesReturnIntegrity, isSalesReturn, isSalesReturnCorrection } from './sales-returns.js';
+import { assertPostedInvoiceStockDocumentIntegrity } from './invoice-stock.js';
+import { assertInvoiceVoidStockIntegrity } from './invoice-void-stock.js';
+import { assertSalesReturnIntegrity } from './sales-returns.js';
 import type { InventoryMovementRecord } from '../types.js';
 
 /** A separate, high-entropy export password is safer than the 4–12 digit
