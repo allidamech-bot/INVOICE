@@ -38,7 +38,7 @@ async function assertAssistantRecordScope(key:CryptoKey,proposal:GenericToolExec
   const scope=approval.scope.scope==='personal'?'personal':'business';
   if(!row||row.scope!==scope||(scope==='business'&&(row.workspaceId!==approval.scope.workspaceId||row.branchId!==approval.scope.branchId)))throw new Error('Task or memory is unavailable in this conversation scope.');
 }
-export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
+export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string;document?:import('../types.js').LourexDocument}>{
   if(proposal.tool==='document.createDraft'){
     if(!proposal.foundationApproval)
       throw new Error('An explicit signed approval is required to convert a saved quotation.');
@@ -55,7 +55,7 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
       throw new Error('The approved linked invoice draft could not be verified after saving.');
     return{summary:'Invoice DRAFT '+invoices[0]!.number+' saved from issued quotation '+
       review.sourceNumber+' with the exact source rows and terms. Not issued. No stock, payment or posting.',
-      id:invoices[0]!.id};
+      id:invoices[0]!.id,document:invoices[0]!};
   }
 
   if(proposal.tool==='procurement.recordSupplierPayment'){
