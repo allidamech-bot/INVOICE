@@ -216,6 +216,10 @@ export interface InventoryMovementRecord extends WorkspaceScopeFields {
   note: string;
   fromWarehouseId?: string;
   toWarehouseId?: string;
+  /** Encrypted workspace evidence: required for all newly posted manual movements. */
+  evidence?: DocumentAttachment;
+  reasonCategory?: string;
+  createdBy?: string;
   createdAt: string;
 }
 
