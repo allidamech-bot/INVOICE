@@ -10,7 +10,11 @@ test('Firebase UID is cryptographically verified before every public AI provider
    if(!body.includes('routeAiStructured('))continue;
    assert.match(body,/requireAiFirebaseAuth\(request,response\)/,file+' must reject unsigned users');
    assert.match(body,/sameOriginRequest\(request\)/,file+' must retain origin checks');
-   assert.ok(body.indexOf('requireAiFirebaseAuth(request,response)')<body.lastIndexOf('routeAiStructured('),file+' must authenticate before accessing AI models');
+   const handler=body.slice(body.indexOf('export default async function handler('));
+   assert.match(handler,/if\(!await requireAiFirebaseAuth\(request,response\)\)return;/,file+' must authenticate before routing provider input');
+   const firstAuth=handler.indexOf('requireAiFirebaseAuth(request,response)');
+   const firstDispatch=handler.indexOf('handleToolPlan(body,response)');
+   if(firstDispatch>=0)assert.ok(firstAuth<firstDispatch,file+' must authenticate before tool-plan dispatch');
  }
 });
 import {readdirSync as readDirectory} from 'node:fs';
