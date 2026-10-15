@@ -8,7 +8,7 @@ import { todayIso } from '../lib/id.js';
 import {readManualMovementEvidence,validateManualMovementEvidence,MOVEMENT_REASON_CATEGORIES} from '../lib/inventory-evidence.js';
 import {defaultWarehouseId,warehouseItemQuantity} from '../lib/warehouses.js';
 import {decimalToScaled,isDecimalInput} from '../lib/money.js';
-import { allocateLandedCost, createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, inventoryMovementIsManual, operationsIntegritySummary, purchaseTotals, spendByCurrency, supplierSnapshotFrom, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
+import { allocateLandedCost, createExpense, createManualInventoryMovement, reverseManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, inventoryMovementIsManual, operationsIntegritySummary, purchaseTotals, spendByCurrency, supplierSnapshotFrom, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { purchasePayableSummary, supplierPayablesByCurrency } from '../lib/payables.js';
 import { ensurePayablesStyles } from '../lib/payables-style.js';
 import { Supplier360LivePanel } from './Supplier360LivePanel.js';
@@ -103,8 +103,35 @@ export class OperationsPage extends React.Component<Props,State>{
   private reversePurchase=(purchase:PurchaseRecord)=>{if(this.mutationInFlight)return;this.setState({reverseTarget:purchase,reverseReason:'',error:''});};
   private saveExpense=async()=>{const expense=this.state.expenseEdit;if(!expense||this.mutationInFlight)return;const errors=validateExpense(expense);if(errors.length){this.setState({error:errors[0]??t('Validation failed.','فشل التحقق.')});return;}await this.runMutation(async()=>{await this.props.onSaveExpense({...expense,currency:expense.currency.trim().toUpperCase(),updatedAt:new Date().toISOString()});this.setState({expenseEdit:null,error:''});});};
   private deleteExpense=(expense:ExpenseRecord)=>{if(this.mutationInFlight)return;this.setState({confirmAction:{kind:'delete-expense',expense},error:''});};
-  private saveMovement=async()=>{const item=this.props.items.find(entry=>entry.id===this.state.movementItemId);if(!item){this.setState({error:t('Choose a saved item first.','اختر صنفًا محفوظًا أولًا.')});return;}if(this.mutationInFlight)return;await this.runMutation(async()=>{const movement=createManualInventoryMovement(item,this.state.movementType,this.state.movementQuantity,this.state.movementDate,this.state.movementNote,this.state.movementCost,this.state.movementCurrency);await this.props.onSaveInventoryMovement(movement);this.setState({movementQuantity:'',movementNote:'',movementCost:'',error:''});});};
-  private deleteMovement=(movement:InventoryMovementRecord)=>{if(this.mutationInFlight)return;if(!inventoryMovementIsManual(movement)){this.setState({error:t('Purchase-generated inventory movements cannot be deleted. Reverse the purchase instead.','لا يمكن حذف حركات المخزون الناتجة عن شراء. اعكس الشراء بدلًا من ذلك.')});return;}this.setState({confirmAction:{kind:'reverse-movement',movement},error:''});};
+  private loadMovementEvidence=async(event:any)=>{
+    const input=event.target as HTMLInputElement,file=input.files?.[0];
+    if(!file||this.state.movementFileBusy)return;
+    this.setState({movementFileBusy:true,error:''});
+    try{const evidence=await readManualMovementEvidence(file);this.setState({movementEvidence:evidence});}
+    catch(error){this.setState({movementEvidence:null,error:error instanceof Error?error.message:String(error)});}
+    finally{this.setState({movementFileBusy:false});input.value='';}
+  };
+  private saveMovement=async()=>{
+    const item=this.props.items.find(entry=>entry.id===this.state.movementItemId&&!entry.archived);
+    if(!item){this.setState({error:t('Choose a valid saved item first.','اختر صنفًا محفوظًا صالحًا أولًا.')});return;}
+    if(this.mutationInFlight||this.state.movementFileBusy)return;
+    await this.runMutation(async()=>{
+      const previous=this.state.movementCorrectionSourceId?this.props.inventoryMovements.find(m=>m.id===this.state.movementCorrectionSourceId):null;
+      if(this.state.movementCorrectionSourceId&&!previous)throw new Error('Original inventory movement is missing.');
+      let movement=previous?reverseManualInventoryMovement(previous,this.state.movementDate)
+        :createManualInventoryMovement(item,this.state.movementType,this.state.movementQuantity,this.state.movementDate,this.state.movementNote,this.state.movementCost,this.state.movementCurrency);
+      const warehouseId=this.state.movementWarehouseId||defaultWarehouseId(this.props.branchId||'main');
+      const quantity=decimalToScaled(movement.quantity,4);
+      if(!/^[-]?\d+(?:\.\d{1,4})?$/.test(movement.quantity))throw new Error('Stock quantity supports up to four decimal places.');
+      movement={...movement,note:this.state.movementNote.trim(),reasonCategory:this.state.movementCategory,
+        evidence:this.state.movementEvidence||undefined,createdBy:'assigned-by-app',
+        fromWarehouseId:quantity<0n?warehouseId:undefined,toWarehouseId:quantity>0n?warehouseId:undefined};
+      validateManualMovementEvidence(movement);
+      await this.props.onSaveInventoryMovement(movement);
+      this.setState({movementQuantity:'',movementNote:'',movementCost:'',movementEvidence:null,movementCorrectionSourceId:'',error:''});
+    });
+  };
+  private deleteMovement=(movement:InventoryMovementRecord)=>{if(this.mutationInFlight)return;if(!inventoryMovementIsManual(movement)){this.setState({error:t('Purchase-generated inventory movements cannot be deleted. Reverse the purchase instead.','لا يمكن حذف حركات المخزون الناتجة عن شراء. اعكس الشراء بدلًا من ذلك.')});return;}const proposed=reverseManualInventoryMovement(movement);this.setState({movementItemId:movement.itemId,movementType:'adjustment',movementQuantity:proposed.quantity,movementDate:todayIso(),movementNote:'',movementEvidence:null,movementCategory:'correction',movementCorrectionSourceId:movement.id,movementWarehouseId:movement.fromWarehouseId||movement.toWarehouseId||'',error:t('Enter a correction reason and upload new proof before posting the reversing entry.','أدخل سبب التصحيح وأرفق إثباتًا جديدًا قبل تسجيل الحركة العكسية.')},()=>{document.querySelector('.ta-inventory-entry')?.scrollIntoView({behavior:'smooth',block:'start'});});};
 
   private confirmAction=async()=>{
     const action=this.state.confirmAction;if(!action||this.mutationInFlight)return;
