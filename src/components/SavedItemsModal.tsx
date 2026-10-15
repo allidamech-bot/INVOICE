@@ -433,15 +433,25 @@ export class SavedItemsModal extends React.Component<Props,State>{
         <div className="saved-items-list-context">
           <strong>{contextLabel}{this.state.filterCategory?` · ${this.state.filterCategory==='__uncategorized'?t('Uncategorized','غير مصنفة'):categoryLabel(this.state.filterCategory)}`:''}</strong>
           <span><b>{filtered.length}</b>{basePoolCount!==filtered.length?<><i>/</i>{basePoolCount}</>:null}</span>
+          {picker?<label className="saved-item-select-all">
+            <input type="checkbox" checked={allVisibleSelected} disabled={!filtered.length||this.state.busy}
+              onChange={()=>this.toggleVisibleSelection(filtered)}
+              aria-label={allVisibleSelected?t('Deselect all visible products','إلغاء تحديد كل الأصناف الظاهرة'):t('Select all visible products','تحديد كل الأصناف الظاهرة')}/>
+            <span>{allVisibleSelected?t('Deselect visible','إلغاء تحديد الظاهر'):t('Select visible','تحديد الظاهر')}</span>
+          </label>:null}
         </div>
 
         <div className="saved-items-list" id={`${this.tabPrefix}-panel`} role="tabpanel" aria-labelledby={`${this.tabPrefix}-tab-${this.state.view}`} tabIndex={-1}>
           {filtered.map(item=>{
             const selected=selectedIds.has(item.id);
             return <article key={item.id} className={`saved-item-row ${item.favorite?'is-favorite ':''}${selected?'is-selected':''}`}>
-              <button type="button" className={`saved-item-favorite ${item.favorite?'is-active':''}`} aria-pressed={Boolean(item.favorite)} aria-label={item.favorite?t('Remove from favorites','إزالة من المفضلة'):t('Add to favorites','إضافة إلى المفضلة')} disabled={Boolean(this.state.favoriteBusyId)} onClick={()=>void this.toggleFavorite(item)}>
+              {picker?<label className="saved-item-select-control">
+                <input type="checkbox" checked={selected} disabled={this.state.busy}
+                  onChange={()=>this.selectItem(item)}
+                  aria-label={t(`Select ${titleOf(item)}`,`تحديد ${titleOf(item)}`)}/>
+              </label>:<button type="button" className={`saved-item-favorite ${item.favorite?'is-active':''}`} aria-pressed={Boolean(item.favorite)} aria-label={item.favorite?t('Remove from favorites','إزالة من المفضلة'):t('Add to favorites','إضافة إلى المفضلة')} disabled={Boolean(this.state.favoriteBusyId)} onClick={()=>void this.toggleFavorite(item)}>
                 <span aria-hidden="true">★</span>
-              </button>
+              </button>}
               <button type="button" className="saved-item-main" aria-pressed={picker?selected:undefined} onClick={()=>this.selectItem(item)}>
                 <strong>{titleOf(item)}</strong>
                 {item.descriptionEn&&item.descriptionAr?<span dir={isArabic()?'ltr':'rtl'}>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
@@ -449,7 +459,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
                   {categoryOf(item)?<em>{categoryLabel(categoryOf(item))}</em>:null}
                   {(item.tags??[]).slice(0,2).map(tag=><em key={tag}>#{tag}</em>)}
                 </div>
-                <small>{[item.unit,item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:'',item.origin].filter(Boolean).join(' · ')}</small>
+                {picker?<small className="saved-item-picker-meta" dir="auto">{[item.sku?`SKU ${item.sku}`:'',item.unit,item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:''].filter(Boolean).join(' · ')}</small>:<small>{[item.unit,item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:'',item.origin].filter(Boolean).join(' · ')}</small>}
               </button>
               <IconButton icon="edit" label={t('Edit','تعديل')} onClick={()=>this.beginEdit(item)}/>
             </article>;
@@ -473,11 +483,6 @@ export class SavedItemsModal extends React.Component<Props,State>{
                 <strong>{selectedCount?t(`${selectedCount} selected`,`${selectedCount} محدد`):t('Select one or more items','اختر صنفًا واحدًا أو أكثر')}</strong>
                 <small>{filtered.length?t(`${filtered.length} currently visible`,`${filtered.length} ظاهر حاليًا`):t('Use search or categories to find products.','استخدم البحث أو التصنيفات للعثور على الأصناف.')}</small>
               </div>
-              {filtered.length
-                ? <Button variant="ghost" onClick={()=>this.toggleVisibleSelection(filtered)}>
-                    {allVisibleSelected?t('Deselect visible','إلغاء الظاهر'):t('Select visible','تحديد الظاهر')}
-                  </Button>
-                : null}
               {selectedCount?<Button variant="ghost" onClick={()=>this.setState({selectedIds:[]})}>{t('Clear','مسح')}</Button>:null}
               <Button icon="plus" variant="primary" disabled={!selectedCount||this.state.busy} onClick={()=>void this.addSelected()}>
                 {this.state.busy?t('Adding…','جارٍ الإضافة…'):t(`Add ${selectedCount||''}`.trim(),`إضافة ${selectedCount||''}`.trim())}
