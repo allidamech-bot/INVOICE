@@ -11,6 +11,7 @@ on:
       - 'src/components/WarehouseLocationsPage.tsx'
       - 'src/components/EditorPageCore.tsx'
       - 'src/components/ProductAiSourceReview.tsx'
+      - 'src/lib/product-ai-review.ts'
       - 'src/components/ProductLibraryWorkspace.tsx'
       - 'src/styles/tailadmin-products-v320.css'
       - 'src/styles/ai-conversation-workspace.css'
@@ -20,6 +21,8 @@ on:
       - 'tests/visual/run-ux-rehab-picker-webkit-20261016.cjs'
       - 'tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs'
       - 'tests/visual/ux-rehab-warehouse-20261016.html'
+      - 'tests/visual/ux-rehab-ai-product-review-20261016.html'
+      - 'tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs'
       - '.github/workflows/lourex-ux-rehab-qa.yml'
 
 permissions:
@@ -56,6 +59,7 @@ jobs:
             tests/ux-rehab-warehouse-locations-20261016.test.mjs \
             tests/ux-rehab-editor-item-tools-20261016.test.mjs \
             tests/ux-rehab-ai-product-review-20261016.test.mjs \
+            tests/ux-rehab-ai-source-duplicates-20261016.test.mjs \
             tests/ux-rehab-import-chooser-20261016.test.mjs \
             tests/ai-batch6-mobile-import-integrity.test.mjs \
             tests/ai-batches1-7-release-candidate-contract.test.mjs \
@@ -95,6 +99,7 @@ jobs:
           done
           node tests/visual/run-ux-rehab-picker-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
+          node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
       - name: Save isolated browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -103,5 +108,6 @@ jobs:
           path: |
             visual-qa-output/ux-rehab-picker-webkit/
             visual-qa-output/ux-rehab-warehouse-webkit/
+            visual-qa-output/ux-rehab-ai-product-webkit/
           if-no-files-found: ignore
           retention-days: 7
