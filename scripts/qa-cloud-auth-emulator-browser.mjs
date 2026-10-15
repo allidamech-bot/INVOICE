@@ -268,6 +268,25 @@ try{
   assert.equal(stillSafe.uid,signUp);
   assert.equal(stillSafe.ok,true,'unauthorized attempts must not corrupt original account');
   console.log('PASS real Firebase browser C: cross-account read/write denied and local data isolated');
+  // New, clean device recovery: use only the authenticated owner's committed
+  // emulator snapshot. Never restore a conflicting unsynced draft from A.
+  const recoveredDevice=await openProfile(chrome,'D-recovery');
+  const recoveredUid=await evaluate(recoveredDevice,`firebase.auth().signInWithEmailAndPassword(${JSON.stringify(email)},${JSON.stringify(password)}).then(r=>r.user.uid)`);
+  assert.equal(recoveredUid,signUp);
+  const recovered=await evaluate(recoveredDevice,`(async()=>{
+    const {db,sync,user}=await ${modules};
+    const before=await db.getPlainWorkspace();
+    const outcome=await sync.reconcilePlainCloudWorkspace(user.uid);
+    const current=await db.getPlainWorkspace();
+    return {fresh:before===null,outcome,
+      numbers:current?.payload.documents.map(d=>d.number)||[],
+      customers:current?.payload.customers.map(c=>c.id)||[]};
+  })()`);
+  assert.equal(recovered.fresh,true,'new profile starts without a business database');
+  assert.equal(recovered.outcome,'pulled','restore only the committed Firebase workspace');
+  assert.deepEqual(recovered.numbers,['INV-QA-0001','PI-QA-0002','INV-B-0003']);
+  assert.ok(recovered.customers.includes('offline-qa-customer'),'offline edit survives recovery');
+  console.log('PASS real Firebase browser D: clean-device restore of committed invoices and previously offline customer');
 
 }finally{
   for(const c of sessions){try{c.close();}catch{}}
