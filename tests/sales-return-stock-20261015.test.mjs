@@ -47,6 +47,10 @@ test('a credit note by itself never increases inventory; physical receipt does o
  assert.equal(result.movement.sourceId,f.credit.id);
  assert.ok(result.movement.salesReturn);
  assert.throws(()=>postSalesReturn(result.vault,f.input),/already been received/i);
+ const later=postSalesReturn(result.vault,{...f.input,quantity:'0.5',evidence:evidence()}).vault;
+ assert.equal(balance(later),'8','allow a later partial physical receipt with its own evidence');
+ assert.equal(later.inventoryMovements.filter(x=>x.salesReturn).length,2);
+ assert.throws(()=>postSalesReturn(later,{...f.input,quantity:'0.1',evidence:evidence()}),/exceed/i);
  assert.doesNotThrow(()=>assertSalesReturnIntegrity(result.vault));
 });
 test('receipt requires valid PDF/image evidence, reason, active credit and original issued stock',()=>{
