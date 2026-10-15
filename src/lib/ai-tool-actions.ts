@@ -131,6 +131,7 @@ export async function applyApprovedToolExecution(proposal:GenericToolExecutionPr
       id:pending[0]!.id};
   }
   if(proposal.tool==='sales.issueConfirmedStock'){
+    throw new Error('Separate Delivery Note stock posting is disabled. Inventory is deducted on final invoice issuance; samples require a documented manual movement.');
     if(!proposal.foundationApproval)throw new Error('A signed and explicit inventory-deduction approval is required.');
     const review=proposal.args as unknown as AiSalesStockIssueReview;
     const updated=await mutateVaultSafely(vault=>{
