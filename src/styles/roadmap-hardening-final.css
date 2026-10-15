@@ -435,6 +435,9 @@ html[dir="rtl"] body #root .app-ui .screen-editor :is(.document-design-group-hea
   .app-ui .lx-warehouse-page .lx-location-card{padding:10px}
   .app-ui .lx-warehouse-page .lx-location-card>.btn{width:100%;justify-self:stretch}
   .app-ui .lx-warehouse-page .lx-form-grid{grid-template-columns:minmax(0,1fr)}
+  .app-ui .lx-warehouse-page :is(input,select,textarea){
+    font-size:16px!important;
+  }
   .app-ui .lx-warehouse-page .lx-warehouse-balances-scroll>.ta-table{
     min-width:540px;
   }
