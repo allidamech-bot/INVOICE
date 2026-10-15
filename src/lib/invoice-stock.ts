@@ -143,6 +143,32 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
   return {vault:{...vault,inventoryMovements:[...vault.inventoryMovements,...created]},created:true,legacyDelivery:false};
 }
 
+/**
+ * Verify EVERY previously posted invoice movement against its frozen invoice.
+ * Unlike posting, this check permits an archived catalog product: archival must
+ * never erase valid issued invoice history.
+ */
+export function assertPostedInvoiceStockDocumentIntegrity(
+  documents:LourexDocument[],movements:InventoryMovementRecord[]
+):void{
+  const grouped=new Map<string,InventoryMovementRecord[]>();
+  for(const movement of movements){
+    if(!isIssuedInvoiceStockIssue(movement))continue;
+    if(!movement.sourceId)fail('Invoice stock record is missing its invoice reference.','حركة مخزون الفاتورة بلا مرجع.');
+    const rows=grouped.get(movement.sourceId)||[];
+    rows.push(movement);grouped.set(movement.sourceId,rows);
+  }
+  for(const [invoiceId,rows] of grouped){
+    const invoice=documents.find(doc=>doc.id===invoiceId);
+    if(!invoice||invoice.kind!=='invoice'||invoice.role!=='standard'
+      ||invoice.status!=='final'||invoice.lifecycleStatus==='voided')
+      fail('Posted stock must reference an active final sales invoice.','حركة المخزون يجب أن ترتبط بفاتورة بيع نهائية وسارية.');
+    const expected=new Set(invoice.items.filter(line=>line.stockTreatment==='tracked')
+      .map(line=>movementId(invoice.id,line.id)));
+    assertExistingInvoiceIssues(invoice,rows,expected,invoice.branchId||'main');
+  }
+}
+
 /** Reject duplicate IDs, deletion and same-ID modification across offline merge inputs. */
 export function assertInvoiceStockLedgerContinuity(base:InventoryMovementRecord[],intended:InventoryMovementRecord[],latest:InventoryMovementRecord[]):void{
   for(const rows of [base,intended,latest]){
