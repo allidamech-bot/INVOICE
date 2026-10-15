@@ -14,6 +14,9 @@ on:
       - 'tests/visual/run-physical-sales-return-v607.cjs'
       - 'src/components/SalesReturnReceiptPanel.tsx'
       - 'src/components/SalesReturnCorrectionPanel.tsx'
+      - 'src/components/DocumentLifecyclePanel.tsx'
+      - 'tests/visual/invoice-void-stock-v608.html'
+      - 'tests/visual/run-invoice-void-stock-v608.cjs'
       - '.github/workflows/product-editor-webkit.yml'
 
 permissions:
@@ -50,6 +53,7 @@ jobs:
           done
           node tests/visual/run-product-editor-webkit-v606.cjs
           node tests/visual/run-physical-sales-return-v607.cjs
+          node tests/visual/run-invoice-void-stock-v608.cjs
       - name: Preserve screenshots and test metrics
         if: always()
         uses: actions/upload-artifact@v4
@@ -58,5 +62,6 @@ jobs:
           path: |
             visual-qa-output/product-editor-webkit-v606/
             visual-qa-output/physical-sales-return-v607/
+            visual-qa-output/invoice-void-stock-v608/
           if-no-files-found: ignore
           retention-days: 7
