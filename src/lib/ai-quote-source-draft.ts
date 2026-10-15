@@ -186,7 +186,13 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     const sourceCost=supplierSource&&exactSource
       ?(row.unitCostColumnPresent===true?row.unitCost:row.unitPrice)
       :supplierSource?row.unitCost:row.unitPrice;
-    const unit=sourceText(row.unit,40),sourcePrice=numeric(sourceCost,false);
+    const unit=sourceText(row.unit,40);
+    // Supplier quantities without an explicit purchasing unit cannot be
+    // safely reinterpreted as customer-order quantities (CTN vs PCS, etc.).
+    // Do not issue a plausible quote that silently assumes the pack basis.
+    if(supplierSource&&!unit)
+      throw new Error('SOURCE_INCOMPLETE: Supplier order unit is missing on line '+(index+1)+'. Confirm CTN, PCS or the exact source unit before creating a quotation.');
+    const sourcePrice=numeric(sourceCost,false);
     const unitPrice=margin!==null?sellingPriceForGrossMargin(sourcePrice,margin)
       :markup!==null?sellingPriceForMarkup(sourcePrice,markup)
       :supplierSource?'':sourcePrice;
