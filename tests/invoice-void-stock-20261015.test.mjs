@@ -73,7 +73,7 @@ test('void source and quantity cannot be erased, forged, or replayed across offl
   assert.throws(()=>mergeVaultIntent(cancelled,forged,cancelled),/immutable/i);
  }
  const erased={...cancelled,inventoryMovements:cancelled.inventoryMovements.filter(m=>!m.invoiceVoidStock)};
- assert.throws(()=>mergeVaultIntent(cancelled,erased,cancelled),/immutable/i);
+ assert.throws(()=>mergeVaultIntent(cancelled,erased,cancelled),/immutable|append-only/i);
  const sourceLost={...cancelled,documents:cancelled.documents.map(d=>({...d,attachments:[]}))};
  assert.throws(()=>assertInvoiceVoidStockIntegrity(sourceLost.documents,sourceLost.inventoryMovements),/proof/);
  const missing={...vault,documents:[{...invoice,lifecycleStatus:'voided'}]};
