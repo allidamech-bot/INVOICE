@@ -45,3 +45,20 @@ test('Provider smoke is manual-only; branch workflows stay fully secrets-free',(
  assert.match(testProgram,/LOUREX_SANDBOX_OK/);
  assert.doesNotMatch(testProgram,/(?:https?:\/\/invoice-three|fetch\(\s*['"]https?:\/\/)/);
 });
+
+test('Workspace settings distinguish local operator selection from authenticated team membership',()=>{
+ const settings=source('src/components/AccessGovernanceSettings.tsx');
+ assert.match(settings,/roles control approval workflows inside this account/);
+ assert.match(settings,/does NOT create a Firebase login or grant separate cloud access/);
+ assert.match(settings,/لا تشارك كلمة مرور الحساب/);
+});
+test('Server planner trusts signed token identity and ignores client-selected role',()=>{
+ const auth=source('api/_ai/firebase-auth.js');
+ const api=source('api/ai-inbox.js');
+ assert.match(auth,/request\.aiVerifiedRole=identity\.role/);
+ assert.match(auth,/TRUSTED_AI_ROLES/);
+ assert.match(auth,/payload\.lourexAiRole/);
+ assert.match(api,/handleToolPlan\(body,response,request\.aiVerifiedRole\)/);
+ assert.match(api,/function plannerToolIds\(scope,conversationMode,verifiedRole='viewer'\)/);
+ assert.match(api,/cleanToolPlan\(routed\.data,scope,conversationMode,verifiedRole\)/);
+});
