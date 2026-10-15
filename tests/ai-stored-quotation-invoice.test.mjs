@@ -41,6 +41,8 @@ test('Saved quote invoice intent requires explicit conversion and one exact sour
  }
  for(const command of ['لا تنشئ فاتورة من عرض السعر '+quote.number,
    'Do not create an invoice from quotation '+quote.number,
+   "Please don't create an invoice from quotation "+quote.number,
+   'Create a quotation from an invoice '+quote.number,
    'Show quotation '+quote.number,
    'Create invoice from confirmed delivery DN-2026-0012']){
   assert.equal(isAiStoredQuotationInvoiceIntent(command),false,command);
@@ -68,6 +70,7 @@ test('Controller stages exact saved source instead of asking model to reconstruc
 test('Approved conversion saves one linked UNISSUED draft using exact original items, terms and events',()=>{
  const f=fixture(),before=structuredClone(f.vault),review=prepareAiStoredQuotationInvoice(f.vault,f.quote.number);
  assert.equal(review.expectedInvoiceNumber.slice(0,4),'INV-');
+ assert.ok(review.evidenceSignature.length<80,'the approval must not copy original PDF or customer bytes');
  const saved=applyAiStoredQuotationInvoiceApproval(f.vault,review);
  const invoice=saved.invoice;
  assert.equal(invoice.status,'draft');assert.equal(invoice.kind,'invoice');
