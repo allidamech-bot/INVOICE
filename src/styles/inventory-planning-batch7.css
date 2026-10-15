@@ -17,3 +17,27 @@ html[dir="rtl"] .lx-inventory-planning{text-align:right}
 @media(max-width:980px){.lx-inventory-plan-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.lx-inventory-plan-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.lx-inventory-plan-row-foot{grid-template-columns:repeat(2,minmax(0,1fr))}.lx-inventory-plan-row-foot>.btn{grid-column:1/-1;width:100%}}
 @media(max-width:640px){.lx-inventory-planning{gap:12px}.lx-inventory-plan-heading{display:grid;gap:12px;padding:15px;border-radius:16px}.lx-inventory-plan-heading p{font-size:12px}.lx-inventory-plan-window{width:100%;min-width:0}.lx-inventory-plan-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.lx-inventory-plan-summary>div{gap:9px;padding:11px;border-radius:14px}.lx-inventory-plan-summary-icon{width:34px;height:34px;flex-basis:34px}.lx-inventory-plan-summary strong{font-size:20px}.lx-inventory-plan-summary em{display:none}.lx-inventory-plan-toolbar{display:grid;grid-template-columns:1fr}.lx-inventory-plan-toolbar>.select{width:100%}.lx-inventory-plan-row{gap:12px;padding:13px;border-radius:15px}.lx-inventory-plan-row-main{align-items:flex-start}.lx-inventory-plan-product-icon{width:36px;height:36px;flex-basis:36px}.lx-inventory-plan-status{min-height:26px;padding-inline:8px}.lx-inventory-plan-metrics{grid-template-columns:repeat(2,minmax(0,1fr));border-radius:12px}.lx-inventory-plan-metrics>div{padding:10px}.lx-inventory-plan-metrics span{white-space:normal}.lx-inventory-plan-row-foot{grid-template-columns:1fr}.lx-inventory-plan-row-foot>.btn{grid-column:auto;min-height:44px}.lx-inventory-plan-form-grid{grid-template-columns:1fr}.lx-inventory-plan-notes{grid-column:auto}.lx-inventory-plan-preview{grid-template-columns:1fr}.lx-inventory-plan-modal-actions{align-items:stretch;flex-direction:column-reverse}.lx-inventory-plan-modal-actions>div{display:grid;grid-template-columns:1fr 1fr}.lx-inventory-plan-modal-actions>.btn{width:100%}.lx-inventory-plan-modal-actions .btn{min-height:44px}}
 @media(prefers-reduced-motion:reduce){.lx-inventory-plan-loading .icon{animation:none}}
+
+/* UX rehab A: inventory planning dark surfaces, text and form contrast.
+   Existing reorder quantities, warehouse logic and stock decisions are unchanged. */
+html:is([data-ui-theme="dark"],[data-theme="dark"]) .lx-inventory-planning{
+  --lx-surface:var(--ft-surface,#12263a);
+  --lx-surface-soft:var(--ft-surface-2,#1b334a);
+  --lx-border:var(--ft-line,rgba(155,186,216,.24));
+  --lx-text:var(--ft-text-strong,#f2f7ff);
+  --lx-muted:var(--ft-muted,#a0b4c9);
+  --lx-accent:var(--ft-accent,#8bb6f5);
+}
+html:is([data-ui-theme="dark"],[data-theme="dark"]) .lx-inventory-planning .lx-inventory-plan-error{
+  color:#ffbdbe;background:rgba(222,72,76,.12);border-color:rgba(255,148,152,.3);
+}
+.lx-inventory-planning .lx-inventory-plan-product strong{
+  overflow-wrap:anywhere;
+}
+@media(max-width:640px){
+  .lx-inventory-planning{gap:10px}
+  .lx-inventory-plan-row{gap:10px;padding:11px}
+  .lx-inventory-plan-summary>div{padding:9px}
+  .lx-inventory-plan-metrics>div{padding:9px}
+  .lx-inventory-plan-row-foot{gap:8px}
+}
