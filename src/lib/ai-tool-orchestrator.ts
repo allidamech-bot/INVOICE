@@ -156,7 +156,7 @@ function findDocument(runtime:AiToolRuntime,args:Record<string,unknown>):any|nul
 function findPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.purchaseId,120)||relevantEntity(runtime,'purchase');const number=clean(args.number||args.query,100);return runtime.vault.purchases.find(row=>(id&&row.id===id)||(number&&lower(row.number)===lower(number)))??null;}
 
 export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='business',mode:AiConversationMode='controller'):Array<{id:AiToolId;class:AiToolClass;description:string;approval:boolean}>{
-  const allowed=AI_TOOL_REGISTRY.filter(row=>conversationModePermitsToolClass(mode,row.class));
+  const allowed=AI_TOOL_REGISTRY.filter(row=>row.id!=='sales.issueConfirmedStock'&&conversationModePermitsToolClass(mode,row.class));
   if(scope==='personal')return allowed.filter(row=>['message.prepare','reminder.prepare','task.create'].includes(row.id)).map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
   return allowed.map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
 }
