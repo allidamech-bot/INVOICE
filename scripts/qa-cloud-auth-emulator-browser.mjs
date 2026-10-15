@@ -235,6 +235,40 @@ try{
   })()`);
   assert.equal(loggedOut.uid,null);assert.equal(loggedOut.denied,true);
   console.log('PASS browser B: authenticated access revoked on sign-out');
+
+  // A third Firebase UID, created in the same isolated emulator, must not
+  // read or overwrite the original owner's manifest, even using the raw SDK.
+  // Also verify that local IndexedDB starts in a separate empty account scope.
+  const outsiderUid=await evaluate(b,`firebase.auth().createUserWithEmailAndPassword(
+    ${JSON.stringify('lourex.qa.outsider.'+Date.now()+'@example.test')},
+    ${JSON.stringify(password)}
+  ).then(r=>r.user.uid)`);
+  assert.notEqual(outsiderUid,signUp,'third account must have a distinct Firebase UID');
+  const outsider=await evaluate(b,`(async()=>{
+    const db=await import('./src/storage/db.js');
+    await db.activateAccountStorage(firebase.auth().currentUser.uid);
+    const local=await db.getPlainWorkspace();
+    const ref=firebase.firestore().collection('users').doc(${JSON.stringify(signUp)})
+      .collection('workspace').doc('meta');
+    let readDenied=false,writeDenied=false;
+    try{await ref.get();}catch(error){readDenied=error.code==='permission-denied';}
+    try{await ref.set({revision:'forged'});}catch(error){writeDenied=error.code==='permission-denied';}
+    return {readDenied,writeDenied,localEmpty:local===null,
+      signedInUid:firebase.auth().currentUser.uid};
+  })()`);
+  assert.equal(outsider.signedInUid,outsiderUid);
+  assert.ok(outsider.readDenied,'outsider must not read the original owner workspace');
+  assert.ok(outsider.writeDenied,'outsider must not overwrite the original owner workspace');
+  assert.ok(outsider.localEmpty,'a different UID must not inherit original account IndexedDB state');
+  const stillSafe=await evaluate(a,`(async()=>{
+    const {sync,user}=await ${modules};
+    const meta=await sync.getPlainCloudMeta(user.uid);
+    return {ok:Boolean(meta?.revision),uid:user.uid};
+  })()`);
+  assert.equal(stillSafe.uid,signUp);
+  assert.equal(stillSafe.ok,true,'unauthorized attempts must not corrupt original account');
+  console.log('PASS real Firebase browser C: cross-account read/write denied and local data isolated');
+
 }finally{
   for(const c of sessions){try{c.close();}catch{}}
   for(const child of running){try{child.kill('SIGTERM');}catch{}}
