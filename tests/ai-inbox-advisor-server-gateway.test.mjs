@@ -94,3 +94,26 @@ test('Client explicitly transmits bounded conversation mode to server planner',(
   assert.match(client,/mode:'tool-plan',conversationMode:runtime\.conversationMode==='controller'\?'controller':'advisor'/);
   assert.match(client,/validateAiToolPlan\(payload\?\.plan,runtime\.scope,runtime\.conversationMode\)/);
 });
+
+test('Controller server planner cannot expose high-impact accounting actions, regardless of signed user intent',async()=>{
+  for(const tool of ['document.finalize','payment.record','inventory.adjust','financial.delete','accounting.post']){
+    const gateway=makeGateway(plan(tool));
+    const reply=await gateway.request({message:'Record and post the requested business operation',scope:'business',conversationMode:'controller'});
+    assert.equal(reply.statusCode,422,tool+' must be rejected after model output');
+    assert.equal(reply.body.code,'NO_TOOL_PLAN');
+    assert.equal(gateway.requests.length,1);
+    const allowed=gateway.requests[0].schema.properties.calls.items.properties.tool.enum;
+    assert.equal(allowed.includes(tool),false,tool+' must not appear in provider schema');
+    assert.equal(gateway.requests[0].prompt.includes(tool+':'),false,tool+' must not appear in provider tool catalog');
+  }
+});
+test('Spoofed role, owner, UID or accounting permission in a tool-plan request cannot unlock protected tools',async()=>{
+  for(const role of ['owner','admin','finance','sales','superuser']){
+    const gateway=makeGateway(plan('accounting.post'));
+    const response=await gateway.request({message:'Post journal',scope:'business',
+      conversationMode:'controller',role,teamRole:role,permissions:['*'],
+      uid:'claimed-owner',context:{role,owner:true,accountId:'claimed-owner'}});
+    assert.equal(response.statusCode,422,role);
+    assert.equal(response.body.code,'NO_TOOL_PLAN');
+  }
+});
