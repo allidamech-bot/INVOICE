@@ -27,6 +27,8 @@ on:
       - 'tests/visual/ux-rehab-warehouse-20261016.html'
       - 'tests/visual/ux-rehab-ai-product-review-20261016.html'
       - 'tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs'
+      - 'tests/visual/run-ux-rehab-document-webkit-20261016.cjs'
+      - 'tests/visual/ux-rehab-documents-create-20261016.html'
       - '.github/workflows/lourex-ux-rehab-qa.yml'
 
 permissions:
@@ -107,6 +109,7 @@ jobs:
           node tests/visual/run-ux-rehab-picker-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
+          node tests/visual/run-ux-rehab-document-webkit-20261016.cjs
       - name: Save isolated browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,5 +119,6 @@ jobs:
             visual-qa-output/ux-rehab-picker-webkit/
             visual-qa-output/ux-rehab-warehouse-webkit/
             visual-qa-output/ux-rehab-ai-product-webkit/
+            visual-qa-output/ux-rehab-document-webkit/
           if-no-files-found: ignore
           retention-days: 7
