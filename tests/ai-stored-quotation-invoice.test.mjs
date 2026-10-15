@@ -144,6 +144,8 @@ test('Signed Controller approval performs exactly one real vault mutation, then 
  const actual=await applyApprovedToolExecution(signed);
  assert.equal(writes,1);
  assert.match(actual.summary,/Invoice DRAFT/);
+ assert.equal(actual.document?.number,proposal.args.expectedInvoiceNumber);
+ assert.equal(actual.document?.convertedFromId,f.quote.id);
  const stored=saved.documents.find(doc=>doc.id===actual.id);
  assert.equal(stored?.number,proposal.args.expectedInvoiceNumber);
  assert.equal(stored?.convertedFromId,f.quote.id);
@@ -152,4 +154,16 @@ test('Signed Controller approval performs exactly one real vault mutation, then 
  await assert.rejects(()=>applyApprovedToolExecution(signed),/changed|already|payload/);
  assert.equal(writes,2,'a second attempt may enter guarded mutation but must not commit');
  assert.equal(saved.documents.filter(doc=>doc.convertedFromId===f.quote.id).length,1);
+});
+
+test('Controller approval renders the saved invoice as a real openable conversation artifact',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const script=await readFile(new URL('../scripts/ai-conversation-owner-stage4-tools.mjs',import.meta.url),'utf8');
+ const component=await readFile(new URL('../src/components/AiCopilot.tsx',import.meta.url),'utf8');
+ assert.match(script,/savedInvoiceArtifact=step\.tool==='document\.createDraft'/);
+ assert.match(script,/result\.document\.convertedFromId===step\.args\?\.sourceId/);
+ assert.match(script,/artifact:savedInvoiceArtifact/);
+ assert.match(component,/lourex-ai-created-artifact/);
+ assert.match(component,/lourex-global-search-open/);
+ assert.match(component,/Open invoice/);
 });
