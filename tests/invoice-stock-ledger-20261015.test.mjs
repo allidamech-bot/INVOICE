@@ -109,3 +109,18 @@ test('manual samples require both explicit reason and real PNG/PDF proof with va
  assert.equal(balance(posted),'97');
  assert.throws(()=>mergeVaultIntent(vault,{...vault,inventoryMovements:[...vault.inventoryMovements,sample]},vault),/reason category/);
 });
+
+
+test('issued invoice records resist post-issue line tampering or void, while archival preserves old stock',()=>{
+ const {vault,document}=fixture();
+ const final={...document,status:'final'};
+ const posted=postIssuedInvoiceStock(vault,final).vault;
+ const baseline={...posted,documents:[final]};
+ const tampered={...baseline,documents:[{...final,items:[{...final.items[0],quantity:'8'}]}]};
+ assert.throws(()=>mergeVaultIntent(baseline,tampered,baseline),/issued invoice differs|immutable stock history|stock/i);
+ const voided={...baseline,documents:[{...final,lifecycleStatus:'voided'}]};
+ assert.throws(()=>mergeVaultIntent(baseline,voided,baseline),/active final sales invoice/i);
+ const archived={...baseline,savedItems:baseline.savedItems.map(item=>({...item,archived:true}))};
+ assert.doesNotThrow(()=>mergeVaultIntent(baseline,baseline,archived),
+  'Archiving a catalog product must not retroactively invalidate a historically posted invoice');
+});
