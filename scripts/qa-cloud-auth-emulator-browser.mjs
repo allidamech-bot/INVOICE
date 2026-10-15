@@ -44,14 +44,14 @@ function cdpClient(address){
   });
 }
 const running=[],profiles=[],sessions=[];
-const authProject='lourex-invoice';
+const authProject='demo-lourex-pinless-auth';
 const port=4199;
 const browserSource=`<!doctype html><html><head><meta charset="utf-8"></head><body>
   <script src="./vendor/firebase-app-compat.js?v=12.19.0"></script>
   <script src="./vendor/firebase-auth-compat.js?v=12.19.0"></script>
   <script src="./vendor/firebase-firestore-compat.js?v=12.19.0"></script>
   <script>
-    firebase.initializeApp({apiKey:'qa-local-fake-key',authDomain:'lourex-invoice.firebaseapp.com',projectId:'lourex-invoice',appId:'1:985119320046:web:test-local-only'});
+    firebase.initializeApp({apiKey:'qa-local-fake-key',authDomain:'demo-lourex-pinless-auth.firebaseapp.com',projectId:'demo-lourex-pinless-auth',appId:'1:985119320046:web:test-local-only'});
     firebase.auth().useEmulator('http://127.0.0.1:9099',{disableWarnings:true});
     firebase.firestore().useEmulator('127.0.0.1',8080);
     window.LourexEmulatorsReady=true;
