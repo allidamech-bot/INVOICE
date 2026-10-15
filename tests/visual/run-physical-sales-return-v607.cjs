@@ -22,7 +22,7 @@ const bytes=Buffer.from('%PDF-1.4\n1 0 obj\nendobj\n');
     await choices.nth(0).selectOption({index:1});
     await choices.nth(1).selectOption({index:1});
     await form.locator('input[inputmode="decimal"]').fill('1.5');
-    await form.locator('label.is-wide input').filter({visible:true}).last().fill('Sealed cartons inspected at receiving dock');
+    await form.locator('label.is-wide input:not([type="file"])').last().fill('Sealed cartons inspected at receiving dock');
     await form.locator('input[type="file"]').setInputFiles({
       name:'warehouse-receipt.pdf',mimeType:'application/pdf',buffer:bytes
     });
