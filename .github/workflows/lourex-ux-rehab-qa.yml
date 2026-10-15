@@ -8,6 +8,8 @@ on:
       - 'src/styles/saved-items-picker-v232.css'
       - 'src/styles/pricing-batch8.css'
       - 'src/styles/inventory-planning-batch7.css'
+      - 'src/components/WarehouseLocationsPage.tsx'
+      - 'src/styles/roadmap-hardening-final.css'
       - 'tests/ux-rehab-*.test.mjs'
       - 'tests/visual/run-ux-rehab-picker-webkit-20261016.cjs'
       - '.github/workflows/lourex-ux-rehab-qa.yml'
@@ -43,6 +45,7 @@ jobs:
           node --test --test-concurrency=2 \
             tests/ux-rehab-saved-product-picker-20261016.test.mjs \
             tests/ux-rehab-inventory-contrast-20261016.test.mjs \
+            tests/ux-rehab-warehouse-locations-20261016.test.mjs \
             tests/saved-items-picker-mobile-v232.test.mjs \
             tests/saved-items-v95.test.mjs \
             tests/saved-items-library-v102.test.mjs
