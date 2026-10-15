@@ -18,6 +18,7 @@ import {isAiConfirmPhysicalDeliveryIntent,parseAiConfirmPhysicalDeliveryRequest}
 import {isAiStockIssueIntent,parseAiStockIssueRequest} from './ai-operational-stock-issue.js';
 import {isAiSupplierInvoiceMatchIntent,parseAiSupplierInvoiceMatchRequest} from './ai-operational-supplier-invoice-match.js';
 import {isAiConfirmedInvoiceDraftIntent,requestedInvoiceDeliveryNumber} from './ai-operational-delivery-invoice-draft.js';
+import {isAiStoredQuotationInvoiceIntent,requestedStoredQuotationNumber,prepareAiStoredQuotationInvoice} from './ai-stored-quotation-invoice.js';
 import {isAiCustomerCollectionIntent,parseAiCustomerCollection} from './ai-operational-customer-collection.js';
 import {isAiSupplierSettlementIntent,parseAiSupplierSettlement} from './ai-operational-supplier-settlement.js';
 import {isAiSupplierPostingIntent,parseAiSupplierPosting} from './ai-operational-supplier-posting.js';
@@ -163,6 +164,34 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
   const scopedVault=scopeVault(input.vault);
   const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
+  // Exact saved quotation → invoice is a distinct canonical conversion, not
+  // model-synthesized invoice creation. Never infer lines or amounts from a
+  // conversation when an issued saved quotation was named as the source.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&
+      isAiStoredQuotationInvoiceIntent(input.message)){
+    const number=requestedStoredQuotationNumber(input.message);
+    const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};
+    if(!number)return{answer:input.language==='ar'
+      ?'اذكر رقم عرض سعر محفوظ واحدًا بالكامل (مثل QUO-2026-0001) لإنشاء مسودة فاتورة مرتبطة به. لن أنسخ البنود من الذاكرة أو أعتمد طلبًا بلا مصدر.'
+      :'Provide exactly one complete saved quotation number (for example QUO-2026-0001). I will link the invoice draft to the saved record, not reconstruct its lines.',
+      proposal:null,plan,results:[],plannedBy:'local'};
+    try{
+      const review=prepareAiStoredQuotationInvoice(scopedVault,number);
+      const proposal={capability:'tool.execute' as const,tool:'document.createDraft' as const,
+        args:review,preview:review.preview,label:'Review invoice from '+review.sourceNumber,
+        rationale:'Convert one exact issued quotation through the original document lifecycle. This only creates an unissued linked invoice draft after approval.'};
+      return{answer:input.language==='ar'
+        ?'وجدت عرض السعر المحفوظ '+review.sourceNumber+' وجهزت مراجعة فاتورة '+review.expectedInvoiceNumber+
+         ' بكل '+review.lineCount+' بند وشروطها الأصلية. لم أحفظ أو أصدر الفاتورة. يلزم موافقتك لتسجيل المسودة المرتبطة بالمصدر.'
+        :'Found issued quotation '+review.sourceNumber+' and prepared invoice draft '+review.expectedInvoiceNumber+
+         ' from all '+review.lineCount+' original lines and terms. No draft has been saved or issued; your approval is required.',
+        proposal,plan,results:[],plannedBy:'local'};
+    }catch(error){
+      return{answer:(input.language==='ar'?'تعذر تحويل عرض السعر المحفوظ: ':'Saved quotation conversion blocked: ')+
+        (error instanceof Error?error.message:String(error))+' — No records changed.',
+        proposal:null,plan,results:[],plannedBy:'local'};
+    }
+  }
   // A complete structured RFQ already contains the source's actual rows.
   // Never re-send only the first 2800 chars to a planner which might silently
   // lose trailing products. Stage the whole verified quote as UNSAVED.
