@@ -18,7 +18,7 @@ import { assertSalesOrderIntegrity } from '../lib/sales-order-flow.js';
 import { assertSalesDeliveryIntegrity } from '../lib/sales-delivery-flow.js';
 import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity } from '../lib/sales-delivery-invoice.js';
 import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, isSalesDeliveryStockIssue } from '../lib/sales-delivery-stock.js';
-import {assertInvoiceStockLedgerContinuity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
+import {assertInvoiceStockLedgerContinuity,assertPostedInvoiceStockDocumentIntegrity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
 import {validateManualMovementEvidence} from '../lib/inventory-evidence.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
@@ -602,6 +602,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     const scopedStock=postIssuedInvoiceStock({...latest,documents,documentEvents,inventoryMovements,savedItems,warehouses},doc);
     if(scopedStock.created)throw new Error('A final invoice must commit its stock issues atomically. Reopen and issue again.');
   }
+  assertPostedInvoiceStockDocumentIntegrity(documents,inventoryMovements);
   assertSalesDeliveryStockIntegrity({documents,documentEvents,inventoryMovements,savedItems,warehouses,appSettings:latest.appSettings});
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {
