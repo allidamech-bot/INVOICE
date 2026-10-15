@@ -42,6 +42,9 @@ export function getAssistantScope():AssistantScope{return currentScope;}
 
 export function assistantCapabilitiesForRole(role:TeamRole,scope:AssistantScope='business'):string[]{
   if(scope==='personal')return['workspace.help'];
+  // Temporary threads cannot durably retain approval receipts. Limit them to
+  // read and navigation capabilities; business writes require a Business thread.
+  if(scope==='temporary')return [...READ_CAPABILITIES,NAV_CAPABILITY];
   const capabilities:string[]=[...READ_CAPABILITIES,NAV_CAPABILITY];
   if(role==='owner'||role==='admin')capabilities.push(...PRODUCT_CAPABILITIES,...DOCUMENT_CAPABILITIES);
   else if(role==='sales'||role==='finance')capabilities.push(...DOCUMENT_CAPABILITIES);
