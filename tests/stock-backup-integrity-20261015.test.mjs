@@ -7,7 +7,7 @@ import {createManualInventoryMovement,inventoryBalances} from '../dist/src/lib/o
 import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {postSalesReturn} from '../dist/src/lib/sales-returns.js';
 import {postVoidedInvoiceWithPhysicalReceipt} from '../dist/src/lib/invoice-void-stock.js';
-import {readPlainBackup,assertRestorableBackupVault} from '../dist/src/lib/backup.js';
+import {readPlainBackup,assertRestorableBackupVault,assertPostedStockRestoreContinuity} from '../dist/src/lib/backup.js';
 
 const date=new Date().toISOString().slice(0,10);
 const pdf=Buffer.from('%PDF-1.4\n1 0 obj\nendobj\n');
@@ -101,4 +101,37 @@ test('voided invoice must retain its complete physical return and proof in resto
  const returnErased=clone(voided);
  returnErased.inventoryMovements=returnErased.inventoryMovements.filter(m=>!m.invoiceVoidStock);
  assert.throws(()=>assertRestorableBackupVault(returnErased),/Backup posted-invoice stock ledger/);
+});
+
+
+test('manual restore cannot silently roll back an already posted invoice stock debit',async()=>{
+ const {issued,invoice}=setup();
+ const old=emptyVault();
+ assert.doesNotThrow(()=>assertRestorableBackupVault(old),'a formerly valid backup passes shape validation');
+ assert.throws(()=>assertPostedStockRestoreContinuity(issued,old),/older local copy would erase or modify/);
+ const restored=await readPlainBackup(serialize(issued));
+ assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(issued,restored),'identical posted stock audit is recoverable');
+ const cleared=clone(issued);
+ cleared.inventoryMovements=cleared.inventoryMovements.filter(row=>!row.id.startsWith('sales-invoice-stock:'));
+ assert.throws(()=>assertPostedStockRestoreContinuity(issued,cleared),/posted invoice stock/);
+ const rewrittenInvoice=clone(issued);
+ rewrittenInvoice.documents[0].items[0].quantity='7';
+ assert.throws(()=>assertPostedStockRestoreContinuity(issued,rewrittenInvoice),/posted invoice stock/);
+ assert.equal(quantity(issued),'6','blocked restore preserves existing invoice stock');
+});
+
+test('restore continuity protects a voided invoice, credit note and return proof without blocking unrelated data',()=>{
+ const {issued,invoice}=setup();
+ const returned=postVoidedInvoiceWithPhysicalReceipt(issued,invoice,{
+  reason:'All cartons back in warehouse verified by PDF',date,evidence:evidence('restore-evidence-1'),operatorId:'owner'
+ }).vault;
+ const compatible=clone(returned);
+ compatible.customers=[...compatible.customers,{id:'unrelated-new-customer'}];
+ assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(returned,compatible));
+ const older=clone(returned);
+ older.documents[0].attachments=[];
+ assert.throws(()=>assertPostedStockRestoreContinuity(returned,older),/posted invoice stock/);
+ const erased=clone(returned);
+ erased.inventoryMovements=erased.inventoryMovements.filter(m=>!m.invoiceVoidStock);
+ assert.throws(()=>assertPostedStockRestoreContinuity(returned,erased),/posted invoice stock/);
 });
