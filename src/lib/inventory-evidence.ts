@@ -36,7 +36,7 @@ export function validateManualMovementEvidence(movement:InventoryMovementRecord)
     fail('Movement evidence must be a valid PDF/image smaller than 2 MB.');
   const match=/^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/.exec(evidence.dataUrl||'');
   if(!match||match[1]!==evidence.mimeType)fail('Movement evidence must be stored as a local, verified attachment.');
-  const encoded=match[2];
+  const encoded=match[2]!;
   const actualBytes=encoded.length*3/4-(encoded.endsWith('==')?2:encoded.endsWith('=')?1:0);
   if(!Number.isInteger(actualBytes)||actualBytes!==evidence.size)
     fail('Movement evidence content size is inconsistent.');
