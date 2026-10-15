@@ -130,6 +130,7 @@ export function postSalesReturn(vault:VaultPayload,input:SalesReturnInput):{vaul
     fail('Choose an active warehouse in the same branch.');
   if(!isDecimalInput(input.quantity)||qty(input.quantity)<=0n)fail('Received quantity must be positive and precise.');
   if(!isIsoDate(input.date))fail('Return receipt date is invalid.');
+  if(!input.evidence?.id)fail('Physical return evidence is required before inventory receipt.');
   const p:SalesReturnProof={invoiceId:invoice.id,invoiceLineId:original.id,creditNoteId:credit.id,
     creditLineId:credited.id,itemId:original.savedItemId,warehouseId:input.warehouseId,receiptId:input.evidence?.id||''};
   const id=returnId(p);
