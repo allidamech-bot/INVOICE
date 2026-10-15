@@ -176,7 +176,13 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
       throw new Error('SOURCE_INCOMPLETE: Quantity, pack unit or product identity is uncertain on line '+(index+1)+'. Confirm the source before building a quotation.');
     // Exact supplier worksheet columns may call acquisition cost "unitPrice".
     // Preserve the source value as COST evidence, never as a buyer price.
-    const unit=sourceText(row.unit,40),sourcePrice=numeric(supplierSource?(exactSource?row.unitPrice:row.unitCost):row.unitPrice,false);
+    // A supplier sheet may contain both a sales-price column and an explicit
+    // acquisition-cost column. For supplier sources, the cost column wins.
+    // If that cost cell is blank, do NOT fall back to a sale-price cell.
+    const sourceCost=supplierSource&&exactSource
+      ?(row.unitCostColumnPresent===true?row.unitCost:row.unitPrice)
+      :supplierSource?row.unitCost:row.unitPrice;
+    const unit=sourceText(row.unit,40),sourcePrice=numeric(sourceCost,false);
     const unitPrice=margin!==null?sellingPriceForGrossMargin(sourcePrice,margin)
       :markup!==null?sellingPriceForMarkup(sourcePrice,markup)
       :supplierSource?'':sourcePrice;
