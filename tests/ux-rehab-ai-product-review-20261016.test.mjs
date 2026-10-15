@@ -31,3 +31,16 @@ test('mobile AI product review CSS keeps compact touch controls and scope',async
  assert.match(block,/\.modal\.modal-assistant\[role='dialog'\]/);
  assert.doesNotMatch(block,/\.invoice-page|\.document-page|\.a4[-_]/i);
 });
+
+test('AI conversation lists become compact RTL-safe fact rows without altering or executing provider text',async()=>{
+ const src=await read('src/components/AiConversationWorkspace.tsx');
+ const css=await read('src/styles/ai-conversation-workspace.css');
+ const block=css.split('/* UX rehab B: list-style AI source/product responses')[1];
+ assert.ok(block,'scoped reply-row stylesheet');
+ assert.match(src,/list\.push\(<li key=\{index\} className="lxw-ai-compact-result-row" dir="auto">\{formatted\}<\/li>\)/);
+ assert.match(src,/if\(typeof value!=='string'\)return value/);
+ assert.match(src,/Never interpret provider HTML or links/);
+ assert.match(block,/#lourex-ai-panel\[data-lourex-workspace='2'\] \.lxw-markdown/);
+ assert.match(block,/unicode-bidi:plaintext/);
+ assert.doesNotMatch(block,/dangerouslySetInnerHTML/);
+});
