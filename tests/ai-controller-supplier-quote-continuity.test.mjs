@@ -96,6 +96,76 @@ test('B1 supplier-classified exact worksheet cannot leak acquisition prices as c
   assert.equal(vault.documents.length,0);
 });
 
+test('B1 supplier Unit Cost XLSX retains all 85 source rows and requires explicit sell pricing',()=>{
+  const vault=emptyVault(),before=structuredClone(vault);
+  const matrix=[['SKU','Description','Quantity','Unit','Unit Cost','Currency'],
+    ...Array.from({length:85},(_,i)=>['SKU-'+String(i+1).padStart(3,'0'),
+      'Wholesale product '+String(i+1).padStart(3,'0'),2,'CTN','10.00','USD'])];
+  const exact=exactSpreadsheetQuote([{name:'Vendor export',matrix}]);
+  assert.equal(exact.items.length,85);
+  assert.equal(exact.items[84].unitCost,'10');
+  assert.equal(exact.items[84].unitPrice,'');
+  assert.equal(exact.items[84].unitCostColumnPresent,true);
+  const source={...supplierSource(1,'vendor-unit-cost.xlsx'),route:'supplier_purchase',
+    quoteSheetCandidate:JSON.stringify(exact),extracted:'{"items":[{"sku":"WRONG MODEL ROW"}]}'};
+  const draft=quoteSourceWorkingDraft([source],runtime(vault),request);
+  assert.equal(draft.items.length,85);
+  assert.equal(draft.items[84].descriptionEn,'Wholesale product 085');
+  assert.ok(draft.items.every(row=>row.unitPrice===''),'source costs do not become buyer prices');
+  const priced=quoteSourceWorkingDraft([source],runtime(vault),
+    'حوّل فاتورة المورد إلى عرض سعر وأضف 3% على الأسعار');
+  assert.equal(priced.items.length,85);
+  assert.ok(priced.items.every(row=>row.unitPrice==='10.30'));
+  const kernel=newConversationKernel(scope);
+  stageKernelArtifact(kernel,priced);
+  assert.equal(workspaceDocument(kernel,vault,'en').subtotal,'1751.00');
+  assert.deepEqual(vault,before);
+});
+
+test('B1 explicit supplier cost beats sale-price column, and blank cost fails closed',()=>{
+  const vault=emptyVault(),matrix=[
+    ['SKU','Description','Quantity','Unit','Unit Price','Unit Cost','Currency'],
+    ['A-1','Mixed pricing',2,'CTN','30','10','USD'],
+    ['A-2','Blank supplier cost',3,'CTN','40','','USD']
+  ];
+  const exact=exactSpreadsheetQuote([{name:'Pricing',matrix}]);
+  assert.equal(exact.items[0].unitPrice,'30');
+  assert.equal(exact.items[0].unitCost,'10');
+  const source={...supplierSource(2,'both-columns.xlsx'),route:'supplier_purchase',
+    quoteSheetCandidate:JSON.stringify(exact)};
+  assert.deepEqual(quoteSourceWorkingDraft([source],runtime(vault),request).items.map(row=>row.unitPrice),['','']);
+  assert.throws(()=>quoteSourceWorkingDraft([source],runtime(vault),
+    'حوّل فاتورة المورد إلى عرض سعر وأضف 3% على الأسعار'),/supplier unit price is missing|unit price is missing/i);
+  matrix[2][5]='12';
+  const priced=quoteSourceWorkingDraft([{...source,
+    quoteSheetCandidate:JSON.stringify(exactSpreadsheetQuote([{name:'Pricing',matrix}]))}],
+    runtime(vault),'حوّل فاتورة المورد إلى عرض سعر وأضف 3% على الأسعار');
+  assert.deepEqual(priced.items.map(row=>row.unitPrice),['10.30','12.36']);
+  assert.deepEqual(vault.documents,[]);
+});
+
+test('B1 Arabic supplier purchase-cost column never becomes automatic selling price',()=>{
+  const vault=emptyVault();
+  const matrix=[['اسم الصنف','الكمية','الوحدة','سعر الشراء','العملة'],
+    ['زيت دوار الشمس',12,'كرتون','7.50','USD']];
+  const parsed=exactSpreadsheetQuote([{name:'سعر المورد',matrix}]);
+  assert.equal(parsed.items[0].unitCost,'7.5');
+  assert.equal(parsed.items[0].unitPrice,'');
+  const fromBuyer={...supplierSource(1),route:'quote_request',quoteSheetCandidate:JSON.stringify(parsed)};
+  const quoted=quoteSourceWorkingDraft([fromBuyer],runtime(vault),request);
+  assert.equal(quoted.items[0].unitPrice,'','cost-only RFQ must not assume customer price');
+  const supplier={...fromBuyer,route:'supplier_purchase'};
+  assert.equal(quoteSourceWorkingDraft([supplier],runtime(vault),
+    'حوّل فاتورة المورد إلى عرض سعر بهامش ربح 25%').items[0].unitPrice,'10.00');
+  assert.deepEqual(vault.documents,[]);
+});
+
+test('B1 malformed supplier cost cell blocks whole exact worksheet, never drops later rows',()=>{
+  const matrix=[['Product','Quantity','Unit Cost','Currency'],
+    ['First',3,'7.25','USD'],['Second',2,'TBC','USD']];
+  assert.throws(()=>exactSpreadsheetQuote([{name:'Incomplete supplier',matrix}]),/Invalid price.*row 3/);
+});
+
 test('B1 missing source currency blocks PDF until customer explicitly confirms an ISO code',()=>{
   const vault=emptyVault();
   const buyer={id:'qa-currency-buyer',workspaceId:'default',companyNameEn:'Currency Buyer',
