@@ -7,6 +7,7 @@ import {postIssuedInvoiceStock,assertInvoiceStockLedgerContinuity} from '../dist
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
 import {inventoryBalances} from '../dist/src/lib/operations.js';
+import {proposalForExecutableTool} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {createWarehouse,createWarehouseTransfer,defaultWarehouseId} from '../dist/src/lib/warehouses.js';
 
 function fixture(stock='100'){
@@ -183,4 +184,15 @@ test('a catalog item with posted history cannot change UOM or be reclassified as
  assert.throws(()=>mergeVaultIntent(vault,asService,vault),/Cannot change unit or inventory classification/);
  const changedUnit={...vault,savedItems:[{...item,unit:'Piece'}]};
  assert.throws(()=>mergeVaultIntent(vault,changedUnit,vault),/Cannot change unit or inventory classification/);
+});
+
+test('Controller can no longer initiate a separate delivery stock deduction',()=>{
+ const {vault}=fixture();
+ const runtime={vault,context:{},scope:'business',workspaceId:vault.appSettings.activeWorkspaceId,
+  branchId:vault.appSettings.activeBranchId,conversationMode:'controller'};
+ assert.throws(()=>proposalForExecutableTool({
+  id:'deprecated-stock-action',tool:'sales.issueConfirmedStock',
+  args:{issue:{deliveryNoteNumber:'DN-2026-0001',warehouseCode:'MAIN',skus:['SKU-100']}},
+  reason:'User asks for separate DN deduction'
+ },runtime),/Separate Delivery Note stock deduction is retired/);
 });
