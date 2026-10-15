@@ -5,7 +5,8 @@ import {validateManualMovementEvidence} from './inventory-evidence.js';
 import {assertGovernancePermission} from './governance.js';
 import {voidFinalDocument} from './document-lifecycle.js';
 import {INVOICE_STOCK_PREFIX,isIssuedInvoiceStockIssue} from './invoice-stock.js';
-import {todayIso} from './id.js';
+import {todayIso,isIsoDate} from './id.js';
+import {isDeliveryLinkedInvoice} from './sales-delivery-invoice.js';
 
 export const INVOICE_VOID_STOCK_PREFIX='sales-invoice-void-stock:';
 export interface InvoiceVoidStockInput {reason:string; evidence:DocumentAttachment; operatorId:string; date?:string;}
@@ -31,6 +32,7 @@ export function postVoidedInvoiceWithPhysicalReceipt(vault:VaultPayload,source:L
  if(vault.appSettings.activeWorkspaceId!==(invoice.workspaceId||vault.appSettings.activeWorkspaceId)
   ||vault.appSettings.activeBranchId!==(invoice.branchId||vault.appSettings.activeBranchId))
   fail('Invoice cancellation must be performed in its own workspace and branch.');
+ if(isDeliveryLinkedInvoice(invoice.id,vault.documentEvents))fail('A delivery-linked invoice must be corrected using a credit note.');
  if(vault.documents.some(d=>d.role==='credit-note'&&d.creditForId===invoice.id&&d.lifecycleStatus!=='voided'))
   fail('Linked credit notes must be resolved before cancelling the original invoice.');
  if(vault.inventoryMovements.some(m=>m.salesReturn?.invoiceId===invoice.id))
@@ -39,7 +41,7 @@ export function postVoidedInvoiceWithPhysicalReceipt(vault:VaultPayload,source:L
  if(!input.evidence)fail('Physical receipt proof is required to restore issued invoice stock.');
  if(!input.operatorId?.trim())fail('Identify the authorized operator for physical stock receipt.');
  const when=input.date||todayIso();
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(when)||when<invoice.issueDate)
+ if(!isIsoDate(when)||when<invoice.issueDate)
   fail('Physical receipt date cannot precede the original invoice.');
  const original=vault.inventoryMovements.filter(m=>m.sourceId===invoice.id&&isIssuedInvoiceStockIssue(m));
  if(!original.length)fail('This invoice has no issued stock to reverse through this cancellation flow.');
