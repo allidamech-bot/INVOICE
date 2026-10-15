@@ -48,8 +48,6 @@ export class SalesReturnReceiptPanel extends React.Component<Props,State>{
             ||invoiceLine.skuSnapshot!==creditLine.skuSnapshot||invoiceLine.unit.toLowerCase()!==creditLine.unit.toLowerCase()
             ||!isDecimalInput(invoiceLine.quantity)||qty(invoiceLine.quantity)<=0n)continue;
           if(!movements.some(m=>m.id===INVOICE_STOCK_PREFIX+invoice.id+':'+invoiceLine.id))continue;
-          if(movements.some(m=>isSalesReturn(m)&&m.salesReturn?.creditNoteId===credit.id
-            &&m.salesReturn?.creditLineId===creditLine.id&&m.salesReturn?.invoiceLineId===invoiceLine.id))continue;
           const already=movements.filter(m=>isSalesReturn(m)&&m.salesReturn?.invoiceId===invoice.id
             &&m.salesReturn?.invoiceLineId===invoiceLine.id).reduce((sum,m)=>sum+qty(m.quantity),0n);
           const invoiceLeft=qty(invoiceLine.quantity)-already;
