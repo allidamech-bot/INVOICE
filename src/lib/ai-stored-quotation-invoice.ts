@@ -27,7 +27,7 @@ export function isAiStoredQuotationInvoiceIntent(message:string):boolean{
  if(/^(?:لا|ولا|بدون|don't|do not|never)\s/iu.test(q))return false;
  const create=/(?:\b(?:create|prepare|make|draft|convert|generate)\b|أنشئ|انشئ|جهز|جهّز|حضّر|حضر|حوّل|حول)/iu.test(q);
  const output=/(?:\binvoice\b|فاتور[ةه])/iu.test(q);
- const source=/(?:\b(?:quotation|quote|proforma)\b|عرض\s*سعر|بروفورما)/iu.test(q);
+ const source=/(?:\b(?:quotation|quote|proforma)\b|عرض\s*(?:ال)?سعر|بروفورما)/iu.test(q);
  const relation=/(?:\b(?:from|based\s+on|into|to)\b|من|إلى|الى)/iu.test(q);
  return create&&output&&source&&relation;
 }
