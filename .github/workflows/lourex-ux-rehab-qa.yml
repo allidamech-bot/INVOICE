@@ -9,6 +9,8 @@ on:
       - 'src/styles/pricing-batch8.css'
       - 'src/styles/inventory-planning-batch7.css'
       - 'src/components/WarehouseLocationsPage.tsx'
+      - 'src/components/EditorPageCore.tsx'
+      - 'src/styles/editor-canonical-v314.css'
       - 'src/styles/roadmap-hardening-final.css'
       - 'tests/ux-rehab-*.test.mjs'
       - 'tests/visual/run-ux-rehab-picker-webkit-20261016.cjs'
@@ -48,6 +50,7 @@ jobs:
             tests/ux-rehab-saved-product-picker-20261016.test.mjs \
             tests/ux-rehab-inventory-contrast-20261016.test.mjs \
             tests/ux-rehab-warehouse-locations-20261016.test.mjs \
+            tests/ux-rehab-editor-item-tools-20261016.test.mjs \
             tests/saved-items-picker-mobile-v232.test.mjs \
             tests/saved-items-v95.test.mjs \
             tests/saved-items-library-v102.test.mjs
