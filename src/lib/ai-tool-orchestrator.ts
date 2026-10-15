@@ -277,6 +277,8 @@ export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime)
       throw new Error('Only Controller business mode may prepare confirmed inventory issue.');
     const input=args.issue as any;
     if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('Exact warehouse and SKU mapping required.');
+    throw new Error('Separate Delivery Note stock deduction is retired. Issue the reviewed final sales invoice to debit inventory once, or use a documented manual inventory movement for samples/damage.');
+    // Legacy approval shape remains declared for compatibility; it is never prepared for new sales.
     const review=prepareAiSalesStockIssue(runtime.vault,input);
     return{capability:'tool.execute',tool:call.tool,args:review,preview:review.preview,
       label:'Review inventory deduction '+review.deliveryNoteNumber,
