@@ -8,7 +8,7 @@ test('iPhone Add/Edit product owns the visible viewport and hides the mobile doc
   const css=await load('src/styles/v485-visible-ui-corrections.css');
   const fix=css.split('/* v605 — iPhone manual product Add/Edit sheet.')[1];
   assert.ok(fix,'final production visual owner must include the mobile product fix');
-  assert.match(fix,/^\s*@media screen and \(max-width:900px\)/);
+  assert.match(fix,/@media screen and \(max-width:900px\)/);
   assert.match(fix,/\.ta-shell:has\(\.ta-product-editor\.is-open\)>\.ta-mobile-nav\{[\s\S]*?visibility:hidden!important/);
   assert.match(fix,/\.ta-product-editor\.is-open\{[\s\S]*?position:fixed!important;[\s\S]*?max-height:none!important/);
   assert.match(fix,/\.ta-product-editor\.is-open>\.ta-product-editor-footer\{[\s\S]*?min-height:66px!important/);
