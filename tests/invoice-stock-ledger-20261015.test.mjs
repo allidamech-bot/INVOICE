@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
-import {createManualInventoryMovement} from '../dist/src/lib/operations.js';
+import {createManualInventoryMovement,reverseManualInventoryMovement} from '../dist/src/lib/operations.js';
 import {postIssuedInvoiceStock,assertInvoiceStockLedgerContinuity} from '../dist/src/lib/invoice-stock.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
@@ -137,4 +137,17 @@ test('warehouse debits honor concurrent transfers, even if company-wide stock st
    inventoryMovements:[...vault.inventoryMovements,moved]};
  assert.equal(balance(latest),'5');
  assert.throws(()=>mergeVaultIntent(vault,intended,latest),/Insufficient stock at the selected warehouse/);
+});
+
+test('reversals cannot silently reuse an earlier approval or evidence attachment',()=>{
+ const {item}=fixture();
+ const original={...createManualInventoryMovement(item,'issue','2',undefined,'Original sample shipment'),
+   evidence:{id:'old-proof',name:'original.png',mimeType:'image/png',size:12,dataUrl:'data:image/png;base64,iVBORw0KGgoAAAAA',createdAt:new Date().toISOString()},
+   reasonCategory:'samples',createdBy:'owner'};
+ assert.doesNotThrow(()=>validateManualMovementEvidence(original));
+ const reversal=reverseManualInventoryMovement(original);
+ assert.equal(reversal.evidence,undefined);
+ assert.equal(reversal.reasonCategory,undefined);
+ assert.equal(reversal.createdBy,undefined);
+ assert.throws(()=>validateManualMovementEvidence(reversal),/reason category/);
 });
