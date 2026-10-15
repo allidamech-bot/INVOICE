@@ -20,7 +20,14 @@ const cases=[
     await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
     await page.goto('http://127.0.0.1:4173/tests/visual/obsidian-directory.html?lang='+v.lang+'&screen=picker',{waitUntil:'load',timeout:30000});
     const shell=page.locator('.saved-items-shell.is-picker');
-    await shell.waitFor({timeout:15000});
+    await shell.waitFor({state:'attached',timeout:15000});
+    const shellDiagnostics=await shell.evaluate(el=>{
+      const read=node=>node?{rect:(()=>{const r=node.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height,width:r.width};})(),display:getComputedStyle(node).display,visibility:getComputedStyle(node).visibility,overflow:getComputedStyle(node).overflowY,flex:getComputedStyle(node).flex,height:getComputedStyle(node).height}:null;
+      return {shell:read(el),body:read(el.closest('.modal-body')),modal:read(el.closest('.modal')),pane:read(el.querySelector('.saved-items-list-pane')),list:read(el.querySelector('.saved-items-list')),viewport:innerHeight};
+    });
+    console.log('PICKER_GEOMETRY',key,JSON.stringify(shellDiagnostics));
+    if(!await shell.isVisible())await page.screenshot({path:output+'/'+key+'-hidden-diagnostic.png',fullPage:true,animations:'disabled'});
+    await shell.waitFor({state:'visible',timeout:4000});
     // The fixture opens Favorites by default; select All to exercise a long list.
     await shell.locator('.saved-items-smart-nav button[role="tab"]').last().click();
     const rows=shell.locator('.saved-item-row');
