@@ -155,8 +155,6 @@ test('B04 model plans cannot reverse a negated document creation command or choo
     ["Don't create a quotation",'proforma'],
     ['لا تنشئ فاتورة','invoice'],
     ['لا تجهز عرض سعر','proforma'],
-    ['Create an invoice from a quotation','proforma'],
-    ['أنشئ فاتورة من عرض السعر','proforma'],
     ['Create a quotation from an invoice','invoice']
   ]){
     await withPlannerReply(create(kind),async calls=>{
@@ -171,21 +169,24 @@ test('B04 model plans cannot reverse a negated document creation command or choo
 });
 
 
-test('B04 quotation-sourced invoice reaches the normal document planner',async()=>{
- const planner=ok({plan:{version:1,goal:'create customer invoice',calls:[{
-   id:'invoice-1',tool:'invoice.prepare',args:{kind:'invoice',currency:'USD',items:[
-     {descriptionEn:'Verified line from quotation',quantity:'2',unit:'CTN',unitPrice:'10.00'}
-   ]},reason:'explicit user instruction'
+test('B04 saved-quotation invoice commands never ask an AI model to invent source data',async()=>{
+ const maliciousPlanner=ok({plan:{version:1,goal:'fake invoice',calls:[{
+   id:'invoice-1',tool:'document.createDraft',
+   args:{kind:'invoice',items:[{descriptionEn:'Hallucinated line',quantity:'99',unitPrice:'0.01'}]},
+   reason:'invented from incomplete source'
  }]}});
- for(const message of ['Create invoice from quotation Q-2026-04','أنشئ فاتورة من عرض السعر السابق']){
-   await withPlannerReply(planner,async calls=>{
+ for(const message of [
+   'Create an invoice from a quotation',
+   'أنشئ فاتورة من عرض السعر',
+   'Create invoice from quotation Q-2026-04',
+   'أنشئ فاتورة من عرض السعر السابق'
+ ]){
+   await withPlannerReply(maliciousPlanner,async calls=>{
      const result=await request(message);
-     assert.equal(calls(),1,'invoice request should reach the planner: '+message);
-     assert.equal(result?.plan.calls[0]?.tool,'document.createDraft',message);
-     assert.equal(result?.proposal?.capability,'document.createDraft',message);
-     assert.equal(result?.proposal?.kind,'invoice',message);
-     assert.equal(result?.proposal?.items?.length,1,message);
-     assert.equal(result?.proposal?.items?.[0]?.unitPrice,'10.00',message);
+     assert.equal(calls(),0,'unspecified saved source must not use AI planning: '+message);
+     assert.equal(result?.proposal,null,message);
+     assert.equal(result?.plan.calls.length,0,message);
+     assert.match(result?.answer,/Provide exactly one complete saved quotation number/,message);
    });
  }
 });
