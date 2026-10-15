@@ -30,7 +30,7 @@ export function isAiStoredQuotationInvoiceIntent(message:string):boolean{
  // as "create an invoice from quotation", even if both nouns are present.
  const forwardEn=/^(?:please\s+)?(?:create|prepare|make|draft|generate)\s+(?:(?:me|a|an|the|new|sales|draft|customer)\s+){0,6}invoice\b.{0,160}\b(?:from|based\s+on)\s+(?:(?:a|an|the|existing|saved|customer)\s+){0,5}(?:quotation|quote|proforma)\b/iu;
  const reverseEn=/^(?:please\s+)?convert\s+(?:(?:a|an|the|existing|saved)\s+){0,5}(?:quotation|quote|proforma)\b.{0,160}\b(?:into|to)\s+(?:(?:a|an|the|sales)\s+){0,5}invoice\b/iu;
- const forwardAr=/^(?:أنشئ|انشئ|جهز|جهّز|حضّر|حضر)\s+(?:لي\s+)?(?:مسودة\s+)?فاتور[ةه].{0,160}\bمن\s+(?:(?:ال)?عرض\s*(?:ال)?سعر|بروفورما)/iu;
+ const forwardAr=/^(?:أنشئ|انشئ|جهز|جهّز|حضّر|حضر)\s+(?:لي\s+)?(?:مسودة\s+)?فاتور[ةه].{0,160}من\s+(?:(?:ال)?عرض\s*(?:ال)?سعر|بروفورما)/iu;
  const reverseAr=/^(?:حوّل|حول)\s+(?:(?:ال)?عرض\s*(?:ال)?سعر|بروفورما).{0,160}(?:إلى|الى)\s+فاتور[ةه]/iu;
  return forwardEn.test(q)||reverseEn.test(q)||forwardAr.test(q)||reverseAr.test(q);
 }
