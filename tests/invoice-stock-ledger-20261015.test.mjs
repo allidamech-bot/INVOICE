@@ -151,3 +151,17 @@ test('reversals cannot silently reuse an earlier approval or evidence attachment
  assert.equal(reversal.createdBy,undefined);
  assert.throws(()=>validateManualMovementEvidence(reversal),/reason category/);
 });
+
+test('posted invoice proof rejects a forged foreign invoice ID or changed SKU',()=>{
+ const {vault,document}=fixture();
+ const final={...document,status:'final'};
+ const posted=postIssuedInvoiceStock(vault,final).vault;
+ const corrupt=(edit)=>({...posted,inventoryMovements:posted.inventoryMovements.map(m=>{
+   if(m.sourceId!==document.id)return m;
+   return edit(m);
+ })});
+ const forged=corrupt(m=>({...m,note:m.note.replace('"invoiceId":"'+document.id+'"','"invoiceId":"other-invoice"')}));
+ assert.throws(()=>postIssuedInvoiceStock(forged,final),/immutable stock history/);
+ const renamed=corrupt(m=>({...m,sku:'SOME-OTHER-SKU'}));
+ assert.throws(()=>postIssuedInvoiceStock(renamed,final),/immutable stock history/);
+});
