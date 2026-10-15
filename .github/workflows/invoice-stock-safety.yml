@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths:
       - 'src/lib/invoice-stock.ts'
+      - 'src/lib/invoice-void-stock.ts'
+      - 'src/components/DocumentLifecyclePanel.tsx'
+      - 'src/components/EditorPage.tsx'
       - 'src/lib/sales-returns.ts'
       - 'src/components/SalesReturnReceiptPanel.tsx'
       - 'src/components/SalesReturnCorrectionPanel.tsx'
@@ -18,6 +21,7 @@ on:
       - 'src/components/EditorPageCore.tsx'
       - 'src/types.ts'
       - 'tests/invoice-stock-ledger-20261015.test.mjs'
+      - 'tests/invoice-void-stock-20261015.test.mjs'
       - 'tests/sales-return-stock-20261015.test.mjs'
       - '.github/workflows/invoice-stock-safety.yml'
 
@@ -44,6 +48,6 @@ jobs:
       - name: Build production bundle locally (no deployment)
         run: npm run build
       - name: Real domain and vault merge tests
-        run: node --test tests/sales-return-stock-20261015.test.mjs tests/invoice-stock-ledger-20261015.test.mjs tests/b07-sales-stock-issue.test.mjs tests/vault-merge.test.mjs tests/workflow-closeout.test.mjs
+        run: node --test tests/invoice-void-stock-20261015.test.mjs tests/sales-return-stock-20261015.test.mjs tests/invoice-stock-ledger-20261015.test.mjs tests/b07-sales-stock-issue.test.mjs tests/vault-merge.test.mjs tests/workflow-closeout.test.mjs
       - name: Full Node regression suite (including unchanged historical contracts)
         run: node --test --test-concurrency=2 tests/*.test.mjs
