@@ -1341,3 +1341,33 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval
    color:var(--lx485-muted,var(--ft-muted))!important;
  }
 }
+
+
+/* UX rehab B: list-style AI source/product responses remain individual readable
+   facts. No inference, row grouping, data writes, or provider-HTML parsing. */
+@media screen{
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(ul,ol){
+   display:grid;gap:6px;list-style-position:inside;
+   min-width:0;margin:8px 0 13px!important;padding:0!important;
+ }
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown .lxw-ai-compact-result-row{
+   min-width:0;padding:9px 11px;border-radius:11px;
+   background:var(--lx485-surface-2,var(--lxw-surface,#1b2230));
+   border:1px solid var(--lx485-line,var(--lxw-line,#354257));
+   color:var(--lx485-text,var(--lxw-text,#f7faff));
+   line-height:1.5;overflow-wrap:anywhere;unicode-bidi:plaintext;
+   font-size:13px;
+ }
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-ai-compact-result-row :is(strong,code,em){
+   max-width:100%;overflow-wrap:anywhere;
+ }
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-ai-compact-result-row code{
+   unicode-bidi:isolate;font-variant-numeric:tabular-nums;
+ }
+}
+@media screen and (max-width:430px){
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown :is(ul,ol){gap:5px}
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown .lxw-ai-compact-result-row{
+   padding:8px 9px;font-size:12px;
+ }
+}
