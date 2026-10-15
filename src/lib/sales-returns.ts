@@ -1,5 +1,5 @@
 import type {DocumentAttachment,InventoryMovementRecord,LourexDocument,VaultPayload} from '../types.js';
-import {decimalToScaled,isDecimalInput} from './money.js';
+import {decimalToScaled,isDecimalInput,normalizeDecimalInput} from './money.js';
 import {inventoryMovementAccountingIsValid} from './operations.js';
 import {validateManualMovementEvidence} from './inventory-evidence.js';
 import {assertGovernancePermission} from './governance.js';
@@ -21,6 +21,9 @@ export interface SalesReturnInput{
   quantity:string;date:string;reason:string;evidence:DocumentAttachment;operatorId:string;
 }
 const qty=(x:string)=>decimalToScaled(x,4);
+// Inventory is carried at four decimal places. Reject a fifth digit rather
+// than silently rounding received quantities into a different physical count.
+const exactQty=(x:string)=>isDecimalInput(x)&&/^(?:\\d+(?:\\.\\d{0,4})?|\\.\\d{1,4})$/.test(normalizeDecimalInput(x).replace(/^-/,''));
 const fixed=(q:bigint):string=>String(q/10000n)+'.'+String(q%10000n).padStart(4,'0');
 const returnId=(p:SalesReturnProof)=>SALES_RETURN_PREFIX+p.creditNoteId+':'+p.creditLineId+':'+p.invoiceLineId+':'+p.receiptId;
 function fail(message:string):never{throw new Error(message);}
@@ -48,7 +51,7 @@ export function assertSalesReturnIntegrity(vault:Pick<VaultPayload,'documents'|'
     byId.add(m.id);
     const p=m.salesReturn;
     if(!p||!p.receiptId||m.evidence?.id!==p.receiptId||m.id!==returnId(p)||m.type!=='adjustment'||!inventoryMovementAccountingIsValid(m)
-      ||!isDecimalInput(m.quantity)||qty(m.quantity)<=0n
+      ||!exactQty(m.quantity)||qty(m.quantity)<=0n
       ||m.sourceId!==p.creditNoteId||m.toWarehouseId!==p.warehouseId||m.fromWarehouseId
       ||m.itemId!==p.itemId||!isIsoDate(m.date))
       fail('Invalid physical sales return stock record.');
@@ -70,8 +73,8 @@ export function assertSalesReturnIntegrity(vault:Pick<VaultPayload,'documents'|'
       ||!original.savedItemId||original.savedItemId!==p.itemId||credited.savedItemId!==p.itemId
       ||original.skuSnapshot!==m.sku||credited.skuSnapshot!==m.sku
       ||original.unit.trim().toLowerCase()!==credited.unit.trim().toLowerCase()
-      ||!isDecimalInput(original.quantity)||qty(original.quantity)<=0n
-      ||!isDecimalInput(credited.quantity)||qty(credited.quantity)<=0n)
+      ||!exactQty(original.quantity)||qty(original.quantity)<=0n
+      ||!exactQty(credited.quantity)||qty(credited.quantity)<=0n)
       fail('Return must match explicit catalog-linked stock lines on both documents.');
     const issued=vault.inventoryMovements.find(row=>row.id===INVOICE_STOCK_PREFIX+invoice.id+':'+original.id);
     if(!issued||issued.type!=='issue'||issued.itemId!==p.itemId
@@ -128,7 +131,7 @@ export function postSalesReturn(vault:VaultPayload,input:SalesReturnInput):{vaul
   if(!item)fail('Original invoice did not post stock: reconcile historical delivery issues separately.');
   if(!vault.warehouses.some(w=>w.id===input.warehouseId&&w.workspaceId===workspaceId&&w.branchId===branchId&&w.active))
     fail('Choose an active warehouse in the same branch.');
-  if(!isDecimalInput(input.quantity)||qty(input.quantity)<=0n)fail('Received quantity must be positive and precise.');
+  if(!exactQty(input.quantity)||qty(input.quantity)<=0n)fail('Received quantity must be positive and use no more than four decimal places.');
   if(!isIsoDate(input.date))fail('Return receipt date is invalid.');
   if(!input.evidence?.id)fail('Physical return evidence is required before inventory receipt.');
   const p:SalesReturnProof={invoiceId:invoice.id,invoiceLineId:original.id,creditNoteId:credit.id,
