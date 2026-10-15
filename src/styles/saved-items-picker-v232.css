@@ -88,4 +88,34 @@
   .app-ui .saved-items-shell.is-picker .saved-item-main{min-height:52px}
 }
 
+
+/* UX rehab A WebKit finding: the late generic modal-body overflow:auto
+   wins over v232 and lets the picker grow to its full 24-row content.
+   This explicitly restores a single viewport-owned list scroller. */
+@media screen and (max-width:720px){
+  html body #root .app-ui .modal:has(.saved-items-shell.is-picker){
+    display:flex!important;flex-direction:column!important;overflow:hidden!important;
+  }
+  html body #root .app-ui .modal:has(.saved-items-shell.is-picker)>.modal-body{
+    display:flex!important;flex:1 1 0!important;height:0!important;
+    min-height:0!important;max-height:100%!important;
+    overflow:hidden!important;padding:0!important;
+  }
+  html body #root .app-ui .modal:has(.saved-items-shell.is-picker) .saved-items-shell.is-picker{
+    display:flex!important;flex-direction:column!important;flex:1 1 0!important;
+    height:100%!important;min-height:0!important;max-height:100%!important;
+    overflow:hidden!important;
+  }
+  html body #root .app-ui .saved-items-shell.is-picker .saved-items-list-pane{
+    flex:1 1 0!important;min-height:0!important;max-height:100%!important;
+    overflow:hidden!important;
+  }
+  html body #root .app-ui .saved-items-shell.is-picker .saved-items-list{
+    display:block!important;flex:1 1 0!important;height:0!important;
+    min-height:0!important;max-height:100%!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;
+  }
+}
+
 @media print{.app-ui .saved-items-shell.is-picker{display:none!important}}
