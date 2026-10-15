@@ -103,7 +103,7 @@ test('B1 supplier Unit Cost XLSX retains all 85 source rows and requires explici
       'Wholesale product '+String(i+1).padStart(3,'0'),2,'CTN','10.00','USD'])];
   const exact=exactSpreadsheetQuote([{name:'Vendor export',matrix}]);
   assert.equal(exact.items.length,85);
-  assert.equal(exact.items[84].unitCost,'10');
+  assert.equal(exact.items[84].unitCost,'10.00');
   assert.equal(exact.items[84].unitPrice,'');
   assert.equal(exact.items[84].unitCostColumnPresent,true);
   const source={...supplierSource(1,'vendor-unit-cost.xlsx'),route:'supplier_purchase',
@@ -149,7 +149,7 @@ test('B1 Arabic supplier purchase-cost column never becomes automatic selling pr
   const matrix=[['اسم الصنف','الكمية','الوحدة','سعر الشراء','العملة'],
     ['زيت دوار الشمس',12,'كرتون','7.50','USD']];
   const parsed=exactSpreadsheetQuote([{name:'سعر المورد',matrix}]);
-  assert.equal(parsed.items[0].unitCost,'7.5');
+  assert.equal(parsed.items[0].unitCost,'7.50');
   assert.equal(parsed.items[0].unitPrice,'');
   const fromBuyer={...supplierSource(1),route:'quote_request',quoteSheetCandidate:JSON.stringify(parsed)};
   const quoted=quoteSourceWorkingDraft([fromBuyer],runtime(vault),request);
