@@ -298,6 +298,10 @@ export interface CompanySnapshot {
 
 export interface DocumentItem {
   id: string;
+  /** Stable catalog identity: never infer inventory movements from a display name. */
+  savedItemId?: string;
+  stockTreatment?: 'tracked' | 'non-stock';
+  skuSnapshot?: string;
   descriptionEn: string;
   descriptionAr: string;
   hsCode: string;
@@ -320,6 +324,7 @@ export interface DocumentAttachment {
 
 export interface SavedItem extends WorkspaceScopeFields {
   id: string;
+  inventoryTracking?: 'tracked' | 'non-stock';
   createdAt: string;
   updatedAt: string;
   sku?: string;
