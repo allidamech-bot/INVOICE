@@ -93,7 +93,7 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
   // Currency is an essential quote fact, not decoration on a subtotal.
   // A user can explicitly provide it for an unknown-currency source, but an
   // already-priced draft cannot silently relabel USD values as EUR values.
-  const currencySelection=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\\s+(?:العملة|عملة|currency)\\s*(?:إلى|الى|to|=|:)?\\s+(.{1,20})$/iu);
+  const currencySelection=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\s+(?:العملة|عملة|currency)\s*(?:إلى|الى|to|=|:)?\s+(.{1,20})$/iu);
   if(currencySelection){
     if(proposal.capability!=='document.createDraft')
       return rejected(proposal,'Change the currency of a saved draft using its reviewed document editor.',ar);
