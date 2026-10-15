@@ -386,7 +386,11 @@ function guardNewWarehouseDebits(base:VaultPayload,intended:VaultPayload,latest:
   const ledger=[...latest.inventoryMovements];
   for(const movement of intended.inventoryMovements){
     if(previous.has(movement.id))continue;
-    if(remote.has(movement.id))throw new Error('Concurrent inventory movement already exists. Refresh before posting.');
+    if(remote.has(movement.id)){
+      // Retain the specialized immutable sales-ledger conflict messages and proof checks.
+      if(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement))continue;
+      throw new Error('Concurrent inventory movement already exists. Refresh before posting.');
+    }
     if(!inventoryMovementAccountingIsValid(movement))
       throw new Error('New inventory movement has invalid quantities or origin.');
     if(movement.type!=='transfer'){
