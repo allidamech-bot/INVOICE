@@ -1,0 +1,52 @@
+name: LOUREX UX Rehabilitation QA
+
+on:
+  push:
+    branches:
+      - 'rehab/ux-workflows-*'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/SavedItemsModal.tsx'
+      - 'src/styles/saved-items-picker-v232.css'
+      - 'src/styles/pricing-batch8.css'
+      - 'src/styles/inventory-planning-batch7.css'
+      - 'tests/ux-rehab-*.test.mjs'
+      - '.github/workflows/lourex-ux-rehab-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-ux-rehab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck · build · UX and full regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Compile final runtime bundle (no deployment)
+        run: npm run build
+      - name: UX picker and contrast regressions
+        run: |
+          node --test --test-concurrency=2 \
+            tests/ux-rehab-saved-product-picker-20261016.test.mjs \
+            tests/ux-rehab-inventory-contrast-20261016.test.mjs \
+            tests/saved-items-picker-mobile-v232.test.mjs \
+            tests/saved-items-v95.test.mjs \
+            tests/saved-items-library-v102.test.mjs
+      - name: All accounting, inventory and UI Node regressions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
