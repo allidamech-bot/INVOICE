@@ -6,6 +6,8 @@ import {validatedCommercialTrackingEvent} from '../dist/src/lib/commercial-flow.
 import {acceptSalesOrder} from '../dist/src/lib/sales-order-flow.js';
 import {todayIso} from '../dist/src/lib/id.js';
 import {orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
+import {applyApprovedToolExecution} from '../dist/src/lib/ai-tool-actions.js';
+import {registerVaultMutationBridge} from '../dist/src/storage/vault-mutation-bridge.js';
 import {prepareFoundationApproval,assertFoundationApproval,foundationActionAllowed} from '../dist/src/lib/ai-foundation-approval.js';
 import {isAiStoredQuotationInvoiceIntent,requestedStoredQuotationNumber,prepareAiStoredQuotationInvoice,applyAiStoredQuotationInvoiceApproval} from '../dist/src/lib/ai-stored-quotation-invoice.js';
 
@@ -122,4 +124,29 @@ test('Sales and finance operators can sign exact conversion; viewer cannot, and 
  }
  const viewer={...f.vault,teamMembers:[{...f.vault.teamMembers[0],role:'viewer'}]};
  assert.equal(foundationActionAllowed(viewer,proposal,scope),false);
+});
+
+test('Signed Controller approval performs exactly one real vault mutation, then rejects replay',async()=>{
+ const f=fixture();
+ let saved=f.vault,writes=0;
+ registerVaultMutationBridge(async mutation=>{writes+=1;saved=mutation(saved);return saved;});
+ const result=await orchestrateAiToolRequest({message:'Create invoice from quotation '+f.quote.number,
+   vault:saved,context:context('controller'),language:'en'});
+ const proposal=result.proposal;
+ assert.equal(proposal.tool,'document.createDraft');
+ await assert.rejects(()=>applyApprovedToolExecution(proposal),/explicit signed approval/);
+ assert.equal(writes,0);
+ const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'signed-quotation'};
+ const signed={...proposal,foundationApproval:prepareFoundationApproval(saved,proposal,scope)};
+ const actual=await applyApprovedToolExecution(signed);
+ assert.equal(writes,1);
+ assert.match(actual.summary,/Invoice DRAFT/);
+ const stored=saved.documents.find(doc=>doc.id===actual.id);
+ assert.equal(stored?.number,proposal.args.expectedInvoiceNumber);
+ assert.equal(stored?.convertedFromId,f.quote.id);
+ assert.equal(stored?.status,'draft');
+ assert.equal(saved.documentEvents.filter(ev=>ev.documentId===actual.id&&ev.type==='created').length,1);
+ await assert.rejects(()=>applyApprovedToolExecution(signed),/changed|already|payload/);
+ assert.equal(writes,2,'a second attempt may enter guarded mutation but must not commit');
+ assert.equal(saved.documents.filter(doc=>doc.convertedFromId===f.quote.id).length,1);
 });
