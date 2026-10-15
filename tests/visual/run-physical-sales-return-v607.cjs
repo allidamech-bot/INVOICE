@@ -34,6 +34,24 @@ const bytes=Buffer.from('%PDF-1.4\n1 0 obj\nendobj\n');
     const outcome=await page.evaluate(()=>({state:window.returnQaState(),count:window.recordAttempts}));
     assert.equal(outcome.count,1,'One receipt must create exactly one stock movement');
     assert.deepEqual(outcome.state.returned.map(m=>[m.quantity,m.proof,m.cost]),[['1.5000',true,'4.50']]);
+    const correction=page.locator('.ta-sales-return-correction');
+    await correction.waitFor({timeout:15000});
+    await correction.locator('select').selectOption({index:1});
+    await correction.locator('input').nth(1).fill('Wrong physical count; receipt withdrawn and independently checked');
+    await correction.locator('input[type="file"]').setInputFiles({
+      name:'correction-evidence.pdf',mimeType:'application/pdf',
+      buffer:Buffer.from('%PDF-1.4\\n2 0 obj\\nendobj\\n')
+    });
+    await correction.locator('small').filter({hasText:settings.lang==='ar'?'الإثبات الجديد جاهز':'New proof ready'}).waitFor({timeout:10000});
+    const correctButton=correction.locator('button').filter({hasText:settings.lang==='ar'?'ترحيل التصحيح الموثق':'Post Audited Correction'});
+    assert.equal(await correctButton.isEnabled(),true);
+    await correctButton.click();
+    await page.waitForFunction(()=>window.returnQaState()?.corrections?.length===1&&window.returnQaState().balance==='6',{timeout:15000});
+    assert.equal(await page.evaluate(()=>window.correctionAttempts),1,'Correction must be a single new movement');
+    const corrected=await page.evaluate(()=>window.returnQaState());
+    assert.equal(corrected.returned.length,1,'Never delete original goods receipt');
+    assert.deepEqual(corrected.corrections.map(c=>[c.quantity,c.proof]),[['-1.5000',true]]);
+
     await page.screenshot({path:output+'/'+key+'.png',animations:'disabled'});
     results.push({key,status:'pass'});
    }catch(error){
