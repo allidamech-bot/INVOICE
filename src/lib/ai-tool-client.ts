@@ -43,11 +43,31 @@ function mentionedDocumentKind(message:string):'proforma'|'invoice'|null{
   if(/(?:invoice|فاتورة)/i.test(q))return'invoice';
   return null;
 }
+/** Detect the *requested output*, not an unrelated input document. The
+ * first document named after a positive create verb is the new document;
+ * "create invoice from quotation" must never create another quotation. */
 function requestedDocumentKind(message:string):'proforma'|'invoice'|null{
   const q=clean(message,6000).toLowerCase();
   if(!q||previewOnlyDocumentIntent(q))return null;
-  const action=/(?:create|make|generate|build|draft|prepare|produce|أنشئ|انشئ|جهز|جهّز|حضّر|حضر|اعمل|سوي|سوّي)/i.test(q);
-  return action?mentionedDocumentKind(q):null;
+  const verb=/\b(?:create|make|generate|build|draft|prepare|produce)\b|(?:أنشئ|انشئ|إنشاء|انشاء|جهز|جهّز|تجهيز|حضّر|حضر|اعمل|سوي|سوّي)/giu;
+  const target=/^\s*(?:(?:me|an?|the|new|customer|client|sales|purchase|draft|one|commercial|لي|للعميل|العميل|مسودة|جديد|جديدة)\s+){0,6}(quotation|quote|proforma|عرض\s*سعر|بروفورما|invoice|فاتورة)/iu;
+  for(const match of q.matchAll(verb)){
+    const prefix=q.slice(Math.max(0,match.index-30),match.index);
+    if(/(?:\b(?:do\s+not|don't|never|not|without)\b|(?:^|[\s،,;])(?:لا|ولا|بدون))\s*(?:ت)?\s*$/iu.test(prefix))continue;
+    const after=q.slice(match.index+match[0].length,match.index+match[0].length+90);
+    // "prepare a preview of invoice" is a preview request, not authorization
+    // to create a durable document even when the planner selected PREPARE.
+    if(/^\s*(?:(?:me|an?|the|a|new|draft|لي|مسودة)\s+){0,4}(?:preview|معاينة)\b/iu.test(after))continue;
+    const found=after.match(target);
+    if(found)return /^(?:invoice|فاتورة)$/iu.test(found[1]!)?'invoice':'proforma';
+  }
+  return null;
+}
+/** Negated user instructions override any model-generated createDraft plan.
+ * Source text and planner guesses cannot reverse this prohibition. */
+function explicitlyNegatedDocumentCreation(message:string):boolean{
+  const q=clean(message,6000);
+  return /(?:\b(?:do\s+not|don't|never|without)\s+(?:create|make|generate|build|draft|prepare|produce)\b|(?:^|[\s،,;])(?:لا|ولا|بدون)\s*(?:ت)?(?:نشئ|نشيء|انشئ|أنشئ|جهز|جهّز|حضر|حضّر|عمل|اعمل|سوي|سوّي|إنشاء|انشاء|تجهيز))[^.!؟\n]{0,110}(?:invoice|quotation|quote|proforma|فاتورة|عرض\s*سعر|بروفورما)/iu.test(q);
 }
 export function promoteDocumentCreationPlan(plan:AiToolPlan,message:string):AiToolPlan{
   if(previewOnlyDocumentIntent(message)){
