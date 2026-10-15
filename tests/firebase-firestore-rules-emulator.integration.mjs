@@ -13,18 +13,18 @@ const firebaseValue=value=>{
   if(value===null)return {nullValue:null};
   return {mapValue:{fields:Object.fromEntries(Object.entries(value).map(([k,v])=>[k,firebaseValue(v)]))}};
 };
-const token=uid=>{
+const token=(uid,claims={})=>{
   const now=Math.floor(Date.now()/1000);
   const base64url=obj=>Buffer.from(JSON.stringify(obj)).toString('base64url');
   return base64url({alg:'none',typ:'JWT'})+'.'+base64url({
     iss:'https://securetoken.google.com/'+project,aud:project,
     user_id:uid,sub:uid,auth_time:now,iat:now,exp:now+3600,
-    firebase:{identities:{},sign_in_provider:'password'}
+    firebase:{identities:{},sign_in_provider:'password'},...claims
   })+'.';
 };
-async function rest(uid,method,path,body){
+async function rest(uid,method,path,body,claims={}){
   const headers={'Content-Type':'application/json'};
-  if(uid)headers.Authorization='Bearer '+token(uid);
+  if(uid)headers.Authorization='Bearer '+token(uid,claims);
   const response=await fetch(url(path),{method,headers,body:body?JSON.stringify(body):undefined});
   return {status:response.status,body:await response.text()};
 }
@@ -51,4 +51,27 @@ test('Firestore rules isolate actual V2 workspace and recovery history by Fireba
   assert.equal(deleteResult.status,403,'another UID must not delete business data');
   const restore=await rest(alice,'GET','/users/'+alice+'/workspace/meta');
   assert.equal(restore.status,200,'all unauthorized operations must leave owner data intact');
+});
+
+test('Signed viewer and invalid role claims cannot bypass Firestore cloud write authorization',async()=>{
+  const uid='qa-role-bound';
+  const path='/users/'+uid+'/workspace/meta';
+  const body={fields:{format:{stringValue:'LOUREX_PLAIN_WORKSPACE_V2'},revision:{stringValue:'roles-baseline'},payload:firebaseValue(subject)}};
+  const owner=await rest(uid,'PATCH',path,body,{lourexAiRole:'owner',lourexWorkspaceUid:uid});
+  assert.equal(owner.status,200,'signed owner should retain cloud writes: '+owner.body);
+  const viewer={lourexAiRole:'viewer',lourexWorkspaceUid:uid};
+  const canRead=await rest(uid,'GET',path,undefined,viewer);
+  assert.equal(canRead.status,200,'verified viewer retains read-only access: '+canRead.body);
+  for(const claims of [viewer,{lourexAiRole:'invalid'},{lourexAiRole:null},
+    {lourexAiRole:'owner',lourexWorkspaceUid:'other-account'},
+    {firebase:{identities:{},sign_in_provider:'anonymous'}}]){
+    const write=await rest(uid,'PATCH',path,body,claims);
+    assert.equal(write.status,403,'Forbidden claim must not write workspace: '+JSON.stringify(claims));
+    const remove=await rest(uid,'DELETE',path,undefined,claims);
+    assert.equal(remove.status,403,'Forbidden claim must not delete workspace: '+JSON.stringify(claims));
+  }
+  const after=await rest(uid,'GET',path,undefined,{lourexAiRole:'owner'});
+  assert.equal(after.status,200,'denied changes must preserve owner data: '+after.body);
+  const legacy=await rest(uid,'PATCH',path,body);
+  assert.equal(legacy.status,200,'existing single-UID owners without custom claims remain supported: '+legacy.body);
 });
