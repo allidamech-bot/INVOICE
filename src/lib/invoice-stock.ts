@@ -130,7 +130,7 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
     expected.add(id);
     const proof:InvoiceStockProof={invoiceId:doc.id,lineId:line.id,itemId:item.id,warehouseId:defaultId,quantity:line.quantity,unit:line.unit};
     created.push({id,itemId:item.id,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,
-      sku:item.sku,date:doc.issueDate,type:'issue',quantity:fixed(-q),
+      sku:item.sku||'',date:doc.issueDate,type:'issue',quantity:fixed(-q),
       unitCost:item.lastUnitCost||'',currency:item.lastCostCurrency||'',sourceId:doc.id,
       sourceNumber:doc.number,note:PROOF+JSON.stringify(proof),fromWarehouseId:defaultId,
       workspaceId,branchId,createdAt:new Date().toISOString()});
