@@ -95,6 +95,11 @@
 @media screen and (max-width:720px){
   html body #root .app-ui .modal:has(.saved-items-shell.is-picker){
     display:flex!important;flex-direction:column!important;overflow:hidden!important;
+    /* The later generic v485 modal rule forces height:auto; override that
+       only for this picker so its flex body has a real visible height. */
+    height:calc(var(--modal-visual-height,100dvh) - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)))!important;
+    min-height:0!important;
+    max-height:calc(var(--modal-visual-height,100dvh) - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)))!important;
   }
   html body #root .app-ui .modal:has(.saved-items-shell.is-picker)>.modal-body{
     display:flex!important;flex:1 1 0!important;height:0!important;
