@@ -13,6 +13,8 @@ on:
       - 'src/storage/vault-merge.ts'
       - 'tests/cloud-first-*.test.mjs'
       - 'tests/firebase-firestore-rules-emulator.integration.mjs'
+      - 'src/lib/backup.ts'
+      - 'tests/stock-backup-integrity-20261015.test.mjs'
       - 'scripts/qa-cloud-auth-emulator-browser.mjs'
       - '.github/workflows/invoice-cloud-security-gate.yml'
 
@@ -53,6 +55,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Imported recovery files must retain audited stock and financial history
+        run: node --test tests/stock-backup-integrity-20261015.test.mjs
       - name: Real Firestore rules isolation in isolated local emulator
         run: |
           npx --yes firebase-tools@14 emulators:exec \
