@@ -25,9 +25,11 @@ const configurations=[
       try{
         await page.goto(origin+'?mode=products&lang='+config.lang,{waitUntil:'load',timeout:30000});
         await page.locator('.ta-product-library').waitFor({timeout:15000});
+        const addProduct=page.locator('.ta-product-commandbar button').filter({hasText:config.lang==='ar'?'صنف جديد':'New Product'}).first();
+        if(config.width<=430)assert.equal(await addProduct.isVisible(),true,'New Product is hidden from touch users at '+key);
         const row=page.locator('.ta-product-row-main').first();
         if(await row.isVisible())await row.click();
-        else await page.locator('.ta-product-commandbar button').filter({hasText:config.lang==='ar'?'صنف جديد':'New Product'}).first().click();
+        else await addProduct.click();
         const editor=page.locator('.ta-product-editor.is-open');
         await editor.waitFor({timeout:10000});
         const scroller=page.locator('.ta-product-editor-scroll');
