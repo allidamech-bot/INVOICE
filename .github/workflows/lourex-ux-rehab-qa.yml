@@ -12,6 +12,9 @@ on:
       - 'src/components/EditorPageCore.tsx'
       - 'src/components/ProductAiSourceReview.tsx'
       - 'src/components/AiConversationWorkspace.tsx'
+      - 'src/components/DocumentsPage.tsx'
+      - 'src/styles/tailadmin-documents-v320.css'
+      - 'src/components/AppShell.tsx'
       - 'src/lib/product-ai-review.ts'
       - 'src/components/ProductLibraryWorkspace.tsx'
       - 'src/styles/tailadmin-products-v320.css'
@@ -61,6 +64,8 @@ jobs:
             tests/ux-rehab-editor-item-tools-20261016.test.mjs \
             tests/ux-rehab-ai-product-review-20261016.test.mjs \
             tests/ux-rehab-ai-source-duplicates-20261016.test.mjs \
+            tests/ux-rehab-document-sections-20261016.test.mjs \
+            tests/ux-rehab-document-create-20261016.test.mjs \
             tests/ai-post-release-markdown.test.mjs \
             tests/ux-rehab-import-chooser-20261016.test.mjs \
             tests/ai-batch6-mobile-import-integrity.test.mjs \
