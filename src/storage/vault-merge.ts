@@ -20,7 +20,7 @@ import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity }
 import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, isSalesDeliveryStockIssue } from '../lib/sales-delivery-stock.js';
 import {assertInvoiceStockLedgerContinuity,assertPostedInvoiceStockDocumentIntegrity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
 import {validateManualMovementEvidence} from '../lib/inventory-evidence.js';
-import {assertSalesReturnIntegrity,assertSalesReturnLedgerContinuity,isSalesReturn} from '../lib/sales-returns.js';
+import {assertSalesReturnIntegrity,assertSalesReturnLedgerContinuity,isSalesReturn,isSalesReturnCorrection} from '../lib/sales-returns.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -336,7 +336,7 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     if(movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='transfer')continue;
     // A physical customer return must be validated against its final credit note,
     // original invoice and immutable issue before it can increase a warehouse.
-    if(isSalesReturn(movement))continue;
+    if(isSalesReturn(movement)||isSalesReturnCorrection(movement))continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
     if(!savedItems.some(item=>item.id===movement.itemId&&item.inventoryTracking!=='non-stock'))throw new Error('Inventory movement needs a tracked catalog item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
