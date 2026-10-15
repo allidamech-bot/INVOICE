@@ -135,3 +135,19 @@ test('documented return correction is immutable and cannot exceed its source rec
   assert.throws(()=>mergeVaultIntent(corrected,tampered,corrected),/immutable/);
  }
 });
+
+
+test('return correction cannot overdraw a warehouse after another device issues stock',()=>{
+ const f=setup(),received=postSalesReturn(f.vault,f.input).vault;
+ const receipt=received.inventoryMovements.find(m=>m.salesReturn);
+ const corrected=correctSalesReturn(received,{receiptMovementId:receipt.id,date,
+  reason:'Receiving count was incorrect; reverse full receipt',
+  evidence:distinctProof(),operatorId:'owner'}).vault;
+ const concurrentIssue=createManualInventoryMovement(f.item,'issue','7',date,'Sample transfer authorized');
+ const issued={...concurrentIssue,createdBy:'owner',reasonCategory:'samples',evidence:distinctProof(),
+  fromWarehouseId:f.input.warehouseId,toWarehouseId:undefined};
+ const latest={...received,inventoryMovements:[...received.inventoryMovements,issued]};
+ assert.throws(()=>mergeVaultIntent(received,corrected,latest),
+  /Insufficient stock|below zero|warehouse/i);
+ assert.equal(balance(received),'7.5','failed conflicting correction must not alter the base stock');
+});
