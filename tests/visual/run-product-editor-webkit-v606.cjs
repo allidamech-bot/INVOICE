@@ -24,8 +24,10 @@ const configurations=[
       const key=config.width+'-'+config.lang;
       try{
         await page.goto(origin+'?mode=products&lang='+config.lang,{waitUntil:'load',timeout:30000});
-        await page.locator('.ta-product-row-main').first().waitFor({timeout:15000});
-        await page.locator('.ta-product-row-main').first().click();
+        await page.locator('.ta-product-library').waitFor({timeout:15000});
+        const row=page.locator('.ta-product-row-main').first();
+        if(await row.isVisible())await row.click();
+        else await page.locator('.ta-product-commandbar button').filter({hasText:config.lang==='ar'?'صنف جديد':'New Product'}).first().click();
         const editor=page.locator('.ta-product-editor.is-open');
         await editor.waitFor({timeout:10000});
         const scroller=page.locator('.ta-product-editor-scroll');
@@ -56,9 +58,9 @@ const configurations=[
         assert.ok(bounds.y>=-3&&bounds.y+bounds.height<=config.height+4,'Save controls obscured at '+key);
         const save=footer.locator('button').filter({hasText:config.lang==='ar'?'حفظ الصنف':'Save Product'});
         await save.click();
-        await page.waitForFunction(()=>window.saveAttempts===1,{timeout:15000});
-        const saved=await page.evaluate(()=>window.productState()[0]?.descriptionEn);
-        assert.equal(saved,'WebKit Audit '+key,'Saved product did not persist in test harness');
+        await page.waitForFunction(expected=>window.saveAttempts===1&&window.productState().some(row=>row.descriptionEn===expected),'WebKit Audit '+key,{timeout:15000});
+        const saved=await page.evaluate(expected=>window.productState().some(row=>row.descriptionEn===expected),'WebKit Audit '+key);
+        assert.equal(saved,true,'Saved product did not persist in test harness');
         await page.screenshot({path:output+'/'+key+'.png',animations:'disabled'});
         checks.push({key,result:'pass',scrollHeight:before.scrollHeight,viewportHeight:before.height});
       }catch(error){
