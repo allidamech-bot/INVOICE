@@ -103,14 +103,30 @@ async function run(engine,name){
   assert.match(await preview.innerText(),/Red Bull 250 ml \| 10 CTN \| 24\.50 USD/);
   assert.match(await preview.innerText(),/Monster 500 ml \| 7 CTN \| 22\.00 USD/);
   assert.match(await preview.innerText(),/Source terms, adjustments and tax settings/);
+  assert.equal(await approval.getByRole('button',{name:'Approve & apply'}).isDisabled(),true,
+    'review acknowledgement must precede saving the invoice');
+  await approval.getByRole('button',{name:'I reviewed this action'}).click();
   assert.equal(await approval.getByRole('button',{name:'Approve & apply'}).isEnabled(),true);
   assert.equal((await records()).documents.length,1,'preview must not save');
   await approval.getByRole('button',{name:'Dismiss'}).click();
   assert.equal((await records()).documents.length,1,'reject must not save');
   await say('Create invoice from quotation '+quoteNumber);
   await approval.waitFor();
+  await approval.getByRole('button',{name:'I reviewed this action'}).click();
   await approval.getByRole('button',{name:'Approve & apply'}).click();
-  await panel.locator('.lourex-ai-created-artifact').waitFor({timeout:40000});
+  try{
+   await panel.locator('.lourex-ai-created-artifact').waitFor({timeout:40000});
+  }catch(error){
+   const diagnostics=await page.evaluate(async()=>{
+    const {resumeVaultSession}=await import('/dist/src/storage/vault.js');
+    const current=await resumeVaultSession();
+    return {saved:(current?.vault.documents||[]).map(x=>({number:x.number,kind:x.kind,source:x.convertedFromId})),
+      error:document.querySelector('#lourex-ai-panel .lourex-ai-error')?.textContent||'',
+      transcript:[...document.querySelectorAll('#lourex-ai-panel .lourex-ai-message.assistant')].map(x=>x.textContent?.slice(-350)).slice(-4),
+      approvals:document.querySelectorAll('#lourex-ai-panel .lourex-ai-tool-approval').length};
+   });
+   throw new Error('No invoice artifact after reviewed approval: '+JSON.stringify(diagnostics)+'; '+String(error));
+  }
   const after=await records();
   assert.equal(after.documents.length,2,'exactly one invoice draft must persist');
   const quote=after.documents.find(d=>d.number===quoteNumber);
