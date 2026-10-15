@@ -14,7 +14,7 @@ export interface InvoiceVoidStockProof {
 }
 const scaled=(s:string)=>decimalToScaled(s,4);
 const format=(q:bigint)=>String(q/10000n)+'.'+String(q%10000n).padStart(4,'0');
-const fail=(msg:string):never=>{throw new Error(msg);};
+function fail(msg:string):never{throw new Error(msg);}
 const refundEventFor=(invoice:LourexDocument,source:InventoryMovementRecord):InvoiceVoidStockProof=>({
  invoiceId:invoice.id,invoiceLineId:source.id.slice((INVOICE_STOCK_PREFIX+invoice.id+':').length),
  issueMovementId:source.id,warehouseId:source.fromWarehouseId||'',evidenceId:''
@@ -113,7 +113,7 @@ export function assertInvoiceVoidStockIntegrity(documents:LourexDocument[],movem
     ||row.workspaceId!==(invoice.workspaceId||'default')||row.branchId!==(invoice.branchId||'main'))
     fail('Cancellation receipt differs from immutable issued invoice stock.');
    const proof=(invoice.attachments||[]).find(a=>a.id===p.evidenceId);
-   if(!proof||row.createdBy?.trim().length===0||row.reasonCategory!=='correction')
+   if(!proof||!row.createdBy?.trim()||row.reasonCategory!=='correction')
     fail('Cancellation stock needs an accountable operator and immutable source proof.');
    validateManualMovementEvidence({...row,evidence:proof});
   }
