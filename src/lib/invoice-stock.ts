@@ -52,13 +52,15 @@ function assertExistingInvoiceIssues(doc:LourexDocument,existing:InventoryMoveme
   for(const movement of existing){
     const proof=proofOf(movement);
     const line=doc.items.find(item=>item.id===proof.lineId);
-    if(seen.has(movement.id)||!expectedIds.has(movement.id)||movement.id!==movementId(doc.id,proof.lineId)
+    if(seen.has(movement.id)||!expectedIds.has(movement.id)||proof.invoiceId!==doc.id
+      ||movement.id!==movementId(doc.id,proof.lineId)
       ||movement.sourceId!==doc.id||movement.sourceNumber!==doc.number||movement.type!=='issue'
       ||!inventoryMovementAccountingIsValid(movement)||!line
       ||line.savedItemId!==proof.itemId||line.stockTreatment==='non-stock'
       ||line.unit!==proof.unit||!isDecimalInput(line.quantity)||qty(line.quantity)<=0n
       ||qty(movement.quantity)!==-qty(line.quantity)||qty(proof.quantity)!==qty(line.quantity)
-      ||movement.itemId!==proof.itemId||movement.fromWarehouseId!==proof.warehouseId
+      ||movement.itemId!==proof.itemId||movement.sku!==line.skuSnapshot
+      ||movement.fromWarehouseId!==proof.warehouseId
       ||Boolean(movement.branchId)&&movement.branchId!==branchId)
       fail('Issued invoice differs from immutable stock history.','تختلف الفاتورة الصادرة عن سجل المخزون الثابت.');
     seen.add(movement.id);
