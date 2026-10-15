@@ -19,6 +19,7 @@ import { assertSalesDeliveryIntegrity } from '../lib/sales-delivery-flow.js';
 import { assertDeliveryInvoiceIntegrity, assertDeliveryInvoiceLedgerContinuity } from '../lib/sales-delivery-invoice.js';
 import { assertSalesDeliveryStockIntegrity, assertSalesStockLedgerContinuity, isSalesDeliveryStockIssue } from '../lib/sales-delivery-stock.js';
 import {assertInvoiceStockLedgerContinuity,isIssuedInvoiceStockIssue,postIssuedInvoiceStock} from '../lib/invoice-stock.js';
+import {validateManualMovementEvidence} from '../lib/inventory-evidence.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -329,6 +330,7 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     touched.add(movement.itemId);
     if(movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='transfer')continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
+    if(!isSalesDeliveryStockIssue(movement)&&!isIssuedInvoiceStockIssue(movement))validateManualMovementEvidence(movement);
     if(!savedItems.some(item=>item.id===movement.itemId))throw new Error('Inventory movement is linked to a missing saved item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
     const quantity=movementQuantity(movement);
