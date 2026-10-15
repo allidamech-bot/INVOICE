@@ -62,8 +62,16 @@ function verifiedSource(vault:VaultPayload,number:string) {
    throw new Error('The source document must contain 1–120 fully reviewed lines.');
  if(scoped.documents.some(doc=>doc.id!==source.id&&doc.number.toLowerCase()===source.number.toLowerCase()))
    throw new Error('The quotation number is ambiguous across saved documents.');
- const numbered=nextDocumentNumber(scoped,'invoice');
- let invoice=convertToInvoice(source,numbered.number);
+ // Number preview is pure. The canonical allocator reserves the number only
+ // inside the approved mutation; preview must not consume invoice sequences.
+ const year=new Date().getFullYear(),settings=vault.appSettings.numbering;
+ const prefix=String(settings.invoicePrefix||'INV').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||'INV';
+ let serial=settings.invoiceYear===year?Math.max(0,Math.trunc(settings.invoiceLast||0)):0;
+ const used=new Set(vault.documents.map(doc=>doc.number.toUpperCase()));
+ let candidate='';
+ do{candidate=prefix+'-'+year+'-'+String(++serial).padStart(4,'0');}
+ while(used.has(candidate));
+ let invoice=convertToInvoice(source,candidate);
  const preset=paymentTermPresetById(scoped.company,invoice.paymentTermPresetId)||
    paymentTermPresetByLabel(scoped.company,invoice.terms.paymentTerms);
  if(preset)invoice=applyPaymentTermPreset(invoice,preset);
@@ -107,10 +115,18 @@ export function applyAiStoredQuotationInvoiceApproval(vault:VaultPayload,review:
     v.invoice.currency!==review.currency||v.customerId!==review.customerId||
     v.invoice.items.length!==review.lineCount||v.signature!==review.evidenceSignature)
    throw new Error('Quotation, customer, invoice numbering or ledger changed. Review the conversion again.');
- const eventSource=createDocumentEvent(v.source,'converted','',v.invoice);
- const eventInvoice=createDocumentEvent(v.invoice,'created','',v.source);
- return{vault:{...v.scoped,appSettings:v.scoped.appSettings===vault.appSettings
-     ?v.scoped.appSettings:{...v.scoped.appSettings,numbering:nextDocumentNumber(v.scoped,'invoice').vault.appSettings.numbering},
-    documents:[...v.scoped.documents,v.invoice],
-    documentEvents:[...v.scoped.documentEvents,eventSource,eventInvoice]},invoice:v.invoice};
+ const numbered=nextDocumentNumber(vault,'invoice');
+ if(numbered.number!==review.expectedInvoiceNumber)
+   throw new Error('Another invoice reserved this number. Refresh the quotation conversion review.');
+ let invoice=convertToInvoice(v.source,numbered.number);
+ const preset=paymentTermPresetById(v.scoped.company,invoice.paymentTermPresetId)||
+   paymentTermPresetByLabel(v.scoped.company,invoice.terms.paymentTerms);
+ if(preset)invoice=applyPaymentTermPreset(invoice,preset);
+ if(invoice.currency!==review.currency||invoice.items.length!==review.lineCount)
+   throw new Error('Converted invoice differs from the approved source. No draft saved.');
+ const eventSource=createDocumentEvent(v.source,'converted','',invoice);
+ const eventInvoice=createDocumentEvent(invoice,'created','',v.source);
+ return{vault:{...numbered.vault,
+   documents:[...numbered.vault.documents,invoice],
+   documentEvents:[...numbered.vault.documentEvents,eventSource,eventInvoice]},invoice};
 }
