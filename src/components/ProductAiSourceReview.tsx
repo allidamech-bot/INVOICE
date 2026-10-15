@@ -27,6 +27,7 @@ function reviewReason(review:ProductAiRowReview|undefined):string{
   if(review.reason==='new-product-missing-required-unit')return t('A required product unit is missing. LOUREX will not assume PCS.','وحدة المنتج المطلوبة مفقودة. لن يفترض LOUREX أنها PCS.');
   if(review.reason==='new-product-financial-value-missing-currency')return t('A price/cost is present without a reliable currency. The product is blocked from AI save.','يوجد سعر/تكلفة بدون عملة موثوقة. تم منع حفظ المنتج عبر AI.');
   if(review.reason.includes('financial-value-missing-currency'))return t('Price/cost without a reliable currency will not be applied; only explicitly reviewed non-financial changes can be selected.','السعر/التكلفة بدون عملة موثوقة لن يتم تطبيقهما؛ يمكن اختيار التغييرات غير المالية المراجعة فقط.');
+  if(review.reason==='repeated-product-in-source')return t('This source contains the same SKU or product name more than once. Fix duplicate rows before importing.','يحتوي المصدر على SKU أو اسم صنف مكرر. عالج الصفوف المكررة قبل الاستيراد.');
   if(review.reason==='multiple-existing-records-match-explicit-identifiers')return t('More than one existing record matches explicit identifiers. Resolve the duplicate manually.','أكثر من سجل موجود يطابق معرفات صريحة. عالج التكرار يدويًا.');
   if(review.reason==='similar-normalized-description')return t('Name similarity only. Selecting this row explicitly updates the shown likely match.','المطابقة مبنية على تشابه الاسم فقط. اختيار الصف صراحةً يحدّث المطابقة المحتملة المعروضة.');
   return'';
