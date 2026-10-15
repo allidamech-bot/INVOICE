@@ -78,13 +78,15 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
   const linkedProof=linkedDelivery?deliveryEvidence(vault,doc.id):null;
   if(legacy.length){
     // A real historic stock issue is never posted again when its delivery is invoiced.
-    if(!linkedProof||legacy.length!==linkedProof.lines.length||doc.items.length!==linkedProof.lines.length)
+    if(!linkedProof)throw new Error('Historic delivery stock link is missing.');
+    if(legacy.length!==linkedProof.lines.length||doc.items.length!==linkedProof.lines.length)
       fail('Historic delivery stock issue requires reconciliation before invoicing.','يجب مطابقة الصرف التاريخي للتسليم قبل إصدار الفاتورة.');
     const used=new Set<string>();
     for(const line of linkedProof.lines){
       const invoiceLine=doc.items.find(item=>item.id===line.invoiceLineId);
       const stockLine=legacy.find(m=>m.id==='sales-delivery-stock:'+linkedDelivery!.id+':'+line.deliveryLineId);
-      if(!invoiceLine||!stockLine||used.has(stockLine.id)||stockLine.type!=='issue'
+      if(!invoiceLine||!stockLine)throw new Error('Historic delivery invoice line is missing.');
+      if(used.has(stockLine.id)||stockLine.type!=='issue'
         ||!isDecimalInput(invoiceLine.quantity)||qty(invoiceLine.quantity)<=0n
         ||qty(stockLine.quantity)!==-qty(invoiceLine.quantity)||qty(line.quantity)!==qty(invoiceLine.quantity)
         ||invoiceLine.unit!==vault.savedItems.find(item=>item.id===stockLine.itemId)?.unit
@@ -110,7 +112,8 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
     if(!line.savedItemId||line.stockTreatment!=='tracked')
       fail('Each invoice line must select a catalog stock item or be explicitly non-stock.','يجب ربط كل بند فاتورة بصنف مخزني أو تحديده صراحة كبند غير مخزني.');
     const item=vault.savedItems.find(row=>row.id===line.savedItemId&&!row.archived);
-    if(!item||item.inventoryTracking==='non-stock'
+    if(!item)throw new Error('Stock item is missing, archived, untracked or outside this branch.');
+    if(item.inventoryTracking==='non-stock'
       ||item.workspaceId&&item.workspaceId!==workspaceId||item.branchId&&item.branchId!==branchId)
       fail('Stock item is missing, archived, untracked or outside this branch.','الصنف المخزني غير صالح أو مؤرشف أو خارج الفرع.');
     if(!item.sku?.trim()||line.skuSnapshot!==item.sku)
