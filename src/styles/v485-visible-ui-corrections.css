@@ -1524,3 +1524,70 @@ html body #root .app-ui .ta-ops-callout{display:flex;flex-wrap:wrap;align-items:
     line-height:1.4!important;
   }
 }
+
+/* v608 — physical returns are dedicated, evidenced receipts, never implicit
+   balance increases from financial credit notes. Keep the receiving UI readable
+   and touch-accessible in both Arabic and English without introducing a new
+   palette or overriding the existing mobile navigation. */
+html body #root .app-ui .ta-inventory-movement-grid:has(>.ta-sales-return-receipt)>.ta-inventory-history{
+  grid-column:1/-1;
+}
+html body #root .app-ui .ta-sales-return-receipt{
+  min-width:0;
+  border-color:var(--lx485-line-strong,rgba(135,176,218,.3))!important;
+}
+html body #root .app-ui .ta-sales-return-receipt .ta-ops-panel-head{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:12px;
+}
+html body #root .app-ui .ta-sales-return-receipt .ta-ops-panel-head h3{
+  margin:4px 0 6px;
+  color:var(--lx485-text,#f7faff)!important;
+  font-size:17px;
+  line-height:1.4;
+}
+html body #root .app-ui .ta-sales-return-receipt .ta-ops-panel-head p{
+  max-width:65ch;
+  margin:0;
+  color:var(--lx485-muted,#a7b8cc)!important;
+  line-height:1.6;
+}
+html body #root .app-ui .ta-sales-return-receipt .ta-sales-return-guidance{
+  padding:12px 14px;
+  border:1px solid var(--lx485-line,rgba(135,176,218,.2));
+  border-radius:12px;
+  background:var(--lx485-surface-2,rgba(32,54,77,.7));
+  line-height:1.7;
+  overflow-wrap:anywhere;
+}
+html body #root .app-ui .ta-sales-return-receipt :is(input,select){
+  max-width:100%;
+  min-width:0;
+}
+html body #root .app-ui .ta-sales-return-receipt input[type=file]{
+  width:100%;
+  white-space:normal;
+}
+html body #root .app-ui .ta-sales-return-receipt .ta-inventory-entry-action{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:12px;
+}
+@media screen and (max-width:650px){
+  html body #root .app-ui .ta-sales-return-receipt .ta-ops-form-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  html body #root .app-ui .ta-sales-return-receipt .ta-ops-form-grid>label{
+    grid-column:1/-1;
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  html body #root .app-ui .ta-sales-return-receipt .ta-inventory-entry-action>.btn{
+    min-height:46px;
+    width:100%;
+  }
+}
