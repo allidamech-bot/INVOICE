@@ -10,6 +10,7 @@ on:
       - 'src/lib/invoice-stock.ts'
       - 'src/lib/sales-returns.ts'
       - 'src/components/SalesReturnReceiptPanel.tsx'
+      - 'src/components/SalesReturnCorrectionPanel.tsx'
       - 'src/lib/saved-items.ts'
       - 'src/lib/sales-delivery-stock.ts'
       - 'src/storage/vault-merge.ts'
