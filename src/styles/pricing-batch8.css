@@ -4,12 +4,12 @@
 
 /* UX rehab A: theme-safe price list, without touching catalog pricing rules. */
 html:is([data-ui-theme="dark"],[data-theme="dark"]) .lx-price-lists{
-  --lx-surface:var(--ft-surface,#12263a);
-  --lx-surface-soft:var(--ft-surface-2,#1b334a);
-  --lx-border:var(--ft-line,rgba(155,186,216,.24));
-  --lx-text:var(--ft-text-strong,#f2f7ff);
-  --lx-muted:var(--ft-muted,#a0b4c9);
-  --lx-accent:var(--ft-accent,#8bb6f5);
+  --lx-surface:var(--lx485-surface,var(--ft-surface,#12263a));
+  --lx-surface-soft:var(--lx485-surface-2,var(--ft-surface-2,#1b334a));
+  --lx-border:var(--lx485-line,var(--ft-line,rgba(155,186,216,.24)));
+  --lx-text:var(--lx485-text,var(--ft-text-strong,#f2f7ff));
+  --lx-muted:var(--lx485-muted,var(--ft-muted,#a0b4c9));
+  --lx-accent:var(--lx485-blue,var(--ft-accent,#8bb6f5));
 }
 .lx-price-lists .lx-price-product strong{
   white-space:normal;overflow:visible;text-overflow:clip;
