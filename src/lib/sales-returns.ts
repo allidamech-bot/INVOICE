@@ -12,6 +12,7 @@ import {INVOICE_STOCK_PREFIX} from './invoice-stock.js';
  * retaining the original issued invoice, credit-note line, warehouse and cost.
  */
 export const SALES_RETURN_PREFIX='sales-credit-stock:';
+export const SALES_RETURN_CORRECTION_PREFIX='sales-credit-stock-correction:';
 export interface SalesReturnProof{
   invoiceId:string;invoiceLineId:string;creditNoteId:string;creditLineId:string;
   itemId:string;warehouseId:string;receiptId:string;
@@ -20,11 +21,14 @@ export interface SalesReturnInput{
   creditNoteId:string;invoiceLineId:string;creditLineId:string;warehouseId:string;
   quantity:string;date:string;reason:string;evidence:DocumentAttachment;operatorId:string;
 }
+export interface SalesReturnCorrectionInput{
+  receiptMovementId:string;date:string;reason:string;evidence:DocumentAttachment;operatorId:string;
+}
 const qty=(x:string)=>decimalToScaled(x,4);
 // Inventory is carried at four decimal places. Reject a fifth digit rather
 // than silently rounding received quantities into a different physical count.
 const exactQty=(x:string)=>isDecimalInput(x)&&/^(?:\d+(?:\.\d{0,4})?|\.\d{1,4})$/.test(normalizeDecimalInput(x).replace(/^-/,''));
-const fixed=(q:bigint):string=>String(q/10000n)+'.'+String(q%10000n).padStart(4,'0');
+const fixed=(q:bigint):string=>{const absolute=q<0n?-q:q;return(q<0n?'-':'')+String(absolute/10000n)+'.'+String(absolute%10000n).padStart(4,'0');};
 const returnId=(p:SalesReturnProof)=>SALES_RETURN_PREFIX+p.creditNoteId+':'+p.creditLineId+':'+p.invoiceLineId+':'+p.receiptId;
 function fail(message:string):never{throw new Error(message);}
 function eligibleInvoice(doc:LourexDocument|undefined):doc is LourexDocument{
@@ -39,6 +43,9 @@ function scoped(document:LourexDocument,workspaceId:string,branchId:string):bool
 export function isSalesReturn(m:InventoryMovementRecord):boolean{
   return m.id.startsWith(SALES_RETURN_PREFIX)||!!m.salesReturn;
 }
+export function isSalesReturnCorrection(m:InventoryMovementRecord):boolean{
+  return m.id.startsWith(SALES_RETURN_CORRECTION_PREFIX)||!!m.salesReturnCorrection;
+}
 
 export function assertSalesReturnIntegrity(vault:Pick<VaultPayload,'documents'|'inventoryMovements'|'warehouses'|'appSettings'>):void{
   const movements=vault.inventoryMovements.filter(isSalesReturn);
@@ -46,6 +53,29 @@ export function assertSalesReturnIntegrity(vault:Pick<VaultPayload,'documents'|'
   const documents=new Map(vault.documents.map(d=>[d.id,d]));
   const byId=new Set<string>();
   const originalUsed=new Map<string,bigint>(),creditedUsed=new Map<string,bigint>();
+  const corrections=vault.inventoryMovements.filter(isSalesReturnCorrection);
+  const correctedReceipts=new Set<string>();
+  for(const correction of corrections){
+    const sourceId=correction.salesReturnCorrection?.receiptMovementId;
+    const source=movements.find(row=>row.id===sourceId);
+    if(!sourceId||!source?.salesReturn||correctedReceipts.has(sourceId)
+      ||correction.id!==SALES_RETURN_CORRECTION_PREFIX+sourceId
+      ||correction.sourceId!==sourceId||correction.sourceNumber!==source.sourceNumber
+      ||correction.type!=='adjustment'||!inventoryMovementAccountingIsValid(correction)
+      ||!exactQty(correction.quantity)||qty(correction.quantity)!==-qty(source.quantity)
+      ||correction.itemId!==source.itemId||correction.sku!==source.sku
+      ||correction.unitCost!==source.unitCost||correction.currency!==source.currency
+      ||correction.workspaceId!==source.workspaceId||correction.branchId!==source.branchId
+      ||correction.fromWarehouseId!==source.toWarehouseId||correction.toWarehouseId
+      ||!isIsoDate(correction.date)||correction.date<source.date)
+      fail('Sales return reversal does not exactly offset its recorded receipt.');
+    validateManualMovementEvidence(correction);
+    if(correction.reasonCategory!=='correction'||!correction.evidence
+      ||correction.evidence.id===source.evidence?.id
+      ||correction.evidence.dataUrl===source.evidence?.dataUrl)
+      fail('Sales return reversal requires a new, independent physical correction proof.');
+    correctedReceipts.add(sourceId);
+  }
   for(const m of movements){
     if(byId.has(m.id))fail('Duplicate physical return movement ID.');
     byId.add(m.id);
@@ -85,8 +115,11 @@ export function assertSalesReturnIntegrity(vault:Pick<VaultPayload,'documents'|'
       fail('Return cannot change the original inventory cost or credit-note reference.');
     const creditKey=p.creditNoteId+':'+p.creditLineId;
     const invoiceKey=p.invoiceId+':'+p.invoiceLineId;
-    creditedUsed.set(creditKey,(creditedUsed.get(creditKey)||0n)+qty(m.quantity));
-    originalUsed.set(invoiceKey,(originalUsed.get(invoiceKey)||0n)+qty(m.quantity));
+    // The receipt remains immutable audit history, but a fully documented
+    // correction releases its physical quantity from the active return count.
+    const activeQuantity=correctedReceipts.has(m.id)?0n:qty(m.quantity);
+    creditedUsed.set(creditKey,(creditedUsed.get(creditKey)||0n)+activeQuantity);
+    originalUsed.set(invoiceKey,(originalUsed.get(invoiceKey)||0n)+activeQuantity);
     if(creditedUsed.get(creditKey)!>qty(credited.quantity))
       fail('Physical returns exceed the quantity on the credited item line.');
     if(originalUsed.get(invoiceKey)!>qty(original.quantity))
@@ -98,17 +131,17 @@ export function assertSalesReturnIntegrity(vault:Pick<VaultPayload,'documents'|'
 export function assertSalesReturnLedgerContinuity(base:InventoryMovementRecord[],intended:InventoryMovementRecord[],latest:InventoryMovementRecord[]):void{
   const idMap=(rows:InventoryMovementRecord[])=>{
     const map=new Map<string,InventoryMovementRecord>();
-    for(const row of rows){if(map.has(row.id)&&isSalesReturn(row))fail('Duplicate return receipt identity.');map.set(row.id,row);}
+    for(const row of rows){if(map.has(row.id)&&(isSalesReturn(row)||isSalesReturnCorrection(row)))fail('Duplicate return receipt/correction identity.');map.set(row.id,row);}
     return map;
   };
   const b=idMap(base),w=idMap(intended),l=idMap(latest);
   for(const m of b.values()){
-    if(!isSalesReturn(m))continue;
+    if(!isSalesReturn(m)&&!isSalesReturnCorrection(m))continue;
     if(JSON.stringify(w.get(m.id))!==JSON.stringify(m)||JSON.stringify(l.get(m.id))!==JSON.stringify(m))
       fail('Issued return receipt is immutable and cannot be erased or modified.');
   }
   for(const m of w.values()){
-    if(!isSalesReturn(m))continue;
+    if(!isSalesReturn(m)&&!isSalesReturnCorrection(m))continue;
     const remote=l.get(m.id);
     if(remote&&JSON.stringify(remote)!==JSON.stringify(m))fail('Concurrent return receipt conflict.');
   }
@@ -149,4 +182,37 @@ export function postSalesReturn(vault:VaultPayload,input:SalesReturnInput):{vaul
   const next={...vault,inventoryMovements:[...vault.inventoryMovements,m]};
   assertSalesReturnIntegrity(next);
   return {vault:next,movement:m,created:true};
+}
+
+
+/** Reversal is a NEW immutable negative movement, never deletion of a received return. */
+export function correctSalesReturn(vault:VaultPayload,input:SalesReturnCorrectionInput):
+{vault:VaultPayload;movement:InventoryMovementRecord}{
+  assertGovernancePermission(vault,'issue-sales-stock');
+  const source=vault.inventoryMovements.find(m=>m.id===input.receiptMovementId);
+  if(!source||!isSalesReturn(source)||!source.salesReturn||!source.toWarehouseId)
+    fail('Choose an existing verified goods return to correct.');
+  const id=SALES_RETURN_CORRECTION_PREFIX+source.id;
+  if(vault.inventoryMovements.some(m=>m.id===id))fail('This physical return has already been corrected.');
+  if(!isIsoDate(input.date)||input.date<source.date)fail('Correction date cannot be earlier than the goods receipt.');
+  if(!input.evidence?.id||input.evidence.id===source.evidence?.id
+    ||input.evidence.dataUrl===source.evidence?.dataUrl)
+    fail('Upload a NEW proof of correction, not the original physical receipt.');
+  if(!source.workspaceId||!source.branchId||source.workspaceId!==vault.appSettings.activeWorkspaceId
+    ||source.branchId!==vault.appSettings.activeBranchId)
+    fail('Physical return correction cannot cross a workspace or branch.');
+  const movement:InventoryMovementRecord={
+    id,itemId:source.itemId,itemNameEn:source.itemNameEn,itemNameAr:source.itemNameAr,sku:source.sku,
+    date:input.date,type:'adjustment',quantity:fixed(-qty(source.quantity)),
+    unitCost:source.unitCost,currency:source.currency,
+    sourceId:source.id,sourceNumber:source.sourceNumber,
+    note:input.reason.trim(),reasonCategory:'correction',evidence:input.evidence,
+    createdBy:input.operatorId,fromWarehouseId:source.toWarehouseId,
+    salesReturnCorrection:{receiptMovementId:source.id},
+    workspaceId:source.workspaceId,branchId:source.branchId,createdAt:new Date().toISOString()
+  };
+  validateManualMovementEvidence(movement);
+  const next={...vault,inventoryMovements:[...vault.inventoryMovements,movement]};
+  assertSalesReturnIntegrity(next);
+  return {vault:next,movement};
 }
