@@ -21,7 +21,10 @@ const cases=[
     await page.goto('http://127.0.0.1:4173/tests/visual/obsidian-directory.html?lang='+v.lang+'&screen=picker',{waitUntil:'load',timeout:30000});
     const shell=page.locator('.saved-items-shell.is-picker');
     await shell.waitFor({timeout:15000});
+    // The fixture opens Favorites by default; select All to exercise a long list.
+    await shell.locator('.saved-items-smart-nav button[role="tab"]').last().click();
     const rows=shell.locator('.saved-item-row');
+    await page.waitForFunction(()=>document.querySelectorAll('.saved-items-shell.is-picker .saved-item-row').length===24);
     assert.equal(await rows.count(),24,'fixture must expose all 24 synthetic products '+key);
     const all=shell.locator('.saved-item-select-all input[type="checkbox"]');
     const first=rows.first().locator('.saved-item-select-control input[type="checkbox"]');
