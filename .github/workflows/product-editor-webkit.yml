@@ -10,6 +10,9 @@ on:
       - 'src/styles/v485-visible-ui-corrections.css'
       - 'tests/visual/run-product-editor-webkit-v606.cjs'
       - 'tests/visual/product-editor-webkit-v606.html'
+      - 'tests/visual/physical-sales-return-v607.html'
+      - 'tests/visual/run-physical-sales-return-v607.cjs'
+      - 'src/components/SalesReturnReceiptPanel.tsx'
       - '.github/workflows/product-editor-webkit.yml'
 
 permissions:
@@ -45,11 +48,14 @@ jobs:
             sleep 1
           done
           node tests/visual/run-product-editor-webkit-v606.cjs
+          node tests/visual/run-physical-sales-return-v607.cjs
       - name: Preserve screenshots and test metrics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: product-editor-webkit
-          path: visual-qa-output/product-editor-webkit-v606/
+          path: |
+            visual-qa-output/product-editor-webkit-v606/
+            visual-qa-output/physical-sales-return-v607/
           if-no-files-found: ignore
           retention-days: 7
