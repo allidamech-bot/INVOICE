@@ -44,6 +44,9 @@ export function postSalesDeliveryStock(vault:VaultPayload,input:PostSalesDeliver
     ||proof.deliveryNoteUpdatedAt!==delivery.updatedAt)
     fail('Delivery Note changed. Reopen and review its stock mapping.','تغير سند التسليم. أعد فتحه وراجع ربط المخزون.');
   const prior=salesDeliveryStockIssues(delivery.id,vault.inventoryMovements);
+  // Do not allow the old delivery button to debit goods after an invoice has been issued.
+  if(!prior.length&&vault.documentEvents.some(event=>event.relatedDocumentId===delivery.id&&event.note.startsWith('@lourex:sales-order:delivery-invoice:v1:')&&vault.documents.some(doc=>doc.id===event.documentId&&doc.status==='final')))
+    fail('An issued invoice already owns stock posting for this delivery.','الفاتورة الصادرة هي المسؤولة عن خصم المخزون لهذا التسليم.');
   if(prior.length){
     if(prior.length!==proof.lines.length)fail('Incomplete stock issue evidence.','سجل صرف المخزون غير مكتمل.');
     return {vault,created:false};
