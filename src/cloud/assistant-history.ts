@@ -90,8 +90,16 @@ export function mergeAssistantCloudThread(local:CloudThread,remote:CloudThread):
     updatedAt:local.updatedAt>=remote.updatedAt?local.updatedAt:remote.updatedAt};
 }
 function restore(uid:string,row:CloudThread,local?:AssistantThread):AssistantThread{
+  // Cloud merges may reorder messages sharing a timestamp. Preserve a local
+  // working draft only when the exact message identities and content match;
+  // ordering alone is not a remote conversation change. New/edited messages
+  // and mode conflicts still retire executable state below.
+  const receivedMessages=new Map(row.messages.map(msg=>[msg.id,msg] as const));
   const sameMessages=Boolean(local&&local.messages.length===row.messages.length
-    &&local.messages.every((msg,index)=>msg.id===row.messages[index]?.id&&msg.text===row.messages[index]?.text));
+    &&receivedMessages.size===row.messages.length&&new Set(local.messages.map(msg=>msg.id)).size===local.messages.length&&local.messages.every(msg=>{
+      const received=receivedMessages.get(msg.id);
+      return received?.role===msg.role&&received.text===msg.text;
+    }));
   const matching=Boolean(sameMessages&&local?.kernel&&normalizeAiConversationMode(local.kernel.mode)===row.mode);
   const kernel=matching?local!.kernel:{
     version:1 as const,
