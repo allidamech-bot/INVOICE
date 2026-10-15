@@ -7,7 +7,7 @@ test('business document form renders terms ahead of totals and visible approvals
  const src=await read('src/components/EditorPageCore.tsx');
  const terms=src.indexOf('<span>04</span><h2>{t(\'Commercial Terms\'');
  const totals=src.indexOf('<span>05</span><h2>{t(\'Totals\'');
- const design=src.indexOf('<span>06</span><h2>{t(\'Design & approvals\'');
+ const design=src.indexOf('<span>06</span><h2>{t(\'Design\'');
  const approval=src.indexOf('className="editor-document-elements"',design);
  const bank=src.indexOf('bank-account-select-note',approval);
  const toggle=src.indexOf('className="appearance-toggles"',approval);
