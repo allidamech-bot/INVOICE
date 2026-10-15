@@ -311,3 +311,131 @@ html[dir="rtl"] .lx-treasury-ledger,html[dir="rtl"] .lx-fx-rates,html[dir="rtl"]
 }
 
 html[dir="rtl"] body #root .app-ui .screen-editor :is(.document-design-group-head,.document-design-label,.document-design-note,.watermark-editor-head){text-align:right!important;}
+
+
+/* UX rehab A / 2026-10-16 — Stock Locations.
+   Compact cards and scrollable balances, using approved v485 light/dark tokens.
+   Warehouse transfer, stock ledger and account data are untouched. */
+@media screen {
+  .app-ui .lx-warehouse-page{
+    --lx-warehouse-surface:var(--lx485-surface,var(--ft-surface,#fff));
+    --lx-warehouse-soft:var(--lx485-surface-2,var(--ft-surface-2,#f6f8fc));
+    --lx-warehouse-line:var(--lx485-line,var(--ft-line,#d8e4e6));
+    --lx-warehouse-ink:var(--lx485-text,var(--ft-text-strong,#10243d));
+    --lx-warehouse-muted:var(--lx485-muted,var(--ft-muted,#526780));
+    --lx-warehouse-accent:var(--lx485-blue,var(--ft-accent,#315da8));
+    min-width:0;color:var(--lx-warehouse-ink);
+  }
+  .app-ui .lx-warehouse-page :is(.ta-panel,.lx-location-card){
+    background:var(--lx-warehouse-surface);
+    border-color:var(--lx-warehouse-line);
+    color:var(--lx-warehouse-ink);
+    box-shadow:none;
+  }
+  .app-ui .lx-warehouse-page .ta-panel{min-width:0;overflow:hidden}
+  .app-ui .lx-warehouse-page .ta-panel-header{
+    min-width:0;align-items:flex-start;gap:10px;flex-wrap:wrap;
+  }
+  .app-ui .lx-warehouse-page .ta-panel-header>div:first-child{min-width:0}
+  .app-ui .lx-warehouse-page .ta-panel-header>div:first-child h3{
+    overflow-wrap:anywhere;line-height:1.35;
+  }
+  .app-ui .lx-warehouse-page .ta-panel-header>.select{
+    min-width:0;max-width:100%;min-height:44px;
+  }
+  .app-ui .lx-warehouse-page .lx-location-cards{
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));
+    gap:9px;margin:10px 0 14px;
+  }
+  .app-ui .lx-warehouse-page .lx-location-card{
+    min-width:0;gap:7px;padding:12px;border-radius:13px;
+  }
+  .app-ui .lx-warehouse-page .lx-location-card.is-archived{
+    opacity:1;border-style:dashed;
+  }
+  .app-ui .lx-warehouse-page .lx-location-card>div:first-child{
+    display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px 10px;
+  }
+  .app-ui .lx-warehouse-page .lx-location-card strong{
+    flex:1 1 120px;min-width:0;font-size:13px;line-height:1.35;
+    overflow-wrap:anywhere;color:var(--lx-warehouse-ink);
+  }
+  .app-ui .lx-warehouse-page .lx-location-card small{
+    color:var(--lx-warehouse-muted);font-variant-numeric:tabular-nums;
+    unicode-bidi:isolate;white-space:nowrap;
+  }
+  .app-ui .lx-warehouse-page .lx-warehouse-card-meta{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:6px;
+  }
+  .app-ui .lx-warehouse-page .lx-location-card :is(span,em){
+    color:var(--lx-warehouse-muted);font-size:11px;
+  }
+  .app-ui .lx-warehouse-page .lx-location-status{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-height:26px;padding:4px 9px;border:1px solid var(--lx-warehouse-line);
+    border-radius:999px;font-weight:700;line-height:1.15;
+  }
+  .app-ui .lx-warehouse-page .lx-location-status.is-active{
+    color:var(--lx-warehouse-ink);
+    background:var(--lx-warehouse-soft);
+  }
+  .app-ui .lx-warehouse-page .lx-location-status.is-inactive{
+    color:var(--lx-warehouse-muted);
+    background:var(--lx-warehouse-soft);
+  }
+  .app-ui .lx-warehouse-page .lx-location-card>.btn{
+    min-height:44px;justify-self:start;max-width:100%;
+  }
+  .app-ui .lx-warehouse-page .lx-warehouse-feedback{
+    margin:0 0 12px;padding:10px 12px;overflow-wrap:anywhere;
+  }
+  .app-ui .lx-warehouse-page .lx-form-grid{gap:9px}
+  .app-ui .lx-warehouse-page .lx-form-grid label>span{
+    color:var(--lx-warehouse-muted);font-size:12px;
+  }
+  .app-ui .lx-warehouse-page .lx-form-grid :is(input,select,textarea){
+    min-width:0;width:100%;max-width:100%;min-height:44px;
+    font-size:16px;box-sizing:border-box;
+  }
+  .app-ui .lx-warehouse-page .lx-warehouse-balances-scroll{
+    display:block;min-width:0;max-width:100%;
+    overflow-x:auto;overflow-y:hidden;
+    overscroll-behavior-inline:contain;
+    -webkit-overflow-scrolling:touch;
+    border:1px solid var(--lx-warehouse-line);border-radius:12px;
+    background:var(--lx-warehouse-surface);
+  }
+  .app-ui .lx-warehouse-page .lx-warehouse-balances-scroll:focus-visible{
+    outline:2px solid var(--lx-warehouse-accent);outline-offset:2px;
+  }
+  .app-ui .lx-warehouse-page .lx-warehouse-balances-scroll>.ta-table{
+    min-width:550px;width:100%;
+  }
+  .app-ui .lx-warehouse-page .ta-table :is(th,td){
+    padding:10px 12px;line-height:1.4;
+    color:var(--lx-warehouse-ink);border-color:var(--lx-warehouse-line);
+    overflow-wrap:anywhere;
+  }
+  .app-ui .lx-warehouse-page .ta-table th{
+    color:var(--lx-warehouse-muted);background:var(--lx-warehouse-soft);
+  }
+  .app-ui .lx-warehouse-page .lx-visually-hidden{
+    position:absolute!important;width:1px!important;height:1px!important;
+    padding:0!important;margin:-1px!important;overflow:hidden!important;
+    clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;
+  }
+}
+@media screen and (max-width:720px){
+  .app-ui .lx-warehouse-page .ta-panel{
+    padding:12px!important;border-radius:14px;
+  }
+  .app-ui .lx-warehouse-page .ta-panel-header>.select{width:100%}
+  .app-ui .lx-warehouse-page .lx-location-cards{grid-template-columns:minmax(0,1fr);gap:7px}
+  .app-ui .lx-warehouse-page .lx-location-card{padding:10px}
+  .app-ui .lx-warehouse-page .lx-location-card>.btn{width:100%;justify-self:stretch}
+  .app-ui .lx-warehouse-page .lx-form-grid{grid-template-columns:minmax(0,1fr)}
+  .app-ui .lx-warehouse-page .lx-warehouse-balances-scroll>.ta-table{
+    min-width:540px;
+  }
+}
