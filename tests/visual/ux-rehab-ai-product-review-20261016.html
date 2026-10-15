@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<base href="../../dist/"/>
+<link rel="stylesheet" href="styles/app.bundle.css"/>
+<script>
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',theme=params.get('theme')==='light'?'light':'dark';
+document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+document.documentElement.setAttribute('data-ui-theme',theme);
+document.documentElement.setAttribute('data-theme',theme);
+</script>
+</head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {ProductAiSourceReview} from './src/components/ProductAiSourceReview.js';
+import {reviewProductAiRows} from './src/lib/product-ai-review.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search);
+setUiLanguage(params.get('lang')==='ar'?'ar':'en');
+const make=(sku,descriptionEn,unit='PCS',more={})=>({
+ sku,descriptionEn,descriptionAr:'',brand:'',hsCode:'',origin:'',packing:'',cartonQuantity:'',unit,
+ salePrice:'',saleCurrency:'',unitCost:'',costCurrency:'',category:'',notes:'',...more
+});
+const items=[
+ make('SKU-NEW-01','Precision industrial valves','PCS',{salePrice:'100',saleCurrency:'USD',brand:'Demo'}),
+ make('SKU-EXIST','Existing power component revised','PCS',{unitCost:'25',costCurrency:'USD'}),
+ make('SKU-NEW-02','Steel coupling assembly','PCS'),
+ make('SKU-BLOCK','Unverified product without unit','',{unitCost:'10',costCurrency:''})
+];
+const existing=[{
+ id:'existing-1',sku:'SKU-EXIST',descriptionEn:'Existing power component',descriptionAr:'',
+ unit:'PCS',lastUnitPrice:'0',lastCurrency:'USD',lastUnitCost:'22',lastCostCurrency:'USD',
+ archived:false,origin:'',packing:'',hsCode:'',category:'',tags:[],favorite:false
+}];
+const draft={sourceCurrency:'USD',notes:'Only synthetic catalog examples — do not save',items};
+const reviews=reviewProductAiRows(existing,items,draft.sourceCurrency);
+class FixtureReview extends ProductAiSourceReview{
+ componentDidMount(){this.setState({stage:'review',draft,reviews,selected:reviews.map(x=>x.defaultSelected),model:'Synthetic test fixture',error:'',savedCount:0,filter:'all'});}
+}
+window.fixtureReview={draft,reviews};
+ReactDOM.render(React.createElement(FixtureReview,{file:new File(['synthetic'],'product-demo.csv',{type:'text/csv'}),onDone:()=>{window.closedReview=true;}}),document.getElementById('root'));
+</script>
+</body>
+</html>
