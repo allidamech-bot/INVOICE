@@ -68,6 +68,7 @@ jobs:
             tests/ux-rehab-ai-source-duplicates-20261016.test.mjs \
             tests/ux-rehab-document-sections-20261016.test.mjs \
             tests/ux-rehab-document-create-20261016.test.mjs \
+            tests/ux-rehab-release-acceptance-integration-20261016.test.mjs \
             tests/ai-post-release-markdown.test.mjs \
             tests/ux-rehab-import-chooser-20261016.test.mjs \
             tests/ai-batch6-mobile-import-integrity.test.mjs \
@@ -110,6 +111,7 @@ jobs:
           node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-document-webkit-20261016.cjs
+          node tests/visual/run-v538-quote-editor-final-flow.cjs
       - name: Save isolated browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -120,5 +122,6 @@ jobs:
             visual-qa-output/ux-rehab-warehouse-webkit/
             visual-qa-output/ux-rehab-ai-product-webkit/
             visual-qa-output/ux-rehab-document-webkit/
+            visual-qa-output/v538-quote-editor-final-flow/
           if-no-files-found: ignore
           retention-days: 7
