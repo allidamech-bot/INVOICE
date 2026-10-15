@@ -6,6 +6,9 @@ service cloud.firestore {
     }
     // Role claims can only originate from Firebase Admin SDK. In contrast,
     // the workspace's locally selected operator is untrusted for cloud ACLs.
+    // Until separately authenticated team memberships exist, the entire
+    // plaintext workspace document must ONLY be writable by its signed-in
+    // Firebase owner, never by a signed finance/sales/purchasing staff claim.
     // Existing single-UID accounts have no custom role claim and remain owner.
     function businessAccount() {
       return request.auth != null
@@ -15,7 +18,7 @@ service cloud.firestore {
     function trustedWorkspaceWriter() {
       return businessAccount()
         && (!('lourexAiRole' in request.auth.token)
-          || request.auth.token.lourexAiRole in ['owner','admin','finance','sales','purchasing'])
+          || request.auth.token.lourexAiRole == 'owner')
         && (!('lourexWorkspaceUid' in request.auth.token)
           || request.auth.token.lourexWorkspaceUid == request.auth.uid);
     }
