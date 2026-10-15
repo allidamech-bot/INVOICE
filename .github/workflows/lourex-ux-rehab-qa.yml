@@ -31,6 +31,8 @@ on:
       - 'tests/visual/ux-rehab-documents-create-20261016.html'
       - 'tests/visual/ux-rehab-import-cancel-20261016.html'
       - 'tests/visual/run-ux-rehab-import-cancel-webkit-20261016.cjs'
+      - 'tests/visual/ux-rehab-real-pdf-output-20261016.html'
+      - 'tests/visual/run-ux-rehab-real-pdf-20261016.cjs'
       - '.github/workflows/lourex-ux-rehab-qa.yml'
 
 permissions:
@@ -127,5 +129,44 @@ jobs:
             visual-qa-output/ux-rehab-document-webkit/
             visual-qa-output/v538-quote-editor-final-flow/
             visual-qa-output/ux-rehab-import-cancel-webkit/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  pdf-output-chromium:
+    name: Actual PDF · A4 and extracted accounting totals
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies and build real document templates
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Install Chromium and PDF inspection tools (CI only)
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y poppler-utils
+      - name: Generate real synthetic invoice PDF files and inspect text, totals and A4 dimensions
+        run: |
+          npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-real-pdf.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/ux-rehab-real-pdf-output-20261016.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/visual/run-ux-rehab-real-pdf-20261016.cjs
+      - name: Attach generated synthetic PDFs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-rehab-real-pdf-output
+          path: visual-qa-output/ux-rehab-real-pdf/
           if-no-files-found: ignore
           retention-days: 7
