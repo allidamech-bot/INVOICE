@@ -90,6 +90,19 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
   const negatedReprice=/(?:^|[،,.;:]\s*)و?(?:لا\s*(?:تضف|تزيد|تزود|ترفع|تغير|تغيّر)|بدون\s*(?:إضافة|اضافة|زيادة|رفع)|don't\s+(?:add|increase|change)|do\s+not\s+(?:add|increase|change)|without\s+(?:adding|increasing))[\s\S]{0,65}(?:[%٪]|percent)[\s\S]{0,60}(?:الأسعار|الاسعار|السعر|prices?)/iu.test(input);
   if(negatedReprice)return rejected(proposal,
     'Price changes were explicitly negated; no working-draft line was modified.',ar);
+  // Currency is an essential quote fact, not decoration on a subtotal.
+  // A user can explicitly provide it for an unknown-currency source, but an
+  // already-priced draft cannot silently relabel USD values as EUR values.
+  const currencySelection=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\\s+(?:العملة|عملة|currency)\\s*(?:إلى|الى|to|=|:)?\\s+([A-Za-z]{3})$/iu);
+  if(currencySelection){
+    if(proposal.capability!=='document.createDraft')
+      return rejected(proposal,'Change the currency of a saved draft using its reviewed document editor.',ar);
+    const target=currencySelection[1]!.toUpperCase();
+    if(proposal.currency===target)return rejected(proposal,'The draft already uses '+target+'.',ar);
+    if(proposal.currency&&proposal.items.some(row=>String(row.unitPrice||'').trim()))
+      return rejected(proposal,'Changing currency would silently relabel existing prices without FX conversion. Start a new quotation or clear/review the priced rows.',ar);
+    return result({...proposal,currency:target},ar);
+  }
   // Buyer selection uses only the exact unique customer in the CURRENT
   // company. Never treat a supplier's identity or a model guess as a buyer.
   const buyer=input.match(/^(?:عيّن|عين|حدّد|حدد|اختر|اجعل|غيّر|غير|set|select|choose|change)\s+(?:العميل|عميل|customer|buyer)\s*(?:إلى|الى|to|=|:)?\s+(.{1,180})$/iu);
