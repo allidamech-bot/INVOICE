@@ -59,6 +59,8 @@ test('receipt requires valid PDF/image evidence, reason, active credit and origi
  assert.throws(()=>postSalesReturn(f.vault,{...f.input,reason:'no'}),/reason/i);
  assert.throws(()=>postSalesReturn(f.vault,{...f.input,quantity:'3'}),/exceed/i);
  assert.throws(()=>postSalesReturn(f.vault,{...f.input,quantity:'-1'}),/positive/i);
+ assert.throws(()=>postSalesReturn(f.vault,{...f.input,quantity:'1.00005'}),/four decimal places/i);
+ assert.throws(()=>postSalesReturn(f.vault,{...f.input,quantity:'0.00001'}),/four decimal places/i);
  assert.throws(()=>postSalesReturn(f.vault,{...f.input,warehouseId:'other-branch'}),/warehouse/i);
  const badCredit={...f.credit,status:'draft'};
  assert.throws(()=>postSalesReturn({...f.vault,documents:[f.invoice,badCredit]},f.input),/final credit/i);
@@ -72,6 +74,8 @@ test('a physical return is immutable and cannot survive credit void or source al
  assert.throws(()=>mergeVaultIntent(returned,altered,returned),/immutable/);
  const voided={...returned,documents:[f.invoice,{...f.credit,lifecycleStatus:'voided'}]};
  assert.throws(()=>assertSalesReturnIntegrity(voided),/active, linked credit note/i);
+ const fractional={...returned,inventoryMovements:returned.inventoryMovements.map(x=>x.salesReturn?{...x,quantity:'1.50009'}:x)};
+ assert.throws(()=>assertSalesReturnIntegrity(fractional),/physical sales return stock record/i);
  const forged={...returned,inventoryMovements:returned.inventoryMovements.map(x=>x.salesReturn?{...x,unitCost:'9.00'}:x)};
  assert.throws(()=>assertSalesReturnIntegrity(forged),/cost/);
 });
