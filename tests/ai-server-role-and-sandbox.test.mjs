@@ -24,7 +24,7 @@ test('No provider model may plan protected financial side effects',()=>{
  for(const name of ['document.finalize','payment.record','inventory.adjust','financial.delete','accounting.post']){
   assert.equal(before.includes("'"+name+"'"),false,name+' must not be present in server-side allowed tool IDs');
  }
- assert.match(api,/HIGH IMPACT financial tools are NOT available via the provider planner/);
+ assert.match(api,/HIGH IMPACT tools are NOT available via the provider planner/);
 });
 test('The opt-in provider smoke does not run with missing QA credentials or contact external services',()=>{
  const entry=new URL('../scripts/qa-ai-provider-sandbox.mjs',import.meta.url);
