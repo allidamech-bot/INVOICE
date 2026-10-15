@@ -484,3 +484,27 @@ test('B1 row edits accept the draft currency beyond four hard-coded codes',()=>{
   assert.deepEqual(kernel,after,'a mismatched currency must not alter the draft');
   assert.deepEqual(vault,before,'a price revision never updates the stored accounting records');
 });
+
+
+test('B1 supplier quantity without a verified unit never becomes a buyer quotation',()=>{
+  const vault=emptyVault(),before=structuredClone(vault);
+  const pdf=supplierSource(3,'supplier-with-unclear-unit.pdf');
+  const parsed=JSON.parse(pdf.extracted);
+  parsed.items[2].unit='';
+  pdf.extracted=JSON.stringify(parsed);
+  for(const command of [request,withMargin]){
+    assert.throws(()=>quoteSourceWorkingDraft([pdf],runtime(vault),command),
+      /Supplier order unit is missing on line 3/,'do not guess whether the source quantity is cartons or pieces');
+  }
+  const sheet=exactSpreadsheetQuote([{name:'Unqualified Cost',matrix:[
+    ['SKU','Description','Quantity','Unit Cost','Currency'],
+    ['MISSING-UNIT','Wholesale item',4,'10.00','USD']
+  ]}]);
+  assert.equal(sheet.items[0].unit,'');
+  for(const route of ['quote_request','unknown','supplier_purchase']){
+    const source={...pdf,route,quoteSheetCandidate:JSON.stringify(sheet),confidence:.99};
+    assert.throws(()=>quoteSourceWorkingDraft([source],runtime(vault),request),
+      /Supplier order unit is missing on line 1/,route+' must not bypass this check');
+  }
+  assert.deepEqual(vault,before,'an incomplete source may not change stored financial data');
+});
