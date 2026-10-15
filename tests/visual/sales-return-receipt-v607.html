@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"><div class="ta-shell"><main class="ta-main"><div id="return-test-root"></div></main></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {emptyVault} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {createCreditNoteDraft} from './src/lib/document-lifecycle.js';
+import {createManualInventoryMovement,inventoryBalances} from './src/lib/operations.js';
+import {postIssuedInvoiceStock} from './src/lib/invoice-stock.js';
+import {postSalesReturn} from './src/lib/sales-returns.js';
+import {SalesReturnReceiptPanel} from './src/components/SalesReturnReceiptPanel.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+
+const url=new URL(location.href),lang=url.searchParams.get('lang')==='ar'?'ar':'en';
+setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const now=new Date().toISOString(),date=now.slice(0,10);
+let vault=emptyVault();
+const item={id:'webkit-return-product',sku:'QA-RETURN-1',descriptionEn:'Sealed cartons',descriptionAr:'كراتين مغلقة',
+ createdAt:now,updatedAt:now,hsCode:'',origin:'',packing:'',unit:'Carton',
+ lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'4.50',lastCostCurrency:'USD',
+ usageCount:0,lastUsedAt:now,workspaceId:vault.appSettings.activeWorkspaceId,branchId:vault.appSettings.activeBranchId};
+vault.savedItems=[item];
+vault.inventoryMovements=[createManualInventoryMovement(item,'opening','10',date,'Original verified stock')];
+const invoice=createBlankDocument('invoice','INV-WEBKIT-607',vault.company);
+invoice.status='final';invoice.issueDate=date;
+invoice.customerSnapshot={sourceCustomerId:'webkit-buyer',companyNameEn:'WebKit Buyer',companyNameAr:'عميل تجربة',
+ contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+invoice.items=[{...invoice.items[0],id:'webkit-sold-line',descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,
+ savedItemId:item.id,stockTreatment:'tracked',skuSnapshot:item.sku,unit:'Carton',quantity:'4',unitPrice:'10.00'}];
+vault.documents=[invoice];
+vault=postIssuedInvoiceStock(vault,invoice).vault;
+const credit={...createCreditNoteDraft(invoice,'CN-WEBKIT-607','40.00'),status:'final',issueDate:date};
+credit.items=[{...credit.items[0],id:'webkit-credit-line',quantity:'2',unitPrice:'10.00'}];
+vault={...vault,documents:[invoice,credit]};
+window.returnCalls=0;window.returnErrors=[];
+window.receivedQuantity=()=>inventoryBalances(vault.savedItems,vault.inventoryMovements).find(r=>r.item.id===item.id)?.quantity;
+window.returnMovements=()=>vault.inventoryMovements.filter(m=>!!m.salesReturn).length;
+class ReturnHarness extends React.Component{
+ state={movements:vault.inventoryMovements};
+ record=async(input)=>{
+   window.returnCalls++;
+   try{
+    await new Promise(resolve=>setTimeout(resolve,75));
+    vault=postSalesReturn(vault,{...input,operatorId:'owner'}).vault;
+    this.setState({movements:vault.inventoryMovements});
+   }catch(error){window.returnErrors.push(String(error));throw error;}
+ };
+ render(){return React.createElement('div',{className:'ta-operations-page mode-inventory'},
+    React.createElement(SalesReturnReceiptPanel,{documents:vault.documents,movements:this.state.movements,
+      warehouses:vault.warehouses,workspaceId:vault.appSettings.activeWorkspaceId,
+      branchId:vault.appSettings.activeBranchId,onRecord:this.record}));}
+}
+ReactDOM.render(React.createElement(ReturnHarness),document.getElementById('return-test-root'));
+</script></body></html>
