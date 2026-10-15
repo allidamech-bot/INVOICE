@@ -98,6 +98,7 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
     return {vault,created:false,legacyDelivery:true};
   }
   const defaultId=defaultWarehouseId(branchId);
+  const existing=vault.inventoryMovements.filter(m=>m.sourceId===doc.id&&isIssuedInvoiceStockIssue(m));
   const expected=new Set<string>();
   const remaining=new Map<string,bigint>();
   const created:InventoryMovementRecord[]=[];
@@ -119,7 +120,7 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
     if(!isDecimalInput(line.quantity)||qty(line.quantity)<=0n)
       fail('Invoice stock quantity must be positive and precise.','يجب أن تكون كمية الفاتورة المخزنية موجبة ودقيقة.');
     const q=qty(line.quantity),current=remaining.get(item.id)??warehouseItemQuantity(item.id,defaultId,vault.inventoryMovements,defaultId);
-    if(q>current)fail('Insufficient stock for invoice issue.','الرصيد لا يكفي لإصدار الفاتورة.');
+    if(!existing.length&&q>current)fail('Insufficient stock for invoice issue.','الرصيد لا يكفي لإصدار الفاتورة.');
     remaining.set(item.id,current-q);
     const id=movementId(doc.id,line.id);
     if(expected.has(id))fail('Duplicate invoice line identity.','معرف بند الفاتورة مكرر.');
@@ -131,7 +132,6 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
       sourceNumber:doc.number,note:PROOF+JSON.stringify(proof),fromWarehouseId:defaultId,
       workspaceId,branchId,createdAt:new Date().toISOString()});
   }
-  const existing=vault.inventoryMovements.filter(m=>m.sourceId===doc.id&&isIssuedInvoiceStockIssue(m));
   if(existing.length){
     assertExistingInvoiceIssues(doc,existing,expected,branchId);
     return {vault,created:false,legacyDelivery:false};
