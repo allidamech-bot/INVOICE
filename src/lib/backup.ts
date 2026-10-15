@@ -1,6 +1,10 @@
 import type { EncryptedBackupFile, VaultPayload } from '../types.js';
 import { createEncryptedBackup, decryptBackup } from '../crypto/crypto.js';
 import { APP_SCHEMA_VERSION } from './defaults.js';
+import { assertPostedInvoiceStockDocumentIntegrity, isIssuedInvoiceStockIssue } from './invoice-stock.js';
+import { assertInvoiceVoidStockIntegrity, isInvoiceVoidStockReceipt } from './invoice-void-stock.js';
+import { assertSalesReturnIntegrity, isSalesReturn, isSalesReturnCorrection } from './sales-returns.js';
+import type { InventoryMovementRecord } from '../types.js';
 
 /** A separate, high-entropy export password is safer than the 4–12 digit
  * device-unlock PIN. Imported v1 backups remain decryptable with their legacy PIN. */
@@ -77,6 +81,28 @@ export function assertRestorableBackupVault(value:unknown):asserts value is Vaul
   }
   if(!Array.isArray(raw.workspaces)&&required)throw new Error('Backup workspaces are missing.');
   if(!Array.isArray(raw.branches)&&required)throw new Error('Backup branches are missing.');
+  // A structurally valid JSON file can still contain forged, orphaned or
+  // partially removed STOCK ledger entries. This guard runs before accepting
+  // a local import AND before hydrating a cloud snapshot. Historical vaults
+  // without the new invoice-based stock ledger remain fully compatible.
+  const movements=(raw.inventoryMovements??[]) as InventoryMovementRecord[];
+  if(movements.some(row=>{
+    const id=typeof row.id==='string'?row.id:'';
+    return id.startsWith('sales-invoice-stock:')||id.startsWith('sales-invoice-void-stock:')
+      ||id.startsWith('sales-credit-stock:')
+      ||Boolean(row.salesReturn||row.salesReturnCorrection||row.invoiceVoidStock)
+      ||typeof row.note==='string'&&row.note.startsWith('@lourex:invoice-stock:v1:');
+  })){
+    try{
+      const vault=value as VaultPayload;
+      assertPostedInvoiceStockDocumentIntegrity(vault.documents,vault.inventoryMovements);
+      assertInvoiceVoidStockIntegrity(vault.documents,vault.inventoryMovements);
+      assertSalesReturnIntegrity(vault);
+    }catch(error){
+      throw new Error('Backup posted-invoice stock ledger or physical receipt evidence is invalid. No existing workspace data was changed.',
+        {cause:error});
+    }
+  }
 }
 
 export async function readBackup(file: File, pin: string): Promise<VaultPayload> {
