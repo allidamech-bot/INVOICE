@@ -21,6 +21,7 @@ import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
 import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
 import {parseConversationalSalePrice,parsePriceFollowup,resolvePriceProduct,prepareConversationalSalePrice} from './ai-conversational-price.js';
+import {scopedDialogueCatalog} from './ai-dialogue-catalog.js';
 import {requestedPartyHighlight,prepareSelectedPartyHighlight} from './ai-party-highlights.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
@@ -411,6 +412,14 @@ export function intelligenceContext(host:Host,context:any):any{
   }
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
+  // The model may discuss only real active-company catalog products. This is
+  // a bounded factual excerpt, never an authority to stage or save changes.
+  if(context&&host.__foundationVault&&graphKindAllowed(strictAiActor(host.__foundationVault).role,'product')){
+    const latest=String(host.state.input||'').trim()||
+      (host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
+    context.dialogueCatalog=scopedDialogueCatalog(host.__foundationVault,latest,
+      kernel.entity?.entityType==='product'?kernel.entity.entityId:'');
+  }
   const entity=kernel.entity;
   if(entity&&!graphKindAllowed(strictAiActor(host.__foundationVault).role,entity.entityType)){kernel.entity=undefined;kernel.selection=undefined;if(kernel.knowledge){kernel.knowledge.selectedNodeId=undefined;kernel.knowledge.handoff=undefined;}return context;}
   if(entity){const scoped=scopeVault(host.__foundationVault);const rows=entity.entityType==='customer'?scoped.customers:entity.entityType==='supplier'?scoped.suppliers:entity.entityType==='product'?scoped.savedItems:entity.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===entity.entityId)){kernel.entity=undefined;kernel.selection=undefined;return context;}}
