@@ -332,9 +332,13 @@ export class ProductImportModal extends React.Component<Props,State>{
 
     return <Modal open={this.props.open} title={t('Import Products','استيراد الأصناف')} size="xl" onClose={this.close} footer={footer}>
       <div className={`product-import-shell stage-${stage}`} data-import-stage={stage} aria-busy={stage==='reading'||stage==='importing'||this.state.aiLoading}>
-        {footer?<div className="product-import-mobile-actions" aria-label={t('Import actions','إجراءات الاستيراد')}>{renderActions()}</div>:null}
+        <ol className="product-import-steps" aria-label={t('Import steps','خطوات الاستيراد')}>{[
+          {key:'pick',label:t('Upload','رفع الملف'),active:stage==='pick'||stage==='reading'},
+          {key:'mapping',label:t('Columns','الأعمدة'),active:stage==='mapping'},
+          {key:'preview',label:t('Review','المراجعة'),active:stage==='preview'||stage==='importing'||stage==='done'}
+        ].map((step,index)=><li key={step.key} aria-current={step.active?'step':undefined}><span>{index+1}</span><strong>{step.label}</strong></li>)}</ol>
         {stage==='pick'?<>
-          <div className="product-import-hero"><div className="product-import-icon"><Icon name="upload" size={28}/></div><div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('LOUREX reads the spreadsheet locally first. Gemini is optional and sees only ambiguous headings before you review and confirm.','يقرأ LOUREX الجدول محليًا أولًا. Gemini اختياري ولا يرى إلا العناوين الغامضة قبل المراجعة والتأكيد.')}</p></div></div>
+          <div className="product-import-hero"><div className="product-import-icon"><Icon name="upload" size={28}/></div><div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('Upload your files, check the columns, then confirm the products.','ارفع ملفاتك، راجع الأعمدة، ثم أكّد الأصناف.')}</p></div></div>
           <button type="button" className="product-import-dropzone" onClick={()=>this.fileInput?.click()}><Icon name="upload" size={23}/><strong>{t('Choose up to 4 Excel or CSV files','اختر حتى 4 ملفات Excel أو CSV')}</strong><span>.xlsx · .xls · .csv</span></button>
           <input ref={(node:any)=>{this.fileInput=node;}} className="product-import-file-input" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" multiple onChange={(event:any)=>void this.chooseFiles(Array.from(event.target.files??[]) as File[])}/>
           <div className="product-import-template-bar"><div><strong>{t('Need the correct columns?','تحتاج الأعمدة الصحيحة؟')}</strong><span>{t('Download the LOUREX CSV template with separate sale-price and purchase-cost fields.','حمّل قالب LOUREX الذي يفصل سعر البيع عن تكلفة الشراء.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>

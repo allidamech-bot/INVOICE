@@ -1,10 +1,10 @@
 import type { SavedItem } from '../types.js';
 import { pricingPolicyFromItem } from '../lib/price-lists.js';
-import { t } from '../lib/i18n.js';
+import { isArabic, t } from '../lib/i18n.js';
 import { Button, Icon, Input } from './UI.js';
 
 interface Props{items:SavedItem[];currency:string;onEdit:(item:SavedItem)=>void;}
-function name(item:SavedItem):string{return item.descriptionEn||item.descriptionAr||item.sku||t('Untitled product','صنف بلا اسم');}
+function name(item:SavedItem):string{return (isArabic()?item.descriptionAr:item.descriptionEn)||item.descriptionEn||item.descriptionAr||item.sku||t('Untitled product','صنف بلا اسم');}
 function price(value:string,currency:string):string{return value?`${value} ${currency}`:'—';}
 export function ProductPriceLists({items,currency,onEdit}:Props):any{
   const [query,setQuery]=React.useState('');
@@ -15,7 +15,7 @@ export function ProductPriceLists({items,currency,onEdit}:Props):any{
     <label className="lx-price-lists-search"><Icon name="search"/><Input value={query} placeholder={t('Search products or SKU','ابحث عن صنف أو SKU')} onChange={(e:any)=>setQuery(e.target.value)}/></label>
     <div className="lx-price-lists-table" role="table">
       <div className="lx-price-lists-row is-head" role="row"><span>{t('Product','الصنف')}</span><span>{t('Retail','تجزئة')}</span><span>{t('Wholesale','جملة')}</span><span>{t('Distributor','موزع')}</span><span>{t('Margin floor','حد الهامش')}</span><span></span></div>
-      {rows.map(item=>{const p=pricingPolicyFromItem(item),cur=item.lastCurrency||currency;return <div className="lx-price-lists-row" role="row" key={item.id}><span className="lx-price-product"><strong>{name(item)}</strong><small>{item.sku||t('No SKU','بدون SKU')}</small></span><span><bdi>{price(p.retail,cur)}</bdi></span><span><bdi>{price(p.wholesale,cur)}</bdi><small>{p.wholesaleMinQty?t(`MOQ ${p.wholesaleMinQty}`,`الحد ${p.wholesaleMinQty}`):''}</small></span><span><bdi>{price(p.distributor,cur)}</bdi><small>{p.distributorMinQty?t(`MOQ ${p.distributorMinQty}`,`الحد ${p.distributorMinQty}`):''}</small></span><span>{p.minimumMarginPercent?`${p.minimumMarginPercent}%`:'—'}</span><span><Button onClick={()=>onEdit(item)}>{t('Pricing Policy','سياسة التسعير')}</Button></span></div>;})}
+      {rows.map(item=>{const p=pricingPolicyFromItem(item),cur=item.lastCurrency||currency;return <div className="lx-price-lists-row" role="row" key={item.id}><span className="lx-price-product"><strong>{name(item)}</strong><small>{item.sku||t('No SKU','بدون SKU')}</small></span><span data-label={t('Retail','تجزئة')}><bdi dir="ltr">{price(p.retail,cur)}</bdi></span><span data-label={t('Wholesale','جملة')}><bdi dir="ltr">{price(p.wholesale,cur)}</bdi><small>{p.wholesaleMinQty?t(`MOQ ${p.wholesaleMinQty}`,`الحد ${p.wholesaleMinQty}`):''}</small></span><span data-label={t('Distributor','موزع')}><bdi dir="ltr">{price(p.distributor,cur)}</bdi><small>{p.distributorMinQty?t(`MOQ ${p.distributorMinQty}`,`الحد ${p.distributorMinQty}`):''}</small></span><span data-label={t('Margin floor','حد الهامش')}>{p.minimumMarginPercent?`${p.minimumMarginPercent}%`:'—'}</span><span><Button onClick={()=>onEdit(item)}>{t('Pricing Policy','سياسة التسعير')}</Button></span></div>;})}
       {!rows.length?<div className="lx-price-lists-empty"><Icon name="items"/><strong>{t('No products found','لم يتم العثور على أصناف')}</strong></div>:null}
     </div>
   </section>;

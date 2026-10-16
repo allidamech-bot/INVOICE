@@ -17,6 +17,9 @@ const sheet=(name,sku,description)=>({name,mimeType:'text/csv',buffer:Buffer.fro
   try{
    for(const scenario of ['clean','duplicate']){
     await page.goto(qaUrl+'?lang='+c.lang,{waitUntil:'load'});
+    assert.equal(await page.locator('.product-import-steps li').count(),3,'upload, mapping and review steps');
+    const upload=await page.locator('.product-import-dropzone').boundingBox();
+    assert.ok(upload&&upload.width>c.width*.65&&upload.height>=140,'file upload is a clear full-width touch surface');
     const files=scenario==='clean'
       ?[sheet('first.csv','ACCEPT-1','Synthetic Valve'),sheet('second.csv','ACCEPT-2','Synthetic Coupling')]
       :[sheet('first.csv','ACCEPT-1','Synthetic Valve'),sheet('repeat.csv','ACCEPT-1','Synthetic Valve')];
@@ -36,6 +39,12 @@ const sheet=(name,sku,description)=>({name,mimeType:'text/csv',buffer:Buffer.fro
     assert.equal(await page.evaluate(()=>window.qaImport.savedCalls),0,'preview never saves');
     const confirm=page.locator('button:visible').filter({hasText:/Confirm import of|تأكيد استيراد|Fix file errors first|أصلح أخطاء الملف أولًا/}).first();
     await confirm.waitFor({state:'visible'});
+    const footerBounds=await confirm.boundingBox();
+    assert.ok(footerBounds&&footerBounds.y>=0&&footerBounds.y+footerBounds.height<=c.height+1,'confirmation stays in viewport without scrolling');
+    const rowBounds=await preview.locator('tbody tr').first().boundingBox();
+    assert.ok(rowBounds&&rowBounds.x>=0&&rowBounds.x+rowBounds.width<=c.width,'preview product card fits phone');
+    assert.equal(await page.locator('.product-import-mobile-actions button').count(),0,'confirmation is not duplicated');
+
     if(scenario==='duplicate'){
      assert.equal(await confirm.isDisabled(),true,'duplicate across files must block import');
      assert.match(counts,/1/,'one error visible');

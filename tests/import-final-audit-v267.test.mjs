@@ -115,7 +115,10 @@ test('v267 import UIs keep local-first mapping, bounded previews and explicit co
   assert.match(css,/height:calc\(var\(--modal-visual-height,100dvh\) - var\(--modal-browser-bottom-reserve,0px\)/);
   assert.match(css,/height:calc\(var\(--modal-visual-height,100dvh\)/);
   assert.match(css,/var\(--app-safe-bottom,0px\)/);
-  assert.match(product,/product-import-mobile-actions/);
+  assert.match(product,/footer=\{footer\}/);
+  assert.doesNotMatch(product,/className="product-import-mobile-actions"/,'one footer owns confirmation on every screen');
+  const finalCss=await read('src/styles/v485-visible-ui-corrections.css');
+  assert.match(finalCss,/modal:has\(\.product-import-shell\)>\.modal-footer\{display:block!important;?\}/);
   assert.match(css,/\.product-import-mobile-actions\{[\s\S]*position:sticky/);
   assert.match(css,/modal:has\(\.product-import-shell\)>\.modal-footer\{display:none!important\}/);
 });
