@@ -11,7 +11,7 @@ export function requestedRecordList(message:string):RecordListKind|null{
  // Ordinary read-only questions also open the same searchable full list.
  // A named family/brand is NOT treated as "all products"; that query remains
  // a natural catalog conversation, with verified matches and no guessed SKU.
- const naturalQuestion=text.match(/^(?:شو|إيش|ايش|ما هي|ماهي|what are|what|which)\s+(المنتجات|الاصناف|الأصناف|العملاء|الموردين|المستندات|products?|items?|customers?|suppliers?|documents?)(?:\s+(?:(?:اللي|الموجودة|المتوفره|المتوفرة|المتاحة|عنا|عندنا|عندي|في الشركة|do we have|are available|we have)))?[؟?.!\s]*$/iu);
+ const naturalQuestion=text.match(/^(?:شو|إيش|ايش|ما هي|ماهي|what are|what|which)\s+(المنتجات|الاصناف|الأصناف|العملاء|الموردين|المستندات|products?|items?|customers?|suppliers?|documents?)(?:\s+(?:اللي|الموجودة|المتوفره|المتوفرة|المتاحة|عنا|عندنا|عندي|في\s+الشركة|do\s+we\s+have|are\s+available|we\s+have))*[؟?.!\s]*$/iu);
  if(naturalQuestion){
   const noun=naturalQuestion[1]!.toLocaleLowerCase();
   if(/(?:المنتجات|الاصناف|الأصناف|products?|items?)/iu.test(noun))return'product';
