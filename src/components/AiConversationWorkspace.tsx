@@ -33,27 +33,17 @@ function markdownInline(value:any,key:string):any {
   });
 }
 function markdownParagraphs(children:any[]):any[] {
-  const result:any[]=[];let list:any[]=[];let listType='';
-  const flush=()=>{if(list.length){result.push(react.createElement(listType,{key:'list-'+result.length},...list));list=[];listType='';}};
-  children=children.flatMap(child=>{
-    if(!react.isValidElement(child)||child.type!=='p')return [child];
-    const parts=react.Children.toArray(child.props.children);
-    if(!parts.every((part:any)=>typeof part==='string'))return [child];
-    // Some providers flatten paragraph separators. Recover explicit heading
-    // markers without inventing semantic blocks from ordinary punctuation.
-    const text=parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n');
-    if(/\|[^\n]*\n\s*\|?\s*:?-{3,}/.test(text))return assistantMessageBlocks(text);
-    return text.split(/\r?\n/).filter(Boolean).map((line:string,i:number)=>react.createElement('p',{key:i},line));
-  });
-  children.forEach((child,index)=>{
-    if(!react.isValidElement(child)||child.type!=='p'){flush();result.push(child);return;}
-    const parts=react.Children.toArray(child.props.children),first=typeof parts[0]==='string'?parts[0]:'';
-    const heading=first.match(/^\s*(#{1,6})\s+/),bullet=first.match(/^\s*(?:[-*•]|\d+[.)])\s+/);
-    if(heading||bullet)parts[0]=first.slice((heading||bullet)![0].length);
-    const formatted=parts.map((part:any,i:number)=>markdownInline(part,index+'-'+i));
-    if(bullet){const kind=/\d/.test(bullet[0])?'ol':'ul';if(listType&&listType!==kind)flush();listType=kind;list.push(<li key={index} className="lxw-ai-compact-result-row" dir="auto">{formatted}</li>);}
-    else{flush();result.push(react.createElement(heading?((heading[1]||'').length<=2?'h3':'h4'):'p',{key:index},...formatted));}
-  });flush();return result;
+  const result:any[]=[];let plain:string[]=[];
+  const flush=()=>{if(plain.length){result.push(...assistantMessageBlocks(plain.join('\n').replace(/\s+(?=#{1,6}\s)/g,'\n')));plain=[];}};
+  for(const child of children){
+    const parts=react.isValidElement(child)&&child.type==='p'?react.Children.toArray(child.props.children):null;
+    if(parts&&parts.every((part:any)=>typeof part==='string')){plain.push(parts.join(''));continue;}
+    flush();
+    // Scoped evidence callbacks remain the original React elements.
+    if(parts)result.push(react.createElement(child.type,child.props,...parts.map((part:any,i:number)=>markdownInline(part,'evidence-'+i))));
+    else result.push(child);
+  }
+  flush();return result;
 }
 
 /** Render a plain-text assistant reply as actual paragraphs and accessible
@@ -85,9 +75,9 @@ function assistantMessageBlocks(text:string):any[] {
     }
     const trimmed=line.trim();
     if(!trimmed){flush();continue;}
-    const heading=trimmed.match(/^#{1,5}\s+(.+)/);
+    const heading=trimmed.match(/^(#{1,5})\s+(.+)/);
     const bullet=trimmed.match(/^([-*•●▪]|[0-9٠-٩۰-۹]{1,3}[.)])\s+(.+)/);
-    if(heading){flush();blocks.push(<h4 key={'heading-'+blocks.length} dir="auto">{markdownInline(heading[1],String(blocks.length))}</h4>);continue;}
+    if(heading){flush();blocks.push(react.createElement(heading[1]!.length<=2?'h3':'h4',{key:'heading-'+blocks.length,dir:'auto'},markdownInline(heading[2],String(blocks.length))));continue;}
     if(bullet){
       const kind=/[0-9٠-٩۰-۹]/.test(bullet[1]!)?'ol':'ul';
       if(bulletKind&&bulletKind!==kind)flush();
