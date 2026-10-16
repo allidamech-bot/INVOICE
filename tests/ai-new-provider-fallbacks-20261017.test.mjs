@@ -101,6 +101,13 @@ test('OpenRouter exhaustion causes an isolated, bounded fallback to Ollama',asyn
   assert.equal(result.provider,'ollama');
   assert.equal(result.fallbackUsed,true);
   assert.equal(calls.length,2);
+  // Subsequent customer requests must not hit an exhausted provider again
+  // while the account-wide cooldown is active.
+  const second=await ask();
+  assert.equal(second.success,true);
+  assert.equal(second.provider,'ollama');
+  assert.equal(calls.length,3);
+  assert.ok(calls[2].includes('ollama.com'));
 });
 
 test('new provider output violating the financial JSON contract cannot be accepted',async()=>{
