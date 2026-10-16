@@ -53,16 +53,19 @@ test('natural Arabic family request bypasses generic record0 planner without sav
  assert.doesNotMatch(result.answer,/record0|نتائج البحث:/);
  assert.deepEqual(v,before);
 });
-test('product discovery cannot leak catalog rows to a role without product access',async()=>{
- const v=fixture();
+test('existing finance product visibility stays scoped to the active company',async()=>{
+ const v=fixture(),foreign={...v.savedItems[0],id:'foreign',workspaceId:'other',descriptionAr:'منتج غير مصرح به'};
+ v.savedItems.push(foreign);
+ // Finance is allowed to read products by graphKindAllowed, but never from
+ // another workspace. Do not invent a role prohibition not in governance.
  v.teamMembers[0].role='finance';
  const result=await orchestrateAiToolRequest({
    message:'اريد عرض سعر لمنتجات شيبسيكو',vault:v,language:'ar',
    context:{conversationMode:'controller',assistantRuntime:{scope:'business'}}
  });
  assert.ok(result);
- assert.match(result.answer,/صلاحيات الحساب/);
- assert.doesNotMatch(result.answer,/شيبسيكو جبنة/);
+ assert.match(result.answer,/شيبسيكو جبنة/);
+ assert.doesNotMatch(result.answer,/منتج غير مصرح به/);
  assert.equal(result.proposal,null);
 });
 test('assistant chat formats natural paragraphs and lists without parsing unsafe HTML',async()=>{
