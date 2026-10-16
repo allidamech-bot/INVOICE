@@ -1,0 +1,28 @@
+name: LOUREX temporary sanitized free provider audit reader
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ai-free-inference-audit-read-20261017.yml'
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read sanitized synthetic status-only report
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 --retry 2 \
+            'https://invoice-3tjh73no7-alidaamishs-projects.vercel.app/ai-free-inference-audit-20261017.json' \
+            --output /tmp/lourex-synthetic-ai-audit.json
+          node -e '
+            const r=require("/tmp/lourex-synthetic-ai-audit.json");
+            if(r.audit!=="2026-10-17-synthetic-free-routing"||r.checks?.length!==4)throw Error("INVALID_REPORT");
+            for(const c of r.checks){
+              const safe={provider:c.provider,configured:c.configured,status:c.status,httpStatus:c.httpStatus,model:c.routerModel,error:c.routerError,schemaValid:c.schemaValid,latencyMs:c.latencyMs,shape:c.shape};
+              console.log("LOUREX_AI_FREE_LIVE_RESULT "+JSON.stringify(safe));
+            }
+          '
