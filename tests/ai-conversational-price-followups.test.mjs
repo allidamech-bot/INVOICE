@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {newConversationKernel,normalizeConversationKernel,composeKernelMemory} from '../dist/src/lib/ai-conversation-kernel.js';
 import {stageScopedRecordList,setExactRecordSelection} from '../dist/src/lib/ai-record-selection.js';
+import {compiledReliabilityHarness} from './helpers/ai-reliability-runtime.mjs';
 import {parseConversationalSalePrice,resolvePriceProduct,parsePriceFollowup,prepareConversationalSalePrice} from '../dist/src/lib/ai-conversational-price.js';
 const stamp='2026-10-01T00:00:00.000Z';
 const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'qa-price',accountId:'account-one'};
@@ -78,4 +79,27 @@ test('Controller runtime binds spoken price to canonical signed product approval
  assert.match(source,/stampProposal\(host,p,fresh\.vault\);stageReviewedMission\(kernel,p\)/);
  assert.match(source,/kernel\.pendingPrice=undefined/);
  assert.doesNotMatch(source,/await mutateVaultSafely\([\s\S]*?parseConversationalSalePrice/);
+});
+
+
+test('live compiled Controller asks for the product, then stages signed review without saving',async()=>{
+  const {vault}=fixture(),original=structuredClone(vault);
+  const {runtime,host,session}=await compiledReliabilityHarness(vault);
+  const h=host();
+  runtime.installIntelligenceRuntime(h);
+  await runtime.refreshIntelligenceWorkspace(h);
+  await runtime.assignIntelligenceConversationMode(h,'controller');
+  await h.ask('سعر البيع 50 للكرتون');
+  assert.match(h.state.messages.at(-1).text,/أي صنف/);
+  assert.equal(h.state.proposal,null);
+  assert.equal(h.__intelligenceKernel.pendingPrice.amount,'50');
+  await h.ask('Nutella 750g');
+  assert.equal(h.state.error,'');
+  assert.equal(h.state.proposal?.tool,'product.bulkUpdate');
+  assert.ok(h.state.proposal?.foundationApproval?.id);
+  assert.equal(h.state.proposal.args.rows.length,1);
+  assert.equal(h.state.proposal.args.rows[0].itemId,'p1');
+  assert.equal(h.state.proposal.args.rows[0].preview.before.lastUnitPrice,'42');
+  assert.equal(h.state.proposal.args.rows[0].preview.after.lastUnitPrice,'50');
+  assert.deepEqual(session.vault,original,'only a reviewed proposal is staged; no company write');
 });
