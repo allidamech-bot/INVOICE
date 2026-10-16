@@ -41,7 +41,7 @@ function markdownParagraphs(children:any[]):any[] {
     if(!parts.every((part:any)=>typeof part==='string'))return [child];
     // Some providers flatten paragraph separators. Recover explicit heading
     // markers without inventing semantic blocks from ordinary punctuation.
-    return parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n').split(/\r?\n/).filter(Boolean).map((line:string,i:number)=>react.createElement('p',{key:i},line));
+    return assistantMessageBlocks(parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n'));
   });
   children.forEach((child,index)=>{
     if(!react.isValidElement(child)||child.type!=='p'){flush();result.push(child);return;}
@@ -66,7 +66,21 @@ function assistantMessageBlocks(text:string):any[] {
     // provider line. Arabic-Indic and Persian numerals are also supported.
     .replace(/\s+(?=(?:[1-9]|1[0-9]|20|[١-٩]|[۱-۹])[.)]\s+\S)/g,'\n')
     .replace(/\s+(?=[•●▪]\s+\S)/g,'\n');
-  for(const line of input.split('\n')){
+  const lines=input.split('\n');
+  for(let lineIndex=0;lineIndex<lines.length;lineIndex++){
+    const line=lines[lineIndex]!;
+    // Recognize only explicit Markdown tables. All cell content remains text;
+    // provider HTML, URLs and callbacks are never interpreted.
+    if(line.includes('|')&&/^\s*\|?\s*:?-{3,}/.test(lines[lineIndex+1]||'')){
+      flush();
+      const cells=(value:string)=>value.trim().replace(/^\||\|$/g,'').split('|').map(cell=>cell.trim());
+      const headers=cells(line),rows:string[][]=[];
+      lineIndex+=2;
+      while(lineIndex<lines.length&&lines[lineIndex]!.includes('|')){rows.push(cells(lines[lineIndex]!));lineIndex++;}
+      lineIndex--;
+      blocks.push(<div className="lxw-response-table" key={'table-'+blocks.length} tabIndex={0} role="region" aria-label="AI results"><table><thead><tr>{headers.map((cell,i)=><th key={i} scope="col" dir="auto">{markdownInline(cell,'th-'+i)}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={i}>{headers.map((_,j)=><td key={j} dir="auto">{markdownInline(row[j]||'—','td-'+i+'-'+j)}</td>)}</tr>)}</tbody></table></div>);
+      continue;
+    }
     const trimmed=line.trim();
     if(!trimmed){flush();continue;}
     const heading=trimmed.match(/^#{1,5}\s+(.+)/);
