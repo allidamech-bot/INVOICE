@@ -20,7 +20,7 @@ test('the user can say selling price 50 per carton in Arabic and English without
   assert.equal(result?.amount,'50',phrase);
   assert.equal(result?.unit,'CTN',phrase);
  }
- for(const phrase of ['كم سعر البيع 50 للكرتون؟','لا تعدل سعر البيع 50 للكرتون','هل سعر البيع 50 للكرتون؟','سعر البيع للكرتون']){
+ for(const phrase of ['كم سعر البيع 50 للكرتون؟','لا تعدل سعر البيع 50 للكرتون','ما بدي تعديل سعر البيع 50 للكرتون','هل سعر البيع 50 للكرتون؟','سعر البيع للكرتون']){
   assert.equal(parseConversationalSalePrice(phrase),null,phrase);
  }
 });
