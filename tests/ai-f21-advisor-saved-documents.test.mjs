@@ -42,6 +42,8 @@ function gateway(model){
     const lib=vm.runInNewContext(source+'\n({handler,cleanAdvisor,documentNumberInRequest,deterministicDocumentAnswer})',{
       Buffer,URL,process:{env:{}},console,
       requireAiFirebaseAuth:async()=>true,
+      sanitizeDialogueCatalog:()=>null,
+      naturalLourexDialogue:async()=>{planned++;return{success:true,answer:model?.answer||'Status is unavailable',proposal:null};},
       routeAiStructured:async()=>{planned++;return{success:true,data:model??{answer:'Status is unavailable',proposal:null}};},
       aiRouterPublicError:()=>({status:503,code:'AI_ERROR',message:'AI unavailable'})
     });
@@ -123,7 +125,7 @@ test('F21 server strips mismatched client lookup rows and does not invent absent
   assert.equal(notKnown.documents,null,'missing evidence must not become zero documents');
   const res=await g.request('هل فاتورة INV-2026-0001 محفوظة؟',noIndex);
   assert.equal(res.statusCode,200);
-  assert.equal(res.body.model,'automatic','missing index should be discussed with caveats, not deterministic denial');
+  assert.equal(res.body.model,'lourex-dialogue','missing index should be discussed, not stated as a deterministic denial');
   assert.equal(g.planned,1);
 });
 

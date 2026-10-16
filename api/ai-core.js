@@ -1,5 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
+import {naturalLourexDialogue,sanitizeDialogueCatalog} from './_ai/lourex-dialogue.js';
 
 const MAX_BODY_BYTES=180000;
 const MAX_MESSAGE_CHARS=6000;
@@ -94,7 +95,7 @@ function cleanDraftTerms(value){return{incoterm:cleanText(value?.incoterm,80),pa
 function cleanDraftActiveDocument(value){if(!value||typeof value!=='object')return null;const id=cleanText(value.id,120),number=cleanText(value.number,80),kind=cleanEnum(value.kind,['proforma','invoice']),status=cleanEnum(value.status,['draft','final']),currency=cleanCurrency(value.currency),language=cleanEnum(value.language,['en','ar','bilingual'],'en');if(!id||!number||!kind||!status)return null;return{id,number,kind,status,currency,language,customerName:cleanText(value.customerName,120),items:cleanArray(value.items,40,cleanDraftActiveItem),terms:cleanDraftTerms(value.terms),notes:cleanText(value.notes,500)};}
 function cleanDrafting(value){if(!value||typeof value!=='object')return null;const currency=cleanCurrency(value.defaults?.currency)||'USD';const language=cleanEnum(value.defaults?.language,['en','ar','bilingual'],'en');return{customers:cleanArray(value.customers,12,cleanDraftCustomer),items:cleanArray(value.items,18,cleanDraftItem),defaults:{currency,language,incoterm:cleanText(value.defaults?.incoterm,80),paymentTerms:cleanText(value.defaults?.paymentTerms,120),deliveryTime:cleanText(value.defaults?.deliveryTime,120),validity:cleanText(value.defaults?.validity,100)},activeDocument:cleanDraftActiveDocument(value.activeDocument)};}
 
-function cleanRequest(body){if(String(body?.message||'').trim().length>MAX_MESSAGE_CHARS||String(body?.context?.conversationWorkingMemory||'').length>36000)return null;const message=String(body?.message||'').trim().slice(0,MAX_MESSAGE_CHARS);const screen=String(body?.context?.screen||'');const language=body?.context?.language==='ar'?'ar':'en';const conversationMode=body?.context?.conversationMode==='controller'?'controller':'advisor';const aiResponseDetail=cleanEnum(body?.context?.aiResponseDetail,['brief','balanced','detailed'],'balanced');const finance=cleanFinance(body?.context?.finance),business=cleanBusiness(body?.context?.business);const pricing=cleanPricing(body?.context?.pricing,business?.asOf||finance?.asOf||'');const drafting=cleanDrafting(body?.context?.drafting);if(!message||body?.context?.version!==5||!SCREENS.has(screen)||!finance||!business||!pricing||!drafting)return null;return{message,context:{version:5,screen,language,conversationMode,aiResponseDetail,allowedCapabilities:conversationMode==='advisor'?ALLOWED_CAPABILITIES.filter(capability=>!ACTION_CAPABILITIES.includes(capability)):ALLOWED_CAPABILITIES,finance,business,pricing,drafting,conversationSources:sanitizeControllerConversationSources(body?.context?.conversationSources),workingMemory:String(body?.context?.conversationWorkingMemory||'')}};}
+function cleanRequest(body){if(String(body?.message||'').trim().length>MAX_MESSAGE_CHARS||String(body?.context?.conversationWorkingMemory||'').length>36000)return null;const message=String(body?.message||'').trim().slice(0,MAX_MESSAGE_CHARS);const screen=String(body?.context?.screen||'');const language=body?.context?.language==='ar'?'ar':'en';const conversationMode=body?.context?.conversationMode==='controller'?'controller':'advisor';const aiResponseDetail=cleanEnum(body?.context?.aiResponseDetail,['brief','balanced','detailed'],'balanced');const finance=cleanFinance(body?.context?.finance),business=cleanBusiness(body?.context?.business);const pricing=cleanPricing(body?.context?.pricing,business?.asOf||finance?.asOf||'');const drafting=cleanDrafting(body?.context?.drafting);if(!message||body?.context?.version!==5||!SCREENS.has(screen)||!finance||!business||!pricing||!drafting)return null;return{message,context:{version:5,screen,language,conversationMode,aiResponseDetail,allowedCapabilities:conversationMode==='advisor'?ALLOWED_CAPABILITIES.filter(capability=>!ACTION_CAPABILITIES.includes(capability)):ALLOWED_CAPABILITIES,finance,business,pricing,drafting,dialogueCatalog:sanitizeDialogueCatalog(body?.context?.dialogueCatalog),conversationSources:sanitizeControllerConversationSources(body?.context?.conversationSources),workingMemory:String(body?.context?.conversationWorkingMemory||'')}};}
 
 function cleanGeneratedPatch(value){if(!value||typeof value!=='object')return null;const patch={};for(const [key,max] of [['sku',48],['descriptionEn',160],['descriptionAr',160],['hsCode',48],['origin',80],['packing',80],['unit',40],['category',80]]){const cleaned=cleanText(value[key],max);if(cleaned)patch[key]=cleaned;}const tags=cleanTags(value.tags);if(tags.length)patch.tags=tags;return Object.keys(patch).length?patch:null;}
 function cleanGeneratedItem(row){if(!row||typeof row!=='object')return null;const quantity=cleanPositive(row.quantity,true),unit=cleanText(row.unit,40),unitPrice=cleanPositive(row.unitPrice,true);if(!quantity||!unit)return null;return{savedItemId:cleanText(row.savedItemId,120),descriptionEn:cleanText(row.descriptionEn,160),descriptionAr:cleanText(row.descriptionAr,160),quantity,unit,unitPrice};}
@@ -117,6 +118,16 @@ export default async function handler(request,response){
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX AI received an invalid business context.'});return;}
 
+  // Free-form dialogue is the default for both modes. Do not make normal
+  // questions pass an executable proposal schema merely to receive an answer.
+  // The protected Controller gateway still handles real actions and approvals.
+  if(cleaned.context.conversationMode==='advisor'||!draftActionRequested(cleaned.message)){
+    const dialogue=await naturalLourexDialogue(cleaned,{mode:cleaned.context.conversationMode});
+    if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
+    sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
+      message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});return;
+  }
+
   const languageInstruction=cleaned.context.language==='ar'?'Reply in clear professional Arabic unless the user explicitly asks for another language.':'Reply in clear professional English unless the user explicitly asks for another language.';
   const modeInstruction=cleaned.context.conversationMode==='advisor'?'You are in ADVISOR mode: carry on a natural, substantive business conversation. Discuss requested actions hypothetically, explain the decision, compare alternatives, costs, risks and missing evidence, and ask a focused follow-up when needed. Return proposal:null in ALL cases. Never navigate, create, prepare for execution, approve or change records, and never claim an action was done. If execution would help, briefly explain that Controller can execute after review; do not replace the discussion with a refusal.':'You are in CONTROLLER mode: propose only explicitly requested actions and require client review; never claim an action occurred.';
   const detailInstruction=cleaned.context.aiResponseDetail==='brief'?'Answer succinctly and omit unnecessary sections.':cleaned.context.aiResponseDetail==='detailed'?'Explain important calculations, assumptions and verified evidence in a structured but readable answer.':'Be clear, proportionate and well structured; use detailed sections only when useful.';
@@ -134,7 +145,17 @@ export default async function handler(request,response){
   const schema={type:'OBJECT',properties:{answer:{type:'STRING'},proposal:{type:'OBJECT',nullable:true,properties:actionProperties,required}},required:['answer','proposal']};
   const deep=needsDeepReasoning(cleaned);
   const routed=await routeAiStructured({taskType:deep?'cfo_report':'business_copilot',reasoningLevel:deep?'deep':'standard',prompt,schema,timeoutMs:15_000,validate:value=>Boolean(resultForRequest(value,cleaned))});
-  if(!routed.success){if(routed.errorCode==='AI_INVALID_RESULT'){sendJson(response,502,{code:'AI_INVALID_RESULT',message:'LOUREX AI returned an invalid result.'});return;}const publicError=aiRouterPublicError(routed);sendJson(response,publicError.status,{code:publicError.code,message:publicError.message});return;}
-  const result=resultForRequest(routed.data,cleaned);if(!result){sendJson(response,502,{code:'AI_INVALID_RESULT',message:'LOUREX AI returned an invalid result.'});return;}
-  sendJson(response,200,{model:'automatic',...result});
+  if(!routed.success&&routed.errorCode!=='AI_INVALID_RESULT'){
+    const publicError=aiRouterPublicError(routed);
+    sendJson(response,publicError.status,{code:publicError.code,message:publicError.message});return;
+  }
+  const result=routed.success?resultForRequest(routed.data,cleaned):null;
+  if(result){sendJson(response,200,{model:'automatic',...result});return;}
+  // A model can discuss an incomplete request even when it cannot produce an
+  // executable, exactly typed document proposal. No fabricated proposal is
+  // ever allowed through this conversational fallback.
+  const dialogue=await naturalLourexDialogue(cleaned,{mode:'controller'});
+  if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
+  sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
+    message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});
 }

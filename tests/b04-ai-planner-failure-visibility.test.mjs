@@ -23,63 +23,45 @@ const request=(message,options={})=>orchestrateAiToolRequest({
 });
 const ok=(payload,status=200)=>({ok:status>=200&&status<300,status,json:async()=>payload});
 
-test('B04: invalid planner output for an explicit action reports failure instead of using chat fallback',async()=>{
+test('B04: invalid planner JSON returns to conversation without staging an action',async()=>{
   await withPlannerReply(ok({plan:{version:1,goal:'update products',calls:[{id:'a',tool:'not-a-tool',args:{},reason:''}]}}),async calls=>{
     const result=await request('Update products from the report');
-    assert.ok(result);
+    assert.equal(result,null,'the caller will ask the dialogue engine for clarification');
     assert.equal(calls(),1);
-    assert.equal(result.proposal,null);
-    assert.equal(result.results.length,0);
-    assert.equal(result.plan.calls.length,0);
-    assert.match(result.answer,/valid, safe action plan/);
-    assert.match(result.answer,/No data was changed/);
   });
 });
-
-test('B04: empty tool plan does not pretend that a requested operation succeeded',async()=>{
-  await withPlannerReply(ok({plan:{version:1,goal:'save',calls:[]}}),async()=>{
+test('B04: an empty plan cannot masquerade as a completed command',async()=>{
+  await withPlannerReply(ok({plan:{version:1,goal:'save',calls:[]}}),async calls=>{
     const result=await request('احفظ جميع الأصناف',{language:'ar'});
-    assert.ok(result);
-    assert.match(result.answer,/لم أغيّر أي بيانات/);
-    assert.equal(result.proposal,null);
+    assert.equal(result,null);
+    assert.equal(calls(),1);
   });
 });
-
-test('B04: rate limit is explained without claiming an action completed',async()=>{
-  await withPlannerReply(ok({code:'AI_RATE_LIMITED',message:'AI Inbox is temporarily rate limited.'},429),async()=>{
+test('B04: rate limits delegate to natural dialogue without staging business changes',async()=>{
+  await withPlannerReply(ok({code:'AI_RATE_LIMITED',message:'AI Inbox is temporarily rate limited.'},429),async calls=>{
     const result=await request('Save a new customer');
-    assert.ok(result);
-    assert.match(result.answer,/temporarily rate limited/);
-    assert.match(result.answer,/No data was changed/);
-    assert.equal(result.results.length,0);
+    assert.equal(result,null);
+    assert.equal(calls(),1);
   });
 });
-test('B04: HTTP 429 remains a rate-limit notice even when public copy says at capacity',async()=>{
-  await withPlannerReply(ok({code:'AI_RATE_LIMITED',message:'AI providers are temporarily at capacity. Retry shortly.'},429),async()=>{
+test('B04: HTTP 429 public wording cannot authorize an action',async()=>{
+  await withPlannerReply(ok({code:'AI_RATE_LIMITED',message:'AI providers are temporarily at capacity. Retry shortly.'},429),async calls=>{
     const result=await request('Create a new invoice draft',{language:'ar'});
-    assert.ok(result);
-    assert.match(result.answer,/الحد المؤقت/);
-    assert.match(result.answer,/لم أغيّر أي بيانات/);
-    assert.equal(result.results.length,0);
-    assert.equal(result.proposal,null);
+    assert.equal(result,null);
+    assert.equal(calls(),1);
   });
 });
-
-test('B04: network failure for an action gives a clear retry instruction',async()=>{
-  await withPlannerReply(async()=>{throw new TypeError('Network failure');},async()=>{
-    const result=await request('Create a new invoice draft');
-    assert.ok(result);
-    assert.match(result.answer,/action planner is unavailable/);
-    assert.equal(result.proposal,null);
+test('B04: failed network planner defers to the nonexecuting dialogue gateway',async()=>{
+  await withPlannerReply(async()=>{throw new TypeError('Network failure');},async calls=>{
+    assert.equal(await request('Create a new invoice draft'),null);
+    assert.equal(calls(),1);
   });
 });
-
-test('missing deployment providers report configuration failure without preparing any action',async()=>{
+test('B04: missing providers cannot cause mutation or a fabricated tool result',async()=>{
   for(const language of ['en','ar'])await withPlannerReply(ok({code:'AI_NOT_CONFIGURED',message:'Unavailable'},503),async calls=>{
     const result=await request('Create a new invoice draft',{language});
-    assert.equal(calls(),1);assert.equal(result.proposal,null);assert.equal(result.results.length,0);assert.equal(result.plan.calls.length,0);
-    assert.match(result.answer,language==='ar'?/غير مهيّئين/:/not configured/);
-    assert.match(result.answer,language==='ar'?/لم يتم تجهيز الإجراء/:/No action was prepared/);
+    assert.equal(result,null);
+    assert.equal(calls(),1);
   });
 });
 
@@ -148,7 +130,7 @@ test('B04 document target routing follows the new document, not a referenced sou
   }
 });
 
-test('B04 model plans cannot reverse a negated document creation command or choose the wrong document',async()=>{
+test('B04 negations and wrong document kinds never yield an executable proposal',async()=>{
   const create=(kind)=>ok({plan:{version:1,goal:'create draft',calls:[{id:'doc-1',tool:'document.createDraft',args:{kind,items:[{descriptionEn:'Test item',quantity:'1',unitPrice:'10'}]},reason:'model'}]}});
   for(const [message,kind] of [
     ['Do not create an invoice','invoice'],
@@ -159,15 +141,15 @@ test('B04 model plans cannot reverse a negated document creation command or choo
   ]){
     await withPlannerReply(create(kind),async calls=>{
       const result=await request(message);
-      assert.equal(calls(),1,message);
-      assert.ok(result,message);
-      assert.equal(result.proposal,null,message);
-      assert.equal(result.plan.calls.length,0,message);
-      assert.match(result.answer,/No data was changed/,message);
+      // Negated instructions need no model action plan at all. A wrong-kind
+      // planned action is rejected by the local business guard.
+      assert.equal(result?.proposal??null,null,message);
+      assert.equal(result?.plan.calls.length??0,0,message);
+      if(result)assert.match(result.answer,/No data was changed/,message);
+      assert.ok(calls()<=1,message);
     });
   }
 });
-
 
 test('B04 saved-quotation invoice commands never ask an AI model to invent source data',async()=>{
  const maliciousPlanner=ok({plan:{version:1,goal:'fake invoice',calls:[{

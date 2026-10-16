@@ -20,6 +20,8 @@ import {applyWorkingDraftPlan} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
 import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
+import {parseConversationalSalePrice,parsePriceFollowup,resolvePriceProduct,prepareConversationalSalePrice} from './ai-conversational-price.js';
+import {scopedDialogueCatalog} from './ai-dialogue-catalog.js';
 import {requestedPartyHighlight,prepareSelectedPartyHighlight} from './ai-party-highlights.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
@@ -410,6 +412,14 @@ export function intelligenceContext(host:Host,context:any):any{
   }
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return context;
   if(kernel.scope.scope==='personal')return context;
+  // The model may discuss only real active-company catalog products. This is
+  // a bounded factual excerpt, never an authority to stage or save changes.
+  if(context&&host.__foundationVault&&graphKindAllowed(strictAiActor(host.__foundationVault).role,'product')){
+    const latest=String(host.state.input||'').trim()||
+      (host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
+    context.dialogueCatalog=scopedDialogueCatalog(host.__foundationVault,latest,
+      kernel.entity?.entityType==='product'?kernel.entity.entityId:'');
+  }
   const entity=kernel.entity;
   if(entity&&!graphKindAllowed(strictAiActor(host.__foundationVault).role,entity.entityType)){kernel.entity=undefined;kernel.selection=undefined;if(kernel.knowledge){kernel.knowledge.selectedNodeId=undefined;kernel.knowledge.handoff=undefined;}return context;}
   if(entity){const scoped=scopeVault(host.__foundationVault);const rows=entity.entityType==='customer'?scoped.customers:entity.entityType==='supplier'?scoped.suppliers:entity.entityType==='product'?scoped.savedItems:entity.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===entity.entityId)){kernel.entity=undefined;kernel.selection=undefined;return context;}}
@@ -726,6 +736,78 @@ export function installIntelligenceRuntime(host:Host):void{
                 ?'جهزت معاينة العلامة الحمراء لـ '+batch.rows.length+' سجل محدد. لم أحفظ أي تغيير. راجع الأسماء والمعرفات ثم وافق بصورة مستقلة.'
                 :'Prepared a red-mark preview for '+batch.rows.length+' exact records. Nothing saved; review IDs and explicitly approve.'}]}));
           await flush(host);await persistKernel(host);return;
+        }
+        // A naturally phrased unit selling-price change can span multiple
+        // turns. Keep only user-specified facts in the scoped kernel, ask
+        // for missing evidence, and use the SAME signed product approval
+        // gateway as other Controller operations. Advisor never enters here.
+        const parsedSalePrice=kernel.artifact||host.state.proposal?null:parseConversationalSalePrice(message);
+        const awaitingSalePrice=!kernel.artifact&&!host.state.proposal&&
+          kernel.pendingPrice&&kernel.turn-kernel.pendingPrice.startedAtTurn<=5?kernel.pendingPrice:null;
+        if(kernel.pendingPrice&&!awaitingSalePrice)kernel.pendingPrice=undefined;
+        if(parsedSalePrice||awaitingSalePrice){
+          const followup=parsedSalePrice?null:parsePriceFollowup(message);
+          const selectedProduct=parsedSalePrice?resolvePriceProduct(resumed.vault,kernel,''):
+            followup?(resolvePriceProduct(resumed.vault,kernel,followup.target)||
+              (awaitingSalePrice?.itemId?resolvePriceProduct(resumed.vault,kernel,'',awaitingSalePrice.itemId):null)):null;
+          if(parsedSalePrice||followup&&(selectedProduct||followup.currency||followup.unit)){
+            if(!graphKindAllowed(strictAiActor(resumed.vault).role,'product'))
+              throw new Error('This role cannot review product prices.');
+            const current=parsedSalePrice?
+              {amount:parsedSalePrice.amount,currency:parsedSalePrice.currency,unit:parsedSalePrice.unit,
+                itemId:selectedProduct?.id||'',startedAtTurn:kernel.turn}:
+              {...awaitingSalePrice!,currency:followup?.currency||awaitingSalePrice!.currency,
+                unit:followup?.unit||awaitingSalePrice!.unit,itemId:selectedProduct?.id||awaitingSalePrice!.itemId};
+            // A new product name overrides a previously mentioned product only
+            // after exact live company resolution; there is no fuzzy authority.
+            kernel.pendingPrice=current;
+            let question='';
+            if(!selectedProduct)question=requestLanguage==='ar'
+              ?'فهمت السعر المطلوب: '+current.amount+'. أي صنف تقصد؟ اذكر اسمه أو SKU كما هو في منتجات الشركة.'
+              :'I understood the requested price '+current.amount+'. Which exact product or SKU should I review?';
+            else if(!current.currency&&!selectedProduct.lastCurrency)question=requestLanguage==='ar'
+              ?'تمام، المنتج هو '+(selectedProduct.descriptionAr||selectedProduct.descriptionEn||selectedProduct.sku)+'. بأي عملة السعر '+current.amount+'؟'
+              :'I found the product. Which currency should I use for the price '+current.amount+'?';
+            else if(current.unit&&(!selectedProduct.unit||!['CTN','PCS'].includes(current.unit)&&current.unit!==selectedProduct.unit||
+              current.unit==='CTN'&&!/^(?:ctn|carton|karton|كرتون)$/iu.test(selectedProduct.unit)||
+              current.unit==='PCS'&&!/^(?:pcs|piece|قطعة)$/iu.test(selectedProduct.unit)))question=requestLanguage==='ar'
+              ?'المنتج مسجل بوحدة '+(selectedProduct.unit||'غير معروفة')+'، لكنك طلبت سعرًا لوحدة أخرى. حدّد الوحدة الصحيحة قبل اعتماد السعر.'
+              :'The product has a different saved unit. Confirm the correct pricing unit before proceeding.';
+            else if(!selectedProduct.unit)question=requestLanguage==='ar'
+              ?'ما هي وحدة بيع الصنف؟ لازم نتأكد منها قبل تغيير سعر البيع.':'What is this product’s sales unit?';
+            if(question){
+              host.setState((state:any)=>({input:'',error:'',
+                messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+                  {id:crypto.randomUUID(),role:'assistant',text:question}]}));
+              await flush(host);await persistKernel(host);return;
+            }
+            const fresh=await resumeVaultSession();
+            if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||
+              host.__intelligenceKernel!==kernel||currentConversationMode(host)!=='controller')
+              throw new Error('Company, branch or conversation changed before price review. No data was modified.');
+            const batch=prepareConversationalSalePrice(fresh.vault,kernel,{
+              ...current,itemId:selectedProduct!.id
+            });
+            const p:any={capability:'tool.execute',tool:'product.bulkUpdate',args:batch,
+              preview:batch.rows.map(row=>row.preview),
+              label:'Review '+batch.rows.length+' proposed selling-price change',
+              rationale:'Verified scoped product, explicit new amount and same unit. Old price and currency are shown; save only after independent signed approval.'};
+            stampProposal(host,p,fresh.vault);stageReviewedMission(kernel,p);
+            kernel.pendingPrice=undefined;
+            host.__foundationVault=fresh.vault;
+            const row=batch.rows[0]!;
+            const sentence=requestLanguage==='ar'
+              ?'جهزت مراجعة سعر البيع للصنف '+row.preview.name+': من '+(row.before.lastUnitPrice||'غير محدد')+' '+(row.before.lastCurrency||'')+
+                ' إلى '+row.preview.after.lastUnitPrice+' '+row.preview.after.lastCurrency+
+                '. لم يتم حفظ التغيير. راجع المعاينة ثم وافق إذا كانت صحيحة.'
+              :'Prepared a price review for '+row.preview.name+': '+(row.before.lastUnitPrice||'unknown')+' '+(row.before.lastCurrency||'')+
+                ' → '+row.preview.after.lastUnitPrice+' '+row.preview.after.lastCurrency+
+                '. Nothing has been saved. Review the change and approve it separately.';
+            host.setState((state:any)=>({input:'',error:'',proposal:p,review:null,__workspaceReviewedProposal:null,
+              messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
+                {id:crypto.randomUUID(),role:'assistant',text:sentence}]}));
+            await flush(host);await persistKernel(host);return;
+          }
         }
         const selectedPricePercent=requestedSelectedProductRepricing(message);
         if(selectedPricePercent!==null){
