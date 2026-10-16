@@ -107,6 +107,14 @@ test('actual workspace runtime stages, encrypts, restamps and rejects stale or u
  assert.equal(h.__intelligenceKernel.artifact.proposal.foundationApproval,undefined);
  assert.equal(h.__intelligenceKernel.missions[0].steps[0].status,'completed');
  assert.equal(v.documents.length,0);
+ // Declining the save leaves the working draft editable. Rejecting that
+ // unsaved draft is a separate, confirmed, scoped operation with no vault write.
+ const unsaved=h.__intelligenceKernel.artifact;
+ await assert.rejects(runtime.discardIntelligenceDraft(h,unsaved.id,unsaved.revision-1),/working draft or company changed/);
+ await runtime.discardIntelligenceDraft(h,unsaved.id,unsaved.revision);
+ assert.equal(h.__intelligenceKernel.artifact,undefined,'draft rejection clears only current working artifact');
+ assert.equal((await store.loadAssistantState(key)).threads[0].kernel.artifact,undefined,'rejected artifact stays removed after persistence');
+ assert.equal(v.documents.length,0,'rejecting an unsaved draft never creates a business document');
 });
 test('final render adapter moves exact approval into workspace and hides stale/private facts',async()=>{
  globalThis.React={createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),isValidElement:value=>value&&typeof value==='object'&&'type'in value,cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}};
