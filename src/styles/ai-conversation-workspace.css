@@ -1492,3 +1492,21 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-revisi
 @media (prefers-reduced-motion:reduce){
  #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified *{animation:none!important;transition:none!important}
 }
+
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm{
+  display:grid;gap:8px;min-width:0;padding:13px;border:1px solid #8e6470;
+  border-radius:12px;background:#30252e;color:#f8e9ed;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm strong{font-size:13px}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm p{
+  margin:0;color:#dccbd0;line-height:1.55;font-size:12px;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm>div{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm button{
+  justify-content:center;min-width:0;min-height:44px;font-weight:700;font-size:12px;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm .lxw-document-discard-final{
+  background:#e6c6ce;color:#34242b;border-color:#f1d9df;
+}
