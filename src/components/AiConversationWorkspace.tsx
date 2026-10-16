@@ -699,4 +699,382 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
       host.__businessThreads=(host.__businessThreads||[]).filter((row:any)=>row.id!==id);
       setConfirmDelete('');
       host.setState({__workspaceHistoryOpen:true});
-    }ca
+    }catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
+    finally{host.setState({__workspaceHistoryBusy:false});}
+  };
+  return <section className="lxw-history" aria-label={label(ar,'Saved conversations','المحادثات المحفوظة')}>
+    <header className="lxw-history-head">
+      <button type="button" disabled={busy} onClick={()=>host.setState({__workspaceHistoryOpen:false,__workspaceHistoryError:''})} aria-label={label(ar,'Back to chat','العودة للمحادثة')}>←</button>
+      <strong>{label(ar,'Conversations','المحادثات')}</strong>
+      <button type="button" disabled={busy} onClick={()=>void newThread()}>{label(ar,'New','جديدة')}</button>
+    </header>
+    <input className="lxw-history-search" type="search" value={query} onChange={(event:any)=>setQuery(event.target.value)} aria-label={label(ar,'Search conversation titles','البحث في عناوين المحادثات')} placeholder={label(ar,'Search saved conversations…','ابحث في المحادثات المحفوظة…')}/>
+    {host.state.__workspaceHistoryError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistoryError))}</p>:null}
+    <p className="lxw-history-sync" role="status">
+      {host.state.__workspaceHistorySyncStatus==='syncing'?label(ar,'Syncing account conversations…','جارٍ مزامنة محادثات الحساب…'):
+       host.state.__workspaceHistorySyncStatus==='synced'?label(ar,'Account conversation history synchronized','تمت مزامنة سجل محادثات الحساب'):
+       host.state.__workspaceHistorySyncStatus==='uploaded'?label(ar,'Conversation changes saved to cloud; refresh to receive other-device changes.','حُفظت تغييرات المحادثة في السحابة؛ حدّث السجل لجلب تغييرات الأجهزة الأخرى.'):
+       label(ar,'Conversations are saved locally. Cloud sync is pending or unavailable.','المحادثات محفوظة محليًا. المزامنة السحابية معلقة أو غير متاحة.')}
+    </p>
+    {host.state.__workspaceHistorySyncError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistorySyncError))}</p>:null}
+    <div className="lxw-history-list" role="list">
+      {rows.map((row:any)=><div role="listitem" className="lxw-history-item" key={row.id}>
+        <button type="button" className="lxw-history-row" disabled={busy} aria-current={row.id===host.__lourexAssistantThreadId?'page':undefined} onClick={()=>void openThread(row.id)}>
+          <span className="lxw-history-row-title" dir="auto">{row.title||label(ar,'Untitled conversation','محادثة بلا عنوان')}</span>
+          <span className="lxw-history-row-meta"><small>{normalizeAiConversationMode(row.mode)==='advisor'?label(ar,'Advisor','المستشار'):label(ar,'Controller','المتحكم')}</small><small>{row.updatedAt?new Date(row.updatedAt).toLocaleDateString(ar?'ar':'en',{day:'numeric',month:'short'}):''}</small></span>
+        </button>
+        {confirmDelete===row.id?<div className="lxw-history-delete-confirm">
+          <span>{label(ar,'Delete this conversation?','حذف هذه المحادثة؟')}</span>
+          <button type="button" disabled={busy} onClick={()=>void deleteThread(row.id)}>{label(ar,'Confirm','تأكيد')}</button>
+          <button type="button" disabled={busy} onClick={()=>setConfirmDelete('')}>{label(ar,'Cancel','إلغاء')}</button>
+        </div>:<button type="button" className="lxw-history-delete" disabled={busy} aria-label={label(ar,'Delete conversation','حذف المحادثة')} onClick={()=>setConfirmDelete(row.id)}>×</button>}
+      </div>)}
+      {!rows.length?<p className="lxw-history-empty">{query?label(ar,'No matching conversation titles.','لا توجد محادثات مطابقة للبحث.'):label(ar,'No saved conversations in this company or branch.','لا توجد محادثات محفوظة لهذه الشركة أو الفرع.')}</p>:null}
+    </div>
+  </section>;
+}
+
+export function renderConversationWorkspace(host:Host,tree:any):any {
+  const transform=(node:any):any=>{
+    if(typeof node==='string')return workspaceText(aiUiAr(host),node);
+    if(!react.isValidElement(node))return node;
+    const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    if(cn.split(' ').includes('lourex-ai-send'))return react.cloneElement(node,{
+      disabled:Boolean(node.props.disabled||host.state.__workspaceTurnPending),
+      'data-turn-pending':host.state.__workspaceTurnPending?'true':'false',
+      'aria-busy':Boolean(host.state.__workspaceTurnPending)
+    },...children);
+    if(cn.split(' ').includes('lourex-ai-busy'))return react.cloneElement(node,undefined,label(aiUiAr(host),'LOUREX AI is reviewing…','LOUREX AI يراجع الطلب…'));
+    if(cn.split(' ').includes('lourex-ai-premium-textarea')){
+      const prompt=label(aiUiAr(host),'Ask LOUREX…','اسأل LOUREX…');
+      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt,dir:'auto'});
+    }
+    if(cn.split(' ').includes('lourex-ai-message-action')){
+      const actions:Record<string,[string,string]>={copy:['Copy','نسخ'],edit:['Edit','تعديل'],retry:['Retry','إعادة المحاولة'],reask:['Re-ask','اسأل مجددًا'],helpful:['Helpful','مفيد'],'not-helpful':['Not helpful','غير مفيد'],more:['More','المزيد']};
+      const action=Object.entries(actions).find(([key])=>cn.split(' ').includes('is-'+key));
+      if(action){const name=label(aiUiAr(host),...action[1]);return react.cloneElement(node,{'aria-label':name,title:name},...children);}
+    }
+    if(cn.split(' ').includes('lourex-ai-close'))return react.cloneElement(node,{'aria-label':label(aiUiAr(host),'Close','إغلاق'),title:label(aiUiAr(host),'Close','إغلاق')},...children);
+    if(cn.split(' ').includes('lourex-ai-overflow-trigger'))return react.cloneElement(node,{'aria-label':label(aiUiAr(host),'Conversation menu','قائمة المحادثة')},...children);
+    if(cn.split(' ').includes('lourex-ai-overflow-menu')){
+      const names=[label(aiUiAr(host),'New conversation','محادثة جديدة'),label(aiUiAr(host),'Conversations','المحادثات')];
+      return react.cloneElement(node,undefined,...children.map((button:any,i:number)=>{
+        if(!react.isValidElement(button)||!names[i])return button;
+        const parts=react.Children.toArray(button.props.children);
+        return react.cloneElement(button,i===1?{onClick:(event:any)=>{button.props?.onClick?.(event);host.setState({__workspaceHistoryOpen:true,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'});}}:undefined,parts[0],<span>{names[i]}</span>);
+      }));
+    }
+    if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
+    if(cn.split(' ').includes('lourex-ai-message')&&(cn.split(' ').includes('user')||cn.split(' ').includes('assistant'))){
+      const sender=cn.split(' ').includes('user')?'user':'assistant';
+      const actions=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
+      const content=children.filter((child:any)=>!actions.includes(child));
+      // Keep the bubble sized to its content. Action controls remain outside it
+      // and retain their original copy/edit/retry/evidence callbacks.
+      const formatted=sender==='assistant'?content.flatMap((child:any)=>
+        typeof child==='string'?assistantMessageBlocks(child):[child]):content;
+      return react.createElement('div',{className:'lxw-message-turn is-'+sender},
+        react.cloneElement(node,{dir:'auto',className:cn+(sender==='assistant'?' lxw-markdown lxw-formatted-reply':'')},...formatted),...actions);
+    }
+    if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
+    if(cn.split(' ').includes('lourex-ai-head')){
+      const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" disabled={!workspaceVisible(host)} aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen,__workspaceHistoryOpen:false,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
+      return react.cloneElement(node,undefined,...children.slice(0,-1),settings,...children.slice(-1));
+    }
+    if(cn.split(' ').includes('lourex-ai-title')){
+      const branded=children.map((child:any)=>{
+        if(child?.type!=='div')return child;
+        const text=react.Children.toArray(child.props?.children).map((part:any)=>{
+          if(part?.type==='strong')return react.cloneElement(part,undefined,'LOUREX AI');
+          if(part?.type==='small')return react.cloneElement(part,undefined,label(aiUiAr(host),'Your business AI','مساعد أعمالك الذكي'));
+          return part;
+        });
+        return react.cloneElement(child,undefined,...text);
+      });
+      return react.cloneElement(node,undefined,...branded);
+    }
+    if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
+       return react.cloneElement(node,undefined,...children,
+         (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null,
+         <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
+     }
+     if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
+      return react.cloneElement(node,undefined,...children,
+        (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null,
+        <ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>,
+        <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>,
+         <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
+    }
+    if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
+      // Retain the historic document number but never expose route-changing buttons.
+      return react.cloneElement(node,undefined,...children.filter((child:any)=>child?.type!=='div'));
+    }
+    if(cn.split(' ').includes('lourex-ai-created-artifact')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
+      const number=children.find((child:any)=>child?.type==='strong')?.props?.children?.props?.children;
+      const documentId=host.state.messages?.find((message:any)=>message.artifact?.document?.number===number)?.artifact?.document?.id;
+      if(documentId)return react.cloneElement(node,undefined,...children,<button type="button" onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:'preview',__workspaceSavedId:documentId})}>{label(aiUiAr(host),'Read-only preview','معاينة للقراءة')}</button>);
+    }
+    if(cn.split(' ').includes('lourex-ai-empty')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
+      const ar=aiUiAr(host),prompts=ar?['أعطني ملخص الأعمال اليوم','أنشئ مسودة عرض سعر']:['Give me today’s business brief','Create a quotation draft'];
+      return react.cloneElement(node,undefined,<strong>{label(ar,'What would you like to work on?','ما الذي تريد إنجازه؟')}</strong>,<p>{label(ar,'Discuss your business, review documents and prepare changes. Nothing is saved without your approval.','ناقش أعمالك، راجع المستندات وجهّز التعديلات. لن يُحفظ أي تغيير دون موافقتك.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} disabled={disabled(host)} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
+    }
+    if(cn.split(' ').includes('lourex-ai-empty')&&host.state.assistantScope==='personal'){
+      const ar=aiUiAr(host),prompts=ar?['ذكرني غدًا بمراجعة أهدافي','ما الذي تتذكره عن تفضيلاتي؟']:['Remind me tomorrow to review my goals','What do you remember about my preferences?'];
+      return react.cloneElement(node,undefined,<strong>{label(ar,'Your personal assistant','مساعدك الشخصي')}</strong>,<p>{label(ar,'Plan tasks and manage personal reminders and preferences in this separate conversation.','نظّم مهامك وتذكيراتك وتفضيلاتك الشخصية في هذه المحادثة المستقلة.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
+    }
+    if(cn.split(' ').includes('lourex-ai-empty')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
+      const ar=aiUiAr(host);
+      const prompts=ar?['حلّل هامش الربح بناءً على بيانات الشركة','اشرح لي الذمم والمستحقات الحالية']:['Analyze profit margins from business records','Explain current receivables and outstanding balances'];
+      return react.cloneElement(node,undefined,
+        <strong>{label(ar,'What would you like to analyze?','ما الذي تريد مناقشته؟')}</strong>,
+        <p>{label(ar,'Discuss financial and commercial questions. The Advisor reads permitted information but never opens pages or changes records.','ناقش الأمور المالية والتجارية. يقرأ المستشار المعلومات المصرّح بها للتحليل دون فتح صفحات أو تغيير سجلات.')}</p>,
+        <div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} disabled={disabled(host)} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
+    }
+    if(node.props?.id!=='lourex-ai-panel')return children.length?react.cloneElement(node,undefined,...children):node;
+    if(!workspaceVisible(host)){
+      const k=host.__intelligenceKernel as ConversationKernel|undefined;
+      const personalReady=k?.scope.scope==='personal'&&host.state.assistantScope==='personal'&&host.__workspaceObservedProps===host.props&&k.scope.accountId===(activeAccountStorageUid()||'')&&k.scope.threadId===host.__lourexAssistantThreadId;
+      const withoutLegacyScope=children.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
+      const lockComposer=(child:any):any=>{
+        if(!react.isValidElement(child))return child;
+        const props=['button','input','textarea','select'].includes(child.type)?{disabled:true}:{};
+        return react.cloneElement(child,props,...react.Children.toArray(child.props?.children).map(lockComposer));
+      };
+      const safe=personalReady?withoutLegacyScope:withoutLegacyScope.map((child:any)=>{
+        const classes=String(child?.props?.className||'').split(' ');
+        if(classes.includes('lourex-ai-proposal'))return null;
+        if(classes.includes('lourex-ai-compose'))return lockComposer(child);
+        if(classes.includes('lourex-ai-messages'))return react.cloneElement(child,undefined,host.state.__workspaceLoadError
+          ?<div role="alert" className="lxw-load-error"><p>{label(aiUiAr(host),'Conversation could not be loaded.','تعذّر تحميل المحادثة.')}</p><small>{workspaceError(aiUiAr(host),String(host.state.__workspaceLoadError))}</small><button type="button" onClick={()=>host.setState({__workspaceLoadError:''},()=>void host.__workspaceRefresh?.())}>{label(aiUiAr(host),'Retry loading','إعادة المحاولة')}</button></div>
+          :<p role="status">{label(aiUiAr(host),'Loading scoped conversation…','جارٍ تحميل المحادثة في نطاقها…')}</p>);
+        return child;
+      });
+      const ar=aiUiAr(host);
+      const heads=safe.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-head')).map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],<span className="lxw-header-slot" aria-hidden="true"/>,...parts.slice(1));});
+      const body=safe.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-head'));
+      return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-workspace-ready':'false'},...heads,conversationModeTabs(host,undefined,true),<div className="lxw-mode-description" role="status">{label(ar,'Loading conversation…','جارٍ تحميل المحادثة…')}</div>,...body);
+    }
+    const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
+    const legacyContext=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
+    const header=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-head'));
+    const content=children.filter((child:any)=>!header.includes(child)&&!legacyContext.includes(child));
+    const proposalNode=content.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
+    const approval=['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability)?proposalNode:null;
+    const generalProposal=proposalNode&&!approval?proposalNode:null;
+    const mode=normalizeAiConversationMode(k.mode),open=mode==='controller'&&Boolean(host.state.__workspaceOpen),pane=host.state.__workspacePane||'chat';
+    const latestAdvisorReply=mode==='advisor'?[...(host.state.messages||[])].reverse().find((m:any)=>m.role==='assistant'&&typeof m.text==='string'&&m.text.trim()):null;
+    const switching=Boolean(host.state.__workspaceSwitching),inactive=disabled(host)||switching;
+    const tabs=conversationModeTabs(host,mode,inactive);
+    const description=<div className="lxw-mode-description" dir={ar?'rtl':'ltr'} aria-live="polite">
+      <span className="lxw-mode-symbol" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{mode==='controller'?<><path d="M4 7h16M4 17h16"/><path d="M8 4v6M16 14v6"/></>:<><path d="M20 11.5a8 8 0 0 1-8.5 8 8 8 0 0 1-3.8-1L4 20l1.5-3.7A8 8 0 1 1 20 11.5Z"/><path d="M8 11h8M8 14h5"/></>}</svg></span>
+      <span>{switching?label(ar,'Opening conversation…','جارٍ فتح المحادثة…'):conversationModeDescription(mode,ar?'ar':'en')}</span>
+      {switching?<span className="lxw-inline-spinner" aria-hidden="true"/>:null}
+      {mode==='advisor'?<button type="button" className="lxw-advisor-controller-handoff"
+        disabled={inactive||!latestAdvisorReply||Boolean(host.__workspaceAdvisorHandoffBusy)}
+        title={label(ar,'Copy latest Advisor proposal into Controller for review only','إرسال أحدث اقتراح للمتحكم للمراجعة فقط')}
+        onClick={()=>void host.__workspaceSendAdvisorProposal?.(latestAdvisorReply?.text||'')}>
+        {label(ar,'Send proposal to Controller','إرسال الاقتراح إلى المتحكم')}
+      </button>:null}
+    </div>;
+    const toolbar=mode==='controller'?<button type="button" className="lxw-workspace-trigger" disabled={inactive} aria-label={label(ar,'Workspace','مساحة العمل')} title={label(ar,'Workspace','مساحة العمل')} aria-expanded={open} onClick={()=>host.setState({__workspaceSettingsOpen:false,__workspaceOpen:!open,__workspacePane:open?'chat':'workspace'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>:<span className="lxw-header-slot" aria-hidden="true"/>;
+    const historyButton=<button type="button" className="lxw-history-trigger" disabled={inactive} aria-label={label(ar,'Conversation history','سجل المحادثات')} title={label(ar,'Conversation history','سجل المحادثات')} aria-expanded={Boolean(host.state.__workspaceHistoryOpen)} onClick={()=>host.setState({__workspaceHistoryOpen:!host.state.__workspaceHistoryOpen,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.6 5.9"/><path d="M4 5v6h6M12 7v5l4 2"/></svg></button>;
+    const compactHeader=header.map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],historyButton,toolbar,...parts.slice(1));});
+    const safeContent=content.filter((child:any)=>child!==proposalNode);
+    // Review controls belong to the conversation timeline, not AFTER the
+    // composer. Keeping approval below the footer shrinks the chat viewport,
+    // causes iPad layout jumps and hides buttons behind the soft keyboard.
+    // This keeps the original guarded approval callbacks and scroll observer.
+    const chatContent=safeContent.map((child:any)=>{
+      if(!react.isValidElement(child)||!String(child.props?.className||'').split(' ').includes('lourex-ai-messages'))return child;
+      const existing=react.Children.toArray(child.props?.children);
+      const beforeMarker=existing.findIndex((entry:any)=>entry?.type===ConversationScrollKeeper);
+      const index=beforeMarker<0?existing.length:beforeMarker;
+      const inline=mode==='controller'&&generalProposal?
+        [<InlineGeneralProposal key="review-action" host={host} proposalNode={generalProposal} ar={ar}/>]:[];
+      // One document review card owns its PDF, edit and guarded approval actions.
+      // Avoid rendering a second approval card below the same draft.
+      const unified=existing.map((entry:any)=>entry?.type===ConversationDocumentCard?
+        react.cloneElement(entry,{approval}):entry);
+      return react.cloneElement(child,undefined,...unified.slice(0,index),...inline,...unified.slice(index));
+    });
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{chatContent}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+  };return transform(tree);
+}
+export function installConversationWorkspace(host:Host):void {
+  if(host.__workspaceInstalled)return;host.__workspaceInstalled=true;
+  const refresh=async()=>{
+    const generation=(host.__workspaceLoadGeneration||0)+1;
+    host.__workspaceLoadGeneration=generation;
+    if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);
+    // IndexedDB and account hydration can stall without rejecting a promise.
+    // Surface a retryable failure instead of leaving the panel loading forever.
+    host.__workspaceLoadTimer=window.setTimeout(()=>{
+      if(host.mounted!==false&&host.__workspaceLoadGeneration===generation){
+        // Invalidate the unresolved attempt, including any late cache read.
+        host.__workspaceLoadGeneration=generation+1;
+        host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;
+        host.setState({__workspaceLoadError:label(aiUiAr(host),'Conversation loading timed out. Retry loading.','انتهت مهلة تحميل المحادثة. حاول مجددًا.')});
+      }
+    },20_000);
+    try{
+      const previous=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);
+      await refreshIntelligenceWorkspace(host);
+      if(host.mounted===false||host.__workspaceLoadGeneration!==generation)return;
+      if(previous&&previous!==kernelScopeKey(host.__intelligenceKernel.scope)){
+        host.__lourexLatestContext=undefined;host.__businessMemories=[];
+        host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.__lourexLastConversationSourceScope='';(globalThis as any).__lourexConversationSourcesV3=[];
+      }
+      host.__workspaceObservedProps=host.props;
+      host.setState({__workspaceLoadError:''});
+    }catch(error){
+      if(host.mounted===false||host.__workspaceLoadGeneration!==generation)return;
+      host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;
+      host.setState({__workspaceLoadError:error instanceof Error?error.message:String(error)});
+    }finally{
+      if(host.__workspaceLoadGeneration===generation){
+        window.clearTimeout(host.__workspaceLoadTimer);
+        host.__workspaceLoadTimer=0;
+      }
+    }
+  };
+  const toggle=host.toggle.bind(host);host.toggle=()=>{const opening=!host.state.open;toggle();if(opening)void refresh();};
+  const ask=host.ask.bind(host);host.ask=async(raw?:string)=>{if(host.__workspaceModeSwitchBusy)return;await ask(raw);if(host.state.open)await refresh();};
+  const dismiss=host.dismissProposal.bind(host);host.dismissProposal=()=>{
+    if(disabled(host)||host.__foundationApprovalBusy||host.__workspaceDismissBusy)return;
+    const proposal=host.state.proposal;if(!proposal)return;
+    host.__workspaceDismissBusy=true;
+    void dismissIntelligenceWorkspace(host,proposal).then(()=>{
+      // Only the original dismiss callback records the audit and clears the UI.
+      if(host.state.proposal===proposal)dismiss();
+    }).catch((error:Error)=>host.setState({error:error.message}))
+      .finally(()=>{host.__workspaceDismissBusy=false;});
+  };
+  // Immediately remove volatile UI references during scope/thread changes. Hydrate
+  // the requested thread before redisplaying its encrypted working artifact.
+  for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
+    const old=host[name]?.bind(host);if(!old)continue;
+    if(name==='__lourexSetScope')host.__workspaceBaseSetScope=old;
+    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.__lourexLastConversationSourceScope='';(globalThis as any).__lourexConversationSourcesV3=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:'',__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
+  }
+  // Each mode opens its own scoped thread. Never relabel an existing turn.
+  const drafts=new Map<string,string>();
+  // Preserve the exact last-used thread separately for each mode and company.
+  const recentModeThread=new Map<string,string>();
+  host.__workspaceSwitchMode=async(target:AiConversationMode)=>{
+    if(target!=='controller'&&target!=='advisor')return;
+    if(disabled(host)||host.__workspaceModeSwitchBusy)return;
+    const previous=host.__intelligenceKernel as ConversationKernel|undefined;
+    if(!previous||previous.scope.scope!=='business'||normalizeAiConversationMode(previous.mode)===target)return;
+    host.__workspaceModeSwitchBusy=true;host.__workspaceInternalModeSwitch=true;
+    drafts.set(kernelScopeKey(previous.scope),String(host.state.input||''));
+    const keyFor=(mode:AiConversationMode)=>JSON.stringify([previous.scope.accountId,previous.scope.workspaceId,previous.scope.branchId,mode]);
+    recentModeThread.set(keyFor(normalizeAiConversationMode(previous.mode)),previous.scope.threadId);
+    host.setState({__workspaceSwitching:true,error:''});
+    try{
+      const matching=(host.__businessThreads||[]).filter((row:any)=>row.mode===target).sort((a:any,b:any)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+      const selected=matching.find((row:any)=>row.id===recentModeThread.get(keyFor(target)))||matching[0];
+      if(selected&&selected.id!==previous.scope.threadId)await host.__lourexOpenThread(selected.id);
+      else await host.__lourexNewConversation();
+      if(!host.__intelligenceKernel)throw new Error('The selected conversation could not be loaded.');
+      if(normalizeAiConversationMode(host.__intelligenceKernel.mode)!==target)await assignIntelligenceConversationMode(host,target);
+      const current=host.__intelligenceKernel as ConversationKernel;
+      if(normalizeAiConversationMode(current.mode)!==target||current.scope.accountId!==previous.scope.accountId||current.scope.workspaceId!==previous.scope.workspaceId||current.scope.branchId!==previous.scope.branchId)throw new Error('Selected conversation mode or scope did not match. Retry.');
+      recentModeThread.set(keyFor(target),current.scope.threadId);
+      // Mode assignment persisted the new empty thread, but refresh() took
+      // its list snapshot before that save. Make it immediately selectable
+      // so a rapid mode switch does not discard a new thread or its draft.
+      if(!(host.__businessThreads||[]).some((row:any)=>row.id===current.scope.threadId)){
+        host.__businessThreads=[{
+          id:current.scope.threadId,title:'',updatedAt:new Date().toISOString(),
+          mode:target,hasArtifact:Boolean(current.artifact),
+          artifactTitle:current.artifact?.proposal.label||''
+        },...(host.__businessThreads||[])];
+      }
+      host.setState({input:drafts.get(kernelScopeKey(current.scope))||'',__workspaceSettingsOpen:false});
+    }catch(error){
+      host.setState({error:error instanceof Error?error.message:String(error)});
+    }finally{
+      host.__workspaceModeSwitchBusy=false;host.__workspaceInternalModeSwitch=false;
+      host.setState({__workspaceSwitching:false});
+    }
+  };
+  host.__workspaceSendAdvisorProposal=async(text:string)=>{
+    if(disabled(host)||host.__workspaceAdvisorHandoffBusy||host.__workspaceModeSwitchBusy)return;
+    const from=host.__intelligenceKernel as ConversationKernel|undefined;
+    if(!from||normalizeAiConversationMode(from.mode)!=='advisor'||from.scope.scope!=='business'){
+      host.setState({error:'An Advisor business conversation is required for a handoff.'});return;
+    }
+    const scopedFrom={...from.scope};
+    host.__workspaceAdvisorHandoffBusy=true;
+    try{
+      if(!String(text||'').trim()||text.length>4000)throw new Error('Select one specific, concise Advisor response.');
+      await host.__workspaceSwitchMode('controller');
+      const destination=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(!destination||normalizeAiConversationMode(destination.mode)!=='controller')
+        throw new Error('Controller was not opened. No handoff was made.');
+      if(String(host.state.input||'').trim())
+        throw new Error('Controller already has an unsent message. Preserve or send it before handing off this proposal.');
+      const prepared=prepareAdvisorControllerHandoff(text,scopedFrom,destination.scope,currentAiInterfaceLanguage(host));
+      // Draft text in the composer only. No call to ask(), stageKernelArtifact,
+      // approveProposal or any document/customer/product writer occurs here.
+      host.setState({input:prepared,error:'',__workspaceSettingsOpen:false,__workspaceHistoryOpen:false});
+    }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
+    finally{host.__workspaceAdvisorHandoffBusy=false;}
+  };
+  host.__workspaceRefresh=refresh;
+  // AI workflow tools use this single, checked bridge into the Advisor.
+  // No action is routed through Controller and no message is sent if the
+  // account/scope, selected mode, or existing unsent draft is unsafe.
+  const receiveWorkflowAdvisor=(event:Event)=>{
+    const detail=(event as CustomEvent).detail as {prompt?:unknown;submit?:unknown;handled?:boolean}|undefined;
+    const prompt=typeof detail?.prompt==='string'?detail.prompt.trim().slice(0,1000):'';
+    if(!prompt||host.mounted===false||host.__workspaceWorkflowHandoffBusy||host.__workspaceModeSwitchBusy)return;
+    if(detail)detail.handled=true;
+    host.__workspaceWorkflowHandoffBusy=true;
+    void (async()=>{
+      if(!host.state.open){
+        host.toggle();
+        // Wait for the state transition; the context tool just closed its
+        // portal and the legacy toggle may refuse while another modal exists.
+        await new Promise<void>(resolve=>host.setState({},resolve));
+        if(!host.state.open)throw new Error('The LOUREX conversation could not be opened. No Advisor request was sent.');
+        await refresh();
+      }else if(!host.__intelligenceKernel)await refresh();
+      const current=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(!host.state.open||!current||current.scope.scope!=='business')
+        throw new Error('Open the LOUREX business conversation and retry the Advisor request.');
+      if(normalizeAiConversationMode(current.mode)!=='advisor'){
+        await host.__workspaceSwitchMode('advisor');
+        // The selected thread's composer draft is set asynchronously by
+        // React; wait before deciding whether it is safe to insert a prompt.
+        await new Promise<void>(resolve=>host.setState({},resolve));
+        const selected=host.__intelligenceKernel as ConversationKernel|undefined;
+        if(!selected||normalizeAiConversationMode(selected.mode)!=='advisor'||selected.scope.accountId!==current.scope.accountId||
+          selected.scope.workspaceId!==current.scope.workspaceId||selected.scope.branchId!==current.scope.branchId)
+          throw new Error('Advisor mode was not opened. No request was sent.');
+      }
+      if(disabled(host))throw new Error('The conversation is busy. Retry this Advisor request after the current operation.');
+      if(String(host.state.input||'').trim())throw new Error('Advisor has an unsent message. Send or clear it before opening another analysis.');
+      host.setState({input:prompt,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,error:''});
+      // Submission uses the actual selected Advisor conversation and the
+      // existing authenticated ask/response pipeline, never tool.execute.
+      if(detail?.submit===true)await host.ask(prompt);
+    })().catch((error:Error)=>host.setState({error:error.message||String(error)}))
+      .finally(()=>{host.__workspaceWorkflowHandoffBusy=false;});
+  };
+  host.__workspaceWorkflowHandoffHandler=receiveWorkflowAdvisor;
+  window.addEventListener('lourex-ai-workflow-advisor',receiveWorkflowAdvisor);
+  const viewport=()=>syncWorkspaceViewport();host.__workspaceViewport=viewport;
+  window.visualViewport?.addEventListener('resize',viewport);window.visualViewport?.addEventListener('scroll',viewport);window.addEventListener('resize',viewport);
+  void host.__lourexLoadPromise?.then(refresh);
+}
+function syncWorkspaceViewport():void {
+  const panel=document.getElementById('lourex-ai-panel');if(!panel)return;
+  const viewport=window.visualViewport,height=viewport?.height||window.innerHeight,top=viewport?.offsetTop||0;
+  panel.style.setProperty('--lxw-viewport-height',height+'px');panel.style.setProperty('--lxw-viewport-top',top+'px');
+}
+export function updateConversationWorkspace(host:Host,previous:unknown):void {
+  syncWorkspaceViewport();
+  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
+}
+export function unmountConversationWorkspace(host:Host):void {if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
