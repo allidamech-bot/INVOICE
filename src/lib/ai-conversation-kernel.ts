@@ -39,7 +39,7 @@ export function normalizeConversationKernel(value:unknown,scope:KernelScope):Con
     // A conversation price pending request is NEVER a signed approval. It
     // expires after a few turns and is rechecked against scoped live products.
     const pending=copy.pendingPrice;
-    if(pending&&(!/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,4})?$/.test(String(pending.amount||''))||
+    if(pending&&(!/^(?:0|[1-9]\d{0,11})(?:\.\d{1,4})?$/.test(String(pending.amount||''))||
       !Number.isSafeInteger(pending.startedAtTurn)||pending.startedAtTurn<0||
       copy.turn-pending.startedAtTurn>5||
       String(pending.currency||'').length>3||String(pending.unit||'').length>12||
