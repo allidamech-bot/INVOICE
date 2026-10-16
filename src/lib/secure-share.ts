@@ -43,6 +43,19 @@ export function secureShareEligible(doc:LourexDocument):boolean{
 
 export function secureShareAllowsDecision(doc:LourexDocument):boolean{return isQuoteLikeDocument(doc);}
 
+export function automaticElectronicDocument(doc:LourexDocument):boolean{
+  return ['proforma','proforma-invoice','invoice'].includes(doc.kind)&&secureShareEligible(doc);
+}
+
+/** Identity of customer-visible content; saves/internal cost changes do not
+ * create a second electronic document. Revisions and visible edits do. */
+export async function electronicDocumentFingerprint(doc:LourexDocument):Promise<string>{
+  const snapshot=sanitizeDocumentForSecureShare(doc);snapshot.updatedAt='';
+  const canonical=(value:any):any=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(canonical(snapshot))));
+  return Array.from(new Uint8Array(bytes),byte=>byte.toString(16).padStart(2,'0')).join('');
+}
+
 export function sanitizeDocumentForSecureShare(doc:LourexDocument):LourexDocument{
   if(!secureShareEligible(doc))throw new Error('Only active final customer documents can be shared securely.');
   const snapshot=structuredClone(doc);
@@ -68,7 +81,7 @@ export function secureShareUrl(id:string,origin=typeof location!=='undefined'?lo
 }
 
 export function secureShareExpiry(days:number,now=new Date()):string{
-  const safe=[1,3,7,14,30].includes(days)?days:7;
+  const safe=[1,3,7,14,30,3650].includes(days)?days:7;
   return new Date(now.getTime()+safe*24*60*60*1000).toISOString();
 }
 

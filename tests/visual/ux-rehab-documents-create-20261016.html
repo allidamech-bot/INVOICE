@@ -14,13 +14,16 @@ document.documentElement.dataset.uiTheme=theme;
 <script type="module">
 import {DocumentsPage} from './src/components/DocumentsPage.js';
 import {AppShell} from './src/components/AppShell.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany} from './src/lib/defaults.js';
 import {setUiLanguage} from './src/lib/i18n.js';
 const q=new URLSearchParams(location.search),ar=q.get('lang')==='ar',h=React.createElement;
 setUiLanguage(ar?'ar':'en');
 const noop=()=>{};
 window.qaDocumentChoices=[];
+const sample=createBlankDocument('invoice','INV-QA-001',defaultCompany());sample.status='final';sample.customerSnapshot={sourceCustomerId:'qa-buyer',companyNameEn:'QA Invoice Buyer',companyNameAr:'عميل تجريبي'};sample.items=[{...sample.items[0],quantity:'1',unitPrice:'22.00',descriptionEn:'QA item',descriptionAr:'صنف تجريبي'}];
 const props={
- documents:[],payments:[],documentEvents:[],savedItems:[],
+ documents:q.get('populated')?[sample]:[],payments:[],documentEvents:[],savedItems:[],
  inventoryMovements:[],warehouses:[],workspaceId:'test-w',branchId:'test-b',
  onNew:kind=>window.qaDocumentChoices.push(kind),
  onOpen:noop,onDuplicate:noop,onPrint:async()=>{},onDelete:noop

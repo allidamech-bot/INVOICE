@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/document-electronic-copy.css"></head><body><div id="root"><div class="app-root"><div id="management" class="app-ui"></div><div id="print-output" class="print-portal"></div></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script src="ios-print-bridge.js"></script><script type="module">
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany,emptyVault,customerSnapshotFrom} from './src/lib/defaults.js';
+import {blankCustomer} from './src/components/CustomersPage.js';
+import {TemplateRenderer} from './src/templates/TemplateRenderer.js';
+import {ElectronicDocumentManager} from './src/components/ElectronicDocumentManager.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const q=new URLSearchParams(location.search),lang=q.get('lang')||'en';setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const rows=new Map();window.qaRecords=rows;window.qaPrints=[];window.qaErrors=[];let queue=Promise.resolve();
+const ref=path=>({path,collection:name=>ref(path+'/'+name),doc:name=>ref(path+'/'+name),get:async()=>({exists:rows.has(path),data:()=>rows.get(path)}),update:async patch=>Object.assign(rows.get(path),patch)});
+const db={collection:name=>ref(name),runTransaction:async fn=>{let release;const old=queue;queue=new Promise(r=>release=r);await old;try{const pending=[];const value=await fn({get:r=>r.get(),set:(r,v)=>pending.push([r.path,v])});for(const [path,v] of pending)rows.set(path,v);return value;}finally{release();}}};
+window.firebase={apps:[{name:'[DEFAULT]'}],auth:()=>({currentUser:{uid:'synthetic-qa-owner',email:'qa@example.test'}}),firestore:Object.assign(()=>db,{Timestamp:{fromDate:d=>d},FieldValue:{serverTimestamp:()=>new Date()}})};
+const {App}=await import('./src/app/App.js');
+const company=defaultCompany();company.nameEn='LOUREX synthetic QA';company.nameAr='لوركس تجريبي';
+const doc=createBlankDocument(q.get('kind')||'proforma','QUO-AUTO-001',company);doc.status='final';doc.language=lang;doc.appearance.templateId='obsidian';doc.customerSnapshot=customerSnapshotFrom({...blankCustomer(),id:'buyer',companyNameEn:'QA Buyer',companyNameAr:'عميل تجريبي'});doc.items=[{...doc.items[0],id:'line',descriptionEn:'Potato chips',descriptionAr:'شيبسيكو',quantity:'10',unit:'CTN',unitPrice:'5.00'}];
+const vault=emptyVault();vault.documents=[doc];vault.company=company;
+const app=new App({});app.state={...app.state,unlocked:true,vault};
+app.setState=(patch,callback)=>{app.state={...app.state,...patch};if(patch.printDoc)ReactDOM.render(React.createElement(TemplateRenderer,{document:patch.printDoc,electronicShareId:patch.printShareId,scale:1}),document.getElementById('print-output'),callback);else callback?.();};
+app.showToast=(text,tone)=>{if(tone==='error')window.qaErrors.push(text);};window.__LOUREX_PREPARE_PDF__=()=>{};
+window.print=()=>{window.qaPrints.push(document.querySelector('#print-output .lx-document-qr')?.href||'');};
+window.qaNormalOutput=mode=>app.requestPrint(doc,mode);window.qaChangeQuantity=()=>{doc.items[0].quantity='15';doc.revision=2;};window.qaDocument=doc;
+window.qaManage=()=>{document.body.classList.remove('printing');ReactDOM.render(React.createElement(ElectronicDocumentManager,{open:true,document:doc,events:[],onClose:()=>ReactDOM.unmountComponentAtNode(document.getElementById('management')),onOutput:()=>app.requestPrint(doc,'pdf')}),document.getElementById('management'));};
+window.qaReady=true;
+</script></body></html>

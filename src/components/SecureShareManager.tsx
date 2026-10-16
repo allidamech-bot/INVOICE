@@ -1,3 +1,5 @@
+import { ElectronicDocumentManager } from './ElectronicDocumentManager.js';
+import { automaticElectronicDocument } from '../lib/secure-share.js';
 import { DocumentQr } from '../templates/DocumentQr.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import type { DocumentEventRecord, LourexDocument } from '../types.js';
@@ -15,7 +17,7 @@ interface Props {open:boolean;document:LourexDocument|null;events:DocumentEventR
 
 function stateLabel(share:SecureShareRecord):string{const state=secureShareState(share);return state==='active'?t('Active','فعال'):state==='expired'?t('Expired','منتهي'):state==='revoked'?t('Revoked','ملغى'):state==='accepted'?t('Accepted','مقبول'):t('Rejected','مرفوض');}
 
-export function SecureShareManager({open,document:doc,events,onClose,onOutput}:Props):any{
+function LegacySecureShareManager({open,document:doc,events,onClose,onOutput}:Props):any{
   const [shares,setShares]=React.useState<SecureShareRecord[]>([]),[days,setDays]=React.useState('7'),[busy,setBusy]=React.useState(false),[error,setError]=React.useState(''),[copied,setCopied]=React.useState(''),[preview,setPreview]=React.useState<SecureShareRecord|null>(null);
   React.useEffect(()=>{if(!open||!doc)return;setShares([]);setPreview(null);setError('');let active=true;const off=subscribeOwnerSecureShares(items=>{if(!active)return;const relevant=items.filter(item=>item.documentId===doc.id);setShares(relevant);void syncSecureShareEvidence(relevant);},e=>setError(e instanceof Error?e.message:t('Unable to load secure links.','تعذر تحميل الروابط الآمنة.')));return()=>{active=false;off();};},[open,doc?.id]);
   React.useEffect(()=>{if(!open){setShares([]);setError('');setCopied('');setPreview(null);}},[open]);
@@ -39,3 +41,5 @@ export function SecureShareManager({open,document:doc,events,onClose,onOutput}:P
     </div>
   </Modal>;
 }
+
+export function SecureShareManager(props:Props):any{return props.document&&automaticElectronicDocument(props.document)?<ElectronicDocumentManager {...props}/>:<LegacySecureShareManager {...props}/>;}

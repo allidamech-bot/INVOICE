@@ -6,7 +6,8 @@ const read=p=>readFile(p,'utf8');
 test('Documents home groups standard new document types in one accessible chooser',async()=>{
  const source=await read('src/components/DocumentsPage.tsx');
  const shell=await read('src/components/AppShell.tsx');
- assert.match(source,/<details className="ta-documents-create-entry"><summary aria-label=/);
+ assert.match(source,/className="ta-documents-create-entry" aria-haspopup="dialog"/);
+ assert.match(source,/<Modal portal open=\{this.state.createOpen\}/);
  assert.match(source,/className="ta-documents-create-choices" role="group"/);
  const kinds=['proforma','invoice','proforma-invoice','delivery-note','rfq','purchase-order','draft','payment-receipt'];
  for(const kind of kinds){
