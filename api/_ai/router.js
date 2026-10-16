@@ -64,7 +64,7 @@ function environmentReady(provider){
   if(process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED!=='true')return false;
   if(provider==='openrouter')return Boolean(process.env.OPENROUTER_API_KEY?.trim());
   if(provider==='mistral')return process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED==='true'&&Boolean(process.env.MISTRAL_API_KEY?.trim());
-  if(provider==='ollama')return Boolean(process.env.OLLAMA_API_KEY?.trim());
+  if(provider==='ollama')return process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED==='true'&&Boolean(process.env.OLLAMA_API_KEY?.trim());
   return false;
 }
 function circuitAvailable(provider,model){
