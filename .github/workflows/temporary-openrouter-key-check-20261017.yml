@@ -1,0 +1,25 @@
+name: Temporary OpenRouter key verification reader
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/temporary-openrouter-key-check-20261017.yml'
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read sanitized OpenRouter result (no key or model output)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 \
+            'https://invoice-n723qsroo-alidaamishs-projects.vercel.app/ai-openrouter-key-test-20261017.json' \
+            --output /tmp/openrouter-auth-report.json
+          node -e '
+            const r=require("/tmp/openrouter-auth-report.json");
+            if(r.version!==1||r.provider!=="openrouter"||r.endpoint!=="/api/v1/key")throw Error("INVALID_REPORT");
+            console.log("OPENROUTER_AUTH_RESULT "+JSON.stringify({configured:r.configured,authentication:r.authentication,httpStatus:r.httpStatus}));
+          '
