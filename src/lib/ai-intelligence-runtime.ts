@@ -418,8 +418,22 @@ export function intelligenceContext(host:Host,context:any):any{
   if(context&&host.__foundationVault&&graphKindAllowed(strictAiActor(host.__foundationVault).role,'product')){
     const latest=String(host.state.input||'').trim()||
       (host.state.messages||[]).filter((row:any)=>row.role==='user').at(-1)?.text||'';
-    context.dialogueCatalog=scopedDialogueCatalog(host.__foundationVault,latest,
+    const continuation=context.documentConversation as DocumentDialogue|null;
+    const catalogQuery=continuation?continuation.userFacts.join(' '):latest;
+    context.dialogueCatalog=scopedDialogueCatalog(host.__foundationVault,catalogQuery,
       kernel.entity?.entityType==='product'?kernel.entity.entityId:'');
+    if(continuation&&context.drafting){
+      // A reply such as "no" must not replace the chosen brand with the first
+      // unrelated catalog records. Resolve bounded draft references from the
+      // same pending user facts, using the current scoped vault, not AI text.
+      const drafting=workspaceDrafting(host.__foundationVault);
+      const rank=new Map<string,number>(context.dialogueCatalog.rows.slice(0,18).map((row:any,i:number)=>[row.id,i]));
+      context.drafting.items=drafting.items.filter(row=>rank.has(row.id)).sort((a,b)=>rank.get(a.id)!-rank.get(b.id)!);
+      const facts=catalogQuery.normalize('NFKC').toLocaleLowerCase();
+      context.drafting.customers=[...drafting.customers].sort((a,b)=>
+        Number(Boolean(b.name&&facts.includes(b.name.normalize('NFKC').toLocaleLowerCase())))-
+        Number(Boolean(a.name&&facts.includes(a.name.normalize('NFKC').toLocaleLowerCase())))).slice(0,12);
+    }
   }
   const entity=kernel.entity;
   if(entity&&!graphKindAllowed(strictAiActor(host.__foundationVault).role,entity.entityType)){kernel.entity=undefined;kernel.selection=undefined;if(kernel.knowledge){kernel.knowledge.selectedNodeId=undefined;kernel.knowledge.handoff=undefined;}return context;}
