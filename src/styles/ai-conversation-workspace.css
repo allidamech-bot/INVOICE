@@ -1510,3 +1510,33 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discar
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm .lxw-document-discard-final{
   background:#e6c6ce;color:#34242b;border-color:#f1d9df;
 }
+
+
+/* Natural conversation typography. The assistant uses semantic paragraphs and
+   vertical lists; no chat response is treated as HTML or an inline tag cloud. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.assistant.lxw-formatted-reply{
+  display:block!important;min-width:0;width:100%;max-width:100%;
+  white-space:normal!important;overflow-wrap:anywhere;text-align:start!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-formatted-reply>p{
+  display:block!important;min-width:0;margin:0 0 10px!important;
+  white-space:pre-wrap!important;line-height:1.8!important;text-align:start!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-formatted-reply>h4{
+  display:block!important;margin:14px 0 8px!important;font-weight:750;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-formatted-reply>ul,
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-formatted-reply>ol{
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+  flex-direction:column!important;gap:8px!important;
+  padding:0!important;margin:9px 0 16px!important;min-width:0;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-formatted-reply>ul>li,
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-formatted-reply>ol>li{
+  display:list-item!important;min-width:0;list-style-position:inside!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+}
+@media(max-width:430px){
+ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message.assistant.lxw-formatted-reply{padding:13px!important}
+ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-formatted-reply>p{font-size:14px!important}
+}
