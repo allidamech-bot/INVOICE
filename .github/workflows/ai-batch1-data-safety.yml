@@ -57,6 +57,7 @@ jobs:
         run: >
           node --test --test-concurrency=2
           tests/ai-batch1-quote-data-safety.test.mjs
+          tests/ai-natural-unified-dialogue.test.mjs
           tests/ai-tool-catalog-security-coverage.test.mjs
           tests/ai-workflow-advisor-handoff.test.mjs
           tests/ai-generated-pdf-safety.test.mjs
