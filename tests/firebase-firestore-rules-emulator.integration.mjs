@@ -102,3 +102,45 @@ test('Viewer cannot create, mutate or revoke owner share links; anonymous portal
  const stillActive=await rest('qa-share-portal','GET',path,undefined,anonymous);
  assert.equal(stillActive.status,200,'failed viewer mutations must not revoke customer share');
 });
+
+test('QR customers need no Auth account and retain only active-token access and constrained evidence',async()=>{
+  const owner='qa-no-signup-owner',id='U'.repeat(43),path='/publicShares/'+id;
+  const fields={format:{stringValue:'LOUREX_SECURE_SHARE_V1'},version:{integerValue:'1'},
+    ownerUid:{stringValue:owner},documentId:{stringValue:'issued-qr'},customerId:{stringValue:'buyer'},
+    expiresAt:{timestampValue:new Date(Date.now()+86400000).toISOString()},revokedAt:{nullValue:null},
+    viewedAt:{nullValue:null},decision:{stringValue:''},customerComment:{stringValue:''},
+    allowDecision:{booleanValue:true},snapshot:firebaseValue({number:'QA-QR',total:'100.00'})};
+  assert.equal((await rest(owner,'PATCH',path,{fields})).status,200);
+  const read=await rest(null,'GET',path);
+  assert.equal(read.status,200,'QR must open with no Firebase identity: '+read.body);
+  assert.match(read.body,/QA-QR/);
+  for(const target of ['/publicShares','/publicShares/'+'unknown'.padEnd(43,'0'),'/users/'+owner+'/workspace/meta']){
+    assert.equal((await rest(null,'GET',target)).status,403,'no enumeration, guessed record or workspace access: '+target);
+  }
+  assert.equal((await rest(null,'DELETE',path)).status,403);
+  assert.equal((await rest(null,'PATCH','/publicShares/'+'N'.repeat(43),{fields})).status,403,'unsigned customer cannot publish shares');
+  assert.equal((await rest('different-account','GET',path)).status,403,'ordinary other-account identity gains no workspace permissions');
+  const evidence=async(values,serverTimes=['updatedAt'])=>rest(null,'POST',':commit',{writes:[{
+    update:{name:'projects/'+project+'/databases/(default)/documents'+path,fields:values},
+    updateMask:{fieldPaths:Object.keys(values)},updateTransforms:serverTimes.map(fieldPath=>({fieldPath,setToServerValue:'REQUEST_TIME'}))
+  }]});
+  assert.equal((await evidence({},['viewedAt','updatedAt'])).status,200,'guest can record first view');
+  assert.equal((await evidence({},['viewedAt','updatedAt'])).status,403,'view evidence cannot be overwritten');
+  assert.equal((await evidence({customerComment:{stringValue:'Received'}},['commentAt','updatedAt'])).status,200);
+  assert.equal((await evidence({snapshot:firebaseValue({total:'0'})})).status,403,'document snapshot is immutable for customer');
+  assert.equal((await evidence({ownerUid:{stringValue:'attacker'}})).status,403);
+  assert.equal((await evidence({customerComment:{stringValue:'x'.repeat(1001)}},['commentAt','updatedAt'])).status,403);
+  assert.equal((await evidence({decision:{stringValue:'accepted'}},['decisionAt','updatedAt'])).status,200,'explicitly enabled customer decision remains supported');
+  assert.equal((await evidence({decision:{stringValue:'rejected'}},['decisionAt','updatedAt'])).status,403,'decision cannot be replaced');
+  const noDecisionId='D'.repeat(43),noDecisionPath='/publicShares/'+noDecisionId;
+  assert.equal((await rest(owner,'PATCH',noDecisionPath,{fields:{...fields,allowDecision:{booleanValue:false}}})).status,200);
+  const forbiddenDecision=await rest(null,'POST',':commit',{writes:[{update:{name:'projects/'+project+'/databases/(default)/documents'+noDecisionPath,fields:{decision:{stringValue:'accepted'}}},updateMask:{fieldPaths:['decision']},updateTransforms:['decisionAt','updatedAt'].map(fieldPath=>({fieldPath,setToServerValue:'REQUEST_TIME'}))}]});
+  assert.equal(forbiddenDecision.status,403,'automatic QR is not approval to execute accounting operations');
+  assert.equal((await rest(owner,'PATCH',path,{fields:{revokedAt:{timestampValue:new Date().toISOString()}}})).status,200);
+  assert.equal((await rest(null,'GET',path)).status,403,'revoked QR denies unsigned customer');
+  assert.equal((await evidence({customerComment:{stringValue:'After revoke'}},['commentAt','updatedAt'])).status,403,'revoked QR denies evidence mutations');
+  const expiredId='E'.repeat(43),expiredPath='/publicShares/'+expiredId;
+  assert.equal((await rest(owner,'PATCH',expiredPath,{fields:{...fields,expiresAt:{timestampValue:'2020-01-01T00:00:00Z'}}})).status,200);
+  assert.equal((await rest(null,'GET',expiredPath)).status,403,'expired QR denies unsigned customer');
+  assert.equal((await rest(owner,'GET',expiredPath)).status,200,'owner can still manage expired link');
+});

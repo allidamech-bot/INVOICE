@@ -28,15 +28,17 @@ service cloud.firestore {
     function ownerExisting() {
       return request.auth != null && resource.data.ownerUid == request.auth.uid;
     }
-    function anonymousPortal() {
-      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    function customerPortal() {
+      // Possession of a high-entropy share token grants this document only.
+      // No Auth account is needed; existing anonymous sessions still work.
+      return request.auth == null || request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
     function shareActive() {
       return resource.data.revokedAt == null && resource.data.expiresAt is timestamp && request.time < resource.data.expiresAt;
     }
     function portalUpdateIsSafe() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
-      return anonymousPortal()
+      return customerPortal()
         && shareActive()
         && changed.hasOnly(['viewedAt','customerComment','commentAt','decision','decisionAt','updatedAt'])
         && request.resource.data.updatedAt == request.time
@@ -64,9 +66,9 @@ service cloud.firestore {
         && request.resource.data.viewedAt == null
         && request.resource.data.decision == ''
         && request.resource.data.customerComment == '';
-      allow get: if shareTokenValid(shareId) && (ownerExisting() || (anonymousPortal() && shareActive()));
+      allow get: if shareTokenValid(shareId) && (ownerExisting() || (customerPortal() && shareActive()));
       allow list: if ownerExisting();
-      allow update: if (ownerExisting() && trustedWorkspaceWriter()) || portalUpdateIsSafe();
+      allow update: if (ownerExisting() && trustedWorkspaceWriter()) || (shareTokenValid(shareId) && portalUpdateIsSafe());
       allow delete: if ownerExisting() && trustedWorkspaceWriter();
     }
 
