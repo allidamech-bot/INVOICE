@@ -1,0 +1,25 @@
+name: Temporary OpenRouter updated key report reader
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/temporary-openrouter-key-recheck-20261017.yml'
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch sanitized OpenRouter auth status
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 --retry 2 \
+            'https://invoice-31qa023jm-alidaamishs-projects.vercel.app/ai-openrouter-key-recheck-20261017.json' \
+            --output /tmp/openrouter-auth-report.json
+          node -e '
+            const r=require("/tmp/openrouter-auth-report.json");
+            if(r.version!==1||r.provider!=="openrouter"||r.endpoint!=="/api/v1/key")throw Error("INVALID_REPORT");
+            console.log("OPENROUTER_NEW_KEY_RESULT "+JSON.stringify({configured:r.configured,authentication:r.authentication,httpStatus:r.httpStatus}));
+          '
