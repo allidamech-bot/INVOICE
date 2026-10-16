@@ -15,7 +15,7 @@ const ANSWER_SCHEMA={
 };
 const trim=(value,max)=>String(value||'').trim().slice(0,max);
 const safeContext=(value)=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
-export async function naturalLourexDialogue(cleaned,options={}){
+export function buildNaturalLourexPrompt(cleaned,options={}){
   const context=safeContext(cleaned?.context);
   const mode=options.mode==='controller'?'controller':'advisor';
   const language=context.language==='ar'||cleaned?.language==='ar'?'ar':'en';
@@ -49,6 +49,10 @@ export async function naturalLourexDialogue(cleaned,options={}){
     trim(cleaned?.message,6000),
     'Return a JSON object with exactly one field: answer, containing your natural response.'
   ].join('\n\n');
+  return prompt;
+}
+export async function naturalLourexDialogue(cleaned,options={}){
+  const prompt=buildNaturalLourexPrompt(cleaned,options);
   const result=await routeAiStructured({
     taskType:'business_copilot',
     reasoningLevel:'standard',
