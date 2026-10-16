@@ -42,6 +42,7 @@ function gateway(model){
     const lib=vm.runInNewContext(source+'\n({handler,cleanAdvisor,documentNumberInRequest,deterministicDocumentAnswer})',{
       Buffer,URL,process:{env:{}},console,
       requireAiFirebaseAuth:async()=>true,
+      sanitizeDialogueCatalog:()=>null,
       naturalLourexDialogue:async()=>{planned++;return{success:true,answer:model?.answer||'Status is unavailable',proposal:null};},
       routeAiStructured:async()=>{planned++;return{success:true,data:model??{answer:'Status is unavailable',proposal:null}};},
       aiRouterPublicError:()=>({status:503,code:'AI_ERROR',message:'AI unavailable'})
