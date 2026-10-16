@@ -526,21 +526,22 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',conversationMode:runtime.conversationMode==='controller'?'controller':'advisor',workingMemory:input.context?.conversationWorkingMemory||'',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
     }catch(error){
       if(input.signal?.aborted)throw error;
-      if(!actionRequested)return null;
-      const limited=(error instanceof AiRequestError&&(error.code==='AI_RATE_LIMITED'||error.status===429))||(error instanceof Error&&/(?:rate.?limit|too many|429|temporarily at capacity|مشغولون مؤقتًا)/i.test(error.message));
-      return aiPlanningUnavailableResult(input.message,input.language,error instanceof AiRequestError&&error.code==='AI_NOT_CONFIGURED'?'not-configured':limited?'limited':'unavailable');
+      // A tool-planning service failure must not prevent ordinary discussion.
+      // The model has NOT staged any mutation, so the normal business-dialogue
+      // gateway can explain the request or ask for missing information.
+      return null;
     }
     plan=validateAiToolPlan(payload?.plan,runtime.scope,runtime.conversationMode);
-    if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
+    if(!plan||!plan.calls.length)return null; // discuss instead of exposing planner JSON errors
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
-    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment'].includes(call.tool)))return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+    if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment'].includes(call.tool)))return null;
     if(plan.calls.some(call=>call.tool==='customer.master'||call.tool==='supplier.master'))
-      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+      return null;
     // Catalog-wide transformations are authorized ONLY by the deterministic
     // interpretation of an explicit user message, never by model or file text.
     if(plan.calls.some(call=>call.tool==='product.bulkUpdate'&&(Object.hasOwn(call.args,'transform')||Object.hasOwn(call.args,'groupPrice'))))
-      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+      return null;
     if(hasSources){
       const allowed=new Map(aiToolPlannerCatalog(runtime.scope,runtime.conversationMode).map(def=>[def.id,def.class]));
       const writes=plan.calls.some(call=>allowed.get(call.tool)==='execute'||allowed.get(call.tool)==='high-impact');
