@@ -48,6 +48,9 @@ const DEEP_ROUTE=[['groq','openai/gpt-oss-120b'],['cloudflare','@cf/nvidia/nemot
 const NATIVE_DOCUMENT_ROUTE=[['gemini',GEMINI_MODEL]];
 
 const circuitState=new Map();
+// Per-function-instance rate-limit cooldown; provider accounts often share quotas
+// across several models. Fail over immediately on 429 without retry storms.
+const providerRateLimitUntil=new Map();
 
 function modelKey(provider,model){return `${provider}:${model}`;}
 function findModel(provider,model){return AI_MODEL_REGISTRY.find(entry=>entry.provider===provider&&entry.model===model);}
@@ -64,10 +67,26 @@ function environmentReady(provider){
   if(provider==='ollama')return Boolean(process.env.OLLAMA_API_KEY?.trim());
   return false;
 }
-function circuitAvailable(provider,model){const state=circuitState.get(modelKey(provider,model));return !state||!state.openUntil||Date.now()>=state.openUntil;}
+function circuitAvailable(provider,model){
+  const now=Date.now(),quotaUntil=providerRateLimitUntil.get(provider)||0;
+  if(quotaUntil>now)return false;
+  if(quotaUntil)providerRateLimitUntil.delete(provider);
+  const state=circuitState.get(modelKey(provider,model));
+  return !state||!state.openUntil||now>=state.openUntil;
+}
+function retryAfterDurationMs(value){
+  const text=String(value||'').trim();
+  if(!text)return 60_000;
+  const secs=Number(text);
+  const millis=Number.isFinite(secs)?secs*1000:Date.parse(text)-Date.now();
+  return Number.isFinite(millis)?Math.min(86_400_000,Math.max(30_000,millis)):60_000;
+}
 function recordSuccess(provider,model){circuitState.delete(modelKey(provider,model));}
-function recordFailure(provider,model,category){
+function recordFailure(provider,model,category,retryAfterMs){
   if(!['timeout','rate_limit','unavailable','network','upstream'].includes(category))return;
+  if(category==='rate_limit'){
+    providerRateLimitUntil.set(provider,Date.now()+(Number.isFinite(retryAfterMs)?retryAfterMs:60_000));
+  }
   const key=modelKey(provider,model),previous=circuitState.get(key)||{failures:0,openUntil:0};
   const failures=previous.failures+1;
   circuitState.set(key,{failures,openUntil:failures>=CIRCUIT_FAILURE_THRESHOLD?Date.now()+CIRCUIT_OPEN_MS:0});
@@ -250,7 +269,7 @@ async function callGroq(model,request){
   const schema=geminiSchemaToJsonSchema(request.schema);
   const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:request.taskType==='supplier_purchase_extract',schema}},...groqReasoningOptions(model,request.reasoningLevel)};
   const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
-  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
@@ -260,7 +279,7 @@ async function callCloudflare(model,request){
   const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:schema},options:{rejectIfBusy:true}};
   const url=`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}${CLOUDFLARE_CHAT_PATH}`;
   const {response,text}=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(body)},request.timeoutMs);
-  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
@@ -270,7 +289,7 @@ async function callGemini(model,request){
   const body={contents:geminiContents(request),generationConfig:{temperature:0,responseMimeType:'application/json',responseSchema:schema}};
   const url=`${GEMINI_BASE_URL}/${encodeURIComponent(model.model)}:generateContent`;
   const {response,text}=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify(body)},request.timeoutMs);
-  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseGeminiPayload(payload),headers:response.headers};
 }
@@ -306,7 +325,7 @@ async function callAdditionalProvider(model,request){
     'Content-Type':'application/json',
     Authorization:'Bearer '+key
   },body:JSON.stringify(body)},request.timeoutMs);
-  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   const parsed=model.provider==='ollama'?parseJsonContent(payload?.message?.content):parseOpenAiPayload(payload);
   return{data:parsed,headers:response.headers};
@@ -375,7 +394,7 @@ export async function routeAiStructured(options={}){
         if(lowConfidence&&options.qualityFallback===true&&index+1<candidates.length){lowConfidenceResult=lowConfidenceResult||accepted;break;}
         return accepted;
       }catch(error){
-        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});
+        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});
         if(retryableSameProvider(error,attempt)){
           const delay=RETRY_BASE_MS*(attempt+1);
           if(Date.now()-routeStartedAt+delay+PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS>=ROUTER_BUDGET_MS){lastCode='AI_TIMEOUT';break providerRoute;}
