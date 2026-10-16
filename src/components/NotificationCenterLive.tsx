@@ -171,7 +171,7 @@ export class NotificationCenterLive extends React.Component<Props,State>{
     const items=this.items();const snapshot=this.state.snapshot;
     return <>
       {this.summary()}
-      <Modal open={this.state.open} title={t('Notifications & Follow-up','التنبيهات والمتابعة')} onClose={this.close} size="lg">
+      <Modal open={this.state.open} title={t('Notifications & Follow-up','التنبيهات والمتابعة')} onClose={this.close} size="lg" portal>
         <div className="lx-notification-center" dir={this.props.language==='ar'?'rtl':'ltr'}>
           <div className="lx-notification-tabs" onKeyDown={handleTabKeyDown} role="tablist" aria-label={t('Notification status','حالة التنبيه')}>
             {(['active','snoozed','done'] as NotificationCenterTab[]).map(tab=>{

@@ -38,6 +38,17 @@ function markdownParagraphs(children:any[]):any[] {
   // Providers may split a Markdown table across consecutive paragraph nodes.
   // Reassemble those rows before formatting; ordinary paragraphs and scoped
   // evidence elements keep their existing presentation and callbacks.
+  // Preserve provider line breaks through legacy Fragment wrappers. Those
+  // wrappers are presentation only; evidence buttons remain original nodes.
+  const lines:any[]=[];let line:any[]=[];
+  const flushLine=()=>{if(line.length){lines.push(react.createElement('p',{key:'reply-line-'+lines.length},...line));line=[];}};
+  const visit=(child:any):void=>{
+    if(react.isValidElement(child)&&child.type===react.Fragment){react.Children.toArray(child.props.children).forEach(visit);return;}
+    if(react.isValidElement(child)&&child.type==='br'){flushLine();return;}
+    if(react.isValidElement(child)&&child.type==='p'){flushLine();lines.push(child);return;}
+    if(typeof child==='string'||react.isValidElement(child))line.push(child);
+  };
+  children.forEach(visit);flushLine();children=lines;
   const grouped:any[]=[];
   const paragraphText=(node:any):string|null=>{
     if(!react.isValidElement(node)||node.type!=='p')return null;
@@ -59,7 +70,7 @@ function markdownParagraphs(children:any[]):any[] {
     if(!parts.every((part:any)=>typeof part==='string'))return [child];
     // Some providers flatten paragraph separators. Recover explicit heading
     // markers without inventing semantic blocks from ordinary punctuation.
-    const text=parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n');
+    const text=parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n').replace(/\s+(?=[*•●▪]\s+\S)/g,'\n');
     if(/\|[^\n]*\n\s*\|?\s*:?-{3,}/.test(text))return assistantMessageBlocks(text);
     return text.split(/\r?\n/).filter(Boolean).map((line:string,i:number)=>react.createElement('p',{key:i},line));
   });
@@ -85,7 +96,7 @@ function assistantMessageBlocks(text:string):any[] {
     // Recover multiple numbered entries or bullet points flattened onto one
     // provider line. Arabic-Indic and Persian numerals are also supported.
     .replace(/\s+(?=(?:[1-9]|1[0-9]|20|[١-٩]|[۱-۹])[.)]\s+\S)/g,'\n')
-    .replace(/\s+(?=[•●▪]\s+\S)/g,'\n');
+    .replace(/\s+(?=[*•●▪]\s+\S)/g,'\n');
   const lines=input.split('\n');
   for(let lineIndex=0;lineIndex<lines.length;lineIndex++){
     const line=lines[lineIndex]!;
@@ -1071,7 +1082,10 @@ export function installConversationWorkspace(host:Host):void {
 function syncWorkspaceViewport():void {
   const panel=document.getElementById('lourex-ai-panel');if(!panel)return;
   const viewport=window.visualViewport,height=viewport?.height||window.innerHeight,top=viewport?.offsetTop||0;
-  panel.style.setProperty('--lxw-viewport-height',height+'px');panel.style.setProperty('--lxw-viewport-top',top+'px');
+  // Keystrokes re-render the host. Avoid invalidating panel layout when the
+  // actual visual viewport has not changed.
+  if(panel.style.getPropertyValue('--lxw-viewport-height')!==height+'px')panel.style.setProperty('--lxw-viewport-height',height+'px');
+  if(panel.style.getPropertyValue('--lxw-viewport-top')!==top+'px')panel.style.setProperty('--lxw-viewport-top',top+'px');
 }
 export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();

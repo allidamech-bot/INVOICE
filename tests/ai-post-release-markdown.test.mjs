@@ -43,3 +43,22 @@ test('table fragments split across provider paragraphs become one table, followe
   assert.equal(nodes[1].type,'p');
   assert.ok(JSON.stringify(nodes[1]).includes('جاهز للمراجعة'));
 });
+test('legacy Fragment/br response keeps products in a vertical list and preserves evidence',()=>{
+  React.Fragment=Symbol.for('react.fragment');
+  const source=React.createElement('button',{onClick:()=>{}},'source');
+  const nodes=context.markdownParagraphs([
+    React.createElement(React.Fragment,null,'الأصناف المتوفرة:',React.createElement('br')),
+    React.createElement(React.Fragment,null,'* Potato Chips - Cheese',React.createElement('br')),
+    React.createElement(React.Fragment,null,'* Potato Chips - Salt',React.createElement('br')),
+    React.createElement(React.Fragment,null,'مراجعة ',source)
+  ]);
+  assert.deepEqual(Array.from(nodes,n=>n.type),['p','ul','p']);
+  assert.equal(nodes[1].props.children.length,2);
+  assert.equal(nodes[2].props.children.find(n=>n?.type==='button'),source);
+  assert.ok(!tags(nodes).includes('em'));
+});
+test('explicit flattened star bullets are separated without breaking product-name hyphens',()=>{
+ const nodes=context.markdownParagraphs([p('المتاح: * Potato Chips - Cheese * Potato Chips - Salt')]);
+ assert.deepEqual(Array.from(nodes,n=>n.type),['p','ul']);
+ assert.equal(nodes[1].props.children.length,2);
+});

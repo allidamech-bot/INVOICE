@@ -18,8 +18,9 @@ export function attachAiChatScrollFollower(box:HTMLElement):AiChatScrollFollower
   const atBottom=()=>aiChatNearBottom(box.scrollTop,box.scrollHeight,box.clientHeight);
   const settle=()=>{
     if(!follow)return;
-    window.cancelAnimationFrame(frame);
+    if(frame)return;
     frame=window.requestAnimationFrame(()=>{
+      frame=0;
       if(!follow||!box.isConnected)return;
       programmatic=true;
       box.scrollTop=box.scrollHeight;
@@ -37,7 +38,12 @@ export function attachAiChatScrollFollower(box:HTMLElement):AiChatScrollFollower
     resize.observe(box);
     Array.from(box.children).slice(-8).forEach(child=>resize.observe(child));
   };
-  const mutations=new MutationObserver(()=>{watchRecent();settle();});
+  const mutations=new MutationObserver(records=>{
+    // Text updates do not change the set of observed turns. Reconnecting every
+    // observer on each token / render causes needless layout work on iPhone.
+    if(records.some(record=>record.type==='childList'&&record.target===box))watchRecent();
+    settle();
+  });
   mutations.observe(box,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['open']});
   box.addEventListener('scroll',onScroll,{passive:true});
   window.visualViewport?.addEventListener('resize',settle);
