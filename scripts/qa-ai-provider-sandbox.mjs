@@ -16,7 +16,7 @@ const selected=Object.prototype.hasOwnProperty.call(QA_KEYS,QA_PROVIDER)?QA_KEYS
 const isolatedCredentials=selected?.map(name=>String(process.env[name]||'').trim())||[];
 // Reject missing keys BEFORE any router invocation. Never fall back to inherited
 // credentials, including those supplied by a local production environment.
-const productionCredentials=['GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN']
+const productionCredentials=['GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY']
   .map(name=>String(process.env[name]||'').trim()).filter(Boolean);
 const valid=process.env.LOUREX_AI_QA_CONFIRM===CONFIRM
   && selected&&isolatedCredentials.every((key,index)=>key.length>=(QA_PROVIDER==='cloudflare'&&index===1?4:16))
@@ -27,6 +27,7 @@ if(!valid){
 }else{
   for(const name of [
     'GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID',
+    'OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY','LOUREX_AI_NEW_PROVIDERS_ENABLED','LOUREX_AI_MISTRAL_FREE_VERIFIED','LOUREX_AI_OLLAMA_FREE_VERIFIED',
     ...Object.values(QA_KEYS).flat()
   ])delete process.env[name];
   if(QA_PROVIDER==='groq')process.env.GROQ_API_KEY=isolatedCredentials[0];
