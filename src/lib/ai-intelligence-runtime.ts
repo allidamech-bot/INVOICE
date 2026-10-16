@@ -406,6 +406,7 @@ export function intelligenceContext(host:Host,context:any):any{
     // Advisor is read/calculation only at the provider boundary as well as at
     // the separate tool planner, approval gateway and actual executor.
     context.conversationMode=currentConversationMode(host);
+    context.documentConversation=pendingDocumentDialogue(host.state.messages||[],context.conversationMode,Boolean(host.__intelligenceKernel?.artifact));
     if(context.conversationMode==='advisor'&&Array.isArray(context.allowedCapabilities)){
       context.allowedCapabilities=context.allowedCapabilities.filter((capability:unknown)=>typeof capability==='string'&&conversationModePermitsCapability('advisor',capability));
     }
@@ -425,6 +426,37 @@ export function intelligenceContext(host:Host,context:any):any{
   if(entity){const scoped=scopeVault(host.__foundationVault);const rows=entity.entityType==='customer'?scoped.customers:entity.entityType==='supplier'?scoped.suppliers:entity.entityType==='product'?scoped.savedItems:entity.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===entity.entityId)){kernel.entity=undefined;kernel.selection=undefined;return context;}}
   if(entity&&context.assistantRuntime&&!context.assistantRuntime.entity)context.assistantRuntime.entity={type:entity.entityType,id:entity.entityId,label:entity.label,source:'registered'};
   return context;
+}
+/** Current scoped user facts for an unfinished document conversation.
+ * This can ground an UNSAVED proposal only; it is never approval to save. */
+export interface DocumentDialogue {kind:'proforma'|'invoice';userFacts:string[];lastQuestion:string;}
+export function pendingDocumentDialogue(messages:{role:string;text:string}[],mode:string,hasArtifact:boolean):DocumentDialogue|null {
+  if(mode!=='controller'||hasArtifact)return null;
+  const turns=messages.slice(-100);let start=-1;let kind:'proforma'|'invoice'='proforma';
+  for(let i=turns.length-1;i>=0;i--){
+    const row=turns[i]!;if(row.role!=='user')continue;
+    if(/(?:cancel|stop|forget it|never mind|ألغ|الغ|إلغاء|الغاء|توقف|انس[َى]? الطلب)/iu.test(row.text))return null;
+    if(/^(?:how|why|explain|كيف|لماذا|اشرح)(?:\s|$)/iu.test(row.text.trim()))continue;
+    if(/(?:\b(?:create|draft|prepare|make|build|want|need)\b.{0,80}\b(?:quote|quotation|invoice)\b|(?:أنشئ|انشئ|اعمل|جهز|جهّز|سوي|بدي|أريد|اريد).{0,80}(?:عرض سعر|فاتورة|مسودة))/iu.test(row.text)){
+      if(/(?:do not|don't|never|لا\s*(?:تنشئ|تجهز|تعمل)|بدون\s*(?:إنشاء|انشاء))/iu.test(row.text))return null;
+      start=i;kind=/invoice|فاتورة/iu.test(row.text)?'invoice':'proforma';break;
+    }
+  }
+  if(start<0)return null;
+  const relevant=turns.slice(start),facts=relevant.filter(row=>row.role==='user');
+  const selected=facts.length>12?[facts[0]!,...facts.slice(-11)]:facts;
+  const userFacts=selected.map(row=>row.text.slice(0,2000));
+  // Keep the initiating request, never silently lose it to repeated assistant turns.
+  if(userFacts[0]!==turns[start]!.text.slice(0,2000)||userFacts.join('\n').length>12000)return null;
+  return {kind,userFacts,lastQuestion:[...relevant].reverse().find(row=>row.role==='assistant')?.text.slice(0,1500)||''};
+}
+
+export function intelligenceDraftGrounding(host:Host,proposal:any,message:string):string {
+  // Only user-authored facts from this currently loaded thread may ground a
+  // new unsaved document. Other capabilities retain current-message guards.
+  if(proposal?.capability!=='document.createDraft')return message;
+  const dialogue=pendingDocumentDialogue(host.state.messages||[],currentConversationMode(host),Boolean(host.__intelligenceKernel?.artifact));
+  return dialogue?[...dialogue.userFacts,message].join('\n'):message;
 }
 export function intelligenceRequestMessage(host:Host,message:string,legacy:string):string{
   const kernel=host.__intelligenceKernel as ConversationKernel|undefined;if(!kernel)return legacy;
