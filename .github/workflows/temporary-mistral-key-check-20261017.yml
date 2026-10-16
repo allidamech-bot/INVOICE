@@ -1,0 +1,25 @@
+name: Temporary Mistral updated key status reader
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/temporary-mistral-key-check-20261017.yml'
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch sanitized Mistral key authentication report
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 --retry 2 \
+            'https://invoice-p2r6d6uhb-alidaamishs-projects.vercel.app/ai-mistral-key-check-20261017.json' \
+            --output /tmp/mistral-auth-report.json
+          node -e '
+            const r=require("/tmp/mistral-auth-report.json");
+            if(r.version!==1||r.provider!=="mistral"||r.endpoint!=="/v1/models")throw Error("INVALID_REPORT");
+            console.log("MISTRAL_NEW_KEY_RESULT "+JSON.stringify({configured:r.configured,authentication:r.authentication,httpStatus:r.httpStatus}));
+          '
