@@ -1,0 +1,29 @@
+name: LOUREX one-time public AI probe report reader
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ai-provider-report-read-20261017.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch generated synthetic-only statuses from production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 --retry 2             --output /tmp/lourex-provider-status.json             https://invoice-qref7c6oq-alidaamishs-projects.vercel.app/ai-provider-probe-20261017.json
+          node -e '
+            const fs=require("node:fs");
+            const o=JSON.parse(fs.readFileSync("/tmp/lourex-provider-status.json","utf8"));
+            if(o.probeVersion!=="2026-10-17"||!Array.isArray(o.checks)||o.checks.length!==6)
+              throw Error("INVALID_PROBE_FILE");
+            for(const c of o.checks){
+              const safe={provider:c.provider,configured:c.configured,authentication:c.authentication,inference:c.inference,authHttp:c.authHttp??null,inferenceHttp:c.inferenceHttp??null,ms:c.ms,errorCategory:c.errorCategory??null};
+              console.log("PROBE_RESULT "+JSON.stringify(safe));
+            }
+          '
