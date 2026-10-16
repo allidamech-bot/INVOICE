@@ -38,8 +38,8 @@ function sameUnit(a:string,b:string):boolean{
 export function parseConversationalSalePrice(message:string):Pick<ConversationalPriceIntent,'amount'|'currency'|'unit'>|null{
   const s=digits(message).replace(/\s+/g,' ').trim();
   if(!s||s.length>300||
-    /^(?:لا|مو|مش|بدون|don't|do not|never)\b/iu.test(s)||
-    /^(?:هل|كم|ليش|لماذا|why|how|what|is|can)\b/iu.test(s)||
+    /^(?:لا|مو|مش|بدون|don't|do not|never)(?:\s|$)/iu.test(s)||
+    /^(?:هل|كم|ليش|لماذا|why|how|what|is|can)(?:\s|$)/iu.test(s)||
     /(?:كم|ما هو|ماهي|what is)\s+(?:سعر|price)/iu.test(s))return null;
   const priceMark=/(?:سعر\s*(?:ال)?بيع|سعر\s*(?:ال)?منتج|سعر\s*(?:ال)?صنف|selling\s*price|sale\s*price|unit\s*price)/iu;
   if(!priceMark.test(s))return null;
