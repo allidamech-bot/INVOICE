@@ -558,7 +558,11 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     if(runtime.conversationMode==='advisor'&&explicitAiActionRequest(input.message))return null;
     // Explicit user commands must always reach the planner, including short
     // Arabic commands such as "احفظ جميع الأصناف" with no attachment.
-    if(!likelyToolIntent(input.message,input.context)&&!explicitAiActionRequest(input.message))return null;
+    // Readable business questions belong to the conversation by default.
+    // Typed tools run directly when a deterministic exact workflow is known.
+    // Model-based action planning is reserved for an explicit user command
+    // (or attached evidence), not triggered by words like price or invoice.
+    if(!hasSources&&!explicitAiActionRequest(input.message))return null;
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
     const actionRequested=explicitAiActionRequest(input.message);
