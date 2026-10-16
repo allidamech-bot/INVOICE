@@ -1371,3 +1371,124 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval
    padding:8px 9px;font-size:12px;
  }
 }
+
+
+/* Unified LOUREX AI document decision surface. One card per active working
+   artifact: original signed approval handlers, guarded PDF and edit controls. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified{
+  display:grid;gap:14px;min-width:0;max-width:100%;box-sizing:border-box;
+  margin:14px 0;padding:17px;border:1px solid #455568;border-radius:19px;
+  background:linear-gradient(155deg,#1b2633 0%,#151c26 56%,#15181f 100%);
+  box-shadow:0 10px 26px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.055);
+  color:#edf3fa;overflow-wrap:anywhere;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-card-head{
+  display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:0 0 13px;border-bottom:1px solid #35465a;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-title{
+  display:flex;align-items:flex-start;gap:12px;flex:1;min-width:0;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-symbol{
+  width:43px;height:43px;flex:0 0 43px;display:grid;place-items:center;border-radius:12px;
+  color:#f0d59e;background:#324358;border:1px solid #4a6077;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-title>div{
+  display:grid;gap:3px;min-width:0;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-title small{
+  font:700 10px/1.5 var(--lxw-font);letter-spacing:.075em;color:#abbdd1;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-title strong{
+  font-size:15px;font-weight:750;line-height:1.5;color:#f4f7fb;overflow-wrap:anywhere;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-state{
+  display:inline-flex;align-items:center;min-height:27px;padding:4px 9px;
+  border:1px solid #647084;border-radius:999px;background:#2d3746;
+  color:#d7e1ee;font-size:11px;font-weight:650;line-height:1.3;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-state[data-status='saved']{
+  border-color:#4e7265;background:#233f37;color:#ceeada;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-facts{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-facts>div{
+  min-width:0;display:grid;align-content:start;gap:3px;padding:11px 12px;
+  border:1px solid #35465a;border-radius:11px;background:#202d3c;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-facts span{
+  font-size:11px;color:#b2c2d4;font-weight:550;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-facts strong{
+  font-size:13px;line-height:1.5;color:#f0f4fa;font-weight:650;
+  overflow-wrap:anywhere;unicode-bidi:plaintext;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-action-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action{
+  box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;min-width:0;min-height:51px;padding:9px 10px;border-radius:11px;
+  border:1px solid #586b83;background:#2b3c51;color:#f1f5fb;
+  font:700 13px/1.45 var(--lxw-font);text-align:center;cursor:pointer;text-decoration:none;
+  touch-action:manipulation;white-space:normal;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-action svg{flex:0 0 auto}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-action span{min-width:0}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action-approve{
+  background:#ead4a8;color:#243044;border-color:#f3e2be;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action-reject{
+  background:#293241;color:#efdadf;border-color:#705463;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action:focus-visible,
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-review-acknowledge:focus-visible{
+  outline:3px solid #e1c18b;outline-offset:3px;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-safety-note{
+  display:block;font-size:11px;line-height:1.55;color:#afc0d4;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-customer-select{
+  display:grid;gap:5px;font-size:12px;color:#e2ebf5;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-review-expanded{
+  display:grid;gap:9px;min-width:0;padding:12px;
+  background:#111b28;border:1px solid #61728a;border-radius:12px;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-review-acknowledge{
+  min-height:47px;justify-content:center;font-weight:700;
+  background:#ead4a8;color:#243044;border-color:#f3e2be;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-extra{min-width:0;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-extra>summary{
+  width:100%;box-sizing:border-box;justify-content:space-between;background:#202d3c;
+  color:#d7e5f2;border:1px solid #405369;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-revision-tools{
+  display:flex;align-items:center;flex-wrap:wrap;gap:7px;
+  color:#bccddd;font-size:11px;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-revision-tools>button{
+  min-height:39px;font-size:11px;padding:6px 10px;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-ai-pdf-actions{
+  margin:0;padding:0;min-width:0;
+}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-ai-pdf-result{
+  margin:0;min-width:0;
+}
+@media (max-width:430px){
+ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified{
+   padding:12px;gap:11px;border-radius:15px;
+ }
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-action-grid{gap:8px}
+ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action{
+   min-height:49px;padding:8px 6px;gap:6px;font-size:12px;
+ }
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-facts{gap:7px}
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-card-facts>div{padding:9px}
+}
+@media (prefers-reduced-motion:reduce){
+ #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified *{animation:none!important;transition:none!important}
+}
