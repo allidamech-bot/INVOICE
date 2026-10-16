@@ -71,6 +71,7 @@ test('Server sanitizers do not promote missing or malformed mode into Controller
       cleanDrafting:()=>({}),
       cleanAdvisor:()=>({version:2}),
       sanitizeControllerConversationSources:()=>[],
+      sanitizeDialogueCatalog:()=>null,
       ALLOWED_CAPABILITIES:['workspace.help','finance.explain','document.createDraft','workspace.navigate'],
       ACTION_CAPABILITIES:['document.createDraft','workspace.navigate'],
     };
