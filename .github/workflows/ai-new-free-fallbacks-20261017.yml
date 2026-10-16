@@ -1,0 +1,27 @@
+name: LOUREX AI New Free Providers Contract
+on:
+  pull_request:
+    paths:
+      - 'api/_ai/router.js'
+      - 'tests/ai-multi-provider-router.test.mjs'
+      - 'tests/ai-new-provider-fallbacks-20261017.test.mjs'
+      - 'scripts/qa-ai-provider-sandbox.mjs'
+      - '.github/workflows/ai-new-free-fallbacks-20261017.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provider-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      LOUREX_AI_NEW_PROVIDERS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: Verify new and existing provider routing without any production credentials
+        run: node --test --test-concurrency=1 tests/ai-multi-provider-router.test.mjs tests/ai-new-provider-fallbacks-20261017.test.mjs tests/ai-provider-contract-v448.test.mjs tests/ai-server-role-and-sandbox.test.mjs
