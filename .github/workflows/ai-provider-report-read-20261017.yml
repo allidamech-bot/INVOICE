@@ -16,7 +16,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --max-time 30 --retry 2             --output /tmp/lourex-provider-status.json             https://invoice-qref7c6oq-alidaamishs-projects.vercel.app/ai-provider-probe-20261017.json
+          curl --fail --silent --show-error --location --max-time 30 --retry 2             --output /tmp/lourex-provider-status.json             https://invoice-osekv4yvq-alidaamishs-projects.vercel.app/ai-provider-probe-20261017.json
           node -e '
             const fs=require("node:fs");
             const o=JSON.parse(fs.readFileSync("/tmp/lourex-provider-status.json","utf8"));
