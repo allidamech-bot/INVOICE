@@ -1,0 +1,25 @@
+name: LOUREX temporary synthetic fallback audit reader
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ai-fallback-audit-read-20261017.yml'
+permissions:
+  contents: read
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read sanitized free-provider failover proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 --retry 2 \
+            'https://invoice-ccw5kw8p8-alidaamishs-projects.vercel.app/ai-synthetic-fallback-audit-20261017.json' \
+            --output /tmp/lourex-fallback-audit.json
+          node -e '
+            const r=require("/tmp/lourex-fallback-audit.json");
+            if(r.audit!=="2026-10-17-live-fallback-after-simulated-outages"||r.checks?.length!==3||r.containsBusinessData!==false)throw Error("INVALID_REPORT");
+            for(const c of r.checks)console.log("LOUREX_AI_FALLBACK_LIVE_RESULT "+JSON.stringify(c));
+          '
