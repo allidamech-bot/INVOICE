@@ -314,6 +314,35 @@ export async function dismissIntelligenceWorkspace(host:Host,proposal=host.state
     throw error;
   }
 }
+/** Discard only the exact, unsaved working document after an explicit user
+ * confirmation. Existing LOUREX documents, inventory and ledgers are untouched.
+ * Pending approvals must be declined through their original guarded callback. */
+export async function discardIntelligenceDraft(host:Host,artifactId:string,revision:number):Promise<void>{
+  if(host.__workspaceCommandBusy||host.__foundationApprovalBusy||host.__foundationTurnBusy||host.applying||host.state.busy||host.state.proposal)
+    throw new Error('Finish or decline the pending action before discarding a draft.');
+  const session=await resumeVaultSession();
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(!session||!kernel||kernel.scope.scope!=='business'||kernel.mode!=='controller'||
+    kernelScopeKey(scopeFor(host,session.vault))!==kernelScopeKey(kernel.scope)||
+    !kernel.artifact||kernel.artifact.id!==artifactId||kernel.artifact.revision!==revision)
+    throw new Error('The working draft or company changed. Reopen and review before discarding.');
+  if(!foundationActionAllowed(session.vault,{capability:'document.createDraft'},kernel.scope))
+    throw new Error('The active operator cannot discard this business draft.');
+  host.__workspaceCommandBusy=true;
+  const next=structuredClone(kernel);
+  next.artifact=undefined;
+  if(next.entity?.entityType==='document'&&next.entity.entityId===artifactId)next.entity=undefined;
+  host.__intelligenceKernel=next;
+  try{
+    await persistKernel(host,true);
+    if(host.__intelligenceKernel===next)host.setState({proposal:null,review:null,error:'',
+      __workspaceReviewedProposal:null,__workspaceOpen:false,__workspacePane:'chat',
+      __workspaceSavedId:'',__workspaceEditing:false});
+  }catch(error){
+    if(host.__intelligenceKernel===next)host.__intelligenceKernel=kernel;
+    throw error;
+  }finally{host.__workspaceCommandBusy=false;}
+}
 /** Encrypted AI-only preferences are account-scoped and independent from
  * LOUREX site locale. Uses the same serialized store queue as chat persistence
  * so a simultaneous conversation save cannot discard a settings change. */

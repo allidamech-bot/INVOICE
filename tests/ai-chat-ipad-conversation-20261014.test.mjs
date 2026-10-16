@@ -53,9 +53,9 @@ test('AI Chat: PDF remains real and downloadable but never renders blank embedde
   assert.match(source,/__LOUREX_BUILD_CHAT_PDF__/);
   assert.match(source,/URL\.createObjectURL\(file\)/);
   assert.match(source,/className="lxw-ai-pdf-file"/);
-  assert.match(source,/className="lxw-pdf-preview"/);
+  assert.match(source,/className="lxw-document-action lxw-document-action-preview"/);
   assert.match(source,/className="lxw-pdf-download"/);
-  assert.match(source,/href=\{pdfResult\.url\} download=\{pdfResult\.name\}/);
+  assert.match(source,/href=\{viewPdf\.url\} download=\{viewPdf\.name\}/);
   assert.doesNotMatch(source,/<iframe title=\{label\(ar,'LOUREX PDF file preview'/);
   assert.match(styles,/\.lxw-ai-pdf-file/);
   assert.match(styles,/\.lxw-pdf-file-meta/);
@@ -63,17 +63,17 @@ test('AI Chat: PDF remains real and downloadable but never renders blank embedde
 
 test('AI Chat: saving quotation requires existing reviewed action; PDF is preview-only',async()=>{
   const source=await read('src/components/AiConversationWorkspace.tsx');
-  assert.match(source,/Save quotation/,'quotation-specific action must exist');
+  assert.match(source,/Approve and save quotation/,'quotation-specific action must exist');
   assert.match(source,/حفظ عرض السعر/);
   assert.match(source,/حفظ المسودة/);
   assert.match(source,/onClick=\{\(\)=>void host\.ask\(ar\?'احفظ المسودة':'save this draft'\)\}/,
     'existing approval gateway remains owner of saving');
-  assert.match(source,/Saving requires reviewing and approving the draft/);
+  assert.match(source,/Preview does not save. Editing creates a new revision/);
   assert.match(source,/Generate PDF preview/);
   assert.match(source,/prepareAiPdfPreview\(kernel,vault/);
   assert.match(source,/saveReviewPending=doc\.status==='draft'/,'once a review is staged, saving must not be requested again');
-  assert.match(source,/Boolean\(doc\.blockers\.length\)\|\|saveReviewPending/);
-  assert.match(source,/Awaiting approval/);
+  assert.match(source,/saveReviewPending\?\(approvalConfirm/);
+  assert.match(source,/reviewed&&originalConfirm/);
   assert.match(source,/Confirm quotation save/);
   assert.match(source,/تأكيد حفظ عرض السعر/);
   assert.match(source,/Confirm draft save/);
