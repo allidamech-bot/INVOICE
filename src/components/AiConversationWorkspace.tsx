@@ -333,6 +333,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
   const [reviewExpanded,setReviewExpanded]=React.useState(false);
+  const [discardExpanded,setDiscardExpanded]=React.useState(false);
   const dismissal=useInlineDecline(host,host.state.proposal);
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
   // A renderer import can resolve after changing conversation, branch or
@@ -341,7 +342,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const pdfSequence=react.useRef(0);
   const pdfStarting=react.useRef(false);
   latestPdfIdentity.current=pdfIdentity;
-  React.useEffect(()=>{setReviewExpanded(false);},[pdfIdentity,host.state.proposal]);
+  React.useEffect(()=>{setReviewExpanded(false);setDiscardExpanded(false);},[pdfIdentity,host.state.proposal]);
   React.useEffect(()=>{
     pdfSequence.current+=1;pdfStarting.current=false;
     setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');
@@ -448,11 +449,17 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
       <button type="button" className="lxw-document-action lxw-document-action-edit" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:doc.status==='draft'?'edit':'preview',__workspaceEditing:doc.status==='draft'})}>{iconEdit}<span>{doc.status==='draft'?label(ar,'Edit','تحرير'):label(ar,'View document','عرض المستند')}</span></button>
       {doc.status==='draft'?(saveReviewPending?(approvalConfirm||<button type="button" className="lxw-document-action lxw-document-action-approve" disabled={disabled(host)||Boolean(doc.blockers.length)||!originalConfirm} onClick={()=>setReviewExpanded(true)}>{iconAccept}<span>{saveText}</span></button>):
         <button type="button" className="lxw-document-action lxw-document-action-approve" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{iconAccept}<span>{saveText}</span></button>):null}
-      {doc.status==='draft'?(approvalDecline||<button type="button" className="lxw-document-action lxw-document-action-reject" disabled={disabled(host)||saveReviewPending} onClick={()=>{
-        if(!window.confirm(label(ar,'Discard this unsaved draft? No saved records will change.','هل تريد إلغاء هذه المسودة غير المحفوظة؟ لن تتغير السجلات المحفوظة.')))return;
-        void discardIntelligenceDraft(host,doc!.id,doc!.revision).catch((error:Error)=>host.setState({error:error.message||String(error)}));
-      }}>{iconReject}<span>{label(ar,'Reject draft','رفض المسودة')}</span></button>):null}
+      {doc.status==='draft'?(approvalDecline||<button type="button" className="lxw-document-action lxw-document-action-reject" disabled={disabled(host)||saveReviewPending} onClick={()=>setDiscardExpanded(true)}>{iconReject}<span>{label(ar,'Reject draft','رفض المسودة')}</span></button>):null}
     </div>
+    {discardExpanded&&doc.status==='draft'?<section className="lxw-document-discard-confirm" role="region" aria-label={label(ar,'Confirm draft rejection','تأكيد رفض المسودة')}>
+      <strong>{label(ar,'Discard this unsaved draft?','هل تريد رفض المسودة غير المحفوظة؟')}</strong>
+      <p>{label(ar,'No saved quotation, invoice or inventory record will be changed.','لن يتغير أي عرض سعر أو فاتورة أو سجل مخزون محفوظ.')}</p>
+      <div><button type="button" onClick={()=>setDiscardExpanded(false)}>{label(ar,'Continue editing','متابعة التحرير')}</button>
+      <button type="button" className="lxw-document-discard-final" disabled={disabled(host)} onClick={()=>{
+        setDiscardExpanded(false);
+        void discardIntelligenceDraft(host,doc!.id,doc!.revision).catch((error:Error)=>host.setState({error:error.message||String(error)}));
+      }}>{label(ar,'Reject without saving','رفض دون حفظ')}</button></div>
+    </section>:null}
     {doc.status==='draft'?<small className="lxw-document-safety-note">{label(ar,'Preview does not save. Editing creates a new revision; the current revision must be reviewed again before approval.','المعاينة لا تحفظ. أي تعديل ينتج مراجعة جديدة ويستوجب الموافقة مجددًا.')}</small>:null}
     {saveReviewPending&&reviewExpanded?<div className="lxw-document-review-expanded" role="region" aria-label={label(ar,'Full approval review','مراجعة الاعتماد الكاملة')}>
       <QuotePreviewSummary doc={doc} ar={ar}/>
