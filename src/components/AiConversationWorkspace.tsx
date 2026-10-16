@@ -32,6 +32,25 @@ function markdownInline(value:any,key:string):any {
     return part;
   });
 }
+/** Presentation-only hierarchy. Punctuation never creates an action. */
+function messageParagraph(parts:any[],key:string):any {
+  if(parts.every(part=>typeof part==='string')){
+    const text=parts.join(''),end=text.search(/[؟?]/);
+    // A short question leads the paragraph; explanatory copy stays separate.
+    if(end>=0&&end<220&&text.slice(0,end).trim()){
+      const question=text.slice(0,end+1),detail=text.slice(end+1);
+      return <div className="lxw-reply-question" key={key} dir="auto"><p className="lxw-reply-question-title"><strong>{markdownInline(question,key+'-question')}</strong></p>{detail.trim()?<p className="lxw-reply-question-detail">{markdownInline(detail,key+'-detail')}</p>:null}</div>;
+    }
+  }
+  return react.createElement('p',{key,dir:'auto'},...parts.map((part:any,i:number)=>markdownInline(part,key+'-'+i)));
+}
+function messageResult(parts:any[],key:string):any[] {
+  if(parts.every(part=>typeof part==='string')){
+    const text=parts.join(''),sku=text.match(/^(.*?)(\(?SKU:\s*[A-Za-z0-9][A-Za-z0-9._\/-]*\)?)(.*)$/i);
+    if(sku&&sku[1]!.trim())return [<strong className="lxw-result-name" key={key+'-name'} dir="auto">{markdownInline(sku[1],key+'-label')}</strong>,<bdi className="lxw-result-sku" key={key+'-sku'} dir="ltr">{sku[2]}</bdi>,...markdownInline(sku[3]||'',key+'-tail')];
+  }
+  return parts.map((part:any,i:number)=>markdownInline(part,key+'-'+i));
+}
 function markdownParagraphs(children:any[]):any[] {
   const result:any[]=[];let list:any[]=[];let listType='';
   const flush=()=>{if(list.length){result.push(react.createElement(listType,{key:'list-'+result.length},...list));list=[];listType='';}};
@@ -79,9 +98,9 @@ function markdownParagraphs(children:any[]):any[] {
     const parts=react.Children.toArray(child.props.children),first=typeof parts[0]==='string'?parts[0]:'';
     const heading=first.match(/^\s*(#{1,6})\s+/),bullet=first.match(/^\s*(?:[-*•]|\d+[.)])\s+/);
     if(heading||bullet)parts[0]=first.slice((heading||bullet)![0].length);
-    const formatted=parts.map((part:any,i:number)=>markdownInline(part,index+'-'+i));
+    const formatted=bullet?messageResult(parts,String(index)):parts.map((part:any,i:number)=>markdownInline(part,index+'-'+i));
     if(bullet){const kind=/\d/.test(bullet[0])?'ol':'ul';if(listType&&listType!==kind)flush();listType=kind;list.push(<li key={index} className="lxw-ai-compact-result-row" dir="auto">{formatted}</li>);}
-    else{flush();result.push(react.createElement(heading?((heading[1]||'').length<=2?'h3':'h4'):'p',{key:index},...formatted));}
+    else{flush();result.push(heading?react.createElement((heading[1]||'').length<=2?'h3':'h4',{key:index},...formatted):messageParagraph(parts,String(index)));}
   });flush();return result;
 }
 
@@ -121,11 +140,11 @@ function assistantMessageBlocks(text:string):any[] {
       const kind=/[0-9٠-٩۰-۹]/.test(bullet[1]!)?'ol':'ul';
       if(bulletKind&&bulletKind!==kind)flush();
       bulletKind=kind;
-      bullets.push(<li key={'item-'+bullets.length} className="lxw-ai-compact-result-row" dir="auto">{markdownInline(bullet[2],String(bullets.length))}</li>);
+      bullets.push(<li key={'item-'+bullets.length} className="lxw-ai-compact-result-row" dir="auto">{messageResult([bullet[2]],String(bullets.length))}</li>);
       continue;
     }
     flush();
-    blocks.push(<p key={'paragraph-'+blocks.length} dir="auto">{markdownInline(trimmed,String(blocks.length))}</p>);
+    blocks.push(messageParagraph([trimmed],'paragraph-'+blocks.length));
   }
   flush();
   return blocks.length?blocks:[text];

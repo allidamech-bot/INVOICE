@@ -1705,3 +1705,24 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table 
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table :is(th,td) {
   display:table-cell!important;border-radius:0!important;white-space:normal!important;font-size:14px!important;
 }
+
+/* Response hierarchy: the question is the next reading target, metadata is secondary. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-markdown strong {
+  font-weight:750!important;color:#f2f5fa!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question {
+  margin-block:16px 4px!important;padding:14px!important;border:1px solid #6c5d40!important;
+  border-inline-start:3px solid #d8be89!important;border-radius:12px!important;background:#252a2c!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question-title {
+  margin:0!important;font-size:17px!important;line-height:1.8!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question-title strong {font-weight:800!important;color:#f2dfb9!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question-detail {
+  margin:6px 0 0!important;color:#b4c0ce!important;font-size:14px!important;line-height:1.8!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-result-name {display:block;font-size:15px!important;line-height:1.7!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-result-sku {
+  display:block;width:fit-content;max-width:100%;margin-top:4px;color:#a5b6ca!important;
+  font:500 12px/1.7 ui-monospace,SFMono-Regular,monospace!important;unicode-bidi:isolate;overflow-wrap:anywhere;
+}

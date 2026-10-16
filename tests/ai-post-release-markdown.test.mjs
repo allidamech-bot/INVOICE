@@ -62,3 +62,23 @@ test('explicit flattened star bullets are separated without breaking product-nam
  assert.deepEqual(Array.from(nodes,n=>n.type),['p','ul']);
  assert.equal(nodes[1].props.children.length,2);
 });
+test('follow-up question is bold and separate from explanatory copy without creating an action',()=>{
+ const nodes=context.markdownParagraphs([p('كم كرتون بدك من كل نوع؟ بعدها نجهز مسودة العرض للمعاينة والتحرير قبل الموافقة.')]);
+ assert.equal(nodes[0].props.className,'lxw-reply-question');
+ assert.ok(tags(nodes).includes('strong'));
+ const [question,detail]=nodes[0].props.children;
+ assert.equal(question.props.className,'lxw-reply-question-title');
+ assert.equal(detail.props.className,'lxw-reply-question-detail');
+ assert.ok(JSON.stringify(question).includes('كم كرتون بدك من كل نوع؟'));
+ assert.ok(JSON.stringify(detail).includes('بعدها نجهز'));
+ assert.ok(!tags(nodes).some(tag=>tag==='button'||tag==='a'));
+});
+test('product label is bold while the exact SKU stays isolated LTR beneath it',()=>{
+ const nodes=context.markdownParagraphs([p('- شيبسيكو البطاطا - الجبنة (SKU: FOP-170926-273204)')]);
+ assert.ok(tags(nodes).includes('strong'));
+ assert.ok(tags(nodes).includes('bdi'));
+ const row=nodes[0].props.children[0];
+ const sku=row.props.children.find(n=>n?.type==='bdi');
+ assert.equal(sku.props.dir,'ltr');
+ assert.deepEqual(Array.from(sku.props.children),['(SKU: FOP-170926-273204)']);
+});
