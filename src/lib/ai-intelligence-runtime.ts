@@ -480,8 +480,18 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
     const search=result.results.find(row=>row.ok&&row.tool==='search.records');
     if(search&&Array.isArray(search.data)&&!result.proposal){
       const items=search.data.filter((r:any)=>r&&typeof r.id==='string'&&typeof r.label==='string'&&['customer','supplier','product','document','purchase'].includes(r.type)).map((r:any)=>({entityType:r.type,entityId:r.id,label:r.label}));
-      kernel.selection={id:crypto.randomUUID(),items};
-      (result as any).foundationSelectionText=(responseLanguage==='ar'?'نتائج البحث:':'Search results:')+'\n'+items.map((r:any,i:number)=>`${i+1}. ${r.label} [${r.entityId}]`).join('\n');
+      if(items.length){
+        kernel.selection={id:crypto.randomUUID(),items};
+        (result as any).foundationSelectionText=(responseLanguage==='ar'?'وجدت السجلات التالية:\n':'I found these records:\n')+
+          items.map((r:any,i:number)=>`- ${r.label}`).join('\n');
+      }else{
+        // Empty results are conversational evidence, not a selectable list.
+        // Do not display record0, empty checkboxes or arbitrary record IDs.
+        kernel.selection=undefined;
+        (result as any).foundationSelectionText=responseLanguage==='ar'
+          ?'ما لقيت نتيجة مطابقة لهذا البحث في سجلات الشركة الحالية. جرب اسمًا مختلفًا أو قل لي شو المنتج المقصود، وبساعدك تختار من المنتجات المحفوظة.'
+          :'No matching records were found in the current company. Try a different name or tell me which product you mean; I can help you select from saved products.';
+      }
     }
   }
   // No ordinal set from compact summaries: only an explicitly displayed exact list.

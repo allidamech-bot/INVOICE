@@ -25,6 +25,9 @@ import {isAiSupplierPostingIntent,parseAiSupplierPosting} from './ai-operational
 import {isAiReceivablesRankingIntent,aiReceivablesRanking} from './ai-receivables-ranking.js';
 import {isOperationalDocumentStatusIntent,operationalDocumentStatus} from './ai-operational-document-status.js';
 import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoice-stock-evidence.js';
+import {requestedCatalogQuoteFamily,naturalCatalogQuoteReply} from './ai-catalog-conversation.js';
+import {graphKindAllowed} from './ai-business-memory-graph.js';
+import {strictAiActor} from './ai-foundation-approval.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -164,6 +167,24 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
   const scopedVault=scopeVault(input.vault);
   const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
+  // An incomplete named-family quote starts with a real catalog conversation.
+  // Never let a generic search.records plan masquerade as a prepared quotation.
+  // Quantified/customer-specific instructions continue to their normal guarded
+  // planning workflow. This response is read-only and never stages approval.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'){
+    const family=requestedCatalogQuoteFamily(input.message);
+    if(family){
+      if(!graphKindAllowed(strictAiActor(input.vault).role,'product'))
+        return{answer:input.language==='ar'
+          ?'صلاحيات الحساب الحالي لا تسمح بعرض كتالوج المنتجات. لم أجهز عرض سعر أو أعرض بيانات مخفية.'
+          :'Your current operator role cannot view the product catalog. No quotation or private product list was prepared.',
+          proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+      return{answer:naturalCatalogQuoteReply(scopedVault,family,input.language),
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},
+        results:[],plannedBy:'local'};
+    }
+  }
+
   // Exact saved quotation → invoice is a distinct canonical conversion, not
   // model-synthesized invoice creation. Never infer lines or amounts from a
   // conversation when an issued saved quotation was named as the source.
