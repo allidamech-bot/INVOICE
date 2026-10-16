@@ -62,16 +62,18 @@ function assistantMessageBlocks(text:string):any[] {
   let bullets:any[]=[],bulletKind:'ul'|'ol'|''='';
   const flush=()=>{if(bullets.length){blocks.push(react.createElement(bulletKind,{key:'list-'+blocks.length},...bullets));bullets=[];bulletKind='';}};
   const input=text.replace(/\r\n?/g,'\n')
-    // Recover multiple numbered entries flattened onto a single line.
-    .replace(/\s+(?=(?:[1-9]|1[0-9]|20)[.)]\s+\S)/g,'\n');
+    // Recover multiple numbered entries or bullet points flattened onto one
+    // provider line. Arabic-Indic and Persian numerals are also supported.
+    .replace(/\s+(?=(?:[1-9]|1[0-9]|20|[١-٩]|[۱-۹])[.)]\s+\S)/g,'\n')
+    .replace(/\s+(?=[•●▪]\s+\S)/g,'\n');
   for(const line of input.split('\n')){
     const trimmed=line.trim();
     if(!trimmed){flush();continue;}
     const heading=trimmed.match(/^#{1,5}\s+(.+)/);
-    const bullet=trimmed.match(/^([-*•]|\d{1,3}[.)])\s+(.+)/);
+    const bullet=trimmed.match(/^([-*•●▪]|[0-9٠-٩۰-۹]{1,3}[.)])\s+(.+)/);
     if(heading){flush();blocks.push(<h4 key={'heading-'+blocks.length} dir="auto">{markdownInline(heading[1],String(blocks.length))}</h4>);continue;}
     if(bullet){
-      const kind=/\d/.test(bullet[1]!)?'ol':'ul';
+      const kind=/[0-9٠-٩۰-۹]/.test(bullet[1]!)?'ol':'ul';
       if(bulletKind&&bulletKind!==kind)flush();
       bulletKind=kind;
       bullets.push(<li key={'item-'+bullets.length} className="lxw-ai-compact-result-row" dir="auto">{markdownInline(bullet[2],String(bullets.length))}</li>);
