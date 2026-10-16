@@ -1,5 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
+import {naturalLourexDialogue} from './_ai/lourex-dialogue.js';
 
 const MAX_BODY_BYTES=180000;
 const MAX_MESSAGE_CHARS=6000;
@@ -117,6 +118,16 @@ export default async function handler(request,response){
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX AI received an invalid business context.'});return;}
 
+  // Free-form dialogue is the default for both modes. Do not make normal
+  // questions pass an executable proposal schema merely to receive an answer.
+  // The protected Controller gateway still handles real actions and approvals.
+  if(cleaned.context.conversationMode==='advisor'||!draftActionRequested(cleaned.message)){
+    const dialogue=await naturalLourexDialogue(cleaned,{mode:cleaned.context.conversationMode});
+    if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
+    sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
+      message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});return;
+  }
+
   const languageInstruction=cleaned.context.language==='ar'?'Reply in clear professional Arabic unless the user explicitly asks for another language.':'Reply in clear professional English unless the user explicitly asks for another language.';
   const modeInstruction=cleaned.context.conversationMode==='advisor'?'You are in ADVISOR mode: carry on a natural, substantive business conversation. Discuss requested actions hypothetically, explain the decision, compare alternatives, costs, risks and missing evidence, and ask a focused follow-up when needed. Return proposal:null in ALL cases. Never navigate, create, prepare for execution, approve or change records, and never claim an action was done. If execution would help, briefly explain that Controller can execute after review; do not replace the discussion with a refusal.':'You are in CONTROLLER mode: propose only explicitly requested actions and require client review; never claim an action occurred.';
   const detailInstruction=cleaned.context.aiResponseDetail==='brief'?'Answer succinctly and omit unnecessary sections.':cleaned.context.aiResponseDetail==='detailed'?'Explain important calculations, assumptions and verified evidence in a structured but readable answer.':'Be clear, proportionate and well structured; use detailed sections only when useful.';
@@ -134,7 +145,17 @@ export default async function handler(request,response){
   const schema={type:'OBJECT',properties:{answer:{type:'STRING'},proposal:{type:'OBJECT',nullable:true,properties:actionProperties,required}},required:['answer','proposal']};
   const deep=needsDeepReasoning(cleaned);
   const routed=await routeAiStructured({taskType:deep?'cfo_report':'business_copilot',reasoningLevel:deep?'deep':'standard',prompt,schema,timeoutMs:15_000,validate:value=>Boolean(resultForRequest(value,cleaned))});
-  if(!routed.success){if(routed.errorCode==='AI_INVALID_RESULT'){sendJson(response,502,{code:'AI_INVALID_RESULT',message:'LOUREX AI returned an invalid result.'});return;}const publicError=aiRouterPublicError(routed);sendJson(response,publicError.status,{code:publicError.code,message:publicError.message});return;}
-  const result=resultForRequest(routed.data,cleaned);if(!result){sendJson(response,502,{code:'AI_INVALID_RESULT',message:'LOUREX AI returned an invalid result.'});return;}
-  sendJson(response,200,{model:'automatic',...result});
+  if(!routed.success&&routed.errorCode!=='AI_INVALID_RESULT'){
+    const publicError=aiRouterPublicError(routed);
+    sendJson(response,publicError.status,{code:publicError.code,message:publicError.message});return;
+  }
+  const result=routed.success?resultForRequest(routed.data,cleaned):null;
+  if(result){sendJson(response,200,{model:'automatic',...result});return;}
+  // A model can discuss an incomplete request even when it cannot produce an
+  // executable, exactly typed document proposal. No fabricated proposal is
+  // ever allowed through this conversational fallback.
+  const dialogue=await naturalLourexDialogue(cleaned,{mode:'controller'});
+  if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
+  sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
+    message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});
 }
