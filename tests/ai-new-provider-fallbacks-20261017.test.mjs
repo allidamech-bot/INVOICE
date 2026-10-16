@@ -4,7 +4,7 @@ import {routeAiStructured} from '../api/_ai/router.js';
 
 const originalEnv={...process.env};
 const originalFetch=globalThis.fetch;
-const keyNames=['GROQ_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','GEMINI_API_KEY','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY','LOUREX_AI_NEW_PROVIDERS_ENABLED','LOUREX_AI_MISTRAL_FREE_VERIFIED'];
+const keyNames=['GROQ_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','GEMINI_API_KEY','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY','LOUREX_AI_NEW_PROVIDERS_ENABLED','LOUREX_AI_MISTRAL_FREE_VERIFIED','LOUREX_AI_OLLAMA_FREE_VERIFIED'];
 
 test.beforeEach(()=>{
   for(const name of keyNames)delete process.env[name];
@@ -27,6 +27,7 @@ test('keys cannot enable new external providers without explicit privacy consent
   process.env.OPENROUTER_API_KEY='fake-key';
   process.env.MISTRAL_API_KEY='fake-key';
   process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
   let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
   const result=await ask();
   assert.equal(result.success,false);
@@ -74,6 +75,7 @@ test('Mistral is excluded until operator separately confirms free-plan mode',asy
 test('Ollama Cloud uses direct hosted API, no local device, and validates JSON locally',async()=>{
   process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
   process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
   let body,url;
   globalThis.fetch=async(u,options)=>{url=String(u);body=JSON.parse(options.body);return response(200,{message:{role:'assistant',content:'{"value":"ollama-ok"}'}});};
   const result=await ask();
@@ -90,6 +92,7 @@ test('OpenRouter exhaustion causes an isolated, bounded fallback to Ollama',asyn
   process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
   process.env.OPENROUTER_API_KEY='fake-key';
   process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
   const calls=[];
   globalThis.fetch=async(url)=>{
     calls.push(String(url));
@@ -113,6 +116,7 @@ test('OpenRouter exhaustion causes an isolated, bounded fallback to Ollama',asyn
 test('new provider output violating the financial JSON contract cannot be accepted',async()=>{
   process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
   process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
   globalThis.fetch=async()=>response(200,{message:{content:'{"value":"ok","unapproved":true}'}});
   const result=await ask();
   assert.equal(result.success,false);
@@ -125,6 +129,7 @@ test('new text providers cannot ingest images or native PDFs without supported c
   process.env.MISTRAL_API_KEY='fake-key';
   process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED='true';
   process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
   let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
   const image=await routeAiStructured({taskType:'customer_capture',prompt:'image',schema,attachments:[{kind:'image',mimeType:'image/png',data:'YWJj'}]});
   const pdf=await routeAiStructured({taskType:'quote_extract',prompt:'pdf',schema,attachments:[{kind:'native-document',mimeType:'application/pdf',data:'YWJj'}]});
@@ -137,6 +142,7 @@ test('global opt-in and real keys cannot leak a business prompt without explicit
   process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
   process.env.OPENROUTER_API_KEY='fake-key';
   process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
   let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
   const result=await routeAiStructured({
     taskType:'business_copilot',
