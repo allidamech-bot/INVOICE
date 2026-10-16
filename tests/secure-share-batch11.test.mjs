@@ -38,16 +38,16 @@ test('secure share domain produces opaque fragment links and strips internal dat
   assert.equal(mod.secureShareEligible({...doc,kind:'purchase-order'}),false);
 });
 
-test('public portal is isolated from the encrypted vault and uses ephemeral anonymous auth',async()=>{
+test('public portal is isolated from the encrypted vault and opens token-scoped documents without creating an Auth account',async()=>{
   const [html,data,portal]=await Promise.all([read('public/share.html'),read('src/portal/share-data.ts'),read('src/portal/SharePortal.tsx')]);
   assert.match(html,/noindex,nofollow,noarchive/);
   assert.match(html,/name="referrer" content="no-referrer"/);
   assert.match(html,/src\/portal\/SharePortal\.js/);
   assert.doesNotMatch(html,/src\/app\/App\.js|AppShell/);
   assert.match(data,/APP_NAME='lourex-public-share'/);
-  assert.match(data,/Auth\.Persistence\.NONE/);
-  assert.match(data,/signInAnonymously\(\)/);
-  assert.match(data,/collection\('publicShares'\)\.doc\(id\)\.get\(\)/);
+  assert.doesNotMatch(data,/signInAnonymously|firebase\.auth|identityPromise/);
+  assert.doesNotMatch(html,/firebase-auth-compat/);
+  assert.match(data,/collection\('publicShares'\)\.doc\(id\)\.get\(\{source:'server'\}\)/);
   assert.doesNotMatch(data,/resumeVaultSession|EncryptedVault|users\//);
   assert.match(portal,/TemplateRenderer/);
   assert.match(portal,/markPortalViewed/);
@@ -60,7 +60,7 @@ test('Firestore rules deny broad portal access and constrain customer evidence m
   assert.match(rules,/match \/publicShares\/\{shareId\}/);
   assert.match(rules,/shareId\.matches\('\^\[A-Za-z0-9_\-\]\{43\}\$'\)/);
   assert.match(rules,/sign_in_provider == 'anonymous'/);
-  assert.match(rules,/allow get: if shareTokenValid\(shareId\).*anonymousPortal\(\).*shareActive\(\)/s);
+  assert.match(rules,/allow get: if shareTokenValid\(shareId\).*customerPortal\(\).*shareActive\(\)/s);
   assert.match(rules,/allow list: if ownerExisting\(\)/);
   assert.match(rules,/changed\.hasOnly\(\['viewedAt','customerComment','commentAt','decision','decisionAt','updatedAt'\]\)/);
   assert.match(rules,/request\.resource\.data\.updatedAt == request\.time/);

@@ -6,6 +6,13 @@ import { setUiLanguage, t } from '../lib/i18n.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { loadPortalShare, markPortalViewed, sendPortalComment, sendPortalDecision } from './share-data.js';
 
+function portalError(error:unknown):string{
+  const code=String((error as any)?.code||'');
+  if(code==='permission-denied'||code==='firestore/permission-denied')return t('This link is unavailable, revoked, or expired. Please contact the sender.','الرابط غير متاح أو ملغى أو منتهي الصلاحية. تواصل مع المرسل.');
+  if(code==='unavailable'||code==='firestore/unavailable')return t('Unable to connect. Check your connection and try again.','تعذر الاتصال. تحقق من اتصالك وحاول مجددًا.');
+  if(code.startsWith('auth/'))return t('Unable to open this document. Please contact the sender.','تعذر فتح المستند. تواصل مع المرسل.');
+  return error instanceof Error?error.message:t('Unable to open this document. Please try again.','تعذر فتح المستند. حاول مجددًا.');
+}
 function shareId():string{try{return decodeURIComponent(location.hash.replace(/^#/,''));}catch{return '';}}
 function languageOf(share:SecureShareRecord):'en'|'ar'{return share.snapshot.language==='ar'?'ar':share.snapshot.language==='en'?'en':navigator.language.toLowerCase().startsWith('ar')?'ar':'en';}
 function decisionLabel(value:SecureShareDecision):string{return value==='accepted'?t('Accepted','مقبول'):value==='rejected'?t('Rejected','مرفوض'):t('Awaiting response','بانتظار الرد');}
@@ -34,10 +41,10 @@ function SharePortal():any{
   const [id,setId]=React.useState(shareId);
   React.useEffect(()=>{const change=()=>{const next=shareId();if(next===id)return;setShare(null);setLoading(true);setError('');setId(next);};window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change);},[id]);
   React.useEffect(()=>{const resize=()=>setScale(scaleForViewport());window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);},[]);
-  React.useEffect(()=>{let active=true;void loadPortalShare(id).then((item:SecureShareRecord)=>{if(!active)return;applyShare(item,setShare,setComment);setLoading(false);void markPortalViewed(item.id);}).catch((e:unknown)=>{if(active){setError(e instanceof Error?e.message:'Secure link unavailable.');setLoading(false);}});return()=>{active=false;};},[id]);
+  React.useEffect(()=>{let active=true;void loadPortalShare(id).then((item:SecureShareRecord)=>{if(!active)return;applyShare(item,setShare,setComment);setLoading(false);void markPortalViewed(item.id);}).catch((e:unknown)=>{if(active){setError(portalError(e));setLoading(false);}});return()=>{active=false;};},[id]);
   const refresh=async()=>{const item=await loadPortalShare(id);applyShare(item,setShare,setComment);return item;};
-  const respond=async(decision?:Exclude<SecureShareDecision,''>)=>{if(!share||busy)return;setBusy(true);setError('');try{if(decision)await sendPortalDecision(share.id,decision,comment);else await sendPortalComment(share.id,comment);await refresh();}catch(e){setError(e instanceof Error?e.message:t('Unable to record your response.','تعذر تسجيل ردك.'));}finally{setBusy(false);}};
-  const printDocument=async()=>{if(printing)return;setPrinting(true);setError('');try{const latest=await refresh();if(!secureShareIsActive(latest))throw new Error(t('This secure link is unavailable, revoked, or expired.','الرابط غير متاح أو ملغى أو منتهي الصلاحية.'));const shell=document.querySelector('.lx-public-document-shell');shell?.classList.remove('is-preview-hidden');try{await waitForPortalPrintReady();window.print();}finally{if(!showOriginal)shell?.classList.add('is-preview-hidden');}}catch(e){setError(e instanceof Error?e.message:t('Unable to prepare the document for printing.','تعذر تجهيز المستند للطباعة.'));}finally{setPrinting(false);}};
+  const respond=async(decision?:Exclude<SecureShareDecision,''>)=>{if(!share||busy)return;setBusy(true);setError('');try{if(decision)await sendPortalDecision(share.id,decision,comment);else await sendPortalComment(share.id,comment);await refresh();}catch(e){setError(portalError(e));}finally{setBusy(false);}};
+  const printDocument=async()=>{if(printing)return;setPrinting(true);setError('');try{const latest=await refresh();if(!secureShareIsActive(latest))throw new Error(t('This secure link is unavailable, revoked, or expired.','الرابط غير متاح أو ملغى أو منتهي الصلاحية.'));const shell=document.querySelector('.lx-public-document-shell');shell?.classList.remove('is-preview-hidden');try{await waitForPortalPrintReady();window.print();}finally{if(!showOriginal)shell?.classList.add('is-preview-hidden');}}catch(e){setError(portalError(e));}finally{setPrinting(false);}};
   if(loading)return <main className="lx-public-portal-state"><strong>LOUREX</strong><span>{t('Opening secure document…','جارٍ فتح المستند الآمن…')}</span></main>;
   if(!share)return <main className="lx-public-portal-state is-error"><strong>{t('Secure link unavailable','الرابط الآمن غير متاح')}</strong><p>{error}</p></main>;
   const lang=languageOf(share),active=secureShareIsActive(share),company=lang==='ar'?(share.snapshot.companySnapshot.nameAr||share.snapshot.companySnapshot.nameEn):(share.snapshot.companySnapshot.nameEn||share.snapshot.companySnapshot.nameAr),customer=lang==='ar'?(share.customerNameAr||share.customerNameEn):(share.customerNameEn||share.customerNameAr);

@@ -13,7 +13,7 @@ const token='aB9_-'.repeat(8)+'abc';window.qaDocument=doc;window.qaToken=token;
 if(q.get('view')==='portal'){
  const data={format:'LOUREX_SECURE_SHARE_V1',version:1,ownerUid:'qa-owner',documentId:doc.id,documentNumber:doc.number,documentKind:doc.kind,documentRole:doc.role,customerId:'qa',customerNameEn:'Synthetic buyer',customerNameAr:'عميل تجريبي',allowDecision:kind==='proforma',createdAt:new Date(),expiresAt:new Date(Date.now()+86400000),revokedAt:null,snapshot:doc,decision:'',customerComment:''};
  let revoked=false;window.qaRevoke=()=>{revoked=true;};window.qaPrintCount=0;window.print=()=>{window.qaPrintCount++;};location.hash=token;
- const app={name:'lourex-public-share'};const auth=()=>({setPersistence:async()=>{},currentUser:{isAnonymous:true}});auth.Auth={Persistence:{NONE:'none'}};
+ const app={name:'lourex-public-share'};const auth=()=>{throw new Error('auth/admin-restricted-operation: guest sign-up must never be used');};
  const firestore=()=>({collection:()=>({doc:()=>({get:async()=>({exists:!revoked,data:()=>data}),update:async patch=>Object.assign(data,patch)})})});firestore.FieldValue={serverTimestamp:()=>new Date()};
  window.firebase={apps:[app],initializeApp:()=>app,auth,firestore};
  document.body.className='lx-public-share-body';document.getElementById('root').id='portal-root';await import('./src/portal/SharePortal.js');
