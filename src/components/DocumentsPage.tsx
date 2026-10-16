@@ -52,7 +52,7 @@ interface Props {
   onCreateDeliveryInvoice?:(doc:LourexDocument)=>void;
   onCreatePurchaseOrder?:(doc:LourexDocument)=>void;
   onConvert?:(doc:LourexDocument)=>void;
-  onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
+  onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share',electronicShareId?:string)=>Promise<void>;
   onDelete:(doc:LourexDocument)=>void;
   onRecordPayment?:(doc:LourexDocument)=>void;
   onCreateCreditNote?:(doc:LourexDocument)=>void;
@@ -368,7 +368,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       {canCreatePurchaseOrder?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreatePurchaseOrder?.(doc))}><Icon name="file"/><span>{linkedPurchaseOrder?t(`Open purchase order ${linkedPurchaseOrder.number}`,`فتح أمر الشراء ${linkedPurchaseOrder.number}`):t('Create Purchase Order from RFQ','إنشاء أمر شراء من طلب عرض السعر')}</span></button>:null}
       {canCollect?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onRecordPayment?.(doc))}><Icon name="invoice"/><span>{t('Record Payment','تسجيل دفعة')}</span></button>:null}
       {canCredit?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateCreditNote?.(doc))}><Icon name="invoice"/><span>{t('Create Credit Note','إنشاء إشعار دائن')}</span></button>:null}
-      {secureShareEligible(doc)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({secureShareId:doc.id}))}><Icon name="lock"/><span>{t('Secure Share','مشاركة آمنة')}</span></button>:null}
+      {secureShareEligible(doc)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({secureShareId:doc.id}))}><Icon name="lock"/><span>{t('Electronic copy / QR','النسخة الإلكترونية / QR')}</span></button>:null}
       {canOutput?<><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name="download"/><span>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</span></button><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name="share"/><span>{t('Share','مشاركة')}</span></button></>:null}
       {canDelete&&this.state.detailId!==doc.id?<button type="button" role="menuitem" className="is-danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/><span>{t('Delete Draft','حذف المسودة')}</span></button>:null}
     </>;
@@ -418,7 +418,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <aside className="ta-doc-detail-side"><section className="ta-doc-panel ta-doc-action-panel"><header><div><small>{t('Actions','الإجراءات')}</small><h2>{t('Document actions','إجراءات المستند')}</h2></div></header>{!isDeliveryLinkedInvoice(doc.id,this.props.documentEvents)?<button type="button" onClick={()=>this.props.onDuplicate(doc)}><Icon name="copy"/><span>{t('Duplicate document','نسخ المستند')}</span></button>:null}{canDelete?<button type="button" className="is-danger" onClick={()=>this.props.onDelete(doc)}><Icon name="trash"/><span>{t('Delete draft','حذف المسودة')}</span></button>:null}</section></aside>
       </div>
       {this.renderActionPortal()}
-      <SecureShareManager open={Boolean(this.state.secureShareId)} document={this.props.documents.find(item=>item.id===this.state.secureShareId)??null} events={this.props.documentEvents} onClose={()=>this.setState({secureShareId:''})}/>
+      <SecureShareManager onOutput={this.props.onPrint} open={Boolean(this.state.secureShareId)} document={this.props.documents.find(item=>item.id===this.state.secureShareId)??null} events={this.props.documentEvents} onClose={()=>this.setState({secureShareId:''})}/>
     </section>;
   };
 
@@ -468,7 +468,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           {canCreatePurchaseOrder?<Button icon="file" onClick={()=>this.props.onCreatePurchaseOrder?.(doc)}>{linkedPurchaseOrder?t(`Open PO ${linkedPurchaseOrder.number}`,`فتح أمر الشراء ${linkedPurchaseOrder.number}`):t('Create Purchase Order','إنشاء أمر شراء')}</Button>:null}
           {canCollect?<Button icon="wallet" onClick={()=>this.props.onRecordPayment?.(doc)}>{t('Record payment','تسجيل دفعة')}</Button>:null}
           {canOutput?<><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}
-          {secureShareEligible(doc)?<Button icon="lock" onClick={()=>this.setState({secureShareId:doc.id})}>{t('Secure Share','مشاركة آمنة')}</Button>:null}
+          {secureShareEligible(doc)?<Button icon="lock" onClick={()=>this.setState({secureShareId:doc.id})}>{t('Electronic copy / QR','النسخة الإلكترونية / QR')}</Button>:null}
           <div className="ta-doc-detail-more ta-doc-actions"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
         </div>
       </div>
@@ -515,7 +515,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         </aside>
       </div>
       {this.renderActionPortal()}
-      <SecureShareManager open={Boolean(this.state.secureShareId)} document={this.props.documents.find(item=>item.id===this.state.secureShareId)??null} events={this.props.documentEvents} onClose={()=>this.setState({secureShareId:''})}/>
+      <SecureShareManager onOutput={this.props.onPrint} open={Boolean(this.state.secureShareId)} document={this.props.documents.find(item=>item.id===this.state.secureShareId)??null} events={this.props.documentEvents} onClose={()=>this.setState({secureShareId:''})}/>
     </section>;
   };
 
@@ -612,7 +612,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       </section>
 
       {this.renderActionPortal()}
-      <SecureShareManager open={Boolean(this.state.secureShareId)} document={this.props.documents.find(item=>item.id===this.state.secureShareId)??null} events={this.props.documentEvents} onClose={()=>this.setState({secureShareId:''})}/>
+      <SecureShareManager onOutput={this.props.onPrint} open={Boolean(this.state.secureShareId)} document={this.props.documents.find(item=>item.id===this.state.secureShareId)??null} events={this.props.documentEvents} onClose={()=>this.setState({secureShareId:''})}/>
     </section>;
   }
 }

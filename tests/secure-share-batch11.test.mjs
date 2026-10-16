@@ -97,7 +97,7 @@ test('Documents and Customer 360 expose secure sharing without adding primary na
   const [documents,customer360,shares,appShell,index]=await Promise.all([read('src/components/DocumentsPage.tsx'),read('src/components/Customer360LivePanel.tsx'),read('src/components/CustomerSharesPanel.tsx'),read('src/components/AppShell.tsx'),read('index.html')]);
   assert.match(documents,/SecureShareManager/);
   assert.match(documents,/secureShareEligible/);
-  assert.match(documents,/Secure Share/);
+  assert.match(documents,/Electronic copy \/ QR/);
   assert.match(customer360,/CustomerSharesPanel/);
   assert.match(shares,/Shared with customer/);
   assert.match(index,/secure-share-batch11\.css/);

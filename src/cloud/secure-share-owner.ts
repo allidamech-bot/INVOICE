@@ -1,6 +1,6 @@
 import type { LourexDocument } from '../types.js';
 import { currentCloudUser } from './firebase.js';
-import { SECURE_SHARE_FORMAT, SECURE_SHARE_TOKEN_PATTERN, newSecureShareToken, sanitizeDocumentForSecureShare, secureShareAllowsDecision, secureShareExpiry, type SecureShareDecision, type SecureShareRecord } from '../lib/secure-share.js';
+import { SECURE_SHARE_FORMAT, SECURE_SHARE_TOKEN_PATTERN, newSecureShareToken, sanitizeDocumentForSecureShare, secureShareAllowsDecision, secureShareExpiry, secureShareIsActive, type SecureShareDecision, type SecureShareRecord } from '../lib/secure-share.js';
 
 declare const firebase:any;
 type ShareListener=(shares:SecureShareRecord[])=>void;
@@ -26,6 +26,16 @@ export async function createSecureShare(doc:LourexDocument,days=7,allowDecision=
 
 export async function revokeSecureShare(id:string):Promise<void>{
   const uid=requireOwnerUid(),db=ownerDb();if(!SECURE_SHARE_TOKEN_PATTERN.test(id))throw new Error('Secure share token is invalid.');const ref=db.collection('publicShares').doc(id),snap=await ref.get();if(!snap.exists||String(snap.data()?.ownerUid||'')!==uid)throw new Error('Secure share was not found for this account.');const now=firebase.firestore.FieldValue.serverTimestamp();await ref.update({revokedAt:now,updatedAt:now});
+}
+
+/** Re-read before export so a revoked/expired link cannot be printed as active. */
+export async function loadSecureShareForOutput(id:string,documentId:string):Promise<SecureShareRecord>{
+  const uid=requireOwnerUid(),db=ownerDb();
+  if(!SECURE_SHARE_TOKEN_PATTERN.test(id))throw new Error('Secure share token is invalid.');
+  const snap=await db.collection('publicShares').doc(id).get();
+  const share=snap.exists?normalizeShare(id,snap.data()):null;
+  if(requireOwnerUid()!==uid||!share||share.ownerUid!==uid||share.documentId!==documentId||share.snapshot.id!==documentId||!secureShareIsActive(share))throw new Error('This electronic copy is unavailable, expired, or revoked.');
+  return share;
 }
 
 export function subscribeOwnerSecureShares(onChange:ShareListener,onError?:(error:unknown)=>void):()=>void{

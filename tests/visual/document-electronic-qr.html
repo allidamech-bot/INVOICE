@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/document-electronic-copy.css"><style>body{margin:0}.qr-qa-mobile{max-width:700px;margin:auto;padding:12px;box-sizing:border-box}</style></head><body><div id="root"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script src="ios-print-bridge.js"></script><script type="module">
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {TemplateRenderer} from './src/templates/TemplateRenderer.js';
+import {ElectronicDocument} from './src/portal/ElectronicDocument.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const q=new URLSearchParams(location.search),lang=q.get('lang')||'en',kind=q.get('kind')||'proforma',pdf=q.get('view')==='pdf',count=Number(q.get('items')||2);
+setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const company=defaultCompany();company.nameEn='LOUREX QA';company.nameAr='لوركس تجريبي';
+const doc=createBlankDocument(kind,'QR-QA-001',company);doc.status='final';doc.language=lang;doc.customerSnapshot={sourceCustomerId:'qa',companyNameEn:'Synthetic buyer',companyNameAr:'عميل تجريبي'};doc.appearance.templateId=q.get('template')||'obsidian';doc.terms.validity='14 days';doc.terms.paymentTerms='Net 15';
+doc.items=Array.from({length:count},(_,i)=>({...doc.items[0],id:'item-'+i,descriptionEn:'Potato chips — Cheese '+(i+1),descriptionAr:'شيبسيكو بنكهة الجبنة '+(i+1),quantity:'2',unit:'CTN',unitPrice:'125.00'}));
+const token='aB9_-'.repeat(8)+'abc';window.qaDocument=doc;window.qaToken=token;
+if(q.get('view')==='portal'){
+ const data={format:'LOUREX_SECURE_SHARE_V1',version:1,ownerUid:'qa-owner',documentId:doc.id,documentNumber:doc.number,documentKind:doc.kind,documentRole:doc.role,customerId:'qa',customerNameEn:'Synthetic buyer',customerNameAr:'عميل تجريبي',allowDecision:kind==='proforma',createdAt:new Date(),expiresAt:new Date(Date.now()+86400000),revokedAt:null,snapshot:doc,decision:'',customerComment:''};
+ let revoked=false;window.qaRevoke=()=>{revoked=true;};window.qaPrintCount=0;window.print=()=>{window.qaPrintCount++;};location.hash=token;
+ const app={name:'lourex-public-share'};const auth=()=>({setPersistence:async()=>{},currentUser:{isAnonymous:true}});auth.Auth={Persistence:{NONE:'none'}};
+ const firestore=()=>({collection:()=>({doc:()=>({get:async()=>({exists:!revoked,data:()=>data}),update:async patch=>Object.assign(data,patch)})})});firestore.FieldValue={serverTimestamp:()=>new Date()};
+ window.firebase={apps:[app],initializeApp:()=>app,auth,firestore};
+ document.body.className='lx-public-share-body';document.getElementById('root').id='portal-root';await import('./src/portal/SharePortal.js');
+}
+else if(pdf){document.body.classList.add('printing');ReactDOM.render(React.createElement('div',{className:'app-root'},React.createElement('div',{className:'print-portal'},React.createElement(TemplateRenderer,{document:doc,electronicShareId:token,scale:1}))),document.getElementById('root'));}
+else ReactDOM.render(React.createElement('main',{className:'qr-qa-mobile'},React.createElement(ElectronicDocument,{document:doc})),document.getElementById('root'));
+</script></body></html>

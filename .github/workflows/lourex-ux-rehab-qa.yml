@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'src/styles/document-electronic-copy.css'
+      - 'src/templates/DocumentQr.tsx'
+      - 'src/templates/TemplateRenderer.tsx'
+      - 'src/portal/**'
+      - 'tests/document-electronic-qr.test.mjs'
+      - 'tests/visual/*document-electronic-qr*'
       - 'src/styles/v485-visible-ui-corrections.css'
       - 'src/components/ProductImportModal.tsx'
       - 'src/components/ProductPriceLists.tsx'
@@ -183,11 +189,14 @@ jobs:
             sleep 1
           done
           node tests/visual/run-ux-rehab-real-pdf-20261016.cjs
+          node tests/visual/run-document-electronic-qr.cjs
       - name: Attach generated synthetic PDFs and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ux-rehab-real-pdf-output
-          path: visual-qa-output/ux-rehab-real-pdf/
+          path: |
+            visual-qa-output/ux-rehab-real-pdf/
+            visual-qa-output/document-electronic-qr/
           if-no-files-found: ignore
           retention-days: 7
