@@ -34,7 +34,7 @@ export function sanitizeDialogueCatalog(value){
   const rows=value.rows.slice(0,80).map(row).filter(x=>x&&(x.name||x.sku));
   const total=bounded(value.total),matching=Math.min(total,bounded(value.matching));
   return{total,matching,shown:rows.length,
-    incomplete:Boolean(value.incomplete||matching>rows.length||total>80),rows};
+    incomplete:Boolean(value.incomplete||(matching>0?matching>rows.length:total>rows.length)),rows};
 }
 
 export function buildNaturalLourexPrompt(cleaned,options={}){
