@@ -34,7 +34,48 @@ function clean(value:unknown,max=500):string{return String(value??'').normalize(
 function formatData(data:unknown,max=2200):string{try{const text=JSON.stringify(data,null,2);return text.length<=max?text:`${text.slice(0,max)}\n…`;}catch{return clean(data,max);}}
 function titleFor(tool:string,ar:boolean):string{const map:Record<string,[string,string]>={
   'customer.getSummary':['Customer summary','ملخص العميل'],'customer.getReceivables':['Receivables','الذمم المستحقة'],'customer.getHistory':['Customer history','سجل العميل'],'supplier.getSummary':['Supplier summary','ملخص المورد'],'product.getSummary':['Product summary','ملخص المنتج'],'product.getCostHistory':['Cost history','سجل التكلفة'],'document.get':['Document','المستند'],'purchase.get':['Purchase','الشراء'],'finance.getSummary':['Financial summary','الملخص المالي'],'treasury.getSnapshot':['Treasury','الخزينة'],'reports.getMetrics':['Report metrics','مؤشرات التقرير'],'inventory.getStatus':['Inventory','المخزون'],'search.records':['Search results','نتائج البحث'],'pricing.margin':['Gross margin','هامش الربح'],'pricing.markup':['Markup','الزيادة على التكلفة'],'pricing.targetPrice':['Target price','السعر المستهدف'],'landedCost.calculate':['Landed cost','تكلفة الوصول'],'scenario.calculate':['Scenario','السيناريو'],'fx.convertUsingRecordedRate':['FX conversion','تحويل العملة'],'receivables.aging':['Receivables aging','أعمار الذمم'],'breakEven.calculate':['Break-even','نقطة التعادل'],'inventory.coverage':['Inventory coverage','تغطية المخزون'],'quotation.prepare':['Quotation preview','معاينة عرض السعر'],'invoice.prepare':['Invoice preview','معاينة الفاتورة'],'customer.prepare':['Customer preview','معاينة العميل'],'supplier.prepare':['Supplier preview','معاينة المورد'],'purchase.prepare':['Purchase preview','معاينة الشراء'],'reminder.prepare':['Reminder preview','معاينة التذكير'],'message.prepare':['Message preview','معاينة الرسالة'],'report.prepare':['Report preview','معاينة التقرير']};const row=map[tool];return row?(ar?row[1]:row[0]):tool;}
-function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar'):string{const ar=language==='ar',ok=results.filter(row=>row.ok),failed=results.filter(row=>!row.ok);const lines:string[]=[ar?'Summary':'Summary',ar?`استخدم LOUREX ${results.length} أداة محلية لهذه المهمة. لم يتم تنفيذ أي تغيير غير معتمد.`:`LOUREX used ${results.length} local tool${results.length===1?'':'s'} for this request. No unapproved change was executed.`];for(const row of ok){lines.push('',titleFor(row.tool,ar),formatData(row.data));}if(failed.length){lines.push('',ar?'Warning':'Warning',...failed.map(row=>`- ${row.tool}: ${row.summary}`));}const execute=results.filter(row=>row.class==='execute'&&row.ok);if(execute.length){lines.push('',ar?'Actions':'Actions',ar?'يوجد إجراء مجهّز يحتاج موافقتك قبل التطبيق.':'A prepared action requires your approval before it can be applied.');}if(results.some(row=>row.class==='high-impact')){lines.push('',ar?'Risk':'Risk',ar?'الإجراء المالي عالي التأثير محمي ولا ينفذه الذكاء الاصطناعي. استخدم مسار LOUREX المحمي للمراجعة والتنفيذ.':'The requested high-impact financial action is protected and cannot be executed by AI. Use the protected LOUREX workflow to review and complete it.');}return lines.join('\n').slice(0,5000);}
+/** Human-readable verified tool evidence, not an opaque JSON wall. A record
+ * always occupies its own list line; no mutation or model inference occurs. */
+function readableToolValue(value:unknown):string{
+  if(value===null||value===undefined||value==='')return '—';
+  if(Array.isArray(value))return value.map(entry=>typeof entry==='object'?JSON.stringify(entry):String(entry)).join('، ').slice(0,650);
+  if(typeof value==='object')return JSON.stringify(value).slice(0,650);
+  return String(value).replace(/[\r\n]+/g,' ').slice(0,280);
+}
+function toolFacts(data:unknown,ar:boolean):string[]{
+  if(Array.isArray(data))return data.slice(0,50).map(row=>{
+    if(!row||typeof row!=='object')return '- '+readableToolValue(row);
+    const object=row as Record<string,unknown>;
+    const identity=readableToolValue(object.label||object.name||object.sku||object.number||object.id||'');
+    const facts=Object.entries(object).filter(([key,value])=>!['label','name','id'].includes(key)&&value!==undefined&&value!==null&&value!=='')
+      .slice(0,9).map(([key,value])=>key+': '+readableToolValue(value));
+    return '- '+[identity,...facts].filter(Boolean).join(' — ');
+  });
+  if(data&&typeof data==='object')return Object.entries(data as Record<string,unknown>)
+    .filter(([,value])=>value!==undefined&&value!==null)
+    .slice(0,28).flatMap(([key,value])=>{
+      if(Array.isArray(value)&&value.length&&value.every(item=>item&&typeof item==='object')){
+        return [key+':',...toolFacts(value,ar)];
+      }
+      return ['- '+key+': '+readableToolValue(value)];
+    });
+  return [ar?'النتيجة: '+readableToolValue(data):'Result: '+readableToolValue(data)];
+}
+function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar'):string{
+  const ar=language==='ar',ok=results.filter(row=>row.ok),failed=results.filter(row=>!row.ok),lines:string[]=[];
+  for(const row of ok){
+    lines.push('**'+titleFor(row.tool,ar)+'**',...toolFacts(row.data,ar),'');
+  }
+  if(failed.length){
+    lines.push(ar?'لم أتمكن من استكمال هذه الجزئية، ولم أغيّر أي سجل:':'This part could not be completed; no records were changed:');
+    for(const row of failed)lines.push('- '+row.summary);
+  }
+  if(results.some(row=>row.class==='execute'&&row.ok))
+    lines.push(ar?'جهّزت الإجراء للمراجعة، ولن يُطبّق إلا بعد موافقتك.':'The action is ready for review and will not apply without your approval.');
+  if(results.some(row=>row.class==='high-impact'))
+    lines.push(ar?'الترحيل أو تحريك المخزون يحتاج مسار الاعتماد المحاسبي المحمي.':'Posting or stock movements require the protected accounting approval workflow.');
+  return (lines.join('\n').trim()||(ar?'ما لقيت بيانات مؤكدة لهذا الطلب. شو التفصيل اللي بدك نراجعه؟':'I could not verify matching data. What would you like to check?')).slice(0,5000);
+}
 function likelyToolIntent(message:string,context:any):boolean{const q=clean(message,6000).toLowerCase();if(!q)return false;if(context?.assistantRuntime?.entity?.id&&/(?:this|هذا|هذه|هال|current|الحالي|الحالية)/i.test(q))return true;return /(?:open|go to|navigate|search|find|show|list|compare|prepare|create|update|change|remind|task|customer|supplier|product|inventory|stock|purchase|invoice|quotation|quote|receivable|overdue|cash|bank|treasury|margin|markup|price|cost|landed|break.?even|fx|currency|report|scenario|deal|profitability|finalize|payment|delete|post|افتح|روح|اذهب|ابحث|دور|اعرض|قارن|جهز|أنشئ|انشئ|عدل|غيّر|غير|ذكرني|مهمة|عميل|مورد|منتج|مخزون|شراء|مشتريات|فاتورة|عرض سعر|ذمم|متأخر|سيولة|بنك|خزينة|هامش|سعر|تكلفة|وصول|تعادل|عملة|تقرير|سيناريو|صفقة|ربحية|رحل|دفعة|احذف)/i.test(q);}
 
 function previewOnlyDocumentIntent(message:string):boolean{
