@@ -30,7 +30,7 @@ test('v580 prevents Safari document PDF from falling back to native print and bu
 
 test('Safari app boundary refuses native PDF fallback when the bridge is unavailable',async()=>{
   const app=await read('src/app/App.tsx');
-  const start=app.indexOf("private requestPrint=async(doc:LourexDocument,mode:'print'|'pdf'|'share')");
+  const start=app.indexOf("private requestPrint=async(doc:LourexDocument,mode:'print'|'pdf'|'share'");
   const end=app.indexOf('private afterPrint=',start);
   assert.ok(start>=0&&end>start,'requestPrint workflow not found');
   const workflow=app.slice(start,end);

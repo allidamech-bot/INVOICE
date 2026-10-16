@@ -291,12 +291,13 @@
   const collectSharpMedia = (page) => {
     const pageRect = page.getBoundingClientRect();
     if (!pageRect.width || !pageRect.height) return [];
-    return Array.from(page.querySelectorAll(SHARP_MEDIA_SELECTOR)).map((image,index) => {
+    return Array.from(page.querySelectorAll(SHARP_MEDIA_SELECTOR+',.lx-document-qr img')).map((image,index) => {
       const rect = image.getBoundingClientRect();
       const src = image.currentSrc || image.src || '';
       if (!src || rect.width <= 0 || rect.height <= 0) return null;
       const asset = {
         src,
+        required:Boolean(image.closest('.lx-document-qr')),
         x:(rect.left-pageRect.left)/pageRect.width*210,
         y:(rect.top-pageRect.top)/pageRect.height*297,
         w:rect.width/pageRect.width*210,
@@ -313,6 +314,7 @@
         const prepared = await pngForPdf(asset.src);
         pdf.addImage(prepared.data,prepared.format,asset.x,asset.y,asset.w,asset.h,asset.alias,'NONE');
       } catch {
+        if(asset.required)throw new Error('Unable to embed document QR in PDF. Please retry.');
         /* Base page remains valid even if one optional artwork overlay fails. */
       }
     }
@@ -398,6 +400,15 @@
           if (index>0) pdf.addPage('a4','portrait');
           pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG',0,0,210,297,undefined,'FAST');
           await addSharpMedia(pdf,sharpMedia);
+          // Preserve the electronic-document link in the rasterized PDF too.
+          const qrLinks=Array.from(page.querySelectorAll('.lx-document-qr[href]'));
+          for(const link of qrLinks){
+            const pageRect=page.getBoundingClientRect();
+            const url=new URL(link.href),rect=link.getBoundingClientRect();
+            if(url.origin===location.origin&&url.pathname==='/share.html'&&/^#[A-Za-z0-9_-]{43}$/.test(url.hash)&&rect.width>0&&rect.height>0){
+              pdf.link((rect.left-pageRect.left)/pageRect.width*210,(rect.top-pageRect.top)/pageRect.height*297,rect.width/pageRect.width*210,rect.height/pageRect.height*297,{url:url.href});
+            }
+          }
           canvas.width=1; canvas.height=1;
         }
         const blob = pdf.output('blob');

@@ -1,3 +1,4 @@
+import { DocumentQr } from './DocumentQr.js';
 import type { DocumentItem, LourexDocument, TemplateId } from '../types.js';
 import { calculateTotals, formatMoney, lineTotal } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
@@ -7,8 +8,8 @@ import { documentCurrency, documentDisplayValue, type DocumentValueKind } from '
 import { normalizeWatermark } from '../lib/document-extras.js';
 import { documentBankAllowed, documentKindTitle, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
-interface Props { document: LourexDocument; scale?: number; compact?: boolean; }
-interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex: number; totalPages: number; finalPage: boolean; variant: TemplateId; compact?: boolean; }
+interface Props { document: LourexDocument; scale?: number; compact?: boolean; electronicShareId?:string; }
+interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex: number; totalPages: number; finalPage: boolean; variant: TemplateId; compact?: boolean; electronicShareId?:string; }
 interface DeferredPreviewState { active:boolean; }
 
 const MODERN_TEMPLATES: TemplateId[] = ['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
@@ -199,7 +200,7 @@ function footerText(doc:LourexDocument):string{
   return doc.companySnapshot.nameEn||doc.companySnapshot.nameAr||'LOUREX';
 }
 
-function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant, compact }: PageProps): any {
+function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant, compact, electronicShareId }: PageProps): any {
   const tokens=resolvedAppearanceTokens(doc.appearance);
   const paletteMode=doc.appearance.paletteMode??'auto';
   const tone=resolvedDocumentTone({...doc.appearance,templateId:variant});
@@ -223,7 +224,7 @@ function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant,
     '--lrx-table-heading-size':`${8.2*tokens.tableScale}px`
   } as any;
   const firstPage=pageIndex===0;
-  return <article dir={doc.language==='ar'?'rtl':'ltr'} className={`invoice-page template-${variant} kind-${doc.kind} role-${doc.role} lifecycle-${doc.lifecycleStatus} lang-${doc.language} palette-${paletteMode} document-tone-${tone} ${firstPage?'page-first':'page-continued'} ${detailsOnly?'details-only':''} ${compact ? 'compact-preview' : ''}`} data-template={variant} data-page={pageIndex+1} data-palette={paletteMode} data-kind={doc.kind} data-role={doc.role} data-tone={tone} style={style}><div className="page-accent" />{(()=>{const watermark=normalizeWatermark(doc.appearance.watermark);if(!watermark.enabled)return null;const useLogo=watermark.type==='logo'&&Boolean(doc.companySnapshot.logoDataUrl);const style={'--wm-opacity':String(watermark.opacity),'--wm-color':watermark.color,'--wm-angle':String(watermark.angle)+'deg','--wm-size':String(watermark.size)+'px'} as any;if(watermark.pattern==='repeat')return <div className="document-custom-watermark is-repeat" style={style} aria-hidden="true">{Array.from({length:9},(_,index)=><span className="wm-tile" key={index}>{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<b>{watermark.text||'DRAFT'}</b>}</span>)}</div>;return <div className={'document-custom-watermark '+(useLogo?'is-logo':'is-text')} style={style} aria-hidden="true">{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<span>{watermark.text||'DRAFT'}</span>}</div>;})()}{doc.lifecycleStatus==='voided'?<div className="document-void-watermark">{(doc.kind==='proforma'||doc.kind==='purchase-order')?localized(doc,'CANCELLED','ملغى'):localized(doc,'VOID','ملغى')}</div>:null}{!firstPage?<ContinuationHeader document={doc}/>:null}{firstPage&&variant === 'executive' ? <header className="header-executive"><LogoBlock document={doc} inverse={true}/><DocumentTitle document={doc} inverse/><MetaBlock document={doc}/></header> : null}{firstPage&&variant === 'minimal' ? <header className="header-minimal"><LogoBlock document={doc}/><div><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{firstPage&&variant === 'trade' ? <header className="header-trade"><div className="trade-bar"><LogoBlock document={doc} inverse={true}/></div><div className="trade-title"><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{firstPage&&variant === 'signature' ? <header className="header-signature"><LogoBlock document={doc}/><div className="signature-title"><small>{localized(doc,'COMMERCIAL DOCUMENT','مستند تجاري')}</small><DocumentTitle document={doc}/></div><MetaBlock document={doc}/></header> : null}{firstPage&&isModernTemplate(variant) ? <ModernHeader document={doc} variant={variant}/> : null}<main className="doc-body">{firstPage ? <div className="party-grid"><PartyBlock document={doc} type="seller"/><PartyBlock document={doc} type="customer"/></div> : null}{items.length ? <ItemsTable document={doc} items={items} continued={!firstPage}/> : null}{finalPage ? <FinalDetails document={doc}/> : null}</main><footer className="doc-footer"><span dir="auto">{footerText(doc)}</span><span dir="ltr">{pageIndex + 1} / {totalPages}</span></footer></article>;
+  return <article dir={doc.language==='ar'?'rtl':'ltr'} className={`invoice-page template-${variant} kind-${doc.kind} role-${doc.role} lifecycle-${doc.lifecycleStatus} lang-${doc.language} palette-${paletteMode} document-tone-${tone} ${firstPage?'page-first':'page-continued'} ${detailsOnly?'details-only':''} ${compact ? 'compact-preview' : ''}`} data-template={variant} data-page={pageIndex+1} data-palette={paletteMode} data-kind={doc.kind} data-role={doc.role} data-tone={tone} style={style}><div className="page-accent" />{(()=>{const watermark=normalizeWatermark(doc.appearance.watermark);if(!watermark.enabled)return null;const useLogo=watermark.type==='logo'&&Boolean(doc.companySnapshot.logoDataUrl);const style={'--wm-opacity':String(watermark.opacity),'--wm-color':watermark.color,'--wm-angle':String(watermark.angle)+'deg','--wm-size':String(watermark.size)+'px'} as any;if(watermark.pattern==='repeat')return <div className="document-custom-watermark is-repeat" style={style} aria-hidden="true">{Array.from({length:9},(_,index)=><span className="wm-tile" key={index}>{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<b>{watermark.text||'DRAFT'}</b>}</span>)}</div>;return <div className={'document-custom-watermark '+(useLogo?'is-logo':'is-text')} style={style} aria-hidden="true">{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<span>{watermark.text||'DRAFT'}</span>}</div>;})()}{doc.lifecycleStatus==='voided'?<div className="document-void-watermark">{(doc.kind==='proforma'||doc.kind==='purchase-order')?localized(doc,'CANCELLED','ملغى'):localized(doc,'VOID','ملغى')}</div>:null}{!firstPage?<ContinuationHeader document={doc}/>:null}{firstPage&&variant === 'executive' ? <header className="header-executive"><LogoBlock document={doc} inverse={true}/><DocumentTitle document={doc} inverse/><MetaBlock document={doc}/></header> : null}{firstPage&&variant === 'minimal' ? <header className="header-minimal"><LogoBlock document={doc}/><div><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{firstPage&&variant === 'trade' ? <header className="header-trade"><div className="trade-bar"><LogoBlock document={doc} inverse={true}/></div><div className="trade-title"><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{firstPage&&variant === 'signature' ? <header className="header-signature"><LogoBlock document={doc}/><div className="signature-title"><small>{localized(doc,'COMMERCIAL DOCUMENT','مستند تجاري')}</small><DocumentTitle document={doc}/></div><MetaBlock document={doc}/></header> : null}{firstPage&&isModernTemplate(variant) ? <ModernHeader document={doc} variant={variant}/> : null}<main className="doc-body">{firstPage ? <div className="party-grid"><PartyBlock document={doc} type="seller"/><PartyBlock document={doc} type="customer"/></div> : null}{items.length ? <ItemsTable document={doc} items={items} continued={!firstPage}/> : null}{finalPage ? <FinalDetails document={doc}/> : null}</main><footer className={'doc-footer'+(finalPage&&electronicShareId?' has-electronic-qr':'')}>{finalPage&&electronicShareId?<DocumentQr token={electronicShareId} language={doc.language}/>:null}<span dir="auto">{footerText(doc)}</span><span dir="ltr">{pageIndex + 1} / {totalPages}</span></footer></article>;
 }
 function firstPageItemCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
@@ -309,15 +310,18 @@ class MeasuredDocument extends React.Component<Props,{pages:DocumentItem[][];rea
   state={pages:initialPages(this.props.document),ready:false};
   private root:HTMLDivElement|null=null;
   private frame=0;private mounted=false;private moves=0;
-  private renderSignature=documentRenderSignature(this.props.document);
+  private renderSignature=documentRenderSignature(this.props.document)+(this.props.electronicShareId||'');
   componentDidMount():void{this.mounted=true;this.prepare();}
   componentWillUnmount():void{this.mounted=false;cancelAnimationFrame(this.frame);}
   componentDidUpdate():void{
-    const nextSignature=documentRenderSignature(this.props.document);
+    const nextSignature=documentRenderSignature(this.props.document)+(this.props.electronicShareId||'');
     if(nextSignature!==this.renderSignature){
       this.renderSignature=nextSignature;
       this.moves=0;
       this.setState({pages:initialPages(this.props.document),ready:false},()=>this.prepare());
+    }else if(!this.state.ready){
+      // A public/mobile preview can become visible after mounting hidden.
+      this.schedule();
     }
   }
   private prepare=()=>{void Promise.resolve(document.fonts?.ready).then(()=>{if(this.mounted)this.schedule();});};
@@ -347,7 +351,7 @@ class MeasuredDocument extends React.Component<Props,{pages:DocumentItem[][];rea
   render():any{
     const {document:doc,scale=1,compact=false}=this.props,pages=this.state.pages;
     const variant=resolvedTemplateId(doc.appearance.templateId);
-    return <div ref={(node:HTMLDivElement|null)=>{this.root=node;}} className="invoice-pages" data-source-item-count={doc.items.length} data-pagination-ready={this.state.ready?'true':'false'} onLoad={()=>{if(this.state.ready)this.setState({ready:false},this.schedule);else this.schedule();}} style={{'--preview-scale':String(scale)} as any}>{pages.map((items,index)=><Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index===pages.length-1} variant={variant} compact={compact}/>)}</div>;
+    return <div ref={(node:HTMLDivElement|null)=>{this.root=node;}} className="invoice-pages" data-source-item-count={doc.items.length} data-pagination-ready={this.state.ready?'true':'false'} onLoad={()=>{if(this.state.ready)this.setState({ready:false},this.schedule);else this.schedule();}} style={{'--preview-scale':String(scale)} as any}>{pages.map((items,index)=><Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index===pages.length-1} variant={variant} compact={compact} electronicShareId={this.props.electronicShareId}/>)}</div>;
   }
 }
 function renderDocument(props:Props):any{return <MeasuredDocument {...props}/>;}
