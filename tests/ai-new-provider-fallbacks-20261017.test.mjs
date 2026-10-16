@@ -18,7 +18,7 @@ test.afterEach(()=>{
 });
 
 const schema={type:'OBJECT',properties:{value:{type:'STRING'}},required:['value']};
-const ask=()=>routeAiStructured({taskType:'workspace_help',prompt:'synthetic only',schema,maxOutputTokens:80});
+const ask=()=>routeAiStructured({taskType:'workspace_help',prompt:'synthetic only',schema,maxOutputTokens:80,externalDataClass:'public-synthetic'});
 function response(status,body){
   return{ok:status>=200&&status<300,status,headers:{get:()=>null},text:async()=>JSON.stringify(body)};
 }
@@ -123,5 +123,35 @@ test('new text providers cannot ingest images or native PDFs without supported c
   const pdf=await routeAiStructured({taskType:'quote_extract',prompt:'pdf',schema,attachments:[{kind:'native-document',mimeType:'application/pdf',data:'YWJj'}]});
   assert.equal(image.errorCode,'AI_NOT_CONFIGURED');
   assert.equal(pdf.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(calls,0);
+});
+
+test('global opt-in and real keys cannot leak a business prompt without explicit per-request classification',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OPENROUTER_API_KEY='fake-key';
+  process.env.OLLAMA_API_KEY='fake-key';
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const result=await routeAiStructured({
+    taskType:'business_copilot',
+    prompt:'Sensitive supplier invoice and private customer balance',
+    schema
+  });
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(calls,0);
+});
+
+test('sensitive workflow classification remains isolated even with a forged synthetic tag',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OPENROUTER_API_KEY='fake-key';
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const result=await routeAiStructured({
+    taskType:'supplier_purchase_extract',
+    prompt:'Sensitive supplier order',
+    schema,
+    externalDataClass:'public-synthetic'
+  });
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_NOT_CONFIGURED');
   assert.equal(calls,0);
 });
