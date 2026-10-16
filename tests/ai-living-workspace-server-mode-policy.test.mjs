@@ -1,3 +1,4 @@
+import {dialogueRepeatsLastAnswer} from '../api/_ai/lourex-dialogue.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -11,20 +12,20 @@ const line=(source,start)=>{
 
 test('Core discards any draft/navigation proposal when the user is in Advisor mode',()=>{
   const code=src('api/ai-core.js');
-  const resultForRequest=new Function('cleanAiResult','claimedDraftCreation','previewOnlyDocumentRequested','draftActionRequested',
+  const resultForRequest=new Function('cleanAiResult','claimedDraftCreation','previewOnlyDocumentRequested','draftActionRequested','dialogueRepeatsLastAnswer',
     line(code,'function resultForRequest(')+';return resultForRequest;')(
       value=>({answer:value.answer,proposal:value.proposal}),
-      value=>/created|saved/i.test(value),()=>false,()=>false);
+      value=>/created|saved/i.test(value),()=>false,()=>false,dialogueRepeatsLastAnswer);
   const draft={capability:'document.createDraft'};
   const advisor={context:{conversationMode:'advisor',language:'en'},message:'create draft'};
   const controller={context:{conversationMode:'controller',language:'en'},message:'create draft'};
   assert.equal(resultForRequest({answer:'I can prepare it',proposal:draft},advisor).proposal,null);
   assert.match(resultForRequest({answer:'Created and saved',proposal:draft},advisor).answer,/did not create or save/);
   assert.equal(resultForRequest({answer:'Proposal ready',proposal:draft},controller).proposal,draft);
-  const strictResultForRequest=new Function('cleanAiResult','claimedDraftCreation','previewOnlyDocumentRequested','draftActionRequested',
+  const strictResultForRequest=new Function('cleanAiResult','claimedDraftCreation','previewOnlyDocumentRequested','draftActionRequested','dialogueRepeatsLastAnswer',
     line(code,'function resultForRequest(')+';return resultForRequest;')(
       value=>value.proposal?.capability==='INVALID'?null:{answer:value.answer,proposal:value.proposal},
-      value=>/created|saved/i.test(value),()=>false,()=>false);
+      value=>/created|saved/i.test(value),()=>false,()=>false,dialogueRepeatsLastAnswer);
   assert.equal(strictResultForRequest({answer:'Here is the analysis',proposal:{capability:'INVALID'}},advisor).proposal,null);
   assert.equal(strictResultForRequest({answer:'Ready',proposal:{capability:'INVALID'}},controller),null);
   assert.match(code,/conversationMode=body\?\.context\?\.conversationMode==='controller'\?'controller':'advisor'/);
@@ -72,6 +73,7 @@ test('Server sanitizers do not promote missing or malformed mode into Controller
       cleanAdvisor:()=>({version:2}),
       sanitizeControllerConversationSources:()=>[],
       sanitizeDialogueCatalog:()=>null,
+      sanitizeDocumentConversation:()=>null,
       ALLOWED_CAPABILITIES:['workspace.help','finance.explain','document.createDraft','workspace.navigate'],
       ACTION_CAPABILITIES:['document.createDraft','workspace.navigate'],
     };

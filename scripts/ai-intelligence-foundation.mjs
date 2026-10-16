@@ -2,11 +2,12 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 // One fail-closed compatibility shim after the audited owners. No product logic here.
 const path='dist/src/components/AiCopilot.js';let source=await readFile(path,'utf8');
-const imports="import { installIntelligenceRuntime, intelligenceContext, intelligenceRequestMessage, intelligenceReviseDraft, intelligenceTools, intelligenceApprove } from '../lib/ai-intelligence-runtime.js';\n";
+const imports="import { installIntelligenceRuntime, intelligenceContext, intelligenceRequestMessage, intelligenceReviseDraft, intelligenceTools, intelligenceApprove, intelligenceDraftGrounding } from '../lib/ai-intelligence-runtime.js';\n";
 if(source.includes('__lourexIntelligenceFoundation'))throw new Error('Foundation already installed.');
 const replace=(before,after)=>{if(source.split(before).length!==2)throw new Error('Foundation runtime contract drift: '+before.slice(0,100));source=source.replace(before,after);};
 replace('this.__lourexLatestContext=context;','intelligenceContext(this,context);this.__lourexLatestContext=context;');
 replace('reviseAiPendingDocumentDraft(pendingDocumentProposal, message, context.drafting, this.props.language)','intelligenceReviseDraft(this,pendingDocumentProposal, message, context.drafting, this.props.language)');
+replace('safeProposal(payload?.proposal, context, message)', 'safeProposal(payload?.proposal, context, intelligenceDraftGrounding(this,payload?.proposal,message))');
 replace('const advisorV2ReadOnly =','context.conversationWorkingMemory = intelligenceRequestMessage(this,"", requestMessage);\n            requestMessage = message;\n            const advisorV2ReadOnly =');
 replace('await orchestrateAiToolRequest({ message, vault: resumed.vault, context:','await intelligenceTools(this,{ message, vault: resumed.vault, context:');
 replace('const result=await applyApprovedToolExecution(step);','const result=await intelligenceApprove(instance,step,()=>applyApprovedToolExecution(step));if(!result)throw new Error(instance.state.error||"Approval blocked.");');
