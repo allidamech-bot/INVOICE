@@ -94,8 +94,8 @@ test('ordinary navigation and edit suggestions are compact without bypassing the
   assert.match(component,/react\.cloneElement\(primary,\{className:'lxw-inline-open'\}/);
   assert.match(component,/children\.filter\(\(child:any\)=>child!==actions\)/);
   assert.match(component,/const safeContent=content\.filter\(\(child:any\)=>child!==proposalNode\)/);
-  assert.match(component,/mode==='controller'\?\[/);
-  assert.match(component,/generalProposal\?\[<InlineGeneralProposal/);
+  assert.match(component,/mode==='controller'&&generalProposal\?/);
+  assert.match(component,/\[<InlineGeneralProposal/);
   assert.match(styles,/\.lxw-inline-general-detail\{/);
   assert.match(styles,/\.lxw-inline-general\{/);
 });
