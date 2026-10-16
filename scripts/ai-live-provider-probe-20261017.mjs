@@ -31,7 +31,7 @@ async function request(url,{headers={},body=null,method='GET'}={}){
   return {ok:response.ok,status:response.status,json};
 }
 function authStatus(r){if(r.status===401||r.status===403)return'REJECTED';if(r.status===429)return'RATE_LIMITED';if(r.ok)return'ACCEPTED';return'UNVERIFIED';}
-function validOpenAI(r){let content=r.json?.choices?.[0]?.message?.content;return typeof content==='string'&&content.includes(MARKER);}
+function validOpenAI(r){let payload=r.json?.result?.choices?r.json.result:r.json;let content=payload?.choices?.[0]?.message?.content;return typeof content==='string'&&content.includes(MARKER);}
 function validGemini(r){return r.json?.candidates?.[0]?.content?.parts?.some(x=>String(x?.text||'').includes(MARKER))||false;}
 const probeText='Public synthetic connectivity probe. Respond exactly with '+MARKER+'. No real records or financial data.';
 
