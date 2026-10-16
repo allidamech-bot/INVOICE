@@ -36,3 +36,10 @@ test('scoped evidence buttons and their original callbacks survive formatting',(
   assert.equal(nodes[0].props.children.find(n=>n?.type==='button'),evidence);
   assert.equal(evidence.props.onClick,callback);
 });
+test('table fragments split across provider paragraphs become one table, followed by an ordinary reply',()=>{
+  const nodes=context.markdownParagraphs([p('| الصنف | Price |'),p('| --- | --- |'),p('| Ulker | 10 USD |'),p('جاهز للمراجعة')]);
+  assert.equal(nodes[0].props.className,'lxw-response-table');
+  assert.ok(tags(nodes).includes('table'));
+  assert.equal(nodes[1].type,'p');
+  assert.ok(JSON.stringify(nodes[1]).includes('جاهز للمراجعة'));
+});

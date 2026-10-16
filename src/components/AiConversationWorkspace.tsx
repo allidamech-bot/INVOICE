@@ -35,6 +35,24 @@ function markdownInline(value:any,key:string):any {
 function markdownParagraphs(children:any[]):any[] {
   const result:any[]=[];let list:any[]=[];let listType='';
   const flush=()=>{if(list.length){result.push(react.createElement(listType,{key:'list-'+result.length},...list));list=[];listType='';}};
+  // Providers may split a Markdown table across consecutive paragraph nodes.
+  // Reassemble those rows before formatting; ordinary paragraphs and scoped
+  // evidence elements keep their existing presentation and callbacks.
+  const grouped:any[]=[];
+  const paragraphText=(node:any):string|null=>{
+    if(!react.isValidElement(node)||node.type!=='p')return null;
+    const parts=react.Children.toArray(node.props.children);
+    return parts.every((part:any)=>typeof part==='string')?parts.join(''):null;
+  };
+  for(let i=0;i<children.length;i++){
+    const text=paragraphText(children[i]),next=paragraphText(children[i+1]);
+    if(text?.includes('|')&&next&&/^\s*\|?\s*:?-{3,}/.test(next)){
+      const rows=[text,next];i+=2;
+      while(i<children.length){const row=paragraphText(children[i]);if(!row?.includes('|'))break;rows.push(row);i++;}
+      i--;grouped.push(react.createElement('p',{key:'table-source-'+i},rows.join('\n')));
+    }else grouped.push(children[i]);
+  }
+  children=grouped;
   children=children.flatMap(child=>{
     if(!react.isValidElement(child)||child.type!=='p')return [child];
     const parts=react.Children.toArray(child.props.children);
@@ -85,9 +103,9 @@ function assistantMessageBlocks(text:string):any[] {
     }
     const trimmed=line.trim();
     if(!trimmed){flush();continue;}
-    const heading=trimmed.match(/^#{1,5}\s+(.+)/);
+    const heading=trimmed.match(/^(#{1,5})\s+(.+)/);
     const bullet=trimmed.match(/^([-*•●▪]|[0-9٠-٩۰-۹]{1,3}[.)])\s+(.+)/);
-    if(heading){flush();blocks.push(<h4 key={'heading-'+blocks.length} dir="auto">{markdownInline(heading[1],String(blocks.length))}</h4>);continue;}
+    if(heading){flush();blocks.push(react.createElement(heading[1]!.length<=2?'h3':'h4',{key:'heading-'+blocks.length,dir:'auto'},markdownInline(heading[2],String(blocks.length))));continue;}
     if(bullet){
       const kind=/[0-9٠-٩۰-۹]/.test(bullet[1]!)?'ol':'ul';
       if(bulletKind&&bulletKind!==kind)flush();
