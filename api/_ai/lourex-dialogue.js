@@ -31,7 +31,7 @@ export function buildNaturalLourexPrompt(cleaned,options={}){
     business:context.business,
     pricing:context.pricing,
     drafting:context.drafting,
-    advisorV2:context.advisorV2,
+    advisorV2:context.advisorV2||cleaned?.advisor,
     sources:context.conversationSources||cleaned?.sources,
     screen:context.screen||cleaned?.screen
   };
