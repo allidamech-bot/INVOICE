@@ -1,0 +1,174 @@
+name: LOUREX UX Rehabilitation QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/SavedItemsModal.tsx'
+      - 'src/styles/saved-items-picker-v232.css'
+      - 'src/styles/pricing-batch8.css'
+      - 'src/styles/inventory-planning-batch7.css'
+      - 'src/components/WarehouseLocationsPage.tsx'
+      - 'src/components/EditorPageCore.tsx'
+      - 'src/components/ProductAiSourceReview.tsx'
+      - 'src/components/AiConversationWorkspace.tsx'
+      - 'src/components/DocumentsPage.tsx'
+      - 'src/styles/tailadmin-documents-v320.css'
+      - 'src/components/AppShell.tsx'
+      - 'src/lib/product-ai-review.ts'
+      - 'src/components/ProductLibraryWorkspace.tsx'
+      - 'src/styles/tailadmin-products-v320.css'
+      - 'src/styles/ai-conversation-workspace.css'
+      - 'src/styles/editor-canonical-v314.css'
+      - 'src/styles/roadmap-hardening-final.css'
+      - 'public/startup-watchdog-v321.js'
+      - 'tests/visual/ux-rehab-startup-late-hydration-20261016.html'
+      - 'tests/ux-rehab-*.test.mjs'
+      - 'tests/visual/run-ux-rehab-picker-webkit-20261016.cjs'
+      - 'tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs'
+      - 'tests/visual/ux-rehab-warehouse-20261016.html'
+      - 'tests/visual/ux-rehab-ai-product-review-20261016.html'
+      - 'tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs'
+      - 'tests/visual/run-ux-rehab-document-webkit-20261016.cjs'
+      - 'tests/visual/ux-rehab-documents-create-20261016.html'
+      - 'tests/visual/ux-rehab-import-cancel-20261016.html'
+      - 'tests/visual/run-ux-rehab-import-cancel-webkit-20261016.cjs'
+      - 'tests/visual/ux-rehab-real-pdf-output-20261016.html'
+      - 'tests/visual/run-ux-rehab-real-pdf-20261016.cjs'
+      - '.github/workflows/lourex-ux-rehab-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-ux-rehab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck · build · UX and full regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Compile final runtime bundle (no deployment)
+        run: npm run build
+      - name: UX picker and contrast regressions
+        run: |
+          node --test --test-concurrency=2 \
+            tests/ux-rehab-saved-product-picker-20261016.test.mjs \
+            tests/ux-rehab-inventory-contrast-20261016.test.mjs \
+            tests/ux-rehab-warehouse-locations-20261016.test.mjs \
+            tests/ux-rehab-editor-item-tools-20261016.test.mjs \
+            tests/ux-rehab-ai-product-review-20261016.test.mjs \
+            tests/ux-rehab-ai-source-duplicates-20261016.test.mjs \
+            tests/ux-rehab-document-sections-20261016.test.mjs \
+            tests/ux-rehab-document-create-20261016.test.mjs \
+            tests/ux-rehab-release-acceptance-integration-20261016.test.mjs \
+            tests/ai-post-release-markdown.test.mjs \
+            tests/ux-rehab-import-chooser-20261016.test.mjs \
+            tests/ai-batch6-mobile-import-integrity.test.mjs \
+            tests/ai-batches1-7-release-candidate-contract.test.mjs \
+            tests/saved-items-picker-mobile-v232.test.mjs \
+            tests/saved-items-v95.test.mjs \
+            tests/saved-items-library-v102.test.mjs
+      - name: All accounting, inventory and UI Node regressions
+        run: node --test --test-concurrency=2 tests/*.test.mjs
+
+  picker-webkit:
+    name: WebKit synthetic iPhone picker smoke
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build isolated test bundle (no deployment)
+        run: npm run build
+      - name: Install WebKit for offline browser QA
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright
+          npx playwright install --with-deps webkit
+      - name: Smoke real picker component against synthetic sample products
+        run: |
+          npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-ux-picker-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/obsidian-directory.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/visual/run-ux-rehab-picker-webkit-20261016.cjs
+          node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
+          node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
+          node tests/visual/run-ux-rehab-document-webkit-20261016.cjs
+          node tests/visual/run-v538-quote-editor-final-flow.cjs
+          node tests/visual/run-ux-rehab-import-cancel-webkit-20261016.cjs
+      - name: Save isolated browser QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-rehab-picker-webkit
+          path: |
+            visual-qa-output/ux-rehab-picker-webkit/
+            visual-qa-output/ux-rehab-warehouse-webkit/
+            visual-qa-output/ux-rehab-ai-product-webkit/
+            visual-qa-output/ux-rehab-document-webkit/
+            visual-qa-output/v538-quote-editor-final-flow/
+            visual-qa-output/ux-rehab-import-cancel-webkit/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  pdf-output-chromium:
+    name: Actual PDF · A4 and extracted accounting totals
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies and build real document templates
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Install Chromium and PDF inspection tools (CI only)
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y poppler-utils
+      - name: Generate real synthetic invoice PDF files and inspect text, totals and A4 dimensions
+        run: |
+          npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-real-pdf.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/ux-rehab-real-pdf-output-20261016.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/visual/run-ux-rehab-real-pdf-20261016.cjs
+      - name: Attach generated synthetic PDFs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-rehab-real-pdf-output
+          path: visual-qa-output/ux-rehab-real-pdf/
+          if-no-files-found: ignore
+          retention-days: 7

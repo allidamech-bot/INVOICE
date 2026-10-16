@@ -22,4 +22,105 @@
   .app-ui .saved-items-shell.is-picker .saved-items-picker-bar{gap:6px!important;padding-inline:8px!important}
   .app-ui .saved-items-shell.is-picker .saved-items-picker-bar>.btn{flex-basis:80px!important;font-size:11px!important;padding-inline:6px!important}
 }
+
+/* UX rehab A — quote/invoice saved-product picker only.
+   One readable row per item; keep the full product title and a native
+   selection control without changing favorites or editing elsewhere. */
+.app-ui .saved-items-shell.is-picker:not(:has(.saved-item-editor.is-open)){
+  grid-template-columns:minmax(0,1fr);
+}
+.app-ui .saved-items-shell.is-picker .saved-item-editor:not(.is-open){display:none}
+.app-ui .saved-items-shell.is-picker .saved-items-list{
+  min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+.app-ui .saved-items-shell.is-picker .saved-items-list-context{
+  flex-wrap:wrap;justify-content:flex-start;gap:6px 12px;
+}
+.app-ui .saved-items-shell.is-picker .saved-items-list-context>strong{flex:1 1 auto;min-width:80px}
+.app-ui .saved-items-shell.is-picker .saved-item-select-all{
+  display:inline-flex;align-items:center;gap:7px;margin-inline-start:auto;
+  min-height:36px;padding:2px 8px;border:1px solid var(--ft-line,var(--ds-line));
+  border-radius:10px;color:var(--ft-text,var(--ds-text));cursor:pointer;
+}
+.app-ui .saved-items-shell.is-picker .saved-item-select-all span{
+  font-size:11px;font-weight:700;white-space:nowrap;
+}
+.app-ui .saved-items-shell.is-picker :is(.saved-item-select-all,.saved-item-select-control) input[type="checkbox"]{
+  width:19px;height:19px;min-width:19px;margin:0;
+  accent-color:var(--ds-accent,#5086da);cursor:pointer;
+}
+.app-ui .saved-items-shell.is-picker :is(.saved-item-select-all,.saved-item-select-control) input[type="checkbox"]:disabled{cursor:not-allowed}
+.app-ui .saved-items-shell.is-picker .saved-item-row{
+  grid-template-columns:44px minmax(0,1fr) 42px;
+  gap:3px;align-items:center;min-height:58px;margin:2px 0;
+  border:1px solid var(--ft-line,var(--ds-line));
+  background:var(--ft-surface,var(--ds-surface));
+}
+.app-ui .saved-items-shell.is-picker .saved-item-row.is-selected{
+  border-color:var(--ds-accent,#5086da);background:var(--ds-selected,rgba(80,134,218,.12));
+}
+.app-ui .saved-items-shell.is-picker .saved-item-row.is-selected::after{content:none}
+.app-ui .saved-items-shell.is-picker .saved-item-select-control{
+  display:grid;place-items:center;min-width:44px;min-height:48px;cursor:pointer;
+}
+.app-ui .saved-items-shell.is-picker .saved-item-main{
+  min-height:55px;gap:3px;padding:7px 4px;
+}
+.app-ui .saved-items-shell.is-picker .saved-item-main strong{
+  white-space:normal;overflow:visible;text-overflow:clip;
+  overflow-wrap:anywhere;line-height:1.35;font-size:12px;
+}
+.app-ui .saved-items-shell.is-picker .saved-item-main>span{
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;
+}
+.app-ui .saved-items-shell.is-picker .saved-item-row-meta{display:none}
+.app-ui .saved-items-shell.is-picker .saved-item-picker-meta{
+  white-space:normal;overflow:visible;overflow-wrap:anywhere;
+  line-height:1.3;font-size:10px;font-variant-numeric:tabular-nums;
+}
+.app-ui .saved-items-shell.is-picker .saved-item-row>.icon-btn{
+  width:38px;min-width:38px;height:44px;margin-inline-end:2px;
+}
+@media screen and (max-width:720px){
+  .app-ui .saved-items-shell.is-picker .saved-items-smart-nav{flex:0 0 auto}
+  .app-ui .saved-items-shell.is-picker .saved-item-row{grid-template-columns:44px minmax(0,1fr) 42px}
+  .app-ui .saved-items-shell.is-picker .saved-item-select-all{min-height:40px}
+  .app-ui .saved-items-shell.is-picker .saved-item-main{min-height:52px}
+}
+
+
+/* UX rehab A WebKit finding: the late generic modal-body overflow:auto
+   wins over v232 and lets the picker grow to its full 24-row content.
+   This explicitly restores a single viewport-owned list scroller. */
+@media screen and (max-width:720px){
+  html body #root .app-ui .modal:has(.saved-items-shell.is-picker){
+    display:flex!important;flex-direction:column!important;overflow:hidden!important;
+    /* The later generic v485 modal rule forces height:auto; override that
+       only for this picker so its flex body has a real visible height. */
+    height:calc(var(--modal-visual-height,100dvh) - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)))!important;
+    min-height:0!important;
+    max-height:calc(var(--modal-visual-height,100dvh) - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)))!important;
+  }
+  html body #root .app-ui .modal:has(.saved-items-shell.is-picker)>.modal-body{
+    display:flex!important;flex:1 1 0!important;height:0!important;
+    min-height:0!important;max-height:100%!important;
+    overflow:hidden!important;padding:0!important;
+  }
+  html body #root .app-ui .modal:has(.saved-items-shell.is-picker) .saved-items-shell.is-picker{
+    display:flex!important;flex-direction:column!important;flex:1 1 0!important;
+    height:100%!important;min-height:0!important;max-height:100%!important;
+    overflow:hidden!important;
+  }
+  html body #root .app-ui .saved-items-shell.is-picker .saved-items-list-pane{
+    flex:1 1 0!important;min-height:0!important;max-height:100%!important;
+    overflow:hidden!important;
+  }
+  html body #root .app-ui .saved-items-shell.is-picker .saved-items-list{
+    display:block!important;flex:1 1 0!important;height:0!important;
+    min-height:0!important;max-height:100%!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;
+  }
+}
+
 @media print{.app-ui .saved-items-shell.is-picker{display:none!important}}

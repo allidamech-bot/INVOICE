@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<base href="../../dist/"/><link rel="stylesheet" href="styles/app.bundle.css"/>
+<script>
+const q=new URLSearchParams(location.search),ar=q.get('lang')==='ar';
+document.documentElement.lang=ar?'ar':'en';
+document.documentElement.dir=ar?'rtl':'ltr';
+document.documentElement.dataset.uiTheme=q.get('theme')==='light'?'light':'dark';
+</script></head>
+<body><div id="root"><div id="fixture" class="app-ui"></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {ProductImportModal} from './src/components/ProductImportModal.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');
+window.qaImport={savedCalls:0,closed:0,received:[],errors:[]};
+const h=React.createElement,container=document.getElementById('fixture');
+const render=(open)=>ReactDOM.render(h(ProductImportModal,{
+ open,items:[],currency:'USD',onClose:()=>{window.qaImport.closed+=1;render(false);},
+ onSaveMany:async items=>{window.qaImport.savedCalls+=1;window.qaImport.received.push(...items);}
+}),container);
+render(true);
+</script>
+</body></html>

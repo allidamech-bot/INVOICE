@@ -127,10 +127,7 @@
   function showRecovery(){
     if(!bootStillVisible()||editingWorkspaceOpen())return;
     var screen=startupSurface();if(!screen)return;
-    if(screen.dataset.lourexStartupRecovery==='true')return;
-    screen.dataset.lourexStartupRecovery='true';
-    screen.setAttribute('role','alert');
-    screen.setAttribute('aria-live','assertive');
+    if(document.getElementById('lourex-startup-recovery'))return;
 
     var card=document.createElement('section');
     card.style.width='min(100%,460px)';card.style.padding='22px';card.style.boxSizing='border-box';
@@ -175,7 +172,22 @@
     actions.appendChild(diagnostics);
 
     card.append(title,message,actions);
-    screen.replaceChildren(card);
+    // React owns the loading screen and its children. A slow Firebase restore
+    // may finish after this timeout: replacing those children makes React's
+    // eventual removal fail with NotFoundError. Keep recovery outside #root.
+    var overlay=document.createElement('div');
+    overlay.id='lourex-startup-recovery';
+    overlay.setAttribute('role','alert');
+    overlay.setAttribute('aria-live','assertive');
+    overlay.style.cssText='position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow:auto;background:var(--boot-bg,#0a1826)';
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    var observer=new MutationObserver(function(){
+      if(bootStillVisible()&&!editingWorkspaceOpen())return;
+      overlay.remove();
+      observer.disconnect();
+    });
+    observer.observe(document.getElementById('root'),{childList:true,subtree:true});
   }
 
   function recoverIfNeeded(){

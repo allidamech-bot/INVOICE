@@ -248,3 +248,62 @@
   .app-ui .saved-items-toolbar{grid-template-columns:minmax(0,1fr)}
   .app-ui .saved-items-toolbar>*{grid-column:1;width:100%}
 }
+
+
+/* UX rehab B: one import entry, two preserved workflow routes.
+   Scoped to product catalog commandbar — no globally shared menu styling. */
+@media screen{
+  html body #root .app-ui .ta-product-commandbar>.ta-product-import-entry{
+    position:relative;min-width:0;max-width:100%;z-index:11;
+    color:var(--lx485-text,var(--ft-text-strong,#10243d));
+  }
+  html body #root .app-ui .ta-product-import-entry>summary{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    box-sizing:border-box;min-height:44px;max-width:100%;
+    padding:8px 12px;border:1px solid var(--lx485-line,var(--ft-line));
+    border-radius:12px;background:var(--lx485-surface-2,var(--ft-surface-2));
+    color:var(--lx485-text,var(--ft-text-strong));
+    font-size:12px;font-weight:750;line-height:1.35;text-align:center;
+    list-style:none;cursor:pointer;overflow-wrap:anywhere;
+  }
+  html body #root .app-ui .ta-product-import-entry>summary::-webkit-details-marker{display:none}
+  html body #root .app-ui .ta-product-import-entry>summary:focus-visible{
+    outline:2px solid var(--lx485-blue,var(--ft-accent));outline-offset:2px;
+  }
+  html body #root .app-ui .ta-product-import-entry>summary[aria-disabled="true"]{
+    opacity:.55;cursor:not-allowed;
+  }
+  html body #root .app-ui .ta-product-import-entry[open]>summary{
+    border-color:var(--lx485-blue,var(--ft-accent));
+  }
+  html body #root .app-ui .ta-product-import-options{
+    position:absolute;inset-block-start:calc(100% + 5px);inset-inline-end:0;
+    z-index:70;display:grid;gap:8px;
+    width:min(344px,calc(100vw - 28px));max-width:calc(100vw - 28px);
+    padding:10px;border:1px solid var(--lx485-line,var(--ft-line));
+    border-radius:14px;background:var(--lx485-surface,var(--ft-surface));
+    box-shadow:0 16px 32px rgba(0,0,0,.22);
+  }
+  html body #root .app-ui .ta-product-import-options>div{
+    display:grid;gap:5px;min-width:0;
+    padding:8px;border-radius:10px;background:var(--lx485-surface-2,var(--ft-surface-2));
+  }
+  html body #root .app-ui .ta-product-import-options .btn{
+    min-width:0;width:100%;max-width:100%;
+    min-height:44px!important;height:auto!important;
+    white-space:normal;overflow-wrap:anywhere;
+  }
+  html body #root .app-ui .ta-product-import-options small{
+    font-size:11px;line-height:1.4;overflow-wrap:anywhere;
+    color:var(--lx485-muted,var(--ft-muted));
+  }
+}
+@media screen and (max-width:720px){
+  html body #root .app-ui .ta-product-commandbar>.ta-product-import-entry{
+    width:100%;grid-column:auto;z-index:21;
+  }
+  html body #root .app-ui .ta-product-import-options{
+    inset-inline-start:0;inset-inline-end:auto;
+    width:min(344px,calc(100vw - 28px));
+  }
+}

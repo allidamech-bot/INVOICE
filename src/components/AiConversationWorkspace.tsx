@@ -49,7 +49,7 @@ function markdownParagraphs(children:any[]):any[] {
     const heading=first.match(/^\s*(#{1,6})\s+/),bullet=first.match(/^\s*(?:[-*•]|\d+[.)])\s+/);
     if(heading||bullet)parts[0]=first.slice((heading||bullet)![0].length);
     const formatted=parts.map((part:any,i:number)=>markdownInline(part,index+'-'+i));
-    if(bullet){const kind=/\d/.test(bullet[0])?'ol':'ul';if(listType&&listType!==kind)flush();listType=kind;list.push(<li key={index}>{formatted}</li>);}
+    if(bullet){const kind=/\d/.test(bullet[0])?'ol':'ul';if(listType&&listType!==kind)flush();listType=kind;list.push(<li key={index} className="lxw-ai-compact-result-row" dir="auto">{formatted}</li>);}
     else{flush();result.push(react.createElement(heading?((heading[1]||'').length<=2?'h3':'h4'):'p',{key:index},...formatted));}
   });flush();return result;
 }

@@ -39,4 +39,21 @@ export function reviewProductAiRow(items:SavedItem[],row:ProductAiDraftItem,sour
   if(financialCurrencyMissing(row,sourceCurrency))return{classification:'needs-review',matchId:'',matchLabel:'',matchConfidence:0,diff:[],defaultSelected:false,reason:'new-product-financial-value-missing-currency'};
   return{classification:'new-product',matchId:'',matchLabel:'',matchConfidence:1,diff:[],defaultSelected:true,reason:'no-existing-match'};
 }
-export function reviewProductAiRows(items:SavedItem[],rows:ProductAiDraftItem[],sourceCurrency:string):ProductAiRowReview[]{return rows.map(row=>reviewProductAiRow(items,row,sourceCurrency));}
+/* A source can repeat the same SKU/name across pages or sheets. Do not allow
+   a repeated extraction to become two default-selected new master records, or
+   two updates to one existing product. It requires manual source cleanup. */
+function sourceIdentityKeys(row:ProductAiDraftItem):string[]{
+  const sku=normalizeSavedItemSku(row.sku||''),en=norm(row.descriptionEn),ar=norm(row.descriptionAr);
+  return[sku?'sku:'+sku:'',en?'en:'+en:'',ar?'ar:'+ar:''].filter(Boolean);
+}
+export function reviewProductAiRows(items:SavedItem[],rows:ProductAiDraftItem[],sourceCurrency:string):ProductAiRowReview[]{
+  const identities=rows.map(sourceIdentityKeys),counts=new Map<string,number>();
+  for(const keys of identities)for(const key of new Set(keys))counts.set(key,(counts.get(key)||0)+1);
+  return rows.map((row,index)=>{
+    const review=reviewProductAiRow(items,row,sourceCurrency);
+    if(identities[index]!.some(key=>(counts.get(key)||0)>1)){
+      return{classification:'duplicate-candidate',matchId:'',matchLabel:'',matchConfidence:0,diff:[],defaultSelected:false,reason:'repeated-product-in-source'};
+    }
+    return review;
+  });
+}

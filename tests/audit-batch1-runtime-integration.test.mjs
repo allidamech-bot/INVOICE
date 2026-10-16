@@ -21,12 +21,12 @@ function startupFixture(){
     replaceChildren(...items){this.children=items;}
   }
   const loading=new Element();
-  const document={documentElement:{dataset:{uiTheme:'dark'},hasAttribute:key=>attrs.has(key)},
-    getElementById:()=>({querySelector:()=>boot?loading:null}),
+  const document={body:new Element(),documentElement:{dataset:{uiTheme:'dark'},hasAttribute:key=>attrs.has(key)},
+    getElementById:id=>id==='root'?{querySelector:()=>boot?loading:null}:null,
     querySelector:selector=>selector==='.app-ui,.auth-page,.ta-auth-page,.app-recovery,.app-recovery-screen'&&!boot?{}:null,
     createElement:tag=>{const el=new Element();if(tag==='button')buttons.push(el);return el;}};
   const window={setTimeout:fn=>timers.push(fn),location:{href:'https://example.test/',replace:url=>navigation.push(url)},__LOUREX_DIAGNOSTICS__:{mark(){}}};
-  vm.runInNewContext(watchdog,{window,document,HTMLElement:Element,URL,navigator:{serviceWorker:{getRegistrations:()=>cleanup}}});
+  vm.runInNewContext(watchdog,{window,document,HTMLElement:Element,URL,MutationObserver:class{observe(){}disconnect(){}},navigator:{serviceWorker:{getRegistrations:()=>cleanup}}});
   timers[0]();
   assert.equal(buttons.length,1,'stalled boot offers a manual retry');
   return {attrs,navigation,button:buttons[0],ready:()=>{boot=false;},release:async()=>{release([]);await new Promise(resolve=>setImmediate(resolve));}};
