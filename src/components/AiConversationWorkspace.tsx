@@ -41,7 +41,9 @@ function markdownParagraphs(children:any[]):any[] {
     if(!parts.every((part:any)=>typeof part==='string'))return [child];
     // Some providers flatten paragraph separators. Recover explicit heading
     // markers without inventing semantic blocks from ordinary punctuation.
-    return assistantMessageBlocks(parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n'));
+    const text=parts.join('').replace(/\s+(?=#{1,6}\s)/g,'\n');
+    if(/\|[^\n]*\n\s*\|?\s*:?-{3,}/.test(text))return assistantMessageBlocks(text);
+    return text.split(/\r?\n/).filter(Boolean).map((line:string,i:number)=>react.createElement('p',{key:i},line));
   });
   children.forEach((child,index)=>{
     if(!react.isValidElement(child)||child.type!=='p'){flush();result.push(child);return;}
