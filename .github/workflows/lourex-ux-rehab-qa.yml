@@ -10,6 +10,7 @@ on:
       - 'src/components/DraftDocumentEditor.tsx'
       - 'tests/visual/run-product-editor-webkit-v606.cjs'
       - 'tests/visual/run-editor-upgrade-webkit-20261016.cjs'
+      - 'tests/visual/run-item-tools-menu-webkit-20261016.cjs'
       - 'src/components/SavedItemsModal.tsx'
       - 'src/styles/saved-items-picker-v232.css'
       - 'src/styles/pricing-batch8.css'
@@ -127,6 +128,7 @@ jobs:
           node tests/visual/run-ux-rehab-import-cancel-webkit-20261016.cjs
           node tests/visual/run-product-editor-webkit-v606.cjs
           node tests/visual/run-editor-upgrade-webkit-20261016.cjs
+          node tests/visual/run-item-tools-menu-webkit-20261016.cjs
       - name: Save isolated browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -141,6 +143,7 @@ jobs:
             visual-qa-output/ux-rehab-import-cancel-webkit/
             visual-qa-output/product-editor-webkit-v606/
             visual-qa-output/editor-upgrade-webkit/
+            visual-qa-output/item-tools-menu-webkit/
           if-no-files-found: ignore
           retention-days: 7
 

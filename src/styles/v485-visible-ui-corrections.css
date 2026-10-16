@@ -1682,3 +1682,89 @@ html body #root .app-ui .ta-sales-return-receipt .ta-inventory-entry-action{
   html body #root .app-ui .editor-template-intro{display:flex!important;flex-direction:column!important;gap:6px!important;margin-block:16px 10px!important;line-height:1.7!important;}
   html body #root .app-ui .editor-template-intro small{display:block!important;color:var(--lx485-muted)!important;font-size:12px!important;}
 }
+
+/* Product tools: accessible disclosure, two balanced controls and full-width rows.
+   Keep expansion in document flow so it cannot cover item fields or get clipped. */
+@media screen{
+  html body #root .app-ui .editor-screen .section-heading.with-action:has(.editor-item-actions){
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:14px!important;
+  }
+  html body #root .app-ui .editor-screen .section-heading.with-action:has(.editor-item-actions)>div:first-child{
+    display:flex!important;align-items:center!important;gap:10px!important;min-width:0!important;
+  }
+  html body #root .app-ui .editor-screen .section-heading-actions.editor-item-actions{
+    position:static!important;inset:auto!important;display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch!important;
+    gap:10px!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-actions>.add-item-button,
+  html body #root .app-ui .editor-screen .editor-item-tools-menu>.editor-item-tools-trigger{
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    gap:8px!important;min-width:0!important;min-height:48px!important;height:auto!important;
+    padding:10px!important;margin:0!important;border:1px solid var(--lx485-line-strong)!important;
+    border-radius:12px!important;background:var(--lx485-surface-2)!important;color:var(--lx485-text)!important;
+    font-size:14px!important;font-weight:700!important;line-height:1.5!important;
+    text-align:center!important;white-space:normal!important;box-shadow:none!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-actions>.add-item-button{
+    grid-column:1!important;background:var(--lx485-blue-strong)!important;color:#fff!important;
+    border-color:var(--lx485-blue-strong)!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-tools-menu{
+    display:contents!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-tools-menu>.editor-item-tools-trigger{
+    grid-column:2!important;list-style:none!important;cursor:pointer!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-tools-menu>.editor-item-tools-trigger::marker{content:""!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-menu>.editor-item-tools-trigger::-webkit-details-marker{display:none!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-menu>.editor-item-tools-trigger>.icon{flex:0 0 18px!important;width:18px!important;height:18px!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-menu>.editor-item-tools-trigger>span{min-width:0!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-menu[data-open="true"]>.editor-item-tools-trigger{
+    border-color:var(--lx485-blue)!important;background:var(--lx485-surface-3)!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-tools-menu[data-open="true"] .editor-item-tools-chevron{transform:rotate(180deg)!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-menu>.editor-item-tools-trigger:focus-visible{
+    outline:2px solid var(--lx485-blue)!important;outline-offset:3px!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-tools-options{
+    position:static!important;inset:auto!important;grid-column:1/-1!important;
+    display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:4px!important;
+    min-width:0!important;width:100%!important;margin:0!important;padding:6px!important;
+    border:1px solid var(--lx485-line-strong)!important;border-radius:14px!important;
+    background:var(--lx485-surface-2)!important;box-shadow:none!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-tools-menu[data-open="false"]>.editor-item-tools-options{display:none!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-options>.btn{
+    display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;
+    gap:12px!important;width:100%!important;max-width:none!important;min-height:50px!important;height:auto!important;
+    margin:0!important;padding:12px!important;border:0!important;border-radius:9px!important;
+    background:transparent!important;color:var(--lx485-text)!important;box-shadow:none!important;
+    font-size:14px!important;font-weight:600!important;line-height:1.6!important;text-align:start!important;
+  }
+  html body #root .app-ui .editor-screen .editor-item-tools-options>.btn .icon{width:20px!important;height:20px!important;flex:0 0 20px!important;color:var(--lx485-blue)!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-options>.btn>span{white-space:normal!important;overflow-wrap:anywhere!important;}
+  html body #root .app-ui .editor-screen .editor-item-tools-options>.btn:is(:hover,:focus-visible){background:var(--lx485-surface-3)!important;}
+}
+@media screen{
+  /* Older heading owners style every descendant span as a numbered badge.
+     Toolbar text is normal text and must never inherit those badge dimensions. */
+  html body #root .app-ui .editor-screen .section-heading.with-action .section-heading-actions.editor-item-actions :is(.add-item-button,.editor-item-tools-trigger,.editor-item-tools-options>.btn)>span{
+    display:block!important;width:auto!important;height:auto!important;min-width:0!important;max-width:none!important;
+    margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;
+    font:inherit!important;line-height:inherit!important;color:inherit!important;white-space:normal!important;
+  }
+}
+@media screen{
+  html body #root .app-ui .editor-screen .section-heading.with-action .section-heading-actions.editor-item-actions>.add-item-button{
+    background:var(--lx485-blue-strong)!important;color:#fff!important;border-color:var(--lx485-blue-strong)!important;
+  }
+  html body #root .app-ui .editor-screen .section-heading.with-action .section-heading-actions.editor-item-actions .editor-item-tools-options>.btn{
+    background:transparent!important;border:0!important;border-radius:8px!important;box-shadow:none!important;
+    padding:12px!important;font-size:14px!important;color:var(--lx485-text)!important;
+  }
+  html body #root .app-ui .editor-screen .section-heading.with-action .section-heading-actions.editor-item-actions .editor-item-tools-options>.btn+.btn{
+    border-top:1px solid var(--lx485-line)!important;border-radius:0 0 8px 8px!important;
+  }
+  html body #root .app-ui .editor-screen .section-heading.with-action .section-heading-actions.editor-item-actions .editor-item-tools-options>.btn:is(:hover,:focus-visible){background:var(--lx485-surface-3)!important;}
+}
