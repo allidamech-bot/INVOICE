@@ -9,12 +9,13 @@ import { reviseAiPendingDocumentDraft } from './ai-document-conversation.js';
 import {aiDraftUndoDepth,AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 import { normalizeAiConversationMode, type AiConversationMode } from './ai-conversation-mode.js';
 import {normalizeDecimalInput} from './money.js';
+import type {ConversationalPriceIntent} from './ai-conversational-price.js';
 
 export interface KernelScope { scope:AssistantScope; workspaceId:string; branchId:string; threadId:string; accountId?:string; }
 export interface WorkingSelection { id:string; items:{entityType:AssistantEntityType;entityId:string;label:string}[]; selectedId?:string; selectedIds?:string[]; }
 type Draft=AiDocumentDraftProposal|AiDocumentUpdateProposal;
 export interface WorkingArtifact { id:string; revision:number; proposal:Draft; lineIds:string[]; selectedLineId?:string; lastEdit?:{lineId:string;field:'quantity'|'unitPrice';value:string;before:Draft}; undo:Draft[]; redo:Draft[]; undoLineIds?:string[][]; redoLineIds?:string[][]; }
-export interface ConversationKernel { version:1; scope:KernelScope; turn:number; mode?:AiConversationMode; focus:'auto'|'operator'|'advisor'|'financial'; selection?:WorkingSelection; entity?:WorkingSelection['items'][number]; artifact?:WorkingArtifact; commercial?:CommercialState; missions?:MissionState[]; cancelledApprovals?:string[]; toolEvidence?:MissionEvidence[]; diagnostics?:DiagnosticSample[]; knowledge?:{selectedNodeId?:string;cash?:CashSimulation;handoff?:HandoffPreview;reviewDate?:string}; }
+export interface ConversationKernel { version:1; scope:KernelScope; turn:number; mode?:AiConversationMode; pendingPrice?:ConversationalPriceIntent; focus:'auto'|'operator'|'advisor'|'financial'; selection?:WorkingSelection; entity?:WorkingSelection['items'][number]; artifact?:WorkingArtifact; commercial?:CommercialState; missions?:MissionState[]; cancelledApprovals?:string[]; toolEvidence?:MissionEvidence[]; diagnostics?:DiagnosticSample[]; knowledge?:{selectedNodeId?:string;cash?:CashSimulation;handoff?:HandoffPreview;reviewDate?:string}; }
 export function kernelScopeKey(scope:KernelScope):string{return JSON.stringify([scope.accountId||'',scope.scope,scope.scope==='personal'?'':scope.workspaceId,scope.scope==='personal'?'':scope.branchId,scope.threadId]);}
 export function newConversationKernel(scope:KernelScope):ConversationKernel{return{version:1,scope:{...scope,workspaceId:scope.scope==='personal'?'':scope.workspaceId,branchId:scope.scope==='personal'?'':scope.branchId},turn:0,mode:'controller',focus:'auto'};}
 /** Sticky dismissal receipts: a stale request/cache may never revive an approval the user declined. */
@@ -34,7 +35,16 @@ export function normalizeConversationKernel(value:unknown,scope:KernelScope):Con
   if(candidate.version!==1||!candidate.scope||kernelScopeKey(candidate.scope)!==kernelScopeKey(scope))return{...newConversationKernel(scope),mode:'advisor'};
   // Personal never restores business references, even from an older/corrupt record.
   if(scope.scope==='personal')return{...newConversationKernel(scope),turn:Number.isSafeInteger(candidate.turn)?candidate.turn:0};
-  try{const copy=structuredClone(candidate);if(!Number.isSafeInteger(copy.turn)||copy.turn<0||!['auto','operator','advisor','financial'].includes(copy.focus))return{...newConversationKernel(scope),mode:'advisor'};if(copy.artifact&&(!Array.isArray(copy.artifact.lineIds)||!Array.isArray(copy.artifact.undo)||!Array.isArray(copy.artifact.redo)))return{...newConversationKernel(scope),mode:'advisor'};copy.mode=normalizeAiConversationMode(copy.mode);copy.missions=recoverMissions(copy.missions,scope);copy.diagnostics=normalizeDiagnostics(copy.diagnostics);return reconcileCancelledApprovals(copy);}catch{return{...newConversationKernel(scope),mode:'advisor'};}
+  try{const copy=structuredClone(candidate);if(!Number.isSafeInteger(copy.turn)||copy.turn<0||!['auto','operator','advisor','financial'].includes(copy.focus))return{...newConversationKernel(scope),mode:'advisor'};if(copy.artifact&&(!Array.isArray(copy.artifact.lineIds)||!Array.isArray(copy.artifact.undo)||!Array.isArray(copy.artifact.redo)))return{...newConversationKernel(scope),mode:'advisor'};copy.mode=normalizeAiConversationMode(copy.mode);
+    // A conversation price pending request is NEVER a signed approval. It
+    // expires after a few turns and is rechecked against scoped live products.
+    const pending=copy.pendingPrice;
+    if(pending&&(!/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,4})?$/.test(String(pending.amount||''))||
+      !Number.isSafeInteger(pending.startedAtTurn)||pending.startedAtTurn<0||
+      copy.turn-pending.startedAtTurn>5||
+      String(pending.currency||'').length>3||String(pending.unit||'').length>12||
+      String(pending.itemId||'').length>120))copy.pendingPrice=undefined;
+    copy.missions=recoverMissions(copy.missions,scope);copy.diagnostics=normalizeDiagnostics(copy.diagnostics);return reconcileCancelledApprovals(copy);}catch{return{...newConversationKernel(scope),mode:'advisor'};}
 }
 export function stageKernelArtifact(kernel:ConversationKernel,proposal:Draft):void{
   if(kernel.scope.scope==='personal')throw new Error('Business drafts are unavailable in Personal scope.');
@@ -48,7 +58,7 @@ export function stageKernelArtifact(kernel:ConversationKernel,proposal:Draft):vo
   kernel.artifact={id,revision:(old?.id===id?old.revision:0)+1,proposal:structuredClone(proposal),lineIds:Array.from({length:count},(_,i)=>old?.id===id?old.lineIds[i]||crypto.randomUUID():crypto.randomUUID()),undo:old?.id===id?[...old.undo,structuredClone(old.proposal)].slice(-undoDepth):[],redo:[],undoLineIds:old?.id===id?[...(old.undoLineIds||[]),[...old.lineIds]].slice(-undoDepth):[],redoLineIds:[]};
 }
 export function composeKernelMemory(kernel:ConversationKernel,messages:{role:string;text:string}[]):string{
-  const state={turn:kernel.turn,focus:kernel.focus,commercial:kernel.commercial,knowledge:kernel.knowledge?{selectedNodeId:kernel.knowledge.selectedNodeId,reviewDate:kernel.knowledge.reviewDate}:undefined,toolEvidence:kernel.toolEvidence?.map(e=>({callId:e.callId,toolId:e.toolId,state:e.state,evidenceRefs:e.evidenceRefs,at:e.at})),missions:kernel.missions?.map(m=>({id:m.id,goal:m.goal,steps:m.steps.map(s=>({id:s.id,status:s.status,resultRef:s.resultRef})),interruptedReason:m.interruptedReason})),entity:kernel.entity,selection:kernel.selection,artifact:kernel.artifact?{id:kernel.artifact.id,revision:kernel.artifact.revision,lineIds:kernel.artifact.lineIds,selectedLineId:kernel.artifact.selectedLineId,proposal:JSON.parse(JSON.stringify(kernel.artifact.proposal,(key,value)=>key==='foundationApproval'?undefined:value))}:undefined};
+  const state={turn:kernel.turn,focus:kernel.focus,pendingPrice:kernel.pendingPrice,commercial:kernel.commercial,knowledge:kernel.knowledge?{selectedNodeId:kernel.knowledge.selectedNodeId,reviewDate:kernel.knowledge.reviewDate}:undefined,toolEvidence:kernel.toolEvidence?.map(e=>({callId:e.callId,toolId:e.toolId,state:e.state,evidenceRefs:e.evidenceRefs,at:e.at})),missions:kernel.missions?.map(m=>({id:m.id,goal:m.goal,steps:m.steps.map(s=>({id:s.id,status:s.status,resultRef:s.resultRef})),interruptedReason:m.interruptedReason})),entity:kernel.entity,selection:kernel.selection,artifact:kernel.artifact?{id:kernel.artifact.id,revision:kernel.artifact.revision,lineIds:kernel.artifact.lineIds,selectedLineId:kernel.artifact.selectedLineId,proposal:JSON.parse(JSON.stringify(kernel.artifact.proposal,(key,value)=>key==='foundationApproval'?undefined:value))}:undefined};
   let refs=JSON.stringify(state);
   if(refs.length>18000&&kernel.artifact){
     const draft=kernel.artifact.proposal;
