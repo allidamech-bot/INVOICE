@@ -34,9 +34,15 @@ export const AI_MODEL_REGISTRY=Object.freeze([
   Object.freeze({provider:'cloudflare',model:'@cf/nvidia/nemotron-3-120b-a12b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
   Object.freeze({provider:'cloudflare',model:'@cf/openai/gpt-oss-120b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
   Object.freeze({provider:'gemini',model:GEMINI_MODEL,enabled:true,freeTierEligible:true,maxImages:8,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.LARGE_CONTEXT,AI_CAPABILITIES.NATIVE_DOCUMENT]}),
+  // OpenRouter is pinned to its free-only router; never allow a paid model ID here.
+  Object.freeze({provider:'openrouter',model:'openrouter/free',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]}),
+  // Mistral must only be used once the operator verifies its free-plan/usage terms.
+  Object.freeze({provider:'mistral',model:'mistral-small-latest',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]}),
+  // Ollama Cloud currently does not guarantee structured JSON; validate locally.
+  Object.freeze({provider:'ollama',model:'gemma4:31b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]}),
 ]);
 
-const GENERAL_ROUTE=[['groq','qwen/qwen3.8-27b'],['cloudflare','@cf/google/gemma-4-26b-a4b-it'],['gemini',GEMINI_MODEL]];
+const GENERAL_ROUTE=[['groq','qwen/qwen3.8-27b'],['cloudflare','@cf/google/gemma-4-26b-a4b-it'],['gemini',GEMINI_MODEL],['openrouter','openrouter/free'],['mistral','mistral-small-latest'],['ollama','gemma4:31b']];
 const VISION_ROUTE=[['groq','qwen/qwen3.8-27b'],['cloudflare','@cf/google/gemma-4-26b-a4b-it'],['gemini',GEMINI_MODEL]];
 const DEEP_ROUTE=[['groq','openai/gpt-oss-120b'],['cloudflare','@cf/nvidia/nemotron-3-120b-a12b'],['cloudflare','@cf/openai/gpt-oss-120b'],['gemini',GEMINI_MODEL]];
 const NATIVE_DOCUMENT_ROUTE=[['gemini',GEMINI_MODEL]];
@@ -50,6 +56,12 @@ function environmentReady(provider){
   if(provider==='groq')return Boolean(process.env.GROQ_API_KEY?.trim());
   if(provider==='cloudflare')return Boolean(process.env.CLOUDFLARE_AI_API_TOKEN?.trim()&&process.env.CLOUDFLARE_ACCOUNT_ID?.trim());
   if(provider==='gemini')return Boolean(process.env.GEMINI_API_KEY?.trim());
+  // Keys alone never authorize moving sensitive business prompts to new vendors.
+  // Opt-in only after reviewing each provider's privacy terms and free-plan limits.
+  if(process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED!=='true')return false;
+  if(provider==='openrouter')return Boolean(process.env.OPENROUTER_API_KEY?.trim());
+  if(provider==='mistral')return process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED==='true'&&Boolean(process.env.MISTRAL_API_KEY?.trim());
+  if(provider==='ollama')return Boolean(process.env.OLLAMA_API_KEY?.trim());
   return false;
 }
 function circuitAvailable(provider,model){const state=circuitState.get(modelKey(provider,model));return !state||!state.openUntil||Date.now()>=state.openUntil;}
@@ -262,7 +274,49 @@ async function callGemini(model,request){
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseGeminiPayload(payload),headers:response.headers};
 }
-async function callProvider(model,request){if(model.provider==='groq')return callGroq(model,request);if(model.provider==='cloudflare')return callCloudflare(model,request);return callGemini(model,request);}
+// These adapters are text-only safety fallbacks; every result is still checked
+// against the caller's server-owned JSON schema before it may be returned.
+// Never send uploads to a fallback that cannot uphold native document semantics.
+function additionalProviderMessages(request){
+  const schema=geminiSchemaToJsonSchema(request.schema);
+  return[{role:'system',content:'Return exactly one valid JSON object. Do not use markdown or explanations. Follow this JSON schema exactly, including field types and required properties: '+JSON.stringify(schema)},...normalizeMessages(request)];
+}
+async function callAdditionalProvider(model,request){
+  const keys={
+    openrouter:process.env.OPENROUTER_API_KEY?.trim(),
+    mistral:process.env.MISTRAL_API_KEY?.trim(),
+    ollama:process.env.OLLAMA_API_KEY?.trim()
+  };
+  const key=keys[model.provider];
+  if(!key)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
+  const config={
+    openrouter:{url:'https://openrouter.ai/api/v1/chat/completions'},
+    mistral:{url:'https://api.mistral.ai/v1/chat/completions'},
+    ollama:{url:'https://ollama.com/api/chat'}
+  }[model.provider];
+  if(!config)throw Object.assign(new Error('unknown provider'),{routerCategory:'unsupported',routerCode:'AI_MODEL_UNSUPPORTED',retryable:false});
+  const maxTokens=Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS);
+  const messages=additionalProviderMessages(request);
+  const body=model.provider==='ollama'
+    ?{model:model.model,messages,stream:false,options:{temperature:0,num_predict:maxTokens}}
+    :{model:model.model,messages,temperature:0,max_tokens:maxTokens,
+      ...(model.provider==='mistral'?{response_format:{type:'json_object'}}:
+        {provider:{data_collection:'deny'}})};
+  const {response,text}=await fetchWithTimeout(config.url,{method:'POST',headers:{
+    'Content-Type':'application/json',
+    Authorization:'Bearer '+key
+  },body:JSON.stringify(body)},request.timeoutMs);
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
+  const parsed=model.provider==='ollama'?parseJsonContent(payload?.message?.content):parseOpenAiPayload(payload);
+  return{data:parsed,headers:response.headers};
+}
+async function callProvider(model,request){
+  if(model.provider==='groq')return callGroq(model,request);
+  if(model.provider==='cloudflare')return callCloudflare(model,request);
+  if(model.provider==='gemini')return callGemini(model,request);
+  return callAdditionalProvider(model,request);
+}
 function rateLimitSnapshot(headers){if(!headers?.get)return null;const values={remainingRequests:headers.get('x-ratelimit-remaining-requests')||'',remainingTokens:headers.get('x-ratelimit-remaining-tokens')||'',retryAfter:headers.get('retry-after')||''};return Object.values(values).some(Boolean)?values:null;}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 function hasLowConfidence(value){
