@@ -25,6 +25,7 @@ test('natural dialogue sees the matching actual product even beyond 80 catalog r
  assert.equal(catalog.rows.length,1);
  assert.equal(catalog.rows[0].id,'p-103');
  assert.equal(catalog.rows[0].price,'104');
+ assert.equal(sanitizeDialogueCatalog(catalog).incomplete,false,'all exact matches were included even though the broader catalog has more than 80 records');
  assert.ok(!JSON.stringify(catalog).includes('FOREIGN DATA'));
  assert.deepEqual(vault,old);
 });
