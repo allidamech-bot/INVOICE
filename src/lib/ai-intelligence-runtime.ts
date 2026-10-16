@@ -550,6 +550,29 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
       }
     }
   }
+  // Read answers deserve the same natural dialogue as ordinary chat. The
+  // existing activity/selection cards remain the source of record identities.
+  if(result&&!result.proposal&&!result.workingDraft&&!(result as any).foundationSelectionText&&
+    result.results.length&&result.results.every(row=>row.ok&&['read','calculate'].includes(row.class))){
+    const expectedScope=kernelScopeKey(host.__intelligenceKernel.scope);
+    try{
+      const reply=await requestAiJson('/api/ai-advisor-v2',{
+        message:input.message,
+        context:{...input.context,conversationMode:'advisor',language:responseLanguage,
+          aiResponseDetail:preferences.detail,verifiedReadEvidence:result.results,
+          conversationWorkingMemory:intelligenceRequestMessage(host,'','')}
+      },input.signal,15_000);
+      if(typeof reply?.answer==='string'&&reply.answer.trim()&&!reply.proposal)
+        (result as any).foundationSelectionText=reply.answer.trim().slice(0,7000);
+    }catch{
+      // Provider failure retains the actual retrieved facts and existing UI.
+      // Never erase a valid result or turn explanation failure into an action.
+    }
+    const fresh=await resumeVaultSession();
+    if(input.signal?.aborted||!fresh||host.mounted===false||requestedMode!==currentConversationMode(host)||
+      kernelScopeKey(scopeFor(host,fresh.vault))!==expectedScope)
+      throw new Error('Conversation changed while explaining records.');
+  }
   // No ordinal set from compact summaries: only an explicitly displayed exact list.
   return result;
 }
