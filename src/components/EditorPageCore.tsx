@@ -15,7 +15,7 @@ import { getUiLanguage, isArabic, t, translateValidation } from '../lib/i18n.js'
 import { blankCustomer, CustomerForm } from './CustomersPage.js';
 import { SavedItemsModal } from './SavedItemsModal.js';
 import { DocumentReviewModal, type ReviewMode } from './DocumentReviewModal.js';
-import { TemplateRenderer } from '../templates/TemplateRenderer.js';
+import { AutomaticDocumentPreview as TemplateRenderer } from './AutomaticDocumentPreview.js';
 import { TemplateThumbnails } from '../templates/TemplateThumbnails.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea, Toggle } from './UI.js';
 import { PurchaseOrderPartySection } from './PurchaseOrderPartySection.js';

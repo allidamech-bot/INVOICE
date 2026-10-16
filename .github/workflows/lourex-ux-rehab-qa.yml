@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'tests/automatic-document-electronic-copy.test.mjs'
+      - 'tests/visual/*automatic-document-electronic-copy*'
+      - 'src/cloud/secure-share-owner.ts'
+      - 'src/components/ElectronicDocumentManager.tsx'
       - 'src/styles/document-electronic-copy.css'
       - 'src/templates/DocumentQr.tsx'
       - 'src/templates/TemplateRenderer.tsx'
@@ -190,6 +194,7 @@ jobs:
           done
           node tests/visual/run-ux-rehab-real-pdf-20261016.cjs
           node tests/visual/run-document-electronic-qr.cjs
+          node tests/visual/run-automatic-document-electronic-copy.cjs
       - name: Attach generated synthetic PDFs and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -198,5 +203,6 @@ jobs:
           path: |
             visual-qa-output/ux-rehab-real-pdf/
             visual-qa-output/document-electronic-qr/
+            visual-qa-output/automatic-document-electronic-copy/
           if-no-files-found: ignore
           retention-days: 7

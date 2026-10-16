@@ -40,8 +40,8 @@ const cases=[
     const entry=page.locator('.ta-documents-create-entry');
     await entry.waitFor({state:'visible',timeout:12000});
     assert.equal(await entry.count(),1,'one grouped document creator '+key);
-    await entry.locator('summary').click();
-    const opts=entry.locator('.ta-documents-create-choices');
+    await entry.click();
+    const opts=page.locator('.lx-document-create-dialog .ta-documents-create-choices');
     await opts.waitFor({state:'visible',timeout:10000});
     assert.equal(await opts.locator('button').count(),8,'eight standard creation types '+key);
     const geometry=await opts.evaluate(el=>{
@@ -49,7 +49,7 @@ const cases=[
       return{left:r.left,right:r.right,width:r.width,scroll:el.scrollHeight,client:el.clientHeight,overflowY:s.overflowY};
     });
     assert.ok(geometry.left>=-1&&geometry.right<=c.w+1,'menu fits viewport '+key+' '+JSON.stringify(geometry));
-    assert.ok(geometry.scroll<=geometry.client+1||geometry.overflowY==='auto','long menu needs internal scrolling '+key);
+    assert.equal(await opts.evaluate(el=>{const button=el.querySelector('button'),r=button.getBoundingClientRect();return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)?.closest('button')===button;}),true,'chooser must receive touches above document cards '+key);
     await opts.locator('button').first().click();
     assert.deepEqual(await page.evaluate(()=>window.qaDocumentChoices),['proforma'],'quote uses existing document callback '+key);
     await page.screenshot({path:output+'/'+key+'-create.png',fullPage:false,animations:'disabled'});

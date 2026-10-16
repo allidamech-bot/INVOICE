@@ -1,3 +1,4 @@
+import { automaticElectronicDocument } from '../lib/secure-share.js';
 import { workspaceText, workspaceError } from '../lib/ai-workspace-presentation.js';
 import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from './AiReliabilityWorkspace.js';
 import { strictAiActor } from '../lib/ai-foundation-approval.js';
@@ -424,7 +425,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',savedId);}catch{}
   const pdfStage=react.useRef(null as HTMLDivElement|null);
   const [PdfRenderer,setPdfRenderer]=React.useState(null as any);
-  const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string}|null);
+  const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string;electronicShareId?:string}|null);
   const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
@@ -453,10 +454,12 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
       const document=prepareAiPdfPreview(kernel,vault,ar?'ar':'en',savedId);
       // No renderer initialization on ordinary chat turns. The canonical A4
       // React class is loaded only after a Controller expressly asks for PDF.
+      let electronicShareId='';
+      if(automaticElectronicDocument(document)){const {ensureDocumentElectronicCopy}=await import('../cloud/secure-share-owner.js');const share=await ensureDocumentElectronicCopy(document,{isCurrent:()=>identity===latestPdfIdentity.current&&request===pdfSequence.current});electronicShareId=share.id;}
       const {TemplateRenderer}=await import('../templates/TemplateRenderer.js');
       if(identity!==latestPdfIdentity.current||request!==pdfSequence.current)return;
       setPdfRenderer(()=>TemplateRenderer);
-      setPdfSource({document,identity});
+      setPdfSource({document,identity,electronicShareId});
     }catch(e){
       if(identity===latestPdfIdentity.current&&request===pdfSequence.current){
         setPdfError(e instanceof Error?e.message:String(e));
@@ -579,7 +582,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     </section>
     {pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
       aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
-      {PdfRenderer?<PdfRenderer document={pdfSource.document} scale={1}/>:null}
+      {PdfRenderer?<PdfRenderer document={pdfSource.document} scale={1} electronicShareId={pdfSource.electronicShareId}/>:null}
     </div>:null}
   </section>;
 }
