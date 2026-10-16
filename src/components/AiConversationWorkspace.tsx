@@ -53,6 +53,36 @@ function markdownParagraphs(children:any[]):any[] {
     else{flush();result.push(react.createElement(heading?((heading[1]||'').length<=2?'h3':'h4'):'p',{key:index},...formatted));}
   });flush();return result;
 }
+
+/** Render a plain-text assistant reply as actual paragraphs and accessible
+ * lists. AI text is never parsed as HTML and never gets event callbacks. */
+function assistantMessageBlocks(text:string):any[] {
+  if(!text.trim())return [text];
+  const blocks:any[]=[];
+  let bullets:any[]=[],bulletKind:'ul'|'ol'|''='';
+  const flush=()=>{if(bullets.length){blocks.push(react.createElement(bulletKind,{key:'list-'+blocks.length},...bullets));bullets=[];bulletKind='';}};
+  const input=text.replace(/\r\n?/g,'\n')
+    // Recover multiple numbered entries flattened onto a single line.
+    .replace(/\s+(?=(?:[1-9]|1[0-9]|20)[.)]\s+\S)/g,'\n');
+  for(const line of input.split('\n')){
+    const trimmed=line.trim();
+    if(!trimmed){flush();continue;}
+    const heading=trimmed.match(/^#{1,5}\s+(.+)/);
+    const bullet=trimmed.match(/^([-*•]|\d{1,3}[.)])\s+(.+)/);
+    if(heading){flush();blocks.push(<h4 key={'heading-'+blocks.length} dir="auto">{markdownInline(heading[1],String(blocks.length))}</h4>);continue;}
+    if(bullet){
+      const kind=/\d/.test(bullet[1]!)?'ol':'ul';
+      if(bulletKind&&bulletKind!==kind)flush();
+      bulletKind=kind;
+      bullets.push(<li key={'item-'+bullets.length} className="lxw-ai-compact-result-row" dir="auto">{markdownInline(bullet[2],String(bullets.length))}</li>);
+      continue;
+    }
+    flush();
+    blocks.push(<p key={'paragraph-'+blocks.length} dir="auto">{markdownInline(trimmed,String(blocks.length))}</p>);
+  }
+  flush();
+  return blocks.length?blocks:[text];
+}
 const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
 const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||host.__foundationTurnBusy);
@@ -705,7 +735,10 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       const content=children.filter((child:any)=>!actions.includes(child));
       // Keep the bubble sized to its content. Action controls remain outside it
       // and retain their original copy/edit/retry/evidence callbacks.
-      return react.createElement('div',{className:'lxw-message-turn is-'+sender},react.cloneElement(node,{dir:'auto'},...content),...actions);
+      const formatted=sender==='assistant'?content.flatMap((child:any)=>
+        typeof child==='string'?assistantMessageBlocks(child):[child]):content;
+      return react.createElement('div',{className:'lxw-message-turn is-'+sender},
+        react.cloneElement(node,{dir:'auto',className:cn+(sender==='assistant'?' lxw-markdown lxw-formatted-reply':'')},...formatted),...actions);
     }
     if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
     if(cn.split(' ').includes('lourex-ai-head')){
