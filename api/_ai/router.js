@@ -212,9 +212,9 @@ function classifyRoute({taskType,reasoningLevel,attachments=[]}){
 }
 function routeEntries(route){if(route==='vision')return VISION_ROUTE;if(route==='deep')return DEEP_ROUTE;if(route==='native-document')return NATIVE_DOCUMENT_ROUTE;return GENERAL_ROUTE;}
 function requiredCapabilities(route){const base=[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT];if(route==='vision')base.push(AI_CAPABILITIES.VISION);if(route==='deep')base.push(AI_CAPABILITIES.DEEP_REASONING);if(route==='native-document')base.push(AI_CAPABILITIES.NATIVE_DOCUMENT);return base;}
-function configuredCandidates(route,attachments=[]){
+function configuredCandidates(route,attachments=[],allowExternal=false){
   const required=requiredCapabilities(route),imageCount=attachments.filter(item=>item?.kind==='image').length;
-  return routeEntries(route).map(([provider,model])=>findModel(provider,model)).filter(model=>model?.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&circuitAvailable(model.provider,model.model)&&(!imageCount||model.maxImages>=imageCount));
+  return routeEntries(route).map(([provider,model])=>findModel(provider,model)).filter(model=>model?.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true)&&circuitAvailable(model.provider,model.model)&&(!imageCount||model.maxImages>=imageCount));
 }
 function providerError(provider,model,status,bodyText){
   if(status===429)return{category:'rate_limit',code:'AI_RATE_LIMITED',retryable:false};
@@ -345,7 +345,12 @@ export async function routeAiStructured(options={}){
   if(!AI_FREE_ONLY)return{success:false,errorCode:'AI_FREE_ONLY_REQUIRED',requestId,route:'none',fallbackUsed:false};
   if(!attachmentCheck.ok)return{success:false,errorCode:attachmentCheck.code,requestId,route:'unsupported',fallbackUsed:false};
   const route=classifyRoute({taskType,reasoningLevel,attachments});
-  const candidates=configuredCandidates(route,attachments);
+  // Explicit server-side data classification is mandatory. Never infer safety from
+  // task names (workspace_help can also carry private conversation memory).
+  // Existing business endpoints do not set this flag, so private prompts stay
+  // on the original provider set even if project-wide opt-in is accidentally set.
+  const allowExternal=options.externalDataClass==='public-synthetic'&&route==='general';
+  const candidates=configuredCandidates(route,attachments,allowExternal);
   if(!candidates.length)return{success:false,errorCode:'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false};
   const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
   let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null;
