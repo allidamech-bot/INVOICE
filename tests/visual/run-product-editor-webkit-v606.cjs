@@ -32,6 +32,18 @@ const configurations=[
         else await addProduct.click();
         const editor=page.locator('.ta-product-editor.is-open');
         await editor.waitFor({timeout:10000});
+        const close=editor.locator('.ta-product-editor-header button');
+        const closeBounds=await close.boundingBox();
+        assert.ok(closeBounds&&closeBounds.y>=0&&closeBounds.y+closeBounds.height<=config.height,'Close button must stay in the visible viewport '+key);
+        await close.click();
+        await editor.waitFor({state:'detached'});
+        await addProduct.click();
+        await editor.waitFor({state:'visible'});
+        const back=editor.locator('.ta-product-editor-footer>button').first();
+        await back.click();
+        await editor.waitFor({state:'detached'});
+        await addProduct.click();
+        await editor.waitFor({state:'visible'});
         const scroller=page.locator('.ta-product-editor-scroll');
         const before=await scroller.evaluate(el=>({
           height:el.clientHeight,scrollHeight:el.scrollHeight,

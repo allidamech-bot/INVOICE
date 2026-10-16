@@ -8,7 +8,7 @@ import {EditorPage} from './src/components/EditorPage.js';
 import {createBlankDocument} from './src/lib/documents.js';
 import {defaultCompany,defaultAppSettings} from './src/lib/defaults.js';
 import {setUiLanguage} from './src/lib/i18n.js';
-const params=new URLSearchParams(location.search),kind=params.get('kind')==='draft'?'draft':'proforma',language=params.get('lang')==='ar'?'ar':'en';
+const params=new URLSearchParams(location.search),kind=['draft','invoice','proforma-invoice','rfq','purchase-order'].includes(params.get('kind'))?params.get('kind'):'proforma',language=params.get('lang')==='ar'?'ar':'en';
 setUiLanguage(language);document.documentElement.lang=language;document.documentElement.dir=language==='ar'?'rtl':'ltr';document.documentElement.dataset.uiTheme=language==='ar'?'dark':'light';
 const company=defaultCompany(),documentValue=createBlankDocument(kind,'KEYBOARD-1',company);
 documentValue.language=language;window.keyboardEditorQa={saves:0};
