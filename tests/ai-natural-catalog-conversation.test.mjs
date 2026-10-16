@@ -53,6 +53,18 @@ test('natural Arabic family request bypasses generic record0 planner without sav
  assert.doesNotMatch(result.answer,/record0|نتائج البحث:/);
  assert.deepEqual(v,before);
 });
+test('product discovery cannot leak catalog rows to a role without product access',async()=>{
+ const v=fixture();
+ v.teamMembers[0].role='finance';
+ const result=await orchestrateAiToolRequest({
+   message:'اريد عرض سعر لمنتجات شيبسيكو',vault:v,language:'ar',
+   context:{conversationMode:'controller',assistantRuntime:{scope:'business'}}
+ });
+ assert.ok(result);
+ assert.match(result.answer,/صلاحيات الحساب/);
+ assert.doesNotMatch(result.answer,/شيبسيكو جبنة/);
+ assert.equal(result.proposal,null);
+});
 test('assistant chat formats natural paragraphs and lists without parsing unsafe HTML',async()=>{
  const component=await readFile(new URL('../src/components/AiConversationWorkspace.tsx',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/styles/ai-conversation-workspace.css',import.meta.url),'utf8');
