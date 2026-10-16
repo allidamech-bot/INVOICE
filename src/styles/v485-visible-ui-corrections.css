@@ -1768,3 +1768,14 @@ html body #root .app-ui .ta-sales-return-receipt .ta-inventory-entry-action{
   }
   html body #root .app-ui .editor-screen .section-heading.with-action .section-heading-actions.editor-item-actions .editor-item-tools-options>.btn:is(:hover,:focus-visible){background:var(--lx485-surface-3)!important;}
 }
+
+/* Follow-up owns one card; inherited overlay tiles must not frame its children. */
+html body #root .app-ui .lx-notification-summary {box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;padding:16px!important;}
+html body #root .app-ui .lx-notification-summary> :is(.lx-notification-summary-copy,.lx-notification-summary-actions) {min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+html body #root .app-ui .lx-notification-summary-copy {flex:1 1 auto!important;gap:5px!important;}
+html body #root .app-ui .lx-notification-summary-actions {flex:0 0 auto!important;align-self:center!important;}
+html body #root .app-ui .modal .lx-notification-center {box-sizing:border-box!important;width:100%!important;max-width:100%!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important;}
+html body #root .app-ui .lx-notification-empty {min-height:0!important;padding:24px 14px!important;gap:10px!important;border:0!important;border-radius:14px!important;}
+html body #root .app-ui .lx-notification-empty strong {font-size:16px!important;line-height:1.6!important;}
+html body #root .app-ui .lx-notification-empty>span {font-size:13px!important;line-height:1.7!important;max-width:40ch;}
+@media(max-width:430px){html body #root .app-ui .lx-notification-summary{flex-wrap:wrap!important;}html body #root .app-ui .lx-notification-summary-actions{margin-inline-start:auto!important;}html body #root .app-ui .lx-notification-summary-copy{flex-basis:100%!important;}}
