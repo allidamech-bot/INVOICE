@@ -12,12 +12,14 @@ function fixture(){
  const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'selection-qa',accountId:'qa'};
  return {vault,kernel:newConversationKernel(scope)};
 }
-test('natural all-record commands choose exact list kind; questions are not list requests',()=>{
+test('natural all-record commands and broad catalog questions choose exact list kind',()=>{
  for(const [message,kind] of [
   ['اعرض جميع العملاء','customer'],['اعرض كل الموردين','supplier'],
   ['show all products','product'],['list documents','document'],
+  ['شو الأصناف اللي عنا؟','product'],['ما هي المنتجات المتوفرة عندنا؟','product'],
+  ['شو العملاء اللي عنا؟','customer'],
  ])assert.equal(requestedRecordList(message),kind,message);
- for(const message of ['احذف جميع العملاء','اعرض التقرير','كيف حال العملاء؟','اعرض فاتورة INV-2026-0001'])
+ for(const message of ['احذف جميع العملاء','اعرض التقرير','كيف حال العملاء؟','اعرض فاتورة INV-2026-0001','شو أصناف شيبسيكو اللي عنا؟'])
   assert.equal(requestedRecordList(message),null,message);
 });
 test('in-chat customer list uses real scoped IDs and natural Arabic multi-select without vault writes',()=>{
