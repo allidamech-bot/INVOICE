@@ -8,6 +8,17 @@ export type RecordListKind='customer'|'supplier'|'product'|'document';
 /** A narrow read-only command; never route "show all customers" to navigation. */
 export function requestedRecordList(message:string):RecordListKind|null{
  const text=String(message||'').normalize('NFKC').replace(/[\u064b-\u065f\u0670]/gu,'').trim();
+ // Ordinary read-only questions also open the same searchable full list.
+ // A named family/brand is NOT treated as "all products"; that query remains
+ // a natural catalog conversation, with verified matches and no guessed SKU.
+ const naturalQuestion=text.match(/^(?:شو|إيش|ايش|ما هي|ماهي|what are|what|which)\s+(المنتجات|الاصناف|الأصناف|العملاء|الموردين|المستندات|products?|items?|customers?|suppliers?|documents?)(?:\s+(?:(?:اللي|الموجودة|المتوفره|المتوفرة|المتاحة|عنا|عندنا|عندي|في الشركة|do we have|are available|we have)))?[؟?.!\s]*$/iu);
+ if(naturalQuestion){
+  const noun=naturalQuestion[1]!.toLocaleLowerCase();
+  if(/(?:المنتجات|الاصناف|الأصناف|products?|items?)/iu.test(noun))return'product';
+  if(/(?:العملاء|customers?)/iu.test(noun))return'customer';
+  if(/(?:الموردين|suppliers?)/iu.test(noun))return'supplier';
+  if(/(?:المستندات|documents?)/iu.test(noun))return'document';
+ }
  const command=text.match(/^(?:اعرض|أعرض|اظهر|أظهر|ورجيني|وريني|هات|show|list)\s+(?:(?:لي|me)\s+)?(?:(?:جميع|كل|all|the)\s+)?(.+?)[.!؟\s]*$/iu);
  if(!command)return null;
  const name=command[1]!.trim().toLocaleLowerCase();
