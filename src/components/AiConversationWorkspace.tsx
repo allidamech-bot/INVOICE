@@ -903,7 +903,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       const ar=aiUiAr(host);
       const heads=safe.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-head')).map((head:any)=>{const parts=react.Children.toArray(head.props.children);return react.cloneElement(head,undefined,parts[0],<span className="lxw-header-slot" aria-hidden="true"/>,...parts.slice(1));});
       const body=safe.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-head'));
-      return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-workspace-ready':'false'},...heads,conversationModeTabs(host,undefined,true),<div className="lxw-mode-description" role="status">{label(ar,'Loading conversation…','جارٍ تحميل المحادثة…')}</div>,...body);
+      return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-workspace-ready':'false'},...heads,conversationModeTabs(host,undefined,true),<div className="lxw-mode-description" role="status">{label(ar,'Loading conversation…','جارٍ تحميل المحادثة…')}</div>,<div className="lxw-body"><div className="lxw-chat">{body}</div></div>);
     }
     const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
     const legacyContext=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
