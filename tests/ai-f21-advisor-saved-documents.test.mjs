@@ -43,6 +43,7 @@ function gateway(model){
       Buffer,URL,process:{env:{}},console,
       requireAiFirebaseAuth:async()=>true,
       sanitizeDialogueCatalog:()=>null,
+      sanitizeReadEvidence:()=>[],
       naturalLourexDialogue:async()=>{planned++;return{success:true,answer:model?.answer||'Status is unavailable',proposal:null};},
       routeAiStructured:async()=>{planned++;return{success:true,data:model??{answer:'Status is unavailable',proposal:null}};},
       aiRouterPublicError:()=>({status:503,code:'AI_ERROR',message:'AI unavailable'})
