@@ -3067,17 +3067,17 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-
 
 /* LOUREX AI composer plus-menu — trigger edge alignment */
 /* Align the floating menu with the 740px-centered composer at every viewport. */
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-plus-menu{
+html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lourex-conversation-remediation='3'] .lourex-ai-plus-menu:is([data-view='root'],[data-view='tools']){
   --lxw-plus-trigger-edge:max(20px,calc(50% - 354px));
   max-width:calc(100% - var(--lxw-plus-trigger-edge) - var(--lxw-plus-trigger-edge))!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='ltr'] .lourex-ai-plus-menu{
+html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lourex-conversation-remediation='3'][dir='ltr'] .lourex-ai-plus-menu:is([data-view='root'],[data-view='tools']){
   left:var(--lxw-plus-trigger-edge)!important;
   right:auto!important;
   inset-inline-start:var(--lxw-plus-trigger-edge)!important;
   inset-inline-end:auto!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='rtl'] .lourex-ai-plus-menu{
+html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lourex-conversation-remediation='3'][dir='rtl'] .lourex-ai-plus-menu:is([data-view='root'],[data-view='tools']){
   right:var(--lxw-plus-trigger-edge)!important;
   left:auto!important;
   inset-inline-start:var(--lxw-plus-trigger-edge)!important;
