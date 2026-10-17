@@ -225,7 +225,7 @@ jobs:
       CI: 'true'
       FIREBASE_CLI_DISABLE_UPDATE_CHECK: 'true'
       # Firebase emulator is constrained to localhost and a demo project ID.
-      # This job receives no production Firebase or AI-provider secrets.
+      # Uses only the local emulator and a demo project; no external credentials.
     steps:
       - name: Checkout audited head, no write token
         uses: actions/checkout@v4
