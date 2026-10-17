@@ -532,7 +532,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   return <section className="lxw-chat-document lxw-document-unified" aria-label={label(ar,'Document review and actions','مراجعة المستند وإجراءاته')} data-artifact-id={doc.id} data-artifact-revision={doc.revision} data-exiting={dismissal.exiting?'true':'false'}>
     <header className="lxw-document-card-head">
       <div className="lxw-document-card-title"><span className="lxw-document-card-symbol" aria-hidden="true">{iconPdf}</span>
-        <div><small>LOUREX INVOICE · PDF</small><strong>{workspaceText(ar,doc.title)}</strong></div>
+        <div><small>{label(ar,'LOUREX · Business document','LOUREX · مستند أعمال')}</small><strong>{workspaceText(ar,doc.title)}</strong></div>
       </div>
       <span className="lxw-document-card-state" data-status={doc.status}>{doc.status==='saved'?label(ar,'Saved','محفوظ'):label(ar,'Draft · unsaved','مسودة غير محفوظة')}</span>
     </header>
