@@ -62,13 +62,13 @@ test('natural explanation uses verified reads and adapts to detail preference wi
 const {readFileSync}=await import('node:fs');
 const runtimeSource=readFileSync('dist/src/lib/ai-intelligence-runtime.js','utf8');
 const runSource=runtimeSource.slice(runtimeSource.indexOf('async function runIntelligenceTools('),runtimeSource.indexOf('function stampProposal('));
-function explanationHarness(responder){
+function explanationHarness(responder,message='ليش هالرقم؟'){
  const scope={accountId:'test-user',scope:'business',workspaceId:'A',branchId:'main',threadId:'one'};
  const result={answer:'Recorded balance: 100.00 USD',proposal:null,plannedBy:'ai',plan:{calls:[]},results:[{id:'r',tool:'finance.getSummary',class:'read',ok:true,source:'recorded',data:{USD:'100.00'}}]};
  const host={mode:'controller',__intelligenceKernel:{scope},state:{messages:[]}};
  const deps={currentConversationMode:h=>h.mode,currentAiExperiencePreferences:()=>({detail:'balanced'}),resolveAiConversationReplyLanguage:()=> 'ar',orchestrateAiToolRequest:async()=>result,resumeVaultSession:async()=>({vault:{}}),scopeFor:()=>host.__intelligenceKernel.scope,kernelScopeKey:s=>JSON.stringify(s),currentAiInterfaceLanguage:()=> 'ar',foundationToolOutcomes:()=>[],intelligenceRequestMessage:()=> 'scoped user facts',requestAiJson:async(...args)=>responder(host,...args)};
  const keys=Object.keys(deps);const run=new Function(...keys,runSource+';return runIntelligenceTools;')(...keys.map(k=>deps[k]));
- return {host,result,run:()=>run(host,{message:'ليش هالرقم؟',language:'ar',context})};
+ return {host,result,run:()=>run(host,{message,language:'ar',context})};
 }
 test('verified read results receive a natural answer through the read-only channel',async()=>{
  const h=explanationHarness(async(_host,endpoint,payload)=>{
@@ -90,4 +90,17 @@ test('explanation failure preserves retrieved facts instead of losing the answer
 test('a thread change during explanation cannot deliver previous-thread facts',async()=>{
  const h=explanationHarness(async host=>{host.__intelligenceKernel.scope={...host.__intelligenceKernel.scope,threadId:'another'};return {answer:'stale answer'};});
  await assert.rejects(h.run(),/Conversation changed/);
+});
+
+
+test('simple local financial reads avoid a second provider call and retain exact accounting evidence',async()=>{
+ let providerCalls=0;
+ for(const message of ['Show treasury and cash status','أعطني رصيد الخزينة','Calculate margin 20% from 100 USD']){
+  const h=explanationHarness(async()=>{providerCalls++;throw Error('Do not use model for direct reads');},message);
+  const result=await h.run();
+  assert.equal(result,h.result);
+  assert.equal(result.answer,'Recorded balance: 100.00 USD');
+  assert.equal(result.foundationSelectionText,undefined);
+ }
+ assert.equal(providerCalls,0,'Avoid paying the latency and provider quota twice for deterministic responses');
 });
