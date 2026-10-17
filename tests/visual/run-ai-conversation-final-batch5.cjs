@@ -61,7 +61,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.equal(panelVisual.theme,theme,'fixture theme must reach the conversation');
         // AI conversation has its own immutable matte-black visual identity,
         // independent of the accounting site's light/dark theme preference.
-        assert.equal(panelVisual.bg,'rgb(8, 8, 8)','AI conversation must remain matte black for either site theme');
+        assert.equal(panelVisual.bg,'rgb(11, 16, 23)','AI conversation must retain the canonical deep-navy workspace background for either site theme');
         assert.ok(contrast(panelVisual.text,panelVisual.bg)>=4.5,'conversation base text contrast must meet WCAG AA');
 
         const textarea=panel.locator('.lourex-ai-premium-textarea');
