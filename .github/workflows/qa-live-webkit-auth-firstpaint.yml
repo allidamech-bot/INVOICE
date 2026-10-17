@@ -1,0 +1,29 @@
+name: LOUREX live signed-out WebKit acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/qa-live-webkit-auth-firstpaint.mjs'
+      - '.github/workflows/qa-live-webkit-auth-firstpaint.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  public-webkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated browser harness (no application build)
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright
+          npx playwright install --with-deps webkit
+      - name: Test public production signed-out gateway on iPhone and iPad WebKit
+        run: node scripts/qa-live-webkit-auth-firstpaint.mjs
