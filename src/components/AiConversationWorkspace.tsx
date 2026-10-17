@@ -916,7 +916,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       if(classes.includes('lourex-ai-manager')){
         memoryManagerParts.push(node);return;
       }
-      react.Children.forEach(node.props?.children,findMemoryManager);
+      react.Children.toArray(node.props?.children).forEach(findMemoryManager);
     };
     legacyContext.forEach(findMemoryManager);
     const memoryManagerBridge=memoryManagerParts.length?
