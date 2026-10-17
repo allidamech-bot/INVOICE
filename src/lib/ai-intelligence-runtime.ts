@@ -712,6 +712,35 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
   }catch(error){if(receipt){receipt.state='uncertain';finishMissionStep(step,false);await persistKernel(host).catch(()=>undefined);}host.setState({busy:false,error:error instanceof Error?error.message:String(error)});return undefined;}
   finally{host.__foundationApprovalBusy=false;}
 }
+/** The explicit Save button is the user's approval of this exact visible
+ * artifact revision. Previewing a PDF is optional and never grants approval. */
+export async function saveIntelligenceDraft(host:Host,artifactId:string,revision:number):Promise<void>{
+ if(host.__workspaceSaveBusy||host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy)return;
+ host.__workspaceSaveBusy=true;
+ host.setState({__workspaceSaving:true,error:''});
+ try{
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  const artifact=kernel?.artifact,displayedVault=host.__foundationVault as VaultPayload|undefined;
+  if(!kernel||!artifact||!displayedVault||artifact.id!==artifactId||artifact.revision!==revision||currentConversationMode(host)!=='controller')
+   throw new Error('The draft changed. Use Save on the current revision.');
+  const previous=artifact.proposal as any;
+  if(previous.foundationApproval&&(host.__foundationReceipts||[]).some((r:any)=>r.id===previous.foundationApproval.id))
+   throw new Error('This save was already attempted. Check the saved record before retrying.');
+  const fresh=await resumeVaultSession();
+  if(!fresh||host.__intelligenceKernel!==kernel||kernel.artifact!==artifact||artifact.revision!==revision||
+     kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(kernel.scope)||currentConversationMode(host)!=='controller')
+   throw new Error('The document or account changed. Nothing was saved.');
+  const proposal=structuredClone(previous);delete proposal.foundationApproval;
+  const review=reviewAiDocumentProposal(proposal,workspaceDrafting(fresh.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');
+  if(review.blockers.length)throw new Error(review.blockers.join(' '));
+  // Anchor to the displayed data, then reject intervening cloud/role changes.
+  stampProposal(host,proposal,displayedVault);assertFoundationApproval(fresh.vault,proposal);
+  stageReviewedMission(kernel,proposal);artifact.proposal=proposal;
+  host.setState({proposal,review,error:'',__workspaceReviewedProposal:proposal});await flush(host);
+  await host.approveProposal();
+ }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
+ finally{host.__workspaceSaveBusy=false;host.setState({__workspaceSaving:false});}
+}
 export function installIntelligenceRuntime(host:Host):void{
   if(host.__intelligenceInstalled)return;host.__intelligenceInstalled=true;
   if(typeof window!=='undefined'){
