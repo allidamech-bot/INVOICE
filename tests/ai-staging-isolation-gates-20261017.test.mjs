@@ -56,3 +56,38 @@ test('QA-STAGING-07: direct CLI preflight blocks current Preview without any ser
   assert.equal(r.status,2);assert.match(r.stderr,/AI_STAGING_BLOCKED/);
   assert.doesNotMatch(r.stderr,/AIzaSy|@/,'Preflight must not print API keys or mail addresses');
 });
+
+
+test('QA-STAGING-08: the FIRST production build stage refuses unsafe Vercel Preview of AI release branch',()=>{
+  const result=spawnSync(process.execPath,['scripts/verify-deployment-isolation.mjs'],{
+    encoding:'utf8',env:{
+      ...process.env,VERCEL_ENV:'preview',
+      VERCEL_GIT_COMMIT_REF:'fix/ai-audit-root-causes-20261017',
+      LOUREX_AI_QA_FIREBASE_PROJECT_ID:'lourex-qa-isolated'
+    }
+  });
+  assert.notEqual(result.status,0,'Preview must not deploy an app coupled to production Firebase');
+  assert.match(result.stderr,/AI_PREVIEW_ISOLATION_BLOCKED/);
+  assert.doesNotMatch(result.stderr,/AIzaSy|@/,'Never reveal Firebase keys or account addresses');
+});
+test('QA-STAGING-09: ordinary local CI builds remain possible for synthetic tests',()=>{
+  const result=spawnSync(process.execPath,['scripts/verify-deployment-isolation.mjs'],{
+    encoding:'utf8',env:{
+      ...process.env,VERCEL_ENV:'local',VERCEL_GIT_COMMIT_REF:'fix/ai-audit-root-causes-20261017'
+    }
+  });
+  assert.equal(result.status,0,result.stderr);
+});
+test('QA-STAGING-10: production build isolation remains governed by original project/owner checks',()=>{
+  const result=spawnSync(process.execPath,['scripts/verify-deployment-isolation.mjs'],{
+    encoding:'utf8',env:{
+      ...process.env,VERCEL_ENV:'production',
+      VERCEL_GIT_REPO_OWNER:'allidamech-bot',VERCEL_GIT_REPO_SLUG:'INVOICE',
+      VERCEL_PROJECT_ID:'prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ',
+      VERCEL_PROJECT_PRODUCTION_URL:'invoice-three-puce.vercel.app',
+      VERCEL_GIT_COMMIT_REF:'main'
+    }
+  });
+  assert.equal(result.status,0,result.stderr);
+  assert.match(result.stdout,/deployment isolation verified/i);
+});
