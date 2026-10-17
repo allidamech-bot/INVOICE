@@ -3083,3 +3083,24 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lourex-conversa
   inset-inline-start:var(--lxw-plus-trigger-edge)!important;
   inset-inline-end:auto!important;
 }
+
+/* 320–420px: keep the plus sheet aligned without clipping its usable rows. */
+@media(max-width:420px){
+  html body #lourex-ai-panel[data-lourex-workspace='2'][data-lourex-conversation-remediation='3'] .lourex-ai-plus-menu:is([data-view='root'],[data-view='tools']){
+    box-sizing:border-box!important;
+    width:min(280px,calc(100vw - 40px))!important;
+    max-width:calc(100vw - 40px)!important;
+  }
+  html body #lourex-ai-panel[data-lourex-workspace='2'][data-lourex-conversation-remediation='3'][dir='rtl'] .lourex-ai-plus-menu:is([data-view='root'],[data-view='tools']){
+    right:20px!important;
+    left:auto!important;
+    inset-inline-start:20px!important;
+    inset-inline-end:auto!important;
+  }
+  html body #lourex-ai-panel[data-lourex-workspace='2'][data-lourex-conversation-remediation='3'][dir='ltr'] .lourex-ai-plus-menu:is([data-view='root'],[data-view='tools']){
+    left:20px!important;
+    right:auto!important;
+    inset-inline-start:20px!important;
+    inset-inline-end:auto!important;
+  }
+}
