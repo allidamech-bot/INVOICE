@@ -943,7 +943,8 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is
   align-self:stretch;align-items:flex-start;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='rtl'] .lxw-message-turn.is-user{
-  align-self:flex-start;align-items:flex-start;
+  /* Keep the user's bubble on the physical right; its text keeps dir=auto. */
+  direction:ltr!important;align-self:flex-end!important;align-items:flex-end!important;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='rtl'] .lxw-message-turn.is-assistant{
   align-self:stretch;align-items:flex-end;
