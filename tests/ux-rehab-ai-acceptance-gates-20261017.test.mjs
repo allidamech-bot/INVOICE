@@ -16,6 +16,7 @@ import {newConversationKernel,stageKernelArtifact} from '../dist/src/lib/ai-conv
 import {prepareAiPdfPreview} from '../dist/src/lib/ai-pdf-preview.js';
 import {documentItemFromSavedItem} from '../dist/src/lib/saved-items.js';
 import {resolveAiCommercialLine} from '../dist/src/lib/ai-commercial-line.js';
+import {groundedAiValidity} from '../dist/src/lib/ai-validity.js';
 import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
 
 const item=(p={})=>({savedItemId:'',descriptionEn:'Test valve',descriptionAr:'صمام تجريبي',quantity:'2',unit:'PCS',unitPrice:'125',...p});
@@ -150,4 +151,12 @@ test('AI-GATE-11: existing cross-company customer/product write protection remai
     descriptionAr:'',unit:'PCS',lastCurrency:'USD',lastUnitPrice:'1',tags:[],archived:false}];
   assert.throws(()=>assertAiDocumentCreateApproval(vault,proposal(
     item({savedItemId:'other-product',unitPrice:'1'}))),/active company|unavailable/i);
+});
+
+
+test('AI-GATE-12: explicit Arabic 14-day validity grounds an English AI term, but unrelated delivery time does not',()=>{
+  assert.equal(groundedAiValidity('14 days','الصلاحية 14 يوم','7'), '14 days');
+  assert.equal(groundedAiValidity('14 days','صلاحية العرض 14 يوم','7'), '14 days');
+  assert.equal(groundedAiValidity('14 days','مدة التسليم 14 يوم','7'), '7');
+  assert.equal(groundedAiValidity('14 days','الصلاحية 30 يوم','7'), '7');
 });
