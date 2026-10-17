@@ -13,7 +13,16 @@ const current=()=>({
   branchName:'fix/ai-audit-root-causes-20261017'
 });
 const isolated=()=>({
-  clientSource:"export const config={projectId:'lourex-qa-isolated',authDomain:'lourex-qa-isolated.firebaseapp.com'}",
+  clientSource:[
+    "export const config={",
+    "  apiKey:'AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',",
+    "  projectId:'lourex-qa-isolated',",
+    "  authDomain:'lourex-qa-isolated.firebaseapp.com',",
+    "  storageBucket:'lourex-qa-isolated.firebasestorage.app',",
+    "  messagingSenderId:'123456789012',",
+    "  appId:'1:123456789012:web:abcdef1234'",
+    "}"
+  ].join('\n'),
   serverSource:"const FIREBASE_PROJECT_ID='lourex-qa-isolated';",
   vercelSource:JSON.stringify({rewrites:[{source:'/__/auth/:path*',destination:'https://lourex-qa-isolated.firebaseapp.com/__/auth/:path*'}]}),
   expectedProjectId:'lourex-qa-isolated',vercelEnvironment:'preview',
@@ -90,4 +99,40 @@ test('QA-STAGING-10: production build isolation remains governed by original pro
   });
   assert.equal(result.status,0,result.stderr);
   assert.match(result.stdout,/deployment isolation verified/i);
+});
+
+test('QA-STAGING-11: a correct projectId cannot conceal a production Storage bucket',()=>{
+  const p=isolated();
+  p.clientSource=p.clientSource.replace('lourex-qa-isolated.firebasestorage.app','lourex-invoice.firebasestorage.app');
+  const x=inspectAiStagingBoundary(p);
+  assert.equal(x.ready,false);
+  assert.ok(x.codes.includes('QA_STORAGE_BUCKET_NOT_ISOLATED'));
+  assert.ok(x.codes.includes('QA_PRODUCTION_REFERENCE_PRESENT'));
+});
+test('QA-STAGING-12: duplicate rewrites cannot hide a production Auth destination',()=>{
+  const p=isolated();
+  const config=JSON.parse(p.vercelSource);
+  config.rewrites.push({source:'/__/auth/:path*',destination:'https://lourex-invoice.firebaseapp.com/__/auth/:path*'});
+  p.vercelSource=JSON.stringify(config);
+  const x=inspectAiStagingBoundary(p);
+  assert.equal(x.ready,false);
+  assert.ok(x.codes.includes('QA_AUTH_REWRITE_CARDINALITY'));
+  assert.ok(x.codes.includes('QA_PRODUCTION_REFERENCE_PRESENT'));
+});
+test('QA-STAGING-13: duplicate or commented fake fields cannot approve a production client/server',()=>{
+  const p=isolated();
+  p.clientSource+="\n// projectId:'lourex-qa-isolated'\nconst fail={projectId:'lourex-invoice'};";
+  p.serverSource="// const FIREBASE_PROJECT_ID='lourex-qa-isolated';\nconst FIREBASE_PROJECT_ID='lourex-invoice';";
+  const x=inspectAiStagingBoundary(p);
+  assert.equal(x.ready,false);
+  assert.ok(x.codes.includes('QA_PRODUCTION_REFERENCE_PRESENT'));
+  assert.ok(x.codes.includes('QA_CLIENT_FIREBASE_NOT_ISOLATED'));
+  assert.ok(x.codes.includes('QA_BACKEND_FIREBASE_NOT_ISOLATED'));
+});
+test('QA-STAGING-14: a complete matching QA project requires plausible Firebase client metadata',()=>{
+  const p=isolated();
+  p.clientSource=p.clientSource.replace('AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA','not-an-api-key');
+  const x=inspectAiStagingBoundary(p);
+  assert.equal(x.ready,false);
+  assert.ok(x.codes.includes('QA_FIREBASE_CLIENT_METADATA_INVALID'));
 });

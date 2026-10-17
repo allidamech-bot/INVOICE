@@ -135,3 +135,21 @@ test('Firestore production release is opt-in, rules-only and blocked without a r
  assert.match(denied.stderr,/FIRESTORE_RELEASE_BLOCKED/);
  assert.doesNotMatch(denied.stdout,/FIRESTORE_RULES_DEPLOYED/);
 });
+
+test('QA smoke rejects production Cloudflare account even with a different QA token',()=>{
+  const entry=new URL('../scripts/qa-ai-provider-sandbox.mjs',import.meta.url);
+  const productionAccount='production-account-test-only';
+  const result=spawnSync(process.execPath,[entry.pathname],{
+    encoding:'utf8',timeout:8000,
+    env:{...process.env,
+      LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',
+      LOUREX_AI_QA_PROVIDER:'cloudflare',
+      LOUREX_AI_QA_CLOUDFLARE_API_TOKEN:'qa-synthetic-different-token-0123456789',
+      LOUREX_AI_QA_CLOUDFLARE_ACCOUNT_ID:productionAccount,
+      CLOUDFLARE_ACCOUNT_ID:productionAccount,
+      CLOUDFLARE_AI_API_TOKEN:'production-synthetic-token-0123456789'}
+  });
+  assert.equal(result.status,2,'Provider must not be contacted with a production Cloudflare account');
+  assert.match(result.stderr,/SANDBOX_NOT_CONFIGURED/);
+  assert.doesNotMatch(result.stdout+result.stderr,/production-account-test-only|production-synthetic-token/);
+});
