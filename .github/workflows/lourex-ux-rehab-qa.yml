@@ -131,13 +131,16 @@ jobs:
         run: |
           npm install --no-save --no-package-lock --no-audit --no-fund playwright
           npx playwright install --with-deps chromium webkit
-      - name: Smoke real picker component against synthetic sample products
+      - name: Exercise synthetic AI chat and picker/editor flows on phone and tablet
         run: |
           npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-ux-picker-server.log 2>&1 &
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:4173/tests/visual/obsidian-directory.html >/dev/null; then break; fi
             sleep 1
           done
+          # Check chat first: fail fast before the longer product/editor battery.
+          node tests/visual/run-ai-batches1-7-current-workspace.cjs
+          node tests/visual/run-ai-conversation-final-batch5.cjs
           node tests/visual/run-ux-rehab-picker-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
@@ -147,10 +150,6 @@ jobs:
           node tests/visual/run-product-editor-webkit-v606.cjs
           node tests/visual/run-editor-upgrade-webkit-20261016.cjs
           node tests/visual/run-item-tools-menu-webkit-20261016.cjs
-      - name: Exercise real AI Controller/Advisor chat on phone and tablet in Chromium and WebKit
-        run: |
-          node tests/visual/run-ai-batches1-7-current-workspace.cjs
-          node tests/visual/run-ai-conversation-final-batch5.cjs
       - name: Save isolated browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
