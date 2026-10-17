@@ -15,6 +15,7 @@ import {assertAiDocumentCreateApproval} from '../dist/src/lib/ai-document-approv
 import {newConversationKernel,stageKernelArtifact} from '../dist/src/lib/ai-conversation-kernel.js';
 import {prepareAiPdfPreview} from '../dist/src/lib/ai-pdf-preview.js';
 import {documentItemFromSavedItem} from '../dist/src/lib/saved-items.js';
+import {resolveAiCommercialLine} from '../dist/src/lib/ai-commercial-line.js';
 import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
 
 const item=(p={})=>({savedItemId:'',descriptionEn:'Test valve',descriptionAr:'صمام تجريبي',quantity:'2',unit:'PCS',unitPrice:'125',...p});
@@ -92,7 +93,7 @@ test('AI-GATE-07: a saved catalog item retains reviewed custom descriptions duri
   const compiled=ts.transpileModule('export class TestHarness{\n'+source.slice(first,last)+
     '\n check(entry,vault,currency){return this.documentLine(entry,vault,currency)}\n}',{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-  const sandbox={exports:{},documentItemFromSavedItem,aiProductArchived:()=>false,makeId:()=> 'qa-line'};
+  const sandbox={exports:{},documentItemFromSavedItem,resolveAiCommercialLine,aiProductArchived:()=>false,makeId:()=> 'qa-line'};
   vm.runInNewContext(compiled,sandbox);
   const saved={id:'saved-01',sku:'S-01',workspaceId:'default',descriptionEn:'Old English title',
     descriptionAr:'الوصف القديم',unit:'PCS',lastUnitPrice:'50',lastCurrency:'USD',
