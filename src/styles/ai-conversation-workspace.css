@@ -405,7 +405,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-acti
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-header-slot{display:block;flex:0 0 44px;width:44px;height:44px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-workspace-trigger{display:grid;place-items:center;flex:0 0 44px;width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--lxw-muted);cursor:pointer;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-workspace-trigger:focus-visible{outline:2px solid var(--lxw-text);outline-offset:2px;}
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions button{height:44px!important;min-height:44px!important;width:44px!important;border:0!important;background:transparent!important;color:var(--lxw-muted)!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head-actions > button{height:44px!important;min-height:44px!important;width:44px!important;border:0!important;background:transparent!important;color:var(--lxw-muted)!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn{display:flex;flex-direction:column;gap:4px;min-width:0;margin-block:8px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user{align-self:flex-end;align-items:flex-end;max-width:85%;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant{align-self:stretch;align-items:flex-start;max-width:100%;}
@@ -1827,7 +1827,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(
   background:transparent!important;color:var(--lxw-muted)!important;
   box-shadow:none!important;display:grid!important;place-items:center!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(button:hover,button[aria-expanded='true']){
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close,.lourex-ai-overflow-trigger):is(:hover,[aria-expanded='true']){
   background:var(--lxw-hover)!important;color:var(--lxw-text)!important;
 }
 /* Compact mode control behaves as a contextual switch, not a dashboard section. */
