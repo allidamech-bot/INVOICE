@@ -2,7 +2,7 @@ import { diagnosticSample, normalizeDiagnostics, type DiagnosticOperation } from
 import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory-graph.js';
 import { financialReviewAllowed } from './ai-reliability-intelligence.js';
 import { loadAssistantMemory, scopedAssistantMemories } from '../storage/assistant-memory-store.js';
-import { commercialDraftCommand, savedDocumentPreviewId, exactSavedDraftLineEdit } from './ai-commercial-conversation.js';
+import { commercialDraftCommand, savedDocumentPreviewId, exactSavedDraftLineEdit, currentSavedDraftQuantityEdit } from './ai-commercial-conversation.js';
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
@@ -755,16 +755,17 @@ export function installIntelligenceRuntime(host:Host):void{
       // Explicit saved-number updates are a new *unsaved* working review, not
       // a generic navigation or an immediate approved persistence operation.
       const savedLineEdit=currentConversationMode(host)==='controller'
-        ?exactSavedDraftLineEdit(kernel,resumed.vault,message):null;
+        ?currentSavedDraftQuantityEdit(kernel,resumed.vault,message,host.props.activeDocument?.id)||exactSavedDraftLineEdit(kernel,resumed.vault,message):null;
       if(savedLineEdit){
         if(kernel.artifact)throw new Error('An unsaved working draft is already active. Finish or discard it before preparing a different saved-document edit.');
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)
           throw new Error('The document scope changed. Nothing was modified.');
-        const rechecked=exactSavedDraftLineEdit(kernel,fresh.vault,message);
+        const rechecked=currentSavedDraftQuantityEdit(kernel,fresh.vault,message,host.props.activeDocument?.id)||exactSavedDraftLineEdit(kernel,fresh.vault,message);
         if(!rechecked||rechecked.documentId!==savedLineEdit.documentId||
-           JSON.stringify(rechecked.itemEdits)!==JSON.stringify(savedLineEdit.itemEdits))
+           JSON.stringify(rechecked.itemEdits)!==JSON.stringify(savedLineEdit.itemEdits)||
+           JSON.stringify(rechecked.termsPatch)!==JSON.stringify(savedLineEdit.termsPatch))
           throw new Error('The saved document or target line changed. Start a fresh review.');
         const drafting=workspaceDrafting(fresh.vault,savedLineEdit.documentId);
         const review=reviewAiDocumentProposal(savedLineEdit,drafting,requestLanguage);

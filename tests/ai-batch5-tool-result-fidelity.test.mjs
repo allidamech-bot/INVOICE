@@ -42,7 +42,8 @@ test('Omitted extra fields and rows report the precise count, preserving zero va
 });
 
 test('User-facing summaries disclose the final length limit and localize section labels',()=>{
- assert.match(source,/const detail=__lourexCompactObject\(row.data,0,ar\)/);
+ assert.match(source,/row.tool==='document.get'\?formatAiDocumentEvidence/);
+ assert.match(source,/:__lourexCompactObject\(row.data,0,ar\)/);
  assert.match(source,/ar\?'ملخص':'Summary'/);
  assert.match(source,/ar\?'معلومات مسجلة':'Known'/);
  assert.match(source,/Additional information is not shown here/);
