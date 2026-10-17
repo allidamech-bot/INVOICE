@@ -1,0 +1,29 @@
+name: LOUREX public auth interaction acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/qa-live-auth-interactions-webkit.mjs'
+      - '.github/workflows/qa-live-auth-interactions-webkit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-out-interactions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated WebKit browser for live public UX
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright
+          npx playwright install --with-deps webkit
+      - name: Verify production login interactions without account or mutations
+        run: node scripts/qa-live-auth-interactions-webkit.mjs
