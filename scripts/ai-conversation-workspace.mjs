@@ -20,6 +20,9 @@ AiCopilot.prototype.componentWillUnmount=function(){unmountConversationWorkspace
 `;
 await writeFile(target,source);execFileSync(process.execPath,['--check',target]);
 const css=await readFile('src/styles/ai-conversation-workspace.css','utf8');
+const shellCss=await readFile('src/styles/lourex-quiet-shell.css','utf8');
+await writeFile('dist/styles/app.bundle.css',(await readFile('dist/styles/app.bundle.css','utf8'))+'\n'+shellCss);
+await writeFile('dist/ai-composer-v449.css',(await readFile('dist/ai-composer-v449.css','utf8'))+'\n'+shellCss);
 // Retire obsolete visual declarations for elements now owned by the typed
 // workspace. Keep menu motion, focus, voice state and every behavioral selector.
 const canonicalElements=/\.(?:lourex-ai-head|lourex-ai-title|lourex-ai-head-actions|lourex-ai-message(?:\.(?:user|assistant))?|lourex-ai-message-actions(?::hover|:focus-within)?|lourex-ai-error|lourex-ai-compose form|lourex-ai-premium-textarea|lourex-ai-send|lourex-ai-composer-plus|lourex-ai-composer-mic)(?:\[dir=['"](?:rtl|ltr)['"]\])?$/;
@@ -42,7 +45,7 @@ console.log('[LOUREX AI] Conversation Workspace typed presentation boundary inst
 
 // Imported TS modules have stable URLs. Change SW bytes when their content changes
 // so installed local-first clients recache them with the existing reload contract.
-const workspaceModules=['components/AiConversationWorkspace','components/AiCommercialWorkspace','lib/ai-conversation-kernel','lib/ai-conversation-mode','lib/ai-intelligence-runtime','lib/ai-workspace-model','lib/ai-workspace-presentation','lib/ai-commercial-intelligence','lib/ai-commercial-conversation','lib/ai-mission-runner','lib/ai-draft-resumption','components/AiReliabilityWorkspace','lib/ai-business-memory-graph','lib/ai-reliability-intelligence','lib/ai-local-diagnostics','lib/ai-foundation-approval','storage/assistant-memory-store'];
+const workspaceModules=['components/LourexAiIdentity','components/AiConversationWorkspace','components/AiCommercialWorkspace','lib/ai-conversation-kernel','lib/ai-conversation-mode','lib/ai-intelligence-runtime','lib/ai-workspace-model','lib/ai-workspace-presentation','lib/ai-commercial-intelligence','lib/ai-commercial-conversation','lib/ai-mission-runner','lib/ai-draft-resumption','components/AiReliabilityWorkspace','lib/ai-business-memory-graph','lib/ai-reliability-intelligence','lib/ai-local-diagnostics','lib/ai-foundation-approval','storage/assistant-memory-store'];
 const toolPresentationModules=['lib/ai-tool-presentation','components/UI','components/AiWorkflowTools','components/BusinessMemoryTool','components/BusinessSearchTool','components/CfoScenarioTool','components/CollectionsAiTool','components/CustomerAiCapture','components/DailyCommandCenterTool','components/ProcurementAiCompare','components/ProductAiSourceReview','components/SupplierDocumentImport'];
 const toolPresentationHash=createHash('sha256');
 for(const name of toolPresentationModules){const asset='./src/'+name+'.js';if(!(await readFile('dist/sw.js','utf8')).includes(asset))throw new Error('AI tool presentation module missing from precache: '+asset);toolPresentationHash.update(name).update(await readFile('dist/src/'+name+'.js'));}
