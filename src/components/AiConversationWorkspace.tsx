@@ -889,6 +889,21 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     }
     const ar=aiUiAr(host),k=host.__intelligenceKernel as ConversationKernel;
     const legacyContext=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-context'));
+    // Keep the ONE existing encrypted Memory & Tasks manager alive when the
+    // obsolete context bar is removed. The historical + Tools menu delegates
+    // its memory action to the original React button, and that button owns the
+    // legacy manager's exact scoped state and write-approval boundaries.
+    // Do not duplicate its storage/UI implementation or restore the old bar.
+    const memoryManagerParts=legacyContext.flatMap((context:any)=>
+      react.Children.toArray(context?.props?.children).filter((child:any)=>{
+        const cn=String(child?.props?.className||'').split(' ');
+        return cn.includes('lourex-ai-manager-button')||cn.includes('lourex-ai-manager');
+      }));
+    const memoryManagerBridge=memoryManagerParts.length?
+      <div className="lxw-memory-manager-bridge"
+        style={{position:'absolute',insetInline:0,top:0,height:0,zIndex:85}}>
+        {memoryManagerParts}
+      </div>:null;
     const header=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-head'));
     const content=children.filter((child:any)=>!header.includes(child)&&!legacyContext.includes(child));
     const proposalNode=content.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal'));
@@ -930,7 +945,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         react.cloneElement(entry,{approval}):entry);
       return react.cloneElement(child,undefined,...unified.slice(0,index),...inline,...unified.slice(index));
     });
-    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{chatContent}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>);
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,tabs,description,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{chatContent}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>,memoryManagerBridge);
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
