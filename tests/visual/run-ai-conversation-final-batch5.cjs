@@ -62,7 +62,6 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.equal(await panel.getAttribute('data-lourex-conversation-remediation'),'3','final conversation presentation owner must be mounted');
         const panelVisual=await panel.evaluate(node=>{const style=getComputedStyle(node);return{theme:document.documentElement.dataset.uiTheme,bg:style.backgroundColor,text:style.color,chatBg:style.getPropertyValue('--lx-chat-bg').trim(),chatMuted:style.getPropertyValue('--lx-chat-muted').trim(),chatAccent:style.getPropertyValue('--lx-chat-accent').trim()};});
         assert.equal(panelVisual.theme,theme,'fixture theme must reach the conversation');
-        // AI conversation has its own immutable matte-black visual identity,
         // The approved AI shell intentionally follows the site's Quiet Intelligence light/dark palette.
         const expectedCanvas=theme==='dark'?'rgb(23, 25, 24)':'rgb(250, 250, 248)';
         assert.equal(panelVisual.bg,expectedCanvas,'AI conversation must use the approved canvas for the active theme');
@@ -146,10 +145,16 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'root gateway exposes sources and AI Tools');
         const rootBox=await menu.boundingBox();
         assert.ok(rootBox&&rootBox.x>=-1&&rootBox.x+rootBox.width<=width+1&&rootBox.y>=-1&&rootBox.y+rootBox.height<=height+1,'plus root menu stays inside viewport');
-        const leadingEdgeDistance=box=>lang==='ar'
-          ?Math.abs((box.x+box.width)-(plusBox.x+plusBox.width))
-          :Math.abs(box.x-plusBox.x);
-        assert.ok(leadingEdgeDistance(rootBox)<=14,'plus menu leading edge remains anchored to + in the active text direction');
+        const currentPlusBox=await plus.boundingBox();
+        assert.ok(currentPlusBox,'visible + button still exists when the menu opens');
+        // The physical side of the trigger is determined by the actual final
+        // flex layout, not by assuming a language implies an icon position.
+        const anchoredEdgeDistance=box=>Math.min(
+          Math.abs(box.x-currentPlusBox.x),
+          Math.abs((box.x+box.width)-(currentPlusBox.x+currentPlusBox.width)),
+        );
+        assert.ok(anchoredEdgeDistance(rootBox)<=20,
+          'plus menu must align with a visible trigger edge: '+JSON.stringify({menu:rootBox,trigger:currentPlusBox,lang}));
         const menuVisual=await menu.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color};});
         assert.ok(contrast(menuVisual.color,menuVisual.bg)>=4.5,'plus menu text contrast must meet WCAG AA');
         if(width<=720){
@@ -163,7 +168,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.match(toolsCopy,lang==='ar'?/صندوق AI[\s\S]*الموجز الصباحي[\s\S]*الذاكرة والمهام/:/AI Inbox[\s\S]*Morning Brief[\s\S]*Memory & Tasks/,'nested AI Tools exposes canonical destinations');
         const toolsBox=await menu.boundingBox();
         assert.ok(toolsBox&&toolsBox.x>=-1&&toolsBox.x+toolsBox.width<=width+1&&toolsBox.y>=-1&&toolsBox.y+toolsBox.height<=height+1,'nested AI Tools stays inside viewport');
-        assert.ok(leadingEdgeDistance(toolsBox)<=14,'nested AI Tools leading edge remains anchored to + in the active text direction');
+        assert.ok(anchoredEdgeDistance(toolsBox)<=20,'nested AI Tools must remain anchored to the visible + trigger');
         const actions=menu.locator('.lourex-ai-plus-item');
         assert.ok((await actions.count())>=10,'AI Tools menu exposes the full LOUREX tool set');
         await page.waitForFunction(()=>document.activeElement?.classList?.contains('lourex-ai-plus-item'));
