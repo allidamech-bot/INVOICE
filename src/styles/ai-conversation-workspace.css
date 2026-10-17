@@ -2383,3 +2383,119 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-blocke
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-amount{
   color:var(--lxw-accent)!important;
 }
+
+
+/* Quiet Intelligence / compatibility bridge for late legacy AI-only states. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(input,select,textarea){
+  background:var(--lxw-surface)!important;color:var(--lxw-text)!important;
+  border-color:var(--lxw-line)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(input,select,textarea)::placeholder{
+  color:var(--lxw-muted)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-premium-textarea{
+  background:transparent!important;border:0!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-thinking{
+  color:var(--lxw-muted)!important;background:transparent!important;
+  border:0!important;box-shadow:none!important;font-size:12px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-thinking-dots i{
+  background:var(--lxw-accent)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-state{
+  color:var(--lxw-accent)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-index{
+  background:var(--lxw-surface-2)!important;color:var(--lxw-muted)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-unknown{
+  color:color-mix(in srgb,#AD615B 80%,var(--lxw-text))!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-revision-controls button[aria-pressed='true'],.lxw-review-complete,.lxw-document-review-acknowledge,.lxw-inline-general-row .lxw-inline-open){
+  color:var(--lxw-on-accent)!important;background:var(--lxw-accent)!important;
+  border:1px solid var(--lxw-accent)!important;border-radius:11px!important;
+  box-shadow:none!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-ai-pdf-actions{
+  background:transparent!important;color:var(--lxw-text)!important;
+  border-color:var(--lxw-line)!important;box-shadow:none!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-ai-pdf-actions>p{
+  color:var(--lxw-muted)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-ai-pdf-file,.lourex-ai-attachment-chip){
+  background:var(--lxw-surface-2)!important;color:var(--lxw-text)!important;
+  border-color:var(--lxw-line)!important;box-shadow:none!important;
+  border-radius:11px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-symbol{
+  background:var(--lxw-selected)!important;color:var(--lxw-accent)!important;
+  border-color:var(--lxw-line)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-file-meta strong{
+  color:var(--lxw-text)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-pdf-file-meta small,.lourex-ai-attachment-chip small,.lxw-document-revision-tools,.lxw-save-guidance){
+  color:var(--lxw-muted)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-ai-pdf-actions>button,.lxw-ai-pdf-file-actions>.lxw-pdf-preview,.lxw-ai-pdf-file-actions>.lxw-pdf-download){
+  color:var(--lxw-text)!important;background:var(--lxw-surface)!important;
+  border-color:var(--lxw-line)!important;border-radius:10px!important;
+  box-shadow:none!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-ai-pdf-file-actions>.lxw-pdf-download{
+  color:var(--lxw-accent)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-attachment-review{
+  color:var(--lxw-accent)!important;background:var(--lxw-hover)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-attachment-remove{
+  color:var(--lxw-text)!important;background:var(--lxw-surface-2)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-review-expanded{
+  background:var(--lxw-surface)!important;border:1px solid var(--lxw-line)!important;
+  color:var(--lxw-text)!important;box-shadow:none!important;border-radius:12px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action{
+  background:var(--lxw-surface)!important;color:var(--lxw-text)!important;
+  border:1px solid var(--lxw-line)!important;font-size:12px!important;
+  min-height:43px!important;grid-area:auto!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action-approve{
+  color:var(--lxw-on-accent)!important;background:var(--lxw-accent)!important;
+  border-color:var(--lxw-accent)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action-reject{
+  color:var(--lxw-muted)!important;background:transparent!important;
+  border-color:var(--lxw-line)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-extra>summary{
+  color:var(--lxw-muted)!important;background:transparent!important;
+  border:0!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-document-discard-confirm,.lxw-inline-general-detail){
+  color:var(--lxw-text)!important;background:var(--lxw-surface)!important;
+  border:1px solid var(--lxw-line)!important;border-radius:12px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm p{
+  color:var(--lxw-muted)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-discard-confirm .lxw-document-discard-final{
+  background:var(--lxw-surface-2)!important;border-color:var(--lxw-line)!important;
+  color:var(--lxw-text)!important;border-radius:11px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-ai-compact-result-row{
+  background:transparent!important;color:var(--lxw-text)!important;
+  border-color:var(--lxw-line)!important;box-shadow:none!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-picker-list>button,.lxw-record-option){
+  background:var(--lxw-surface)!important;color:var(--lxw-text)!important;
+  border-color:var(--lxw-line)!important;border-radius:11px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-picker,.lxw-records-picker,.lxw-picker-list,.lxw-settings-info){
+  color:var(--lxw-text)!important;background:transparent!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-picker-list small,.lxw-record-option small){
+  color:var(--lxw-muted)!important;
+}
