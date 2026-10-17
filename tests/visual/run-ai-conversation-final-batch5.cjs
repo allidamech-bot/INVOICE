@@ -127,7 +127,16 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.ok(messagesBox&&userBox,'sender geometry must be measurable');
         const senderLeftGap=userBox.x-messagesBox.x;
         const senderRightGap=(messagesBox.x+messagesBox.width)-(userBox.x+userBox.width);
-        assert.ok(senderRightGap<=senderLeftGap,'user bubble must stay on the physical right in both LTR and RTL');
+        assert.ok(senderRightGap<=senderLeftGap,'user bubble must stay on the physical right in both LTR and RTL: '+JSON.stringify({
+          lang,width,senderLeftGap,senderRightGap,userBox,messagesBox,
+          computed:await userMessage.evaluate(node=>{
+            const s=getComputedStyle(node),p=node.parentElement,ps=p?getComputedStyle(p):null,r=p?.getBoundingClientRect();
+            return{position:s.position,alignSelf:s.alignSelf,display:s.display,marginLeft:s.marginLeft,marginRight:s.marginRight,
+              direction:s.direction,width:s.width,maxWidth:s.maxWidth,parentClass:p?.className,
+              parentDirection:ps?.direction,parentDisplay:ps?.display,parentAlign:ps?.alignItems,parentWidth:ps?.width,
+              parentRect:r&&{x:r.x,right:r.right,width:r.width},parentParentClass:p?.parentElement?.className};
+          }),
+        }));
         if(width<=720){
           const messageActions=panel.locator('.lourex-ai-message-actions .lourex-ai-message-action:visible');
           for(let i=0;i<await messageActions.count();i++){const box=await messageActions.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'visible mobile message action remains 44px touch safe');}
