@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/qa-live-webkit-auth-firstpaint.mjs'
+      - 'scripts/qa-live-firestore-unsigned-denial.mjs'
       - '.github/workflows/qa-live-webkit-auth-firstpaint.yml'
 
 permissions:
@@ -27,3 +28,5 @@ jobs:
           npx playwright install --with-deps webkit
       - name: Test public production signed-out gateway on iPhone and iPad WebKit
         run: node scripts/qa-live-webkit-auth-firstpaint.mjs
+      - name: Probe production Firebase unauthorized reads using random synthetic UID only
+        run: node scripts/qa-live-firestore-unsigned-denial.mjs
