@@ -1899,6 +1899,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is
   align-items:flex-end!important;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user{
+  align-self:flex-end!important;
   margin-inline-start:0!important;margin-inline-end:0!important;
   margin-left:auto!important;margin-right:0!important;max-width:min(88%,610px)!important;
   padding:10px 15px!important;border:1px solid var(--lxw-line)!important;
