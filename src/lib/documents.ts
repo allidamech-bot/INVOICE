@@ -106,6 +106,21 @@ function initialItemForDocument(kind:DocumentKind):DocumentItem{
   return item;
 }
 
+/** Align an explicitly numeric quotation validity with its legal Gregorian date.
+ * Invoice payment due dates are independent and must never be rewritten here. */
+export function alignAiQuotationValidity<T extends LourexDocument>(document:T):T{
+  if(document.kind!=='proforma'&&document.kind!=='proforma-invoice')return document;
+  const validity=String(document.terms?.validity||'').normalize('NFKC')
+    .replace(/[٠-٩]/g,char=>String(char.charCodeAt(0)-0x0660))
+    .replace(/[۰-۹]/g,char=>String(char.charCodeAt(0)-0x06f0));
+  const match=/^\s*(\d{1,4})\s*(?:days?|d|يوم|يوما|يوماً|أيام|ايام)?\s*$/iu.exec(validity);
+  if(!match)return document;
+  const days=Number(match[1]);
+  if(Number.isSafeInteger(days)&&days>=0&&days<=3650)
+    document.dueDate=addDaysIso(document.issueDate,days);
+  return document;
+}
+
 export function createBlankDocument(kind: DocumentKind, number: string, company: CompanySettings): LourexDocument {
   const issueDate = todayIso();
   const validityDays=normalizeValidityDays(company.defaultValidityDays);
