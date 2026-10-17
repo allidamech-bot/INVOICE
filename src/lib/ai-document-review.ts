@@ -1,5 +1,6 @@
 import type {AiContextEnvelope,AiDocumentDraftProposal,AiDocumentUpdateProposal,AiDraftItemInput} from '../components/AiCopilot.js';
 import {decimalToScaled,lineTotal} from './money.js';
+import {resolveAiCommercialLine} from './ai-commercial-line.js';
 
 export interface AiDocumentReview { text:string; blockers:string[]; }
 type Drafting=AiContextEnvelope['drafting'];
@@ -7,31 +8,25 @@ const validQuantity=(value:string)=>/^(?:0|[1-9]\d{0,12})(?:\.\d{1,6})?$/.test(v
 const validPrice=(value:string)=>/^(?:0|[1-9]\d{0,12})(?:\.\d{1,6})?$/.test(value);
 const money=(cents:bigint):string=>{const abs=cents<0n?-cents:cents;return (cents<0n?'-':'')+String(abs/100n)+'.'+String(abs%100n).padStart(2,'0');};
 
-function itemIdentity(item:AiDraftItemInput,drafting:Drafting):string{
-  const catalog=drafting.items.find(row=>row.id===item.savedItemId);
-  return catalog?.name||item.descriptionEn||item.descriptionAr||'';
-}
-function resolvedPrice(item:AiDraftItemInput,drafting:Drafting,currency:string):string{
-  if(item.unitPrice)return item.unitPrice;
-  const catalog=drafting.items.find(row=>row.id===item.savedItemId);
-  return catalog?.lastCurrency===currency?catalog.lastUnitPrice:'';
-}
 function previewRows(items:AiDraftItemInput[],drafting:Drafting,currency:string,ar:boolean,blockers:string[],offset=0):{text:string;subtotal:bigint|null}{
   const rows:string[]=[];let subtotal=0n,complete=true;
   for(let i=0;i<items.length;i++){
-    const item=items[i]!,name=itemIdentity(item,drafting),price=resolvedPrice(item,drafting,currency);
+    const item=items[i]!;
+    const catalog=item.savedItemId?drafting.items.find(row=>row.id===item.savedItemId):undefined;
+    const printable=resolveAiCommercialLine(item,catalog,currency);
+    const name=printable.descriptionEn||printable.descriptionAr,price=printable.unitPrice;
     const number=i+offset+1;
-    const catalog=item.savedItemId?drafting.items.find(row=>row.id===item.savedItemId):null;
     if(item.savedItemId&&!catalog)blockers.push((ar?'الصنف المرجعي غير متاح للسطر ':'Referenced product unavailable at line ')+number);
     if(!name)blockers.push((ar?'وصف الصنف مفقود في السطر ':'Missing item description at line ')+number);
+    if(!printable.unit)blockers.push((ar?'وحدة الصنف مفقودة في السطر ':'Missing item unit at line ')+number);
     if(!validQuantity(item.quantity))blockers.push((ar?'الكمية غير صالحة في السطر ':'Invalid quantity at line ')+number);
     if(!validPrice(price))blockers.push((ar?'سعر البيع مفقود أو غير صالح في السطر ':'Missing/invalid selling price at line ')+number);
-    const valid=Boolean(name&&validQuantity(item.quantity)&&validPrice(price)&&(!item.savedItemId||catalog));
+    const valid=Boolean(name&&printable.unit&&validQuantity(item.quantity)&&validPrice(price)&&(!item.savedItemId||catalog));
     if(!valid)complete=false;
     const amount=valid?lineTotal(item.quantity,price):'—';
     if(valid)subtotal+=decimalToScaled(amount,2);
     rows.push(String(number)+'. '+(name||'—')+(catalog?.sku?' [SKU '+catalog.sku+']':'')+
-      '\n   '+(ar?'الكمية: ':'Qty: ')+(item.quantity||'—')+(item.unit?' '+item.unit:'')+
+      '\n   '+(ar?'الكمية: ':'Qty: ')+(item.quantity||'—')+(printable.unit?' '+printable.unit:'')+
       '  ·  '+(ar?'السعر: ':'Unit: ')+(price||'—')+' '+currency+
       '  ·  '+(ar?'الإجمالي: ':'Line: ')+amount+' '+currency);
   }
