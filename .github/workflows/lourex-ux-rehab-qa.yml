@@ -42,6 +42,8 @@ on:
       - 'src/components/ProductLibraryWorkspace.tsx'
       - 'src/styles/tailadmin-products-v320.css'
       - 'src/styles/ai-conversation-workspace.css'
+      - 'tests/visual/run-ai-batches1-7-current-workspace.cjs'
+      - 'tests/visual/run-ai-conversation-final-batch5.cjs'
       - 'src/styles/editor-canonical-v314.css'
       - 'src/styles/roadmap-hardening-final.css'
       - 'public/startup-watchdog-v321.js'
