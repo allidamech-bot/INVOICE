@@ -1735,7 +1735,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-result-sku {
    ══════════════════════════════════════════════════════════════════════════ */
 html body #root #lourex-ai-panel[data-lourex-workspace='2']{
   --lxw-bg:#FAFAF8;--lxw-surface:#FFFFFF;--lxw-surface-2:#F3F4F2;
-  --lxw-text:#202322;--lxw-muted:#717975;--lxw-line:#E5E8E5;
+  --lxw-text:#202322;--lxw-muted:#65706A;--lxw-line:#E5E8E5;
   --lxw-accent:#0F766E;--lxw-on-accent:#FFFFFF;--lxw-hover:#EDF3F0;
   --lxw-selected:#E7F1ED;--lxw-on-selected:#115E58;
   --lxw-font:Inter,"Noto Sans Arabic","LOUREX Tajawal",system-ui,sans-serif;
