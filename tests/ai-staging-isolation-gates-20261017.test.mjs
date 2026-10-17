@@ -1,0 +1,58 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {inspectAiStagingBoundary,PRODUCTION_FIREBASE_PROJECT_ID} from '../scripts/verify-ai-staging-isolation.mjs';
+
+const current=()=>({
+  clientSource:readFileSync('src/cloud/firebase-config.ts','utf8'),
+  serverSource:readFileSync('api/_ai/firebase-auth.js','utf8'),
+  vercelSource:readFileSync('vercel.json','utf8'),
+  expectedProjectId:'lourex-qa-isolated',
+  vercelEnvironment:'preview',
+  branchName:'fix/ai-audit-root-causes-20261017'
+});
+const isolated=()=>({
+  clientSource:"export const config={projectId:'lourex-qa-isolated',authDomain:'lourex-qa-isolated.firebaseapp.com'}",
+  serverSource:"const FIREBASE_PROJECT_ID='lourex-qa-isolated';",
+  vercelSource:JSON.stringify({rewrites:[{source:'/__/auth/:path*',destination:'https://lourex-qa-isolated.firebaseapp.com/__/auth/:path*'}]}),
+  expectedProjectId:'lourex-qa-isolated',vercelEnvironment:'preview',
+  branchName:'fix/ai-audit-root-causes-20261017'
+});
+test('QA-STAGING-01: checked-in production client, token verifier and auth rewrite must not be represented as isolated',()=>{
+  const result=inspectAiStagingBoundary(current());
+  assert.equal(result.ready,false);
+  for(const error of ['QA_CLIENT_FIREBASE_NOT_ISOLATED','QA_BACKEND_FIREBASE_NOT_ISOLATED','QA_AUTH_DOMAIN_NOT_ISOLATED','QA_AUTH_REWRITE_NOT_ISOLATED'])
+    assert.ok(result.codes.includes(error),error);
+});
+test('QA-STAGING-02: Preview hostname alone never qualifies as data isolation',()=>{
+  const x=inspectAiStagingBoundary({...current(),expectedProjectId:PRODUCTION_FIREBASE_PROJECT_ID});
+  assert.equal(x.ready,false);assert.ok(x.codes.includes('QA_DEDICATED_PROJECT_REQUIRED'));
+});
+test('QA-STAGING-03: isolated client with production JWT audience is unsafe',()=>{
+  const p=isolated();p.serverSource="const FIREBASE_PROJECT_ID='lourex-invoice';";
+  const x=inspectAiStagingBoundary(p);assert.equal(x.ready,false);
+  assert.ok(x.codes.includes('QA_BACKEND_FIREBASE_NOT_ISOLATED'));
+});
+test('QA-STAGING-04: isolated Firebase app with production auth redirect is unsafe',()=>{
+  const p=isolated();p.vercelSource=current().vercelSource;
+  const x=inspectAiStagingBoundary(p);assert.equal(x.ready,false);
+  assert.ok(x.codes.includes('QA_AUTH_REWRITE_NOT_ISOLATED'));
+});
+test('QA-STAGING-05: reject production and wrong branch',()=>{
+  assert.ok(inspectAiStagingBoundary({...isolated(),vercelEnvironment:'production'}).codes.includes('QA_ENV_NOT_PREVIEW'));
+  assert.ok(inspectAiStagingBoundary({...isolated(),branchName:'main'}).codes.includes('QA_WRONG_BRANCH'));
+});
+test('QA-STAGING-06: fully separate and consistent synthetic QA configuration passes static check',()=>{
+  const result=inspectAiStagingBoundary(isolated());
+  assert.equal(result.ready,true);assert.deepEqual(result.codes,[]);
+});
+test('QA-STAGING-07: direct CLI preflight blocks current Preview without any service or customer access',()=>{
+  const r=spawnSync(process.execPath,['scripts/verify-ai-staging-isolation.mjs'],{
+    encoding:'utf8',env:{...process.env,VERCEL_ENV:'preview',
+      VERCEL_GIT_COMMIT_REF:'fix/ai-audit-root-causes-20261017',
+      LOUREX_AI_QA_FIREBASE_PROJECT_ID:'lourex-qa-isolated'}
+  });
+  assert.equal(r.status,2);assert.match(r.stderr,/AI_STAGING_BLOCKED/);
+  assert.doesNotMatch(r.stderr,/AIzaSy|@/,'Preflight must not print API keys or mail addresses');
+});
