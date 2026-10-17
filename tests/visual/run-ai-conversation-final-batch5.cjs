@@ -50,6 +50,9 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await launcher.click();
         const panel=page.locator('#lourex-ai-panel');
         await panel.waitFor({state:'visible'});
+        // The encrypted account thread hydrates asynchronously; do not inspect
+        // the temporarily locked loading composer as if it were the ready chat.
+        await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel')?.dataset?.workspaceReady==='true',null,{timeout:30000});
         const panelBox=await panel.boundingBox();
         assert.ok(panelBox,'assistant panel must be visible');
         assert.ok(panelBox.x>=-1&&panelBox.y>=-1,'assistant panel begins inside viewport');
@@ -68,6 +71,8 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         const plus=panel.locator('.lourex-ai-composer-plus');
         const send=panel.locator('.lourex-ai-send');
         await textarea.waitFor({state:'visible'});
+        await plus.waitFor({state:'visible'});
+        await page.waitForFunction(()=>{const button=document.querySelector('#lourex-ai-panel .lourex-ai-composer-plus');const box=button?.getBoundingClientRect();return Boolean(box&&box.width>=43&&box.height>=43);},null,{timeout:10000});
         const plusBox=await plus.boundingBox();
         if(!plusBox||plusBox.width<43||plusBox.height<43){
           const detail=await panel.evaluate(el=>{
