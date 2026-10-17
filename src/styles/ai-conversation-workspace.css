@@ -2560,3 +2560,8 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='ltr'] .lourex-a
     font-size:13px!important;letter-spacing:-.03em!important;
   }
 }
+
+/* Real iPhone 320px visual regression: mode tabs must be full-size touch targets. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button{
+  min-height:44px!important;height:44px!important;
+}
