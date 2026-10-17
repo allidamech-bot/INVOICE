@@ -177,6 +177,15 @@ function CellEditor({value,numeric,onCommit,name,busy}:{value:string;numeric:boo
   const [input,setInput]=React.useState(value);
   return <input value={input} aria-label={name} inputMode={numeric?'decimal':'text'} dir={numeric?'ltr':undefined} maxLength={numeric?24:160} disabled={busy} onChange={(event:any)=>setInput(event.target.value)} onBlur={()=>{if(input!==value){onCommit(input);setInput(value);}}} onKeyDown={(event:any)=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}}/>;
 }
+/** Presentation-only subtotal guard. An incomplete item never looks like a settled amount. */
+function visibleItemSubtotal(doc:WorkspaceDocument):string {
+  if(!doc.rows.length||!isNonNegativeDecimalInput(doc.subtotal??''))return '—';
+  for(const row of doc.rows){
+    if(!row.quantity||!row.unitPrice||!isNonNegativeDecimalInput(row.quantity)||!isNonNegativeDecimalInput(row.unitPrice))return '—';
+    try{lineTotal(row.quantity,row.unitPrice);}catch{return '—';}
+  }
+  return String(doc.subtotal);
+}
 /** Accessible, read-only document review. All amounts come from LOUREX money math,
  * never model-generated totals; missing/invalid prices remain visibly unknown. */
 function QuotePreviewSummary({doc,ar}:{doc:WorkspaceDocument;ar:boolean}):any {
@@ -185,7 +194,7 @@ function QuotePreviewSummary({doc,ar}:{doc:WorkspaceDocument;ar:boolean}):any {
     try{return lineTotal(quantity,price);}catch{return '—';}
   };
   // An incomplete line must not be silently counted as zero in the preview.
-  const subtotal=!doc.rows.length||doc.rows.some(row=>amount(row.quantity,row.unitPrice)==='—')||!isNonNegativeDecimalInput(doc.subtotal??'')?'—':doc.subtotal;
+  const subtotal=visibleItemSubtotal(doc);
   return <div className="lxw-document-review" aria-label={label(ar,'Quotation or invoice review','مراجعة المستند المالي')}>
     <header className="lxw-review-banner">
       <span className="lxw-review-kicker">{label(ar,'LOUREX · Document review','LOUREX · مراجعة المستند')}</span>
@@ -505,6 +514,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   },[pdfSource]);
 
   if(!doc)return approval?<InlineDocumentApproval host={host} approval={approval} ar={ar}/>:null;
+  const displayedSubtotal=visibleItemSubtotal(doc);
   const saveReviewPending=doc.status==='draft'&&['document.createDraft','document.updateDraft'].includes(host.state.proposal?.capability);
   const approvalActions=approval?react.Children.toArray(approval.props?.children).find((child:any)=>
     String(child?.props?.className||'').split(' ').includes('lourex-ai-proposal-actions')):null;
@@ -539,13 +549,13 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     <div className="lxw-document-card-facts" aria-label={label(ar,'Document summary','ملخص المستند')}>
       <div><span>{label(ar,'Customer / party','العميل / الجهة')}</span><strong dir="auto">{doc.customer||label(ar,'Not selected','غير محدد')}</strong></div>
       <div><span>{label(ar,'Items','الأصناف')}</span><strong>{doc.rows.length}</strong></div>
-      <div><span>{label(ar,'Subtotal','المجموع الفرعي')}</span><strong dir="ltr">{doc.subtotal??'—'} {doc.currency}</strong></div>
+      <div><span>{label(ar,'Subtotal','المجموع الفرعي')}</span><strong dir="ltr">{displayedSubtotal==='—'?'—':displayedSubtotal+' '+doc.currency}</strong></div>
 
     </div>
     {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
     <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Preview edit approve or decline','معاينة تحرير موافقة أو رفض')}>
       {viewPdf?<a className="lxw-document-action lxw-document-action-preview" href={viewPdf.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{iconPdf}<span>{label(ar,'Preview PDF','معاينة PDF')}</span></a>:
-        <button type="button" className="lxw-document-action lxw-document-action-preview" aria-label={label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')} aria-busy={pdfBusy} disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null} onClick={()=>void createPdf()}>{iconPdf}<span>{pdfBusy?label(ar,'Generating PDF…','جارٍ تجهيز PDF…'):label(ar,'Preview PDF','معاينة PDF')}</span></button>}
+        <button type="button" className="lxw-document-action lxw-document-action-preview" aria-label={label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')} aria-busy={pdfBusy} disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||displayedSubtotal==='—'} onClick={()=>void createPdf()}>{iconPdf}<span>{pdfBusy?label(ar,'Generating PDF…','جارٍ تجهيز PDF…'):label(ar,'Preview PDF','معاينة PDF')}</span></button>}
       <button type="button" className="lxw-document-action lxw-document-action-edit" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:doc.status==='draft'?'edit':'preview',__workspaceEditing:doc.status==='draft'})}>{iconEdit}<span>{doc.status==='draft'?label(ar,'Edit','تحرير'):label(ar,'View document','عرض المستند')}</span></button>
       {doc.status==='draft'?(saveReviewPending?(approvalConfirm||<button type="button" className="lxw-document-action lxw-document-action-approve" disabled={disabled(host)||Boolean(doc.blockers.length)||!originalConfirm} onClick={()=>setReviewExpanded(true)}>{iconAccept}<span>{saveText}</span></button>):
         <button type="button" className="lxw-document-action lxw-document-action-approve" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{iconAccept}<span>{saveText}</span></button>):null}
@@ -591,6 +601,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
   let doc:WorkspaceDocument|null=null,error='';try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',host.state.__workspaceSavedId||(!kernel.artifact&&kernel.entity?.entityType==='document'?kernel.entity.entityId:''));}catch(e){error=e instanceof Error?e.message:String(e);}
   const tab=host.state.__workspaceTab||'preview',editable=Boolean(host.state.__workspaceEditing&&doc?.status==='draft');
+  const displayedSubtotal=doc?visibleItemSubtotal(doc):'—';
   const choose=(value:string)=>host.setState({__workspaceTab:value});
   const viewGroups=[
     {id:'document',label:label(ar,'Document','المستند'),views:[['preview','Preview','المعاينة'],['edit','Edit','تعديل'],['customer','Customer','العميل'],['product','Products','الأصناف'],['files','Files','الملفات'],['revisions','Revisions','التعديلات']]},
@@ -620,7 +631,7 @@ function ArtifactWorkspace({host,approval}:{host:Host;approval:any}):any {
         {doc.status==='draft'?<div className="lxw-revision-controls"><span>{label(ar,'Revision','التعديل')} {doc.revision}</span><button type="button" disabled={!kernel.artifact?.undo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Undo','تراجع')}</button><button type="button" disabled={!kernel.artifact?.redo.length||disabled(host)} onClick={()=>dispatch(host,{kind:'redo',artifactId:doc.id,revision:doc.revision})}>{label(ar,'Redo','إعادة')}</button><button type="button" aria-pressed={editable} disabled={disabled(host)} onClick={()=>host.setState({__workspaceEditing:!editable})}>{label(ar,editable?'Finish editing':'Edit draft cells',editable?'إنهاء التعديل':'تعديل خانات المسودة')}</button></div>:null}
         <PricingGrid key={doc.id+':edit'} host={host} doc={doc} editable={editable}/>
         {doc.status==='draft'?<ManualLine key={doc.id} host={host} doc={doc}/>:null}
-        <div className="lxw-subtotal"><span>{label(ar,'Item subtotal','المجموع الفرعي للأصناف')}</span><b dir="ltr">{doc.subtotal??'—'} {doc.currency}</b></div>
+        <div className="lxw-subtotal"><span>{label(ar,'Item subtotal','المجموع الفرعي للأصناف')}</span><b dir="ltr">{displayedSubtotal==='—'?'—':displayedSubtotal+' '+doc.currency}</b></div>
         <p className="lxw-note">{label(ar,'Working items exclude taxes, freight and discounts. Review the full document before saving.','مجموع الأصناف لا يشمل الضرائب والشحن والخصومات. راجع المستند كاملًا قبل الحفظ.')}</p>
       </>}
     </section>:null}
@@ -955,7 +966,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         return react.cloneElement(entry,undefined,...react.Children.toArray(entry.props.children).map(separateClose));
       };
       const tools=parts.slice(1).map(separateClose);
-      return react.cloneElement(head,undefined,parts[0],<div className="lxw-header-utilities">{historyButton}{toolbar}<details className="lxw-header-more"><summary aria-label={label(ar,'Conversation tools','أدوات المحادثة')}>···</summary><div className="lxw-header-more-content">{tools}</div></details>{close}</div>);
+      return react.cloneElement(head,undefined,parts[0],<div className="lxw-header-utilities">{historyButton}{toolbar}<details className="lxw-header-more"><summary aria-label={label(ar,'Conversation tools','أدوات المحادثة')} title={label(ar,'Conversation tools','أدوات المحادثة')}><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.65"/><circle cx="12" cy="12" r="1.65"/><circle cx="19" cy="12" r="1.65"/></svg></summary><div className="lxw-header-more-content">{tools}</div></details>{close}</div>);
     });
     const safeContent=content.filter((child:any)=>child!==proposalNode);
     // Review controls belong to the conversation timeline, not AFTER the
@@ -975,7 +986,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         react.cloneElement(entry,{approval}):entry);
       return react.cloneElement(child,undefined,...unified.slice(0,index),...inline,...unified.slice(index));
     });
-    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,<div className="lxw-conversation-controls">{tabs}<details className="lxw-mode-help"><summary aria-label={label(ar,'About this mode','حول هذا الوضع')}>i</summary>{description}</details></div>,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{chatContent}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>,...(memoryManagerBridge?[memoryManagerBridge]:[]));
+    return react.cloneElement(node,{'aria-label':'LOUREX AI',dir:ar?'rtl':'ltr','data-ai-ui-language':ar?'ar':'en','data-lourex-workspace':'2','data-ai-motion':currentAiExperiencePreferences(host).motion,'data-workspace-ready':'true','data-workspace-mode':mode,'data-workspace-open':String(open),'data-workspace-pane':pane},...compactHeader,<div className="lxw-conversation-controls">{tabs}<details className="lxw-mode-help"><summary aria-label={label(ar,'About this mode','حول هذا الوضع')} title={label(ar,'About this mode','حول هذا الوضع')}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10.5v5.5M12 7.5h.01"/></svg></summary>{description}</details></div>,<div className="lxw-body"><div className="lxw-chat">{host.state.__workspaceSettingsOpen?<AiExperienceSettings host={host}/>:host.state.__workspaceHistoryOpen?<AiConversationHistory host={host} ar={ar}/>:<>{chatContent}</>}</div>{open?<ArtifactWorkspace key={kernelScopeKey(k.scope)} host={host} approval={approval}/>:null}</div>,...(memoryManagerBridge?[memoryManagerBridge]:[]));
   };return transform(tree);
 }
 export function installConversationWorkspace(host:Host):void {
