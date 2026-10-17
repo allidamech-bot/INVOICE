@@ -2565,3 +2565,9 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='ltr'] .lourex-a
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button{
   min-height:44px!important;height:44px!important;
 }
+
+/* Mobile reading accessibility: the compiled 320px fixture requires 15px chat text. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant .lourex-ai-message.assistant,
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user{
+  font-size:15px!important;
+}
