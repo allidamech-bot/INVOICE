@@ -154,7 +154,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
           Math.abs((box.x+box.width)-(currentPlusBox.x+currentPlusBox.width)),
         );
         assert.ok(anchoredEdgeDistance(rootBox)<=20,
-          'plus menu must align with a visible trigger edge: '+JSON.stringify({menu:rootBox,trigger:currentPlusBox,lang}));
+          'plus menu must align with a visible trigger edge: '+JSON.stringify({menu:rootBox,trigger:currentPlusBox,lang,computed:await menu.evaluate(node=>({left:getComputedStyle(node).left,right:getComputedStyle(node).right,width:getComputedStyle(node).width,maxWidth:getComputedStyle(node).maxWidth,position:getComputedStyle(node).position,parent:node.parentElement?.className,inRoot:Boolean(node.closest('#root'))}))}));
         const menuVisual=await menu.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color};});
         assert.ok(contrast(menuVisual.color,menuVisual.bg)>=4.5,'plus menu text contrast must meet WCAG AA');
         if(width<=720){
