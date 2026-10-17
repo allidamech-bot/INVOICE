@@ -1,3 +1,5 @@
+import {spawnSync} from 'node:child_process';
+
 const EXPECTED_REPO_OWNER='allidamech-bot';
 const EXPECTED_REPO_SLUG='INVOICE';
 const EXPECTED_PROJECT_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ';
@@ -9,6 +11,19 @@ const FORBIDDEN_PRODUCTION_HOSTS=new Set([
 ]);
 
 const vercelEnvironment=process.env.VERCEL_ENV||'local';
+// On this AI release branch, an ordinary Preview Vercel build is NOT a safe
+// authenticated sandbox: current Firebase client, JWT verifier and auth redirect
+// all point to production. This gate runs as the FIRST build step and refuses
+// to create an unsafe Preview until those three sources are independently QA
+// configured. It never changes the production build path or runs for local CI.
+if(vercelEnvironment==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/ai-audit-root-causes-20261017'){
+  const qa=spawnSync(process.execPath,['scripts/verify-ai-staging-isolation.mjs'],{
+    encoding:'utf8',env:process.env,timeout:10000
+  });
+  if(qa.status!==0){
+    throw new Error('AI_PREVIEW_ISOLATION_BLOCKED: refusing to publish the AI test branch as a Preview while it can authenticate against production Firebase. Use a separately provisioned and verified QA Firebase project.');
+  }
+}
 if(vercelEnvironment!=='production')process.exit(0);
 
 const sourceRepoOwner=process.env.VERCEL_GIT_REPO_OWNER||'';

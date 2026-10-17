@@ -76,7 +76,7 @@ function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar')
     lines.push(ar?'الترحيل أو تحريك المخزون يحتاج مسار الاعتماد المحاسبي المحمي.':'Posting or stock movements require the protected accounting approval workflow.');
   return (lines.join('\n').trim()||(ar?'ما لقيت بيانات مؤكدة لهذا الطلب. شو التفصيل اللي بدك نراجعه؟':'I could not verify matching data. What would you like to check?')).slice(0,5000);
 }
-function likelyToolIntent(message:string,context:any):boolean{const q=clean(message,6000).toLowerCase();if(!q)return false;if(context?.assistantRuntime?.entity?.id&&/(?:this|هذا|هذه|هال|current|الحالي|الحالية)/i.test(q))return true;return /(?:open|go to|navigate|search|find|show|list|compare|prepare|create|update|change|remind|task|customer|supplier|product|inventory|stock|purchase|invoice|quotation|quote|receivable|overdue|cash|bank|treasury|margin|markup|price|cost|landed|break.?even|fx|currency|report|scenario|deal|profitability|finalize|payment|delete|post|افتح|روح|اذهب|ابحث|دور|اعرض|قارن|جهز|أنشئ|انشئ|عدل|غيّر|غير|ذكرني|مهمة|عميل|مورد|منتج|مخزون|شراء|مشتريات|فاتورة|عرض سعر|ذمم|متأخر|سيولة|بنك|خزينة|هامش|سعر|تكلفة|وصول|تعادل|عملة|تقرير|سيناريو|صفقة|ربحية|رحل|دفعة|احذف)/i.test(q);}
+function likelyToolIntent(message:string,context:any):boolean{const q=clean(message,6000).toLowerCase();if(!q)return false;if(context?.assistantRuntime?.entity?.id&&/(?:this|هذا|هذه|هال|current|الحالي|الحالية)/i.test(q))return true;return /(?:open|go to|navigate|search|find|show|list|compare|prepare|create|update|change|remind|task|customer|supplier|product|inventory|stock|purchase|invoice|quotation|quote|receivable|overdue|cash|bank|treasury|margin|markup|price|cost|landed|break.?even|fx|currency|report|scenario|deal|profitability|finalize|payment|delete|post|افتح|روح|اذهب|ابحث|دور|اعرض|قارن|جهز|أنشئ|انشئ|عدل|غيّر|غير|ذكرني|مهمة|عميل|مورد|منتج|مخزون|شراء|مشتريات|فاتورة|عرض سعر|ذمم|متأخر|سيولة|بنك|خزينة|هامش|سعر|تكلفة|وصول|تعادل|عملة|تقرير|سيناريو|صفقة|ربحية|رحل|دفعة|احذف|مديونية|مديون|ديون|رصيد|مبيعات|زبون|زبائن|تحصيل|مصاري|balance|owed|outstanding|debt)/i.test(q);}
 
 function previewOnlyDocumentIntent(message:string):boolean{
   const q=clean(message,6000).toLowerCase();
@@ -173,7 +173,8 @@ export function aiPlannerSourceFacts(sources:unknown):AiPlannerSourceFact[]{
   }).filter(row=>Boolean(row.fileName));
 }
 export function explicitAiActionRequest(message:string):boolean{
-  return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to)\b|(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|احذف|امسح|اعتمد)/iu.test(message);
+  if(/^(?:how|why|should|explain|كيف|ليش|لماذا|اشرح|هل\s+تنصح|شو\s+رأيك)(?:\s|$)/iu.test(message.trim()))return false;
+  return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to)\b|(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|احذف|امسح|اعتمد|تجهز|تجهّز|تعمل|تضيف|تعدل|تعدّل|تغيّر)/iu.test(message);
 }
 
 /** When an explicit user action fails to plan, do not quietly replace the
@@ -556,13 +557,9 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     // Controller must report failed action planning; Advisor instead answers
     // through the regular conversational model without triggering tool planning.
     if(runtime.conversationMode==='advisor'&&explicitAiActionRequest(input.message))return null;
-    // Explicit user commands must always reach the planner, including short
-    // Arabic commands such as "احفظ جميع الأصناف" with no attachment.
-    // Readable business questions belong to the conversation by default.
-    // Typed tools run directly when a deterministic exact workflow is known.
-    // Model-based action planning is reserved for an explicit user command
-    // (or attached evidence), not triggered by words like price or invoice.
-    if(!hasSources&&!explicitAiActionRequest(input.message))return null;
+    // Natural business questions may retrieve verified records as well as
+    // explicit commands. Ordinary conversation still uses the dialogue model.
+    if(!hasSources&&!explicitAiActionRequest(input.message)&&!likelyToolIntent(input.message,input.context))return null;
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
     const actionRequested=explicitAiActionRequest(input.message);
@@ -578,6 +575,10 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
     plan=validateAiToolPlan(payload?.plan,runtime.scope,runtime.conversationMode);
     if(!plan||!plan.calls.length)return null; // discuss instead of exposing planner JSON errors
+    if(!actionRequested){
+      const classes=new Map(aiToolPlannerCatalog(runtime.scope,runtime.conversationMode).map(row=>[row.id,row.class]));
+      if(plan.calls.some(call=>!['read','calculate'].includes(String(classes.get(call.tool)))))return null;
+    }
     // Customer/supplier master mutations are permitted only from the strict
     // local parser of the user's own command, never from model-generated plans.
     if(plan.calls.some(call=>['procurement.createPoFromRfq','procurement.recordGoodsReceipt','sales.createDeliveryDraft','sales.confirmPhysicalDelivery','sales.issueConfirmedStock','procurement.matchSupplierBill','procurement.postMatchedSupplierBill','sales.createConfirmedInvoiceDraft','sales.recordCustomerCollection','procurement.recordSupplierPayment'].includes(call.tool)))return null;

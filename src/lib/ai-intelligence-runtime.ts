@@ -453,7 +453,10 @@ export function pendingDocumentDialogue(messages:{role:string;text:string}[],mod
     if(/^(?:how|why|explain|كيف|لماذا|اشرح)(?:\s|$)/iu.test(row.text.trim()))continue;
     if(/(?:\b(?:create|draft|prepare|make|build|want|need)\b.{0,80}\b(?:quote|quotation|invoice)\b|(?:أنشئ|انشئ|اعمل|جهز|جهّز|سوي|بدي|أريد|اريد).{0,80}(?:عرض سعر|فاتورة|مسودة))/iu.test(row.text)){
       if(/(?:do not|don't|never|لا\s*(?:تنشئ|تجهز|تعمل)|بدون\s*(?:إنشاء|انشاء))/iu.test(row.text))return null;
-      start=i;kind=/invoice|فاتورة/iu.test(row.text)?'invoice':'proforma';break;
+      start=i;
+      // Classify only the document phrase, never incidental customer/product names.
+      const intent=row.text.match(/(?:\b(?:create|draft|prepare|make|build|want|need)\b.{0,80}?\b(?:quote|quotation|invoice)\b|(?:أنشئ|انشئ|اعمل|جهز|جهّز|سوي|بدي|أريد|اريد).{0,80}?(?:عرض سعر|فاتورة|مسودة))/iu);
+      kind=/(?:\binvoice\b|فاتورة)/iu.test(intent?.[0]||'')?'invoice':'proforma';break;
     }
   }
   if(start<0)return null;
@@ -549,6 +552,33 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
           :'No matching records were found in the current company. Try a different name or tell me which product you mean; I can help you select from saved products.';
       }
     }
+  }
+  // Read answers deserve the same natural dialogue as ordinary chat. The
+  // existing activity/selection cards remain the source of record identities.
+  // Ordinary stock, price and ledger reads stay fully local: no second provider call,
+  // delay or token usage just to restate deterministic data. Ask for model reasoning
+  // only when the user's own wording explicitly requests interpretation or advice.
+  const wantsExplanatoryAnalysis=/(?:ليش|ليه|لماذا|ليش\s+هيك|كيف|اشرح|فسر|فسّر|حلل|حلّل|تحليل|تفسير|شو\s+يعني|ماذا\s+يعني|تنصح|بنصح|نصيحة|توصية|اقترح|\b(?:why|how|explain|interpret|analyze|analyse|analysis|recommend|advise|assess|evaluate|insight)\b|\bwhat\s+does\s+.+\s+mean\b)/iu.test(input.message);
+  if(result&&!result.proposal&&!result.workingDraft&&!(result as any).foundationSelectionText&&
+    wantsExplanatoryAnalysis&&result.results.length&&result.results.every(row=>row.ok&&['read','calculate'].includes(row.class))){
+    const expectedScope=kernelScopeKey(host.__intelligenceKernel.scope);
+    try{
+      const reply=await requestAiJson('/api/ai-advisor-v2',{
+        message:input.message,
+        context:{...input.context,conversationMode:'advisor',language:responseLanguage,
+          aiResponseDetail:preferences.detail,verifiedReadEvidence:result.results,
+          conversationWorkingMemory:intelligenceRequestMessage(host,'','')}
+      },input.signal,8_000);
+      if(typeof reply?.answer==='string'&&reply.answer.trim()&&!reply.proposal)
+        (result as any).foundationSelectionText=reply.answer.trim().slice(0,7000);
+    }catch{
+      // Provider failure retains the actual retrieved facts and existing UI.
+      // Never erase a valid result or turn explanation failure into an action.
+    }
+    const fresh=await resumeVaultSession();
+    if(input.signal?.aborted||!fresh||host.mounted===false||requestedMode!==currentConversationMode(host)||
+      kernelScopeKey(scopeFor(host,fresh.vault))!==expectedScope)
+      throw new Error('Conversation changed while explaining records.');
   }
   // No ordinal set from compact summaries: only an explicitly displayed exact list.
   return result;
@@ -887,7 +917,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
-        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
+        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|بدي|أريد|اريد|نزّل|نزل|حمّل|حمل|اطبع|إطبع|create|give|generate|show|open|download|preview|send|need|want|print/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();

@@ -50,6 +50,9 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await launcher.click();
         const panel=page.locator('#lourex-ai-panel');
         await panel.waitFor({state:'visible'});
+        // The encrypted account thread hydrates asynchronously; do not inspect
+        // the temporarily locked loading composer as if it were the ready chat.
+        await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel')?.dataset?.workspaceReady==='true',null,{timeout:30000});
         const panelBox=await panel.boundingBox();
         assert.ok(panelBox,'assistant panel must be visible');
         assert.ok(panelBox.x>=-1&&panelBox.y>=-1,'assistant panel begins inside viewport');
@@ -61,15 +64,32 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.equal(panelVisual.theme,theme,'fixture theme must reach the conversation');
         // AI conversation has its own immutable matte-black visual identity,
         // independent of the accounting site's light/dark theme preference.
-        assert.equal(panelVisual.bg,'rgb(8, 8, 8)','AI conversation must remain matte black for either site theme');
+        assert.equal(panelVisual.bg,'rgb(11, 16, 23)','AI conversation must retain the canonical deep-navy workspace background for either site theme');
         assert.ok(contrast(panelVisual.text,panelVisual.bg)>=4.5,'conversation base text contrast must meet WCAG AA');
 
         const textarea=panel.locator('.lourex-ai-premium-textarea');
         const plus=panel.locator('.lourex-ai-composer-plus');
         const send=panel.locator('.lourex-ai-send');
         await textarea.waitFor({state:'visible'});
+        await plus.waitFor({state:'visible'});
+        await page.waitForFunction(()=>{const button=document.querySelector('#lourex-ai-panel .lourex-ai-composer-plus');const box=button?.getBoundingClientRect();return Boolean(box&&box.width>=43&&box.height>=43);},null,{timeout:10000});
         const plusBox=await plus.boundingBox();
-        assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'unified plus target remains touch safe');
+        if(!plusBox||plusBox.width<43||plusBox.height<43){
+          const detail=await panel.evaluate(el=>{
+            const matches=[...el.querySelectorAll('.lourex-ai-composer-plus')];
+            const composer=el.querySelector('.lourex-ai-compose');
+            const form=composer?.querySelector('form');
+            return{matches:matches.length,buttons:matches.map(button=>{
+              const rect=button.getBoundingClientRect(),style=getComputedStyle(button);
+              return{outerHTML:button.outerHTML.slice(0,350),display:style.display,visibility:style.visibility,
+                position:style.position,width:rect.width,height:rect.height,offsetParent:Boolean(button.offsetParent)};
+            }),composeClass:composer?.className||null,formDisplay:form?getComputedStyle(form).display:null,
+              formHtml:form?.outerHTML?.slice(0,600)||'',panelMode:el.dataset.workspaceMode,
+              panelReady:el.dataset.workspaceReady};
+          });
+          await page.screenshot({path:`${output}/plus-failed-${matrix.name}-${width}-${lang}.png`,animations:'disabled'});
+          throw new Error('Unified + control missing or undersized: '+JSON.stringify(detail));
+        }
         const modeTabs=panel.locator('.lxw-mode-tabs[role="tablist"]');
         await modeTabs.waitFor({state:'visible'});
         const tabs=modeTabs.locator('button[role="tab"]');
@@ -162,7 +182,22 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel .lourex-ai-plus-menu')?.dataset?.view==='tools');
         await menu.locator('.lourex-ai-plus-item').filter({hasText:lang==='ar'?'الذاكرة والمهام':'Memory & Tasks'}).click();
         const manager=panel.locator('.lourex-ai-manager');
-        await manager.waitFor({state:'visible'});
+        try{await manager.waitFor({state:'visible',timeout:8000});}catch(error){
+          const detail=await panel.evaluate(el=>{
+            const trigger=el.querySelector('.lourex-ai-manager-button');
+            const open=el.querySelector('.lourex-ai-manager');
+            const menu=el.querySelector('.lourex-ai-plus-menu');
+            const errorBox=el.querySelector('.lourex-ai-error,.lourex-ai-notice,[role="alert"]');
+            return{triggerExists:Boolean(trigger),triggerExpanded:trigger?.getAttribute('aria-expanded'),
+              triggerDisabled:trigger?.disabled,triggerDisplay:trigger?getComputedStyle(trigger).display:null,
+              panelExists:Boolean(open),panelDisplay:open?getComputedStyle(open).display:null,
+              toolMenuView:menu?.getAttribute('data-view'),toolMenuVisible:menu?getComputedStyle(menu).display:null,
+              alertText:errorBox?.textContent?.slice(0,240)||'',mode:el.getAttribute('data-workspace-mode'),
+              recentButtons:[...el.querySelectorAll('button')].filter(b=>/memory|ذاكرة|المهام/i.test(b.textContent||'')).slice(0,8).map(b=>({text:b.textContent.slice(0,50),disabled:b.disabled,display:getComputedStyle(b).display}))};
+          });
+          await page.screenshot({path:`${output}/memory-failed-${matrix.name}-${width}.png`,animations:'disabled'});
+          throw new Error('Memory & Tasks did not open: '+JSON.stringify(detail)+'; cause: '+error.message);
+        }
         const managerBox=await manager.boundingBox();
         assert.ok(managerBox&&managerBox.x>=-1&&managerBox.x+managerBox.width<=width+1,'Memory & Tasks remains within viewport');
         if(width<=720)assert.ok(Math.abs(managerBox.width-width)<=2,'mobile Memory & Tasks is full width');

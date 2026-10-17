@@ -49,3 +49,28 @@ test('User-facing summaries disclose the final length limit and localize section
  assert.match(source,/توجد معلومات إضافية لم تُعرض هنا/);
  assert.match(source,/return answer\.slice\(0,4800\)\.trimEnd\(\)/);
 });
+
+
+test('Arabic treasury answer localizes account/activity labels without mixed English table keys',()=>{
+  const treasury={accounts:[],activity:[]};
+  const ar=format(treasury,0,true),en=format(treasury,0,false);
+  assert.match(ar,/الحسابات: لا توجد سجلات معروضة/);
+  assert.match(ar,/الحركة المالية: لا توجد سجلات معروضة/);
+  assert.doesNotMatch(ar,/Accounts|Activity|No recorded rows/);
+  assert.match(en,/Accounts: No recorded rows/);
+  assert.match(en,/Activity: No recorded rows/);
+});
+
+test('Arabic inventory evidence localizes paging flags and does not expose internal IDs',()=>{
+  const stock={total:75,shown:30,incomplete:true,rows:[
+    {itemId:'internal-sku-row-1',sku:'SKU-QA-01',quantity:'0',state:'zero'},
+    {itemId:'internal-sku-row-2',sku:'SKU-QA-02',quantity:'3',state:'positive'}
+  ]};
+  const ar=format(stock,0,true),en=format(stock,0,false);
+  assert.match(ar,/الإجمالي: 75/);
+  assert.match(ar,/المعروض: 30/);
+  assert.match(ar,/غير مكتمل: نعم/);
+  assert.doesNotMatch(ar,/\b(?:Accounts|Activity|Shown|Incomplete|Rows)\b/);
+  assert.doesNotMatch(ar,/internal-sku-row/,'Internal database identifiers do not belong in a chat answer');
+  assert.match(en,/Incomplete: Yes/);
+});

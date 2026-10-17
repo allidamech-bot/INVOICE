@@ -42,6 +42,8 @@ on:
       - 'src/components/ProductLibraryWorkspace.tsx'
       - 'src/styles/tailadmin-products-v320.css'
       - 'src/styles/ai-conversation-workspace.css'
+      - 'tests/visual/run-ai-batches1-7-current-workspace.cjs'
+      - 'tests/visual/run-ai-conversation-final-batch5.cjs'
       - 'src/styles/editor-canonical-v314.css'
       - 'src/styles/roadmap-hardening-final.css'
       - 'public/startup-watchdog-v321.js'
@@ -128,14 +130,17 @@ jobs:
       - name: Install WebKit for offline browser QA
         run: |
           npm install --no-save --no-package-lock --no-audit --no-fund playwright
-          npx playwright install --with-deps webkit
-      - name: Smoke real picker component against synthetic sample products
+          npx playwright install --with-deps chromium webkit
+      - name: Exercise synthetic AI chat and picker/editor flows on phone and tablet
         run: |
           npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-ux-picker-server.log 2>&1 &
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:4173/tests/visual/obsidian-directory.html >/dev/null; then break; fi
             sleep 1
           done
+          # Check chat first: fail fast before the longer product/editor battery.
+          node tests/visual/run-ai-batches1-7-current-workspace.cjs
+          node tests/visual/run-ai-conversation-final-batch5.cjs
           node tests/visual/run-ux-rehab-picker-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
@@ -160,6 +165,8 @@ jobs:
             visual-qa-output/product-editor-webkit-v606/
             visual-qa-output/editor-upgrade-webkit/
             visual-qa-output/item-tools-menu-webkit/
+            visual-qa-output/ai-batches1-7-current-workspace/
+            visual-qa-output/ai-conversation-final-batch5/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -206,3 +213,64 @@ jobs:
             visual-qa-output/automatic-document-electronic-copy/
           if-no-files-found: ignore
           retention-days: 7
+
+
+  firestore-ai-emulator:
+    name: Real Firestore UID isolation and AI multi-device recovery (local emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      FIREBASE_CLI_DISABLE_UPDATE_CHECK: 'true'
+      # Firebase emulator is constrained to localhost and a demo project ID.
+      # Uses only the local emulator and a demo project; no external credentials.
+    steps:
+      - name: Checkout audited head, no write token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Java 21 for local Firestore
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install emulator and rules test SDK without editing lockfiles
+        run: npm install --no-save --package-lock=false --no-audit --no-fund firebase@12.1.0 @firebase/rules-unit-testing@5.0.2 firebase-tools@14.12.1
+      - name: Compile real cloud history and vault modules (no deployment)
+        run: npm run build
+      - name: Execute Firestore rules and two-device history against 127.0.0.1 only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "JSON.parse(require('fs').readFileSync('firebase.ai-ci.json')).emulators.firestore.host")" = '127.0.0.1'
+          test "$(node -p "JSON.parse(require('fs').readFileSync('firebase.ai-ci.json')).emulators.firestore.port")" = '8080'
+          ./node_modules/.bin/firebase emulators:exec \
+            --only firestore --config firebase.ai-ci.json \
+            --project demo-lourex-ai-integration-719 \
+            "node --test --test-concurrency=1 tests/emulator/ai-history.test.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
+      - name: Exercise real browser Firebase Auth, two-device recovery and posted stock (local emulators only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          config=firebase-ai-auth-local-ci.json
+          trap 'rm -f "$config"' EXIT
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > "$config"
+          ./node_modules/.bin/firebase emulators:exec \
+            --only auth,firestore --config "$config" \
+            --project demo-lourex-pinless-auth \
+            "node scripts/qa-cloud-auth-emulator-browser.mjs"
+      - name: Evidence boundary for release review
+        if: always()
+        shell: bash
+        run: |
+          echo 'Firestore emulator test is local-only (127.0.0.1:8080), demo project. No Firebase production access or deployment.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This test verifies UID rules and two-device history; it does NOT prove authenticated Preview isolation or account-scoped vendor keys.' >> "$GITHUB_STEP_SUMMARY"

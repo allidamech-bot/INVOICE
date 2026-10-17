@@ -223,3 +223,31 @@ test('hydrating a restored incomplete draft recomputes review and blocks approva
  harness.runtime.installIntelligenceRuntime(h);await h.ask('احفظها');
  let writes=0;await harness.runtime.intelligenceApprove(h,h.state.proposal,async()=>{writes++;return{id:'should-not-write'};});assert.equal(writes,0);assert.equal(h.__foundationReceipts.length,0);assert.equal(v.documents.length,0);assert.equal(h.state.proposal,null);
 });
+
+
+test('recursive scoped memory manager bridge preserves delegated button and original panel from nested context',async()=>{
+  const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js');
+  const {k,v}=fixture();
+  k.scope.accountId='';
+  const props={language:'ar'};
+  const host={props,__workspaceObservedProps:props,__intelligenceKernel:k,__foundationVault:v,
+    __lourexAssistantThreadId:'thread',state:{assistantScope:'business',proposal:null,__workspaceOpen:false,messages:[]}};
+  const e=React.createElement;
+  let opens=0;
+  const control=e('button',{className:'lourex-ai-manager-button',onClick:()=>opens++},'Memory');
+  const manager=e('section',{className:'lourex-ai-manager'},'Encrypted scoped tasks');
+  const context=e('div',{className:'lourex-ai-context'},e('div',{className:'nested-shell'},e('div',{className:'nested-row'},control,manager)));
+  const tree=e('aside',{id:'lourex-ai-panel'},e('header',{className:'lourex-ai-head'}),context,e('div',{className:'lourex-ai-messages'}),e('footer',{className:'lourex-ai-compose'}));
+  const output=renderConversationWorkspace(host,tree);
+  const children=React.Children.toArray(output.props.children);
+  const bridge=children.find(node=>node?.props?.className==='lxw-memory-manager-bridge');
+  assert.ok(bridge,'The new chat shell must retain the one original manager');
+  const parts=React.Children.toArray(bridge.props.children);
+  assert.equal(parts.length,2,'One delegated trigger and one scoped memory panel');
+  assert.equal(parts[0].props.className,'lourex-ai-manager-button');
+  assert.equal(parts[0].props['aria-hidden'],true,'Do not reintroduce duplicate visible legacy navigation');
+  parts[0].props.onClick();
+  assert.equal(opens,1,'Preserve the original callback rather than a new write implementation');
+  assert.deepEqual(parts[1],manager,'Preserve scoped panel content and callbacks through React cloning');
+  assert.equal(children.includes(context),false,'Old context bar remains retired');
+});

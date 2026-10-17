@@ -1,8 +1,9 @@
 import type {VaultPayload} from '../types.js';
 import {aiProductArchived} from './ai-business.js';
 import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
+import {resolveAiCommercialLine,printableAiCommercialLine} from './ai-commercial-line.js';
 
-interface LineInput{savedItemId?:string;descriptionEn?:string;descriptionAr?:string;quantity?:string;unitPrice?:string;}
+interface LineInput{savedItemId?:string;descriptionEn?:string;descriptionAr?:string;unit?:string;quantity?:string;unitPrice?:string;}
 interface DraftApproval{customerId?:string;customerDraft?:{companyNameEn?:string;companyNameAr?:string;email?:string}|null;currency:string;items:LineInput[];}
 interface UpdateApproval{documentId:string;addItems:LineInput[];itemEdits:Array<{itemId:string;descriptionEn?:string;descriptionAr?:string;unit?:string;quantity?:string;unitPrice?:string}>;termsPatch?:Record<string,unknown>;notes?:unknown;language?:unknown;}
 function scoped(row:{workspaceId?:string},active:string):boolean{return (row.workspaceId||'default')===active;}
@@ -19,6 +20,7 @@ function validateLine(vault:VaultPayload,line:LineInput,currency:string,scope:st
   if(id){
     const product=vault.savedItems.find(item=>item.id===id);
     if(!product||!scoped(product,scope)||aiProductArchived(product))throw new Error('Referenced product is unavailable in the active company.');
+    if(!printableAiCommercialLine(resolveAiCommercialLine(line,product,currency)))throw new Error('Document line requires a printable description and unit.');
     const price=String(line.unitPrice||'').trim();
     if(price){
       if(!validDecimal(price,false))throw new Error('Document line contains an invalid selling price.');
@@ -27,6 +29,7 @@ function validateLine(vault:VaultPayload,line:LineInput,currency:string,scope:st
     }
   }else{
     if(!String(line.descriptionEn||line.descriptionAr||'').trim())throw new Error('Uncatalogued document line needs an explicit description.');
+    if(!String(line.unit||'').trim())throw new Error('Document line requires an explicit unit.');
     if(!validDecimal(line.unitPrice,false))throw new Error('Uncatalogued document line needs an explicit selling price.');
   }
 }

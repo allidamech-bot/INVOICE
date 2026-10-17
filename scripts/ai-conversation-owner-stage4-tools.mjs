@@ -49,19 +49,25 @@ const __lourexToolTitles={\n  'customer.getSummary':['Customer summary','ملخ�
     date:['Date','التاريخ'],status:['Status','الحالة'],origin:['Origin','المنشأ'],
     sku:['SKU','رمز الصنف'],unit:['Unit','الوحدة'],cost:['Cost','التكلفة'],
     descriptionEn:['English description','الوصف الإنجليزي'],descriptionAr:['Arabic description','الوصف العربي'],
-    recentHistory:['Recent history','السجل الأخير'],paymentDueDays:['Payment days','أيام السداد']};
+    recentHistory:['Recent history','السجل الأخير'],paymentDueDays:['Payment days','أيام السداد'],
+    accounts:['Accounts','الحسابات'],activity:['Activity','الحركة المالية'],
+    rows:['Rows','السجلات'],shown:['Shown','المعروض'],incomplete:['Incomplete','غير مكتمل'],
+    kind:['Type','النوع'],label:['Label','التسمية'],state:['State','حالة المخزون'],
+    receipts:['Receipts','المقبوضات'],payments:['Payments','المدفوعات'],
+    credits:['Credits','الدائن'],debits:['Debits','المدين'],net:['Net','الصافي'],
+    incoming:['Incoming','الوارد'],outgoing:['Outgoing','الصادر']};
   const label=labels[String(key||'')];return label?label[ar?1:0]:__lourexHumanKey(key);
 }
-function __lourexCleanToolScalar(value,max=180){
+function __lourexCleanToolScalar(value,max=180,ar=false){
   if(value===null||value===undefined||value==='')return'';
-  if(typeof value==='boolean')return value?'Yes':'No';
+  if(typeof value==='boolean')return ar?(value?'نعم':'لا'):(value?'Yes':'No');
   if(typeof value==='number'||typeof value==='bigint')return String(value);
   const text=String(value).replace(/\\s+/g,' ').trim();
   return text.length>max?text.slice(0,max-1)+'…':text;
 }
 function __lourexCompactObject(value,depth=0,ar=false){
   if(value===null||value===undefined)return'';
-  if(typeof value!=='object')return __lourexCleanToolScalar(value);
+  if(typeof value!=='object')return __lourexCleanToolScalar(value,180,ar);
   if(!Array.isArray(value)&&value.truncated===true){
     return ar?'بيانات هذا السجل أطول من حد العرض الآمن؛ الملخص غير كامل. افتح السجل الأصلي لمراجعة التفاصيل.':'This record exceeds the safe response limit; this summary is incomplete. Open the original record to review all details.';
   }
@@ -72,7 +78,7 @@ function __lourexCompactObject(value,depth=0,ar=false){
     const count=String(value.length)+(ar?' سجل':value.length===1?' record':' records');
     return count+(preview.length?' · '+preview.join(' | '):'')+(omitted>0?' · +'+omitted+(ar?' سجلات أخرى غير معروضة':' additional rows not shown'):'');
   }
-  const hidden=/^(?:id|workspaceId|branchId|source)$/i;
+  const hidden=/^(?:id|itemId|workspaceId|branchId|source)$/i;
   const entries=Object.entries(value).filter(([key,val])=>!hidden.test(key)&&val!==''&&val!==null&&val!==undefined);
   const shown=entries.slice(0,10).map(([key,val])=>{
     if(typeof val==='object'&&depth>=2)return __lourexToolFieldLabel(key,ar)+': …';

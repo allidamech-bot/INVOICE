@@ -5,7 +5,7 @@ import {reviewAiDocumentProposal} from '../dist/src/lib/ai-document-review.js';
 
 const drafting={
  customers:[{id:'c1',name:'LOUREX Buyer'}],
- items:[{id:'sku1',sku:'F50',name:'Snack 50g',lastCurrency:'USD',lastUnitPrice:'12.50'}],
+ items:[{id:'sku1',sku:'F50',name:'Snack 50g',descriptionEn:'Snack 50g',descriptionAr:'',unit:'carton',lastCurrency:'USD',lastUnitPrice:'12.50'}],
  defaults:{currency:'USD',language:'en'},
  activeDocument:null
 };
