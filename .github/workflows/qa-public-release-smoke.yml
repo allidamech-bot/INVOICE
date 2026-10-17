@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/qa-public-release-smoke.mjs'
+      - 'scripts/qa-production-ai-auth-boundary.mjs'
       - '.github/workflows/qa-public-release-smoke.yml'
   workflow_dispatch:
     inputs:
@@ -31,3 +32,5 @@ jobs:
         env:
           LOUREX_EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.expected_sha }}
         run: node scripts/qa-public-release-smoke.mjs
+      - name: Assert live AI gateways reject unsigned and cross-origin requests
+        run: node scripts/qa-production-ai-auth-boundary.mjs
