@@ -1,7 +1,7 @@
 import type {LourexDocument, VaultPayload, DocumentItem} from '../types.js';
 import type {ConversationKernel} from './ai-conversation-kernel.js';
 import {workspaceDocument} from './ai-workspace-model.js';
-import {createBlankDocument} from './documents.js';
+import {createBlankDocument,alignAiQuotationValidity} from './documents.js';
 import {customerSnapshotFrom} from './defaults.js';
 import {scopeVault} from './workspaces.js';
 import {normalizeAiConversationMode} from './ai-conversation-mode.js';
@@ -33,6 +33,7 @@ export function prepareAiPdfPreview(
     document=structuredClone(saved);
     document.language=proposal.language||document.language;
     document.terms={...document.terms,...proposal.termsPatch};
+    if(proposal.termsPatch.validity!==undefined)alignAiQuotationValidity(document);
     document.notes=proposal.notes??document.notes;
   }else{
     // PREVIEW is deliberately not a numbered invoice or saved customer.
@@ -45,6 +46,7 @@ export function prepareAiPdfPreview(
     else if(proposal.customerDraft)document.customerSnapshot=customerSnapshotFrom({id:'',...proposal.customerDraft});
     document.terms={...document.terms,incoterm:proposal.incoterm,paymentTerms:proposal.paymentTerms,
       deliveryTime:proposal.deliveryTime,validity:proposal.validity,remarks:proposal.remarks};
+    alignAiQuotationValidity(document);
     document.notes=proposal.notes;
     // The conversation has not authorized taxes, freight or discounts; never
     // silently present company tax defaults as if they were confirmed.
