@@ -12,7 +12,7 @@ test('AI-MEMORY-01: canonical chat retains the original scoped Memory & Tasks co
   assert.match(shell,/const memoryManagerParts=legacyContext\.flatMap/);
   assert.match(shell,/cn\.includes\('lourex-ai-manager-button'\)\|\|cn\.includes\('lourex-ai-manager'\)/);
   assert.match(shell,/const memoryManagerBridge=memoryManagerParts\.length/);
-  assert.match(shell,/data-workspace-pane':pane\},[\s\S]*memoryManagerBridge\);/);
+  assert.match(shell,/data-workspace-pane':pane\},[\s\S]*memoryManagerBridge\?\[memoryManagerBridge\]:\[\]/);
   assert.match(legacy,/function __lourexManagerPanel\(instance\)/);
   assert.match(legacy,/assistantManagerOpen/);
   assert.match(router,/clickHidden\('#lourex-ai-panel \.lourex-ai-manager-button',0\)/);
