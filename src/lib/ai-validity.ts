@@ -15,7 +15,7 @@ export function groundedAiValidity(value:unknown,message:string,fallback:string,
   const candidateDays=dayCount(candidate);
   if(candidateDays===null)return fallback;
   // Duration must explicitly modify "validity", not delivery or payment terms.
-  const evidence=/(?:الصلاحية|صلاحية|صالح\s*(?:لمدة)?|validity|valid\s+for)\s*[:：=]?\s*(\d{1,4})\s*(?:days?|يوم|يوما|يوماً|أيام|ايام)/iu.exec(user)
+  const evidence=/(?:(?:الصلاحية|صلاحية)(?:\s+العرض)?|صالح\s*(?:لمدة)?|validity|valid\s+for)\s*[:：=]?\s*(\d{1,4})\s*(?:days?|يوم|يوما|يوماً|أيام|ايام)/iu.exec(user)
     ||/(\d{1,4})\s*(?:days?|يوم|يوما|يوماً|أيام|ايام)\s*(?:للصلاحية|صلاحية|validity)/iu.exec(user);
   return evidence&&Number(evidence[1])===candidateDays?candidate:fallback;
 }
