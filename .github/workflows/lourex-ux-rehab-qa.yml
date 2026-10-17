@@ -128,7 +128,7 @@ jobs:
       - name: Install WebKit for offline browser QA
         run: |
           npm install --no-save --no-package-lock --no-audit --no-fund playwright
-          npx playwright install --with-deps webkit
+          npx playwright install --with-deps chromium webkit
       - name: Smoke real picker component against synthetic sample products
         run: |
           npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-ux-picker-server.log 2>&1 &
@@ -145,6 +145,10 @@ jobs:
           node tests/visual/run-product-editor-webkit-v606.cjs
           node tests/visual/run-editor-upgrade-webkit-20261016.cjs
           node tests/visual/run-item-tools-menu-webkit-20261016.cjs
+      - name: Exercise real AI Controller/Advisor chat on phone and tablet in Chromium and WebKit
+        run: |
+          node tests/visual/run-ai-batches1-7-current-workspace.cjs
+          node tests/visual/run-ai-conversation-final-batch5.cjs
       - name: Save isolated browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -160,6 +164,8 @@ jobs:
             visual-qa-output/product-editor-webkit-v606/
             visual-qa-output/editor-upgrade-webkit/
             visual-qa-output/item-tools-menu-webkit/
+            visual-qa-output/ai-batches1-7-current-workspace/
+            visual-qa-output/ai-conversation-final-batch5/
           if-no-files-found: ignore
           retention-days: 7
 
