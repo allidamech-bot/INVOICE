@@ -28,20 +28,26 @@ const results=[];
             const img=document.querySelector('.ta-auth-mobile-brand img');
             return {
               cardX:center(card),logoX:center(mark),wordX:center(word),
-              logoBottom:mark.bottom,wordTop:word.top,
-              flexDirection:getComputedStyle(brand).flexDirection,
+              logoLeft:mark.left,logoRight:mark.right,
+              logoY:center({left:mark.top,right:mark.bottom}),
+              wordLeft:word.left,wordRight:word.right,
+              wordY:center({left:word.top,right:word.bottom}),
+              display:getComputedStyle(brand).display,
+              gridColumns:getComputedStyle(brand).gridTemplateColumns,
               logoLoaded:img.complete&&img.naturalWidth>0,
               overflow:document.documentElement.scrollWidth-innerWidth
             };
           });
           assert.equal(measurement.logoLoaded,true,'SVG logo not loaded');
-          assert.equal(measurement.flexDirection,'column','mobile sign-in logo must stack above its wordmark');
+          assert.equal(measurement.display,'grid','sign-in must preserve a horizontal logo+wordmark');
           assert.ok(Math.abs(measurement.logoX-measurement.cardX)<=2,
             `logo shifted from card center: ${JSON.stringify(measurement)}`);
-          assert.ok(Math.abs(measurement.wordX-measurement.cardX)<=2,
-            `wordmark shifted from card center: ${JSON.stringify(measurement)}`);
-          assert.ok(measurement.wordTop>=measurement.logoBottom,
-            'wordmark must be beneath, not beside or over the logo');
+          assert.ok(Math.abs(measurement.wordY-measurement.logoY)<=2,
+            `wordmark should be aligned beside the logo: ${JSON.stringify(measurement)}`);
+          if(lang==='en')assert.ok(measurement.wordLeft>=measurement.logoRight,
+            'English wordmark must remain to the right of the centered logo');
+          if(lang==='ar')assert.ok(measurement.wordRight<=measurement.logoLeft,
+            'RTL wordmark must mirror to the left of the centered logo');
           assert.ok(measurement.overflow<=1,'horizontal overflow');
           if(width===390&&lang==='en'&&theme==='dark')
             await page.screenshot({path:`${output}/${engine}-390-signin.png`,fullPage:false});
@@ -58,5 +64,5 @@ const results=[];
     }finally{await browser.close();}
   }
   writeFileSync(`${output}/results.json`,JSON.stringify({cases:results.length,results},null,2));
-  console.log('AUTH_MOBILE_BRAND_CENTER_PASS '+results.length+' Chromium/WebKit iPhone/tablet cases; account creation unchanged');
+  console.log('AUTH_MOBILE_BRAND_CENTER_PASS '+results.length+' horizontal-layout Chromium/WebKit iPhone/tablet cases; account creation unchanged');
 })().catch(error=>{console.error(error);process.exitCode=1;});
