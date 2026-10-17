@@ -2575,3 +2575,151 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user{
   font-size:15px!important;
 }
+
+
+
+/* LOUREX AI tactile chrome — navigation and mode switch only. */
+/* The AI dialog owns these selectors: app chrome, messaging and business pages
+   are intentionally excluded. Preserve the existing 44px touch targets. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2']{
+  --lxw-control-top:#303a3a;
+  --lxw-control-bottom:#252e2f;
+  --lxw-control-border:#506764;
+  --lxw-control-text:#e5f0ec;
+  --lxw-control-active-top:#416e65;
+  --lxw-control-active-bottom:#30554e;
+  --lxw-control-active-border:#85bbac;
+  --lxw-control-active-text:#f4fffb;
+  --lxw-control-shadow:0 3px 10px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.12);
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lourex-ai-overflow-trigger,.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close){
+  box-sizing:border-box!important;
+  border:1px solid var(--lxw-control-border)!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,var(--lxw-control-top),var(--lxw-control-bottom))!important;
+  color:var(--lxw-control-text)!important;
+  box-shadow:var(--lxw-control-shadow)!important;
+  opacity:1!important;
+  touch-action:manipulation;
+  transition:background .16s ease,border-color .16s ease,box-shadow .16s ease!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head .lourex-ai-head-actions>button{
+  box-sizing:border-box!important;
+  border:1px solid var(--lxw-control-border)!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,var(--lxw-control-top),var(--lxw-control-bottom))!important;
+  color:var(--lxw-control-text)!important;
+  box-shadow:var(--lxw-control-shadow)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lourex-ai-overflow-trigger,.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close):is(:hover,:active,[aria-expanded='true]){
+  border-color:var(--lxw-control-active-border)!important;
+  background:linear-gradient(180deg,var(--lxw-control-active-top),var(--lxw-control-active-bottom))!important;
+  color:var(--lxw-control-active-text)!important;
+  box-shadow:0 3px 14px rgba(28,90,79,.23),inset 0 1px rgba(255,255,255,.18)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lourex-ai-overflow-trigger,.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close):focus-visible{
+  outline:2px solid var(--lxw-control-active-border)!important;
+  outline-offset:2px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lourex-ai-overflow-trigger,.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close):disabled{
+  opacity:.5!important;
+  cursor:default!important;
+}
+/* The two actions retain their semantic tab roles and switching handlers. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs{
+  border:1px solid var(--lxw-control-border)!important;
+  background:linear-gradient(180deg,#2a3434,#222b2b)!important;
+  border-radius:16px!important;
+  padding:4px!important;
+  gap:4px!important;
+  box-shadow:0 5px 16px rgba(0,0,0,.19),inset 0 1px rgba(255,255,255,.09)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button{
+  box-sizing:border-box!important;
+  border:1px solid transparent!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(0,0,0,.055))!important;
+  color:#cbd8d4!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.035)!important;
+  font-weight:690!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button[aria-selected='true']{
+  border-color:var(--lxw-control-active-border)!important;
+  background:linear-gradient(165deg,var(--lxw-control-active-top),var(--lxw-control-active-bottom))!important;
+  color:var(--lxw-control-active-text)!important;
+  box-shadow:0 3px 12px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.19)!important;
+  font-weight:800!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button:not([aria-selected='true']):is(:hover,:focus-visible){
+  border-color:var(--lxw-control-border)!important;
+  background:rgba(109,162,149,.16)!important;
+  color:#f4fffb!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button:focus-visible{
+  outline:2px solid var(--lxw-control-active-border)!important;
+  outline-offset:2px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description{
+  align-self:center!important;
+  width:fit-content!important;
+  max-width:calc(100% - 24px)!important;
+  box-sizing:border-box!important;
+  gap:8px!important;
+  margin:8px 12px 7px!important;
+  padding:7px 12px!important;
+  border:1px solid rgba(110,163,151,.37)!important;
+  border-radius:12px!important;
+  background:linear-gradient(135deg,rgba(67,105,96,.27),rgba(34,58,54,.26))!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.05),0 3px 12px rgba(0,0,0,.09)!important;
+  color:#d9eae4!important;
+  font-weight:550!important;
+  line-height:1.55!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description>span{
+  color:#d9eae4!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description .lxw-mode-symbol{
+  box-sizing:border-box!important;
+  flex:0 0 25px!important;
+  width:25px!important;
+  height:25px!important;
+  border:1px solid rgba(132,203,184,.39)!important;
+  border-radius:8px!important;
+  background:rgba(83,149,132,.18)!important;
+  color:#95e1ce!important;
+}
+html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'],
+html[data-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2']{
+  --lxw-control-top:#ffffff;
+  --lxw-control-bottom:#eaf2ef;
+  --lxw-control-border:#b5cec5;
+  --lxw-control-text:#29483f;
+  --lxw-control-active-top:#397e6e;
+  --lxw-control-active-bottom:#276455;
+  --lxw-control-active-border:#3f8876;
+  --lxw-control-active-text:#ffffff;
+  --lxw-control-shadow:0 3px 10px rgba(34,82,68,.1),inset 0 1px rgba(255,255,255,.84);
+}
+html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs,
+html[data-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs{
+  background:linear-gradient(180deg,#eff6f2,#e3eee9)!important;
+}
+html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button:not([aria-selected='true']),
+html[data-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-tabs button:not([aria-selected='true']){
+  color:#385c51!important;
+}
+html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description,
+html[data-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description{
+  background:linear-gradient(135deg,#ecf5ef,#e4f1eb)!important;
+  border-color:#b8d7c8!important;
+  color:#35574a!important;
+}
+html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description>span,
+html[data-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-mode-description>span{
+  color:#35574a!important;
+}
+@media(prefers-reduced-motion:reduce){
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lourex-ai-overflow-trigger,.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close){
+    transition:none!important;
+  }
+}
