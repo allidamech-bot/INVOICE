@@ -4,6 +4,15 @@ import {applyWorkspaceCommand,workspaceDocument,workspaceDrafting} from './ai-wo
 import {aiDraftUndoDepth} from './ai-document-limits.js';
 import {normalizeDecimalInput} from './money.js';
 
+/** A PDF refresh is an output request following an unsaved field edit, not
+ * an extra draft cell operation. Never interpret an explicit negation as consent. */
+export function wantsWorkingDraftPdfRefresh(message:string):boolean{
+  const text=String(message||'').normalize('NFKC');
+  if(!/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(text))return false;
+  if(/(?:لا|دون|بدون|never|don't|do not|without)\s+(?:ت?حدّث|ت?حدث|تحديث|إنشاء|انشاء|عرض|معاينة|update|refresh|generate|show|open|preview)?\s*(?:معاينة\s*)?(?:\bpdf\b|بي\s*دي\s*[إأا]ف)/iu.test(text))return false;
+  return /معاين|اعرض|أعرض|اظهر|أظهر|حد[ّث]?|تحديث|جدد|جدّد|جهز|جهّز|أنشئ|انشئ|preview|refresh|update|generate|render|show|open/iu.test(text);
+}
+
 /** Model patches are untrusted. Revalidate scope, version, exact line identity
  * and replacement evidence locally; never copy a model-supplied document. */
 export function applyWorkingDraftPlan(kernel:ConversationKernel,vault:VaultPayload,plan:any,message:string):ConversationKernel{

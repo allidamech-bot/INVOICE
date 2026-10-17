@@ -16,7 +16,7 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, workspaceDocument, type WorkspaceCommand } from './ai-workspace-model.js';
 import {requestAiJson} from './ai-request.js';
-import {applyWorkingDraftPlan} from './ai-working-draft-plan.js';
+import {applyWorkingDraftPlan,wantsWorkingDraftPdfRefresh} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
 import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
@@ -1029,12 +1029,36 @@ export function installIntelligenceRuntime(host:Host):void{
           const revised=next.artifact!.proposal as any;
           delete revised.foundationApproval;
           if(previousId)retireWorkingApproval(next,previousId);
+          // Quantity/price changes are the only mutations. Arithmetic is
+          // deterministic and PDF is rendered from this *new* revision only.
+          const currentVault=host.__foundationVault||resumed.vault;
+          const updatedDocument=workspaceDocument(next,currentVault,requestLanguage);
+          const updatedSubtotal=updatedDocument?.subtotal||'';
+          const previewAsked=wantsWorkingDraftPdfRefresh(message);
+          let previewReady=false;
+          if(previewAsked){
+            try{prepareAiPdfPreview(next,currentVault,requestLanguage);previewReady=true;}
+            catch{/* Retain the valid draft edit even if a PDF is not yet renderable. */}
+          }
+          const pdfIdentity=previewReady
+            ?turnScope+'||'+next.artifact!.id+'|'+String(next.artifact!.revision):'';
+          const calculationNote=updatedSubtotal
+            ?(requestLanguage==='ar'?' الإجمالي الجديد: '+updatedSubtotal+' '+updatedDocument!.currency+'.'
+              :' Updated subtotal: '+updatedSubtotal+' '+updatedDocument!.currency+'.'):'';
+          const previewNote=previewAsked
+            ?(previewReady
+              ?(requestLanguage==='ar'?' سأجهّز معاينة PDF من النسخة المعدلة دون حفظها.'
+                :' Preparing a PDF preview from the revised draft without saving it.')
+              :(requestLanguage==='ar'?' لا يمكن معاينة PDF بعدُ لأن بعض بيانات المسودة غير مكتملة.'
+                :' PDF preview is not yet available because the draft is incomplete.'))
+            :(requestLanguage==='ar'?' يمكنك متابعة التعديل أو طلب PDF دون حفظ.'
+              :' You can continue revising or request PDF without saving.');
           host.__intelligenceKernel=next;
           host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,__workspaceReviewedProposal:null,
             __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:'',
+            __workspacePdfAutoStart:pdfIdentity,
             messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
-              {id:crypto.randomUUID(),role:'assistant',text:result.message+
-                (requestLanguage==='ar'?' يمكنك المتابعة بالتعديل أو طلب PDF دون حفظ.':' You can continue revising or request PDF without saving.') }]}));
+              {id:crypto.randomUUID(),role:'assistant',text:result.message+calculationNote+previewNote}]}));
         }else{
           // Never let an unsupported edit fall through to a model that may
           // invent a replacement quote or silently drop the original items.
