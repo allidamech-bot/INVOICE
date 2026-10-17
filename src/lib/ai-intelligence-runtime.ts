@@ -453,7 +453,10 @@ export function pendingDocumentDialogue(messages:{role:string;text:string}[],mod
     if(/^(?:how|why|explain|كيف|لماذا|اشرح)(?:\s|$)/iu.test(row.text.trim()))continue;
     if(/(?:\b(?:create|draft|prepare|make|build|want|need)\b.{0,80}\b(?:quote|quotation|invoice)\b|(?:أنشئ|انشئ|اعمل|جهز|جهّز|سوي|بدي|أريد|اريد).{0,80}(?:عرض سعر|فاتورة|مسودة))/iu.test(row.text)){
       if(/(?:do not|don't|never|لا\s*(?:تنشئ|تجهز|تعمل)|بدون\s*(?:إنشاء|انشاء))/iu.test(row.text))return null;
-      start=i;kind=/invoice|فاتورة/iu.test(row.text)?'invoice':'proforma';break;
+      start=i;
+      // Classify only the document phrase, never incidental customer/product names.
+      const intent=row.text.match(/(?:\b(?:create|draft|prepare|make|build|want|need)\b.{0,80}?\b(?:quote|quotation|invoice)\b|(?:أنشئ|انشئ|اعمل|جهز|جهّز|سوي|بدي|أريد|اريد).{0,80}?(?:عرض سعر|فاتورة|مسودة))/iu);
+      kind=/(?:\binvoice\b|فاتورة)/iu.test(intent?.[0]||'')?'invoice':'proforma';break;
     }
   }
   if(start<0)return null;
@@ -887,7 +890,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
-        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|create|give|generate|show|open|download|preview|send/iu.test(message);
+        /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|بدي|أريد|اريد|نزّل|نزل|حمّل|حمل|اطبع|إطبع|create|give|generate|show|open|download|preview|send|need|want|print/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
