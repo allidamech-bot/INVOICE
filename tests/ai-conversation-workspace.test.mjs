@@ -248,6 +248,6 @@ test('recursive scoped memory manager bridge preserves delegated button and orig
   assert.equal(parts[0].props['aria-hidden'],true,'Do not reintroduce duplicate visible legacy navigation');
   parts[0].props.onClick();
   assert.equal(opens,1,'Preserve the original callback rather than a new write implementation');
-  assert.equal(parts[1],manager,'Preserve scoped panel identity and state callbacks');
+  assert.deepEqual(parts[1],manager,'Preserve scoped panel content and callbacks through React cloning');
   assert.equal(children.includes(context),false,'Old context bar remains retired');
 });
