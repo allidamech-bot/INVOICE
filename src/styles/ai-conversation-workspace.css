@@ -1793,6 +1793,10 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-head,
 }
 .lourex-ai-launcher:has(.lxw-brand-glyph):hover{background:#1B3832!important}
 .lourex-ai-launcher:has(.lxw-brand-glyph) .lxw-brand-glyph{width:27px;height:27px}
+.lourex-ai-launcher .lxw-launcher-art{position:relative;display:grid;place-items:center;flex:none;width:32px;height:32px;pointer-events:none}
+.lourex-ai-launcher .lxw-launcher-art .lxw-brand-glyph{width:30px;height:30px}
+.lourex-ai-launcher .lxw-launcher-art .lxw-brand-glyph>circle:last-child{display:none}
+.lourex-ai-launcher .lxw-launcher-letters{position:absolute;inset:0;display:grid;place-items:center;color:currentColor;font:750 10px/1.15 "Outfit",Inter,system-ui,sans-serif;letter-spacing:-.025em}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head{
   flex:0 0 auto!important;min-height:62px!important;
   padding:10px 18px!important;gap:6px!important;

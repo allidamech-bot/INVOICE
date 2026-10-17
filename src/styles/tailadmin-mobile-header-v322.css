@@ -416,7 +416,10 @@
     height:44px!important;
     min-height:44px!important;
     border-radius:13px!important;
-    box-shadow:0 5px 16px color-mix(in srgb,var(--ft-accent) 18%,rgba(16,24,40,.08))!important;
+    border:1px solid #2b64b9!important;
+    background:#245dab!important;
+    color:#f5faff!important;
+    box-shadow:0 4px 14px rgba(24,71,148,.18)!important;
     transform:none!important;
   }
   html[data-lourex-shell-overlay="true"] body .app-ui .ta-shell .lourex-ai-launcher,
