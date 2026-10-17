@@ -69,7 +69,22 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         const send=panel.locator('.lourex-ai-send');
         await textarea.waitFor({state:'visible'});
         const plusBox=await plus.boundingBox();
-        assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'unified plus target remains touch safe');
+        if(!plusBox||plusBox.width<43||plusBox.height<43){
+          const detail=await panel.evaluate(el=>{
+            const matches=[...el.querySelectorAll('.lourex-ai-composer-plus')];
+            const composer=el.querySelector('.lourex-ai-compose');
+            const form=composer?.querySelector('form');
+            return{matches:matches.length,buttons:matches.map(button=>{
+              const rect=button.getBoundingClientRect(),style=getComputedStyle(button);
+              return{outerHTML:button.outerHTML.slice(0,350),display:style.display,visibility:style.visibility,
+                position:style.position,width:rect.width,height:rect.height,offsetParent:Boolean(button.offsetParent)};
+            }),composeClass:composer?.className||null,formDisplay:form?getComputedStyle(form).display:null,
+              formHtml:form?.outerHTML?.slice(0,600)||'',panelMode:el.dataset.workspaceMode,
+              panelReady:el.dataset.workspaceReady};
+          });
+          await page.screenshot({path:`${output}/plus-failed-${matrix.name}-${width}-${lang}.png`,animations:'disabled'});
+          throw new Error('Unified + control missing or undersized: '+JSON.stringify(detail));
+        }
         const modeTabs=panel.locator('.lxw-mode-tabs[role="tablist"]');
         await modeTabs.waitFor({state:'visible'});
         const tabs=modeTabs.locator('button[role="tab"]');
