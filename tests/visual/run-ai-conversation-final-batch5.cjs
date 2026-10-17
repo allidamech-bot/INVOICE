@@ -146,7 +146,10 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'root gateway exposes sources and AI Tools');
         const rootBox=await menu.boundingBox();
         assert.ok(rootBox&&rootBox.x>=-1&&rootBox.x+rootBox.width<=width+1&&rootBox.y>=-1&&rootBox.y+rootBox.height<=height+1,'plus root menu stays inside viewport');
-        assert.ok(Math.abs(rootBox.x-plusBox.x)<=14,'plus menu remains physically anchored to the visible + control in LTR and RTL');
+        const leadingEdgeDistance=box=>lang==='ar'
+          ?Math.abs((box.x+box.width)-(plusBox.x+plusBox.width))
+          :Math.abs(box.x-plusBox.x);
+        assert.ok(leadingEdgeDistance(rootBox)<=14,'plus menu leading edge remains anchored to + in the active text direction');
         const menuVisual=await menu.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color};});
         assert.ok(contrast(menuVisual.color,menuVisual.bg)>=4.5,'plus menu text contrast must meet WCAG AA');
         if(width<=720){
@@ -160,7 +163,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.match(toolsCopy,lang==='ar'?/صندوق AI[\s\S]*الموجز الصباحي[\s\S]*الذاكرة والمهام/:/AI Inbox[\s\S]*Morning Brief[\s\S]*Memory & Tasks/,'nested AI Tools exposes canonical destinations');
         const toolsBox=await menu.boundingBox();
         assert.ok(toolsBox&&toolsBox.x>=-1&&toolsBox.x+toolsBox.width<=width+1&&toolsBox.y>=-1&&toolsBox.y+toolsBox.height<=height+1,'nested AI Tools stays inside viewport');
-        assert.ok(Math.abs(toolsBox.x-plusBox.x)<=14,'nested AI Tools remains physically anchored to the visible + control');
+        assert.ok(leadingEdgeDistance(toolsBox)<=14,'nested AI Tools leading edge remains anchored to + in the active text direction');
         const actions=menu.locator('.lourex-ai-plus-item');
         assert.ok((await actions.count())>=10,'AI Tools menu exposes the full LOUREX tool set');
         await page.waitForFunction(()=>document.activeElement?.classList?.contains('lourex-ai-plus-item'));
