@@ -549,6 +549,10 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
       {currentTerms.map((term,i)=><div key={i}><span dir="auto">{fieldLabel(ar,term.label)}</span><strong dir="auto">{term.value}</strong></div>)}
       </div>
     </details>
+    {doc.blockers.length?<p className="lxw-document-blockers" role="status" id="lxw-document-blockers">
+      <strong>{label(ar,'Approval unavailable — complete these details:','الموافقة غير متاحة — أكمل البيانات التالية:')}</strong>
+      <span>{doc.blockers.slice(0,3).map(value=>fieldLabel(ar,value)).join(' · ')}</span>
+    </p>:null}
     {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
     <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Preview edit approve or decline','معاينة تحرير موافقة أو رفض')}>
       {viewPdf?<a className="lxw-document-action lxw-document-action-preview" href={viewPdf.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{iconPdf}<span>{label(ar,'Preview PDF','معاينة PDF')}</span></a>:
