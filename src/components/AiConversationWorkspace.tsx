@@ -1,3 +1,4 @@
+import { AiIdentityMark } from './AiIdentityMark.js';
 import { automaticElectronicDocument } from '../lib/secure-share.js';
 import { workspaceText, workspaceError } from '../lib/ai-workspace-presentation.js';
 import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from './AiReliabilityWorkspace.js';
@@ -531,16 +532,30 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   return <section className="lxw-chat-document lxw-document-unified" aria-label={label(ar,'Document review and actions','مراجعة المستند وإجراءاته')} data-artifact-id={doc.id} data-artifact-revision={doc.revision} data-exiting={dismissal.exiting?'true':'false'}>
     <header className="lxw-document-card-head">
       <div className="lxw-document-card-title"><span className="lxw-document-card-symbol" aria-hidden="true">{iconPdf}</span>
-        <div><small>LOUREX INVOICE · PDF</small><strong>{workspaceText(ar,doc.title)}</strong></div>
+        <div><small>{label(ar,'LOUREX · Business document','LOUREX · مستند أعمال')}</small><strong>{workspaceText(ar,doc.title)}</strong></div>
       </div>
       <span className="lxw-document-card-state" data-status={doc.status}>{doc.status==='saved'?label(ar,'Saved','محفوظ'):label(ar,'Draft · unsaved','مسودة غير محفوظة')}</span>
     </header>
-    <div className="lxw-document-card-facts" aria-label={label(ar,'Document summary','ملخص المستند')}>
+    <div className="lxw-document-essentials">
+      <span className="lxw-document-essential-customer" dir="auto">{doc.customer||label(ar,'Customer not selected','العميل غير محدد')}</span>
+      <div className="lxw-document-essential-price">
+        <span>{label(ar,'Items subtotal','المجموع الفرعي للأصناف')}</span>
+        <strong className="lxw-document-essential-total" dir="ltr">{doc.subtotal??'—'} <small>{doc.currency}</small></strong>
+      </div>
+    </div>
+    <details className="lxw-document-facts-disclosure">
+      <summary>{label(ar,'Document information','بيانات المستند')} <span aria-hidden="true">⌄</span></summary>
+      <div className="lxw-document-card-facts" aria-label={label(ar,'Document summary','ملخص المستند')}>
       <div><span>{label(ar,'Customer / party','العميل / الجهة')}</span><strong dir="auto">{doc.customer||label(ar,'Not selected','غير محدد')}</strong></div>
       <div><span>{label(ar,'Items','الأصناف')}</span><strong>{doc.rows.length}</strong></div>
       <div><span>{label(ar,'Subtotal','المجموع الفرعي')}</span><strong dir="ltr">{doc.subtotal??'—'} {doc.currency}</strong></div>
-      {currentTerms.map((term,i)=><div key={i}><span dir="auto">{term.label}</span><strong dir="auto">{term.value}</strong></div>)}
-    </div>
+      {currentTerms.map((term,i)=><div key={i}><span dir="auto">{fieldLabel(ar,term.label)}</span><strong dir="auto">{term.value}</strong></div>)}
+      </div>
+    </details>
+    {doc.blockers.length?<p className="lxw-document-blockers" role="status" id="lxw-document-blockers">
+      <strong>{label(ar,'Approval unavailable — complete these details:','الموافقة غير متاحة — أكمل البيانات التالية:')}</strong>
+      <span>{doc.blockers.slice(0,3).map(value=>fieldLabel(ar,value)).join(' · ')}</span>
+    </p>:null}
     {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
     <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Preview edit approve or decline','معاينة تحرير موافقة أو رفض')}>
       {viewPdf?<a className="lxw-document-action lxw-document-action-preview" href={viewPdf.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{iconPdf}<span>{label(ar,'Preview PDF','معاينة PDF')}</span></a>:
@@ -674,6 +689,9 @@ function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUse
     if(lastUserId)follower.current?.followNewMessage();
   },[scopeKey,lastUserId]);
   return <span ref={marker} className="lxw-chat-scroll-marker" aria-hidden="true"/>;
+}
+function ConversationWelcomeMark():any {
+  return <div className="lxw-welcome-identity" aria-hidden="true"><span className="lxw-welcome-orbit"/><AiIdentityMark/></div>;
 }
 function ConversationThinkingIndicator({ar}:{ar:boolean}):any {
   return <div className="lxw-thinking" role="status" aria-live="polite">
@@ -809,7 +827,7 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       return react.createElement('div',{className:'lxw-message-turn is-'+sender},
         react.cloneElement(node,{dir:'auto',className:cn+(sender==='assistant'?' lxw-markdown lxw-formatted-reply':'')},...formatted),...actions);
     }
-    if(cn.split(' ').includes('lourex-ai-launcher')&&workspaceVisible(host))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
+    if(cn.split(' ').includes('lourex-ai-launcher'))return react.cloneElement(node,{'data-ai-motion':currentAiExperiencePreferences(host).motion},...children);
     if(cn.split(' ').includes('lourex-ai-head')){
       const settings=<button key="lxw-ai-settings" type="button" className="lxw-settings-trigger" disabled={!workspaceVisible(host)} aria-label={label(aiUiAr(host),'AI settings','إعدادات المساعد')} aria-expanded={Boolean(host.state.__workspaceSettingsOpen)} onClick={()=>host.setState({__workspaceSettingsOpen:!host.state.__workspaceSettingsOpen,__workspaceHistoryOpen:false,__workspaceOpen:false,__workspacePane:'chat'})}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button>;
       return react.cloneElement(node,undefined,...children.slice(0,-1),settings,...children.slice(-1));
@@ -849,16 +867,16 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     }
     if(cn.split(' ').includes('lourex-ai-empty')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
       const ar=aiUiAr(host),prompts=ar?['أعطني ملخص الأعمال اليوم','أنشئ مسودة عرض سعر']:['Give me today’s business brief','Create a quotation draft'];
-      return react.cloneElement(node,undefined,<strong>{label(ar,'What would you like to work on?','ما الذي تريد إنجازه؟')}</strong>,<p>{label(ar,'Discuss your business, review documents and prepare changes. Nothing is saved without your approval.','ناقش أعمالك، راجع المستندات وجهّز التعديلات. لن يُحفظ أي تغيير دون موافقتك.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} disabled={disabled(host)} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
+      return react.cloneElement(node,undefined,<ConversationWelcomeMark/>,<strong>{label(ar,'What would you like to work on?','ما الذي تريد إنجازه؟')}</strong>,<p>{label(ar,'Discuss your business, review documents and prepare changes. Nothing is saved without your approval.','ناقش أعمالك، راجع المستندات وجهّز التعديلات. لن يُحفظ أي تغيير دون موافقتك.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} disabled={disabled(host)} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
     }
     if(cn.split(' ').includes('lourex-ai-empty')&&host.state.assistantScope==='personal'){
       const ar=aiUiAr(host),prompts=ar?['ذكرني غدًا بمراجعة أهدافي','ما الذي تتذكره عن تفضيلاتي؟']:['Remind me tomorrow to review my goals','What do you remember about my preferences?'];
-      return react.cloneElement(node,undefined,<strong>{label(ar,'Your personal assistant','مساعدك الشخصي')}</strong>,<p>{label(ar,'Plan tasks and manage personal reminders and preferences in this separate conversation.','نظّم مهامك وتذكيراتك وتفضيلاتك الشخصية في هذه المحادثة المستقلة.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
+      return react.cloneElement(node,undefined,<ConversationWelcomeMark/>,<strong>{label(ar,'Your personal assistant','مساعدك الشخصي')}</strong>,<p>{label(ar,'Plan tasks and manage personal reminders and preferences in this separate conversation.','نظّم مهامك وتذكيراتك وتفضيلاتك الشخصية في هذه المحادثة المستقلة.')}</p>,<div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
     }
     if(cn.split(' ').includes('lourex-ai-empty')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
       const ar=aiUiAr(host);
       const prompts=ar?['حلّل هامش الربح بناءً على بيانات الشركة','اشرح لي الذمم والمستحقات الحالية']:['Analyze profit margins from business records','Explain current receivables and outstanding balances'];
-      return react.cloneElement(node,undefined,
+      return react.cloneElement(node,undefined,<ConversationWelcomeMark/>,
         <strong>{label(ar,'What would you like to analyze?','ما الذي تريد مناقشته؟')}</strong>,
         <p>{label(ar,'Discuss financial and commercial questions. The Advisor reads permitted information but never opens pages or changes records.','ناقش الأمور المالية والتجارية. يقرأ المستشار المعلومات المصرّح بها للتحليل دون فتح صفحات أو تغيير سجلات.')}</p>,
         <div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} disabled={disabled(host)} onClick={()=>void host.ask(prompt)}>{prompt}</button>)}</div>);
