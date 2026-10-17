@@ -1,0 +1,33 @@
+name: LOUREX production public release smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/qa-public-release-smoke.mjs'
+      - '.github/workflows/qa-public-release-smoke.yml'
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Optional 40-character production commit SHA; leave blank to check identity only'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-public-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check publicly served build identity and app assets (read-only, zero provider calls)
+        env:
+          LOUREX_EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.expected_sha }}
+        run: node scripts/qa-public-release-smoke.mjs
