@@ -555,8 +555,12 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
   }
   // Read answers deserve the same natural dialogue as ordinary chat. The
   // existing activity/selection cards remain the source of record identities.
+  // Ordinary stock, price and ledger reads stay fully local: no second provider call,
+  // delay or token usage just to restate deterministic data. Ask for model reasoning
+  // only when the user's own wording explicitly requests interpretation or advice.
+  const wantsExplanatoryAnalysis=/(?:ليش|ليه|لماذا|ليش\s+هيك|كيف|اشرح|فسر|فسّر|حلل|حلّل|تحليل|تفسير|شو\s+يعني|ماذا\s+يعني|تنصح|بنصح|نصيحة|توصية|اقترح|why|how|explain|interpret|analy[sz]|recommend|advise|assess|evaluate|insight|what\s+does\s+.+\s+mean)/iu.test(input.message);
   if(result&&!result.proposal&&!result.workingDraft&&!(result as any).foundationSelectionText&&
-    result.results.length&&result.results.every(row=>row.ok&&['read','calculate'].includes(row.class))){
+    wantsExplanatoryAnalysis&&result.results.length&&result.results.every(row=>row.ok&&['read','calculate'].includes(row.class))){
     const expectedScope=kernelScopeKey(host.__intelligenceKernel.scope);
     try{
       const reply=await requestAiJson('/api/ai-advisor-v2',{
