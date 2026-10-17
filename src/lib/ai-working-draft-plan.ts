@@ -9,7 +9,7 @@ import {normalizeDecimalInput} from './money.js';
 export function wantsWorkingDraftPdfRefresh(message:string):boolean{
   const text=String(message||'').normalize('NFKC');
   if(!/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(text))return false;
-  if(/(?:لا|دون|بدون|never|don't|do not|without)\s+(?:حدّث|حدث|تحديث|إنشاء|انشاء|عرض|معاينة|update|refresh|generate|show|open|preview)?\s*(?:معاينة\s*)?(?:\bpdf\b|بي\s*دي\s*[إأا]ف)/iu.test(text))return false;
+  if(/(?:لا|دون|بدون|never|don't|do not|without)\s+(?:ت?حدّث|ت?حدث|تحديث|إنشاء|انشاء|عرض|معاينة|update|refresh|generate|show|open|preview)?\s*(?:معاينة\s*)?(?:\bpdf\b|بي\s*دي\s*[إأا]ف)/iu.test(text))return false;
   return /معاين|اعرض|أعرض|اظهر|أظهر|حد[ّث]?|تحديث|جدد|جدّد|جهز|جهّز|أنشئ|انشئ|preview|refresh|update|generate|render|show|open/iu.test(text);
 }
 
