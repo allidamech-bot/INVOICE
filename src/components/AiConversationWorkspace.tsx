@@ -538,7 +538,10 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     </header>
     <div className="lxw-document-essentials">
       <span className="lxw-document-essential-customer" dir="auto">{doc.customer||label(ar,'Customer not selected','العميل غير محدد')}</span>
-      <strong className="lxw-document-essential-total" dir="ltr">{doc.subtotal??'—'} <small>{doc.currency}</small></strong>
+      <div className="lxw-document-essential-price">
+        <span>{label(ar,'Items subtotal','المجموع الفرعي للأصناف')}</span>
+        <strong className="lxw-document-essential-total" dir="ltr">{doc.subtotal??'—'} <small>{doc.currency}</small></strong>
+      </div>
     </div>
     <details className="lxw-document-facts-disclosure">
       <summary>{label(ar,'Document information','بيانات المستند')} <span aria-hidden="true">⌄</span></summary>
