@@ -56,7 +56,9 @@ test('final conversation palette keeps accessible contrast and local chrome owne
   assert.match(css,/\.lourex-ai-scope-button\{min-height:44px!important;height:44px!important/,'mobile scope tabs remain 44px targets');
   assert.match(css,/\.lourex-ai-message-action\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important/,'mobile message actions remain 44px targets');
   assert.match(css,/\[dir='rtl'\] \.lourex-ai-plus-item\.is-back \.lourex-ai-plus-icon\{transform:scaleX\(-1\)/,'RTL back affordance mirrors correctly');
-  assert.match(css,/\.lourex-ai-plus-menu:is\(\[data-view='root'\],\[data-view='tools'\]\)\{left:8px!important;right:auto!important/,'plus menus stay physically anchored to the left-side + control in both LTR and RTL');
+  assert.match(css,/\.lourex-ai-plus-menu:is\(\[data-view='root'\],\[data-view='tools'\]\)\{box-sizing:border-box!important;max-width:min\(360px,calc\(100% - 40px\)\)!important/,'plus menu stays inside its composer with room for the trigger');
+  assert.match(css,/\[dir='ltr'\] \.lourex-ai-plus-menu:is\(\[data-view='root'\],\[data-view='tools'\]\)\{left:20px!important;right:auto!important/,'LTR menu aligns with left-side trigger');
+  assert.match(css,/\[dir='rtl'\] \.lourex-ai-plus-menu:is\(\[data-view='root'\],\[data-view='tools'\]\)\{right:20px!important;left:auto!important/,'RTL menu aligns with right-side trigger');
 });
 
 test('final conversation owner uses a local neutral palette and sender-side bubbles',()=>{
