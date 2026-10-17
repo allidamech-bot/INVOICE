@@ -420,6 +420,7 @@
     background:#245dab!important;
     color:#f5faff!important;
     box-shadow:0 4px 14px rgba(24,71,148,.18)!important;
+    -webkit-tap-highlight-color:transparent!important;
     transform:none!important;
   }
   html[data-lourex-shell-overlay="true"] body .app-ui .ta-shell .lourex-ai-launcher,
