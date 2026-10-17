@@ -894,11 +894,31 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     // its memory action to the original React button, and that button owns the
     // legacy manager's exact scoped state and write-approval boundaries.
     // Do not duplicate its storage/UI implementation or restore the old bar.
-    const memoryManagerParts=legacyContext.flatMap((context:any)=>
-      react.Children.toArray(context?.props?.children).filter((child:any)=>{
-        const cn=String(child?.props?.className||'').split(' ');
-        return cn.includes('lourex-ai-manager-button')||cn.includes('lourex-ai-manager');
-      }));
+    // The previous bridge inspected only immediate children. The legacy
+    // navigation owner nests them in context rows, so the manager button was
+    // silently removed along with the old context bar. Preserve the ORIGINAL
+    // React elements and callbacks, even under deeply nested context wrappers.
+    const memoryManagerParts:any[]=[];
+    const findMemoryManager=(node:any):void=>{
+      if(!react.isValidElement(node))return;
+      const classes=String(node.props?.className||'').split(' ');
+      if(classes.includes('lourex-ai-manager-button')){
+        // This is a delegated control, not a second visible navigation button.
+        // Native button.click() still works from the existing Tools gateway.
+        memoryManagerParts.push(react.cloneElement(node,{
+          style:{...(node.props?.style||{}),position:'absolute',width:'1px',
+            height:'1px',minWidth:0,minHeight:0,padding:0,opacity:0,
+            pointerEvents:'none',overflow:'hidden'},
+          tabIndex:-1,'aria-hidden':true
+        }));
+        return;
+      }
+      if(classes.includes('lourex-ai-manager')){
+        memoryManagerParts.push(node);return;
+      }
+      react.Children.forEach(node.props?.children,findMemoryManager);
+    };
+    legacyContext.forEach(findMemoryManager);
     const memoryManagerBridge=memoryManagerParts.length?
       <div className="lxw-memory-manager-bridge"
         style={{position:'absolute',insetInline:0,top:0,height:0,zIndex:85}}>
