@@ -8,8 +8,8 @@ function vault(){
  const v=emptyVault();
  v.customers=[{id:'cust-a',workspaceId:'default',companyNameEn:'Coastal LLC',companyNameAr:'',email:'buyer@example.test'},
  {id:'cust-other',workspaceId:'other',companyNameEn:'Outside',companyNameAr:'',email:'outside@example.test'}];
- v.savedItems=[{id:'sku-a',workspaceId:'default',sku:'A-50',descriptionEn:'Biscuits 50g',descriptionAr:'',lastUnitPrice:'12.50',lastCurrency:'USD',archived:false},
- {id:'sku-other',workspaceId:'other',sku:'B-50',descriptionEn:'Other biscuits 50g',descriptionAr:'',lastUnitPrice:'12.50',lastCurrency:'USD',archived:false}];
+ v.savedItems=[{id:'sku-a',workspaceId:'default',sku:'A-50',descriptionEn:'Biscuits 50g',descriptionAr:'',unit:'PCS',lastUnitPrice:'12.50',lastCurrency:'USD',archived:false},
+ {id:'sku-other',workspaceId:'other',sku:'B-50',descriptionEn:'Other biscuits 50g',descriptionAr:'',unit:'PCS',lastUnitPrice:'12.50',lastCurrency:'USD',archived:false}];
  v.documents=[{id:'draft-a',workspaceId:'default',status:'draft',lifecycleStatus:'active',currency:'USD',items:[{id:'line-1',descriptionEn:'Biscuits 50g',quantity:'10',unitPrice:'12.50'}]},
  {id:'draft-other',workspaceId:'other',status:'draft',lifecycleStatus:'active',currency:'USD',items:[]}];
  return v;
@@ -19,7 +19,7 @@ test('B06: exact customer, product, quantity and currency are accepted for draft
  const v=vault();
  assert.doesNotThrow(()=>assertAiDocumentCreateApproval(v,draft()));
  assert.doesNotThrow(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'sku-a',quantity:'2'}])));
- assert.doesNotThrow(()=>assertAiDocumentCreateApproval(v,draft([{descriptionEn:'Explicit sample',quantity:'1.5',unitPrice:'0'}])));
+ assert.doesNotThrow(()=>assertAiDocumentCreateApproval(v,draft([{descriptionEn:'Explicit sample',unit:'PCS',quantity:'1.5',unitPrice:'0'}])));
 });
 test('B06: cross-company customer/product and missing stored price fail before atomic save',()=>{
  const v=vault();
@@ -34,7 +34,7 @@ test('B06: invalid amount or unknown unregistered product name cannot silently s
  for(const quantity of ['0','-1','xyz','', '5e2'])assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'sku-a',quantity,unitPrice:'10'}])),/positive quantity/);
  for(const unitPrice of ['-1','NaN','Infinity','1e2'])assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'sku-a',quantity:'1',unitPrice}])),/invalid selling price/);
  assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'',descriptionEn:'',quantity:'1',unitPrice:'3'}])),/explicit description/);
- assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'',descriptionEn:'New item',quantity:'1',unitPrice:''}])),/explicit selling price/);
+ assert.throws(()=>assertAiDocumentCreateApproval(v,draft([{savedItemId:'',descriptionEn:'New item',unit:'PCS',quantity:'1',unitPrice:''}])),/explicit selling price/);
  assert.throws(()=>assertAiDocumentCreateApproval(v,draft(Array.from({length:121},()=>({savedItemId:'sku-a',quantity:'1',unitPrice:'1'})))),/item count/);
 });
 test('B06: new customer data cannot accidentally duplicate existing business',()=>{
