@@ -213,3 +213,53 @@ jobs:
             visual-qa-output/automatic-document-electronic-copy/
           if-no-files-found: ignore
           retention-days: 7
+
+
+  firestore-ai-emulator:
+    name: Real Firestore UID isolation and AI multi-device recovery (local emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      FIREBASE_CLI_DISABLE_UPDATE_CHECK: 'true'
+      # Firebase emulator is constrained to localhost and a demo project ID.
+      # This job receives no production Firebase or AI-provider secrets.
+    steps:
+      - name: Checkout audited head, no write token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Java 21 for local Firestore
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install emulator and rules test SDK without editing lockfiles
+        run: npm install --no-save --package-lock=false --no-audit --no-fund firebase@12.1.0 @firebase/rules-unit-testing@5.0.2 firebase-tools@14.12.1
+      - name: Compile real cloud history and vault modules (no deployment)
+        run: npm run build
+      - name: Execute Firestore rules and two-device history against 127.0.0.1 only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "JSON.parse(require('fs').readFileSync('firebase.ai-ci.json')).emulators.firestore.host")" = '127.0.0.1'
+          test "$(node -p "JSON.parse(require('fs').readFileSync('firebase.ai-ci.json')).emulators.firestore.port")" = '8080'
+          ./node_modules/.bin/firebase emulators:exec \
+            --only firestore --config firebase.ai-ci.json \
+            --project demo-lourex-ai-integration-719 \
+            "node --test --test-concurrency=1 tests/emulator/ai-history.test.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
+      - name: Evidence boundary for release review
+        if: always()
+        shell: bash
+        run: |
+          echo 'Firestore emulator test is local-only (127.0.0.1:8080), demo project. No Firebase production access or deployment.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This test verifies UID rules and two-device history; it does NOT prove authenticated Preview isolation or account-scoped vendor keys.' >> "$GITHUB_STEP_SUMMARY"
