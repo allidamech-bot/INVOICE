@@ -257,6 +257,17 @@ jobs:
             --only firestore --config firebase.ai-ci.json \
             --project demo-lourex-ai-integration-719 \
             "node --test --test-concurrency=1 tests/emulator/ai-history.test.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
+      - name: Exercise real browser Firebase Auth, two-device recovery and posted stock (local emulators only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          config=firebase-ai-auth-local-ci.json
+          trap 'rm -f "$config"' EXIT
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"host":"127.0.0.1","port":8080},"auth":{"host":"127.0.0.1","port":9099},"ui":{"enabled":false}}}' > "$config"
+          ./node_modules/.bin/firebase emulators:exec \
+            --only auth,firestore --config "$config" \
+            --project demo-lourex-pinless-auth \
+            "node scripts/qa-cloud-auth-emulator-browser.mjs"
       - name: Evidence boundary for release review
         if: always()
         shell: bash
