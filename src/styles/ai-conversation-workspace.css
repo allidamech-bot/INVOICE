@@ -2499,3 +2499,17 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-picker,.lxw
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-picker-list small,.lxw-record-option small){
   color:var(--lxw-muted)!important;
 }
+
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-essential-price{
+  display:grid;justify-items:end;align-content:end;gap:0;min-width:0;max-width:100%;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-essential-price>span{
+  font-size:10px;color:var(--lxw-muted);line-height:1.4;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-essential-total{
+  display:block;min-width:0;max-width:100%;white-space:normal;
+  overflow-wrap:anywhere;text-align:end;unicode-bidi:isolate;
+}
+.lourex-ai-launcher[data-ai-motion='reduced'] .lxw-brand-orbit{
+  animation:none!important;
+}
