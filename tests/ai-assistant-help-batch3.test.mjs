@@ -4,10 +4,12 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('Batch 3 keeps one canonical AI assistant and exposes it as a robot',async()=>{
+test('Batch 3 keeps one canonical AI assistant and exposes a restrained LOUREX AI identity',async()=>{
   const ai=await read('src/components/AiCopilot.tsx');
   assert.match(ai,/className=\{`lourex-ai-launcher screen-\$\{this\.props\.screen\}`\}/);
-  assert.match(ai,/<Icon name="bot"\/>/);
+  assert.match(ai,/import \{ AiIdentityMark \} from '\.\/AiIdentityMark\.js'/);
+  assert.match(ai,/<AiIdentityMark compact\/>/);
+  assert.doesNotMatch(ai,/<Icon name="bot"\/>/);
   assert.match(ai,/every record change requires your approval|كل تغيير على السجلات يحتاج موافقتك/);
   assert.doesNotMatch(ai,/requiresApproval:false,dataMutation:true/);
 });
