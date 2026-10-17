@@ -63,8 +63,9 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         const panelVisual=await panel.evaluate(node=>{const style=getComputedStyle(node);return{theme:document.documentElement.dataset.uiTheme,bg:style.backgroundColor,text:style.color,chatBg:style.getPropertyValue('--lx-chat-bg').trim(),chatMuted:style.getPropertyValue('--lx-chat-muted').trim(),chatAccent:style.getPropertyValue('--lx-chat-accent').trim()};});
         assert.equal(panelVisual.theme,theme,'fixture theme must reach the conversation');
         // AI conversation has its own immutable matte-black visual identity,
-        // independent of the accounting site's light/dark theme preference.
-        assert.equal(panelVisual.bg,'rgb(11, 16, 23)','AI conversation must retain the canonical deep-navy workspace background for either site theme');
+        // The approved AI shell intentionally follows the site's Quiet Intelligence light/dark palette.
+        const expectedCanvas=theme==='dark'?'rgb(23, 25, 24)':'rgb(250, 250, 248)';
+        assert.equal(panelVisual.bg,expectedCanvas,'AI conversation must use the approved canvas for the active theme');
         assert.ok(contrast(panelVisual.text,panelVisual.bg)>=4.5,'conversation base text contrast must meet WCAG AA');
 
         const textarea=panel.locator('.lourex-ai-premium-textarea');
