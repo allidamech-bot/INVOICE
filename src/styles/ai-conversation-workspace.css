@@ -2371,3 +2371,20 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-inline-prev
 html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-ai-motion='reduced'] *{
   animation-duration:.01ms!important;transition-duration:.01ms!important;
 }
+
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-blockers{
+  display:grid;gap:3px;margin:5px 0 10px;padding:10px 12px;
+  border-inline-start:3px solid #AD7465;border-radius:8px;
+  background:color-mix(in srgb,#BC8275 10%,var(--lxw-surface));
+  color:var(--lxw-text);font-size:11px;line-height:1.65;
+  overflow-wrap:anywhere;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-blockers strong{
+  color:var(--lxw-text);font-size:12px;font-weight:700;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-blockers span{
+  color:var(--lxw-muted);
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-review-amount{
+  color:var(--lxw-accent)!important;
+}
