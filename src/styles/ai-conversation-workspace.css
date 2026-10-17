@@ -1770,11 +1770,6 @@ html[data-theme='dark'] body #root #lourex-ai-panel[data-lourex-workspace='2']{
   --lxw-selected:#2A4540;--lxw-on-selected:#B4E5DA;
   color-scheme:dark!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] *,
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] *::before,
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] *::after{
-  box-sizing:border-box;
-}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(button,input,textarea,select){
   font-family:inherit;
 }
