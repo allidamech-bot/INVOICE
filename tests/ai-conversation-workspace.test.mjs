@@ -142,8 +142,12 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  assert.equal(loading.props['aria-label'],'LOUREX AI');
  const loadingTabs=loading.props.children.find(child=>child?.props?.className==='lxw-mode-tabs');assert.equal(loadingTabs.props.children.length,2);assert.ok(loadingTabs.props.children.every(child=>child.props.disabled&&!child.props['aria-selected']),'two inert mode tabs remain present without claiming an unverified mode');
  assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-context'),'legacy Business scope must not flash during scoped hydration');
- const locked=loading.props.children.find(child=>child?.props?.className==='lourex-ai-compose');assert.ok(locked.props.children.every(child=>child.props.disabled),'typing and sending stay disabled until the current scope is hydrated');
- assert.ok(!loading.props.children.some(child=>child?.props?.className==='lourex-ai-proposal'));
+ const loadingBody=flatten(loading).find(child=>child.props?.className==='lxw-body');assert.ok(loadingBody,'loading and ready layouts use the same conversation body');
+ const loadingChat=flatten(loadingBody).find(child=>child.props?.className==='lxw-chat');assert.ok(loadingChat,'loading state retains the conversation scroll owner');
+ const locked=flatten(loadingChat).find(child=>child.props?.className==='lourex-ai-compose');assert.ok(locked,'composer remains mounted under the loading chat');
+ const controls=flatten(locked).filter(child=>['button','input','textarea','select'].includes(child.type));
+ assert.ok(controls.length>=2&&controls.every(child=>child.props.disabled===true),'typing and sending stay disabled until the current scope is hydrated');
+ assert.ok(!flatten(loading).some(child=>child.props?.className==='lourex-ai-proposal'),'loading cannot expose an unverified approval');
  h.__workspaceObservedProps=h.props;k.scope.scope='personal';h.state.assistantScope='personal';assert.equal(renderConversationWorkspace(h,tree).props['data-workspace-ready'],'false');
  assert.equal(RegisteredWorkspaceCard({descriptor:{component:'javascript',rows:[]}}),null);
 });

@@ -43,23 +43,48 @@ function readableToolValue(value:unknown):string{
   return String(value).replace(/[\r\n]+/g,' ').slice(0,280);
 }
 function toolFacts(data:unknown,ar:boolean):string[]{
-  if(Array.isArray(data))return data.slice(0,50).map(row=>{
-    if(!row||typeof row!=='object')return '- '+readableToolValue(row);
-    const object=row as Record<string,unknown>;
-    const identity=readableToolValue(object.label||object.name||object.sku||object.number||object.id||'');
-    const facts=Object.entries(object).filter(([key,value])=>!['label','name','id'].includes(key)&&value!==undefined&&value!==null&&value!=='')
-      .slice(0,9).map(([key,value])=>key+': '+readableToolValue(value));
-    return '- '+[identity,...facts].filter(Boolean).join(' — ');
-  });
-  if(data&&typeof data==='object')return Object.entries(data as Record<string,unknown>)
-    .filter(([,value])=>value!==undefined&&value!==null)
-    .slice(0,28).flatMap(([key,value])=>{
-      if(Array.isArray(value)&&value.length&&value.every(item=>item&&typeof item==='object')){
+  // Upstream fits may be preview-only fragments, never complete records.
+  if(data&&typeof data==='object'&&!Array.isArray(data)&&(data as Record<string,unknown>).truncated===true)
+    return [ar?'تنبيه: نتيجة الأداة غير مكتملة، ولا يمكن اعتماد الجزء المعروض باعتباره جميع البيانات. اطلب نطاقًا أصغر.':'Notice: the tool result is incomplete. The partial preview is not the full data; request a smaller range.'];
+  if(Array.isArray(data)){
+    const rows=data.slice(0,50).map(row=>{
+      if(!row||typeof row!=='object')return '- '+readableToolValue(row);
+      const object=row as Record<string,unknown>;
+      const identity=readableToolValue(object.label||object.name||object.sku||object.number||object.id||'');
+      const facts=Object.entries(object).filter(([key,value])=>!['label','name','id'].includes(key)&&value!==undefined&&value!==null&&value!=='')
+        .slice(0,9).map(([key,value])=>key+': '+readableToolValue(value));
+      return '- '+[identity,...facts].filter(Boolean).join(' — ');
+    });
+    if(data.length>50)rows.unshift(ar
+      ?'نتيجة جزئية: '+data.length+' سجلًا بالمجموع؛ جرى تجهيز أول 50 فقط، و'+(data.length-50)+' سجلًا غير معروض. اطلب البقية على دفعات.'
+      :'Partial result: '+data.length+' total records; only the first 50 were prepared, with '+(data.length-50)+' more not shown. Request more in batches.');
+    return rows;
+  }
+  if(data&&typeof data==='object'){
+    const object=data as Record<string,unknown>;
+    const entries=Object.entries(object).filter(([,value])=>value!==undefined&&value!==null);
+    const lines=entries.slice(0,28).flatMap(([key,value])=>{
+      if(Array.isArray(value)&&value.length&&value.every(item=>item&&typeof item==='object'))
         return [key+':',...toolFacts(value,ar)];
-      }
       return ['- '+key+': '+readableToolValue(value)];
     });
+    if(entries.length>28)lines.unshift(ar
+      ?'نتيجة مختصرة: '+(entries.length-28)+' حقلًا إضافيًا غير معروض.'
+      :'Summary only: '+(entries.length-28)+' additional fields are not shown.');
+    if(object.incomplete===true)lines.unshift(ar
+      ?'تنبيه: المصدر أعلن أن النتيجة جزئية. اطلب السجلات المتبقية قبل اعتبار القائمة مكتملة.'
+      :'Notice: the source marks this result incomplete. Request the remaining records before relying on a full list.');
+    return lines;
+  }
   return [ar?'النتيجة: '+readableToolValue(data):'Result: '+readableToolValue(data)];
+}
+function boundedToolAnswer(answer:string,ar:boolean):string{
+  const limit=5000;
+  if(answer.length<=limit)return answer;
+  const notice=ar?'\n\n… هذا عرض مختصر فقط؛ توجد نتائج إضافية لم تُعرض. اطلب نطاقًا أصغر أو النتائج على دفعات.':'\n\n… This is a partial answer; additional results are not shown. Request a smaller range or batches.';
+  const prefix=answer.slice(0,limit-notice.length);
+  const lastLine=prefix.lastIndexOf('\n');
+  return (lastLine>0?prefix.slice(0,lastLine):prefix).trimEnd()+notice;
 }
 function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar'):string{
   const ar=language==='ar',ok=results.filter(row=>row.ok),failed=results.filter(row=>!row.ok),lines:string[]=[];
@@ -74,8 +99,9 @@ function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar')
     lines.push(ar?'جهّزت الإجراء للمراجعة، ولن يُطبّق إلا بعد موافقتك.':'The action is ready for review and will not apply without your approval.');
   if(results.some(row=>row.class==='high-impact'))
     lines.push(ar?'الترحيل أو تحريك المخزون يحتاج مسار الاعتماد المحاسبي المحمي.':'Posting or stock movements require the protected accounting approval workflow.');
-  return (lines.join('\n').trim()||(ar?'ما لقيت بيانات مؤكدة لهذا الطلب. شو التفصيل اللي بدك نراجعه؟':'I could not verify matching data. What would you like to check?')).slice(0,5000);
+  return boundedToolAnswer(lines.join('\n').trim()||(ar?'ما لقيت بيانات مؤكدة لهذا الطلب. شو التفصيل اللي بدك نراجعه؟':'I could not verify matching data. What would you like to check?'),ar);
 }
+export const formatAiToolAnswer=formatAnswer;
 function likelyToolIntent(message:string,context:any):boolean{const q=clean(message,6000).toLowerCase();if(!q)return false;if(context?.assistantRuntime?.entity?.id&&/(?:this|هذا|هذه|هال|current|الحالي|الحالية)/i.test(q))return true;return /(?:open|go to|navigate|search|find|show|list|compare|prepare|create|update|change|remind|task|customer|supplier|product|inventory|stock|purchase|invoice|quotation|quote|receivable|overdue|cash|bank|treasury|margin|markup|price|cost|landed|break.?even|fx|currency|report|scenario|deal|profitability|finalize|payment|delete|post|افتح|روح|اذهب|ابحث|دور|اعرض|قارن|جهز|أنشئ|انشئ|عدل|غيّر|غير|ذكرني|مهمة|عميل|مورد|منتج|مخزون|شراء|مشتريات|فاتورة|عرض سعر|ذمم|متأخر|سيولة|بنك|خزينة|هامش|سعر|تكلفة|وصول|تعادل|عملة|تقرير|سيناريو|صفقة|ربحية|رحل|دفعة|احذف|مديونية|مديون|ديون|رصيد|مبيعات|زبون|زبائن|تحصيل|مصاري|balance|owed|outstanding|debt)/i.test(q);}
 
 function previewOnlyDocumentIntent(message:string):boolean{
@@ -626,7 +652,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     ?(input.language==='ar'?'\n\nمسودة عمل جاهزة داخل المحادثة (غير محفوظة). يمكنك تعديل الأصناف، التراجع، أو طلب PDF قبل أي اعتماد.':'\n\nUnsaved working draft available in this conversation. Revise lines, undo, or request PDF without approving or saving.')
     :previewPrepared&&hasSources&&sources.some(source=>source.truncated)
       ?(input.language==='ar'?'\n\nالمرفق ناقص في سياق التخطيط، لذلك لم أجهّز مسودة عمل قابلة للاعتماد. أعد رفع ملف قابل للقراءة بالكامل.':'\n\nAttachment content was truncated; no complete working draft was staged. Provide a fully readable source.'): '';
-  return{answer:(baseAnswer+note).slice(0,5000),proposal:execution.proposal,workingDraft:workingDraft||undefined,plan,results:execution.results,plannedBy};
+  return{answer:boundedToolAnswer(baseAnswer+note,input.language==='ar'),proposal:execution.proposal,workingDraft:workingDraft||undefined,plan,results:execution.results,plannedBy};
 }
 
 export function aiToolAuditSummary(result:AiToolOrchestrationResult):string{return JSON.stringify({plannedBy:result.plannedBy,goal:result.plan.goal,tools:compactToolResults(result.results).map(row=>({tool:row.tool,ok:row.ok,source:row.source}))});}

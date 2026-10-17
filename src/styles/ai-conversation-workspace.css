@@ -943,7 +943,8 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is
   align-self:stretch;align-items:flex-start;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='rtl'] .lxw-message-turn.is-user{
-  align-self:flex-start;align-items:flex-start;
+  /* Keep the user's bubble on the physical right; its text keeps dir=auto. */
+  direction:ltr!important;align-self:flex-end!important;align-items:flex-end!important;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='rtl'] .lxw-message-turn.is-assistant{
   align-self:stretch;align-items:flex-end;
@@ -1893,10 +1894,15 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is
   line-height:1.82!important;overflow-wrap:anywhere;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user{
+  /* Physical right alignment is stable in RTL and LTR; bubble text retains dir=auto. */
+  direction:ltr!important;
   align-items:flex-end!important;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user{
-  margin-inline-start:auto!important;max-width:min(88%,610px)!important;
+  align-self:flex-end!important;
+  margin-inline-start:0!important;margin-inline-end:0!important;
+  /* The row already uses align-items:flex-end; auto cross-axis margins invert RTL geometry. */
+  margin-left:0!important;margin-right:0!important;max-width:min(88%,610px)!important;
   padding:10px 15px!important;border:1px solid var(--lxw-line)!important;
   border-radius:17px 17px 5px 17px!important;background:var(--lxw-surface-2)!important;
   box-shadow:none!important;color:var(--lxw-text)!important;

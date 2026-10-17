@@ -51,7 +51,8 @@ const report=[];
    assert.deepEqual((await tabs.allTextContents()).map(s=>s.trim()),c.lang==='ar'?['المتحكم','المستشار']:['Controller','Advisor']);
    assert.equal(await panel.getAttribute('data-workspace-mode'),'controller','business chat opens in Controller');
    const visual=await panel.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color,dir:node.dir};});
-   assert.equal(visual.bg,'rgb(11, 16, 23)','chat uses the canonical deep-navy living workspace background regardless of site theme');
+   const expectedCanvas=c.theme==='dark'?'rgb(23, 25, 24)':'rgb(250, 250, 248)';
+   assert.equal(visual.bg,expectedCanvas,'chat uses the approved Quiet Intelligence canvas for the selected site theme');
    assert.ok(contrast(visual.color,visual.bg)>=4.5,'conversation body text meets WCAG AA');
    assert.equal(visual.dir,c.lang==='ar'?'rtl':'ltr');
    const box=await panel.boundingBox();
@@ -82,9 +83,9 @@ const report=[];
    assert.deepEqual(errors,[],'no unhandled page script errors');
    assert.deepEqual(requests,[],'read-only UI QA never calls the paid provider');
    report.push({engine:c.name,width:c.width,height:c.height,lang:c.lang,siteTheme:c.theme,
-    deepNavyCanvas:true,rtl:c.lang==='ar',modeIsolation:true,historySearch:true,
+    quietIntelligenceCanvas:true,rtl:c.lang==='ar',modeIsolation:true,historySearch:true,
     horizontalOverflow:false,apiCalls:requests.length});
-   console.log('PASS '+c.name+' '+c.width+' '+c.lang+' '+c.theme+': black AI, two roles, scoped history, no overflow');
+   console.log('PASS '+c.name+' '+c.width+' '+c.lang+' '+c.theme+': Quiet Intelligence AI, two roles, scoped history, no overflow');
    await page.close();
   }finally{await browser.close();}
  }
