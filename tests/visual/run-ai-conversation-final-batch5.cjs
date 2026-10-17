@@ -162,7 +162,22 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel .lourex-ai-plus-menu')?.dataset?.view==='tools');
         await menu.locator('.lourex-ai-plus-item').filter({hasText:lang==='ar'?'الذاكرة والمهام':'Memory & Tasks'}).click();
         const manager=panel.locator('.lourex-ai-manager');
-        await manager.waitFor({state:'visible'});
+        try{await manager.waitFor({state:'visible',timeout:8000});}catch(error){
+          const detail=await panel.evaluate(el=>{
+            const trigger=el.querySelector('.lourex-ai-manager-button');
+            const open=el.querySelector('.lourex-ai-manager');
+            const menu=el.querySelector('.lourex-ai-plus-menu');
+            const errorBox=el.querySelector('.lourex-ai-error,.lourex-ai-notice,[role="alert"]');
+            return{triggerExists:Boolean(trigger),triggerExpanded:trigger?.getAttribute('aria-expanded'),
+              triggerDisabled:trigger?.disabled,triggerDisplay:trigger?getComputedStyle(trigger).display:null,
+              panelExists:Boolean(open),panelDisplay:open?getComputedStyle(open).display:null,
+              toolMenuView:menu?.getAttribute('data-view'),toolMenuVisible:menu?getComputedStyle(menu).display:null,
+              alertText:errorBox?.textContent?.slice(0,240)||'',mode:el.getAttribute('data-workspace-mode'),
+              recentButtons:[...el.querySelectorAll('button')].filter(b=>/memory|ذاكرة|المهام/i.test(b.textContent||'')).slice(0,8).map(b=>({text:b.textContent.slice(0,50),disabled:b.disabled,display:getComputedStyle(b).display}))};
+          });
+          await page.screenshot({path:`${output}/memory-failed-${matrix.name}-${width}.png`,animations:'disabled'});
+          throw new Error('Memory & Tasks did not open: '+JSON.stringify(detail)+'; cause: '+error.message);
+        }
         const managerBox=await manager.boundingBox();
         assert.ok(managerBox&&managerBox.x>=-1&&managerBox.x+managerBox.width<=width+1,'Memory & Tasks remains within viewport');
         if(width<=720)assert.ok(Math.abs(managerBox.width-width)<=2,'mobile Memory & Tasks is full width');
