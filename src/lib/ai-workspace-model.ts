@@ -10,6 +10,7 @@ import { commercialScenario, convertPack, externalQuote, compareSuppliers, compa
 import { cancelMission } from './ai-mission-runner.js';
 import { stageKernelArtifact } from './ai-conversation-kernel.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
+import {resolveAiCommercialLine} from './ai-commercial-line.js';
 import {AI_WORKING_QUOTE_MAX_LINES,aiDraftUndoDepth} from './ai-document-limits.js';
 import {setExactRecordSelection} from './ai-record-selection.js';
 
@@ -52,7 +53,7 @@ export function workspaceDrafting(vault:VaultPayload,documentId=''):AiContextEnv
 const clean=(value:unknown)=>typeof value==='string'?value:'';
 function draftRows(artifact:WorkingArtifact,drafting:AiContextEnvelope['drafting']):WorkspaceLine[] {
   const p=artifact.proposal;
-  const resolve=(row:any,currency:string)=>{const ref=drafting.items.find(item=>item.id===row.savedItemId);return {...row,descriptionEn:row.descriptionEn||ref?.descriptionEn||'',descriptionAr:row.descriptionAr||ref?.descriptionAr||'',unit:row.unit||ref?.unit||'',unitPrice:row.unitPrice||(ref?.lastCurrency===currency?ref.lastUnitPrice:'')};};
+  const resolve=(row:any,currency:string)=>resolveAiCommercialLine(row,drafting.items.find(item=>item.id===row.savedItemId),currency);
   if(p.capability==='document.createDraft')return p.items.map((row,i)=>({...resolve(row,p.currency),id:artifact.lineIds[i]!}));
   const active=drafting.activeDocument;
   if(!active||active.id!==p.documentId)throw new Error('Draft is no longer available in this company or branch.');
