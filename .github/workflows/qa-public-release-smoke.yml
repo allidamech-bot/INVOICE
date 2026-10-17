@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       expected_sha:
-        description: 'Optional 40-character production commit SHA; leave blank to check identity only'
+        description: 'Require exact deployed SHA on manual release acceptance; blank means check identity only'
         required: false
         type: string
 
@@ -30,7 +30,7 @@ jobs:
           node-version: '24'
       - name: Check publicly served build identity and app assets (read-only, zero provider calls)
         env:
-          LOUREX_EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.expected_sha }}
+          LOUREX_EXPECTED_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha || '' }}
         run: node scripts/qa-public-release-smoke.mjs
       - name: Assert live AI gateways reject unsigned and cross-origin requests
         run: node scripts/qa-production-ai-auth-boundary.mjs
