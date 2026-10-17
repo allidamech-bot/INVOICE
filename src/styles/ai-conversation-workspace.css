@@ -218,14 +218,14 @@ html body #root#root #lourex-ai-panel[data-lourex-workspace='2'][data-ai-ui-lang
 
 .lxw-mode-help>summary{display:grid;
   place-items:center;
-  width:32px;
+  width:44px;
   min-height:44px;
   list-style:none;
   color:var(--lxw-muted);
   cursor:pointer;
-  font-family:Georgia,serif;
-  font-style:italic;
+  border-radius:10px;
   }
+.lxw-header-more>summary:focus-visible,.lxw-mode-help>summary:focus-visible{outline:2px solid var(--lxw-accent);outline-offset:2px;}
 .lxw-mode-help>summary::-webkit-details-marker{display:none;
   }
 
@@ -367,12 +367,28 @@ html body #root#root #lourex-ai-panel[data-lourex-workspace='2'][data-ai-ui-lang
   box-shadow:none!important;
   }
 
-.lxw-welcome-mark{color:var(--lxw-accent);
-  margin-bottom:22px;
+.lxw-welcome-mark{position:relative;
+  isolation:isolate;
+  color:var(--lxw-accent);
+  margin-bottom:18px;
+  width:96px;
+  height:96px;
+  display:grid;
+  place-items:center;
+  }
+.lxw-welcome-mark::before{content:'';
+  position:absolute;
+  inset:8px;
+  border-radius:50%;
+  border:1px solid var(--lxw-line);
+  background:radial-gradient(circle,var(--lxw-selected) 0,transparent 70%);
+  animation:lx-welcome-pulse 6s ease-in-out infinite;
+  z-index:-1;
   }
 .lxw-welcome-mark svg{width:62px;
   height:62px;
   }
+@keyframes lx-welcome-pulse{0%,100%{opacity:.45;transform:scale(.95)}50%{opacity:1;transform:scale(1.04)}}
 .lxw-eyebrow{font-size:10px;
   letter-spacing:.2em;
   color:var(--lxw-muted);
