@@ -806,10 +806,19 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
 }
 
 export function renderConversationWorkspace(host:Host,tree:any):any {
+  // The legacy Stage 4 renderer may turn raw assistant text into nested React
+  // cards before this final workspace sees it. Match every visible message to
+  // its original state record, so tool-evidence markup is never reconstructed
+  // from lossy intermediate React nodes.
+  let messageCursor=0;
   const transform=(node:any):any=>{
     if(typeof node==='string')return workspaceText(aiUiAr(host),node);
     if(!react.isValidElement(node))return node;
-    const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    const cn=String(node.props?.className||'');
+    const tokens=cn.split(' ');
+    const messageNode=tokens.includes('lourex-ai-message')&&(tokens.includes('user')||tokens.includes('assistant'));
+    const rawMessage=messageNode&&Array.isArray(host.state?.messages)?host.state.messages[messageCursor++]:null;
+    const children=react.Children.toArray(node.props?.children).map(transform);
     if(cn.split(' ').includes('lourex-ai-send'))return react.cloneElement(node,{
       disabled:Boolean(node.props.disabled||host.state.__workspaceTurnPending),
       'data-turn-pending':host.state.__workspaceTurnPending?'true':'false',
@@ -847,7 +856,13 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       // and retain their original copy/edit/retry/evidence callbacks.
       const rawChildren=react.Children.toArray(node.props?.children);
       const rawContent=rawChildren.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
-      const financialText=sender==='assistant'?originalFinancialReadout(rawContent):null;
+      const source=rawMessage?.role===sender&&typeof rawMessage.text==='string'?rawMessage.text.trim():'';
+      // Read-only, locally formatted business evidence is stored as plain
+      // message.text. Use that canonical source even when a legacy answer
+      // renderer already split its JSX into headings, cards and paragraphs.
+      const directFinance=sender==='assistant'&&source.startsWith('## ')&&
+        source.includes('\n:::lourex-details ')&&source.includes('\n:::lourex-end')?source:null;
+      const financialText=directFinance||(sender==='assistant'?originalFinancialReadout(rawContent):null);
       // Financial evidence must be interpreted exactly ONCE from the raw text.
       // Re-parsing transformed <p> fragments loses headings/disclosure markers.
       const formatted=financialText?assistantMessageBlocks(financialText):
