@@ -16,6 +16,7 @@
     import {setUiLanguage} from './src/lib/i18n.js';
 
     const noop=()=>{};
+    window.__documentsCreatedKind='';
     const asyncNoop=async()=>{};
 
     window.renderDocumentsDensity=(language='en')=>{
@@ -30,7 +31,7 @@
         recurringWorkflows:[],
         onMakeRecurring:noop,
         onOpenRecurring:noop,
-        onNew:noop,
+        onNew:kind=>{window.__documentsCreatedKind=kind;},
         onOpen:noop,
         onDuplicate:noop,
         onConvert:noop,
