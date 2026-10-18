@@ -2315,7 +2315,7 @@ html body #root .app-ui .editor-pane .editor-item-tools-options{
   padding:6px!important;gap:6px!important;background:var(--lx485-surface-2)!important;
 }
 html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
-  min-height:46px!important;padding:11px 12px!important;border:1px solid var(--lx485-line)!important;
+  min-height:48px!important;padding:11px 12px!important;border:1px solid var(--lx485-line)!important;
   border-radius:10px!important;background:var(--lx485-surface-3)!important;
   color:var(--lx485-text)!important;text-align:start!important;
 }
