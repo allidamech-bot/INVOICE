@@ -32,6 +32,12 @@ for(const [before,after] of localizedSections){
   else if(!source.includes(after))throw new Error(`AI conversation Batch 4 closeout could not localize section token: ${before}`);
 }
 
+// The final chat reply renderer must not flatten statement rows into "Entries: ...".
+const historyToken="const detail=row.tool==='document.get'?formatAiDocumentEvidence(row.data,ar?'ar':'en'):__lourexCompactObject(row.data,0,ar)";
+if(!source.includes(historyToken))throw new Error('Shipped AI customer-history formatter owner changed; refusing silent truncation.');
+const explicitHistory="const detail=row.tool==='customer.getHistory'?formatAiCustomerHistoryEvidence(row.data,ar?'ar':'en'):row.tool==='customer.getSummary'?formatAiCustomerSummaryEvidence(row.data,ar?'ar':'en'):"+historyToken.slice('const detail='.length);
+source="import {formatAiCustomerHistoryEvidence,formatAiCustomerSummaryEvidence} from '../lib/ai-tool-presentation.js';\n"+source.replace(historyToken,explicitHistory);
+
 source+='\nconst __lourexNaturalLanguageOsBatch4Closeout=true;\n';
 if(!source.includes("__lourexAdvanceToolPresentation(instance,'dismissed')"))throw new Error('AI conversation Batch 4 closeout failed to retain cancellation handling.');
 if(!source.includes("tokens.has('lourex-ai-messages')&&(instance.state?.messages||[]).length"))throw new Error('AI conversation Batch 4 closeout failed to hide stale tool activity in blank conversations.');
