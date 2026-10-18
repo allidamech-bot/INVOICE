@@ -64,7 +64,9 @@ test('specialized contracts from all retired workflow files remain mandatory',as
     'tests/roadmap-hardening-v473.test.mjs',
     'tests/tax-vat-batch10.test.mjs'
   ])assert.ok(source.includes(contract),contract+' must be mandatory');
-  assert.match(source,/runBrowserQa\('specialized',MANIFEST\.specialized\)/);
+  assert.match(source,/runBrowserQa\('specialized',MANIFEST\.specialized(?:,mandatoryBrowserFailures)?\)/);
+  assert.match(source,/if\(mandatoryBrowserFailures\.length\)/,'aggregated browser failures must still reject release');
+  assert.match(source,/throw Error\('Mandatory browser QA failed/,'aggregated browser failures must remain fatal');
 });
 
 
