@@ -2,7 +2,7 @@ import { diagnosticSample, normalizeDiagnostics, type DiagnosticOperation } from
 import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory-graph.js';
 import { financialReviewAllowed } from './ai-reliability-intelligence.js';
 import { loadAssistantMemory, scopedAssistantMemories } from '../storage/assistant-memory-store.js';
-import { commercialDraftCommand, savedDocumentPreviewId, exactSavedDraftLineEdit } from './ai-commercial-conversation.js';
+import { commercialDraftCommand, savedDocumentPreviewId, exactSavedDraftLineEdit, currentSavedDraftQuantityEdit } from './ai-commercial-conversation.js';
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
@@ -712,6 +712,35 @@ async function runIntelligenceApproval(host:Host,proposal:any,apply:()=>Promise<
   }catch(error){if(receipt){receipt.state='uncertain';finishMissionStep(step,false);await persistKernel(host).catch(()=>undefined);}host.setState({busy:false,error:error instanceof Error?error.message:String(error)});return undefined;}
   finally{host.__foundationApprovalBusy=false;}
 }
+/** The explicit Save button is the user's approval of this exact visible
+ * artifact revision. Previewing a PDF is optional and never grants approval. */
+export async function saveIntelligenceDraft(host:Host,artifactId:string,revision:number):Promise<void>{
+ if(host.__workspaceSaveBusy||host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy)return;
+ host.__workspaceSaveBusy=true;
+ host.setState({__workspaceSaving:true,error:''});
+ try{
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  const artifact=kernel?.artifact,displayedVault=host.__foundationVault as VaultPayload|undefined;
+  if(!kernel||!artifact||!displayedVault||artifact.id!==artifactId||artifact.revision!==revision||currentConversationMode(host)!=='controller')
+   throw new Error('The draft changed. Use Save on the current revision.');
+  const previous=artifact.proposal as any;
+  if(previous.foundationApproval&&(host.__foundationReceipts||[]).some((r:any)=>r.id===previous.foundationApproval.id))
+   throw new Error('This save was already attempted. Check the saved record before retrying.');
+  const fresh=await resumeVaultSession();
+  if(!fresh||host.__intelligenceKernel!==kernel||kernel.artifact!==artifact||artifact.revision!==revision||
+     kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(kernel.scope)||currentConversationMode(host)!=='controller')
+   throw new Error('The document or account changed. Nothing was saved.');
+  const proposal=structuredClone(previous);delete proposal.foundationApproval;
+  const review=reviewAiDocumentProposal(proposal,workspaceDrafting(fresh.vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en');
+  if(review.blockers.length)throw new Error(review.blockers.join(' '));
+  // Anchor to the displayed data, then reject intervening cloud/role changes.
+  stampProposal(host,proposal,displayedVault);assertFoundationApproval(fresh.vault,proposal);
+  stageReviewedMission(kernel,proposal);artifact.proposal=proposal;
+  host.setState({proposal,review,error:'',__workspaceReviewedProposal:proposal});await flush(host);
+  await host.approveProposal();
+ }catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}
+ finally{host.__workspaceSaveBusy=false;host.setState({__workspaceSaving:false});}
+}
 export function installIntelligenceRuntime(host:Host):void{
   if(host.__intelligenceInstalled)return;host.__intelligenceInstalled=true;
   if(typeof window!=='undefined'){
@@ -755,16 +784,17 @@ export function installIntelligenceRuntime(host:Host):void{
       // Explicit saved-number updates are a new *unsaved* working review, not
       // a generic navigation or an immediate approved persistence operation.
       const savedLineEdit=currentConversationMode(host)==='controller'
-        ?exactSavedDraftLineEdit(kernel,resumed.vault,message):null;
+        ?currentSavedDraftQuantityEdit(kernel,resumed.vault,message,host.props.activeDocument?.id)||exactSavedDraftLineEdit(kernel,resumed.vault,message):null;
       if(savedLineEdit){
         if(kernel.artifact)throw new Error('An unsaved working draft is already active. Finish or discard it before preparing a different saved-document edit.');
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)
           throw new Error('The document scope changed. Nothing was modified.');
-        const rechecked=exactSavedDraftLineEdit(kernel,fresh.vault,message);
+        const rechecked=currentSavedDraftQuantityEdit(kernel,fresh.vault,message,host.props.activeDocument?.id)||exactSavedDraftLineEdit(kernel,fresh.vault,message);
         if(!rechecked||rechecked.documentId!==savedLineEdit.documentId||
-           JSON.stringify(rechecked.itemEdits)!==JSON.stringify(savedLineEdit.itemEdits))
+           JSON.stringify(rechecked.itemEdits)!==JSON.stringify(savedLineEdit.itemEdits)||
+           JSON.stringify(rechecked.termsPatch)!==JSON.stringify(savedLineEdit.termsPatch))
           throw new Error('The saved document or target line changed. Start a fresh review.');
         const drafting=workspaceDrafting(fresh.vault,savedLineEdit.documentId);
         const review=reviewAiDocumentProposal(savedLineEdit,drafting,requestLanguage);

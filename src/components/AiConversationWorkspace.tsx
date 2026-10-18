@@ -5,7 +5,7 @@ import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from '
 import { strictAiActor } from '../lib/ai-foundation-approval.js';
 import { CommercialWorkspace, MissionWorkspace } from './AiCommercialWorkspace.js';
 import { workspaceDocument, workspaceDrafting, validateWorkspaceCard, type WorkspaceCard, type WorkspaceComponent, type WorkspaceDocument, type WorkspaceCommand } from '../lib/ai-workspace-model.js';
-import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, discardIntelligenceDraft, assignIntelligenceConversationMode, currentAiExperiencePreferences, updateAiExperiencePreferences, currentAiInterfaceLanguage } from '../lib/ai-intelligence-runtime.js';
+import { refreshIntelligenceWorkspace, updateIntelligenceWorkspace, dismissIntelligenceWorkspace, discardIntelligenceDraft, saveIntelligenceDraft, assignIntelligenceConversationMode, currentAiExperiencePreferences, updateAiExperiencePreferences, currentAiInterfaceLanguage } from '../lib/ai-intelligence-runtime.js';
 import { normalizeAiConversationMode, conversationModeDescription, type AiConversationMode } from '../lib/ai-conversation-mode.js';
 import { kernelScopeKey, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
 import { activeAccountStorageUid } from '../storage/db.js';
@@ -153,7 +153,7 @@ function assistantMessageBlocks(text:string):any[] {
 }
 const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
-const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||host.__foundationTurnBusy);
+const disabled=(host:Host)=>Boolean(host.state.busy||host.applying||host.state.attachmentBusy||host.__workspaceCommandBusy||host.__workspaceModeSwitchBusy||host.__foundationTurnBusy||host.__workspaceSaveBusy);
 function dispatch(host:Host,command:WorkspaceCommand){void updateIntelligenceWorkspace(host,command);}
 const aiUiAr=(host:Host):boolean=>currentAiInterfaceLanguage(host)==='ar';
 function CardRows({card}:{card:WorkspaceCard}):any {
@@ -430,7 +430,6 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
-  const [reviewExpanded,setReviewExpanded]=React.useState(false);
   const [discardExpanded,setDiscardExpanded]=React.useState(false);
   const dismissal=useInlineDecline(host,host.state.proposal);
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
@@ -440,7 +439,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const pdfSequence=react.useRef(0);
   const pdfStarting=react.useRef(false);
   latestPdfIdentity.current=pdfIdentity;
-  React.useEffect(()=>{setReviewExpanded(false);setDiscardExpanded(false);},[pdfIdentity,host.state.proposal]);
+  React.useEffect(()=>{setDiscardExpanded(false);},[pdfIdentity,host.state.proposal]);
   React.useEffect(()=>{
     pdfSequence.current+=1;pdfStarting.current=false;
     setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');
@@ -511,20 +510,12 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const approvalButtons=approvalActions?react.Children.toArray((approvalActions as any).props.children):[];
   const originalConfirm=approvalButtons.find((button:any)=>String(button?.props?.className||'').includes('primary'));
   const originalDecline=approvalButtons.find((button:any)=>button!==originalConfirm);
-  const reviewed=saveReviewPending&&host.state.__workspaceReviewedProposal===host.state.proposal;
-  const quotation=kernel.artifact?.proposal.capability==='document.createDraft'&&kernel.artifact.proposal.kind==='proforma';
-  const saveText=quotation?label(ar,'Approve and save quotation','موافقة وحفظ عرض السعر'):label(ar,'Approve and save draft','موافقة وحفظ المسودة');
   const viewPdf=pdfResult&&pdfSource?.identity===pdfIdentity?pdfResult:null;
   const currentTerms=doc.terms.slice(0,2);
   const iconPdf=<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>;
   const iconEdit=<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 5 3 3M4 20l4.4-.9L20 7.5a2.1 2.1 0 0 0-3-3L5.4 16.1 4 20Z"/></svg>;
   const iconAccept=<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>;
   const iconReject=<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg>;
-  const approvalConfirm=reviewed&&originalConfirm?react.cloneElement(originalConfirm,{
-    className:'lxw-document-action lxw-document-action-approve',
-    'aria-label':saveText,
-    disabled:Boolean(disabled(host)||doc.blockers.length||originalConfirm.props?.disabled)
-  },iconAccept,<span>{saveText}</span>):null;
   const approvalDecline=saveReviewPending&&originalDecline?react.cloneElement(dismissal.wrap(originalDecline),{
     className:'lxw-document-action lxw-document-action-reject',
     'aria-label':label(ar,'Decline','رفض')
@@ -543,26 +534,20 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         <strong className="lxw-document-essential-total" dir="ltr">{doc.subtotal??'—'} <small>{doc.currency}</small></strong>
       </div>
     </div>
-    <details className="lxw-document-facts-disclosure">
-      <summary>{label(ar,'Document information','بيانات المستند')} <span aria-hidden="true">⌄</span></summary>
-      <div className="lxw-document-card-facts" aria-label={label(ar,'Document summary','ملخص المستند')}>
-      <div><span>{label(ar,'Customer / party','العميل / الجهة')}</span><strong dir="auto">{doc.customer||label(ar,'Not selected','غير محدد')}</strong></div>
-      <div><span>{label(ar,'Items','الأصناف')}</span><strong>{doc.rows.length}</strong></div>
-      <div><span>{label(ar,'Subtotal','المجموع الفرعي')}</span><strong dir="ltr">{doc.subtotal??'—'} {doc.currency}</strong></div>
-      {currentTerms.map((term,i)=><div key={i}><span dir="auto">{fieldLabel(ar,term.label)}</span><strong dir="auto">{term.value}</strong></div>)}
-      </div>
-    </details>
+    <div className="lxw-document-meta" aria-label={label(ar,'Document summary','ملخص المستند')}>
+      <span>{doc.rows.length} {label(ar,'items','أصناف')}</span>
+      {currentTerms.map((term,i)=><span key={i} dir="auto">{fieldLabel(ar,term.label)}: {term.value}</span>)}
+    </div>
     {doc.blockers.length?<p className="lxw-document-blockers" role="status" id="lxw-document-blockers">
-      <strong>{label(ar,'Approval unavailable — complete these details:','الموافقة غير متاحة — أكمل البيانات التالية:')}</strong>
+      <strong>{label(ar,'Complete these details to save','أكمل هذه البيانات للحفظ')}</strong>
       <span>{doc.blockers.slice(0,3).map(value=>fieldLabel(ar,value)).join(' · ')}</span>
     </p>:null}
-    {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
-    <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Preview edit approve or decline','معاينة تحرير موافقة أو رفض')}>
+    {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{doc.customer||label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
+    <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Document actions','إجراءات المستند')}>
+      {doc.status==='draft'?<button type="button" className="lxw-document-action lxw-document-action-approve" aria-busy={Boolean(host.state.__workspaceSaving)} aria-describedby={doc.blockers.length?'lxw-document-blockers':undefined} disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void saveIntelligenceDraft(host,doc.id,doc.revision)}>{iconAccept}<span>{host.state.__workspaceSaving?label(ar,'Saving…','جارٍ الحفظ…'):label(ar,'Save draft','حفظ المسودة')}</span></button>:null}
       {viewPdf?<a className="lxw-document-action lxw-document-action-preview" href={viewPdf.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{iconPdf}<span>{label(ar,'Preview PDF','معاينة PDF')}</span></a>:
         <button type="button" className="lxw-document-action lxw-document-action-preview" aria-label={label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')} aria-busy={pdfBusy} disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null} onClick={()=>void createPdf()}>{iconPdf}<span>{pdfBusy?label(ar,'Generating PDF…','جارٍ تجهيز PDF…'):label(ar,'Preview PDF','معاينة PDF')}</span></button>}
       <button type="button" className="lxw-document-action lxw-document-action-edit" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:doc.status==='draft'?'edit':'preview',__workspaceEditing:doc.status==='draft'})}>{iconEdit}<span>{doc.status==='draft'?label(ar,'Edit','تحرير'):label(ar,'View document','عرض المستند')}</span></button>
-      {doc.status==='draft'?(saveReviewPending?(approvalConfirm||<button type="button" className="lxw-document-action lxw-document-action-approve" disabled={disabled(host)||Boolean(doc.blockers.length)||!originalConfirm} onClick={()=>setReviewExpanded(true)}>{iconAccept}<span>{saveText}</span></button>):
-        <button type="button" className="lxw-document-action lxw-document-action-approve" disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void host.ask(ar?'احفظ المسودة':'save this draft')}>{iconAccept}<span>{saveText}</span></button>):null}
       {doc.status==='draft'?(approvalDecline||<button type="button" className="lxw-document-action lxw-document-action-reject" disabled={disabled(host)||saveReviewPending} onClick={()=>setDiscardExpanded(true)}>{iconReject}<span>{label(ar,'Reject draft','رفض المسودة')}</span></button>):null}
     </div>
     {discardExpanded&&doc.status==='draft'?<section className="lxw-document-discard-confirm" role="region" aria-label={label(ar,'Confirm draft rejection','تأكيد رفض المسودة')}>
@@ -574,12 +559,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         void discardIntelligenceDraft(host,doc!.id,doc!.revision).catch((error:Error)=>host.setState({error:error.message||String(error)}));
       }}>{label(ar,'Reject without saving','رفض دون حفظ')}</button></div>
     </section>:null}
-    {doc.status==='draft'?<small className="lxw-document-safety-note">{label(ar,'Preview does not save. Editing creates a new revision; the current revision must be reviewed again before approval.','المعاينة لا تحفظ. أي تعديل ينتج مراجعة جديدة ويستوجب الموافقة مجددًا.')}</small>:null}
-    {saveReviewPending&&reviewExpanded?<div className="lxw-document-review-expanded" role="region" aria-label={label(ar,'Full approval review','مراجعة الاعتماد الكاملة')}>
-      <QuotePreviewSummary doc={doc} ar={ar}/>
-      {doc.blockers.length?<p role="alert">{label(ar,'Resolve missing information before approval.','أكمل البيانات الناقصة قبل الاعتماد.')}</p>:null}
-      <button type="button" className="lxw-document-review-acknowledge" disabled={disabled(host)||Boolean(doc.blockers.length)||!originalConfirm} onClick={()=>{host.setState({__workspaceReviewedProposal:host.state.proposal});setReviewExpanded(false);}}>{label(ar,'I reviewed the full draft','راجعت المسودة كاملة')}</button>
-    </div>:null}
+    {doc.status==='draft'?<small className="lxw-document-safety-note">{label(ar,'Save stores this draft only. PDF preview is optional; issuing is a separate action.','الحفظ يسجّل المسودة فقط. معاينة PDF اختيارية، والإصدار إجراء مستقل.')}</small>:null}
     <details className="lxw-document-extra"><summary>{label(ar,'All items and details','جميع الأصناف والتفاصيل')}</summary><QuotePreviewSummary doc={doc} ar={ar}/></details>
     {doc.status==='draft'&&kernel.artifact?<div className="lxw-document-revision-tools">
       <span>{label(ar,'Revision','نسخة')} {doc.revision}</span>

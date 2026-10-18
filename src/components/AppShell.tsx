@@ -380,14 +380,14 @@ export class AppShell extends React.Component<Props,State>{
   render():any{
     const editor=this.props.screen==='editor';
     const signedIn=this.hasSignedInAccount();
-    const logo='./brand/lourex-logo.svg';
+    const logo='./brand/lourex-header-logo.jpeg';
     const mobile=this.isMobileShell();
 
     return <div ref={this.setShellRef} className={`workspace-shell fintech-shell-v280 ta-shell screen-${this.props.screen} ${editor?'is-editor':''}`}>
       {!editor?<aside className="workspace-sidebar ta-sidebar" aria-label={t('Main navigation','التنقل الرئيسي')}>
         <div className="ta-sidebar-brand-row">
           <button type="button" className="ta-brand-button" onClick={()=>this.navigate('home')} aria-label={t('Dashboard','لوحة التحكم')}>
-            <Brand compact logoDataUrl={logo} language={this.props.language}/>
+            <Brand compact name="LOUREX" logoDataUrl={logo} language={this.props.language}/>
             <span className="ta-brand-copy"><strong>LOUREX</strong><small>INVOICE</small></span>
           </button>
           {this.workspaceSwitcher('is-desktop')}
@@ -431,7 +431,7 @@ export class AppShell extends React.Component<Props,State>{
       <header className="workspace-topbar ta-topbar">
         <div className="ta-topbar-leading">
           <div className="ta-mobile-brand">
-            {!editor?<button type="button" onClick={()=>this.navigate('home')} aria-label={t('Dashboard','لوحة التحكم')}><Brand compact logoDataUrl={logo} language={this.props.language}/></button>:<span className="ta-editor-mark"><Icon name="edit"/></span>}
+            {!editor?<button type="button" onClick={()=>this.navigate('home')} aria-label={t('Dashboard','لوحة التحكم')}><Brand compact name="LOUREX" logoDataUrl={logo} language={this.props.language}/></button>:<span className="ta-editor-mark"><Icon name="edit"/></span>}
           </div>
           <div className="ta-page-title"><small>{editor?t('Editing','تحرير'):t('LOUREX workspace','مساحة LOUREX')}</small><strong>{this.pageTitle()}</strong></div>
         </div>

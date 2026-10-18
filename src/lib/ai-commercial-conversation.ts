@@ -5,6 +5,45 @@ import { scopeVault } from './workspaces.js';
 import type { AiDocumentUpdateProposal } from '../components/AiCopilot.js';
 import { normalizeDecimalInput } from './money.js';
 
+/** Resolve "the item" only in the document actually open in the editor,
+ * and only when it has exactly one line. A proposal is never a write. */
+export function currentSavedDraftQuantityEdit(
+ kernel:ConversationKernel,vault:VaultPayload,message:string,activeDocumentId?:string
+):AiDocumentUpdateProposal|null {
+ if(kernel.mode!=='controller'||kernel.scope.scope!=='business'||!activeDocumentId||
+    kernel.scope.workspaceId!==(vault.appSettings.activeWorkspaceId||'default')||
+    kernel.scope.branchId!==(vault.appSettings.activeBranchId||'main'))return null;
+ const text=message.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x0660))
+  .replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x06f0)).replace(/[\u064b-\u065f\u0670]/g,'').trim();
+ if(text.length>600)return null;
+ const arabic=text.match(/^(?:(?:جهز|حضر)\s+تعديل\s+(?:عرض\s+السعر|الفاتورة|المستند)\s+الحالي\s*[:،,]\s*)?(?:غير|عدل|اجعل)\s+كمية\s+الصنف\s+(?:الى|إلى)\s+(\d{1,13}(?:\.\d{1,6})?)(?:\s+مع\s+إ?بقاء\s+السعر\s+(\d{1,13}(?:\.\d{1,6})?)\s+(دولار|USD|EUR|يورو|SAR|ريال|TRY)\s+والوحدة\s+([^،,.؛]{1,40}?))?(?:\s+والصلاحية\s+(\d{1,4})\s+(?:يوما?|ايام|أيام)(?:\s+من\s+تاريخ\s+الإصدار)?)?(?:[.،,؛\s]+(?:اعرض\s+التعديل\s+للموافقة\s+فقط\s+)?(?:ولا|لا)\s+تحفظه)?[.!؟\s]*$/iu);
+ const english=text.match(/^(?:prepare\s+(?:an?\s+)?(?:update|change)\s+to\s+the\s+current\s+(?:quotation|invoice|document)\s*:\s*)?(?:change|set|update)\s+(?:the\s+)?(?:item\s+)?quantity\s+to\s+(\d{1,13}(?:\.\d{1,6})?)(?:\s+(?:while\s+)?keeping\s+(?:the\s+)?price\s+(\d{1,13}(?:\.\d{1,6})?)\s+(USD|EUR|SAR|TRY)\s+and\s+(?:the\s+)?unit\s+([^,.;]{1,40}?))?(?:\s+and\s+validity\s+(\d{1,4})\s+days?(?:\s+from\s+(?:the\s+)?issue\s+date)?)?(?:[.,;\s]+(?:show\s+(?:the\s+)?change\s+for\s+approval\s+only\s+and\s+)?do\s+not\s+save)?[.!?\s]*$/iu);
+ const match=arabic||english;if(!match)return null;
+ const docs=scopeVault(vault).documents.filter(doc=>doc.id===activeDocumentId);
+ if(docs.length!==1)throw new Error('The current document is not unique in this company and branch.');
+ const doc=docs[0]!;
+ if(!['invoice','proforma'].includes(doc.kind)||doc.status!=='draft'||doc.lifecycleStatus==='voided')
+  throw new Error('Only an active sales draft can be edited.');
+ if(doc.items.length!==1||!doc.items[0]?.id)
+  throw new Error('Specify an exact line number; the current draft does not have one unique item.');
+ const row=doc.items[0],quantity=normalizeDecimalInput(match[1]!);
+ if(Number(quantity)<=0)throw new Error('Quantity must be positive.');
+ if(match[2]){
+  const currencies:Record<string,string>={دولار:'USD',يورو:'EUR',ريال:'SAR'};
+  const currency=currencies[match[3]!]||match[3]!.toUpperCase();
+  const units:Record<string,string>={كرتون:'carton',كرتونة:'carton',قطعة:'pcs'};
+  const unit=(value:string)=>units[value.trim().toLowerCase()]||value.trim().toLowerCase();
+  if(normalizeDecimalInput(row.unitPrice)!==normalizeDecimalInput(match[2])||currency!==doc.currency||unit(match[4]!)!==unit(row.unit))
+   throw new Error('The price, currency or unit to preserve differs from the current line. No change prepared.');
+ }
+ const days=match[5]?Number(match[5]):null;
+ if(days!==null&&(days<1||days>3650))throw new Error('Validity must be between 1 and 3650 days.');
+ return{capability:'document.updateDraft',documentId:doc.id,addItems:[],
+  itemEdits:[{itemId:row.id,quantity}],termsPatch:days===null?{}:{validity:days+' days'},
+  label:'Review '+doc.number+' quantity change',
+  rationale:'User requested a quantity change to the sole line of the current draft. Saving requires separate approval.'};
+}
+
 /** Read-only document requests must resolve an exact saved reference in the
  * current company/branch before the PDF workspace opens. Never infer the
  * "latest" document or use a partial number, and never save or issue here. */

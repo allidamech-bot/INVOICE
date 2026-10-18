@@ -61,19 +61,16 @@ test('AI Chat: PDF remains real and downloadable but never renders blank embedde
   assert.match(styles,/\.lxw-pdf-file-meta/);
 });
 
-test('AI Chat: saving quotation requires existing reviewed action; PDF is preview-only',async()=>{
+test('AI Chat: explicit Save approves the current draft once; PDF stays optional and preview-only',async()=>{
   const source=await read('src/components/AiConversationWorkspace.tsx');
-  assert.match(source,/Approve and save quotation/,'quotation-specific action must exist');
-  assert.match(source,/حفظ عرض السعر/);
   assert.match(source,/حفظ المسودة/);
-  assert.match(source,/onClick=\{\(\)=>void host\.ask\(ar\?'احفظ المسودة':'save this draft'\)\}/,
-    'existing approval gateway remains owner of saving');
-  assert.match(source,/Preview does not save. Editing creates a new revision/);
+  assert.match(source,/onClick=\{\(\)=>void saveIntelligenceDraft\(host,doc.id,doc.revision\)\}/,
+    'the visible Save button binds explicit approval to the exact draft revision');
+  assert.match(source,/PDF preview is optional; issuing is a separate action/);
   assert.match(source,/Generate PDF preview/);
   assert.match(source,/prepareAiPdfPreview\(kernel,vault/);
   assert.match(source,/saveReviewPending=doc\.status==='draft'/,'once a review is staged, saving must not be requested again');
-  assert.match(source,/saveReviewPending\?\(approvalConfirm/);
-  assert.match(source,/reviewed&&originalConfirm/);
+  assert.doesNotMatch(source,/saveReviewPending\?\(approvalConfirm/,'Save must not open a mandatory review step');
   assert.match(source,/Confirm quotation save/);
   assert.match(source,/تأكيد حفظ عرض السعر/);
   assert.match(source,/Confirm draft save/);
