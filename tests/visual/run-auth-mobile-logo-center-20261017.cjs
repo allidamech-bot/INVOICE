@@ -37,6 +37,8 @@ const results=[];
               display:getComputedStyle(brand).display,
               gridColumns:getComputedStyle(brand).gridTemplateColumns,
               logoLoaded:img.complete&&img.naturalWidth>0,
+              frameBackground:getComputedStyle(document.querySelector('.ta-auth-frame')).backgroundColor,
+              mainBackground:getComputedStyle(document.querySelector('.ta-auth-main')).backgroundColor,
               logoSource:img.currentSrc,
               clip:getComputedStyle(img).clipPath,
               markBorder:getComputedStyle(document.querySelector('.ta-auth-mobile-brand .brand-mark')).borderTopWidth,
@@ -49,6 +51,8 @@ const results=[];
           assert.ok(measurement.logoSource.endsWith('/brand/lourex-header-logo.jpeg'),'must test the production artwork');
           assert.ok(measurement.clip.startsWith('polygon('),'rectangular photograph backdrop must be clipped');
           assert.equal(measurement.markBorder,'0px','logo must float without a framed tile');
+          assert.equal(measurement.frameBackground,'rgba(0, 0, 0, 0)','frame must blend with page');
+          assert.equal(measurement.mainBackground,'rgba(0, 0, 0, 0)','main must blend with page');
           assert.ok(measurement.inputContrast>=4.5,'input text contrast must meet 4.5:1');
           assert.ok(measurement.primaryContrast>=4.5,'primary button contrast must meet 4.5:1');
           assert.equal(measurement.display,'grid','sign-in must preserve a horizontal logo+wordmark');
