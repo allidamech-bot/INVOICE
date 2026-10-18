@@ -2895,6 +2895,12 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unifie
   color:#9a3347!important;
   box-shadow:none!important;
 }
+/* Safari may retain a descendant text-fill color independently of button color. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-document-action,.lxw-inline-review-confirm,.lxw-inline-approval-buttons button)>:is(span,svg){
+  color:inherit!important;
+  -webkit-text-fill-color:currentColor!important;
+  opacity:1!important;
+}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action:disabled{
   opacity:1!important;
   background:#e2e8f1!important;

@@ -30,7 +30,7 @@ test('v351 iPhone startup keeps one static boot owner and one canonical palette 
   assert.match(html,/html\[data-ui-theme="dark"\]\{--boot-bg:#0a1826/);
   assert.match(html,/id="lourex-boot" class="loading-screen"/);
   assert.match(html,/class="brand official-brand"/);
-  assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-logo\.svg" alt="LOUREX"/);
+  assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-header-logo\.jpeg" alt="LOUREX"/);
   assert.match(html,/class="loading-line"/);
   assert.match(bootstrap,/dark='#0a1826',light='#f3f7fc'/);
   assert.match(theme,/THEME_COLORS:Record<ResolvedUiTheme,string>=\{light:'#f3f7fc',dark:'#0a1826'\}/);

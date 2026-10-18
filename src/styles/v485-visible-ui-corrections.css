@@ -2122,3 +2122,207 @@ html body #root .app-ui .ta-topbar .ta-mobile-brand .brand-mark::after{display:n
   html body #root .app-ui .ta-settings-asset-preview{width:84px!important;height:90px!important;}
 }
 }
+
+
+/* Saved product selection is an editor workspace, with a fixed decision bar
+   and one scrolling list. Keep all palette aliases local to this picker. */
+@media screen {
+html body #root .app-ui>.modal-backdrop>.modal:has(.saved-items-shell.is-picker){
+  height:min(800px,calc(var(--modal-visual-height,100dvh) - 16px))!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker{
+  --ft-surface:var(--lx485-surface);
+  --ft-surface-2:var(--lx485-surface-2);
+  --ft-input:var(--lx485-canvas-2);
+  --ft-text:var(--lx485-text-2);
+  --ft-text-strong:var(--lx485-text);
+  --ft-muted:var(--lx485-muted);
+  --ft-line:var(--lx485-line);
+  --ft-line-strong:var(--lx485-line-strong);
+  --ft-accent:var(--lx485-blue);
+  --ft-accent-soft:var(--lx485-surface-3);
+  background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-list-pane{
+  min-width:0!important;background:var(--lx485-canvas-2)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important;margin:0!important;padding:10px 12px 6px!important;
+  background:transparent!important;border:0!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav>button{
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;
+  min-width:0!important;min-height:42px!important;height:auto!important;padding:8px!important;
+  border:1px solid var(--lx485-line)!important;border-radius:11px!important;
+  background:var(--lx485-surface)!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav>button.active{
+  border-color:var(--lx485-blue)!important;
+  background:color-mix(in srgb,var(--lx485-blue) 20%,var(--lx485-surface))!important;
+  color:var(--lx485-text)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav strong{
+  font-size:13px!important;line-height:1.5!important;color:inherit!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav small{
+  display:inline-grid!important;place-items:center!important;min-width:22px!important;min-height:22px!important;
+  padding:2px 5px!important;border-radius:7px!important;background:var(--lx485-surface-3)!important;
+  color:var(--lx485-text-2)!important;font-size:11px!important;line-height:1.3!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-toolbar{
+  display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;
+  padding:6px 12px 10px!important;margin:0!important;background:transparent!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-search-box{
+  grid-column:1/-1!important;position:relative!important;min-width:0!important;width:100%!important;
+  display:flex!important;align-items:center!important;margin:0!important;padding:0!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;
+  background:var(--lx485-surface)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-search-input{
+  min-width:0!important;width:100%!important;min-height:46px!important;height:auto!important;
+  padding:10px 38px!important;border:0!important;background:transparent!important;
+  color:var(--lx485-text)!important;font-size:16px!important;line-height:1.5!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-search-box>.icon{
+  position:absolute!important;inset-inline-start:12px!important;inset-inline-end:auto!important;
+  width:18px!important;height:18px!important;color:var(--lx485-muted)!important;pointer-events:none!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-search-shortcut{display:none!important;}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-search-clear{
+  position:absolute!important;inset-inline-end:0!important;inset-inline-start:auto!important;
+  width:44px!important;height:44px!important;background:transparent!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-sort{
+  width:100%!important;min-width:0!important;min-height:44px!important;height:auto!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:11px!important;
+  background:var(--lx485-surface)!important;color:var(--lx485-text)!important;
+  padding:8px 10px!important;font-size:14px!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-toolbar>.btn{
+  min-height:44px!important;min-width:0!important;padding:8px 12px!important;
+  border-radius:11px!important;background:var(--lx-ui-action,#315fad)!important;color:#fff!important;font-size:13px!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker :is(.saved-items-quick-filters,.saved-items-categories){
+  display:flex!important;flex-wrap:nowrap!important;gap:7px!important;overflow-x:auto!important;
+  padding:4px 12px 10px!important;margin:0!important;background:transparent!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker :is(.saved-items-quick-filters,.saved-items-categories)>button{
+  flex:0 0 auto!important;min-height:40px!important;padding:7px 10px!important;
+  border:1px solid var(--lx485-line)!important;border-radius:10px!important;
+  background:var(--lx485-surface)!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker :is(.saved-items-quick-filters,.saved-items-categories)>button.active{
+  border-color:var(--lx485-blue)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-list-context{
+  display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:8px!important;
+  padding:9px 12px!important;border-block:1px solid var(--lx485-line)!important;
+  background:var(--lx485-surface)!important;color:var(--lx485-text-2)!important;font-size:12px!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-list-context>strong{flex:1 1 auto!important;min-width:0!important;}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-select-all{
+  display:inline-flex!important;align-items:center!important;gap:8px!important;
+  min-height:44px!important;padding:7px 10px!important;margin:0!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:10px!important;
+  background:var(--lx485-surface-2)!important;color:var(--lx485-text)!important;font-size:12px!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker :is(.saved-item-select-all,.saved-item-select-control) input[type='checkbox']{
+  appearance:auto!important;-webkit-appearance:checkbox!important;
+  width:20px!important;min-width:20px!important;height:20px!important;min-height:0!important;
+  margin:0!important;accent-color:#315fad;color-scheme:light;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-list{
+  padding:10px 12px!important;background:var(--lx485-canvas-2)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-row{
+  display:grid!important;grid-template-columns:36px minmax(0,1fr) 44px!important;
+  align-items:center!important;gap:8px!important;padding:10px!important;margin:0 0 8px!important;
+  border:1px solid var(--lx485-line)!important;border-radius:13px!important;
+  background:var(--lx485-surface)!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-row.is-selected{
+  border-color:var(--lx485-blue)!important;background:color-mix(in srgb,var(--lx485-blue) 14%,var(--lx485-surface))!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-main{
+  display:grid!important;gap:5px!important;min-width:0!important;width:100%!important;min-height:64px!important;
+  padding:4px 0!important;border:0!important;background:transparent!important;text-align:start!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-main strong{
+  white-space:normal!important;overflow-wrap:anywhere!important;font-size:14px!important;line-height:1.6!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-main :is(span,small){
+  color:var(--lx485-text-2)!important;font-size:12px!important;line-height:1.5!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-row-meta{
+  display:flex!important;flex-wrap:wrap!important;gap:5px!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-row-meta em{
+  font-style:normal!important;font-size:11px!important;padding:2px 6px!important;
+  border-radius:6px!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-item-row>.icon-btn{
+  width:44px!important;height:44px!important;border:1px solid var(--lx485-line)!important;border-radius:10px!important;
+  background:var(--lx485-surface-2)!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-empty{
+  display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+  gap:10px!important;min-height:170px!important;height:100%!important;padding:24px 16px!important;
+  margin:0!important;border:1px dashed var(--lx485-line-strong)!important;border-radius:14px!important;
+  background:var(--lx485-surface)!important;text-align:center!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-empty>.icon{
+  width:32px!important;height:32px!important;color:var(--lx485-blue)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-empty strong{
+  color:var(--lx485-text)!important;font-size:16px!important;line-height:1.6!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-empty>span{
+  max-width:34ch!important;color:var(--lx485-text-2)!important;font-size:13px!important;line-height:1.8!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-picker-bar{
+  padding:12px!important;gap:8px!important;background:var(--lx485-surface-2)!important;
+  border-top:1px solid var(--lx485-line-strong)!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-picker-bar :is(strong,small){
+  color:var(--lx485-text-2)!important;font-size:13px!important;line-height:1.6!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-picker-bar>.btn{
+  min-height:46px!important;padding:10px 12px!important;border-radius:12px!important;font-size:14px!important;
+  background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-picker-bar>.btn-primary{
+  background:#315fad!important;color:#fff!important;border-color:var(--lx485-blue)!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker .saved-items-picker-bar>.btn:disabled{
+  opacity:1!important;background:var(--lx485-surface-3)!important;color:var(--lx485-muted)!important;
+  -webkit-text-fill-color:currentColor!important;
+}
+html body #root .app-ui .saved-items-shell.is-picker :is(button,input,select):focus-visible{
+  outline:2px solid var(--lx485-blue)!important;outline-offset:2px!important;
+}
+/* Editor helper actions have the same deliberate hierarchy as main controls. */
+html body #root .app-ui .editor-pane .advanced-master-toggle{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;
+  width:100%!important;min-height:46px!important;margin-top:14px!important;padding:11px 14px!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;
+  background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;
+  font-size:14px!important;line-height:1.5!important;
+}
+html body #root .app-ui .editor-pane .advanced-master-toggle>.icon{color:var(--lx485-blue)!important;flex:0 0 18px!important;}
+html body #root .app-ui .editor-pane .editor-item-tools-options{
+  padding:6px!important;gap:6px!important;background:var(--lx485-surface-2)!important;
+}
+html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
+  min-height:48px!important;padding:11px 12px!important;border:1px solid var(--lx485-line)!important;
+  border-radius:10px!important;background:var(--lx485-surface-3)!important;
+  color:var(--lx485-text)!important;text-align:start!important;
+}
+@media(max-height:600px){
+  html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav{
+    display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;
+  }
+  html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav>button{flex:0 0 auto!important;}
+}
+}

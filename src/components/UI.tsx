@@ -329,7 +329,7 @@ export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg'
       ? <span className="brand-mark"><img src={logoDataUrl} alt={name || 'Company logo'}/></span>
       : <><span className="brand-mark"><img src="./brand/lourex-logo.svg" alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></>}</div>;
   }
-  return <div className="brand official-brand"><span className="brand-mark"><img src="./brand/lourex-logo.svg" alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></div>;
+  return <div className="brand official-brand"><span className="brand-mark"><img src="./brand/lourex-header-logo.jpeg" alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></div>;
 }
 
 export function Toast({ text, tone = 'default' }: { text: string; tone?: 'default'|'success'|'error' }): any {
