@@ -57,7 +57,7 @@ const report=[];
    // A malformed selector once caused the browser to discard every later
    // document rule, despite source-string tests seeing the intended CSS.
    // Probe rendered controls in the real panel with compiled production CSS.
-   const documentVisual=await panel.evaluate(node=>{
+   const documentVisual=await panel.evaluate(async node=>{
     const card=document.createElement('section');
     card.className='lxw-chat-document lxw-document-unified';
     card.innerHTML='<div class="lxw-document-action-grid"><button class="lxw-document-action lxw-document-action-approve"><span>Save draft</span></button></div>';
@@ -69,6 +69,12 @@ const report=[];
       enabled:{bg:enabled.backgroundColor,text:getComputedStyle(text).color,opacity:enabled.opacity}};
      button.disabled=true;
      const disabled=getComputedStyle(button);
+     // Flush the state change, then sample the settled paint rather than the
+     // first frame of the existing background/color transitions.
+     void disabled.backgroundColor;
+     await Promise.all(button.getAnimations().filter(animation=>
+      Number.isFinite(animation.effect?.getComputedTiming().endTime)
+     ).map(animation=>animation.finished.catch(()=>{})));
      result.disabled={bg:disabled.backgroundColor,text:getComputedStyle(text).color,opacity:disabled.opacity};
      return result;
     }finally{card.remove();}
