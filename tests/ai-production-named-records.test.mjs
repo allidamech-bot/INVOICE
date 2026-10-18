@@ -111,6 +111,40 @@ test('existing exact-ID tools remain strict: a name is not an ID and a read neve
  assert.equal(execution.results[0].ok,false);assert.match(execution.results[0].summary,/not found/);
  assert.equal(execution.proposal,null);assert.deepEqual(v,before);
 });
+test('named reads require explicit workspace and branch identity, not an implicit active fallback',()=>{
+ const v=fixture(),rt=createAiToolRuntime(v,context()),message='Show LOUREX QA TEST balance and QA-ACCEPT-001 stock';
+ assert.ok(namedRecordReadPlan(message,rt));
+ for(const bad of [{workspaceId:''},{branchId:''},{workspaceId:'different-company'},{branchId:'different-branch'}]){
+   assert.equal(namedRecordReadPlan(message,{...rt,...bad}),null,JSON.stringify(bad));
+ }
+});
+
+test('record visibility applies to local and provider-selected customer/product reads and search',()=>{
+ const v=fixture(),before=structuredClone(v);
+ v.teamMembers=[{id:'buyer-qa',role:'purchasing',status:'active',displayName:'QA buyer'}];
+ v.appSettings.activeTeamMemberId='buyer-qa';
+ const rt=createAiToolRuntime(v,context());
+ const plan=namedRecordReadPlan('Review customer LOUREX QA TEST balance and product QA-ACCEPT-001 stock',rt);
+ assert.deepEqual(plan.calls.map(x=>x.tool),['customer.getSummary','product.getSummary']);
+ const local=executeAiToolPlan(rt,plan);
+ assert.equal(local.results[0].ok,false);
+ assert.equal(local.results[0].source,'operator-read-guard');
+ assert.equal(local.results[0].data,null);
+ assert.equal(local.results[1].ok,true);
+ assert.equal(local.results[1].data.sku,'QA-ACCEPT-001');
+ const provider=executeAiToolPlan(rt,{version:1,goal:'provider-selected identity',calls:[
+   {id:'customer-provider',tool:'customer.getHistory',args:{customerId:'qa-customer-id'},reason:'read history'},
+   {id:'product-provider',tool:'product.getSummary',args:{itemId:'qa-product-id'},reason:'read stock'}
+ ]});
+ assert.equal(provider.results[0].ok,false);
+ assert.equal(provider.results[0].data,null);
+ assert.equal(provider.results[1].ok,true);
+ const search=executeAiToolPlan(rt,{version:1,goal:'search records',calls:[{id:'search',tool:'search.records',args:{query:'LOUREX QA TEST'},reason:'search'}]});
+ assert.equal(search.results[0].ok,true);
+ assert.deepEqual(search.results[0].data,[]);
+ assert.deepEqual(v,{...before,teamMembers:v.teamMembers,appSettings:v.appSettings},'no business mutations from read-only tools');
+});
+
 test('actual provider planner supplies the named-read argument contract to both conversation modes',async()=>{
  const source=readFileSync('api/ai-inbox.js','utf8');
  const start=source.indexOf('async function handleToolPlan('),end=source.indexOf('\nexport default',start);
