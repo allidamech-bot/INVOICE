@@ -104,6 +104,45 @@ function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar')
 export const formatAiToolAnswer=formatAnswer;
 function likelyToolIntent(message:string,context:any):boolean{const q=clean(message,6000).toLowerCase();if(!q)return false;if(context?.assistantRuntime?.entity?.id&&/(?:this|هذا|هذه|هال|current|الحالي|الحالية)/i.test(q))return true;return /(?:open|go to|navigate|search|find|show|list|compare|prepare|create|update|change|remind|task|customer|supplier|product|inventory|stock|purchase|invoice|quotation|quote|receivable|overdue|cash|bank|treasury|margin|markup|price|cost|landed|break.?even|fx|currency|report|scenario|deal|profitability|finalize|payment|delete|post|افتح|روح|اذهب|ابحث|دور|اعرض|قارن|جهز|أنشئ|انشئ|عدل|غيّر|غير|ذكرني|مهمة|عميل|مورد|منتج|مخزون|شراء|مشتريات|فاتورة|عرض سعر|ذمم|متأخر|سيولة|بنك|خزينة|هامش|سعر|تكلفة|وصول|تعادل|عملة|تقرير|سيناريو|صفقة|ربحية|رحل|دفعة|احذف|مديونية|مديون|ديون|رصيد|مبيعات|زبون|زبائن|تحصيل|مصاري|balance|owed|outstanding|debt)/i.test(q);}
 
+/** Named Advisor reads must be grounded in the currently scoped Vault, not
+ * guessed by an external planner that never receives customer or SKU records.
+ * Resolve only an unambiguous literal name/SKU in the user's own question.
+ * No fuzzy first-match, cross-company lookup, mutation or provider dependency. */
+function deterministicNamedAdvisorReads(message:string,runtime:AiToolRuntime):AiToolPlan|null{
+  if(runtime.scope!=='business'||runtime.conversationMode!=='advisor'||!runtime.workspaceId||!runtime.branchId||
+    runtime.workspaceId!==runtime.vault.appSettings.activeWorkspaceId||
+    runtime.branchId!==runtime.vault.appSettings.activeBranchId)return null;
+  if(explicitAiActionRequest(message))return null;
+  const query=clean(message,6000).toLocaleLowerCase();
+  if(!/(?:\b(?:explain|review|show|find|search|lookup|check|analyse|analyze|summary|details|history|balance|stock|price|about|exists)\b|what is|how much|اشرح|راجع|مراجعة|اعرض|أعرض|ابحث|دور|تحقق|افحص|ملخص|معلومات|تفاصيل|سجل|رصيد|مستحق|مخزون|سعر|هل يوجد|هل موجود|شو|ما هو|ما هي)/iu.test(query))return null;
+  const mentions=(raw:unknown):boolean=>{
+    const value=clean(raw,160).toLocaleLowerCase();
+    if(value.length<4)return false;
+    let at=query.indexOf(value);
+    while(at!==-1){
+      const before=at?query[at-1]||'':'',after=query[at+value.length]||'';
+      if(!/[\p{L}\p{N}]/u.test(before)&&!/[\p{L}\p{N}]/u.test(after))return true;
+      at=query.indexOf(value,at+1);
+    }
+    return false;
+  };
+  let role:ReturnType<typeof strictAiActor>['role'];
+  try{role=strictAiActor(runtime.vault).role;}catch{return null;}
+  const customerRequested=/(?:\b(?:customer|client)\b|عميل|العميل|زبون|الزبون|العملاء)/iu.test(query);
+  const productRequested=/(?:\b(?:product|item|sku|stock)\b|صنف|الصنف|منتج|المنتج|المخزون)/iu.test(query);
+  const customerMatches=customerRequested&&graphKindAllowed(role,'customer')
+    ?runtime.vault.customers.filter(row=>[row.companyNameEn,row.companyNameAr].some(mentions)):[];
+  const productMatches=productRequested&&graphKindAllowed(role,'product')
+    ?runtime.vault.savedItems.filter(row=>[row.sku,row.descriptionEn,row.descriptionAr].some(mentions)):[];
+  if(customerMatches.length>1||productMatches.length>1)return null;
+  const calls:AiToolPlan['calls']=[];
+  if(customerMatches.length===1)calls.push({id:'named-customer-read',tool:'customer.getSummary',
+    args:{customerId:customerMatches[0]!.id},reason:'Read the uniquely named customer in the current authorized company.'});
+  if(productMatches.length===1)calls.push({id:'named-product-read',tool:'product.getSummary',
+    args:{itemId:productMatches[0]!.id},reason:'Read the uniquely named product/SKU in the current authorized company.'});
+  return calls.length?{version:1,goal:clean(message,240),calls}:null;
+}
+
 function previewOnlyDocumentIntent(message:string):boolean{
   const q=clean(message,6000).toLowerCase();
   return Boolean(q&&/(?:preview\s*only|only\s+(?:a\s+)?preview|do\s+not\s+save|don't\s+save|without\s+saving|review\s*only|just\s+(?:show|preview)|no\s+save|معاينة\s*فقط|للمعاينة\s*فقط|لا\s*تحفظ|بدون\s*حفظ|فقط\s*اعرض|اعرض\s*فقط)/i.test(q));
@@ -571,7 +610,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'cfo-local-1',tool:'finance.getSummary',args:{},reason:'Build the CFO brief from deterministic Advisor V2 evidence.'}]};const execution=executeAiToolPlan(runtime,plan);return{answer:formatCfoBrief(brief,input.language),proposal:null,plan,results:execution.results,plannedBy:'local'};
     }
   }
-  const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
+  const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:(deterministicNamedAdvisorReads(input.message,runtime)??deterministicAiToolPlan(input.message,runtime)),plannedBy:'local'|'ai'='local';
   // Advisor remains a genuine conversation. An imperative may be discussed or
   // evaluated, but a deterministic mutation/navigation plan must not replace
   // the advisor's reply with execution errors or a proposed action.
