@@ -51,7 +51,11 @@ const base='http://127.0.0.1:4173/tests/visual/';
         Object.defineProperty(window,'visualViewport',{configurable:true,value:viewport});
       });
       await page.goto(base+'import-final-audit-v267.html?mode=products&lang=ar',{waitUntil:'networkidle'});
-      await page.getByRole('button',{name:'استيراد',exact:true}).click();
+      // Current Products UI explicitly separates AI review from advanced CSV/Excel.
+      // Exercise both disclosure and the canonical import action, not retired toolbar text.
+      const importEntry=page.locator('.ta-product-import-entry');
+      await importEntry.locator('summary').click();
+      await importEntry.getByRole('button',{name:'استيراد الجداول المتقدم',exact:true}).click();
       await page.locator('.product-import-file-input').setInputFiles({name:'products.csv',mimeType:'text/csv',buffer:Buffer.from('SKU,Product Name,Selling Price,Purchase Cost\nMX-1,Premium Coffee,12.50,8.25')});
       await page.getByLabel('إجراءات الاستيراد').getByRole('button',{name:'مراجعة الاستيراد'}).click();
       const metrics=await page.evaluate(()=>{
