@@ -435,7 +435,18 @@ const CONTRACTS=[
   'tests/template-surface-tokens-v366.test.mjs',
   'tests/treasury-accounts-hardening-v474.test.mjs',
   'tests/treasury-accounts-v474.test.mjs',
-  'tests/workspaces-batch15.test.mjs'
+  'tests/workspaces-batch15.test.mjs',
+  // Production-critical regression contracts; mandatory even when unchanged in a PR.
+  'tests/b07-sales-stock-issue.test.mjs',
+  'tests/invoice-stock-ledger-20261015.test.mjs',
+  'tests/invoice-void-stock-20261015.test.mjs',
+  'tests/sales-return-stock-20261015.test.mjs',
+  'tests/accounting-foundation-batch7.test.mjs',
+  'tests/reports-v135.test.mjs',
+  'tests/cloud-first-two-device.test.mjs',
+  'tests/cloud-first-manifest-race.test.mjs',
+  'tests/ai-operational-stock-posting.test.mjs',
+  'tests/ai-account-cache-isolation.test.mjs'
 ];
 const args=new Set(process.argv.slice(2));
 for(const arg of args)if(!['--quick','--legacy','--help'].includes(arg))throw Error('Unknown argument '+arg);
@@ -462,10 +473,10 @@ function assertCleanWorkingTree(){
   if(check.error||check.status!==0)throw Error('Git status unavailable; local signoff must run in a valid checked-out repository.');
   if(check.stdout.trim())throw Error('Working tree has uncommitted changes; commit and review the final PR HEAD before signoff.');
 }
-function assertNoActions(){
-  const dir=path.join(ROOT,'.github','workflows');
-  const files=existsSync(dir)?readdirSync(dir).filter(f=>/\.ya?ml$/.test(f)):[];
-  if(files.length)throw Error('GitHub Actions workflow files still exist: '+files.join(', '));
+function assertSafeBranchQaWorkflows(){
+  // Keep the branch-only, read-only workflow safety policy in one tested place.
+  // This is a fast fail-closed preflight, not a substitute for the full QA suite.
+  run(process.execPath,['--test','tests/local-verification-no-actions.test.mjs'],120000);
 }
 function assertBrowserReady(){
   let playwright;
@@ -499,7 +510,7 @@ function runBrowserQa(shard,suites){
 function runLocalChecks(){
   if(Number(process.versions.node.split('.')[0])!==24)throw Error('Node.js 24.x is required');
   if(!existsSync(path.join(ROOT,'node_modules','typescript')))throw Error('Missing dependencies: run npm ci');
-  assertNoActions();
+  assertSafeBranchQaWorkflows();
   if(!args.has('--quick'))assertCleanWorkingTree();
   run(npm,['audit','--audit-level=high']);
   run(process.execPath,['scripts/security-check.mjs']);
