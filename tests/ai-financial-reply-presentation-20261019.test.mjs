@@ -138,3 +138,55 @@ test('actual workspace adapter renders a nested financial answer exactly once, k
   buttons[0].props.onClick();assert.equal(copied,1);
  }finally{globalThis.React=previousReact;}
 });
+
+
+test('actual post-build Stage 4 renderer hands a local financial record to workspace without splitting the disclosure',async()=>{
+ const vm=await import('node:vm');
+ const source=readFileSync('dist/src/components/AiCopilot.js','utf8');
+ const begin=source.indexOf('function __lourexAnswerLines(');
+ const end=source.indexOf('function __lourexDecisionCard(',begin);
+ assert.ok(begin>=0&&end>begin,'the compiled legacy structured-answer owner must be present');
+ const previousReact=globalThis.React;
+ const Fragment=Symbol.for('react.fragment');
+ const react={
+  Fragment,
+  createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),
+  isValidElement:value=>Boolean(value&&typeof value==='object'&&'type'in value),
+  cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),
+  Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}
+ };
+ globalThis.React=react;
+ try {
+  const context=vm.createContext({React:react,__lourexHeadings:new Map(),__lourexInline:(_,text)=>[text]});
+  vm.runInContext(source.slice(begin,end),context);
+  const financial=formatAiBusinessRecordReply(fixture(),'ar');
+  assert.ok(financial?.includes(':::lourex-details '));
+  const handed=context.__lourexStructuredAnswer({},financial);
+  assert.equal(handed,financial,'legacy Stage 4 must return the original local evidence text verbatim');
+  assert.equal(typeof handed,'string','no legacy structured-answer cards are allowed for this readout');
+  const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js');
+  const e=react.createElement;
+  const host={props:{language:'ar'},state:{}};
+  const tree=e('div',{className:'lourex-ai-message assistant'},handed);
+  const rendered=renderConversationWorkspace(host,tree);
+  const flatten=node=>Array.isArray(node)?node.flatMap(flatten):node&&typeof node==='object'&&'type'in node
+   ?[node,...flatten(node.props?.children)]:[];
+  const nodes=flatten(rendered);
+  assert.equal(nodes.filter(n=>n.type==='section'&&n.props.className==='lxw-financial-answer').length,1);
+  assert.equal(nodes.filter(n=>n.type==='details'&&n.props.className==='lxw-ai-record-details').length,1);
+  assert.equal(nodes.filter(n=>n.type==='summary').length,1);
+  assert.ok(nodes.filter(n=>n.type==='h3').length>=1);
+  assert.ok(nodes.filter(n=>n.type==='h4').length>=2);
+  assert.ok(nodes.some(n=>n.type==='li'));
+  const userVisible=nodes.filter(n=>['p','h3','h4','li','summary'].includes(n.type))
+   .map(n=>JSON.stringify(n.props.children)).join(' ');
+  assert.doesNotMatch(userVisible,/:::lourex-(?:details|end)|###/);
+  assert.match(userVisible,/INV-2026-0003/);
+  assert.match(userVisible,/QA752-PAY-01 TEST ONLY/);
+  assert.equal(nodes.some(n=>n.props?.className?.includes?.('lourex-ai-structured-answer')),false);
+  // Other non-financial replies continue to use the legacy renderer safely.
+  const ordinary=context.__lourexStructuredAnswer({},'Ordinary advisory response.');
+  assert.equal(ordinary.type,'div');
+  assert.equal(ordinary.props.className,'lourex-ai-structured-answer');
+ }finally{globalThis.React=previousReact;}
+});
