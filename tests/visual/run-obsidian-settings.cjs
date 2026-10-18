@@ -96,7 +96,7 @@ async function audit(page,failures){
             // Retired local PIN/recovery fields must NOT be reintroduced.
             assert.equal(await page.locator('.ta-settings-card').count(),1,'Security must show the canonical cloud-account card');
             assert.equal(await page.locator('.ta-settings-page input[type=password]').count(),0,'Retired device PIN/recovery secrets must not reappear');
-            assert.match(await page.locator('.ta-settings-card').innerText(),/finance@lourex\\.test/,'Security must identify the signed-in QA account');
+            assert.match(await page.locator('.ta-settings-card').innerText(),/finance@lourex\.test/,'Security must identify the signed-in QA account');
             assert.equal(await page.locator('.ta-account-page').count(),0,'Account profile leaked into Security');
             const request=lang==='ar'?'استعادة نسخة السحابة':'Restore cloud copy';
             const confirmLabel=lang==='ar'?'استرجاع من السحابة':'Restore from Cloud';
