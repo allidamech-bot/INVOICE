@@ -353,6 +353,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
     const selectedCount=this.state.selectedIds.length;
     const selectedIds=new Set(this.state.selectedIds);
     const allVisibleSelected=Boolean(filtered.length)&&filtered.every(item=>selectedIds.has(item.id));
+    const partiallySelected=!allVisibleSelected&&filtered.some(item=>selectedIds.has(item.id));
     const quickFiltersVisible=this.state.view!=='categories'&&(categories.length>0||uncategorizedCount>0);
 
     const library=<div className={`saved-items-shell ${picker?'is-picker':''}`}>
@@ -434,7 +435,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
           <strong>{contextLabel}{this.state.filterCategory?` · ${this.state.filterCategory==='__uncategorized'?t('Uncategorized','غير مصنفة'):categoryLabel(this.state.filterCategory)}`:''}</strong>
           <span><b>{filtered.length}</b>{basePoolCount!==filtered.length?<><i>/</i>{basePoolCount}</>:null}</span>
           {picker?<label className="saved-item-select-all">
-            <input type="checkbox" checked={allVisibleSelected} disabled={!filtered.length||this.state.busy}
+            <input type="checkbox" checked={allVisibleSelected} ref={(node:HTMLInputElement|null)=>{if(node)node.indeterminate=partiallySelected;}} disabled={!filtered.length||this.state.busy}
               onChange={()=>this.toggleVisibleSelection(filtered)}
               aria-label={allVisibleSelected?t('Deselect all visible products','إلغاء تحديد كل الأصناف الظاهرة'):t('Select all visible products','تحديد كل الأصناف الظاهرة')}/>
             <span>{allVisibleSelected?t('Deselect visible','إلغاء تحديد الظاهر'):t('Select visible','تحديد الظاهر')}</span>
@@ -464,7 +465,6 @@ export class SavedItemsModal extends React.Component<Props,State>{
               <IconButton icon="edit" label={t('Edit','تعديل')} onClick={()=>this.beginEdit(item)}/>
             </article>;
           })}
-        </div>
 
         {!filtered.length
           ? <div className="saved-items-empty">
@@ -474,6 +474,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
               {rawQuery?<Button icon="plus" variant="primary" onClick={this.newItem}>{t(`Create “${rawQuery}”`,`إنشاء «${rawQuery}»`)}</Button>:null}
             </div>
           : null}
+        </div>
 
         {this.state.error&&!edit?<div className="saved-items-list-error inline-error" role="alert">{this.state.error}</div>:null}
 
