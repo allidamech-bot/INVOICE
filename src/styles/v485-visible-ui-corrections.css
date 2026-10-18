@@ -1061,6 +1061,29 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] :is(.modal
 html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-footer-actions{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:6px!important;}
 html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-footer-actions>.btn{flex:1 1 0!important;min-width:0!important;width:auto!important;padding:4px 6px!important;font-size:12px!important;line-height:16px!important;white-space:normal!important;}
 
+/* #797: when Safari's on-screen keyboard leaves less than 260px of visible
+   height, the Settings section tabs alone can consume the entire scroll pane.
+   Reclaim the tab strip temporarily; it returns automatically on keyboard
+   dismissal. Preserve every input at its 44px touch height and retain the
+   scrollable Settings content and standard un-constrained design. */
+@media screen and (max-width:900px){
+  html body #root .app-ui .modal-backdrop[data-viewport-compact="true"]:has(.ta-settings-shell) .ta-settings-sidebar{
+    display:none!important;
+  }
+  html body #root .app-ui .modal-backdrop[data-viewport-compact="true"]:has(.ta-settings-shell) .ta-settings-shell{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    height:100%!important;
+  }
+  html body #root .app-ui .modal-backdrop[data-viewport-compact="true"]:has(.ta-settings-shell) .ta-settings-content{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain!important;
+  }
+}
+
+
 
 /* v584 live document regression closeout: final owner only. */
 @media screen {
