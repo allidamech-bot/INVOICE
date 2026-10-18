@@ -2879,6 +2879,13 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxw-inline-revi
   color:#102c24!important;
   box-shadow:0 4px 15px rgba(51,132,98,.22),inset 0 1px rgba(255,255,255,.4)!important;
 }
+/* Preserve the decision hierarchy after the shared action treatment. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-buttons>button.primary:not(:disabled){
+  background:#2358b8!important;border-color:#2358b8!important;color:#ffffff!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-approval-buttons>button:not(.primary):not(:disabled){
+  background:#fbeef1!important;border-color:#d5a7b2!important;color:#9a3347!important;
+}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-document-unified .lxw-document-action-approve{
   grid-column:1/-1!important;
   min-height:52px!important;
