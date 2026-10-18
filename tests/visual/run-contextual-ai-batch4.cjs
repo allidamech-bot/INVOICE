@@ -45,7 +45,11 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   const premium=async()=>{
     await page.locator('.lourex-ai-launcher').click();
     const panel=page.locator('#lourex-ai-panel'),textarea=panel.locator('.lourex-ai-premium-textarea'),bridge=panel.locator('.lourex-ai-compose-bridge'),plus=panel.locator('.lourex-ai-composer-plus');
-    await textarea.waitFor();assert.equal(await textarea.count(),1,'premium textarea');assert.equal(await bridge.count(),1,'legacy input bridge retained');
+    await textarea.waitFor({state:'visible'});assert.equal(await textarea.count(),1,'premium textarea');assert.equal(await bridge.count(),1,'legacy input bridge retained');
+    // The React-owned composer + is mounted after the chat textarea. Avoid
+    // measuring an absent element before async workspace hydration completes.
+    await plus.waitFor({state:'visible',timeout:12000});
+    await page.waitForFunction(()=>{const r=document.querySelector('#lourex-ai-panel .lourex-ai-composer-plus')?.getBoundingClientRect();return Boolean(r&&r.width>=43&&r.height>=43);},null,{timeout:12000});
     const plusBox=await plus.boundingBox();assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'44px unified plus target');assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
     const panelBox=await panel.boundingBox();assert.ok(panelBox,'AI panel visible');
     const scopeTrigger=panel.locator('.lourex-ai-scope-trigger');await scopeTrigger.waitFor({state:'visible'});assert.equal(await panel.locator('.lourex-ai-scope-button:visible').count(),0,'persistent three-tab scope chrome is consolidated');
