@@ -432,7 +432,7 @@ html body #root .app-ui :is(.editor-section,.editor-item-card,.item-card,.select
 }
 html body #root .app-ui :is(.editor-section,.editor-totals,.editor-topbar) :is(h2,h3,strong){color:var(--lx485-text)!important;}
 html body #root .app-ui .editor-section .section-heading{border-color:var(--lx485-line)!important;}
-html body #root .app-ui :is(.editor-section .section-heading>span,.editor-section-nav-slot button>span,.save-indicator){
+html body #root .app-ui :is(.editor-section .section-heading>span,.editor-section-nav-slot .ta-editor-step-number,.save-indicator){
   background:var(--lx485-surface-3)!important;border-color:var(--lx485-line-strong)!important;color:var(--lx485-text-2)!important;
 }
 html body #root .app-ui .ta-settings-shell{background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;}
@@ -1779,3 +1779,346 @@ html body #root .app-ui .lx-notification-empty {min-height:0!important;padding:2
 html body #root .app-ui .lx-notification-empty strong {font-size:16px!important;line-height:1.6!important;}
 html body #root .app-ui .lx-notification-empty>span {font-size:13px!important;line-height:1.7!important;max-width:40ch;}
 @media(max-width:430px){html body #root .app-ui .lx-notification-summary{flex-wrap:wrap!important;}html body #root .app-ui .lx-notification-summary-actions{margin-inline-start:auto!important;}html body #root .app-ui .lx-notification-summary-copy{flex-basis:100%!important;}}
+
+
+/* Shared dialog closeout: one viewport-bounded card above the shell. Customer
+   and pipeline editors use the same Modal owner; no page-sized bottom reserve. */
+@media screen {
+html body #root .app-ui>.modal-backdrop>.modal{
+  display:flex!important;flex-direction:column!important;
+  position:relative!important;inset:auto!important;
+  height:auto!important;min-height:0!important;
+  max-height:min(900px,calc(var(--modal-visual-height,100dvh) - 16px))!important;
+  margin:8px auto!important;padding:0!important;
+  overflow:hidden!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-header{
+  position:relative!important;inset:auto!important;
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  flex:0 0 auto!important;gap:12px!important;min-height:64px!important;
+  padding:10px 14px!important;margin:0!important;
+  border-bottom:1px solid var(--lx485-line-strong)!important;
+  background:var(--lx485-surface-2)!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-header h2{
+  min-width:0!important;margin:0!important;
+  color:var(--lx485-text)!important;font-size:18px!important;line-height:1.5!important;
+  overflow-wrap:anywhere!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-header>.icon-btn{
+  display:inline-grid!important;place-items:center!important;flex:0 0 44px!important;
+  width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;
+  padding:0!important;border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;
+  background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;
+  opacity:1!important;visibility:visible!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-header>.icon-btn .icon{
+  width:20px!important;height:20px!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-body:not(:has(.ta-settings-shell)):not(:has(.saved-items-shell.is-picker)){
+  flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;
+  overflow:auto!important;overscroll-behavior:contain!important;
+  padding:14px!important;scroll-padding-block:12px!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-footer{
+  position:static!important;inset:auto!important;flex:0 0 auto!important;
+  min-height:0!important;margin:0!important;padding:10px 14px!important;
+  background:var(--lx485-surface-2)!important;border-top:1px solid var(--lx485-line-strong)!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-footer :is(.ta-customer-modal-actions,.modal-footer-actions){
+  display:flex!important;flex-wrap:wrap!important;gap:8px!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal>.modal-footer .btn{
+  min-height:46px!important;min-width:0!important;height:auto!important;
+  padding:10px 14px!important;border-radius:12px!important;white-space:normal!important;
+}
+html body #root .app-ui>.modal-backdrop>.modal :is(button,input,select,textarea):focus-visible{
+  outline:2px solid var(--lx485-blue)!important;outline-offset:2px!important;
+}
+/* Customer form sections are compact, with distinct headings and readable fields. */
+html body #root .app-ui .modal .ta-customer-form{gap:12px!important;}
+html body #root .app-ui .modal .ta-customer-form-section{
+  padding:0!important;border:1px solid var(--lx485-line)!important;
+  border-radius:14px!important;background:var(--lx485-canvas-2)!important;overflow:hidden!important;
+}
+html body #root .app-ui .modal .ta-customer-form-section>header{
+  display:grid!important;grid-template-columns:36px minmax(0,1fr)!important;
+  gap:10px!important;padding:12px!important;margin:0!important;
+  background:var(--lx485-surface-2)!important;border-bottom:1px solid var(--lx485-line)!important;
+}
+html body #root .app-ui .modal .ta-customer-form-icon{
+  width:36px!important;height:36px!important;border-radius:10px!important;
+  background:var(--lx485-surface-3)!important;color:var(--lx485-blue)!important;
+}
+html body #root .app-ui .modal .ta-customer-form-section h3{
+  color:var(--lx485-text)!important;font-size:15px!important;line-height:1.5!important;
+}
+html body #root .app-ui .modal .ta-customer-form-section p{
+  color:var(--lx485-text-2)!important;font-size:12px!important;line-height:1.7!important;
+}
+html body #root .app-ui .modal .ta-customer-form-grid{
+  gap:12px!important;padding:14px!important;
+}
+html body #root .app-ui .modal :is(.ta-customer-form,.lx-opportunity-form) .field{
+  min-width:0!important;display:grid!important;align-content:start!important;gap:6px!important;margin:0!important;
+}
+html body #root .app-ui .modal :is(.ta-customer-form,.lx-opportunity-form) .field-label{
+  color:var(--lx485-text-2)!important;font-size:13px!important;line-height:1.6!important;
+}
+html body #root .app-ui .modal :is(.ta-customer-form,.lx-opportunity-form) :is(input,select,textarea):not([type="checkbox"]){
+  width:100%!important;min-width:0!important;min-height:46px!important;
+  padding:10px 12px!important;border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;
+  background:var(--lx485-surface)!important;color:var(--lx485-text)!important;
+  font-size:16px!important;line-height:1.5!important;
+}
+/* Directory actions use the site's blue palette, not legacy black fills. */
+html body #root .app-ui .ta-customer-create-actions>button{
+  min-height:44px!important;padding:9px 12px!important;border-radius:12px!important;
+  border:1px solid var(--lx485-line-strong)!important;
+  background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;
+  font-size:13px!important;line-height:1.5!important;gap:7px!important;
+}
+html body #root .app-ui .ta-customer-create-actions>button:first-child{
+  background:color-mix(in srgb,var(--lx485-blue) 20%,var(--lx485-surface))!important;
+  border-color:color-mix(in srgb,var(--lx485-blue) 55%,var(--lx485-line))!important;
+}
+html body #root .app-ui .ta-customer-create-actions>button:disabled{
+  opacity:1!important;color:var(--lx485-muted)!important;background:var(--lx485-surface-2)!important;
+  -webkit-text-fill-color:currentColor!important;
+}
+html body #root .app-ui .ta-customer-row{min-height:0!important;}
+html body #root .app-ui .ta-customer-row-main{row-gap:6px!important;}
+html body #root .app-ui .ta-customer-create-actions{gap:8px!important;}
+html body #root .app-ui>.modal-backdrop[data-viewport-compact="true"]>.modal>.modal-header{
+  min-height:44px!important;padding:4px 8px!important;
+}
+html body #root .app-ui>.modal-backdrop[data-viewport-compact="true"]>.modal>.modal-footer{
+  padding:4px 8px!important;
+}
+@media(max-width:650px){
+  html body #root .app-ui>.modal-backdrop>.modal>.modal-footer :is(.ta-customer-modal-actions,.modal-footer-actions)>.btn{flex:1 1 0!important;}
+  html body #root .app-ui .modal .ta-customer-form-grid{grid-template-columns:minmax(0,1fr)!important;}
+}
+}
+
+
+/* Screenshot closeout: controls share the site's theme; document paper remains
+   outside these editor-pane, settings-artwork and shell-logo selectors. */
+@media screen {
+html body #root .app-ui .editor-pane{
+  --ft-surface:var(--lx485-surface);
+  --ft-surface-2:var(--lx485-surface-2);
+  --ft-text-strong:var(--lx485-text);
+  --ft-line:var(--lx485-line);
+  --ft-line-strong:var(--lx485-line-strong);
+}
+html body #root .app-ui .editor-section-nav-slot .ta-editor-step-nav{
+  position:static!important;inset:auto!important;
+  display:block!important;min-height:0!important;margin:0 0 16px!important;
+  padding:8px!important;border:1px solid var(--lx485-line-strong)!important;
+  border-radius:16px!important;background:var(--lx485-surface)!important;
+  box-shadow:none!important;backdrop-filter:none!important;
+}
+html body #root .app-ui .editor-section-nav-slot .ta-editor-step-list{
+  display:flex!important;flex-direction:column!important;gap:6px!important;min-width:0!important;
+}
+html body #root .app-ui .editor-section-nav-slot .ta-editor-step-list>button{
+  display:grid!important;grid-template-columns:26px minmax(0,1fr) auto!important;
+  align-items:center!important;gap:8px!important;width:100%!important;min-width:0!important;
+  min-height:44px!important;margin:0!important;padding:9px 10px!important;
+  border:1px solid transparent!important;border-radius:11px!important;
+  background:transparent!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .editor-section-nav-slot .ta-editor-step-list>button.is-active{
+  border-color:var(--lx485-blue)!important;
+  background:color-mix(in srgb,var(--lx485-blue) 18%,var(--lx485-surface))!important;
+  color:var(--lx485-text)!important;
+}
+html body #root .app-ui .editor-section-nav-slot .ta-editor-step-label{
+  display:block!important;min-width:0!important;padding:0!important;border:0!important;
+  border-radius:0!important;background:transparent!important;box-shadow:none!important;
+  color:inherit!important;font-size:13px!important;line-height:1.4!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+}
+html body #root .app-ui .editor-section-nav-slot .ta-editor-step-number{
+  width:26px!important;height:26px!important;border-radius:8px!important;
+  border:1px solid var(--lx485-line-strong)!important;
+  background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .editor-topbar .editor-workflow-badge{
+  display:inline-flex!important;align-items:center!important;
+  padding:5px 10px!important;min-height:28px!important;border-radius:999px!important;
+  border:1px solid #c69a4f!important;background:#3f321d!important;color:#ffe0a0!important;
+  font-size:12px!important;line-height:1.4!important;
+}
+html body #root .app-ui .editor-topbar .editor-workflow-badge:is(.status-ready,.status-final){
+  background:#183f38!important;border-color:#4d9b85!important;color:#c4f6e8!important;
+}
+html[data-ui-theme='light'] body #root .app-ui .editor-topbar .editor-workflow-badge{
+  background:#fff1d2!important;color:#77500c!important;border-color:#d5b677!important;
+}
+html[data-ui-theme='light'] body #root .app-ui .editor-topbar .editor-workflow-badge:is(.status-ready,.status-final){
+  background:#e2f5ec!important;color:#1b6348!important;border-color:#83bda7!important;
+}
+html body #root .app-ui .editor-pane .recent-customer-row{
+  display:grid!important;gap:9px!important;margin-top:12px!important;padding:12px!important;
+  border:1px solid var(--lx485-line)!important;border-radius:12px!important;
+  background:var(--lx485-surface-2)!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .editor-pane .recent-customer-row>div{
+  display:flex!important;flex-wrap:wrap!important;gap:8px!important;
+}
+html body #root .app-ui .editor-pane .recent-customer-row button{
+  min-height:44px!important;max-width:100%!important;padding:8px 12px!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:10px!important;
+  background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;
+  font-size:13px!important;line-height:1.5!important;white-space:normal!important;overflow-wrap:anywhere!important;
+}
+/* The native input remains the full-size accessible hit area, while the
+   locale-safe label is the only visible date. */
+html body #root .app-ui .editor-pane .editor-date-control{
+  position:relative!important;display:flex!important;align-items:center!important;
+  width:100%!important;min-width:0!important;min-height:46px!important;
+  padding:10px 12px!important;padding-inline-end:34px!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;
+  background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;overflow:hidden!important;
+}
+html body #root .app-ui .editor-pane .editor-date-value{
+  display:block!important;min-width:0!important;line-height:1.5!important;
+  color:var(--lx485-text)!important;font-size:16px!important;pointer-events:none!important;
+}
+html body #root .app-ui .editor-pane .editor-date-control input[type='date']{
+  position:absolute!important;inset:0!important;z-index:1!important;
+  width:100%!important;height:100%!important;min-height:0!important;
+  margin:0!important;padding:0!important;border:0!important;opacity:0!important;
+  cursor:pointer!important;
+}
+html body #root .app-ui .editor-pane .editor-date-control:focus-within{
+  outline:2px solid var(--lx485-blue)!important;outline-offset:2px!important;
+}
+/* Artwork: a neutral full-image preview, selected version and distinct actions. */
+html body #root .app-ui .ta-settings-asset{
+  display:grid!important;gap:10px!important;padding:14px!important;min-width:0!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:18px!important;
+  background:var(--lx485-surface)!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .ta-settings-asset-upload{
+  position:relative!important;display:grid!important;
+  grid-template-columns:112px minmax(0,1fr)!important;
+  grid-template-areas:"preview label" "preview trigger"!important;
+  gap:8px 14px!important;align-items:center!important;
+  min-height:130px!important;padding:12px!important;margin:0!important;
+  border:1px dashed var(--lx485-blue)!important;border-radius:14px!important;
+  background:var(--lx485-surface-2)!important;cursor:pointer!important;
+}
+html body #root .app-ui .ta-settings-asset-upload>span:first-child{
+  grid-area:label!important;align-self:end!important;color:var(--lx485-text)!important;
+  font-size:15px!important;font-weight:700!important;
+}
+html body #root .app-ui .ta-settings-asset-preview{
+  grid-area:preview!important;display:grid!important;place-items:center!important;
+  width:112px!important;height:112px!important;min-width:0!important;padding:8px!important;
+  border:1px solid #c1cad4!important;border-radius:12px!important;overflow:hidden!important;
+  background:repeating-conic-gradient(#fff 0% 25%,#e9edf2 0% 50%) 0 0/16px 16px!important;
+  color:#3a4e67!important;
+}
+html body #root .app-ui .ta-settings-asset-preview img{
+  display:block!important;width:100%!important;height:100%!important;max-width:100%!important;
+  object-fit:contain!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+}
+html body #root .app-ui .ta-settings-asset-upload>input[type='file']{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  opacity:0!important;cursor:pointer!important;margin:0!important;padding:0!important;
+}
+html body #root .app-ui .ta-settings-asset-trigger{
+  grid-area:trigger!important;align-self:start!important;display:flex!important;align-items:center!important;gap:7px!important;
+  color:var(--lx485-blue)!important;font-size:13px!important;line-height:1.6!important;
+}
+html body #root .app-ui .ta-settings-asset :is(.ta-settings-segmented,.ta-settings-link-action){
+  min-height:46px!important;max-width:100%!important;margin:0!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;
+  background:var(--lx485-surface-2)!important;color:var(--lx485-text)!important;
+  box-shadow:none!important;
+}
+html body #root .app-ui .ta-settings-asset .ta-settings-segmented{
+  display:flex!important;gap:4px!important;padding:4px!important;
+}
+html body #root .app-ui .ta-settings-asset .ta-settings-segmented>button{
+  flex:1 1 0!important;min-width:0!important;min-height:38px!important;
+  padding:6px 10px!important;border:1px solid transparent!important;border-radius:9px!important;
+  background:transparent!important;color:var(--lx485-text-2)!important;
+}
+html body #root .app-ui .ta-settings-asset .ta-settings-segmented>button.is-active{
+  background:var(--lx485-surface-3)!important;border-color:var(--lx485-blue)!important;color:var(--lx485-text)!important;
+}
+html body #root .app-ui .ta-settings-asset .ta-settings-link-action{
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;
+  width:100%!important;padding:11px 12px!important;font-size:13px!important;line-height:1.6!important;
+  text-align:center!important;white-space:normal!important;
+}
+html body #root .app-ui .ta-settings-asset .ta-settings-link-action .icon{flex:0 0 18px!important;width:18px!important;height:18px!important;}
+html body #root .app-ui .ta-settings-asset .ta-settings-link-action.is-ai{
+  background:var(--lx485-blue-strong)!important;border-color:var(--lx485-blue)!important;color:#ffffff!important;
+}
+html body #root .app-ui .ta-settings-asset .ta-settings-link-action.is-danger{
+  margin-top:4px!important;border-color:color-mix(in srgb,#ed8799 48%,var(--lx485-line))!important;
+  background:transparent!important;color:var(--lx-ui-danger,#ed8799)!important;
+}
+html body #root .app-ui .ta-settings-asset-upload:focus-within{
+  outline:2px solid var(--lx485-blue)!important;outline-offset:3px!important;
+}
+html body #root .app-ui .ta-settings-asset .ta-settings-link-action:disabled{
+  opacity:1!important;background:var(--lx485-surface-2)!important;color:var(--lx485-muted)!important;
+  -webkit-text-fill-color:currentColor!important;
+}
+html body #root .app-ui .ta-settings-note{
+  display:flex!important;align-items:flex-start!important;gap:9px!important;
+  margin:12px 0 0!important;padding:12px!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;
+  background:var(--lx485-surface-2)!important;color:var(--lx485-text-2)!important;
+  font-size:13px!important;line-height:1.7!important;
+}
+html body #root .app-ui .ta-settings-note .icon{flex:0 0 18px!important;color:var(--lx485-blue)!important;}
+/* Use the supplied full artwork for the shell mark, without nested frames. */
+html body #root .app-ui .ta-topbar .ta-mobile-brand>button{
+  width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;
+  padding:0!important;border:1px solid var(--lx485-line-strong)!important;border-radius:15px!important;
+  background:#252525!important;overflow:hidden!important;
+}
+html body #root .app-ui .ta-topbar .ta-mobile-brand .brand{
+  display:block!important;width:100%!important;height:100%!important;transform:none!important;padding:0!important;
+}
+html body #root .app-ui .ta-topbar .ta-mobile-brand .brand-mark{
+  display:block!important;width:100%!important;height:100%!important;min-width:0!important;
+  padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+}
+html body #root .app-ui .ta-topbar .ta-mobile-brand .brand-mark img{
+  display:block!important;width:100%!important;height:100%!important;max-width:none!important;
+  padding:0!important;border:0!important;border-radius:0!important;object-fit:contain!important;
+  transform:none!important;filter:none!important;box-shadow:none!important;
+}
+html body #root .app-ui .ta-topbar .ta-mobile-brand .brand-mark::before,
+html body #root .app-ui .ta-topbar .ta-mobile-brand .brand-mark::after{display:none!important;}
+@media(max-width:900px){
+  html body #root .app-ui .editor-section-nav-slot .ta-editor-step-nav{
+    overflow-x:auto!important;scrollbar-width:thin!important;scroll-padding-inline:8px!important;
+  }
+  html body #root .app-ui .editor-section-nav-slot .ta-editor-step-list{
+    display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+    width:max-content!important;min-width:100%!important;max-width:none!important;gap:6px!important;
+  }
+  html body #root .app-ui .editor-section-nav-slot .ta-editor-step-list>button{
+    display:flex!important;flex:0 0 auto!important;width:auto!important;min-width:0!important;
+    min-height:44px!important;padding:8px 10px!important;
+  }
+  html body #root .app-ui .editor-section-nav-slot .ta-editor-step-label{white-space:nowrap!important;}
+
+  html body #root .app-ui .editor-section-nav-slot .ta-editor-step-nav-heading{display:none!important;}
+}
+@media(max-width:360px){
+  html body #root .app-ui .ta-settings-asset-upload{
+    grid-template-columns:84px minmax(0,1fr)!important;padding:9px!important;gap:8px!important;
+  }
+  html body #root .app-ui .ta-settings-asset-preview{width:84px!important;height:90px!important;}
+}
+}

@@ -248,7 +248,7 @@ class ModalFrame extends React.Component<ModalFrameProps> {
     }
     // Tablet/desktop modal CSS otherwise still measures the layout viewport.
     // Bound the actual card as well as its backdrop while the keyboard is open.
-    if(constrained)this.dialog?.style.setProperty('max-height',`${Math.max(1,Math.floor(height)-16)}px`,'important');
+    if(mobile||constrained)this.dialog?.style.setProperty('max-height',`${Math.max(1,Math.floor(height)-16)}px`,'important');
     else this.dialog?.style.removeProperty('max-height');
   };
   componentDidMount():void{
@@ -304,11 +304,12 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   }
 }
 
-export function Modal({ open, title, children, onClose, size = 'md', footer, portal = false, appearance }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any; portal?: boolean; appearance?:'assistant' }): any {
+export function Modal({ open, title, children, onClose, size = 'md', footer, portal = true, appearance }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any; portal?: boolean; appearance?:'assistant' }): any {
   if (!open) return null;
   const frame=<ModalFrame title={title} size={size} onClose={onClose} footer={footer} appearance={appearance}>{children}</ModalFrame>;
-  // AI tools live in a filtered chat panel. Portal only those overlays so fixed
-  // sheets use the viewport and do not inherit composer control dimensions.
+  // Standard dialogs share one app-level layer. Workspace scroll/clip containers
+  // must not own a fixed dialog's geometry or place it behind the shell header.
+  // Keep the app ancestor for locale/theme inheritance; inline is an explicit opt-out.
   return portal?ReactDOM.createPortal(frame,document.querySelector('#root .app-ui')||document.getElementById('root')||document.body):frame;
 }
 
