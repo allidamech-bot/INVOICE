@@ -55,7 +55,14 @@ const cases=[
         const pane=element.closest('.ta-settings-content')?.getBoundingClientRect();
         const top=visualViewport.offsetTop,bottom=top+visualViewport.height;
         const hit=document.elementFromPoint(field.left+field.width/2,field.top+field.height/2);
-        return{field:field.toJSON(),pane:pane?.toJSON(),viewTop:top,viewBottom:bottom,hit:hit===element};
+        const modal=element.closest('.modal'),backdrop=modal?.closest('.modal-backdrop');
+        const body=modal?.querySelector('.modal-body'),shell=modal?.querySelector('.ta-settings-shell');
+        const rectOf=x=>x?.getBoundingClientRect().toJSON();
+        const styles=x=>x?{display:getComputedStyle(x).display,overflow:getComputedStyle(x).overflow,flex:getComputedStyle(x).flex,maxHeight:getComputedStyle(x).maxHeight,height:getComputedStyle(x).height}:null;
+        return{field:field.toJSON(),pane:pane?.toJSON(),viewTop:top,viewBottom:bottom,hit:hit===element,
+          layout:{innerWidth,innerHeight,media900:matchMedia('(max-width:900px)').matches,
+            backdrop:rectOf(backdrop),modal:rectOf(modal),body:rectOf(body),shell:rectOf(shell),
+            modalCss:styles(modal),bodyCss:styles(body),shellCss:styles(shell),paneCss:styles(element.closest('.ta-settings-content'))}};
       });
       const where=engine.name()+'/'+width+'/'+language;
       assert.ok(details.pane,where+': missing Settings scroll owner');
