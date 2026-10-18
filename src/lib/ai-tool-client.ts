@@ -108,7 +108,7 @@ function likelyToolIntent(message:string,context:any):boolean{const q=clean(mess
  * guessed by an external planner that never receives customer or SKU records.
  * Resolve only an unambiguous literal name/SKU in the user's own question.
  * No fuzzy first-match, cross-company lookup, mutation or provider dependency. */
-function deterministicNamedAdvisorReads(message:string,runtime:AiToolRuntime):AiToolPlan|null{
+export function deterministicNamedAdvisorReads(message:string,runtime:AiToolRuntime):AiToolPlan|null{
   if(runtime.scope!=='business'||runtime.conversationMode!=='advisor'||!runtime.workspaceId||!runtime.branchId||
     runtime.workspaceId!==runtime.vault.appSettings.activeWorkspaceId||
     runtime.branchId!==runtime.vault.appSettings.activeBranchId)return null;
