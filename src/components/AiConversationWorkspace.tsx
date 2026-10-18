@@ -121,7 +121,7 @@ function originalFinancialReadout(value:any):string|null {
     const type=node.type;
     if(type!==react.Fragment&&!['p','span','div','strong','em','bdi','b','i'].includes(type))return null;
     const props=node.props||{};
-    if(Object.keys(props).some(key=>/^on[A-Z]/.test(key)||key==='dangerouslySetInnerHTML'))return null;
+    if(Object.keys(props).some(key=>/^on[A-Z]/.test(key)||key.startsWith('dangerouslySet')))return null;
     const value=plain(react.Children.toArray(props.children));
     return value===null?null:(type==='p'?value+'\n':value);
   };
