@@ -10,7 +10,7 @@ test('account entry keeps a unique primary heading and a subordinate bilingual f
   assert.deepEqual(headings.map(match=>match[1]),['1','2'],'page H1 must precede form H2');
   assert.match(component,/className="ta-auth-aside-copy"[\s\S]*<h1>\{t\('Your commercial workspace,/);
   assert.match(component,/className="ta-auth-card-header"[\s\S]*<h2>\{linkingGoogle\?/);
-  assert.match(component,/t\('Sign in to your workspace','سجّل الدخول إلى مساحتك'\)/);
+  assert.match(component,/t\('Welcome to LOUREX','أهلًا بك في LOUREX'\)/);
 });
 
 test('v227 account tabs use a roving tab stop and an associated panel',()=>{

@@ -7,11 +7,12 @@
   <style>html,body{margin:0;min-height:100%}*{box-sizing:border-box}</style>
 </head>
 <body>
+<div id="root">
   <main class="ta-auth-page is-signin" id="gateway">
     <div class="ta-auth-frame">
       <section class="ta-auth-aside" aria-label="LOUREX Invoice workspace">
         <div class="ta-auth-brand">
-          <div class="brand official-brand"><span class="brand-mark"><img src="../../dist/brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div>
+          <div class="brand official-brand"><span class="brand-mark"><img src="../../dist/brand/lourex-header-logo.jpeg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div>
           <span>LOUREX INVOICE</span>
         </div>
         <div class="ta-auth-aside-copy">
@@ -30,11 +31,11 @@
       <section class="ta-auth-main">
         <form class="ta-auth-card" onsubmit="return false">
           <div class="ta-auth-utilities"><button type="button" class="ta-auth-language" data-en="العربية" data-ar="English">العربية</button></div>
-          <div class="ta-auth-mobile-brand"><div class="brand official-brand"><span class="brand-mark"><img src="../../dist/brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div></div>
+          <div class="ta-auth-mobile-brand"><div class="brand official-brand"><span class="brand-mark"><img src="../../dist/brand/lourex-header-logo.jpeg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div></div>
           <header class="ta-auth-card-header">
             <span id="eyebrow">WELCOME BACK</span>
-            <h2 id="heading">Sign in to your workspace</h2>
-            <p id="subtle">Continue to your documents, finance and business records.</p>
+            <h2 id="heading">Welcome to LOUREX</h2>
+            <p id="subtle">Sign in to continue your work.</p>
           </header>
           <button type="button" class="ta-google-button" id="google-button"><span aria-hidden="true">G</span><strong data-en="Continue with Google" data-ar="المتابعة باستخدام Google">Continue with Google</strong></button>
           <div class="ta-auth-divider" id="provider-divider"><span data-en="or use email" data-ar="أو استخدم البريد الإلكتروني">or use email</span></div>
@@ -55,13 +56,14 @@
       </section>
     </div>
   </main>
+</div>
 <script>
   const q=new URLSearchParams(location.search),lang=q.get('lang')==='ar'?'ar':'en',mode=q.get('mode')==='create'?'create':'signin',theme=q.get('theme')==='dark'?'dark':'light',ar=lang==='ar',create=mode==='create';
   document.documentElement.lang=lang;document.documentElement.dir=ar?'rtl':'ltr';document.documentElement.dataset.uiTheme=theme;
   document.querySelectorAll('[data-en][data-ar]').forEach(el=>el.textContent=el.dataset[lang]);
   const gateway=document.getElementById('gateway');gateway.className=`ta-auth-page ${create?'is-create':'is-signin'}`;
   document.getElementById('account-tab-signin').classList.toggle('is-active',!create);document.getElementById('account-tab-create').classList.toggle('is-active',create);
-  const text={en:{signin:['WELCOME BACK','Sign in to your workspace','Continue to your documents, finance and business records.','Sign In','Create Account','Email','Password','Confirm Password','Enter LOUREX','Forgot password?','Protected workspace · Automatic saving · Offline ready'],create:['NEW ACCOUNT','Create your LOUREX account','One secure account gives you access to the complete LOUREX workspace.','Sign In','Create Account','Email','Password','Confirm Password','Create Account','Forgot password?','Protected workspace · Automatic saving · Offline ready']},ar:{signin:['مرحبًا بعودتك','سجّل الدخول إلى مساحتك','تابع إلى مستنداتك وبياناتك المالية وسجلات الأعمال.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','الدخول إلى LOUREX','نسيت كلمة المرور؟','مساحة محمية · حفظ تلقائي · جاهز دون اتصال'],create:['حساب جديد','أنشئ حساب LOUREX','حساب آمن واحد يمنحك الوصول إلى مساحة LOUREX كاملة.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','إنشاء الحساب','نسيت كلمة المرور؟','مساحة محمية · حفظ تلقائي · جاهز دون اتصال']}}[lang][mode];
+  const text={en:{signin:['WELCOME BACK','Welcome to LOUREX','Sign in to continue your work.','Sign In','Create Account','Email','Password','Confirm Password','Enter LOUREX','Forgot password?','Protected workspace · Automatic saving · Offline ready'],create:['NEW ACCOUNT','Create your account','Your business, in one place.','Sign In','Create Account','Email','Password','Confirm Password','Create Account','Forgot password?','Protected workspace · Automatic saving · Offline ready']},ar:{signin:['مرحبًا بعودتك','أهلًا بك في LOUREX','سجّل الدخول لمتابعة أعمالك.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','الدخول إلى LOUREX','نسيت كلمة المرور؟','مساحة محمية · حفظ تلقائي · جاهز دون اتصال'],create:['حساب جديد','أنشئ حسابك','أعمالك، في مكان واحد.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','إنشاء الحساب','نسيت كلمة المرور؟','مساحة محمية · حفظ تلقائي · جاهز دون اتصال']}}[lang][mode];
   ['eyebrow','heading','subtle','account-tab-signin','account-tab-create','email-label','password-label','confirm-label','primary','forgot','security'].forEach((id,i)=>{const el=document.getElementById(id);if(!el)return;if(id==='primary')el.querySelector('span').textContent=text[i];else el.textContent=text[i]});
   if(create){document.getElementById('forgot')?.remove()}else{document.getElementById('confirm-field')?.remove();document.getElementById('create-note')?.remove()}
 </script>

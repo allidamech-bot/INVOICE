@@ -124,7 +124,7 @@ test('first-run onboarding requires one LOUREX account plus a separate local PIN
   const css = await read('dist/styles/app.bundle.css');
   assert.match(html, /styles\/app\.bundle\.css/);
   assert.match(css, /\/\* --- tailadmin-cloud-account-v320\.css --- \*\//);
-  assert.match(account, /Create your LOUREX account/);
+  assert.match(account, /t\('Create your account','أنشئ حسابك'\)/);
   assert.match(account, /Sign In/);
   assert.match(account, /createCloudUser/);
   assert.match(account, /signInCloudUser/);
