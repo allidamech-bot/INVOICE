@@ -196,10 +196,23 @@ async function networkFirst(request){
   }
 }
 
+// Bound precache concurrency so a new worker does not saturate the same
+// mobile/desktop network connection that the visible app is using. Preserve
+// the complete offline manifest and install/activation safety semantics.
+async function precacheWithBoundedConcurrency(cache,assets,loader){
+  var next=0;
+  var workers=Array.from({length:Math.min(8,assets.length)},async()=>{
+    while(next<assets.length){
+      var index=next++;
+      try{await loader(cache,assets[index]);}catch(_error){}
+    }
+  });
+  await Promise.all(workers);
+}
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
-  await Promise.allSettled(LOCAL_CORE.map(asset=>precacheLocalAsset(cache,asset)));
-  await Promise.allSettled(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));
+  await precacheWithBoundedConcurrency(cache,LOCAL_CORE,precacheLocalAsset);
+  await precacheWithBoundedConcurrency(cache,EXTERNAL_CORE,preserveExternalRuntime);
 })()));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')void self.skipWaiting();});
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
