@@ -1,0 +1,89 @@
+name: LOUREX Focused Browser Gate Diagnosis
+
+on:
+  push:
+    branches: [fix/release-browser-gates-10cases-20261018]
+    paths:
+      - 'tests/visual/**'
+      - '.github/workflows/lourex-browser-gates-10cases-qa.yml'
+      - 'src/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/visual/**'
+      - '.github/workflows/lourex-browser-gates-10cases-qa.yml'
+      - 'src/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-gates-10-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-browser-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 48
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build current UI and application runtime
+        run: npm run build
+      - name: Install browser runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Diagnose exactly ten previously failed browser suites (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p browser-gate-logs
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > browser-gate-logs/server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/obsidian-shell.html >/dev/null; then break; fi
+            sleep 1
+          done
+          failures=0
+          cases=(
+            run-v337-create-center.cjs
+            run-v364-core-workflows.cjs
+            run-premium-auth-gateway-v187.cjs
+            run-functional-editor-controls-v201.cjs
+            run-import-final-audit-v267.cjs
+            run-notification-recovery-batch3.cjs
+            run-contextual-ai-batch4.cjs
+            run-commercial-completion-batch6.cjs
+            run-obsidian-settings.cjs
+            run-v326-business-workspaces.cjs
+          )
+          for file in "${cases[@]}"; do
+            echo "::group::$file"
+            if timeout --signal=TERM --kill-after=10s 360s node "tests/visual/$file" 2>&1 | tee "browser-gate-logs/$file.log"; then
+              echo "PASS $file"
+            else
+              echo "::error title=Browser gate failure::$file"
+              failures=$((failures+1))
+            fi
+            echo "::endgroup::"
+          done
+          echo "Failed required browser suites: $failures / ${#cases[@]}"
+          test "$failures" -eq 0
+      - name: Retain failure traces only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: focused-browser-gate-failure-logs
+          path: browser-gate-logs/
+          retention-days: 3
