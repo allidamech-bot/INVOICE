@@ -29,8 +29,9 @@ function named<T extends Row>(rows:T[],text:string,aliases:(row:T)=>unknown[]):T
 export function namedRecordReadPlan(message:string,runtime:AiToolRuntime):AiToolPlan|null{
  if(runtime.scope!=='business'||!readRequest(message))return null;
  const vault:VaultPayload=scopeVault(runtime.vault),text=normalized(message);
- if((runtime.workspaceId&&runtime.workspaceId!==vault.appSettings.activeWorkspaceId)||
-    (runtime.branchId&&runtime.branchId!==vault.appSettings.activeBranchId))return null;
+ if(!runtime.workspaceId||!runtime.branchId||
+    runtime.workspaceId!==vault.appSettings.activeWorkspaceId||
+    runtime.branchId!==vault.appSettings.activeBranchId)return null;
  const customers=named(vault.customers,text,row=>[row.companyNameEn,row.companyNameAr]);
  const products=named(vault.savedItems.filter(row=>!aiProductArchived(row)),text,row=>[row.sku,row.descriptionEn,row.descriptionAr]);
  if(!customers.length&&!products.length)return null;
