@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {formatAiBusinessRecordReply} from '../dist/src/lib/ai-tool-presentation.js';
+import {parseFinancialReadout} from '../dist/src/lib/ai-financial-readout.js';
 
 function fixture(){
  const doc={id:'private-doc-id',number:'INV-2026-0003',kind:'invoice',status:'final',
@@ -80,113 +81,108 @@ test('large item listing cannot leak raw collapsible markup when trimmed',()=>{
  assert.ok(output.length<=4750);
  assert.equal(output.includes(':::lourex-details'),output.includes(':::lourex-end'));
 });
-test('production bundle calls the concise financial formatter before falling back, and has accessible details renderer',()=>{
- const bundle=readFileSync('dist/src/components/AiCopilot.js','utf8');
- const call=bundle.indexOf('formatAiBusinessRecordReply(result,language)');
- const fallback=bundle.indexOf("if(!result?.results?.length)return String(result?.answer||'')");
- assert.ok(call>=0&&fallback>=0&&call<fallback);
- const workspace=readFileSync('dist/src/components/AiConversationWorkspace.js','utf8');
- assert.match(workspace,/lxw-ai-record-details/);
- assert.match(workspace,/:::lourex-end/);
- assert.match(workspace,/summary/);
+
+test('pure canonical reader returns typed financial data, not nested React or accounting calculations',()=>{
+ for(const language of ['ar','en']){
+  const source=formatAiBusinessRecordReply(fixture(),language);
+  const model=parseFinancialReadout(source);
+  assert.ok(model);
+  assert.match(model.title,/INV-2026-0003/);
+  assert.equal(model.party,'QA Invoice Buyer');
+  assert.equal(model.items.length,20);
+  assert.equal(model.partial,true);
+  assert.ok(model.sections.length>=3);
+  assert.ok(model.sections.flatMap(row=>row.facts).some(row=>row.value.includes('3000.00')));
+  assert.ok(model.sections.flatMap(row=>row.movements).some(row=>
+    row.reference==='QA752-PAY-01 TEST ONLY'&&row.amount.includes('399.00')&&row.balance.includes('3000.00')));
+  assert.doesNotMatch(JSON.stringify(model),/:::lourex|private-doc-id|secret-customer-id/);
+ }
+ assert.equal(parseFinancialReadout('## Invoice\n:::lourex-details x\nbad data'),null);
+ assert.equal(parseFinancialReadout('ordinary free text'),null);
+ assert.equal(parseFinancialReadout('## Invoice\n:::lourex-details x\n:::lourex-end\ntrailing'),null);
 });
-
-
-test('actual workspace adapter renders a nested financial answer exactly once, keeps collapsible lines and original copy callback',async()=>{
+test('real shipped UI replaces legacy malformed financial JSX with ONE accessible financial report',async()=>{
  const previousReact=globalThis.React;
- const Fragment=Symbol.for('react.fragment');
- globalThis.React={
-  Fragment,
+ const React={
+  Fragment:Symbol.for('react.fragment'),
   createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),
   isValidElement:value=>Boolean(value&&typeof value==='object'&&'type'in value),
   cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),
   Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}
  };
+ globalThis.React=React;
  try{
   const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js');
-  const answer=formatAiBusinessRecordReply(fixture(),'ar');
-  assert.ok(answer?.includes(':::lourex-details '));
-  const e=globalThis.React.createElement;
-  let copied=0;
-  const callback=()=>copied++;
-  // The shipped owner may nest response strings in the legacy copy wrapper.
-  // That wrapper must not flatten the financial disclosure markers into text.
-  const wrapped=e('div',{className:'lourex-ai-message assistant'},
-   e('div',{className:'lourex-ai-answer-copy'},answer),
-   e('div',{className:'lourex-ai-message-actions'},e('button',{onClick:callback},'Copy')));
-  const plain=e('div',{className:'lourex-ai-message assistant'},answer);
-  const host={props:{language:'ar'},state:{}};
-  const descendants=node=>Array.isArray(node)?node.flatMap(descendants):
-    node&&typeof node==='object'&&'type'in node?[node,...descendants(node.props?.children)]:[];
-  for(const tree of [wrapped,plain]){
-   const rendered=renderConversationWorkspace(host,tree);
-   const nodes=descendants(rendered);
-   assert.equal(nodes.filter(n=>n.type==='details'&&n.props.className==='lxw-ai-record-details').length,1);
-   assert.equal(nodes.filter(n=>n.type==='summary').length,1);
-   assert.equal(nodes.filter(n=>n.type==='section'&&n.props.className==='lxw-financial-answer').length,1);
-   assert.ok(nodes.some(n=>n.type==='h3'));
-   assert.ok(nodes.some(n=>n.type==='h4'));
-   assert.ok(nodes.some(n=>n.type==='li'));
-   // User-visible text must not expose internal readout delimiters.
-   const outside=nodes.filter(n=>n.type==='p'||n.type==='h3'||n.type==='h4')
-     .map(n=>JSON.stringify(n.props.children)).join(' ');
-   assert.doesNotMatch(outside,/:::lourex-details|:::lourex-end/);
-  }
-  const wrappedRendered=renderConversationWorkspace(host,wrapped);
-  const buttons=descendants(wrappedRendered).filter(n=>n.type==='button');
-  assert.equal(buttons.length,1);assert.equal(buttons[0].props.onClick,callback);
-  buttons[0].props.onClick();assert.equal(copied,1);
- }finally{globalThis.React=previousReact;}
-});
-
-
-test('actual post-build Stage 4 renderer hands a local financial record to workspace without splitting the disclosure',async()=>{
- const vm=await import('node:vm');
- const source=readFileSync('dist/src/components/AiCopilot.js','utf8');
- const begin=source.indexOf('function __lourexAnswerLines(');
- const end=source.indexOf('function __lourexDecisionCard(',begin);
- assert.ok(begin>=0&&end>begin,'the compiled legacy structured-answer owner must be present');
- const previousReact=globalThis.React;
- const Fragment=Symbol.for('react.fragment');
- const react={
-  Fragment,
-  createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),
-  isValidElement:value=>Boolean(value&&typeof value==='object'&&'type'in value),
-  cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),
-  Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}
- };
- globalThis.React=react;
- try {
-  const context=vm.createContext({React:react,__lourexHeadings:new Map(),__lourexInline:(_,text)=>[text]});
-  vm.runInContext(source.slice(begin,end),context);
-  const financial=formatAiBusinessRecordReply(fixture(),'ar');
-  assert.ok(financial?.includes(':::lourex-details '));
-  const handed=context.__lourexStructuredAnswer({},financial);
-  assert.equal(handed,financial,'legacy Stage 4 must return the original local evidence text verbatim');
-  assert.equal(typeof handed,'string','no legacy structured-answer cards are allowed for this readout');
-  const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js');
-  const e=react.createElement;
-  const host={props:{language:'ar'},state:{}};
-  const tree=e('div',{className:'lourex-ai-message assistant'},handed);
-  const rendered=renderConversationWorkspace(host,tree);
-  const flatten=node=>Array.isArray(node)?node.flatMap(flatten):node&&typeof node==='object'&&'type'in node
-   ?[node,...flatten(node.props?.children)]:[];
-  const nodes=flatten(rendered);
-  assert.equal(nodes.filter(n=>n.type==='section'&&n.props.className==='lxw-financial-answer').length,1);
-  assert.equal(nodes.filter(n=>n.type==='details'&&n.props.className==='lxw-ai-record-details').length,1);
+  const source=formatAiBusinessRecordReply(fixture(),'ar');
+  let clicks=0;const copy=()=>clicks++;
+  const e=React.createElement;
+  const legacy=e('div',{className:'lourex-ai-structured-answer'},
+    e('section',{className:'lourex-ai-answer-block is-summary'},
+     e('div',{className:'lourex-ai-answer-copy'},e('p',{},'فاتورة INV-2026-0003 ### القيم المالية'),
+       e('p',{},':::lourex-details أصناف المستند (20/24)'),
+       e('ul',{},e('li',{},'1. QA Product 01')))));
+  const turn=e('div',{className:'lourex-ai-messages'},
+   e('div',{className:'lourex-ai-message user'},'أريد الفاتورة'),
+   e('div',{className:'lourex-ai-message assistant'},legacy,
+    e('div',{className:'lourex-ai-message-actions'},e('button',{onClick:copy},'نسخ'))));
+  const host={props:{language:'ar'},state:{messages:[
+   {role:'user',text:'أريد الفاتورة'},{role:'assistant',text:source}
+  ]}};
+  const rendered=renderConversationWorkspace(host,turn);
+  const collect=node=>Array.isArray(node)?node.flatMap(collect):React.isValidElement(node)?[node,...collect(node.props?.children)]:[];
+  const nodes=collect(rendered);
+  assert.equal(nodes.filter(n=>n.type==='article'&&n.props.className==='lxbr').length,1);
+  assert.equal(nodes.filter(n=>n.type==='details'&&n.props.className==='lxbr-items').length,1);
   assert.equal(nodes.filter(n=>n.type==='summary').length,1);
   assert.ok(nodes.filter(n=>n.type==='h3').length>=1);
-  assert.ok(nodes.filter(n=>n.type==='h4').length>=2);
-  assert.ok(nodes.some(n=>n.type==='li'));
-  const userVisible=nodes.filter(n=>['p','h3','h4','li','summary'].includes(n.type))
-   .map(n=>JSON.stringify(n.props.children)).join(' ');
-  assert.doesNotMatch(userVisible,/:::lourex-(?:details|end)|###/);
-  assert.match(userVisible,/INV-2026-0003/);
-  assert.match(userVisible,/QA752-PAY-01 TEST ONLY/);
-  assert.equal(nodes.some(n=>n.props?.className?.includes?.('lourex-ai-structured-answer')),false);
-  // Other non-financial replies continue to use the legacy renderer safely.
-  const ordinary=context.__lourexStructuredAnswer({},'Ordinary advisory response.');
-  assert.equal(ordinary.type,'div');
-  assert.equal(ordinary.props.className,'lourex-ai-structured-answer');
+  assert.ok(nodes.filter(n=>n.type==='h4').length>=3);
+  assert.ok(nodes.filter(n=>n.type==='dt').length>=5);
+  assert.ok(nodes.some(n=>n.type==='bdi'&&String(n.props.children).includes('QA752-PAY-01')));
+  assert.equal(nodes.some(n=>n.props?.className==='lourex-ai-structured-answer'),false);
+  const visible=nodes.filter(n=>['h3','h4','p','dd','li','summary'].includes(n.type))
+    .map(n=>JSON.stringify(n.props.children)).join(' ');
+  assert.doesNotMatch(visible,/:::lourex|###/);
+  assert.match(visible,/INV-2026-0003/);
+  const button=nodes.find(n=>n.type==='button'&&n.props.onClick===copy);
+  assert.ok(button);button.props.onClick();assert.equal(clicks,1);
+  assert.ok(nodes.some(n=>n.props?.className?.includes?.('lourex-ai-message user')));
+  // The original stored text must not be rewritten by presentation.
+  assert.equal(host.state.messages[1].text,source);
  }finally{globalThis.React=previousReact;}
+});
+test('ordinary assistant replies and unrelated React action nodes are unchanged',async()=>{
+ const previousReact=globalThis.React;
+ const React={
+  Fragment:Symbol.for('react.fragment'),
+  createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),
+  isValidElement:value=>Boolean(value&&typeof value==='object'&&'type'in value),
+  cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),
+  Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}
+ };
+ globalThis.React=React;
+ try{
+  const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js');
+  const e=React.createElement,clicked=()=>{};
+  const tree=e('div',{className:'lourex-ai-messages'},
+   e('div',{className:'lourex-ai-message assistant'},
+    e('div',{className:'lourex-ai-structured-answer'},e('p',{},'Ordinary answer')),
+    e('div',{className:'lourex-ai-message-actions'},e('button',{onClick:clicked},'Copy'))));
+  const rendered=renderConversationWorkspace({props:{language:'en'},state:{messages:[{role:'assistant',text:'Ordinary answer'}]}},tree);
+  const all=node=>Array.isArray(node)?node.flatMap(all):React.isValidElement(node)?[node,...all(node.props?.children)]:[];
+  const nodes=all(rendered);
+  assert.equal(nodes.filter(n=>n.type==='article'&&n.props.className==='lxbr').length,0);
+  assert.ok(nodes.some(n=>n.props?.className==='lourex-ai-structured-answer'));
+  assert.ok(nodes.some(n=>n.type==='button'&&n.props.onClick===clicked));
+ }finally{globalThis.React=previousReact;}
+});
+test('production build has one report owner and precaches its typed modules',()=>{
+ const ui=readFileSync('dist/src/components/AiConversationWorkspace.js','utf8');
+ assert.match(ui,/parseFinancialReadout/);
+ assert.match(ui,/AiFinancialReadout/);
+ assert.doesNotMatch(ui,/originalFinancialReadout|lxw-ai-record-details/);
+ const view=readFileSync('dist/src/components/AiFinancialReadout.js','utf8');
+ assert.match(view,/lxbr-items/);
+ const sw=readFileSync('dist/sw.js','utf8');
+ assert.match(sw,/src\/components\/AiFinancialReadout\.js/);
+ assert.match(sw,/src\/lib\/ai-financial-readout\.js/);
 });
