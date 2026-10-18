@@ -3107,14 +3107,15 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-tool-acti
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-menu,.lourex-ai-overflow-menu,.lourex-ai-scope-menu){
   box-sizing:border-box!important;
   max-width:calc(100vw - 16px)!important;
-  border-color:#4b675d!important;
-  background:#1f302b!important;
+  border-color:var(--lxw-line)!important;
+  background:var(--lxw-surface)!important;
+  color:var(--lxw-text)!important;
   box-shadow:0 14px 38px rgba(0,0,0,.38)!important;
   overflow-wrap:anywhere!important;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-item,.lourex-ai-scope-option){
   min-height:44px!important;
-  color:#e5f0ea!important;
+  color:var(--lxw-text)!important;
 }
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-item,.lourex-ai-scope-option):focus-visible{
   outline:2px solid var(--lxw-action-focus)!important;
