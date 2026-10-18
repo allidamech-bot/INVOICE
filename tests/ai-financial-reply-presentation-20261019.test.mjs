@@ -101,6 +101,19 @@ test('pure canonical reader returns typed financial data, not nested React or ac
  assert.equal(parseFinancialReadout('ordinary free text'),null);
  assert.equal(parseFinancialReadout('## Invoice\n:::lourex-details x\n:::lourex-end\ntrailing'),null);
 });
+
+test('customer-only ledgers have the same financial view owner without an item disclosure',()=>{
+ const data=fixture(),customerOnly={results:data.results.slice(1)};
+ const source=formatAiBusinessRecordReply(customerOnly,'ar');
+ const model=parseFinancialReadout(source);
+ assert.ok(model);
+ assert.match(model.title,/حساب العميل/);
+ assert.equal(model.itemsTitle,'');
+ assert.equal(model.items.length,0);
+ assert.ok(model.sections.flatMap(section=>section.movements).some(row=>row.reference==='QA752-PAY-01 TEST ONLY'));
+ assert.ok(model.sections.flatMap(section=>section.facts).some(row=>row.value.includes('3000.00')));
+});
+
 test('real shipped UI replaces legacy malformed financial JSX with ONE accessible financial report',async()=>{
  const previousReact=globalThis.React;
  const React={
