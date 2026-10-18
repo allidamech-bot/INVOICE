@@ -12,7 +12,7 @@ const cases=[
   ['webkit-ipad1024-landscape',webkit,{width:1024,height:768,isMobile:false,hasTouch:true}],
   ['chromium-desktop',chromium,{width:1440,height:900,isMobile:false,hasTouch:false}]
 ];
-const specialistKinds=['proforma','invoice','draft','proforma-invoice','rfq','purchase-order','delivery-note','payment-receipt'];
+const specialistKinds=['proforma','invoice','proforma-invoice','delivery-note','rfq','purchase-order','payment-receipt','credit-note','statement-account','draft'];
 const mobileQuickActions=[
   {index:0,kind:'proforma'},
   {index:1,kind:'invoice'},
@@ -129,23 +129,34 @@ async function runDesktopCreateQa(page,viewport,failures){
     return menu;
   };
 
-  for(let index=0;index<10;index+=1){
+  // Verify all ten real menu identities and callbacks, independently of their
+  // visual order. Reordering navigation is not a loss of functionality.
+  for(const kind of specialistKinds){
     await page.evaluate(()=>{window.shellQa.newKind='';});
     const before=await page.evaluate(()=>({credit:window.shellQa.credit,statement:window.shellQa.statement}));
     const menu=await openMenu();
     const items=menu.locator('button[role="menuitem"]');
-    const count=await items.count();
-    if(count!==10){failures.push(`expected 10 specialist document actions, found ${count}`);break;}
-    const target=items.nth(index);
+    const present=await items.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-kind')));
+    if(present.length!==10||new Set(present).size!==10||
+      !specialistKinds.every(expected=>present.includes(expected))){
+      failures.push(`Create menu kinds differ from the ten required actions: ${JSON.stringify(present)}`);
+      await page.keyboard.press('Escape');
+      break;
+    }
+    const target=menu.locator('button[role="menuitem"][data-kind="'+kind+'"]');
     await target.scrollIntoViewIfNeeded();
-    await assertInsideViewport(target,viewport,`specialist item ${index+1}`,failures);
+    await assertInsideViewport(target,viewport,`specialist ${kind}`,failures);
     await target.click();
     await page.waitForTimeout(30);
-    const after=await page.evaluate(()=>({newKind:window.shellQa.newKind,credit:window.shellQa.credit,statement:window.shellQa.statement,open:Boolean(document.querySelector('.ta-create-menu'))}));
-    if(index<8){if(after.newKind!==specialistKinds[index])failures.push(`specialist item ${index+1} dispatched ${after.newKind||'nothing'}, expected ${specialistKinds[index]}`);}
-    else if(index===8){if(after.credit!==before.credit+1)failures.push('Credit Note did not dispatch onCreditNote');}
-    else if(after.statement!==before.statement+1)failures.push('Statement of Account did not dispatch onStatementAccount');
-    if(after.open)failures.push(`specialist item ${index+1} left Create menu open after action`);
+    const state=await page.evaluate(()=>({newKind:window.shellQa.newKind,credit:window.shellQa.credit,statement:window.shellQa.statement,open:Boolean(document.querySelector('.ta-create-menu'))}));
+    if(kind==='credit-note'){
+      if(state.credit!==before.credit+1)failures.push('Credit Note did not dispatch onCreditNote');
+    }else if(kind==='statement-account'){
+      if(state.statement!==before.statement+1)failures.push('Statement of Account did not dispatch onStatementAccount');
+    }else if(state.newKind!==kind){
+      failures.push(`specialist ${kind} dispatched ${state.newKind||'nothing'}`);
+    }
+    if(state.open)failures.push(`specialist ${kind} left Create menu open after action`);
   }
 }
 

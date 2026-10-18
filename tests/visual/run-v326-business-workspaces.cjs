@@ -159,7 +159,7 @@ async function assertPrimaryAccent(page,locator,label,failures){
       return{r,g,b,a};
     };
     const probe=document.createElement('span');
-    probe.style.position='fixed';probe.style.pointerEvents='none';probe.style.background='var(--ft-accent)';document.body.appendChild(probe);
+    probe.style.position='fixed';probe.style.pointerEvents='none';probe.style.background=el.closest('.ta-product-editor,.ta-operations-page')?'var(--ft-accent)':'var(--lx-ui-action)';document.body.appendChild(probe);
     const accentText=getComputedStyle(probe).backgroundColor;probe.remove();
     const actualText=getComputedStyle(el).backgroundColor;
     return{actualText,accentText,actual:normalize(actualText),accent:normalize(accentText)};
@@ -168,7 +168,16 @@ async function assertPrimaryAccent(page,locator,label,failures){
     Math.abs(colors.actual.r-colors.accent.r),Math.abs(colors.actual.g-colors.accent.g),
     Math.abs(colors.actual.b-colors.accent.b),Math.abs(colors.actual.a-colors.accent.a)
   ):Infinity;
-  if(channelDelta>2)failures.push(`${label} primary color ${colors.actualText} != accent ${colors.accentText} (pixel delta ${channelDelta})`);
+  if(channelDelta>2)failures.push(`${label} primary color ${colors.actualText} != current semantic action token ${colors.accentText} (pixel delta ${channelDelta})`);
+  const srgb=channels=>channels.map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
+  const luminance=channels=>{const [r,g,b]=srgb(channels);return r*.2126+g*.7152+b*.0722;};
+  const ink=await locator.evaluate(el=>getComputedStyle(el).color);
+  const match=ink.match(/[0-9.]+/g)?.slice(0,3).map(Number);
+  if(colors.actual&&match?.length===3){
+    const bg=luminance([colors.actual.r,colors.actual.g,colors.actual.b]),fg=luminance(match);
+    const ratio=(Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05);
+    if(ratio<4.5)failures.push(`${label} primary text contrast ${ratio.toFixed(2)} below WCAG AA`);
+  }else failures.push(`${label} primary text contrast could not be measured`);
 }
 
 async function deepMobileAudit(page,surface,scenario,lang,engineName,failures){

@@ -28,7 +28,7 @@ test('Batch 5 UI is bilingual, mobile bounded and uses canonical bundled style o
 
 test('Batch 5 has blocking real-vault browser QA for mobile EN AR and desktop',async()=>{
   const [workflow,runner,fixture]=await Promise.all([read('scripts/verify-local.mjs'),read('tests/visual/run-notification-center-batch5.cjs'),read('tests/visual/notification-center-batch5.html')]);
-  assert.match(workflow,/runBrowserQa\('specialized',MANIFEST\.specialized\)/);
+  assert.match(workflow,/runBrowserQa\('specialized',MANIFEST\.specialized(?:,mandatoryBrowserFailures)?\)/);
   assert.match(workflow,/tests\/visual\/run-notification-center-batch5\.cjs/);
   assert.match(workflow,/tests\/notification-center-batch5\.test\.mjs/);
   assert.match(workflow,/tests\/notification-center-browser-batch5\.test\.mjs/);

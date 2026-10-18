@@ -162,20 +162,37 @@ async function runDocumentsDensity(language){
     if(metrics.header&&metrics.header.height>240)failures.push(`Documents hero is still oversized at ${metrics.header.height.toFixed(1)}px`);
     if(metrics.header&&(metrics.header.left<-1||metrics.header.right>metrics.viewport.width+1))failures.push(`Documents hero escapes viewport: ${JSON.stringify(metrics.header)}`);
     if(metrics.titleFont>28)failures.push(`Documents title font remains oversized at ${metrics.titleFont}px`);
-    if(metrics.buttons.length!==6)failures.push(`expected 6 creation actions, found ${metrics.buttons.length}`);
+    if(metrics.buttons.length<1||metrics.buttons.length>4)failures.push(`unexpected header action density: ${metrics.buttons.length}`);
+    if(!metrics.buttons.some(button=>/New Document|مستند جديد/.test(button.label)))failures.push('primary New Document action is missing');
 
     for(const [index,button] of metrics.buttons.entries()){
       if(button.height<44)failures.push(`action ${index+1} touch height ${button.height.toFixed(1)}px < 44px`);
       if(button.height>60)failures.push(`action ${index+1} height ${button.height.toFixed(1)}px is too tall`);
       if(button.left<-1||button.right>metrics.viewport.width+1)failures.push(`action ${index+1} escapes viewport`);
     }
-    if(metrics.buttons.length===6&&metrics.actions){
-      if(!metrics.buttons.some(button=>/Create from file|إنشاء من ملف/.test(button.label)))failures.push('contextual file capture action is missing');
-      for(let index=0;index<6;index+=2){
-        const a=metrics.buttons[index],b=metrics.buttons[index+1];
-        if(Math.abs(a.top-b.top)>2)failures.push(`action row ${index/2+1} is not aligned`);
-        if(Math.abs(a.width-b.width)>3)failures.push(`action row ${index/2+1} widths are inconsistent`);
-        if(index>0&&a.top<=metrics.buttons[index-2].top+10)failures.push(`action row ${index/2+1} did not advance vertically`);
+    // New designs expose one primary create action with eight document choices
+    // inside a mobile-safe dialog, instead of six permanently visible buttons.
+    const trigger=page.locator('.ta-documents-create-entry');
+    if(await trigger.count()!==1)failures.push('exactly one New Document trigger is required');
+    else{
+      if(await trigger.getAttribute('aria-haspopup')!=='dialog')failures.push('New Document trigger lacks dialog semantics');
+      await trigger.click();
+      const menu=page.locator('.lx-document-create-dialog');
+      try{await menu.waitFor({state:'visible',timeout:3000});}
+      catch{failures.push('New Document dialog did not open');}
+      if(await menu.isVisible()){
+        const buttons=menu.locator('.ta-documents-create-choices button');
+        const names=(await buttons.locator('strong').allTextContents()).map(name=>name.trim());
+        const expected=language==='ar'
+          ?['عرض سعر','فاتورة','فاتورة مبدئية','سند تسليم','طلب عرض سعر','طلب شراء','مسودة','إيصال دفع']
+          :['Quotation','Invoice','Proforma Invoice','Delivery Note','RFQ','Purchase Order','Draft','Payment Receipt'];
+        if(names.length!==8)failures.push(`expected 8 document choices in dialog, found ${names.length}`);
+        for(const name of expected)if(!names.includes(name))failures.push(`missing document choice: ${name}`);
+        if(await buttons.count()>0){
+          await buttons.first().click();
+          const created=await page.evaluate(()=>window.__documentsCreatedKind);
+          if(created!=='proforma')failures.push(`Quotation creation did not dispatch canonical kind: ${created}`);
+        }
       }
     }
     if(metrics.search){

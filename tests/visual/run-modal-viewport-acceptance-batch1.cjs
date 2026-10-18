@@ -25,6 +25,10 @@ const {mkdirSync}=require('node:fs');
    assert.ok(field.y>=body.y-1&&field.y+field.height<=body.y+body.height+1,'last input reachable within actual scroll owner');
    await page.evaluate(()=>{window.acceptanceViewport.height=190;visualViewport.dispatchEvent(new Event('resize'));});
    await input.scrollIntoViewIfNeeded();
+   // Playwright's minimal auto-scroll may leave a field clipped by a few pixels
+   // inside a compact padded scroll pane. Exercise the real user-scroll owner,
+   // then require the ENTIRE control to be visible and actually hit-testable.
+   await input.evaluate(element=>element.scrollIntoView({block:'center',inline:'nearest'}));
    const compactField=await input.boundingBox(),compactBody=await page.locator('.modal-body').boundingBox();
    const compactLayout=await modal.evaluate(element=>({header:element.querySelector('.modal-header').getBoundingClientRect().toJSON(),footer:element.querySelector('.modal-footer').getBoundingClientRect().toJSON(),bodyStyle:getComputedStyle(element.querySelector('.modal-body')).padding,field:element.querySelector('input').getBoundingClientRect().height}));
    assert.ok(compactField.y>=compactBody.y-1&&compactField.y+compactField.height<=compactBody.y+compactBody.height+1,`${engine.name()} ${width}: input clipped in short keyboard viewport ${JSON.stringify({compactField,compactBody,compactLayout})}`);
@@ -78,9 +82,31 @@ const {mkdirSync}=require('node:fs');
   const numbering=page.locator('.ta-settings-card').filter({has:page.locator('.ta-numbering-preview')});
   await page.evaluate(()=>{window.acceptanceViewport.height=190;visualViewport.dispatchEvent(new Event('resize'));});
   const prefix=numbering.locator('input').first();await prefix.scrollIntoViewIfNeeded();await prefix.fill('QT');
+  // On a simulated keyboard, Playwright still sees the physical 844px page
+  // and may skip scrolling. Exercise the real Settings pane explicitly.
+  await prefix.evaluate(element=>{
+    const pane=element.closest('.ta-settings-content');
+    if(!pane)return;
+    const paneBox=pane.getBoundingClientRect();
+    const viewTop=visualViewport.offsetTop+2;
+    const viewBottom=visualViewport.offsetTop+visualViewport.height-2;
+    const top=Math.max(viewTop,paneBox.top+2),bottom=Math.min(viewBottom,paneBox.bottom-2);
+    const field=element.getBoundingClientRect();
+    // Aim for the actual intersection of the keyboard-visible screen and the
+    // Settings scroll pane, never a region covered by the modal or tab strip.
+    if(bottom>top)pane.scrollTop+=(field.top+field.height/2)-(top+bottom)/2;
+  });
   const inputBox=await prefix.boundingBox();
-  assert.ok(inputBox.y>=20&&inputBox.y+inputBox.height<=211,'actual Settings input remains keyboard-visible');
-  assert.ok(await prefix.evaluate(element=>{const rect=element.getBoundingClientRect();return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)===element;}),'Settings input cannot be clipped by a zero-height nested pane');
+  const hit=await prefix.evaluate(element=>{
+    const rect=element.getBoundingClientRect();
+    const pane=element.closest('.ta-settings-content');
+    const paneRect=pane?.getBoundingClientRect();
+    const point=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+    return {targetHit:point===element,hitTag:point?.tagName||'',hitClass:String(point?.className||'').slice(0,160),pane:paneRect?.toJSON()||null,field:rect.toJSON(),visualViewport:{height:visualViewport.height,offsetTop:visualViewport.offsetTop}};
+  });
+  assert.ok(inputBox.y>=20&&inputBox.y+inputBox.height<=211,'actual Settings input remains keyboard-visible: '+JSON.stringify(hit));
+  assert.ok(hit.pane&&inputBox.y>=hit.pane.top-1&&inputBox.y+inputBox.height<=hit.pane.bottom+1,'Settings input must fit its real scroll pane: '+JSON.stringify(hit));
+  assert.ok(hit.targetHit,'Settings input must be actually tappable, not hidden behind an overlay: '+JSON.stringify(hit));
   await prefix.click({trial:true});
   await numbering.getByRole('button').click();
   await page.waitForFunction(()=>window.savedSettings?.numbering.proformaPrefix==='QT');

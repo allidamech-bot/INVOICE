@@ -11,7 +11,7 @@ async function modalMeasurements(page){
     const header=modal?.querySelector('.modal-header');
     const body=modal?.querySelector('.modal-body');
     const footer=modal?.querySelector('.modal-footer');
-    const stickyActions=modal?.querySelector('.product-import-mobile-actions');
+    const stickyActions=modal?.querySelector('.modal-footer .product-import-footer');
     const backdrop=modal?.closest('.modal-backdrop');
     const close=modal?.querySelector('.modal-header button');
     const rect=node=>node?node.getBoundingClientRect():null;
@@ -41,6 +41,19 @@ function assertMobileModal(layout,{mustScroll=true}={}){
   assert.deepEqual(layout.blackText,[],'visible modal text must not be black on dark surfaces');
 }
 
+async function openAdvancedProductImport(page,language){
+  const entry=page.locator('.ta-product-import-entry');
+  const disclosure=entry.locator('summary');
+  await disclosure.waitFor({state:'visible'});
+  assert.equal(await entry.getAttribute('open'),null,'import choices initially folded');
+  await disclosure.click();
+  assert.notEqual(await entry.getAttribute('open'),null,'import choices must open on tap');
+  const advanced=entry.getByRole('button',{name:language==='ar'?'استيراد الجداول المتقدم':'Advanced spreadsheet import',exact:true});
+  await advanced.waitFor({state:'visible'});
+  await advanced.click();
+  await page.locator('.product-import-file-input').waitFor({state:'attached'});
+}
+
 (async()=>{
   mkdirSync(output,{recursive:true});
   const browser=await chromium.launch({headless:true});
@@ -63,7 +76,7 @@ function assertMobileModal(layout,{mustScroll=true}={}){
           const bytes=Array.from(new Uint8Array(XLSX.write(workbook,{bookType:'xlsx',type:'array'})));
           delete window.XLSX;script.remove();return bytes;
         });
-        await page.getByRole('button',{name:'Import',exact:true}).click();
+        await openAdvancedProductImport(page,'en');
         await page.locator('.product-import-file-input').setInputFiles({name:'catalogue.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(workbookBytes)});
         const sheetPicker=page.locator('.product-import-sheet-picker select');await sheetPicker.waitFor();
         assert.equal(await sheetPicker.locator('option').count(),2);
@@ -79,7 +92,7 @@ function assertMobileModal(layout,{mustScroll=true}={}){
       const page=await browser.newPage({viewport:{width:390,height:664},hasTouch:true,isMobile:true});
       try{
         await page.goto(`${BASE}?mode=products&lang=en`,{waitUntil:'networkidle'});
-        await page.getByRole('button',{name:'Import',exact:true}).click();
+        await openAdvancedProductImport(page,'en');
         const csv=[
           'Catalogue export,,,,,,,,,',
           'Generated for mobile audit,,,,,,,,,',
@@ -96,9 +109,9 @@ function assertMobileModal(layout,{mustScroll=true}={}){
         assertMobileModal(await modalMeasurements(page));
         await page.screenshot({path:`${output}/product-mapping-iphone.png`,fullPage:false,animations:'disabled'});
 
-        await page.getByLabel('Import actions').getByRole('button',{name:'Review import'}).click();
+        await page.locator('.modal-footer .product-import-footer').getByRole('button',{name:'Review import'}).click();
         await page.locator('.product-import-table').waitFor();
-        assert.equal(await page.getByLabel('Import actions').getByRole('button',{name:'Confirm import of 2'}).isVisible(),true);
+        assert.equal(await page.locator('.modal-footer .product-import-footer').getByRole('button',{name:'Confirm import of 2'}).isVisible(),true);
         const text=await page.locator('.product-import-table').innerText();
         assert.match(text,/1234\.50 USD/);assert.match(text,/850\.25 USD/);
         assertMobileModal(await modalMeasurements(page),{mustScroll:false});
@@ -111,7 +124,7 @@ function assertMobileModal(layout,{mustScroll=true}={}){
       try{
         await page.goto(`${BASE}?mode=products&lang=ar`,{waitUntil:'networkidle'});
         assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
-        await page.getByRole('button',{name:'استيراد',exact:true}).click();
+        await openAdvancedProductImport(page,'ar');
         const csv='كود الصنف,اسم المنتج,السعر,التكلفة,التعبئة,الوحدة,التوفر\nAR-1,قهوة عربية,١٢٫٥٠,٨٫٢٥,١٢ عبوة,كرتون,متوفر\n';
         await page.locator('.product-import-file-input').setInputFiles({name:'arabic-products.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
         await page.locator('.product-import-mapping-list').waitFor();
@@ -133,7 +146,7 @@ function assertMobileModal(layout,{mustScroll=true}={}){
           Object.defineProperty(window,'visualViewport',{configurable:true,value:viewport});
         });
         await page.goto(`${BASE}?mode=products&lang=ar`,{waitUntil:'networkidle'});
-        await page.getByRole('button',{name:'استيراد',exact:true}).click();
+        await openAdvancedProductImport(page,'ar');
         const csv='SKU,Description EN,Description AR,HS Code,Origin,Packing,Unit,Currency,Selling Price,Purchase Cost,Barcode,Category,Brand,Notes\nIP-1,Mobile product,صنف جوال,2106.90,Jordan,12 bags,BOX,USD,12.50,8.25,123456789,Food,LOUREX,Mobile audit\n';
         await page.locator('.product-import-file-input').setInputFiles({name:'iphone-products.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
         await page.locator('.product-import-mapping-list').waitFor();
@@ -143,7 +156,7 @@ function assertMobileModal(layout,{mustScroll=true}={}){
         // second 72px hides usable content; assert visible actions instead.
         assert.equal(layout.browserReserve,0,'visual viewport must not double-reserve Safari chrome');
         assert.ok(layout.stickyActions.bottom<=layout.viewport-layout.browserReserve+1,`sticky actions ${layout.stickyActions.bottom} remain beneath Safari chrome ending at ${layout.viewport-layout.browserReserve}`);
-        const actions=page.locator('.product-import-mobile-actions');
+        const actions=page.locator('.modal-footer .product-import-footer');
         const before=await actions.boundingBox();
         await page.locator('.modal-body').evaluate(node=>{node.scrollTop=node.scrollHeight;});
         await page.waitForTimeout(50);

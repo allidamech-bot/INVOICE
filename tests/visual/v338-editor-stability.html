@@ -36,7 +36,7 @@
 
       function renderRecoveredShell(){
         root.removeAttribute('data-lourex-document-editor');
-        app.innerHTML='<div class="ta-shell screen-home"><nav class="ta-sidebar-nav">'+Array.from({length:7},(_,index)=>'<button type="button" class="ta-nav-item" data-index="'+index+'">'+index+'</button>').join('')+'</nav><div class="qa-content"><p>Home after simulated WebKit process recovery</p></div></div>';
+        app.innerHTML='<div class="ta-shell screen-home"><nav class="ta-sidebar-nav">'+Array.from({length:7},(_,index)=>'<button type="button" class="ta-nav-item" data-index="'+index+'" data-lourex-workspace="'+['home','documents','customers','items','operations','receivables','reports'][index]+'">'+index+'</button>').join('')+'</nav><div class="qa-content"><p>Home after simulated WebKit process recovery</p></div></div>';
         const shell=app.querySelector('.ta-shell');
         const content=shell.querySelector('.qa-content');
         const buttons=Array.from(shell.querySelectorAll('.ta-nav-item'));

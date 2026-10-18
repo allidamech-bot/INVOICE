@@ -435,7 +435,18 @@ const CONTRACTS=[
   'tests/template-surface-tokens-v366.test.mjs',
   'tests/treasury-accounts-hardening-v474.test.mjs',
   'tests/treasury-accounts-v474.test.mjs',
-  'tests/workspaces-batch15.test.mjs'
+  'tests/workspaces-batch15.test.mjs',
+  // Production-critical regression contracts; mandatory even when unchanged in a PR.
+  'tests/b07-sales-stock-issue.test.mjs',
+  'tests/invoice-stock-ledger-20261015.test.mjs',
+  'tests/invoice-void-stock-20261015.test.mjs',
+  'tests/sales-return-stock-20261015.test.mjs',
+  'tests/accounting-foundation-batch7.test.mjs',
+  'tests/reports-v135.test.mjs',
+  'tests/cloud-first-two-device.test.mjs',
+  'tests/cloud-first-manifest-race.test.mjs',
+  'tests/ai-operational-stock-posting.test.mjs',
+  'tests/ai-account-cache-isolation.test.mjs'
 ];
 const args=new Set(process.argv.slice(2));
 for(const arg of args)if(!['--quick','--legacy','--help'].includes(arg))throw Error('Unknown argument '+arg);
@@ -462,10 +473,10 @@ function assertCleanWorkingTree(){
   if(check.error||check.status!==0)throw Error('Git status unavailable; local signoff must run in a valid checked-out repository.');
   if(check.stdout.trim())throw Error('Working tree has uncommitted changes; commit and review the final PR HEAD before signoff.');
 }
-function assertNoActions(){
-  const dir=path.join(ROOT,'.github','workflows');
-  const files=existsSync(dir)?readdirSync(dir).filter(f=>/\.ya?ml$/.test(f)):[];
-  if(files.length)throw Error('GitHub Actions workflow files still exist: '+files.join(', '));
+function assertSafeBranchQaWorkflows(){
+  // Keep the branch-only, read-only workflow safety policy in one tested place.
+  // This is a fast fail-closed preflight, not a substitute for the full QA suite.
+  run(process.execPath,['--test','tests/local-verification-no-actions.test.mjs'],120000);
 }
 function assertBrowserReady(){
   let playwright;
@@ -492,14 +503,22 @@ async function startServer(){
   }
   server.kill();throw Error('Local QA fixture server unavailable on port 4173');
 }
-function runBrowserQa(shard,suites){
+function runBrowserQa(shard,suites,failures=null){
   console.log('[LOUREX mandatory browser QA] '+shard+' / '+suites.length+' suites');
-  for(const suite of suites)run(process.execPath,[suite.file,...suite.args],suite.seconds*1000);
+  for(const suite of suites){
+    try{run(process.execPath,[suite.file,...suite.args],suite.seconds*1000);}
+    catch(error){
+      if(!failures)throw error;
+      const reason=error instanceof Error?error.message:String(error);
+      failures.push(shard+': '+suite.file+' — '+reason);
+      console.error('[LOUREX mandatory browser QA FAIL] '+shard+' / '+suite.file+': '+reason);
+    }
+  }
 }
 function runLocalChecks(){
   if(Number(process.versions.node.split('.')[0])!==24)throw Error('Node.js 24.x is required');
   if(!existsSync(path.join(ROOT,'node_modules','typescript')))throw Error('Missing dependencies: run npm ci');
-  assertNoActions();
+  assertSafeBranchQaWorkflows();
   if(!args.has('--quick'))assertCleanWorkingTree();
   run(npm,['audit','--audit-level=high']);
   run(process.execPath,['scripts/security-check.mjs']);
@@ -517,9 +536,16 @@ async function main(){
     const server=await startServer();
     try{
       if(!args.has('--quick')){
-        runBrowserQa('stability',MANIFEST.stability);
-        runBrowserQa('specialized',MANIFEST.specialized);
-        for(const [shard,suites] of Object.entries(MANIFEST.current))runBrowserQa(shard,suites);
+        // Run all mandatory browser suites even after an individual failure, so
+        // one CI run yields a complete remediation list. Never downgrade the
+        // gate: any failure rejects the release after the last mandatory suite.
+        const mandatoryBrowserFailures=[];
+        runBrowserQa('stability',MANIFEST.stability,mandatoryBrowserFailures);
+        runBrowserQa('specialized',MANIFEST.specialized,mandatoryBrowserFailures);
+        for(const [shard,suites] of Object.entries(MANIFEST.current))runBrowserQa(shard,suites,mandatoryBrowserFailures);
+        if(mandatoryBrowserFailures.length){
+          throw Error('Mandatory browser QA failed ('+mandatoryBrowserFailures.length+' suite(s)):\n'+mandatoryBrowserFailures.join('\n'));
+        }
       }
       if(args.has('--legacy')){
         for(const [shard,suites] of Object.entries(MANIFEST.legacy)){

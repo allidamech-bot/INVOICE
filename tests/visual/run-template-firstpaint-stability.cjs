@@ -46,6 +46,15 @@ const url='http://127.0.0.1:4173/tests/visual/obsidian-editor.html';
               requestAnimationFrame(frame);
             });
             await page.goto(`${url}?lang=${language}&kind=proforma`,{waitUntil:'domcontentloaded'});
+            // The production editor now folds template choices by default.
+            // First-paint geometry must be measured after a REAL user opens
+            // the native disclosure, not by treating intentionally hidden
+            // choices as a rendering failure.
+            const disclosure=page.locator('.editor-template-options');
+            await disclosure.waitFor({state:'attached',timeout:10000});
+            assert.equal(await disclosure.getAttribute('open'),null,'template chooser must start folded');
+            await disclosure.locator('summary').click();
+            assert.notEqual(await disclosure.getAttribute('open'),null,'template chooser must expand on tap');
             await page.locator('.template-selector').waitFor({state:'visible',timeout:10000});
             const gallery=page.locator('.template-selector');
             await gallery.scrollIntoViewIfNeeded();

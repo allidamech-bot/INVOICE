@@ -75,6 +75,6 @@ test('v538 lifecycle is enforced by its WebKit workflow',()=>{
   assert.match(workflow,/tests\/quote-editor-final-lifecycle-v538\.test\.mjs/);
   assert.match(workflow,/assertBrowserReady/);
   assert.match(workflow,/webkit/);
-  assert.match(workflow,/runBrowserQa\('specialized',MANIFEST\.specialized\)/);
+  assert.match(workflow,/runBrowserQa\('specialized',MANIFEST\.specialized(?:,mandatoryBrowserFailures)?\)/);
   assert.match(workflow,/tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
 });

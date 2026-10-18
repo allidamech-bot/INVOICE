@@ -1,6 +1,6 @@
-# LOUREX — Local PR verification without GitHub Actions
+# LOUREX — Local release verification and safe GitHub branch QA
 
-All GitHub Actions YAML workflows have been removed. GitHub PRs now have **no automated CI status**, and an absence of checks must never be interpreted as a PASS.
+Read-only, branch-scoped GitHub Actions workflows are retained. The local release verifier must **not** reject their existence: it runs `tests/local-verification-no-actions.test.mjs` as an early safety/manifest preflight. That test rejects dangerous triggers, production deployments, secrets usage, and unscoped push branches. A green automated check (or an absent check) is **not** a substitute for final-HEAD local signoff.
 
 ## Prepare on Windows / Linux / macOS
 
@@ -18,13 +18,13 @@ Playwright is installed without changing package.json or the lockfile. It is NOT
 
 ## Mandatory before merge
 
-Default verification runs `npm audit --audit-level=high`, `scripts/security-check.mjs`, TypeScript, production build, every changed PR top-level test contract plus the Batch 7 tests, and the previous current Chromium/WebKit QA shards, iPad/mobile/editor stability suites. A failure or missing dependency blocks local signoff. Keep full console output and the tested commit SHA in the Pull Request.
+Default verification runs the safe-workflow preflight, `npm audit --audit-level=high`, `scripts/security-check.mjs`, TypeScript, production build, every changed PR top-level test contract, the Batch 7 tests, and ten permanent stock-issue, invoice-void, sales-return, accounting, reporting, AI-isolation and two-device cloud-race contracts. It also runs the current Chromium/WebKit QA shards and iPad/mobile/editor stability suites. A failure or missing dependency blocks local signoff. Keep full console output and the tested commit SHA in the Pull Request.
 
 `node scripts/verify-local.mjs --quick` is for development ONLY and does not run browsers. Do not merge based on a quick pass.
 `node scripts/verify-local.mjs --legacy` also runs old diagnostic suites (reported separately and historically non-blocking).
 
 Feature branch → PR → final-head local verification → recorded manual signoff → merge. Do not bypass or weaken security, WebKit, iPad or mobile tests.
 
-Existing required GitHub status checks or branch protection may still refer to removed workflows. GitHub App access here cannot change account-level settings; an authorized repository admin must remove obsolete required status contexts if they block a verified merge.
+Required status checks and branch protection were not audited by this change. If obsolete contexts block a verified merge, only an authorized repository admin should reconcile them; do not bypass an active, relevant required check.
 
-Vercel deployment and domain settings are not modified. An external CI provider can be added later with explicit approval and after reviewing its free tier.
+This release-gate fix does not modify Vercel deployment or domain settings and does not edit application behavior, Firebase rules or financial data.

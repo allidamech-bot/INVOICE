@@ -64,5 +64,29 @@ test('specialized contracts from all retired workflow files remain mandatory',as
     'tests/roadmap-hardening-v473.test.mjs',
     'tests/tax-vat-batch10.test.mjs'
   ])assert.ok(source.includes(contract),contract+' must be mandatory');
-  assert.match(source,/runBrowserQa\('specialized',MANIFEST\.specialized\)/);
+  assert.match(source,/runBrowserQa\('specialized',MANIFEST\.specialized(?:,mandatoryBrowserFailures)?\)/);
+  assert.match(source,/if\(mandatoryBrowserFailures\.length\)/,'aggregated browser failures must still reject release');
+  assert.match(source,/throw Error\('Mandatory browser QA failed/,'aggregated browser failures must remain fatal');
+});
+
+
+test('local verification retains safe branch QA and critical financial, AI and cloud contracts',async()=>{
+  const source=await readFile(new URL('scripts/verify-local.mjs',root),'utf8');
+  const check=source.slice(source.indexOf('function runLocalChecks()'),source.indexOf('async function main()'));
+  assert.match(check,/assertSafeBranchQaWorkflows\(\)/,'safe workflow preflight must run');
+  assert.doesNotMatch(source,/function assertNoActions\(/,'do not reject all legitimate GitHub Actions workflows');
+  const block=source.match(/const CONTRACTS=\[([\s\S]*?)\];/)?.[1];
+  assert.ok(block,'mandatory contract list must be present');
+  for(const contract of [
+    'tests/b07-sales-stock-issue.test.mjs',
+    'tests/invoice-stock-ledger-20261015.test.mjs',
+    'tests/invoice-void-stock-20261015.test.mjs',
+    'tests/sales-return-stock-20261015.test.mjs',
+    'tests/accounting-foundation-batch7.test.mjs',
+    'tests/reports-v135.test.mjs',
+    'tests/cloud-first-two-device.test.mjs',
+    'tests/cloud-first-manifest-race.test.mjs',
+    'tests/ai-operational-stock-posting.test.mjs',
+    'tests/ai-account-cache-isolation.test.mjs'
+  ])assert.ok(block.includes("'"+contract+"'"),contract+' must be release-gating');
 });
