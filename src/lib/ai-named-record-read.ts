@@ -24,7 +24,7 @@ function readRequest(message:string):boolean{
  // and "اعتمادًا" (based on) are NOT instructions to record, update or approve.
  if(/\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|delete|post|pay|send)\b|(?:انشئ|سوي|اعمل|جهز|اضف|عدل|غير|احفظ|خزن|حدث|افتح|احذف|امسح|اعتمد|اصدر|رحل|ادفع|ارسل)(?![\p{L}])/iu.test(text))return false;
  // "سجل" may mean the noun ledger, not the imperative "record".
- if(/(?:^|[\s،,;])سجل\s+(?:دفعة|دفع|تحصيل|سداد|فاتورة|مبلغ|حركة|قيد|قبض)(?![\p{L}])/iu.test(text))return false;
+ if(/(?:^|[\s،,;])سجل\s+(?:دفعة|دفع|تحصيل(?:ا)?|سداد|فاتورة|مبلغ(?:ا)?|حركة|قيد|قبض)(?![\p{L}])/iu.test(text))return false;
  return /\b(?:show|read|review|explain|balance|receivables?|outstanding|history|stock|inventory|price|cost|summary)\b|(?:اعرض|اقرا|راجع|اشرح|رصيد|مستحق|ذمم|تاريخ|سجل|فواتير|مخزون|سعر|تكلفة|ملخص)/iu.test(text);
 }
 type Row={id:string};
