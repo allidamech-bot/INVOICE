@@ -1,0 +1,58 @@
+name: LOUREX Settings Keyboard Accessibility QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/styles/v485-visible-ui-corrections.css'
+      - 'tests/visual/run-settings-compact-keyboard-797.cjs'
+      - '.github/workflows/lourex-settings-keyboard-797-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: settings-keyboard-797-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  keyboard-accessibility:
+    name: Node 24 / CSS / real WebKit and Chromium keyboard regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out final pull request snapshot
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check source and security
+        run: |
+          npm audit --audit-level=high
+          npm run typecheck
+          node scripts/security-check.mjs
+          node --test tests/executive-coherence-v480.test.mjs
+      - name: Build exact product CSS and runtime
+        run: npm run build
+      - name: Install isolated browser runners
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Real short-keyboard viewport accessibility on iPhone, tablet, Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > "${RUNNER_TEMP}/lourex-797-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:4173/tests/visual/obsidian-settings.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/visual/run-settings-compact-keyboard-797.cjs
