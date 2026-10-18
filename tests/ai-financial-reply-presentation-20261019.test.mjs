@@ -190,3 +190,62 @@ test('actual post-build Stage 4 renderer hands a local financial record to works
   assert.equal(ordinary.props.className,'lourex-ai-structured-answer');
  }finally{globalThis.React=previousReact;}
 });
+
+
+test('final production renderer uses canonical state message instead of lossy legacy Stage 4 cards',async()=>{
+ const previous=globalThis.React;
+ const React={
+  Fragment:Symbol.for('react.fragment'),
+  createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),
+  isValidElement:x=>Boolean(x&&typeof x==='object'&&'type'in x),
+  cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),
+  Children:{toArray:x=>x===undefined||x===null?[]:Array.isArray(x)?x:[x]}
+ };
+ globalThis.React=React;
+ try {
+  const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js');
+  const financial=formatAiBusinessRecordReply(fixture(),'ar');
+  assert.ok(financial?.startsWith('## '));
+  // This reproduces the actual user screenshot: legacy Stage 4 has already
+  // flattened Markdown into cards and exposed ### and disclosure tokens.
+  const e=React.createElement;
+  const malformed=e('div',{className:'lourex-ai-structured-answer'},
+   e('section',{className:'lourex-ai-answer-block is-summary'},
+    e('div',{className:'lourex-ai-answer-copy'},
+     e('p',{},'فاتورة INV-2026-0003 QA Invoice Buyer ### القيم المالية'),
+     e('p',{},':::lourex-details أصناف المستند (20/24)'),
+     e('ul',{},e('li',{},'1. صنف اختبار 1'),e('li',{},'2. صنف اختبار 2')),
+     e('p',{},':::lourex-end'))));
+  let copies=0;
+  const click=()=>copies++;
+  const tree=e('div',{className:'lourex-ai-messages'},
+   e(React.Fragment,{},e('div',{className:'lourex-ai-message user'},'اعرض الفاتورة')),
+   e(React.Fragment,{},e('div',{className:'lourex-ai-message assistant'},
+    malformed,e('div',{className:'lourex-ai-message-actions'},e('button',{onClick:click},'Copy')))));
+  const host={props:{language:'ar'},state:{messages:[
+   {role:'user',text:'اعرض الفاتورة'},
+   {role:'assistant',text:financial}
+  ]}};
+  const dom=renderConversationWorkspace(host,tree);
+  const all=x=>Array.isArray(x)?x.flatMap(all):React.isValidElement(x)?[x,...all(x.props?.children)]:[];
+  const nodes=all(dom);
+  assert.equal(nodes.filter(x=>x.type==='section'&&x.props.className==='lxw-financial-answer').length,1);
+  assert.equal(nodes.filter(x=>x.type==='details'&&x.props.className==='lxw-ai-record-details').length,1);
+  assert.equal(nodes.filter(x=>x.type==='summary').length,1);
+  assert.ok(nodes.filter(x=>x.type==='h3').length>=1);
+  assert.ok(nodes.filter(x=>x.type==='h4').length>=2);
+  assert.equal(nodes.filter(x=>x.props?.className==='lourex-ai-structured-answer').length,0);
+  const visible=nodes.filter(x=>['p','h3','h4','li','summary'].includes(x.type))
+   .map(x=>JSON.stringify(x.props.children)).join(' ');
+  assert.match(visible,/INV-2026-0003/);
+  assert.match(visible,/QA752-PAY-01 TEST ONLY/);
+  assert.doesNotMatch(visible,/:::lourex-(?:details|end)|###/);
+  const button=nodes.find(x=>x.type==='button'&&x.props.onClick===click);
+  assert.ok(button);
+  button.props.onClick();assert.equal(copies,1);
+  // Do not replace other user/assistant conversational or approval content.
+  const user=nodes.find(x=>x.props?.className?.includes?.('lourex-ai-message user'));
+  assert.ok(user);
+  assert.ok(JSON.stringify(user).includes('اعرض الفاتورة'));
+ }finally{globalThis.React=previous}
+});
