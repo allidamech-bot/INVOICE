@@ -11,7 +11,7 @@ async function modalMeasurements(page){
     const header=modal?.querySelector('.modal-header');
     const body=modal?.querySelector('.modal-body');
     const footer=modal?.querySelector('.modal-footer');
-    const stickyActions=modal?.querySelector('.product-import-mobile-actions');
+    const stickyActions=modal?.querySelector('.modal-footer .product-import-footer');
     const backdrop=modal?.closest('.modal-backdrop');
     const close=modal?.querySelector('.modal-header button');
     const rect=node=>node?node.getBoundingClientRect():null;
@@ -109,9 +109,9 @@ async function openAdvancedProductImport(page,language){
         assertMobileModal(await modalMeasurements(page));
         await page.screenshot({path:`${output}/product-mapping-iphone.png`,fullPage:false,animations:'disabled'});
 
-        await page.getByLabel('Import actions').getByRole('button',{name:'Review import'}).click();
+        await page.locator('.modal-footer .product-import-footer').getByRole('button',{name:'Review import'}).click();
         await page.locator('.product-import-table').waitFor();
-        assert.equal(await page.getByLabel('Import actions').getByRole('button',{name:'Confirm import of 2'}).isVisible(),true);
+        assert.equal(await page.locator('.modal-footer .product-import-footer').getByRole('button',{name:'Confirm import of 2'}).isVisible(),true);
         const text=await page.locator('.product-import-table').innerText();
         assert.match(text,/1234\.50 USD/);assert.match(text,/850\.25 USD/);
         assertMobileModal(await modalMeasurements(page),{mustScroll:false});
@@ -156,7 +156,7 @@ async function openAdvancedProductImport(page,language){
         // second 72px hides usable content; assert visible actions instead.
         assert.equal(layout.browserReserve,0,'visual viewport must not double-reserve Safari chrome');
         assert.ok(layout.stickyActions.bottom<=layout.viewport-layout.browserReserve+1,`sticky actions ${layout.stickyActions.bottom} remain beneath Safari chrome ending at ${layout.viewport-layout.browserReserve}`);
-        const actions=page.locator('.product-import-mobile-actions');
+        const actions=page.locator('.modal-footer .product-import-footer');
         const before=await actions.boundingBox();
         await page.locator('.modal-body').evaluate(node=>{node.scrollTop=node.scrollHeight;});
         await page.waitForTimeout(50);
