@@ -86,7 +86,15 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   };
   await premium();await proactive();
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('lourex-open-customer',{detail:{id:'c1'}})));await page.locator('.ta-customer-profile').waitFor();await question(lang==='ar'?'شرح الحساب':'Explain account',/Northstar|نورث/);await bounds();
-  await page.evaluate(()=>{window.navigateWorkspace('items');});await page.locator('.ta-product-commandbar').waitFor();await page.getByRole('button',{name:lang==='ar'?'إنشاء من ملف':'Create from file',exact:true}).click();await page.locator('.lourex-ai-inbox').waitFor();assert.match(await page.locator('.lourex-ai-inbox').innerText(),/Product catalog|كتالوج منتجات/);await page.keyboard.press('Escape');
+  await page.evaluate(()=>{window.navigateWorkspace('items');});await page.locator('.ta-product-commandbar').waitFor();
+  // Product AI source entry is intentionally nested under the Import products
+  // disclosure. Do not restore a redundant command-bar button.
+  const importEntry=page.locator('.ta-product-import-entry');
+  const importSummary=importEntry.locator('summary');
+  await importSummary.click();
+  assert.notEqual(await importEntry.getAttribute('open'),null,'product source choices must expand');
+  await importEntry.getByRole('button',{name:lang==='ar'?'إنشاء من ملف':'Create from file',exact:true}).click();
+  await page.locator('.lourex-ai-inbox').waitFor();assert.match(await page.locator('.lourex-ai-inbox').innerText(),/Product catalog|كتالوج منتجات/);await page.keyboard.press('Escape');
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('lourex-edit-product',{detail:{itemId:'p1'}})));await page.locator('.ta-product-editor.is-open').waitFor();await question(lang==='ar'?'مراجعة التسعير المحفوظ':'Review saved pricing',/VAL-1.*(Industrial valve|صمام صناعي)/);await bounds();
   await page.evaluate(()=>window.navigateWorkspace('documents'));await page.locator('.ta-documents-header').waitFor();await bounds();assert.ok((await page.locator('.ta-documents-header').boundingBox()).height<=240,'compact document header');await page.getByRole('button',{name:lang==='ar'?'إنشاء من ملف':'Create from file',exact:true}).click();await page.locator('.lourex-ai-inbox').waitFor();assert.match(await page.locator('.lourex-ai-inbox').innerText(),/Customer quotation|طلب عرض سعر/);await page.keyboard.press('Escape');
   await page.evaluate(()=>window.navigateWorkspace('receivables'));await question(lang==='ar'?'شرح المتأخرات':'Explain overdue',/collection priorities/);await bounds();
