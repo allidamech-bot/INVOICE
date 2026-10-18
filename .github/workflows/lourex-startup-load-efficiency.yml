@@ -1,0 +1,41 @@
+name: LOUREX startup load efficiency
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'public/theme-bootstrap-v347.js'
+      - 'public/sw.js'
+      - 'tests/startup-load-efficiency-20261018.test.mjs'
+      - '.github/workflows/lourex-startup-load-efficiency.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-startup-performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript safety
+        run: npm run typecheck
+      - name: Test source startup and service worker contract
+        run: node --test tests/startup-load-efficiency-20261018.test.mjs tests/pwa-safety.test.mjs tests/iphone-startup-v183.test.mjs tests/pwa-stuck-boot-recovery.test.mjs
+      - name: Build production runtime without deployment
+        run: npm run build
+      - name: Verify output bundle and cache migration contracts
+        run: node --test tests/production-bundle-v101.test.mjs tests/v351-pwa-style-cache-prune.test.mjs tests/startup-watchdog-v321.test.mjs
