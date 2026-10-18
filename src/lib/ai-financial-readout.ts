@@ -20,14 +20,19 @@ export function parseFinancialReadout(source:unknown):FinancialReadout|null{
  const lines=raw.split('\n'),first=lines[0]?.trim()||'';
  if(!/^## [^\n]{1,180}$/.test(first))return null;
  const start=lines.findIndex(s=>s.startsWith(':::lourex-details '));
- const stop=lines.indexOf(':::lourex-end',start+1);
- if(start<1||stop<=start||stop!==lines.length-1)return null;
- if(lines.slice(1,start).some(s=>s.startsWith(':::lourex-')))return null;
- const title=clean(first.slice(3)),itemsTitle=clean((lines[start]||'').slice(':::lourex-details '.length));
- if(!title||!itemsTitle)return null;
+ const stop=start>=0?lines.indexOf(':::lourex-end',start+1):-1;
+ if(start>=0&&(start<1||stop<=start||stop!==lines.length-1))return null;
+ const end=start>=0?start:lines.length;
+ if(lines.slice(1,end).some(s=>s.startsWith(':::lourex-')))return null;
+ // Customer-only statements and bounded documents may have no item list.
+ // Accept them only with a known local financial heading, never from generic chat.
+ const titled=lines.slice(1,end).some(s=>/^### (?:القيم المالية|المستحقات والتحصيلات|حركات الحساب المسجلة|Financial values|Receivables and collections|Recorded account movements)$/.test(s.trim()));
+ if(!titled)return null;
+ const title=clean(first.slice(3)),itemsTitle=start>=0?clean((lines[start]||'').slice(':::lourex-details '.length)):'';
+ if(!title||(start>=0&&!itemsTitle))return null;
  const answer:FinancialReadout={title,party:'',intro:[],sections:[],itemsTitle,items:[],partial:false};
  let active:FinancialSection|null=null,latest:FinancialMovement|null=null;
- for(const original of lines.slice(1,start)){
+ for(const original of lines.slice(1,end)){
   const line=original.trim();if(!line)continue;
   if(line.startsWith('### ')){
    active={title:clean(line.slice(4)),facts:[],movements:[],notes:[]};
@@ -56,7 +61,7 @@ export function parseFinancialReadout(source:unknown):FinancialReadout|null{
   if(active)active.notes.push(clean(line));
   else answer.intro.push({label:'',value:clean(line)});
  }
- for(const line of lines.slice(start+1,stop)){
+ for(const line of (start>=0?lines.slice(start+1,stop):[])){
   const text=line.trim();if(!text)continue;
   if(text.startsWith('- '))answer.items.push(clean(text.slice(2)));
   else if(text.includes('جزئية')||/partial|incomplete/i.test(text))answer.partial=true;
