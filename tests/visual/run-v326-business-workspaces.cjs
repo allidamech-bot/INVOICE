@@ -172,7 +172,7 @@ async function assertPrimaryAccent(page,locator,label,failures){
   const srgb=channels=>channels.map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
   const luminance=channels=>{const [r,g,b]=srgb(channels);return r*.2126+g*.7152+b*.0722;};
   const ink=await locator.evaluate(el=>getComputedStyle(el).color);
-  const match=ink.match(/[\\d.]+/g)?.slice(0,3).map(Number);
+  const match=ink.match(/[0-9.]+/g)?.slice(0,3).map(Number);
   if(colors.actual&&match?.length===3){
     const bg=luminance([colors.actual.r,colors.actual.g,colors.actual.b]),fg=luminance(match);
     const ratio=(Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05);
