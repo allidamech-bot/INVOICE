@@ -92,16 +92,23 @@ async function audit(page,failures){
           }else if(section==='data'){
             assert.match((await page.locator('.ta-settings-page').first().innerText()),lang==='ar'?/النسخ|البيانات/:/Backup|Data|activity/i);
           }else if(section==='security'){
-            assert.ok(await page.locator('.ta-settings-card').count()>=3,'Security recovery cards missing');
-            assert.equal(await page.locator('.ta-settings-page input[type=password]').count(),3,'Device PIN and recovery fields missing');
+            // Current Firebase account security has one cloud-account card.
+            // Retired local PIN/recovery fields must NOT be reintroduced.
+            assert.equal(await page.locator('.ta-settings-card').count(),1,'Security must show the canonical cloud-account card');
+            assert.equal(await page.locator('.ta-settings-page input[type=password]').count(),0,'Retired device PIN/recovery secrets must not reappear');
+            assert.match(await page.locator('.ta-settings-card').innerText(),/finance@lourex\\.test/,'Security must identify the signed-in QA account');
             assert.equal(await page.locator('.ta-account-page').count(),0,'Account profile leaked into Security');
-            const restore=lang==='ar'?'استرجاع من السحابة':'Restore from Cloud';
-            await page.getByRole('button',{name:restore}).first().click();
-            assert.ok(await page.getByRole('button',{name:restore}).count()>=2,'Explicit restore confirmation missing');
+            const request=lang==='ar'?'استعادة نسخة السحابة':'Restore cloud copy';
+            const confirmLabel=lang==='ar'?'استرجاع من السحابة':'Restore from Cloud';
+            const requestButton=page.getByRole('button',{name:request,exact:true});
+            assert.equal(await requestButton.count(),1,'Signed-in account must expose one deliberate cloud-restore request');
+            await requestButton.click();
+            const confirmButton=page.getByRole('button',{name:confirmLabel,exact:true});
+            assert.equal(await confirmButton.count(),1,'Cloud restore requires a separate explicit confirmation action');
             assert.ok(await page.locator('.modal').count()>=2,'Restore must open a separate confirmation dialog');
-            // The confirm dialog unmounts before onCloudRestore runs. Capture that it was visibly confirmed before clicking.
+            // Capture that the real confirmation dialog was visible before acting.
             await page.evaluate(()=>{window.__qaConfirmedCloudRestoreFromVisibleDialog=document.querySelectorAll('.modal').length>=2;});
-            await page.getByRole('button',{name:restore}).last().click();
+            await confirmButton.click();
             await page.waitForFunction(()=>window.cloudRestoreObserved?.called===true);
             // Confirmation was verified *before* submitting it above; the modal closes before the async restore callback starts.\n            assert.ok(await page.evaluate(()=>window.cloudRestoreObserved?.called),'Confirmed restore did not reach its handler');
             assert.equal(await page.getByText(/Close the open editor or dialog|أغلق.*المحرر|أغلق.*مربع/).count(),0,'Cloud restore blocked itself while Settings was open');
