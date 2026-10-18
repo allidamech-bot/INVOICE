@@ -25,7 +25,7 @@
 }
 
 .invoice-page .bi-label{column-gap:1.35mm!important;row-gap:.45mm!important}
-.invoice-page .bi-label>.bidi-ar{display:inline-block;line-height:1.42!important;font-size:1.04em!important}
+.invoice-page .bi-label>.bidi-ar{display:inline-block;line-height:1.42!important;font-size:1.12em!important}
 .invoice-page .bi-value>.bidi-ar{line-height:1.48!important}
 .invoice-page .doc-meta b .bi-label>.bidi-ar,
 .invoice-page .section-kicker .bi-label>.bidi-ar,

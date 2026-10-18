@@ -13,32 +13,32 @@ test('live v583 loads the semantic PDF contrast owner after document closeout la
 
 test('live v583 Auto PDF colors keep primary secondary and heading roles independent',async()=>{
   const appearance=await read('src/lib/appearance.ts');
-  const css=await read('src/styles/template-surface-contrast-v366.css');
+  const css=await read('src/styles/document-premium-redesign-v141.css');
   assert.match(appearance,/const primary=custom\?[\s\S]*:defaultPrimary;/);
   assert.match(appearance,/const secondary=custom\?[\s\S]*:defaultSecondary;/);
   assert.match(appearance,/const heading=custom\?[\s\S]*:autoHeading;/);
   assert.doesNotMatch(appearance,/AUTO_LIGHT_TEXT|AUTO_DARK_TEXT/);
-  assert.match(css,/Auto foreground is semantic and surface-aware/);
+  assert.match(css,/structural color always has paired ink/);
   assert.match(css,/--lrx-primary,#17212b/);
   assert.match(css,/--lrx-secondary,#4d5b68/);
   assert.match(css,/--lrx-heading/);
 });
 
-test('live v583 short quotations keep their commercial close anchored at the page foot',async()=>{
-  const owner=await read('scripts/v544-pdf-a4-output-emergency.mjs');
-  assert.match(owner,/nth-child\(-n\+3\):last-child\) \.final-details\{margin-top:auto!important;padding-top:2\.4mm;\}/);
-  assert.doesNotMatch(owner,/nth-child\(-n\+3\):last-child\) \.final-details\{margin-top:8mm/);
+test('short quotation closes follow items in the canonical owner',async()=>{
+ const [css,recovery]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('scripts/v544-pdf-a4-output-emergency.mjs')]);
+ assert.match(css,/\.final-details\{[^}]*margin-top:0/);
+ assert.doesNotMatch(recovery,/css\+=|nth-child/);
 });
 
 test('live v583 normal PDF typography is readable instead of the historical tiny cascade',async()=>{
   const appearance=await read('src/lib/appearance.ts');
-  const css=await read('src/styles/template-surface-contrast-v366.css');
+  const css=await read('src/styles/document-premium-redesign-v141.css');
   assert.match(appearance,/sectionHeadingScale\?\?'normal',\.78/);
   assert.match(appearance,/bodyTextScale\?\?legacyScale,1,/);
   assert.match(appearance,/tableTextScale\?\?legacyScale,8\.2\/9\.1/);
-  assert.match(css,/--lrx-heading-size,7\.8px/);
-  assert.match(css,/--lrx-body-size,9\.2px/);
-  assert.match(css,/--lrx-table-size,8\.2px/);
+  assert.match(css,/--lrx-heading-size,9px/);
+  assert.match(css,/--lrx-body-size,10\.5px/);
+  assert.match(css,/--lrx-table-size,9\.5px/);
 });
 
 test('live v583 editor actions inherit the application palette and section navigation clears sticky chrome',async()=>{

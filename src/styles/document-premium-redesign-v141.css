@@ -1,187 +1,248 @@
-/* LOUREX document design system — canonical A4 layer.
-   This file replaces the historical document cascade. It owns the complete
-   preview/print surface while application and accounting UI styles remain
-   independent. Primary content always stays in normal document flow. */
-
+/* Canonical commercial A4 design. All template geometry, local surface colors,
+   typography and print behavior live here. Editor controls and Draft stationery
+   have separate owners; they must not repaint these commercial documents. */
 @page{size:A4;margin:0}
-
 .invoice-pages{--preview-scale:1;display:flex;flex-direction:column;align-items:center;gap:24px;transform-origin:top center}
 .invoice-page{
-  --paper:#fff;--ink:#17222b;--muted:#69747c;--rule:#d9dfe1;--soft:#f5f6f5;--navy:#0a263b;--ivory:#fbf8f0;--gold:#b08a4b;--template-accent:var(--accent,#b08a4b);
-  box-sizing:border-box;width:210mm;height:297mm;display:flex;flex-direction:column;flex:none;position:relative;overflow:hidden;break-after:page;page-break-after:always;
-  background:var(--paper);color:var(--ink);box-shadow:0 10px 34px rgba(6,25,39,.16);font-family:var(--font-latin,Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif);
-  font-size:8.2px;line-height:1.48;font-synthesis:none;text-rendering:optimizeLegibility;color-scheme:light;-webkit-print-color-adjust:exact;print-color-adjust:exact
+  --paper:#fff;--ink:var(--lrx-primary,#17212b);--muted:var(--lrx-secondary,#4d5b68);--rule:#cdd5dc;--soft:#f4f6f8;
+  --template-accent:var(--accent,#b08a4b);
+  --table-head:#172d3c;--table-ink:#fff;--closing:#f4f6f8;--closing-ink:var(--ink);--closing-muted:var(--muted);
+  --title-size:31px;--title-weight:500;
+  box-sizing:border-box;width:210mm;height:297mm;display:flex;flex-direction:column;flex:none;position:relative;isolation:isolate;overflow:hidden;break-after:page;page-break-after:always;
+  background:var(--paper);color:var(--ink);box-shadow:0 10px 34px #06192729;font-family:var(--font-latin,Inter,Arial,sans-serif);font-size:var(--lrx-body-size,10.5px);line-height:1.5;font-synthesis:none;text-rendering:optimizeLegibility;color-scheme:light;-webkit-print-color-adjust:exact;print-color-adjust:exact
 }
 .invoice-page:last-child{break-after:auto;page-break-after:auto}
-.invoice-page.lang-ar,.invoice-page.lang-ar *:not(.money-cell):not(.quantity-cell),.invoice-page [dir="rtl"],.invoice-page .bi-label>span:last-child,.invoice-page .bi-value>span:last-child,.invoice-page .doc-title em{font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif)}
-.invoice-page.lang-ar{text-align:right}.invoice-page.lang-bilingual{direction:ltr;text-align:left}
 .invoice-page *,.invoice-page *::before,.invoice-page *::after{box-sizing:border-box}
 .invoice-page :is(.doc-title,.doc-meta,.party-grid,.party-block,.items-wrap,.final-details,.lower-grid,.bottom-grid,.terms-block,.totals-block,.bank-block,.signature-block){min-width:0}
+.invoice-page.lang-ar,.invoice-page [lang="ar"],.invoice-page [dir="rtl"],.invoice-page .doc-title em{font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif)}
+.invoice-page.lang-ar{text-align:right}.invoice-page.lang-bilingual{direction:ltr;text-align:left}
 .invoice-page :is(.money-cell,.quantity-cell,.doc-meta>div>span,.total-row>strong,.grand-total>strong){direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums lining-nums}
+.invoice-page .bidi-fragment{unicode-bidi:isolate}.invoice-page .bidi-en{font-family:var(--font-latin,Inter,Arial,sans-serif)}
 .preview-stage .invoice-pages,.mobile-preview-stage .invoice-pages{transform:scale(var(--preview-scale));margin-bottom:calc((297mm * var(--preview-scale)) - 297mm)}
 .compact-preview{box-shadow:none}
 
-/* Shared masthead language */
-.page-accent{height:1.2mm;flex:none;background:var(--template-accent)}
-.doc-logo{display:flex;align-items:flex-start;max-width:38mm;min-height:10mm}.doc-logo img{display:block;width:auto;height:auto;max-width:38mm;max-height:18mm;object-fit:contain;object-position:left top}.lang-ar .doc-logo img{object-position:right top}
-.doc-title{display:flex;flex-direction:column;gap:.9mm}.doc-title>span{font-size:25px;line-height:1.06;font-weight:780;letter-spacing:-.025em;color:inherit;text-wrap:balance}.doc-title>em{font-size:11px;line-height:1.25;font-style:normal;font-weight:700;color:inherit}.doc-title-primary-ar{letter-spacing:0!important;line-height:1.22!important}
-.doc-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3mm 5mm}.doc-meta>div{display:flex;flex-direction:column;gap:.7mm;padding:0 0 1.4mm;border-bottom:1px solid currentColor}.doc-meta b{font-size:6.25px;line-height:1.2;font-weight:730;letter-spacing:.055em;text-transform:uppercase;color:var(--muted)}.doc-meta>div>span{font-size:8px;line-height:1.25;font-weight:690;color:inherit;overflow-wrap:anywhere}
-.bi-label{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:1mm}.bi-value{display:flex;flex-direction:column;gap:.35mm}
-.header-executive,.header-minimal,.header-trade,.header-signature,.header-modern{flex:none;position:relative;isolation:isolate}.header-modern .modern-geometry{display:none}
-.header-modern{min-height:42mm;padding:7mm 11mm 5.5mm;display:grid;grid-template-columns:minmax(0,1fr) 35mm;grid-template-areas:"title brand" "meta meta";gap:4mm 9mm;align-content:start}
-.modern-brand{grid-area:brand;justify-self:end}.modern-title{grid-area:title;align-self:start}.modern-title>small,.signature-title>small{display:block;margin:0 0 1.5mm;font-size:6px;line-height:1;font-weight:740;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}.modern-meta{grid-area:meta}
-.continuation-header{min-height:21mm;padding:5mm 11mm 3.5mm;display:flex;align-items:flex-start;justify-content:space-between;gap:10mm;border-bottom:1px solid var(--rule)}
-.continuation-company{display:flex;align-items:center;gap:3mm;min-width:0}.continuation-company .doc-logo{min-height:0;max-width:19mm}.continuation-company .doc-logo img{max-width:19mm;max-height:9mm}.continuation-company>strong{font-size:8px;line-height:1.25;font-weight:720;max-width:65mm;overflow-wrap:anywhere}
-.continuation-document{display:flex;align-items:baseline;gap:4mm;text-align:end}.continuation-document .doc-title>span{font-size:11px;letter-spacing:.02em}.continuation-document .doc-title>em{display:none}.continuation-document>span{font-size:7.5px;font-weight:700;white-space:nowrap}
+/* Graphic letterheads. Artwork occupies reserved header/footer space only. */
+.template-artwork{display:block;position:absolute;inset:0;width:100%;height:100%;pointer-events:none;user-select:none}
+.template-artwork-header,.template-artwork-footer{z-index:-1}
+.template-artwork-rail{z-index:0}
+.invoice-page>header,.invoice-page>.doc-body,.invoice-page>.doc-footer{position:relative;z-index:2}
+.header-graphic{flex:none;position:relative;isolation:isolate}
+.document-masthead{position:relative;isolation:isolate;min-height:34mm;padding:8mm 12mm 9mm;display:grid;grid-template-columns:37mm minmax(0,1fr);gap:12mm;align-items:center;color:var(--art-ink)}
+.masthead-brand,.masthead-title{min-width:0;position:relative;z-index:1}
+.masthead-title{text-align:end}.masthead-title .doc-title{align-items:flex-end}
+.doc-logo{display:flex;align-items:center;width:36mm;max-width:100%;min-height:10mm}
+.invoice-page .doc-logo img{display:block;width:auto;height:auto;max-width:100%;max-height:18mm;object-fit:contain;object-position:center}
+.doc-brand-name{font-size:13px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
+.doc-title{display:flex;flex-direction:column;gap:1.5mm;color:inherit}
+.doc-title>span{font-size:calc(var(--title-size)*var(--lrx-title-scale,1));line-height:1.18;font-weight:var(--title-weight);letter-spacing:.035em;color:inherit;text-wrap:balance;font-family:Georgia,"Times New Roman",serif}
+.doc-title>em{font-size:calc(19px*var(--lrx-title-scale,1));line-height:1.35;font-style:normal;font-weight:600;letter-spacing:0;color:inherit}
+.invoice-page .masthead-title .doc-title>.bidi-en{font-family:Georgia,"Times New Roman",serif}
+.doc-title>.doc-title-primary-ar{font-family:var(--font-arabic);letter-spacing:0;line-height:1.4;font-weight:700}
+.bi-label{display:inline-flex;flex-direction:column;gap:.35mm;line-height:1.35}.bi-value{display:flex;flex-direction:column;gap:.65mm}.invoice-page .bi-value>.bidi-ar{font-size:1.14em}
+.header-details{margin:3mm 12mm 0;padding:2mm 0 0}
+.doc-meta{display:grid;grid-template-columns:1.25fr 1fr 1fr .65fr;gap:3mm 5mm}
+.doc-meta>div{display:flex;flex-direction:column;gap:1.1mm;padding:1.5mm 0 0;border-top:1px solid var(--rule);min-width:0}
+.doc-meta b{font-size:8px;line-height:1.4;font-weight:500;letter-spacing:.035em;color:var(--muted)}
+.doc-meta>div>span{font-size:10px;line-height:1.45;font-weight:650;color:var(--ink);overflow-wrap:anywhere}
+.continuation-header{padding:6mm 12mm 4mm;display:flex;align-items:center;justify-content:space-between;gap:8mm;border-bottom:1px solid var(--rule);min-height:22mm}
+.continuation-company{display:flex;align-items:center;gap:3mm;min-width:0}.continuation-company .doc-logo{width:19mm;min-height:0}.continuation-company .doc-logo img{max-height:9mm}.continuation-company>strong{font-size:9px;line-height:1.4;font-weight:650;max-width:76mm;overflow-wrap:anywhere}
+.continuation-document{display:grid;gap:1mm;text-align:end}.continuation-document .doc-title>span{font-size:13px;letter-spacing:0}.continuation-document .doc-title>em{display:none}.continuation-document>span{font-size:9px;font-weight:600;white-space:nowrap}
 
-/* Core page grid */
-.doc-body{display:flex;flex:1;min-height:0;flex-direction:column;padding:7mm 11mm 5mm}.party-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:8mm;margin:0 0 6.5mm;align-items:start}
-.party-block{padding:0 0 3mm;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}.party-customer{border-bottom-color:color-mix(in srgb,var(--template-accent) 70%,var(--rule))}
-.section-kicker{margin:0 0 1.5mm;font-size:6.35px;line-height:1.2;font-weight:760;letter-spacing:.1em;text-transform:uppercase;color:var(--template-accent)}.party-name{margin:0 0 1.1mm;font-size:12px;line-height:1.28;font-weight:760;color:var(--ink)}.party-customer .party-name{font-size:13px;font-weight:800}.party-address,.party-location,.party-contact{color:#4f5d66;line-height:1.5}.party-contact{margin-top:.8mm;overflow-wrap:anywhere}
-.party-identifiers{display:grid;gap:.7mm;margin-top:1.7mm;padding-top:1.4mm;border-top:1px solid color-mix(in srgb,var(--rule) 78%,transparent)}.party-identifiers>div{display:grid;grid-template-columns:minmax(23mm,auto) minmax(0,1fr);gap:2mm;align-items:baseline}.party-identifiers b{font-size:6.2px;line-height:1.2;color:var(--muted);font-weight:690}.party-identifiers span{font-size:7.1px;font-weight:650;overflow-wrap:anywhere}
+/* Body: quiet rules, readable copy and generous description space. */
+.doc-body{display:flex;flex:1;min-height:0;flex-direction:column;padding:4mm 12mm 5mm}
+.party-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10mm;margin:0 0 5mm;align-items:start}
+.party-block{padding:0 0 3mm;border-bottom:1px solid var(--rule);overflow-wrap:anywhere;color:var(--ink)}
+.section-kicker{margin:0 0 2mm;font-size:8px;line-height:1.4;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lrx-heading,var(--ink))}
+.party-name{margin:0 0 1.7mm;font-size:13px;line-height:1.45;font-weight:700;color:inherit}
+.party-address,.party-location,.party-contact{color:var(--muted);line-height:1.55;font-weight:400}.party-contact{margin-top:1mm;font-size:.9em;overflow-wrap:anywhere}
+.party-identifiers{display:grid;gap:1mm;margin-top:2mm;padding-top:2mm;border-top:1px solid var(--rule)}
+.party-identifiers>div{display:grid;grid-template-columns:minmax(20mm,auto) minmax(0,1fr);gap:3mm;align-items:baseline}
+.party-identifiers b{font-size:8px;line-height:1.4;color:var(--muted);font-weight:500}.party-identifiers span{font-size:9px;font-weight:500;overflow-wrap:anywhere}
+.items-wrap{width:100%}.continued-label{margin:0 0 2mm;font-size:9px;font-weight:600;color:var(--muted)}
+.items-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.items-table col.col-index{width:6mm}.items-table col.col-hs{width:16mm}.items-table col.col-origin{width:15mm}.items-table col.col-packing{width:17mm}.items-table col.col-qty{width:11mm}.items-table col.col-unit{width:12mm}.items-table col.col-price{width:22mm}.items-table col.col-total{width:25mm}
+.items-table thead{display:table-header-group}.items-table tr{break-inside:avoid;page-break-inside:avoid}
+.items-table th{padding:2.8mm 1.7mm;background:var(--table-head);color:var(--table-ink);font-size:var(--lrx-table-heading-size,8.5px);line-height:1.45;font-weight:600;text-align:start;vertical-align:bottom}
+.items-table th small{display:block;margin-top:.8mm;font-size:7.5px;line-height:1.2;font-weight:400;color:inherit}
+.items-table td{padding:2.5mm 1.7mm;border-bottom:1px solid var(--rule);color:var(--ink);font-size:var(--lrx-table-size,9.5px);line-height:1.55;font-weight:400;vertical-align:top;overflow-wrap:anywhere}
+.items-table tbody tr:nth-child(even){background:var(--soft)}.items-table .col-num{text-align:center}.items-table td.col-num{color:var(--muted)}
+.items-table .description-cell{font-weight:500}.items-table .description-cell .bi-value>span:last-child{font-weight:400}
+.items-table .trade-cell{font-size:calc(var(--lrx-table-size,9.5px)*.9);color:var(--muted)}
+.items-table .quantity-cell,.items-table .numeric-heading,.items-table .money-cell{text-align:end}.items-table .money-cell{white-space:nowrap;font-weight:500}.items-table .money-cell.strong{font-weight:700}
 
-/* Line items — stable numeric grid */
-.items-wrap{width:100%}.continued-label{margin:0 0 2mm;font-size:6.5px;line-height:1.2;font-weight:760;letter-spacing:.1em;text-transform:uppercase;color:var(--template-accent)}
-.items-table{width:100%;border-collapse:collapse;table-layout:fixed}.items-table col.col-index{width:6mm}.items-table col.col-hs{width:18mm}.items-table col.col-origin{width:16mm}.items-table col.col-packing{width:19mm}.items-table col.col-qty{width:13mm}.items-table col.col-unit{width:14mm}.items-table col.col-price{width:22mm}.items-table col.col-total{width:24mm}
-.items-table thead{display:table-header-group}.items-table tr{break-inside:avoid;page-break-inside:avoid}.items-table th{padding:2.25mm 1.5mm;background:var(--navy);color:#fff;font-size:6.35px;line-height:1.2;font-weight:740;letter-spacing:.04em;text-transform:uppercase;text-align:start;vertical-align:bottom}.items-table th small{display:block;margin-top:.5mm;font-size:5.35px;line-height:1;opacity:.67}
-.items-table td{padding:2.05mm 1.5mm;border-bottom:1px solid var(--rule);color:#263842;font-size:7.25px;line-height:1.4;vertical-align:top;overflow-wrap:anywhere}.items-table tbody tr:nth-child(even){background:var(--soft)}.items-table .col-num{text-align:center;color:var(--muted)}.items-table .description-cell{font-size:7.55px;font-weight:560}.items-table .description-cell .bi-value{gap:.6mm}.items-table .description-cell .bi-value>span:last-child{color:#56636b;font-size:.94em}.items-table .trade-cell{color:#4b5961;font-size:6.8px}.items-table .quantity-cell,.items-table .numeric-heading,.items-table .money-cell{text-align:end;white-space:nowrap}.items-table .unit-cell{white-space:nowrap}.items-table .money-cell{font-weight:640}.items-table .money-cell.strong{font-weight:780;color:var(--ink)}
+/* Closing content follows the line items. The footer alone anchors the page. */
+.final-details{flex:0 0 auto;min-height:0;margin-top:0;padding-top:7mm}.details-only .final-details{padding-top:0}
+.lower-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(66mm,70mm);gap:8mm;align-items:start}
+.terms-block,.bank-block,.signature-block,.notes-block{padding-top:3mm;border-top:1px solid var(--rule)}
+.terms-block h3,.bank-block h3,.signature-block h3,.notes-block h3{margin:0 0 2.5mm;font-size:var(--lrx-heading-size,9px);line-height:1.4;font-weight:700;letter-spacing:.045em;text-transform:uppercase;color:var(--lrx-heading,var(--ink))}
+.terms-grid{display:grid;grid-template-columns:1fr;gap:1.8mm}
+.term-row{display:grid;grid-template-columns:28mm minmax(0,1fr);gap:3mm;align-items:baseline}
+.term-row b,.bank-block b{font-size:calc(var(--lrx-body-size,10.5px)*.81);line-height:1.5;font-weight:500;color:var(--muted)}
+.term-row>span,.bank-block>div>span{font-size:calc(var(--lrx-body-size,10.5px)*.905);line-height:1.5;font-weight:400;color:var(--ink);overflow-wrap:anywhere}
+.totals-block{padding:0;border:0;background:transparent;color:var(--ink);align-self:start}
+.total-row,.grand-total{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4mm;align-items:baseline}
+.total-row{padding:1.5mm 3mm;border-bottom:1px solid var(--rule)}.total-row>span{font-size:9px;color:var(--muted);font-weight:400}.total-row>strong{font-size:10px;font-weight:500;white-space:nowrap}
+.grand-total{margin-top:2mm;padding:2.8mm 3mm;border:0;border-radius:1.2mm;background:var(--accent);color:var(--accent-ink)}.grand-total>span{font-size:10px;line-height:1.4;font-weight:600}.grand-total>strong{font-size:16px;line-height:1.2;font-weight:750;letter-spacing:-.02em;white-space:nowrap}
+.notes-block{margin-top:5mm}.notes-block p{margin:0;white-space:pre-wrap;color:var(--muted);font-size:9px;line-height:1.6;font-weight:400;overflow-wrap:anywhere}
+.bottom-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(50mm,.75fr);gap:8mm;margin-top:5mm;align-items:start}
+.bottom-grid:empty{display:none}
+.bottom-grid.has-document-qr{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) 30mm;gap:5mm}
+.document-qr-block{grid-column:3;padding-top:3mm;border-top:1px solid var(--rule);min-width:0}
+.document-qr-block h3{font-size:var(--lrx-heading-size,9px);font-weight:700;color:var(--lrx-heading);margin:0 0 2.5mm;line-height:1.4}
+.document-qr-block .lx-document-qr{flex-direction:column;align-items:flex-start;gap:1.5mm;color:var(--ink);background:transparent}
+.document-qr-block .lx-document-qr img{width:23mm!important;height:23mm!important;min-width:23mm}
+.document-qr-block .lx-document-qr strong{display:none}
+.document-qr-block .lx-document-qr small{font-size:7.5px;color:var(--muted);line-height:1.4}
+.bottom-grid.has-document-qr .bank-block{grid-template-columns:1fr}
+.bottom-grid.has-document-qr .bank-block h3,.bottom-grid.has-document-qr .bank-block>div[data-bank="iban"]{grid-column:auto}
+.bottom-grid.has-document-qr .bank-block>div{flex-direction:row;flex-wrap:wrap;gap:0 1.5mm}
 
-/* Commercial close. The whole closing band consumes spare A4 space as one unit.
-   On short documents margin-top:auto pushes subtotal/total/terms/bank/signature to
-   the footer. On long pages auto margin collapses to zero and normal flow wins. */
-.final-details{flex:0 0 auto;min-height:0;margin-top:auto;padding-top:6mm}.details-only .doc-body{padding-top:10mm}.details-only .final-details{margin-top:0;padding-top:0}.lower-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(58mm,64mm);gap:8mm;align-items:start}
-.terms-block,.bank-block,.signature-block,.notes-block{padding-top:2.6mm;border-top:1px solid var(--rule)}.terms-block h3,.bank-block h3,.signature-block h3,.notes-block h3{margin:0 0 2.2mm;font-size:7px;line-height:1.2;font-weight:780;letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
-.terms-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.6mm 5mm}.term-row{display:grid;grid-template-columns:minmax(22mm,auto) minmax(0,1fr);gap:2mm;align-items:baseline}.term-row b,.bank-block b{font-size:6.25px;line-height:1.25;font-weight:700;color:var(--muted)}.term-row>span,.bank-block>div>span{font-size:7px;line-height:1.42;font-weight:620;color:#2f414b;overflow-wrap:anywhere}
-.totals-block{padding:2.4mm 3.4mm 3mm;border-top:1px solid var(--ink);background:#f7f6f2;align-self:start}.total-row,.grand-total{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5mm;align-items:baseline}.total-row{padding:1.35mm 0;border-bottom:1px solid #d9dddc}.total-row>span{font-size:6.7px;color:#5f6c73}.total-row>strong{font-size:7.5px;font-weight:700;white-space:nowrap}.grand-total{margin-top:1.8mm;padding-top:2.2mm;border-top:1.2px solid var(--template-accent)}.grand-total>span{font-size:8px;line-height:1.2;font-weight:780;color:var(--ink)}.grand-total>strong{font-size:13px;line-height:1.1;font-weight:820;color:var(--ink);white-space:nowrap}
-.notes-block{margin-top:4.5mm}.notes-block p{margin:0;white-space:pre-wrap;color:#4e5d65;font-size:6.9px;line-height:1.5;overflow-wrap:anywhere}.bottom-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(48mm,.8fr);gap:8mm;margin-top:4.5mm;align-items:start}
-.bank-block{display:grid;grid-template-columns:1fr 1fr;gap:1.4mm 5mm}.bank-block h3{grid-column:1/-1}.bank-block>div{display:grid;grid-template-columns:minmax(19mm,auto) minmax(0,1fr);gap:2mm;align-items:baseline}.bank-block>div[data-bank="iban"],.bank-block>div[data-bank="swift-/-bic"]{grid-column:1/-1}.bank-block>div[data-bank="iban"]>span,.bank-block>div[data-bank="swift-/-bic"]>span{font-family:var(--font-latin,Inter,Arial,sans-serif);letter-spacing:.045em;font-weight:760;direction:ltr;unicode-bidi:isolate}
-.signature-media{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr);align-items:end;gap:4mm;min-height:21mm;padding-top:1mm}.signature-media img{display:block;width:100%;height:20mm;object-fit:contain;object-position:center bottom;background:transparent}.signature-media .signature-image{height:20mm}.signature-media .stamp-image{height:22mm}
-.doc-footer{height:10mm;flex:none;margin:0 11mm;display:flex;align-items:center;justify-content:space-between;gap:8mm;border-top:1px solid var(--rule);font-size:6px;line-height:1.2;color:var(--muted);letter-spacing:.03em}.doc-footer>span:first-child{max-width:150mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bank-block{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2mm 5mm}.bank-block h3{grid-column:1/-1}
+.bank-block>div{display:flex;flex-direction:column;gap:.6mm;min-width:0}.bank-block>div[data-bank="iban"]{grid-column:1/-1}
+.bank-block>div[data-bank="iban"]>span,.bank-block>div[data-bank="swift-/-bic"]>span{font-family:var(--font-latin,Inter,Arial,sans-serif);font-size:9px;letter-spacing:.025em;font-weight:500;direction:ltr;unicode-bidi:isolate}
+.signature-media{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;gap:4mm;min-height:22mm;padding:1mm 0 0}.signature-media img{display:block;width:100%;height:21mm;object-fit:contain;object-position:center bottom;background:transparent}.signing-artwork{display:block;min-width:0;height:23mm}.signature-media .signing-artwork img{width:100%;height:23mm;object-fit:contain}.signing-artwork:only-child{grid-column:1/-1;width:36mm;max-width:100%;justify-self:center}
+.document-tone-dark .signature-media{background:transparent;padding:0;border:0}.invoice-page .signature-image{filter:none;mix-blend-mode:normal}
+.doc-footer{position:relative;isolation:isolate;min-height:20mm;flex:none;margin:0;padding:11mm 12mm 3mm;display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;border:0;font-size:8px;line-height:1.5;font-weight:400;color:var(--footer-ink)}
+.doc-footer>span:first-of-type{min-width:0;max-width:152mm;overflow-wrap:anywhere}.doc-footer>span:last-child{flex:none;font-size:8px;font-weight:600;white-space:nowrap}
 
-/* 01 Executive — multinational corporate luxury */
-.template-executive{--paper:#fff;--soft:#f5f7f8;--template-accent:#bd9659}.template-executive .page-accent{height:0}
-.header-executive{min-height:48mm;padding:8mm 11mm 6mm;display:grid;grid-template-columns:minmax(0,1fr) minmax(65mm,.72fr);grid-template-areas:"logo title" "meta meta";gap:6mm 10mm;background:#09273c;color:#fff;border-bottom:1.2mm solid #bd9659}.header-executive>.doc-logo{grid-area:logo}.header-executive>.doc-title{grid-area:title;text-align:end}.header-executive>.doc-title>span{font-size:28px}.header-executive>.doc-meta{grid-area:meta}.header-executive .doc-meta>div{border-color:rgba(255,255,255,.25)}.header-executive .doc-meta b{color:#b8c5cc}.header-executive .doc-meta span{color:#fff}
-.template-executive .party-grid{grid-template-columns:.78fr 1.22fr}.template-executive .party-customer{padding-inline-start:5mm;border-inline-start:1px solid #bd9659;border-bottom-color:var(--rule)}.template-executive .items-table th{background:#09273c}.template-executive .items-table th:first-child{box-shadow:inset 1.1mm 0 0 #bd9659}.template-executive.lang-ar .items-table th:first-child{box-shadow:inset -1.1mm 0 0 #bd9659}.template-executive .totals-block{background:#f4f1ea;border-top:1.2mm solid #09273c}.template-executive .grand-total{border-color:#bd9659}
 
-/* 02 Minimal — typography, air, and almost no furniture */
-.template-minimal{--paper:#fff;--soft:#fff;--template-accent:#242b30;--rule:#e2e5e5}.template-minimal .page-accent{height:.45mm;background:#242b30}
-.header-minimal{min-height:43mm;padding:9mm 12mm 5mm;display:grid;grid-template-columns:34mm minmax(0,1fr);gap:13mm;align-items:start;background:#fff}.header-minimal>div:last-child{display:grid;gap:6mm}.header-minimal .doc-title>span{font-size:31px;font-weight:590;letter-spacing:-.045em}.header-minimal .doc-meta{grid-template-columns:repeat(4,minmax(0,1fr));gap:5mm}.header-minimal .doc-meta>div{border:0;padding:0}.header-minimal .doc-meta b{color:#8b9296}
-.template-minimal .doc-body{padding-inline:12mm}.template-minimal .party-grid{gap:12mm;margin-top:3mm}.template-minimal .party-block{border:0;padding:0}.template-minimal .party-customer{padding-inline-start:7mm;border-inline-start:1px solid #d9ddde}.template-minimal .section-kicker{color:#6f777b}.template-minimal .items-table th{padding-inline:0;background:#fff;color:#171d21;border-top:1.2px solid #171d21;border-bottom:1.2px solid #171d21}.template-minimal .items-table th:not(:first-child),.template-minimal .items-table td:not(:first-child){padding-inline-start:2mm}.template-minimal .items-table td{padding-inline:0;background:#fff;border-color:#e6e8e8}.template-minimal .totals-block{padding-inline:0;background:#fff;border-top:1px solid #171d21}.template-minimal .grand-total{border-top:2px solid #171d21}
+/* 01 Executive: a wide amber ribbon woven through a navy letterhead. */
+.invoice-page.template-executive{--table-head:#202445;--closing:#fff5d9}
+.invoice-page.template-executive .document-masthead{padding-bottom:12mm}
+.invoice-page.template-executive .party-customer .section-kicker{border-inline-start:2mm solid var(--accent);padding-inline-start:2mm}
 
-/* 03 International Trade — logistics and banking are first-class */
-.template-trade{--paper:#fff;--soft:#f2f6f7;--template-accent:#ad8747;--rule:#d3dcdf}.template-trade .page-accent{height:0}
-.header-trade{min-height:48mm;display:grid;grid-template-columns:39mm minmax(0,1fr);background:#fff;border-bottom:1px solid #cbd8dd}.trade-bar{padding:8mm 5mm;background:#0b3046;border-inline-end:1.2mm solid #ad8747}.trade-bar .doc-logo img{max-width:28mm;max-height:20mm}.trade-title{padding:7.5mm 11mm 5.5mm 8mm;display:grid;gap:5mm}.lang-ar .trade-title{padding:7.5mm 8mm 5.5mm 11mm}.trade-title .doc-title>span{font-size:27px;color:#0b3046}.trade-title .doc-meta{grid-template-columns:1.25fr 1fr 1fr .55fr}.trade-title .doc-meta>div{border-color:#cbd8dd}
-.template-trade .party-grid{grid-template-columns:.68fr 1.32fr;gap:0;border-bottom:1px solid #cbd8dd}.template-trade .party-block{border:0;padding:0 5mm 3.5mm 0}.template-trade.lang-ar .party-block{padding:0 0 3.5mm 5mm}.template-trade .party-customer{padding-inline-start:6mm;border-inline-start:1px solid #cbd8dd}.template-trade .items-table{border-top:1.2mm solid #0b3046}.template-trade .items-table th{background:#eef3f4;color:#173444;border-bottom:1px solid #8ea5ae}.template-trade .items-table td{border-color:#d5dfe1}.template-trade .items-table .trade-cell{background:#f3f6f6}.template-trade .terms-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.template-trade .term-row{display:block;padding-inline-start:2mm;border-inline-start:1.2mm solid #ad8747}.template-trade .term-row b,.template-trade .term-row>span{display:block}.template-trade .term-row>span{margin-top:.5mm}.template-trade .bank-block{border-top:1.1mm solid #0b3046}
+/* 02 Minimal: clean white paper and a strong interrupted yellow band. */
+.invoice-page.template-minimal{--table-head:#242833;--title-size:34px;--title-weight:500;--soft:#f5f6f8}
+.invoice-page.template-minimal .document-masthead{padding-bottom:11mm}
+.invoice-page.template-minimal .masthead-title{align-self:end}
+.invoice-page.template-minimal .grand-total{border-radius:0}
 
-/* 04 Signature — warm formal stationery and composed authorization */
-.template-signature{--paper:#fcfaf5;--soft:#f8f3e8;--template-accent:#aa8143;--rule:#ded5c5}.template-signature .page-accent{height:1mm;background:#aa8143}
-.header-signature{min-height:45mm;padding:8mm 12mm 5.5mm;display:grid;grid-template-columns:35mm minmax(0,1fr);grid-template-areas:"logo title" "meta meta";gap:4mm 11mm;border-bottom:1px solid #d8cbb7}.header-signature>.doc-logo{grid-area:logo}.signature-title{grid-area:title;padding-inline-start:7mm;border-inline-start:1px solid #aa8143}.signature-title .doc-title>span{font-family:Georgia,"Times New Roman",serif;font-size:29px;font-weight:560;letter-spacing:-.02em}.header-signature>.doc-meta{grid-area:meta}.header-signature .doc-meta>div{border-color:#d8cbb7}
-.template-signature .party-grid{grid-template-columns:.82fr 1.18fr}.template-signature .party-block{padding:3.5mm;border:1px solid #ded5c5;background:rgba(255,255,255,.46)}.template-signature .party-customer{border-top:1.2mm solid #aa8143}.template-signature .items-table th{background:#2c3133}.template-signature .totals-block{background:#f2eadc;border-top:1px solid #aa8143}.template-signature .bottom-grid{grid-template-columns:minmax(0,.85fr) minmax(72mm,1.15fr);border-top:1px solid #aa8143;padding-top:4mm}.template-signature .bank-block,.template-signature .signature-block{border-top:0;padding-top:0}.template-signature .signature-block{padding-inline-start:7mm;border-inline-start:1px solid #d5c6af}.template-signature .signature-media{min-height:27mm}.template-signature .signature-media img{height:25mm}.template-signature .signature-media .stamp-image{height:27mm}
+/* 03 International Trade: blue and orange crossing swooshes. */
+.invoice-page.template-trade{--table-head:#1374ae;--soft:#edf5fb}
+.invoice-page.template-trade .document-masthead{padding-top:12mm;padding-bottom:6mm}
+.invoice-page.template-trade .items-table th{border-bottom:1mm solid var(--accent)}
 
-/* 05 Obsidian — sharp graphite architecture on commercial paper */
-.template-obsidian{--paper:#fff;--soft:#f3f4f4;--template-accent:#b68d4e;--rule:#d7dadd}.template-obsidian .page-accent{height:1.3mm;background:#b68d4e}
-.template-obsidian .header-modern{min-height:49mm;grid-template-columns:minmax(0,1fr) 39mm;background:linear-gradient(123deg,#15191c 0 71%,#252a2e 71% 100%);color:#fff;border-bottom:1.2mm solid #b68d4e}.template-obsidian .modern-title{padding-inline-start:4mm;border-inline-start:1px solid #b68d4e}.template-obsidian .modern-title>small,.template-obsidian .doc-meta b{color:#cbb78e}.template-obsidian .doc-meta>div{border-color:#4a4f52}
-.template-obsidian .party-grid{grid-template-columns:1.18fr .82fr;gap:4mm}.template-obsidian .party-block{padding:4mm;background:#f1f2f2;border:0;border-top:1.1mm solid #242a2e}.template-obsidian .party-customer{margin-top:5mm;border-top-color:#b68d4e}.template-obsidian .items-table th{background:#1a1f22;border-bottom:1px solid #b68d4e}.template-obsidian .items-table td{border-color:#d3d6d8}.template-obsidian .totals-block{background:#202529;color:#fff;border-top-color:#b68d4e}.template-obsidian .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong){color:#fff}.template-obsidian .total-row{border-color:#414649}
+/* 04 Signature: sage curves, a white cutout and formal warm paper. */
+.invoice-page.template-signature{--paper:#fcfaf5;--soft:#f0f3ed;--table-head:#39543d;--title-size:30px;--title-weight:500}
+.invoice-page.template-signature .document-masthead{padding-bottom:11mm}
+.invoice-page.template-signature .masthead-title .bidi-en{font-family:Georgia,"Times New Roman",serif}
+.invoice-page.template-signature .grand-total{border-radius:0 5mm 0 5mm}
 
-/* 06 Cobalt — international corporate rail and directional grid */
-.template-cobalt{--paper:#fff;--soft:#f1f6fa;--template-accent:#246ea8;--rule:#d4dfe7}.template-cobalt .page-accent{height:0}
-.template-cobalt .header-modern{min-height:49mm;padding:0;grid-template-columns:42mm minmax(0,1fr);grid-template-areas:"brand title" "brand meta";gap:0 9mm;border-inline-start:4mm solid #246ea8;border-bottom:1px solid #bfd0dc}.template-cobalt .modern-brand{grid-area:brand;justify-self:stretch;padding:9mm 6mm;background:#123d5e;border-inline-end:1px solid #246ea8}.template-cobalt .modern-title{grid-area:title;padding:8mm 11mm 0 0}.template-cobalt.lang-ar .modern-title{padding:8mm 0 0 11mm}.template-cobalt .modern-title>small{color:#246ea8}.template-cobalt .doc-title>span{color:#123d5e}.template-cobalt .modern-meta{grid-area:meta;padding:0 11mm 5.5mm 0}.template-cobalt.lang-ar .modern-meta{padding:0 0 5.5mm 11mm}.template-cobalt .doc-meta>div{border-color:#c9d7e0}
-.template-cobalt .party-grid{grid-template-columns:.74fr 1.26fr;gap:5mm}.template-cobalt .party-seller{border-inline-start:1.2mm solid #246ea8;padding-inline-start:4mm}.template-cobalt .party-customer{background:#f1f6fa;padding:3.2mm 4mm;border:0}.template-cobalt .items-table th{background:#123d5e}.template-cobalt .items-table th:last-child{background:#246ea8}.template-cobalt .totals-block{background:#edf4f8;border-top-color:#246ea8}.template-cobalt .grand-total{border-top-color:#123d5e}.template-cobalt .grand-total>strong{color:#123d5e}
+/* 05 Obsidian: cyan diagonal cuts through graphite, with light identity cards. */
+.invoice-page.template-obsidian{--paper:#15191c;--soft:#20262a;--rule:#485158;--table-head:#18232f}
+.invoice-page.template-obsidian .document-masthead{padding-top:10mm;padding-bottom:10mm}
+.invoice-page.template-obsidian .party-block{padding:0 0 3mm;background:transparent;color:var(--ink);border-bottom:1px solid var(--rule)}
+.document-tone-dark .party-name{padding-bottom:1.5mm;border-bottom:1px solid var(--accent)}
+.document-tone-dark .section-kicker{color:var(--lrx-heading)}
 
-/* 07 Editorial — financial-journal typography and rules */
-.template-editorial{--paper:#fff;--soft:#fff;--template-accent:#1e2529;--rule:#d7d9da}.template-editorial .page-accent{height:.45mm;background:#1e2529}
-.template-editorial .header-modern{min-height:53mm;padding:6.5mm 11mm 5mm;grid-template-columns:minmax(0,1fr) 31mm;grid-template-areas:"meta brand" "title title";gap:5mm 8mm;border-bottom:2px solid #1e2529}.template-editorial .modern-brand{grid-area:brand;filter:grayscale(1)}.template-editorial .modern-meta{grid-area:meta}.template-editorial .doc-meta{grid-template-columns:1.45fr 1fr 1fr .55fr}.template-editorial .doc-meta>div{flex-direction:row;justify-content:space-between;gap:2mm;padding-bottom:1mm;border-color:#a8adaf}.template-editorial .modern-title{grid-area:title;border-top:1px solid #1e2529;padding-top:3mm}.template-editorial .modern-title>small{margin-bottom:1mm;color:#1e2529}.template-editorial .doc-title>span{font-family:Georgia,"Times New Roman",serif;font-size:34px;line-height:.96;font-weight:540;letter-spacing:-.045em}
-.template-editorial .party-grid{grid-template-columns:.62fr 1.38fr;gap:10mm}.template-editorial .party-block{border:0;border-top:1px solid #1e2529;padding-top:2mm}.template-editorial .party-name{font-family:Georgia,"Times New Roman",serif;font-weight:580}.template-editorial .section-kicker{color:#1e2529}.template-editorial .items-table th{padding-inline:.8mm;background:#fff;color:#1e2529;border-top:2px solid #1e2529;border-bottom:1px solid #1e2529}.template-editorial .items-table td{padding-inline:.8mm;background:#fff;border-color:#d7d9da}.template-editorial .items-table .description-cell{font-family:Georgia,"Times New Roman",serif;font-size:7.7px}.template-editorial .totals-block{background:#fff;border-top:2px solid #1e2529;padding-inline:0}.template-editorial .grand-total{border-top:3px double #1e2529}
+/* 06 Cobalt: a blue wave folded under a navy circular crown. */
+.invoice-page.template-cobalt{--table-head:#165da8;--soft:#eef5fb}
+.invoice-page.template-cobalt .document-masthead{grid-template-columns:minmax(0,1fr) 37mm;grid-template-areas:"title brand";padding-bottom:12mm}
+.invoice-page.template-cobalt .masthead-brand{grid-area:brand}.invoice-page.template-cobalt .masthead-title{grid-area:title;text-align:start}
+.invoice-page.template-cobalt .items-table th:first-child{border-start-start-radius:2mm}.invoice-page.template-cobalt .items-table th:last-child{border-start-end-radius:2mm}
+.invoice-page.template-cobalt .masthead-title .doc-title{align-items:flex-start}
+.invoice-page.template-cobalt .grand-total{border-radius:5mm}
 
-/* 08 Split — asymmetric 36/64 commercial composition */
-.template-split{--paper:#fff;--soft:#f5f7f7;--template-accent:#527382;--rule:#d5dddf}.template-split .page-accent{height:0}
-.template-split .header-modern{min-height:50mm;grid-template-columns:minmax(0,.58fr) minmax(0,.42fr);grid-template-areas:"title brand" "title meta";gap:0;padding:0;background:linear-gradient(90deg,#102f40 0 36%,#eef2f2 36% 100%);color:#fff;border-bottom:1px solid #9eb0b7}.template-split.lang-ar .header-modern{background:linear-gradient(270deg,#102f40 0 36%,#eef2f2 36% 100%)}.template-split .modern-title{grid-area:title;padding:11mm 8mm 7mm 11mm;align-self:stretch}.template-split.lang-ar .modern-title{padding:11mm 11mm 7mm 8mm}.template-split .modern-title>small{color:#c4d1d6}.template-split .doc-title>span{font-size:30px}.template-split .modern-brand{grid-area:brand;padding:7mm 11mm 2mm;justify-self:end}.template-split .modern-meta{grid-area:meta;padding:1mm 11mm 6mm;color:#1f3541}.template-split .doc-meta{grid-template-columns:repeat(2,minmax(0,1fr));gap:2mm 5mm}.template-split .doc-meta>div{border-color:#bcc9cd}.template-split .doc-meta b{color:#6a7b83}
-.template-split .party-grid{grid-template-columns:.66fr 1.34fr;gap:0}.template-split .party-seller{padding:3.5mm 5mm;background:#eef2f2;border:0}.template-split .party-customer{padding:3.5mm 5mm;border:1px solid #bdc9cd;border-inline-start:1.2mm solid #527382}.template-split .items-table th{background:#102f40}.template-split .items-table th:last-child{background:#527382}.template-split .lower-grid{grid-template-columns:minmax(0,.58fr) minmax(0,.42fr)}.template-split .totals-block{background:#102f40;color:#fff;border-top:0}.template-split .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong){color:#fff}.template-split .total-row{border-color:#36515f}
+/* 07 Editorial: yellow tab, typographic title and a charcoal footer cut. */
+.invoice-page.template-editorial{--title-size:35px;--title-weight:500;--table-head:#242733;--soft:#f7f7f5}
+.invoice-page.template-editorial .masthead-title .bidi-en{font-family:Georgia,"Times New Roman",serif}
+.invoice-page.template-editorial .document-masthead{padding-top:10mm;padding-bottom:11mm}
+.invoice-page.template-editorial .grand-total{border-radius:0}
 
-/* 09 Prism — restrained geometric color fields */
-.template-prism{--paper:#fff;--soft:#f3f8f7;--template-accent:#4f7d78;--rule:#d4e1df}.template-prism .page-accent{height:1.3mm;background:linear-gradient(90deg,#4f7d78 0 61%,#b79a62 61% 82%,#273a45 82%)}
-.template-prism .header-modern{min-height:48mm;background:linear-gradient(132deg,#e8f2f0 0 19%,#fff 19% 76%,#f2ece1 76% 100%);border-bottom:1px solid #bfd1ce}.template-prism .modern-title{padding-inline-start:5mm;border-inline-start:1.2mm solid #4f7d78}.template-prism .modern-title>small{color:#4f7d78}.template-prism .doc-meta>div{background:rgba(255,255,255,.76);padding:1.5mm 1.8mm;border:1px solid #cfdddb}
-.template-prism .party-grid{gap:4mm}.template-prism .party-block{padding:3.5mm 4mm;border:1px solid #d3dfdd}.template-prism .party-seller{border-top:1.2mm solid #273a45}.template-prism .party-customer{border-top:1.2mm solid #4f7d78}.template-prism .items-table th{background:#273a45}.template-prism .items-table th:nth-last-child(-n+2){background:#4f7d78}.template-prism .totals-block{background:#edf5f3;border-top-color:#4f7d78}.template-prism .grand-total{border-top-color:#b79a62}
+/* 08 Split: indigo round cutouts with warm orange discs and a curved total. */
+.invoice-page.template-split{--table-head:#28295b;--soft:#f3f2fa}
+.invoice-page.template-split .document-masthead{grid-template-columns:37mm minmax(0,1fr);padding-top:10mm;padding-bottom:12mm}
+.invoice-page.template-split .masthead-title{padding-inline-start:20mm}
+.invoice-page.template-split .grand-total{border-radius:5mm}
+.invoice-page.template-split .items-table th:first-child{border-start-start-radius:5mm}.invoice-page.template-split .items-table th:last-child{border-start-end-radius:5mm}
 
-/* 10 Slate — dense, numerical, and long-line-item ready */
-.template-slate{--paper:#fff;--soft:#f1f3f4;--template-accent:#566874;--rule:#d2d8db}.template-slate .page-accent{height:.8mm;background:#566874}
-.template-slate .header-modern{min-height:38mm;padding:5.5mm 10mm 4mm;grid-template-columns:minmax(0,1fr) 27mm;gap:3mm 7mm;background:#f3f5f6;border-inline-end:3mm solid #566874;border-bottom:1px solid #bfc7cb}.template-slate .doc-title>span{font-size:23px}.template-slate .modern-title>small{margin-bottom:1mm}.template-slate .doc-meta{gap:2mm}.template-slate .doc-meta>div{padding:1.2mm 1.6mm;background:#fff;border:1px solid #d1d8db}.template-slate .doc-meta b{font-size:5.9px}.template-slate .doc-meta>div>span{font-size:7.3px}
-.template-slate .doc-body{padding:5.5mm 10mm 4mm}.template-slate .party-grid{gap:4mm;margin-bottom:4.5mm}.template-slate .party-block{padding-bottom:2mm}.template-slate .party-name{font-size:10.7px}.template-slate .party-customer .party-name{font-size:11.5px}.template-slate .party-identifiers{display:none}.template-slate .items-table th{padding:1.8mm 1.2mm;background:#2b363d;font-size:5.9px}.template-slate .items-table td{padding:1.6mm 1.2mm;font-size:6.7px;line-height:1.3}.template-slate .items-table .description-cell{font-size:6.9px}.template-slate .totals-block{padding:2mm 3mm;background:#2b363d;color:#fff;border-top-color:#83939c}.template-slate .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong){color:#fff}.template-slate .total-row{border-color:#465158}.template-slate .grand-total>strong{font-size:11.5px}
+/* 09 Prism: a teal side spine, coral edge and chevron label. */
+.invoice-page.template-prism{--table-head:#087f8c;--soft:#edf6f7}
+.invoice-page.template-prism .document-masthead{padding-inline-start:20mm;padding-bottom:11mm}
+.invoice-page.template-prism :is(.header-details,.continuation-header){margin-inline-start:20mm}
+.invoice-page.template-prism .doc-body{padding-inline-start:20mm}
+.invoice-page.template-prism .doc-footer{padding-inline-start:20mm}
+.invoice-page.template-prism .items-table .col-num{background:var(--art-second);color:#fff}
+.invoice-page.template-prism .items-table td.col-num{border-bottom-color:#6db5bd}
 
-/* 11 Horizon — calm, horizontal, open */
-.template-horizon{--paper:#fff;--soft:#f4f8f9;--template-accent:#235269;--rule:#d7e0e3}.template-horizon .page-accent{height:4mm;background:linear-gradient(90deg,#235269 0 68%,#a9c0c8 68% 86%,#c5a66b 86%)}
-.template-horizon .header-modern{min-height:47mm;grid-template-columns:minmax(0,1fr) 38mm;background:linear-gradient(180deg,#edf4f6 0 35%,#fff 35% 100%);border-bottom:1px solid #b9cbd2}.template-horizon .modern-title{align-self:end}.template-horizon .doc-title>span{font-size:28px;font-weight:650}.template-horizon .modern-title>small{color:#547584}.template-horizon .doc-meta>div{border-color:#b9cbd2}
-.template-horizon .party-grid{grid-template-columns:1fr 1fr;gap:14mm}.template-horizon .party-block{border:0;border-top:1px solid #9fb5be;padding-top:2.5mm}.template-horizon .section-kicker{color:#547584}.template-horizon .items-table th{background:#fff;color:#173747;border-top:1.2mm solid #235269;border-bottom:1px solid #9fb5be}.template-horizon .items-table td{border-color:#d8e1e4}.template-horizon .totals-block{background:#f1f6f7;border-top-color:#235269}.template-horizon .grand-total{border-top-color:#c5a66b}
+/* 10 Slate: an airy aqua side panel with a crisp black information grid. */
+.invoice-page.template-slate{--table-head:#28525f;--soft:#edf4f5}
+.invoice-page.template-slate .document-masthead{grid-template-columns:minmax(0,1fr) 33mm;grid-template-areas:"title brand";padding-inline-end:31mm}
+.invoice-page.template-slate .masthead-title{grid-area:title;text-align:start}.invoice-page.template-slate .masthead-brand{grid-area:brand}
+.invoice-page.template-slate .header-details{margin-inline-end:27mm}
+.invoice-page.template-slate .doc-body{padding-inline-end:27mm}
+.invoice-page.template-slate .doc-footer{padding-inline-end:27mm}
+.invoice-page.template-slate .masthead-title .doc-title{align-items:flex-start}
+.invoice-page.template-slate .grand-total{border-radius:0}
 
-/* 12 Mono Grid — Swiss monochrome system */
-.template-mono{--paper:#fff;--soft:#f5f5f5;--template-accent:#111;--rule:#c8c8c8}.template-mono .page-accent{height:2mm;background:#111}
-.template-mono .header-modern{min-height:47mm;margin:6mm 9mm 0;padding:5mm 6mm;grid-template-columns:minmax(0,1fr) 31mm;border:1px solid #111;background:#fff}.template-mono .modern-title>small{color:#111}.template-mono .doc-title>span{font-size:29px;font-weight:800;letter-spacing:-.055em}.template-mono .doc-meta{gap:0}.template-mono .doc-meta>div{padding:1.7mm;border:1px solid #111}.template-mono .doc-meta b{color:#111}
-.template-mono .doc-body{padding-inline:9mm}.template-mono .party-grid{gap:0;border:1px solid #111}.template-mono .party-block{padding:3.5mm;border:0}.template-mono .party-customer{border-inline-start:1px solid #111}.template-mono .section-kicker{color:#111}.template-mono .items-table{border:1px solid #111}.template-mono .items-table th{background:#111;color:#fff;border-inline-end:1px solid #fff}.template-mono .items-table td{border-color:#aaa}.template-mono .items-table tbody tr:nth-child(even){background:#f4f4f4}.template-mono .totals-block{background:#fff;border:1px solid #111}.template-mono .grand-total{border-top:2px solid #111}.template-mono .doc-footer{margin-inline:9mm;border-color:#111;color:#111}
+/* 11 Horizon: open white stationery framed by thin blue and orange arcs. */
+.invoice-page.template-horizon{--table-head:#166eb4;--soft:#eef5fb}
+.invoice-page.template-horizon .document-masthead{padding-top:12mm;padding-bottom:7mm}
+.invoice-page.template-horizon .items-table th{background:transparent;color:#15374b;border-block:1px solid #166eb4}
+.invoice-page.template-horizon .grand-total{border-radius:0;border-inline-start:1.5mm solid var(--art-second)}
 
-/* 13 Aurora — quiet ivory, teal, and champagne */
-.template-aurora{--paper:#fdfbf6;--soft:#f1f7f5;--template-accent:#477b74;--rule:#d7dfdb}.template-aurora .page-accent{height:1.4mm;background:linear-gradient(90deg,#477b74,#8ca9a2 62%,#c6a870)}
-.template-aurora .header-modern{min-height:49mm;background:linear-gradient(122deg,#eaf4f1 0%,#fdfbf6 52%,#f4ead8 100%);border-bottom:1px solid #d5c8b1}.template-aurora .modern-title{padding-inline-start:5mm;border-inline-start:1px solid #c0a16a}.template-aurora .modern-title>small{color:#477b74}.template-aurora .doc-title>span{font-size:28px;color:#1d4040}.template-aurora .doc-meta>div{border-color:#cbd8d4}
-.template-aurora .party-grid{gap:5mm}.template-aurora .party-block{padding:3.5mm 4mm;background:rgba(255,255,255,.58);border:0;border-top:1px solid #9fbab4}.template-aurora .party-customer{background:#eff6f3;border-top-color:#c0a16a}.template-aurora .section-kicker{color:#477b74}.template-aurora .items-table th{background:#244c4b}.template-aurora .items-table tbody tr:nth-child(even){background:#eef5f3}.template-aurora .totals-block{background:#edf5f2;border-top-color:#477b74}.template-aurora .grand-total{border-top-color:#c0a16a}
+/* 12 Mono Grid: asymmetric black bands and numbered ledger cells. */
+.invoice-page.template-mono{--table-head:#181b22;--soft:#f5f5f6;--rule:#b9bfc5;--title-size:32px}
+.invoice-page.template-mono .document-masthead{padding-bottom:11mm}
+.invoice-page.template-mono .items-table th,.invoice-page.template-mono .items-table td{border-inline-end:1px solid var(--rule)}
+.invoice-page.template-mono .items-table td.col-num{background:#181b22;color:#fff}
+.invoice-page.template-mono .grand-total{border-radius:0}
 
-/* 14 Ledger — modern accounting heritage, numbers first */
-.template-ledger{--paper:#fff;--soft:#f2f5f6;--template-accent:#314e5d;--rule:#cbd4d8}.template-ledger .page-accent{height:1.4mm;background:#314e5d}
-.template-ledger .header-modern{min-height:46mm;grid-template-columns:minmax(0,1fr) 35mm;border-bottom:3px double #314e5d}.template-ledger .modern-title{padding:2.5mm 3mm;background:#f2f5f6;border-inline-start:1.2mm solid #314e5d}.template-ledger .doc-title>span{font-size:25px}.template-ledger .doc-meta{gap:2mm}.template-ledger .doc-meta>div{padding:1.8mm 2mm;border:1px solid #c6d0d4}.template-ledger .doc-meta b{color:#4e626c}
-.template-ledger .party-grid{gap:0;border:1px solid #c6d0d4}.template-ledger .party-block{padding:3.5mm 4mm;border:0}.template-ledger .party-customer{border-inline-start:1px solid #c6d0d4}.template-ledger .section-kicker{margin:0 0 2.5mm;padding:1.4mm 2mm;background:#e9eef0;color:#314e5d}.template-ledger .items-table{border:1px solid #aebdc3}.template-ledger .items-table th{background:#314e5d;border-inline-end:1px solid #718791}.template-ledger .items-table td{border-inline-end:1px solid #d6dde0}.template-ledger .items-table .quantity-cell,.template-ledger .items-table .money-cell{font-weight:720}.template-ledger .totals-block{background:#fff;border:1px solid #aebdc3}.template-ledger .grand-total{margin-top:2mm;padding:2.7mm 2mm;background:#314e5d;border:0;color:#fff}.template-ledger .grand-total>span,.template-ledger .grand-total>strong{color:#fff}
+/* 13 Aurora: two teal waves enclose an open, fresh white working surface. */
+.invoice-page.template-aurora{--paper:#fdfbf6;--table-head:#08736f;--soft:#edf5f1}
+.invoice-page.template-aurora .document-masthead{grid-template-columns:minmax(0,1fr) 37mm;grid-template-areas:"title brand";padding-bottom:12mm}
+.invoice-page.template-aurora .masthead-title{grid-area:title;text-align:start}.invoice-page.template-aurora .masthead-brand{grid-area:brand}
+.invoice-page.template-aurora .masthead-title .doc-title{align-items:flex-start}
+.invoice-page.template-aurora .grand-total{border-radius:0 5mm 0 5mm}
 
-/* 15 Noir Gold — black identity on light commercial paper */
-.template-noir{--paper:#fffdf8;--soft:#f5f2eb;--template-accent:#b58a46;--rule:#ddd7cb}.template-noir .page-accent{height:1.2mm;background:#b58a46}
-.template-noir .header-modern{min-height:51mm;padding:0;grid-template-columns:minmax(0,1fr) 43mm;grid-template-areas:"title brand" "meta brand";gap:0 8mm;background:linear-gradient(90deg,#171717 0 78%,#b58a46 78% 100%);color:#fff}.template-noir.lang-ar .header-modern{background:linear-gradient(270deg,#171717 0 78%,#b58a46 78% 100%)}.template-noir .modern-title{grid-area:title;padding:9mm 0 2mm 11mm}.template-noir.lang-ar .modern-title{padding:9mm 11mm 2mm 0}.template-noir .modern-title>small{color:#d7bd8c}.template-noir .doc-title>span{font-size:29px;font-weight:650}.template-noir .modern-brand{grid-area:brand;align-self:stretch;justify-self:stretch;padding:9mm 5mm}.template-noir .modern-meta{grid-area:meta;padding:1mm 0 6mm 11mm}.template-noir.lang-ar .modern-meta{padding:1mm 11mm 6mm 0}.template-noir .doc-meta{grid-template-columns:repeat(4,minmax(0,1fr));gap:4mm}.template-noir .doc-meta>div{border-color:#5d5548}.template-noir .doc-meta b{color:#bfa979}.template-noir .doc-meta span{color:#fff}
-.template-noir .party-grid{grid-template-columns:.8fr 1.2fr}.template-noir .party-block{border-top:1px solid #252525;border-bottom:0;padding-top:2.8mm}.template-noir .party-customer{padding-inline-start:5mm;border-inline-start:1.2mm solid #b58a46}.template-noir .section-kicker{color:#9c763d}.template-noir .items-table th{background:#1b1b1b;color:#e2c792}.template-noir .items-table th:last-child{background:#b58a46;color:#111}.template-noir .totals-block{background:#f2ede2;border-top:1.2mm solid #1b1b1b}.template-noir .grand-total{border-top-color:#b58a46}
+/* 14 Ledger: a crimson ribbon crest with an integrated red financial finish. */
+.invoice-page.template-ledger{--table-head:#bf1938;--soft:#fbf0f2}
+.invoice-page.template-ledger .document-masthead{padding-top:15mm;padding-bottom:5mm}
+.invoice-page.template-ledger .items-table th:first-child{border-start-start-radius:2mm}.invoice-page.template-ledger .items-table th:last-child{border-start-end-radius:2mm}
+.invoice-page.template-ledger .grand-total{border-radius:0}
 
-/* 16 Midnight Navy — LOUREX flagship */
-.template-midnight{--paper:#fcfaf4;--soft:#f0f4f5;--template-accent:#c19b59;--rule:#d6dcdd}.template-midnight .page-accent{height:1.2mm;background:#c19b59}
-.template-midnight .header-modern{min-height:53mm;padding:0;grid-template-columns:46mm minmax(0,1fr);grid-template-areas:"brand title" "brand meta";gap:0;background:#08263a;color:#fff;border-bottom:1.2mm solid #c19b59}.template-midnight .modern-brand{grid-area:brand;justify-self:stretch;padding:9mm 6mm;background:#061a29;border-inline-end:1px solid #8d713f}.template-midnight .modern-title{grid-area:title;padding:9mm 11mm 2mm 8mm}.template-midnight.lang-ar .modern-title{padding:9mm 8mm 2mm 11mm}.template-midnight .modern-title>small{color:#c9ae78}.template-midnight .doc-title>span{font-size:30px}.template-midnight .modern-meta{grid-area:meta;padding:1mm 11mm 6mm 8mm}.template-midnight.lang-ar .modern-meta{padding:1mm 8mm 6mm 11mm}.template-midnight .doc-meta{gap:0}.template-midnight .doc-meta>div{padding:1.8mm 2.2mm;border:1px solid #315064}.template-midnight .doc-meta b{color:#aebfca}.template-midnight .doc-meta span{color:#fff}
-.template-midnight .party-grid{grid-template-columns:.72fr 1.28fr;gap:5mm}.template-midnight .party-seller{border-top:1.1mm solid #08263a}.template-midnight .party-customer{padding:3.6mm 4.2mm;background:#edf2f3;border:0;border-inline-start:1.2mm solid #c19b59}.template-midnight .items-table th{background:#08263a;color:#fff;border-bottom:1px solid #c19b59}.template-midnight .items-table .money-cell.strong{color:#08263a}.template-midnight .totals-block{background:#08263a;color:#fff;border-top:1px solid #c19b59}.template-midnight .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong){color:#fff}.template-midnight .total-row{border-color:#355164}.template-midnight .grand-total{border-top-color:#c19b59}.template-midnight .grand-total>strong{color:#e5c483}
+/* 15 Noir Gold: long gold facets fold around a matte black page. */
+.invoice-page.template-noir{--paper:#121212;--soft:#1b1a18;--rule:#514c44;--table-head:#29241d}
+.invoice-page.template-noir .document-masthead{padding-top:10mm;padding-bottom:10mm}
+.invoice-page.template-noir .grand-total{border-radius:0}
 
-/* 17 Black Ivory — timeless European classic */
-.template-blackivory{--paper:#fbf6eb;--soft:#f5efe3;--template-accent:#26231f;--rule:#d8cfbf}.template-blackivory .page-accent{height:.8mm;background:#26231f}
-.template-blackivory .header-modern{min-height:49mm;grid-template-columns:minmax(0,1fr) 36mm;background:#fbf6eb;border-top:3mm solid #26231f;border-bottom:3px double #8e744b}.template-blackivory .modern-title>small{color:#8e744b}.template-blackivory .doc-title>span{font-family:Georgia,"Times New Roman",serif;font-size:31px;font-weight:530;letter-spacing:-.025em}.template-blackivory .doc-meta>div{border-color:#bfb3a0}.template-blackivory .doc-meta b{color:#756a5c}
-.template-blackivory .party-grid{gap:0;border-top:1px solid #26231f;border-bottom:1px solid #26231f}.template-blackivory .party-block{padding:3.6mm 4mm;border:0}.template-blackivory .party-customer{border-inline-start:1px solid #26231f}.template-blackivory .party-name{font-family:Georgia,"Times New Roman",serif;font-weight:600}.template-blackivory .section-kicker{color:#75613f}.template-blackivory .items-table th{background:#26231f;color:#f8f0e1}.template-blackivory .items-table td{border-color:#d3c7b6}.template-blackivory .totals-block{background:#f1e8d8;border-top-color:#26231f}.template-blackivory .grand-total{border-top:3px double #26231f}
+/* 16 Midnight Navy: a sweeping blue crest and champagne wave on navy. */
+.invoice-page.template-midnight{--paper:#071824;--soft:#0d2434;--rule:#3e5666;--table-head:#16538a}
+.invoice-page.template-midnight .document-masthead{padding-top:10mm;padding-bottom:12mm}
+.invoice-page.template-midnight .grand-total{border-radius:0 5mm 0 5mm}
 
-/* 18 Carbon Luxe — industrial graphite and metallic precision */
-.template-carbon{--paper:#fafafa;--soft:#f0f1f1;--template-accent:#a98148;--rule:#d2d5d6}.template-carbon .page-accent{height:1.4mm;background:linear-gradient(90deg,#303438 0 73%,#a98148 73%)}
-.template-carbon .header-modern{min-height:50mm;background:linear-gradient(128deg,#292d30 0 62%,#3a3f43 62% 83%,#25292c 83%);color:#fff;border-bottom:1.2mm solid #a98148}.template-carbon .modern-title{padding-inline-end:5mm;border-inline-end:1.2mm solid #a98148}.template-carbon.lang-ar .modern-title{padding-inline-end:0;padding-inline-start:5mm;border-inline-end:0;border-inline-start:1.2mm solid #a98148}.template-carbon .modern-title>small,.template-carbon .doc-meta b{color:#c6b28f}.template-carbon .doc-title>span{font-size:28px;font-weight:720;letter-spacing:.01em}.template-carbon .doc-meta>div{padding:1.6mm 2mm;background:#33383c;border:1px solid #4b5054}.template-carbon .doc-meta span{color:#fff}
-.template-carbon .party-grid{grid-template-columns:1.16fr .84fr;gap:4mm}.template-carbon .party-block{padding:3.7mm 4mm;background:#f0f1f1;border:0;border-top:1.1mm solid #363b3e}.template-carbon .party-customer{margin-top:5mm;border-top-color:#a98148}.template-carbon .items-table th{background:#34393d;color:#fff;border-bottom:1px solid #a98148}.template-carbon .items-table tbody tr:nth-child(even){background:#eceeef}.template-carbon .items-table td{border-color:#cfd3d5}.template-carbon .lower-grid{grid-template-columns:minmax(58mm,64mm) minmax(0,1fr)}.template-carbon .totals-block{grid-column:1;background:#303438;color:#fff;border-top-color:#a98148}.template-carbon .terms-block{grid-column:2;grid-row:1}.template-carbon .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong){color:#fff}.template-carbon .total-row{border-color:#4e5356}.template-carbon .grand-total{border-top-color:#a98148}.template-carbon .grand-total>strong{color:#ddbc85}
+/* 17 Black Ivory: an ivory title panel, black corner and a gold diagonal. */
+.invoice-page.template-blackivory{--paper:#14130f;--soft:#1f1d18;--rule:#534e42;--table-head:#f1e7d3;--table-ink:#201c18;--title-size:32px;--title-weight:500}
+.invoice-page.template-blackivory .document-masthead{padding-top:12mm;padding-bottom:10mm;padding-inline-end:32mm}
+.invoice-page.template-blackivory .masthead-title .bidi-en{font-family:Georgia,"Times New Roman",serif}
+.invoice-page.template-blackivory .grand-total{border-radius:0}
 
-/* RTL is a deliberately mirrored layout */
-.invoice-page.lang-ar .doc-title,.invoice-page.lang-ar .modern-title,.invoice-page.lang-ar .party-block,.invoice-page.lang-ar :is(.terms-block,.bank-block,.signature-block,.notes-block){text-align:right}.invoice-page.lang-ar .doc-logo{justify-content:flex-end}.invoice-page.lang-ar .items-table{direction:rtl}.invoice-page.lang-ar .items-table th,.invoice-page.lang-ar .items-table td{text-align:right}.invoice-page.lang-ar .items-table :is(.quantity-cell,.numeric-heading,.money-cell){text-align:left}.invoice-page.lang-ar .party-identifiers>div,.invoice-page.lang-ar .term-row,.invoice-page.lang-ar :is(.total-row,.grand-total){direction:rtl}.invoice-page.lang-ar .bottom-grid,.invoice-page.lang-ar .lower-grid,.invoice-page.lang-ar .party-grid{direction:rtl}.invoice-page.lang-ar .bank-block>div>span{direction:rtl}.invoice-page.lang-ar .bank-block>div[data-bank="iban"]>span,.invoice-page.lang-ar .bank-block>div[data-bank="swift-/-bic"]>span{direction:ltr;text-align:right}.invoice-page.lang-bilingual .bi-label{justify-content:flex-start}.invoice-page.lang-bilingual .bi-value>span[dir="rtl"]{text-align:right}
+/* 18 Carbon Luxe: metallic diagonal panels and a warm gold total. */
+.invoice-page.template-carbon{--paper:#1b1d20;--soft:#24282b;--rule:#505960;--table-head:#394656}
+.invoice-page.template-carbon .document-masthead{padding-top:12mm;padding-bottom:8mm}
+.invoice-page.template-carbon .grand-total{border-radius:1mm}
 
-/* Bilingual titles represent one concept in two languages. Keep Arabic close
-   to the Latin title's perceived weight instead of rendering it as a caption. */
-.invoice-page.lang-bilingual .doc-title{gap:.45mm}
-.invoice-page.lang-bilingual .doc-title>em{font-size:20px;line-height:1.18;font-style:normal;font-weight:800;opacity:.96;letter-spacing:0}
-.invoice-page.lang-bilingual.template-minimal .doc-title>em,
-.invoice-page.lang-bilingual.template-editorial .doc-title>em,
-.invoice-page.lang-bilingual.template-blackivory .doc-title>em{font-size:22px}
-.invoice-pages>.invoice-page:not(:first-child).lang-bilingual .doc-title>em{display:none}
-
-/* Void state is an exception: a watermark, never part of content flow. */
-.document-void-watermark{position:absolute;z-index:8;inset:42% 8% auto;transform:rotate(-18deg);padding:2mm 4mm;border:1.2mm solid rgba(140,30,30,.14);color:rgba(140,30,30,.16);font-size:48px;line-height:1;text-align:center;font-weight:850;letter-spacing:.12em;pointer-events:none}
-
-/* Preview responsiveness; the A4 itself never becomes mobile-card UI. */
+.invoice-page.lang-ar .template-artwork{transform:scaleX(-1)}
+/* User colors apply to semantic ink; structural color always has paired ink. */
+.invoice-page.palette-custom{--template-accent:var(--accent)}
+.invoice-page.lang-ar :is(.doc-title,.masthead-title,.party-block,.terms-block,.bank-block,.signature-block,.notes-block){text-align:right;letter-spacing:0}
+.invoice-page.lang-ar .items-table{direction:rtl}.invoice-page.lang-ar .items-table :is(th,td){text-align:right}.invoice-page.lang-ar .items-table :is(.quantity-cell,.numeric-heading,.money-cell){text-align:left}
+.invoice-page.lang-ar :is(.party-grid,.lower-grid,.bottom-grid,.party-identifiers>div,.term-row,.total-row,.grand-total){direction:rtl}
+.invoice-page.lang-bilingual .bi-value>span[dir="rtl"]{text-align:right}
+.invoice-page.lang-bilingual :is(.section-kicker,.term-row>b,.bank-block>div>b,h3) .bi-label{flex-direction:row;flex-wrap:wrap;gap:0 1.5mm}
+.invoice-page.lang-ar :is(.section-kicker,h3,.doc-meta b){letter-spacing:0}
+.document-void-watermark{position:absolute;z-index:8;inset:42% 8% auto;transform:rotate(-18deg);padding:2mm 4mm;border:1.2mm solid #8c1e1e24;color:#8c1e1e29;font-size:48px;line-height:1;text-align:center;font-weight:800;letter-spacing:.12em;pointer-events:none}
 @media(max-width:720px){
   .app-ui .mobile-preview-overlay{display:none}.app-ui .mobile-preview-open .mobile-preview-overlay{display:flex;position:fixed;inset:0;z-index:var(--lourex-z-preview,1400);flex-direction:column;background:#e7eaeb}
   .app-ui .preview-stage .invoice-pages,.app-ui .mobile-preview-stage .invoice-pages{width:210mm;max-width:none;transform-origin:top center}
   .app-ui .preview-stage .invoice-page,.app-ui .mobile-preview-stage .invoice-page{width:210mm;min-width:210mm;height:297mm;min-height:297mm}
   .app-ui .mobile-preview-stage{display:flex;justify-content:center;overflow:auto;padding:16px 0 calc(28px + env(safe-area-inset-bottom))}
 }
-
 @media print{
   html,body{margin:0!important;padding:0!important;background:#fff!important}body>*:not(.print-portal):not(#root){display:none!important}.print-portal{display:block!important;margin:0!important;padding:0!important;background:#fff!important}
   .print-portal .invoice-pages{display:block!important;margin:0!important;padding:0!important;gap:0!important;transform:none!important}.invoice-page{width:210mm!important;height:297mm!important;margin:0!important;box-shadow:none!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important}
-  .invoice-page .items-table thead{display:table-header-group}.invoice-page .items-table tr,.invoice-page .final-details,.invoice-page .lower-grid,.invoice-page .bottom-grid,.invoice-page .totals-block{break-inside:avoid!important;page-break-inside:avoid!important}
+  .invoice-page .items-table thead{display:table-header-group}.invoice-page .items-table tr,.invoice-page .lower-grid,.invoice-page .bottom-grid,.invoice-page .totals-block{break-inside:avoid;page-break-inside:avoid}
+  .print-portal{position:static!important;left:auto!important;top:auto!important;width:auto!important;z-index:auto!important}
+  #root,#root>.app-root{display:block!important;height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
 }
-
-/* Measure the same A4 subtree before native printing or PDF rasterization. */
-@media screen{
-  .print-portal:has(.invoice-pages){display:block!important;position:fixed!important;left:-12000px!important;top:0!important;width:210mm!important;pointer-events:none!important;z-index:-1!important;}
-}
-@media print{
-  .print-portal{position:static!important;left:auto!important;top:auto!important;width:auto!important;z-index:auto!important;}
-  #root,#root>.app-root{display:block!important;height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important;}
-}
+@media screen{.print-portal:has(.invoice-pages){display:block!important;position:fixed!important;left:-12000px!important;top:0!important;width:210mm!important;pointer-events:none!important;z-index:-1!important}}

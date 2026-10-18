@@ -14,9 +14,9 @@ test('template selector uses zero-runtime decorative previews instead of invoice
   assert.doesNotMatch(selector,/TemplateRenderer/);
   assert.doesNotMatch(selector,/thumbnailDocument/);
   assert.match(css,/\.app-ui \.template-mini-static/);
-  assert.match(css,/template-preview-executive/);
-  assert.match(css,/template-preview-noir/);
-  assert.match(css,/template-preview-carbon/);
+  assert.match(selector,/TemplateArtwork/);
+  assert.match(selector,/templateArtPalette/);
+  assert.doesNotMatch(css,/template-preview-executive|template-preview-noir|template-preview-carbon/);
 });
 
 test('hidden mobile overlay defers its full A4 render until opened',async()=>{
@@ -31,7 +31,7 @@ test('hidden mobile overlay defers its full A4 render until opened',async()=>{
 test('real document renderer remains intact for full preview and print quality',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/const fragments=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
-  assert.match(renderer,/paginateItems\(fragments,false,firstPageItemCapacity\(doc\)/);
+  assert.match(renderer,/paginateItems\(fragments,false,10,/);
   assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
   assert.match(renderer,/LogoBlock document=\{doc\}/);
   assert.match(renderer,/Signature document=\{doc\}/);

@@ -14,13 +14,13 @@ test('appearance engine exposes independent surface and semantic ink tokens',asy
   assert.match(appearance,/darkSurfaceInk:string/);
   assert.match(appearance,/darkSurfaceMuted:string/);
   assert.match(appearance,/heading:string;primary:string;secondary:string/);
-  assert.match(appearance,/const surfaceInk=darkBody&&!mixedLightCards\?'#f5f1e9':'#17212b'/);
+  assert.match(appearance,/const surfaceInk=darkBody\?'#f5f1e9':'#17212b'/);
   assert.match(appearance,/const darkSurfaceInk='#fffaf0'/);
   assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian','noir','midnight','blackivory','carbon'\]\)/);
   assert.match(appearance,/TEMPLATE_LIGHT_SURFACES/);
 });
 
-test('effective output papers match the loaded cascade and Obsidian keeps independent light-card tokens',()=>{
+test('effective output papers match the loaded cascade and Obsidian uses consistent dark identity tokens',()=>{
   const base=createBlankDocument('invoice','INV-TOKEN',defaultCompany()).appearance;
   const lightPapers={executive:'#ffffff',minimal:'#ffffff',trade:'#ffffff',signature:'#fcfaf5',cobalt:'#ffffff',editorial:'#ffffff',split:'#ffffff',prism:'#ffffff',slate:'#ffffff',horizon:'#ffffff',mono:'#ffffff',aurora:'#fdfbf6',ledger:'#ffffff'};
   for(const [templateId,paper] of Object.entries(lightPapers)){
@@ -44,10 +44,10 @@ test('effective output papers match the loaded cascade and Obsidian keeps indepe
   assert.equal(obsidian.page,'#15191c');
   assert.equal(obsidian.primary,'#f5f1e9');
   assert.equal(obsidian.secondary,'#aeb5ba');
-  assert.equal(obsidian.heading,'#b68d4e');
-  assert.equal(obsidian.surface,'#f1f2f2');
-  assert.equal(obsidian.surfaceInk,'#17212b');
-  assert.equal(obsidian.darkSurface,'#15191c');
+  assert.equal(obsidian.heading,'#00bfc2');
+  assert.equal(obsidian.surface,'#20262a');
+  assert.equal(obsidian.surfaceInk,'#f5f1e9');
+  assert.equal(obsidian.darkSurface,'#20262a');
 });
 
 test('custom text colors pass every actual semantic surface, not merely the page paper',()=>{

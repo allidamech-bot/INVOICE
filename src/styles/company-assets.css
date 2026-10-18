@@ -3,16 +3,6 @@
 
 .invoice-page .official-doc-logo{display:none}
 
-/* Legacy scanned JPEG signatures can still carry an opaque paper background.
-   Keep this fallback signature-only so stamp colors are never inverted. */
-.template-noir .signature-media .signature-image[src^="data:image/jpeg"],
-.template-midnight .signature-media .signature-image[src^="data:image/jpeg"],
-.template-blackivory .signature-media .signature-image[src^="data:image/jpeg"],
-.template-carbon .signature-media .signature-image[src^="data:image/jpeg"]{
-  filter:invert(1) hue-rotate(180deg) contrast(1.08);
-  mix-blend-mode:screen;
-}
-
 .signature-media img{
   background:transparent;
   object-fit:contain;

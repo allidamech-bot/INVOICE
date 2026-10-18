@@ -72,6 +72,6 @@ test('v544 emergency owner runs after visual bundle owners and removes the pagin
   assert.match(owner,/oneRowDeadlock/);
   assert.match(owner,/items\.push\(moved\);continue/);
   assert.match(owner,/this\.moves=0/);
-  assert.match(owner,/nth-child\(-n\+3\):last-child/);
-  assert.match(owner,/LOUREX v544 PDF A4 emergency/);
+  assert.doesNotMatch(owner,/css\+=|nth-child/);
+  assert.match(owner,/A4 pagination readiness recovery/);
 });

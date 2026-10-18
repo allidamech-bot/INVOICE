@@ -44,8 +44,19 @@ const documentData={
   notes:'Please reference the document number on all correspondence. Certificates of origin, inspection records, and final packing lists will accompany the shipping documents.',convertedFromId:'',createdAt:'2026-09-03T09:00:00.000Z',updatedAt:'2026-09-03T09:00:00.000Z'
 };
 
+// A representative quotation alongside the existing deliberately dense stress fixture.
+if(params.get('profile')==='showcase'){
+  documentData.revision=1;
+  Object.assign(documentData.companySnapshot,{nameEn:'LOUREX International Trading',nameAr:'لوريكس للتجارة الدولية',addressEn:'Emirates Financial Tower, Office 1804',addressAr:'برج الإمارات المالي، مكتب ١٨٠٤',taxNumber:'',commercialRegistration:'',footerText:'www.lou-rex.com  |  commercial@lou-rex.com'});
+  Object.assign(documentData.customerSnapshot,{companyNameEn:'Helvetia Industrial Group',companyNameAr:'مجموعة هلفيتيا الصناعية',addressEn:'Jebel Ali Free Zone',addressAr:'المنطقة الحرة بجبل علي',commercialRegistration:''});
+  Object.assign(documentData.terms,{packing:'',portOfLoading:'',finalDestination:'',countryOfOrigin:'',remarks:'',incoterm:''});
+  Object.assign(documentData.adjustments,{shippingEnabled:false,otherChargesEnabled:false,discountEnabled:false});
+  Object.assign(documentData.appearance,{showHsCode:false,showOrigin:false,showPacking:false});
+  documentData.notes='';
+}
+
 try{
-  const rendered=React.createElement(TemplateRenderer,{document:documentData,scale,compact:false});
+  const rendered=React.createElement(TemplateRenderer,{document:documentData,scale,compact:false,electronicShareId:params.get('qr')==='true'?'0123456789abcdef0123456789abcdef0123456789a':undefined});
   const shell=React.createElement('div',{className:`qa-shell editor-screen ${mode==='mobile'?'mobile-preview-open':''}`},
     React.createElement('div',{className:'qa-caption'},React.createElement('span',null,`${String(template).toUpperCase()} · ${language.toUpperCase()} · ${count} items · ${palette.toUpperCase()}`),React.createElement('span',null,mode.toUpperCase())),
     React.createElement('div',{className:`qa-stage preview-stage ${mode==='mobile'?'mobile-preview-stage':''} mode-${mode}`},rendered)

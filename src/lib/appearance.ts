@@ -21,12 +21,11 @@ export const ARABIC_FONT_OPTIONS: Array<{value:ArabicFontId;label:string}> = [
 /* Keep Auto aligned with the authored output identities rather than maintaining a
  * second visual system with near-but-not-identical colors. */
 const AUTO_ACCENTS: Record<TemplateId,string> = {
-  executive:'#bd9659', minimal:'#242b30', trade:'#ad8747', signature:'#aa8143', obsidian:'#b68d4e', cobalt:'#246ea8', editorial:'#1e2529', split:'#527382', prism:'#4f7d78', slate:'#566874', horizon:'#235269', mono:'#111111', aurora:'#477b74', ledger:'#314e5d', noir:'#b58a46', midnight:'#c19b59', blackivory:'#26231f', carbon:'#a98148'
+  executive:'#ffbc1c', minimal:'#ffc619', trade:'#ff932b', signature:'#57774c', obsidian:'#00bfc2', cobalt:'#00a5d4', editorial:'#f2be22', split:'#f9a821', prism:'#f55378', slate:'#4e8c9b', horizon:'#ff8d22', mono:'#191b22', aurora:'#20bbb0', ledger:'#ef2549', noir:'#c29a52', midnight:'#c6a25e', blackivory:'#b99558', carbon:'#cfaa67'
+
 };
 
-/* Effective output papers after the currently loaded cascade. v141 makes the
- * commercial identities light, but the later v330 identity layer deliberately
- * turns Obsidian back into a graphite sheet while leaving its party cards light. */
+/* Authored paper colors in the canonical v141 design. */
 const TEMPLATE_PAPERS: Record<TemplateId,string> = {
   executive:'#ffffff', minimal:'#ffffff', trade:'#ffffff', signature:'#fcfaf5', obsidian:'#15191c', cobalt:'#ffffff', editorial:'#ffffff', split:'#ffffff', prism:'#ffffff', slate:'#ffffff', horizon:'#ffffff', mono:'#ffffff', aurora:'#fdfbf6', ledger:'#ffffff', noir:'#121212', midnight:'#071824', blackivory:'#14130f', carbon:'#1b1d20'
 };
@@ -37,16 +36,17 @@ const TEMPLATE_PAPERS: Record<TemplateId,string> = {
  * surfaces, so custom text must pass both the page and the darkest common light
  * semantic surface for that template. */
 const TEMPLATE_LIGHT_SURFACES: Record<TemplateId,string> = {
-  executive:'#f5f7f8', minimal:'#ffffff', trade:'#f2f6f7', signature:'#f8f3e8', obsidian:'#f1f2f2', cobalt:'#f1f6fa', editorial:'#ffffff', split:'#eef2f2', prism:'#f3f8f7', slate:'#f1f3f4', horizon:'#f4f8f9', mono:'#f4f4f4', aurora:'#eef5f3', ledger:'#e9eef0', noir:'#f5f2eb', midnight:'#edf2f3', blackivory:'#f5efe3', carbon:'#eceeef'
+  executive:'#f5f1e9', minimal:'#ffffff', trade:'#eef4f6', signature:'#f3ecdf', obsidian:'#f1f2f2', cobalt:'#edf4f9', editorial:'#ffffff', split:'#eef2f2', prism:'#edf4f1', slate:'#eef2f4', horizon:'#edf3f5', mono:'#f4f4f4', aurora:'#edf4ee', ledger:'#e9eef0', noir:'#f5f2eb', midnight:'#edf2f3', blackivory:'#f5efe3', carbon:'#eceeef'
+
 };
 const DARK_BODY_TEMPLATES=new Set<TemplateId>(['obsidian','noir','midnight','blackivory','carbon']);
 const TEMPLATE_DARK_SURFACES: Partial<Record<TemplateId,string>> = {
   obsidian:'#20262a',noir:'#1b1a18',midnight:'#0d2434',blackivory:'#1f1d18',carbon:'#24282b'
 };
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
-const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
+const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'"LOUREX Tajawal", Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
 const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {executive:'inter',minimal:'source-sans',trade:'source-sans',signature:'playfair',obsidian:'montserrat',cobalt:'montserrat',editorial:'playfair',split:'inter',prism:'montserrat',slate:'source-sans',horizon:'playfair',mono:'source-sans',aurora:'montserrat',ledger:'source-sans',noir:'montserrat',midnight:'montserrat',blackivory:'playfair',carbon:'montserrat'};
-const AUTO_ARABIC_BY_TEMPLATE: Record<TemplateId,Exclude<ArabicFontId,'auto'>> = {executive:'cairo',minimal:'tajawal',trade:'tajawal',signature:'noto-naskh',obsidian:'noto-kufi',cobalt:'noto-kufi',editorial:'noto-naskh',split:'cairo',prism:'noto-kufi',slate:'tajawal',horizon:'noto-naskh',mono:'tajawal',aurora:'noto-kufi',ledger:'tajawal',noir:'noto-kufi',midnight:'noto-kufi',blackivory:'noto-naskh',carbon:'noto-kufi'};
+const AUTO_ARABIC_BY_TEMPLATE: Record<TemplateId,Exclude<ArabicFontId,'auto'>> = {executive:'tajawal',minimal:'tajawal',trade:'tajawal',signature:'tajawal',obsidian:'tajawal',cobalt:'tajawal',editorial:'tajawal',split:'tajawal',prism:'tajawal',slate:'tajawal',horizon:'tajawal',mono:'tajawal',aurora:'tajawal',ledger:'tajawal',noir:'tajawal',midnight:'tajawal',blackivory:'tajawal',carbon:'tajawal'};
 
 type TextScale='small'|'normal'|'large';
 export type DocumentTone='light'|'dark';
@@ -125,14 +125,11 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const bodyScale=scaleValue(appearance?.bodyTextScale??legacyScale,1,.95,1.06);
   const tableScale=scaleValue(appearance?.tableTextScale??legacyScale,8.2/9.1,.95,1.05);
 
-  // Obsidian intentionally keeps light party cards. The four luxury identities
-  // are now true dark documents, so their local cards also use dark semantic
-  // surfaces and light ink instead of inheriting light-sheet card tokens.
-  const mixedLightCards=templateId==='obsidian';
-  const surface=darkBody?(mixedLightCards?lightSurface:darkSemanticSurface):'#ffffff';
-  const surfaceInk=darkBody&&!mixedLightCards?'#f5f1e9':'#17212b';
-  const surfaceMuted=darkBody&&!mixedLightCards?'#aeb5ba':'#58656f';
-  const darkSurface=darkBody?(mixedLightCards?page:darkSemanticSurface):'#202020';
+  // All dark documents keep identity and signing areas on their own paper.
+  const surface=darkBody?darkSemanticSurface:'#ffffff';
+  const surfaceInk=darkBody?'#f5f1e9':'#17212b';
+  const surfaceMuted=darkBody?'#aeb5ba':'#58656f';
+  const darkSurface=darkBody?darkSemanticSurface:'#202020';
   const darkSurfaceInk='#fffaf0';
   const darkSurfaceMuted='#d7d0c4';
 

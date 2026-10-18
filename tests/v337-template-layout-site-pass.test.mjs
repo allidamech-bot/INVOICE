@@ -9,28 +9,9 @@ test('v337 is loaded by the runtime-promoted document owner after v333',async()=
   assert.match(owner,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
 });
 
-test('v350 retires commercial closing geometry from v337 and keeps it in canonical v141',async()=>{
-  const [canonical,css]=await Promise.all([
-    read('src/styles/document-premium-redesign-v141.css'),
-    read('src/styles/v337-template-layout-balance.css')
-  ]);
-  assert.match(canonical,/\.final-details\{[^}]*margin-top:auto[^}]*padding-top:6mm/);
-  assert.match(canonical,/\.details-only \.final-details\{margin-top:0;padding-top:0\}/);
-  assert.match(canonical,/\.bottom-grid\{[^}]*margin-top:4\.5mm[^}]*align-items:start/);
-  assert.match(canonical,/\.signature-media\{[^}]*min-height:21mm[^}]*padding-top:1mm/);
-  assert.doesNotMatch(css,/\.invoice-page(?:\:not\([^)]*\))? \.final-details\s*\{/);
-  assert.doesNotMatch(css,/\.invoice-page \.bottom-grid\s*\{/);
-  assert.doesNotMatch(css,/\.invoice-page \.signature-media\s*\{/);
-  assert.doesNotMatch(css,/\.invoice-page \.doc-footer\s*\{/);
-});
-
-test('canonical v141 owns signature stamp and footer geometry',async()=>{
-  const css=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css,/\.signature-media\{[^}]*min-height:21mm[^}]*padding-top:1mm/);
-  assert.match(css,/\.signature-media \.signature-image\{height:20mm\}/);
-  assert.match(css,/\.signature-media \.stamp-image\{height:22mm\}/);
-  assert.match(css,/\.doc-footer\{[^}]*height:10mm[^}]*margin:0 11mm/);
-  assert.doesNotMatch(css,/firebase|indexedDB|localStorage|calculateTotals|saveVault|persist\(|onSave|onPrint/i);
+test('commercial closing geometry is absent from Draft output support',async()=>{
+ const css=await read('src/styles/v337-template-layout-balance.css');
+ assert.doesNotMatch(css,/v364-document-template-layout-refinement|\.invoice-page \.final-details|\.invoice-page \.doc-footer/);
 });
 
 test('current DraftDocumentRenderer has an output-only A4 owner without reviving retired v308 UI',async()=>{

@@ -7,7 +7,6 @@ const allowed=new Set([
   'v331-draft-scroll-recovery.css',
   'v333-critical-documents-visual-functional-closeout.css',
   'v337-template-layout-balance.css',
-  'v364-document-template-layout-refinement.css',
   'v365-mobile-editor-scroll-draft-templates.css'
 ]);
 const expanded=[];

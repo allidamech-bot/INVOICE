@@ -1,0 +1,46 @@
+name: Quotation template design
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/templates/**'
+      - 'src/lib/appearance.ts'
+      - 'src/styles/document-premium-redesign-v141.css'
+      - 'src/styles/template-surface-contrast-v366.css'
+      - 'scripts/v485-bundle-visible-ui.mjs'
+      - 'scripts/v544-pdf-a4-output-emergency.mjs'
+      - 'tests/visual/*quotation-template*'
+      - 'tests/visual/template-visual-qa.*'
+      - '.github/workflows/quotation-template-design.yml'
+permissions:
+  contents: read
+jobs:
+  template-rendering:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck && npm run build
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Verify commercial A4 and appearance contracts
+        run: node --test tests/*template*.test.mjs tests/document-appearance*.test.mjs tests/document-premium-redesign-v141.test.mjs tests/*pdf*.test.mjs tests/*pagination*.test.mjs tests/*qr*.test.mjs
+      - name: Verify 18 templates in Arabic, English and bilingual output
+        env:
+          LOUREX_TEMPLATE_QA_OUTPUT: visual-qa-output/quotation-template-design
+        run: node tests/visual/run-quotation-template-design.cjs
+      - name: Verify shape-aware stamp support and embedded Arabic typography
+        run: node tests/visual/run-signing-artwork.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quotation-template-design
+          path: visual-qa-output/quotation-template-design
+          retention-days: 7
