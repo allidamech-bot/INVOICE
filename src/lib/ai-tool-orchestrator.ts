@@ -23,6 +23,8 @@ import {parseAiProductGroupPriceIntent,prepareAiProductGroupPrice} from './ai-pr
 import {parseAiPartyMasterIntent,prepareAiPartyMaster} from './ai-party-master.js';
 import {prepareApprovedPartyPatch} from './ai-approved-party-patch.js';
 import {requestedAiReportPeriod,safeAiReportPeriod} from './ai-report-period.js';
+import {graphKindAllowed} from './ai-business-memory-graph.js';
+import {strictAiActor} from './ai-foundation-approval.js';
 
 export type AiToolClass='read'|'calculate'|'prepare'|'execute'|'high-impact';
 export type AiToolId=
@@ -183,7 +185,7 @@ function readDocument(runtime:AiToolRuntime,args:Record<string,unknown>):unknown
 function readPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const row=findPurchase(runtime,args);if(!row)throw new Error('Purchase was not found in the active branch.');return{id:row.id,number:row.number,date:row.date,dueDate:row.dueDate,status:row.status,currency:row.currency,supplierName:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||'',items:row.items.slice(0,20).map((item:any)=>({savedItemId:item.savedItemId,sku:item.sku,descriptionEn:item.descriptionEn,quantity:item.quantity,unit:item.unit,unitCost:item.unitCost,landedUnitCost:item.landedUnitCost}))};}
 function treasurySnapshot(runtime:AiToolRuntime):unknown{const rows=treasuryProjection(runtime.vault.payments,runtime.vault.supplierPayments,runtime.vault.expenses,runtime.vault.treasuryEntries,runtime.vault.treasuryReconciliations,runtime.vault.company.defaultCurrency||'USD');const currencies=Array.from(new Set([...runtime.vault.treasuryAccounts.map(row=>row.currency),...rows.map(row=>row.currency)])).sort();return{accounts:runtime.vault.treasuryAccounts.filter(row=>row.active).map(row=>({id:row.id,label:row.label,kind:row.kind,currency:row.currency,balance:treasuryAccountBalance(row.id,runtime.vault.treasuryEntries)})),activity:currencies.map(code=>({currency:code,...treasuryTotals(rows,code)}))};}
 function inventoryStatus(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const q=clean(args.query,160),matchesAll=inventoryBalances(runtime.vault.savedItems,runtime.vault.inventoryMovements).filter(row=>!q||matches([row.item.sku,row.item.descriptionEn,row.item.descriptionAr].join(' '),q));const rows=matchesAll.slice(0,30).map(row=>({itemId:row.item.id,sku:row.item.sku,name:itemName(row.item),quantity:row.quantity,state:row.quantityScaled<0n?'negative':row.quantityScaled===0n?'zero':'positive'}));return{total:matchesAll.length,shown:rows.length,incomplete:rows.length<matchesAll.length,rows};}
-function searchRecords(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const q=clean(args.query,160);if(q.length<2)throw new Error('Search query is too short.');const hits:any[]=[];const add=(type:string,id:string,label:string,meta:any={})=>{if(hits.length<20&&matches(`${label} ${JSON.stringify(meta)}`,q))hits.push({type,id,label,...meta});};for(const row of runtime.vault.customers)add('customer',row.id,customerName(row),{email:row.email,phone:row.phone});for(const row of runtime.vault.suppliers)add('supplier',row.id,supplierName(row),{email:row.email,phone:row.phone});for(const row of runtime.vault.savedItems)add('product',row.id,itemName(row),{sku:row.sku,hsCode:row.hsCode});for(const row of runtime.vault.documents)add('document',row.id,row.number,{kind:row.kind,date:row.issueDate});for(const row of runtime.vault.purchases)add('purchase',row.id,row.number,{date:row.date,supplier:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||''});return hits.slice(0,12);}
+function searchRecords(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const q=clean(args.query,160);if(q.length<2)throw new Error('Search query is too short.');const role=strictAiActor(runtime.vault).role;const hits:any[]=[];const add=(type:string,id:string,label:string,meta:any={})=>{if(hits.length<20&&matches(`${label} ${JSON.stringify(meta)}`,q))hits.push({type,id,label,...meta});};if(graphKindAllowed(role,'customer'))for(const row of runtime.vault.customers)add('customer',row.id,customerName(row),{email:row.email,phone:row.phone});if(graphKindAllowed(role,'supplier'))for(const row of runtime.vault.suppliers)add('supplier',row.id,supplierName(row),{email:row.email,phone:row.phone});if(graphKindAllowed(role,'product'))for(const row of runtime.vault.savedItems)add('product',row.id,itemName(row),{sku:row.sku,hsCode:row.hsCode});if(graphKindAllowed(role,'document'))for(const row of runtime.vault.documents)add('document',row.id,row.number,{kind:row.kind,date:row.issueDate});if(graphKindAllowed(role,'purchase'))for(const row of runtime.vault.purchases)add('purchase',row.id,row.number,{date:row.date,supplier:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||''});return hits.slice(0,12);}
 
 function requireMoney(args:Record<string,unknown>,key:string):string{const value=money(args[key]);if(!value)throw new Error(`${key} must be a non-negative decimal.`);return value;}
 function calculation(tool:AiToolId,runtime:AiToolRuntime,args:Record<string,unknown>):unknown{
@@ -364,6 +366,24 @@ export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolR
   if(!conversationModePermitsToolClass(normalizeAiConversationMode(runtime.conversationMode),def.class))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Advisor is read-only. Switch to Controller for navigation, drafts or actions.',source:'advisor-read-only-guard'};
   if(runtime.scope==='personal'&&!['message.prepare','reminder.prepare','task.create'].includes(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Business tools are unavailable in Personal scope.',source:'scope-guard'};
   if(runtime.scope==='temporary'&&def.mutation)return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Temporary conversations cannot stage business writes. Use a Business Controller thread with durable approval receipts.',source:'temporary-scope-guard'};
+  // The selected operator's record visibility applies to every read entry point,
+  // including provider-planned queries and search, not only named local reads.
+  if(def.class==='read'&&runtime.scope==='business'){
+    const recordKind=call.tool.startsWith('customer.')?'customer':call.tool.startsWith('product.')?'product':
+      call.tool.startsWith('supplier.')?'supplier':call.tool==='document.get'?'document':
+      call.tool==='purchase.get'?'purchase':null;
+    if(recordKind){
+      try{
+        if(!graphKindAllowed(strictAiActor(runtime.vault).role,recordKind))
+          return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,
+            summary:'The selected operator does not have access to this record type.',source:'operator-read-guard'};
+      }catch{
+        return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,
+          summary:'The active operator could not be verified.',source:'operator-read-guard'};
+      }
+    }
+  }
+
   if(HIGH_IMPACT.has(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'High-impact financial actions are never executed by LOUREX AI. Open the relevant workspace and complete the protected workflow manually.',source:'high-impact-guard'};
   if(EXECUTE.has(call.tool)){try{const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'approval-preflight'};}}
   try{let data:unknown;
