@@ -9,7 +9,7 @@ export type FinancialReadout={title:string;party:string;intro:FinancialFact[];se
 const clean=(value:string)=>value.replace(/[\u2066-\u2069]/g,'').replace(/\*\*/g,'').replace(/\x60/g,'').trim();
 const fact=(line:string):FinancialFact|null=>{
  const m=line.match(/^-\s+\*\*([^*]{1,100})\*\*:\s*(.+)$/);
- return m?{label:clean(m[1]),value:clean(m[2])}:null;
+ return m?{label:clean(m[1]||''),value:clean(m[2]||'')}:null;
 };
 
 /** Backward-compatible reader for the exact locally produced evidence format.
@@ -23,7 +23,7 @@ export function parseFinancialReadout(source:unknown):FinancialReadout|null{
  const stop=lines.indexOf(':::lourex-end',start+1);
  if(start<1||stop<=start||stop!==lines.length-1)return null;
  if(lines.slice(1,start).some(s=>s.startsWith(':::lourex-')))return null;
- const title=clean(first.slice(3)),itemsTitle=clean(lines[start].slice(':::lourex-details '.length));
+ const title=clean(first.slice(3)),itemsTitle=clean((lines[start]||'').slice(':::lourex-details '.length));
  if(!title||!itemsTitle)return null;
  const answer:FinancialReadout={title,party:'',intro:[],sections:[],itemsTitle,items:[],partial:false};
  let active:FinancialSection|null=null,latest:FinancialMovement|null=null;
@@ -43,7 +43,7 @@ export function parseFinancialReadout(source:unknown):FinancialReadout|null{
    if(data){(active?.facts||answer.intro).push(data);latest=null;continue;}
    const match=line.match(/^-\s+\*\*(.+?)\*\*\s*·\s*(.*?)\s*·\s*(.*)$/);
    if(match&&active){
-    latest={kind:'movement',label:clean(match[1]),date:clean(match[2]),reference:clean(match[3]),amount:'',balance:''};
+    latest={kind:'movement',label:clean(match[1]||''),date:clean(match[2]||''),reference:clean(match[3]||''),amount:'',balance:''};
     active.movements.push(latest);continue;
    }
   }
