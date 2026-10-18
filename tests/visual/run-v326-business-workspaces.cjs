@@ -159,7 +159,7 @@ async function assertPrimaryAccent(page,locator,label,failures){
       return{r,g,b,a};
     };
     const probe=document.createElement('span');
-    probe.style.position='fixed';probe.style.pointerEvents='none';probe.style.background='var(--lx-ui-action)';document.body.appendChild(probe);
+    probe.style.position='fixed';probe.style.pointerEvents='none';probe.style.background=el.closest('.ta-product-editor')?'var(--ft-accent)':'var(--lx-ui-action)';document.body.appendChild(probe);
     const accentText=getComputedStyle(probe).backgroundColor;probe.remove();
     const actualText=getComputedStyle(el).backgroundColor;
     return{actualText,accentText,actual:normalize(actualText),accent:normalize(accentText)};
