@@ -25,6 +25,10 @@ const {mkdirSync}=require('node:fs');
    assert.ok(field.y>=body.y-1&&field.y+field.height<=body.y+body.height+1,'last input reachable within actual scroll owner');
    await page.evaluate(()=>{window.acceptanceViewport.height=190;visualViewport.dispatchEvent(new Event('resize'));});
    await input.scrollIntoViewIfNeeded();
+   // Playwright's minimal auto-scroll may leave a field clipped by a few pixels
+   // inside a compact padded scroll pane. Exercise the real user-scroll owner,
+   // then require the ENTIRE control to be visible and actually hit-testable.
+   await input.evaluate(element=>element.scrollIntoView({block:'center',inline:'nearest'}));
    const compactField=await input.boundingBox(),compactBody=await page.locator('.modal-body').boundingBox();
    const compactLayout=await modal.evaluate(element=>({header:element.querySelector('.modal-header').getBoundingClientRect().toJSON(),footer:element.querySelector('.modal-footer').getBoundingClientRect().toJSON(),bodyStyle:getComputedStyle(element.querySelector('.modal-body')).padding,field:element.querySelector('input').getBoundingClientRect().height}));
    assert.ok(compactField.y>=compactBody.y-1&&compactField.y+compactField.height<=compactBody.y+compactBody.height+1,`${engine.name()} ${width}: input clipped in short keyboard viewport ${JSON.stringify({compactField,compactBody,compactLayout})}`);
