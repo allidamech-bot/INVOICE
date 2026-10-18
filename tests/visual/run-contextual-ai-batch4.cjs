@@ -52,8 +52,21 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     await page.waitForFunction(()=>{const r=document.querySelector('#lourex-ai-panel .lourex-ai-composer-plus')?.getBoundingClientRect();return Boolean(r&&r.width>=43&&r.height>=43);},null,{timeout:12000});
     const plusBox=await plus.boundingBox();assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'44px unified plus target');assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
     const panelBox=await panel.boundingBox();assert.ok(panelBox,'AI panel visible');
-    const scopeTrigger=panel.locator('.lourex-ai-scope-trigger');await scopeTrigger.waitFor({state:'visible'});assert.equal(await panel.locator('.lourex-ai-scope-button:visible').count(),0,'persistent three-tab scope chrome is consolidated');
-    await scopeTrigger.click();const scopeMenu=panel.locator('.lourex-ai-scope-menu');await scopeMenu.waitFor({state:'visible'});assert.equal(await scopeMenu.locator('.lourex-ai-scope-option').count(),3,'scope selector preserves all three scopes');if(width<=720){const triggerBox=await scopeTrigger.boundingBox();assert.ok(triggerBox&&triggerBox.height>=44,'mobile scope selector remains touch safe');}await page.keyboard.press('Escape');await scopeMenu.waitFor({state:'hidden'});await textarea.waitFor({state:'visible'});assert.equal(await panel.isVisible(),true,'scope-menu Escape keeps the advisor open');
+    // Current AI workspace has two explicit conversation modes. The obsolete
+    // 3-scope drop-down was retired; verify both real choices and tap geometry.
+    const modes=panel.locator('.lxw-mode-tabs[role="tablist"]');
+    await modes.waitFor({state:'visible'});
+    const modeButtons=modes.locator('button[role="tab"]');
+    assert.equal(await modeButtons.count(),2,'Controller and Advisor must remain available');
+    const modeLabels=(await modeButtons.allTextContents()).map(value=>value.trim());
+    for(const label of (lang==='ar'?['المتحكم','المستشار']:['Controller','Advisor']))
+      assert.ok(modeLabels.includes(label),'missing conversation mode: '+label);
+    assert.equal(await modes.locator('button[role="tab"][aria-selected="true"]').count(),1,'exactly one AI mode must be selected');
+    if(width<=720)for(const button of await modeButtons.all()){
+      const rect=await button.boundingBox();
+      assert.ok(rect&&rect.height>=44,'AI conversation mode must be touch safe');
+    }
+    await textarea.waitFor({state:'visible'});assert.equal(await panel.isVisible(),true,'conversation mode selector keeps the assistant open');
     if(width<=720){assert.ok(panelBox.x<=1&&Math.abs(panelBox.width-width)<=2,'phone AI is full width');assert.ok(panelBox.height>=895,'phone AI uses full dynamic viewport');}
     else if(width<=900){assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=480&&panelBox.width<=540,'tablet AI remains a bounded side overlay');assert.ok(panelBox.height>=870,'tablet AI keeps near-full viewport height');}
     else assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=560&&panelBox.width<=600,'desktop AI uses the wider readable side panel from the conversation design audit');
