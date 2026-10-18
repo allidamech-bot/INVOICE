@@ -82,8 +82,17 @@ const {mkdirSync}=require('node:fs');
   const numbering=page.locator('.ta-settings-card').filter({has:page.locator('.ta-numbering-preview')});
   await page.evaluate(()=>{window.acceptanceViewport.height=190;visualViewport.dispatchEvent(new Event('resize'));});
   const prefix=numbering.locator('input').first();await prefix.scrollIntoViewIfNeeded();await prefix.fill('QT');
+  // On a simulated keyboard, Playwright still sees the physical 844px page
+  // and may skip scrolling. Exercise the real Settings pane explicitly.
+  await prefix.evaluate(element=>{
+    const pane=element.closest('.ta-settings-content');
+    if(!pane)return;
+    const rect=element.getBoundingClientRect();
+    const viewportBottom=visualViewport.offsetTop+visualViewport.height;
+    if(rect.bottom>viewportBottom-8)pane.scrollTop+=rect.bottom-viewportBottom+12;
+  });
   const inputBox=await prefix.boundingBox();
-  assert.ok(inputBox.y>=20&&inputBox.y+inputBox.height<=211,'actual Settings input remains keyboard-visible');
+  assert.ok(inputBox.y>=20&&inputBox.y+inputBox.height<=211,'actual Settings input remains keyboard-visible after scrolling its real pane: '+JSON.stringify({inputBox}));
   assert.ok(await prefix.evaluate(element=>{const rect=element.getBoundingClientRect();return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)===element;}),'Settings input cannot be clipped by a zero-height nested pane');
   await prefix.click({trial:true});
   await numbering.getByRole('button').click();
