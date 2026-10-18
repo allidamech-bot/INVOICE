@@ -2326,3 +2326,46 @@ html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
   html body #root .app-ui .saved-items-shell.is-picker .saved-items-smart-nav>button{flex:0 0 auto!important;}
 }
 }
+
+/* Account entry: one quiet surface, with the original emblem free of its
+   rectangular photo backdrop. Clip only outside the six outer logo vertices;
+   retain the supplied artwork and its colors, in both themes. */
+@media screen {
+  html body #root .ta-auth-page{background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--lx485-blue) 9%,transparent),transparent 60%),var(--lx485-canvas)!important;color:var(--lx485-text)!important;}
+  html body #root .ta-auth-page .ta-auth-card{width:min(100%,420px)!important;max-width:420px!important;min-height:0!important;gap:12px!important;padding:20px 24px!important;border:1px solid var(--lx485-line)!important;border-radius:24px!important;background:var(--lx485-surface)!important;box-shadow:0 18px 60px rgba(0,8,20,.12)!important;}
+  html body #root .ta-auth-page .ta-auth-card::before{display:none!important;}
+  html body #root .ta-auth-page .ta-auth-utilities{gap:8px!important;margin:0!important;}
+  html body #root .ta-auth-page .ta-auth-utilities :is(button,.btn){min-height:44px!important;border:1px solid var(--lx485-line)!important;border-radius:12px!important;background:transparent!important;color:var(--lx485-text-2)!important;box-shadow:none!important;}
+  html body #root .ta-auth-page .ta-auth-mobile-brand{display:grid!important;place-items:center!important;width:100%!important;height:auto!important;min-height:90px!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+  html body #root .ta-auth-page .ta-auth-mobile-brand>.brand.official-brand{display:grid!important;width:100%!important;grid-template-columns:minmax(0,1fr) 90px minmax(0,1fr)!important;align-items:center!important;gap:10px!important;transform:none!important;}
+  html body #root .ta-auth-page .ta-auth-mobile-brand .brand-mark{display:grid!important;place-items:center!important;grid-column:2!important;grid-row:1!important;width:90px!important;height:90px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important;}
+  html body #root .ta-auth-page .ta-auth-mobile-brand .brand-mark img{display:block!important;width:90px!important;height:auto!important;max-width:none!important;max-height:none!important;object-fit:contain!important;clip-path:polygon(50% 7.7%,82.5% 27%,82.5% 70.4%,50.2% 90.3%,17.5% 68.5%,17.8% 27%)!important;border:0!important;border-radius:0!important;box-shadow:none!important;opacity:1!important;}
+  html body #root .ta-auth-page .ta-auth-mobile-brand .brand-words{display:block!important;grid-column:3!important;grid-row:1!important;justify-self:start!important;text-align:start!important;margin:0!important;}
+  html body #root .ta-auth-page .ta-auth-mobile-brand .brand-words strong{color:var(--lx485-text)!important;font-size:18px!important;letter-spacing:.14em!important;line-height:1.2!important;}
+  html body #root .ta-auth-page .ta-auth-card-header{gap:4px!important;margin:0 0 4px!important;text-align:center!important;}
+  html body #root .ta-auth-page .ta-auth-card-header>span{display:none!important;}
+  html body #root .ta-auth-page .ta-auth-card-header h2{font-size:25px!important;line-height:1.4!important;color:var(--lx485-text)!important;}
+  html body #root .ta-auth-page .ta-auth-card-header p{font-size:13px!important;line-height:1.6!important;color:var(--lx485-muted)!important;}
+  html body #root .ta-auth-page .ta-google-button{min-height:50px!important;border:1px solid var(--lx485-line-strong)!important;border-radius:13px!important;background:transparent!important;color:var(--lx485-text)!important;box-shadow:none!important;}
+  html body #root .ta-auth-page .ta-google-button strong{color:inherit!important;}
+  html body #root .ta-auth-page .ta-auth-divider{margin:0!important;color:var(--lx485-muted)!important;}
+  html body #root .ta-auth-page .ta-auth-divider::before,html body #root .ta-auth-page .ta-auth-divider::after{background:var(--lx485-line)!important;}
+  html body #root .ta-auth-page .ta-auth-tabs{gap:4px!important;margin:0!important;padding:4px!important;background:var(--lx485-canvas-2)!important;border:1px solid var(--lx485-line)!important;border-radius:13px!important;}
+  html body #root .ta-auth-page .ta-auth-tabs button{min-height:44px!important;padding:8px!important;border:1px solid transparent!important;background:transparent!important;color:var(--lx485-muted)!important;border-radius:9px!important;}
+  html body #root .ta-auth-page .ta-auth-tabs button.is-active{border-color:var(--lx485-line-strong)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;box-shadow:0 2px 6px rgba(0,8,20,.08)!important;}
+  html body #root .ta-auth-page .ta-auth-fields{display:grid!important;gap:14px!important;}
+  html body #root .ta-auth-page .field{gap:6px!important;}
+  html body #root .ta-auth-page .field>.field-label{color:var(--lx485-text-2)!important;font-size:13px!important;}
+  html body #root .ta-auth-page input{width:100%!important;min-height:50px!important;border:1px solid var(--lx485-line-strong)!important;border-radius:12px!important;background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;box-shadow:none!important;}
+  html body #root .ta-auth-page input:focus{outline:2px solid var(--lx485-blue)!important;outline-offset:2px!important;border-color:var(--lx485-blue)!important;}
+  html body #root .ta-auth-page .ta-auth-primary{min-height:50px!important;border:1px solid #497bd0!important;border-radius:13px!important;background:#315fad!important;color:#fff!important;-webkit-text-fill-color:#fff!important;box-shadow:none!important;}
+  html body #root .ta-auth-page .ta-auth-primary:hover:not(:disabled){background:#284f93!important;transform:none!important;}
+  html body #root .ta-auth-page .ta-auth-link{min-height:44px!important;margin:0!important;background:transparent!important;border:0!important;color:var(--lx485-blue)!important;}
+  html body #root .ta-auth-page .ta-auth-security{margin:0!important;padding:4px 0 0!important;color:var(--lx485-muted)!important;text-align:center!important;}
+  html body #root .ta-auth-page .ta-auth-security small{font-size:11px!important;line-height:1.6!important;color:inherit!important;}
+  html body #root .ta-auth-page :is(button,input):focus-visible{outline:2px solid var(--lx485-blue)!important;outline-offset:2px!important;}
+}
+@media screen and (max-width:380px){
+  html body #root .ta-auth-page .ta-auth-card{padding-inline:16px!important;}
+  html body #root .ta-auth-page .ta-auth-mobile-brand .brand-words strong{font-size:16px!important;letter-spacing:.1em!important;}
+}
