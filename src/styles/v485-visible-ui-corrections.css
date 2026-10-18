@@ -1070,13 +1070,29 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   html body #root .app-ui .modal-backdrop[data-viewport-compact="true"]:has(.ta-settings-shell) .ta-settings-sidebar{
     display:none!important;
   }
+  /* The legacy grid and auto-sized modal body may otherwise make this
+     form thousands of pixels high even when the modal card is only 174px.
+     Clamp the flex chain to the actual keyboard-visible dialog, not the
+     full document's natural content height. */
+  html body #root .app-ui .modal-backdrop[data-viewport-compact="true"]:has(.ta-settings-shell) .modal-body{
+    display:flex!important;
+    flex:1 1 0!important;
+    height:0!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
   html body #root .app-ui .modal-backdrop[data-viewport-compact="true"]:has(.ta-settings-shell) .ta-settings-shell{
-    flex:1 1 auto!important;
+    display:flex!important;
+    flex-direction:column!important;
+    flex:1 1 0!important;
     min-height:0!important;
     height:100%!important;
+    overflow:hidden!important;
   }
   html body #root .app-ui .modal-backdrop[data-viewport-compact="true"]:has(.ta-settings-shell) .ta-settings-content{
-    flex:1 1 auto!important;
+    display:block!important;
+    flex:1 1 0!important;
+    height:0!important;
     min-height:0!important;
     overflow-y:auto!important;
     overscroll-behavior:contain!important;
