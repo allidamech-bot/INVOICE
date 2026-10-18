@@ -182,7 +182,16 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
         await entry.locator('select').first().selectOption('product-v197');
         await entry.getByLabel('Quantity').fill('12');
         await entry.getByLabel('Unit cost (optional)').fill('4.25');
-        await entry.getByRole('button',{name:'Record Movement'}).click();
+        // Manual inventory changes now require a documented reason and an
+        // actual signed evidence file. Never bypass these posting safeguards.
+        const record=entry.getByRole('button',{name:'Record Movement'});
+        assert.equal(await record.isDisabled(),true,'undocumented movement must be blocked');
+        await entry.getByLabel('Movement reason (required)').fill('QA stocktake adjustment approved for regression evidence');
+        const proof=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWE8AAAAASUVORK5CYII=','base64');
+        await entry.locator('input[type="file"]').setInputFiles({name:'inventory-qa-proof.png',mimeType:'image/png',buffer:proof});
+        await page.waitForFunction(()=>document.querySelector('.ta-inventory-entry-action button:not([disabled])')!==null);
+        assert.equal(await record.isEnabled(),true,'complete documented movement must become postable');
+        await record.click();
         await page.waitForFunction(()=>window.movementAttempts===1&&window.operationsState().movements.length===1);
         assert.deepEqual(errors,[],'Purchase and inventory workflows have no browser errors');
       }finally{await page.close();}
