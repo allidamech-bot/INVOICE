@@ -9,7 +9,7 @@ import {currentSavedDraftQuantityEdit} from '../dist/src/lib/ai-commercial-conve
 import {workspaceDocument,workspaceDrafting} from '../dist/src/lib/ai-workspace-model.js';
 import {reviewAiDocumentProposal} from '../dist/src/lib/ai-document-review.js';
 import {createAiToolRuntime,executeAiToolCall} from '../dist/src/lib/ai-tool-orchestrator.js';
-import {formatAiDocumentEvidence} from '../dist/src/lib/ai-tool-presentation.js';
+import {formatAiDocumentEvidence,formatAiBusinessRecordReply} from '../dist/src/lib/ai-tool-presentation.js';
 import {compiledReliabilityHarness} from './helpers/ai-reliability-runtime.mjs';
 
 const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'release-review'};
@@ -67,7 +67,7 @@ test('real document.get evidence retains every requested financial field in the 
  assert.equal(result.ok,true);
  const built=readFileSync('dist/src/components/AiCopilot.js','utf8');
  const start=built.indexOf('function __lourexNaturalizeToolAnswer('),end=built.indexOf('function __lourexToolActivityCard(',start);
- const context=vm.createContext({formatAiDocumentEvidence,__lourexCompactObject:()=>{throw Error('Document evidence fell into lossy compact formatter');},__lourexToolTitle:()=> 'Document'});
+ const context=vm.createContext({formatAiBusinessRecordReply,formatAiDocumentEvidence,__lourexCompactObject:()=>{throw Error('Document evidence fell into lossy compact formatter');},__lourexToolTitle:()=> 'Document'});
  vm.runInContext(built.slice(start,end),context);
  for(const language of ['ar','en']){
   const text=context.__lourexNaturalizeToolAnswer({results:[result]},language);
