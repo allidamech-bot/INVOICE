@@ -82,6 +82,20 @@ test('verified read results receive a natural answer through the read-only chann
  assert.equal(result.proposal,null);
  assert.equal(h.host.mode,'controller');
 });
+test('a customer history explanation keeps the recorded payment lines instead of a lossy provider paraphrase',async()=>{
+ let calls=0;
+ const h=explanationHarness(async()=>{calls++;return{answer:'Entries: ...'};},
+   'اشرح رصيد العميل LOUREX QA TEST وتاريخ فواتيره');
+ h.result.results=[{id:'history',tool:'customer.getHistory',class:'read',ok:true,source:'lourex-local-engine',
+   data:{customerId:'qa-customer-id',statements:[{currency:'USD',paid:'50.00',
+     outstanding:'250.00',entries:[{date:'2026-10-18',type:'payment',
+       reference:'QA-ACCEPT-PAY-20261018',debit:'0.00',credit:'50.00',balance:'250.00'}]}]}}];
+ const result=await h.run();
+ assert.equal(result,h.result);
+ assert.equal(calls,0,'local customer ledger output must not be replaced with a generated paraphrase');
+ assert.equal(result.foundationSelectionText,undefined);
+});
+
 test('explanation failure preserves retrieved facts instead of losing the answer',async()=>{
  const h=explanationHarness(async()=>{throw Error('provider unavailable');});
  assert.equal(await h.run(),h.result);

@@ -79,6 +79,39 @@ function toolFacts(data:unknown,ar:boolean):string[]{
   }
   return [ar?'النتيجة: '+readableToolValue(data):'Result: '+readableToolValue(data)];
 }
+/** Keep the posted customer statement readable: generic object preview text
+ * truncates the nested entries array and hides payment references/amounts. */
+function customerHistoryFacts(data:unknown,ar:boolean):string[]{
+  if(!data||typeof data!=='object'||Array.isArray(data))return toolFacts(data,ar);
+  const history=data as Record<string,unknown>;
+  if(!Array.isArray(history.statements))return toolFacts(data,ar);
+  if(!history.statements.length)return[ar?'لا توجد قيود في كشف هذا العميل.':'No customer statement entries were recorded.'];
+  const lines:string[]=[];
+  for(const value of history.statements){
+    if(!value||typeof value!=='object'||Array.isArray(value))continue;
+    const statement=value as Record<string,unknown>,currency=clean(statement.currency,8)||'—';
+    lines.push('**'+currency+'** — '+(ar?'إجمالي الفواتير: ':'Billed: ')+clean(statement.billed,40)+
+      ' · '+(ar?'المدفوع: ':'Paid: ')+clean(statement.paid,40)+
+      ' · '+(ar?'المستحق: ':'Outstanding: ')+clean(statement.outstanding,40));
+    const entries=Array.isArray(statement.entries)?statement.entries:[];
+    if(!entries.length){lines.push(ar?'لا توجد حركات مسجلة لهذه العملة.':'No recorded entries for this currency.');continue;}
+    for(const value of entries){
+      if(!value||typeof value!=='object'||Array.isArray(value))continue;
+      const entry=value as Record<string,unknown>,type=clean(entry.type,24);
+      const kind=type==='payment'?(ar?'تحصيل':'Payment'):type==='invoice'?(ar?'فاتورة':'Invoice'):type==='credit-note'?(ar?'إشعار دائن':'Credit note'):(ar?'حركة':'Entry');
+      const invoice=clean(entry.relatedInvoiceNumber,120);
+      lines.push('- '+[
+        clean(entry.date,24),kind,clean(entry.reference,180),
+        (ar?'مدين: ':'Debit: ')+clean(entry.debit,40)+' '+currency,
+        (ar?'دائن: ':'Credit: ')+clean(entry.credit,40)+' '+currency,
+        (ar?'الرصيد بعد الحركة: ':'Balance after: ')+clean(entry.balance,40)+' '+currency,
+        invoice?(ar?'الفاتورة: ':'Invoice: ')+invoice:''
+      ].filter(Boolean).join(' — '));
+    }
+  }
+  return lines.length?lines:[ar?'تعذر عرض قيود كشف العميل.':'Customer statement entries could not be displayed.'];
+}
+
 function boundedToolAnswer(answer:string,ar:boolean):string{
   const limit=5000;
   if(answer.length<=limit)return answer;
@@ -90,7 +123,7 @@ function boundedToolAnswer(answer:string,ar:boolean):string{
 function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar'):string{
   const ar=language==='ar',ok=results.filter(row=>row.ok),failed=results.filter(row=>!row.ok),lines:string[]=[];
   for(const row of ok){
-    lines.push('**'+titleFor(row.tool,ar)+'**',...toolFacts(row.data,ar),'');
+    lines.push('**'+titleFor(row.tool,ar)+'**',...(row.tool==='customer.getHistory'?customerHistoryFacts(row.data,ar):toolFacts(row.data,ar)),'');
   }
   if(failed.length){
     lines.push(ar?'لم أتمكن من استكمال هذه الجزئية، ولم أغيّر أي سجل:':'This part could not be completed; no records were changed:');
