@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: lourex-targeted-browser-${{ github.event.pull_request.number }}-${{ matrix.shard }}
+  group: lourex-targeted-browser-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
