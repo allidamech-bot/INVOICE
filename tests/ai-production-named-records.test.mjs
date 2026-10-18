@@ -167,3 +167,88 @@ test('actual provider planner supplies the named-read argument contract to both 
   assert.match(prompt,/NO Vault records, balances/);
  }
 });
+
+
+function numberedInvoiceFixture(){
+ const v=fixture(),customer=v.customers[0];
+ customer.companyNameEn='QA Invoice Buyer';
+ const doc=v.documents[0];
+ doc.id='qa-issued-invoice';doc.number='INV-2026-0003';doc.issueDate='2026-10-16';
+ doc.customerSnapshot=customerSnapshotFrom(customer);
+ doc.items[0].unitPrice='3399';
+ v.documents=[doc];
+ v.payments=[{...v.payments[0],invoiceId:doc.id,invoiceNumber:doc.number,
+  customerId:customer.id,customerNameEn:customer.companyNameEn,amount:'399',
+  reference:'QA-PAY-399',date:'2026-10-18'}];
+ return v;
+}
+const exactInvoiceQuestion='ابحث في سجلات LOUREX عن الفاتورة رقم INV-2026-0003. أريد قراءة فعلية من النظام توضح اسم العميل المسجل، وتاريخ إصدارها، وقيمتها والضريبة والإجمالي النهائي، والمدفوعات المرتبطة بها مع التواريخ والمراجع، والرصيد المستحق. لا تستخدم معلومات المحادثات السابقة، وإذا لم تتمكن من قراءة معلومة فلا تخترعها. لا تعدّل أي بيانات.';
+test('exact Arabic numbered-invoice question reads document and linked posted customer receipts, not status-only dialogue',async()=>{
+ const v=numberedInvoiceFixture(),result=await read(v,exactInvoiceQuestion,'ar');
+ assert.deepEqual(result.results.map(row=>row.tool),[
+  'document.get','customer.getSummary','customer.getHistory']);
+ assert.ok(result.results.every(row=>row.ok&&row.source==='lourex-local-engine'));
+ const invoice=result.results[0].data,customer=result.results[1].data,history=result.results[2].data;
+ assert.equal(invoice.number,'INV-2026-0003');
+ assert.equal(invoice.customerName,'QA Invoice Buyer');
+ assert.equal(invoice.issueDate,'2026-10-16');
+ assert.equal(invoice.totals.grandTotal,'3399.00');
+ assert.equal(customer.receivables[0].billed,'3399.00');
+ assert.equal(customer.receivables[0].paid,'399.00');
+ assert.equal(customer.receivables[0].outstanding,'3000.00');
+ assert.ok(history.statements[0].entries.some(row=>row.type==='payment'&&
+  row.reference==='QA-PAY-399'&&row.credit==='399.00'&&
+  row.relatedInvoiceNumber==='INV-2026-0003'));
+ assert.match(result.answer,/INV-2026-0003/);
+ assert.match(result.answer,/QA-PAY-399/);
+});
+test('English invoice-detail question and explicit customer name yield the same scoped ledger',async()=>{
+ const v=numberedInvoiceFixture();
+ const r=await read(v,'Show the detailed issued invoice INV-2026-0003 for customer QA Invoice Buyer, including all posted payments, balance and invoice date. Read only; do not change any data.','en');
+ assert.deepEqual(r.results.map(row=>row.tool),['document.get','customer.getSummary','customer.getHistory']);
+ assert.equal(r.results[0].data.customerName,'QA Invoice Buyer');
+ assert.equal(r.results[2].data.statements[0].outstanding,'3000.00');
+});
+test('invoice-number reads do not trust stale UI entities, other branches or a model planner',async()=>{
+ const v=numberedInvoiceFixture(),ctx=context();
+ ctx.assistantRuntime.entity={type:'document',id:'wrong-id',label:'Unrelated invoice'};
+ const remote=structuredClone(v.documents[0]);remote.id='different-branch-doc';remote.branchId='other-branch';remote.items[0].unitPrice='99999';v.documents.push(remote);
+ const out=await read(v,exactInvoiceQuestion,'ar',ctx);
+ assert.equal(out.results[0].data.id,'qa-issued-invoice');
+ assert.equal(out.results[1].data.receivables[0].outstanding,'3000.00');
+ assert.doesNotMatch(JSON.stringify(out.results),/99999|different-branch-doc/);
+});
+test('invoice details fail closed when exact number is absent or duplicated in scope',()=>{
+ const v=numberedInvoiceFixture(),rt=createAiToolRuntime(v,context());
+ const missing=namedRecordReadPlan('اعرض تفاصيل الفاتورة INV-2026-9999',rt);
+ assert.deepEqual(missing.calls.map(row=>row.tool),['document.get']);
+ assert.equal(executeAiToolPlan(rt,missing).results[0].ok,false);
+ v.documents.push({...v.documents[0],id:'duplicate-number'});
+ const duplicate=namedRecordReadPlan('اعرض تفاصيل الفاتورة INV-2026-0003',createAiToolRuntime(v,context()));
+ assert.deepEqual(duplicate.calls.map(row=>row.tool),['search.records']);
+});
+test('numbered invoice details honor workspace, branch and operator read permissions',()=>{
+ const v=numberedInvoiceFixture(),rt=createAiToolRuntime(v,context());
+ for(const patch of [{scope:'personal'},{scope:'temporary'},{workspaceId:''},{branchId:''},{workspaceId:'other'},{branchId:'other'}])
+  assert.equal(namedRecordReadPlan(exactInvoiceQuestion,{...rt,...patch}),null);
+ v.teamMembers=[{id:'restricted',role:'purchasing',status:'active',displayName:'Purchasing'}];
+ v.appSettings.activeTeamMemberId='restricted';
+ const restricted=createAiToolRuntime(v,context()),plan=namedRecordReadPlan(exactInvoiceQuestion,restricted);
+ assert.deepEqual(plan.calls.map(row=>row.tool),['document.get']);
+ const result=executeAiToolPlan(restricted,plan);
+ assert.equal(result.results[0].ok,false);
+ assert.equal(result.results[0].source,'operator-read-guard');
+ assert.equal(result.results[0].data,null);
+});
+test('invoice and customer read parser rejects mutations but not the nouns سجل or سجلات',()=>{
+ const rt=createAiToolRuntime(numberedInvoiceFixture(),context());
+ for(const q of [
+  'سجّل تحصيلًا للفـاتورة INV-2026-0003 بقيمة 25',
+  'سجل دفعة للفاتورة INV-2026-0003 بقيمة 25',
+  'Update invoice INV-2026-0003 total to 5000',
+  'احذف الفاتورة INV-2026-0003',
+  'أصدر الفاتورة INV-2026-0003'
+ ])assert.equal(namedRecordReadPlan(q,rt),null,q);
+ assert.deepEqual(namedRecordReadPlan('اعرض سجل المدفوعات للفاتورة INV-2026-0003 ولا تفترض أن كل الدفعات حدثت اليوم',rt).calls.map(row=>row.tool),
+ ['document.get','customer.getSummary','customer.getHistory']);
+});
