@@ -106,6 +106,30 @@ function markdownParagraphs(children:any[]):any[] {
   });flush();return result;
 }
 
+/** Take LOCAL financial readouts from the original message text, BEFORE the
+ * legacy reply adapter splits lines into paragraph/inline elements. This is
+ * display-only: never interpret arbitrary HTML or React event-bearing nodes. */
+function originalFinancialReadout(value:any):string|null {
+  const plain=(node:any):string|null=>{
+    if(typeof node==='string')return node;
+    if(node===null||node===undefined||node===false)return'';
+    if(Array.isArray(node)){
+      const parts=node.map(plain);
+      return parts.some(part=>part===null)?null:parts.join('');
+    }
+    if(!react.isValidElement(node))return null;
+    const type=node.type;
+    if(type!==react.Fragment&&!['p','span','div','strong','em','bdi','b','i'].includes(type))return null;
+    const props=node.props||{};
+    if(Object.keys(props).some(key=>/^on[A-Z]/.test(key)||key.startsWith('dangerouslySet')))return null;
+    const value=plain(react.Children.toArray(props.children));
+    return value===null?null:(type==='p'?value+'\n':value);
+  };
+  const text=plain(value);
+  return text&&text.includes(':::lourex-details ')&&text.includes(':::lourex-end')
+    &&/^##\s+\S/m.test(text)?text:null;
+}
+
 /** Render a plain-text assistant reply as actual paragraphs and accessible
  * lists. AI text is never parsed as HTML and never gets event callbacks. */
 function assistantMessageBlocks(text:string):any[] {
@@ -811,14 +835,23 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         return react.cloneElement(button,i===1?{onClick:(event:any)=>{button.props?.onClick?.(event);host.setState({__workspaceHistoryOpen:true,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'});}}:undefined,parts[0],<span>{names[i]}</span>);
       }));
     }
-    if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
+    if(cn.split(' ').includes('lourex-ai-answer-copy')){
+      const source=originalFinancialReadout(node.props?.children);
+      return react.cloneElement(node,{className:cn+' lxw-markdown'},...(source?assistantMessageBlocks(source):markdownParagraphs(children)));
+    }
     if(cn.split(' ').includes('lourex-ai-message')&&(cn.split(' ').includes('user')||cn.split(' ').includes('assistant'))){
       const sender=cn.split(' ').includes('user')?'user':'assistant';
       const actions=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
       const content=children.filter((child:any)=>!actions.includes(child));
       // Keep the bubble sized to its content. Action controls remain outside it
       // and retain their original copy/edit/retry/evidence callbacks.
-      const formatted=sender==='assistant'?content.flatMap((child:any)=>
+      const rawChildren=react.Children.toArray(node.props?.children);
+      const rawContent=rawChildren.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
+      const financialText=sender==='assistant'?originalFinancialReadout(rawContent):null;
+      // Financial evidence must be interpreted exactly ONCE from the raw text.
+      // Re-parsing transformed <p> fragments loses headings/disclosure markers.
+      const formatted=financialText?assistantMessageBlocks(financialText):
+        sender==='assistant'?content.flatMap((child:any)=>
         typeof child==='string'?assistantMessageBlocks(child):[child]):content;
       return react.createElement('div',{className:'lxw-message-turn is-'+sender},
         react.cloneElement(node,{dir:'auto',className:cn+(sender==='assistant'?' lxw-markdown lxw-formatted-reply':'')},...formatted),...actions);
