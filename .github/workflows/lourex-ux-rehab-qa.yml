@@ -32,6 +32,8 @@ on:
       - 'src/components/ProductAiSourceReview.tsx'
       - 'src/components/AiConversationWorkspace.tsx'
       - 'src/lib/ai-tool-client.ts'
+      - 'src/lib/ai-named-record-read.ts'
+      - 'tests/ai-production-named-records.test.mjs'
       - 'src/lib/ai-tool-presentation.ts'
       - 'scripts/ai-conversation-owner-stage4-tools-closeout.mjs'
       - 'tests/ai-customer-history-shipped-renderer-20261018.test.mjs'
