@@ -135,6 +135,22 @@ function assistantMessageBlocks(text:string):any[] {
     }
     const trimmed=line.trim();
     if(!trimmed){flush();continue;}
+    // Explicit, text-only disclosure for long LOCAL record listings. This is
+    // still React text, never provider HTML, and cannot invoke write callbacks.
+    const readoutDetails=trimmed.match(/^:::lourex-details\s+(.{1,180})$/);
+    if(readoutDetails){
+      const end=lines.indexOf(':::lourex-end',lineIndex+1);
+      if(end>lineIndex){
+        flush();
+        const content=lines.slice(lineIndex+1,end).join('\n');
+        blocks.push(<details className="lxw-ai-record-details" key={'records-'+blocks.length}>
+          <summary>{markdownInline(readoutDetails[1],'record-title')}</summary>
+          <div className="lxw-ai-record-details-body">{assistantMessageBlocks(content)}</div>
+        </details>);
+        lineIndex=end;
+        continue;
+      }
+    }
     const heading=trimmed.match(/^(#{1,5})\s+(.+)/);
     const bullet=trimmed.match(/^([-*•●▪]|[0-9٠-٩۰-۹]{1,3}[.)])\s+(.+)/);
     if(heading){flush();blocks.push(react.createElement(heading[1]!.length<=2?'h3':'h4',{key:'heading-'+blocks.length,dir:'auto'},markdownInline(heading[2],String(blocks.length))));continue;}
@@ -149,7 +165,7 @@ function assistantMessageBlocks(text:string):any[] {
     blocks.push(messageParagraph([trimmed],'paragraph-'+blocks.length));
   }
   flush();
-  return blocks.length?blocks:[text];
+  return blocks.length?(text.includes(':::lourex-details ')?[<section key="financial" className="lxw-financial-answer" aria-label="LOUREX financial readout">{blocks}</section>]:blocks):[text];
 }
 const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));

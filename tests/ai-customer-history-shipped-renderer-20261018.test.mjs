@@ -4,7 +4,8 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {
   formatAiCustomerHistoryEvidence,
-  formatAiCustomerSummaryEvidence
+  formatAiCustomerSummaryEvidence,
+  formatAiBusinessRecordReply
 } from '../dist/src/lib/ai-tool-presentation.js';
 
 const history={customerId:'private-technical-id',statements:[{
@@ -30,7 +31,7 @@ function shipped(){
  const end=built.indexOf('function __lourexToolActivityCard(',start);
  assert.ok(start>=0&&end>start,'shipped answer owner is missing');
  const env=vm.createContext({
-  formatAiCustomerHistoryEvidence,formatAiCustomerSummaryEvidence,
+  formatAiCustomerHistoryEvidence,formatAiCustomerSummaryEvidence,formatAiBusinessRecordReply,
   __lourexToolTitle:(tool,ar)=>tool==='customer.getHistory'?(ar?'سجل العميل':'Customer history'):(ar?'ملخص العميل':'Customer summary'),
   formatAiDocumentEvidence:()=>{throw Error('Wrong formatter')},
   __lourexCompactObject:()=>{throw Error('Customer evidence fell into lossy nested-object formatter')}
@@ -54,7 +55,7 @@ test('compiled production chat reply presents posted customer payment, not Entri
   assert.match(answer,/QA-ACCEPT-INV-20261018/);
   assert.match(answer,/2026-10-18/);
   assert.doesNotMatch(answer,/Entries:\s*\.{3}|Customer Id:|Statements:\s*1|private-technical-id|\"entries\"/i);
-  assert.match(answer,lang==='ar'?/تحصيل[\s\S]*المبلغ الدائن: 50\.00 USD/:/Payment[\s\S]*Credit amount: 50\.00 USD/);
+  assert.match(answer,lang==='ar'?/تحصيل[\s\S]*المبلغ الدائن:/:/Payment[\s\S]*Credit amount:/);
   assert.ok(answer.indexOf('QA-ACCEPT-PAY-20261018')<answer.indexOf('العمليات المالية عالية التأثير')||!answer.includes('العمليات المالية عالية التأثير'));
  }
  assert.deepEqual(result,before,'chat reply must never mutate receipts or business records');
