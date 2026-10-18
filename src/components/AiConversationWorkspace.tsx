@@ -534,25 +534,20 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         <strong className="lxw-document-essential-total" dir="ltr">{doc.subtotal??'—'} <small>{doc.currency}</small></strong>
       </div>
     </div>
-    <details className="lxw-document-facts-disclosure">
-      <summary>{label(ar,'Document information','بيانات المستند')} <span aria-hidden="true">⌄</span></summary>
-      <div className="lxw-document-card-facts" aria-label={label(ar,'Document summary','ملخص المستند')}>
-      <div><span>{label(ar,'Customer / party','العميل / الجهة')}</span><strong dir="auto">{doc.customer||label(ar,'Not selected','غير محدد')}</strong></div>
-      <div><span>{label(ar,'Items','الأصناف')}</span><strong>{doc.rows.length}</strong></div>
-      <div><span>{label(ar,'Subtotal','المجموع الفرعي')}</span><strong dir="ltr">{doc.subtotal??'—'} {doc.currency}</strong></div>
-      {currentTerms.map((term,i)=><div key={i}><span dir="auto">{fieldLabel(ar,term.label)}</span><strong dir="auto">{term.value}</strong></div>)}
-      </div>
-    </details>
+    <div className="lxw-document-meta" aria-label={label(ar,'Document summary','ملخص المستند')}>
+      <span>{doc.rows.length} {label(ar,'items','أصناف')}</span>
+      {currentTerms.map((term,i)=><span key={i} dir="auto">{fieldLabel(ar,term.label)}: {term.value}</span>)}
+    </div>
     {doc.blockers.length?<p className="lxw-document-blockers" role="status" id="lxw-document-blockers">
-      <strong>{label(ar,'Approval unavailable — complete these details:','الموافقة غير متاحة — أكمل البيانات التالية:')}</strong>
+      <strong>{label(ar,'Complete these details to save','أكمل هذه البيانات للحفظ')}</strong>
       <span>{doc.blockers.slice(0,3).map(value=>fieldLabel(ar,value)).join(' · ')}</span>
     </p>:null}
-    {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
-    <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Preview edit approve or decline','معاينة تحرير موافقة أو رفض')}>
+    {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{doc.customer||label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
+    <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Document actions','إجراءات المستند')}>
+      {doc.status==='draft'?<button type="button" className="lxw-document-action lxw-document-action-approve" aria-busy={Boolean(host.state.__workspaceSaving)} aria-describedby={doc.blockers.length?'lxw-document-blockers':undefined} disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void saveIntelligenceDraft(host,doc.id,doc.revision)}>{iconAccept}<span>{host.state.__workspaceSaving?label(ar,'Saving…','جارٍ الحفظ…'):label(ar,'Save draft','حفظ المسودة')}</span></button>:null}
       {viewPdf?<a className="lxw-document-action lxw-document-action-preview" href={viewPdf.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{iconPdf}<span>{label(ar,'Preview PDF','معاينة PDF')}</span></a>:
         <button type="button" className="lxw-document-action lxw-document-action-preview" aria-label={label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')} aria-busy={pdfBusy} disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null} onClick={()=>void createPdf()}>{iconPdf}<span>{pdfBusy?label(ar,'Generating PDF…','جارٍ تجهيز PDF…'):label(ar,'Preview PDF','معاينة PDF')}</span></button>}
       <button type="button" className="lxw-document-action lxw-document-action-edit" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:doc.status==='draft'?'edit':'preview',__workspaceEditing:doc.status==='draft'})}>{iconEdit}<span>{doc.status==='draft'?label(ar,'Edit','تحرير'):label(ar,'View document','عرض المستند')}</span></button>
-      {doc.status==='draft'?<button type="button" className="lxw-document-action lxw-document-action-approve" aria-busy={Boolean(host.state.__workspaceSaving)} disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void saveIntelligenceDraft(host,doc.id,doc.revision)}>{iconAccept}<span>{host.state.__workspaceSaving?label(ar,'Saving…','جارٍ الحفظ…'):label(ar,'Save draft','حفظ المسودة')}</span></button>:null}
       {doc.status==='draft'?(approvalDecline||<button type="button" className="lxw-document-action lxw-document-action-reject" disabled={disabled(host)||saveReviewPending} onClick={()=>setDiscardExpanded(true)}>{iconReject}<span>{label(ar,'Reject draft','رفض المسودة')}</span></button>):null}
     </div>
     {discardExpanded&&doc.status==='draft'?<section className="lxw-document-discard-confirm" role="region" aria-label={label(ar,'Confirm draft rejection','تأكيد رفض المسودة')}>
