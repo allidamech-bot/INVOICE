@@ -60,13 +60,18 @@ const report=[];
    const documentVisual=await panel.evaluate(async node=>{
     const card=document.createElement('section');
     card.className='lxw-chat-document lxw-document-unified';
-    card.innerHTML='<div class="lxw-document-action-grid"><button class="lxw-document-action lxw-document-action-approve"><span>Save draft</span></button></div>';
+    card.innerHTML='<header class="lxw-document-card-head"><div class="lxw-document-card-title"><small>LOUREX</small><strong>Draft quote</strong></div></header><div class="lxw-document-essentials"><span class="lxw-document-essential-customer">QA customer</span><div class="lxw-document-essential-price"><span>Items subtotal</span><strong class="lxw-document-essential-total">1100.00 <small>USD</small></strong></div></div><div class="lxw-document-meta"><span>3 items</span></div><small class="lxw-document-safety-note">PDF preview is optional.</small><details class="lxw-document-extra"><summary>All items and details</summary></details><div class="lxw-document-action-grid"><button class="lxw-document-action lxw-document-action-approve"><span>Save draft</span></button></div>';
     node.appendChild(card);
     try{
      const button=card.querySelector('button'),text=button.querySelector('span');
      const enabled=getComputedStyle(button),cardStyle=getComputedStyle(card);
-     const result={background:cardStyle.backgroundImage,text:getComputedStyle(card).color,
-      enabled:{bg:enabled.backgroundColor,text:getComputedStyle(text).color,opacity:enabled.opacity}};
+     const css=selector=>getComputedStyle(card.querySelector(selector));
+     const ink=selector=>css(selector).webkitTextFillColor||css(selector).color;
+     const result={bg:cardStyle.backgroundColor,text:cardStyle.color,
+      summary:{bg:css('.lxw-document-essentials').backgroundColor,total:ink('.lxw-document-essential-total'),
+       label:ink('.lxw-document-essential-price>span'),currency:ink('.lxw-document-essential-total small')},
+      meta:ink('.lxw-document-meta>span'),safety:ink('.lxw-document-safety-note'),
+      enabled:{bg:enabled.backgroundColor,text:ink('button span'),opacity:enabled.opacity}};
      button.disabled=true;
      const disabled=getComputedStyle(button);
      // Flush the state change, then sample the settled paint rather than the
@@ -75,14 +80,18 @@ const report=[];
      await Promise.all(button.getAnimations().filter(animation=>
       Number.isFinite(animation.effect?.getComputedTiming().endTime)
      ).map(animation=>animation.finished.catch(()=>{})));
-     result.disabled={bg:disabled.backgroundColor,text:getComputedStyle(text).color,opacity:disabled.opacity};
+     result.disabled={bg:disabled.backgroundColor,text:ink('button span'),opacity:disabled.opacity};
      return result;
     }finally{card.remove();}
    });
-   assert.ok(documentVisual.background.includes('rgb(255, 255, 255)'),
-    'document must render as paper, visually distinct from the conversation');
-   assert.equal(documentVisual.enabled.bg,'rgb(35, 88, 184)','enabled Save must use the blue document action');
-   assert.equal(documentVisual.disabled.bg,'rgb(226, 232, 241)','disabled Save must use the readable neutral state');
+   assert.equal(documentVisual.bg,c.theme==='dark'?'rgb(34, 37, 36)':'rgb(255, 255, 255)',
+    'document surface must follow the conversation theme');
+   assert.equal(documentVisual.enabled.bg,'rgb(47, 107, 93)','Save uses the conversation green family');
+   assert.equal(documentVisual.disabled.bg,documentVisual.summary.bg,'disabled Save uses the theme secondary surface');
+   for(const ink of [documentVisual.text,documentVisual.meta,documentVisual.safety])
+    assert.ok(contrast(ink,documentVisual.bg)>=4.5,'document body and notes remain readable');
+   for(const ink of [documentVisual.summary.total,documentVisual.summary.label,documentVisual.summary.currency])
+    assert.ok(contrast(ink,documentVisual.summary.bg)>=4.5,'subtotal, label and currency remain readable');
    for(const state of [documentVisual.enabled,documentVisual.disabled]){
     assert.equal(state.opacity,'1','disabled opacity must not wash out the document action');
     assert.ok(contrast(state.text,state.bg)>=4.5,'document action label meets WCAG AA in both states');
