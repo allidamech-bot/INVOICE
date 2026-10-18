@@ -129,7 +129,7 @@ test('real shipped UI replaces legacy malformed financial JSX with ONE accessibl
    {role:'user',text:'أريد الفاتورة'},{role:'assistant',text:source}
   ]}};
   const rendered=renderConversationWorkspace(host,turn);
-  const collect=node=>Array.isArray(node)?node.flatMap(collect):React.isValidElement(node)?[node,...collect(node.props?.children)]:[];
+  const collect=node=>Array.isArray(node)?node.flatMap(collect):React.isValidElement(node)?[node,...collect(typeof node.type==='function'?node.type(node.props):node.props?.children)]:[];
   const nodes=collect(rendered);
   assert.equal(nodes.filter(n=>n.type==='article'&&n.props.className==='lxbr').length,1);
   assert.equal(nodes.filter(n=>n.type==='details'&&n.props.className==='lxbr-items').length,1);
