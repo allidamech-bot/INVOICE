@@ -140,7 +140,7 @@ export function formatAiBusinessRecordReply(value:unknown,language:'ar'|'en'):st
  if(!doc&&!customer&&!history)return null;
  const safe=(v:unknown,max=150)=>String(v??'').replace(/[\r\n|<>*#]/g,' ').replace(/:::lourex-/g,' ').trim().slice(0,max)||'—';
  const lri='\u2066',pdi='\u2069',iso=(v:unknown,max=70)=>lri+safe(v,max)+pdi;
- const field=(name:string,v:unknown,unit='')=>'- **'+name+'**: '+(v===null||v===undefined||v===''?'—':iso(v)+(unit?' '+iso(unit,8):''));
+ const field=(name:string,v:unknown,unit='')=>'- **'+name+'**: '+(v===null||v===undefined||v===''?'—':iso(safe(v,70)+(unit?' '+safe(unit,8):'')));
  const lines:string[]=[];
  const currency=doc?safe(doc.currency,8):'';
  if(doc){
@@ -148,7 +148,8 @@ export function formatAiBusinessRecordReply(value:unknown,language:'ar'|'en'):st
   lines.push('## '+kind+' '+safe(doc.number,100),'');
   if(doc.customerName||doc.supplierName)lines.push((ar?'**الطرف:** ':'**Party:** ')+safe(doc.customerName||doc.supplierName,150));
   lines.push(field(ar?'تاريخ الإصدار':'Issue date',doc.issueDate),
-   field(ar?'الحالة':'Status',doc.status==='final'?(ar?'صادرة':'Issued'):doc.status==='draft'?(ar?'مسودة':'Draft'):doc.status),'');
+   field(ar?'الحالة':'Status',doc.status==='final'?(ar?'صادرة':'Issued'):doc.status==='draft'?(ar?'مسودة':'Draft'):doc.status),
+   ...(doc.dueDate?[field(ar?'تاريخ الاستحقاق':'Due date',doc.dueDate)]:[]),'');
   if(doc.truncated===true)lines.push(ar?'**تنبيه:** بيانات الفاتورة جزئية؛ افتح الأصل للتحقق.':'**Note:** Invoice data is incomplete; verify the original.');
   else{
    const totals=aiCustomerEvidenceRecord(doc.totals);
@@ -193,7 +194,7 @@ export function formatAiBusinessRecordReply(value:unknown,language:'ar'|'en'):st
      const type=e.type==='payment'?(ar?'تحصيل':'Payment'):e.type==='invoice'?(ar?'فاتورة':'Invoice'):e.type==='credit-note'?(ar?'إشعار دائن':'Credit note'):(ar?'حركة':'Entry');
      const amount=e.type==='invoice'?e.debit:e.credit;
      lines.push('- **'+type+'** · '+iso(e.date,30)+' · '+iso(e.reference,130),
-      '  '+(ar?'المبلغ: ':'Amount: ')+iso(amount)+' '+iso(curr,8)+' · '+(ar?'الرصيد بعد الحركة: ':'Balance after: ')+iso(e.balance)+' '+iso(curr,8));
+      '  '+(e.type==='invoice'?(ar?'قيمة الفاتورة: ':'Invoice amount: '):(ar?'المبلغ الدائن: ':'Credit amount: '))+iso(safe(amount,40)+' '+curr)+' · '+(ar?'الرصيد بعد الحركة: ':'Balance after: ')+iso(safe(e.balance,40)+' '+curr));
     }
     if(entries.length>=12)lines.push(ar?'آخر 12 حركة فقط؛ قد توجد حركات أقدم.':'Latest 12 movements only; older entries may exist.');
     if(!entries.length)lines.push(ar?'لا توجد حركات مفصلة في هذه النتيجة.':'No detailed movements in this response.');
@@ -211,7 +212,7 @@ export function formatAiBusinessRecordReply(value:unknown,language:'ar'|'en'):st
   for(const [i,value] of items.entries()){
    const item=aiCustomerEvidenceRecord(value);if(!item)continue;
    lines.push('- '+(i+1)+'. '+safe((ar?item.descriptionAr||item.descriptionEn:item.descriptionEn||item.descriptionAr)||item.sku,100)+
-     ' — '+(ar?'الكمية':'Qty')+' '+iso(item.quantity,25)+' · '+(ar?'سعر الوحدة':'Unit price')+' '+iso(item.unitPrice,25)+' '+iso(currency,8));
+     ' — '+(ar?'الكمية':'Qty')+' '+iso(item.quantity,25)+' · '+(ar?'الوحدة':'Unit')+' '+safe(item.unit,30)+' · '+(ar?'سعر الوحدة':'Unit price')+' '+iso(safe(item.unitPrice,25)+' '+currency));
   }
   if(doc.itemsTruncated||reported>items.length)lines.push(ar?'**القائمة جزئية:** افتح الفاتورة الأصلية لرؤية جميع الأصناف.':'**Partial list:** Open the original invoice for every item.');
   lines.push(':::lourex-end');
