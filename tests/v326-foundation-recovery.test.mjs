@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 
 const read=path=>readFile(path,'utf8');
 
@@ -87,7 +88,9 @@ test('v326 shell correction contract keeps RTL rails and More affordance stable'
 
 test('v326 application chrome always uses official LOUREX identity',async()=>{
   const shell=await read('src/components/AppShell.tsx');
-  assert.match(shell,/const logo='\.\/brand\/lourex-logo\.svg'/);
+  assert.match(shell,/const logo='\.\/brand\/lourex-header-logo\.jpeg'/);
+  const artwork=await readFile('public/brand/lourex-header-logo.jpeg');
+  assert.equal(createHash('sha256').update(artwork).digest('hex'),'2f51d51af8030ab928341b5826ed57d7de4740ddc2ed08eca4ec37fff005a7d6','shell identity must use the approved original artwork');
   assert.doesNotMatch(shell,/const logo=this\.props\.logoDataUrl/);
 });
 

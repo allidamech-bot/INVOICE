@@ -87,9 +87,13 @@ try{
       first.style.height='1460px'; // Late layout expansion, no new message.
       await pause();
       if(bottom()>3)throw new Error('Late PDF-like layout resize did not follow: '+bottom());
-      box.scrollTop=180; // User intentionally reads an older turn.
+      // Pause for real CDP touch input. Setting scrollTop directly emits only a
+      // layout/programmatic scroll and cannot stand in for a reader's gesture.
+      window.__qaManualReady={before:box.scrollTop};
+      await new Promise(resolve=>{window.__qaManualResume=resolve;});
       await pause();
       const before=box.scrollTop;
+      if(window.__qaManualReady.before-before<125)throw new Error('Touch input did not scroll beyond the follow threshold');
       const reply=document.createElement('div');reply.style.height='180px';reply.textContent='Incoming message';
       box.append(reply);
       await pause();
@@ -108,7 +112,21 @@ try{
       box.remove();
       return {ok:true,width:innerWidth,finalScrollAfterDisconnect:box.scrollTop};
     })().catch(error=>({error:String(error?.stack||error)}))`;
-    const result=await cmd('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
+    const evaluation=cmd('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
+    await until(async()=>{
+      const ready=await cmd('Runtime.evaluate',{expression:'Boolean(window.__qaManualReady)',returnByValue:true});
+      return ready.result?.value===true;
+    },8000);
+    await cmd('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:160,y:40}]});
+    for(let step=1;step<=10;step++){
+      await cmd('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:160,y:40+17*step}]});
+      await wait(24);
+    }
+    // Stop moving before release so momentum cannot masquerade as reply drift.
+    await wait(220);
+    await cmd('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await cmd('Runtime.evaluate',{expression:'window.__qaManualResume()'});
+    const result=await evaluation;
     const value=result.result?.value;
     assert.ok(value?.ok,name+' real browser scroll regression failed: '+JSON.stringify(value));
     assert.equal(value.width,width,name+' must run at its intended CSS viewport, not the default mobile 980px layout');
