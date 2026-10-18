@@ -90,3 +90,51 @@ test('production bundle calls the concise financial formatter before falling bac
  assert.match(workspace,/:::lourex-end/);
  assert.match(workspace,/summary/);
 });
+
+
+test('actual workspace adapter renders a nested financial answer exactly once, keeps collapsible lines and original copy callback',async()=>{
+ const previousReact=globalThis.React;
+ const Fragment=Symbol.for('react.fragment');
+ globalThis.React={
+  Fragment,
+  createElement:(type,props,...children)=>({type,props:{...props,children:children.length===1?children[0]:children}}),
+  isValidElement:value=>Boolean(value&&typeof value==='object'&&'type'in value),
+  cloneElement:(node,props,...children)=>({type:node.type,props:{...node.props,...props,...(children.length?{children:children.length===1?children[0]:children}:{})}}),
+  Children:{toArray:value=>value===undefined||value===null?[]:Array.isArray(value)?value:[value]}
+ };
+ try{
+  const {renderConversationWorkspace}=await import('../dist/src/components/AiConversationWorkspace.js');
+  const answer=formatAiBusinessRecordReply(fixture(),'ar');
+  assert.ok(answer?.includes(':::lourex-details '));
+  const e=globalThis.React.createElement;
+  let copied=0;
+  const callback=()=>copied++;
+  // The shipped owner may nest response strings in the legacy copy wrapper.
+  // That wrapper must not flatten the financial disclosure markers into text.
+  const wrapped=e('div',{className:'lourex-ai-message assistant'},
+   e('div',{className:'lourex-ai-answer-copy'},answer),
+   e('div',{className:'lourex-ai-message-actions'},e('button',{onClick:callback},'Copy')));
+  const plain=e('div',{className:'lourex-ai-message assistant'},answer);
+  const host={props:{language:'ar'},state:{}};
+  const descendants=node=>Array.isArray(node)?node.flatMap(descendants):
+    node&&typeof node==='object'&&'type'in node?[node,...descendants(node.props?.children)]:[];
+  for(const tree of [wrapped,plain]){
+   const rendered=renderConversationWorkspace(host,tree);
+   const nodes=descendants(rendered);
+   assert.equal(nodes.filter(n=>n.type==='details'&&n.props.className==='lxw-ai-record-details').length,1);
+   assert.equal(nodes.filter(n=>n.type==='summary').length,1);
+   assert.equal(nodes.filter(n=>n.type==='section'&&n.props.className==='lxw-financial-answer').length,1);
+   assert.ok(nodes.some(n=>n.type==='h3'));
+   assert.ok(nodes.some(n=>n.type==='h4'));
+   assert.ok(nodes.some(n=>n.type==='li'));
+   // User-visible text must not expose internal readout delimiters.
+   const outside=nodes.filter(n=>n.type==='p'||n.type==='h3'||n.type==='h4')
+     .map(n=>JSON.stringify(n.props.children)).join(' ');
+   assert.doesNotMatch(outside,/:::lourex-details|:::lourex-end/);
+  }
+  const wrappedRendered=renderConversationWorkspace(host,wrapped);
+  const buttons=descendants(wrappedRendered).filter(n=>n.type==='button');
+  assert.equal(buttons.length,1);assert.equal(buttons[0].props.onClick,callback);
+  buttons[0].props.onClick();assert.equal(copied,1);
+ }finally{globalThis.React=previousReact;}
+});
