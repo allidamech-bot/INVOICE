@@ -22,7 +22,18 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   const bounds=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');
   const question=async(name,pattern)=>{await page.getByRole('button',{name,exact:true}).click();const input=page.locator('#lourex-ai-panel .lourex-ai-compose-bridge');await input.waitFor();assert.match(await input.inputValue(),pattern);assert.equal(await page.locator('.lourex-ai-proposal').count(),0);await page.locator('.lourex-ai-close').click();};
   const openTools=async(panel)=>{
-    const plus=panel.locator('.lourex-ai-composer-plus');await plus.waitFor({state:'visible'});const box=await plus.boundingBox();assert.ok(box&&box.height>=43&&box.width>=43,'unified plus target');
+    const plus=panel.locator('.lourex-ai-composer-plus');await plus.waitFor({state:'visible'});
+    // Navigation between chat, history and AI source modals animates the
+    // composer. Require the actual 44px target after layout has settled,
+    // never measure a transition frame as if it were the final hit area.
+    await page.waitForFunction(()=>{
+      const node=document.querySelector('#lourex-ai-panel .lourex-ai-composer-plus');
+      const rect=node?.getBoundingClientRect();
+      return Boolean(rect&&rect.width>=43&&rect.height>=43);
+    },null,{timeout:12000}).catch(()=>{});
+    const box=await plus.boundingBox();
+    const detail=await plus.evaluate(node=>({rect:node.getBoundingClientRect().toJSON(),computed:{width:getComputedStyle(node).width,height:getComputedStyle(node).height,transform:getComputedStyle(node).transform},panelTransform:getComputedStyle(node.closest('#lourex-ai-panel')).transform}));
+    assert.ok(box&&box.height>=43&&box.width>=43,'unified plus target (must actually remain >=43px after animations): '+JSON.stringify(detail));
     assert.equal(await panel.locator('.lourex-ai-hub-trigger').isVisible(),false,'persistent Tools hub is retired from conversation chrome');
     await plus.click();const menu=panel.locator('.lourex-ai-plus-menu');await menu.waitFor({state:'visible'});assert.equal(await menu.getAttribute('data-view'),'root','plus opens the compact source gateway');
     const rootCopy=await menu.innerText();assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'plus root contains sources and nested AI Tools');
