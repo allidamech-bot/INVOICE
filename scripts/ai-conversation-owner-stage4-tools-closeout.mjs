@@ -32,6 +32,13 @@ for(const [before,after] of localizedSections){
   else if(!source.includes(after))throw new Error(`AI conversation Batch 4 closeout could not localize section token: ${before}`);
 }
 
+// Give real customer/document readouts a compact, localized final answer.
+const readoutOwner="function __lourexNaturalizeToolAnswer(result,language){";
+if(!source.includes(readoutOwner))throw new Error('Final AI natural-language answer owner changed.');
+source="import {formatAiBusinessRecordReply} from '../lib/ai-tool-presentation.js';\n"+
+ source.replace(readoutOwner,readoutOwner+
+  "\n  const conciseReadout=formatAiBusinessRecordReply(result,language);\n  if(conciseReadout!==null)return conciseReadout;");
+
 // The final chat reply renderer must not flatten statement rows into "Entries: ...".
 const historyToken="const detail=row.tool==='document.get'?formatAiDocumentEvidence(row.data,ar?'ar':'en'):__lourexCompactObject(row.data,0,ar)";
 if(!source.includes(historyToken))throw new Error('Shipped AI customer-history formatter owner changed; refusing silent truncation.');
