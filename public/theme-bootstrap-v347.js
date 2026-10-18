@@ -17,6 +17,24 @@
   root.style.setProperty('--boot-bg',bg);
   if(meta)meta.setAttribute('content',bg);
 
+  // Defer only the third-party font stylesheet. The app keeps its exact font
+  // families/weights; first paint and login are not gated on Google Fonts.
+  (function armDeferredFonts(){
+    var observer;
+    var arm=function(){
+      var link=document.querySelector('link[data-lourex-deferred-fonts="true"]');
+      if(!link)return false;
+      var enable=function(){link.media='all';};
+      link.addEventListener('load',enable,{once:true});
+      if(link.sheet)enable();
+      if(observer)observer.disconnect();
+      return true;
+    };
+    if(arm())return;
+    observer=new MutationObserver(function(){arm();});
+    observer.observe(document.head,{childList:true});
+  })();
+
   document.addEventListener('DOMContentLoaded',function(){
     var mount=document.getElementById('root');
     if(!mount)return;
