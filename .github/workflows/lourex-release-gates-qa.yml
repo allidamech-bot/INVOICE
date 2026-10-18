@@ -1,0 +1,42 @@
+name: LOUREX Release Gate Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/verify-local.mjs'
+      - 'tests/local-verification-no-actions.test.mjs'
+      - 'docs/LOCAL_VERIFICATION_NO_ACTIONS.md'
+      - '.github/workflows/lourex-release-gates-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-release-gates-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  full-release-gate:
+    name: Node 24 / security / build / contracts / Chromium / WebKit
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out final PR snapshot with comparison history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Use required Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Prepare isolated browser QA dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Run full mandatory release gate (not --quick)
+        run: node scripts/verify-local.mjs
