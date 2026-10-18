@@ -31,6 +31,8 @@ on:
       - 'src/components/EditorPageCore.tsx'
       - 'src/components/ProductAiSourceReview.tsx'
       - 'src/components/AiConversationWorkspace.tsx'
+      - 'scripts/ai-conversation-owner-stage4.mjs'
+      - 'tests/ai-financial-reply-presentation-20261019.test.mjs'
       - 'src/lib/ai-tool-client.ts'
       - 'src/lib/ai-named-record-read.ts'
       - 'tests/ai-production-named-records.test.mjs'
