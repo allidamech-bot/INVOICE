@@ -28,6 +28,7 @@ import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoic
 import {requestedCatalogQuoteFamily,naturalCatalogQuoteReply} from './ai-catalog-conversation.js';
 import {graphKindAllowed} from './ai-business-memory-graph.js';
 import {strictAiActor} from './ai-foundation-approval.js';
+import {namedRecordReadPlan} from './ai-named-record-read.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -571,7 +572,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'cfo-local-1',tool:'finance.getSummary',args:{},reason:'Build the CFO brief from deterministic Advisor V2 evidence.'}]};const execution=executeAiToolPlan(runtime,plan);return{answer:formatCfoBrief(brief,input.language),proposal:null,plan,results:execution.results,plannedBy:'local'};
     }
   }
-  const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
+  const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:(namedRecordReadPlan(input.message,runtime)??deterministicAiToolPlan(input.message,runtime)),plannedBy:'local'|'ai'='local';
   // Advisor remains a genuine conversation. An imperative may be discussed or
   // evaluated, but a deterministic mutation/navigation plan must not replace
   // the advisor's reply with execution errors or a proposed action.
