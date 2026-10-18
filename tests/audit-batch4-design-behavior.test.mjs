@@ -33,7 +33,9 @@ function boot(preference,systemDark=false,blocked=false){
   const root={dataset:{},style:{setProperty(name,value){this[name]=value;},removeProperty(name){delete this[name];}}};
   const meta={setAttribute(name,value){this[name]=value;}};
   const mount={querySelector:()=>loading?{}:null};
-  const document={documentElement:root,querySelector:selector=>selector.includes('theme-color')?meta:loading?{}:null,getElementById:()=>mount,addEventListener:(_event,callback)=>{domCallback=callback;}};
+  // This theme-only fixture contains no deferred font link. Do not return the
+  // generic loading sentinel as a fake <link> after startup font deferral.
+  const document={documentElement:root,querySelector:selector=>selector.includes('data-lourex-deferred-fonts')?null:selector.includes('theme-color')?meta:loading?{}:null,getElementById:()=>mount,addEventListener:(_event,callback)=>{domCallback=callback;}};
   const localStorage={getItem:()=>{if(blocked)throw Error('blocked');return preference;},setItem:()=>{}};
   const matchMedia=()=>({matches:systemDark});
   const context={document,localStorage,matchMedia,MutationObserver:class{constructor(callback){observerCallback=callback;}observe(){}disconnect(){disconnected=true;}}};
