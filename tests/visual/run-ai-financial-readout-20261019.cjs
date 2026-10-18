@@ -2,6 +2,16 @@
 const {webkit,chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
+const channels=color=>(color.match(/[\d.]+/g)||[]).slice(0,3).map(Number);
+const luminance=color=>{
+ const [r=0,g=0,b=0]=channels(color).map(x=>{const n=x/255;return n<=0.04045?n/12.92:((n+0.055)/1.055)**2.4;});
+ return 0.2126*r+0.7152*g+0.0722*b;
+};
+const contrast=(fg,bg)=>{
+ const x=luminance(fg),y=luminance(bg);
+ return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
+};
+
 const output='visual-qa-output/ai-financial-readout';
 mkdirSync(output,{recursive:true});
 const cases=[
@@ -48,6 +58,30 @@ const cases=[
    assert.ok(measurements.x>=measurements.panelX-2&&measurements.x+measurements.width<=measurements.panelX+measurements.panelWidth+2,'report remains inside chat panel');
    assert.ok(measurements.documentWidth<=spec.width+2,'page has no horizontal overflow');
    assert.deepEqual(measurements.overflowing,[],'financial content fits the viewport');
+   const textSamples=await reportCard.evaluate(node=>{
+    const styles=el=>getComputedStyle(el);
+    const selections=[
+     ['heading','h3','.lxbr-heading'],
+     ['customer','.lxbr-party','.lxbr-heading'],
+     ['fact label','.lxbr-fact dt','.lxbr-fact'],
+     ['fact value','.lxbr-fact dd','.lxbr-fact'],
+     ['section heading','.lxbr-section h4','#lourex-ai-panel'],
+     ['receipt','.lxbr-reference','.lxbr-ledger li'],
+     ['balance','.lxbr-balance','.lxbr-ledger li'],
+     ['disclosure','.lxbr-items summary','.lxbr-items']
+    ];
+    return selections.map(([name,selector,surface])=>{
+     const text=node.querySelector(selector),bg=node.querySelector(surface)||document.querySelector(surface);
+     if(!text||!bg)throw Error('Missing visual sample '+name);
+     const ink=styles(text),fill=styles(bg);
+     return {name,ink:ink.webkitTextFillColor==='rgba(0, 0, 0, 0)'?ink.color:ink.webkitTextFillColor||ink.color,bg:fill.backgroundColor};
+    });
+   });
+   for(const sample of textSamples){
+    assert.ok(sample.bg.startsWith('rgb('),'text sample has an opaque background '+JSON.stringify(sample));
+    assert.ok(contrast(sample.ink,sample.bg)>=4.5,'financial text contrast must be readable: '+JSON.stringify(sample));
+   }
+
    await page.screenshot({path:output+'/'+spec.browser+'-'+spec.width+'-'+spec.lang+'-collapsed.png',fullPage:true,animations:'disabled'});
    await disclosure.locator('summary').click();
    assert.notEqual(await disclosure.getAttribute('open'),null,'the actual disclosure can be expanded');
