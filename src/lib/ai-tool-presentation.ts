@@ -124,3 +124,103 @@ export function formatAiCustomerSummaryEvidence(data:unknown,language:'ar'|'en')
  }
  return boundedCustomerEvidence(lines,language);
 }
+
+/** Compact, read-only evidence in the final chat. Recorded values are never recomputed. */
+export function formatAiBusinessRecordReply(value:unknown,language:'ar'|'en'):string|null{
+ const ar=language==='ar';
+ if(!value||typeof value!=='object')return null;
+ const rows=(value as {results?:unknown}).results;
+ if(!Array.isArray(rows)||!rows.length)return null;
+ const allowed=new Set(['document.get','customer.getSummary','customer.getHistory']);
+ if(rows.some(row=>!row||typeof row!=='object'||!allowed.has(String(row.tool))))return null;
+ const find=(tool:string)=>rows.find(row=>row.tool===tool&&row.ok===true);
+ const doc=aiCustomerEvidenceRecord(find('document.get')?.data);
+ const customer=aiCustomerEvidenceRecord(find('customer.getSummary')?.data);
+ const history=aiCustomerEvidenceRecord(find('customer.getHistory')?.data);
+ if(!doc&&!customer&&!history)return null;
+ const safe=(v:unknown,max=150)=>String(v??'').replace(/[\r\n|<>*#]/g,' ').replace(/:::lourex-/g,' ').trim().slice(0,max)||'—';
+ const lri='\u2066',pdi='\u2069',iso=(v:unknown,max=70)=>lri+safe(v,max)+pdi;
+ const field=(name:string,v:unknown,unit='')=>'- **'+name+'**: '+(v===null||v===undefined||v===''?'—':iso(v)+(unit?' '+iso(unit,8):''));
+ const lines:string[]=[];
+ const currency=doc?safe(doc.currency,8):'';
+ if(doc){
+  const kind=doc.kind==='invoice'?(ar?'فاتورة':'Invoice'):doc.kind==='proforma'?(ar?'عرض سعر':'Quotation'):(ar?'مستند':'Document');
+  lines.push('## '+kind+' '+safe(doc.number,100),'');
+  if(doc.customerName||doc.supplierName)lines.push((ar?'**الطرف:** ':'**Party:** ')+safe(doc.customerName||doc.supplierName,150));
+  lines.push(field(ar?'تاريخ الإصدار':'Issue date',doc.issueDate),
+   field(ar?'الحالة':'Status',doc.status==='final'?(ar?'صادرة':'Issued'):doc.status==='draft'?(ar?'مسودة':'Draft'):doc.status),'');
+  if(doc.truncated===true)lines.push(ar?'**تنبيه:** بيانات الفاتورة جزئية؛ افتح الأصل للتحقق.':'**Note:** Invoice data is incomplete; verify the original.');
+  else{
+   const totals=aiCustomerEvidenceRecord(doc.totals);
+   if(totals){
+    lines.push('### '+(ar?'القيم المالية':'Financial values'));
+    for(const [key,arabic,english] of [
+      ['subtotal','الإجمالي قبل الرسوم','Subtotal'],
+      ['discount','الخصم','Discount'],
+      ['shipping','الشحن','Shipping'],
+      ['otherCharges','رسوم إضافية','Other charges'],
+      ['tax','الضريبة','Tax'],
+      ['grandTotal','الإجمالي النهائي','Grand total']
+     ] as const){
+      if(totals[key]!==null&&totals[key]!==undefined)
+       lines.push(field(ar?arabic:english,totals[key],currency));
+    }
+   }
+  }
+ }
+ if(customer){
+  if(!doc)lines.push('## '+(ar?'حساب العميل':'Customer account')+' · '+safe(customer.name,150));
+  const receivables=Array.isArray(customer.receivables)?customer.receivables:[];
+  if(receivables.length)lines.push('','### '+(ar?'المستحقات والتحصيلات':'Receivables and collections'));
+  for(const value of receivables){
+   const entry=aiCustomerEvidenceRecord(value);if(!entry)continue;
+   const curr=safe(entry.currency,8);
+   lines.push('**'+curr+'**',field(ar?'إجمالي الفواتير':'Billed',entry.billed,curr),
+    field(ar?'المبالغ المحصلة':'Collected',entry.paid,curr),field(ar?'الرصيد المتبقي':'Outstanding',entry.outstanding,curr));
+  }
+ }
+ if(history){
+  const statements=Array.isArray(history.statements)?history.statements:[];
+  if(history.truncated===true)lines.push('','**'+(ar?'كشف العميل غير مكتمل.':'Customer statement is incomplete.')+'**');
+  else if(statements.length){
+   lines.push('','### '+(ar?'حركات الحساب المسجلة':'Recorded account movements'));
+   for(const value of statements){
+    const s=aiCustomerEvidenceRecord(value);if(!s)continue;
+    const curr=safe(s.currency,8),entries=Array.isArray(s.entries)?s.entries:[];
+    lines.push('**'+curr+'**');
+    for(const value of entries){
+     const e=aiCustomerEvidenceRecord(value);if(!e)continue;
+     const type=e.type==='payment'?(ar?'تحصيل':'Payment'):e.type==='invoice'?(ar?'فاتورة':'Invoice'):e.type==='credit-note'?(ar?'إشعار دائن':'Credit note'):(ar?'حركة':'Entry');
+     const amount=e.type==='invoice'?e.debit:e.credit;
+     lines.push('- **'+type+'** · '+iso(e.date,30)+' · '+iso(e.reference,130),
+      '  '+(ar?'المبلغ: ':'Amount: ')+iso(amount)+' '+iso(curr,8)+' · '+(ar?'الرصيد بعد الحركة: ':'Balance after: ')+iso(e.balance)+' '+iso(curr,8));
+    }
+    if(entries.length>=12)lines.push(ar?'آخر 12 حركة فقط؛ قد توجد حركات أقدم.':'Latest 12 movements only; older entries may exist.');
+    if(!entries.length)lines.push(ar?'لا توجد حركات مفصلة في هذه النتيجة.':'No detailed movements in this response.');
+   }
+  }
+ }
+ for(const row of rows.filter(row=>!row.ok)){
+  lines.push('','**'+(ar?'قراءة غير مكتملة: ':'Incomplete read: ')+safe(row.tool,80)+'**',safe(row.summary,180));
+ }
+ // The source includes at most 20 items, even when the original has more.
+ // Keep them accessible but visually collapsed, after the important account facts.
+ if(doc&&doc.truncated!==true&&Array.isArray(doc.items)&&doc.items.length){
+  const items=doc.items,reported=Number(doc.itemCount)||items.length;
+  lines.push('',':::lourex-details '+(ar?'أصناف المستند':'Document items')+' ('+items.length+'/'+reported+')');
+  for(const [i,value] of items.entries()){
+   const item=aiCustomerEvidenceRecord(value);if(!item)continue;
+   lines.push('- '+(i+1)+'. '+safe((ar?item.descriptionAr||item.descriptionEn:item.descriptionEn||item.descriptionAr)||item.sku,100)+
+     ' — '+(ar?'الكمية':'Qty')+' '+iso(item.quantity,25)+' · '+(ar?'سعر الوحدة':'Unit price')+' '+iso(item.unitPrice,25)+' '+iso(currency,8));
+  }
+  if(doc.itemsTruncated||reported>items.length)lines.push(ar?'**القائمة جزئية:** افتح الفاتورة الأصلية لرؤية جميع الأصناف.':'**Partial list:** Open the original invoice for every item.');
+  lines.push(':::lourex-end');
+ }
+ const output=lines.filter((line,i)=>line!==''||lines[i-1]!=='').join('\n').trim();
+ if(output.length>4750){
+  const notice='\n'+(ar?'… تفاصيل إضافية لم تُعرض؛ اطلب فترة أقصر أو افتح السجل الأصلي.':'… Additional details omitted; request a shorter period or open the original.');
+  const first=output.slice(0,4700-notice.length),end=first.lastIndexOf('\n');
+  return (end>0?first.slice(0,end):first)+notice;
+ }
+ return output;
+}
