@@ -87,13 +87,26 @@ const {mkdirSync}=require('node:fs');
   await prefix.evaluate(element=>{
     const pane=element.closest('.ta-settings-content');
     if(!pane)return;
-    const rect=element.getBoundingClientRect();
-    const viewportBottom=visualViewport.offsetTop+visualViewport.height;
-    if(rect.bottom>viewportBottom-8)pane.scrollTop+=rect.bottom-viewportBottom+12;
+    const paneBox=pane.getBoundingClientRect();
+    const viewTop=visualViewport.offsetTop+2;
+    const viewBottom=visualViewport.offsetTop+visualViewport.height-2;
+    const top=Math.max(viewTop,paneBox.top+2),bottom=Math.min(viewBottom,paneBox.bottom-2);
+    const field=element.getBoundingClientRect();
+    // Aim for the actual intersection of the keyboard-visible screen and the
+    // Settings scroll pane, never a region covered by the modal or tab strip.
+    if(bottom>top)pane.scrollTop+=(field.top+field.height/2)-(top+bottom)/2;
   });
   const inputBox=await prefix.boundingBox();
-  assert.ok(inputBox.y>=20&&inputBox.y+inputBox.height<=211,'actual Settings input remains keyboard-visible after scrolling its real pane: '+JSON.stringify({inputBox}));
-  assert.ok(await prefix.evaluate(element=>{const rect=element.getBoundingClientRect();return document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)===element;}),'Settings input cannot be clipped by a zero-height nested pane');
+  const hit=await prefix.evaluate(element=>{
+    const rect=element.getBoundingClientRect();
+    const pane=element.closest('.ta-settings-content');
+    const paneRect=pane?.getBoundingClientRect();
+    const point=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+    return {targetHit:point===element,hitTag:point?.tagName||'',hitClass:String(point?.className||'').slice(0,160),pane:paneRect?.toJSON()||null,field:rect.toJSON(),visualViewport:{height:visualViewport.height,offsetTop:visualViewport.offsetTop}};
+  });
+  assert.ok(inputBox.y>=20&&inputBox.y+inputBox.height<=211,'actual Settings input remains keyboard-visible: '+JSON.stringify(hit));
+  assert.ok(hit.pane&&inputBox.y>=hit.pane.top-1&&inputBox.y+inputBox.height<=hit.pane.bottom+1,'Settings input must fit its real scroll pane: '+JSON.stringify(hit));
+  assert.ok(hit.targetHit,'Settings input must be actually tappable, not hidden behind an overlay: '+JSON.stringify(hit));
   await prefix.click({trial:true});
   await numbering.getByRole('button').click();
   await page.waitForFunction(()=>window.savedSettings?.numbering.proformaPrefix==='QT');
