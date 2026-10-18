@@ -54,6 +54,33 @@ const report=[];
    const expectedCanvas=c.theme==='dark'?'rgb(23, 25, 24)':'rgb(250, 250, 248)';
    assert.equal(visual.bg,expectedCanvas,'chat uses the approved Quiet Intelligence canvas for the selected site theme');
    assert.ok(contrast(visual.color,visual.bg)>=4.5,'conversation body text meets WCAG AA');
+   // A malformed selector once caused the browser to discard every later
+   // document rule, despite source-string tests seeing the intended CSS.
+   // Probe rendered controls in the real panel with compiled production CSS.
+   const documentVisual=await panel.evaluate(node=>{
+    const card=document.createElement('section');
+    card.className='lxw-chat-document lxw-document-unified';
+    card.innerHTML='<div class="lxw-document-action-grid"><button class="lxw-document-action lxw-document-action-approve"><span>Save draft</span></button></div>';
+    node.appendChild(card);
+    try{
+     const button=card.querySelector('button'),text=button.querySelector('span');
+     const enabled=getComputedStyle(button),cardStyle=getComputedStyle(card);
+     const result={background:cardStyle.backgroundImage,text:getComputedStyle(card).color,
+      enabled:{bg:enabled.backgroundColor,text:getComputedStyle(text).color,opacity:enabled.opacity}};
+     button.disabled=true;
+     const disabled=getComputedStyle(button);
+     result.disabled={bg:disabled.backgroundColor,text:getComputedStyle(text).color,opacity:disabled.opacity};
+     return result;
+    }finally{card.remove();}
+   });
+   assert.ok(documentVisual.background.includes('rgb(255, 255, 255)'),
+    'document must render as paper, visually distinct from the conversation');
+   assert.equal(documentVisual.enabled.bg,'rgb(35, 88, 184)','enabled Save must use the blue document action');
+   assert.equal(documentVisual.disabled.bg,'rgb(226, 232, 241)','disabled Save must use the readable neutral state');
+   for(const state of [documentVisual.enabled,documentVisual.disabled]){
+    assert.equal(state.opacity,'1','disabled opacity must not wash out the document action');
+    assert.ok(contrast(state.text,state.bg)>=4.5,'document action label meets WCAG AA in both states');
+   }
    assert.equal(visual.dir,c.lang==='ar'?'rtl':'ltr');
    const box=await panel.boundingBox();
    assert.ok(box&&box.x>=-1&&box.y>=-1,'AI panel starts inside viewport');
@@ -83,7 +110,7 @@ const report=[];
    assert.deepEqual(errors,[],'no unhandled page script errors');
    assert.deepEqual(requests,[],'read-only UI QA never calls the paid provider');
    report.push({engine:c.name,width:c.width,height:c.height,lang:c.lang,siteTheme:c.theme,
-    quietIntelligenceCanvas:true,rtl:c.lang==='ar',modeIsolation:true,historySearch:true,
+    quietIntelligenceCanvas:true,documentVisual,rtl:c.lang==='ar',modeIsolation:true,historySearch:true,
     horizontalOverflow:false,apiCalls:requests.length});
    console.log('PASS '+c.name+' '+c.width+' '+c.lang+' '+c.theme+': Quiet Intelligence AI, two roles, scoped history, no overflow');
    await page.close();

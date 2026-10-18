@@ -2617,7 +2617,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head .lou
   color:var(--lxw-control-text)!important;
   box-shadow:var(--lxw-control-shadow)!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lourex-ai-overflow-trigger,.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close):is(:hover,:active,[aria-expanded='true]){
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head :is(.lourex-ai-overflow-trigger,.lxw-history-trigger,.lxw-workspace-trigger,.lxw-settings-trigger,.lourex-ai-close):is(:hover,:active,[aria-expanded='true']){
   border-color:var(--lxw-control-active-border)!important;
   background:linear-gradient(180deg,var(--lxw-control-active-top),var(--lxw-control-active-bottom))!important;
   color:var(--lxw-control-active-text)!important;
