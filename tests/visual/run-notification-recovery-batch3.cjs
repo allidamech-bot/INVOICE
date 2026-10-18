@@ -8,11 +8,11 @@ const {mkdirSync}=require('node:fs');
    const page=await browser.newPage({viewport:{width,height:844}});page.setDefaultTimeout(8000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(`http://127.0.0.1:4173/tests/visual/notification-center-batch5.html?lang=${lang}`,{waitUntil:'networkidle'});
    await page.waitForFunction(()=>window.__batch5Ready);await page.evaluate(async theme=>{document.documentElement.dataset.uiTheme=theme;await window.lockNotificationQa();window.dispatchEvent(new Event('lourex-notification-center-open'));},theme);
-   const error=page.locator('.lx-notification-error');await error.waitFor();assert.match(await error.innerText(),/Unlock the encrypted vault|افتح الخزنة المشفرة/);
+   const error=page.locator('.lx-notification-error');await error.waitFor();assert.match(await error.innerText(),/Your account workspace is not ready|مساحة عمل حسابك غير جاهزة/);
    assert.match(await page.locator('.lx-notification-summary strong').innerText(),/Notifications unavailable|التنبيهات غير متاحة/,'dashboard must not imply zero follow-ups when the vault is unreadable');
    assert.equal(await page.locator('.lx-notification-empty').count(),0,'unread locked vault cannot be shown as healthy empty data');
    for(const tab of await page.getByRole('tab').all()){
-    await tab.click();assert.equal(await page.locator('.lx-notification-empty').count(),0,'switching tabs cannot erase an unread-vault error');assert.match(await error.innerText(),/Unlock the encrypted vault|افتح الخزنة المشفرة/);
+    await tab.click();assert.equal(await page.locator('.lx-notification-empty').count(),0,'switching tabs cannot erase an unread-vault error');assert.match(await error.innerText(),/Your account workspace is not ready|مساحة عمل حسابك غير جاهزة/);
    }
    await page.getByRole('tab',{name:lang==='ar'?/^نشط ·/:/^Active ·/}).click();
    await page.evaluate(()=>window.unlockNotificationQa());

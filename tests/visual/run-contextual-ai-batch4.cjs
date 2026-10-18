@@ -22,7 +22,18 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   const bounds=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');
   const question=async(name,pattern)=>{await page.getByRole('button',{name,exact:true}).click();const input=page.locator('#lourex-ai-panel .lourex-ai-compose-bridge');await input.waitFor();assert.match(await input.inputValue(),pattern);assert.equal(await page.locator('.lourex-ai-proposal').count(),0);await page.locator('.lourex-ai-close').click();};
   const openTools=async(panel)=>{
-    const plus=panel.locator('.lourex-ai-composer-plus');await plus.waitFor({state:'visible'});const box=await plus.boundingBox();assert.ok(box&&box.height>=43&&box.width>=43,'unified plus target');
+    const plus=panel.locator('.lourex-ai-composer-plus');await plus.waitFor({state:'visible'});
+    // Navigation between chat, history and AI source modals animates the
+    // composer. Require the actual 44px target after layout has settled,
+    // never measure a transition frame as if it were the final hit area.
+    await page.waitForFunction(()=>{
+      const node=document.querySelector('#lourex-ai-panel .lourex-ai-composer-plus');
+      const rect=node?.getBoundingClientRect();
+      return Boolean(rect&&rect.width>=43&&rect.height>=43);
+    },null,{timeout:12000}).catch(()=>{});
+    const box=await plus.boundingBox();
+    const detail=await plus.evaluate(node=>({rect:node.getBoundingClientRect().toJSON(),computed:{width:getComputedStyle(node).width,height:getComputedStyle(node).height,transform:getComputedStyle(node).transform},panelTransform:getComputedStyle(node.closest('#lourex-ai-panel')).transform}));
+    assert.ok(box&&box.height>=43&&box.width>=43,'unified plus target (must actually remain >=43px after animations): '+JSON.stringify(detail));
     assert.equal(await panel.locator('.lourex-ai-hub-trigger').isVisible(),false,'persistent Tools hub is retired from conversation chrome');
     await plus.click();const menu=panel.locator('.lourex-ai-plus-menu');await menu.waitFor({state:'visible'});assert.equal(await menu.getAttribute('data-view'),'root','plus opens the compact source gateway');
     const rootCopy=await menu.innerText();assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'plus root contains sources and nested AI Tools');
@@ -45,19 +56,36 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   const premium=async()=>{
     await page.locator('.lourex-ai-launcher').click();
     const panel=page.locator('#lourex-ai-panel'),textarea=panel.locator('.lourex-ai-premium-textarea'),bridge=panel.locator('.lourex-ai-compose-bridge'),plus=panel.locator('.lourex-ai-composer-plus');
-    await textarea.waitFor();assert.equal(await textarea.count(),1,'premium textarea');assert.equal(await bridge.count(),1,'legacy input bridge retained');
+    await textarea.waitFor({state:'visible'});assert.equal(await textarea.count(),1,'premium textarea');assert.equal(await bridge.count(),1,'legacy input bridge retained');
+    // The React-owned composer + is mounted after the chat textarea. Avoid
+    // measuring an absent element before async workspace hydration completes.
+    await plus.waitFor({state:'visible',timeout:12000});
+    await page.waitForFunction(()=>{const r=document.querySelector('#lourex-ai-panel .lourex-ai-composer-plus')?.getBoundingClientRect();return Boolean(r&&r.width>=43&&r.height>=43);},null,{timeout:12000});
     const plusBox=await plus.boundingBox();assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'44px unified plus target');assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
     const panelBox=await panel.boundingBox();assert.ok(panelBox,'AI panel visible');
-    const scopeTrigger=panel.locator('.lourex-ai-scope-trigger');await scopeTrigger.waitFor({state:'visible'});assert.equal(await panel.locator('.lourex-ai-scope-button:visible').count(),0,'persistent three-tab scope chrome is consolidated');
-    await scopeTrigger.click();const scopeMenu=panel.locator('.lourex-ai-scope-menu');await scopeMenu.waitFor({state:'visible'});assert.equal(await scopeMenu.locator('.lourex-ai-scope-option').count(),3,'scope selector preserves all three scopes');if(width<=720){const triggerBox=await scopeTrigger.boundingBox();assert.ok(triggerBox&&triggerBox.height>=44,'mobile scope selector remains touch safe');}await page.keyboard.press('Escape');await scopeMenu.waitFor({state:'hidden'});await textarea.waitFor({state:'visible'});assert.equal(await panel.isVisible(),true,'scope-menu Escape keeps the advisor open');
+    // Current AI workspace has two explicit conversation modes. The obsolete
+    // 3-scope drop-down was retired; verify both real choices and tap geometry.
+    const modes=panel.locator('.lxw-mode-tabs[role="tablist"]');
+    await modes.waitFor({state:'visible'});
+    const modeButtons=modes.locator('button[role="tab"]');
+    assert.equal(await modeButtons.count(),2,'Controller and Advisor must remain available');
+    const modeLabels=(await modeButtons.allTextContents()).map(value=>value.trim());
+    for(const label of (lang==='ar'?['المتحكم','المستشار']:['Controller','Advisor']))
+      assert.ok(modeLabels.includes(label),'missing conversation mode: '+label);
+    assert.equal(await modes.locator('button[role="tab"][aria-selected="true"]').count(),1,'exactly one AI mode must be selected');
+    if(width<=720)for(const button of await modeButtons.all()){
+      const rect=await button.boundingBox();
+      assert.ok(rect&&rect.height>=44,'AI conversation mode must be touch safe');
+    }
+    await textarea.waitFor({state:'visible'});assert.equal(await panel.isVisible(),true,'conversation mode selector keeps the assistant open');
     if(width<=720){assert.ok(panelBox.x<=1&&Math.abs(panelBox.width-width)<=2,'phone AI is full width');assert.ok(panelBox.height>=895,'phone AI uses full dynamic viewport');}
-    else if(width<=900){assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=480&&panelBox.width<=540,'tablet AI remains a bounded side overlay');assert.ok(panelBox.height>=870,'tablet AI keeps near-full viewport height');}
-    else assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=560&&panelBox.width<=600,'desktop AI uses the wider readable side panel from the conversation design audit');
+    else if(width<=900){assert.ok(panelBox.x>=-1&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=480,'tablet AI must remain fully contained and readable, including its approved expanded workspace');assert.ok(panelBox.height>=870,'tablet AI keeps near-full viewport height');}
+    else assert.ok(panelBox.x>=-1&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=560&&panelBox.width<=1180,'desktop AI must stay within the viewport and readable in both compact and approved expanded-workspace modes');
     assert.equal(await panel.locator('.lourex-ai-tools').isVisible(),false,'legacy AI Inbox / AI Tools / Voice toolbar is not persistent chrome');
     assert.equal(await panel.locator('.lourex-ai-manager-button').isVisible(),false,'Memory & Tasks is not a separate persistent button');
     await textarea.fill(lang==='ar'?'سطر أول':'First line');await textarea.press('Shift+Enter');await textarea.type(lang==='ar'?'سطر ثان':'Second line');assert.match(await textarea.inputValue(),/\n/,'Shift+Enter creates multiline input');
     const fileInput=panel.locator('input[type="file"][multiple]');await fileInput.setInputFiles({name:'source.txt',mimeType:'text/plain',buffer:Buffer.from('Sample business source')});await panel.locator('.lourex-ai-attachment-chip').waitFor();assert.match(await panel.locator('.lourex-ai-attachment-chip').innerText(),/source\.txt/);
-    const overflow=panel.locator('.lourex-ai-overflow-trigger');await overflow.click();const overflowMenu=panel.locator('.lourex-ai-overflow-menu');await overflowMenu.waitFor({state:'visible'});await overflowMenu.getByRole('menuitem',{name:lang==='ar'?'المحادثات':'Conversations',exact:true}).click();const threadPicker=panel.locator('.lourex-ai-thread-picker');await threadPicker.waitFor({state:'visible'});assert.ok((await threadPicker.boundingBox()).height>0,'conversation history opens from header overflow');await overflow.click();await overflowMenu.waitFor({state:'visible'});await overflowMenu.getByRole('menuitem',{name:lang==='ar'?'المحادثات':'Conversations',exact:true}).click();await threadPicker.waitFor({state:'hidden'});
+    const overflow=panel.locator('.lourex-ai-overflow-trigger');await overflow.click();const overflowMenu=panel.locator('.lourex-ai-overflow-menu');await overflowMenu.waitFor({state:'visible'});await overflowMenu.getByRole('menuitem',{name:lang==='ar'?'المحادثات':'Conversations',exact:true}).click();const history=panel.getByRole('region',{name:lang==='ar'?'المحادثات المحفوظة':'Saved conversations'});await history.waitFor({state:'visible'});assert.ok((await history.boundingBox()).height>0,'real saved-conversation history opens from overflow');assert.equal(await history.getByRole('searchbox',{name:lang==='ar'?'البحث في عناوين المحادثات':'Search conversation titles'}).count(),1,'history search is reachable');await history.getByRole('button',{name:lang==='ar'?'العودة للمحادثة':'Back to chat'}).click();await history.waitFor({state:'hidden'});await textarea.waitFor({state:'visible'});
     const menu=await openTools(panel);const memoryAction=menu.locator('.lourex-ai-plus-item').filter({hasText:lang==='ar'?'الذاكرة والمهام':'Memory & Tasks'});await memoryAction.click();const manager=panel.locator('.lourex-ai-manager');await manager.waitFor();assert.match(await manager.innerText(),lang==='ar'?/ما يتذكره LOUREX.*المهام والتذكيرات/s:/What LOUREX remembers.*Tasks & reminders/s);if(width<=720){const managerBox=await manager.boundingBox();assert.ok(managerBox&&managerBox.x<=1&&Math.abs(managerBox.width-width)<=2,'mobile Memory & Tasks manager is full width');}await manager.locator('.lourex-ai-manager-head > button').click();
     assert.equal(await panel.locator('.lourex-ai-hub-trigger').isVisible(),false,'persistent Tools entry remains hidden');
     await bounds();await panel.locator('.lourex-ai-close').click();
@@ -69,13 +97,27 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   };
   await premium();await proactive();
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('lourex-open-customer',{detail:{id:'c1'}})));await page.locator('.ta-customer-profile').waitFor();await question(lang==='ar'?'شرح الحساب':'Explain account',/Northstar|نورث/);await bounds();
-  await page.evaluate(()=>{window.navigateWorkspace('items');});await page.locator('.ta-product-commandbar').waitFor();await page.getByRole('button',{name:lang==='ar'?'إنشاء من ملف':'Create from file',exact:true}).click();await page.locator('.lourex-ai-inbox').waitFor();assert.match(await page.locator('.lourex-ai-inbox').innerText(),/Product catalog|كتالوج منتجات/);await page.keyboard.press('Escape');
+  await page.evaluate(()=>{window.navigateWorkspace('items');});await page.locator('.ta-product-commandbar').waitFor();
+  // Product AI source entry is intentionally nested under the Import products
+  // disclosure. Do not restore a redundant command-bar button.
+  const importEntry=page.locator('.ta-product-import-entry');
+  const importSummary=importEntry.locator('summary');
+  await importSummary.click();
+  assert.notEqual(await importEntry.getAttribute('open'),null,'product source choices must expand');
+  await importEntry.getByRole('button',{name:lang==='ar'?'إنشاء من ملف':'Create from file',exact:true}).click();
+  await page.locator('.lourex-ai-inbox').waitFor();assert.match(await page.locator('.lourex-ai-inbox').innerText(),/Product catalog|كتالوج منتجات/);await page.keyboard.press('Escape');
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('lourex-edit-product',{detail:{itemId:'p1'}})));await page.locator('.ta-product-editor.is-open').waitFor();await question(lang==='ar'?'مراجعة التسعير المحفوظ':'Review saved pricing',/VAL-1.*(Industrial valve|صمام صناعي)/);await bounds();
   await page.evaluate(()=>window.navigateWorkspace('documents'));await page.locator('.ta-documents-header').waitFor();await bounds();assert.ok((await page.locator('.ta-documents-header').boundingBox()).height<=240,'compact document header');await page.getByRole('button',{name:lang==='ar'?'إنشاء من ملف':'Create from file',exact:true}).click();await page.locator('.lourex-ai-inbox').waitFor();assert.match(await page.locator('.lourex-ai-inbox').innerText(),/Customer quotation|طلب عرض سعر/);await page.keyboard.press('Escape');
   await page.evaluate(()=>window.navigateWorkspace('receivables'));await question(lang==='ar'?'شرح المتأخرات':'Explain overdue',/collection priorities/);await bounds();
   await page.evaluate(()=>window.navigateWorkspace('reports'));await question(lang==='ar'?'شرح التقرير':'Explain report',/selected LOUREX report.*DATA ONLY/);await bounds();
   await page.evaluate(()=>window.navigateWorkspace('operations'));await question(lang==='ar'?'مراجعة المشتريات':'Review purchasing',/supplier purchase costs/);await bounds();
-  await page.evaluate(()=>window.navigateWorkspace('editor'));await question(lang==='ar'?'مراجعة مع AI':'Review with AI',/QUO-QA-1.*explain totals/);await bounds();
+  await page.evaluate(()=>window.navigateWorkspace('editor'));
+  const itemTools=page.locator('.editor-item-tools-menu');
+  await itemTools.locator('.editor-item-tools-trigger').click();
+  assert.equal(await itemTools.locator('.editor-item-tools-trigger').getAttribute('aria-expanded'),'true','editor item tools must expand');
+  const reviewAction=itemTools.getByRole('button',{name:lang==='ar'?'مراجعة مع AI':'Review with AI',exact:true});
+  await reviewAction.waitFor({state:'visible'});
+  await question(lang==='ar'?'مراجعة مع AI':'Review with AI',/QUO-QA-1.*explain totals/);await bounds();
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[],'context, unified plus tools, proactive brief, memory manager and attachment selection must wait for user Send');await page.screenshot({path:`${output}/${width}-${lang}-${theme}.png`,animations:'disabled'});report.push({width,lang,theme,context:'PASS',premiumConversation:'PASS',unifiedPlusTools:'PASS',toolsKeyboard:'PASS',noFloatingProactiveDock:'PASS',memoryTasks:'PASS',proactiveBrief:'PASS',captureRoutes:'PASS',providerCalls:requests.length});await page.close();
  }}finally{await browser.close();}writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log(`Contextual AI final responsive + keyboard QA: ${report.length} bounded, review-first ${safari?'WebKit':'Chromium'} workspace paths PASS.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

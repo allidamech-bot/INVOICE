@@ -67,10 +67,22 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
       if(result.dir!==(scenario.lang==='ar'?'rtl':'ltr'))failures.push(`${p}: wrong direction ${result.dir}`);
       if(result.lang!==scenario.lang)failures.push(`${p}: wrong lang ${result.lang}`);
       if(result.theme!==scenario.theme)failures.push(`${p}: wrong theme ${result.theme}`);
-      const expectedPrimary=scenario.theme==='dark'?'rgb(115, 153, 227)':'rgb(49, 93, 168)';
-      const expectedPrimaryInk=scenario.theme==='dark'?'rgb(13, 13, 13)':'rgb(255, 255, 255)';
-      if(result.primaryBackground!==expectedPrimary)failures.push(`${p}: primary action is not canonical blue (${result.primaryBackground}, expected ${expectedPrimary})`);
-      if(result.primaryColor!==expectedPrimaryInk)failures.push(`${p}: primary action contrast ink mismatch (${result.primaryColor}, expected ${expectedPrimaryInk})`);
+      // The v485 approved palette intentionally keeps the strong LOUREX blue
+      // with white action text in both themes; v355/v360 hard-coded tokens
+      // are no longer the rendered owner. Keep exact palette AND contrast QA.
+      const expectedPrimary='rgb(49, 95, 173)';
+      const expectedPrimaryInk='rgb(255, 255, 255)';
+      if(result.primaryBackground!==expectedPrimary)failures.push(`${p}: primary action differs from approved v485 blue (${result.primaryBackground}, expected ${expectedPrimary})`);
+      if(result.primaryColor!==expectedPrimaryInk)failures.push(`${p}: primary action ink differs from approved v485 white (${result.primaryColor}, expected ${expectedPrimaryInk})`);
+      const luminance=color=>{
+        const channels=(color.match(/[0-9.]+/g)||[]).slice(0,3).map(Number);
+        if(channels.length!==3)return null;
+        const [r,g,b]=channels.map(v=>{const c=v/255;return c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4;});
+        return .2126*r+.7152*g+.0722*b;
+      };
+      const bg=luminance(result.primaryBackground),fg=luminance(result.primaryColor);
+      const contrast=bg===null||fg===null?0:(Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05);
+      if(contrast<4.5)failures.push(`${p}: primary action must retain >=4.5:1 WCAG AA text contrast (got ${contrast.toFixed(2)})`);
       if(result.scrollWidth>scenario.width+1)failures.push(`${p}: horizontal overflow ${result.scrollWidth}px > ${scenario.width}px`);
       for(const key of ['frame','main','card','languageButton','heading','google','providerDivider','tabs','signinTab','createTab','primary','security'])if(!result[key]||result[key].display==='none'||result[key].visibility==='hidden')failures.push(`${p}: missing/hidden ${key}`);
       if(result.frame&&(result.frame.left<-1||result.frame.right>scenario.width+1))failures.push(`${p}: gateway frame clips horizontally`);

@@ -55,7 +55,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         await firstCard.getByRole('combobox',{name:'Unit',exact:true}).selectOption('Box');
         await firstCard.locator('.item-pricing-grid .field').nth(2).locator('input').fill('100.25');
 
-        const totalsSection=sections.nth(3);
+        const totalsSection=sections.nth(4);
         const switches=totalsSection.locator('button[role="switch"]');
         await switches.nth(0).click();
         await totalsSection.locator('.discount-control select').selectOption('percent');
@@ -67,7 +67,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         await switches.nth(3).click();
         await totalsSection.locator('.adjustment-row').nth(3).locator('input').fill('15');
 
-        const termsSection=sections.nth(4);
+        const termsSection=sections.nth(3);
         await termsSection.getByRole('combobox',{name:'Incoterm',exact:true}).selectOption('CIF');
         await termsSection.getByRole('combobox',{name:'Payment Terms',exact:true}).selectOption('Net 30 Days');
         await termsSection.locator('.advanced-master-toggle').click();

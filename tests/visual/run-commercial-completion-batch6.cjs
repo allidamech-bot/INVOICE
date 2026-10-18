@@ -2,7 +2,18 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
 (async()=>{const browser=await chromium.launch({headless:true}),report=[],output='visual-qa-output/commercial-completion-batch6';mkdirSync(output,{recursive:true});try{
  for(const [width,lang] of [[320,'ar'],[390,'en'],[1440,'en']]){const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(`http://127.0.0.1:4173/tests/visual/commercial-completion-batch6.html?lang=${lang}`,{waitUntil:'networkidle'});
- await page.locator('.ta-doc-row-open').filter({hasText:'QUO-QA-6'}).click();const create=page.getByRole('button',{name:lang==='ar'?'إنشاء مسودة تسليم':'Create delivery draft',exact:true});assert.ok((await create.boundingBox()).height>=44);await create.click();await page.locator('.ta-editor-workspace').waitFor();
+ await page.locator('.ta-doc-row-open').filter({hasText:'QUO-QA-6'}).click();const create=page.getByRole('button',{name:lang==='ar'?'إنشاء مسودة تسليم':'Create delivery draft',exact:true});assert.ok((await create.boundingBox()).height>=44);await create.click();
+ await page.locator('.ta-editor-workspace').waitFor({state:'visible',timeout:10000}).catch(async error=>{
+   const state=await page.evaluate(()=>({
+     screen:window.fixture?.state?.screen,doc:window.fixture?.state?.editorDoc?.number||'',
+     unlocked:window.fixture?.state?.unlocked,uid:window.fixture?.state?.cloudUser?.uid,
+     storageUid:document.documentElement.dataset.lourexAccountUid||'',
+     alerts:[...document.querySelectorAll('[role="alert"],.toast,.ta-toast,.app-toast')].map(el=>el.textContent?.trim()).filter(Boolean),
+     editorNode:Boolean(document.querySelector('.ta-editor-workspace')),
+     documentRows:[...document.querySelectorAll('.ta-doc-row-open')].map(el=>el.textContent?.trim()).slice(0,3)
+   }));
+   throw new Error('Delivery draft did not mount after verified Create action; App/fixture evidence: '+JSON.stringify(state)+'; '+error.message);
+ });
  const first=await page.evaluate(async()=>({stored:await window.readStored(),editor:window.fixture.state.editorDoc}));assert.equal(first.editor.status,'draft');assert.equal(first.editor.items[0].quantity,'3');assert.equal(first.editor.items[0].unitPrice,'');assert.equal(first.stored.documents.length,2);assert.equal(first.stored.inventoryMovements.length,0);assert.equal(first.stored.payments.length,0);assert.equal(first.stored.documents[0].items[0].unitPrice,'12.50');assert.ok(first.stored.documentEvents.some(event=>event.type==='created'&&event.documentId===first.editor.id&&event.relatedDocumentId===first.stored.documents[0].id));
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'editor overflow');
  // The actual App queue persists into encrypted account IndexedDB. Reopening the
