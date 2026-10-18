@@ -23,6 +23,9 @@ const cases=[
         Object.defineProperty(window,'visualViewport',{configurable:true,value:virtual});
       });
       await page.goto('http://127.0.0.1:4173/tests/visual/obsidian-settings.html?lang='+language+'&scope=settings',{waitUntil:'networkidle'});
+      // Mirror the shipped theme bootstrap so the final v485 Settings owner
+      // participates in layout calculations, including RTL/dark mode.
+      await page.evaluate(lang=>{document.documentElement.dataset.uiTheme=lang==='ar'?'dark':'light';},language);
       const modal=page.locator('.modal:has(.ta-settings-shell)');
       await modal.waitFor({state:'visible'});
       const tabStrip=modal.locator('.ta-settings-sidebar');
