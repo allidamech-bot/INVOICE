@@ -1,5 +1,5 @@
 import type {DocumentAttachment,InventoryMovementRecord,LourexDocument,VaultPayload} from '../types.js';
-import {decimalToScaled,isDecimalInput,normalizeDecimalInput} from './money.js';
+import {decimalToScaled,isDecimalInput,isExactStockQuantityInput,normalizeDecimalInput} from './money.js';
 import {inventoryMovementAccountingIsValid} from './operations.js';
 import {validateManualMovementEvidence} from './inventory-evidence.js';
 import {assertGovernancePermission} from './governance.js';
@@ -164,7 +164,7 @@ export function postSalesReturn(vault:VaultPayload,input:SalesReturnInput):{vaul
   if(!item)fail('Original invoice did not post stock: reconcile historical delivery issues separately.');
   if(!vault.warehouses.some(w=>w.id===input.warehouseId&&w.workspaceId===workspaceId&&w.branchId===branchId&&w.active))
     fail('Choose an active warehouse in the same branch.');
-  if(!exactQty(input.quantity)||qty(input.quantity)<=0n)fail('Received quantity must be positive and use no more than four decimal places.');
+  if(!isExactStockQuantityInput(input.quantity)||qty(input.quantity)<=0n)fail('Received quantity must be positive and use no more than four decimal places.');
   if(!isIsoDate(input.date))fail('Return receipt date is invalid.');
   if(!input.evidence?.id)fail('Physical return evidence is required before inventory receipt.');
   const p:SalesReturnProof={invoiceId:invoice.id,invoiceLineId:original.id,creditNoteId:credit.id,

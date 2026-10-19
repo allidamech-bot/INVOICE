@@ -67,6 +67,21 @@ test('receipt requires valid PDF/image evidence, reason, active credit and origi
  const badCreditLine={...f.credit,items:[{...f.credit.items[0],skuSnapshot:'WRONG'}]};
  assert.throws(()=>postSalesReturn({...f.vault,documents:[f.invoice,badCreditLine]},f.input),/catalog-linked/i);
 });
+test('new physical return rejects malformed mixed grouping before writing stock',()=>{
+ const fixture=setup();
+ const original=JSON.stringify(fixture.vault);
+ for(const quantity of ['0,1.00','٠,١.٠٠','0.1,00']){
+   const input={...fixture.input,quantity,evidence:evidence()};
+   assert.throws(()=>postSalesReturn(fixture.vault,input),/positive and use no more than four decimal places|invalid quantity/i,
+     'malformed grouping must not silently become a valid positive return quantity');
+   assert.equal(JSON.stringify(fixture.vault),original,'failed return must never mutate saved history');
+ }
+ assert.equal(balance(fixture.vault),'6');
+ const accepted=postSalesReturn(fixture.vault,{...fixture.input,quantity:'1,5',evidence:evidence()});
+ assert.equal(accepted.movement.quantity,'1.5000','unambiguous decimal comma stays supported');
+ assert.equal(balance(accepted.vault),'7.5');
+});
+
 test('a physical return is immutable and cannot survive credit void or source alteration',()=>{
  const f=setup(),returned=postSalesReturn(f.vault,f.input).vault;
  const altered={...returned,inventoryMovements:returned.inventoryMovements.map(x=>x.salesReturn?{...x,quantity:'1'}:x)};
