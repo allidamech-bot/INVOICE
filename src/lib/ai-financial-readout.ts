@@ -79,7 +79,7 @@ const rd=(v:unknown,n=150)=>typeof v==='string'||typeof v==='number'
 const ro=(v:unknown):Record<string,unknown>|null=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:null;
 const ra=(v:unknown):unknown[]=>Array.isArray(v)?v:[];
 const money=(value:unknown,currency:unknown)=>[rd(value,45),rd(currency,8)].filter(Boolean).join(' ');
-export const FINANCIAL_SNAPSHOT_MAX_BYTES=3900;
+export const FINANCIAL_SNAPSHOT_MAX_BYTES=10000;
 
 /** Normalize untrusted persisted records; reject oversized and executable shapes. */
 export function normalizeFinancialReadout(value:unknown):FinancialReadout|null{
