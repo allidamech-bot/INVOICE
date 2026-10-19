@@ -58,8 +58,10 @@ test('jsPDF sharp-image aliases must be distinct across A4 pages even for the sa
   const page={getBoundingClientRect:()=>({left:0,top:0,width:794,height:1123}),querySelectorAll:()=>[image]};
   const ctx={page,SHARP_MEDIA_SELECTOR:'.signature-image,.stamp-image,.doc-logo img',
     getComputedStyle:()=>({objectFit:'contain',objectPosition:'50% 50%'})};
-  const first=vm.runInNewContext(source.slice(start,end)+'collectSharpMedia(page,0)',ctx);
-  const next=vm.runInNewContext(source.slice(start,end)+'collectSharpMedia(page,1)',ctx);
+  // Evaluate both pages in one VM script: a lexical const from the first
+  // evaluation cannot be declared twice in the same test context.
+  const {first,next}=vm.runInNewContext(source.slice(start,end)+
+    '({first:collectSharpMedia(page,0),next:collectSharpMedia(page,1)})',ctx);
   assert.equal(first.length,1);assert.equal(next.length,1);
   assert.notEqual(first[0].alias,next[0].alias,
     'jsPDF must not silently reuse first-page dark logo artwork on a dark continuation page');
