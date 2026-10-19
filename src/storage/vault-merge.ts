@@ -651,8 +651,13 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Existing payment IDs retain their immutable historical numeric spelling.
   if(intended.payments!==base.payments){
     const originalIds=new Set(base.payments.map(payment=>payment.id));
+    const newIds=new Set<string>();
     for(const payment of intended.payments){
-      if(!originalIds.has(payment.id)&&!isFinancialDecimalInput(payment.amount))
+      if(originalIds.has(payment.id))continue;
+      if(!payment.id||newIds.has(payment.id))
+        throw new Error('New customer payment IDs must be unique.');
+      newIds.add(payment.id);
+      if(!isFinancialDecimalInput(payment.amount))
         throw new Error('New customer payment amount has invalid monetary grouping.');
     }
   }
@@ -662,8 +667,13 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     // Direct imports, AI and offline merges must obey the same NEW-entry grammar.
     // Preserve immutable legacy payments exactly as stored: no migration or revaluation.
     const originalIds=new Set(base.supplierPayments.map(row=>row.id));
+    const newIds=new Set<string>();
     for(const payment of intended.supplierPayments){
-      if(!originalIds.has(payment.id)&&!isFinancialDecimalInput(payment.amount))
+      if(originalIds.has(payment.id))continue;
+      if(!payment.id||newIds.has(payment.id))
+        throw new Error('New supplier payment IDs must be unique.');
+      newIds.add(payment.id);
+      if(!isFinancialDecimalInput(payment.amount))
         throw new Error('New supplier payment amount has invalid monetary grouping.');
     }
     const intendedById=new Map(intended.supplierPayments.map(row=>[row.id,row]));
