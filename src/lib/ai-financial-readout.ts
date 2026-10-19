@@ -166,6 +166,7 @@ export function financialReadoutFromToolRows(value:unknown,language:'ar'|'en'):F
    if(entries.length>10)notes.push(l('Only ten returned entries displayed.','تُعرض عشر حركات من السجل المتاح فقط.'));
   }
   if(statements.length>3)notes.push(l('Additional statements omitted.','توجد كشوف بعملات أخرى غير معروضة.'));
+  if(movements.length>12)notes.push(l('Only twelve retrieved movements are shown; more exist.','تُعرض اثنتا عشرة حركة فقط من الحركات المسترجعة، وتوجد حركات إضافية.'));
   if(movements.length||notes.length)sections.push({title:l('Recorded account movements','حركات الحساب المسجلة'),
    facts:[],movements:movements.slice(0,12),notes});
  }
