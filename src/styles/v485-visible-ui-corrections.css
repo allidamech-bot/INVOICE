@@ -1506,6 +1506,31 @@ html body #root .app-ui .ta-sales-return-receipt .ta-inventory-entry-action{
   html body #root .app-ui :is(.editor-template-options,.editor-design-options)>summary{cursor:pointer!important;padding:16px!important;font-size:14px!important;font-weight:700!important;color:var(--lx485-text)!important;min-height:48px!important;}
   html body #root .app-ui :is(.editor-template-options,.editor-design-options)[open]>summary{border-bottom:1px solid var(--lx485-line)!important;margin-bottom:12px!important;}
   html body #root .app-ui :is(.editor-template-options,.editor-design-options)>:not(summary){margin-inline:12px!important;}
+  /* Editor-only discovery cards: native disclosures, one visual owner. */
+  html body #root .app-ui .editor-discovery-card{border:1px solid #456078!important;border-inline-start:3px solid #b79760!important;border-radius:16px!important;background:var(--lx485-surface-2)!important;box-shadow:none!important;overflow:hidden!important;}
+  html body #root .app-ui .editor-template-options.editor-discovery-card{background:linear-gradient(115deg,#26384a,var(--lx485-surface-2))!important;}
+  html body #root .app-ui .editor-discovery-card>.editor-discovery-summary{display:grid!important;grid-template-columns:52px minmax(0,1fr) auto!important;align-items:center!important;gap:14px!important;padding:16px!important;list-style:none!important;cursor:pointer!important;text-align:start!important;min-height:100px!important;}
+  html body #root .app-ui .editor-discovery-summary::-webkit-details-marker{display:none!important;}
+  html body #root .app-ui .editor-discovery-summary::marker{content:''!important;}
+  html body #root .app-ui .editor-discovery-summary:focus-visible{outline:3px solid #9bc7ff!important;outline-offset:-4px!important;border-radius:14px!important;}
+  html body #root .app-ui .editor-discovery-summary:hover{background:#ffffff06!important;}
+  html body #root .app-ui .editor-discovery-preview{display:block!important;width:46px!important;height:65px!important;border:1px solid #71829a!important;border-radius:5px!important;overflow:hidden!important;}
+  html body #root .app-ui .editor-discovery-preview>.template-mini{display:block!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;position:static!important;transform:none!important;aspect-ratio:auto!important;}
+  html body #root .app-ui .editor-discovery-copy{display:flex!important;flex-direction:column!important;gap:4px!important;min-width:0!important;}
+  html body #root .app-ui .editor-discovery-copy>strong{font-size:16px!important;line-height:1.5!important;font-weight:750!important;color:#f2d39e!important;}
+  html body #root .app-ui .editor-discovery-copy>.editor-discovery-name{font-size:13px!important;line-height:1.5!important;color:#f3f7ff!important;font-weight:600!important;}
+  html body #root .app-ui .editor-discovery-copy>small{font-size:12px!important;line-height:1.6!important;color:#c0cddd!important;white-space:normal!important;}
+  html body #root .app-ui .editor-discovery-action{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;padding:9px 12px!important;min-height:38px!important;border:1px solid #d3b277!important;border-radius:10px!important;background:#e2c28a!important;color:#172a3d!important;font-size:12px!important;line-height:1.5!important;font-weight:750!important;white-space:nowrap!important;}
+  html body #root .app-ui .editor-design-options .editor-discovery-action{background:#366cc0!important;border-color:#6999de!important;color:#fff!important;}
+  html body #root .app-ui .editor-discovery-action svg{flex:none!important;transition:transform .16s ease!important;}
+  html body #root .app-ui .editor-discovery-card .discovery-open-label{display:none!important;}
+  html body #root .app-ui .editor-discovery-card[open] .discovery-closed-label{display:none!important;}
+  html body #root .app-ui .editor-discovery-card[open] .discovery-open-label{display:inline!important;}
+  html body #root .app-ui .editor-discovery-card[open] .editor-discovery-action svg{transform:rotate(180deg)!important;}
+  html body #root .app-ui .editor-discovery-palette{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:10px!important;width:46px!important;height:65px!important;border-radius:12px!important;background:#223f5b!important;color:#a8ceff!important;}
+  html body #root .app-ui .editor-discovery-swatches{display:flex!important;gap:3px!important;}
+  html body #root .app-ui .editor-discovery-swatches>i{display:block!important;width:10px!important;height:10px!important;border-radius:50%!important;border:1px solid #adc1d5!important;}
+  html body #root .app-ui .editor-screen .editor-section .section-heading>span,html body #root .app-ui .draft-studio .draft-section-heading>span{background:#193954!important;color:#b8d6ff!important;border:1px solid #456b94!important;}
   html body #root .app-ui :is(.editor-section,.draft-control-section) :is(.field-label,.field>label){font-size:13px!important;line-height:1.6!important;font-weight:650!important;}
   html body #root .app-ui :is(.editor-section,.draft-control-section) .field{gap:7px!important;min-width:0!important;}
   html body #root .app-ui :is(.editor-section,.draft-control-section) .form-grid{gap:16px!important;}
@@ -2296,3 +2321,12 @@ html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
   }
 }
 
+
+@media screen and (max-width:600px){
+  html body #root .app-ui .editor-discovery-card>.editor-discovery-summary{grid-template-columns:46px minmax(0,1fr)!important;gap:8px 12px!important;padding:14px!important;}
+  html body #root .app-ui .editor-discovery-action{grid-column:2!important;justify-self:start!important;min-height:34px!important;padding:6px 10px!important;}
+  html body #root .app-ui .editor-discovery-copy>strong{font-size:15px!important;}
+}
+@media screen and (prefers-reduced-motion:reduce){
+  html body #root .app-ui .editor-discovery-action svg{transition:none!important;}
+}

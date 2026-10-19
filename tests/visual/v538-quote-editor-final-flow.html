@@ -20,10 +20,12 @@
     import {setUiLanguage} from './src/lib/i18n.js';
     import {calculateTotals} from './src/lib/money.js';
 
-    setUiLanguage('en');
+    const params=new URLSearchParams(location.search),language=params.get('lang')==='ar'?'ar':'en';
+    setUiLanguage(language);
+    document.documentElement.lang=language;document.documentElement.dir=language==='ar'?'rtl':'ltr';
     let company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
     const customer={...blankCustomer(),id:'customer-v538',companyNameEn:'Lifecycle Customer',companyNameAr:'عميل دورة الحياة',city:'Istanbul',country:'Türkiye'};
-    let documentValue=createBlankDocument('proforma','PI-2026-0538',company);
+    let documentValue=createBlankDocument(params.get('kind')==='invoice'?'invoice':'proforma','PI-2026-0538',company);
     documentValue={...documentValue,issueDate:'2026-10-05',dueDate:'2026-11-04',language:'en',customerSnapshot:customerSnapshotFrom(customer)};
     documentValue.items=[{...documentValue.items[0],descriptionEn:'Lifecycle stability line',quantity:'2',unit:'PCS',unitPrice:'15.00'}];
     documentValue.adjustments={...documentValue.adjustments,taxEnabled:true,taxPercent:'15'};
