@@ -623,6 +623,8 @@ function guardAllocatedPaymentChanges<T extends {id:string}>(
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   guardNewOperationalRecordIds(base.purchases,intended.purchases,'purchase');
   guardNewOperationalRecordIds(base.expenses,intended.expenses,'expense');
+  // Do not replay two physical transfers/issues only to persist the last same-ID movement.
+  guardNewOperationalRecordIds(base.inventoryMovements,intended.inventoryMovements,'inventory movement');
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
   const suppliers=mergeRecords(base.suppliers,intended.suppliers,latest.suppliers);
