@@ -121,3 +121,45 @@ test('new treasury deposits reject malformed monetary grouping at entry and auth
   assert.equal(treasuryAccountBalance(account.id,roundtrip.treasuryEntries),'12.00');
   assert.equal(JSON.stringify(legacy),before,'historic cash/bank ledger remains immutable');
 });
+
+test('new linked treasury collections are validated against the canonical payment and cannot double-post cash',async()=>{
+  const [{createTreasuryAccount,createTreasuryEntry,appendTreasuryEntry,treasuryAccountBalance},{emptyVault,defaultCompany},{createBlankDocument},{mergeVaultIntent}]=
+    await Promise.all([treasury(),defaults(),import('../dist/src/lib/documents.js'),import('../dist/src/storage/vault-merge.js')]);
+  const invoice=createBlankDocument('invoice','INV-NEW-TREASURY-1',defaultCompany());
+  invoice.status='final';invoice.lifecycleStatus='active';invoice.role='standard';
+  invoice.issueDate='2026-09-01';invoice.dueDate='2026-12-01';invoice.currency='USD';
+  invoice.customerSnapshot={sourceCustomerId:'buyer-1',companyNameEn:'Treasury Buyer',companyNameAr:'',
+    contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',
+    vatTaxNumber:'',commercialRegistration:''};
+  invoice.items[0].descriptionEn='Treasury test service';
+  invoice.items[0].quantity='1';invoice.items[0].unitPrice='100.00';
+  const payment={id:'customer-payment-100',invoiceId:invoice.id,invoiceNumber:invoice.number,
+    customerId:'buyer-1',customerNameEn:'Treasury Buyer',customerNameAr:'',
+    currency:'USD',amount:'100.00',date:'2026-09-02',method:'bank-transfer',
+    reference:'C-100',notes:'',createdAt:'2026-09-02T10:00:00.000Z',updatedAt:'2026-09-02T10:00:00.000Z'};
+  const bank=createTreasuryAccount(accountInput('Canonical Bank'));
+  const base={...emptyVault(),documents:[invoice],payments:[payment],treasuryAccounts:[bank]};
+  const before=JSON.stringify(base);
+  const linked={...createTreasuryEntry('collection','USD'),workspaceId:'default',branchId:'main',
+    date:'2026-09-02',amount:'100.00',toAccountId:bank.id,
+    sourceType:'customer-payment',sourceId:payment.id};
+  const badAmount={...linked,id:'forged-amount',amount:'50.00'};
+  const badSource={...linked,id:'nonexistent-source',sourceId:'no-real-payment'};
+  const duplicate={...linked,id:'second-allocation'};
+  for(const entry of [badAmount,badSource]){
+    assert.throws(()=>appendTreasuryEntry(base,entry),/payment amount|linked payment/i);
+    assert.throws(()=>mergeVaultIntent(base,{...base,treasuryEntries:[entry]},base),/payment amount|linked payment/i,
+      'new direct vault entries cannot bypass the payment source and amount checks');
+    assert.equal(JSON.stringify(base),before,'rejected cash linking cannot mutate existing source records');
+  }
+  assert.throws(()=>mergeVaultIntent(base,{...base,treasuryEntries:[linked,duplicate]},base),/already allocated|already linked|linked payment/i,
+    'two new allocations for a single customer receipt must not double cash');
+  const valid=mergeVaultIntent(base,{...base,treasuryEntries:[linked]},base);
+  assert.equal(valid.treasuryEntries.length,1);
+  assert.equal(treasuryAccountBalance(bank.id,valid.treasuryEntries),'100.00');
+  const historic={...base,treasuryEntries:[{...linked,id:'historical-link',amount:'50.00'}]};
+  const saved=mergeVaultIntent(historic,historic,historic);
+  assert.equal(saved.treasuryEntries[0].amount,'50.00',
+    'already stored unusual links are not silently rewritten by new-entry enforcement');
+  assert.equal(JSON.stringify(base),before);
+});
