@@ -1,6 +1,6 @@
 import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
-import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from '../lib/money.js';
+import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isNonNegativeDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { assertSupplierPaymentInvariant } from '../lib/payables.js';
@@ -398,6 +398,10 @@ function guardNewWarehouseDebits(base:VaultPayload,intended:VaultPayload,latest:
       if(isSalesDeliveryStockIssue(movement)||isIssuedInvoiceStockIssue(movement)||isInvoiceVoidStockReceipt(movement))continue;
       throw new Error('Concurrent inventory movement already exists. Refresh before posting.');
     }
+    // Only NEW ledger entries must meet exact physical precision. Historical
+    // persisted movements stay readable without rounding or data rewriting.
+    if(!isExactStockQuantityInput(movement.quantity))
+      throw new Error('New inventory movement quantity must use at most four decimal places with valid grouping.');
     if(!inventoryMovementAccountingIsValid(movement))
       throw new Error('New inventory movement has invalid quantities or origin.');
     const fallback=defaultWarehouseId(movement.branchId||latest.appSettings.activeBranchId);
