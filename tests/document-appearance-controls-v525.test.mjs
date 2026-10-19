@@ -10,7 +10,7 @@ test('document appearance controls persist and drive the audited renderer/PDF co
     read('src/templates/TemplateRenderer.tsx'),
     read('src/storage/vault.ts'),
     read('src/lib/documents.ts'),
-    read('src/styles/template-surface-contrast-v366.css')
+    read('src/styles/document-premium-redesign-v141.css')
   ]);
   assert.match(editor,/DocumentDesignControls appearance=\{d\.appearance\} onChange=\{this\.appearance\}/);
   assert.match(controls,/Primary Text \/ Values[\s\S]{0,280}primaryTextColor/);
@@ -35,9 +35,9 @@ test('document appearance controls persist and drive the audited renderer/PDF co
   assert.match(vault,/bodyTextScale:textScaleValue\(appearance\.bodyTextScale\)/);
   assert.match(vault,/tableTextScale:textScaleValue\(appearance\.tableTextScale\)/);
   assert.match(documents,/primaryTextColor:''[\s\S]{0,120}secondaryTextColor:''[\s\S]{0,120}textScale:'normal'/);
-  assert.match(css,/\.palette-custom \.terms-block \.term-row>b\{color:var\(--lrx-secondary/);
-  assert.match(css,/\.palette-custom \.terms-block \.term-row>span\{color:var\(--lrx-primary/);
-  assert.match(css,/Deliberately absent: custom foreground rules/);
+  assert.match(css,/--muted:var\(--lrx-secondary/);
+  assert.match(css,/--ink:var\(--lrx-primary/);
+  assert.match(css,/structural color always has paired ink/);
 });
 
 test('vault migration really preserves manual document appearance values',async()=>{
@@ -82,20 +82,18 @@ test('appearance resolver protects each effective surface from unsafe custom ink
   assert.equal(obsidian.page,'#15191c');
   assert.equal(obsidian.primary,'#f5f1e9');
   assert.equal(obsidian.secondary,'#aeb5ba');
-  assert.equal(obsidian.heading,'#b68d4e');
-  assert.equal(obsidian.surface,'#f1f2f2');
-  assert.equal(obsidian.surfaceInk,'#17212b');
+  assert.equal(obsidian.heading,'#00bfc2');
+  assert.equal(obsidian.surface,'#20262a');
+  assert.equal(obsidian.surfaceInk,'#f5f1e9');
   const obsidianUnsafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#111111',secondaryTextColor:'#222222',headingTextColor:'#111111'});
   assert.equal(obsidianUnsafe.primary,'#f5f1e9');
   assert.equal(obsidianUnsafe.secondary,'#aeb5ba');
   assert.notEqual(obsidianUnsafe.heading,'#111111');
 });
 
-test('Auto owns only binary surface-safe foreground while Custom Accent stays bounded',async()=>{
-  const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)/);
-  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian/);
-  assert.match(css,/\.invoice-page\.palette-custom\{--template-accent:var\(--accent\)!important;\}/);
-  assert.match(css,/\.invoice-page\.palette-custom \.page-accent\{background:var\(--accent\)!important;\}/);
-  assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.totals-block[^\n]*color:var\(--lrx/);
+test('custom accent is structural while text follows semantic ink',async()=>{
+ const css=await read('src/styles/document-premium-redesign-v141.css');
+ assert.match(css,/--ink:var\(--lrx-primary/);
+ assert.match(css,/--muted:var\(--lrx-secondary/);
+ assert.match(css,/\.invoice-page\.palette-custom\{--template-accent:var\(--accent\)\}/);
 });

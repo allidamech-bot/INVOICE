@@ -6,12 +6,12 @@ const templates=['executive','minimal','trade','signature','obsidian','cobalt','
 const read=path=>readFile(path,'utf8');
 
 test('all 18 template identifiers stay aligned across type, selector, renderer and CSS',async()=>{
-  const [types,selector,renderer,css]=await Promise.all([read('src/types.ts'),read('src/templates/TemplateThumbnails.tsx'),read('src/templates/TemplateRenderer.tsx'),read('src/styles/document-premium-redesign-v141.css')]);
+  const [types,selector,renderer,css]=await Promise.all([read('src/types.ts'),read('src/templates/TemplateThumbnails.tsx'),read('src/templates/TemplateArtwork.tsx'),read('src/styles/document-premium-redesign-v141.css')]);
   assert.equal(templates.length,18);
   for(const id of templates){
     assert.ok(types.includes(`'${id}'`),`type:${id}`);
     assert.ok(selector.includes(`id: '${id}'`),`selector:${id}`);
-    assert.ok(renderer.includes(`'${id}'`),`renderer:${id}`);
+    assert.ok(renderer.includes(`case '${id}':`),`renderer:${id}`);
     assert.match(css,new RegExp(`\\.template-${id}\\b`),`css:${id}`);
   }
 });
@@ -61,9 +61,9 @@ test('signature, stamp, bank and dark-identity paper remain output-safe',async()
   const [css,assetCss]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('src/styles/company-assets.css')]);
   assert.match(css,/\.signature-media/);
   assert.match(css,/\.signature-image/);
-  assert.match(css,/\.stamp-image/);
+  assert.match(css,/\.signature-media img/);
   assert.match(css,/data-bank="iban"/);
-  for(const id of ['noir','midnight','blackivory','carbon'])assert.match(css,new RegExp(`\\.template-${id}\\{--paper:#(?:f|F)`),id);
+  for(const id of ['noir','midnight','blackivory','carbon'])assert.match(css,new RegExp(`\\.template-${id}\\{--paper:#(?:0|1)`),id);
   assert.match(assetCss,/signature/);
-  assert.match(assetCss,/stamp/);
+  assert.match(await read('src/lib/signing-artwork.ts'),/kind==='signature'/);
 });

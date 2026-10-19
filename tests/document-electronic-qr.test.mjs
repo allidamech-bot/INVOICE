@@ -55,11 +55,11 @@ test('owner export rechecks identity, exact document and active link',async()=>{
 });
 
 test('QR footer participates in pagination and original exports retain the shared snapshot',async()=>{
-  const [renderer,app,css,bridge]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('src/app/App.tsx'),read('src/styles/document-electronic-copy.css'),read('public/ios-print-bridge.js')]);
-  assert.match(renderer,/finalPage&&electronicShareId\?<DocumentQr/);
+  const [renderer,app,css,bridge]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('src/app/App.tsx'),read('src/styles/document-premium-redesign-v141.css'),read('public/ios-print-bridge.js')]);
+  assert.match(renderer,/electronicShareId\?<section className="document-qr-block"/);
   assert.match(renderer,/footer\.getBoundingClientRect\(\)\.top/);
   assert.match(renderer,/documentRenderSignature\(this.props.document\)\+\(this.props.electronicShareId/);
-  assert.match(css,/doc-footer.has-electronic-qr\{height:31mm/);
+  assert.match(css,/bottom-grid.has-document-qr\{grid-template-columns/);
   assert.match(app,/target=structuredClone\(share.snapshot\)/);
   assert.match(app,/printShareId:electronicShareId/);
   assert.match(bridge,/\.lx-document-qr img/);

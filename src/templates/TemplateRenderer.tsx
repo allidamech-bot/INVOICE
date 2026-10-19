@@ -1,3 +1,6 @@
+import { SigningArtwork } from './SigningArtwork.js';
+import { signingPaper } from '../lib/signing-artwork.js';
+import { TemplateArtwork, templateArtPalette } from './TemplateArtwork.js';
 import { DocumentQr } from './DocumentQr.js';
 import type { DocumentItem, LourexDocument, TemplateId } from '../types.js';
 import { calculateTotals, formatMoney, lineTotal } from '../lib/money.js';
@@ -12,10 +15,8 @@ interface Props { document: LourexDocument; scale?: number; compact?: boolean; e
 interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex: number; totalPages: number; finalPage: boolean; variant: TemplateId; compact?: boolean; electronicShareId?:string; }
 interface DeferredPreviewState { active:boolean; }
 
-const MODERN_TEMPLATES: TemplateId[] = ['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 const OUTPUT_FRAGMENT_MARKER='::lourex-output-fragment:';
 const OUTPUT_FRAGMENT_WEIGHT=2;
-function isModernTemplate(variant: TemplateId): boolean { return MODERN_TEMPLATES.includes(variant); }
 
 function englishFragment(value:string):any{return <span className="bidi-fragment bidi-en" lang="en" dir="ltr">{value}</span>;}
 function arabicFragment(value:string):any{return <span className="bidi-fragment bidi-ar" lang="ar" dir="rtl">{value}</span>;}
@@ -122,9 +123,9 @@ function outputItemFragments(doc:LourexDocument,item:DocumentItem):DocumentItem[
   }));
 }
 
-function LogoBlock({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
+function LogoBlock({ document: doc, inverse = false, fallback = true }: { document: LourexDocument; inverse?: boolean; fallback?: boolean }): any {
   const src = doc.companySnapshot.logoDataUrl;
-  if (!src || src.includes('lourex-logo.svg')) return null;
+  if (!src || src.includes('lourex-logo.svg')) return fallback?<div className="doc-brand-name">{companyName(doc)}</div>:null;
   return <div className={`doc-logo ${inverse ? 'inverse' : ''}`}><img src={src} alt={doc.companySnapshot.nameEn || doc.companySnapshot.nameAr || 'Company logo'} /></div>;
 }
 function DocumentTitle({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
@@ -175,22 +176,25 @@ function Signature({ document: doc }: { document: LourexDocument }): any {
   const showSig = doc.appearance.showSignature && doc.companySnapshot.signatureDataUrl;
   const showStamp = doc.appearance.showStamp && doc.companySnapshot.stampDataUrl;
   if (!showSig && !showStamp) return null;
-  return <section className="signature-block"><h3>{localized(doc,'Authorized Signature','التوقيع المعتمد')}</h3><div className="signature-media">{showSig ? <img className="signature-image" src={doc.companySnapshot.signatureDataUrl} alt="Signature" /> : null}{showStamp ? <img className="stamp-image" src={doc.companySnapshot.stampDataUrl} alt="Stamp" /> : null}</div></section>;
+  const dark=resolvedDocumentTone(doc.appearance)==='dark';const paper=signingPaper(resolvedAppearanceTokens(doc.appearance).accent);
+  return <section className="signature-block"><h3>{localized(doc,'Authorized Signature','التوقيع المعتمد')}</h3><div className="signature-media">{showSig ? <SigningArtwork key={doc.companySnapshot.signatureDataUrl+paper+dark} source={doc.companySnapshot.signatureDataUrl} kind="signature" paper={paper} dark={dark}/> : null}{showStamp ? <SigningArtwork key={doc.companySnapshot.stampDataUrl+paper+dark} source={doc.companySnapshot.stampDataUrl} kind="stamp" paper={paper} dark={dark}/> : null}</div></section>;
 }
-function FinalDetails({ document: doc }: { document: LourexDocument }): any { const notes=safeValue(doc,doc.notes);return <div className="final-details"><div className="lower-grid"><Terms document={doc}/><Totals document={doc}/></div>{notes ? <section className="notes-block"><h3>{localized(doc,'Notes','ملاحظات')}</h3><p dir="auto">{notes}</p></section> : null}<div className="bottom-grid"><Bank document={doc}/><Signature document={doc}/></div></div>; }
+function FinalDetails({ document: doc,electronicShareId }: { document: LourexDocument;electronicShareId?:string }): any { const notes=safeValue(doc,doc.notes);return <div className="final-details"><div className="lower-grid"><Terms document={doc}/><Totals document={doc}/></div>{notes ? <section className="notes-block"><h3>{localized(doc,'Notes','ملاحظات')}</h3><p dir="auto">{notes}</p></section> : null}<div className={"bottom-grid"+(electronicShareId?" has-document-qr":"")}><Bank document={doc}/><Signature document={doc}/>{electronicShareId?<section className="document-qr-block"><h3>{localized(doc,"Electronic Copy","النسخة الإلكترونية")}</h3><DocumentQr token={electronicShareId} language={doc.language}/></section>:null}</div></div>; }
 
-function ModernHeader({ document: doc, variant }: { document: LourexDocument; variant: TemplateId }): any {
-  const darkBrand = variant === 'obsidian' || variant === 'cobalt' || variant === 'split' || variant === 'aurora' || variant === 'noir' || variant === 'midnight' || variant === 'blackivory' || variant === 'carbon';
-  return <header className={`header-modern modern-header-${variant}`}>
-    <div className="modern-geometry" aria-hidden="true"/>
-    <div className="modern-brand"><LogoBlock document={doc} inverse={darkBrand}/></div>
-    <div className="modern-title"><small>{localized(doc,'COMMERCIAL DOCUMENT','مستند تجاري')}</small><DocumentTitle document={doc}/></div>
-    <div className="modern-meta"><MetaBlock document={doc}/></div>
+function DocumentHeader({document:doc,variant}:{document:LourexDocument;variant:TemplateId}):any{
+  const accent=resolvedAppearanceTokens(doc.appearance).accent;
+  return <header className="header-graphic">
+    <div className="document-masthead">
+      <TemplateArtwork variant={variant} position="header" accent={accent}/>
+      <div className="masthead-brand"><LogoBlock document={doc}/></div>
+      <div className="masthead-title"><DocumentTitle document={doc}/></div>
+    </div>
+    <div className="header-details"><MetaBlock document={doc}/></div>
   </header>;
 }
 
 function ContinuationHeader({ document: doc }: { document: LourexDocument }): any {
-  return <header className="continuation-header"><div className="continuation-company"><LogoBlock document={doc}/><strong>{companyName(doc)}</strong></div><div className="continuation-document"><DocumentTitle document={doc}/><span dir="ltr">{doc.number}</span></div></header>;
+  return <header className="continuation-header"><div className="continuation-company"><LogoBlock document={doc} fallback={false}/><strong>{companyName(doc)}</strong></div><div className="continuation-document"><DocumentTitle document={doc}/><span dir="ltr">{doc.number}</span></div></header>;
 }
 function footerText(doc:LourexDocument):string{
   const custom=safeValue(doc,doc.companySnapshot.footerText);
@@ -202,11 +206,17 @@ function footerText(doc:LourexDocument):string{
 
 function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant, compact, electronicShareId }: PageProps): any {
   const tokens=resolvedAppearanceTokens(doc.appearance);
+  const art=templateArtPalette(doc.appearance);
   const paletteMode=doc.appearance.paletteMode??'auto';
   const tone=resolvedDocumentTone({...doc.appearance,templateId:variant});
   const detailsOnly=finalPage&&pageIndex>0&&items.length===0;
   const style={
     '--accent':tokens.accent,
+    '--art-main':art.main,
+    '--art-second':art.second,
+    '--art-ink':art.ink,
+    '--footer-paper':art.footer,
+    '--footer-ink':art.footerInk,
     '--accent-ink':tokens.accentInk,
     '--font-latin':resolvedLatinFont(doc.appearance),
     '--font-arabic':resolvedArabicFont(doc.appearance),
@@ -218,13 +228,13 @@ function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant,
     '--lrx-heading':tokens.heading,
     '--lrx-table-header-ink':tokens.tableHeaderText,
     '--lrx-title-scale':String(tokens.titleScale),
-    '--lrx-heading-size':`${10*tokens.headingScale}px`,
-    '--lrx-body-size':`${9.2*tokens.bodyScale}px`,
-    '--lrx-table-size':`${9.1*tokens.tableScale}px`,
-    '--lrx-table-heading-size':`${8.2*tokens.tableScale}px`
+    '--lrx-heading-size':`${11.54*tokens.headingScale}px`,
+    '--lrx-body-size':`${10.5*tokens.bodyScale}px`,
+    '--lrx-table-size':`${10.54*tokens.tableScale}px`,
+    '--lrx-table-heading-size':`${9.43*tokens.tableScale}px`
   } as any;
   const firstPage=pageIndex===0;
-  return <article dir={doc.language==='ar'?'rtl':'ltr'} className={`invoice-page template-${variant} kind-${doc.kind} role-${doc.role} lifecycle-${doc.lifecycleStatus} lang-${doc.language} palette-${paletteMode} document-tone-${tone} ${firstPage?'page-first':'page-continued'} ${detailsOnly?'details-only':''} ${compact ? 'compact-preview' : ''}`} data-template={variant} data-page={pageIndex+1} data-palette={paletteMode} data-kind={doc.kind} data-role={doc.role} data-tone={tone} style={style}><div className="page-accent" />{(()=>{const watermark=normalizeWatermark(doc.appearance.watermark);if(!watermark.enabled)return null;const useLogo=watermark.type==='logo'&&Boolean(doc.companySnapshot.logoDataUrl);const style={'--wm-opacity':String(watermark.opacity),'--wm-color':watermark.color,'--wm-angle':String(watermark.angle)+'deg','--wm-size':String(watermark.size)+'px'} as any;if(watermark.pattern==='repeat')return <div className="document-custom-watermark is-repeat" style={style} aria-hidden="true">{Array.from({length:9},(_,index)=><span className="wm-tile" key={index}>{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<b>{watermark.text||'DRAFT'}</b>}</span>)}</div>;return <div className={'document-custom-watermark '+(useLogo?'is-logo':'is-text')} style={style} aria-hidden="true">{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<span>{watermark.text||'DRAFT'}</span>}</div>;})()}{doc.lifecycleStatus==='voided'?<div className="document-void-watermark">{(doc.kind==='proforma'||doc.kind==='purchase-order')?localized(doc,'CANCELLED','ملغى'):localized(doc,'VOID','ملغى')}</div>:null}{!firstPage?<ContinuationHeader document={doc}/>:null}{firstPage&&variant === 'executive' ? <header className="header-executive"><LogoBlock document={doc} inverse={true}/><DocumentTitle document={doc} inverse/><MetaBlock document={doc}/></header> : null}{firstPage&&variant === 'minimal' ? <header className="header-minimal"><LogoBlock document={doc}/><div><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{firstPage&&variant === 'trade' ? <header className="header-trade"><div className="trade-bar"><LogoBlock document={doc} inverse={true}/></div><div className="trade-title"><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{firstPage&&variant === 'signature' ? <header className="header-signature"><LogoBlock document={doc}/><div className="signature-title"><small>{localized(doc,'COMMERCIAL DOCUMENT','مستند تجاري')}</small><DocumentTitle document={doc}/></div><MetaBlock document={doc}/></header> : null}{firstPage&&isModernTemplate(variant) ? <ModernHeader document={doc} variant={variant}/> : null}<main className="doc-body">{firstPage ? <div className="party-grid"><PartyBlock document={doc} type="seller"/><PartyBlock document={doc} type="customer"/></div> : null}{items.length ? <ItemsTable document={doc} items={items} continued={!firstPage}/> : null}{finalPage ? <FinalDetails document={doc}/> : null}</main><footer className={'doc-footer'+(finalPage&&electronicShareId?' has-electronic-qr':'')}>{finalPage&&electronicShareId?<DocumentQr token={electronicShareId} language={doc.language}/>:null}<span dir="auto">{footerText(doc)}</span><span dir="ltr">{pageIndex + 1} / {totalPages}</span></footer></article>;
+  return <article dir={doc.language==='ar'?'rtl':'ltr'} className={`invoice-page template-${variant} kind-${doc.kind} role-${doc.role} lifecycle-${doc.lifecycleStatus} lang-${doc.language} palette-${paletteMode} document-tone-${tone} ${firstPage?'page-first':'page-continued'} ${detailsOnly?'details-only':''} ${compact ? 'compact-preview' : ''}`} data-template={variant} data-page={pageIndex+1} data-palette={paletteMode} data-kind={doc.kind} data-role={doc.role} data-tone={tone} style={style}><TemplateArtwork variant={variant} position="rail" accent={tokens.accent}/>{(()=>{const watermark=normalizeWatermark(doc.appearance.watermark);if(!watermark.enabled)return null;const useLogo=watermark.type==='logo'&&Boolean(doc.companySnapshot.logoDataUrl);const style={'--wm-opacity':String(watermark.opacity),'--wm-color':watermark.color,'--wm-angle':String(watermark.angle)+'deg','--wm-size':String(watermark.size)+'px'} as any;if(watermark.pattern==='repeat')return <div className="document-custom-watermark is-repeat" style={style} aria-hidden="true">{Array.from({length:9},(_,index)=><span className="wm-tile" key={index}>{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<b>{watermark.text||'DRAFT'}</b>}</span>)}</div>;return <div className={'document-custom-watermark '+(useLogo?'is-logo':'is-text')} style={style} aria-hidden="true">{useLogo?<img src={doc.companySnapshot.logoDataUrl} alt=""/>:<span>{watermark.text||'DRAFT'}</span>}</div>;})()}{doc.lifecycleStatus==='voided'?<div className="document-void-watermark">{(doc.kind==='proforma'||doc.kind==='purchase-order')?localized(doc,'CANCELLED','ملغى'):localized(doc,'VOID','ملغى')}</div>:null}{!firstPage?<ContinuationHeader document={doc}/>:null}{firstPage?<DocumentHeader document={doc} variant={variant}/>:null}<main className="doc-body">{firstPage ? <div className="party-grid"><PartyBlock document={doc} type="seller"/><PartyBlock document={doc} type="customer"/></div> : null}{items.length ? <ItemsTable document={doc} items={items} continued={!firstPage}/> : null}{finalPage ? <FinalDetails document={doc} electronicShareId={electronicShareId}/> : null}</main><footer className="doc-footer"><TemplateArtwork variant={variant} position="footer" accent={tokens.accent}/><span dir="auto">{footerText(doc)}</span><span dir="ltr">{pageIndex + 1} / {totalPages}</span></footer></article>;
 }
 function firstPageItemCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
@@ -303,7 +313,7 @@ function initialPages(doc:LourexDocument):DocumentItem[][]{
   const separateDetails=shouldUseDetailsPage(doc);
   const fragments=doc.items.flatMap(item=>outputItemFragments(doc,item));
   // Start with item capacity; measured closing content decides whether to split.
-  const pages=paginateItems(fragments,false,firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
+  const pages=paginateItems(fragments,false,10,doc.language,item=>itemWeight(doc,item));
   return separateDetails?[...pages,[]]:pages;
 }
 class MeasuredDocument extends React.Component<Props,{pages:DocumentItem[][];ready:boolean}>{
@@ -328,6 +338,7 @@ class MeasuredDocument extends React.Component<Props,{pages:DocumentItem[][];rea
   private schedule=()=>{cancelAnimationFrame(this.frame);this.frame=requestAnimationFrame(()=>{this.frame=requestAnimationFrame(this.measure);});};
   private measure=()=>{
     if(!this.mounted||!this.root)return;
+    if(this.root.querySelector('[data-signing-ready="false"]')){this.schedule();return;}
     const articles=Array.from(this.root.querySelectorAll<HTMLElement>('.invoice-page'));
     for(let i=0;i<articles.length;i++){
       const article=articles[i]!,footer=article.querySelector('.doc-footer'),body=article.querySelector('.doc-body');

@@ -292,19 +292,3 @@
   .app-ui .editor-grand-total-chip{box-shadow:none!important;}
   .app-ui .template-card-wrap .template-card{box-shadow:0 1px 2px rgba(16,24,40,.035)!important;}
 }
-
-/* v329 — printable template hierarchy recovery.
- * No dimensions, pagination, item counts or document data are changed here. */
-.invoice-page .doc-title>span{font-weight:800;}
-.invoice-page .party-name{font-weight:780;}
-.invoice-page .party-customer .party-name{font-weight:820;}
-.invoice-page .items-table th{letter-spacing:.045em;}
-.invoice-page .items-table td{color:#263842;}
-.invoice-page .items-table .description-cell{font-weight:590;}
-.invoice-page .totals-block{box-shadow:inset 0 0 0 .18mm color-mix(in srgb,var(--rule) 74%,transparent);}
-.invoice-page .grand-total>span,.invoice-page .grand-total>strong{font-weight:820;}
-.invoice-page .doc-footer{color:#65727a;}
-.invoice-page.lang-ar .doc-title>span,.invoice-page.lang-ar .party-name,.invoice-page [dir="rtl"]{letter-spacing:0!important;}
-.template-executive .header-executive,.template-noir .header-modern,.template-midnight .header-modern,.template-blackivory .header-modern,.template-carbon .header-modern{isolation:isolate;}
-.template-executive .items-table th,.template-midnight .items-table th,.template-noir .items-table th,.template-blackivory .items-table th,.template-carbon .items-table th{font-weight:760;}
-.template-minimal .items-table th,.template-horizon .items-table th,.template-mono .items-table th{font-weight:780;}

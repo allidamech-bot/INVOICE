@@ -15,7 +15,7 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /width:210mm;min-width:210mm;height:297mm;min-height:297mm/);
   assert.match(css, /\.mobile-preview-overlay\{display:none\}/);
   assert.match(css, /\.mobile-preview-open \.mobile-preview-overlay\{display:flex/);
-  assert.match(css, /grid-template-columns:minmax\(0,1fr\) minmax\(58mm,64mm\)/);
+  assert.match(css, /grid-template-columns:minmax\(0,1fr\) minmax\(66mm,70mm\)/);
 });
 
 test('iPhone PDF save and share normalize Safari colors and preserve high-resolution signature/stamp artwork', async () => {

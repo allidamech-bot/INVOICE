@@ -22,24 +22,6 @@ source=source.replace(stableReady,'if(!this.state.ready){this.moves=0;this.setSt
 
 source+='\nconst __lourexPdfA4EmergencyV544=true;\n';
 
-css+=`\n/* LOUREX v544 PDF A4 emergency — compact routine short commercial closes while
-   preserving the authored bottom commercial footer. A short quote must remain
-   one page without lifting totals/signature/stamp away from the page foot. */
-@media screen, print {
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .final-details{margin-top:auto!important;padding-top:2.4mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .lower-grid{gap:4mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) :is(.terms-block,.bank-block,.signature-block,.notes-block){padding:2.2mm 2.8mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) :is(.terms-block,.bank-block,.signature-block,.notes-block)>h3{margin-bottom:1.35mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .terms-grid{gap:.9mm 3mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .totals-block{padding:2.2mm 3mm 2.5mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .total-row{padding:.95mm 0;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .grand-total{margin-top:1.25mm;padding-top:1.8mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) :is(.notes-block,.bottom-grid){margin-top:2mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .signature-media{min-height:16mm;}
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .doc-footer{height:9.5mm;}
-}
-`;
-
 await Promise.all([writeFile(rendererTarget,source),writeFile(cssTarget,css)]);
 execFileSync(process.execPath,['--check',rendererTarget],{stdio:'pipe'});
-console.log('[LOUREX v544] A4 pagination recovery installed: short commercial closes compact before split and one-row deadlocks cannot stall output readiness.');
+console.log('[LOUREX v544] A4 pagination readiness recovery installed; geometry belongs to canonical v141.');
