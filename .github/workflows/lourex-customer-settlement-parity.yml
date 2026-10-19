@@ -1,0 +1,45 @@
+name: LOUREX Customer Settlement Parity
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/ai-business.ts'
+      - 'src/lib/payments.ts'
+      - 'src/lib/receivables.ts'
+      - 'tests/ai-business-consistency-v450.test.mjs'
+      - '.github/workflows/lourex-customer-settlement-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lourex-customer-settlement-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  settlement-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Production build without deployment
+        run: npm run build
+      - name: Customer payment chronology and accounting parity
+        run: |
+          node --test --test-concurrency=2 \
+            tests/ai-business-consistency-v450.test.mjs \
+            tests/receivables-v133.test.mjs \
+            tests/accounting-chronology-v258.test.mjs \
+            tests/ai-operational-customer-collection.test.mjs
