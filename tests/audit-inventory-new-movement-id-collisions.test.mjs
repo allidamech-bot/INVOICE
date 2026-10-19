@@ -33,8 +33,8 @@ test('distinct stock movement IDs preserve both transfers and exact source/desti
   const distinct={...second,id:'another-transfer-id'};
   const result=mergeVaultIntent(base,{...base,inventoryMovements:[...base.inventoryMovements,first,distinct]},base);
   assert.equal(result.inventoryMovements.length,3);
-  assert.equal(warehouseItemQuantity(item.id,source,result.inventoryMovements,source),'11');
-  assert.equal(warehouseItemQuantity(item.id,destination.id,result.inventoryMovements,source),'9');
+  assert.equal(warehouseItemQuantity(item.id,source,result.inventoryMovements,source),110000n);
+  assert.equal(warehouseItemQuantity(item.id,destination.id,result.inventoryMovements,source),90000n);
   assert.equal(inventoryBalances(result.savedItems,result.inventoryMovements)[0].quantity,'20',
     'same-currency internal transfers do not create or destroy stock');
 });
