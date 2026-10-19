@@ -28,5 +28,6 @@ test('startup cloud authority and encrypted storage behavior remain unchanged',a
   const init=app.slice(app.indexOf('  private initialize=async()=>'),app.indexOf('  private activity='));
   assert.match(init,/await reconcilePlainCloudWorkspace\(user\.uid\)/);
   assert.ok(init.indexOf('const result=await reconcilePlainCloudWorkspace(user.uid)')<init.indexOf('this.setState({loading:false,firstRun:false,unlocked:true,vault'));
-  assert.doesNotMatch(init,/localStorage\.clear|indexedDB\.deleteDatabase|replacePlainWorkspaceIfUnchanged\(/);
+  assert.doesNotMatch(init,/localStorage\.clear|indexedDB\.deleteDatabase/);
+  assert.match(init,/await replacePlainWorkspaceIfUnchanged\(user\.uid,null/,'first-account CAS bootstrap stays protected');
 });
