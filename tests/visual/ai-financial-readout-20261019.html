@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-ui-theme="dark"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<base href="../../dist/"/>
+<link rel="stylesheet" href="styles/app.bundle.css"/>
+<link rel="stylesheet" href="ai-composer-v449.css"/>
+<style>
+html,body,#root{margin:0;min-height:100vh;background:#0b1017}
+#root{display:flex;justify-content:center;padding:14px 0;box-sizing:border-box}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] {
+ position:relative!important;inset:auto!important;display:block!important;
+ width:min(760px,calc(100vw - 22px))!important;max-width:760px!important;
+ height:auto!important;max-height:none!important;min-height:0!important;
+ transform:none!important;margin:0!important;overflow:visible!important;
+ border:1px solid #304451;border-radius:17px;box-sizing:border-box
+}
+#lourex-ai-panel .lourex-ai-messages{display:block!important;height:auto!important;max-height:none!important;overflow:visible!important;padding:15px!important}
+#lourex-ai-panel .lourex-ai-message.assistant{display:block!important;width:100%!important;max-width:100%!important}
+#lourex-ai-panel .lourex-ai-message-actions button{border:1px solid #46626a;border-radius:8px;color:#ecf3f9;background:#1e3843;min-height:44px;min-width:70px}
+</style></head>
+<body><div id="root"><aside id="lourex-ai-panel" data-lourex-workspace="2" dir="rtl"></aside></div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {renderConversationWorkspace} from './src/components/AiConversationWorkspace.js';
+import {formatAiBusinessRecordReply} from './src/lib/ai-tool-presentation.js';
+const params=new URLSearchParams(location.search);
+const lang=params.get('lang')==='en'?'en':'ar';
+document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const panel=document.getElementById('lourex-ai-panel');panel.dir=lang==='ar'?'rtl':'ltr';
+const invoice={
+ number:'INV-2026-0003',kind:'invoice',status:'final',issueDate:'2026-10-16',
+ customerName:'QA Invoice Buyer',currency:'USD',itemCount:24,itemsTruncated:true,
+ totals:{subtotal:'3090.00',tax:'309.00',grandTotal:'3399.00'},
+ items:Array.from({length:20},(_,i)=>({descriptionEn:'QA Product '+(i+1),descriptionAr:'صنف اختبار '+(i+1),quantity:'10',unit:'PCS',unitPrice:(1.03*(i+1)).toFixed(2)}))
+};
+const evidence={results:[
+ {tool:'document.get',ok:true,class:'read',data:invoice},
+ {tool:'customer.getSummary',ok:true,class:'read',data:{name:'QA Invoice Buyer',receivables:[{currency:'USD',billed:'3399.00',paid:'399.00',outstanding:'3000.00'}]}},
+ {tool:'customer.getHistory',ok:true,class:'read',data:{statements:[{currency:'USD',entries:[
+  {type:'invoice',date:'2026-10-16',reference:'INV-2026-0003',debit:'3399.00',balance:'3399.00'},
+  {type:'payment',date:'2026-10-16',reference:'QA752-PAY-01 TEST ONLY',credit:'399.00',balance:'3000.00'}
+ ]}]}}
+]};
+const text=formatAiBusinessRecordReply(evidence,lang);
+const h=React.createElement;
+const malformed=h('div',{className:'lourex-ai-structured-answer'},h('div',{className:'lourex-ai-answer-copy'},h('p',null,'### Broken old answer :::lourex-details'),h('ul',null,h('li',null,'old list'))));
+let count=0;
+const host={props:{language:lang},state:{messages:[{role:'user',text:'Read the invoice'},{role:'assistant',text}]}};
+const tree=h('div',{className:'lourex-ai-messages'},
+ h('div',{className:'lourex-ai-message user'},'Read the invoice'),
+ h('div',{className:'lourex-ai-message assistant'},malformed,
+  h('div',{className:'lourex-ai-message-actions'},h('button',{type:'button',onClick:()=>{count++;document.body.dataset.copied=String(count)}},'Copy'))));
+ReactDOM.render(renderConversationWorkspace(host,tree),panel);
+window.lourexReportFixture={lang,text,copyCount:()=>count};
+</script></body></html>

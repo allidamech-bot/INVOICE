@@ -33,6 +33,10 @@ on:
       - 'src/components/AiConversationWorkspace.tsx'
       - 'scripts/ai-conversation-owner-stage4.mjs'
       - 'tests/ai-financial-reply-presentation-20261019.test.mjs'
+      - 'src/components/AiFinancialReadout.tsx'
+      - 'src/lib/ai-financial-readout.ts'
+      - 'tests/visual/ai-financial-readout-20261019.html'
+      - 'tests/visual/run-ai-financial-readout-20261019.cjs'
       - 'src/lib/ai-tool-client.ts'
       - 'src/lib/ai-named-record-read.ts'
       - 'tests/ai-production-named-records.test.mjs'
@@ -156,6 +160,7 @@ jobs:
           # Check chat before the longer product/editor battery.
           node tests/visual/run-ai-batches1-7-current-workspace.cjs
           node tests/visual/run-ai-conversation-final-batch5.cjs
+          node tests/visual/run-ai-financial-readout-20261019.cjs
           node tests/visual/run-ux-rehab-picker-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-warehouse-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
@@ -183,6 +188,7 @@ jobs:
             visual-qa-output/item-tools-menu-webkit/
             visual-qa-output/ai-batches1-7-current-workspace/
             visual-qa-output/ai-conversation-final-batch5/
+            visual-qa-output/ai-financial-readout/
           if-no-files-found: ignore
           retention-days: 7
 

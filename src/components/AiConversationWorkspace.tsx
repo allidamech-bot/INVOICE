@@ -1,4 +1,6 @@
 import { AiIdentityMark } from './AiIdentityMark.js';
+import {AiFinancialReadout} from './AiFinancialReadout.js';
+import {parseFinancialReadout} from '../lib/ai-financial-readout.js';
 import { automaticElectronicDocument } from '../lib/secure-share.js';
 import { workspaceText, workspaceError } from '../lib/ai-workspace-presentation.js';
 import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from './AiReliabilityWorkspace.js';
@@ -106,30 +108,6 @@ function markdownParagraphs(children:any[]):any[] {
   });flush();return result;
 }
 
-/** Take LOCAL financial readouts from the original message text, BEFORE the
- * legacy reply adapter splits lines into paragraph/inline elements. This is
- * display-only: never interpret arbitrary HTML or React event-bearing nodes. */
-function originalFinancialReadout(value:any):string|null {
-  const plain=(node:any):string|null=>{
-    if(typeof node==='string')return node;
-    if(node===null||node===undefined||node===false)return'';
-    if(Array.isArray(node)){
-      const parts=node.map(plain);
-      return parts.some(part=>part===null)?null:parts.join('');
-    }
-    if(!react.isValidElement(node))return null;
-    const type=node.type;
-    if(type!==react.Fragment&&!['p','span','div','strong','em','bdi','b','i'].includes(type))return null;
-    const props=node.props||{};
-    if(Object.keys(props).some(key=>/^on[A-Z]/.test(key)||key.startsWith('dangerouslySet')))return null;
-    const value=plain(react.Children.toArray(props.children));
-    return value===null?null:(type==='p'?value+'\n':value);
-  };
-  const text=plain(value);
-  return text&&text.includes(':::lourex-details ')&&text.includes(':::lourex-end')
-    &&/^##\s+\S/m.test(text)?text:null;
-}
-
 /** Render a plain-text assistant reply as actual paragraphs and accessible
  * lists. AI text is never parsed as HTML and never gets event callbacks. */
 function assistantMessageBlocks(text:string):any[] {
@@ -159,22 +137,6 @@ function assistantMessageBlocks(text:string):any[] {
     }
     const trimmed=line.trim();
     if(!trimmed){flush();continue;}
-    // Explicit, text-only disclosure for long LOCAL record listings. This is
-    // still React text, never provider HTML, and cannot invoke write callbacks.
-    const readoutDetails=trimmed.match(/^:::lourex-details\s+(.{1,180})$/);
-    if(readoutDetails){
-      const end=lines.indexOf(':::lourex-end',lineIndex+1);
-      if(end>lineIndex){
-        flush();
-        const content=lines.slice(lineIndex+1,end).join('\n');
-        blocks.push(<details className="lxw-ai-record-details" key={'records-'+blocks.length}>
-          <summary>{markdownInline(readoutDetails[1],'record-title')}</summary>
-          <div className="lxw-ai-record-details-body">{assistantMessageBlocks(content)}</div>
-        </details>);
-        lineIndex=end;
-        continue;
-      }
-    }
     const heading=trimmed.match(/^(#{1,5})\s+(.+)/);
     const bullet=trimmed.match(/^([-*•●▪]|[0-9٠-٩۰-۹]{1,3}[.)])\s+(.+)/);
     if(heading){flush();blocks.push(react.createElement(heading[1]!.length<=2?'h3':'h4',{key:'heading-'+blocks.length,dir:'auto'},markdownInline(heading[2],String(blocks.length))));continue;}
@@ -189,7 +151,7 @@ function assistantMessageBlocks(text:string):any[] {
     blocks.push(messageParagraph([trimmed],'paragraph-'+blocks.length));
   }
   flush();
-  return blocks.length?(text.includes(':::lourex-details ')?[<section key="financial" className="lxw-financial-answer" aria-label="LOUREX financial readout">{blocks}</section>]:blocks):[text];
+  return blocks.length?blocks:[text];
 }
 const label=(ar:boolean,en:string,arabic:string)=>ar?arabic:en;
 const fieldLabel=(ar:boolean,value:string)=>value.replace(/incoterm|paymentTerms|deliveryTime|validity|remarks|notes|customer|descriptionEn|descriptionAr|quantity|unitPrice|unit/g,key=>({incoterm:label(ar,'Delivery terms','شروط التسليم'),paymentTerms:label(ar,'Payment terms','شروط الدفع'),deliveryTime:label(ar,'Delivery time','مدة التسليم'),validity:label(ar,'Validity','صلاحية العرض'),remarks:label(ar,'Remarks','ملاحظات إضافية'),notes:label(ar,'Notes','ملاحظات'),customer:label(ar,'Customer','العميل'),descriptionEn:label(ar,'English description','الوصف الإنجليزي'),descriptionAr:label(ar,'Arabic description','الوصف العربي'),quantity:label(ar,'Quantity','الكمية'),unitPrice:label(ar,'Unit price','سعر الوحدة'),unit:label(ar,'Unit','الوحدة')}[key]||key));
@@ -806,10 +768,18 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
 }
 
 export function renderConversationWorkspace(host:Host,tree:any):any {
+  // Map the existing message sequence to its canonical saved content, not
+  // to a reconstructed tree from any earlier visual owner. Accounting records
+  // and action callbacks remain unchanged.
+  let messageCursor=0;
   const transform=(node:any):any=>{
     if(typeof node==='string')return workspaceText(aiUiAr(host),node);
     if(!react.isValidElement(node))return node;
-    const cn=String(node.props?.className||''),children=react.Children.toArray(node.props?.children).map(transform);
+    const cn=String(node.props?.className||'');
+    const tokens=cn.split(' ');
+    const isTurn=tokens.includes('lourex-ai-message')&&(tokens.includes('assistant')||tokens.includes('user'));
+    const originalMessage=isTurn&&Array.isArray(host.state?.messages)?host.state.messages[messageCursor++]:null;
+    const children=react.Children.toArray(node.props?.children).map(transform);
     if(cn.split(' ').includes('lourex-ai-send'))return react.cloneElement(node,{
       disabled:Boolean(node.props.disabled||host.state.__workspaceTurnPending),
       'data-turn-pending':host.state.__workspaceTurnPending?'true':'false',
@@ -835,22 +805,17 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
         return react.cloneElement(button,i===1?{onClick:(event:any)=>{button.props?.onClick?.(event);host.setState({__workspaceHistoryOpen:true,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'});}}:undefined,parts[0],<span>{names[i]}</span>);
       }));
     }
-    if(cn.split(' ').includes('lourex-ai-answer-copy')){
-      const source=originalFinancialReadout(node.props?.children);
-      return react.cloneElement(node,{className:cn+' lxw-markdown'},...(source?assistantMessageBlocks(source):markdownParagraphs(children)));
-    }
+    if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
     if(cn.split(' ').includes('lourex-ai-message')&&(cn.split(' ').includes('user')||cn.split(' ').includes('assistant'))){
       const sender=cn.split(' ').includes('user')?'user':'assistant';
       const actions=children.filter((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
       const content=children.filter((child:any)=>!actions.includes(child));
-      // Keep the bubble sized to its content. Action controls remain outside it
-      // and retain their original copy/edit/retry/evidence callbacks.
-      const rawChildren=react.Children.toArray(node.props?.children);
-      const rawContent=rawChildren.filter((child:any)=>!String(child?.props?.className||'').split(' ').includes('lourex-ai-message-actions'));
-      const financialText=sender==='assistant'?originalFinancialReadout(rawContent):null;
-      // Financial evidence must be interpreted exactly ONCE from the raw text.
-      // Re-parsing transformed <p> fragments loses headings/disclosure markers.
-      const formatted=financialText?assistantMessageBlocks(financialText):
+      // Financial readouts have one DOM owner and one bounded view model. Old
+      // nested JSX from the legacy renderer is discarded for these messages.
+      // Non-financial chat, approvals and original action callbacks are kept.
+      const canonical=originalMessage?.role===sender?originalMessage.text:null;
+      const report=sender==='assistant'?parseFinancialReadout(canonical):null;
+      const formatted=report?[<AiFinancialReadout key="financial-report" readout={report} language={aiUiAr(host)?'ar':'en'}/>]:
         sender==='assistant'?content.flatMap((child:any)=>
         typeof child==='string'?assistantMessageBlocks(child):[child]):content;
       return react.createElement('div',{className:'lxw-message-turn is-'+sender},
