@@ -317,7 +317,12 @@
     if(!shapeCtx)throw new Error('Unable to prepare transparent logo silhouette.');
     shapeCtx.drawImage(original,padding*scale,padding*scale,rect.width*scale,rect.height*scale);
     const owner=image.closest('.continuation-company,.masthead-brand');
-    const outlineInk=owner?getComputedStyle(owner).color:(shadows[0]?.color||css.color);
+    // The continuation parent can inherit a workspace color during export,
+    // although the document's own resolved --lrx-primary ink is light on dark
+    // A4 paper. Read the semantic document token, not that inherited color.
+    const continuationInk=image.closest('.continuation-company')
+      ?getComputedStyle(image.closest('.invoice-page')).getPropertyValue('--lrx-primary').trim():'';
+    const outlineInk=continuationInk||(owner?getComputedStyle(owner).color:(shadows[0]?.color||css.color));
     const ring=document.createElement('canvas');ring.width=canvas.width;ring.height=canvas.height;
     const ringCtx=ring.getContext('2d');if(!ringCtx)throw new Error('Unable to prepare logo outline.');
     // Eight directions make the alpha contour continuous without a white box.
