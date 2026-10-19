@@ -12,10 +12,10 @@ test('production build injects a fail-open searchable PDF text layer while prese
     stat('dist/vendor/lourex-search-amiri.ttf'),
     stat('dist/vendor/lourex-search-amiri-OFL.txt')
   ]);
-  const imageIndex=bridge.indexOf("pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG',0,0,210,297,undefined,'FAST')");
+  const imageIndex=bridge.indexOf("pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,210,297,undefined,'FAST')");
   const textIndex=bridge.indexOf('__LOUREX_ADD_SEARCHABLE_TEXT_LAYER__?.(pdf,page)');
   const sharpIndex=bridge.indexOf('await addSharpMedia(pdf,sharpMedia)');
-  assert.ok(imageIndex>=0,'existing raster A4 page must remain the visual source');
+  assert.ok(imageIndex>=0,'lossless canonical A4 page must remain the visual source');
   assert.ok(textIndex>imageIndex,'searchable text layer must be added after the page image');
   assert.ok(sharpIndex>textIndex,'signature/stamp overlays must remain after the text layer');
   assert.match(bridge,/renderingMode:'invisible'/);
