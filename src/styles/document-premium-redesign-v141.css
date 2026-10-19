@@ -30,8 +30,13 @@
 .document-masthead{position:relative;isolation:isolate;min-height:34mm;padding:8mm 12mm 9mm;display:grid;grid-template-columns:37mm minmax(0,1fr);gap:12mm;align-items:center;color:var(--art-ink)}
 .masthead-brand,.masthead-title{min-width:0;position:relative;z-index:1}
 .masthead-title{text-align:end}.masthead-title .doc-title{align-items:flex-end}
-.doc-logo{display:flex;align-items:center;width:36mm;max-width:100%;min-height:10mm}
-.invoice-page .doc-logo img{display:block;width:auto;height:auto;max-width:100%;max-height:18mm;object-fit:contain;object-position:center}
+.doc-logo{display:flex;align-items:center;gap:2mm;width:36mm;max-width:100%;min-height:10mm}
+.invoice-page .doc-logo img{display:block;width:auto;height:auto;max-width:100%;max-height:18mm;object-fit:contain;object-position:center;flex-shrink:1}
+.invoice-page .masthead-brand .doc-logo[data-logo-layout="symbol"] img{max-width:13mm;max-height:13mm;flex:0 0 auto;filter:drop-shadow(0 0 .6px var(--art-ink)) drop-shadow(0 0 .8px var(--art-ink))}
+.doc-logo-wordmark{flex:1;min-width:0;font-size:11px;line-height:1.25;font-weight:750;color:var(--art-ink);overflow-wrap:anywhere;text-shadow:0 0 .35px var(--art-ink)}
+.doc-logo-wordmark .bi-value{gap:.4mm}.doc-logo-wordmark .bi-value>.bidi-ar{font-size:.95em}
+.invoice-page .doc-logo[data-logo-layout="wordmark"] .doc-logo-wordmark{display:none}
+.invoice-page .doc-logo[data-logo-layout="wordmark"] img{max-width:100%}
 .doc-brand-name{font-size:13px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
 .doc-title{display:flex;flex-direction:column;gap:1.5mm;color:inherit}
 .doc-title>span{font-size:calc(var(--title-size)*var(--lrx-title-scale,1));line-height:1.18;font-weight:var(--title-weight);letter-spacing:.035em;color:inherit;text-wrap:balance;font-family:Georgia,"Times New Roman",serif}
