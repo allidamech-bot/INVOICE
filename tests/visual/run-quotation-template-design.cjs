@@ -35,6 +35,16 @@ async function inspect(page,params){
     const textVisible=label&&getComputedStyle(label).display!=='none'&&Boolean(label.textContent.trim());
     if(expected==='symbol'&&!textVisible)failures.push('symbol-only logo is missing company name');
     if(expected==='wordmark'&&textVisible)failures.push('embedded wordmark has a duplicate company name');
+    if(expected==='symbol'&&textVisible){
+     const title=sheets[0].querySelector('.masthead-title'),nameBox=label.getBoundingClientRect(),titleBox=title?.getBoundingClientRect(),logoBox=image.getBoundingClientRect();
+     const fontSize=parseFloat(getComputedStyle(label).fontSize),outline=getComputedStyle(image).filter;
+     if(fontSize<12)failures.push('symbol-only logo company name is too small');
+     if(logoBox.width<35||logoBox.height<35)failures.push('symbol-only logo is too small to recognize');
+     if(label.scrollHeight>label.clientHeight+2||label.scrollWidth>label.clientWidth+2)failures.push('company wordmark clipped');
+     if(titleBox&&nameBox.left<titleBox.right-1&&nameBox.right>titleBox.left+1&&nameBox.top<titleBox.bottom-1&&nameBox.bottom>titleBox.top+1)failures.push('company identity overlaps document title');
+     if(!outline.includes('drop-shadow'))failures.push('transparent symbol has no shape-following contrast support');
+     if(getComputedStyle(brand).backgroundColor!=='rgba(0, 0, 0, 0)')failures.push('unexpected rectangle behind transparent logo');
+    }
    }
   }
   for(const [index,sheet] of sheets.entries()){
@@ -76,10 +86,13 @@ async function inspect(page,params){
     const result=await inspect(page,params);report.push({engine,...params,...result});
     if(profile==='showcase'&&language==='en')await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}.png`)});
    }
+   const symbol=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'print',logo:'symbol'});
+   report.push({engine,template,language,profile:'symbol-logo',...symbol});
    if(language==='en'){
-    const symbol=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'print',logo:'symbol'});
-    report.push({engine,template,language,profile:'symbol-logo',...symbol});
     await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}-symbol.png`)});
+    const lightSymbol=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'print',logo:'symbol-light'});
+    report.push({engine,template,language,profile:'light-symbol-logo',...lightSymbol});
+    await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}-light-symbol.png`)});
    }
    const custom=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'mobile',palette:'custom',unsafeColors:'true',textScale:'large'});
    report.push({engine,template,language,profile:'unsafe-custom-mobile',...custom});
