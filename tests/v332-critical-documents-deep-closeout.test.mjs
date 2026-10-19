@@ -86,15 +86,17 @@ test('Statement of Account remains a finance workflow rather than a fake vault d
   assert.doesNotMatch(read('src/types.ts'),/DocumentKind[^\n]*statement-account/);
 });
 
-test('all 18 templates remain selectable and actual output keeps template/kind/role identity',()=>{
-  const templates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
-  for(const id of templates){
-    assert.ok(thumbs.includes(`id: '${id}'`),`thumbnail missing ${id}`);
-    assert.ok(v330.includes(`template-${id}`),`print identity finish missing ${id}`);
-  }
-  assert.match(renderer,/className=\{`invoice-page template-\$\{variant\} kind-\$\{doc\.kind\} role-\$\{doc\.role\}/);
-  assert.match(renderer,/data-kind=\{doc\.kind\}/);
-  assert.match(renderer,/data-role=\{doc\.role\}/);
+test('all 18 templates remain selectable and actual output keeps template/kind/role identity',async()=>{
+const templates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
+ const [paper,artwork]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('src/templates/TemplateArtwork.tsx')]);
+ for(const id of templates){
+  assert.ok(thumbs.includes("id: '"+id+"'"),'thumbnail missing '+id);
+  assert.ok(paper.includes('.invoice-page.template-'+id),'commercial paper missing '+id);
+  assert.ok(artwork.includes(id+':{'),'SVG art missing '+id);
+ }
+ assert.match(renderer,/className=\{\`invoice-page template-\$\{variant\} kind-\$\{doc\.kind\} role-\$\{doc\.role\}/);
+ assert.match(renderer,/data-kind=\{doc\.kind\}/);
+ assert.match(renderer,/data-role=\{doc\.role\}/);
 });
 
 test('Create Center has stable runtime document identities even if visual order changes',()=>{
