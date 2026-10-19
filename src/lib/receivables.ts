@@ -13,6 +13,8 @@ export interface StatementEntry{currency:string;date:string;reference:string;typ
 export interface CustomerStatementCurrency{currency:string;entries:StatementEntry[];billed:string;credits:string;paid:string;outstanding:string;overdue:string;}
 
 function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;}
+// Match financial report currency keys without rewriting historical documents.
+function currencyKey(value:string):string{return (value||'USD').trim().toUpperCase();}
 function dayNumber(iso:string):number{
   const parts=iso.split('-');
   const year=Number(parts[0]??0);
@@ -41,7 +43,7 @@ export function receivablesByCurrency(documents:LourexDocument[],payments:Paymen
   for(const invoice of activeInvoices(documents,today)){
     if(customerId&&receivableCustomerId(invoice)!==customerId)continue;
     const summary=invoicePaymentSummary(invoice,payments,today,documents);
-    const currency=invoice.currency;
+    const currency=currencyKey(invoice.currency);
     const row=map.get(currency)??{billed:0n,credits:0n,paid:0n,outstanding:0n,overdue:0n,aging:{current:0n,days1to30:0n,days31to60:0n,days61to90:0n,days90plus:0n},openInvoices:0,overdueInvoices:0};
     row.billed+=decimalToScaled(summary.total,2);row.credits+=decimalToScaled(summary.credits,2);row.paid+=decimalToScaled(summary.paid,2);row.outstanding+=decimalToScaled(summary.remaining,2);
     if(decimalToScaled(summary.remaining,2)>0n){row.openInvoices+=1;const bucket=agingBucketFor(invoice.dueDate,today);row.aging[bucket]+=decimalToScaled(summary.remaining,2);if(summary.status==='overdue'){row.overdue+=decimalToScaled(summary.remaining,2);row.overdueInvoices+=1;}}
@@ -59,7 +61,7 @@ export function customerReceivables(customers:Customer[],documents:LourexDocumen
 
 export function customerStatement(customerId:string,documents:LourexDocument[],payments:PaymentRecord[],today=todayIso()):CustomerStatementCurrency[]{
   const rows=new Map<string,{date:string;reference:string;type:StatementEntryType;description:string;debit:bigint;credit:bigint;relatedInvoiceNumber:string;order:number}[]>();
-  const push=(currency:string,row:{date:string;reference:string;type:StatementEntryType;description:string;debit:bigint;credit:bigint;relatedInvoiceNumber:string;order:number})=>{const list=rows.get(currency)??[];list.push(row);rows.set(currency,list);};
+  const push=(currency:string,row:{date:string;reference:string;type:StatementEntryType;description:string;debit:bigint;credit:bigint;relatedInvoiceNumber:string;order:number})=>{const key=currencyKey(currency);const list=rows.get(key)??[];list.push(row);rows.set(key,list);};
   const invoices=activeInvoices(documents,today).filter(invoice=>receivableCustomerId(invoice)===customerId);
   for(const invoice of invoices){
     const total=decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2);
