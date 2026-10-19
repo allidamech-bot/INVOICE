@@ -17,6 +17,7 @@ mkdirSync(output,{recursive:true});
 const cases=[
  {engine:webkit,browser:'webkit',width:390,height:844,lang:'ar'},
  {engine:webkit,browser:'webkit',width:820,height:1180,lang:'ar'},
+ {engine:webkit,browser:'webkit',width:390,height:844,lang:'ar',theme:'light'},
  {engine:chromium,browser:'chromium',width:390,height:844,lang:'en'}
 ];
 (async()=>{
@@ -28,7 +29,7 @@ const cases=[
    const errors=[];
    page.on('pageerror',error=>errors.push(String(error)));
    await page.route('**/api/**',route=>route.abort());
-   await page.goto('http://127.0.0.1:4173/tests/visual/ai-financial-readout-20261019.html?lang='+spec.lang,{waitUntil:'networkidle'});
+   await page.goto('http://127.0.0.1:4173/tests/visual/ai-financial-readout-20261019.html?lang='+spec.lang+'&theme='+(spec.theme||'dark'),{waitUntil:'networkidle'});
    await page.waitForFunction(()=>Boolean(window.lourexReportFixture),null,{timeout:30000});
    const panel=page.locator('#lourex-ai-panel');
    const reportCard=panel.locator('article.lxbr');
@@ -82,7 +83,7 @@ const cases=[
     assert.ok(contrast(sample.ink,sample.bg)>=4.5,'financial text contrast must be readable: '+JSON.stringify(sample));
    }
 
-   await page.screenshot({path:output+'/'+spec.browser+'-'+spec.width+'-'+spec.lang+'-collapsed.png',fullPage:true,animations:'disabled'});
+   await page.screenshot({path:output+'/'+spec.browser+'-'+spec.width+'-'+spec.lang+'-'+(spec.theme||'dark')+'-collapsed.png',fullPage:true,animations:'disabled'});
    await disclosure.locator('summary').click();
    assert.notEqual(await disclosure.getAttribute('open'),null,'the actual disclosure can be expanded');
    assert.equal(await reportCard.locator('.lxbr-item-content li').count(),20);
