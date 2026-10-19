@@ -80,13 +80,14 @@
 .items-table th{padding:2.8mm 1.7mm;background:var(--table-head);color:var(--table-ink);font-size:var(--lrx-table-heading-size,8.5px);line-height:1.45;font-weight:600;text-align:start;vertical-align:bottom}
 .items-table th small{display:block;margin-top:.8mm;font-size:7.5px;line-height:1.2;font-weight:400;color:inherit}
 .items-table td{padding:2.5mm 1.7mm;border-bottom:1px solid var(--rule);color:var(--ink);font-size:var(--lrx-table-size,9.5px);line-height:1.55;font-weight:400;vertical-align:top;overflow-wrap:anywhere}
-.items-table tbody tr:nth-child(even){background:var(--soft)}.items-table .col-num{text-align:center}.items-table td.col-num{color:var(--muted)}
+.items-table tbody tr:nth-child(even){background:var(--soft)}.items-table .col-num{text-align:center;padding-inline:.7mm;white-space:nowrap}.items-table td.col-num{color:var(--muted)}
 .items-table .description-cell{font-weight:500}.items-table .description-cell .bi-value>span:last-child{font-weight:400}
 .items-table .trade-cell{font-size:calc(var(--lrx-table-size,9.5px)*.9);color:var(--muted)}
 .items-table .quantity-cell,.items-table .numeric-heading,.items-table .money-cell{text-align:end}.items-table .money-cell{white-space:nowrap;font-weight:500}.items-table .money-cell.strong{font-weight:700}
 
-/* Closing content follows the line items. The footer alone anchors the page. */
-.final-details{flex:0 0 auto;min-height:0;margin-top:0;padding-top:7mm}.details-only .final-details{padding-top:0}
+/* Keep the complete closing above the footer in normal flex flow. Available
+   space precedes the closing, rather than separating payment details from art. */
+.final-details{flex:0 0 auto;min-height:0;margin-top:auto;padding-top:7mm}.details-only .final-details{padding-top:0}
 .lower-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(66mm,70mm);gap:8mm;align-items:start}
 .terms-block,.bank-block,.signature-block,.notes-block{padding-top:3mm;border-top:1px solid var(--rule)}
 .terms-block h3,.bank-block h3,.signature-block h3,.notes-block h3{margin:0 0 2.5mm;font-size:var(--lrx-heading-size,9px);line-height:1.4;font-weight:700;letter-spacing:.045em;text-transform:uppercase;color:var(--lrx-heading,var(--ink))}
@@ -95,6 +96,9 @@
 .term-row b,.bank-block b{font-size:calc(var(--lrx-body-size,10.5px)*.81);line-height:1.5;font-weight:500;color:var(--muted)}
 .term-row>span,.bank-block>div>span{font-size:calc(var(--lrx-body-size,10.5px)*.905);line-height:1.5;font-weight:400;color:var(--ink);overflow-wrap:anywhere}
 .totals-block{padding:0;border:0;background:transparent;color:var(--ink);align-self:start}
+/* Optional commercial terms must not move the financial column to the other
+   side. Grid column two follows the document direction in Arabic as well. */
+.lower-grid>.totals-block:only-child{grid-column:2}
 .total-row,.grand-total{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4mm;align-items:baseline}
 .total-row{padding:1.5mm 3mm;border-bottom:1px solid var(--rule)}.total-row>span{font-size:9px;color:var(--muted);font-weight:400}.total-row>strong{font-size:10px;font-weight:500;white-space:nowrap}
 .grand-total{margin-top:2mm;padding:2.8mm 3mm;border:0;border-radius:1.2mm;background:var(--accent);color:var(--accent-ink)}.grand-total>span{font-size:10px;line-height:1.4;font-weight:600}.grand-total>strong{font-size:16px;line-height:1.2;font-weight:750;letter-spacing:-.02em;white-space:nowrap}
@@ -102,7 +106,11 @@
 .bottom-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(50mm,.75fr);gap:8mm;margin-top:5mm;align-items:start}
 .bottom-grid:empty{display:none}
 .bottom-grid.has-document-qr{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) 30mm;gap:5mm}
-.document-qr-block{grid-column:3;padding-top:3mm;border-top:1px solid var(--rule);min-width:0}
+/* Reserve columns for visible content, not for hidden bank/signing settings. */
+.bottom-grid.has-document-qr:not(:has(.bank-block)),.bottom-grid.has-document-qr:not(:has(.signature-block)){grid-template-columns:minmax(0,1fr) 30mm}
+.bottom-grid.has-document-qr:has(>.document-qr-block:only-child){grid-template-columns:minmax(0,1fr)}
+.bottom-grid:not(.has-document-qr)>:only-child{grid-column:1/-1}
+.document-qr-block{padding-top:3mm;border-top:1px solid var(--rule);min-width:0}
 .document-qr-block h3{font-size:var(--lrx-heading-size,9px);font-weight:700;color:var(--lrx-heading);margin:0 0 2.5mm;line-height:1.4}
 .document-qr-block .lx-document-qr{flex-direction:column;align-items:flex-start;gap:1.5mm;color:var(--ink);background:transparent}
 .document-qr-block .lx-document-qr img{width:23mm!important;height:23mm!important;min-width:23mm}

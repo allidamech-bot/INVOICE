@@ -78,4 +78,4 @@ async function auditQuotationPdf(page,directory,name){
   },{qrVerifiedFromPdf:qrCount>0});
   return {...result,pages:original.length,decodedQrCount:qrCount,pdf:name+'.pdf'};
 }
-module.exports={auditQuotationPdf};
+module.exports={auditQuotationPdf,exportQuotationPdf,verifyExportedQrLinks};
