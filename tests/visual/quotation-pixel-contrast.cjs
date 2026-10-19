@@ -59,7 +59,7 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
       await hide.evaluate(el=>{el.textContent='.invoice-page *{color:rgb(255,0,255)!important;-webkit-text-fill-color:rgb(255,0,255)!important;text-shadow:none!important}';});
       mask=(await (capture?capture(index,'mask'):captureSheet(sheet,'mask'))).toString('base64');
     } finally {await hide.evaluate(el=>el.remove());}
-    results.push(await page.evaluate(async({background,mask,original,reference,texts,media})=>{
+    results.push(await page.evaluate(async({background,mask,original,reference,texts,media,fromPdf})=>{
       async function pixels(data,blur=0){const im=new Image();im.src='data:image/png;base64,'+data;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');if(blur)x.filter=`blur(${blur}px)`;x.drawImage(im,0,0);return {data:x.getImageData(0,0,c.width,c.height).data,width:c.width,height:c.height};}
       const [bg,m,actual,ref]=await Promise.all([pixels(background),pixels(mask),pixels(original),pixels(reference)]);
       // Compare raster artwork after symmetric mild low-pass filtering. The
@@ -82,7 +82,8 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
           // PDF rasterization can displace a small letter by one device pixel
           // relative to the browser's glyph mask. Search only adjacent pixels;
           // keep the original 85%-of-reference ink-strength requirement.
-          for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+          if(!fromPdf) paintedPeak=Math.max(paintedPeak,contrast([actual.data[i],actual.data[i+1],actual.data[i+2]],paper));
+          else for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
             const px=x+dx,py=y+dy;
             if(px<0||py<0||px>=actual.width||py>=actual.height)continue;
             const at=(py*actual.width+px)*4;
@@ -125,7 +126,7 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
 
       }
       return {minimum,samples,failures};
-    },{background,mask,original,reference,texts,media}));
+    },{background,mask,original,reference,texts,media,fromPdf:Boolean(capture)}));
   }
   await page.evaluate(saved=>{[...document.querySelectorAll('.qa-shell,.qa-stage,.qa-stage .invoice-pages')].forEach((el,i)=>{if(saved[i]===null)el.removeAttribute('style');else el.setAttribute('style',saved[i]);});},inline);
   await zoom.evaluate(el=>el.remove());
