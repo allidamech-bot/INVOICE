@@ -132,7 +132,7 @@ export function financialReadoutFromToolRows(value:unknown,language:'ar'|'en'):F
   fact(intro,l('Due date','تاريخ الاستحقاق'),doc.dueDate);
   const totals=ro(doc.totals),facts:FinancialFact[]=[];
   if(totals&&doc.truncated!==true){
-   const labels=[['subtotal','Subtotal','الإجمالي قبل الرسوم'],['discount','Discount','الخصم'],
+   const labels:[string,string,string][]=[['subtotal','Subtotal','الإجمالي قبل الرسوم'],['discount','Discount','الخصم'],
     ['shipping','Shipping','الشحن'],['otherCharges','Other charges','رسوم إضافية'],
     ['tax','Tax','الضريبة'],['grandTotal','Grand total','الإجمالي النهائي']];
    for(const [key,en,arabic] of labels)fact(facts,l(en,arabic),totals[key],doc.currency);
