@@ -99,7 +99,10 @@ test('v152 preserves document-language isolation for every app/document language
 });
 
 test('v152 gives bilingual English and Arabic titles equivalent perceived weight',async()=>{
-  const css=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css,/\.invoice-page\.lang-bilingual \.doc-title>em\{font-size:20px;line-height:1\.18;font-style:normal;font-weight:800/);
-  assert.match(css,/\.invoice-page\.lang-bilingual\.template-minimal \.doc-title>em,[\s\S]*font-size:22px/);
+const css=await read('src/styles/document-premium-redesign-v141.css');
+ assert.match(css,/\.doc-title>span\{[^}]*font-size:calc\(var\(--title-size\)/);
+ assert.match(css,/\.doc-title>em\{[^}]*font-size:calc\(19px\*var\(--lrx-title-scale,1\)\)/);
+ assert.match(css,/\.doc-title>em\{[^}]*font-weight:600/);
+ assert.match(css,/\.doc-title>\.doc-title-primary-ar\{[^}]*font-family:var\(--font-arabic\)/);
+ assert.match(css,/\.invoice-page\.lang-bilingual/);
 });
