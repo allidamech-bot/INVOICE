@@ -65,7 +65,8 @@ test('messages persist line breaks and bounded typed snapshots in encrypted loca
 test('compiled tool payload transports typed evidence without extracting it from message text',()=>{
  const source=readFileSync('dist/src/components/AiCopilot.js','utf8');
  assert.match(source,/__lourexFinancialReadout: financialReadoutFromToolRows\(toolResult/);
- assert.match(source,/financialReadout: financialReadout/);
+ assert.match(source,/const financialReadout\s*=\s*normalizeFinancialReadout/);
+ assert.match(source,/text:\s*answer,\s*\.\.\.\(financialReadout/);
  const workspace=readFileSync('dist/src/components/AiConversationWorkspace.js','utf8');
  assert.match(workspace,/normalizeFinancialReadout\(originalMessage\?\.financialReadout\)\s*\|\|\s*parseFinancialReadout/);
  const cloud=readFileSync('dist/src/cloud/assistant-history.js','utf8');
