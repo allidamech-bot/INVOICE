@@ -1,4 +1,4 @@
-name: LOUREX Customer Settlement Parity
+name: LOUREX Customer and Supplier Settlement Parity
 
 on:
   pull_request:
@@ -7,6 +7,9 @@ on:
       - 'src/lib/ai-business.ts'
       - 'src/lib/payments.ts'
       - 'src/lib/receivables.ts'
+      - 'src/lib/payables.ts'
+      - 'src/storage/vault-merge.ts'
+      - 'tests/audit-supplier-payment-void-merge.test.mjs'
       - 'tests/ai-business-consistency-v450.test.mjs'
       - '.github/workflows/lourex-customer-settlement-parity.yml'
   workflow_dispatch:
@@ -36,10 +39,13 @@ jobs:
         run: npm run typecheck
       - name: Production build without deployment
         run: npm run build
-      - name: Customer payment chronology and accounting parity
+      - name: Customer and supplier payment chronology and accounting parity
         run: |
           node --test --test-concurrency=2 \
             tests/ai-business-consistency-v450.test.mjs \
             tests/receivables-v133.test.mjs \
             tests/accounting-chronology-v258.test.mjs \
-            tests/ai-operational-customer-collection.test.mjs
+            tests/ai-operational-customer-collection.test.mjs \
+            tests/audit-supplier-payment-void-merge.test.mjs \
+            tests/audit-supplier-payables-asof.test.mjs \
+            tests/accounts-payable-batch9.test.mjs

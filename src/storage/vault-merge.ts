@@ -1,6 +1,6 @@
 import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
-import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isNonNegativeDecimalInput } from '../lib/money.js';
+import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isFinancialDecimalInput, isNonNegativeDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { assertSupplierPaymentInvariant } from '../lib/payables.js';
@@ -604,6 +604,13 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Recorded payments are append-only: only a one-time void transition is legal.
   // A merge must never quietly erase historical payments or rewrite settled amounts.
   if(intended.supplierPayments!==base.supplierPayments){
+    // Direct imports, AI and offline merges must obey the same NEW-entry grammar.
+    // Preserve immutable legacy payments exactly as stored: no migration or revaluation.
+    const originalIds=new Set(base.supplierPayments.map(row=>row.id));
+    for(const payment of intended.supplierPayments){
+      if(!originalIds.has(payment.id)&&!isFinancialDecimalInput(payment.amount))
+        throw new Error('New supplier payment amount has invalid monetary grouping.');
+    }
     const intendedById=new Map(intended.supplierPayments.map(row=>[row.id,row]));
     for(const original of base.supplierPayments){
       const next=intendedById.get(original.id);
