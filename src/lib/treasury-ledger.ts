@@ -95,7 +95,7 @@ export function appendTreasuryEntry(vault:VaultPayload,entry:TreasuryLedgerRecor
       const payment=vault.supplierPayments.find(item=>item.id===entry.sourceId)!;
       const purchase=vault.purchases.find(item=>item.id===payment.purchaseId);
       if(!purchase||!inScope(purchase))fail('The payment purchase is unavailable.','مستند شراء الدفعة غير متاح.');
-      normalizeSupplierPayment(purchase,vault.suppliers.find(item=>item.id===payment.supplierId)??null,vault.supplierPayments,payment);
+      normalizeSupplierPayment(purchase,vault.suppliers.find(item=>item.id===payment.supplierId)??null,vault.supplierPayments,payment,'stored-record');
     }
   }
   return{...vault,treasuryEntries:[...vault.treasuryEntries,entry]};
