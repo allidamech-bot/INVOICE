@@ -20,7 +20,7 @@ test('PDF stamp overlay keeps the contained artwork aspect ratio and bottom alig
 
 test('PDF logo overlay is required and preserves the contained artwork rectangle',async()=>{
   const source=await readFile('public/ios-print-bridge.js','utf8');
-  assert.match(source,/SHARP_MEDIA_SELECTOR = '[^']*\\.doc-logo img'/,'logo must be a sharp overlay, not only compressed JPEG');
+  assert.match(source,/SHARP_MEDIA_SELECTOR = '[^']*\.doc-logo img'/,'logo must be a sharp overlay, not only compressed JPEG');
   const start=source.indexOf('  const collectSharpMedia =');
   const end=source.indexOf('  const addSharpMedia =',start);
   const visibility=[];
