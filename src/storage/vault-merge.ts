@@ -551,6 +551,38 @@ function guardAllocatedPaymentChanges<T extends {id:string}>(
   }
 }
 
+// Treasury movements are an audit ledger, not mutable form records. The Cash &
+// Bank screen corrects an entry by voiding it, preserving its original details.
+// Enforce that same contract for direct, offline and concurrently merged writes.
+function guardTreasuryEntryHistory(
+  base:VaultPayload['treasuryEntries'],
+  intended:VaultPayload['treasuryEntries'],
+  latest:VaultPayload['treasuryEntries']
+):void{
+  const intendedById=new Map(intended.map(entry=>[entry.id,entry]));
+  const latestById=new Map(latest.map(entry=>[entry.id,entry]));
+  for(const original of base){
+    const wanted=intendedById.get(original.id);
+    const remote=latestById.get(original.id);
+    if(!wanted||!remote)throw new Error('Treasury entry history cannot be deleted. Void the entry instead.');
+    for(const next of [wanted,remote]){
+      if(sameRecord(original,next))continue;
+      const immutable=(entry:typeof original)=>{
+        const {voidedAt:_voidedAt,voidReason:_voidReason,updatedAt:_updatedAt,...record}=entry;
+        return record;
+      };
+      if(!sameRecord(immutable(original),immutable(next)))
+        throw new Error('Recorded treasury entry is immutable. Void it and post a corrected entry.');
+      if(original.voidedAt||!next.voidedAt||!next.voidReason?.trim()||
+        !isIsoDate(next.voidedAt.slice(0,10))||
+        !Number.isFinite(Date.parse(next.voidedAt))||
+        (original.createdAt&&next.voidedAt<original.createdAt)||
+        next.updatedAt!==next.voidedAt)
+        throw new Error('Treasury entry history permits only a valid one-time void.');
+    }
+  }
+}
+
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
@@ -562,6 +594,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const treasuryAccounts=mergeRecords(base.treasuryAccounts,intended.treasuryAccounts,latest.treasuryAccounts);
   for(const account of treasuryAccounts)assertTreasuryAccount(account);
   guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before saving this entry.');
+  guardTreasuryEntryHistory(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
   if(intended.treasuryEntries!==base.treasuryEntries){
     const existingIds=new Set(base.treasuryEntries.map(entry=>entry.id));
