@@ -4,6 +4,7 @@ import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createSupplier,createPurchase,createPurchaseItem} from '../dist/src/lib/operations.js';
 import {createSupplierPayment,normalizeSupplierPayment,voidSupplierPayment,purchasePayableSummary} from '../dist/src/lib/payables.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
+import {appendTreasuryEntry,createTreasuryAccount,createTreasuryEntry} from '../dist/src/lib/treasury-ledger.js';
 
 function fixture(){
   const base=emptyVault();
@@ -65,4 +66,14 @@ test('unchanged legacy supplier settlements keep their historical amount and acc
   assert.equal(merged.supplierPayments[0].amount,'1,2.00');
   assert.equal(purchasePayableSummary(merged.purchases[0],merged.supplierPayments).paid,'12.00');
   assert.equal(JSON.stringify(legacy),baseline,'no repair rewrites the legacy record');
+  const scope=legacy.appSettings;
+  const account=createTreasuryAccount({label:'Legacy Supplier Cash',kind:'cash',currency:'USD',
+    workspaceId:scope.activeWorkspaceId,branchId:scope.activeBranchId});
+  const treasury=createTreasuryEntry('supplier-payment','USD');
+  const allocated=appendTreasuryEntry({...legacy,treasuryAccounts:[account]},
+    {...treasury,workspaceId:scope.activeWorkspaceId,branchId:scope.activeBranchId,
+      amount:'12.00',fromAccountId:account.id,sourceType:'supplier-payment',
+      sourceId:legacy.supplierPayments[0].id});
+  assert.equal(allocated.treasuryEntries.length,1,'historical settlement can still be allocated to cash/bank');
+  assert.equal(allocated.supplierPayments[0].amount,'1,2.00','treasury linking never rewrites source payment');
 });
