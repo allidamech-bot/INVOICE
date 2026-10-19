@@ -598,8 +598,12 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
   if(intended.treasuryEntries!==base.treasuryEntries){
     const existingIds=new Set(base.treasuryEntries.map(entry=>entry.id));
+    const newIds=new Set<string>();
     for(const entry of intended.treasuryEntries){
-      if(!existingIds.has(entry.id)&&!isFinancialDecimalInput(entry.amount))
+      if(existingIds.has(entry.id))continue;
+      if(newIds.has(entry.id))throw new Error('New treasury entry IDs must be unique.');
+      newIds.add(entry.id);
+      if(!isFinancialDecimalInput(entry.amount))
         throw new Error('New treasury amount has invalid monetary grouping.');
     }
   }
@@ -690,15 +694,15 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
-  // A normal Cash & Bank allocation uses appendTreasuryEntry as its financial
-  // authority. Run that SAME guard for newly merged linked entries as well, or
-  // offline/import/AI mutations could forge an amount or allocate one receipt
-  // twice. Existing historical entries remain untouched and grandfathered.
+  // All newly posted active treasury entries share the same cash/bank authority
+  // as the UI, including manual deposits, withdrawals and transfers. This keeps
+  // account activity, workspace and reconciliation checks at the save boundary.
+  // Existing ledger entries and previously saved voids remain grandfathered.
   if(intended.treasuryEntries!==base.treasuryEntries){
     const storedIds=new Set([...base.treasuryEntries,...latest.treasuryEntries].map(entry=>entry.id));
-    const checked=treasuryEntries.filter(entry=>storedIds.has(entry.id)||entry.sourceType==='manual'||Boolean(entry.voidedAt));
+    const checked=treasuryEntries.filter(entry=>storedIds.has(entry.id)||Boolean(entry.voidedAt));
     for(const entry of treasuryEntries){
-      if(storedIds.has(entry.id)||entry.sourceType==='manual'||entry.voidedAt)continue;
+      if(storedIds.has(entry.id)||entry.voidedAt)continue;
       appendTreasuryEntry({
         ...latest,documents,payments,supplierPayments,purchases,suppliers,treasuryAccounts,
         treasuryEntries:checked
