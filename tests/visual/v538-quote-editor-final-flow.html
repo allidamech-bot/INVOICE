@@ -19,16 +19,21 @@
     import {blankCustomer} from './src/components/CustomersPage.js';
     import {setUiLanguage} from './src/lib/i18n.js';
     import {calculateTotals} from './src/lib/money.js';
+    import {ReceivablesPage} from './src/components/ReceivablesPage.js';
 
     const params=new URLSearchParams(location.search),language=params.get('lang')==='ar'?'ar':'en';
     setUiLanguage(language);
     document.documentElement.lang=language;document.documentElement.dir=language==='ar'?'rtl':'ltr';
     let company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
     const customer={...blankCustomer(),id:'customer-v538',companyNameEn:'Lifecycle Customer',companyNameAr:'عميل دورة الحياة',city:'Istanbul',country:'Türkiye'};
-    let documentValue=createBlankDocument(params.get('kind')==='invoice'?'invoice':'proforma','PI-2026-0538',company);
+    const requested=params.get('kind')||'proforma';
+    const supported=['proforma','invoice','proforma-invoice','delivery-note','rfq','purchase-order','payment-receipt'];
+    const kind=supported.includes(requested)?requested:requested==='credit-note'||requested==='statement-account'?'invoice':'proforma';
+    let documentValue=createBlankDocument(kind,'PI-2026-0538',company);
     documentValue={...documentValue,issueDate:'2026-10-05',dueDate:'2026-11-04',language:'en',customerSnapshot:customerSnapshotFrom(customer)};
     documentValue.items=[{...documentValue.items[0],descriptionEn:'Lifecycle stability line',quantity:'2',unit:'PCS',unitPrice:'15.00'}];
     documentValue.adjustments={...documentValue.adjustments,taxEnabled:true,taxPercent:'15'};
+    if(requested==='credit-note')Object.assign(documentValue,{role:'credit-note',creditForId:'source-invoice',creditForNumber:'INV-2026-SOURCE'});
 
     window.saveAttempts=0;
     window.saveEvents=[];
@@ -75,7 +80,12 @@
           portal.remove();
         }
       };
-      ReactDOM.render(React.createElement(EditorPage,props),document.getElementById('qa-app'));
+      if(requested==='statement-account'){
+        const invoice={...documentValue,status:'final',lifecycleStatus:'active'};
+        window.print=()=>{window.printEvents.push({mode:'statement'});window.dispatchEvent(new Event('afterprint'));};
+        ReactDOM.render(React.createElement(ReceivablesPage,{...props,documents:[invoice],onSavePayment:asyncNoop,onDeletePayment:asyncNoop}),document.getElementById('qa-app'));
+        window.dispatchEvent(new CustomEvent('lourex-finance-statement-open',{detail:{customerId:customer.id}}));
+      }else ReactDOM.render(React.createElement(EditorPage,props),document.getElementById('qa-app'));
     };
 
     render();

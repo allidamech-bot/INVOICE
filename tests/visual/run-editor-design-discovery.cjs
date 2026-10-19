@@ -12,12 +12,30 @@ const root=path.resolve(__dirname,'../..');
    if(!file.startsWith(root+path.sep))return route.fulfill({status:403,body:''});
    try{await route.fulfill({body:await fs.readFile(file),contentType:({'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2'})[path.extname(file)]||'application/octet-stream'});}catch{return route.fulfill({status:404,body:''});}
   });
-  for(const kind of (process.env.LOUREX_EDITOR_KINDS||'proforma,invoice,draft').split(','))for(const lang of ['en','ar'])for(const width of [390,1280]){
+  const {BUSINESS_DOCUMENT_CATALOG,documentBankAllowed}=await import(path.join(root,'dist/src/lib/document-kinds.js'));
+  const kinds=process.env.LOUREX_EDITOR_KINDS?process.env.LOUREX_EDITOR_KINDS.split(','):BUSINESS_DOCUMENT_CATALOG.map(entry=>entry.kind);
+  for(const kind of kinds)for(const lang of ['en','ar'])for(const width of [390,1280]){
    await page.setViewportSize({width,height:900});
    const fixture=kind==='draft'?'obsidian-draft-editor.html':'v538-quote-editor-final-flow.html';
    await page.goto('http://lourex.test/tests/visual/'+fixture+'?'+new URLSearchParams({kind,lang}));
+   if(kind==='statement-account'){
+    const toolbar=page.locator('.statement-output-toolbar');await toolbar.waitFor({timeout:10000});
+    assert.equal(await page.locator('.editor-discovery-card').count(),0,'statement has its own output workflow');
+    assert.equal(await page.locator('.customer-statement-print .statement-output-toolbar').count(),0,'output controls stay outside printable statement');
+    const bounds=await toolbar.boundingBox();assert.ok(bounds&&bounds.width>0&&bounds.width<=width,'statement action fits viewport');
+    await toolbar.locator('button').click();await page.waitForFunction(()=>window.printEvents.length===1);
+    await page.emulateMedia({media:'print'});assert.equal(await toolbar.isVisible(),false,'statement actions are excluded from print');await page.emulateMedia({media:'screen'});
+    if(lang==='ar'&&width===390){const output=process.env.LOUREX_EDITOR_QA_OUTPUT||'/tmp/lourex-editor-design';await fs.mkdir(output,{recursive:true});await toolbar.screenshot({path:output+'/statement-output.png'});}
+    assert.equal(errors.length,0,errors.join('\n'));cases++;continue;
+   }
    const cards=page.locator('.editor-discovery-card');await cards.first().waitFor({timeout:10000});
    assert.equal(await cards.count(),2,`${kind}: template and appearance cards`);
+   if(kind!=='draft'){
+    const bankAllowed=documentBankAllowed(kind==='credit-note'?'invoice':kind,kind==='credit-note'?'credit-note':'standard');
+    assert.equal(await page.locator('.editor-document-elements-bank select').count(),bankAllowed?1:0,`${kind}: bank controls follow document capabilities`);
+    if(!bankAllowed)assert.doesNotMatch(await page.locator('.editor-document-elements-heading small').innerText(),/bank account|الحساب البنكي/i,'approval hint must match document');
+    if(kind==='credit-note')assert.equal(await page.getByRole('button',{name:/Default invoice template|Set as invoice default|القالب الافتراضي للفاتورة|تعيين كافتراضي للفاتورة/}).count(),0,'credit note must not offer an invoice default');
+   }
    for(let i=0;i<2;i++){
     const card=cards.nth(i),summary=card.locator(':scope > summary');
     const valid=await summary.evaluate(el=>{
@@ -43,6 +61,6 @@ const root=path.resolve(__dirname,'../..');
    }
    assert.equal(errors.length,0,errors.join('\n'));cases++;
   }
-  console.log(`${cases} editor discovery cases passed (quote, invoice, draft; Arabic/English; mobile/desktop).`);
+  console.log(`${cases} important-document discovery cases passed (Arabic/English; mobile/desktop).`);
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1783,9 +1783,17 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-head,
 /* Identity: AI-only decorative symbol; never replaces the official logo. */
 .lourex-ai-launcher .lxw-brand-glyph,
 #lourex-ai-panel .lxw-brand-glyph{display:block;overflow:visible;flex:none}
-.lourex-ai-launcher .lxw-brand-orbit,
-#lourex-ai-panel .lxw-brand-orbit{transform-origin:20px 20px;animation:lxw-orbit 9s ease-in-out infinite}
-@keyframes lxw-orbit{0%,100%{transform:rotate(0deg)}50%{transform:rotate(180deg)}}
+/* The same lightweight companion is used inside and outside the conversation. */
+.lxw-robot-head{transform-origin:20px 22px;animation:lxw-robot-float 4.8s ease-in-out infinite;}
+.lxw-robot-gaze{animation:lxw-robot-look 6s ease-in-out infinite;}
+.lxw-robot-eyes{transform-origin:20px 21px;animation:lxw-robot-blink 5.4s linear infinite;}
+@keyframes lxw-robot-float{0%,100%{transform:translateY(1px) rotate(-3deg);}50%{transform:translateY(-1.5px) rotate(3deg);}}
+@keyframes lxw-robot-look{0%,18%,100%{transform:translate(0,0);}28%,42%{transform:translate(1.7px,-.6px);}60%,76%{transform:translate(-1.7px,.7px);}}
+@keyframes lxw-robot-blink{0%,43%,47%,100%{transform:scaleY(1);}45%{transform:scaleY(.12);}}
+@media(prefers-reduced-motion:reduce){
+  :is(.lourex-ai-launcher,#lourex-ai-panel) :is(.lxw-robot-head,.lxw-robot-gaze,.lxw-robot-eyes){animation:none!important;}
+}
+:is(.lourex-ai-launcher,#lourex-ai-panel)[data-ai-motion='reduced'] :is(.lxw-robot-head,.lxw-robot-gaze,.lxw-robot-eyes){animation:none!important;}
 .lourex-ai-launcher:has(.lxw-brand-glyph){
   background:#152B27!important;color:#DAF0EA!important;
   border:1px solid #476A5F!important;border-radius:17px!important;
@@ -1796,7 +1804,6 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-head,
 .lourex-ai-launcher:has(.lxw-brand-glyph) .lxw-brand-glyph{width:27px;height:27px}
 .lourex-ai-launcher .lxw-launcher-art{position:relative;display:grid;place-items:center;flex:none;width:32px;height:32px;pointer-events:none}
 .lourex-ai-launcher .lxw-launcher-art .lxw-brand-glyph{width:30px;height:30px}
-.lourex-ai-launcher .lxw-launcher-art .lxw-brand-glyph>circle:last-child{display:none}
 .lourex-ai-launcher .lxw-launcher-letters{position:absolute;inset:0;display:grid;place-items:center;color:currentColor;font:750 10px/1.15 "Outfit",Inter,system-ui,sans-serif;letter-spacing:-.025em}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head{
   flex:0 0 auto!important;min-height:62px!important;
