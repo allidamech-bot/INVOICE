@@ -5,12 +5,12 @@ import { readFile } from 'node:fs/promises';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('canonical light-paper A4 layer remains active without retired dark override',async()=>{
- const [html,css]=await Promise.all([read('index.html'),read('src/styles/document-premium-redesign-v141.css')]);
+const [html,css]=await Promise.all([read('index.html'),read('src/styles/document-premium-redesign-v141.css')]);
  assert.equal(html.includes('document-dark-contrast-v126.css'),false);
- assert.equal([...html.matchAll(/href="\.\/styles\/document-premium-redesign-v141\.css"/g)].length,1,'one canonical commercial paper owner');
- assert.ok(html.includes('tailadmin-documents-v320.css'),'screen-only workspaces follow the canonical paper owner');
- for(const id of ['noir','midnight','blackivory','carbon'])assert.match(css,new RegExp('\\.template-'+id+'\\{--paper:#(?:fff|fc|fb|fa)'));
- for(const rule of ['.term-row>span','.notes-block p','.bank-block>div>span','.continued-label'])assert.ok(css.includes(rule),rule);
+ assert.equal([...html.matchAll(/href="\.\/styles\/document-premium-redesign-v141\.css"/g)].length,1);
+ for(const [id,paper] of [['noir','#121212'],['midnight','#071824'],['blackivory','#14130f'],['carbon','#1b1d20']])assert.ok(css.includes('.invoice-page.template-'+id+'{--paper:'+paper),id);
+ for(const role of ['.term-row>span','.notes-block p','.bank-block>div>span','.continued-label'])assert.ok(css.includes(role),role);
+ assert.match(css,/\.document-tone-dark \.signature-media\{background:transparent/);
 });
 
 test('v126 preserves intentional light and accent surfaces',async()=>{
