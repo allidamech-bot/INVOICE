@@ -5,13 +5,12 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 
 test('historical v120 art direction is retired from runtime in favor of one canonical layer',async()=>{
-  const [html,css]=await Promise.all([
-    read('index.html'),
-    read('src/styles/document-premium-redesign-v141.css')
-  ]);
-  assert.doesNotMatch(html,/document-art-direction-v120\.css/);
-  assert.match(html,/document-premium-redesign-v141\.css/);
-  assert.match(css,/canonical A4 layer/);
+const [html,css]=await Promise.all([read('index.html'),read('src/styles/document-premium-redesign-v141.css')]);
+ assert.doesNotMatch(html,/document-art-direction-v120\.css/);
+ assert.match(html,/document-premium-redesign-v141\.css/);
+ assert.match(css,/Canonical commercial A4 design/);
+ for(const rule of ['.document-masthead{','.items-table th{','.doc-footer{'])assert.ok(css.includes(rule),rule);
+ assert.match(css,/@page\{size:A4;margin:0\}/);
 });
 
 test('v120 creates customer-first hierarchy and a deliberate commercial closing zone',async()=>{

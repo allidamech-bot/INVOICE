@@ -26,19 +26,13 @@ test('canonical recovery removes the historical document cascade from runtime',a
 });
 
 test('production bundle keeps one canonical A4 layer and only one standalone v337 runtime owner',async()=>{
-  const [bundle,distHtml,recovery]=await Promise.all([
-    read('dist/styles/app.bundle.css'),
-    read('dist/index.html'),
-    read('dist/styles/v331-draft-scroll-recovery.css')
-  ]);
-  assert.match(bundle,/\/\* --- document-premium-redesign-v141\.css --- \*\//);
-  for(const name of designLayers.filter(name=>!name.startsWith('mobile-document-actions')))assert.equal(bundle.indexOf(`/* --- ${name} --- */`),-1);
-  assert.deepEqual(localStyles(distHtml),['app.bundle.css','v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css','v482-mobile-ux-repair.css']);
-  assert.match(distHtml,/v331-draft-scroll-recovery\.css\?v=365-1/);
-  assert.match(distHtml,/data-lourex-v331-draft-recovery="true"/);
-  for(const dependency of ['v333-critical-documents-visual-functional-closeout.css','v337-template-layout-balance.css'])assert.ok(recovery.includes(`/* document dependency: ${dependency} */`),`flattened production recovery must contain ${dependency}`);
-  assert.match(recovery,/\.invoice-page \.final-details/);
-  assert.doesNotMatch(distHtml,/@import url\("\.\/styles\//);
+const [bundle,html,rec]=await Promise.all([read('dist/styles/app.bundle.css'),read('dist/index.html'),read('dist/styles/v331-draft-scroll-recovery.css')]);
+ assert.match(bundle,/\/\* --- document-premium-redesign-v141\.css --- \*\//);
+ for(const name of designLayers.filter(x=>!x.startsWith('mobile-document-actions')))assert.equal(bundle.includes('/* --- '+name+' --- */'),false,name);
+ assert.deepEqual(localStyles(html),['app.bundle.css','v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css','v482-mobile-ux-repair.css']);
+ assert.doesNotMatch(rec,/@import\b/);
+ for(const name of ['v333-critical-documents-visual-functional-closeout.css','v337-template-layout-balance.css'])assert.ok(rec.includes('/* document dependency: '+name+' */'),name);
+ assert.equal(rec.includes('document dependency: v364-document-template-layout-refinement.css'),false);
 });
 
 test('v139 offline source cache retains every recovered design layer after later cache upgrades',async()=>{

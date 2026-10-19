@@ -60,40 +60,27 @@ test('v591 final build owner contains the same native-control and layer contract
 
 
 test('v591 Executive table header cannot inherit low-contrast accent foreground',async()=>{
-  const [css,bundle]=await Promise.all([
-    read('src/styles/v485-visible-ui-corrections.css'),
-    read('scripts/v485-bundle-visible-ui.mjs')
-  ]);
-  for(const source of [css,bundle]){
-    assert.match(source,/\.invoice-page\.template-executive \.items-table thead th\{[\s\S]*background:#102d41!important;[\s\S]*color:#fff!important;[\s\S]*-webkit-text-fill-color:#fff!important/);
-  }
+const css=await read('src/styles/document-premium-redesign-v141.css');
+ assert.match(css,/\.invoice-page\.template-executive\{--table-head:#202445/);
+ assert.match(css,/\.items-table th\{[^}]*background:var\(--table-head\);color:var\(--table-ink\)/);
+ assert.match(css,/--table-ink:#fff/);
+ assert.doesNotMatch(css,/\.template-executive \.items-table th\{[^}]*color:var\(--accent\)/);
 });
 
 
 test('v591 Trade table header keeps readable inverse text',async()=>{
-  const [css,bundle]=await Promise.all([
-    read('src/styles/v485-visible-ui-corrections.css'),
-    read('scripts/v485-bundle-visible-ui.mjs')
-  ]);
-  for(const source of [css,bundle]){
-    assert.match(source,/\.invoice-page\.template-trade \.items-table thead th\{[\s\S]*background:#16384d!important;[\s\S]*color:#fff!important/);
-  }
+const css=await read('src/styles/document-premium-redesign-v141.css');
+ assert.match(css,/\.invoice-page\.template-trade\{--table-head:#1374ae/);
+ assert.match(css,/\.items-table th\{[^}]*background:var\(--table-head\);color:var\(--table-ink\)/);
+ assert.match(css,/--table-ink:#fff/);
 });
 
 
 test('v591 remaining template heading and totals surfaces keep explicit readable ink',async()=>{
-  const [css,bundle]=await Promise.all([
-    read('src/styles/v485-visible-ui-corrections.css'),
-    read('scripts/v485-bundle-visible-ui.mjs')
-  ]);
-  for(const source of [css,bundle]){
-    assert.match(source,/\.template-signature \.items-table thead th\{[\s\S]*background:#f4efe6!important[\s\S]*color:#28343c!important/);
-    for(const [template,bg] of [['cobalt','#173f5e'],['split','#102a3c'],['slate','#304852'],['aurora','#24574f'],['ledger','#263b49']]){
-      assert.ok(source.includes(`.invoice-page.template-${template} .items-table thead th{`),template);
-      assert.ok(source.includes(`background:${bg}!important`),`${template} background`);
-    }
-    assert.match(source,/\.invoice-page\.template-horizon \.items-table thead th\{[\s\S]*background:#174d61!important[\s\S]*color:#fff!important[\s\S]*-webkit-text-fill-color:#fff!important/);
-    assert.match(source,/\.invoice-page\.template-noir \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f4efe6!important/);
-    assert.match(source,/\.invoice-page\.template-blackivory \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f5efe2!important/);
-  }
+const css=await read('src/styles/document-premium-redesign-v141.css');
+ for(const name of ['signature','cobalt','split','slate','aurora','ledger','horizon','noir','blackivory'])assert.ok(css.includes('.invoice-page.template-'+name),name);
+ assert.match(css,/\.invoice-page\.template-signature\{[^}]*--table-head:#39543d/);
+ assert.match(css,/\.invoice-page\.template-horizon \.items-table th\{background:transparent;color:#15374b/);
+ assert.match(css,/\.invoice-page\.template-blackivory\{[^}]*--table-ink:#201c18/);
+ assert.match(css,/\.grand-total\{[^}]*background:var\(--accent\);color:var\(--accent-ink\)/);
 });

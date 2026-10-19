@@ -14,7 +14,10 @@ const unsafeColors=params.get('unsafeColors')==='true';
 const scale=mode==='mobile'?.48:mode==='tablet'?.72:mode==='print'?1:.82;
 
 const svg=(markup)=>`data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
-const logo=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72"><rect width="240" height="72" fill="#0a263b"/><path d="M20 18h10v27h29v9H20z" fill="#c19b59"/><text x="72" y="47" font-family="Arial" font-size="27" font-weight="700" letter-spacing="4" fill="white">LOUREX</text></svg>`);
+const fullWordmark=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72"><rect width="240" height="72" fill="#0a263b"/><path d="M20 18h10v27h29v9H20z" fill="#c19b59"/><text x="72" y="47" font-family="Arial" font-size="27" font-weight="700" letter-spacing="4" fill="white">LOUREX</text></svg>`);
+const symbolOnlyLogo=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M25 20h22v59h48v21H25z" fill="#202445"/></svg>`);
+const lightOnlyLogo=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M25 20h22v59h48v21H25z" fill="#f3f1e9"/></svg>`);
+const logo=params.get('logo')==='symbol'?symbolOnlyLogo:params.get('logo')==='symbol-light'?lightOnlyLogo:fullWordmark;
 const signature=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100"><path d="M15 70c35-64 28 33 58-14 24-37 22 40 52-5 17-25 20 24 52-4 20-18 31 5 82-18" fill="none" stroke="#162838" stroke-width="5" stroke-linecap="round"/><path d="M38 83h205" stroke="#a98148" stroke-width="2"/></svg>`);
 const stamp=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150"><circle cx="75" cy="75" r="61" fill="none" stroke="#8d2f35" stroke-width="7"/><circle cx="75" cy="75" r="46" fill="none" stroke="#8d2f35" stroke-width="2"/><text x="75" y="70" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700" fill="#8d2f35">LOUREX</text><text x="75" y="92" text-anchor="middle" font-family="Arial" font-size="10" fill="#8d2f35">AUTHORIZED</text></svg>`);
 
@@ -43,6 +46,12 @@ const documentData={
   appearance:{templateId:template,paletteMode:palette,accentColor:palette==='custom'?'#315f7b':'#b08a4b',headingTextColor,primaryTextColor,secondaryTextColor,textScale:'normal',documentTitleScale:textScale,sectionHeadingScale:textScale,bodyTextScale:textScale,tableTextScale:textScale,latinFont:customFonts?'montserrat':'inter',arabicFont:customFonts?'cairo':'auto',showBank:true,showSignature:true,showStamp:true,showHsCode:true,showOrigin:true,showPacking:true},
   notes:'Please reference the document number on all correspondence. Certificates of origin, inspection records, and final packing lists will accompany the shipping documents.',convertedFromId:'',createdAt:'2026-09-03T09:00:00.000Z',updatedAt:'2026-09-03T09:00:00.000Z'
 };
+
+// The symbol-only asset exercises the real company-name fallback; the regular
+// wide asset already contains LOUREX text and must not get a duplicate label.
+if(['symbol','symbol-light'].includes(params.get('logo'))){
+  Object.assign(documentData.companySnapshot,{nameEn:'LOUREX',nameAr:'لوريكس'});
+}
 
 // A representative quotation alongside the existing deliberately dense stress fixture.
 if(params.get('profile')==='showcase'){

@@ -6,14 +6,15 @@ const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
 test('canonical commercial A4 owner replaces retired layout cascade without losing print safety',async()=>{
- const [html,build,css,sw]=await Promise.all([read('index.html'),read('scripts/build.mjs'),read('src/styles/document-premium-redesign-v141.css'),read('public/sw.js')]);
+const [html,build,css,sw]=await Promise.all([read('index.html'),read('scripts/build.mjs'),read('src/styles/document-premium-redesign-v141.css'),read('public/sw.js')]);
  assert.equal(html.includes('document-layout-cleanup-v140.css'),false);
- assert.equal(html.split('href="./styles/document-premium-redesign-v141.css"').length-1,1,'exactly one canonical A4 owner');
- assert.ok(html.indexOf('document-premium-redesign-v141.css')<html.indexOf('tailadmin-documents-v320.css'),'commercial print foundation precedes screen-only owners');
+ assert.equal(html.split('href="./styles/document-premium-redesign-v141.css"').length-1,1);
+ assert.ok(html.indexOf('document-premium-redesign-v141.css')<html.indexOf('tailadmin-documents-v320.css'));
  assert.match(build,/app\.bundle\.css/);
- assert.match(css,/canonical A4 layer/);
+ assert.match(css,/Canonical commercial A4 design/);
  assert.match(css,/@page\{size:A4;margin:0\}/);
- assert.ok(sw.includes('"./styles/document-premium-redesign-v141.css"'),'offline commercial-paper asset preserved');
+ assert.match(css,/\.invoice-page\{[^}]*width:210mm;height:297mm/);
+ assert.ok(sw.includes('"./styles/document-premium-redesign-v141.css"'));
 });
 
 test('v140 removes the large dead gap and normalizes the closing zone',async()=>{

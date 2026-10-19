@@ -27,12 +27,18 @@
 .template-artwork-rail{z-index:0}
 .invoice-page>header,.invoice-page>.doc-body,.invoice-page>.doc-footer{position:relative;z-index:2}
 .header-graphic{flex:none;position:relative;isolation:isolate}
-.document-masthead{position:relative;isolation:isolate;min-height:34mm;padding:8mm 12mm 9mm;display:grid;grid-template-columns:37mm minmax(0,1fr);gap:12mm;align-items:center;color:var(--art-ink)}
+.document-masthead{position:relative;isolation:isolate;min-height:34mm;padding:8mm 12mm 9mm;display:grid;grid-template-columns:minmax(0,58mm) minmax(0,1fr);gap:7mm;align-items:center;color:var(--art-ink)}
 .masthead-brand,.masthead-title{min-width:0;position:relative;z-index:1}
 .masthead-title{text-align:end}.masthead-title .doc-title{align-items:flex-end}
-.doc-logo{display:flex;align-items:center;width:36mm;max-width:100%;min-height:10mm}
-.invoice-page .doc-logo img{display:block;width:auto;height:auto;max-width:100%;max-height:18mm;object-fit:contain;object-position:center}
-.doc-brand-name{font-size:13px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
+/* One shared identity region for all 18 designs; no white backing or new art layer. */
+.doc-logo{display:flex;align-items:center;gap:2.5mm;width:100%;max-width:58mm;min-height:12mm}
+.invoice-page .doc-logo img{display:block;width:auto;height:auto;max-width:100%;max-height:18mm;object-fit:contain;object-position:center;flex-shrink:1}
+.invoice-page .masthead-brand .doc-logo[data-logo-layout="symbol"] img{max-width:15mm;max-height:15mm;flex:0 0 auto;filter:drop-shadow(.65px 0 0 var(--art-ink)) drop-shadow(-.65px 0 0 var(--art-ink)) drop-shadow(0 .65px 0 var(--art-ink)) drop-shadow(0 -.65px 0 var(--art-ink))}
+.doc-logo-wordmark{flex:1;min-width:0;font-size:12px;line-height:1.3;font-weight:750;color:var(--art-ink);overflow-wrap:anywhere;word-break:normal}
+.doc-logo-wordmark .bi-value{gap:.4mm}.doc-logo-wordmark .bi-value>.bidi-ar{font-size:.95em}
+.invoice-page .doc-logo[data-logo-layout="wordmark"] .doc-logo-wordmark{display:none}
+.invoice-page .doc-logo[data-logo-layout="wordmark"] img{max-width:100%}
+.doc-brand-name{font-size:14px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
 .doc-title{display:flex;flex-direction:column;gap:1.5mm;color:inherit}
 .doc-title>span{font-size:calc(var(--title-size)*var(--lrx-title-scale,1));line-height:1.18;font-weight:var(--title-weight);letter-spacing:.035em;color:inherit;text-wrap:balance;font-family:Georgia,"Times New Roman",serif}
 .doc-title>em{font-size:calc(19px*var(--lrx-title-scale,1));line-height:1.35;font-style:normal;font-weight:600;letter-spacing:0;color:inherit}
@@ -42,7 +48,7 @@
 .header-details{margin:3mm 12mm 0;padding:2mm 0 0}
 .doc-meta{display:grid;grid-template-columns:1.25fr 1fr 1fr .65fr;gap:3mm 5mm}
 .doc-meta>div{display:flex;flex-direction:column;gap:1.1mm;padding:1.5mm 0 0;border-top:1px solid var(--rule);min-width:0}
-.doc-meta b{font-size:8px;line-height:1.4;font-weight:500;letter-spacing:.035em;color:var(--muted)}
+.doc-meta b{font-size:9px;line-height:1.4;font-weight:500;letter-spacing:.035em;color:var(--muted)}
 .doc-meta>div>span{font-size:10px;line-height:1.45;font-weight:650;color:var(--ink);overflow-wrap:anywhere}
 .continuation-header{padding:6mm 12mm 4mm;display:flex;align-items:center;justify-content:space-between;gap:8mm;border-bottom:1px solid var(--rule);min-height:22mm}
 .continuation-company{display:flex;align-items:center;gap:3mm;min-width:0}.continuation-company .doc-logo{width:19mm;min-height:0}.continuation-company .doc-logo img{max-height:9mm}.continuation-company>strong{font-size:9px;line-height:1.4;font-weight:650;max-width:76mm;overflow-wrap:anywhere}
@@ -52,12 +58,12 @@
 .doc-body{display:flex;flex:1;min-height:0;flex-direction:column;padding:4mm 12mm 5mm}
 .party-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10mm;margin:0 0 5mm;align-items:start}
 .party-block{padding:0 0 3mm;border-bottom:1px solid var(--rule);overflow-wrap:anywhere;color:var(--ink)}
-.section-kicker{margin:0 0 2mm;font-size:8px;line-height:1.4;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lrx-heading,var(--ink))}
+.section-kicker{margin:0 0 2mm;font-size:9px;line-height:1.4;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lrx-heading,var(--ink))}
 .party-name{margin:0 0 1.7mm;font-size:13px;line-height:1.45;font-weight:700;color:inherit}
 .party-address,.party-location,.party-contact{color:var(--muted);line-height:1.55;font-weight:400}.party-contact{margin-top:1mm;font-size:.9em;overflow-wrap:anywhere}
 .party-identifiers{display:grid;gap:1mm;margin-top:2mm;padding-top:2mm;border-top:1px solid var(--rule)}
 .party-identifiers>div{display:grid;grid-template-columns:minmax(20mm,auto) minmax(0,1fr);gap:3mm;align-items:baseline}
-.party-identifiers b{font-size:8px;line-height:1.4;color:var(--muted);font-weight:500}.party-identifiers span{font-size:9px;font-weight:500;overflow-wrap:anywhere}
+.party-identifiers b{font-size:9px;line-height:1.4;color:var(--muted);font-weight:500}.party-identifiers span{font-size:9px;font-weight:500;overflow-wrap:anywhere}
 .items-wrap{width:100%}.continued-label{margin:0 0 2mm;font-size:9px;font-weight:600;color:var(--muted)}
 .items-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
 .items-table col.col-index{width:6mm}.items-table col.col-hs{width:16mm}.items-table col.col-origin{width:15mm}.items-table col.col-packing{width:17mm}.items-table col.col-qty{width:11mm}.items-table col.col-unit{width:12mm}.items-table col.col-price{width:22mm}.items-table col.col-total{width:25mm}
@@ -102,7 +108,7 @@
 .bank-block>div[data-bank="iban"]>span,.bank-block>div[data-bank="swift-/-bic"]>span{font-family:var(--font-latin,Inter,Arial,sans-serif);font-size:9px;letter-spacing:.025em;font-weight:500;direction:ltr;unicode-bidi:isolate}
 .signature-media{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;gap:4mm;min-height:22mm;padding:1mm 0 0}.signature-media img{display:block;width:100%;height:21mm;object-fit:contain;object-position:center bottom;background:transparent}.signing-artwork{display:block;min-width:0;height:23mm}.signature-media .signing-artwork img{width:100%;height:23mm;object-fit:contain}.signing-artwork:only-child{grid-column:1/-1;width:36mm;max-width:100%;justify-self:center}
 .document-tone-dark .signature-media{background:transparent;padding:0;border:0}.invoice-page .signature-image{filter:none;mix-blend-mode:normal}
-.doc-footer{position:relative;isolation:isolate;min-height:20mm;flex:none;margin:0;padding:11mm 12mm 3mm;display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;border:0;font-size:8px;line-height:1.5;font-weight:400;color:var(--footer-ink)}
+.doc-footer{position:relative;isolation:isolate;min-height:20mm;flex:none;margin:0;padding:11mm 12mm 3mm;display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;border:0;font-size:9px;line-height:1.5;font-weight:400;color:var(--footer-ink)}
 .doc-footer>span:first-of-type{min-width:0;max-width:152mm;overflow-wrap:anywhere}.doc-footer>span:last-child{flex:none;font-size:8px;font-weight:600;white-space:nowrap}
 
 
@@ -137,7 +143,7 @@
 
 /* 06 Cobalt: a blue wave folded under a navy circular crown. */
 .invoice-page.template-cobalt{--table-head:#165da8;--soft:#eef5fb}
-.invoice-page.template-cobalt .document-masthead{grid-template-columns:minmax(0,1fr) 37mm;grid-template-areas:"title brand";padding-bottom:12mm}
+.invoice-page.template-cobalt .document-masthead{grid-template-columns:minmax(0,1fr) minmax(0,58mm);grid-template-areas:"title brand";padding-bottom:12mm}
 .invoice-page.template-cobalt .masthead-brand{grid-area:brand}.invoice-page.template-cobalt .masthead-title{grid-area:title;text-align:start}
 .invoice-page.template-cobalt .items-table th:first-child{border-start-start-radius:2mm}.invoice-page.template-cobalt .items-table th:last-child{border-start-end-radius:2mm}
 .invoice-page.template-cobalt .masthead-title .doc-title{align-items:flex-start}
@@ -151,7 +157,7 @@
 
 /* 08 Split: indigo round cutouts with warm orange discs and a curved total. */
 .invoice-page.template-split{--table-head:#28295b;--soft:#f3f2fa}
-.invoice-page.template-split .document-masthead{grid-template-columns:37mm minmax(0,1fr);padding-top:10mm;padding-bottom:12mm}
+.invoice-page.template-split .document-masthead{grid-template-columns:minmax(0,58mm) minmax(0,1fr);padding-top:10mm;padding-bottom:12mm}
 .invoice-page.template-split .masthead-title{padding-inline-start:20mm}
 .invoice-page.template-split .grand-total{border-radius:5mm}
 .invoice-page.template-split .items-table th:first-child{border-start-start-radius:5mm}.invoice-page.template-split .items-table th:last-child{border-start-end-radius:5mm}
@@ -167,7 +173,7 @@
 
 /* 10 Slate: an airy aqua side panel with a crisp black information grid. */
 .invoice-page.template-slate{--table-head:#28525f;--soft:#edf4f5}
-.invoice-page.template-slate .document-masthead{grid-template-columns:minmax(0,1fr) 33mm;grid-template-areas:"title brand";padding-inline-end:31mm}
+.invoice-page.template-slate .document-masthead{grid-template-columns:minmax(0,1fr) minmax(0,58mm);grid-template-areas:"title brand";padding-inline-end:31mm}
 .invoice-page.template-slate .masthead-title{grid-area:title;text-align:start}.invoice-page.template-slate .masthead-brand{grid-area:brand}
 .invoice-page.template-slate .header-details{margin-inline-end:27mm}
 .invoice-page.template-slate .doc-body{padding-inline-end:27mm}
@@ -190,7 +196,7 @@
 
 /* 13 Aurora: two teal waves enclose an open, fresh white working surface. */
 .invoice-page.template-aurora{--paper:#fdfbf6;--table-head:#08736f;--soft:#edf5f1}
-.invoice-page.template-aurora .document-masthead{grid-template-columns:minmax(0,1fr) 37mm;grid-template-areas:"title brand";padding-bottom:12mm}
+.invoice-page.template-aurora .document-masthead{grid-template-columns:minmax(0,1fr) minmax(0,58mm);grid-template-areas:"title brand";padding-bottom:12mm}
 .invoice-page.template-aurora .masthead-title{grid-area:title;text-align:start}.invoice-page.template-aurora .masthead-brand{grid-area:brand}
 .invoice-page.template-aurora .masthead-title .doc-title{align-items:flex-start}
 .invoice-page.template-aurora .grand-total{border-radius:0 5mm 0 5mm}

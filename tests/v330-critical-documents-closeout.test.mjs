@@ -67,33 +67,23 @@ test('v330 keeps the complete Create Center direct and mobile reachable', async 
   assert.match(css, /\.ta-create-menu-mobile\.new-doc-menu[\s\S]*?max-height:min\(72dvh,680px\)!important[\s\S]*?overflow-y:auto!important/);
 });
 
-test('v330 template gallery gives every document template its own art direction', async () => {
-  const [selector,css] = await Promise.all([
-    read('src/templates/TemplateThumbnails.tsx'),
-    read('src/styles/v330-critical-documents-closeout.css')
-  ]);
-  assert.match(selector, /template-preview-glow/);
-  assert.match(selector, /template-mock-brand/);
-  assert.match(selector, /template-mock-footer/);
-  assert.match(selector, /aria-pressed=\{selected\}/);
-  for (const id of TEMPLATE_IDS) {
-    assert.match(selector, new RegExp(`id: '${id}'`), `selector must keep template ${id}`);
-    assert.match(css, new RegExp(`\\.template-preview-${id}(?:\\{|:)`), `preview art direction missing for ${id}`);
-    assert.match(css, new RegExp(`\\.template-${id}(?:\\s|\\{|\\.)`), `print identity finish missing for ${id}`);
-  }
+test('v330 template gallery gives every document template its own art direction',async()=>{
+const [selector,artwork,paper]=await Promise.all([read('src/templates/TemplateThumbnails.tsx'),read('src/templates/TemplateArtwork.tsx'),read('src/styles/document-premium-redesign-v141.css')]);
+ assert.match(selector,/TemplateArtwork/);
+ assert.match(selector,/templateArtPalette/);
+ assert.match(selector,/aria-pressed=\{selected\}/);
+ for(const id of TEMPLATE_IDS){
+  assert.ok(selector.includes("id: '"+id+"'"),'selector missing '+id);
+  assert.ok(artwork.includes(id+':{'),'SVG palette missing '+id);
+  assert.ok(paper.includes('.invoice-page.template-'+id),'canonical print layout missing '+id);
+ }
 });
 
-test('v330 printable finish remains data and pagination neutral', async () => {
-  const [css,guard] = await Promise.all([
-    read('src/styles/v330-critical-documents-closeout.css'),
-    read('src/styles/v330-template-contrast-guard.css')
-  ]);
-  const marker = css.indexOf('/* Printable templates');
-  assert.ok(marker >= 0);
-  const printable = css.slice(marker);
-  assert.doesNotMatch(printable, /@page|page-break|break-(?:before|after|inside)|\.invoice-page\s*\{[^}]*?(?:width|height|padding|margin)\s*:/i);
-  assert.doesNotMatch(css + guard, /firebase|indexedDB|saveVault|calculateTotals|window\.location/i);
-  const paper=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(paper,/\.template-obsidian\{--paper:#fff/);
-  assert.ok(!guard.includes('.template-obsidian{--paper:'),'A4 paper remains in canonical stylesheet');
+test('v330 printable finish remains data and pagination neutral',async()=>{
+const [gallery,guard,paper]=await Promise.all([read('src/styles/v330-critical-documents-closeout.css'),read('src/styles/v330-template-contrast-guard.css'),read('src/styles/document-premium-redesign-v141.css')]);
+ assert.match(paper,/\.invoice-page\.template-obsidian\{--paper:#15191c/);
+ assert.match(paper,/\.doc-footer\{/);
+ assert.match(paper,/\.final-details\{[^}]*margin-top:0/);
+ assert.doesNotMatch(guard,/\.invoice-page\.template-obsidian\{--paper:/);
+ assert.doesNotMatch(gallery+guard,/firebase|indexedDB|saveVault|calculateTotals|window\.location/i);
 });

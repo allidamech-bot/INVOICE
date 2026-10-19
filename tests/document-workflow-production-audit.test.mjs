@@ -34,21 +34,12 @@ test('legacy draft with no bankAccountId re-links an unchanged saved bank snapsh
 });
 
 test('one oversized item is counted as multi-page and split only in document output',async()=>{
-  const vault=emptyVault();
-  const doc=createBlankDocument('invoice','INV-2026-0202',vault.company);
-  doc.language='en';
-  doc.items[0]={...doc.items[0],descriptionEn:'Very long commercial specification '.repeat(140),quantity:'3',unit:'Carton',unitPrice:'25.00'};
-  assert.ok(estimatedDocumentPageCount(doc)>1);
-
-  const renderer=await readFile('src/templates/TemplateRenderer.tsx','utf8');
-  assert.match(renderer,/const OUTPUT_FRAGMENT_WEIGHT=2/);
-  assert.match(renderer,/function outputItemFragments/);
-  assert.match(renderer,/if\(itemWeight\(doc,item\)<=OUTPUT_FRAGMENT_WEIGHT\)return\[item\]/);
-  assert.match(renderer,/quantity:index===0\?item\.quantity:''/);
-  assert.match(renderer,/unitPrice:index===0\?item\.unitPrice:''/);
-  assert.match(renderer,/const fragments=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
-  assert.match(renderer,/paginateItems\(fragments,false,firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
-  assert.match(renderer,/continuation\?'':documentPriceOptional\(doc\.kind\)\?'—':lineTotal\(item\.quantity,item\.unitPrice\)/);
-  assert.match(renderer,/className=\{continuation\?'item-continuation-row':undefined\}/);
-  assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
+const vault=emptyVault();
+ const doc=createBlankDocument('invoice','INV-2026-0202',vault.company);
+ doc.language='en';
+ doc.items[0]={...doc.items[0],descriptionEn:'Very long commercial specification '.repeat(140),quantity:'3',unit:'Carton',unitPrice:'25.00'};
+ assert.ok(estimatedDocumentPageCount(doc)>1);
+ const renderer=await readFile('src/templates/TemplateRenderer.tsx','utf8');
+ for(const token of ['const OUTPUT_FRAGMENT_WEIGHT=2','function outputItemFragments','quantity:index===0?item.quantity','unitPrice:index===0?item.unitPrice','const fragments=doc.items.flatMap(item=>outputItemFragments(doc,item))','paginateItems(fragments,false,10,doc.language,item=>itemWeight(doc,item))','calculateTotals(doc.items, doc.adjustments)'])assert.ok(renderer.includes(token),token);
+ assert.match(renderer,/className=\{continuation\?'item-continuation-row':undefined\}/);
 });

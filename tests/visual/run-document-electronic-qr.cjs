@@ -35,15 +35,32 @@ const out='visual-qa-output/document-electronic-qr';mkdirSync(out,{recursive:tru
    assert.match(text,/QR-QA-001/);assert.ok(text.includes(count===2?'500.00':'9,500.00'),'PDF accounting total');
    assert.ok(pdf.includes(Buffer.from('/URI')),'PDF electronic link annotation');assert.deepEqual(errors,[]);
    if(count===2){
+    // QR lives in the document's normal closing flow. Crop from its measured
+    // position rather than assuming it is always within the last 420 pixels.
+    const qrRegion=await p.locator('.lx-document-qr img').evaluate(img=>{
+      const page=img.closest('.invoice-page'),rect=page.getBoundingClientRect(),qr=img.getBoundingClientRect();
+      return {x:(qr.left-rect.left)/rect.width,y:(qr.top-rect.top)/rect.height,
+        width:qr.width/rect.width,height:qr.height/rect.height};
+    });
     await p.emulateMedia({media:'screen'});
     const encoded=await p.evaluate(async()=>{const file=await window.__LOUREX_BUILD_CHAT_PDF__(document.querySelector('.print-portal'),'QR-export');return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(file);});});
     const exported=Buffer.from(encoded,'base64'),target=`${out}/export-${key}.pdf`;writeFileSync(target,exported);
     assert.ok(exported.includes(Buffer.from('/URI')),'iPhone PDF bridge keeps clickable electronic link');
     const ppm=execFileSync('pdftoppm',['-singlefile','-r','150',target],{maxBuffer:20000000});
     const header=ppm.subarray(0,100).toString('ascii').match(/^P6\s+(\d+)\s+(\d+)\s+255\s/);assert.ok(header,'PDF raster should be PPM');
-    const w=Number(header[1]),h=Number(header[2]),crop=Math.min(420,h),rgba=new Uint8ClampedArray(w*crop*4);const offset=header[0].length+(h-crop)*w*3;
-    for(let at=0;at<w*crop;at++){rgba[at*4]=ppm[offset+at*3];rgba[at*4+1]=ppm[offset+at*3+1];rgba[at*4+2]=ppm[offset+at*3+2];rgba[at*4+3]=255;}
-    assert.equal(jsQR(rgba,w,crop)?.data,expected,'QR must decode from actual exported PDF pixels');
+    const w=Number(header[1]),h=Number(header[2]),margin=.018;
+    const x0=Math.max(0,Math.floor((qrRegion.x-margin)*w));
+    const y0=Math.max(0,Math.floor((qrRegion.y-margin)*h));
+    const x1=Math.min(w,Math.ceil((qrRegion.x+qrRegion.width+margin)*w));
+    const y1=Math.min(h,Math.ceil((qrRegion.y+qrRegion.height+margin)*h));
+    const cw=x1-x0,ch=y1-y0;
+    assert.ok(cw>15&&ch>15,'measured exported QR region must have printable area');
+    const rgba=new Uint8ClampedArray(cw*ch*4),offset=header[0].length;
+    for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
+      const source=offset+((y+y0)*w+(x+x0))*3,dest=(y*cw+x)*4;
+      rgba[dest]=ppm[source];rgba[dest+1]=ppm[source+1];rgba[dest+2]=ppm[source+2];rgba[dest+3]=255;
+    }
+    assert.equal(jsQR(rgba,cw,ch)?.data,expected,'QR must decode from actual exported PDF pixels');
    }
    await p.screenshot({path:`${out}/${key}.png`,fullPage:true});
   }

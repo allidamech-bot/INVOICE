@@ -123,10 +123,23 @@ function outputItemFragments(doc:LourexDocument,item:DocumentItem):DocumentItem[
   }));
 }
 
+// Company logos are stored as images without separate wordmark metadata.
+// A landscape artwork usually already includes its name; a compact mark needs a
+// readable name beside it. Classify only after the image reports intrinsic size
+// so imported logos are never modified or re-encoded.
+function resolveLogoLayout(event: { currentTarget: HTMLImageElement }): void {
+  const image=event.currentTarget;
+  const parent=image.parentElement;
+  if(!parent?.classList.contains('doc-logo')||!image.naturalHeight)return;
+  parent.dataset.logoLayout=image.naturalWidth/image.naturalHeight>=2.35?'wordmark':'symbol';
+}
 function LogoBlock({ document: doc, inverse = false, fallback = true }: { document: LourexDocument; inverse?: boolean; fallback?: boolean }): any {
   const src = doc.companySnapshot.logoDataUrl;
   if (!src || src.includes('lourex-logo.svg')) return fallback?<div className="doc-brand-name">{companyName(doc)}</div>:null;
-  return <div className={`doc-logo ${inverse ? 'inverse' : ''}`}><img src={src} alt={doc.companySnapshot.nameEn || doc.companySnapshot.nameAr || 'Company logo'} /></div>;
+  return <div className={`doc-logo ${inverse ? 'inverse' : ''}`} data-logo-layout="symbol">
+    <img src={src} alt="" onLoad={resolveLogoLayout} />
+    {fallback?<span className="doc-logo-wordmark">{companyName(doc)}</span>:null}
+  </div>;
 }
 function DocumentTitle({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
   const title=documentKindTitle(doc.kind,doc.role);
