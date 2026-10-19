@@ -86,9 +86,9 @@ test('both application and document-editor output gates preserve stored-final co
   const {readFile}=await import('node:fs/promises');
   const app=await readFile('src/app/App.tsx','utf8');
   const editor=await readFile('src/components/EditorPageCore.tsx','utf8');
-  assert.match(app,/private requestPrint=async[\\s\\S]*?validateStoredFinalForOutput\\(doc,vault\\.documents\\.find/);
-  assert.match(editor,/private validateCurrent=\\(\\):boolean=>\\{\\s*const errors=validateStoredFinalForOutput\\(this\\.state\\.doc/);
-  assert.match(editor,/private save=async\\(auto=false\\)=>\\{[\\s\\S]*?const errors=validateDocument\\(snapshot\\)/,'document saving still has strict validation');
+  assert.match(app,/private requestPrint=async[\s\S]*?validateStoredFinalForOutput\(doc,vault\.documents\.find/);
+  assert.match(editor,/private validateCurrent=\(\):boolean=>\{\s*const errors=validateStoredFinalForOutput\(this\.state\.doc/);
+  assert.match(editor,/private save=async\(auto=false\)=>\{[\s\S]*?const errors=validateDocument\(snapshot\)/,'document saving still has strict validation');
 });
 
 test('valid international grouping preserves totals and existing decimal-comma policy',()=>{
