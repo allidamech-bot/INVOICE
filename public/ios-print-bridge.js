@@ -351,7 +351,7 @@
       const rect = image.getBoundingClientRect();
       // currentSrc can remain the original SVG when a cloned image's src is
       // replaced during PDF preparation. Embed the exact generated contour.
-      const src = image.dataset.lourexPdfPreparedSrc || image.currentSrc || image.src || '';
+      const src = image.dataset?.lourexPdfPreparedSrc || image.currentSrc || image.src || '';
       if (!src || rect.width <= 0 || rect.height <= 0) return null;
       // CSS object-fit describes the visible artwork, not the element's box.
       // Embedding the full box stretched circular stamps and signatures in PDF.
