@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
-import {createManualInventoryMovement,reverseManualInventoryMovement} from '../dist/src/lib/operations.js';
+import {createManualInventoryMovement,reverseManualInventoryMovement,createPurchase,createPurchaseItem,createSupplier,postPurchase} from '../dist/src/lib/operations.js';
 import {postIssuedInvoiceStock,assertInvoiceStockLedgerContinuity} from '../dist/src/lib/invoice-stock.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
@@ -92,6 +92,27 @@ test('unchanged historical four-decimal stock movement remains readable after le
  assert.equal(JSON.stringify(stored),before);
  assert.equal(replay.vault,stored,'read-only compatibility must not rewrite the ledger');
  assert.equal(balance(stored),'2.9999');
+});
+
+test('tracked purchases, manual inventory and warehouse transfers reject silently rounded quantities',()=>{
+ const {vault,item}=fixture('5');
+ const before=JSON.stringify(vault);
+ const supplier=createSupplier();supplier.nameEn='Precision supplier';
+ const purchase=createPurchase([], [supplier], 'USD');
+ purchase.items=[{...createPurchaseItem(item),quantity:'2.00009',unitCost:'1.00'}];
+ assert.throws(()=>postPurchase(purchase,[item],[]),/tracked stock quantity cannot exceed four decimal places/);
+ assert.throws(()=>createManualInventoryMovement(item,'opening','1.00009'),/four decimal places/);
+ const warehouse=defaultWarehouseId(vault.appSettings.activeBranchId);
+ assert.throws(()=>createWarehouseTransfer(item,warehouse,'another-warehouse','1.00009'),/four decimal places/);
+ assert.equal(JSON.stringify(vault),before,'rejected movement attempts do not change the source vault');
+
+ purchase.items[0].quantity='2.0001';
+ const received=postPurchase(purchase,[item],[]);
+ assert.equal(received.movements[0].quantity,'2.0001');
+ const manual=createManualInventoryMovement(item,'opening','1.0001');
+ assert.equal(manual.quantity,'1.0001');
+ const transferred=createWarehouseTransfer(item,warehouse,'another-warehouse','1.0001');
+ assert.equal(transferred.quantity,'1.0001');
 });
 
 test('explicit non-stock services do not debit stock and repeated printing remains financially independent',()=>{

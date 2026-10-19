@@ -1,5 +1,5 @@
 import type { BranchRecord, InventoryMovementRecord, SavedItem, WarehouseRecord } from '../types.js';
-import { decimalToScaled, isDecimalInput } from './money.js';
+import { decimalToScaled, isExactStockQuantityInput } from './money.js';
 import { makeId, todayIso } from './id.js';
 import { inventoryMovementAccountingIsValid } from './operations.js';
 
@@ -45,7 +45,7 @@ export function warehouseItemQuantity(itemId:string,warehouseId:string,movements
 
 export function createWarehouseTransfer(item:SavedItem,fromWarehouseId:string,toWarehouseId:string,quantity:string,date=todayIso(),note=''):InventoryMovementRecord{
   if(!fromWarehouseId||!toWarehouseId||fromWarehouseId===toWarehouseId)throw new Error('Choose different source and destination locations.');
-  if(!isDecimalInput(quantity)||scaled(quantity)<=0n)throw new Error('Transfer quantity must be greater than zero.');
+  if(!isExactStockQuantityInput(quantity)||scaled(quantity)<=0n)throw new Error('Transfer quantity must be greater than zero and use at most four decimal places.');
   const now=new Date().toISOString();
   return{id:makeId('stock'),itemId:item.id,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,sku:item.sku||'',date,type:'transfer',quantity:fixed(scaled(quantity)),unitCost:item.lastUnitCost||'',currency:item.lastCostCurrency||'',sourceId:'',sourceNumber:'',note:note.trim(),fromWarehouseId,toWarehouseId,createdAt:now};
 }

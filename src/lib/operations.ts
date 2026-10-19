@@ -1,6 +1,6 @@
 import type { ExpenseRecord, InventoryMovementRecord, InventoryMovementType, PurchaseRecord, SavedItem, Supplier, SupplierSnapshot } from '../types.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
-import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from './money.js';
+import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isNonNegativeDecimalInput } from './money.js';
 
 const QUANTITY_DECIMALS=4;
 const COST_DECIMALS=12;
@@ -165,6 +165,7 @@ export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=
   for(const [index,item] of purchase.items.entries()){
     if(!item.descriptionEn.trim()&&!item.descriptionAr.trim())errors.push(`Item ${index+1}: description is required.`);
     if(!positive(item.quantity))errors.push(`Item ${index+1}: quantity must be greater than zero.`);
+    else if(purchase.status==='draft'&&item.savedItemId&&!isExactStockQuantityInput(item.quantity))errors.push(`Item ${index+1}: tracked stock quantity cannot exceed four decimal places.`);
     if(!nonNegativeCost(item.unitCost))errors.push(`Item ${index+1}: unit cost must be zero or greater.`);
     if(item.savedItemId&&!savedItems.some(saved=>saved.id===item.savedItemId))errors.push(`Item ${index+1}: linked saved item no longer exists.`);
   }
@@ -238,7 +239,7 @@ export function expenseAccountingIsValid(expense:ExpenseRecord):boolean{return v
 
 export function createManualInventoryMovement(item:SavedItem,type:Extract<InventoryMovementType,'opening'|'issue'|'adjustment'>,quantity:string,date=todayIso(),note='',unitCost='',currency=''):InventoryMovementRecord{
   if(!isIsoDate(date))throw new Error('Movement date is invalid.');
-  if(!isDecimalInput(quantity)||decimalToScaled(quantity,4)===0n)throw new Error('Movement quantity cannot be zero.');
+  if(!isExactStockQuantityInput(quantity)||decimalToScaled(quantity,4)===0n)throw new Error('Movement quantity cannot be zero or exceed four decimal places.');
   const cost=unitCost.trim();
   if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Movement unit cost must be zero or greater.');
   let scaled=decimalToScaled(quantity,4);
