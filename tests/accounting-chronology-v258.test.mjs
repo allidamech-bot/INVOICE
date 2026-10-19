@@ -6,6 +6,7 @@ import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments, invoicePaymentSummary, normalizePaymentRecord } from '../dist/src/lib/payments.js';
 import { assertDocumentLifecycleInvariant, createCreditNoteDraft } from '../dist/src/lib/document-lifecycle.js';
 import { financialReportByCurrency } from '../dist/src/lib/reports.js';
+import {receivablesByCurrency, customerStatement} from '../dist/src/lib/receivables.js';
 
 function invoice(){
   const doc=createBlankDocument('invoice','INV-2026-2581',defaultCompany());
@@ -83,4 +84,28 @@ test('v258 payment UI constrains the picker to invoice issue date without bannin
   assert.match(source,/const date=this\.props\.document\.issueDate>today\?this\.props\.document\.issueDate:today/);
   assert.match(source,/type="date" min=\{doc\.issueDate\}/);
   assert.doesNotMatch(source,/max=\{todayIso\(\)\}/);
+});
+
+test('backdated customer payment entered later does not rewrite closed receivable statements and reports',()=>{
+  const doc=invoice();
+  const recordedLater={...payment(doc,{id:'recorded-later',date:'2026-05-20',amount:'300.00'}),
+    createdAt:'2026-07-20T12:00:00.000Z',updatedAt:'2026-07-20T12:00:00.000Z'};
+  const documents=[doc],payments=[recordedLater],before=JSON.stringify({documents,payments});
+  const cutoff='2026-05-31',current='2026-07-21';
+  assert.deepEqual(accountedInvoicePayments(doc,payments,cutoff),[]);
+  const historical=invoicePaymentSummary(doc,payments,cutoff,documents);
+  assert.equal(historical.paid,'0.00');
+  assert.equal(historical.remaining,'1000.00');
+  assert.equal(receivablesByCurrency(documents,payments,cutoff)[0].outstanding,'1000.00');
+  const customer=customerStatement('cust-258',documents,payments,cutoff)[0];
+  assert.equal(customer.entries.length,1,'historic statement must not include a late-entered payment');
+  assert.equal(customer.outstanding,'1000.00');
+  const report=financialReportByCurrency(documents,payments,'2026-05-01',cutoff)[0];
+  assert.equal(report.collected,'0.00','historic financial reporting must not pretend receipt was known then');
+  assert.equal(report.outstanding,'1000.00');
+  const now=invoicePaymentSummary(doc,payments,current,documents);
+  assert.equal(now.paid,'300.00');
+  assert.equal(now.remaining,'700.00');
+  assert.equal(receivablesByCurrency(documents,payments,current)[0].outstanding,'700.00');
+  assert.equal(JSON.stringify({documents,payments}),before,'the stored backdated receipt is immutable');
 });
