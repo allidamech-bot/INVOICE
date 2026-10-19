@@ -32,7 +32,13 @@ function boot(preference,systemDark=false,blocked=false){
   let observerCallback,domCallback,loading=true,disconnected=false;
   const root={dataset:{},style:{setProperty(name,value){this[name]=value;},removeProperty(name){delete this[name];}}};
   const meta={setAttribute(name,value){this[name]=value;}};
-  const mount={querySelector:()=>loading?{}:null};
+  // Model two distinct React-owned surfaces: disappearance of the temporary
+  // loading node does not prove readiness unless the replacement UI exists.
+  const mount={querySelector:selector=>{
+    if(selector.includes('.app-ui'))return loading?null:{};
+    if(selector.includes('.loading-screen'))return loading?{}:null;
+    return null;
+  }};
   // This theme-only fixture contains no deferred font link. Do not return the
   // generic loading sentinel as a fake <link> after startup font deferral.
   const document={documentElement:root,querySelector:selector=>selector.includes('data-lourex-deferred-fonts')?null:selector.includes('theme-color')?meta:loading?{}:null,getElementById:()=>mount,addEventListener:(_event,callback)=>{domCallback=callback;}};
