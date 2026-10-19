@@ -109,7 +109,14 @@ function restore(uid:string,row:CloudThread,local?:AssistantThread):AssistantThr
   // A conflicting mode cannot inherit old executable artifacts or approvals.
   return{...local,id:row.id,scope:row.scope,title:row.title,workspaceId:row.workspaceId,branchId:row.branchId,
     summary:row.summary,kernel,foundationReceipts:matching?local?.foundationReceipts||[]:[],
-    messages:row.messages,createdAt:row.createdAt,updatedAt:row.updatedAt};
+    // Keep existing device-local financial render snapshots only when the
+    // cloud identity, message text and thread scope still match exactly.
+    // Derived tool payloads NEVER enter Firestore (MESSAGE_FIELDS is unchanged).
+    messages:row.messages.map(message=>{
+      const localMessage=local?.messages.find(previous=>previous.id===message.id&&
+        previous.role===message.role&&previous.text===message.text);
+      return localMessage?.financialReadout?{...message,financialReadout:localMessage.financialReadout}:message;
+    }),createdAt:row.createdAt,updatedAt:row.updatedAt};
 }
 /** Compare persisted fields by value, not JSON object-key insertion order:
  * Firestore can return an equivalent map with a different property order. */
