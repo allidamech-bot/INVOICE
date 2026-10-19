@@ -30,7 +30,8 @@ const root=path.resolve(__dirname,'../..'),output='visual-qa-output/workspace-br
      const a=el.getAnimations({subtree:true}).find(a=>a.animationName==='lourex-workspace-sheen');
      if(!a)return null;a.pause();a.currentTime=0;const start=getComputedStyle(el,'::before').backgroundPosition;
      a.currentTime=4200;return{start,end:getComputedStyle(el,'::before').backgroundPosition};
-    });assert.ok(motion&&motion.start!==motion.end,'colored header streams actually travel across the card');
+    });assert.ok(motion&&motion.start!==motion.end,'colored header streams actually travel across the card: '+JSON.stringify(motion));
+    assert.match(await header.evaluate(el=>getComputedStyle(el,'::before').backgroundImage),/data:image\/svg\+xml/,'legacy header wash must not cover the flowing artwork');
     assert.equal(result.image,0,'introductions use brand colors without logo artwork');assert.equal(result.pointer,'none');assert.match(result.background,/gradient/);assert.equal(result.overflow,false);
     if(name==='webkit'&&width===390&&lang==='ar'&&theme==='dark')await header.screenshot({path:`${output}/${kind}-mobile.png`});
     cases++;
