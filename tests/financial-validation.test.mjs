@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, isFinancialDecimalInput, lineTotal, normalizeDecimalInput } from '../dist/src/lib/money.js';
-import { createBlankDocument, validateDocument } from '../dist/src/lib/documents.js';
+import { createBlankDocument, validateDocument, validateStoredFinalForOutput } from '../dist/src/lib/documents.js';
 import { customerSnapshotFrom, defaultCompany } from '../dist/src/lib/defaults.js';
 import { invoicePaymentSummary, normalizePaymentRecord } from '../dist/src/lib/payments.js';
 import { receivablesByCurrency, customerStatement } from '../dist/src/lib/receivables.js';
@@ -47,6 +47,48 @@ test('legacy malformed saved amounts retain their financial meaning without rewr
   const valid=normalizePaymentRecord(doc,[payment],{...payment,id:'new-payment',amount:'2.00'},[doc]);
   assert.equal(valid.amount,'2.00');
   assert.equal(invoicePaymentSummary(doc,[payment,valid],'2026-10-19',[doc]).remaining,'0.00');
+});
+
+
+test('persisted final output keeps historical money readable but never relaxes new or changed inputs',()=>{
+  const final=validDocument();
+  final.status='final';
+  final.issueDate='2026-01-01';
+  final.dueDate='2026-12-31';
+  final.items[0].unitPrice='1,2.00';
+  const stored=structuredClone(final);
+  const before=JSON.stringify({final,stored});
+  assert.ok(validateDocument(final)['item-0-price'],'new issuance stays strict even if status is final');
+  assert.deepEqual(validateStoredFinalForOutput(final,stored),{},'unaltered persisted final remains eligible for output');
+  assert.equal(calculateTotals(final.items,final.adjustments).grandTotal,'12.00');
+  assert.equal(JSON.stringify({final,stored}),before,'no historical value is rewritten');
+
+  const newFinal=structuredClone(final);
+  newFinal.id='another-document';
+  assert.ok(validateStoredFinalForOutput(newFinal,stored)['item-0-price'],'a different document cannot borrow output compatibility');
+  assert.ok(validateStoredFinalForOutput({...final,status:'draft'},stored)['item-0-price'],'drafts remain strict');
+  assert.ok(validateStoredFinalForOutput(final)['item-0-price'],'unsaved final remains strict');
+
+  const tampered=structuredClone(final);
+  tampered.items[0].unitPrice='1,3.00';
+  assert.ok(validateStoredFinalForOutput(tampered,stored)['item-0-price'],'changed money fields remain strict');
+  const changedCharges=structuredClone(final);
+  changedCharges.adjustments.shippingEnabled=true;
+  changedCharges.adjustments.shipping='1,3.00';
+  assert.ok(validateStoredFinalForOutput(changedCharges,stored).shipping,'changed adjustments remain strict');
+  const notNumeric=structuredClone(final);
+  notNumeric.items[0].unitPrice='NaN';
+  const persistedInvalid=structuredClone(notNumeric);
+  assert.ok(validateStoredFinalForOutput(notNumeric,persistedInvalid)['item-0-price'],'invalid historic values do not become valid money');
+});
+
+test('both application and document-editor output gates preserve stored-final compatibility',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const app=await readFile('src/app/App.tsx','utf8');
+  const editor=await readFile('src/components/EditorPageCore.tsx','utf8');
+  assert.match(app,/private requestPrint=async[\\s\\S]*?validateStoredFinalForOutput\\(doc,vault\\.documents\\.find/);
+  assert.match(editor,/private validateCurrent=\\(\\):boolean=>\\{\\s*const errors=validateStoredFinalForOutput\\(this\\.state\\.doc/);
+  assert.match(editor,/private save=async\\(auto=false\\)=>\\{[\\s\\S]*?const errors=validateDocument\\(snapshot\\)/,'document saving still has strict validation');
 });
 
 test('valid international grouping preserves totals and existing decimal-comma policy',()=>{
