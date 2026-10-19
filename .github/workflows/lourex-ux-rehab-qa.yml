@@ -127,6 +127,43 @@ jobs:
       - name: All accounting, inventory and UI Node regressions
         run: node --test --test-concurrency=2 tests/*.test.mjs
 
+  financial-readout-webkit:
+    name: Native AI financial readout · iPhone/iPad WebKit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build production UI without deployment
+        run: npm run build
+      - name: Install visual test browsers
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium webkit
+      - name: Verify typed source, collapsible items and Safari readability
+        run: |
+          npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/financial-readout.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/tests/visual/ai-financial-readout-20261019.html >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/visual/run-ai-financial-readout-20261019.cjs
+      - name: Attach readout screenshots and layout metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-typed-financial-readout-webkit
+          path: visual-qa-output/ai-financial-readout/
+          if-no-files-found: ignore
+          retention-days: 7
+
   picker-webkit:
     name: WebKit synthetic iPhone picker smoke
     needs: validate
