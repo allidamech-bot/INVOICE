@@ -330,8 +330,8 @@ async function start():Promise<void>{
   startupStage('account-storage-scoped');
   // V1 encrypted cloud is deliberately NOT hydrated for fresh V2 accounts.
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
-  startupStage('react-mounted');
   restoreWorkspaceAfterAutomaticReload();
+  startupStage('react-mounted');
   // Keep historical encrypted local records available for optional offline recovery.
   // iOS Safari stability mode: cloud saving remains available through App, but
   // the independent realtime freshness watcher is disabled to remove a second
