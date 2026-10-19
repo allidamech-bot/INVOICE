@@ -13,6 +13,7 @@ on:
       - 'tests/audit-supplier-payment-void-merge.test.mjs'
       - 'tests/treasury-accounts-hardening-v474.test.mjs'
       - 'tests/ai-business-consistency-v450.test.mjs'
+      - 'tests/financial-validation.test.mjs'
       - '.github/workflows/lourex-customer-settlement-parity.yml'
   workflow_dispatch:
 
@@ -47,6 +48,7 @@ jobs:
             tests/ai-business-consistency-v450.test.mjs \
             tests/receivables-v133.test.mjs \
             tests/accounting-chronology-v258.test.mjs \
+            tests/financial-validation.test.mjs \
             tests/ai-operational-customer-collection.test.mjs \
             tests/audit-supplier-payment-void-merge.test.mjs \
             tests/audit-supplier-payables-asof.test.mjs \

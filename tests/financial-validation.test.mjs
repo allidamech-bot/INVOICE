@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, isFinancialDecimalInput, lineTotal, normalizeDecimalInput } from '../dist/src/lib/money.js';
 import { createBlankDocument, validateDocument, validateStoredFinalForOutput } from '../dist/src/lib/documents.js';
-import { customerSnapshotFrom, defaultCompany } from '../dist/src/lib/defaults.js';
+import { customerSnapshotFrom, defaultCompany, emptyVault } from '../dist/src/lib/defaults.js';
+import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 import { getDocumentReadiness } from '../dist/src/lib/readiness.js';
 import { invoicePaymentSummary, normalizePaymentRecord } from '../dist/src/lib/payments.js';
 import { receivablesByCurrency, customerStatement } from '../dist/src/lib/receivables.js';
@@ -193,4 +194,32 @@ test('localized digits flow through discount shipping and tax totals without num
     {discountEnabled:true,discountMode:'percent',discountValue:'١٠',shippingEnabled:true,shipping:'٥',otherChargesEnabled:false,otherCharges:'٠',taxEnabled:true,taxPercent:'١٥'}
   );
   assert.deepEqual(totals,{subtotal:'20.00',discount:'2.00',shipping:'5.00',otherCharges:'0.00',tax:'3.45',grandTotal:'26.45'});
+});
+
+test('vault merge rejects malformed newly imported customer payments but keeps legacy invoices payable',()=>{
+  const invoice=validDocument();
+  invoice.status='final';invoice.role='standard';invoice.lifecycleStatus='active';
+  invoice.issueDate='2026-01-01';invoice.dueDate='2026-12-31';
+  invoice.items[0].unitPrice='100.00';invoice.items[0].stockTreatment='non-stock';
+  const empty={...emptyVault(),documents:[invoice]};
+  const payment={id:'new-import',invoiceId:invoice.id,invoiceNumber:invoice.number,
+    customerId:'c1',customerNameEn:'Buyer',customerNameAr:'',currency:'USD',
+    amount:'1,2.00',date:'2026-01-05',method:'bank-transfer',reference:'',notes:'',
+    createdAt:'2026-01-05T09:00:00.000Z',updatedAt:'2026-01-05T09:00:00.000Z'};
+  const original=JSON.stringify(empty);
+  for(const [i,amount] of ['1,2.00','0,1.00','١,٢.٠٠'].entries()){
+    const forged={...payment,id:'bad-'+i,amount};
+    assert.throws(()=>mergeVaultIntent(empty,{...empty,payments:[forged]},empty),/New customer payment amount|invalid monetary grouping/i,
+      'imports and external callers cannot bypass strict new payment input');
+    assert.equal(JSON.stringify(empty),original,'rejected payment cannot mutate source vault');
+  }
+  const valid={...payment,amount:'12.00'};
+  const saved=mergeVaultIntent(empty,{...empty,payments:[valid]},empty);
+  assert.equal(invoicePaymentSummary(invoice,saved.payments,'2026-10-19',[invoice]).paid,'12.00');
+  const legacy={...empty,payments:[{...payment,id:'legacy-payment',amount:'1,2.00'}]};
+  const before=JSON.stringify(legacy);
+  const preserved=mergeVaultIntent(legacy,legacy,legacy);
+  assert.equal(invoicePaymentSummary(invoice,preserved.payments,'2026-10-19',[invoice]).paid,'12.00');
+  assert.equal(preserved.payments[0].amount,'1,2.00');
+  assert.equal(JSON.stringify(legacy),before,'historical money and record IDs remain unchanged');
 });
