@@ -458,6 +458,18 @@ function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],m
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Purchase inventory unit cost must be zero or greater.');
   }
 }
+// Preserve every newly imported purchase/expense independently: generic mergeRecords
+// indexes by ID and otherwise silently keeps the last duplicate.
+function guardNewOperationalRecordIds<T extends {id:string}>(base:T[],intended:T[],label:string):void{
+  if(intended===base)return;
+  const existing=new Set(base.map(row=>row.id));
+  const seen=new Set<string>();
+  for(const row of intended){
+    if(existing.has(row.id))continue; // historical IDs are not migrated
+    if(!row.id||seen.has(row.id))throw new Error(`New ${label} IDs must be unique.`);
+    seen.add(row.id);
+  }
+}
 function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,suppliers:Supplier[],purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[]):void{
   guardConcurrentRecordChanges(base.suppliers,intended.suppliers,latest.suppliers,'Supplier');
   guardConcurrentRecordChanges(base.expenses,intended.expenses,latest.expenses,'Expense');
@@ -584,6 +596,8 @@ function guardAllocatedPaymentChanges<T extends {id:string}>(
 }
 
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
+  guardNewOperationalRecordIds(base.purchases,intended.purchases,'purchase');
+  guardNewOperationalRecordIds(base.expenses,intended.expenses,'expense');
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
   const suppliers=mergeRecords(base.suppliers,intended.suppliers,latest.suppliers);
