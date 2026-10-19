@@ -41,7 +41,7 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
         }
         for(const word of words){
           const range=document.createRange();range.setStart(node,word.index);range.setEnd(node,word.end);
-          for(const r of range.getClientRects())if(r.width&&r.height)out.push({text:word.text,ink:ink.slice(0,3),opacity,required:large?3:4.5,x:r.x-origin.x,y:r.y-origin.y,w:r.width,h:r.height});
+          for(const r of range.getClientRects())if(r.width&&r.height)out.push({text:word.text,ink:ink.slice(0,3),opacity,fontSize:parseFloat(css.fontSize),required:large?3:4.5,x:r.x-origin.x,y:r.y-origin.y,w:r.width,h:r.height});
         }
       }
       return out;
@@ -94,8 +94,14 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
         if(!count)failures.push({text:t.text,contrast:0,required:t.required,reason:'No rendered glyph coverage'});
         else {minimum=Math.min(minimum,worst);samples+=count;if(worst+.01<t.required)failures.push({text:t.text,contrast:worst,required:t.required});}
         // A one/two-character thin glyph has larger pixel-phase variation at 96 DPI.
-        const retainedStrength=[...t.text].length<=2?.6:.85;
-        if(count&&paintedPeak+.1<referencePeak*retainedStrength)failures.push({text:t.text,contrast:paintedPeak,required:t.required,referencePeak,reason:'Original PDF glyphs are missing or materially weaker than browser glyphs'});
+        // Small (sub-12px) glyphs are resampled from the 2x PDF canvas to
+        // physical 96 DPI with grayscale antialiasing, whereas the browser
+        // reference has stronger subpixel peaks. Preserve the 85% target for
+        // larger text; for small text require >=70% of reference AND the
+        // absolute WCAG text contrast, never accept erased or washed-out ink.
+        const retainedStrength=[...t.text].length<=2?.6:t.fontSize<12?.70:.85;
+        const needed=Math.max(t.required,referencePeak*retainedStrength);
+        if(count&&paintedPeak+.1<needed)failures.push({text:t.text,contrast:paintedPeak,required:t.required,referencePeak,reason:'Original PDF glyphs are missing or materially weaker than browser glyphs'});
       }
       for(const asset of media){let count=0,different=0;
         for(let y=Math.max(2,Math.ceil(asset.y));y<Math.min(actual.height-2,asset.y+asset.h);y+=2)for(let x=Math.max(2,Math.ceil(asset.x));x<Math.min(actual.width-2,asset.x+asset.w);x+=2){
