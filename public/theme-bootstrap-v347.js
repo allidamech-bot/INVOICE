@@ -59,7 +59,12 @@
       if(observer)observer.disconnect();
     };
     observer=new MutationObserver(restore);
-    observer.observe(mount,{childList:true});
+    // React can reuse the original #root child and update its className from
+    // loading-screen to the application shell without replacing a child node.
+    // Observe class transitions as well as child insertion/removal; otherwise
+    // data-lourex-booting remains true on live documents, forcing overflow:hidden.
+    // This observer disconnects as soon as the genuine loading screen leaves.
+    observer.observe(mount,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
     restore();
   },{once:true});
 })();
