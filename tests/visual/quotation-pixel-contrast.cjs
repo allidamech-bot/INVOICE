@@ -79,7 +79,15 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
           // The strongest original glyph pixels independently detect missing
           // or washed-out export ink. Edges are antialiased, so a minimum over
           // those pixels would incorrectly reject readable small typography.
-          paintedPeak=Math.max(paintedPeak,contrast([actual.data[i],actual.data[i+1],actual.data[i+2]],paper));
+          // PDF rasterization can displace a small letter by one device pixel
+          // relative to the browser's glyph mask. Search only adjacent pixels;
+          // keep the original 85%-of-reference ink-strength requirement.
+          for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+            const px=x+dx,py=y+dy;
+            if(px<0||py<0||px>=actual.width||py>=actual.height)continue;
+            const at=(py*actual.width+px)*4;
+            paintedPeak=Math.max(paintedPeak,contrast([actual.data[at],actual.data[at+1],actual.data[at+2]],paper));
+          }
           referencePeak=Math.max(referencePeak,contrast([ref.data[i],ref.data[i+1],ref.data[i+2]],paper));
         }
         if(!count)failures.push({text:t.text,contrast:0,required:t.required,reason:'No rendered glyph coverage'});
