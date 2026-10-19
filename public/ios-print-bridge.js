@@ -292,7 +292,10 @@
     const src=image.currentSrc||image.src||'';
     const css=getComputedStyle(image);
     const shadows=[...css.filter.matchAll(/drop-shadow\(((?:[^()]|\([^()]*\))*)\)/g)].map(match=>{const values=[...match[1].matchAll(/(-?[\d.]+)px/g)].map(value=>Number(value[1]));return {x:values[0]||0,y:values[1]||0,blur:values[2]||0,color:match[1].match(/rgba?\([^)]*\)/)?.[0]||css.color};});
-    const contour=shadows.length>0;
+    // The output clone may not retain CSS filters even when its stored logo is
+    // a compact symbol. Use the renderer's explicit layout classification, not
+    // filter parsing alone, to keep that symbol legible on continuation paper.
+    const contour=image.closest('.doc-logo')?.dataset.logoLayout==='symbol'||shadows.length>0;
     if(!contour&&!/^data:image\/svg\+xml|\.svg(?:[?#]|$)/i.test(src))return;
     const prepared=await pngForPdf(src);
     if(!contour){image.src=prepared.data;await image.decode();return;}
@@ -314,7 +317,7 @@
     if(!shapeCtx)throw new Error('Unable to prepare transparent logo silhouette.');
     shapeCtx.drawImage(original,padding*scale,padding*scale,rect.width*scale,rect.height*scale);
     const owner=image.closest('.continuation-company,.masthead-brand');
-    const outlineInk=owner?getComputedStyle(owner).color:shadows[0].color;
+    const outlineInk=owner?getComputedStyle(owner).color:(shadows[0]?.color||css.color);
     const ring=document.createElement('canvas');ring.width=canvas.width;ring.height=canvas.height;
     const ringCtx=ring.getContext('2d');if(!ringCtx)throw new Error('Unable to prepare logo outline.');
     // Eight directions make the alpha contour continuous without a white box.
