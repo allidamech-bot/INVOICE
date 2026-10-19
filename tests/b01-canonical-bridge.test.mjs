@@ -38,9 +38,15 @@ test('authoritative warehouse validation rejects two transfers that overdraw the
     }
     return sum+(location==='A'?q:0n);
   },0n);
-  const check=new Function('inventoryMovementAccountingIsValid','warehouseItemQuantity','defaultWarehouseId','movementQuantity',`${transpiled};return guardNewWarehouseTransfers;`)(
+  const check=new Function('inventoryMovementAccountingIsValid','warehouseItemQuantity','defaultWarehouseId','movementQuantity',
+    'isSalesDeliveryStockIssue','isIssuedInvoiceStockIssue','isInvoiceVoidStockReceipt',
+    `${transpiled};return (base,intended,latest,warehouses,items)=>{
+      guardNewWarehouseTransfers(base,intended,latest,warehouses,items);
+      guardNewWarehouseDebits(base,intended,latest);
+    };`)(
     row=>row.type==='transfer'&&Number(row.quantity)>0&&row.fromWarehouseId!==row.toWarehouseId,
-    warehouseItemQuantity,branch=>`warehouse-${branch}`,row=>BigInt(row.quantity)
+    warehouseItemQuantity,branch=>`warehouse-${branch}`,row=>BigInt(row.quantity),
+    ()=>false,()=>false,()=>false
   );
   const opening={id:'open',itemId:'p1',type:'opening',quantity:'10'};
   const transfer=(id,quantity,fromWarehouseId='A',toWarehouseId='B')=>({id,itemId:'p1',type:'transfer',quantity,fromWarehouseId,toWarehouseId});
@@ -55,4 +61,5 @@ test('authoritative warehouse validation rejects two transfers that overdraw the
   assert.throws(()=>check(base,{inventoryMovements:[opening,transfer('new','4')]},concurrentlyUpdated,warehouses,items),/latest available stock/);
   assert.throws(()=>check(base,{inventoryMovements:[opening,transfer('t1','2','A','DISABLED')]},latest,warehouses,items),/no longer active/);
   assert.match(source,/guardNewWarehouseTransfers\(base,intended,latest,latest\.warehouses,savedItems\)/);
+  assert.match(source,/guardNewWarehouseDebits\(base,intended,latest\)/,'all warehouse debits must share the authoritative replay');
 });

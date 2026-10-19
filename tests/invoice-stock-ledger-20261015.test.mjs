@@ -8,7 +8,7 @@ import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
 import {inventoryBalances} from '../dist/src/lib/operations.js';
 import {proposalForExecutableTool,aiToolPlannerCatalog,validateAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
-import {createWarehouse,createWarehouseTransfer,defaultWarehouseId} from '../dist/src/lib/warehouses.js';
+import {createWarehouse,createWarehouseTransfer,defaultWarehouseId,warehouseItemQuantity} from '../dist/src/lib/warehouses.js';
 
 function fixture(stock='100'){
  const vault=emptyVault(),now=new Date().toISOString();
@@ -195,6 +195,48 @@ test('warehouse debits honor concurrent transfers, even if company-wide stock st
    inventoryMovements:[...vault.inventoryMovements,moved]};
  assert.equal(balance(latest),'5');
  assert.throws(()=>mergeVaultIntent(vault,intended,latest),/Insufficient stock at the selected warehouse/);
+});
+
+test('one vault write cannot issue and transfer the same warehouse stock twice',()=>{
+  const {vault,item}=fixture('10');
+  const workspaceId=vault.appSettings.activeWorkspaceId,branchId=vault.appSettings.activeBranchId;
+  const source=defaultWarehouseId(branchId),destination=createWarehouse(workspaceId,branchId,'Overflow Storage','OVER');
+  const base={...vault,warehouses:[...vault.warehouses,destination]};
+  const proof={id:'proof-issue-atomic',name:'issue.png',mimeType:'image/png',size:12,
+    dataUrl:'data:image/png;base64,'+Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]).toString('base64'),
+    createdAt:new Date().toISOString()};
+  const issue=(amount,id)=>({...createManualInventoryMovement(item,'issue',amount,undefined,'Goods dispatched with proof'),
+    id,reasonCategory:'samples',createdBy:'owner',evidence:proof});
+  const transfer=(amount,id)=>({...createWarehouseTransfer(item,source,destination.id,amount),id});
+  for(const movements of [
+    [issue('8','issue-first'),transfer('8','transfer-second')],
+    [transfer('8','transfer-first'),issue('8','issue-second')]
+  ]){
+    const before=JSON.stringify(base);
+    const intended={...base,inventoryMovements:[...base.inventoryMovements,...movements]};
+    assert.throws(()=>mergeVaultIntent(base,intended,base),/Insufficient stock|Transfer quantity exceeds/i,
+      'the shared source cannot fund two outgoing movements totaling more than its ten units');
+    assert.equal(JSON.stringify(base),before,'rejected combined write never mutates source data');
+  }
+  const twoTransfers={...base,inventoryMovements:[...base.inventoryMovements,
+    transfer('6','transfer-a'),transfer('6','transfer-b')]};
+  assert.throws(()=>mergeVaultIntent(base,twoTransfers,base),/Transfer quantity exceeds/i,
+    'two individually valid transfers cannot consume the same location quantity twice');
+
+  const replenishment={...createManualInventoryMovement(item,'opening','2',undefined,'Documented replenishment'),
+    id:'replenishment',reasonCategory:'opening',createdBy:'owner',evidence:proof};
+  const combinedCredit={...base,inventoryMovements:[...base.inventoryMovements,
+    replenishment,transfer('12','funded-transfer')]};
+  const replenished=mergeVaultIntent(base,combinedCredit,base);
+  assert.equal(warehouseItemQuantity(item.id,source,replenished.inventoryMovements,source),0n);
+  assert.equal(warehouseItemQuantity(item.id,destination.id,replenished.inventoryMovements,source),120000n,
+    'earlier documented receipts must count before a subsequent transfer in the same save');
+
+  const intended={...base,inventoryMovements:[...base.inventoryMovements,issue('2','valid-issue'),transfer('8','valid-transfer')]};
+  const saved=mergeVaultIntent(base,intended,base);
+  assert.equal(warehouseItemQuantity(item.id,source,saved.inventoryMovements,source),0n);
+  assert.equal(warehouseItemQuantity(item.id,destination.id,saved.inventoryMovements,source),80000n);
+  assert.equal(balance(saved),'8','the stock is only debited by the physical issue at company level');
 });
 
 test('reversals cannot silently reuse an earlier approval or evidence attachment',()=>{

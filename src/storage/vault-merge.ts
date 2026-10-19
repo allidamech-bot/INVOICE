@@ -360,16 +360,14 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
   }
   return touched;
 }
-// Validate new internal transfers at the same authoritative ledger snapshot used
-// by the encrypted write queue; multiple transfers in one intent consume balance
-// in order. This complements (not replaces) the immutable ledger checks.
+// Verify transfer identity and location against the current account state.
+// All physical quantity reservations, including transfers mixed with issues or
+// receipts, are replayed once in guardNewWarehouseDebits below.
 function guardNewWarehouseTransfers(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,warehouses:VaultPayload['warehouses'],savedItems:SavedItem[]):void{
   if(intended.inventoryMovements===base.inventoryMovements)return;
   const beforeIds=new Set(base.inventoryMovements.map(movement=>movement.id));
   const latestIds=new Set(latest.inventoryMovements.map(movement=>movement.id));
-  const ledger=[...latest.inventoryMovements];
   const workspaceId=latest.appSettings.activeWorkspaceId,branchId=latest.appSettings.activeBranchId;
-  const defaultId=defaultWarehouseId(branchId);
   for(const movement of intended.inventoryMovements){
     if(beforeIds.has(movement.id)||movement.type!=='transfer')continue;
     if(latestIds.has(movement.id))throw new Error('Warehouse transfer already exists. Refresh Stock Locations.');
@@ -378,15 +376,15 @@ function guardNewWarehouseTransfers(base:VaultPayload,intended:VaultPayload,late
     for(const locationId of [movement.fromWarehouseId,movement.toWarehouseId]){
       if(!warehouses.some(row=>row.id===locationId&&row.workspaceId===workspaceId&&row.branchId===branchId&&row.active))throw new Error('Warehouse transfer location is no longer active.');
     }
-    if(movementQuantity(movement)>warehouseItemQuantity(movement.itemId,movement.fromWarehouseId!,ledger,defaultId))throw new Error('Transfer quantity exceeds the latest available stock at its source.');
-    ledger.push(movement);
+
   }
 }
 
 /**
  * A company-wide positive quantity must not conceal an overdrawn warehouse.
- * Replay NEW debits against the latest location ledger, including concurrent
- * transfers and invoice postings from other devices.
+ * Replay ALL new physical movements against ONE latest-location ledger, including
+ * transfers, incoming receipts, outgoing issues and concurrent device changes.
+ * Split transfer/debit ledgers would allow two entries to spend the same stock.
  */
 function guardNewWarehouseDebits(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
   if(intended.inventoryMovements===base.inventoryMovements)return;
@@ -402,10 +400,14 @@ function guardNewWarehouseDebits(base:VaultPayload,intended:VaultPayload,latest:
     }
     if(!inventoryMovementAccountingIsValid(movement))
       throw new Error('New inventory movement has invalid quantities or origin.');
-    if(movement.type!=='transfer'){
+    const fallback=defaultWarehouseId(movement.branchId||latest.appSettings.activeBranchId);
+    if(movement.type==='transfer'){
+      const available=warehouseItemQuantity(movement.itemId,movement.fromWarehouseId!,ledger,fallback);
+      if(movementQuantity(movement)>available)
+        throw new Error('Transfer quantity exceeds the latest available stock at its source.');
+    }else{
       const delta=movementQuantity(movement);
       if(delta<0n){
-        const fallback=defaultWarehouseId(movement.branchId||latest.appSettings.activeBranchId);
         const source=movement.fromWarehouseId||fallback;
         const available=warehouseItemQuantity(movement.itemId,source,ledger,fallback);
         if(-delta>available)
