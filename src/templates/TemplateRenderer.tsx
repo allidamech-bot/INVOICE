@@ -327,8 +327,10 @@ function documentRenderSignature(doc:LourexDocument):string{
 function initialPages(doc:LourexDocument):DocumentItem[][]{
   const separateDetails=shouldUseDetailsPage(doc);
   const fragments=doc.items.flatMap(item=>outputItemFragments(doc,item));
-  // Start with item capacity; measured closing content decides whether to split.
-  const pages=paginateItems(fragments,false,10,doc.language,item=>itemWeight(doc,item));
+  // These are only seed pages. Real row heights and closing content are measured
+  // below; applying the prose estimate here strands half-empty continuation
+  // pages because the measured paginator moves overflow forward, never back.
+  const pages=paginateItems(fragments,false,10,doc.language,()=>1);
   return separateDetails?[...pages,[]]:pages;
 }
 class MeasuredDocument extends React.Component<Props,{pages:DocumentItem[][];ready:boolean}>{

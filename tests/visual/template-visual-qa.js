@@ -66,6 +66,9 @@ if(params.get('profile')==='showcase'){
 }
 
 try{
+  if(params.get('bank')==='false')documentData.appearance.showBank=false;
+  if(params.get('signing')==='false'){documentData.appearance.showSignature=false;documentData.appearance.showStamp=false;}
+  if(params.get('terms')==='false')Object.keys(documentData.terms).forEach(key=>documentData.terms[key]='');
   if(params.get('longNames')==='true'){documentData.companySnapshot.nameEn='LOUREX International Trading and Industrial Engineering Procurement Solutions Company';documentData.companySnapshot.nameAr='شركة لوريكس الدولية للتجارة والحلول الهندسية والمشتريات الصناعية المتقدمة';}
   if(params.get('longFooter')==='true')documentData.companySnapshot.footerText=('LOUREX International Trading - Registered commercial office - All supplies are subject to the agreed quotation terms, delivery schedule, bank instructions and written acceptance. ').repeat(6);
   if(params.has('accent'))documentData.appearance.accentColor=params.get('accent');

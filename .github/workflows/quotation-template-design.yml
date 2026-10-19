@@ -13,6 +13,7 @@ on:
       - 'src/components/DocumentDesignControls.tsx'
       - 'tests/visual/quotation-pixel-contrast.cjs'
       - 'tests/visual/quotation-pdf-pixels.cjs'
+      - 'tests/visual/run-quotation-closing.cjs'
       - 'tests/template-local-surface-readability.test.mjs'
       - 'scripts/v485-bundle-visible-ui.mjs'
       - 'scripts/v544-pdf-a4-output-emergency.mjs'
@@ -56,6 +57,11 @@ jobs:
         env:
           LOUREX_TEMPLATE_QA_OUTPUT: visual-qa-output/quotation-template-design
         run: node tests/visual/run-quotation-template-design.cjs
+      - name: Verify optional final-page composition and exported A4 closing
+        env:
+          LOUREX_CLOSING_PDF: 'true'
+          LOUREX_TEMPLATE_QA_OUTPUT: visual-qa-output/quotation-template-design/closing
+        run: node tests/visual/run-quotation-closing.cjs
       - name: Verify shape-aware stamp support and embedded Arabic typography
         run: node tests/visual/run-signing-artwork.cjs
       - uses: actions/upload-artifact@v4

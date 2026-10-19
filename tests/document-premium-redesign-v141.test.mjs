@@ -20,7 +20,7 @@ test('A4 output preserves normal flow, explicit numeric direction and print sizi
  assert.match(css,/width:210mm;height:297mm/);
  assert.match(css,/table-layout:fixed/);
  assert.match(css,/font-variant-numeric:tabular-nums/);
- assert.match(css,/\.final-details\{[^}]*margin-top:0/);
+ assert.match(css,/\.final-details\{[^}]*margin-top:auto/);
  assert.match(css,/\.doc-footer\{[^}]*min-height:20mm/);
  assert.doesNotMatch(css,/position:absolute[^}]*\.doc-footer|zoom:/);
  assert.match(renderer,/data-pagination-ready/);
