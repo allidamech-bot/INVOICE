@@ -69,6 +69,15 @@ test('persisted final output keeps historical money readable but never relaxes n
   assert.ok(validateStoredFinalForOutput({...final,status:'draft'},stored)['item-0-price'],'drafts remain strict');
   assert.ok(validateStoredFinalForOutput(final)['item-0-price'],'unsaved final remains strict');
 
+  const changedCurrency=structuredClone(final);
+  changedCurrency.currency='EUR';
+  assert.ok(validateStoredFinalForOutput(changedCurrency,stored)['item-0-price'],'changed currency cannot borrow historical output compatibility');
+  const changedDate=structuredClone(final);
+  changedDate.issueDate='2026-02-01';
+  assert.ok(validateStoredFinalForOutput(changedDate,stored)['item-0-price'],'changed issue date cannot borrow historical output compatibility');
+  const changedNumber=structuredClone(final);
+  changedNumber.number='INV-REWRITTEN';
+  assert.ok(validateStoredFinalForOutput(changedNumber,stored)['item-0-price'],'changed document identity cannot borrow historical output compatibility');
   const tampered=structuredClone(final);
   tampered.items[0].unitPrice='1,3.00';
   assert.ok(validateStoredFinalForOutput(tampered,stored)['item-0-price'],'changed money fields remain strict');
