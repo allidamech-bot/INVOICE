@@ -39,7 +39,7 @@
     .ta-ops-page-header,.ta-page-header,.ta-settings-header
   )::before{
     content:""!important;position:absolute!important;z-index:-1!important;inset:0!important;pointer-events:none!important;
-    background:linear-gradient(135deg,rgba(255,255,255,.035),transparent 42%)!important;
+    background-image:linear-gradient(135deg,rgba(255,255,255,.035),transparent 42%)!important;
   }
   html[data-ui-theme="light"] body .app-ui :is(
     .ta-documents-header,.ta-customers-header,.ta-products-workspace-header,
