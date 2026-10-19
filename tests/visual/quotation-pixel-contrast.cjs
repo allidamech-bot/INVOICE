@@ -100,6 +100,21 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
           count++;if(nearest>60)different++;
         }
         if(count&&different/count>.025)failures.push({text:'Artwork: '+asset.name,contrast:0,required:1,reason:'Exported artwork differs materially from browser artwork',differentFraction:different/count});
+        // A PDF-only missing-artwork negative control: replacing the exported
+        // image region by one flat pixel from the reference corner must be
+        // detectable. This prevents antialias normalization from accepting a
+        // missing seal/wordmark simply because its border is mostly empty.
+        const edgeX=Math.max(0,Math.min(refArt.width-1,Math.floor(asset.x)));
+        const edgeY=Math.max(0,Math.min(refArt.height-1,Math.floor(asset.y)));
+        const edgeAt=(edgeY*refArt.width+edgeX)*4;
+        const erasedInk=[refArt.data[edgeAt],refArt.data[edgeAt+1],refArt.data[edgeAt+2]];
+        let erasedDifferent=0;
+        for(let y=Math.max(2,Math.ceil(asset.y));y<Math.min(refArt.height-2,asset.y+asset.h);y+=2)for(let x=Math.max(2,Math.ceil(asset.x));x<Math.min(refArt.width-2,asset.x+asset.w);x+=2){
+          const at=(y*refArt.width+x)*4;
+          if(Math.max(...[0,1,2].map(k=>Math.abs(refArt.data[at+k]-erasedInk[k])))>60)erasedDifferent++;
+        }
+        if(count&&erasedDifferent/count<=.025)failures.push({text:'Artwork: '+asset.name,contrast:0,required:1,reason:'Erased-artwork negative control failed to identify visible content'});
+
       }
       return {minimum,samples,failures};
     },{background,mask,original,reference,texts,media}));
