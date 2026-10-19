@@ -25,6 +25,18 @@ async function inspect(page,params){
   const ratio=(a,b)=>{a=lum(a);b=lum(b);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
   const bg=el=>{const chain=[];while(el){chain.unshift(el);el=el.parentElement}let color=[255,255,255,1];for(const e of chain){const css=getComputedStyle(e);const art=e.matches('.document-masthead')?css.getPropertyValue('--art-main'):e.matches('.doc-footer')?css.getPropertyValue('--footer-paper'):e.matches('.lx-document-qr')?css.getPropertyValue('--paper'):'';const c=art.trim()?parse('rgb('+art.trim().replace('#','').match(/../g).map(x=>parseInt(x,16)).join(',')+')'):parse(css.backgroundColor);if(c)color=[...c.slice(0,3).map((v,i)=>v*c[3]+color[i]*(1-c[3])),1]}return color;};
   const sheets=[...document.querySelectorAll('.invoice-page')];
+  const brand=sheets[0]?.querySelector('.masthead-brand .doc-logo');
+  if(brand){
+   const image=brand.querySelector('img'),label=brand.querySelector('.doc-logo-wordmark');
+   if(!image?.naturalWidth||!image.naturalHeight)failures.push('company logo did not load');
+   else{
+    const expected=image.naturalWidth/image.naturalHeight>=2.35?'wordmark':'symbol';
+    if(brand.dataset.logoLayout!==expected)failures.push('company logo layout does not match image shape');
+    const textVisible=label&&getComputedStyle(label).display!=='none'&&Boolean(label.textContent.trim());
+    if(expected==='symbol'&&!textVisible)failures.push('symbol-only logo is missing company name');
+    if(expected==='wordmark'&&textVisible)failures.push('embedded wordmark has a duplicate company name');
+   }
+  }
   for(const [index,sheet] of sheets.entries()){
    const b=sheet.getBoundingClientRect(),footer=sheet.querySelector('.doc-footer').getBoundingClientRect();
    if(sheet.scrollWidth>sheet.clientWidth+2||sheet.scrollHeight>sheet.clientHeight+2)failures.push(`page ${index+1}: A4 overflow`);
@@ -63,6 +75,11 @@ async function inspect(page,params){
     const params={template,language,profile,items:profile==='stress'?'24':'4',mode:'print',qr:profile==='showcase'?'true':'false'};
     const result=await inspect(page,params);report.push({engine,...params,...result});
     if(profile==='showcase'&&language==='en')await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}.png`)});
+   }
+   if(language==='en'){
+    const symbol=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'print',logo:'symbol'});
+    report.push({engine,template,language,profile:'symbol-logo',...symbol});
+    await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}-symbol.png`)});
    }
    const custom=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'mobile',palette:'custom',unsafeColors:'true',textScale:'large'});
    report.push({engine,template,language,profile:'unsafe-custom-mobile',...custom});
