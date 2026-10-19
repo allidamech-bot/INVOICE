@@ -7,6 +7,8 @@ on:
       - 'src/lib/ai-business.ts'
       - 'src/lib/payments.ts'
       - 'src/lib/receivables.ts'
+      - 'src/lib/reports.ts'
+      - 'tests/accounting-chronology-v258.test.mjs'
       - 'src/lib/payables.ts'
       - 'src/lib/treasury-ledger.ts'
       - 'src/storage/vault-merge.ts'
