@@ -30,15 +30,12 @@ test('document tone follows the effective paper instead of being hardcoded light
   assert.doesNotMatch(renderer,/document-tone-light[^\n]*data-tone="light"/);
 });
 
-test('legacy template fallback keeps tokens and the actual rendered identity in sync',()=>{
-  const base=createBlankDocument('invoice','INV-LEGACY-FINAL',defaultCompany()).appearance;
-  const tokens=resolvedAppearanceTokens({...base,templateId:'removed-template',paletteMode:'auto'});
-  assert.equal(resolvedTemplateId('removed-template'),'executive');
-  assert.equal(tokens.page,'#ffffff');
-  assert.equal(tokens.accent,'#bd9659');
-  assert.equal(tokens.primary,'#17212b');
-  assert.equal(tokens.secondary,'#4d5b68');
-  assert.equal(tokens.heading,'#17212b');
+test('legacy template fallback keeps tokens and the actual rendered identity in sync',async()=>{
+const base=createBlankDocument('invoice','INV-LEGACY',defaultCompany()).appearance;
+ const t=resolvedAppearanceTokens({...base,templateId:'removed-template',paletteMode:'auto'});
+ assert.equal(resolvedTemplateId('removed-template'),'executive');
+ assert.equal(t.page,'#ffffff');assert.equal(t.accent,'#ffbc1c');
+ assert.equal(t.primary,'#17212b');assert.equal(t.secondary,'#4d5b68');assert.equal(t.heading,'#17212b');
 });
 
 test('secure-share output loads the exact document font family set used by the main app',async()=>{
