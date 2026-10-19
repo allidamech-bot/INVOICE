@@ -26,6 +26,11 @@ const root=path.resolve(__dirname,'../..'),output='visual-qa-output/workspace-br
     await page.evaluate(theme=>document.documentElement.dataset.uiTheme=theme,theme);
     const header=page.locator(selector);
     const result=await header.evaluate(el=>({image:el.querySelectorAll('img').length,pointer:getComputedStyle(el,'::before').pointerEvents,background:getComputedStyle(el).backgroundImage,overflow:document.documentElement.scrollWidth>innerWidth+1}));
+    const motion=await header.evaluate(el=>{
+     const a=el.getAnimations({subtree:true}).find(a=>a.animationName==='lourex-workspace-sheen');
+     if(!a)return null;a.pause();a.currentTime=0;const start=getComputedStyle(el,'::before').backgroundPosition;
+     a.currentTime=4200;return{start,end:getComputedStyle(el,'::before').backgroundPosition};
+    });assert.ok(motion&&motion.start!==motion.end,'colored header streams actually travel across the card');
     assert.equal(result.image,0,'introductions use brand colors without logo artwork');assert.equal(result.pointer,'none');assert.match(result.background,/gradient/);assert.equal(result.overflow,false);
     if(name==='webkit'&&width===390&&lang==='ar'&&theme==='dark')await header.screenshot({path:`${output}/${kind}-mobile.png`});
     cases++;
@@ -44,8 +49,10 @@ const root=path.resolve(__dirname,'../..'),output='visual-qa-output/workspace-br
   await advisor.locator('.lourex-advisor-atmosphere').evaluate(el=>el.style.display='none');assert.deepEqual(await advisor.boundingBox(),box,'portrait never changes card geometry');await advisor.locator('.lourex-advisor-atmosphere').evaluate(el=>el.style.display='');
   assert.notEqual(await advisor.locator('.lourex-advisor-portrait').evaluate(el=>getComputedStyle(el).animationName),'none');
   if(name==='webkit'&&width===390&&lang==='ar')await advisor.screenshot({path:`${output}/advisor-mobile.png`});
+  await page.evaluate(()=>window.addEventListener('lourex-unified-assistant-submit',event=>window.cardHandoff=event.detail,{once:true}));
   await advisor.locator('input').fill('cost 18.50 margin 30');await advisor.locator('button[type=submit]').click();
-  await advisor.locator('.lourex-advisor-message.assistant').waitFor();assert.match(await advisor.locator('.lourex-advisor-message.assistant').innerText(),/26[.,]43/,'local calculation still reaches the conversation');
+  const handoff=await page.evaluate(()=>window.cardHandoff);assert.deepEqual(handoff,{screen:'home',question:'cost 18.50 margin 30',autoSubmit:true},'production card hands the question to the unified assistant');
+  assert.equal(await advisor.locator('input').inputValue(),'','successful handoff clears the card input');
   await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await advisor.locator('.lourex-advisor-portrait').evaluate(el=>getComputedStyle(el).animationName),'none');
   assert.equal(errors.length,0,errors.join('\n'));cases++;console.log(`PASS ${name} ${width}px ${lang}: graphite headers, create actions, advisor portrait/composer and reduced motion`);await context.close();
  }

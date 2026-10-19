@@ -2350,21 +2350,22 @@ html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
   }
 }
 
-/* Graphite workspace introductions: brand colors, with no logo artwork. */
+/* Living workspace introductions: flowing brand colors without logo artwork. */
 @media screen{
   html body #root .app-ui :is(.ta-documents-header,.ta-customers-header){
     isolation:isolate;--lx-card-gold:#d5b17b;
-    background:linear-gradient(130deg,#252a32,#171e28 62%,#202c38)!important;
+    background:radial-gradient(ellipse at 8% 20%,#933a3038,transparent 55%),radial-gradient(ellipse at 85% 90%,#b8893930,transparent 55%),linear-gradient(135deg,#12334e,#0c2034 65%,#172c40)!important;
     border-color:#526074!important;color:#f5f5f2!important;
   }
   html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::before{
     content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
-    background:linear-gradient(145deg,transparent 38%,#b1874b36 38.2%,transparent 38.6%),linear-gradient(32deg,transparent 59%,#5983aa3d 59.2%,transparent 59.6%),conic-gradient(from 210deg at 18% 48%,#98413925,transparent 65deg 170deg,#537b9b35 210deg,transparent 265deg),radial-gradient(ellipse at 5% 70%,#a66c3b25,transparent 50%);
-    background-size:160% 160%;background-position:40% 50%;
+    background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20900%20500%22%20fill%3D%22none%22%3E%3Cg%20stroke%3D%22%23dbb777%22%20stroke-width%3D%221.5%22%20opacity%3D%22.65%22%3E%3Cpath%20d%3D%22M-100%20400C100%2080%20330%20470%20520%20160S850%20240%201000-50%22%2F%3E%3Cpath%20d%3D%22M-100%20425C120%20100%20350%20490%20540%20180S870%20260%201000-25%22%2F%3E%3Cellipse%20cx%3D%22380%22%20cy%3D%22250%22%20rx%3D%22280%22%20ry%3D%22115%22%20transform%3D%22rotate%28-24%20380%20250%29%22%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D%22%2378b8ec%22%20stroke-width%3D%221.4%22%20opacity%3D%22.58%22%3E%3Cpath%20d%3D%22M-100%2050C160%20350%20250-40%20480%20250S750%20250%201000%20460%22%2F%3E%3Cpath%20d%3D%22M-100%2075C180%20375%20270-20%20500%20270S770%20270%201000%20485%22%2F%3E%3Cellipse%20cx%3D%22570%22%20cy%3D%22220%22%20rx%3D%22260%22%20ry%3D%22150%22%20transform%3D%22rotate%2827%20570%20220%29%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22%23ebc788%22%3E%3Ccircle%20cx%3D%22310%22%20cy%3D%22130%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%22660%22%20cy%3D%22300%22%20r%3D%222.5%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%22180%22%20cy%3D%22340%22%20r%3D%223%22%20fill%3D%22%23c36b58%22%2F%3E%3C%2Fsvg%3E") center/160% 160% no-repeat;
+    opacity:.72;
   }
   html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::after{
     content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
-    background:repeating-linear-gradient(115deg,transparent 0 49px,#c9d0d507 50px 51px,transparent 52px 100px);
+    background:radial-gradient(ellipse at 15% 30%,#b7533a30,transparent 45%),radial-gradient(ellipse at 72% 65%,#619dd154,transparent 48%),radial-gradient(ellipse at 40% 85%,#d5a85330,transparent 45%);
+    background-size:180% 180%;background-position:65% 55%;
     box-shadow:inset 0 1px #e6c58b26;
   }
   html body #root .app-ui :is(.ta-documents-header,.ta-customers-header) :is(h1,h2,h3){color:#f5f5f2!important;}
@@ -2391,11 +2392,13 @@ html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
   html body #root .app-ui .workspace-shell.screen-home .lourex-advisor-identity p{color:#c0cad6!important;}
 }
 @media screen and (prefers-reduced-motion:no-preference){
-  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::before{animation:lourex-workspace-sheen 9s ease-in-out infinite alternate;}
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::before{animation:lourex-workspace-sheen 4.2s ease-in-out infinite alternate;}
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::after{animation:lourex-workspace-aura 5.4s ease-in-out -2s infinite alternate;}
   .lourex-advisor-portrait{animation:lourex-advisor-presence 5s ease-in-out infinite;}
   .lourex-advisor-orbit::before{animation:lourex-advisor-orbit 18s linear infinite;}
   .lourex-advisor-mark>.lxw-brand-glyph{animation:lourex-advisor-presence 4.5s ease-in-out infinite;}
-  @keyframes lourex-workspace-sheen{from{background-position:20% 30%;}to{background-position:75% 65%;}}
+  @keyframes lourex-workspace-sheen{from{background-position:5% 15%;opacity:.5;}to{background-position:95% 85%;opacity:.85;}}
+  @keyframes lourex-workspace-aura{from{background-position:80% 20%;opacity:.55;}to{background-position:15% 80%;opacity:1;}}
   @keyframes lourex-advisor-presence{0%,100%{transform:translateY(3px) rotate(-3deg);}50%{transform:translateY(-5px) rotate(3deg);}}
   @keyframes lourex-advisor-orbit{to{transform:rotate(360deg);}}
 }
