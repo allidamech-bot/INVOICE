@@ -109,7 +109,7 @@ test('normal PDF/print/share actions automatically attach QR without a share-dia
  const code=ts.transpileModule('globalThis.run='+initializer,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
  for(const mode of ['pdf','print','share']){
   const d=document();let ensured=0,printed=0;
-  const ctx={navigator:{userAgent:'test',platform:'test'},window:{__LOUREX_PREPARE_PDF__:()=>{}},document:{title:'',body:{classList:{add:()=>{}}}},structuredClone,validateDocument:()=>({}),automaticElectronicDocument:domain.automaticElectronicDocument,
+  const ctx={navigator:{userAgent:'test',platform:'test'},window:{__LOUREX_PREPARE_PDF__:()=>{}},document:{title:'',body:{classList:{add:()=>{}}}},structuredClone,validateDocument:()=>({}),validateStoredFinalForOutput:()=>({}),automaticElectronicDocument:domain.automaticElectronicDocument,
    ensureDocumentElectronicCopy:async(target,options)=>{assert.equal(target.id,d.id);assert.equal(options.isCurrent(),true);ensured++;return {id:'x'.repeat(43)};},assertFinancialOutputParity:(a,b)=>assert.equal(a.items[0].quantity,b.items[0].quantity),safeFilename:s=>s,t:en=>en,
    accountEpoch:1,state:{unlocked:true,vault:{documents:[d]}},requireVault:()=>({documents:[d]}),setState:(patch,cb)=>{Object.assign(ctx.state,patch);cb?.();},launchPrint:async()=>{printed++;},showToast:()=>{}};
   vm.runInNewContext(code,ctx);await ctx.run(d,mode);
