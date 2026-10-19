@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, isFinancialDecimalInput, lineTotal, normalizeDecimalInput } from '../dist/src/lib/money.js';
 import { createBlankDocument, validateDocument, validateStoredFinalForOutput } from '../dist/src/lib/documents.js';
 import { customerSnapshotFrom, defaultCompany } from '../dist/src/lib/defaults.js';
+import { getDocumentReadiness } from '../dist/src/lib/readiness.js';
 import { invoicePaymentSummary, normalizePaymentRecord } from '../dist/src/lib/payments.js';
 import { receivablesByCurrency, customerStatement } from '../dist/src/lib/receivables.js';
 
@@ -14,6 +15,24 @@ function validDocument(){
   doc.items[0].unitPrice='10';
   return doc;
 }
+
+test('readiness is not 100 percent when a financial field fails issue validation',()=>{
+  const invalidPrice=validDocument();
+  invalidPrice.items[0].unitPrice='1,2.00';
+  assert.ok(validateDocument(invalidPrice)['item-0-price']);
+  const priceReadiness=getDocumentReadiness(invalidPrice);
+  assert.equal(priceReadiness.ready,false);
+  assert.ok(priceReadiness.percent<100);
+  assert.equal(priceReadiness.groups.find(group=>group.key==='pricing')?.complete,false);
+
+  const invalidQuantity=validDocument();
+  invalidQuantity.items[0].quantity='1.2,00';
+  assert.ok(validateDocument(invalidQuantity)['item-0-quantity']);
+  const quantityReadiness=getDocumentReadiness(invalidQuantity);
+  assert.equal(quantityReadiness.ready,false);
+  assert.ok(quantityReadiness.percent<100);
+  assert.equal(quantityReadiness.groups.find(group=>group.key==='items')?.complete,false);
+});
 
 test('malformed mixed thousands separators cannot silently change financial inputs',()=>{
   for(const input of ['1,2.00','1.2,00','12,34.56','12.34,56',',123.45','.123,45','1234,567.89','1,,234.56','1..234,56']){
