@@ -262,7 +262,7 @@ html body #root .app-ui .ta-kpi-copy em{font-size:11px!important;line-height:1.6
 html body #root .app-ui .ta-kpi-empty{font-size:28px!important;line-height:1.2!important;}
 html body #root .app-ui .lourex-advisor-starters button{white-space:normal!important;line-height:1.55!important;font-size:12px!important;min-height:44px!important;}
 html body #root .app-ui .lourex-ai-launcher{
-  background:linear-gradient(135deg,#619dff,#3975e8)!important;color:#fff!important;
+  background:linear-gradient(145deg,#4a85d8,#285591)!important;color:#fff!important;
   border:1px solid rgba(168,202,255,.48)!important;box-shadow:0 8px 20px rgba(47,106,224,.18)!important;
 }
 html body #root .app-ui .lourex-ai-launcher::before{content:none!important;background-image:none!important;}

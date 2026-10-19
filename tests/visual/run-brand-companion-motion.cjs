@@ -17,6 +17,9 @@ const fs=require('node:fs/promises'),path=require('node:path'),assert=require('n
  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.ta-energy-blue').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
  await page.goto('http://localhost/tests/visual/ai-conversation-workspace.html?lang='+lang);await page.locator('.lourex-ai-launcher').waitFor();
  const button=page.locator('.lourex-ai-launcher'),box=await button.boundingBox();assert.ok(box.width<=64&&box.height<=64);assert.equal(await button.locator('.lxw-robot-eyes').count(),1);
+ const glyphBox=await button.locator('.lxw-brand-glyph').boundingBox();
+ assert.ok(Math.abs(glyphBox.x+glyphBox.width/2-box.x-box.width/2)<.5,'robot stays horizontally centered in the button');
+ assert.ok(Math.abs(glyphBox.y+glyphBox.height/2-box.y-box.height/2)<.5,'robot stays vertically centered in the button');
  await button.click();await page.locator('#lourex-ai-panel .lxw-welcome-identity .lxw-robot-eyes').waitFor();
  const mark=page.locator('#lourex-ai-panel .lourex-ai-mark .lxw-brand-glyph');assert.ok(await mark.isVisible(),'header robot visible');
  assert.ok(['none','normal'].includes(await page.locator('.lourex-ai-mark').evaluate(el=>getComputedStyle(el,'::before').content)),'no legacy logo overlay');
