@@ -58,6 +58,42 @@ test('fail closed for ambiguous lines, missing SKU, unit mismatch, insufficient 
  assert.throws(()=>attempt({}, {appSettings:{...vault.appSettings,activeWorkspaceId:'other'}}),/another workspace|outside this branch/);
  assert.equal(balance(vault),'5','rejected issuance never mutates source vault');
 });
+
+test('new tracked invoice cannot round a fifth quantity decimal into physical stock',()=>{
+ const {vault,document}=fixture('5');
+ const base={...document,status:'final'};
+ for(const quantity of ['2.00001','2.00009','1,00009','١٫٠٠٠٠٩']){
+   const revised={...base,items:[{...base.items[0],quantity}]};
+   const before=JSON.stringify(vault);
+   assert.throws(()=>postIssuedInvoiceStock(vault,revised),/quantity must be positive and precise/);
+   assert.equal(JSON.stringify(vault),before,'rejected issue must not alter stock or invoices');
+ }
+ const exact={...base,items:[{...base.items[0],quantity:'2.0001'}]};
+ const accepted=postIssuedInvoiceStock(vault,exact);
+ assert.equal(accepted.created,true);
+ assert.equal(accepted.vault.inventoryMovements.at(-1).quantity,'-2.0001');
+ assert.equal(balance(accepted.vault),'2.9999');
+});
+
+test('unchanged historical four-decimal stock movement remains readable after legacy invoice quantity rounding',()=>{
+ const {vault,document}=fixture('5');
+ const issuedInvoice={...document,status:'final',items:[{...document.items[0],quantity:'2.0001'}]};
+ const posted=postIssuedInvoiceStock(vault,issuedInvoice).vault;
+ const historicalDoc={...issuedInvoice,items:[{...issuedInvoice.items[0],quantity:'2.00009'}]};
+ const prefix='@lourex:invoice-stock:v1:';
+ const stored={...posted,inventoryMovements:posted.inventoryMovements.map(m=>{
+   if(!m.id.startsWith('sales-invoice-stock:'))return m;
+   const proof=JSON.parse(m.note.slice(prefix.length));
+   return {...m,note:prefix+JSON.stringify({...proof,quantity:'2.00009'})};
+ })};
+ const before=JSON.stringify(stored);
+ const replay=postIssuedInvoiceStock(stored,historicalDoc);
+ assert.equal(replay.created,false,'already issued historical invoice must not post again');
+ assert.equal(JSON.stringify(stored),before);
+ assert.equal(replay.vault,stored,'read-only compatibility must not rewrite the ledger');
+ assert.equal(balance(stored),'2.9999');
+});
+
 test('explicit non-stock services do not debit stock and repeated printing remains financially independent',()=>{
  const {vault,document}=fixture();
  const final={...document,status:'final',items:[{...document.items[0],stockTreatment:'non-stock',savedItemId:'',skuSnapshot:''}]};

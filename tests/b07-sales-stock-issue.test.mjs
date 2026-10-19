@@ -79,6 +79,21 @@ test('B07 stock: reject unconfirmed, wrong warehouse, missing SKU, insufficient 
  const sku={...delivered,savedItems:delivered.savedItems.map(x=>x.id==='cookies'?{...x,sku:''}:x)};
  assert.throws(()=>postSalesDeliveryStock(sku,input),/Assign a SKU/);
 });
+
+test('confirmed delivery posting never rounds more than four quantity decimals',()=>{
+ const {delivered,note,input,warehouseId}=setup();
+ const before=JSON.stringify(delivered);
+ const modified={...delivered,documents:delivered.documents.map(doc=>doc.id!==note.id?doc:{
+   ...doc,items:doc.items.map((line,index)=>index===0?{...line,quantity:'4.00009'}:line)
+ })};
+ assert.throws(()=>postSalesDeliveryStock(modified,input),/quantity|delivery|proof|diverges/i);
+ assert.equal(stock(delivered,'cookies',warehouseId),10);
+ assert.equal(JSON.stringify(delivered),before,'no source delivery or inventory mutation');
+ const exact=postSalesDeliveryStock(delivered,input);
+ assert.equal(exact.created,true);
+ assert.equal(stock(exact.vault,'cookies',warehouseId),6);
+});
+
 test('B07 stock: new movement cannot be deleted, rewritten or duplicated across concurrent devices',()=>{
  const {delivered,input}=setup();const a=postSalesDeliveryStock(delivered,input).vault;
  assert.doesNotThrow(()=>mergeVaultIntent(delivered,a,delivered));

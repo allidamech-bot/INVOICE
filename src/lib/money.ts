@@ -74,6 +74,12 @@ export function isFinancialDecimalInput(input: string): boolean {
   return isNormalizedDecimal(normalizeDecimalSeparators(input,true));
 }
 
+/** Physical stock ledger has exactly four fractional digits of capacity. */
+export function isExactStockQuantityInput(input:string):boolean{
+  const normalized=normalizeDecimalSeparators(input,true);
+  return isFinancialDecimalInput(input)&&/^-?(?:\d+(?:\.\d{0,4})?|\.\d{1,4})$/.test(normalized);
+}
+
 function isNormalizedDecimal(cleaned: string): boolean {
   if (!cleaned || cleaned === '-' || cleaned === '.' || cleaned === '-.') return false;
   const digits=cleaned.replace(/[-.]/g,'');
