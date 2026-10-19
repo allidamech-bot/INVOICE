@@ -7,6 +7,7 @@ import { requestAiJson } from '../lib/ai-request.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { buildAiContext } from './AiCopilot.js';
 import { Icon } from './UI.js';
+import { AiIdentityMark } from './AiIdentityMark.js';
 
 interface Props{language:UiLanguage;}
 interface AdvisorMessage{id:string;role:'user'|'assistant';text:string;}
@@ -131,8 +132,12 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
   render():any{
     const starterPrompts=starters();
     return <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
+        <div className="lourex-advisor-atmosphere" aria-hidden="true">
+          <span className="lourex-advisor-orbit"/>
+          <span className="lourex-advisor-portrait"><AiIdentityMark/></span>
+        </div>
         <header className="lourex-advisor-head">
-          <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true"><Icon name="bot"/></span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
+          <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true"><AiIdentityMark compact/></span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
           {this.state.messages.length?<button type="button" className="lourex-advisor-clear" onClick={this.clear}>{t('New conversation','محادثة جديدة')}</button>:null}
         </header>
 
