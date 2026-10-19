@@ -342,11 +342,14 @@
     for(const [name,value] of Object.entries({width:(rect.width+padding*2)+'px',height:(rect.height+padding*2)+'px','max-width':'none','max-height':'none',margin:'-'+padding+'px',filter:'none'}))image.style.setProperty(name,value,'important');
     await image.decode();
   };
-  const collectSharpMedia = (page) => {
+  const collectSharpMedia = (page,pageIndex=0) => {
     const pageRect = page.getBoundingClientRect();
     if (!pageRect.width || !pageRect.height) return [];
-    // Export logos as sharp original-color assets too. A JPEG page layer can wash
-    // out small continuation wordmarks even when their browser preview is clear.
+    // Every page has its own presentation-specific logo outline. jsPDF caches
+    // images by alias: reusing "lourex-sharp-0-logo" across pages silently
+    // substitutes page one's dark-on-ivory contour on dark continuation paper.
+    // Scope aliases to the A4 page so shape/ink are never cross-page cached.
+    // Export logos as sharp original-color assets too, not through page JPEG.
     return Array.from(page.querySelectorAll(SHARP_MEDIA_SELECTOR+',.lx-document-qr img')).map((image,index) => {
       const rect = image.getBoundingClientRect();
       // currentSrc can remain the original SVG when a cloned image's src is
@@ -370,7 +373,7 @@
         y:(rect.top-pageRect.top+(rect.height-height)*fraction(position[1]))/pageRect.height*297,
         w:width/pageRect.width*210,
         h:height/pageRect.height*297,
-        alias:`lourex-sharp-${index}-${image.closest('.lx-document-qr')?'qr':image.closest('.doc-logo')?'logo':image.classList.contains('stamp-image')?'stamp':'signature'}`
+        alias:`lourex-sharp-page-${pageIndex}-${index}-${image.closest('.lx-document-qr')?'qr':image.closest('.doc-logo')?'logo':image.classList.contains('stamp-image')?'stamp':'signature'}`
       };
       image.style.setProperty('visibility','hidden','important');
       return asset;
@@ -459,7 +462,7 @@
         for (let index=0; index<pages.length; index+=1) {
           const page = pages[index];
           stabilizeDocumentDirection(page);
-          const sharpMedia = collectSharpMedia(page);
+          const sharpMedia = collectSharpMedia(page,index);
           const canvas = await window.html2canvas(page,{
             scale:renderScale,
             useCORS:true,
