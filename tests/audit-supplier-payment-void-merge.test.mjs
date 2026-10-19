@@ -4,7 +4,7 @@ import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createSupplier,createPurchase,createPurchaseItem} from '../dist/src/lib/operations.js';
 import {createSupplierPayment,normalizeSupplierPayment,voidSupplierPayment,purchasePayableSummary} from '../dist/src/lib/payables.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
-import {appendTreasuryEntry,createTreasuryAccount,createTreasuryEntry} from '../dist/src/lib/treasury-ledger.js';
+import {appendTreasuryEntry,createTreasuryAccount,createTreasuryEntry,treasuryAccountBalance} from '../dist/src/lib/treasury-ledger.js';
 
 function fixture(){
   const base=emptyVault();
@@ -76,4 +76,24 @@ test('unchanged legacy supplier settlements keep their historical amount and acc
       sourceId:legacy.supplierPayments[0].id});
   assert.equal(allocated.treasuryEntries.length,1,'historical settlement can still be allocated to cash/bank');
   assert.equal(allocated.supplierPayments[0].amount,'1,2.00','treasury linking never rewrites source payment');
+});
+
+test('new supplier-payment treasury links cannot forge amount or allocate a supplier payment twice',()=>{
+  const base=fixture(),scope=base.appSettings,payment=base.supplierPayments[0];
+  const bank=createTreasuryAccount({label:'Supplier Payments Bank',kind:'bank',currency:'USD',
+    workspaceId:scope.activeWorkspaceId,branchId:scope.activeBranchId});
+  const source={...base,treasuryAccounts:[bank]};
+  const entry={...createTreasuryEntry('supplier-payment','USD'),workspaceId:scope.activeWorkspaceId,
+    branchId:scope.activeBranchId,amount:payment.amount,fromAccountId:bank.id,
+    sourceType:'supplier-payment',sourceId:payment.id};
+  const before=JSON.stringify(source);
+  const forged={...entry,id:'forged-supplier-amount',amount:'10.00'};
+  assert.throws(()=>mergeVaultIntent(source,{...source,treasuryEntries:[forged]},source),/payment amount|linked payment/i);
+  const fake={...entry,id:'forged-supplier-source',sourceId:'missing-supplier-payment'};
+  assert.throws(()=>mergeVaultIntent(source,{...source,treasuryEntries:[fake]},source),/linked payment/i);
+  assert.throws(()=>mergeVaultIntent(source,{...source,treasuryEntries:[entry,{...entry,id:'duplicate-supplier-allocation'}]},source),
+    /already allocated/i);
+  const valid=mergeVaultIntent(source,{...source,treasuryEntries:[entry]},source);
+  assert.equal(treasuryAccountBalance(bank.id,valid.treasuryEntries),'-100.00');
+  assert.equal(JSON.stringify(source),before,'rejected supplier cash mutations never rewrite source accounting');
 });
