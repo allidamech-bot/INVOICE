@@ -31,7 +31,7 @@ function legacyInvoice({id='legacy-inv-1',number='INV-LEGACY-1',issueDate='2026-
 
 function legacyPayment(invoice,{id='legacy-payment',amount='10.00',date='2026-03-01'}={}){const stamp=`${date}T12:00:00.000Z`;return{id,invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:'',customerNameEn:'Legacy Buyer',customerNameAr:'',currency:invoice.currency,amount,date,method:'bank-transfer',reference:'LEGACY-PAY',notes:'',createdAt:stamp,updatedAt:stamp};}
 
-test('collection invoice references exclude invalid calendar dates just like customer balances',()=>{
+test('customer insights and collection references exclude invalid calendar dates just like balances',()=>{
   const vault=emptyVault();
   const valid=legacyInvoice({id:'valid-date',issueDate:'2026-03-01',dueDate:'2026-03-10',amount:'100.00'});
   const invalid=legacyInvoice({id:'impossible-date',issueDate:'2026-02-30',amount:'900.00'});
@@ -43,6 +43,9 @@ test('collection invoice references exclude invalid calendar dates just like cus
   assert.deepEqual(task.openInvoices.map(row=>row.invoiceId),['valid-date']);
   assert.equal(task.oldestOpenInvoice?.invoiceId,'valid-date');
   assert.equal(task.oldestOverdueInvoice?.invoiceId,'valid-date');
+  const insight=buildAiBusinessContext(vault,'2026-03-31').customers.rows[0];
+  assert.equal(insight.profitability.find(row=>row.currency==='USD')?.netRevenue,'100.00');
+  assert.equal(insight.topProducts[0].invoiceLines,1);
   assert.equal(JSON.stringify(vault),original);
 });
 
