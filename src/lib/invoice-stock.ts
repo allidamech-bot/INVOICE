@@ -1,5 +1,5 @@
 import type {InventoryMovementRecord,LourexDocument,VaultPayload} from '../types.js';
-import {decimalToScaled,isDecimalInput} from './money.js';
+import {decimalToScaled,isDecimalInput,isExactStockQuantityInput} from './money.js';
 import {warehouseItemQuantity,defaultWarehouseId} from './warehouses.js';
 import {inventoryMovementAccountingIsValid} from './operations.js';
 import {invoiceSourceDelivery} from './sales-delivery-invoice.js';
@@ -129,7 +129,7 @@ export function postIssuedInvoiceStock(vault:VaultPayload,doc:LourexDocument):
       fail('Invoice SKU link is unverified. Reselect the catalog item.','رابط SKU في الفاتورة غير مؤكد. أعد اختيار الصنف.');
     if(line.unit.trim().toLowerCase()!==item.unit.trim().toLowerCase())
       fail('Invoice unit differs from the catalog unit. Define a conversion before posting.','وحدة الفاتورة تختلف عن الصنف. عرّف التحويل قبل الترحيل.');
-    if(!isDecimalInput(line.quantity)||qty(line.quantity)<=0n)
+    if(!isDecimalInput(line.quantity)||(!existing.length&&!isExactStockQuantityInput(line.quantity))||qty(line.quantity)<=0n)
       fail('Invoice stock quantity must be positive and precise.','يجب أن تكون كمية الفاتورة المخزنية موجبة ودقيقة.');
     const q=qty(line.quantity),current=remaining.get(item.id)??warehouseItemQuantity(item.id,defaultId,vault.inventoryMovements,defaultId);
     if(!existing.length&&q>current)fail('Insufficient stock for invoice issue.','الرصيد لا يكفي لإصدار الفاتورة.');
