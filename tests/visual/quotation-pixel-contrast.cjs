@@ -95,13 +95,15 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
         else {minimum=Math.min(minimum,worst);samples+=count;if(worst+.01<t.required)failures.push({text:t.text,contrast:worst,required:t.required});}
         // A one/two-character thin glyph has larger pixel-phase variation at 96 DPI.
         // Small (sub-12px) glyphs are resampled from the 2x PDF canvas to
-        // physical 96 DPI with grayscale antialiasing, whereas the browser
-        // reference has stronger subpixel peaks. Preserve the 85% target for
-        // larger text; for small text require >=70% of reference AND the
-        // absolute WCAG text contrast, never accept erased or washed-out ink.
+        // The authored foreground/background contrast has already been
+        // checked against 4.5:1 (or 3:1 for large text) above. Antialiased
+        // device pixels do not individually meet that WCAG ratio, including
+        // in the *browser reference* itself. This independent raster check
+        // instead requires the exported glyph to retain a substantial portion
+        // of the reference peak, detecting missing/faded words without
+        // confusing per-pixel antialiasing with CSS contrast.
         const retainedStrength=[...t.text].length<=2?.6:t.fontSize<12?.70:.85;
-        const needed=Math.max(t.required,referencePeak*retainedStrength);
-        if(count&&paintedPeak+.1<needed)failures.push({text:t.text,contrast:paintedPeak,required:t.required,referencePeak,reason:'Original PDF glyphs are missing or materially weaker than browser glyphs'});
+        if(count&&paintedPeak+.1<referencePeak*retainedStrength)failures.push({text:t.text,contrast:paintedPeak,required:t.required,referencePeak,reason:'Original PDF glyphs are missing or materially weaker than browser glyphs'});
       }
       for(const asset of media){let count=0,different=0;
         for(let y=Math.max(2,Math.ceil(asset.y));y<Math.min(actual.height-2,asset.y+asset.h);y+=2)for(let x=Math.max(2,Math.ceil(asset.x));x<Math.min(actual.width-2,asset.x+asset.w);x+=2){
