@@ -316,9 +316,21 @@ function startPlainWorkspaceWatcher():void{
 }
 
 async function start():Promise<void>{
+  const startedAt=typeof performance!=='undefined'?performance.now():Date.now();
+  const startupStage=(phase:string)=>{
+    try{
+      const now=typeof performance!=='undefined'?performance.now():Date.now();
+      (window as any).__LOUREX_DIAGNOSTICS__?.mark?.(
+        'startup-entry-phase','phase='+phase+' elapsedMs='+Math.max(0,Math.round(now-startedAt))
+      );
+    }catch{}
+  };
+  startupStage('entry-begin');
   const accountReady=await resolveRequiredAccountSession();
+  startupStage('account-storage-scoped');
   // V1 encrypted cloud is deliberately NOT hydrated for fresh V2 accounts.
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
+  startupStage('react-mounted');
   restoreWorkspaceAfterAutomaticReload();
   // Keep historical encrypted local records available for optional offline recovery.
   // iOS Safari stability mode: cloud saving remains available through App, but
