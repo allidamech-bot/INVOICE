@@ -1,7 +1,7 @@
 // Measure the surface at painted glyph locations, including SVGs, alpha and
 // gradients. A diagnostic magenta glyph mask finds even invisible white text;
 // sampling a parent background or a nearby arbitrary point cannot do that.
-async function auditPaintedContrast(page,capture) {
+async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
   // Inspect A4 pixels at 1:1; mobile zoom must not clip offscreen glyphs.
   // This changes only the test viewport/zoom, never the document colors.
   const zoom=await page.addStyleTag({content:'.qa-shell{height:auto!important;overflow:visible!important;position:static!important}.qa-stage{width:210mm!important;height:auto!important;max-height:none!important;overflow:visible!important}.qa-stage .invoice-pages{transform:none!important;margin-bottom:0!important}'});
@@ -46,10 +46,10 @@ async function auditPaintedContrast(page,capture) {
       }
       return out;
     });
-    const media=capture?await sheet.evaluate(root=>{
+    const media=capture?await sheet.evaluate((root,qrVerifiedFromPdf)=>{
       const origin=root.getBoundingClientRect();
-      return [...root.querySelectorAll('.doc-logo img,.signature-media img,.lx-document-qr img')].map(el=>{const r=el.getBoundingClientRect();return {name:el.className||el.alt||'Company logo',x:r.x-origin.x-2,y:r.y-origin.y-2,w:r.width+4,h:r.height+4};});
-    }):[];
+      return [...root.querySelectorAll('.doc-logo img,.signature-media img,.lx-document-qr img')].filter(el=>!qrVerifiedFromPdf||!el.closest('.lx-document-qr')).map(el=>{const r=el.getBoundingClientRect();return {name:el.className||el.alt||'Company logo',x:r.x-origin.x-2,y:r.y-origin.y-2,w:r.width+4,h:r.height+4};});
+    },qrVerifiedFromPdf):[];
     const original=(await (capture?capture(index,'original'):captureSheet(sheet,'original'))).toString('base64');
     const reference=capture?(await captureSheet(sheet,'original')).toString('base64'):original;
     const hide=await page.addStyleTag({content:'.invoice-page *{color:transparent!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important}'});
