@@ -1,6 +1,6 @@
 import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
-import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isFinancialDecimalInput, isNonNegativeDecimalInput } from '../lib/money.js';
+import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isFinancialDecimalInput, isNonNegativeDecimalInput, isNonNegativeFinancialDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { assertSupplierPaymentInvariant } from '../lib/payables.js';
@@ -257,6 +257,10 @@ function guardExpenseChanges(base:ExpenseRecord[],intended:ExpenseRecord[]):void
   for(const expense of intended){
     const before=baseById.get(expense.id);
     if(before&&sameRecord(before,expense))continue;
+    // Validate new or edited money strictly; preserve previously stored spelling
+    // when an unrelated expense field changes.
+    if((!before||before.amount!==expense.amount)&&!isFinancialDecimalInput(expense.amount))
+      throw new Error('Expense amount has invalid monetary grouping.');
     const errors=validateExpense(expense);
     if(errors.length)throw new Error(errors[0]);
   }
@@ -265,6 +269,26 @@ function purchaseCore(purchase:PurchaseRecord):string{
   const {status:_,postedAt:__,reversedAt:___,reverseReason:____,updatedAt:_____,...core}=purchase;
   return JSON.stringify(core);
 }
+// The reporting grammar remains backward-compatible for stored purchases.
+// Reject malformed *new or changed* monetary fields before a draft is saved.
+function guardPurchaseMoneyChanges(before:PurchaseRecord|undefined,wanted:PurchaseRecord):void{
+  for(const field of ['freight','duty','otherCosts'] as const){
+    const amount=wanted[field]||'0';
+    if((!before||wanted[field]!==before[field])&&!isNonNegativeFinancialDecimalInput(amount))
+      throw new Error('Purchase charge has invalid monetary grouping.');
+  }
+  const originalLines=new Map((before?.items??[]).map(line=>[line.id,line]));
+  for(const line of wanted.items){
+    const old=originalLines.get(line.id);
+    for(const field of ['unitCost','landedUnitCost'] as const){
+      const amount=line[field];
+      if(field==='landedUnitCost'&&!amount)continue;
+      if((!old||amount!==old[field])&&!isNonNegativeFinancialDecimalInput(amount))
+        throw new Error('Purchase unit cost has invalid monetary grouping.');
+    }
+  }
+}
+
 function purchaseIdsAffected(base:VaultPayload,intended:VaultPayload):Set<string>{
   const ids=new Set<string>();
   if(intended.purchases!==base.purchases){
@@ -482,6 +506,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   const intendedById=new Map(intended.purchases.map(purchase=>[purchase.id,purchase]));
   for(const id of affectedPurchases){
     const before=baseById.get(id),wanted=intendedById.get(id),merged=purchases.find(purchase=>purchase.id===id);
+    if(wanted)guardPurchaseMoneyChanges(before,wanted);
     if(before&&wanted&&!sameRecord(before,wanted)){
       if(before.status==='reversed')throw new Error('Reversed purchases are immutable.');
       if(before.status==='posted'){
