@@ -563,6 +563,14 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   for(const account of treasuryAccounts)assertTreasuryAccount(account);
   guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before saving this entry.');
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
+  if(intended.treasuryEntries!==base.treasuryEntries){
+    const existingIds=new Set(base.treasuryEntries.map(entry=>entry.id));
+    for(const entry of intended.treasuryEntries){
+      if(!existingIds.has(entry.id)&&!isFinancialDecimalInput(entry.amount))
+        throw new Error('New treasury amount has invalid monetary grouping.');
+    }
+  }
+  // Read-only validation of existing historical treasury values remains unchanged.
   for(const entry of treasuryEntries)assertTreasuryEntry(entry,treasuryAccounts);
   // Reconciliation/Undo events are financial audit history; a later device must
   // not erase or rewrite records that were previously saved.
