@@ -2,7 +2,7 @@ import type {InventoryMovementRecord,VaultPayload} from '../types.js';
 import {assertGovernancePermission} from './governance.js';
 import {assertSalesDeliveryIntegrity,confirmedSalesDeliveries,deliverySalesOrderContext} from './sales-delivery-flow.js';
 import {warehouseItemQuantity,defaultWarehouseId} from './warehouses.js';
-import {decimalToScaled} from './money.js';
+import {decimalToScaled,isExactStockQuantityInput} from './money.js';
 import {t} from './i18n.js';
 
 const PREFIX='sales-delivery-stock:';
@@ -77,6 +77,7 @@ export function postSalesDeliveryStock(vault:VaultPayload,input:PostSalesDeliver
     if(!item.sku?.trim())fail('Assign a SKU to the selected inventory item before posting.','أضف SKU للصنف المخزني قبل ترحيل الصرف.');
     if(item.unit.trim().toLowerCase()!==line.unit.trim().toLowerCase()
       ||docLine.unit!==line.unit||orderLine.unit!==line.unit
+      ||!isExactStockQuantityInput(line.quantity)||!isExactStockQuantityInput(docLine.quantity)
       ||quantity(line.quantity)!==quantity(docLine.quantity))
       fail('Stock unit or delivered quantity differs from confirmed delivery.','وحدة المخزون أو الكمية تختلف عن التسليم المؤكد.');
     const available=remaining.get(chosen)??warehouseItemQuantity(chosen,input.warehouseId,vault.inventoryMovements,defaultId);
