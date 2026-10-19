@@ -2,7 +2,7 @@ import type { CompanySettings, DocumentKind, DocumentItem, DocumentLanguage, Lou
 import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
 import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
-import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
+import { decimalToScaled, isFinancialDecimalInput, isNonNegativeFinancialDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
 import { defaultLetterData, defaultWatermark } from './document-extras.js';
 import { documentBankAllowed, documentCanConvertToInvoice, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
@@ -182,12 +182,12 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
     } else if (!item.descriptionEn.trim()) {
       errors[`item-${index}-description`] = 'Description is required.';
     }
-    if (!isDecimalInput(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
+    if (!isFinancialDecimalInput(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
     if (!item.unit.trim()) errors[`item-${index}-unit`] = 'Unit is required.';
     if (!documentPriceOptional(doc.kind) && !item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
-    else if (item.unitPrice.trim() && !isNonNegativeDecimalInput(item.unitPrice)) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
+    else if (item.unitPrice.trim() && !isNonNegativeFinancialDecimalInput(item.unitPrice)) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
   });
-  const nonNegative = (value: string) => isNonNegativeDecimalInput(value);
+  const nonNegative = (value: string) => isNonNegativeFinancialDecimalInput(value);
   if (doc.adjustments.discountEnabled) {
     if(!nonNegative(doc.adjustments.discountValue))errors.discount='Discount must be 0 or greater.';
     else if(doc.adjustments.discountMode==='percent'&&decimalToScaled(doc.adjustments.discountValue)>decimalToScaled('100'))errors.discount='Discount percentage cannot exceed 100%.';

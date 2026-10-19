@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, lineTotal, normalizeDecimalInput } from '../dist/src/lib/money.js';
+import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, isFinancialDecimalInput, lineTotal, normalizeDecimalInput } from '../dist/src/lib/money.js';
 import { createBlankDocument, validateDocument } from '../dist/src/lib/documents.js';
 import { customerSnapshotFrom, defaultCompany } from '../dist/src/lib/defaults.js';
+import { invoicePaymentSummary, normalizePaymentRecord } from '../dist/src/lib/payments.js';
+import { receivablesByCurrency, customerStatement } from '../dist/src/lib/receivables.js';
 
 function validDocument(){
   const doc=createBlankDocument('invoice','INV-2026-0001',defaultCompany());
@@ -15,8 +17,7 @@ function validDocument(){
 
 test('malformed mixed thousands separators cannot silently change financial inputs',()=>{
   for(const input of ['1,2.00','1.2,00','12,34.56','12.34,56',',123.45','.123,45','1234,567.89','1,,234.56','1..234,56']){
-    assert.equal(isDecimalInput(input),false,input);
-    assert.equal(normalizeDecimalInput(input),input,input);
+    assert.equal(isFinancialDecimalInput(input),false,input);
     const doc=validDocument();
     doc.items[0].unitPrice=input;
     assert.ok(validateDocument(doc)['item-0-price'],input);
@@ -30,9 +31,28 @@ test('malformed mixed thousands separators cannot silently change financial inpu
   }
 });
 
+test('legacy malformed saved amounts retain their financial meaning without rewriting records',()=>{
+  const doc=validDocument();
+  doc.status='final';doc.issueDate='2026-01-01';doc.dueDate='2026-12-31';
+  doc.items[0].unitPrice='1,2.00';
+  const payment={id:'legacy-payment',invoiceId:doc.id,customerId:'c1',currency:doc.currency,amount:'1,0.00',date:'2026-01-02',method:'cash'};
+  const snapshot=JSON.stringify({doc,payment});
+  assert.equal(calculateTotals(doc.items,doc.adjustments).grandTotal,'12.00');
+  const summary=invoicePaymentSummary(doc,[payment],'2026-10-19',[doc]);
+  assert.equal(summary.paid,'10.00');assert.equal(summary.remaining,'2.00');
+  assert.equal(receivablesByCurrency([doc],[payment],'2026-10-19')[0].outstanding,'2.00');
+  assert.equal(customerStatement('c1',[doc],[payment],'2026-10-19')[0].entries.at(-1).balance,'2.00');
+  assert.equal(JSON.stringify({doc,payment}),snapshot);
+  assert.throws(()=>normalizePaymentRecord(doc,[payment],{...payment,id:'new-payment',amount:'1,0.00'},[doc]),/Payment amount/);
+  const valid=normalizePaymentRecord(doc,[payment],{...payment,id:'new-payment',amount:'2.00'},[doc]);
+  assert.equal(valid.amount,'2.00');
+  assert.equal(invoicePaymentSummary(doc,[payment,valid],'2026-10-19',[doc]).remaining,'0.00');
+});
+
 test('valid international grouping preserves totals and existing decimal-comma policy',()=>{
   for(const input of ['1,234,567.89','1.234.567,89','١٬٢٣٤٬٥٦٧٫٨٩','۱٬۲۳۴٬۵۶۷٫۸۹']){
     assert.equal(isDecimalInput(input),true,input);
+    assert.equal(isFinancialDecimalInput(input),true,input);
     assert.equal(decimalToScaled(input,2),123456789n,input);
     assert.equal(lineTotal('2',input),'2469135.78',input);
   }
