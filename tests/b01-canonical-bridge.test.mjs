@@ -39,14 +39,15 @@ test('authoritative warehouse validation rejects two transfers that overdraw the
     return sum+(location==='A'?q:0n);
   },0n);
   const check=new Function('inventoryMovementAccountingIsValid','warehouseItemQuantity','defaultWarehouseId','movementQuantity',
-    'isSalesDeliveryStockIssue','isIssuedInvoiceStockIssue','isInvoiceVoidStockReceipt',
+    'isSalesDeliveryStockIssue','isIssuedInvoiceStockIssue','isInvoiceVoidStockReceipt','isExactStockQuantityInput',
     `${transpiled};return (base,intended,latest,warehouses,items)=>{
       guardNewWarehouseTransfers(base,intended,latest,warehouses,items);
       guardNewWarehouseDebits(base,intended,latest);
     };`)(
     row=>row.type==='transfer'&&Number(row.quantity)>0&&row.fromWarehouseId!==row.toWarehouseId,
     warehouseItemQuantity,branch=>`warehouse-${branch}`,row=>BigInt(row.quantity),
-    ()=>false,()=>false,()=>false
+    ()=>false,()=>false,()=>false,
+    quantity=>/^-?\d+(?:\.\d{1,4})?$/.test(quantity)
   );
   const opening={id:'open',itemId:'p1',type:'opening',quantity:'10'};
   const transfer=(id,quantity,fromWarehouseId='A',toWarehouseId='B')=>({id,itemId:'p1',type:'transfer',quantity,fromWarehouseId,toWarehouseId});
@@ -57,6 +58,7 @@ test('authoritative warehouse validation rejects two transfers that overdraw the
   assert.doesNotThrow(()=>check(base,{inventoryMovements:[opening,transfer('t1','4'),transfer('t2','6')]},latest,warehouses,items));
   assert.throws(()=>check(base,{inventoryMovements:[opening,transfer('t1','6'),transfer('t2','6')]},latest,warehouses,items),/latest available stock/);
   assert.throws(()=>check(base,{inventoryMovements:[opening,transfer('t1','11')]},latest,warehouses,items),/latest available stock/);
+  assert.throws(()=>check(base,{inventoryMovements:[opening,transfer('invalid-precision','1.00009')]},latest,warehouses,items),/four decimal places/);
   const concurrentlyUpdated={...latest,inventoryMovements:[opening,transfer('older','7')]};
   assert.throws(()=>check(base,{inventoryMovements:[opening,transfer('new','4')]},concurrentlyUpdated,warehouses,items),/latest available stock/);
   assert.throws(()=>check(base,{inventoryMovements:[opening,transfer('t1','2','A','DISABLED')]},latest,warehouses,items),/no longer active/);
