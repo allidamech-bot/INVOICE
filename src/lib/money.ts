@@ -37,7 +37,11 @@ function normalizeDecimalSeparators(input: string): string {
     const parts=unsigned.split(decimalSeparator);
     if(parts.length!==2)return raw;
     const [wholeRaw='',fraction='']=parts;
-    const whole=wholeRaw.split(groupingSeparator).join('');
+    const groups=wholeRaw.split(groupingSeparator);
+    // Only remove separators after validating thousands groups. Otherwise a
+    // mistyped price such as 1,2.00 silently becomes the valid amount 12.00.
+    if(!/^\d{1,3}$/.test(groups[0]||'')||groups.slice(1).some(group=>!/^\d{3}$/.test(group)))return raw;
+    const whole=groups.join('');
     if(!/^\d+$/.test(whole)||!/^\d*$/.test(fraction))return raw;
     return `${sign}${whole}.${fraction}`;
   }

@@ -13,6 +13,34 @@ function validDocument(){
   return doc;
 }
 
+test('malformed mixed thousands separators cannot silently change financial inputs',()=>{
+  for(const input of ['1,2.00','1.2,00','12,34.56','12.34,56',',123.45','.123,45','1234,567.89','1,,234.56','1..234,56']){
+    assert.equal(isDecimalInput(input),false,input);
+    assert.equal(normalizeDecimalInput(input),input,input);
+    const doc=validDocument();
+    doc.items[0].unitPrice=input;
+    assert.ok(validateDocument(doc)['item-0-price'],input);
+    doc.items[0].unitPrice='10';
+    doc.items[0].quantity=input;
+    assert.ok(validateDocument(doc)['item-0-quantity'],input);
+    doc.items[0].quantity='1';
+    Object.assign(doc.adjustments,{discountEnabled:true,discountValue:input,shippingEnabled:true,shipping:input,otherChargesEnabled:true,otherCharges:input,taxEnabled:true,taxPercent:input});
+    const errors=validateDocument(doc);
+    for(const field of ['discount','shipping','otherCharges','tax'])assert.ok(errors[field],`${input}: ${field}`);
+  }
+});
+
+test('valid international grouping preserves totals and existing decimal-comma policy',()=>{
+  for(const input of ['1,234,567.89','1.234.567,89','١٬٢٣٤٬٥٦٧٫٨٩','۱٬۲۳۴٬۵۶۷٫۸۹']){
+    assert.equal(isDecimalInput(input),true,input);
+    assert.equal(decimalToScaled(input,2),123456789n,input);
+    assert.equal(lineTotal('2',input),'2469135.78',input);
+  }
+  assert.equal(decimalToScaled('1,234',4),12340n);
+  assert.equal(decimalToScaled('12,5',2),1250n);
+  assert.equal(decimalToScaled('-1.234,56',2),-123456n);
+});
+
 test('fixed-precision parser rounds excess decimals instead of silently truncating them',()=>{
   assert.equal(decimalToScaled('1.005',2),101n);
   assert.equal(decimalToScaled('1.004',2),100n);
