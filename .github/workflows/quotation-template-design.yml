@@ -4,9 +4,16 @@ on:
     branches: [main]
     paths:
       - 'src/templates/**'
+      - 'public/ios-print-bridge.js'
+      - 'tests/pdf-artwork-contain.test.mjs'
       - 'src/lib/appearance.ts'
       - 'src/styles/document-premium-redesign-v141.css'
       - 'src/styles/template-surface-contrast-v366.css'
+      - 'src/styles/hostinger-inspired-v353.css'
+      - 'src/components/DocumentDesignControls.tsx'
+      - 'tests/visual/quotation-pixel-contrast.cjs'
+      - 'tests/visual/quotation-pdf-pixels.cjs'
+      - 'tests/template-local-surface-readability.test.mjs'
       - 'scripts/v485-bundle-visible-ui.mjs'
       - 'scripts/v544-pdf-a4-output-emergency.mjs'
       - 'tests/visual/*quotation-template*'
@@ -17,7 +24,19 @@ permissions:
 jobs:
   template-rendering:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        templates:
+          - executive,minimal,trade
+          - signature,obsidian,cobalt
+          - editorial,split,prism
+          - slate,horizon,mono
+          - aurora,ledger,noir
+          - midnight,blackivory,carbon
+    env:
+      LOUREX_TEMPLATE_IDS: ${{ matrix.templates }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +49,7 @@ jobs:
       - run: npm run typecheck && npm run build
       - run: npm install --no-save --no-package-lock playwright@1.56.1
       - run: npx playwright install --with-deps chromium webkit
+      - run: sudo apt-get install -y poppler-utils
       - name: Verify commercial A4 and appearance contracts
         run: node --test tests/*template*.test.mjs tests/document-appearance*.test.mjs tests/document-premium-redesign-v141.test.mjs tests/*pdf*.test.mjs tests/*pagination*.test.mjs tests/*qr*.test.mjs
       - name: Verify 18 templates in Arabic, English and bilingual output
@@ -41,6 +61,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: quotation-template-design
+          name: quotation-template-design-${{ matrix.templates }}
           path: visual-qa-output/quotation-template-design
           retention-days: 7

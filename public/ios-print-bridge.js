@@ -288,6 +288,35 @@
     context.drawImage(image,0,0,canvas.width,canvas.height);
     return { data:canvas.toDataURL('image/png'), format:'PNG' };
   };
+  const prepareLogoForPdf = async (image) => {
+    const src=image.currentSrc||image.src||'';
+    const css=getComputedStyle(image);
+    const shadows=[...css.filter.matchAll(/drop-shadow\(((?:[^()]|\([^()]*\))*)\)/g)].map(match=>{const values=[...match[1].matchAll(/(-?[\d.]+)px/g)].map(value=>Number(value[1]));return {x:values[0]||0,y:values[1]||0,blur:values[2]||0,color:match[1].match(/rgba?\([^)]*\)/)?.[0]||css.color};});
+    const contour=shadows.length>0;
+    if(!contour&&!/^data:image\/svg\+xml|\.svg(?:[?#]|$)/i.test(src))return;
+    const prepared=await pngForPdf(src);
+    if(!contour){image.src=prepared.data;await image.decode();return;}
+    // html2canvas does not paint CSS filter contours. Preserve the same small
+    // contour in the clone's image pixels, without recoloring the artwork.
+    const original=await loadImageForPdf(prepared.data);
+    const rect=image.getBoundingClientRect(),padding=2,scale=3;
+    let canvas=document.createElement('canvas');
+    canvas.width=Math.ceil((rect.width+padding*2)*scale);
+    canvas.height=Math.ceil((rect.height+padding*2)*scale);
+    const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Unable to prepare logo contrast.');
+    ctx.drawImage(original,padding*scale,padding*scale,rect.width*scale,rect.height*scale);
+    // CSS applies these shadows sequentially, including each earlier contour.
+    for(const shadow of shadows){
+      const next=document.createElement('canvas');next.width=canvas.width;next.height=canvas.height;
+      const paint=next.getContext('2d');if(!paint)throw new Error('Unable to prepare logo contour.');
+      paint.shadowColor=shadow.color;paint.shadowBlur=shadow.blur*scale;
+      paint.shadowOffsetX=shadow.x*scale;paint.shadowOffsetY=shadow.y*scale;
+      paint.drawImage(canvas,0,0);canvas=next;
+    }
+    image.src=canvas.toDataURL('image/png');
+    for(const [name,value] of Object.entries({width:(rect.width+padding*2)+'px',height:(rect.height+padding*2)+'px','max-width':'none','max-height':'none',margin:'-'+padding+'px',filter:'none'}))image.style.setProperty(name,value,'important');
+    await image.decode();
+  };
   const collectSharpMedia = (page) => {
     const pageRect = page.getBoundingClientRect();
     if (!pageRect.width || !pageRect.height) return [];
@@ -295,13 +324,22 @@
       const rect = image.getBoundingClientRect();
       const src = image.currentSrc || image.src || '';
       if (!src || rect.width <= 0 || rect.height <= 0) return null;
+      // CSS object-fit describes the visible artwork, not the element's box.
+      // Embedding the full box stretched circular stamps and signatures in PDF.
+      const css=getComputedStyle(image);
+      const fit=css.objectFit==='contain'&&image.naturalWidth&&image.naturalHeight
+        ?Math.min(rect.width/image.naturalWidth,rect.height/image.naturalHeight):null;
+      const width=fit?image.naturalWidth*fit:rect.width;
+      const height=fit?image.naturalHeight*fit:rect.height;
+      const position=(css.objectPosition||'50% 50%').split(/\s+/);
+      const fraction=(value)=>value==='left'||value==='top'?0:value==='right'||value==='bottom'?1:value?.endsWith('%')?parseFloat(value)/100:.5;
       const asset = {
         src,
         required:Boolean(image.closest('.lx-document-qr')),
-        x:(rect.left-pageRect.left)/pageRect.width*210,
-        y:(rect.top-pageRect.top)/pageRect.height*297,
-        w:rect.width/pageRect.width*210,
-        h:rect.height/pageRect.height*297,
+        x:(rect.left-pageRect.left+(rect.width-width)*fraction(position[0]))/pageRect.width*210,
+        y:(rect.top-pageRect.top+(rect.height-height)*fraction(position[1]))/pageRect.height*297,
+        w:width/pageRect.width*210,
+        h:height/pageRect.height*297,
         alias:`lourex-sharp-${index}-${image.classList.contains('stamp-image')?'stamp':'signature'}`
       };
       image.style.setProperty('visibility','hidden','important');
@@ -373,6 +411,12 @@
       try {
         await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
         await waitForCloneAssets(stage);
+        // html2canvas's SVG image path can clip viewBox-only uploaded logos.
+        // Normalize only the output clone through the existing native image
+        // conversion; the stored/uploaded artwork is never rewritten.
+        for(const image of stage.querySelectorAll('.doc-logo img')){
+          await prepareLogoForPdf(image);
+        }
         sanitizeUnsupportedColors(stage);
         Array.from(stage.querySelectorAll('.invoice-page')).forEach(stabilizeDocumentDirection);
         const { jsPDF } = window.jspdf;

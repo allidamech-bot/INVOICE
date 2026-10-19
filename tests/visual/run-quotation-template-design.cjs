@@ -1,6 +1,8 @@
 /* Run after npm run build. Uses local production assets and synthetic documents;
    no sign-in, production data or network server is needed. */
 const {chromium,webkit}=require('playwright');
+const {auditPaintedContrast}=require('./quotation-pixel-contrast.cjs');
+const {auditQuotationPdf}=require('./quotation-pdf-pixels.cjs');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const assert=require('node:assert/strict');
@@ -15,10 +17,11 @@ async function routeAssets(page){
  });
 }
 async function inspect(page,params){
+ await page.setViewportSize(params.mode==='mobile'?{width:390,height:844}:params.mode==='tablet'?{width:834,height:1194}:{width:1280,height:1400});
  await page.goto('http://lourex.test/tests/visual/template-visual-qa.html?'+new URLSearchParams(params));
  await page.waitForFunction(()=>document.querySelector('.invoice-pages')?.dataset.paginationReady==='true',{},{timeout:15000});
  await page.evaluate(()=>document.fonts.ready);
- return page.evaluate(()=>{
+ const declared=await page.evaluate(()=>{
   const failures=[];const samples=[];
   const parse=value=>{const m=value.match(/rgba?\(([^)]+)\)/);if(!m)return null;const a=m[1].split(',').map(Number);return [a[0],a[1],a[2],a[3]??1]};
   const lum=c=>c.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
@@ -65,6 +68,11 @@ async function inspect(page,params){
     samples.push({role:a.className||a.tagName,contrast,size:parseFloat(css.fontSize)});
     if(contrast<4.5)failures.push(`page ${index+1}: ${a.className||a.tagName} contrast ${contrast.toFixed(2)}`);
    }
+   if(new URL(location.href).searchParams.get('fonts')==='custom'){
+    const latin=sheet.querySelector('.doc-title>.bidi-en'),arabic=sheet.querySelector('.bidi-ar');
+    if(latin&&!getComputedStyle(latin).fontFamily.includes('Montserrat'))failures.push('saved Latin title family ignored');
+    if(arabic&&!getComputedStyle(arabic).fontFamily.includes('Cairo'))failures.push('saved Arabic family ignored');
+   }
    const title=sheet.querySelector('.doc-title');
    if(title){const header=title.closest('header').getBoundingClientRect(),r=title.getBoundingClientRect();if(r.left<header.left-1||r.right>header.right+1||r.top<header.top-1||r.bottom>header.bottom+1)failures.push(`page ${index+1}: title outside header`);}
   }
@@ -75,29 +83,46 @@ async function inspect(page,params){
   const total=document.querySelector('.grand-total strong')?.textContent;
   return {failures:[...new Set(failures)],pageCount:sheets.length,total,minContrast:Math.min(...samples.map(x=>x.contrast)),indices};
  });
+ const painted=await auditPaintedContrast(page);
+ return {...declared,paintedMinimum:painted.minimum,paintedSamples:painted.samples,failures:[...declared.failures,...painted.failures.map(f=>`page ${f.page}: painted ${JSON.stringify(f.text)} contrast ${f.contrast.toFixed(2)} < ${f.required} ${f.reason||''}`)]};
 }
 (async()=>{
  await fs.mkdir(output,{recursive:true});const report=[];const engines=(process.env.LOUREX_TEMPLATE_ENGINES||'chromium,webkit').split(',');
  for(const engine of engines){const browser=await({chromium,webkit})[engine].launch({headless:true,...(engine==='webkit'&&process.env.LOUREX_WEBKIT_EXECUTABLE?{executablePath:process.env.LOUREX_WEBKIT_EXECUTABLE}:{})});
  try{const page=await browser.newPage({viewport:{width:1280,height:1400}});await routeAssets(page);
-  for(const template of templates){for(const language of ['en','ar','bilingual']){
+  for(const template of templates.filter(id=>!process.env.LOUREX_TEMPLATE_IDS||process.env.LOUREX_TEMPLATE_IDS.split(',').includes(id))){for(const language of ['en','ar','bilingual']){
    for(const profile of ['showcase','stress']){
     const params={template,language,profile,items:profile==='stress'?'24':'4',mode:'print',qr:profile==='showcase'?'true':'false'};
     const result=await inspect(page,params);report.push({engine,...params,...result});
+    console.log(`${engine}/${template}/${language}/${profile}: ${result.failures.length} defects`);
+    if(engine==='chromium'&&language==='bilingual'){
+     const pdf=await auditQuotationPdf(page,path.join(output,'pdf'),template+'-'+profile);
+     report.push({engine,template,language,profile:'actual-export-pdf-'+profile,...pdf,failures:pdf.failures.map(f=>`page ${f.page}: exported ${JSON.stringify(f.text)} contrast ${f.contrast.toFixed(2)} < ${f.required} ${f.reason||''}`)});
+    }
     if(profile==='showcase'&&language==='en')await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}.png`)});
    }
    const symbol=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'print',logo:'symbol'});
    report.push({engine,template,language,profile:'symbol-logo',...symbol});
+   if(engine==='chromium'&&language==='bilingual'){const pdf=await auditQuotationPdf(page,path.join(output,'pdf'),template+'-symbol');report.push({engine,template,language,profile:'symbol-export-pdf',...pdf,failures:pdf.failures.map(f=>JSON.stringify(f))});}
    if(language==='en'){
     await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}-symbol.png`)});
     const lightSymbol=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'print',logo:'symbol-light'});
     report.push({engine,template,language,profile:'light-symbol-logo',...lightSymbol});
     await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${engine}-${template}-light-symbol.png`)});
    }
-   const custom=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'mobile',palette:'custom',unsafeColors:'true',textScale:'large'});
+   const longName=await inspect(page,{template,language,profile:'showcase',items:'2',mode:'print',logo:'none',longNames:'true',theme:'light'});
+   report.push({engine,template,language,profile:'long-name-no-logo-light-ui',...longName});
+   if(engine==='chromium'&&language==='bilingual'){const pdf=await auditQuotationPdf(page,path.join(output,'pdf'),template+'-long-name');report.push({engine,template,language,profile:'long-name-export-pdf',...pdf,failures:pdf.failures.map(f=>JSON.stringify(f))});}
+   if(language==='bilingual'){
+    const fonts=await inspect(page,{template,language,profile:'showcase',items:'2',mode:'print',fonts:'custom',textScale:'large'});report.push({engine,template,language,profile:'custom-fonts-and-size',...fonts});
+    const tablet=await inspect(page,{template,language,profile:'showcase',items:'2',mode:'tablet',logo:'symbol'});report.push({engine,template,language,profile:'ipad-viewport',...tablet});
+    for(const accent of ['#ffffff','#101010']){const edge=await inspect(page,{template,language,profile:'showcase',items:'2',mode:'print',logo:'symbol',palette:'custom',unsafeColors:'true',accent});report.push({engine,template,language,profile:'unsafe-accent-'+accent,...edge});}
+   }
+   const custom=await inspect(page,{template,language,profile:'showcase',items:'4',mode:'mobile',palette:'custom',unsafeColors:'true',textScale:'large',longFooter:'true'});
    report.push({engine,template,language,profile:'unsafe-custom-mobile',...custom});
+   if(engine==='chromium'&&language==='bilingual'){const pdf=await auditQuotationPdf(page,path.join(output,'pdf'),template+'-unsafe-custom');report.push({engine,template,language,profile:'unsafe-custom-export-pdf',...pdf,failures:pdf.failures.map(f=>JSON.stringify(f))});}
   }}
- }finally{await browser.close();}}
+ }finally{await fs.writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));await browser.close();}}
  await fs.writeFile(path.join(output,'report.json'),JSON.stringify(report,null,2));
  const failures=report.filter(r=>r.failures.length);for(const r of failures)console.error(`${r.engine}/${r.template}/${r.language}/${r.profile}: ${r.failures.join('; ')}`);
  assert.equal(failures.length,0,`${failures.length}/${report.length} failed; see ${output}/report.json`);
