@@ -1,6 +1,6 @@
 import { AiIdentityMark } from './AiIdentityMark.js';
 import {AiFinancialReadout} from './AiFinancialReadout.js';
-import {parseFinancialReadout} from '../lib/ai-financial-readout.js';
+import {normalizeFinancialReadout,parseFinancialReadout} from '../lib/ai-financial-readout.js';
 import { automaticElectronicDocument } from '../lib/secure-share.js';
 import { workspaceText, workspaceError } from '../lib/ai-workspace-presentation.js';
 import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from './AiReliabilityWorkspace.js';
@@ -814,7 +814,11 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       // nested JSX from the legacy renderer is discarded for these messages.
       // Non-financial chat, approvals and original action callbacks are kept.
       const canonical=originalMessage?.role===sender?originalMessage.text:null;
-      const report=sender==='assistant'?parseFinancialReadout(canonical):null;
+      // Current replies use structured tool evidence. Only historic stored
+      // messages fall back to the previous bounded Markdown reader.
+      const report=sender==='assistant'
+        ?normalizeFinancialReadout(originalMessage?.financialReadout)||parseFinancialReadout(canonical)
+        :null;
       const formatted=report?[<AiFinancialReadout key="financial-report" readout={report} language={aiUiAr(host)?'ar':'en'}/>]:
         sender==='assistant'?content.flatMap((child:any)=>
         typeof child==='string'?assistantMessageBlocks(child):[child]):content;
