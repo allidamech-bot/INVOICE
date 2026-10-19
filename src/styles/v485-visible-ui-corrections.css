@@ -2330,3 +2330,14 @@ html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
 @media screen and (prefers-reduced-motion:reduce){
   html body #root .app-ui .editor-discovery-action svg{transition:none!important;}
 }
+
+/* Statement actions follow the document discovery language, outside its paper. */
+@media screen{
+  html body #root .app-ui .statement-output-toolbar{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:12px!important;padding:16px!important;margin-bottom:18px!important;border:1px solid #456078!important;border-inline-start:3px solid #b79760!important;border-radius:16px!important;background:var(--lx485-surface-2)!important;color:#f3f7ff!important;}
+  html body #root .app-ui .statement-output-toolbar>div{flex:1 1 180px!important;min-width:0!important;}
+  html body #root .app-ui .statement-output-toolbar strong{display:block!important;color:#f2d39e!important;font-size:16px!important;line-height:1.5!important;}
+  html body #root .app-ui .statement-output-toolbar small{display:block!important;margin-top:4px!important;color:#c0cddd!important;font-size:12px!important;line-height:1.6!important;}
+  html body #root .app-ui .statement-output-icon{display:grid!important;place-items:center!important;flex:0 0 44px!important;width:44px!important;height:44px!important;border-radius:12px!important;background:#223f5b!important;color:#b8d6ff!important;}
+  html body #root .app-ui .statement-output-toolbar>.btn{min-height:44px!important;background:#366cc0!important;border:1px solid #6999de!important;color:#fff!important;}
+}
+@media print{.statement-output-toolbar{display:none!important;}}
