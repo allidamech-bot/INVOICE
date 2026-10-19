@@ -11,7 +11,7 @@
 
   const HTML2CANVAS_URL = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
   const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
-  const SHARP_MEDIA_SELECTOR = '.signature-image,.stamp-image';
+  const SHARP_MEDIA_SELECTOR = '.signature-image,.stamp-image,.doc-logo img';
   const ARABIC_TEXT_RE = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/;
   const LATIN_TEXT_RE = /[A-Za-z\u00c0-\u02af]/;
   const COLOR_PROPS = [
@@ -320,6 +320,8 @@
   const collectSharpMedia = (page) => {
     const pageRect = page.getBoundingClientRect();
     if (!pageRect.width || !pageRect.height) return [];
+    // Export logos as sharp original-color assets too. A JPEG page layer can wash
+    // out small continuation wordmarks even when their browser preview is clear.
     return Array.from(page.querySelectorAll(SHARP_MEDIA_SELECTOR+',.lx-document-qr img')).map((image,index) => {
       const rect = image.getBoundingClientRect();
       const src = image.currentSrc || image.src || '';
@@ -335,12 +337,13 @@
       const fraction=(value)=>value==='left'||value==='top'?0:value==='right'||value==='bottom'?1:value?.endsWith('%')?parseFloat(value)/100:.5;
       const asset = {
         src,
-        required:Boolean(image.closest('.lx-document-qr')),
+        required:Boolean(image.closest('.lx-document-qr,.doc-logo')),
+        kind:image.closest('.lx-document-qr')?'QR':image.closest('.doc-logo')?'company logo':'signing artwork',
         x:(rect.left-pageRect.left+(rect.width-width)*fraction(position[0]))/pageRect.width*210,
         y:(rect.top-pageRect.top+(rect.height-height)*fraction(position[1]))/pageRect.height*297,
         w:width/pageRect.width*210,
         h:height/pageRect.height*297,
-        alias:`lourex-sharp-${index}-${image.classList.contains('stamp-image')?'stamp':'signature'}`
+        alias:`lourex-sharp-${index}-${image.closest('.lx-document-qr')?'qr':image.closest('.doc-logo')?'logo':image.classList.contains('stamp-image')?'stamp':'signature'}`
       };
       image.style.setProperty('visibility','hidden','important');
       return asset;
@@ -352,7 +355,7 @@
         const prepared = await pngForPdf(asset.src);
         pdf.addImage(prepared.data,prepared.format,asset.x,asset.y,asset.w,asset.h,asset.alias,'NONE');
       } catch {
-        if(asset.required)throw new Error('Unable to embed document QR in PDF. Please retry.');
+        if(asset.required)throw new Error('Unable to embed '+asset.kind+' in PDF. Please retry.');
         /* Base page remains valid even if one optional artwork overlay fails. */
       }
     }
