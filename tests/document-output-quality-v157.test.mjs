@@ -32,12 +32,12 @@ test('v157 protects Arabic shaping from Latin tracking and casing',async()=>{
 });
 
 test('signature and stamp retain approved bounded A4 geometry without v157 competing overrides',async()=>{
- const [legacy,canonical]=await Promise.all([read('src/styles/document-output-quality-v157.css'),read('src/styles/document-premium-redesign-v141.css')]);
+const [legacy,canonical]=await Promise.all([read('src/styles/document-output-quality-v157.css'),read('src/styles/document-premium-redesign-v141.css')]);
  assert.match(legacy,/Arabic|arabic/i);
- assert.doesNotMatch(legacy,/\.signature-media\s*\{[^}]*min-height:/s,'legacy shaping layer must not own A4 signature geometry');
- for(const rule of ['.signature-media{','.signature-media img{','.signature-media .signature-image{','.signature-media .stamp-image{'])assert.ok(canonical.includes(rule),rule);
- assert.match(canonical,/\.signature-media\{[^}]*min-height:21mm/);
- assert.match(canonical,/\.signature-media img\{[^}]*height:20mm;object-fit:contain/);
- assert.match(canonical,/\.template-signature \.signature-media\{min-height:27mm\}/);
- assert.match(canonical,/\.template-signature \.signature-media \.stamp-image\{height:27mm\}/);
+ assert.doesNotMatch(legacy,/\.signature-media\s*\{[^}]*min-height:/s);
+ for(const rule of ['.signature-media{','.signature-media img{','.signature-media .signing-artwork img{','.document-tone-dark .signature-media{'])assert.ok(canonical.includes(rule),rule);
+ assert.match(canonical,/\.signature-media\{[^}]*min-height:22mm/);
+ assert.match(canonical,/\.signature-media img\{[^}]*height:21mm;object-fit:contain/);
+ assert.match(canonical,/\.signature-media \.signing-artwork img\{[^}]*height:23mm/);
+ assert.match(canonical,/\.document-tone-dark \.signature-media\{background:transparent/);
 });
