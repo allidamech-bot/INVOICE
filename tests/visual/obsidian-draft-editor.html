@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3"></head>
-<body><div id="root" class="app-ui"></div>
+<body><div id="root"><div id="qa-app" class="app-ui"></div></div>
 <script src="editor-stability-v338.js?v=338"></script><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
 <script type="module">
 import {AppShell} from './src/components/AppShell.js';
@@ -21,5 +21,5 @@ const draftEditor=React.createElement(DraftDocumentEditor,{document:doc,company,
 // Match EditorPage production DOM exactly: v331/v339 scroll ownership deliberately scopes
 // Draft-specific geometry beneath this wrapper so unrelated editor workspaces are untouched.
 const editor=React.createElement('div',{className:'ta-editor-workspace ta-draft-studio-workspace'},draftEditor);
-ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onCreditNote:noop,onStatementAccount:noop,onSettings:noop,onCloud:noop},editor),document.getElementById('root'));
+ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onCreditNote:noop,onStatementAccount:noop,onSettings:noop,onCloud:noop},editor),document.getElementById('qa-app'));
 </script></body></html>

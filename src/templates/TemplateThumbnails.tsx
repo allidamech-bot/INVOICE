@@ -1,6 +1,6 @@
 import type { LourexDocument, TemplateId } from '../types.js';
 import { TemplateArtwork, templateArtPalette } from './TemplateArtwork.js';
-import { resolvedAccent, resolvedAppearanceTokens } from '../lib/appearance.js';
+import { resolvedAccent, resolvedAppearanceTokens, resolvedTemplateId } from '../lib/appearance.js';
 import { t } from '../lib/i18n.js';
 
 const templates: Array<{ id: TemplateId; nameEn: string; nameAr: string; subEn: string; subAr: string }> = [
@@ -24,6 +24,11 @@ const templates: Array<{ id: TemplateId; nameEn: string; nameAr: string; subEn: 
   { id: 'carbon', nameEn: 'Carbon Luxe', nameAr: 'كربون فاخر', subEn: 'Charcoal / metallic gold', subAr: 'فحمي / ذهبي معدني' }
 ];
 
+export function templateDisplayName(id:TemplateId):string{
+  const template=templates.find(template=>template.id===resolvedTemplateId(id))!;
+  return t(template.nameEn,template.nameAr);
+}
+
 interface Props {
   document:LourexDocument;
   onSelect:(id:TemplateId)=>void;
@@ -32,7 +37,7 @@ interface Props {
   onToggleFavorite?:(id:TemplateId)=>void;
 }
 
-function StaticTemplatePreview({ id, appearance }:{ id:TemplateId; appearance:LourexDocument['appearance'] }):any{
+export function StaticTemplatePreview({ id, appearance }:{ id:TemplateId; appearance:LourexDocument['appearance'] }):any{
   const local={...appearance,templateId:id,paletteMode:'auto' as const};
   const p=templateArtPalette(local),tokens=resolvedAppearanceTokens(local),accent=resolvedAccent(local);
   const swapped=id==='cobalt'||id==='aurora'||id==='slate';

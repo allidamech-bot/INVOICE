@@ -29,6 +29,8 @@ on:
       - 'src/styles/inventory-planning-batch7.css'
       - 'src/components/WarehouseLocationsPage.tsx'
       - 'src/components/EditorPageCore.tsx'
+      - 'src/components/EditorDesignSummary.tsx'
+      - 'tests/visual/run-editor-design-discovery.cjs'
       - 'src/components/ProductAiSourceReview.tsx'
       - 'src/components/AiConversationWorkspace.tsx'
       - 'scripts/ai-conversation-owner-stage4.mjs'
@@ -166,6 +168,7 @@ jobs:
           node tests/visual/run-ux-rehab-ai-product-webkit-20261016.cjs
           node tests/visual/run-ux-rehab-document-webkit-20261016.cjs
           node tests/visual/run-v538-quote-editor-final-flow.cjs
+          LOUREX_EDITOR_QA_OUTPUT=visual-qa-output/editor-design-discovery node tests/visual/run-editor-design-discovery.cjs
           node tests/visual/run-ux-rehab-import-cancel-webkit-20261016.cjs
           node tests/visual/run-product-editor-webkit-v606.cjs
           node tests/visual/run-editor-upgrade-webkit-20261016.cjs
@@ -182,6 +185,7 @@ jobs:
             visual-qa-output/ux-rehab-ai-product-webkit/
             visual-qa-output/ux-rehab-document-webkit/
             visual-qa-output/v538-quote-editor-final-flow/
+            visual-qa-output/editor-design-discovery/
             visual-qa-output/ux-rehab-import-cancel-webkit/
             visual-qa-output/product-editor-webkit-v606/
             visual-qa-output/editor-upgrade-webkit/
