@@ -31,6 +31,40 @@ function legacyInvoice({id='legacy-inv-1',number='INV-LEGACY-1',issueDate='2026-
 
 function legacyPayment(invoice,{id='legacy-payment',amount='10.00',date='2026-03-01'}={}){const stamp=`${date}T12:00:00.000Z`;return{id,invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:'',customerNameEn:'Legacy Buyer',customerNameAr:'',currency:invoice.currency,amount,date,method:'bank-transfer',reference:'LEGACY-PAY',notes:'',createdAt:stamp,updatedAt:stamp};}
 
+test('customer insights and collection references exclude invalid calendar dates just like balances',()=>{
+  const vault=emptyVault();
+  const valid=legacyInvoice({id:'valid-date',issueDate:'2026-03-01',dueDate:'2026-03-10',amount:'100.00'});
+  const invalid=legacyInvoice({id:'impossible-date',issueDate:'2026-02-30',amount:'900.00'});
+  vault.documents=[valid,invalid];
+  const original=JSON.stringify(vault);
+  const task=buildCollectionTasks(vault,'2026-03-31')[0];
+  assert.ok(task);
+  assert.equal(task.currencies[0].outstanding,'100.00');
+  assert.deepEqual(task.openInvoices.map(row=>row.invoiceId),['valid-date']);
+  assert.equal(task.oldestOpenInvoice?.invoiceId,'valid-date');
+  assert.equal(task.oldestOverdueInvoice?.invoiceId,'valid-date');
+  const insight=buildAiBusinessContext(vault,'2026-03-31').customers.rows[0];
+  assert.equal(insight.profitability.find(row=>row.currency==='USD')?.netRevenue,'100.00');
+  assert.equal(insight.topProducts[0].invoiceLines,1);
+  assert.equal(JSON.stringify(vault),original);
+});
+
+
+test('customer AI profitability merges equivalent currency keys without rewriting historical invoices',()=>{
+  const vault=emptyVault();
+  const spaced=legacyInvoice({id:'spaced-usd',number:'INV-SPACED',amount:'100.00'});
+  spaced.currency='USD ';
+  const normal=legacyInvoice({id:'normal-usd',number:'INV-NORMAL',amount:'200.00'});
+  vault.documents=[spaced,normal];
+  const before=JSON.stringify(vault);
+  const insight=buildAiBusinessContext(vault,'2026-03-31').customers.rows[0];
+  assert.ok(insight);
+  assert.deepEqual(insight.profitability.map(row=>({currency:row.currency,netRevenue:row.netRevenue})),[
+    {currency:'USD',netRevenue:'300.00'}
+  ]);
+  assert.equal(JSON.stringify(vault),before,'accounting projections must never rewrite the source records');
+});
+
 function postedPurchase(item,date,unitCost='25.00'){
   const supplier=createSupplier();supplier.id='supplier-future';supplier.nameEn='Future Supplier';
   const purchase=createPurchase([], [supplier], 'USD');

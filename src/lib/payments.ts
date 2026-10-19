@@ -1,5 +1,5 @@
 import type { LourexDocument, PaymentMethod, PaymentRecord, PaymentStatus } from '../types.js';
-import { calculateTotals, decimalToScaled, isDecimalInput } from './money.js';
+import { calculateTotals, decimalToScaled, isDecimalInput, isFinancialDecimalInput } from './money.js';
 import { isIsoDate, todayIso } from './id.js';
 
 const METHODS=new Set<PaymentMethod>(['cash','bank-transfer','card','cheque','other']);
@@ -60,7 +60,7 @@ export function invoicePaymentSummary(invoice:LourexDocument,payments:PaymentRec
 }
 export function normalizePaymentRecord(invoice:LourexDocument,payments:PaymentRecord[],source:PaymentRecord,documents:LourexDocument[]=[]):PaymentRecord{
   if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided')throw new Error('Payments can only be recorded against an active final invoice.');
-  if(!isDecimalInput(source.amount)||decimalToScaled(source.amount,2)<=0n)throw new Error('Payment amount must be greater than 0.');
+  if(!isFinancialDecimalInput(source.amount)||decimalToScaled(source.amount,2)<=0n)throw new Error('Payment amount must be greater than 0.');
   if(!isIsoDate(source.date))throw new Error('Payment date is invalid.');
   assertInvoiceIssueDate(invoice);
   if(source.date<invoice.issueDate)throw new Error('Payment date cannot be before the invoice issue date.');

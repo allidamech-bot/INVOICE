@@ -22,7 +22,7 @@ function normalizeLocalizedNumberCharacters(input:string):string{
   return grouping.test(value)?value.replace(/٬/g,''):value;
 }
 
-function normalizeDecimalSeparators(input: string): string {
+function normalizeDecimalSeparators(input: string, strictGrouping = false): string {
   const raw=normalizeLocalizedNumberCharacters((input||'').trim().replace(/[\s\u00a0\u202f]/g,''));
   if(!raw)return '';
   const sign=raw.startsWith('-')?'-':'';
@@ -37,7 +37,11 @@ function normalizeDecimalSeparators(input: string): string {
     const parts=unsigned.split(decimalSeparator);
     if(parts.length!==2)return raw;
     const [wholeRaw='',fraction='']=parts;
-    const whole=wholeRaw.split(groupingSeparator).join('');
+    const groups=wholeRaw.split(groupingSeparator);
+    // New financial input must use valid grouping. Keep historical parsing
+    // compatible so reading a saved record never changes its financial value.
+    if(strictGrouping&&(!/^\d{1,3}$/.test(groups[0]||'')||groups.slice(1).some(group=>!/^\d{3}$/.test(group))))return raw;
+    const whole=groups.join('');
     if(!/^\d+$/.test(whole)||!/^\d*$/.test(fraction))return raw;
     return `${sign}${whole}.${fraction}`;
   }
@@ -63,11 +67,22 @@ export function normalizeDecimalInput(input:string):string{
 }
 
 export function isDecimalInput(input: string): boolean {
-  const cleaned = normalizeDecimalSeparators(input);
+  return isNormalizedDecimal(normalizeDecimalSeparators(input));
+}
+
+export function isFinancialDecimalInput(input: string): boolean {
+  return isNormalizedDecimal(normalizeDecimalSeparators(input,true));
+}
+
+function isNormalizedDecimal(cleaned: string): boolean {
   if (!cleaned || cleaned === '-' || cleaned === '.' || cleaned === '-.') return false;
   const digits=cleaned.replace(/[-.]/g,'');
   if(digits.length>MAX_DECIMAL_DIGITS)return false;
   return /^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(cleaned);
+}
+
+export function isNonNegativeFinancialDecimalInput(input:string):boolean{
+  return isFinancialDecimalInput(input)&&!normalizeDecimalSeparators(input,true).startsWith('-');
 }
 
 export function isNonNegativeDecimalInput(input:string):boolean{

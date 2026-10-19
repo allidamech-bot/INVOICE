@@ -16,14 +16,14 @@ function draftFixture({deferredState=false,commercial=false}={}){
   }).outputText;
   const timers=[],updates=[],calls=[],outputs=[];
   const document={visibilityState:'visible'};
-  const context={exports:{},Error,document,t:en=>en,IOS_WEBKIT:false,clearTimeout(){},validateDocument:()=>({}),attachmentBytes:()=>0,previewDocument:doc=>doc,
+  const context={exports:{},Error,document,t:en=>en,IOS_WEBKIT:false,clearTimeout(){},validateDocument:()=>({}),validateStoredFinalForOutput:()=>({}),attachmentBytes:()=>0,previewDocument:doc=>doc,
     window:{clearTimeout(){},setTimeout:fn=>{timers.push(fn);return timers.length;}}};
   vm.runInNewContext(compiled,context);
   const h=new context.exports.Harness();let closes=0;
   h.revision=0;h.editRevision=0;h.departureFlushQueued=false;h.saveInFlight=false;
   h.state={doc:{id:'synthetic',number:'DR-TEST',issueDate:'2026-10-10',value:'first',status:'draft'},saveState:'unsaved',saving:false,error:'',errors:{}};
   h.setState=(update,callback)=>{const run=()=>{h.state={...h.state,...(typeof update==='function'?update(h.state):update)};callback?.();};if(deferredState)updates.push(run);else run();};
-  h.props={onSave:(doc,auto)=>new Promise((resolve,reject)=>calls.push({doc,auto,resolve,reject})),onClose:()=>{closes++;},onPrint:async(doc,mode)=>outputs.push({doc,mode})};
+  h.props={documents:[],onSave:(doc,auto)=>new Promise((resolve,reject)=>calls.push({doc,auto,resolve,reject})),onClose:()=>{closes++;},onPrint:async(doc,mode)=>outputs.push({doc,mode})};
   return {h,calls,outputs,document,timers,closes:()=>closes,commit:()=>{while(updates.length)updates.shift()();}};
 }
 
