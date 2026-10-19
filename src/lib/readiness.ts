@@ -1,6 +1,6 @@
 import type { LourexDocument } from '../types.js';
 import { validateDocument } from './documents.js';
-import { decimalToScaled, isDecimalInput } from './money.js';
+import { decimalToScaled, isFinancialDecimalInput, isNonNegativeFinancialDecimalInput } from './money.js';
 import { documentPriceOptional, isSupplierDocumentKind } from './document-kinds.js';
 
 export interface ReadinessGroup {
@@ -17,8 +17,8 @@ export interface DocumentReadiness {
   groups: ReadinessGroup[];
 }
 
-const fixedPositive = (value: string) => isDecimalInput(value) && decimalToScaled(value) > 0n;
-const fixedNonNegative = (value: string) => isDecimalInput(value) && decimalToScaled(value) >= 0n;
+const fixedPositive = (value: string) => isFinancialDecimalInput(value) && decimalToScaled(value) > 0n;
+const fixedNonNegative = (value: string) => isNonNegativeFinancialDecimalInput(value);
 
 export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
   const errors=validateDocument(doc);
