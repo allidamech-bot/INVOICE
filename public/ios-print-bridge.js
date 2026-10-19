@@ -444,7 +444,10 @@
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
         const pages = Array.from(stage.querySelectorAll('.invoice-page'));
-        const renderScale = Math.min(2,Math.max(1.45,window.devicePixelRatio||1.5));
+        // All A4 output uses the same 2x source raster. At 1.45x, fine Arabic
+        // and English strokes become phase-dependent at physical 96-DPI PDF
+        // inspection even when the browser's authored ink clears WCAG.
+        const renderScale = 2;
         for (let index=0; index<pages.length; index+=1) {
           const page = pages[index];
           stabilizeDocumentDirection(page);
