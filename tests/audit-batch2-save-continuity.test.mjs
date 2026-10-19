@@ -23,7 +23,7 @@ function draftFixture({deferredState=false,commercial=false}={}){
   h.revision=0;h.editRevision=0;h.departureFlushQueued=false;h.saveInFlight=false;
   h.state={doc:{id:'synthetic',number:'DR-TEST',issueDate:'2026-10-10',value:'first',status:'draft'},saveState:'unsaved',saving:false,error:'',errors:{}};
   h.setState=(update,callback)=>{const run=()=>{h.state={...h.state,...(typeof update==='function'?update(h.state):update)};callback?.();};if(deferredState)updates.push(run);else run();};
-  h.props={onSave:(doc,auto)=>new Promise((resolve,reject)=>calls.push({doc,auto,resolve,reject})),onClose:()=>{closes++;},onPrint:async(doc,mode)=>outputs.push({doc,mode})};
+  h.props={documents:[],onSave:(doc,auto)=>new Promise((resolve,reject)=>calls.push({doc,auto,resolve,reject})),onClose:()=>{closes++;},onPrint:async(doc,mode)=>outputs.push({doc,mode})};
   return {h,calls,outputs,document,timers,closes:()=>closes,commit:()=>{while(updates.length)updates.shift()();}};
 }
 
