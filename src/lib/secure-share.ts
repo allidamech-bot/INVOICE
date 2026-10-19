@@ -64,9 +64,19 @@ export function sanitizeDocumentForSecureShare(doc:LourexDocument):LourexDocumen
   snapshot.items=snapshot.items.map(item=>({...item,unitCost:''}));
   snapshot.convertedFromId='';
   snapshot.updatedAt=doc.updatedAt;
-  const bytes=new TextEncoder().encode(JSON.stringify(snapshot)).byteLength;
+  // Legacy documents and optional commercial fields can contain `undefined`.
+  // JSON serialization already removes them from the customer-visible
+  // fingerprint; Firestore, however, rejects an undefined value *anywhere*
+  // inside transaction.set(publicShares). Serialize the redacted snapshot once
+  // so the fingerprint, immutable share and database all use identical content.
+  // Arrays follow JSON semantics (undefined -> null); objects omit the key.
+  // Do not mutate the document stored in the customer's encrypted vault.
+  if(snapshot.role===undefined)snapshot.role='standard';
+  const serialized=JSON.stringify(snapshot);
+  if(!serialized)throw new Error('The electronic document could not be serialized.');
+  const bytes=new TextEncoder().encode(serialized).byteLength;
   if(bytes>SECURE_SHARE_MAX_SNAPSHOT_BYTES)throw new Error('This document is too large for a secure customer link. Reduce embedded logo/signature/stamp image size and try again.');
-  return snapshot;
+  return JSON.parse(serialized) as LourexDocument;
 }
 
 export function newSecureShareToken():string{

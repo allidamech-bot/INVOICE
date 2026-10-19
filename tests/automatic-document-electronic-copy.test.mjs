@@ -15,17 +15,54 @@ function document(kind='proforma'){
 }
 async function transport(){
  const data=new Map();let uid='owner',tail=Promise.resolve(),writes=0;
- const ref=path=>({path,collection:name=>ref(path+'/'+name),doc:name=>ref(path+'/'+name),get:async()=>({exists:data.has(path),data:()=>data.get(path)})});
+ // Mimic the Firestore Web SDK: undefined nested in transaction.set() or
+ // DocumentReference.set() rejects the *entire* share, not just that field.
+ const rejectUndefined=(value,path='document')=>{
+  if(value===undefined)throw new TypeError('Unsupported field value: undefined at '+path);
+  if(Array.isArray(value))value.forEach((item,index)=>rejectUndefined(item,path+'['+index+']'));
+  else if(value&&typeof value==='object')for(const [key,item] of Object.entries(value))rejectUndefined(item,path+'.'+key);
+ };
+ const ref=path=>({path,collection:name=>ref(path+'/'+name),doc:name=>ref(path+'/'+name),
+  get:async()=>({exists:data.has(path),data:()=>data.get(path)}),
+  set:async value=>{rejectUndefined(value);data.set(path,value);writes++;}});
  const db={collection:name=>ref(name),runTransaction:async fn=>{
    let release;const previous=tail;tail=new Promise(r=>release=r);await previous;
-   try{const pending=[];const result=await fn({get:r=>r.get(),set:(r,value)=>pending.push([r.path,value])});for(const [path,value] of pending){data.set(path,value);writes++;}return result;}finally{release();}
+   try{const pending=[];const result=await fn({get:r=>r.get(),set:(r,value)=>{rejectUndefined(value);pending.push([r.path,value]);}});for(const [path,value] of pending){data.set(path,value);writes++;}return result;}finally{release();}
  }};
  const firebase={firestore:Object.assign(()=>db,{Timestamp:{fromDate:date=>date},FieldValue:{serverTimestamp:()=>new Date()}})};
  const source=(await read('dist/src/cloud/secure-share-owner.js')).replace(/^import .*;\n/gm,'').replace(/export /g,'');
  const names=['t','SECURE_SHARE_FORMAT','SECURE_SHARE_TOKEN_PATTERN','newSecureShareToken','sanitizeDocumentForSecureShare','secureShareAllowsDecision','secureShareExpiry','secureShareIsActive','automaticElectronicDocument','electronicDocumentFingerprint'];
- const api=new Function('currentCloudUser','firebase',...names,source+';return {ensureDocumentElectronicCopy};')(()=>({uid}),firebase,...names.map(name=>name==='t'?(en=>en):domain[name]));
+ const api=new Function('currentCloudUser','firebase',...names,source+';return {ensureDocumentElectronicCopy,createSecureShare};')(()=>({uid}),firebase,...names.map(name=>name==='t'?(en=>en):domain[name]));
  return {api,data,get writes(){return writes;},switchOwner:value=>{uid=value;}};
 }
+
+test('Firestore-safe public sharing strips optional undefined values, including legacy role, without changing vault data',async()=>{
+ const f=await transport(),d=document(),originalRole=d.role;
+ d.role=undefined;
+ d.companySnapshot.website=undefined;
+ d.customerSnapshot.contactPerson=undefined;
+ d.items[0].packing=undefined;
+ d.appearance.watermark=undefined;
+ const before=structuredClone(d);
+ const link=await f.api.ensureDocumentElectronicCopy(d);
+ assert.equal(f.writes,2,'the strict transaction must publish one share and one binding');
+ const payload=f.data.get('publicShares/'+link.id);
+ assert.equal(payload.documentRole,'standard','legacy root role must be normalized before the Firestore write');
+ assert.equal(payload.snapshot.role,'standard');
+ assert.equal(payload.snapshot.items[0].unitPrice,'5.00','commercial amounts must be preserved');
+ assert.equal(payload.snapshot.items[0].unitCost,'','internal costs must stay redacted');
+ assert.equal(Object.hasOwn(payload.snapshot.companySnapshot,'website'),false);
+ assert.equal(Object.hasOwn(payload.snapshot.customerSnapshot,'contactPerson'),false);
+ assert.equal(Object.hasOwn(payload.snapshot.items[0],'packing'),false);
+ assert.deepEqual(d,before,'the saved document must not be modified in place');
+ const normalized=structuredClone(d);normalized.role='standard';
+ assert.equal(await domain.electronicDocumentFingerprint(d),await domain.electronicDocumentFingerprint(normalized),
+  'legacy missing role and default standard must identify the same visible content');
+ const direct=await f.api.createSecureShare(d);
+ assert.equal(f.writes,3,'manual secure share must use the same safe path');
+ assert.equal(f.data.get('publicShares/'+direct.id).documentRole,'standard');
+ assert.equal(originalRole,'standard','fixture must exercise real legacy schema default');
+});
 
 test('normal document QR has stable content identity and excludes internal accounting changes',async()=>{
  const d=document(),id=await domain.electronicDocumentFingerprint(d);
