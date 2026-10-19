@@ -49,6 +49,22 @@ test('customer insights and collection references exclude invalid calendar dates
   assert.equal(JSON.stringify(vault),original);
 });
 
+
+test('customer AI profitability merges equivalent currency keys without rewriting historical invoices',()=>{
+  const vault=emptyVault();
+  const spaced=legacyInvoice({id:'spaced-usd',number:'INV-SPACED',amount:'100.00'});
+  spaced.currency='USD ';
+  const normal=legacyInvoice({id:'normal-usd',number:'INV-NORMAL',amount:'200.00'});
+  vault.documents=[spaced,normal];
+  const before=JSON.stringify(vault);
+  const insight=buildAiBusinessContext(vault,'2026-03-31').customers.rows[0];
+  assert.ok(insight);
+  assert.deepEqual(insight.profitability.map(row=>({currency:row.currency,netRevenue:row.netRevenue})),[
+    {currency:'USD',netRevenue:'300.00'}
+  ]);
+  assert.equal(JSON.stringify(vault),before,'accounting projections must never rewrite the source records');
+});
+
 function postedPurchase(item,date,unitCost='25.00'){
   const supplier=createSupplier();supplier.id='supplier-future';supplier.nameEn='Future Supplier';
   const purchase=createPurchase([], [supplier], 'USD');
