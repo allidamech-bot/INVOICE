@@ -2349,3 +2349,58 @@ html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
     73%{filter:drop-shadow(0 3px 2px #020a1340) brightness(.97);}
   }
 }
+
+/* Graphite workspace introductions: brand colors, with no logo artwork. */
+@media screen{
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header){
+    isolation:isolate;--lx-card-gold:#d5b17b;
+    background:linear-gradient(130deg,#252a32,#171e28 62%,#202c38)!important;
+    border-color:#526074!important;color:#f5f5f2!important;
+  }
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::before{
+    content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(145deg,transparent 38%,#b1874b36 38.2%,transparent 38.6%),linear-gradient(32deg,transparent 59%,#5983aa3d 59.2%,transparent 59.6%),conic-gradient(from 210deg at 18% 48%,#98413925,transparent 65deg 170deg,#537b9b35 210deg,transparent 265deg),radial-gradient(ellipse at 5% 70%,#a66c3b25,transparent 50%);
+    background-size:160% 160%;background-position:40% 50%;
+  }
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::after{
+    content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
+    background:repeating-linear-gradient(115deg,transparent 0 49px,#c9d0d507 50px 51px,transparent 52px 100px);
+    box-shadow:inset 0 1px #e6c58b26;
+  }
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header) :is(h1,h2,h3){color:#f5f5f2!important;}
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header) :is(p,small){color:#c0cad6!important;}
+  html body #root .app-ui :is(.ta-documents-eyebrow,.ta-customers-eyebrow){color:#efd4a4!important;}
+
+  /* The robot is a decorative layer; prompts, messages and the composer stay live. */
+  html body #root .app-ui .workspace-shell.screen-home .lourex-advisor-card{
+    isolation:isolate!important;position:relative!important;overflow:hidden!important;
+    background:radial-gradient(ellipse at 0% 10%,#497f9e40,transparent 58%),linear-gradient(140deg,#202c39,#101f30 62%,#182e3c)!important;
+    border-color:#6f8e9b!important;box-shadow:inset 0 1px #efd29a45,0 10px 28px #030c1724!important;
+  }
+  .lourex-advisor-atmosphere{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;border-radius:inherit;}
+  .lourex-advisor-atmosphere::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 12% 35%,#d4b47c20,transparent 43%),linear-gradient(110deg,transparent 22%,#85b5ca12 22.3%,transparent 22.8%);}
+  .lourex-advisor-portrait{position:absolute;inset-inline-end:8%;top:12px;display:grid;place-items:center;width:144px;height:144px;opacity:.22;filter:drop-shadow(0 8px 14px #63aec326);}
+  .lourex-advisor-portrait>.lxw-brand-glyph{width:144px;height:144px;}
+  .lourex-advisor-orbit{position:absolute;inset-inline-end:-20px;top:-65px;width:310px;height:240px;border:1px solid #9bb9cb24;border-radius:50%;transform:rotate(-24deg);}
+  .lourex-advisor-orbit::before{content:"";position:absolute;inset:18px;border:1px dashed #d6b87c32;border-radius:inherit;}
+  .lourex-advisor-orbit::after{content:"";position:absolute;top:54px;left:11px;width:6px;height:6px;border-radius:50%;background:#e6c68c;box-shadow:0 0 14px #e6c68c70;}
+  html body #root .app-ui .workspace-shell.screen-home .lourex-advisor-mark{background:linear-gradient(145deg,#24475d,#152a3e)!important;border-color:#b59865!important;box-shadow:0 4px 12px #020a1830!important;}
+  html body #root .app-ui .lourex-advisor-mark>.lxw-brand-glyph{display:block;width:38px;height:38px;}
+  html body #root .app-ui .workspace-shell.screen-home .lourex-advisor-identity small{color:#edcc91!important;}
+  html body #root .app-ui .workspace-shell.screen-home .lourex-advisor-identity h2{color:#f6f6f2!important;}
+  html body #root .app-ui .workspace-shell.screen-home .lourex-advisor-identity p{color:#c0cad6!important;}
+}
+@media screen and (prefers-reduced-motion:no-preference){
+  html body #root .app-ui :is(.ta-documents-header,.ta-customers-header)::before{animation:lourex-workspace-sheen 9s ease-in-out infinite alternate;}
+  .lourex-advisor-portrait{animation:lourex-advisor-presence 5s ease-in-out infinite;}
+  .lourex-advisor-orbit::before{animation:lourex-advisor-orbit 18s linear infinite;}
+  .lourex-advisor-mark>.lxw-brand-glyph{animation:lourex-advisor-presence 4.5s ease-in-out infinite;}
+  @keyframes lourex-workspace-sheen{from{background-position:20% 30%;}to{background-position:75% 65%;}}
+  @keyframes lourex-advisor-presence{0%,100%{transform:translateY(3px) rotate(-3deg);}50%{transform:translateY(-5px) rotate(3deg);}}
+  @keyframes lourex-advisor-orbit{to{transform:rotate(360deg);}}
+}
+@media screen and (max-width:600px){
+  .lourex-advisor-portrait{width:112px;height:112px;inset-inline-end:4%;top:8px;opacity:.19;}
+  .lourex-advisor-portrait>.lxw-brand-glyph{width:112px;height:112px;}
+}
+@media print{.lourex-advisor-atmosphere{display:none!important;}}
