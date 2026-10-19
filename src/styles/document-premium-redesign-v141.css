@@ -4,7 +4,7 @@
 @page{size:A4;margin:0}
 .invoice-pages{--preview-scale:1;display:flex;flex-direction:column;align-items:center;gap:24px;transform-origin:top center}
 .invoice-page{
-  --paper:#fff;--ink:var(--lrx-primary,#17212b);--muted:var(--lrx-secondary,#4d5b68);--rule:#cdd5dc;--soft:#f4f6f8;
+  --paper:#fff;--ink:var(--lrx-primary,#17212b);--muted:var(--lrx-secondary,#4d5b68);--rule:#cdd5dc;--soft:var(--lrx-row-surface,#f4f6f8);
   --template-accent:var(--accent,#b08a4b);
   --table-head:#172d3c;--table-ink:#fff;--closing:#f4f6f8;--closing-ink:var(--ink);--closing-muted:var(--muted);
   --title-size:31px;--title-weight:500;
@@ -24,25 +24,34 @@
 /* Graphic letterheads. Artwork occupies reserved header/footer space only. */
 .template-artwork{display:block;position:absolute;inset:0;width:100%;height:100%;pointer-events:none;user-select:none}
 .template-artwork-header,.template-artwork-footer{z-index:-1}
+/* Keep decorative footer geometry fixed while variable-length copy flows on
+   the paired footer surface below it. Stretching the art exposed white gaps. The 1mm solid overlap avoids
+   fractional-pixel seams between the vector band and its continuation. */
+.template-artwork-footer{height:20mm}
 .template-artwork-rail{z-index:0}
 .invoice-page>header,.invoice-page>.doc-body,.invoice-page>.doc-footer{position:relative;z-index:2}
 .header-graphic{flex:none;position:relative;isolation:isolate}
 .document-masthead{position:relative;isolation:isolate;min-height:34mm;padding:8mm 12mm 9mm;display:grid;grid-template-columns:minmax(0,58mm) minmax(0,1fr);gap:7mm;align-items:center;color:var(--art-ink)}
 .masthead-brand,.masthead-title{min-width:0;position:relative;z-index:1}
+/* Split has a light brand surface and a dark title surface. Continuation
+   headers inherit their page ink rather than the first-page artwork ink. */
+.masthead-brand{color:var(--brand-ink,var(--art-ink))}
+.continuation-company{--brand-ink:var(--ink)}
 .masthead-title{text-align:end}.masthead-title .doc-title{align-items:flex-end}
 /* One shared identity region for all 18 designs; no white backing or new art layer. */
 .doc-logo{display:flex;align-items:center;gap:2.5mm;width:100%;max-width:58mm;min-height:12mm}
 .invoice-page .doc-logo img{display:block;width:auto;height:auto;max-width:100%;max-height:18mm;object-fit:contain;object-position:center;flex-shrink:1}
-.invoice-page .masthead-brand .doc-logo[data-logo-layout="symbol"] img{max-width:15mm;max-height:15mm;flex:0 0 auto;filter:drop-shadow(.65px 0 0 var(--art-ink)) drop-shadow(-.65px 0 0 var(--art-ink)) drop-shadow(0 .65px 0 var(--art-ink)) drop-shadow(0 -.65px 0 var(--art-ink))}
-.doc-logo-wordmark{flex:1;min-width:0;font-size:12px;line-height:1.3;font-weight:750;color:var(--art-ink);overflow-wrap:anywhere;word-break:normal}
+.invoice-page .masthead-brand .doc-logo[data-logo-layout="symbol"] img{max-width:15mm;max-height:15mm;flex:0 0 auto;}
+.invoice-page .doc-logo[data-logo-layout="symbol"] img{filter:drop-shadow(1px 0 0 var(--brand-ink,var(--art-ink))) drop-shadow(-1px 0 0 var(--brand-ink,var(--art-ink))) drop-shadow(0 1px 0 var(--brand-ink,var(--art-ink))) drop-shadow(0 -1px 0 var(--brand-ink,var(--art-ink)))}
+.doc-logo-wordmark{flex:1;min-width:0;font-size:12px;line-height:1.3;font-weight:750;color:var(--brand-ink,var(--art-ink));overflow-wrap:anywhere;word-break:normal}
 .doc-logo-wordmark .bi-value{gap:.4mm}.doc-logo-wordmark .bi-value>.bidi-ar{font-size:.95em}
 .invoice-page .doc-logo[data-logo-layout="wordmark"] .doc-logo-wordmark{display:none}
 .invoice-page .doc-logo[data-logo-layout="wordmark"] img{max-width:100%}
 .doc-brand-name{font-size:14px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
 .doc-title{display:flex;flex-direction:column;gap:1.5mm;color:inherit}
-.doc-title>span{font-size:calc(var(--title-size)*var(--lrx-title-scale,1));line-height:1.18;font-weight:var(--title-weight);letter-spacing:.035em;color:inherit;text-wrap:balance;font-family:Georgia,"Times New Roman",serif}
+.doc-title>span{font-size:calc(var(--title-size)*var(--lrx-title-scale,1));line-height:1.18;font-weight:var(--title-weight);letter-spacing:.035em;color:inherit;text-wrap:balance;font-family:var(--font-latin,Georgia,serif)}
 .doc-title>em{font-size:calc(19px*var(--lrx-title-scale,1));line-height:1.35;font-style:normal;font-weight:600;letter-spacing:0;color:inherit}
-.invoice-page .masthead-title .doc-title>.bidi-en{font-family:Georgia,"Times New Roman",serif}
+.invoice-page .masthead-title .doc-title>.bidi-en{font-family:var(--font-latin,Georgia,serif)}
 .doc-title>.doc-title-primary-ar{font-family:var(--font-arabic);letter-spacing:0;line-height:1.4;font-weight:700}
 .bi-label{display:inline-flex;flex-direction:column;gap:.35mm;line-height:1.35}.bi-value{display:flex;flex-direction:column;gap:.65mm}.invoice-page .bi-value>.bidi-ar{font-size:1.14em}
 .header-details{margin:3mm 12mm 0;padding:2mm 0 0}
@@ -108,7 +117,7 @@
 .bank-block>div[data-bank="iban"]>span,.bank-block>div[data-bank="swift-/-bic"]>span{font-family:var(--font-latin,Inter,Arial,sans-serif);font-size:9px;letter-spacing:.025em;font-weight:500;direction:ltr;unicode-bidi:isolate}
 .signature-media{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;gap:4mm;min-height:22mm;padding:1mm 0 0}.signature-media img{display:block;width:100%;height:21mm;object-fit:contain;object-position:center bottom;background:transparent}.signing-artwork{display:block;min-width:0;height:23mm}.signature-media .signing-artwork img{width:100%;height:23mm;object-fit:contain}.signing-artwork:only-child{grid-column:1/-1;width:36mm;max-width:100%;justify-self:center}
 .document-tone-dark .signature-media{background:transparent;padding:0;border:0}.invoice-page .signature-image{filter:none;mix-blend-mode:normal}
-.doc-footer{position:relative;isolation:isolate;min-height:20mm;flex:none;margin:0;padding:11mm 12mm 3mm;display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;border:0;font-size:9px;line-height:1.5;font-weight:400;color:var(--footer-ink)}
+.doc-footer{position:relative;isolation:isolate;min-height:20mm;flex:none;margin:0;padding:12mm 12mm 3mm;display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;border:0;font-size:9px;line-height:1.5;font-weight:400;color:var(--footer-ink);background:linear-gradient(to bottom,transparent 0,transparent 19mm,var(--footer-paper) 19mm)}
 .doc-footer>span:first-of-type{min-width:0;max-width:152mm;overflow-wrap:anywhere}.doc-footer>span:last-child{flex:none;font-size:8px;font-weight:600;white-space:nowrap}
 
 
@@ -118,31 +127,31 @@
 .invoice-page.template-executive .party-customer .section-kicker{border-inline-start:2mm solid var(--accent);padding-inline-start:2mm}
 
 /* 02 Minimal: clean white paper and a strong interrupted yellow band. */
-.invoice-page.template-minimal{--table-head:#242833;--title-size:34px;--title-weight:500;--soft:#f5f6f8}
+.invoice-page.template-minimal{--table-head:#242833;--title-size:34px;--title-weight:500}
 .invoice-page.template-minimal .document-masthead{padding-bottom:11mm}
 .invoice-page.template-minimal .masthead-title{align-self:end}
 .invoice-page.template-minimal .grand-total{border-radius:0}
 
 /* 03 International Trade: blue and orange crossing swooshes. */
-.invoice-page.template-trade{--table-head:#1374ae;--soft:#edf5fb}
+.invoice-page.template-trade{--table-head:#1374ae}
 .invoice-page.template-trade .document-masthead{padding-top:12mm;padding-bottom:6mm}
 .invoice-page.template-trade .items-table th{border-bottom:1mm solid var(--accent)}
 
 /* 04 Signature: sage curves, a white cutout and formal warm paper. */
-.invoice-page.template-signature{--paper:#fcfaf5;--soft:#f0f3ed;--table-head:#39543d;--title-size:30px;--title-weight:500}
+.invoice-page.template-signature{--paper:#fcfaf5;--table-head:#39543d;--title-size:30px;--title-weight:500}
 .invoice-page.template-signature .document-masthead{padding-bottom:11mm}
-.invoice-page.template-signature .masthead-title .bidi-en{font-family:Georgia,"Times New Roman",serif}
+.invoice-page.template-signature .masthead-title .bidi-en{font-family:var(--font-latin,Georgia,serif)}
 .invoice-page.template-signature .grand-total{border-radius:0 5mm 0 5mm}
 
 /* 05 Obsidian: cyan diagonal cuts through graphite, with light identity cards. */
-.invoice-page.template-obsidian{--paper:#15191c;--soft:#20262a;--rule:#485158;--table-head:#18232f}
+.invoice-page.template-obsidian{--paper:#15191c;--rule:#485158;--table-head:#18232f}
 .invoice-page.template-obsidian .document-masthead{padding-top:10mm;padding-bottom:10mm}
 .invoice-page.template-obsidian .party-block{padding:0 0 3mm;background:transparent;color:var(--ink);border-bottom:1px solid var(--rule)}
 .document-tone-dark .party-name{padding-bottom:1.5mm;border-bottom:1px solid var(--accent)}
 .document-tone-dark .section-kicker{color:var(--lrx-heading)}
 
 /* 06 Cobalt: a blue wave folded under a navy circular crown. */
-.invoice-page.template-cobalt{--table-head:#165da8;--soft:#eef5fb}
+.invoice-page.template-cobalt{--table-head:#165da8}
 .invoice-page.template-cobalt .document-masthead{grid-template-columns:minmax(0,1fr) minmax(0,58mm);grid-template-areas:"title brand";padding-bottom:12mm}
 .invoice-page.template-cobalt .masthead-brand{grid-area:brand}.invoice-page.template-cobalt .masthead-title{grid-area:title;text-align:start}
 .invoice-page.template-cobalt .items-table th:first-child{border-start-start-radius:2mm}.invoice-page.template-cobalt .items-table th:last-child{border-start-end-radius:2mm}
@@ -150,20 +159,20 @@
 .invoice-page.template-cobalt .grand-total{border-radius:5mm}
 
 /* 07 Editorial: yellow tab, typographic title and a charcoal footer cut. */
-.invoice-page.template-editorial{--title-size:35px;--title-weight:500;--table-head:#242733;--soft:#f7f7f5}
-.invoice-page.template-editorial .masthead-title .bidi-en{font-family:Georgia,"Times New Roman",serif}
+.invoice-page.template-editorial{--title-size:35px;--title-weight:500;--table-head:#242733}
+.invoice-page.template-editorial .masthead-title .bidi-en{font-family:var(--font-latin,Georgia,serif)}
 .invoice-page.template-editorial .document-masthead{padding-top:10mm;padding-bottom:11mm}
 .invoice-page.template-editorial .grand-total{border-radius:0}
 
 /* 08 Split: indigo round cutouts with warm orange discs and a curved total. */
-.invoice-page.template-split{--table-head:#28295b;--soft:#f3f2fa}
+.invoice-page.template-split{--table-head:#28295b}
 .invoice-page.template-split .document-masthead{grid-template-columns:minmax(0,58mm) minmax(0,1fr);padding-top:10mm;padding-bottom:12mm}
 .invoice-page.template-split .masthead-title{padding-inline-start:20mm}
 .invoice-page.template-split .grand-total{border-radius:5mm}
 .invoice-page.template-split .items-table th:first-child{border-start-start-radius:5mm}.invoice-page.template-split .items-table th:last-child{border-start-end-radius:5mm}
 
 /* 09 Prism: a teal side spine, coral edge and chevron label. */
-.invoice-page.template-prism{--table-head:#087f8c;--soft:#edf6f7}
+.invoice-page.template-prism{--table-head:#087f8c}
 .invoice-page.template-prism .document-masthead{padding-inline-start:20mm;padding-bottom:11mm}
 .invoice-page.template-prism :is(.header-details,.continuation-header){margin-inline-start:20mm}
 .invoice-page.template-prism .doc-body{padding-inline-start:20mm}
@@ -172,7 +181,7 @@
 .invoice-page.template-prism .items-table td.col-num{border-bottom-color:#6db5bd}
 
 /* 10 Slate: an airy aqua side panel with a crisp black information grid. */
-.invoice-page.template-slate{--table-head:#28525f;--soft:#edf4f5}
+.invoice-page.template-slate{--table-head:#28525f}
 .invoice-page.template-slate .document-masthead{grid-template-columns:minmax(0,1fr) minmax(0,58mm);grid-template-areas:"title brand";padding-inline-end:31mm}
 .invoice-page.template-slate .masthead-title{grid-area:title;text-align:start}.invoice-page.template-slate .masthead-brand{grid-area:brand}
 .invoice-page.template-slate .header-details{margin-inline-end:27mm}
@@ -182,49 +191,49 @@
 .invoice-page.template-slate .grand-total{border-radius:0}
 
 /* 11 Horizon: open white stationery framed by thin blue and orange arcs. */
-.invoice-page.template-horizon{--table-head:#166eb4;--soft:#eef5fb}
+.invoice-page.template-horizon{--table-head:#166eb4}
 .invoice-page.template-horizon .document-masthead{padding-top:12mm;padding-bottom:7mm}
 .invoice-page.template-horizon .items-table th{background:transparent;color:#15374b;border-block:1px solid #166eb4}
 .invoice-page.template-horizon .grand-total{border-radius:0;border-inline-start:1.5mm solid var(--art-second)}
 
 /* 12 Mono Grid: asymmetric black bands and numbered ledger cells. */
-.invoice-page.template-mono{--table-head:#181b22;--soft:#f5f5f6;--rule:#b9bfc5;--title-size:32px}
+.invoice-page.template-mono{--table-head:#181b22;--rule:#b9bfc5;--title-size:32px}
 .invoice-page.template-mono .document-masthead{padding-bottom:11mm}
 .invoice-page.template-mono .items-table th,.invoice-page.template-mono .items-table td{border-inline-end:1px solid var(--rule)}
 .invoice-page.template-mono .items-table td.col-num{background:#181b22;color:#fff}
 .invoice-page.template-mono .grand-total{border-radius:0}
 
 /* 13 Aurora: two teal waves enclose an open, fresh white working surface. */
-.invoice-page.template-aurora{--paper:#fdfbf6;--table-head:#08736f;--soft:#edf5f1}
+.invoice-page.template-aurora{--paper:#fdfbf6;--table-head:#08736f}
 .invoice-page.template-aurora .document-masthead{grid-template-columns:minmax(0,1fr) minmax(0,58mm);grid-template-areas:"title brand";padding-bottom:12mm}
 .invoice-page.template-aurora .masthead-title{grid-area:title;text-align:start}.invoice-page.template-aurora .masthead-brand{grid-area:brand}
 .invoice-page.template-aurora .masthead-title .doc-title{align-items:flex-start}
 .invoice-page.template-aurora .grand-total{border-radius:0 5mm 0 5mm}
 
 /* 14 Ledger: a crimson ribbon crest with an integrated red financial finish. */
-.invoice-page.template-ledger{--table-head:#bf1938;--soft:#fbf0f2}
+.invoice-page.template-ledger{--table-head:#bf1938}
 .invoice-page.template-ledger .document-masthead{padding-top:15mm;padding-bottom:5mm}
 .invoice-page.template-ledger .items-table th:first-child{border-start-start-radius:2mm}.invoice-page.template-ledger .items-table th:last-child{border-start-end-radius:2mm}
 .invoice-page.template-ledger .grand-total{border-radius:0}
 
 /* 15 Noir Gold: long gold facets fold around a matte black page. */
-.invoice-page.template-noir{--paper:#121212;--soft:#1b1a18;--rule:#514c44;--table-head:#29241d}
+.invoice-page.template-noir{--paper:#121212;--rule:#514c44;--table-head:#29241d}
 .invoice-page.template-noir .document-masthead{padding-top:10mm;padding-bottom:10mm}
 .invoice-page.template-noir .grand-total{border-radius:0}
 
 /* 16 Midnight Navy: a sweeping blue crest and champagne wave on navy. */
-.invoice-page.template-midnight{--paper:#071824;--soft:#0d2434;--rule:#3e5666;--table-head:#16538a}
+.invoice-page.template-midnight{--paper:#071824;--rule:#3e5666;--table-head:#16538a}
 .invoice-page.template-midnight .document-masthead{padding-top:10mm;padding-bottom:12mm}
 .invoice-page.template-midnight .grand-total{border-radius:0 5mm 0 5mm}
 
 /* 17 Black Ivory: an ivory title panel, black corner and a gold diagonal. */
-.invoice-page.template-blackivory{--paper:#14130f;--soft:#1f1d18;--rule:#534e42;--table-head:#f1e7d3;--table-ink:#201c18;--title-size:32px;--title-weight:500}
+.invoice-page.template-blackivory{--paper:#14130f;--rule:#534e42;--table-head:#f1e7d3;--table-ink:#201c18;--title-size:32px;--title-weight:500}
 .invoice-page.template-blackivory .document-masthead{padding-top:12mm;padding-bottom:10mm;padding-inline-end:32mm}
-.invoice-page.template-blackivory .masthead-title .bidi-en{font-family:Georgia,"Times New Roman",serif}
+.invoice-page.template-blackivory .masthead-title .bidi-en{font-family:var(--font-latin,Georgia,serif)}
 .invoice-page.template-blackivory .grand-total{border-radius:0}
 
 /* 18 Carbon Luxe: metallic diagonal panels and a warm gold total. */
-.invoice-page.template-carbon{--paper:#1b1d20;--soft:#24282b;--rule:#505960;--table-head:#394656}
+.invoice-page.template-carbon{--paper:#1b1d20;--rule:#505960;--table-head:#394656}
 .invoice-page.template-carbon .document-masthead{padding-top:12mm;padding-bottom:8mm}
 .invoice-page.template-carbon .grand-total{border-radius:1mm}
 

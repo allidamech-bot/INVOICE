@@ -2,6 +2,7 @@ import { TemplateRenderer } from '../../dist/src/templates/TemplateRenderer.js';
 
 const templateIds=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 const params=new URLSearchParams(location.search);
+document.documentElement.dataset.uiTheme=params.get('theme')==='light'?'light':'dark';
 const requestedTemplate=params.get('legacyTemplate')||params.get('template');
 const template=params.has('legacyTemplate')?(requestedTemplate||'removed-template'):templateIds.includes(requestedTemplate)?requestedTemplate:'midnight';
 const language=['en','ar','bilingual'].includes(params.get('language'))?params.get('language'):'en';
@@ -17,7 +18,7 @@ const svg=(markup)=>`data:image/svg+xml;charset=utf-8,${encodeURIComponent(marku
 const fullWordmark=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72"><rect width="240" height="72" fill="#0a263b"/><path d="M20 18h10v27h29v9H20z" fill="#c19b59"/><text x="72" y="47" font-family="Arial" font-size="27" font-weight="700" letter-spacing="4" fill="white">LOUREX</text></svg>`);
 const symbolOnlyLogo=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M25 20h22v59h48v21H25z" fill="#202445"/></svg>`);
 const lightOnlyLogo=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M25 20h22v59h48v21H25z" fill="#f3f1e9"/></svg>`);
-const logo=params.get('logo')==='symbol'?symbolOnlyLogo:params.get('logo')==='symbol-light'?lightOnlyLogo:fullWordmark;
+const logo=params.get('logo')==='none'?'':params.get('logo')==='symbol'?symbolOnlyLogo:params.get('logo')==='symbol-light'?lightOnlyLogo:fullWordmark;
 const signature=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100"><path d="M15 70c35-64 28 33 58-14 24-37 22 40 52-5 17-25 20 24 52-4 20-18 31 5 82-18" fill="none" stroke="#162838" stroke-width="5" stroke-linecap="round"/><path d="M38 83h205" stroke="#a98148" stroke-width="2"/></svg>`);
 const stamp=svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150"><circle cx="75" cy="75" r="61" fill="none" stroke="#8d2f35" stroke-width="7"/><circle cx="75" cy="75" r="46" fill="none" stroke="#8d2f35" stroke-width="2"/><text x="75" y="70" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700" fill="#8d2f35">LOUREX</text><text x="75" y="92" text-anchor="middle" font-family="Arial" font-size="10" fill="#8d2f35">AUTHORIZED</text></svg>`);
 
@@ -65,8 +66,11 @@ if(params.get('profile')==='showcase'){
 }
 
 try{
+  if(params.get('longNames')==='true'){documentData.companySnapshot.nameEn='LOUREX International Trading and Industrial Engineering Procurement Solutions Company';documentData.companySnapshot.nameAr='شركة لوريكس الدولية للتجارة والحلول الهندسية والمشتريات الصناعية المتقدمة';}
+  if(params.get('longFooter')==='true')documentData.companySnapshot.footerText=('LOUREX International Trading - Registered commercial office - All supplies are subject to the agreed quotation terms, delivery schedule, bank instructions and written acceptance. ').repeat(6);
+  if(params.has('accent'))documentData.appearance.accentColor=params.get('accent');
   const rendered=React.createElement(TemplateRenderer,{document:documentData,scale,compact:false,electronicShareId:params.get('qr')==='true'?'0123456789abcdef0123456789abcdef0123456789a':undefined});
-  const shell=React.createElement('div',{className:`qa-shell editor-screen ${mode==='mobile'?'mobile-preview-open':''}`},
+  const shell=React.createElement('div',{className:`qa-shell app-ui editor-screen ${mode==='mobile'?'mobile-preview-open':''}`},
     React.createElement('div',{className:'qa-caption'},React.createElement('span',null,`${String(template).toUpperCase()} · ${language.toUpperCase()} · ${count} items · ${palette.toUpperCase()}`),React.createElement('span',null,mode.toUpperCase())),
     React.createElement('div',{className:`qa-stage preview-stage ${mode==='mobile'?'mobile-preview-stage':''} mode-${mode}`},rendered)
   );

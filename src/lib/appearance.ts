@@ -35,9 +35,10 @@ const TEMPLATE_PAPERS: Record<TemplateId,string> = {
  * clears 4.5:1 on pure white can still become unreadable on those slightly darker
  * surfaces, so custom text must pass both the page and the darkest common light
  * semantic surface for that template. */
+// This is the canonical alternating-row surface, emitted by Page into v141.
+// The readability guard and CSS therefore cannot disagree about its color.
 const TEMPLATE_LIGHT_SURFACES: Record<TemplateId,string> = {
-  executive:'#f5f1e9', minimal:'#ffffff', trade:'#eef4f6', signature:'#f3ecdf', obsidian:'#f1f2f2', cobalt:'#edf4f9', editorial:'#ffffff', split:'#eef2f2', prism:'#edf4f1', slate:'#eef2f4', horizon:'#edf3f5', mono:'#f4f4f4', aurora:'#edf4ee', ledger:'#e9eef0', noir:'#f5f2eb', midnight:'#edf2f3', blackivory:'#f5efe3', carbon:'#eceeef'
-
+  executive:'#f4f6f8', minimal:'#f5f6f8', trade:'#edf5fb', signature:'#f0f3ed', obsidian:'#20262a', cobalt:'#eef5fb', editorial:'#f7f7f5', split:'#f3f2fa', prism:'#edf6f7', slate:'#edf4f5', horizon:'#eef5fb', mono:'#f5f5f6', aurora:'#edf5f1', ledger:'#fbf0f2', noir:'#1b1a18', midnight:'#0d2434', blackivory:'#1f1d18', carbon:'#24282b'
 };
 const DARK_BODY_TEMPLATES=new Set<TemplateId>(['obsidian','noir','midnight','blackivory','carbon']);
 const TEMPLATE_DARK_SURFACES: Partial<Record<TemplateId,string>> = {
@@ -52,7 +53,7 @@ type TextScale='small'|'normal'|'large';
 export type DocumentTone='light'|'dark';
 
 export interface TemplateAppearanceTokens {
-  page:string;surface:string;surfaceInk:string;surfaceMuted:string;
+  page:string;rowSurface:string;surface:string;surfaceInk:string;surfaceMuted:string;
   darkSurface:string;darkSurfaceInk:string;darkSurfaceMuted:string;
   heading:string;primary:string;secondary:string;muted:string;border:string;
   tableHeader:string;tableHeaderText:string;accent:string;accentInk:string;
@@ -134,7 +135,7 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const darkSurfaceMuted='#d7d0c4';
 
   return {
-    page,surface,surfaceInk,surfaceMuted,darkSurface,darkSurfaceInk,darkSurfaceMuted,
+    page,rowSurface:lightSurface,surface,surfaceInk,surfaceMuted,darkSurface,darkSurfaceInk,darkSurfaceMuted,
     heading,primary,secondary,muted:darkBody?'#aeb5ba':'#687582',border:darkBody?'#343a3f':'#d8dde2',
     tableHeader:darkBody?'#080a0c':'#eef1f3',tableHeaderText:darkBody?'#fffaf0':'#17212b',
     accent,accentInk:resolvedAccentInk(accent),totalsSurface:darkBody?'#202529':'#f5f2ea',inverse:'#ffffff',

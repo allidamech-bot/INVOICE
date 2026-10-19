@@ -59,7 +59,7 @@ export function DocumentDesignControls({appearance,onChange}:Props):any{
           <ColorControl label={t('Section Heading Color','لون عناوين الأقسام')} value={appearance.headingTextColor||tokens.heading} onChange={value=>onChange('headingTextColor',value)}/>
           <ColorControl label={t('Primary Text / Values','النص والقيم الأساسية')} value={appearance.primaryTextColor||tokens.primary} onChange={value=>onChange('primaryTextColor',value)}/>
           <ColorControl label={t('Secondary Text / Labels','النص الثانوي / التسميات')} value={appearance.secondaryTextColor||tokens.secondary} onChange={value=>onChange('secondaryTextColor',value)}/>
-          <p className="document-design-note document-design-safety"><strong>{t('Readability guard is always on.','حماية القراءة مفعلة دائمًا.')}</strong><span>{t('Unsafe foreground choices fall back to a safe document ink. Dark mastheads, table headers and totals keep their template contrast in Preview, PDF, Print and Share.','إذا كان لون النص غير مقروء يستخدم LOUREX لونًا آمنًا، وتبقى الترويسات الداكنة ورؤوس الجداول والإجماليات بتباين القالب في المعاينة وPDF والطباعة والمشاركة.')}</span></p>
+          <p className="document-design-note document-design-safety"><strong>{t('Readability guard is always on.','حماية القراءة مفعلة دائمًا.')}</strong><span>{t('Your saved colors stay unchanged. Unsafe foreground choices are displayed using a safe document ink. Dark mastheads, table headers and totals keep their template contrast in Preview, PDF, Print and Share.','تبقى ألوانك المحفوظة دون تغيير. إذا كان لون النص غير مقروء يعرضه LOUREX بلون آمن، وتبقى الترويسات الداكنة ورؤوس الجداول والإجماليات بتباين القالب في المعاينة وPDF والطباعة والمشاركة.')}</span></p>
         </>:null}
       </div>
     </section>

@@ -1,7 +1,7 @@
 import type { DocumentAppearance, TemplateId } from '../types.js';
 import { resolvedAccent, resolvedTemplateId } from '../lib/appearance.js';
 
-interface ArtPalette { main:string; second:string; ink:string; footer:string; footerInk:string; }
+interface ArtPalette { main:string; second:string; ink:string; footer:string; footerInk:string; brandInk?:string; }
 /* Artwork colors are paired with their foreground here. SVG fills are literal
    colors so PDF rasterizers do not depend on inherited CSS custom properties. */
 const palettes:Record<TemplateId,ArtPalette>={
@@ -12,7 +12,7 @@ const palettes:Record<TemplateId,ArtPalette>={
   obsidian:{main:'#181d26',second:'#303b4a',ink:'#ffffff',footer:'#10151d',footerInk:'#ffffff'},
   cobalt:{main:'#165da8',second:'#202d40',ink:'#ffffff',footer:'#202d40',footerInk:'#ffffff'},
   editorial:{main:'#ffffff',second:'#242733',ink:'#20232b',footer:'#242733',footerInk:'#ffffff'},
-  split:{main:'#28295b',second:'#414277',ink:'#ffffff',footer:'#28295b',footerInk:'#ffffff'},
+  split:{main:'#28295b',second:'#414277',ink:'#ffffff',brandInk:'#17212b',footer:'#28295b',footerInk:'#ffffff'},
   prism:{main:'#ffffff',second:'#087f8c',ink:'#172d3b',footer:'#087f8c',footerInk:'#ffffff'},
   slate:{main:'#eef5f5',second:'#93bec5',ink:'#193540',footer:'#d6e7e9',footerInk:'#193540'},
   horizon:{main:'#ffffff',second:'#166eb4',ink:'#173348',footer:'#166eb4',footerInk:'#ffffff'},
@@ -65,7 +65,7 @@ export function TemplateArtwork({variant,position,accent}:{variant:TemplateId;po
     case 'minimal':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 237H620V276H0ZM920 237H1000V276H920Z"/><path fill={second} d="M640 237H900V242H640Z"/></>;break;
     case 'trade':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 23C280 113 600-37 1000 33V91C590 9 300 126 0 63Z"/><path fill={second} d="M0 0H1000V75C620 150 360-10 0 53Z"/></>;break;
     case 'signature':art=<><path fill={main} d="M0 0H1000V207C760 88 644 376 352 235S83 222 0 278Z"/><path fill={second} d="M1000 0H806C686 103 628 288 405 261C654 360 722 107 1000 235Z"/><path fill="#ffffff" d="M781 0H806C686 103 628 288 405 261C622 265 701 75 781 0Z"/></>;break;
-    case 'obsidian':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M580 0H1000V320H350Z"/><path fill={a} d="M450 0H500L260 320H210Z"/><path fill={a} opacity=".2" d="M525 0H575L335 320H285Z"/></>;break;
+    case 'obsidian':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M580 0H1000V320H350Z"/><path fill={a} d="M0 0H40L15 320H0Z"/><path fill={a} opacity=".2" d="M45 0H55L30 320H20Z"/></>;break;
     case 'cobalt':art=<><path fill={main} d="M0 0H1000V320C730 193 314 351 0 225Z"/><path fill={second} d="M610-100C560 50 699 239 1000 293V0Z"/><path fill={a} d="M0 224C310 350 730 193 1000 320C730 237 310 389 0 252Z"/></>;break;
     case 'editorial':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 0H1000V24H0ZM0 260H270L310 289H0Z"/><path fill={second} d="M310 260H1000V289H350Z"/></>;break;
     case 'split':art=<><path fill={main} d="M0 0H1000V234C762 359 547 225 670 0Z"/><path fill={second} d="M620 0C570 167 758 298 1000 235V0Z"/><circle fill={a} cx="650" cy="0" r="56"/><path fill={a} d="M0 300C135 230 224 247 312 320H0Z"/></>;break;
