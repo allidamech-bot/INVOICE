@@ -66,7 +66,7 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
       // browser subpixel/LCD fringing and the PDF's grayscale AA differ, even
       // when a wordmark is byte-for-byte intact; blur removes ONLY raster phase
       // noise, while the original RGB image/QR and missing-art checks remain.
-      const [actualArt,refArt]=await Promise.all([pixels(original,1.5),pixels(reference,1.5)]);
+      const [actualArt,refArt]=media.length?await Promise.all([pixels(original,1.5),pixels(reference,1.5)]):[actual,ref];
       const lum=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
       const contrast=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
       const failures=[];let minimum=Infinity,samples=0;
