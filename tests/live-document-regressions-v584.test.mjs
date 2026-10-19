@@ -16,23 +16,22 @@ test('final editor controls use active semantic theme accents and accessible con
 });
 
 test('v584 luxury identities are truly dark in renderer tokens and final printable owner',async()=>{
-  const [appearance,css]=await Promise.all([
-    read('src/lib/appearance.ts'),
-    read('src/styles/v485-visible-ui-corrections.css')
-  ]);
-  assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian','noir','midnight','blackivory','carbon'\]\)/);
-  for(const [id,paper] of [['noir','#121212'],['midnight','#071824'],['blackivory','#14130f'],['carbon','#1b1d20']]){
-    assert.ok(appearance.includes(`${id}:'${paper}'`),`${id} paper token`);
-    assert.ok(css.includes(`.invoice-page.template-${id}{`),`${id} final template owner`);
-    assert.ok(css.includes(`--paper:${paper}`),`${id} final paper`);
-    assert.ok(css.includes(`.template-preview-${id}`),`${id} chooser preview`);
-  }
+const [appearance,css]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/document-premium-redesign-v141.css')]);
+ assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian','noir','midnight','blackivory','carbon'\]\)/);
+ for(const [id,paper] of [['noir','#121212'],['midnight','#071824'],['blackivory','#14130f'],['carbon','#1b1d20']]){
+  assert.ok(appearance.includes(id+":'"+paper+"'"),id+' token');
+  assert.ok(css.includes('.invoice-page.template-'+id+'{--paper:'+paper),id+' canonical paper');
+ }
+ assert.match(css,/\.document-tone-dark \.signature-media\{background:transparent/);
 });
 
 test('v584 short commercial documents keep totals signature and stamp at the page foot',async()=>{
-  const owner=await read('scripts/v544-pdf-a4-output-emergency.mjs');
-  assert.match(owner,/\.final-details\{margin-top:auto!important;padding-top:2\.4mm;\}/);
-  assert.doesNotMatch(owner,/\.final-details\{margin-top:8mm!important/);
+const [canonical,renderer]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('src/templates/TemplateRenderer.tsx')]);
+ assert.match(canonical,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:0;padding-top:7mm/);
+ assert.match(canonical,/\.doc-footer\{[^}]*min-height:20mm/);
+ assert.match(canonical,/\.signature-media\{[^}]*min-height:22mm/);
+ assert.match(renderer,/footer\.getBoundingClientRect\(\)\.top/);
+ assert.match(renderer,/this\.setState\(\{pages,ready:false\}/);
 });
 
 test('v584 removes review layer before PDF preparation starts',async()=>{
