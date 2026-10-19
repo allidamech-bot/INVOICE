@@ -11,7 +11,7 @@
 
   const HTML2CANVAS_URL = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
   const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
-  const SHARP_MEDIA_SELECTOR = '.signature-image,.stamp-image';
+  const SHARP_MEDIA_SELECTOR = '.signature-image,.stamp-image,.doc-logo img';
   const ARABIC_TEXT_RE = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/;
   const LATIN_TEXT_RE = /[A-Za-z\u00c0-\u02af]/;
   const COLOR_PROPS = [
@@ -292,37 +292,69 @@
     const src=image.currentSrc||image.src||'';
     const css=getComputedStyle(image);
     const shadows=[...css.filter.matchAll(/drop-shadow\(((?:[^()]|\([^()]*\))*)\)/g)].map(match=>{const values=[...match[1].matchAll(/(-?[\d.]+)px/g)].map(value=>Number(value[1]));return {x:values[0]||0,y:values[1]||0,blur:values[2]||0,color:match[1].match(/rgba?\([^)]*\)/)?.[0]||css.color};});
-    const contour=shadows.length>0;
+    // The output clone may not retain CSS filters even when its stored logo is
+    // a compact symbol. Use the renderer's explicit layout classification, not
+    // filter parsing alone, to keep that symbol legible on continuation paper.
+    const contour=image.closest('.doc-logo')?.dataset.logoLayout==='symbol'||shadows.length>0;
     if(!contour&&!/^data:image\/svg\+xml|\.svg(?:[?#]|$)/i.test(src))return;
     const prepared=await pngForPdf(src);
-    if(!contour){image.src=prepared.data;await image.decode();return;}
+    if(!contour){image.src=prepared.data;image.dataset.lourexPdfPreparedSrc=prepared.data;await image.decode();return;}
     // html2canvas does not paint CSS filter contours. Preserve the same small
     // contour in the clone's image pixels, without recoloring the artwork.
     const original=await loadImageForPdf(prepared.data);
     const rect=image.getBoundingClientRect(),padding=2,scale=3;
-    let canvas=document.createElement('canvas');
+    const canvas=document.createElement('canvas');
     canvas.width=Math.ceil((rect.width+padding*2)*scale);
     canvas.height=Math.ceil((rect.height+padding*2)*scale);
     const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Unable to prepare logo contrast.');
-    ctx.drawImage(original,padding*scale,padding*scale,rect.width*scale,rect.height*scale);
-    // CSS applies these shadows sequentially, including each earlier contour.
-    for(const shadow of shadows){
-      const next=document.createElement('canvas');next.width=canvas.width;next.height=canvas.height;
-      const paint=next.getContext('2d');if(!paint)throw new Error('Unable to prepare logo contour.');
-      paint.shadowColor=shadow.color;paint.shadowBlur=shadow.blur*scale;
-      paint.shadowOffsetX=shadow.x*scale;paint.shadowOffsetY=shadow.y*scale;
-      paint.drawImage(canvas,0,0);canvas=next;
+    // Reconstruct a restrained *shape* outline from the original alpha mask.
+    // Browser CSS drop-shadows cannot be relied on in html2canvas, and
+    // repeatedly shadowing a shadowed image can wash out a dark mark on
+    // dark continuation paper. Never draw a rectangular backing plate.
+    const originalShape=document.createElement('canvas');
+    originalShape.width=canvas.width;originalShape.height=canvas.height;
+    const shapeCtx=originalShape.getContext('2d');
+    if(!shapeCtx)throw new Error('Unable to prepare transparent logo silhouette.');
+    shapeCtx.drawImage(original,padding*scale,padding*scale,rect.width*scale,rect.height*scale);
+    const owner=image.closest('.continuation-company,.masthead-brand');
+    // The continuation parent can inherit a workspace color during export,
+    // although the document's own resolved --lrx-primary ink is light on dark
+    // A4 paper. Read the semantic document token, not that inherited color.
+    const continuationInk=image.closest('.continuation-company')
+      ?getComputedStyle(image.closest('.invoice-page')).getPropertyValue('--lrx-primary').trim():'';
+    const outlineInk=continuationInk||(owner?getComputedStyle(owner).color:(shadows[0]?.color||css.color));
+    const ring=document.createElement('canvas');ring.width=canvas.width;ring.height=canvas.height;
+    const ringCtx=ring.getContext('2d');if(!ringCtx)throw new Error('Unable to prepare logo outline.');
+    // Eight directions make the alpha contour continuous without a white box.
+    const radius=1.3*scale;
+    for(let step=0;step<8;step++){
+      const angle=Math.PI*2*step/8;
+      ringCtx.drawImage(originalShape,Math.cos(angle)*radius,Math.sin(angle)*radius);
     }
+    ringCtx.globalCompositeOperation='source-in';
+    ringCtx.fillStyle=outlineInk;
+    ringCtx.fillRect(0,0,ring.width,ring.height);
+    ringCtx.globalCompositeOperation='source-over';
+    ctx.drawImage(ring,0,0);
+    ctx.drawImage(originalShape,0,0);
     image.src=canvas.toDataURL('image/png');
+    image.dataset.lourexPdfPreparedSrc=image.src;
     for(const [name,value] of Object.entries({width:(rect.width+padding*2)+'px',height:(rect.height+padding*2)+'px','max-width':'none','max-height':'none',margin:'-'+padding+'px',filter:'none'}))image.style.setProperty(name,value,'important');
     await image.decode();
   };
-  const collectSharpMedia = (page) => {
+  const collectSharpMedia = (page,pageIndex=0) => {
     const pageRect = page.getBoundingClientRect();
     if (!pageRect.width || !pageRect.height) return [];
+    // Every page has its own presentation-specific logo outline. jsPDF caches
+    // images by alias: reusing "lourex-sharp-0-logo" across pages silently
+    // substitutes page one's dark-on-ivory contour on dark continuation paper.
+    // Scope aliases to the A4 page so shape/ink are never cross-page cached.
+    // Export logos as sharp original-color assets too, not through page JPEG.
     return Array.from(page.querySelectorAll(SHARP_MEDIA_SELECTOR+',.lx-document-qr img')).map((image,index) => {
       const rect = image.getBoundingClientRect();
-      const src = image.currentSrc || image.src || '';
+      // currentSrc can remain the original SVG when a cloned image's src is
+      // replaced during PDF preparation. Embed the exact generated contour.
+      const src = image.dataset?.lourexPdfPreparedSrc || image.currentSrc || image.src || '';
       if (!src || rect.width <= 0 || rect.height <= 0) return null;
       // CSS object-fit describes the visible artwork, not the element's box.
       // Embedding the full box stretched circular stamps and signatures in PDF.
@@ -335,12 +367,13 @@
       const fraction=(value)=>value==='left'||value==='top'?0:value==='right'||value==='bottom'?1:value?.endsWith('%')?parseFloat(value)/100:.5;
       const asset = {
         src,
-        required:Boolean(image.closest('.lx-document-qr')),
+        required:Boolean(image.closest('.lx-document-qr,.doc-logo')),
+        kind:image.closest('.lx-document-qr')?'QR':image.closest('.doc-logo')?'company logo':'signing artwork',
         x:(rect.left-pageRect.left+(rect.width-width)*fraction(position[0]))/pageRect.width*210,
         y:(rect.top-pageRect.top+(rect.height-height)*fraction(position[1]))/pageRect.height*297,
         w:width/pageRect.width*210,
         h:height/pageRect.height*297,
-        alias:`lourex-sharp-${index}-${image.classList.contains('stamp-image')?'stamp':'signature'}`
+        alias:`lourex-sharp-page-${pageIndex}-${index}-${image.closest('.lx-document-qr')?'qr':image.closest('.doc-logo')?'logo':image.classList.contains('stamp-image')?'stamp':'signature'}`
       };
       image.style.setProperty('visibility','hidden','important');
       return asset;
@@ -352,7 +385,7 @@
         const prepared = await pngForPdf(asset.src);
         pdf.addImage(prepared.data,prepared.format,asset.x,asset.y,asset.w,asset.h,asset.alias,'NONE');
       } catch {
-        if(asset.required)throw new Error('Unable to embed document QR in PDF. Please retry.');
+        if(asset.required)throw new Error('Unable to embed '+asset.kind+' in PDF. Please retry.');
         /* Base page remains valid even if one optional artwork overlay fails. */
       }
     }
@@ -422,11 +455,14 @@
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
         const pages = Array.from(stage.querySelectorAll('.invoice-page'));
-        const renderScale = Math.min(2,Math.max(1.45,window.devicePixelRatio||1.5));
+        // All A4 output uses the same 2x source raster. At 1.45x, fine Arabic
+        // and English strokes become phase-dependent at physical 96-DPI PDF
+        // inspection even when the browser's authored ink clears WCAG.
+        const renderScale = 2;
         for (let index=0; index<pages.length; index+=1) {
           const page = pages[index];
           stabilizeDocumentDirection(page);
-          const sharpMedia = collectSharpMedia(page);
+          const sharpMedia = collectSharpMedia(page,index);
           const canvas = await window.html2canvas(page,{
             scale:renderScale,
             useCORS:true,
@@ -442,7 +478,10 @@
             }
           });
           if (index>0) pdf.addPage('a4','portrait');
-          pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG',0,0,210,297,undefined,'FAST');
+          // Commercial A4 has very fine bilingual type and security marks. JPEG
+          // chroma/ringing destroys small glyphs that are otherwise readable in
+          // the original browser output. Use the same canvas, but lossless ink.
+          pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,210,297,undefined,'FAST');
           await addSharpMedia(pdf,sharpMedia);
           // Preserve the electronic-document link in the rasterized PDF too.
           const qrLinks=Array.from(page.querySelectorAll('.lx-document-qr[href]'));

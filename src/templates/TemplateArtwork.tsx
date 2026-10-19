@@ -59,26 +59,29 @@ export function TemplateArtwork({variant,position,accent}:{variant:TemplateId;po
     // A uniform lower band protects variable-length footer copy and page numbers.
     return <svg className="template-artwork template-artwork-footer" viewBox="0 0 1000 150" preserveAspectRatio="none" aria-hidden="true" focusable="false">{art}<path fill={p.footer} d="M0 88H1000V150H0Z"/></svg>;
   }
+  // Keep high-chroma decorative strokes at the outer trim/top edges: header copy
+  // (especially multi-line Arabic names and custom accent colors) must remain on
+  // each template's paired main surface, not on an accent stroke of unknown contrast.
   let art:any;
   switch(variant){
-    case 'executive':art=<><path fill={main} d="M0 0H1000V253H0Z"/><path fill={a} d="M200-10H525L380 186Q211 383 0 192V261Q239 408 435 214L665-10Z"/><path fill={second} d="M700 0H1000V253H500Z"/></>;break;
-    case 'minimal':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 237H620V276H0ZM920 237H1000V276H920Z"/><path fill={second} d="M640 237H900V242H640Z"/></>;break;
+    case 'executive':art=<><path fill={main} d="M0 0H1000V253H0Z"/><path fill={a} d="M0 0H26V253H0Z M60 0H665V10H60Z"/><path fill={second} d="M700 0H1000V253H500Z"/></>;break;
+    case 'minimal':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 237H620V276H0ZM920 237H1000V276H920Z"/><path fill={second} d="M640 6H900V12H640Z"/></>;break;
     case 'trade':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 23C280 113 600-37 1000 33V91C590 9 300 126 0 63Z"/><path fill={second} d="M0 0H1000V75C620 150 360-10 0 53Z"/></>;break;
     case 'signature':art=<><path fill={main} d="M0 0H1000V207C760 88 644 376 352 235S83 222 0 278Z"/><path fill={second} d="M1000 0H806C686 103 628 288 405 261C654 360 722 107 1000 235Z"/><path fill="#ffffff" d="M781 0H806C686 103 628 288 405 261C622 265 701 75 781 0Z"/></>;break;
     case 'obsidian':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M580 0H1000V320H350Z"/><path fill={a} d="M0 0H40L15 320H0Z"/><path fill={a} opacity=".2" d="M45 0H55L30 320H20Z"/></>;break;
     case 'cobalt':art=<><path fill={main} d="M0 0H1000V320C730 193 314 351 0 225Z"/><path fill={second} d="M610-100C560 50 699 239 1000 293V0Z"/><path fill={a} d="M0 224C310 350 730 193 1000 320C730 237 310 389 0 252Z"/></>;break;
     case 'editorial':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 0H1000V24H0ZM0 260H270L310 289H0Z"/><path fill={second} d="M310 260H1000V289H350Z"/></>;break;
     case 'split':art=<><path fill={main} d="M0 0H1000V234C762 359 547 225 670 0Z"/><path fill={second} d="M620 0C570 167 758 298 1000 235V0Z"/><circle fill={a} cx="650" cy="0" r="56"/><path fill={a} d="M0 300C135 230 224 247 312 320H0Z"/></>;break;
-    case 'prism':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M0 0H64V320H0ZM982 0H1000V320H982Z"/><path fill={a} d="M982 176H1000V320H982Z"/><path fill={second} d="M100 243H370L404 277H100V243Z"/></>;break;
+    case 'prism':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M0 0H64V320H0ZM982 0H1000V320H982Z"/><path fill={a} d="M982 176H1000V320H982Z"/><path fill={second} d="M0 243H42L56 277H0V243Z"/></>;break;
     case 'slate':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M850 0H1000V320H850Z"/><path fill={a} d="M0 0H9V320H0Z"/><path fill={second} opacity=".18" d="M615 0H850V320H755Z"/></>;break;
     case 'horizon':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M0 16C390-45 740 59 1000 7V54C710 91 380 1 0 58Z"/><path fill={second} d="M0 0H1000V26C660 132 410-30 0 78Z"/><path fill={second} d="M0 295H1000V300H0Z"/></>;break;
-    case 'mono':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M0 0H1000V26H0ZM0 228H270L317 274H0ZM967 26H1000V320H967Z"/><path fill={a} d="M0 287H655L685 317H0Z"/></>;break;
+    case 'mono':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M0 0H1000V26H0ZM0 228H28L42 274H0ZM967 26H1000V320H967Z"/><path fill={a} d="M0 287H655L685 317H0Z"/></>;break;
     case 'aurora':art=<><path fill={main} d="M0 0H1000V320C700 187 289 362 0 239Z"/><path fill={second} d="M360-50C360 164 601 154 1000 320V0Z"/><path fill={a} d="M0 239C289 362 700 187 1000 320C663 233 277 393 0 267Z"/></>;break;
     case 'ledger':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={a} d="M460 0C620 213 761-51 1000 93V0Z"/><path fill={second} d="M555 0C696 185 851-32 1000 143V0Z"/><path fill={a} opacity=".15" d="M0 276C200 205 237 301 410 278L430 320H0Z"/></>;break;
     case 'noir':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M590 0H1000V320H290Z"/><path fill={a} d="M0 287H345L630 0H655L345 313H0Z"/><path fill={a} opacity=".35" d="M0 270H315L585 0H590L320 275H0Z"/></>;break;
     case 'midnight':art=<><path fill={main} d="M0 0H1000V320C600 196 280 362 0 247Z"/><path fill={second} d="M0 0H1000V53C650 176 240-72 0 31Z"/><path fill={a} d="M0 247C280 362 600 196 1000 320C600 220 280 388 0 274Z"/></>;break;
-    case 'blackivory':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M0 0H310L400 83H0Z"/><path fill={a} d="M0 288H610L885 0H914L610 318H0Z"/><path fill={second} d="M980 0H1000V320H920Z"/></>;break;
-    case 'carbon':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M710 0H1000V320H400Z"/><path fill={a} d="M0 0H320L210 110H0Z"/><path fill={a} d="M745 0H775L455 320H425Z"/><path fill={a} opacity=".18" d="M800 0H1000V320H480Z"/></>;break;
+    case 'blackivory':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M0 0H36L53 83H0Z"/><path fill={a} d="M0 288H26L47 318H0Z M893 0H923L893 318H863Z"/><path fill={second} d="M980 0H1000V320H920Z"/></>;break;
+    case 'carbon':art=<><path fill={main} d="M0 0H1000V320H0Z"/><path fill={second} d="M710 0H1000V320H400Z"/><path fill={a} d="M0 0H40L30 110H0Z"/><path fill={a} d="M745 0H775L455 320H425Z"/><path fill={a} opacity=".18" d="M800 0H1000V320H480Z"/></>;break;
   }
   return <svg className="template-artwork template-artwork-header" viewBox="0 0 1000 320" preserveAspectRatio="none" aria-hidden="true" focusable="false">{art}</svg>;
 }

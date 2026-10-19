@@ -134,10 +134,12 @@ const helper=`
 
 const bridgePath='dist/ios-print-bridge.js';
 let bridge=await readFile(bridgePath,'utf8');
-const imageLine="          pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG',0,0,210,297,undefined,'FAST');";
+// Keep the searchable text overlay attached to the *real* A4 image line,
+// whether the output is the legacy lossy JPEG or the lossless PNG path.
+const imageLine=bridge.split('\n').find(line=>line.includes("pdf.addImage(canvas.toDataURL('image/png'),'PNG'")||line.includes("pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG'"));
 const mediaLine='          await addSharpMedia(pdf,sharpMedia);';
 const injection=`${imageLine}\n          try { await window.__LOUREX_ADD_SEARCHABLE_TEXT_LAYER__?.(pdf,page); } catch { /* Preserve the existing image PDF if text-layer preparation fails. */ }\n${mediaLine}`;
-if(!bridge.includes(`${imageLine}\n${mediaLine}`))throw new Error('Unable to locate LOUREX PDF image insertion point for searchable text layering.');
+if(!imageLine||!bridge.includes(`${imageLine}\n${mediaLine}`))throw new Error('Unable to locate LOUREX PDF image insertion point for searchable text layering.');
 bridge=helper+'\n'+bridge.replace(`${imageLine}\n${mediaLine}`,injection);
 await writeFile(bridgePath,bridge);
 
