@@ -1,6 +1,6 @@
 import type { PaymentMethod, PurchaseRecord, Supplier, SupplierPaymentRecord } from '../types.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
-import { decimalToScaled, isDecimalInput } from './money.js';
+import { decimalToScaled, isDecimalInput, isFinancialDecimalInput } from './money.js';
 import { purchaseTotals } from './operations.js';
 
 export type PayablesAgingBucket='current'|'days1to30'|'days31to60'|'days61to90'|'days90plus';
@@ -125,7 +125,7 @@ export function createSupplierPayment(purchase:PurchaseRecord,supplier:Supplier|
   return{id:makeId('supplier-payment'),purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchaseSupplierId(purchase),supplierNameEn:supplier?.nameEn||purchase.supplierSnapshot?.nameEn||'',supplierNameAr:supplier?.nameAr||purchase.supplierSnapshot?.nameAr||'',currency:summary.currency,amount:summary.remaining,date:todayIso(),method:'bank-transfer',reference:'',notes:'',createdAt:at,updatedAt:at};
 }
 
-export function normalizeSupplierPayment(purchase:PurchaseRecord,supplier:Supplier|null,payments:SupplierPaymentRecord[],payment:SupplierPaymentRecord):SupplierPaymentRecord{
+export function normalizeSupplierPayment(purchase:PurchaseRecord,supplier:Supplier|null,payments:SupplierPaymentRecord[],payment:SupplierPaymentRecord,amountFormat:'new-entry'|'stored-record'='new-entry'):SupplierPaymentRecord{
   if(purchase.status!=='posted')throw new Error('Supplier payments require an active posted purchase.');
   const supplierId=purchaseSupplierId(purchase);
   if(payment.voidedAt)throw new Error('A voided supplier payment cannot be reposted or edited. Record a new payment.');
@@ -135,7 +135,10 @@ export function normalizeSupplierPayment(purchase:PurchaseRecord,supplier:Suppli
   if(cleanCurrency(payment.currency)!==currency)throw new Error('Supplier payment currency must match the purchase currency. FX conversion is not performed automatically.');
   if(!isIsoDate(payment.date))throw new Error('Supplier payment date is invalid.');
   if(!METHODS.has(payment.method))throw new Error('Supplier payment method is invalid.');
-  if(!isDecimalInput(payment.amount)||decimalToScaled(payment.amount,2)<=0n)throw new Error('Supplier payment amount must be greater than zero.');
+  // New supplier payments must never silently reinterpret malformed grouping.
+  // Existing immutable records retain their previously accounted legacy values.
+  if(!(amountFormat==='stored-record'?isDecimalInput(payment.amount):isFinancialDecimalInput(payment.amount))||decimalToScaled(payment.amount,2)<=0n)
+    throw new Error('Supplier payment amount must be greater than zero and use valid monetary grouping.');
   const total=liabilityCents(purchase);
   const paidExcludingCurrent=payments.filter(item=>item.purchaseId===purchase.id&&item.id!==payment.id&&!item.voidedAt).reduce((sum,item)=>sum+paymentCents(item),0n);
   const amount=decimalToScaled(payment.amount,2);
@@ -165,6 +168,6 @@ export function assertSupplierPaymentInvariant(purchases:PurchaseRecord[],suppli
       if(payment.supplierId!==purchaseSupplierId(purchase)||!isIsoDate(payment.date)||!isDecimalInput(payment.amount)||decimalToScaled(payment.amount,2)<=0n||cleanCurrency(payment.currency)!==cleanCurrency(purchase.currency))throw new Error('Cancelled supplier payment history is invalid.');
       continue;
     }
-    normalizeSupplierPayment(purchase,supplier,payments,payment);
+    normalizeSupplierPayment(purchase,supplier,payments,payment,'stored-record');
   }
 }
