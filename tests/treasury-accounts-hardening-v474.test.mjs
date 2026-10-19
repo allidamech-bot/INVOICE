@@ -97,3 +97,27 @@ test('Treasury account metadata remains separate from company bank metadata',asy
   assert.equal(vault.treasuryAccounts.length,0);
   assert.equal(vault.treasuryEntries.length,0);
 });
+test('new treasury deposits reject malformed monetary grouping at entry and authoritative vault save',async()=>{
+  const [{createTreasuryAccount,createTreasuryEntry,appendTreasuryEntry,treasuryAccountBalance},{emptyVault},{mergeVaultIntent}]=
+    await Promise.all([treasury(),defaults(),import('../dist/src/storage/vault-merge.js')]);
+  const start=emptyVault(),account=createTreasuryAccount(accountInput('Exact Bank'));
+  const base={...start,treasuryAccounts:[account]};
+  const snapshot=JSON.stringify(base);
+  for(const [i,amount] of ['1,2.00','0,1.00','١,٢.٠٠'].entries()){
+    const entry={...createTreasuryEntry('deposit','USD'),id:'bad-deposit-'+i,
+      workspaceId:'default',branchId:'main',amount,toAccountId:account.id};
+    assert.throws(()=>appendTreasuryEntry(base,entry),/treasury amount|monetary grouping/i);
+    assert.throws(()=>mergeVaultIntent(base,{...base,treasuryEntries:[entry]},base),/treasury amount|monetary grouping/i);
+    assert.equal(JSON.stringify(base),snapshot,'rejected deposit never edits the vault');
+  }
+  const valid={...createTreasuryEntry('deposit','USD'),workspaceId:'default',branchId:'main',
+    amount:'1,200.00',toAccountId:account.id};
+  const accepted=mergeVaultIntent(base,{...base,treasuryEntries:[valid]},base);
+  assert.equal(treasuryAccountBalance(account.id,accepted.treasuryEntries),'1200.00');
+
+  const legacy={...base,treasuryEntries:[{...valid,id:'historic-unusual-grouping',amount:'1,2.00'}]};
+  const before=JSON.stringify(legacy),roundtrip=mergeVaultIntent(legacy,legacy,legacy);
+  assert.equal(roundtrip.treasuryEntries[0].amount,'1,2.00');
+  assert.equal(treasuryAccountBalance(account.id,roundtrip.treasuryEntries),'12.00');
+  assert.equal(JSON.stringify(legacy),before,'historic cash/bank ledger remains immutable');
+});

@@ -3,7 +3,7 @@ import { assertInvoicePaymentInvariant } from './payments.js';
 import { normalizeSupplierPayment } from './payables.js';
 import { t } from './i18n.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
-import { decimalToScaled, isNonNegativeDecimalInput } from './money.js';
+import { decimalToScaled, isFinancialDecimalInput, isNonNegativeDecimalInput } from './money.js';
 
 export type TreasuryProjectionSource='opening-balance'|'collection'|'supplier-payment'|'expense'|'deposit'|'withdrawal'|'transfer'|'reconciliation';
 export interface TreasuryProjectionRow {
@@ -78,6 +78,9 @@ export function appendTreasuryEntry(vault:VaultPayload,entry:TreasuryLedgerRecor
     if(matches.length!==1||!matches[0]?.active||!inScope(matches[0]))fail('Treasury account changed or is unavailable. Choose an active account again.','تغير حساب الخزينة أو لم يعد متاحًا. اختر حسابًا ساريًا من جديد.');
   }
   if(!/^[A-Z]{3}$/.test(entry.currency.trim().toUpperCase()))fail('Treasury currency is required.','عملة الخزينة مطلوبة.');
+  // New cash/bank entries must never silently reinterpret invalid grouping.
+  // Existing immutable entries still use the historical read-only grammar.
+  if(!isFinancialDecimalInput(entry.amount))fail('Treasury amount has invalid monetary grouping.','مبلغ الخزينة مكتوب بفواصل رقمية غير صالحة.');
   assertTreasuryEntry(entry,vault.treasuryAccounts);
   if(entry.sourceType!=='manual'){
     if(treasuryLinkedSourceUsed(vault.treasuryEntries,entry.sourceType,entry.sourceId))fail('This payment is already allocated to treasury.','تم تخصيص هذه الدفعة مسبقًا للخزينة.');
