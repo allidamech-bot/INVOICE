@@ -193,6 +193,10 @@
   function recoverIfNeeded(){
     if(editingWorkspaceOpen()||!bootStillVisible())return;
     markDiagnostic('startup-watchdog-timeout','automaticReload=no');
+    // The app can be waiting on a 20+ MB Firebase workspace without emitting
+    // any JavaScript error. Capture only the safe awaited phase name.
+    var stage=String(window.__LOUREX_STARTUP_STAGE__||'not-recorded');
+    if(/^[a-z-]{1,45}$/.test(stage))markDiagnostic('startup-watchdog-stage','stage='+stage);
     showRecovery();
   }
 
