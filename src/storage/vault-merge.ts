@@ -609,6 +609,16 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
   guardConcurrentRecordChanges(base.payments,intended.payments,latest.payments,'Payment','Reopen the invoice before saving or deleting the payment.');
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
+  // The normal payment form validates amounts strictly. Enforce the same rule at
+  // the authoritative save boundary for new imported, AI or offline payments.
+  // Existing payment IDs retain their immutable historical numeric spelling.
+  if(intended.payments!==base.payments){
+    const originalIds=new Set(base.payments.map(payment=>payment.id));
+    for(const payment of intended.payments){
+      if(!originalIds.has(payment.id)&&!isFinancialDecimalInput(payment.amount))
+        throw new Error('New customer payment amount has invalid monetary grouping.');
+    }
+  }
   // Recorded payments are append-only: only a one-time void transition is legal.
   // A merge must never quietly erase historical payments or rewrite settled amounts.
   if(intended.supplierPayments!==base.supplierPayments){
