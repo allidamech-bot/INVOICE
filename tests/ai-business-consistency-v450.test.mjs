@@ -65,6 +65,29 @@ test('customer AI profitability merges equivalent currency keys without rewritin
   assert.equal(JSON.stringify(vault),before,'accounting projections must never rewrite the source records');
 });
 
+
+test('customer payment timing excludes invalid linked receipts already omitted from receivables',()=>{
+  const vault=emptyVault();
+  const invoice=legacyInvoice({id:'paid-on-time',issueDate:'2026-01-01',dueDate:'2026-01-20',amount:'100.00'});
+  const valid=legacyPayment(invoice,{id:'valid-paid',amount:'100.00',date:'2026-01-10'});
+  const alien=legacyPayment(invoice,{id:'wrong-currency',amount:'300.00',date:'2026-02-15'});
+  alien.currency='EUR';
+  const mislinked=legacyPayment(invoice,{id:'wrong-customer',amount:'50.00',date:'2026-02-20'});
+  mislinked.customerId='unrelated-customer';
+  const invalidDate=legacyPayment(invoice,{id:'invalid-calendar',amount:'25.00',date:'2026-02-30'});
+  vault.documents=[invoice];
+  vault.payments=[valid,alien,mislinked,invalidDate];
+  const before=JSON.stringify(vault);
+  const insight=buildAiBusinessContext(vault,'2026-03-31').customers.rows[0];
+  assert.ok(insight);
+  assert.equal(insight.currencies[0].outstanding,'0.00','canonical settled balance ignores rejected linked records');
+  assert.equal(insight.paidInvoiceSamples,1);
+  assert.equal(insight.averageDaysToPay,9,'only the 2026-01-10 accepted payment closed the invoice');
+  assert.equal(insight.averageDaysLate,0,'invalid linked receipts must not create fictitious lateness');
+  assert.equal(insight.riskSignals.includes('historically-late-payments'),false);
+  assert.equal(JSON.stringify(vault),before,'source records must stay byte-identical');
+});
+
 function postedPurchase(item,date,unitCost='25.00'){
   const supplier=createSupplier();supplier.id='supplier-future';supplier.nameEn='Future Supplier';
   const purchase=createPurchase([], [supplier], 'USD');
