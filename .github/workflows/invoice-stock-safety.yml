@@ -17,6 +17,10 @@ on:
       - 'src/lib/saved-items.ts'
       - 'src/lib/sales-delivery-stock.ts'
       - 'src/storage/vault-merge.ts'
+      # Finance projections share the same stored-vault invariants and full-suite gate.
+      - 'src/lib/payments.ts'
+      - 'src/lib/reports.ts'
+      - 'tests/accounting-chronology-v258.test.mjs'
       - 'src/app/App.tsx'
       - 'src/components/EditorPageCore.tsx'
       - 'src/types.ts'
