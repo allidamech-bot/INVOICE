@@ -8,7 +8,7 @@ import { inventoryMovementAccountingIsValid, inventoryMovementIsManual, validate
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
 import { assertRecurringWorkflow } from '../lib/recurring-workflows.js';
-import { assertTreasuryAccount, assertTreasuryEntry } from '../lib/treasury-ledger.js';
+import { appendTreasuryEntry, assertTreasuryAccount, assertTreasuryEntry } from '../lib/treasury-ledger.js';
 import { assertFxRate } from '../lib/fx-rates.js';
 import { defaultWarehouseId, validateWarehouse, warehouseItemQuantity } from '../lib/warehouses.js';
 import { assertGoodsReceiptIntegrity } from '../lib/goods-receipt-flow.js';
@@ -657,6 +657,22 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
+  // A normal Cash & Bank allocation uses appendTreasuryEntry as its financial
+  // authority. Run that SAME guard for newly merged linked entries as well, or
+  // offline/import/AI mutations could forge an amount or allocate one receipt
+  // twice. Existing historical entries remain untouched and grandfathered.
+  if(intended.treasuryEntries!==base.treasuryEntries){
+    const storedIds=new Set([...base.treasuryEntries,...latest.treasuryEntries].map(entry=>entry.id));
+    const checked=treasuryEntries.filter(entry=>storedIds.has(entry.id)||entry.sourceType==='manual'||Boolean(entry.voidedAt));
+    for(const entry of treasuryEntries){
+      if(storedIds.has(entry.id)||entry.sourceType==='manual'||entry.voidedAt)continue;
+      appendTreasuryEntry({
+        ...latest,documents,payments,supplierPayments,purchases,suppliers,treasuryAccounts,
+        treasuryEntries:checked
+      },entry);
+      checked.push(entry);
+    }
+  }
   assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertInvoiceStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
