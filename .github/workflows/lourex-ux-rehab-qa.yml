@@ -135,6 +135,7 @@ jobs:
   picker-webkit:
     name: WebKit synthetic iPhone picker smoke
     needs: validate
+    if: always() # QA-only: run synthetic browser evidence despite pre-existing historical Node failures
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -204,6 +205,7 @@ jobs:
   pdf-output-chromium:
     name: Actual PDF · A4 and extracted accounting totals
     needs: validate
+    if: always() # QA-only: run synthetic browser evidence despite pre-existing historical Node failures
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
