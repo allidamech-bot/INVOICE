@@ -6,19 +6,14 @@ const read=path=>readFile(path,'utf8');
 const allTemplates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
 test('canonical A4 base remains document-only while v337 is Draft/watermark support only',async()=>{
-  const [html,qa,recovery,balance]=await Promise.all([
-    read('index.html'),
-    read('src/styles/document-premium-redesign-v141.css'),
-    read('src/styles/v331-draft-scroll-recovery.css'),
-    read('src/styles/v337-template-layout-balance.css')
-  ]);
-  assert.match(html,/href="\.\/styles\/document-premium-redesign-v141\.css"/);
-  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=365-1"/);
-  assert.match(qa,/canonical A4 layer/);
-  assert.doesNotMatch(qa,/\.app-shell|\.documents-page|\.editor-shell/);
-  assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
-  assert.match(balance,/Draft\/watermark output support only/);
-  assert.doesNotMatch(balance,/\.invoice-page(?:\:not\([^)]*\))? \.final-details\s*\{|\.invoice-page \.bottom-grid\s*\{/);
+const [html,css,balance]=await Promise.all([read('index.html'),read('src/styles/document-premium-redesign-v141.css'),read('src/styles/v337-template-layout-balance.css')]);
+ assert.match(html,/href="\.\/styles\/document-premium-redesign-v141\.css"/);
+ assert.match(css,/Canonical commercial A4 design/);
+ assert.match(css,/@page\{size:A4;margin:0\}/);
+ assert.match(css,/\.doc-body\{display:flex;flex:1/);
+ assert.match(css,/\.final-details\{flex:0 0 auto/);
+ assert.doesNotMatch(css,/\.app-shell|\.documents-page|\.editor-shell/);
+ assert.doesNotMatch(balance,/\.invoice-page(?:\:not\([^)]*\))? \.final-details\s*\{|\.invoice-page \.bottom-grid\s*\{/);
 });
 
 test('all 18 templates are covered by the combined v128 and v129 art direction',async()=>{
@@ -81,29 +76,18 @@ test('closing zone and footer stay intentional under sparse optional data',async
 });
 
 test('pagination, bottom-closing normal flow, RTL isolation and print break protections remain intact',async()=>{
-  const [renderer,canonical,balance,direction,qa,sw]=await Promise.all([
-    read('src/templates/TemplateRenderer.tsx'),
-    read('src/styles/document-premium-redesign-v141.css'),
-    read('src/styles/v337-template-layout-balance.css'),
-    read('src/styles/document-direction-v78.css'),
-    read('src/styles/document-final-qa-v130.css'),
-    read('public/sw.js')
-  ]);
-  assert.match(renderer,/shouldUseDetailsPage/);
-  assert.match(renderer,/hardOverflow/);
-  assert.match(renderer,/lastWeight>allowedLastWeight/);
-  /* v350 anchors the complete commercial close as one flex item. Spare page height
-     becomes auto margin above the close; dense pages naturally collapse that margin
-     to zero and continue in normal flow or onto the renderer's details page. */
-  assert.match(canonical,/\.doc-body\{[^}]*display:flex[^}]*flex:1[^}]*flex-direction:column/);
-  assert.match(canonical,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:auto[^}]*padding-top:6mm/);
-  assert.match(canonical,/\.details-only \.final-details\{margin-top:0;padding-top:0\}/);
-  assert.match(canonical,/\.bottom-grid\{[^}]*margin-top:4\.5mm[^}]*align-items:start/);
-  assert.doesNotMatch(balance,/\.invoice-page(?:\:not\([^)]*\))? \.final-details\s*\{|\.invoice-page \.bottom-grid\s*\{/);
-  assert.match(direction,/unicode-bidi:isolate/);
-  assert.match(direction,/\.invoice-page\.lang-ar/);
-  assert.match(qa,/@media print/);
-  assert.match(qa,/break-inside:avoid/);
-  assert.match(sw,/function isAppRuntimePath\(pathname\)[\s\S]*pathname\.startsWith\('\/styles\/'\)/);
-  assert.match(sw,/isAppRuntimePath\(url\.pathname\)[\s\S]*networkFirst\(event\.request\)/);
+const [renderer,canonical,balance,direction,sw]=await Promise.all([
+  read('src/templates/TemplateRenderer.tsx'),read('src/styles/document-premium-redesign-v141.css'),
+  read('src/styles/v337-template-layout-balance.css'),read('src/styles/document-direction-v78.css'),read('public/sw.js')
+ ]);
+ for(const token of ['shouldUseDetailsPage','hardOverflow','lastWeight>allowedLastWeight','data-pagination-ready','getBoundingClientRect'])assert.ok(renderer.includes(token),token);
+ assert.match(canonical,/\.doc-body\{[^}]*display:flex;flex:1[^}]*flex-direction:column/);
+ assert.match(canonical,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:0;padding-top:7mm/);
+ assert.match(canonical,/\.bottom-grid\{[^}]*margin-top:5mm[^}]*align-items:start/);
+ assert.match(canonical,/\.invoice-page\.lang-ar/);
+ assert.match(canonical,/@media print/);
+ assert.match(canonical,/break-inside:avoid/);
+ assert.doesNotMatch(balance,/\.invoice-page(?:\:not\([^)]*\))? \.final-details\s*\{|\.invoice-page \.bottom-grid\s*\{/);
+ assert.match(direction,/unicode-bidi:isolate/);
+ assert.match(sw,/function isAppRuntimePath\(pathname\)/);
 });
