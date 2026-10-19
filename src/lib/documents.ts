@@ -213,7 +213,10 @@ export function validateStoredFinalForOutput(doc:LourexDocument,stored?:LourexDo
     stored.items.length===doc.items.length&&
     stored.items.every((item,index)=>item.id===doc.items[index]?.id&&item.quantity===doc.items[index]?.quantity&&item.unitPrice===doc.items[index]?.unitPrice)&&
     JSON.stringify(stored.adjustments)===JSON.stringify(doc.adjustments));
-  const historical=Boolean(stored&&stored.id===doc.id&&stored.status==='final'&&doc.status==='final'&&unmodifiedMoney);
+  const historical=Boolean(stored&&stored.id===doc.id&&stored.status==='final'&&doc.status==='final'&&
+    stored.kind===doc.kind&&stored.role===doc.role&&stored.lifecycleStatus===doc.lifecycleStatus&&
+    stored.number===doc.number&&stored.currency===doc.currency&&
+    stored.issueDate===doc.issueDate&&stored.dueDate===doc.dueDate&&unmodifiedMoney);
   return validateDocument(doc,historical?'stored-final-output':'new-entry');
 }
 
