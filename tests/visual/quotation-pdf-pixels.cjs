@@ -47,7 +47,7 @@ async function verifyExportedQrLinks(page,pdfPath){
   const jsQR=require('jsqr');
   for(const link of links){
     const ppm=execFileSync('pdftoppm',['-f',String(link.page),'-l',String(link.page),'-singlefile','-r','150',pdfPath],{maxBuffer:32*1024*1024});
-    const header=ppm.subarray(0,128).toString('ascii').match(/^P6\\s+(\\d+)\\s+(\\d+)\\s+255\\s/);
+    const header=ppm.subarray(0,128).toString('ascii').match(/^P6\s+(\d+)\s+(\d+)\s+255\s/);
     if(!header)throw new Error('Could not rasterize exported QR page '+link.page);
     const width=Number(header[1]),height=Number(header[2]),margin=.018;
     const x0=Math.max(0,Math.floor((link.x-margin)*width)),y0=Math.max(0,Math.floor((link.y-margin)*height));
