@@ -239,6 +239,33 @@ test('one vault write cannot issue and transfer the same warehouse stock twice',
   assert.equal(balance(saved),'8','the stock is only debited by the physical issue at company level');
 });
 
+test('authoritative vault save refuses precision drift from bypassed stock posting helpers',()=>{
+  const {vault,item}=fixture('10');
+  const branchId=vault.appSettings.activeBranchId,workspaceId=vault.appSettings.activeWorkspaceId;
+  const warehouse=createWarehouse(workspaceId,branchId,'Exact Storage','EXACT');
+  const base={...vault,warehouses:[...vault.warehouses,warehouse]};
+  const proof={id:'precision-boundary-evidence',name:'receipt.png',mimeType:'image/png',size:12,
+    dataUrl:'data:image/png;base64,'+Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]).toString('base64'),
+    createdAt:new Date().toISOString()};
+  const original={...createManualInventoryMovement(item,'opening','1',undefined,'Documented exact receipt'),
+    reasonCategory:'opening',createdBy:'owner',evidence:proof};
+  const transfer=createWarehouseTransfer(item,defaultWarehouseId(branchId),warehouse.id,'1');
+  const before=JSON.stringify(base);
+  for(const forged of [
+    {...original,id:'forged-fraction',quantity:'1.00009'},
+    {...original,id:'forged-grouping',quantity:'1,2.00009'},
+    {...transfer,id:'forged-transfer',quantity:'1.00009'}
+  ]){
+    const altered={...base,inventoryMovements:[...base.inventoryMovements,forged]};
+    assert.throws(()=>mergeVaultIntent(base,altered,base),/four decimal|precision|invalid quantities/i,
+      'physical quantities must not round silently even when bypassing a UI helper');
+    assert.equal(JSON.stringify(base),before,'rejected stock entries cannot mutate historical ledger');
+  }
+  const valid={...original,id:'exact-four-decimals',quantity:'1.0001'};
+  const accepted=mergeVaultIntent(base,{...base,inventoryMovements:[...base.inventoryMovements,valid]},base);
+  assert.equal(balance(accepted),'11.0001');
+});
+
 test('reversals cannot silently reuse an earlier approval or evidence attachment',()=>{
  const {item}=fixture();
  const original={...createManualInventoryMovement(item,'issue','2',undefined,'Original sample shipment'),
