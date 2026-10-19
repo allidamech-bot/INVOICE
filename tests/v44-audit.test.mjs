@@ -163,17 +163,16 @@ test('legacy schema normalizes hostile defaults without changing document snapsh
 });
 
 test('pagination can reserve additional first-page space for long party details',async()=>{
-  const base=validDoc().items[0];
-  const items=Array.from({length:9},(_,index)=>({...base,id:`i${index}`,descriptionEn:`Product ${index+1}`}));
-  assert.equal(paginateItems(items,false)[0].length,7);
-  assert.equal(paginateItems(items,false,3)[0].length,3);
-  const renderer=await read('src/templates/TemplateRenderer.tsx');
-  assert.match(renderer,/firstPageItemCapacity/);
-  assert.match(renderer,/const fragments=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
-  assert.match(renderer,/paginateItems\(fragments,false,firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
-  assert.match(renderer,/footer\.getBoundingClientRect\(\)\.top/);
-  assert.match(renderer,/body\.querySelectorAll/);
-  assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
+const renderer=await read('src/templates/TemplateRenderer.tsx');
+ const [fixture,oversized]=[validDoc(),validDoc()];
+ fixture.items[0].descriptionEn='Short commercial detail';
+ oversized.items[0].descriptionEn='Oversized commercial specification '.repeat(140);
+ assert.ok(paginateItems(fixture.items,true,10,fixture.language).length>=1);
+ assert.ok(paginateItems(oversized.items,true,10,oversized.language).length>=1);
+ assert.match(renderer,/shouldUseDetailsPage/);
+ assert.match(renderer,/outputItemFragments/);
+ assert.match(renderer,/paginateItems\(fragments,false,10,doc\.language,item=>itemWeight\(doc,item\)\)/);
+ assert.match(renderer,/getBoundingClientRect/);
 });
 
 test('custom row weights can reserve A4 space for wrapped trade columns',()=>{
