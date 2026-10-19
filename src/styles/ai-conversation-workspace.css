@@ -1784,11 +1784,11 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-head,
 .lourex-ai-launcher .lxw-brand-glyph,
 #lourex-ai-panel .lxw-brand-glyph{display:block;overflow:visible;flex:none}
 /* The same lightweight companion is used inside and outside the conversation. */
-.lxw-robot-head{transform-origin:20px 22px;animation:lxw-robot-float 4.8s ease-in-out infinite;}
-.lxw-robot-gaze{animation:lxw-robot-look 6s ease-in-out infinite;}
-.lxw-robot-eyes{transform-origin:20px 21px;animation:lxw-robot-blink 5.4s linear infinite;}
-@keyframes lxw-robot-float{0%,100%{transform:translateY(1px) rotate(-3deg);}50%{transform:translateY(-1.5px) rotate(3deg);}}
-@keyframes lxw-robot-look{0%,18%,100%{transform:translate(0,0);}28%,42%{transform:translate(1.7px,-.6px);}60%,76%{transform:translate(-1.7px,.7px);}}
+.lxw-robot-head{transform-origin:20px 22px;animation:lxw-robot-float 3.2s ease-in-out infinite;}
+.lxw-robot-gaze{animation:lxw-robot-look 4.2s ease-in-out infinite;}
+.lxw-robot-eyes{transform-origin:20px 21px;animation:lxw-robot-blink 4.6s linear infinite;}
+@keyframes lxw-robot-float{0%,100%{transform:translate(-.7px,1.5px) rotate(-5deg);}50%{transform:translate(.7px,-2px) rotate(5deg);}}
+@keyframes lxw-robot-look{0%,18%,100%{transform:translate(0,0);}28%,42%{transform:translate(2.2px,-1px);}60%,76%{transform:translate(-2.2px,1px);}}
 @keyframes lxw-robot-blink{0%,43%,47%,100%{transform:scaleY(1);}45%{transform:scaleY(.12);}}
 @media(prefers-reduced-motion:reduce){
   :is(.lourex-ai-launcher,#lourex-ai-panel) :is(.lxw-robot-head,.lxw-robot-gaze,.lxw-robot-eyes){animation:none!important;}
@@ -1801,9 +1801,9 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-head,
   display:grid!important;place-items:center!important;
 }
 .lourex-ai-launcher:has(.lxw-brand-glyph):hover{background:#1B3832!important}
-.lourex-ai-launcher:has(.lxw-brand-glyph) .lxw-brand-glyph{width:27px;height:27px}
-.lourex-ai-launcher .lxw-launcher-art{position:relative;display:grid;place-items:center;flex:none;width:32px;height:32px;pointer-events:none}
-.lourex-ai-launcher .lxw-launcher-art .lxw-brand-glyph{width:30px;height:30px}
+.lourex-ai-launcher:has(.lxw-brand-glyph) .lxw-brand-glyph{width:42px;height:42px}
+.lourex-ai-launcher .lxw-launcher-art{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;pointer-events:none}
+.lourex-ai-launcher .lxw-launcher-art .lxw-brand-glyph{width:42px;height:42px}
 .lourex-ai-launcher .lxw-launcher-letters{position:absolute;inset:0;display:grid;place-items:center;color:currentColor;font:750 10px/1.15 "Outfit",Inter,system-ui,sans-serif;letter-spacing:-.025em}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-head{
   flex:0 0 auto!important;min-height:62px!important;
@@ -1822,7 +1822,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-mark{
   background:var(--lxw-surface)!important;color:var(--lxw-accent)!important;
   box-shadow:none!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-mark .lxw-brand-glyph{width:25px;height:25px}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-mark .lxw-brand-glyph{width:34px;height:34px}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-title strong{
   display:block;font-size:15px!important;font-weight:760!important;
   letter-spacing:-.015em!important;color:var(--lxw-text)!important;
@@ -1989,7 +1989,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-welcome-identit
   background:var(--lxw-surface);color:var(--lxw-accent);
   position:relative;box-shadow:0 8px 28px #11241b0b;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-welcome-identity>.lxw-brand-glyph{width:42px;height:42px}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-welcome-identity>.lxw-brand-glyph{width:62px;height:62px}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-starters{
   width:100%!important;max-width:460px!important;display:flex!important;
   flex-wrap:wrap!important;justify-content:center!important;gap:8px!important;
