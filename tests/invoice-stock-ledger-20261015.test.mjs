@@ -197,6 +197,34 @@ test('warehouse debits honor concurrent transfers, even if company-wide stock st
  assert.throws(()=>mergeVaultIntent(vault,intended,latest),/Insufficient stock at the selected warehouse/);
 });
 
+test('one vault write cannot issue and transfer the same warehouse stock twice',()=>{
+  const {vault,item}=fixture('10');
+  const workspaceId=vault.appSettings.activeWorkspaceId,branchId=vault.appSettings.activeBranchId;
+  const source=defaultWarehouseId(branchId),destination=createWarehouse(workspaceId,branchId,'Overflow Storage','OVER');
+  const base={...vault,warehouses:[...vault.warehouses,destination]};
+  const proof={id:'proof-issue-atomic',name:'issue.png',mimeType:'image/png',size:12,
+    dataUrl:'data:image/png;base64,'+Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]).toString('base64'),
+    createdAt:new Date().toISOString()};
+  const issue=(amount,id)=>({...createManualInventoryMovement(item,'issue',amount,undefined,'Goods dispatched with proof'),
+    id,reasonCategory:'samples',createdBy:'owner',evidence:proof});
+  const transfer=(amount,id)=>({...createWarehouseTransfer(item,source,destination.id,amount),id});
+  for(const movements of [
+    [issue('8','issue-first'),transfer('8','transfer-second')],
+    [transfer('8','transfer-first'),issue('8','issue-second')]
+  ]){
+    const before=JSON.stringify(base);
+    const intended={...base,inventoryMovements:[...base.inventoryMovements,...movements]};
+    assert.throws(()=>mergeVaultIntent(base,intended,base),/Insufficient stock|Transfer quantity exceeds/i,
+      'the shared source cannot fund two outgoing movements totaling more than its ten units');
+    assert.equal(JSON.stringify(base),before,'rejected combined write never mutates source data');
+  }
+  const intended={...base,inventoryMovements:[...base.inventoryMovements,issue('2','valid-issue'),transfer('8','valid-transfer')]};
+  const saved=mergeVaultIntent(base,intended,base);
+  assert.equal(warehouseItemQuantity(item.id,source,saved.inventoryMovements,source),0n);
+  assert.equal(warehouseItemQuantity(item.id,destination.id,saved.inventoryMovements,source),80000n);
+  assert.equal(balance(saved),'2','the stock is only debited by the physical issue at company level');
+});
+
 test('reversals cannot silently reuse an earlier approval or evidence attachment',()=>{
  const {item}=fixture();
  const original={...createManualInventoryMovement(item,'issue','2',undefined,'Original sample shipment'),
