@@ -156,12 +156,29 @@ export class App extends React.Component<{},State> {
    */
   private initialize=async()=>{
     this.accountEpoch++;
+    // Metadata only: identify which awaited startup stage hangs on iOS.
+    // Never log account IDs, workspace contents, customer data or cloud URLs.
+    const bootStarted=performance.now();
+    let bootLast=bootStarted;
+    const startupStage=(name:string)=>{
+      try{
+        const now=performance.now();
+        (window as any).__LOUREX_STARTUP_STAGE__=name;
+        (window as any).__LOUREX_DIAGNOSTICS__?.mark?.('startup-phase',
+          `stage=${name} elapsedMs=${Math.round(now-bootLast)} totalMs=${Math.round(now-bootStarted)}`);
+        bootLast=now;
+      }catch{/* Diagnostics must never delay startup. */}
+    };
+    startupStage('preferences-start');
     try{
       const preferences=await getPublicPreferences();
+      startupStage('preferences-ready');
       let uiLanguage=preferences?.uiLanguage??'en';
       const publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';
       setUiLanguage(uiLanguage);
+      startupStage('auth-start');
       const user=await waitForCloudUser();
+      startupStage('auth-ready');
       if(!user){
         this.setState({loading:false,firstRun:true,unlocked:false,vault:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});
         return;
@@ -170,13 +187,17 @@ export class App extends React.Component<{},State> {
         setActiveAccountUid(user.uid);
         await activateAccountStorage(user.uid);
       }
+      startupStage('local-read-start');
       let local=await getPlainWorkspace();
+      startupStage('local-read-ready');
       let syncState:CloudSyncState='local';
       let syncMessage='';
       const online=typeof navigator==='undefined'||navigator.onLine;
       if(online){
         try{
+          startupStage('cloud-reconcile-start');
           const result=await reconcilePlainCloudWorkspace(user.uid);
+          startupStage('cloud-reconcile-ready');
           if(result==='retry'){
             syncState='queued';
             syncMessage=t('A newer local edit is pending. Firebase will retry safely.','هناك تعديل محلي أحدث بانتظار المزامنة. ستُعاد المحاولة بأمان.');
@@ -243,11 +264,14 @@ export class App extends React.Component<{},State> {
       uiLanguage=vault.appSettings.uiLanguage??uiLanguage;
       setUiLanguage(uiLanguage);
       this.vaultWriteTail=Promise.resolve(vault);
+      startupStage('cloud-account-store-start');
       await putCloudAccount(user.uid,user.email);
+      startupStage('cloud-account-store-ready');
       this.setState({loading:false,firstRun:false,unlocked:true,vault,
         uiLanguage,publicLogo:vault.company.logoDataUrl||publicLogo,cloudUser:user,cloudLinked:true,
         cloudSyncState:syncState,cloudSyncMessage:syncMessage,screen:'home',editorDoc:null},
         ()=>{
+          startupStage('app-ready');
           // Firebase auth can resolve before the account database is selected.
           // Tell the cloud observer that the UID-scoped workspace is now ready.
           window.dispatchEvent(new Event('lourex-cloud-account-ready'));
@@ -255,6 +279,7 @@ export class App extends React.Component<{},State> {
           void this.processDueRecurringWorkflows(true);
         });
     }catch(error){
+      startupStage('failed');
       this.setState({loading:false,firstRun:false,unlocked:false,vault:null,
         cloudUser:currentCloudUser(),cloudLinked:false,cloudSyncState:'error',
         cloudSyncMessage:error instanceof Error?error.message:String(error)});
