@@ -445,7 +445,10 @@
             }
           });
           if (index>0) pdf.addPage('a4','portrait');
-          pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG',0,0,210,297,undefined,'FAST');
+          // Commercial A4 has very fine bilingual type and security marks. JPEG
+          // chroma/ringing destroys small glyphs that are otherwise readable in
+          // the original browser output. Use the same canvas, but lossless ink.
+          pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,210,297,undefined,'FAST');
           await addSharpMedia(pdf,sharpMedia);
           // Preserve the electronic-document link in the rasterized PDF too.
           const qrLinks=Array.from(page.querySelectorAll('.lx-document-qr[href]'));
