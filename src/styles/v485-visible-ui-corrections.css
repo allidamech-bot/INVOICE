@@ -2317,3 +2317,35 @@ html body #root .app-ui .editor-pane .editor-item-tools-options>.btn{
   html body #root .app-ui .statement-output-toolbar>.btn{min-height:44px!important;background:#366cc0!important;border:1px solid #6999de!important;color:#fff!important;}
 }
 @media print{.statement-output-toolbar{display:none!important;}}
+
+/* Official brand motion: artwork moves while its frame and hit target stay fixed.
+   Individual transform properties preserve the existing image-fit transforms. */
+@media screen and (prefers-reduced-motion:no-preference){
+  html body #root :is(
+    .ta-auth-page .ta-auth-mobile-brand .official-brand,
+    .app-ui .workspace-shell.screen-home .ta-topbar .ta-mobile-brand,
+    .app-ui .workspace-shell.screen-home .ta-sidebar .ta-brand-button
+  ) .brand-mark{perspective:480px;animation:lourex-official-depth 7.2s ease-in-out infinite;}
+  html body #root :is(
+    .ta-auth-page .ta-auth-mobile-brand .official-brand,
+    .app-ui .workspace-shell.screen-home .ta-topbar .ta-mobile-brand,
+    .app-ui .workspace-shell.screen-home .ta-sidebar .ta-brand-button
+  ) .brand-mark img{
+    transform-origin:50% 50%;backface-visibility:hidden;
+    animation:lourex-official-float 7.2s cubic-bezier(.45,0,.3,1) infinite;
+  }
+  @keyframes lourex-official-float{
+    0%,12%,100%{translate:0 0;scale:1;rotate:0 1 0 0deg;}
+    30%{translate:0 1px;scale:.91;rotate:0 1 0 -9deg;}
+    43%{translate:2px 0;scale:.98;rotate:0 1 0 7deg;}
+    57%{translate:0 -3px;scale:1;rotate:0 1 0 0deg;}
+    73%{translate:-1px -1px;scale:.97;rotate:0 1 0 -5deg;}
+    88%{translate:0 0;scale:1;rotate:0 1 0 0deg;}
+  }
+  @keyframes lourex-official-depth{
+    0%,12%,88%,100%{filter:drop-shadow(0 2px 2px #020a1340) brightness(1);}
+    30%{filter:drop-shadow(0 1px 1px #020a1320) brightness(.88);}
+    57%{filter:drop-shadow(0 5px 3px #020a1360) brightness(1.04);}
+    73%{filter:drop-shadow(0 3px 2px #020a1340) brightness(.97);}
+  }
+}

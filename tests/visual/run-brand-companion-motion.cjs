@@ -13,6 +13,21 @@ const fs=require('node:fs/promises'),path=require('node:path'),assert=require('n
  assert.equal(state.pointer,'none');assert.ok(state.logo);assert.ok(state.animations>=4);assert.equal(state.overflow,false);
  await page.evaluate(()=>document.querySelector('.ta-brand-energy').style.display='none');assert.deepEqual(await hero.boundingBox(),before,'decoration must not resize hero');await page.evaluate(()=>document.querySelector('.ta-brand-energy').style.display='');
  const positions=await page.locator('.ta-energy-blue').evaluate(async el=>{const a=getComputedStyle(el).transform;await new Promise(r=>setTimeout(r,450));return[a,getComputedStyle(el).transform];});assert.notEqual(...positions,'energy visibly moves');
+ const officialFrame=page.locator(width===390?'.ta-mobile-brand>button':'.ta-brand-button');
+ const officialLogo=officialFrame.locator('.brand-mark img');
+ const frameBefore=await officialFrame.boundingBox();
+ const officialState=await officialLogo.evaluate(el=>{
+  const animation=el.getAnimations().find(a=>a.animationName==='lourex-official-float');
+  if(!animation)return null;animation.pause();animation.currentTime=0;
+  const start=el.getBoundingClientRect().toJSON();animation.currentTime=2160;
+  return{start,end:el.getBoundingClientRect().toJSON(),source:el.getAttribute('src')};
+ });
+ assert.ok(officialState,'home logo has the intended artwork motion');
+ assert.ok(officialState.end.width<officialState.start.width,'logo visibly recedes');
+ assert.deepEqual(await officialFrame.boundingBox(),frameBefore,'home logo frame/hit target stays fixed');
+ await page.emulateMedia({reducedMotion:'reduce'});
+ assert.equal(await officialLogo.evaluate(el=>getComputedStyle(el).animationName),'none','home logo honors reduced motion');
+ await page.emulateMedia({reducedMotion:'no-preference'});
  if(width===390&&lang==='ar')await hero.screenshot({path:'visual-qa-output/brand-companion/energy-mobile.png'});
  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.ta-energy-blue').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
  await page.goto('http://localhost/tests/visual/ai-conversation-workspace.html?lang='+lang);await page.locator('.lourex-ai-launcher').waitFor();
@@ -28,7 +43,18 @@ const fs=require('node:fs/promises'),path=require('node:path'),assert=require('n
  if(width===390&&lang==='ar')await page.screenshot({path:'visual-qa-output/brand-companion/robot-mobile.png'});
  await page.locator('#lourex-ai-panel').evaluate(el=>el.dataset.aiMotion='reduced');assert.equal(await gaze.evaluate(el=>getComputedStyle(el).animationName),'none');
  await page.locator('#lourex-ai-panel').evaluate(el=>delete el.dataset.aiMotion);await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await gaze.evaluate(el=>getComputedStyle(el).animationName),'none');
- assert.equal(errors.length,0,errors.join('\n'));console.log(`PASS ${width}px ${lang}: fixed sizes, hero motion, three robot placements, no overlay, reduced motion`);await context.close();
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ await page.goto('http://localhost/tests/visual/premium-auth-gateway-v187.html?mode=signin&lang='+lang+'&theme=dark');
+ const authLogo=page.locator('.ta-auth-mobile-brand img');await authLogo.waitFor();
+ const authFrame=page.locator('.ta-auth-mobile-brand .brand-mark'),authBounds=await authFrame.boundingBox();
+ const authMotion=await authLogo.evaluate(el=>{
+  const a=el.getAnimations().find(a=>a.animationName==='lourex-official-float');
+  if(!a)return null;a.pause();a.currentTime=0;const start=el.getBoundingClientRect().width;
+  a.currentTime=2160;return{start,end:el.getBoundingClientRect().width};
+ });assert.ok(authMotion&&authMotion.end<authMotion.start,'sign-in logo recedes with the same motion');
+ assert.deepEqual(await authFrame.boundingBox(),authBounds,'sign-in logo frame stays fixed');
+ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await authLogo.evaluate(el=>getComputedStyle(el).animationName),'none','sign-in logo honors reduced motion');
+ assert.equal(errors.length,0,errors.join('\n'));console.log(`PASS ${width}px ${lang}: fixed sizes, hero motion, three robot placements, official home/sign-in motion, fixed frames, reduced motion`);await context.close();
  }
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
