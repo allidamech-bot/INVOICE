@@ -1,5 +1,6 @@
 // Browser-measured regression for the sign-in mark alignment reported on iPhone.
 // Uses the real compiled production CSS and synthetic sign-in HTML. No auth or data.
+// Measure resting geometry; the companion-motion runner separately verifies brand animation.
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
@@ -14,7 +15,7 @@ const results=[];
     const browser=await browserType.launch({headless:true});
     try{
       for(const width of widths)for(const lang of ['en','ar'])for(const theme of ['light','dark'])for(const mode of ['signin','create']){
-        const page=await browser.newPage({viewport:{width,height:932},hasTouch:width<=430,isMobile:width<=430});
+        const page=await browser.newPage({viewport:{width,height:932},hasTouch:width<=430,isMobile:width<=430,reducedMotion:'reduce'});
         try{
           await page.goto(`${base}?mode=${mode}&lang=${lang}&theme=${theme}`,{waitUntil:'load'});
           await page.locator('.ta-auth-mobile-brand img').waitFor();
