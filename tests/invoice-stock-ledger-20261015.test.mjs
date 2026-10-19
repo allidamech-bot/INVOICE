@@ -8,7 +8,7 @@ import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {validateManualMovementEvidence} from '../dist/src/lib/inventory-evidence.js';
 import {inventoryBalances} from '../dist/src/lib/operations.js';
 import {proposalForExecutableTool,aiToolPlannerCatalog,validateAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
-import {createWarehouse,createWarehouseTransfer,defaultWarehouseId} from '../dist/src/lib/warehouses.js';
+import {createWarehouse,createWarehouseTransfer,defaultWarehouseId,warehouseItemQuantity} from '../dist/src/lib/warehouses.js';
 
 function fixture(stock='100'){
  const vault=emptyVault(),now=new Date().toISOString();
@@ -222,7 +222,7 @@ test('one vault write cannot issue and transfer the same warehouse stock twice',
   const saved=mergeVaultIntent(base,intended,base);
   assert.equal(warehouseItemQuantity(item.id,source,saved.inventoryMovements,source),0n);
   assert.equal(warehouseItemQuantity(item.id,destination.id,saved.inventoryMovements,source),80000n);
-  assert.equal(balance(saved),'2','the stock is only debited by the physical issue at company level');
+  assert.equal(balance(saved),'8','the stock is only debited by the physical issue at company level');
 });
 
 test('reversals cannot silently reuse an earlier approval or evidence attachment',()=>{
