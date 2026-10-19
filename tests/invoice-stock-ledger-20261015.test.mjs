@@ -218,6 +218,20 @@ test('one vault write cannot issue and transfer the same warehouse stock twice',
       'the shared source cannot fund two outgoing movements totaling more than its ten units');
     assert.equal(JSON.stringify(base),before,'rejected combined write never mutates source data');
   }
+  const twoTransfers={...base,inventoryMovements:[...base.inventoryMovements,
+    transfer('6','transfer-a'),transfer('6','transfer-b')]};
+  assert.throws(()=>mergeVaultIntent(base,twoTransfers,base),/Transfer quantity exceeds/i,
+    'two individually valid transfers cannot consume the same location quantity twice');
+
+  const replenishment={...createManualInventoryMovement(item,'opening','2',undefined,'Documented replenishment'),
+    id:'replenishment',reasonCategory:'opening',createdBy:'owner',evidence:proof};
+  const combinedCredit={...base,inventoryMovements:[...base.inventoryMovements,
+    replenishment,transfer('12','funded-transfer')]};
+  const replenished=mergeVaultIntent(base,combinedCredit,base);
+  assert.equal(warehouseItemQuantity(item.id,source,replenished.inventoryMovements,source),0n);
+  assert.equal(warehouseItemQuantity(item.id,destination.id,replenished.inventoryMovements,source),120000n,
+    'earlier documented receipts must count before a subsequent transfer in the same save');
+
   const intended={...base,inventoryMovements:[...base.inventoryMovements,issue('2','valid-issue'),transfer('8','valid-transfer')]};
   const saved=mergeVaultIntent(base,intended,base);
   assert.equal(warehouseItemQuantity(item.id,source,saved.inventoryMovements,source),0n);
