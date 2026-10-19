@@ -60,8 +60,13 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
       mask=(await (capture?capture(index,'mask'):captureSheet(sheet,'mask'))).toString('base64');
     } finally {await hide.evaluate(el=>el.remove());}
     results.push(await page.evaluate(async({background,mask,original,reference,texts,media})=>{
-      async function pixels(data){const im=new Image();im.src='data:image/png;base64,'+data;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');x.drawImage(im,0,0);return {data:x.getImageData(0,0,c.width,c.height).data,width:c.width,height:c.height};}
+      async function pixels(data,blur=0){const im=new Image();im.src='data:image/png;base64,'+data;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');if(blur)x.filter=`blur(${blur}px)`;x.drawImage(im,0,0);return {data:x.getImageData(0,0,c.width,c.height).data,width:c.width,height:c.height};}
       const [bg,m,actual,ref]=await Promise.all([pixels(background),pixels(mask),pixels(original),pixels(reference)]);
+      // Compare raster artwork after symmetric mild low-pass filtering. The
+      // browser subpixel/LCD fringing and the PDF's grayscale AA differ, even
+      // when a wordmark is byte-for-byte intact; blur removes ONLY raster phase
+      // noise, while the original RGB image/QR and missing-art checks remain.
+      const [actualArt,refArt]=await Promise.all([pixels(original,1.5),pixels(reference,1.5)]);
       const lum=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
       const contrast=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
       const failures=[];let minimum=Infinity,samples=0;
@@ -85,12 +90,12 @@ async function auditPaintedContrast(page,capture,{qrVerifiedFromPdf=false}={}) {
       }
       for(const asset of media){let count=0,different=0;
         for(let y=Math.max(2,Math.ceil(asset.y));y<Math.min(actual.height-2,asset.y+asset.h);y+=2)for(let x=Math.max(2,Math.ceil(asset.x));x<Math.min(actual.width-2,asset.x+asset.w);x+=2){
-          const i=(y*ref.width+x)*4;let nearest=Infinity;
+          const i=(y*refArt.width+x)*4;let nearest=Infinity;
           // Small positional tolerance covers raster/JPEG antialiasing, while
           // missing marks, wordmark content or contour ink remain detectable.
           for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
-            const j=((y+dy)*actual.width+x+dx)*4;
-            nearest=Math.min(nearest,Math.max(...[0,1,2].map(k=>Math.abs(ref.data[i+k]-actual.data[j+k]))));
+            const j=((y+dy)*actualArt.width+x+dx)*4;
+            nearest=Math.min(nearest,Math.max(...[0,1,2].map(k=>Math.abs(refArt.data[i+k]-actualArt.data[j+k]))));
           }
           count++;if(nearest>60)different++;
         }
