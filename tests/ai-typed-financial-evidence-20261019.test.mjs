@@ -36,6 +36,20 @@ test('typed financial evidence comes from tool data, ignores flat answer and doe
  }
  assert.deepEqual(data,before);
 });
+test('multi-currency customer ledger explicitly warns when the view cannot show every movement',()=>{
+ const sample=evidence();
+ sample.results[2].data.statements=[
+  {currency:'USD',entries:Array.from({length:10},(_,i)=>({type:'payment',date:'2026-10-16',
+   reference:'USD-PAY-'+i,credit:'1.00',balance:'3000.00'}))},
+  {currency:'EUR',entries:Array.from({length:10},(_,i)=>({type:'payment',date:'2026-10-17',
+   reference:'EUR-PAY-'+i,credit:'1.00',balance:'3000.00'}))}
+ ];
+ const view=financialReadoutFromToolRows(sample,'ar');
+ assert.ok(view);
+ const ledger=view.sections.find(x=>x.movements.length);
+ assert.equal(ledger.movements.length,12);
+ assert.ok(ledger.notes.some(x=>x.includes('حركات إضافية')),'partial movement history must be labeled');
+});
 test('mixed execution tools or unrelated searches cannot impersonate read-only business snapshots',()=>{
  assert.equal(financialReadoutFromToolRows({results:[...evidence().results,{tool:'payment.create',class:'execute',ok:true}]},'ar'),null);
  assert.equal(financialReadoutFromToolRows({results:[{tool:'product.getSummary',ok:true,data:{}}]},'ar'),null);
