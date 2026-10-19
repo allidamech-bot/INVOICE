@@ -298,7 +298,7 @@
     const contour=image.closest('.doc-logo')?.dataset.logoLayout==='symbol'||shadows.length>0;
     if(!contour&&!/^data:image\/svg\+xml|\.svg(?:[?#]|$)/i.test(src))return;
     const prepared=await pngForPdf(src);
-    if(!contour){image.src=prepared.data;await image.decode();return;}
+    if(!contour){image.src=prepared.data;image.dataset.lourexPdfPreparedSrc=prepared.data;await image.decode();return;}
     // html2canvas does not paint CSS filter contours. Preserve the same small
     // contour in the clone's image pixels, without recoloring the artwork.
     const original=await loadImageForPdf(prepared.data);
@@ -338,6 +338,7 @@
     ctx.drawImage(ring,0,0);
     ctx.drawImage(originalShape,0,0);
     image.src=canvas.toDataURL('image/png');
+    image.dataset.lourexPdfPreparedSrc=image.src;
     for(const [name,value] of Object.entries({width:(rect.width+padding*2)+'px',height:(rect.height+padding*2)+'px','max-width':'none','max-height':'none',margin:'-'+padding+'px',filter:'none'}))image.style.setProperty(name,value,'important');
     await image.decode();
   };
@@ -348,7 +349,9 @@
     // out small continuation wordmarks even when their browser preview is clear.
     return Array.from(page.querySelectorAll(SHARP_MEDIA_SELECTOR+',.lx-document-qr img')).map((image,index) => {
       const rect = image.getBoundingClientRect();
-      const src = image.currentSrc || image.src || '';
+      // currentSrc can remain the original SVG when a cloned image's src is
+      // replaced during PDF preparation. Embed the exact generated contour.
+      const src = image.dataset.lourexPdfPreparedSrc || image.currentSrc || image.src || '';
       if (!src || rect.width <= 0 || rect.height <= 0) return null;
       // CSS object-fit describes the visible artwork, not the element's box.
       // Embedding the full box stretched circular stamps and signatures in PDF.
