@@ -4,7 +4,7 @@ import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, Docum
 import { isDeliveryLinkedInvoice } from '../lib/sales-delivery-invoice.js';
 import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, lineTotal } from '../lib/money.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
-import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
+import { emptyItem, refreshCompanySnapshot, validateDocument, validateStoredFinalForOutput } from '../lib/documents.js';
 import { getDocumentReadiness } from '../lib/readiness.js';
 import { documentQualityIssues } from '../lib/document-quality.js';
 import { findSavedItemMatch, historySuggestions, mergeSavedItemSelections, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
@@ -155,7 +155,7 @@ export class EditorPage extends React.Component<Props,State>{
   },40);
 
   private validateCurrent=():boolean=>{
-    const errors=validateDocument(this.state.doc);
+    const errors=validateStoredFinalForOutput(this.state.doc,this.props.documents.find(saved=>saved.id===this.state.doc.id));
     this.validationAttempted=true;
     if(Object.keys(errors).length){this.setState({errors,saveState:'unsaved'},this.scrollToFirstError);return false;}
     if(Object.keys(this.state.errors).length)this.setState({errors:{}});
