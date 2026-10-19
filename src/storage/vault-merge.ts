@@ -533,24 +533,6 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   return next;
 }
 
-// A payment already allocated to an active cash/bank entry cannot be edited or
-// deleted independently. Void/correct its treasury allocation first, preserving
-// the financial audit trail and preventing orphaned source references.
-function guardAllocatedPaymentChanges<T extends {id:string}>(
-  base:T[],intended:T[],entries:VaultPayload['treasuryEntries'],
-  sourceType:'customer-payment'|'supplier-payment',label:string
-):void{
-  if(intended===base)return;
-  const wanted=new Map(intended.map(row=>[row.id,row]));
-  for(const before of base){
-    const after=wanted.get(before.id);
-    if(after&&sameRecord(before,after))continue;
-    if(entries.some(entry=>!entry.voidedAt&&entry.sourceType===sourceType&&entry.sourceId===before.id)){
-      throw new Error(`${label} has an active linked treasury entry. Void or correct that entry before changing the payment.`);
-    }
-  }
-}
-
 // Treasury movements are an audit ledger, not mutable form records. The Cash &
 // Bank screen corrects an entry by voiding it, preserving its original details.
 // Enforce that same contract for direct, offline and concurrently merged writes.
@@ -579,6 +561,24 @@ function guardTreasuryEntryHistory(
         (original.createdAt&&next.voidedAt<original.createdAt)||
         next.updatedAt!==next.voidedAt)
         throw new Error('Treasury entry history permits only a valid one-time void.');
+    }
+  }
+}
+
+// A payment already allocated to an active cash/bank entry cannot be edited or
+// deleted independently. Void/correct its treasury allocation first, preserving
+// the financial audit trail and preventing orphaned source references.
+function guardAllocatedPaymentChanges<T extends {id:string}>(
+  base:T[],intended:T[],entries:VaultPayload['treasuryEntries'],
+  sourceType:'customer-payment'|'supplier-payment',label:string
+):void{
+  if(intended===base)return;
+  const wanted=new Map(intended.map(row=>[row.id,row]));
+  for(const before of base){
+    const after=wanted.get(before.id);
+    if(after&&sameRecord(before,after))continue;
+    if(entries.some(entry=>!entry.voidedAt&&entry.sourceType===sourceType&&entry.sourceId===before.id)){
+      throw new Error(`${label} has an active linked treasury entry. Void or correct that entry before changing the payment.`);
     }
   }
 }
