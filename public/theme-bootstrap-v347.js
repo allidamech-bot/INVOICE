@@ -43,10 +43,14 @@
       try{return mount.querySelector(':scope > .loading-screen');}catch(e){return document.getElementById('lourex-boot');}
     };
     var restore=function(){
-      // React replaces the static #lourex-boot node during mount. Treat its
-      // direct .loading-screen successor as the same startup owner so the theme
-      // bootstrap cannot release the page background between those two paints.
-      if(startupSurface())return;
+      // The static boot node and React's temporary .loading-screen can disappear
+      // briefly between DOM commits. Never disconnect the observer in that gap:
+      // iOS can otherwise leave data-lourex-booting=true over a fully mounted
+      // document workspace, forcing fixed positioning and disabled scrolling.
+      // Release only after React has displayed a real authenticated, account
+      // entry, or recovery surface (not merely an empty #root).
+      var ready=mount.querySelector('.app-ui,.auth-page,.ta-auth-page,.auth-recovery-state,.app-recovery,.app-recovery-screen');
+      if(!ready)return;
       delete root.dataset.lourexBooting;
       root.style.removeProperty('--boot-bg');
       // A theme change may occur while auth is loading. Do not restore the
