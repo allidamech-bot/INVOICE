@@ -205,6 +205,20 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
 
   return <section className="ta-finance-dashboard">
     <header className="ta-dashboard-header">
+      <div className="ta-brand-energy" aria-hidden="true">
+        <svg className="ta-brand-energy-streams" viewBox="0 0 700 400" fill="none" focusable="false">
+          <g className="ta-energy-blue" stroke="#7BBBE9">
+            <path d="M350 200C250 40 100 80-40 15M350 200C475 40 600 50 740 5M350 200C210 310 60 280-40 385M350 200C500 300 610 280 740 375"/>
+            <ellipse cx="350" cy="200" rx="255" ry="100" transform="rotate(-24 350 200)"/>
+          </g>
+          <g className="ta-energy-gold" stroke="#E6BC75">
+            <path d="M350 200C180 160 140 10 25-30M350 200C510 180 540 390 700 430M350 200C195 240 130 375-30 300M350 200C490 170 590 15 730 100"/>
+            <ellipse cx="350" cy="200" rx="210" ry="125" transform="rotate(30 350 200)"/>
+          </g>
+        </svg>
+        <span className="ta-brand-energy-halo"/>
+        <img className="ta-brand-energy-logo" src="./brand/lourex-header-logo.jpeg" alt="" decoding="async" width="180" height="180"/>
+      </div>
       <div className="ta-dashboard-heading">
         <span className="ta-dashboard-eyebrow">{companyName||'LOUREX Invoice'}</span>
         <h1>{t('Business overview','نظرة شاملة على الأعمال')}</h1>

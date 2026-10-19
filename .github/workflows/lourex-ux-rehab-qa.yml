@@ -14,6 +14,9 @@ on:
       - 'src/portal/**'
       - 'tests/document-electronic-qr.test.mjs'
       - 'tests/visual/*document-electronic-qr*'
+      - 'src/components/AiIdentityMark.tsx'
+      - 'src/components/WorkspaceHome.tsx'
+      - 'tests/visual/run-brand-companion-motion.cjs'
       - 'src/styles/v485-visible-ui-corrections.css'
       - 'src/styles/tailadmin-auth-v320.css'
       - 'tests/visual/run-auth-mobile-logo-center-20261017.cjs'
@@ -159,6 +162,7 @@ jobs:
           done
           # Check the sign-in logo centering on real iPhone/iPad viewports first.
           node tests/visual/run-auth-mobile-logo-center-20261017.cjs
+          node tests/visual/run-brand-companion-motion.cjs
           # Check chat before the longer product/editor battery.
           node tests/visual/run-ai-batches1-7-current-workspace.cjs
           node tests/visual/run-ai-conversation-final-batch5.cjs
@@ -179,6 +183,7 @@ jobs:
         with:
           name: ux-rehab-picker-webkit
           path: |
+            visual-qa-output/brand-companion/
             visual-qa-output/auth-mobile-logo-center/
             visual-qa-output/ux-rehab-picker-webkit/
             visual-qa-output/ux-rehab-warehouse-webkit/
