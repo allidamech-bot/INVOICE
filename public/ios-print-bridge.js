@@ -300,19 +300,35 @@
     // contour in the clone's image pixels, without recoloring the artwork.
     const original=await loadImageForPdf(prepared.data);
     const rect=image.getBoundingClientRect(),padding=2,scale=3;
-    let canvas=document.createElement('canvas');
+    const canvas=document.createElement('canvas');
     canvas.width=Math.ceil((rect.width+padding*2)*scale);
     canvas.height=Math.ceil((rect.height+padding*2)*scale);
     const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Unable to prepare logo contrast.');
-    ctx.drawImage(original,padding*scale,padding*scale,rect.width*scale,rect.height*scale);
-    // CSS applies these shadows sequentially, including each earlier contour.
-    for(const shadow of shadows){
-      const next=document.createElement('canvas');next.width=canvas.width;next.height=canvas.height;
-      const paint=next.getContext('2d');if(!paint)throw new Error('Unable to prepare logo contour.');
-      paint.shadowColor=shadow.color;paint.shadowBlur=shadow.blur*scale;
-      paint.shadowOffsetX=shadow.x*scale;paint.shadowOffsetY=shadow.y*scale;
-      paint.drawImage(canvas,0,0);canvas=next;
+    // Reconstruct a restrained *shape* outline from the original alpha mask.
+    // Browser CSS drop-shadows cannot be relied on in html2canvas, and
+    // repeatedly shadowing a shadowed image can wash out a dark mark on
+    // dark continuation paper. Never draw a rectangular backing plate.
+    const originalShape=document.createElement('canvas');
+    originalShape.width=canvas.width;originalShape.height=canvas.height;
+    const shapeCtx=originalShape.getContext('2d');
+    if(!shapeCtx)throw new Error('Unable to prepare transparent logo silhouette.');
+    shapeCtx.drawImage(original,padding*scale,padding*scale,rect.width*scale,rect.height*scale);
+    const owner=image.closest('.continuation-company,.masthead-brand');
+    const outlineInk=owner?getComputedStyle(owner).color:shadows[0].color;
+    const ring=document.createElement('canvas');ring.width=canvas.width;ring.height=canvas.height;
+    const ringCtx=ring.getContext('2d');if(!ringCtx)throw new Error('Unable to prepare logo outline.');
+    // Eight directions make the alpha contour continuous without a white box.
+    const radius=1.3*scale;
+    for(let step=0;step<8;step++){
+      const angle=Math.PI*2*step/8;
+      ringCtx.drawImage(originalShape,Math.cos(angle)*radius,Math.sin(angle)*radius);
     }
+    ringCtx.globalCompositeOperation='source-in';
+    ringCtx.fillStyle=outlineInk;
+    ringCtx.fillRect(0,0,ring.width,ring.height);
+    ringCtx.globalCompositeOperation='source-over';
+    ctx.drawImage(ring,0,0);
+    ctx.drawImage(originalShape,0,0);
     image.src=canvas.toDataURL('image/png');
     for(const [name,value] of Object.entries({width:(rect.width+padding*2)+'px',height:(rect.height+padding*2)+'px','max-width':'none','max-height':'none',margin:'-'+padding+'px',filter:'none'}))image.style.setProperty(name,value,'important');
     await image.decode();
