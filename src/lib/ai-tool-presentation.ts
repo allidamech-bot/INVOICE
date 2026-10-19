@@ -218,13 +218,13 @@ export function formatAiBusinessRecordReply(value:unknown,language:'ar'|'en'):st
   lines.push(':::lourex-end');
  }
  const output=lines.filter((line,i)=>line!==''||lines[i-1]!=='').join('\n').trim();
- if(output.length>4750){
+ if(output.length>3800){
   const notice='\n'+(ar?'… تفاصيل إضافية لم تُعرض؛ اطلب فترة أقصر أو افتح السجل الأصلي.':'… Additional details omitted; request a shorter period or open the original.');
   // Never cut through the disclosure syntax and expose internal markers.
   const details=output.indexOf(':::lourex-details ');
   const readable=details>=0?output.slice(0,details).trimEnd():output;
-  if(readable.length<=4650)return readable+notice;
-  const first=readable.slice(0,4650-notice.length),end=first.lastIndexOf('\n');
+  if(readable.length<=3700)return readable+notice;
+  const first=readable.slice(0,3700-notice.length),end=first.lastIndexOf('\n');
   return (end>0?first.slice(0,end):first)+notice;
  }
  return output;
