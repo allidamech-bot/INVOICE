@@ -1,13 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createBlankDocument } from '../dist/src/lib/documents.js';
+import { createBlankDocument, validateDocument } from '../dist/src/lib/documents.js';
 import { defaultCompany } from '../dist/src/lib/defaults.js';
 import { todayIso } from '../dist/src/lib/id.js';
 import { customerPerformanceReport, financialReportByCurrency, monthlyPerformanceReport, normalizeReportPeriod } from '../dist/src/lib/reports.js';
+import { customerStatement, receivablesByCurrency } from '../dist/src/lib/receivables.js';
 
 const read=path=>readFile(path,'utf8');
 const company=defaultCompany();
+
+test('currency whitespace cannot hide outstanding balances from normalized financial reports',()=>{
+  const first=invoice({currency:'USD '});
+  const second=invoice({id:'second-usd',number:'INV-SECOND',currency:'USD',price:'200.00'});
+  const receipt=payment(first,{amount:'300.00'});
+  const note=credit(first,{price:'100.00'});
+  const documents=[first,second,note],payments=[receipt],asOf='2026-01-31';
+  const original=JSON.stringify({documents,payments});
+  assert.equal(validateDocument(first).currency,undefined,'the editor permits a trailing space');
+  const rows=financialReportByCurrency(documents,payments,'2026-01-01',asOf);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].currency,'USD');
+  assert.equal(rows[0].outstanding,'800.00');
+  assert.equal(rows[0].overdue,'800.00');
+  assert.equal(customerPerformanceReport([],documents,payments,'2026-01-01',asOf)[0].outstanding,'800.00');
+  const accounts=receivablesByCurrency(documents,payments,asOf);
+  assert.equal(accounts.length,1);
+  assert.equal(accounts[0].outstanding,'800.00');
+  const statement=customerStatement('cust-a',documents,payments,asOf);
+  assert.equal(statement.length,1);
+  assert.equal(statement[0].entries.at(-1).balance,'800.00');
+  assert.equal(statement[0].outstanding,'800.00');
+  assert.equal(JSON.stringify({documents,payments}),original,'projections must not rewrite stored records');
+});
 
 function customer(id,name){const now='2026-01-01T00:00:00.000Z';return{id,createdAt:now,updatedAt:now,companyNameEn:name,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',notes:''};}
 function invoice({id='inv-usd',number='INV-2026-0001',currency='USD',price='1000.00',cost='600.00',issueDate='2026-01-10',dueDate='2026-01-25',customerId='cust-a',customerName='Alpha',shipping='0.00',shippingCost='0.00',tax='0'}={}){

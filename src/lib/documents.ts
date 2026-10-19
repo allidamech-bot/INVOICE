@@ -2,7 +2,7 @@ import type { CompanySettings, DocumentKind, DocumentItem, DocumentLanguage, Lou
 import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
 import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
-import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
+import { decimalToScaled, isDecimalInput, isFinancialDecimalInput, isNonNegativeDecimalInput, isNonNegativeFinancialDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
 import { defaultLetterData, defaultWatermark } from './document-extras.js';
 import { documentBankAllowed, documentCanConvertToInvoice, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
@@ -158,8 +158,10 @@ function documentSubtotalCents(doc:LourexDocument):bigint{
   return doc.items.reduce((sum,item)=>sum+decimalToScaled(lineTotal(item.quantity,item.unitPrice),2),0n);
 }
 
-export function validateDocument(doc: LourexDocument): Record<string, string> {
+export function validateDocument(doc: LourexDocument, financialFormat: 'new-entry'|'stored-final-output' = 'new-entry'): Record<string, string> {
   const errors: Record<string, string> = {};
+  const positiveNumber=financialFormat==='stored-final-output'?isDecimalInput:isFinancialDecimalInput;
+  const nonNegativeNumber=financialFormat==='stored-final-output'?isNonNegativeDecimalInput:isNonNegativeFinancialDecimalInput;
   if (!doc.number.trim()) errors.number = 'Document number is required.';
   if (!doc.issueDate) errors.issueDate = 'Issue date is required.';
   else if(!isIsoDate(doc.issueDate))errors.issueDate='Issue date is invalid.';
@@ -182,12 +184,12 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
     } else if (!item.descriptionEn.trim()) {
       errors[`item-${index}-description`] = 'Description is required.';
     }
-    if (!isDecimalInput(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
+    if (!positiveNumber(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
     if (!item.unit.trim()) errors[`item-${index}-unit`] = 'Unit is required.';
     if (!documentPriceOptional(doc.kind) && !item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
-    else if (item.unitPrice.trim() && !isNonNegativeDecimalInput(item.unitPrice)) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
+    else if (item.unitPrice.trim() && !nonNegativeNumber(item.unitPrice)) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
   });
-  const nonNegative = (value: string) => isNonNegativeDecimalInput(value);
+  const nonNegative = (value: string) => nonNegativeNumber(value);
   if (doc.adjustments.discountEnabled) {
     if(!nonNegative(doc.adjustments.discountValue))errors.discount='Discount must be 0 or greater.';
     else if(doc.adjustments.discountMode==='percent'&&decimalToScaled(doc.adjustments.discountValue)>decimalToScaled('100'))errors.discount='Discount percentage cannot exceed 100%.';
@@ -197,6 +199,22 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
   if (doc.adjustments.otherChargesEnabled && !nonNegative(doc.adjustments.otherCharges)) errors.otherCharges = 'Other charges must be 0 or greater.';
   if (doc.adjustments.taxEnabled && !nonNegative(doc.adjustments.taxPercent)) errors.tax = 'Tax must be 0 or greater.';
   return errors;
+}
+
+
+/**
+ * An issued, persisted final document remains printable when its unchanged
+ * historical money fields used a once-accepted grouping format. No new draft,
+ * newly issued document, or modified financial value can use this compatibility
+ * path; all other document validation remains identical.
+ */
+export function validateStoredFinalForOutput(doc:LourexDocument,stored?:LourexDocument):Record<string,string>{
+  const unmodifiedMoney=Boolean(stored&&
+    stored.items.length===doc.items.length&&
+    stored.items.every((item,index)=>item.id===doc.items[index]?.id&&item.quantity===doc.items[index]?.quantity&&item.unitPrice===doc.items[index]?.unitPrice)&&
+    JSON.stringify(stored.adjustments)===JSON.stringify(doc.adjustments));
+  const historical=Boolean(stored&&stored.id===doc.id&&stored.status==='final'&&doc.status==='final'&&unmodifiedMoney);
+  return validateDocument(doc,historical?'stored-final-output':'new-entry');
 }
 
 function daysBetween(start:string,end:string):number{
