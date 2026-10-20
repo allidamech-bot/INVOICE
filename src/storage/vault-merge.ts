@@ -922,6 +922,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const recurringWorkflows=mergeRecords(base.recurringWorkflows,intended.recurringWorkflows,latest.recurringWorkflows);
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
   guardConcurrentRecordChanges(base.payments,intended.payments,latest.payments,'Payment','Reopen the invoice before saving or deleting the payment.');
+  // New remotely recorded customer receipts are keyed by ID during merging.
+  // Reject blank/reused incoming IDs before the merge can discard a receipt.
+  guardNewOperationalRecordIds(base.payments,latest.payments,'customer payment');
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
   // The normal payment form validates amounts strictly. Enforce the same rule at
   // the authoritative save boundary for new imported, AI or offline payments.
