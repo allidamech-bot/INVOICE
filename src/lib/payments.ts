@@ -30,8 +30,19 @@ function assertCreditNoteRecordIntegrity(invoice:LourexDocument,credit:LourexDoc
   if((credit.customerSnapshot?.sourceCustomerId||'')!==(invoice.customerSnapshot?.sourceCustomerId||''))throw new Error('Credit note customer must match the source invoice.');
   return amount;
 }
-export function invoicePayments(invoiceId:string,payments:PaymentRecord[],asOf=''):PaymentRecord[]{return payments.filter(payment=>payment.invoiceId===invoiceId&&(!asOf||(isIsoDate(payment.date)&&payment.date<=asOf)));}
-export function accountedInvoicePayments(invoice:LourexDocument,payments:PaymentRecord[],asOf=''):PaymentRecord[]{return payments.filter(payment=>paymentMatchesInvoice(invoice,payment)&&paymentAmountCents(payment)!==null&&(!asOf||payment.date<=asOf));}
+// A receipt entered after a report cutoff must not rewrite that earlier
+// customer closing position solely because the payment date was backdated.
+// Old receipts with no creation timestamp still use their economic date.
+export function customerPaymentVisibleAsOf(payment:PaymentRecord,asOf=''):boolean{
+  if(!asOf)return true;
+  if(!isIsoDate(payment.date)||payment.date>asOf)return false;
+  const recordedOn=payment.createdAt?.slice(0,10)||'';
+  return !recordedOn||(isIsoDate(recordedOn)&&recordedOn<=asOf);
+}
+export function invoicePayments(invoiceId:string,payments:PaymentRecord[],asOf=''):PaymentRecord[]{
+  return payments.filter(payment=>payment.invoiceId===invoiceId&&customerPaymentVisibleAsOf(payment,asOf));
+}
+export function accountedInvoicePayments(invoice:LourexDocument,payments:PaymentRecord[],asOf=''):PaymentRecord[]{return payments.filter(payment=>paymentMatchesInvoice(invoice,payment)&&paymentAmountCents(payment)!==null&&customerPaymentVisibleAsOf(payment,asOf));}
 export function accountedInvoiceCreditNotes(invoice:LourexDocument,documents:LourexDocument[],asOf=''):LourexDocument[]{return documents.filter(credit=>creditMatchesInvoice(invoice,credit)&&(!asOf||credit.issueDate<=asOf));}
 export function paidAmount(invoiceId:string,payments:PaymentRecord[],asOf=''):string{let cents=0n;for(const payment of invoicePayments(invoiceId,payments,asOf)){const amount=paymentAmountCents(payment);if(amount!==null&&isIsoDate(payment.date))cents+=amount;}return centsString(cents);}
 export function invoiceCreditAmount(invoiceId:string,documents:LourexDocument[],asOf=''):string{
