@@ -734,14 +734,32 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Existing payment IDs retain their immutable historical numeric spelling.
   if(intended.payments!==base.payments){
     const originalIds=new Set(base.payments.map(payment=>payment.id));
+    const originalById=new Map(base.payments.map(payment=>[payment.id,payment]));
     const newIds=new Set<string>();
     for(const payment of intended.payments){
-      if(originalIds.has(payment.id))continue;
+      if(originalIds.has(payment.id)){
+        // Existing money can retain its historical spelling, but an edit to
+        // that money must use the strict grammar of a new receipt.
+        if(originalById.get(payment.id)?.amount!==payment.amount&&!isFinancialDecimalInput(payment.amount))
+          throw new Error('Changed customer payment amount has invalid monetary grouping.');
+        continue;
+      }
       if(!payment.id||newIds.has(payment.id))
         throw new Error('New customer payment IDs must be unique.');
       newIds.add(payment.id);
       if(!isFinancialDecimalInput(payment.amount))
         throw new Error('New customer payment amount has invalid monetary grouping.');
+    }
+  }
+  // A remote payment edit is subject to the same new-money syntax before a
+  // stale device may merge an unrelated expense or inventory adjustment.
+  // Identical historical strings are left alone, including cloud JSON clones.
+  if(latest.payments!==base.payments){
+    const originalById=new Map(base.payments.map(payment=>[payment.id,payment]));
+    for(const payment of latest.payments){
+      const original=originalById.get(payment.id);
+      if((!original||original.amount!==payment.amount)&&!isFinancialDecimalInput(payment.amount))
+        throw new Error('Changed customer payment amount has invalid monetary grouping.');
     }
   }
   // Recorded payments are append-only: only a one-time void transition is legal.
