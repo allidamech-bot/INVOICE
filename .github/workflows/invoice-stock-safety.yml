@@ -21,6 +21,7 @@ on:
       - 'src/components/EditorPageCore.tsx'
       - 'src/types.ts'
       - 'tests/invoice-stock-ledger-20261015.test.mjs'
+      - 'tests/inventory-warehouse-saved-cycle.test.mjs'
       - 'tests/audit-new-invoice-stock-company-scope.test.mjs'
       - 'tests/audit-warehouse-transfer-scope-integrity.test.mjs'
       - 'tests/audit-purchase-stock-scope-integrity.test.mjs'
@@ -55,6 +56,8 @@ jobs:
         run: npm run typecheck
       - name: Build production bundle locally (no deployment)
         run: npm run build
+      - name: Saved inventory and warehouse lifecycle
+        run: node --test tests/inventory-warehouse-saved-cycle.test.mjs
       - name: Real domain and vault merge tests
         run: node --test tests/stock-backup-integrity-20261015.test.mjs tests/invoice-void-stock-20261015.test.mjs tests/sales-return-stock-20261015.test.mjs tests/invoice-stock-ledger-20261015.test.mjs tests/audit-new-invoice-stock-company-scope.test.mjs tests/audit-warehouse-transfer-scope-integrity.test.mjs tests/audit-purchase-stock-scope-integrity.test.mjs tests/audit-purchase-stock-valuation-integrity.test.mjs tests/audit-manual-stock-company-reversal-scope.test.mjs tests/audit-manual-stock-warehouse-location.test.mjs tests/b07-sales-stock-issue.test.mjs tests/vault-merge.test.mjs tests/workflow-closeout.test.mjs
       - name: Full Node regression suite (including unchanged historical contracts)
