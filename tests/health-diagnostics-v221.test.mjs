@@ -39,13 +39,13 @@ test('health diagnostics retain privacy-scoped storage without accessing custome
   assert.match(healthScript,/document\.getElementById\('report'\)\.textContent=systemReportText\(\)/);
 });
 
-test('offline diagnostic runtime is precached and online freshness cannot serve stale CSP-blocked code',async()=>{
+test('owner-only diagnostics are excluded from PWA offline cache and always network-fresh',async()=>{
   const [sw,build]=await Promise.all([
     readFile(new URL('../public/sw.js',import.meta.url),'utf8'),
     readFile(new URL('../scripts/build.mjs',import.meta.url),'utf8')
   ]);
-  assert.match(sw,/"\.\/health\.html","\.\/health\.js"/);
-  assert.match(sw,/const FRESH_PATHS = new Set\(\[[^\]]*'\/health\.js'/);
+  assert.doesNotMatch(sw,/const LOCAL_CORE = \[[^\n]*"\.\/health\.html"/);
+  assert.match(sw,/if\(url\.pathname==='\/health\.html'\|\|url\.pathname==='\/health\.js'\)\{event\.respondWith\(fetch\(event\.request,\{cache:'no-store'\}\)\);return;\}/);
   assert.match(sw,/if\(event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)\)\{event\.respondWith\(networkFirst\(event\.request\)\);return;\}/);
   const network=sw.slice(sw.indexOf('async function networkFirst('),sw.indexOf("self.addEventListener('install'"));
   assert.match(network,/fetch\(request,\{cache:'no-store'\}\)/);
