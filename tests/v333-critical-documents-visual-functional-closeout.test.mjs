@@ -64,7 +64,7 @@ test('printable templates use v141 as the sole commercial close owner',async()=>
 const [editorLayer,base,balance]=await Promise.all([read('src/styles/v330-template-contrast-guard.css'),read('src/styles/document-premium-redesign-v141.css'),read('src/styles/v337-template-layout-balance.css')]);
  assert.match(base,/\.document-masthead\{[^}]*color:var\(--art-ink\)/);
  assert.match(base,/\.doc-body\{[^}]*display:flex;flex:1[^}]*flex-direction:column/);
- assert.match(base,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:0;padding-top:7mm/);
+ assert.match(base,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:auto;padding-top:7mm/);
  assert.match(base,/\.bottom-grid\{[^}]*margin-top:5mm[^}]*align-items:start/);
  assert.match(base,/\.signature-media\{[^}]*min-height:22mm/);
  assert.doesNotMatch(editorLayer,/\.invoice-page(?:\.template| \.final-details| \.bottom-grid| \.signature-media)/);

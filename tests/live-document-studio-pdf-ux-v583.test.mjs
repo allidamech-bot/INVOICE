@@ -24,9 +24,9 @@ test('live v583 Auto PDF colors keep primary secondary and heading roles indepen
   assert.match(css,/--lrx-heading/);
 });
 
-test('short quotation closes follow items in the canonical owner',async()=>{
+test('short quotation closes anchor above the footer in the canonical owner',async()=>{
  const [css,recovery]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('scripts/v544-pdf-a4-output-emergency.mjs')]);
- assert.match(css,/\.final-details\{[^}]*margin-top:0/);
+ assert.match(css,/\.final-details\{[^}]*margin-top:auto/);
  assert.doesNotMatch(recovery,/css\+=|nth-child/);
 });
 

@@ -19,7 +19,7 @@ const [shell,paper]=await Promise.all([read('src/styles/tailadmin-shell-contract
  assert.match(paper,/@page\{size:A4;margin:0\}/);
  assert.match(paper,/\.invoice-page\{[^}]*width:210mm;height:297mm/);
  assert.match(paper,/\.items-table tr\{break-inside:avoid/);
- assert.match(paper,/\.final-details\{[^}]*margin-top:0/);
+ assert.match(paper,/\.final-details\{[^}]*margin-top:auto/);
 });
 
 test('v329 recovery remains downstream of canonical document/editor owners',async()=>{

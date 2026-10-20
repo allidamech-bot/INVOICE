@@ -27,7 +27,7 @@ const [appearance,css]=await Promise.all([read('src/lib/appearance.ts'),read('sr
 
 test('v584 short commercial documents keep totals signature and stamp at the page foot',async()=>{
 const [canonical,renderer]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('src/templates/TemplateRenderer.tsx')]);
- assert.match(canonical,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:0;padding-top:7mm/);
+ assert.match(canonical,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:auto;padding-top:7mm/);
  assert.match(canonical,/\.doc-footer\{[^}]*min-height:20mm/);
  assert.match(canonical,/\.signature-media\{[^}]*min-height:22mm/);
  assert.match(renderer,/footer\.getBoundingClientRect\(\)\.top/);
