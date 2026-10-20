@@ -51,7 +51,7 @@ jobs:
             page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
             page.on('response', response => { if (response.status() >= 400) errors.push(response.status() + ' ' + response.url()); });
             await page.goto('http://127.0.0.1:4173/tests/visual/obsidian-financial.html?screen=reports&lang=en');
-            try { await page.locator('.reports-page').waitFor({ timeout: 10000 }); }
+            try { await page.locator('.ta-reports-page').waitFor({ timeout: 10000 }); }
             catch (error) { throw new Error('Financial fixture failed to boot: ' + JSON.stringify(errors) + '; ' + error); }
             if (errors.length) throw new Error(JSON.stringify(errors));
           } finally { await browser.close(); }
