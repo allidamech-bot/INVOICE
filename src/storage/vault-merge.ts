@@ -253,6 +253,23 @@ function guardDraftPurchaseConflicts(base:PurchaseRecord[],intended:PurchaseReco
     if(current&&!sameRecord(current,wanted))throw new Error('Purchase changed on another device. Reopen Operations before saving or deleting it.');
   }
 }
+// Supplier master records carry the identity behind recorded expenses and
+// supplier settlements. The UI already refuses to delete those suppliers;
+// enforce the same rule for AI/import and remote offline vault merges.
+// Purchases intentionally retain independent supplier snapshots and therefore
+// do not by themselves block an otherwise unreferenced supplier deletion.
+function guardSupplierLinkedHistoryDeletion(
+  base:Supplier[],merged:Supplier[],expenses:ExpenseRecord[],
+  supplierPayments:SupplierPaymentRecord[]
+):void{
+  const retained=new Set(merged.map(supplier=>supplier.id));
+  for(const supplier of base){
+    if(retained.has(supplier.id))continue;
+    if(expenses.some(expense=>expense.supplierId===supplier.id)||
+       supplierPayments.some(payment=>payment.supplierId===supplier.id))
+      throw new Error('Supplier with recorded payments or expenses cannot be deleted.');
+  }
+}
 function guardSupplierChanges(base:Supplier[],intended:Supplier[]):void{
   if(intended===base)return;
   const baseById=new Map(base.map(supplier=>[supplier.id,supplier]));
@@ -1008,6 +1025,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardSupplierPaymentHistory(base.supplierPayments,latest.supplierPayments);
   guardConcurrentRecordChanges(base.supplierPayments,intended.supplierPayments,latest.supplierPayments,'Supplier payment','Reopen Supplier Payables before saving or deleting the payment.');
   const supplierPayments=mergeRecords(base.supplierPayments,intended.supplierPayments,latest.supplierPayments);
+  // Check against the final merged history so a concurrently appended expense
+  // also protects its supplier from deletion by a stale device.
+  guardSupplierLinkedHistoryDeletion(base.suppliers,suppliers,expenses,supplierPayments);
   guardAllocatedPaymentChanges(base.payments,intended.payments,treasuryEntries,'customer-payment','Customer payment');
   // Apply the same live bank-allocation barrier to the remote side of a stale-device merge.
   // Unallocated customer receipts retain the existing edit/delete workflow.
