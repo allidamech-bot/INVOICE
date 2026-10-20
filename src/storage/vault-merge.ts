@@ -637,6 +637,24 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
   const touchedItems=guardNewManualMovements(base,intended,movements,savedItems);
   guardNewWarehouseDebits(base,intended,latest);
+  // A stale device can save an unrelated expense while the cloud has newly
+  // appended physical inventory. Those remote additions must pass the exact
+  // same evidence and warehouse debit checks as local postings. Replaying them
+  // against the original immutable stock base avoids counting remote debits
+  // as their own available quantity; local debits were already checked above
+  // against the full latest ledger.
+  if(latest.inventoryMovements!==base.inventoryMovements){
+    // A conflicting two-device issue of the SAME documented sale has a more
+    // precise immutable sales proof error. Preserve that precedence before
+    // replaying physical warehouse availability from the remote side.
+    assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+    for(const itemId of guardNewManualMovements(base,latest,movements,savedItems))
+      touchedItems.add(itemId);
+    const remotePostingBase={...base,appSettings:latest.appSettings,
+      warehouses:latest.warehouses};
+    guardNewWarehouseTransfers(base,latest,remotePostingBase,latest.warehouses,savedItems);
+    guardNewWarehouseDebits(base,latest,remotePostingBase);
+  }
   for(const id of affectedPurchases){const purchase=purchases.find(item=>item.id===id);for(const line of purchase?.items??[])if(line.savedItemId)touchedItems.add(line.savedItemId);}
   for(const itemId of touchedItems){
     const latestQuantity=inventoryQuantity(itemId,latest.inventoryMovements);
@@ -809,6 +827,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardNewOperationalRecordIds(base.expenses,intended.expenses,'expense');
   // Do not replay two physical transfers/issues only to persist the last same-ID movement.
   guardNewOperationalRecordIds(base.inventoryMovements,intended.inventoryMovements,'inventory movement');
+  guardNewOperationalRecordIds(base.inventoryMovements,latest.inventoryMovements,'inventory movement');
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
   const suppliers=mergeRecords(base.suppliers,intended.suppliers,latest.suppliers);
