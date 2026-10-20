@@ -956,6 +956,18 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
         throw new Error('Changed customer payment amount has invalid monetary grouping.');
     }
   }
+  // A remote newly created payment is a real supplier settlement. Its fresh
+  // identity and monetary grammar must be validated before ID-keyed merging,
+  // even when this device only saves an unrelated operational record.
+  guardNewOperationalRecordIds(base.supplierPayments,latest.supplierPayments,'supplier payment');
+  if(latest.supplierPayments!==base.supplierPayments){
+    const recordedIds=new Set(base.supplierPayments.map(payment=>payment.id));
+    for(const payment of latest.supplierPayments){
+      if(recordedIds.has(payment.id))continue; // do not revalue stored history
+      if(!isFinancialDecimalInput(payment.amount))
+        throw new Error('New supplier payment amount has invalid monetary grouping.');
+    }
+  }
   // Recorded payments are append-only: only a one-time void transition is legal.
   // A merge must never quietly erase historical payments or rewrite settled amounts.
   if(intended.supplierPayments!==base.supplierPayments){
