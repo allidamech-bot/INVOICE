@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base href="../../dist/"><link rel="icon" href="data:,"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root"><div class="app-ui" id="visual-app"></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {SupplierPayablesPage} from './src/components/SupplierPayablesPage.js';
+import {createSupplier,createPurchase,createPurchaseItem,supplierSnapshotFrom} from './src/lib/operations.js';
+import {createSupplierPayment} from './src/lib/payables.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const lang=new URLSearchParams(location.search).get('lang')==='ar'?'ar':'en';
+setUiLanguage(lang);
+const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة',logoDataUrl:'./brand/lourex-logo.svg'};
+const supplier={...createSupplier(),id:'qa-supplier-atlas',nameEn:'Atlas Components',nameAr:'أطلس',defaultCurrency:'USD'};
+const foreignSupplier={...createSupplier(),id:'qa-supplier-foreign',nameEn:'Harbor Supply',nameAr:'الميناء',defaultCurrency:'EUR'};
+const suppliers=[supplier,foreignSupplier];
+const purchase=createPurchase([],suppliers,'USD');
+Object.assign(purchase,{id:'qa-purchase-atlas',number:'PUR-2026-0001',date:'2026-01-10',dueDate:'2026-01-31',status:'posted',postedAt:'2026-01-10T12:00:00.000Z',supplierSnapshot:supplierSnapshotFrom(supplier),freight:'100',duty:'50',otherCosts:'0'});
+purchase.items=[{...createPurchaseItem(),id:'qa-purchase-line',descriptionEn:'QA component',descriptionAr:'قطعة اختبار',quantity:'10',unitCost:'100',landedUnitCost:'115'}];
+const foreignPurchase={...purchase,id:'qa-purchase-foreign',number:'PUR-2026-0002',supplierSnapshot:supplierSnapshotFrom(foreignSupplier),currency:'EUR',freight:'0',duty:'0',items:[{...purchase.items[0],id:'qa-foreign-line',quantity:'1',unitCost:'999',landedUnitCost:'999'}]};
+const purchases=[purchase,foreignPurchase];
+const payment={...createSupplierPayment(purchase,supplier,[]),id:'qa-supplier-payment',amount:'350',date:'2026-01-15',reference:'QA-SPAY-001'};
+const supplierPayments=[payment];
+window.financialSourceSnapshot=()=>JSON.stringify({purchases,supplierPayments});
+const rejectWrite=async()=>{throw new Error('Print QA must not write financial data');};
+ReactDOM.render(React.createElement(SupplierPayablesPage,{company,suppliers,purchases,supplierPayments,onSaveSupplierPayment:rejectWrite,onDeleteSupplierPayment:rejectWrite}),document.getElementById('visual-app'));
+</script></body></html>
