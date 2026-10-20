@@ -547,7 +547,7 @@ function guardInventoryLedgerIntent(base:VaultPayload,intended:VaultPayload,late
       throw new Error('Inventory ledger entries are immutable. Reverse the movement instead of editing history.');
   }
 }
-function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movements:InventoryMovementRecord[],savedItems:SavedItem[]):Set<string>{
+function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movements:InventoryMovementRecord[],savedItems:SavedItem[],warehouses:VaultPayload['warehouses']):Set<string>{
   const baseIds=new Set(base.inventoryMovements.map(movement=>movement.id));
   const touched=new Set<string>();
   for(const movement of intended.inventoryMovements){
@@ -566,6 +566,19 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     if(!isSalesDeliveryStockIssue(movement)&&!isIssuedInvoiceStockIssue(movement)&&
        (catalogItem.workspaceId||'default')!==(movement.workspaceId||'default'))
       throw new Error('Manual inventory company does not match its catalog item.');
+    if(!isSalesDeliveryStockIssue(movement)&&!isIssuedInvoiceStockIssue(movement)){
+      // Independently documented manual stock cannot be booked into a location
+      // outside the movement's company or branch. No explicit location retains
+      // the existing default-warehouse behavior and old entries are untouched.
+      for(const warehouseId of [movement.fromWarehouseId,movement.toWarehouseId]){
+        if(!warehouseId)continue;
+        const warehouse=warehouses.find(row=>row.id===warehouseId);
+        if(!warehouse?.active)throw new Error('Manual inventory warehouse is missing or inactive.');
+        if(warehouse.workspaceId!==(movement.workspaceId||'default')||
+           warehouse.branchId!==(movement.branchId||'main'))
+          throw new Error('Manual inventory warehouse company or branch does not match the stock movement.');
+      }
+    }
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
     const quantity=movementQuantity(movement);
     if(movement.type==='opening'&&quantity<0n)throw new Error('Opening stock cannot be negative.');
@@ -805,7 +818,7 @@ function guardPostedPurchaseAuditChanges(base:PurchaseRecord[],candidate:Purchas
   }
 }
 
-function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,suppliers:Supplier[],purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[]):void{
+function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,suppliers:Supplier[],purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[],warehouses:VaultPayload['warehouses']):void{
   guardPostedPurchaseContinuity(base.purchases,intended.purchases,latest.purchases);
   guardPostedPurchaseAuditChanges(base.purchases,intended.purchases);
   guardPostedPurchaseAuditChanges(base.purchases,latest.purchases);
@@ -843,7 +856,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   guardNewPurchaseStockScope(base.inventoryMovements,intended.inventoryMovements,purchases,savedItems);
   guardNewPurchaseStockScope(base.inventoryMovements,latest.inventoryMovements,purchases,savedItems);
   guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
-  const touchedItems=guardNewManualMovements(base,intended,movements,savedItems);
+  const touchedItems=guardNewManualMovements(base,intended,movements,savedItems,warehouses);
   guardNewWarehouseDebits(base,intended,latest);
   // A stale device can save an unrelated expense while the cloud has newly
   // appended physical inventory. Those remote additions must pass the exact
@@ -856,7 +869,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     // precise immutable sales proof error. Preserve that precedence before
     // replaying physical warehouse availability from the remote side.
     assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
-    for(const itemId of guardNewManualMovements(base,latest,movements,savedItems))
+    for(const itemId of guardNewManualMovements(base,latest,movements,savedItems,warehouses))
       touchedItems.add(itemId);
     const remotePostingBase={...base,appSettings:latest.appSettings,
       warehouses:latest.warehouses};
@@ -1263,7 +1276,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // invariant before an unrelated local edit can accept it. Deep record equality
   // in financialInvoiceIds skips unchanged deserialized legacy records.
   guardFinancialSettlementChanges(base,latest,documents,payments);
-  guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
+  guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems,warehouses);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   // All newly posted active treasury entries share the same cash/bank authority
   // as the UI, including manual deposits, withdrawals and transfers. This keeps
