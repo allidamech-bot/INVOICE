@@ -355,13 +355,16 @@ function quantityMapsEqual(left:Map<string,bigint>,right:Map<string,bigint>):boo
   return true;
 }
 function negativeQuantityMap(source:Map<string,bigint>):Map<string,bigint>{return new Map(Array.from(source,([key,value])=>[key,-value]));}
-function guardInventoryLedgerIntent(base:VaultPayload,intended:VaultPayload):void{
-  if(intended.inventoryMovements===base.inventoryMovements)return;
+function guardInventoryLedgerIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
+  if(intended.inventoryMovements===base.inventoryMovements&&latest.inventoryMovements===base.inventoryMovements)return;
   const intendedById=new Map(intended.inventoryMovements.map(movement=>[movement.id,movement]));
+  const latestById=new Map(latest.inventoryMovements.map(movement=>[movement.id,movement]));
   for(const movement of base.inventoryMovements){
-    const next=intendedById.get(movement.id);
-    if(!next)throw new Error('Inventory ledger entries are append-only and cannot be deleted. Reverse the movement instead.');
-    if(!sameRecord(movement,next))throw new Error('Inventory ledger entries are immutable. Reverse the movement instead of editing history.');
+    const wanted=intendedById.get(movement.id);
+    const remote=latestById.get(movement.id);
+    if(!wanted||!remote)throw new Error('Inventory ledger entries are append-only and cannot be deleted. Reverse the movement instead.');
+    if(!sameRecord(movement,wanted)||!sameRecord(movement,remote))
+      throw new Error('Inventory ledger entries are immutable. Reverse the movement instead of editing history.');
   }
 }
 function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movements:InventoryMovementRecord[],savedItems:SavedItem[]):Set<string>{
@@ -513,7 +516,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   guardDraftPurchaseConflicts(base.purchases,intended.purchases,latest.purchases);
   guardSupplierChanges(base.suppliers,intended.suppliers);
   guardExpenseChanges(base.expenses,intended.expenses);
-  guardInventoryLedgerIntent(base,intended);
+  guardInventoryLedgerIntent(base,intended,latest);
   const affectedPurchases=purchaseIdsAffected(base,intended);
   const baseById=new Map(base.purchases.map(purchase=>[purchase.id,purchase]));
   const intendedById=new Map(intended.purchases.map(purchase=>[purchase.id,purchase]));
