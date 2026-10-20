@@ -457,6 +457,33 @@ function guardNewInvoiceStockScope(
   }
 }
 
+// Purchase receipts and reversals must be booked in their own purchase's
+// company and branch. Only NEW ledger movements are checked: existing posted
+// history is immutable and must not be retroactively migrated or revalued.
+// Normal app saves stamp the selected scope explicitly; missing legacy scope
+// fields represent the default company/branch and cannot conceal cross-scope stock.
+function guardNewPurchaseStockScope(
+  base:InventoryMovementRecord[],candidate:InventoryMovementRecord[],
+  purchases:PurchaseRecord[],savedItems:SavedItem[]
+):void{
+  if(candidate===base)return;
+  const known=new Set(base.map(row=>row.id));
+  const purchaseById=new Map(purchases.map(purchase=>[purchase.id,purchase]));
+  const itemById=new Map(savedItems.map(item=>[item.id,item]));
+  for(const movement of candidate){
+    if(known.has(movement.id)||(movement.type!=='purchase'&&movement.type!=='purchase-reversal'))continue;
+    const purchase=purchaseById.get(movement.sourceId);
+    if(!purchase)continue; // Existing purchase ledger integrity rejects missing sources.
+    const workspaceId=purchase.workspaceId||'default',branchId=purchase.branchId||'main';
+    if((movement.workspaceId||'default')!==workspaceId||
+       (movement.branchId||'main')!==branchId)
+      throw new Error('Purchase stock company or branch does not match its source purchase.');
+    const item=itemById.get(movement.itemId);
+    if(item?.workspaceId&&item.workspaceId!==workspaceId)
+      throw new Error('Purchase stock item belongs to another company.');
+  }
+}
+
 function guardInventoryLedgerIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
   if(intended.inventoryMovements===base.inventoryMovements&&latest.inventoryMovements===base.inventoryMovements)return;
   const intendedById=new Map(intended.inventoryMovements.map(movement=>[movement.id,movement]));
@@ -750,6 +777,8 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     }
     guardPurchaseState(merged,purchases,movements,savedItems);
   }
+  guardNewPurchaseStockScope(base.inventoryMovements,intended.inventoryMovements,purchases,savedItems);
+  guardNewPurchaseStockScope(base.inventoryMovements,latest.inventoryMovements,purchases,savedItems);
   guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
   const touchedItems=guardNewManualMovements(base,intended,movements,savedItems);
   guardNewWarehouseDebits(base,intended,latest);
