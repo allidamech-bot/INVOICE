@@ -460,8 +460,8 @@ function guardNewInvoiceStockScope(
 // Purchase receipts and reversals must be booked in their own purchase's
 // company and branch. Only NEW ledger movements are checked: existing posted
 // history is immutable and must not be retroactively migrated or revalued.
-// Missing legacy scope fields inherit the purchase scope as the app does when
-// stamping normally saved transactions.
+// Normal app saves stamp the selected scope explicitly; missing legacy scope
+// fields represent the default company/branch and cannot conceal cross-scope stock.
 function guardNewPurchaseStockScope(
   base:InventoryMovementRecord[],candidate:InventoryMovementRecord[],
   purchases:PurchaseRecord[],savedItems:SavedItem[]
@@ -475,8 +475,8 @@ function guardNewPurchaseStockScope(
     const purchase=purchaseById.get(movement.sourceId);
     if(!purchase)continue; // Existing purchase ledger integrity rejects missing sources.
     const workspaceId=purchase.workspaceId||'default',branchId=purchase.branchId||'main';
-    if((movement.workspaceId&&movement.workspaceId!==workspaceId)||
-       (movement.branchId&&movement.branchId!==branchId))
+    if((movement.workspaceId||'default')!==workspaceId||
+       (movement.branchId||'main')!==branchId)
       throw new Error('Purchase stock company or branch does not match its source purchase.');
     const item=itemById.get(movement.itemId);
     if(item?.workspaceId&&item.workspaceId!==workspaceId)
