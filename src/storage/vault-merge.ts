@@ -858,6 +858,12 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Do not replay two physical transfers/issues only to persist the last same-ID movement.
   guardNewOperationalRecordIds(base.inventoryMovements,intended.inventoryMovements,'inventory movement');
   guardNewOperationalRecordIds(base.inventoryMovements,latest.inventoryMovements,'inventory movement');
+  // Customer credit terms and master identity are saved as whole records.
+  // Reject stale same-ID writes instead of silently replacing changes another
+  // device made to credit limits, payment terms or customer contact details.
+  // Unrelated customers and identical concurrent changes still merge normally.
+  guardConcurrentRecordChanges(base.customers,intended.customers,latest.customers,
+    'Customer','Reopen Customers before saving or deleting this customer.');
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
   const suppliers=mergeRecords(base.suppliers,intended.suppliers,latest.suppliers);
