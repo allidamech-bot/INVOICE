@@ -57,8 +57,14 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
      for(const amount of ['2500.00','700.00','1800.00'])assert.ok(text.includes(amount),'printed amount '+amount);
      assert.match(text,/pay-usd-1/,'printed receipt reference');
      assert.equal((text.match(/INV-\d{4}-0001/g)||[]).length,2,'invoice reference once in invoice row and once as receipt source');
-     assert.match(text,lang==='ar'?/أطلس/:/Atlas Trading/,'printed customer identity');
-     assert.match(text,lang==='ar'?/لوركس/:/LOUREX Trading/,'printed company identity');
+     // Native PDF Arabic glyph runs may be extracted in visual order with spaces.
+     const compact=text.replace(/\s/g,'');
+     const hasIdentity=expected=>{
+      const logical=expected.replace(/\s/g,'');
+      return compact.includes(logical)||compact.includes([...logical].reverse().join(''));
+     };
+     assert.ok(hasIdentity(lang==='ar'?'أطلس للتجارة':'Atlas Trading'),'printed customer identity: '+text);
+     assert.ok(hasIdentity(lang==='ar'?'لوركس للتجارة':'LOUREX Trading'),'printed company identity: '+text);
      assert.doesNotMatch(text,/Review & export statement|Customer Accounts|Record Payment|مراجعة وتصدير كشف الحساب|حسابات العملاء|تسجيل دفعة/,'application controls must not leak into print');
      writeFileSync(output+'/'+engine+'-'+lang+'-text.txt',parsed.text);
     }
