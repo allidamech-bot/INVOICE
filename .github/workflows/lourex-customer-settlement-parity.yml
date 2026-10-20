@@ -23,6 +23,7 @@ on:
       - 'tests/sales-collection-saved-cycle.test.mjs'
       - 'tests/purchase-payment-saved-cycle.test.mjs'
       - 'tests/treasury-reconciliation-saved-cycle.test.mjs'
+      - 'tests/settlement-transaction-date-policy.test.mjs'
       - '.github/workflows/lourex-customer-settlement-parity.yml'
   workflow_dispatch:
 
@@ -51,6 +52,8 @@ jobs:
         run: npm run typecheck
       - name: Production build without deployment
         run: npm run build
+      - name: Approved settlement transaction-date policy
+        run: node --test tests/settlement-transaction-date-policy.test.mjs
       - name: Saved quotation to fully collected invoice
         run: node --test tests/sales-collection-saved-cycle.test.mjs
       - name: Saved purchase, supplier settlement and reversal
@@ -79,3 +82,6 @@ jobs:
             tests/audit-new-voided-treasury-source-parity.test.mjs \
             tests/audit-treasury-offline-branch-posting.test.mjs \
             tests/audit-voided-treasury-account-identity.test.mjs
+
+      - name: Full Node regression suite for accounting policy changes
+        run: node --test --test-concurrency=2 tests/*.test.mjs
