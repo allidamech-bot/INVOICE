@@ -59,7 +59,14 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     if(actionRect&&actionRect.bottom>0&&actionRect.top<innerHeight){
      for(const control of document.querySelectorAll('.ta-ops-purchase-editor fieldset input,.ta-ops-purchase-editor fieldset select,.ta-ops-purchase-editor fieldset textarea,.ta-ops-purchase-editor fieldset button')){
       const r=control.getBoundingClientRect(),s=getComputedStyle(control);if(s.display==='none'||s.visibility==='hidden'||!r.width||!r.height||r.bottom<=0||r.top>=innerHeight)continue;
-      if(r.left<actionRect.right&&r.right>actionRect.left&&r.top<actionRect.bottom&&r.bottom>actionRect.top)covered.push({tag:control.tagName,label:control.closest('label')?.textContent?.trim().slice(0,40),rect:r.toJSON()});
+      // getBoundingClientRect includes content clipped by the editor scrollport.
+      let left=r.left,right=r.right,top=r.top,bottom=r.bottom;
+      for(let parent=control.parentElement;parent;parent=parent.parentElement){
+       const style=getComputedStyle(parent),box=parent.getBoundingClientRect();
+       if(/auto|scroll|hidden|clip/.test(style.overflowY)){top=Math.max(top,box.top);bottom=Math.min(bottom,box.bottom);}
+       if(/auto|scroll|hidden|clip/.test(style.overflowX)){left=Math.max(left,box.left);right=Math.min(right,box.right);}
+      }
+      if(right>left&&bottom>top&&left<actionRect.right&&right>actionRect.left&&top<actionRect.bottom&&bottom>actionRect.top)covered.push({tag:control.tagName,label:control.closest('label')?.textContent?.trim().slice(0,40),rect:r.toJSON()});
      }
     }
     return {
