@@ -1398,7 +1398,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
       // direct UI posting retains its original active-branch guard.
       appendTreasuryEntry({
         ...latest,documents,payments,supplierPayments,purchases,suppliers,treasuryAccounts,
-        appSettings:{...latest.appSettings,activeWorkspaceId:entry.workspaceId,activeBranchId:entry.branchId},
+        appSettings:{...latest.appSettings,activeWorkspaceId:entry.workspaceId||'default',activeBranchId:entry.branchId||'main'},
         treasuryEntries:checked
       },entry);
       checked.push(entry);
