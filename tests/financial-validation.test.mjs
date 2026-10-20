@@ -223,3 +223,39 @@ test('vault merge rejects malformed newly imported customer payments but keeps l
   assert.equal(preserved.payments[0].amount,'1,2.00');
   assert.equal(JSON.stringify(legacy),before,'historical money and record IDs remain unchanged');
 });
+
+
+test('unreferenced customer receipts cannot be created or detached during local and remote vault merges',()=>{
+  const invoice=validDocument();
+  invoice.status='final';invoice.role='standard';invoice.lifecycleStatus='active';
+  invoice.issueDate='2026-01-01';invoice.dueDate='2026-12-31';
+  invoice.items[0].unitPrice='100.00';invoice.items[0].stockTreatment='non-stock';
+  const base={...emptyVault(),documents:[invoice]};
+  const receipt=normalizePaymentRecord(invoice,[],{
+    id:'receipt-source-binding',amount:'20.00',date:'2026-01-05',
+    method:'cash',reference:'R-20',notes:''
+  },[invoice]);
+  const before=JSON.stringify(base);
+  for(const invalid of ['', '  ']){
+    const detached={...receipt,invoiceId:invalid};
+    assert.throws(()=>mergeVaultIntent(base,{...base,payments:[detached]},base),
+      /customer payment.*(invoice|source)/i,'a fresh local receipt must name its source invoice');
+    assert.throws(()=>mergeVaultIntent(base,base,{...base,payments:[detached]}),
+      /customer payment.*(invoice|source)/i,'a fresh cloud receipt must name its source invoice');
+    assert.equal(JSON.stringify(base),before);
+  }
+  const paid={...base,payments:[receipt]};
+  for(const detachedId of ['', 'another-invoice']){
+    const detached={...receipt,invoiceId:detachedId,updatedAt:'2026-01-06T00:00:00.000Z'};
+    assert.throws(()=>mergeVaultIntent(paid,{...paid,payments:[detached]},paid),
+      /customer payment.*(invoice|source)/i,'an existing receipt cannot switch source invoices locally');
+    assert.throws(()=>mergeVaultIntent(paid,paid,{...paid,payments:[detached]}),
+      /customer payment.*(invoice|source)/i,'a remote change cannot detach a saved receipt');
+  }
+  const corrected={...receipt,amount:'25.00',updatedAt:'2026-01-06T00:00:00.000Z'};
+  const legitimate=mergeVaultIntent(paid,{...paid,payments:[corrected]},paid);
+  assert.equal(invoicePaymentSummary(invoice,legitimate.payments,'2026-10-19',legitimate.documents).paid,'25.00');
+  const oldDetached={...base,payments:[{...receipt,id:'old-orphan',invoiceId:''}]};
+  const unchanged=mergeVaultIntent(oldDetached,oldDetached,structuredClone(oldDetached));
+  assert.equal(unchanged.payments[0].invoiceId,'','untouched legacy data must not be rewritten');
+});
