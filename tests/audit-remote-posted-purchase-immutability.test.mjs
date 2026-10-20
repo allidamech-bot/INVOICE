@@ -13,7 +13,8 @@ function setup(){
   draft.date='2026-10-01';draft.dueDate='2026-11-01';
   draft.items=[{...createPurchaseItem(),savedItemId:'',descriptionEn:'Operating service',
     quantity:'1',unitCost:'120.00'}];
-  const posted=postPurchase(draft,[],[]).purchase;
+  const posted={...postPurchase(draft,[],[]).purchase,
+    postedAt:'2026-10-02T09:00:00.000Z',updatedAt:'2026-10-02T09:00:00.000Z'};
   const base={...emptyVault(),suppliers:[supplier],purchases:[posted]};
   return {base,posted,supplier};
 }
