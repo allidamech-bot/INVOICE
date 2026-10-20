@@ -59,6 +59,17 @@ function preserveConcurrentDocument(base:LourexDocument,intended:LourexDocument,
 }
 function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:LourexDocument[]):LourexDocument[]{
   if(intended===base)return latest;
+  // Both offline devices may create different financial documents under one
+  // fresh ID. The ID-keyed merge would otherwise retain only the local one,
+  // silently erasing the remote invoice and its receivable.
+  const priorIds=new Set(base.map(doc=>doc.id));
+  const remoteById=new Map(latest.map(doc=>[doc.id,doc]));
+  for(const doc of intended){
+    if(priorIds.has(doc.id))continue;
+    const remote=remoteById.get(doc.id);
+    if(remote&&!sameRecord(remote,doc))
+      throw new Error('New document ID collision across devices. Reopen Documents and save with a fresh ID.');
+  }
   const baseById=new Map(base.map(item=>[item.id,item]));
   const intendedById=new Map(intended.map(item=>[item.id,item]));
   const result:LourexDocument[]=[];
@@ -935,6 +946,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // item references: never let fresh same-ID imports collapse their identities.
   // Customer and supplier IDs are long-lived foreign keys for commercial
   // documents and settlements. Never let fresh same-ID records collapse.
+  guardNewOperationalRecordIds(base.documents,intended.documents,'document');
+  guardNewOperationalRecordIds(base.documents,latest.documents,'document');
   guardNewOperationalRecordIds(base.customers,intended.customers,'customer');
   guardNewOperationalRecordIds(base.customers,latest.customers,'customer');
   guardNewOperationalRecordIds(base.suppliers,intended.suppliers,'supplier');
