@@ -20,7 +20,8 @@ test('saved purchase settles once and reverses without losing stock or supplier 
   vault=reopen(mergeVaultIntent(vault,{...vault,purchases:[purchase]},vault));
   const draft=reopen(vault),posted=postPurchase(vault.purchases[0],vault.savedItems,vault.inventoryMovements);
   const intended={...vault,purchases:[posted.purchase],savedItems:posted.savedItems,inventoryMovements:posted.movements};
-  vault=reopen(mergeVaultIntent(draft,intended,reopen(intended)));
+  assert.throws(()=>mergeVaultIntent(draft,intended,reopen(intended)),/Concurrent inventory movement already exists/i);
+  vault=reopen(mergeVaultIntent(draft,intended,draft));
   const stock=()=>inventoryBalances(vault.savedItems,vault.inventoryMovements)[0].quantity;
   const summary=()=>purchasePayableSummary(vault.purchases[0],vault.supplierPayments,day);
   assert.equal(vault.inventoryMovements.length,1);assert.equal(stock(),'10');
@@ -62,7 +63,8 @@ test('saved purchase settles once and reverses without losing stock or supplier 
   const reversed=reversePurchase(vault.purchases[0],'Synthetic goods return',vault.inventoryMovements,vault.savedItems);
   const returned={...vault,purchases:[reversed.purchase],savedItems:reversed.savedItems,
     inventoryMovements:[...vault.inventoryMovements,...reversed.movements]};
-  vault=reopen(mergeVaultIntent(beforeReturn,returned,reopen(returned)));
+  assert.throws(()=>mergeVaultIntent(beforeReturn,returned,reopen(returned)),/Concurrent inventory movement already exists/i);
+  vault=reopen(mergeVaultIntent(beforeReturn,returned,beforeReturn));
   assert.equal(vault.inventoryMovements.length,2);assert.equal(stock(),'0');
   assert.equal(JSON.stringify(vault.inventoryMovements[0]),originalReceipt);
   assert.equal(vault.inventoryMovements[1].sourceId,purchase.id);
