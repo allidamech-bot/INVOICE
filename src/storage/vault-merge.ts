@@ -586,6 +586,29 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   return next;
 }
 
+// Generic record merging indexes by ID. For a new reconciliation or Undo,
+// duplicate IDs could silently discard an event, and unvalidated remote events
+// could alter the bank reconciliation state during unrelated local writes.
+function guardNewTreasuryReconciliationEvents(
+  base:VaultPayload['treasuryReconciliations'],
+  candidate:VaultPayload['treasuryReconciliations']
+):void{
+  if(candidate===base)return;
+  const historicalIds=new Set(base.map(row=>row.id));
+  const freshIds=new Set<string>();
+  for(const row of candidate){
+    if(historicalIds.has(row.id))continue; // historical event spellings stay untouched
+    if(!row.id||freshIds.has(row.id))
+      throw new Error('New treasury reconciliation event IDs must be unique.');
+    freshIds.add(row.id);
+    if(!row.movementKey?.trim()||!row.createdAt||!Number.isFinite(Date.parse(row.createdAt))||
+      (row.action&&row.action!=='reconcile'&&row.action!=='undo')||
+      (row.action==='undo'&&row.reconciledAt)||
+      (row.action!=='undo'&&(!row.reconciledAt||!Number.isFinite(Date.parse(row.reconciledAt)))))
+      throw new Error('New treasury reconciliation audit event is invalid.');
+  }
+}
+
 // Treasury movements are an audit ledger, not mutable form records. The Cash &
 // Bank screen corrects an entry by voiding it, preserving its original details.
 // Enforce that same contract for direct, offline and concurrently merged writes.
@@ -702,6 +725,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     if(!next||!remote)throw new Error('Treasury reconciliation history cannot be deleted.');
     if(!sameRecord(original,next)||!sameRecord(original,remote))throw new Error('Treasury reconciliation history is immutable.');
   }
+  guardNewTreasuryReconciliationEvents(base.treasuryReconciliations,intended.treasuryReconciliations);
+  guardNewTreasuryReconciliationEvents(base.treasuryReconciliations,latest.treasuryReconciliations);
   for(const row of intended.treasuryReconciliations){
     if(!row.id||!row.movementKey?.trim()||!row.createdAt||!Number.isFinite(Date.parse(row.createdAt))||
       (row.action&&row.action!=='reconcile'&&row.action!=='undo')||
