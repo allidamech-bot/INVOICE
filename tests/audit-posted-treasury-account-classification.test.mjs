@@ -71,3 +71,18 @@ test('unchanged historical account metadata remains readable without migration',
   assert.equal(merged.treasuryAccounts[0].bankAccountId,'old-id');
   assert.equal(JSON.stringify(legacy),before);
 });
+
+test('last remaining treasury account cannot be deleted while its ledger still contains money',()=>{
+  const{base,account}=fixture(),before=JSON.stringify(base);
+  assert.throws(()=>mergeVaultIntent(base,{...base,treasuryAccounts:[]},base),
+    /posted treasury account.*(delete|remove|immutable)/i);
+  assert.equal(JSON.stringify(base),before);
+  assert.equal(treasuryAccountBalance(account.id,base.treasuryEntries),'80.00');
+});
+
+test('remote deletion of the last bank account cannot orphan an entry on unrelated local save',()=>{
+  const{base}=fixture();
+  assert.throws(()=>mergeVaultIntent(base,unrelated(base),
+    {...base,treasuryAccounts:[]}),
+    /posted treasury account.*(delete|remove|immutable)/i);
+});
