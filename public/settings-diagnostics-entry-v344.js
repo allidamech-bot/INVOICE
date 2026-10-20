@@ -49,14 +49,14 @@
       #${OVERVIEW_ID} .lourex-data-center-cell small{display:block;opacity:.66;font-size:11px;line-height:1.45;margin-bottom:4px}
       #${OVERVIEW_ID} .lourex-data-center-cell strong{display:block;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
       #${OVERVIEW_ID} .lourex-data-center-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-      #${OVERVIEW_ID} .lourex-data-center-action,#${CARD_ID} .lourex-diagnostics-action{min-height:44px;padding:0 14px;border-radius:10px;border:1px solid color-mix(in srgb,currentColor 14%,transparent);background:transparent;color:inherit;font:inherit;font-weight:700;cursor:pointer}
+      #${OVERVIEW_ID} .lourex-data-center-action,#${CARD_ID} .lourex-diagnostics-action,#${PROVIDER_CARD_ID} .lourex-diagnostics-action{min-height:44px;padding:0 14px;border-radius:10px;border:1px solid color-mix(in srgb,currentColor 14%,transparent);background:transparent;color:inherit;font:inherit;font-weight:700;cursor:pointer}
       #${OVERVIEW_ID} .lourex-data-center-action.is-primary,#${CARD_ID} .lourex-diagnostics-action{border-color:transparent;background:var(--ft-accent,#465fff);color:var(--ft-on-accent,#fff)}
       #${CARD_ID} .lourex-diagnostics-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}
       #${CARD_ID} .lourex-diagnostics-stat{padding:11px 12px;border-radius:10px;background:color-mix(in srgb,currentColor 5%,transparent)}
       #${CARD_ID} .lourex-diagnostics-stat small{display:block;opacity:.65;font-size:11px;margin-bottom:4px}
       #${CARD_ID} .lourex-diagnostics-stat strong{display:block;font-size:14px;direction:ltr;text-align:start}
       #${CARD_ID} .lourex-diagnostics-scope{font-size:12px;line-height:1.65;opacity:.78;margin:0 0 14px}
-      @media(max-width:720px){#${OVERVIEW_ID} .lourex-data-center-grid,#${CARD_ID} .lourex-diagnostics-summary{grid-template-columns:1fr}#${OVERVIEW_ID} .lourex-data-center-actions{display:grid;grid-template-columns:1fr}#${OVERVIEW_ID} .lourex-data-center-action,#${CARD_ID} .lourex-diagnostics-action{width:100%}}
+      @media(max-width:720px){#${OVERVIEW_ID} .lourex-data-center-grid,#${CARD_ID} .lourex-diagnostics-summary{grid-template-columns:1fr}#${OVERVIEW_ID} .lourex-data-center-actions{display:grid;grid-template-columns:1fr}#${OVERVIEW_ID} .lourex-data-center-action,#${CARD_ID} .lourex-diagnostics-action,#${PROVIDER_CARD_ID} .lourex-diagnostics-action{width:100%}}
     `;
     document.head.appendChild(style);
   };
