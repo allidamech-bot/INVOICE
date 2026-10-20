@@ -22,6 +22,7 @@ on:
       - 'tests/financial-validation.test.mjs'
       - 'tests/sales-collection-saved-cycle.test.mjs'
       - 'tests/purchase-payment-saved-cycle.test.mjs'
+      - 'tests/treasury-reconciliation-saved-cycle.test.mjs'
       - '.github/workflows/lourex-customer-settlement-parity.yml'
   workflow_dispatch:
 
@@ -54,6 +55,8 @@ jobs:
         run: node --test tests/sales-collection-saved-cycle.test.mjs
       - name: Saved purchase, supplier settlement and reversal
         run: node --test tests/purchase-payment-saved-cycle.test.mjs tests/audit-purchase-stock-valuation-integrity.test.mjs
+      - name: Saved treasury and reconciliation cycle
+        run: node --test tests/treasury-reconciliation-saved-cycle.test.mjs
       - name: Customer supplier and treasury financial parity
         run: |
           node --test --test-concurrency=2 \
