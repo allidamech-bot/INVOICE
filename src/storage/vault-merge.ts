@@ -772,6 +772,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   for(const account of treasuryAccounts)assertTreasuryAccount(account);
   guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before saving this entry.');
   guardTreasuryEntryHistory(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
+  // A remote new posting is not trusted merely because it arrived from another
+  // device. Reject new remote ID collisions before the generic ID-keyed merge.
+  guardNewOperationalRecordIds(base.treasuryEntries,latest.treasuryEntries,'treasury entry');
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
   if(intended.treasuryEntries!==base.treasuryEntries){
     const existingIds=new Set(base.treasuryEntries.map(entry=>entry.id));
@@ -781,6 +784,13 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
       if(newIds.has(entry.id))throw new Error('New treasury entry IDs must be unique.');
       newIds.add(entry.id);
       if(!isFinancialDecimalInput(entry.amount))
+        throw new Error('New treasury amount has invalid monetary grouping.');
+    }
+  }
+  if(latest.treasuryEntries!==base.treasuryEntries){
+    const historicalIds=new Set(base.treasuryEntries.map(entry=>entry.id));
+    for(const entry of latest.treasuryEntries){
+      if(!historicalIds.has(entry.id)&&!isFinancialDecimalInput(entry.amount))
         throw new Error('New treasury amount has invalid monetary grouping.');
     }
   }
@@ -897,8 +907,10 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // as the UI, including manual deposits, withdrawals and transfers. This keeps
   // account activity, workspace and reconciliation checks at the save boundary.
   // Existing ledger entries and previously saved voids remain grandfathered.
-  if(intended.treasuryEntries!==base.treasuryEntries){
-    const storedIds=new Set([...base.treasuryEntries,...latest.treasuryEntries].map(entry=>entry.id));
+  if(intended.treasuryEntries!==base.treasuryEntries||latest.treasuryEntries!==base.treasuryEntries){
+    // Check ALL new, active merged entries against the same posting authority,
+    // including valid remote-only additions during unrelated local writes.
+    const storedIds=new Set(base.treasuryEntries.map(entry=>entry.id));
     const checked=treasuryEntries.filter(entry=>storedIds.has(entry.id)||Boolean(entry.voidedAt));
     for(const entry of treasuryEntries){
       if(storedIds.has(entry.id)||entry.voidedAt)continue;
