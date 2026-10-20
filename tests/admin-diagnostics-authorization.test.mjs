@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {Readable} from 'node:stream';
+import {generateKeyPairSync,sign} from 'node:crypto';
+import core from '../api/ai-core.js';
 import {diagnosticsOwnerUidAllowed} from '../api/_ai/admin-diagnostics-auth.js';
 const src=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('owner-only diagnostics fail closed for every other Firebase UID',()=>{
@@ -26,4 +29,56 @@ test('full diagnostics are gated even for direct URLs and generic recovery canno
  assert.match(ui,/api\/ai-core/);
  assert.doesNotMatch(src('src/app/AuthScreenSelector.tsx'),/health\.html/);
  assert.doesNotMatch(src('src/app/AppErrorBoundary.tsx'),/health\.html|unified\?\.exportText\(\)/);
+});
+
+test('live API gate accepts only a signed token belonging to the configured owner UID',async()=>{
+ const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});
+ const kid='owner-qa-signing-key';
+ const signingJwk={...publicKey.export({format:'jwk'}),kid,alg:'RS256',use:'sig'};
+ const makeToken=(uid,role='viewer')=>{
+   const now=Math.floor(Date.now()/1000);
+   const head=Buffer.from(JSON.stringify({alg:'RS256',typ:'JWT',kid})).toString('base64url');
+   const claims={aud:'lourex-invoice',iss:'https://securetoken.google.com/lourex-invoice',sub:uid,iat:now-30,exp:now+3600,auth_time:now-30,lourexAiRole:role};
+   const payload=Buffer.from(JSON.stringify(claims)).toString('base64url');
+   const signed=head+'.'+payload;
+   return signed+'.'+sign('RSA-SHA256',Buffer.from(signed),privateKey).toString('base64url');
+ };
+ const call=async(auth,origin='https://invoice-three-puce.vercel.app')=>{
+   const req=Readable.from(['{}']);
+   req.method='POST';
+   req.headers={host:'invoice-three-puce.vercel.app',origin,'x-requested-with':'LOUREX-Invoice',
+     'x-lourex-admin-diagnostics':'access-check',...(auth?{authorization:'Bearer '+auth}:{})};
+   const res={statusCode:0,headers:{},body:null,setHeader(k,v){this.headers[k]=v;},
+     end(raw){this.body=JSON.parse(String(raw||'{}'));}};
+   await core(req,res);return res;
+ };
+ const owner='SyntheticOwnerUid012345678901',stranger='SyntheticOtherUid012345678901';
+ const previousFetch=globalThis.fetch;
+ const previousAllow=process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID;
+ let providerCalls=0;
+ globalThis.fetch=async url=>{
+   if(!String(url).includes('service_accounts/v1/jwk/')){providerCalls++;throw Error('AI inference must never run during owner-only diagnostics authorization checks');}
+   return{ok:true,headers:new Headers({'cache-control':'public, max-age=30'}),json:async()=>({keys:[signingJwk]})};
+ };
+ process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID=owner;
+ try{
+   const missing=await call(null);
+   assert.equal(missing.statusCode,401);
+   const other=await call(makeToken(stranger,'owner'));
+   assert.equal(other.statusCode,403,'signed operational owner role must not grant global diagnostics access');
+   const authorized=await call(makeToken(owner,'viewer'));
+   assert.equal(authorized.statusCode,200,'correct verified Firebase UID alone grants access');
+   assert.deepEqual(authorized.body,{allowed:true});
+   assert.equal(authorized.headers['Cache-Control'],'no-store');
+   const foreignOrigin=await call(makeToken(owner),'https://untrusted.example');
+   assert.equal(foreignOrigin.statusCode,403,'even an owner token must respect origin guard');
+   process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID='';
+   const unconfigured=await call(makeToken(owner));
+   assert.equal(unconfigured.statusCode,403,'fail closed when no owner UID configured');
+   assert.equal(providerCalls,0,'access checks must not call any AI provider');
+ }finally{
+   globalThis.fetch=previousFetch;
+   if(previousAllow===undefined)delete process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID;
+   else process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID=previousAllow;
+ }
 });
