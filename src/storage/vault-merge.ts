@@ -765,6 +765,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardConcurrentRecordChanges(base.supplierPayments,intended.supplierPayments,latest.supplierPayments,'Supplier payment','Reopen Supplier Payables before saving or deleting the payment.');
   const supplierPayments=mergeRecords(base.supplierPayments,intended.supplierPayments,latest.supplierPayments);
   guardAllocatedPaymentChanges(base.payments,intended.payments,treasuryEntries,'customer-payment','Customer payment');
+  // Apply the same live bank-allocation barrier to the remote side of a stale-device merge.
+  // Unallocated customer receipts retain the existing edit/delete workflow.
+  guardAllocatedPaymentChanges(base.payments,latest.payments,treasuryEntries,'customer-payment','Customer payment');
   guardAllocatedPaymentChanges(base.supplierPayments,intended.supplierPayments,treasuryEntries,'supplier-payment','Supplier payment');
   for(const entry of treasuryEntries)if(!entry.voidedAt&&entry.sourceType==='supplier-payment'&&supplierPayments.some(payment=>payment.id===entry.sourceId&&payment.voidedAt))throw new Error('Active cash/bank entry references a voided supplier payment. Void the treasury entry first.');
   guardCustomerChanges(base.customers,intended.customers,customers);
