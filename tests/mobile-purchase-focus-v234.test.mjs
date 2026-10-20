@@ -27,10 +27,10 @@ test('v234 browser QA protects 320 and 390 purchase editing in both directions',
   has(runner,'{width:390,height:844}');
   has(runner,'{width:320,height:568}');
   has(runner,"for(const lang of ['en','ar'])");
-  has(runner,'purchase shell topbar must leave focused phone editor');
-  has(runner,'operations overview must leave focused purchase editor');
-  has(runner,'operations summary must leave focused purchase editor');
-  has(runner,'operations tabs must leave focused purchase editor');
+  has(runner,'const auditPurchaseEditor=async()=>');
+  has(runner,'purchase editor clips outside phone viewport');
+  has(runner,'purchase editor must be visible');
+  has(runner,'draft purchase must expose editable fields');
   has(runner,'purchase action bar covers editable fields');
 });
 

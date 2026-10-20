@@ -94,7 +94,9 @@ test('service worker activation evicts old PIN screens while keeping current acc
   assert.deepEqual(opened,['lourex-invoice-v315']);
   assert.deepEqual(removed,[
     './src/app/AuthScreenSelector.js',
-    './src/components/AuthScreens.js'
+    './src/components/AuthScreens.js',
+    './health.html',
+    './health.js'
   ]);
   assert.equal(claimed,1);
 });

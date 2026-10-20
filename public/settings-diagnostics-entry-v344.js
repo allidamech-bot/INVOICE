@@ -8,6 +8,7 @@
   const STYLE_ID='lourex-settings-data-center-style-v472';
   const OBSERVER_ID='lourex-settings-data-center-observer-v472';
   const DIAG_LOG_KEY='lourex-runtime-diagnostics-v340';
+  let ownerDiagnosticsAllowed=false,ownerAuthWatcherInstalled=false,ownerAccessEpoch=0;
   const VAULT_META_KEY='lourex-active-vault-meta-v341';
 
   const isArabic=()=>document.documentElement.dir==='rtl'||document.documentElement.lang==='ar';
@@ -119,6 +120,11 @@
       overview.querySelector('[data-data-center-workspaces]')?.addEventListener('click',()=>selectSettingsTab('workspaces'));
       overview.querySelector('[data-data-center-security]')?.addEventListener('click',()=>selectSettingsTab('security'));
     }
+    if(!ownerDiagnosticsAllowed){
+      document.getElementById(CARD_ID)?.remove();
+      updateOverview(overview);
+      return;
+    }
     let diagnostics=document.getElementById(CARD_ID);
     if(!(diagnostics instanceof HTMLElement)){
       diagnostics=document.createElement('section');
@@ -149,12 +155,42 @@
     });
   };
 
+  const installOwnerWatcher=()=>{
+    if(ownerAuthWatcherInstalled)return;
+    const fb=window.firebase;
+    if(!fb?.apps?.length||typeof fb.auth!=='function')return;
+    try{
+      ownerAuthWatcherInstalled=true;
+      fb.auth().onAuthStateChanged(async user=>{
+        const epoch=++ownerAccessEpoch;
+        ownerDiagnosticsAllowed=false;
+        refresh();
+        if(!user||typeof user.getIdToken!=='function')return;
+        try{
+          const token=await user.getIdToken();
+          const response=await fetch('/api/ai-core',{
+            method:'POST',cache:'no-store',
+            headers:{'Authorization':'Bearer '+token,'X-Requested-With':'LOUREX-Invoice','X-Lourex-Admin-Diagnostics':'access-check'},
+            signal:AbortSignal.timeout(7000)
+          });
+          const data=response.ok?await response.json():null;
+          if(epoch!==ownerAccessEpoch||fb.auth().currentUser?.uid!==user.uid)return;
+          ownerDiagnosticsAllowed=response.ok&&data?.allowed===true;
+        }catch{ownerDiagnosticsAllowed=false;}
+        refresh();
+      },()=>{ownerDiagnosticsAllowed=false;ownerAccessEpoch+=1;refresh();});
+    }catch{ownerAuthWatcherInstalled=false;}
+  };
   const install=()=>{
     refresh();
+    installOwnerWatcher();
     if(window[OBSERVER_ID])return;
     const observer=new MutationObserver(refresh);
     observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['dir','lang','class']});
-    window.setInterval(()=>{if(document.querySelector('.ta-settings-shell.is-settings'))refresh();},3000);
+    window.setInterval(()=>{
+      installOwnerWatcher();
+      if(document.querySelector('.ta-settings-shell.is-settings'))refresh();
+    },3000);
     try{Object.defineProperty(window,OBSERVER_ID,{value:observer,configurable:true});}catch{window[OBSERVER_ID]=observer;}
   };
 

@@ -43,8 +43,8 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
   };
 
   private copyDiagnostics=async()=>{
-    const unified=(window as any).__LOUREX_DIAGNOSTICS__;
-    const text=[this.diagnostics(),'',typeof unified?.exportText==='function'?unified.exportText():''].filter(Boolean).join('\n');
+    // Only the owner-only diagnostics page may export the full runtime timeline.
+    const text=this.diagnostics();
     try{
       if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);
       else{
@@ -67,7 +67,6 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
         <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
           <button type="button" onClick={()=>{markNavigation('error-boundary-user-reload','mode=reload');window.location.reload();}} style={primary}>{t('Reload LOUREX','إعادة تحميل LOUREX')}</button>
           <button type="button" onClick={()=>void this.copyDiagnostics()} style={secondary}>{this.state.copied?t('Copied','تم النسخ'):t('Copy diagnostics','نسخ التشخيص')}</button>
-          <button type="button" onClick={()=>{markNavigation('error-boundary-health-open','mode=href');window.location.href='./health.html';}} style={secondary}>{t('System health','صحة النظام')}</button>
         </div>
         <details style={{marginTop:'18px',paddingTop:'16px',borderTop:'1px solid var(--ft-line,#263a52)'}}>
           <summary style={{cursor:'pointer',fontSize:'14px',fontWeight:750,color:'var(--ft-muted,#8799ae)'}}>{t('Technical details','التفاصيل التقنية')}</summary>

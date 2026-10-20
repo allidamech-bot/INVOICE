@@ -63,7 +63,7 @@ test('unified system diagnostics remain bounded and privacy-safe without opening
  assert.match(vercel,/\/runtime-config\.js/);
  assert.match(vercel,/\/health\.html/);
  assert.match(vercel,/no-cache, no-store, must-revalidate/);
- assert.match(errors,/health\.html/);
+ assert.doesNotMatch(errors,/health\.html/);
  assert.match(errors,/sourceRepoSlug/);
 });
 

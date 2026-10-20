@@ -36,6 +36,6 @@ test('current dark workspace contrast remains flat while diagnostics and fallbac
  assert.ok(health.includes('System health')&&health.includes('Unified Diagnostics'),'health diagnostics remain visible');
  assert.ok(bridge.includes('.lourex-ios-output-primary'),'iPhone output action remains available');
  assert.ok(entry.includes('showUpdateNotice'),'startup update path remains available');
- assert.ok(recovery.includes('health.html'),'recovery continues to diagnostics');
+ assert.ok(!recovery.includes('health.html'),'standard error screens must not link to owner-only diagnostics');
 });
 

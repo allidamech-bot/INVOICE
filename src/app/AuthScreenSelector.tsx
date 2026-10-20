@@ -59,8 +59,8 @@ function RecoveryCard({state,onRetry,onOpen}:{state:Exclude<RecoveryState,'idle'
     <p>{copy.body}</p>
     {state==='checking'?<div className="loading-line" aria-hidden="true"/>:null}
     {state==='ready'&&onOpen?<div className="auth-recovery-actions"><button type="button" className="button primary" onClick={onOpen}>Open account / فتح الحساب</button></div>:null}
-    {state==='error'&&onRetry?<div className="auth-recovery-actions"><button type="button" className="button primary" onClick={onRetry}>Retry verification / إعادة التحقق</button><a className="button" href="./health.html">Diagnostics / التشخيص</a></div>:null}
-    {state==='blocked'?<div className="auth-recovery-actions"><a className="button primary" href="./health.html">Open diagnostics / فتح التشخيص</a></div>:null}
+    {state==='error'&&onRetry?<div className="auth-recovery-actions"><button type="button" className="button primary" onClick={onRetry}>Retry verification / إعادة التحقق</button></div>:null}
+    {state==='blocked'?<p className="auth-recovery-note">Contact your LOUREX administrator for assistance. / يرجى التواصل مع مسؤول لوريكس للمساعدة.</p>:null}
   </section>;
 }
 
