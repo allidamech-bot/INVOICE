@@ -40,6 +40,6 @@ const vault=emptyVault();
  doc.items[0]={...doc.items[0],descriptionEn:'Very long commercial specification '.repeat(140),quantity:'3',unit:'Carton',unitPrice:'25.00'};
  assert.ok(estimatedDocumentPageCount(doc)>1);
  const renderer=await readFile('src/templates/TemplateRenderer.tsx','utf8');
- for(const token of ['const OUTPUT_FRAGMENT_WEIGHT=2','function outputItemFragments','quantity:index===0?item.quantity','unitPrice:index===0?item.unitPrice','const fragments=doc.items.flatMap(item=>outputItemFragments(doc,item))','paginateItems(fragments,false,10,doc.language,item=>itemWeight(doc,item))','calculateTotals(doc.items, doc.adjustments)'])assert.ok(renderer.includes(token),token);
+ for(const token of ['const OUTPUT_FRAGMENT_WEIGHT=2','function outputItemFragments','quantity:index===0?item.quantity','unitPrice:index===0?item.unitPrice','const fragments=doc.items.flatMap(item=>outputItemFragments(doc,item))','paginateItems(fragments,false,10,doc.language,()=>1)','calculateTotals(doc.items, doc.adjustments)'])assert.ok(renderer.includes(token),token);
  assert.match(renderer,/className=\{continuation\?'item-continuation-row':undefined\}/);
 });
