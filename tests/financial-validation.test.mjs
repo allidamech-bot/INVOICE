@@ -66,7 +66,9 @@ test('legacy malformed saved amounts retain their financial meaning without rewr
   assert.throws(()=>normalizePaymentRecord(doc,[payment],{...payment,id:'new-payment',amount:'1,0.00'},[doc]),/Payment amount/);
   const valid=normalizePaymentRecord(doc,[payment],{...payment,id:'new-payment',amount:'2.00'},[doc]);
   assert.equal(valid.amount,'2.00');
-  assert.equal(invoicePaymentSummary(doc,[payment,valid],'2026-10-19',[doc]).remaining,'0.00');
+  assert.equal(invoicePaymentSummary(doc,[payment,valid],'2026-10-19',[doc]).remaining,'2.00',
+    'a later-entered receipt cannot retroactively settle the earlier closing date');
+  assert.equal(invoicePaymentSummary(doc,[payment,valid],valid.createdAt.slice(0,10),[doc]).remaining,'0.00');
 });
 
 
@@ -254,7 +256,9 @@ test('unreferenced customer receipts cannot be created or detached during local 
   }
   const corrected={...receipt,amount:'25.00',updatedAt:'2026-01-06T00:00:00.000Z'};
   const legitimate=mergeVaultIntent(paid,{...paid,payments:[corrected]},paid);
-  assert.equal(invoicePaymentSummary(invoice,legitimate.payments,'2026-10-19',legitimate.documents).paid,'25.00');
+  assert.equal(invoicePaymentSummary(invoice,legitimate.payments,'2026-10-19',legitimate.documents).paid,'0.00',
+    'the newly corrected receipt was not recorded on the old as-of date');
+  assert.equal(invoicePaymentSummary(invoice,legitimate.payments,corrected.createdAt.slice(0,10),legitimate.documents).paid,'25.00');
   const oldDetached={...base,payments:[{...receipt,id:'old-orphan',invoiceId:''}]};
   const unchanged=mergeVaultIntent(oldDetached,oldDetached,structuredClone(oldDetached));
   assert.equal(unchanged.payments[0].invoiceId,'','untouched legacy data must not be rewritten');
