@@ -16,6 +16,14 @@ on:
       - 'src/lib/backup.ts'
       - 'tests/stock-backup-integrity-20261015.test.mjs'
       - 'scripts/qa-cloud-auth-emulator-browser.mjs'
+      - 'tests/workspaces-batch15.test.mjs'
+      - 'tests/b07-sales-order-acceptance.test.mjs'
+      - 'tests/ai-operational-customer-collection.test.mjs'
+      - 'tests/ai-operational-supplier-settlement.test.mjs'
+      - 'tests/audit-customer-receipt-scope-integrity.test.mjs'
+      - 'tests/audit-supplier-payment-scope-integrity.test.mjs'
+      - 'tests/audit-warehouse-transfer-scope-integrity.test.mjs'
+      - 'tests/audit-treasury-reconciliation-source-scope.test.mjs'
       - '.github/workflows/invoice-cloud-security-gate.yml'
 
 permissions:
@@ -42,6 +50,8 @@ jobs:
         run: |
           npm run typecheck
           npm run build
+      - name: Existing company, branch and operator-role boundary tests
+        run: node --test --test-concurrency=2 tests/workspaces-batch15.test.mjs tests/b07-sales-order-acceptance.test.mjs tests/ai-operational-customer-collection.test.mjs tests/ai-operational-supplier-settlement.test.mjs tests/audit-customer-receipt-scope-integrity.test.mjs tests/audit-supplier-payment-scope-integrity.test.mjs tests/audit-warehouse-transfer-scope-integrity.test.mjs tests/audit-treasury-reconciliation-source-scope.test.mjs
       - name: Two-device cloud, revision CAS, offline and account boundaries
         run: |
           node --test --test-concurrency=2 \
