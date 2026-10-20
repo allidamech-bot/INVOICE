@@ -1138,6 +1138,11 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  // Cash/bank accounts are indexed by ID. A new blank or duplicate ID must
+  // not disappear during ID-keyed merging or attach entries to the wrong account.
+  // Unchanged historical identities remain grandfathered.
+  guardNewOperationalRecordIds(base.treasuryAccounts,intended.treasuryAccounts,'treasury account');
+  guardNewOperationalRecordIds(base.treasuryAccounts,latest.treasuryAccounts,'treasury account');
   guardConcurrentRecordChanges(base.treasuryAccounts,intended.treasuryAccounts,latest.treasuryAccounts,'Treasury account','Reopen Cash & Bank before saving this account.');
   const treasuryAccounts=mergeRecords(base.treasuryAccounts,intended.treasuryAccounts,latest.treasuryAccounts);
   for(const account of treasuryAccounts)assertTreasuryAccount(account);
