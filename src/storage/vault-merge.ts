@@ -508,16 +508,22 @@ function guardNewWarehouseTransfers(base:VaultPayload,intended:VaultPayload,late
   if(intended.inventoryMovements===base.inventoryMovements)return;
   const beforeIds=new Set(base.inventoryMovements.map(movement=>movement.id));
   const latestIds=new Set(latest.inventoryMovements.map(movement=>movement.id));
-  const workspaceId=latest.appSettings.activeWorkspaceId,branchId=latest.appSettings.activeBranchId;
   for(const movement of intended.inventoryMovements){
     if(beforeIds.has(movement.id)||movement.type!=='transfer')continue;
     if(latestIds.has(movement.id))throw new Error('Warehouse transfer already exists. Refresh Stock Locations.');
     if(!inventoryMovementAccountingIsValid(movement))throw new Error('Warehouse transfer details are invalid.');
-    if(!savedItems.some(item=>item.id===movement.itemId))throw new Error('Warehouse transfer product is unavailable.');
+    // A transfer owns its physical scope, not the currently selected UI branch
+    // of whichever device happens to save an unrelated change.
+    const workspaceId=movement.workspaceId||latest.appSettings.activeWorkspaceId||'default';
+    const branchId=movement.branchId||latest.appSettings.activeBranchId||'main';
+    const item=savedItems.find(record=>record.id===movement.itemId);
+    if(!item)throw new Error('Warehouse transfer product is unavailable.');
+    if((item.workspaceId||'default')!==workspaceId)
+      throw new Error('Warehouse transfer item belongs to another company.');
     for(const locationId of [movement.fromWarehouseId,movement.toWarehouseId]){
-      if(!warehouses.some(row=>row.id===locationId&&row.workspaceId===workspaceId&&row.branchId===branchId&&row.active))throw new Error('Warehouse transfer location is no longer active.');
+      if(!warehouses.some(row=>row.id===locationId&&row.workspaceId===workspaceId&&row.branchId===branchId&&row.active))
+        throw new Error('Warehouse transfer company or branch does not match its source and destination warehouses.');
     }
-
   }
 }
 
