@@ -88,13 +88,18 @@ test('concurrent purchase receipt replay remains explicitly rejected; unchanged 
   assert.equal(JSON.stringify(intended),before);
 });
 
-test('normal purchase movements without explicit scope inherit their linked purchase branch',()=>{
+test('new purchase receipt in another company requires an explicitly matching scope',()=>{
   const {base,intended,receipt}=fixture();
-  const nonDefault={...intended,purchases:[{...intended.purchases[0],workspaceId:'other-company',branchId:'regional'}],
-    inventoryMovements:[{...receipt,workspaceId:undefined,branchId:undefined}]};
   const catalog={...base,suppliers:[{...base.suppliers[0],workspaceId:'other-company'}],
     savedItems:[{...base.savedItems[0],workspaceId:'other-company'}]};
-  const saved=mergeVaultIntent(catalog,{...nonDefault,suppliers:catalog.suppliers,savedItems:catalog.savedItems},catalog);
+  const purchase={...intended.purchases[0],workspaceId:'other-company',branchId:'regional'};
+  const intent=(movement)=>({...catalog,purchases:[purchase],inventoryMovements:[movement]});
+  assert.throws(()=>mergeVaultIntent(catalog,intent({
+    ...receipt,workspaceId:undefined,branchId:undefined}),catalog),
+    /Purchase stock company or branch/i,'an unstamped default-branch receipt cannot credit another company');
+  const saved=mergeVaultIntent(catalog,intent({
+    ...receipt,workspaceId:'other-company',branchId:'regional'}),catalog);
   assert.equal(saved.inventoryMovements.length,1);
-  assert.equal(saved.purchases[0].branchId,'regional');
+  assert.equal(saved.inventoryMovements[0].workspaceId,'other-company');
+  assert.equal(saved.inventoryMovements[0].branchId,'regional');
 });
