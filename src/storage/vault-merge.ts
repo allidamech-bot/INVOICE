@@ -580,8 +580,35 @@ function guardNewOperationalRecordIds<T extends {id:string}>(base:T[],intended:T
     seen.add(row.id);
   }
 }
+// Once posted, a supplier purchase establishes a liability even when no stock
+// or payment exists. Validate historical posting/reversal integrity against BOTH
+// the local intent and the remote state accepted by an offline vault merge.
+// Untouched historical rows are never reinterpreted or normalized.
+function guardPostedPurchaseAuditChanges(base:PurchaseRecord[],candidate:PurchaseRecord[]):void{
+  if(candidate===base)return;
+  const nextById=new Map(candidate.map(purchase=>[purchase.id,purchase]));
+  for(const before of base){
+    if(before.status==='draft')continue;
+    const next=nextById.get(before.id);
+    if(!next||sameRecord(before,next))continue; // Deletion is guarded separately.
+    if(before.status==='reversed')throw new Error('Reversed purchases are immutable.');
+    if(next.status!=='reversed')
+      throw new Error('Posted purchases are immutable. Reverse the purchase instead of editing it.');
+    if(purchaseCore(before)!==purchaseCore(next)||before.postedAt!==next.postedAt)
+      throw new Error('Purchase reversal cannot change the original posted purchase details.');
+    if(!next.reverseReason?.trim()||!next.reversedAt||
+       !isIsoDate(next.reversedAt.slice(0,10))||
+       !Number.isFinite(Date.parse(next.reversedAt))||
+       (before.postedAt&&next.reversedAt<before.postedAt)||
+       next.updatedAt!==next.reversedAt)
+      throw new Error('Purchase reversal requires valid reason and chronological audit timestamps.');
+  }
+}
+
 function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,suppliers:Supplier[],purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[]):void{
   guardPostedPurchaseContinuity(base.purchases,intended.purchases,latest.purchases);
+  guardPostedPurchaseAuditChanges(base.purchases,intended.purchases);
+  guardPostedPurchaseAuditChanges(base.purchases,latest.purchases);
   guardConcurrentRecordChanges(base.suppliers,intended.suppliers,latest.suppliers,'Supplier');
   guardConcurrentRecordChanges(base.expenses,intended.expenses,latest.expenses,'Expense');
   guardDraftPurchaseConflicts(base.purchases,intended.purchases,latest.purchases);
