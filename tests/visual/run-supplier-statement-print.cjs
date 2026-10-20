@@ -21,8 +21,8 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     const source=await page.evaluate(()=>window.financialSourceSnapshot());
     await page.locator('.lx-payables-search input').fill('Atlas');
     const account=page.locator('.lx-payables-row:not(.is-head)');
-    assert.equal(await account.count(),1);
-    await account.getByRole('button',{name:/^(Statement|الكشف)$/}).click();
+    assert.equal(await account.count(),statementRows,'one payable row per posted purchase');
+    await account.first().getByRole('button',{name:/^(Statement|الكشف)$/}).click();
     const statement=page.locator('.lx-supplier-statement');
     await statement.waitFor();
     assert.equal(await statement.locator('.ta-table tbody tr').count(),statementRows+1,'purchase and partial payment appear exactly once');
