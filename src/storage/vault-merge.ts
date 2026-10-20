@@ -990,6 +990,32 @@ function guardNewTreasuryReconciliationSourceScope(
   }
 }
 
+// Once a cash/bank account has ledger history, its financial classification
+// and actual linked bank identity are audit facts. Renaming/deactivating it
+// must remain legal, but reclassifying or deleting it would rewrite the meaning
+// of historical cash and bank reporting. A voided transaction is still history.
+function guardPostedTreasuryAccountChanges(
+  base:VaultPayload['treasuryAccounts'],
+  candidate:VaultPayload['treasuryAccounts'],
+  entries:VaultPayload['treasuryEntries']
+):void{
+  if(candidate===base)return;
+  const used=new Set<string>();
+  for(const row of entries){
+    if(row.fromAccountId)used.add(row.fromAccountId);
+    if(row.toAccountId)used.add(row.toAccountId);
+  }
+  const nextById=new Map(candidate.map(row=>[row.id,row]));
+  for(const original of base){
+    if(!used.has(original.id))continue;
+    const next=nextById.get(original.id);
+    if(!next)throw new Error('Posted treasury account cannot be deleted while ledger history exists.');
+    if(next.kind!==original.kind||
+       (next.bankAccountId||'')!==(original.bankAccountId||''))
+      throw new Error('Posted treasury account classification and linked bank identity are immutable.');
+  }
+}
+
 // Treasury movements are an audit ledger, not mutable form records. The Cash &
 // Bank screen corrects an entry by voiding it, preserving its original details.
 // Enforce that same contract for direct, offline and concurrently merged writes.
@@ -1154,6 +1180,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // device. Reject new remote ID collisions before the generic ID-keyed merge.
   guardNewOperationalRecordIds(base.treasuryEntries,latest.treasuryEntries,'treasury entry');
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
+  guardPostedTreasuryAccountChanges(base.treasuryAccounts,intended.treasuryAccounts,treasuryEntries);
+  guardPostedTreasuryAccountChanges(base.treasuryAccounts,latest.treasuryAccounts,treasuryEntries);
   if(intended.treasuryEntries!==base.treasuryEntries){
     const existingIds=new Set(base.treasuryEntries.map(entry=>entry.id));
     const newIds=new Set<string>();
