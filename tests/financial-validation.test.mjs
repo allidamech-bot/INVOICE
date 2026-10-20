@@ -259,3 +259,29 @@ test('unreferenced customer receipts cannot be created or detached during local 
   const unchanged=mergeVaultIntent(oldDetached,oldDetached,structuredClone(oldDetached));
   assert.equal(unchanged.payments[0].invoiceId,'','untouched legacy data must not be rewritten');
 });
+
+
+test('ordinary invoice payment entry inherits its issued invoice company and branch',()=>{
+  const invoice=validDocument();
+  invoice.status='final';invoice.role='standard';invoice.lifecycleStatus='active';
+  invoice.issueDate='2026-01-01';invoice.dueDate='2026-12-31';
+  invoice.workspaceId='company-west';invoice.branchId='branch-sales';
+  invoice.items[0].unitPrice='100.00';invoice.items[0].stockTreatment='non-stock';
+  const base={...emptyVault(),documents:[invoice]};
+  // The normal InvoicePaymentsPanel provides amount/date/method but no explicit scope.
+  const source={id:'branch-receipt',amount:'20.00',date:'2026-01-05',
+    method:'bank-transfer',reference:'WEST-20',notes:''};
+  const normalized=normalizePaymentRecord(invoice,[],source,[invoice]);
+  assert.equal(normalized.workspaceId,'company-west');
+  assert.equal(normalized.branchId,'branch-sales');
+  const paid=mergeVaultIntent(base,{...base,payments:[normalized]},base);
+  assert.equal(invoicePaymentSummary(invoice,paid.payments,'2026-10-20',paid.documents).paid,'20.00');
+  const incoming=normalizePaymentRecord(invoice,[],{...source,id:'remote-scoped',amount:'30.00'},[invoice]);
+  const remote=mergeVaultIntent(base,base,{...base,payments:[incoming]});
+  assert.equal(remote.payments[0].workspaceId,'company-west');
+  assert.equal(remote.payments[0].branchId,'branch-sales');
+  const forbidden=normalizePaymentRecord(invoice,[],{...source,id:'forged-branch',
+    workspaceId:'another-company',branchId:'branch-sales'},[invoice]);
+  assert.throws(()=>mergeVaultIntent(base,{...base,payments:[forbidden]},base),
+    /same company and branch as its invoice/i,'an explicitly wrong company must not be silently overridden');
+});
