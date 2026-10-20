@@ -17,9 +17,9 @@
       });
       if(!user||typeof user.getIdToken!=='function')return false;
       const token=await user.getIdToken();
-      const response=await fetch('/api/admin-diagnostics-access',{
+      const response=await fetch('/api/ai-core',{
         method:'POST',cache:'no-store',
-        headers:{'Authorization':'Bearer '+token,'X-Requested-With':'LOUREX-Invoice'},
+        headers:{'Authorization':'Bearer '+token,'X-Requested-With':'LOUREX-Invoice','X-Lourex-Admin-Diagnostics':'access-check'},
         signal:AbortSignal.timeout(7000)
       });
       return response.ok&&(await response.json())?.allowed===true;

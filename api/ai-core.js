@@ -1,4 +1,5 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
+import {diagnosticsOwnerUidAllowed} from './_ai/admin-diagnostics-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
 
@@ -114,6 +115,13 @@ export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST for LOUREX AI.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'LOUREX AI requests must come from this LOUREX Invoice deployment.'});return;}
   if(!await requireAiFirebaseAuth(request,response))return;
+  // One extra private action inside an existing protected function, not a 13th function.
+  if(request.headers['x-lourex-admin-diagnostics']==='access-check'){
+    if(!diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID)){
+      sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
+    }
+    sendJson(response,200,{allowed:true});return;
+  }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX AI received an invalid business context.'});return;}
