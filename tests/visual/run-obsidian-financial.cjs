@@ -102,7 +102,7 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     await audit('.ta-reports-page');await shot('overview');
     const currency=page.locator('.ta-report-currency select');await currency.selectOption('USD');assert.equal(await cards.count(),1);await shot('usd-filter');await currency.selectOption('ALL');
     const search=page.locator('.ta-customer-report-header input');await search.fill('Atlas');assert.equal(await page.locator('.ta-customer-performance-table tbody tr').count(),1);await audit('.ta-reports-page');
-    const exportButton=page.locator('.ta-page-actions .btn').first();await reachable(exportButton);
+    const exportButton=page.getByRole('button',{name:/^(Export CSV|تصدير CSV)$/});await reachable(exportButton);
    }else if(screen==='receivables'){
     const cards=page.locator('.ta-finance-kpi');await cards.first().waitFor();assert.ok(await cards.count()>=2,'expected multi-currency receivable rail');
     const rows=page.locator('.ta-account-row');await rows.first().waitFor();assert.ok(await rows.count()>=3,'expected customer accounts');await audit('.ta-receivables-page');await shot('overview');
