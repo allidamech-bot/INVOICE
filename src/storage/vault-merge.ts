@@ -1040,6 +1040,27 @@ function guardNewTreasuryVoidMetadata(
   }
 }
 
+// An entry that was posted and voided before synchronization still contributes
+// to earlier as-of bank balances. Its source/destination account identity must
+// therefore exist exactly once, even if the whole registry is empty or contains
+// unchanged historical duplicate IDs. Deactivated accounts remain valid history.
+function guardNewVoidedTreasuryAccountIdentity(
+  base:VaultPayload['treasuryEntries'],
+  candidate:VaultPayload['treasuryEntries'],
+  accounts:VaultPayload['treasuryAccounts']
+):void{
+  if(candidate===base)return;
+  const existing=new Set(base.map(entry=>entry.id));
+  for(const entry of candidate){
+    if(existing.has(entry.id)||!entry.voidedAt)continue;
+    for(const [role,id] of [['source',entry.fromAccountId],['destination',entry.toAccountId]] as const){
+      if(!id)continue;
+      if(accounts.filter(account=>account.id===id).length!==1)
+        throw new Error('Voided treasury '+role+' account is missing or not unique.');
+    }
+  }
+}
+
 // A remote device may post and void a linked cash movement before syncing.
 // Such a new already-voided entry is historical as-of cash: cancellation
 // metadata alone cannot prove that its original receipt/payment ever existed.
@@ -1233,6 +1254,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // device. Reject new remote ID collisions before the generic ID-keyed merge.
   guardNewOperationalRecordIds(base.treasuryEntries,latest.treasuryEntries,'treasury entry');
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
+  guardNewVoidedTreasuryAccountIdentity(base.treasuryEntries,intended.treasuryEntries,treasuryAccounts);
+  guardNewVoidedTreasuryAccountIdentity(base.treasuryEntries,latest.treasuryEntries,treasuryAccounts);
   guardPostedTreasuryAccountChanges(base.treasuryAccounts,intended.treasuryAccounts,treasuryEntries);
   guardPostedTreasuryAccountChanges(base.treasuryAccounts,latest.treasuryAccounts,treasuryEntries);
   if(intended.treasuryEntries!==base.treasuryEntries){
