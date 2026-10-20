@@ -9,10 +9,10 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
  for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await type.launch({headless:true});
   try{
-   for(const lang of ['en','ar'])for(const statementRows of [1,40]){
+   for(const lang of ['en','ar'])for(const statementRows of [1,100]){
     const page=await browser.newPage({viewport:{width:390,height:844}});
     const errors=[];
-    const amounts=statementRows===1?['1150.00','350.00','800.00']:['46000.00','350.00','45650.00'];
+    const amounts=statementRows===1?['1150.00','350.00','800.00']:['115000.00','350.00','114650.00'];
     page.on('pageerror',error=>errors.push(String(error)));
     page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
     await page.addInitScript(()=>{window.__statementPrints=0;window.print=()=>{window.__statementPrints++;};});
