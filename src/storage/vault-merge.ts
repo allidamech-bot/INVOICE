@@ -1045,6 +1045,23 @@ function guardNewTreasuryVoidMetadata(
 // metadata alone cannot prove that its original receipt/payment ever existed.
 // Verify the same canonical source amount, currency and company/branch as
 // fresh active allocations, without reopening or rewriting recorded history.
+// Accept a cross-device active treasury posting only when its company/branch
+// was selected on the device's original snapshot or on the posting side.
+// This permits a later unrelated UI branch switch without allowing a forged
+// foreign account/entry pair to bypass the active-workspace save authority.
+function guardNewTreasuryPostingOriginScope(base:VaultPayload,candidate:VaultPayload):void{
+  if(candidate.treasuryEntries===base.treasuryEntries)return;
+  const known=new Set(base.treasuryEntries.map(row=>row.id));
+  for(const entry of candidate.treasuryEntries){
+    if(known.has(entry.id)||entry.voidedAt)continue;
+    const inScope=(settings:AppSettings)=>
+      entry.workspaceId===settings.activeWorkspaceId&&
+      entry.branchId===settings.activeBranchId;
+    if(!inScope(base.appSettings)&&!inScope(candidate.appSettings))
+      throw new Error('Workspace changed. Reopen the treasury form.');
+  }
+}
+
 function guardNewVoidedTreasuryPaymentSources(
   base:VaultPayload['treasuryEntries'],candidate:VaultPayload['treasuryEntries'],
   payments:PaymentRecord[],supplierPayments:SupplierPaymentRecord[],
@@ -1381,6 +1398,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   guardNewVoidedTreasuryPaymentSources(base.treasuryEntries,intended.treasuryEntries,payments,supplierPayments,documents,purchases);
   guardNewVoidedTreasuryPaymentSources(base.treasuryEntries,latest.treasuryEntries,payments,supplierPayments,documents,purchases);
+  guardNewTreasuryPostingOriginScope(base,intended);
+  guardNewTreasuryPostingOriginScope(base,latest);
   // All newly posted active treasury entries share the same cash/bank authority
   // as the UI, including manual deposits, withdrawals and transfers. This keeps
   // account activity, workspace and reconciliation checks at the save boundary.
