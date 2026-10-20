@@ -244,7 +244,7 @@
     NOT_CONFIGURED:'No key configured / المفتاح غير مهيأ',
     KEY_REJECTED:'API key rejected / المفتاح مرفوض',
     PAYMENT_REQUIRED:'Payment required / يتطلب رصيدًا مدفوعًا',
-    RATE_LIMITED:'Rate limit reached / تم تجاوز حد الاستخدام',
+    RATE_LIMITED:'Provider rate limit / حدّ الاستخدام لدى الشركة',
     MODEL_UNAVAILABLE:'Model unavailable / النموذج غير متاح',
     PROVIDER_UNAVAILABLE:'Service unavailable / الخدمة غير متاحة',
     PROVIDER_ERROR:'Provider error / خطأ من المزوّد',
@@ -271,7 +271,7 @@
       const data=await response.json();
       if(!response.ok){
         if(result)result.textContent=response.status===403?'Access denied / الوصول مرفوض':
-          response.status===429?'Too many requests / تجاوز حد الطلبات':'Test unavailable / تعذر الاختبار';
+          response.status===429&&data?.code==='DIAGNOSTIC_RATE_LIMITED'?('LOUREX test limit for '+provider+' only. Try again in '+Math.ceil(Math.max(1,Number(data.retryAfterSeconds)||1)/60)+' min / حدّ اختبارات لوريكس لهذا المزوّد فقط، انتظر ثم حاول مجددًا'):'Test unavailable / تعذر الاختبار';
       }else if(result){
         const label=probeLabels[data?.status]||'Test failed / فشل الاختبار';
         const latency=Number.isFinite(data?.latencyMs)?' · '+Math.round(data.latencyMs)+' ms':'';
