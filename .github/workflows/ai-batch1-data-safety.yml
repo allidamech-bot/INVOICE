@@ -28,6 +28,7 @@ on:
       - 'tests/ai-generated-pdf-safety.test.mjs'
       - 'tests/ai-source-advisor-integrity.test.mjs'
       - 'tests/audit-ai-firebase-auth.test.mjs'
+      - 'tests/admin-ai-provider-probe.test.mjs'
       - 'api/**'
       - '.github/workflows/ai-batch1-data-safety.yml'
 
@@ -68,6 +69,7 @@ jobs:
           tests/ai-f01-real-pdf-preview.test.mjs
           tests/ai-f02-unsaved-tool-preview-continuity.test.mjs
           tests/ai-tool-orchestrator-batch4.test.mjs
+          tests/admin-ai-provider-probe.test.mjs
           tests/ai-living-workspace-mode-integration.test.mjs
           tests/ai-review-safety-contract.test.mjs
           tests/b06-ai-document-approval-guards.test.mjs
