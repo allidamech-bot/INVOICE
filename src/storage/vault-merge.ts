@@ -497,6 +497,23 @@ function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],m
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Purchase inventory unit cost must be zero or greater.');
   }
 }
+// Revision snapshots are the preserved, earlier issued document. Their audit
+// identity and contents must survive local edits AND stale-device cloud merges.
+function guardDocumentRevisionHistory(
+  base:VaultPayload['documentRevisions'],
+  intended:VaultPayload['documentRevisions'],
+  latest:VaultPayload['documentRevisions']
+):void{
+  if(intended===base&&latest===base)return;
+  const localById=new Map(intended.map(row=>[row.id,row]));
+  const remoteById=new Map(latest.map(row=>[row.id,row]));
+  for(const original of base){
+    const local=localById.get(original.id),remote=remoteById.get(original.id);
+    if(!local||!remote)throw new Error('Document revision history cannot be deleted.');
+    if(!sameRecord(original,local)||!sameRecord(original,remote))
+      throw new Error('Document revision history is immutable.');
+  }
+}
 // Preserve every newly imported purchase/expense independently: generic mergeRecords
 // indexes by ID and otherwise silently keeps the last duplicate.
 function guardNewOperationalRecordIds<T extends {id:string}>(base:T[],intended:T[],label:string):void{
@@ -870,6 +887,12 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertSalesReturnIntegrity({documents,inventoryMovements,warehouses,appSettings:latest.appSettings});
   assertSalesDeliveryStockIntegrity({documents,documentEvents,inventoryMovements,savedItems,warehouses,appSettings:latest.appSettings});
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
+  // A financial revision is a historical document snapshot, not an editable
+  // cached copy. New record IDs cannot collapse, and stored versions never
+  // disappear or silently change across independent device edits.
+  guardDocumentRevisionHistory(base.documentRevisions,intended.documentRevisions,latest.documentRevisions);
+  guardNewOperationalRecordIds(base.documentRevisions,intended.documentRevisions,'document revision');
+  guardNewOperationalRecordIds(base.documentRevisions,latest.documentRevisions,'document revision');
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
