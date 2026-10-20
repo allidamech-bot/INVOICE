@@ -154,6 +154,29 @@ function guardCustomerPaymentScopeChanges(
   }
 }
 
+// A credit note settles its original invoice only inside the same company
+// and branch. Protect newly attached/re-linked notes from direct imports and
+// concurrent remote writes without reinterpreting unchanged historical notes.
+function guardCreditNoteScopeChanges(
+  base:LourexDocument[],candidate:LourexDocument[],merged:LourexDocument[]
+):void{
+  if(candidate===base)return;
+  const originalById=new Map(base.map(doc=>[doc.id,doc]));
+  const invoiceById=new Map(merged.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note').map(doc=>[doc.id,doc]));
+  for(const credit of candidate){
+    if(credit.role!=='credit-note')continue;
+    const original=originalById.get(credit.id);
+    if(original?.role==='credit-note'&&original.creditForId===credit.creditForId&&
+       (original.workspaceId||'default')===(credit.workspaceId||'default')&&
+       (original.branchId||'main')===(credit.branchId||'main'))continue;
+    const invoice=invoiceById.get(credit.creditForId);
+    if(!invoice)continue; // Existing lifecycle rules reject missing sources.
+    if((credit.workspaceId||'default')!==(invoice.workspaceId||'default')||
+       (credit.branchId||'main')!==(invoice.branchId||'main'))
+      throw new Error('Credit note must belong to the same company and branch as its source invoice.');
+  }
+}
+
 function text(value:unknown):string{return typeof value==='string'?value:'';}
 function customerIdentity(value:string):string{return normalizeSavedItemIdentity(value);}
 function customerNames(customer:Customer):string[]{return [text(customer.companyNameEn),text(customer.companyNameAr)].map(customerIdentity).filter(Boolean);}
@@ -544,6 +567,7 @@ function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],m
 function issuedInvoiceFinancialFacts(doc:LourexDocument):unknown{
   return{
     id:doc.id,kind:doc.kind,role:doc.role,number:doc.number,
+    workspaceId:doc.workspaceId||'default',branchId:doc.branchId||'main',
     issueDate:doc.issueDate,dueDate:doc.dueDate,currency:doc.currency,
     customerSnapshot:doc.customerSnapshot,supplierSnapshot:doc.supplierSnapshot,
     companySnapshot:doc.companySnapshot,
@@ -1064,6 +1088,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Validate external device changes against the same physical unit,
   // tracking-classification and SKU/cost restrictions as local edits.
   guardSavedItemChanges(base.savedItems,latest.savedItems,savedItems,inventoryMovements);
+  guardCreditNoteScopeChanges(base.documents,intended.documents,documents);
+  guardCreditNoteScopeChanges(base.documents,latest.documents,documents);
   guardCustomerPaymentScopeChanges(base.payments,intended.payments,documents);
   guardCustomerPaymentScopeChanges(base.payments,latest.payments,documents);
   guardFinancialSettlementChanges(base,intended,documents,payments);
