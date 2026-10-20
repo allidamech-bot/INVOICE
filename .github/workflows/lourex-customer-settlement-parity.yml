@@ -14,6 +14,7 @@ on:
       - 'tests/treasury-accounts-hardening-v474.test.mjs'
       - 'tests/audit-treasury-reconciliation-source-scope.test.mjs'
       - 'tests/audit-treasury-account-new-identity.test.mjs'
+      - 'tests/audit-posted-treasury-account-classification.test.mjs'
       - 'tests/ai-business-consistency-v450.test.mjs'
       - 'tests/financial-validation.test.mjs'
       - '.github/workflows/lourex-customer-settlement-parity.yml'
@@ -61,4 +62,5 @@ jobs:
             tests/accounts-payable-batch9.test.mjs \
             tests/treasury-accounts-hardening-v474.test.mjs \
             tests/audit-treasury-reconciliation-source-scope.test.mjs \
-            tests/audit-treasury-account-new-identity.test.mjs
+            tests/audit-treasury-account-new-identity.test.mjs \
+            tests/audit-posted-treasury-account-classification.test.mjs
