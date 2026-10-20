@@ -1,0 +1,55 @@
+name: Financial document browser QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/ReportsPage.tsx'
+      - 'src/components/ReceivablesPage.tsx'
+      - 'src/components/OperationsPage.tsx'
+      - 'src/components/DocumentDesignControls.tsx'
+      - 'tests/visual/run-obsidian-financial.cjs'
+      - 'tests/visual/run-tax-vat-batch10.cjs'
+      - 'tests/visual/run-editor-design-discovery.cjs'
+      - '.github/workflows/financial-document-browser-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: financial-document-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  financial-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Existing financial output and business-cycle regressions
+        run: node --test tests/financial-output-parity-v559.test.mjs tests/financial-e2e-v145.test.mjs
+      - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Existing financial, tax and document browser workflows
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-financial-qa-http.log 2>&1 &
+          qa_server_pid=$!
+          trap 'kill "$qa_server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/obsidian-financial.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw new Error("Fixture server did not start");'
+          node tests/visual/run-obsidian-financial.cjs
+          node tests/visual/run-tax-vat-batch10.cjs
+          node tests/visual/run-editor-design-discovery.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: financial-document-browser-qa
+          path: |
+            visual-qa-output/obsidian-financial/
+            visual-qa-output/tax-vat-batch10/
+            /tmp/lourex-editor-design/
+          retention-days: 7
