@@ -1,0 +1,36 @@
+name: Measured pagination contract
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/document-workflow-production-audit.test.mjs'
+      - 'tests/v44-audit.test.mjs'
+      - 'tests/visual/run-oversized-item-pagination.cjs'
+      - '.github/workflows/measured-pagination-contract.yml'
+permissions:
+  contents: read
+concurrency:
+  group: measured-pagination-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  measured-pagination:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused document regressions
+        run: node --test tests/document-workflow-production-audit.test.mjs tests/v44-audit.test.mjs
+      - name: Full Node regression suite
+        run: node --test --test-concurrency=2 tests/*.test.mjs
+      - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Oversized item in Chromium and WebKit, with Chromium PDF export
+        run: node tests/visual/run-oversized-item-pagination.cjs

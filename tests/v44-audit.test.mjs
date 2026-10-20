@@ -171,7 +171,7 @@ const renderer=await read('src/templates/TemplateRenderer.tsx');
  assert.ok(paginateItems(oversized.items,true,10,oversized.language).length>=1);
  assert.match(renderer,/shouldUseDetailsPage/);
  assert.match(renderer,/outputItemFragments/);
- assert.match(renderer,/paginateItems\(fragments,false,10,doc\.language,item=>itemWeight\(doc,item\)\)/);
+ assert.match(renderer,/paginateItems\(fragments,false,10,doc\.language,\(\)=>1\)/);
  assert.match(renderer,/getBoundingClientRect/);
 });
 
