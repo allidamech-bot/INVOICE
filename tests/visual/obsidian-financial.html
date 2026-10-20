@@ -27,6 +27,15 @@ const usdB=invoice({id:'inv-usd-b',number:`INV-${year}-0003`,currency:'USD',pric
 const documents=[usdA,eurA,usdB];
 const payment=(doc,id,amount,month)=>({id,invoiceId:doc.id,invoiceNumber:doc.number,customerId:doc.customerSnapshot.sourceCustomerId,customerNameEn:doc.customerSnapshot.companyNameEn,customerNameAr:doc.customerSnapshot.companyNameAr,currency:doc.currency,amount,date:`${year}-${month}-15`,method:'bank-transfer',reference:id,notes:'',createdAt:now,updatedAt:now});
 const payments=[payment(usdA,'pay-usd-1','700.00','02'),payment(eurA,'pay-eur-1','500.00','04'),payment(usdB,'pay-usd-2','300.00','07')];
+
+const statementRows=Number(params.get('statementRows')||1);
+if(![1,40].includes(statementRows))throw new Error('Unsupported statement QA row count');
+for(let index=2;index<=statementRows;index++){
+ const row=structuredClone(usdA);row.id='qa-statement-invoice-'+index;row.number='INV-QA-'+String(index).padStart(3,'0');
+ row.items=row.items.map((item,line)=>({...item,id:row.id+'-line-'+line}));
+ documents.push(row);
+}
+
 window.financialSourceSnapshot=()=>JSON.stringify({documents,payments});
 const items=Array.from({length:8},(_,i)=>({id:`item-${i}`,createdAt:now,updatedAt:now,sku:`LX-${String(i+1).padStart(3,'0')}`,descriptionEn:['Precision valve','Control module','Steel fitting'][i%3]+` ${i+1}`,descriptionAr:['صمام دقيق','وحدة تحكم','وصلة فولاذية'][i%3]+` ${i+1}`,hsCode:'848180',origin:'Türkiye',packing:'Box',unit:'PCS',lastUnitPrice:String(180+i*20),lastCurrency:'USD',lastUnitCost:String(95+i*8),lastCostCurrency:'USD',usageCount:12-i,lastUsedAt:now,category:'Components',tags:['Industrial'],favorite:i<2}));
 const supplierA={...createSupplier(),id:'supplier-atlas',nameEn:'Anatolia Components',nameAr:'مكونات الأناضول',contactPerson:'Kemal Yilmaz',country:'Türkiye',city:'Istanbul',defaultCurrency:'USD',email:'sales@anatolia.example',updatedAt:now};

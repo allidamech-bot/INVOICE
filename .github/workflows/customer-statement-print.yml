@@ -1,9 +1,15 @@
-name: Customer statement print QA
+name: Account statement print QA
 on:
   pull_request:
     branches: [main]
     paths:
       - 'src/components/ReceivablesPage.tsx'
+      - 'src/components/SupplierPayablesPage.tsx'
+      - 'src/lib/payables.ts'
+      - 'src/styles/payables-batch9.css'
+      - 'tests/visual/run-supplier-statement-print.cjs'
+      - 'tests/visual/supplier-statement-print.html'
+      - '.github/workflows/supplier-statement-print.yml'
       - 'src/lib/receivables.ts'
       - 'src/styles/tailadmin-finance-workspaces-v320.css'
       - 'src/styles/app.css'
@@ -13,7 +19,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: customer-statement-print-${{ github.ref }}
+  group: account-statement-print-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   browser-pdf:
@@ -29,11 +35,11 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run build
-      - name: Customer statement and receivables regressions
-        run: node --test tests/receivables-v133.test.mjs tests/financial-e2e-v145.test.mjs
+      - name: Customer and supplier account regressions
+        run: node --test tests/receivables-v133.test.mjs tests/accounts-payable-batch9.test.mjs tests/financial-e2e-v145.test.mjs
       - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
       - run: npx playwright install --with-deps chromium webkit
-      - name: Print customer statements in Chromium and WebKit
+      - name: Print short and long customer/supplier statements
         shell: bash
         run: |
           node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-mobile-pdf-http.log 2>&1 &
@@ -41,9 +47,12 @@ jobs:
           trap 'kill "$qa_server_pid" 2>/dev/null || true' EXIT
           node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/obsidian-financial.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw new Error("Fixture server did not start");'
           node tests/visual/run-customer-statement-print.cjs
+          node tests/visual/run-supplier-statement-print.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: customer-statement-print
-          path: visual-qa-output/customer-statement-print/
+          name: account-statement-print
+          path: |
+            visual-qa-output/customer-statement-print/
+            visual-qa-output/supplier-statement-print/
           retention-days: 7
