@@ -5,6 +5,8 @@ on:
     paths:
       - 'src/components/ReceivablesPage.tsx'
       - 'src/lib/receivables.ts'
+      - 'src/styles/receivables-v133.css'
+      - 'src/styles/app.css'
       - 'tests/visual/obsidian-financial.html'
       - 'tests/visual/run-customer-statement-print.cjs'
       - '.github/workflows/customer-statement-print.yml'
