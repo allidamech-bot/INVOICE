@@ -644,6 +644,10 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   // as their own available quantity; local debits were already checked above
   // against the full latest ledger.
   if(latest.inventoryMovements!==base.inventoryMovements){
+    // A conflicting two-device issue of the SAME documented sale has a more
+    // precise immutable sales proof error. Preserve that precedence before
+    // replaying physical warehouse availability from the remote side.
+    assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
     for(const itemId of guardNewManualMovements(base,latest,movements,savedItems))
       touchedItems.add(itemId);
     const remotePostingBase={...base,appSettings:latest.appSettings,
