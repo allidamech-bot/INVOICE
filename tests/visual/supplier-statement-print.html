@@ -21,6 +21,14 @@ const foreignPurchase={...purchase,id:'qa-purchase-foreign',number:'PUR-2026-000
 const purchases=[purchase,foreignPurchase];
 const payment={...createSupplierPayment(purchase,supplier,[]),id:'qa-supplier-payment',amount:'350',date:'2026-01-15',reference:'QA-SPAY-001'};
 const supplierPayments=[payment];
+
+const statementRows=Number(new URLSearchParams(location.search).get('statementRows')||1);
+if(![1,40].includes(statementRows))throw new Error('Unsupported statement QA row count');
+for(let index=2;index<=statementRows;index++){
+ const row=structuredClone(purchase);row.id='qa-statement-purchase-'+index;row.number='PUR-QA-'+String(index).padStart(3,'0');
+ row.items=row.items.map((item,line)=>({...item,id:row.id+'-line-'+line}));
+ purchases.push(row);
+}
 window.financialSourceSnapshot=()=>JSON.stringify({purchases,supplierPayments});
 const rejectWrite=async()=>{throw new Error('Print QA must not write financial data');};
 ReactDOM.render(React.createElement(SupplierPayablesPage,{company,suppliers,purchases,supplierPayments,onSaveSupplierPayment:rejectWrite,onDeleteSupplierPayment:rejectWrite}),document.getElementById('visual-app'));
