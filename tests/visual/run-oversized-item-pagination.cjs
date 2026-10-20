@@ -80,8 +80,17 @@ const inject=[
         assert.equal(result.unchanged,true,label+': source document unchanged');
         assert.equal(result.overflow,false,label+': no A4 overflow or footer overlap');
         if(name==='chromium'){
-          const pdf=await page.pdf({preferCSSPageSize:true,printBackground:true});
-          assert.equal((pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,result.pages,label+': exported PDF page count');
+          // Use the shipped application export, as quotation-pdf-pixels.cjs does.
+          for(const asset of ['vendor/html2canvas.min.js','vendor/jspdf.umd.min.js','ios-print-bridge.js']){
+            await page.addScriptTag({url:'http://lourex.test/dist/'+asset});
+          }
+          const pdf=await page.evaluate(async()=>{
+            const file=await window.__LOUREX_BUILD_CHAT_PDF__(document.querySelector('.qa-stage'),'Synthetic oversized item');
+            const text=await file.text();
+            return {size:file.size,pages:(text.match(/\/Type\s*\/Page\b/g)||[]).length};
+          });
+          assert.ok(pdf.size>10000,label+': nonempty exported PDF');
+          assert.equal(pdf.pages,result.pages,label+': exported PDF page count');
         }
         assert.deepEqual(errors,[],label+': browser and resource errors');
         console.log('PASS '+label+': '+result.pages+' pages, complete text, amounts once, source unchanged');
