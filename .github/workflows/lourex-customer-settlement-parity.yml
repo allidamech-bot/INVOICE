@@ -20,6 +20,7 @@ on:
       - 'tests/audit-voided-treasury-account-identity.test.mjs'
       - 'tests/ai-business-consistency-v450.test.mjs'
       - 'tests/financial-validation.test.mjs'
+      - 'tests/sales-collection-saved-cycle.test.mjs'
       - '.github/workflows/lourex-customer-settlement-parity.yml'
   workflow_dispatch:
 
@@ -48,6 +49,8 @@ jobs:
         run: npm run typecheck
       - name: Production build without deployment
         run: npm run build
+      - name: Saved quotation to fully collected invoice
+        run: node --test tests/sales-collection-saved-cycle.test.mjs
       - name: Customer supplier and treasury financial parity
         run: |
           node --test --test-concurrency=2 \
