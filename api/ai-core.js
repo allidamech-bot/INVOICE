@@ -1,5 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {diagnosticsOwnerUidAllowed} from './_ai/admin-diagnostics-auth.js';
+import {SYNTHETIC_PROVIDER_IDS,runSyntheticProviderDiagnostic} from './_ai/provider-diagnostics.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
 
@@ -121,6 +122,25 @@ export default async function handler(request,response){
       sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
     }
     sendJson(response,200,{allowed:true});return;
+  }
+  if(request.headers['x-lourex-admin-diagnostics']==='provider-probe'){
+    // Exact signed Firebase UID gate; no role-based access or automatic fallback.
+    if(!diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID)){
+      sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
+    }
+    if(!rateAllowed(request)){
+      response.setHeader('Retry-After','300');
+      sendJson(response,429,{code:'DIAGNOSTIC_RATE_LIMITED'});return;
+    }
+    let requestBody;
+    try{requestBody=await readJson(request);}catch{sendJson(response,400,{code:'INVALID_DIAGNOSTIC_REQUEST'});return;}
+    const provider=requestBody?.provider;
+    if(!SYNTHETIC_PROVIDER_IDS.includes(provider)){
+      sendJson(response,400,{code:'INVALID_DIAGNOSTIC_PROVIDER'});return;
+    }
+    // The client cannot choose a prompt, model, URL, key, business context or tools.
+    const probe=await runSyntheticProviderDiagnostic(provider);
+    sendJson(response,200,probe);return;
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}

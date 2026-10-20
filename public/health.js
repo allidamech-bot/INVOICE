@@ -235,6 +235,53 @@
     add('Health runner','Diagnostic deadline reached','warn');
     render();
   },HEALTH_DEADLINE_MS);
+  const providerButtons=[...document.querySelectorAll('[data-provider-test]')];
+  const safeProviders=new Set(['groq','cloudflare','gemini','kilo']);
+  let probeRunning=false;
+  const probeLabels={
+    PASSED:'Correct answer / إجابة صحيحة',
+    WRONG_ANSWER:'Connected, incorrect answer / متصل لكن الإجابة خاطئة',
+    NOT_CONFIGURED:'No key configured / المفتاح غير مهيأ',
+    KEY_REJECTED:'API key rejected / المفتاح مرفوض',
+    PAYMENT_REQUIRED:'Payment required / يتطلب رصيدًا مدفوعًا',
+    RATE_LIMITED:'Rate limit reached / تم تجاوز حد الاستخدام',
+    MODEL_UNAVAILABLE:'Model unavailable / النموذج غير متاح',
+    PROVIDER_UNAVAILABLE:'Service unavailable / الخدمة غير متاحة',
+    PROVIDER_ERROR:'Provider error / خطأ من المزوّد',
+    INVALID_RESPONSE:'Invalid response / استجابة غير صالحة',
+    TIMEOUT:'Timed out / انتهت المهلة',
+    NETWORK_ERROR:'Network error / خطأ اتصال'
+  };
+  for(const button of providerButtons)button.addEventListener('click',async()=>{
+    const provider=button.getAttribute('data-provider-test');
+    if(probeRunning||!safeProviders.has(provider))return;
+    probeRunning=true;
+    providerButtons.forEach(item=>item.disabled=true);
+    const result=document.querySelector('[data-provider-result="'+provider+'"]');
+    if(result)result.textContent='Testing… / جارٍ الاختبار…';
+    try{
+      const user=window.firebase?.auth()?.currentUser;
+      if(!user)throw new Error('SIGN_IN_REQUIRED');
+      const token=await user.getIdToken();
+      const response=await fetch('/api/ai-core',{
+        method:'POST',cache:'no-store',
+        headers:{Authorization:'Bearer '+token,'X-Requested-With':'LOUREX-Invoice','X-Lourex-Admin-Diagnostics':'provider-probe','Content-Type':'application/json'},
+        body:JSON.stringify({provider}),signal:AbortSignal.timeout(18000)
+      });
+      const data=await response.json();
+      if(!response.ok){
+        if(result)result.textContent=response.status===403?'Access denied / الوصول مرفوض':
+          response.status===429?'Too many requests / تجاوز حد الطلبات':'Test unavailable / تعذر الاختبار';
+      }else if(result){
+        const label=probeLabels[data?.status]||'Test failed / فشل الاختبار';
+        const latency=Number.isFinite(data?.latencyMs)?' · '+Math.round(data.latencyMs)+' ms':'';
+        const model=typeof data?.model==='string'?data.model.slice(0,80):'';
+        result.textContent=label+(model?' · '+model:'')+latency;
+      }
+    }catch{
+      if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
+    }finally{probeRunning=false;providerButtons.forEach(item=>item.disabled=false);}
+  });
   document.getElementById('back').addEventListener('click',()=>{if(history.length>1)history.back();else location.href='./';});
   document.getElementById('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(fullReportText());document.getElementById('copy').textContent='Copied full report / تم النسخ';}catch{}});
   document.getElementById('copyDiag')?.addEventListener('click',async()=>{const text=diagnosticText();try{await navigator.clipboard.writeText(text);document.getElementById('copyDiag').textContent='Copied / تم النسخ';}catch{}});
