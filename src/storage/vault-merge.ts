@@ -132,6 +132,28 @@ function guardFinancialSettlementChanges(base:VaultPayload,intended:VaultPayload
   }
 }
 
+// A receipt belongs to the issued invoice's company and branch, not merely its
+// matching invoice ID. Validate new/re-linked records on BOTH sides of an
+// offline merge; leave unchanged historical receipts exactly as stored.
+function guardCustomerPaymentScopeChanges(
+  base:VaultPayload['payments'],candidate:VaultPayload['payments'],documents:LourexDocument[]
+):void{
+  if(candidate===base)return;
+  const originalById=new Map(base.map(payment=>[payment.id,payment]));
+  const invoiceById=new Map(documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note').map(doc=>[doc.id,doc]));
+  for(const payment of candidate){
+    const original=originalById.get(payment.id);
+    if(original&&original.invoiceId===payment.invoiceId&&
+       (original.workspaceId||'default')===(payment.workspaceId||'default')&&
+       (original.branchId||'main')===(payment.branchId||'main'))continue;
+    const invoice=invoiceById.get(payment.invoiceId);
+    if(!invoice)continue; // The existing settlement invariant rejects orphan receipts.
+    if((payment.workspaceId||'default')!==(invoice.workspaceId||'default')||
+       (payment.branchId||'main')!==(invoice.branchId||'main'))
+      throw new Error('Customer payment must belong to the same company and branch as its invoice.');
+  }
+}
+
 function text(value:unknown):string{return typeof value==='string'?value:'';}
 function customerIdentity(value:string):string{return normalizeSavedItemIdentity(value);}
 function customerNames(customer:Customer):string[]{return [text(customer.companyNameEn),text(customer.companyNameAr)].map(customerIdentity).filter(Boolean);}
@@ -1042,6 +1064,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Validate external device changes against the same physical unit,
   // tracking-classification and SKU/cost restrictions as local edits.
   guardSavedItemChanges(base.savedItems,latest.savedItems,savedItems,inventoryMovements);
+  guardCustomerPaymentScopeChanges(base.payments,intended.payments,documents);
+  guardCustomerPaymentScopeChanges(base.payments,latest.payments,documents);
   guardFinancialSettlementChanges(base,intended,documents,payments);
   // A remote paid-invoice deletion, void or monetary rewrite must pass the same
   // invariant before an unrelated local edit can accept it. Deep record equality
