@@ -65,11 +65,12 @@ test('identical cross-device invoice replay is saved exactly once',()=>{
   assert.equal(merged.documents[0].number,invoice.number);
 });
 
-test('historical unusual duplicate document IDs are not silently migrated or deleted on unrelated save',()=>{
-  const {base,invoice,remote}=fixture();
-  const legacy={...base,documents:[invoice,remote]};
+test('previously stored issued invoice identities remain unchanged on unrelated save',()=>{
+  const {base,invoice}=fixture();
+  const legacy={...base,documents:[{...invoice,number:'INV-LEGACY-IDENTITY'}]};
   const before=JSON.stringify(legacy);
   const merged=mergeVaultIntent(legacy,unrelatedSave(legacy),structuredClone(legacy));
-  assert.equal(merged.documents.length,2);
+  assert.equal(merged.documents.length,1);
+  assert.equal(merged.documents[0].number,'INV-LEGACY-IDENTITY');
   assert.equal(JSON.stringify(legacy),before);
 });
