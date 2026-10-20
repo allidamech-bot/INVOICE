@@ -436,6 +436,27 @@ function quantityMapsEqual(left:Map<string,bigint>,right:Map<string,bigint>):boo
   return true;
 }
 function negativeQuantityMap(source:Map<string,bigint>):Map<string,bigint>{return new Map(Array.from(source,([key,value])=>[key,-value]));}
+// Newly accepted invoice stock issues must belong to the same company/branch
+// as their original invoice. The invoice proof already locks quantity, SKU,
+// line and warehouse; this completes the financial-to-physical scope link
+// for direct/import and remote device writes without migrating old history.
+function guardNewInvoiceStockScope(
+  base:InventoryMovementRecord[],candidate:InventoryMovementRecord[],documents:LourexDocument[]
+):void{
+  if(candidate===base)return;
+  const prior=new Set(base.map(row=>row.id));
+  const invoices=new Map(documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard')
+    .map(doc=>[doc.id,doc]));
+  for(const movement of candidate){
+    if(prior.has(movement.id)||!isIssuedInvoiceStockIssue(movement))continue;
+    const invoice=invoices.get(movement.sourceId);
+    if(!invoice)continue; // Existing posted stock integrity rejects missing invoices.
+    if((movement.workspaceId||'default')!==(invoice.workspaceId||'default')||
+       (movement.branchId||'main')!==(invoice.branchId||'main'))
+      throw new Error('Invoice stock issue company or branch does not match its source invoice.');
+  }
+}
+
 function guardInventoryLedgerIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
   if(intended.inventoryMovements===base.inventoryMovements&&latest.inventoryMovements===base.inventoryMovements)return;
   const intendedById=new Map(intended.inventoryMovements.map(movement=>[movement.id,movement]));
@@ -1130,6 +1151,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Validate external device changes against the same physical unit,
   // tracking-classification and SKU/cost restrictions as local edits.
   guardSavedItemChanges(base.savedItems,latest.savedItems,savedItems,inventoryMovements);
+  guardNewInvoiceStockScope(base.inventoryMovements,intended.inventoryMovements,documents);
+  guardNewInvoiceStockScope(base.inventoryMovements,latest.inventoryMovements,documents);
   guardCreditNoteScopeChanges(base.documents,intended.documents,documents);
   guardCreditNoteScopeChanges(base.documents,latest.documents,documents);
   guardCustomerPaymentScopeChanges(base.payments,intended.payments,documents);
