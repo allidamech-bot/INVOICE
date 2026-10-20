@@ -28,7 +28,7 @@ test('current mobile purchasing actions do not overlay editable fields',async()=
   assert.match(css,/\.ta-ops-editor-actions\{display:flex;[^}]*padding:13px 16px/);
   assert.match(css,/@media\(max-width:1180px\)[\s\S]*:is\(\.ta-ops-editor,\.ta-ops-editor-card\)\{position:static;max-height:none\}/);
   assert.match(visual,/purchase action bar covers editable fields/);
-  assert.match(visual,/\.purchase-editor fieldset input/);
+  assert.match(visual,/\.ta-ops-purchase-editor fieldset input/);
 });
 
 test('current app-only account and purchasing owners do not change A4 printing',async()=>{

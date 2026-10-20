@@ -43,7 +43,9 @@ test('mobile purchasing keeps navigation and editable actions clear of field ove
  for(const token of ['.operations-page .purchase-editor','.mobile-bottom-nav','visibility:hidden!important','pointer-events:none!important','opacity:0!important'])has(mobile,token);
  for(const token of ['.ta-ops-editor-scroll','.ta-ops-editor-actions','overflow:auto','env(safe-area-inset-bottom'])has(current,token);
  has(current,'min-height:44px');
- has(runner,'mobile nav covers purchase editor');
+ has(runner,'const auditPurchaseEditor=async()=>');
+ has(runner,"nav:navStyle?{display:navStyle.display,visibility:navStyle.visibility,opacity:navStyle.opacity}:null");
+ has(runner,"assert.deepEqual(geometry.clipped,[],'purchase editor clips outside phone viewport '");
  has(runner,'purchase action bar covers editable fields');
  for(const viewport of ['{width:1440,height:1000}','{width:820,height:1180}','{width:390,height:844}','{width:320,height:568}'])has(runner,viewport);
 });
