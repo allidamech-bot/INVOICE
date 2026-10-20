@@ -30,6 +30,22 @@ const documentData={
   notes:'',convertedFromId:'',createdAt:'2026-10-04T10:00:00.000Z',updatedAt:'2026-10-04T10:00:00.000Z'
 };
 
+// Optional synthetic financial-output cases; preserve the original quotation fixture.
+const qaCase=new URLSearchParams(window.location.search).get('financial');
+if(qaCase){
+  if(!['invoice-en','invoice-ar','credit-bilingual'].includes(qaCase))throw new Error('Unknown financial PDF QA case');
+  documentData.kind='invoice';
+  documentData.id='qa-'+qaCase;
+  documentData.number=qaCase==='credit-bilingual'?'CN-QA-2026-0046':'INV-QA-2026-0046';
+  documentData.language=qaCase==='invoice-ar'?'ar':qaCase==='invoice-en'?'en':'bilingual';
+  documentData.adjustments={...documentData.adjustments,discountEnabled:true,discountMode:'percent',discountValue:'10',taxEnabled:true,taxPercent:'15'};
+  if(qaCase==='credit-bilingual'){
+    documentData.role='credit-note';
+    documentData.creditForId='qa-original-invoice';
+    documentData.creditForNumber='INV-QA-2026-0046';
+  }
+}
+
 const preview=React.createElement('div',{className:'mobile-preview-stage'},React.createElement(TemplateRenderer,{document:documentData,scale:.48,compact:false}));
 const output=React.createElement('div',{className:'print-portal'},React.createElement(TemplateRenderer,{document:documentData,scale:1,compact:false}));
 const shell=React.createElement('div',{className:'app-ui qa-phone editor-screen mobile-preview-open'},preview,output);
