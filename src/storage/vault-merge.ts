@@ -484,6 +484,57 @@ function guardNewPurchaseStockScope(
   }
 }
 
+// Only NEW purchase-stock entries must prove the physical unit valuation.
+// A purchase receipt matches one posted purchase line at its landed unit cost;
+// its reversal offsets the actual original receipt cost (including legacy costs).
+// Multisets preserve separately priced lines of the same catalog item.
+function guardNewPurchaseStockValuation(
+  base:InventoryMovementRecord[],candidate:InventoryMovementRecord[],
+  purchases:PurchaseRecord[],movements:InventoryMovementRecord[]
+):void{
+  if(candidate===base)return;
+  const previous=new Set(base.map(row=>row.id));
+  const purchaseById=new Map(purchases.map(row=>[row.id,row]));
+  const touched=new Map<string,Set<'purchase'|'purchase-reversal'>>();
+  for(const row of candidate){
+    if(previous.has(row.id)||(row.type!=='purchase'&&row.type!=='purchase-reversal'))continue;
+    const types=touched.get(row.sourceId)||new Set<'purchase'|'purchase-reversal'>();
+    types.add(row.type);touched.set(row.sourceId,types);
+  }
+  if(!touched.size)return;
+  const key=(itemId:string,quantity:string,cost:string):string=>{
+    if(!cost?.trim()||!isNonNegativeDecimalInput(cost))
+      throw new Error('Purchase stock unit cost is invalid.');
+    if(!isDecimalInput(quantity))
+      throw new Error('Purchase stock quantity is invalid.');
+    const scaledQuantity=decimalToScaled(quantity,4);
+    const absoluteQuantity=scaledQuantity<0n?-scaledQuantity:scaledQuantity;
+    return JSON.stringify([itemId,absoluteQuantity.toString(),decimalToScaled(cost,12).toString()]);
+  };
+  for(const [purchaseId,types] of touched){
+    const purchase=purchaseById.get(purchaseId);
+    if(!purchase)continue; // Existing posted-purchase integrity handles missing sources.
+    for(const type of types){
+      const reference=type==='purchase'
+        ?purchase.items.filter(line=>Boolean(line.savedItemId))
+          .map(line=>({itemId:line.savedItemId,quantity:line.quantity,unitCost:line.landedUnitCost||line.unitCost}))
+        :movements.filter(row=>row.sourceId===purchaseId&&row.type==='purchase');
+      const allowed=new Map<string,number>();
+      for(const row of reference){
+        const k=key(row.itemId,row.quantity,row.unitCost);
+        allowed.set(k,(allowed.get(k)||0)+1);
+      }
+      for(const row of movements){
+        if(row.sourceId!==purchaseId||row.type!==type)continue;
+        const k=key(row.itemId,row.quantity,row.unitCost);
+        const remaining=allowed.get(k)||0;
+        if(!remaining)throw new Error('Purchase stock unit cost or line allocation does not match its posted history.');
+        allowed.set(k,remaining-1);
+      }
+    }
+  }
+}
+
 function guardInventoryLedgerIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
   if(intended.inventoryMovements===base.inventoryMovements&&latest.inventoryMovements===base.inventoryMovements)return;
   const intendedById=new Map(intended.inventoryMovements.map(movement=>[movement.id,movement]));
@@ -777,6 +828,8 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     }
     guardPurchaseState(merged,purchases,movements,savedItems);
   }
+  guardNewPurchaseStockValuation(base.inventoryMovements,intended.inventoryMovements,purchases,movements);
+  guardNewPurchaseStockValuation(base.inventoryMovements,latest.inventoryMovements,purchases,movements);
   guardNewPurchaseStockScope(base.inventoryMovements,intended.inventoryMovements,purchases,savedItems);
   guardNewPurchaseStockScope(base.inventoryMovements,latest.inventoryMovements,purchases,savedItems);
   guardNewWarehouseTransfers(base,intended,latest,latest.warehouses,savedItems);
