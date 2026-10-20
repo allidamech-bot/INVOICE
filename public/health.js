@@ -1,4 +1,40 @@
 (() => {
+  // Fail closed: never read runtime logs or run diagnostics until the server
+  // verifies this Firebase user matches the single owner UID in Vercel.
+  async function ownerPermission(){
+    try{
+      const fb=window.firebase;
+      if(!fb||typeof fb.auth!=='function')return false;
+      if(!fb.apps.length)fb.initializeApp({
+        apiKey:'AIzaSyAgakNDqcKlyAFiOyfm1ebA8PB-_HKM-go',
+        authDomain:'lourex-invoice.firebaseapp.com',projectId:'lourex-invoice'
+      });
+      const user=await new Promise(resolve=>{
+        let off=()=>{},settled=false;
+        const settle=value=>{if(settled)return;settled=true;clearTimeout(timer);off();resolve(value);};
+        const timer=setTimeout(()=>settle(null),6500);
+        off=fb.auth().onAuthStateChanged(settle,()=>settle(null));
+      });
+      if(!user||typeof user.getIdToken!=='function')return false;
+      const token=await user.getIdToken();
+      const response=await fetch('/api/admin-diagnostics-access',{
+        method:'POST',cache:'no-store',
+        headers:{'Authorization':'Bearer '+token,'X-Requested-With':'LOUREX-Invoice'},
+        signal:AbortSignal.timeout(7000)
+      });
+      return response.ok&&(await response.json())?.allowed===true;
+    }catch{return false;}
+  }
+  void (async()=>{
+    if(!await ownerPermission()){
+      const gate=document.getElementById('ownerGate');
+      if(gate)gate.textContent='Administrator-only diagnostics. Return to LOUREX. / التشخيص متاح للمسؤول المصرّح له فقط.';
+      return;
+    }
+    document.getElementById('ownerGate')?.remove();
+    const main=document.querySelector('main');
+    if(main)main.hidden=false;
+
   // Health has the same strict script-src CSP as the workspace. Apply persisted
   // presentation preference from this external script, never inline HTML.
   function applyDiagnosticTheme(){
@@ -209,4 +245,6 @@
   });
   renderDiagnostics();
   void run().finally(()=>clearTimeout(deadline));
+
+  })();
 })();
