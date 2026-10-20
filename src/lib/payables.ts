@@ -31,9 +31,9 @@ function paymentKnownOnOrBefore(payment:SupplierPaymentRecord,asOf:string):boole
   if(payment.date>asOf)return false;
   // The void changes the current balance but not the history before it.
   if(payment.voidedAt){const voidDay=payment.voidedAt.slice(0,10);if(!isIsoDate(voidDay)||voidDay<=asOf)return false;}
-  // Backdated payment entered later must not rewrite a previously closed report.
-  const createdDate=payment.createdAt?.slice(0,10)||'';
-  return !createdDate||(isIsoDate(createdDate)&&createdDate<=asOf);
+  // Approved settlement policy: transaction date drives recomputed balances.
+  // createdAt remains audit metadata; this view is not a closed-period snapshot.
+  return true;
 }
 export function postedOnOrBefore(purchase:PurchaseRecord,asOf:string):boolean{
   if(purchase.status!=='posted'&&purchase.status!=='reversed')return false;

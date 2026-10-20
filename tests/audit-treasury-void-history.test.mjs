@@ -33,13 +33,13 @@ test('historical treasury keeps a subsequently voided linked supplier payment on
   assert.equal(treasuryProjection([],[supplierPayment],[],[treasuryEntry],[]).length,0);
 });
 
-test('unallocated supplier payments remain visible before void and not after, with entered-later exclusion',()=>{
+test('unallocated supplier payments follow transaction date before void and remain excluded after void',()=>{
   const before=treasuryProjection([],[supplierPayment],[],[],[],'USD','2026-10-09');
   assert.equal(before.length,1);
   assert.equal(before[0].key,'supplier-payment:supplier-payment-history');
   assert.equal(treasuryProjection([],[supplierPayment],[],[],[],'USD','2026-10-21').length,0);
   const later={...supplierPayment,id:'late-entered',date:'2026-10-02',createdAt:'2026-10-17T10:00:00.000Z',voidedAt:''};
-  assert.equal(treasuryProjection([],[later],[],[],[],'USD','2026-10-09').length,0);
+  assert.equal(treasuryProjection([],[later],[],[],[],'USD','2026-10-09').length,1);
 });
 
 test('historical treasury filters later collections and later-entered expenses',()=>{

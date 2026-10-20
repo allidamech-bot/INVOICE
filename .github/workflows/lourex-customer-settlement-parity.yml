@@ -53,7 +53,7 @@ jobs:
       - name: Production build without deployment
         run: npm run build
       - name: Approved settlement transaction-date policy
-        run: node --test tests/settlement-transaction-date-policy.test.mjs
+        run: node --test tests/settlement-transaction-date-policy.test.mjs tests/audit-supplier-payables-asof.test.mjs tests/audit-treasury-void-history.test.mjs
       - name: Saved quotation to fully collected invoice
         run: node --test tests/sales-collection-saved-cycle.test.mjs
       - name: Saved purchase, supplier settlement and reversal
