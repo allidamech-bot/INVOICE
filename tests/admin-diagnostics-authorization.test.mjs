@@ -4,9 +4,9 @@ import {readFileSync} from 'node:fs';
 import {diagnosticsOwnerUidAllowed} from '../api/_ai/admin-diagnostics-auth.js';
 const src=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('owner-only diagnostics fail closed for every other Firebase UID',()=>{
- const uid='synthetic-owner-uid-0123456789';
+ const uid='SyntheticOwnerUid012345678901';
  assert.equal(diagnosticsOwnerUidAllowed(uid,uid),true);
- assert.equal(diagnosticsOwnerUidAllowed('synthetic-other-uid-0123456789',uid),false);
+ assert.equal(diagnosticsOwnerUidAllowed('SyntheticOtherUid012345678901',uid),false);
  assert.equal(diagnosticsOwnerUidAllowed(uid,''),false);
  assert.equal(diagnosticsOwnerUidAllowed(uid,undefined),false);
  assert.equal(diagnosticsOwnerUidAllowed('owner','owner'),false);
