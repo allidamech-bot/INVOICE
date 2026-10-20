@@ -960,6 +960,36 @@ function guardNewTreasuryReconciliationEvents(
   }
 }
 
+// New reconcile/Undo events may only target a financial movement in the
+// same company and branch. The UI works with a scoped vault, but cloud imports
+// and parallel device saves must be checked at the authoritative merge too.
+// Unknown historical/external movement keys retain their existing compatibility;
+// only the source of a NEW event that resolves to real stored data is checked.
+function guardNewTreasuryReconciliationSourceScope(
+  base:VaultPayload['treasuryReconciliations'],
+  candidate:VaultPayload['treasuryReconciliations'],
+  entries:VaultPayload['treasuryEntries'],
+  payments:PaymentRecord[],
+  supplierPayments:SupplierPaymentRecord[],
+  expenses:ExpenseRecord[]
+):void{
+  if(candidate===base)return;
+  const existing=new Set(base.map(row=>row.id));
+  const sourceScopes=new Map<string,{workspaceId?:string;branchId?:string}>();
+  for(const row of entries)sourceScopes.set('treasury:'+row.id,row);
+  for(const row of payments)sourceScopes.set('collection:'+row.id,row);
+  for(const row of supplierPayments)sourceScopes.set('supplier-payment:'+row.id,row);
+  for(const row of expenses)sourceScopes.set('expense:'+row.id,row);
+  for(const row of candidate){
+    if(existing.has(row.id))continue; // Never migrate prior audit history.
+    const source=sourceScopes.get(row.movementKey);
+    if(!source)continue;
+    if((row.workspaceId||'default')!==(source.workspaceId||'default')||
+       (row.branchId||'main')!==(source.branchId||'main'))
+      throw new Error('Treasury reconciliation company or branch differs from its financial movement.');
+  }
+}
+
 // Treasury movements are an audit ledger, not mutable form records. The Cash &
 // Bank screen corrects an entry by voiding it, preserving its original details.
 // Enforce that same contract for direct, offline and concurrently merged writes.
@@ -1251,6 +1281,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // Check against the final merged history so a concurrently appended expense
   // also protects its supplier from deletion by a stale device.
   guardSupplierLinkedHistoryDeletion(base.suppliers,suppliers,expenses,supplierPayments);
+  guardNewTreasuryReconciliationSourceScope(base.treasuryReconciliations,intended.treasuryReconciliations,treasuryEntries,payments,supplierPayments,expenses);
+  guardNewTreasuryReconciliationSourceScope(base.treasuryReconciliations,latest.treasuryReconciliations,treasuryEntries,payments,supplierPayments,expenses);
   guardAllocatedPaymentChanges(base.payments,intended.payments,treasuryEntries,'customer-payment','Customer payment');
   // Apply the same live bank-allocation barrier to the remote side of a stale-device merge.
   // Unallocated customer receipts retain the existing edit/delete workflow.
