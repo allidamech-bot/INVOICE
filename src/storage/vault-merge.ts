@@ -1040,6 +1040,42 @@ function guardNewTreasuryVoidMetadata(
   }
 }
 
+// A remote device may post and void a linked cash movement before syncing.
+// Such a new already-voided entry is historical as-of cash: cancellation
+// metadata alone cannot prove that its original receipt/payment ever existed.
+// Verify the same canonical source amount, currency and company/branch as
+// fresh active allocations, without reopening or rewriting recorded history.
+function guardNewVoidedTreasuryPaymentSources(
+  base:VaultPayload['treasuryEntries'],candidate:VaultPayload['treasuryEntries'],
+  payments:PaymentRecord[],supplierPayments:SupplierPaymentRecord[],
+  documents:LourexDocument[],purchases:PurchaseRecord[]
+):void{
+  if(candidate===base)return;
+  const storedIds=new Set(base.map(entry=>entry.id));
+  const invoicesById=new Map(documents.map(document=>[document.id,document]));
+  const purchasesById=new Map(purchases.map(purchase=>[purchase.id,purchase]));
+  for(const entry of candidate){
+    if(storedIds.has(entry.id)||!entry.voidedAt||entry.sourceType==='manual')continue;
+    const source=entry.sourceType==='customer-payment'
+      ?payments.find(row=>row.id===entry.sourceId)
+      :supplierPayments.find(row=>row.id===entry.sourceId);
+    if(!source)throw new Error('Voided treasury linked payment source is missing.');
+    const sameScope=(row:{workspaceId?:string;branchId?:string})=>
+      (row.workspaceId||'default')===entry.workspaceId&&
+      (row.branchId||'main')===entry.branchId;
+    if(!sameScope(source)||!isNonNegativeDecimalInput(source.amount)||
+       decimalToScaled(source.amount,2)<=0n||
+       text(source.currency).trim().toUpperCase()!==text(entry.currency).trim().toUpperCase()||
+       decimalToScaled(source.amount,2)!==decimalToScaled(entry.amount,2))
+      throw new Error('Voided treasury linked payment amount, currency or scope differs from the original payment.');
+    const document=entry.sourceType==='customer-payment'
+      ?invoicesById.get((source as PaymentRecord).invoiceId)
+      :purchasesById.get((source as SupplierPaymentRecord).purchaseId);
+    if(!document||!sameScope(document))
+      throw new Error('Voided treasury linked payment purchase or invoice is unavailable in its company and branch.');
+  }
+}
+
 function guardTreasuryEntryHistory(
   base:VaultPayload['treasuryEntries'],
   intended:VaultPayload['treasuryEntries'],
@@ -1343,6 +1379,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardFinancialSettlementChanges(base,latest,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems,warehouses);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
+  guardNewVoidedTreasuryPaymentSources(base.treasuryEntries,intended.treasuryEntries,payments,supplierPayments,documents,purchases);
+  guardNewVoidedTreasuryPaymentSources(base.treasuryEntries,latest.treasuryEntries,payments,supplierPayments,documents,purchases);
   // All newly posted active treasury entries share the same cash/bank authority
   // as the UI, including manual deposits, withdrawals and transfers. This keeps
   // account activity, workspace and reconciliation checks at the save boundary.
