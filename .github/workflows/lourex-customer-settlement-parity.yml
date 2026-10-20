@@ -47,6 +47,7 @@ jobs:
           node --test --test-concurrency=2 \
             tests/ai-business-consistency-v450.test.mjs \
             tests/receivables-v133.test.mjs \
+            tests/audit-customer-receipt-scope-integrity.test.mjs \
             tests/accounting-chronology-v258.test.mjs \
             tests/financial-validation.test.mjs \
             tests/ai-operational-customer-collection.test.mjs \
