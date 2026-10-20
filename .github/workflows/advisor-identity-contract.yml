@@ -1,0 +1,30 @@
+name: Advisor identity contract
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/ai-composer-v449.test.mjs'
+      - 'public/ai-composer-v449.css'
+      - '.github/workflows/advisor-identity-contract.yml'
+permissions:
+  contents: read
+concurrency:
+  group: advisor-identity-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  focused-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Advisor contract including negative controls
+        run: node --test tests/ai-composer-v449.test.mjs
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Production build without deployment
+        run: npm run build
