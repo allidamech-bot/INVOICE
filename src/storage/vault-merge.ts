@@ -518,11 +518,14 @@ function guardNewWarehouseTransfers(base:VaultPayload,intended:VaultPayload,late
     const branchId=movement.branchId||latest.appSettings.activeBranchId||'main';
     const item=savedItems.find(record=>record.id===movement.itemId);
     if(!item)throw new Error('Warehouse transfer product is unavailable.');
-    if((item.workspaceId||'default')!==workspaceId)
+    if(item.workspaceId&&item.workspaceId!==workspaceId)
       throw new Error('Warehouse transfer item belongs to another company.');
     for(const locationId of [movement.fromWarehouseId,movement.toWarehouseId]){
-      if(!warehouses.some(row=>row.id===locationId&&row.workspaceId===workspaceId&&row.branchId===branchId&&row.active))
+      if(warehouses.some(row=>row.id===locationId&&row.workspaceId===workspaceId&&row.branchId===branchId&&row.active))continue;
+      const location=warehouses.find(row=>row.id===locationId);
+      if(location?.active&&(location.workspaceId!==workspaceId||location.branchId!==branchId))
         throw new Error('Warehouse transfer company or branch does not match its source and destination warehouses.');
+      throw new Error('Warehouse transfer location is no longer active.');
     }
   }
 }
