@@ -98,9 +98,9 @@ export function financialDocuments(documents:LourexDocument[]):LourexDocument[]{
   for(const invoice of invoices)for(const credit of accountedInvoiceCreditNotes(invoice,documents))accountedCredits.add(credit.id);
   return documents.filter(doc=>doc.kind==='invoice'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(doc.role!=='credit-note'||accountedCredits.has(doc.id)));
 }
-function financialPayments(documents:LourexDocument[],payments:PaymentRecord[]):PaymentRecord[]{
+function financialPayments(documents:LourexDocument[],payments:PaymentRecord[],asOf=''):PaymentRecord[]{
   const result:PaymentRecord[]=[];
-  for(const invoice of standardInvoices(documents))result.push(...accountedInvoicePayments(invoice,payments));
+  for(const invoice of standardInvoices(documents))result.push(...accountedInvoicePayments(invoice,payments,asOf));
   return result;
 }
 function reportCustomerId(doc:LourexDocument,documents:LourexDocument[]):string{if(doc.role==='credit-note'){const source=documents.find(item=>item.id===doc.creditForId);if(source)return receivableCustomerId(source);}return receivableCustomerId(doc);}
@@ -121,7 +121,7 @@ function addDocument(row:Aggregate,doc:LourexDocument):void{
 }
 
 function asOfDocuments(documents:LourexDocument[],to:string):LourexDocument[]{return financialDocuments(documents).filter(doc=>isIsoDate(doc.issueDate)&&doc.issueDate<=to);}
-function asOfPayments(documents:LourexDocument[],payments:PaymentRecord[],to:string):PaymentRecord[]{return financialPayments(documents,payments).filter(payment=>isIsoDate(payment.date)&&payment.date<=to);}
+function asOfPayments(documents:LourexDocument[],payments:PaymentRecord[],to:string):PaymentRecord[]{return financialPayments(documents,payments,to);}
 
 export function financialReportByCurrency(documents:LourexDocument[],payments:PaymentRecord[],from='',to=todayIso()):FinancialReportCurrency[]{
   const period=normalizeReportPeriod(from,to);
@@ -132,7 +132,7 @@ export function financialReportByCurrency(documents:LourexDocument[],payments:Pa
     if(!reportDateInRange(doc.issueDate,period.from,period.to))continue;
     addDocument(get(doc.currency),doc);
   }
-  for(const payment of financialPayments(documents,payments)){
+  for(const payment of financialPayments(documents,payments,period.to)){
     if(!reportDateInRange(payment.date,period.from,period.to))continue;
     const row=get(payment.currency);row.collected+=decimalToScaled(payment.amount,2);row.payments+=1;
   }
@@ -182,7 +182,7 @@ export function customerPerformanceReport(customers:Customer[],documents:LourexD
     if(!reportDateInRange(doc.issueDate,period.from,period.to))continue;
     addDocument(get(reportCustomerId(doc,documents),doc.currency,reportCustomerName(doc,documents)),doc);
   }
-  for(const payment of financialPayments(documents,payments)){
+  for(const payment of financialPayments(documents,payments,period.to)){
     if(!reportDateInRange(payment.date,period.from,period.to))continue;
     const invoice=documents.find(doc=>doc.id===payment.invoiceId);
     const id=invoice?receivableCustomerId(invoice):payment.customerId;
@@ -231,7 +231,7 @@ export function monthlyPerformanceReport(documents:LourexDocument[],payments:Pay
     if(!reportDateInRange(doc.issueDate,period.from,period.to))continue;
     addDocument(get(doc.issueDate.slice(0,7),doc.currency),doc);
   }
-  for(const payment of financialPayments(documents,payments)){
+  for(const payment of financialPayments(documents,payments,period.to)){
     if(!reportDateInRange(payment.date,period.from,period.to))continue;
     const aggregate=get(payment.date.slice(0,7),payment.currency);aggregate.collected+=decimalToScaled(payment.amount,2);aggregate.payments+=1;
   }
