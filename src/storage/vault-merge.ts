@@ -114,13 +114,8 @@ function financialInvoiceIds(base:VaultPayload,intended:VaultPayload):Set<string
   }
   return ids;
 }
-function guardFinancialSettlementChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,documents:LourexDocument[],payments:VaultPayload['payments']):void{
+function guardFinancialSettlementChanges(base:VaultPayload,intended:VaultPayload,documents:LourexDocument[],payments:VaultPayload['payments']):void{
   const affected=financialInvoiceIds(base,intended);
-  // The remote side may remove or rewrite a final invoice or payment while the
-  // local intent edits an unrelated domain. Audit both sides against the base.
-  // sameRecord above avoids strict revalidation of untouched legacy finals
-  // merely because cloud JSON was deserialized into new objects.
-  for(const id of financialInvoiceIds(base,latest))affected.add(id);
   if(!affected.size)return;
   for(const invoiceId of affected){
     const invoice=documents.find(document=>document.id===invoiceId&&document.kind==='invoice'&&document.role!=='credit-note');
@@ -777,7 +772,11 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   for(const entry of treasuryEntries)if(!entry.voidedAt&&entry.sourceType==='supplier-payment'&&supplierPayments.some(payment=>payment.id===entry.sourceId&&payment.voidedAt))throw new Error('Active cash/bank entry references a voided supplier payment. Void the treasury entry first.');
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems,inventoryMovements);
-  guardFinancialSettlementChanges(base,intended,latest,documents,payments);
+  guardFinancialSettlementChanges(base,intended,documents,payments);
+  // A remote paid-invoice deletion, void or monetary rewrite must pass the same
+  // invariant before an unrelated local edit can accept it. Deep record equality
+  // in financialInvoiceIds skips unchanged deserialized legacy records.
+  guardFinancialSettlementChanges(base,latest,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   // All newly posted active treasury entries share the same cash/bank authority
