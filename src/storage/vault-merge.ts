@@ -497,6 +497,30 @@ function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],m
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Purchase inventory unit cost must be zero or greater.');
   }
 }
+// A final document may become an editable draft only after the *same write*
+// preserves its exact preceding issued version. Historical snapshots are not
+// recreated or normalized: only a new final -> revision-draft transition is
+// checked on each side of the offline/cloud merge.
+function guardFinalDocumentRevisionOpening(base:VaultPayload,candidate:VaultPayload):void{
+  if(candidate.documents===base.documents)return;
+  const originalById=new Map(base.documents.map(doc=>[doc.id,doc]));
+  const storedRevisionIds=new Set(base.documentRevisions.map(record=>record.id));
+  for(const draft of candidate.documents){
+    const original=originalById.get(draft.id);
+    if(!original||original.status!=='final'||draft.status!=='draft')continue;
+    if(draft.lifecycleStatus!=='active'||draft.revision!==documentRevision(original)+1)
+      throw new Error('Final document revision number must advance exactly once.');
+    const snapshots=candidate.documentRevisions.filter(record=>
+      !storedRevisionIds.has(record.id)&&record.documentId===original.id&&
+      record.documentNumber===original.number&&record.revision===documentRevision(original));
+    const valid=snapshots.some(record=>{
+      const {attachments:originalFiles,...issued}=original;
+      const {attachments:snapshotFiles,...preserved}=record.snapshot;
+      return sameRecord(issued,preserved);
+    });
+    if(!valid)throw new Error('Final document revision requires a matching original issued snapshot.');
+  }
+}
 // Revision snapshots are the preserved, earlier issued document. Their audit
 // identity and contents must survive local edits AND stale-device cloud merges.
 function guardDocumentRevisionHistory(
@@ -890,6 +914,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // A financial revision is a historical document snapshot, not an editable
   // cached copy. New record IDs cannot collapse, and stored versions never
   // disappear or silently change across independent device edits.
+  guardFinalDocumentRevisionOpening(base,intended);
+  guardFinalDocumentRevisionOpening(base,latest);
   guardDocumentRevisionHistory(base.documentRevisions,intended.documentRevisions,latest.documentRevisions);
   guardNewOperationalRecordIds(base.documentRevisions,intended.documentRevisions,'document revision');
   guardNewOperationalRecordIds(base.documentRevisions,latest.documentRevisions,'document revision');
