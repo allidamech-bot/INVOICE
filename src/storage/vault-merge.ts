@@ -558,7 +558,14 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     // original invoice and immutable issue before it can increase a warehouse.
     if(isSalesReturn(movement)||isSalesReturnCorrection(movement)||isInvoiceVoidStockReceipt(movement))continue;
     if(!inventoryMovementIsManual(movement))throw new Error('Unsupported inventory movement type.');
-    if(!savedItems.some(item=>item.id===movement.itemId&&item.inventoryTracking!=='non-stock'))throw new Error('Inventory movement needs a tracked catalog item.');
+    const catalogItem=savedItems.find(item=>item.id===movement.itemId&&item.inventoryTracking!=='non-stock');
+    if(!catalogItem)throw new Error('Inventory movement needs a tracked catalog item.');
+    // Document-backed stock issues have their own source-invoice and delivery
+    // scope authority. For independent manual movements, prohibit new stock
+    // created for an item owned by another company.
+    if(!isSalesDeliveryStockIssue(movement)&&!isIssuedInvoiceStockIssue(movement)&&
+       (catalogItem.workspaceId||'default')!==(movement.workspaceId||'default'))
+      throw new Error('Manual inventory company does not match its catalog item.');
     if(!isIsoDate(movement.date))throw new Error('Movement date is invalid.');
     const quantity=movementQuantity(movement);
     if(movement.type==='opening'&&quantity<0n)throw new Error('Opening stock cannot be negative.');
@@ -572,6 +579,9 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
       const source=movements.find(item=>item.id===movement.sourceId);
       if(!source||!inventoryMovementIsManual(source))throw new Error('Manual inventory reversal is linked to an invalid source movement.');
       if(isSalesDeliveryStockIssue(source))throw new Error('Confirmed delivery stock issues cannot be reversed as generic manual adjustments.');
+      if((source.workspaceId||'default')!==(movement.workspaceId||'default')||
+         (source.branchId||'main')!==(movement.branchId||'main'))
+        throw new Error('Manual inventory reversal company or branch must match its original movement.');
       if(source.itemId!==movement.itemId||movementQuantity(source)!==-quantity)throw new Error('Manual inventory reversal must exactly offset its source movement.');
       const reversals=movements.filter(item=>item.type==='adjustment'&&item.sourceId===source.id);
       if(reversals.length!==1)throw new Error('This manual inventory movement has already been reversed.');
