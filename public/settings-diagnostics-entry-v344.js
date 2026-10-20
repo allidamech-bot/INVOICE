@@ -5,6 +5,10 @@
   const LEGACY_NAV_BUTTON_ID='lourex-settings-diagnostics-v345';
   const OVERVIEW_ID='lourex-data-center-overview-v472';
   const CARD_ID='lourex-settings-diagnostics-card-v472';
+  const PROVIDER_CARD_ID='lourex-owner-ai-provider-tests-v1';
+  const PROVIDERS=[['groq','Groq'],['cloudflare','Cloudflare'],['gemini','Gemini'],['kilo','Kilo Gateway']];
+  const probeResults=Object.create(null);
+  let probeBusy=false;
   const STYLE_ID='lourex-settings-data-center-style-v472';
   const OBSERVER_ID='lourex-settings-data-center-observer-v472';
   const DIAG_LOG_KEY='lourex-runtime-diagnostics-v340';
@@ -104,11 +108,83 @@
     setText(action,ar?'فتح التشخيص الشامل':'Open full diagnostics');
   };
 
+  const statusCopy=(status,ar)=>({
+    running:ar?'جارٍ الفحص':'Testing',
+    passed:ar?'نجح الاتصال والحساب':'Connection and calculation passed',
+    incorrect_answer:ar?'اتصل، لكن نتيجة الحساب غير صحيحة':'Connected, incorrect arithmetic answer',
+    not_configured:ar?'المفتاح غير مضبوط':'Key not configured',
+    unauthorized:ar?'المفتاح مرفوض':'Credential rejected',
+    payment_required:ar?'يتطلب رصيدًا مدفوعًا — لم نتابع':'Paid balance required — stopped',
+    model_unavailable:ar?'النموذج غير متاح':'Model unavailable',
+    rate_limited:ar?'حد الطلبات مستنفد':'Rate limit reached',
+    timeout:ar?'انتهت المهلة':'Timed out',
+    request_failed:ar?'رفض الطلب':'Request rejected',
+    invalid_provider:ar?'مزوّد غير معروف':'Unknown provider',
+    connection_failed:ar?'فشل الاتصال':'Connection failed'
+  }[status]||(ar?'لم يُختبر':'Not tested'));
+  const refreshProbeCard=()=>{
+    const card=document.getElementById(PROVIDER_CARD_ID);
+    if(!(card instanceof HTMLElement))return;
+    const ar=isArabic();
+    setText(card.querySelector('[data-ai-title]'),ar?'اختبار مزوّدي الذكاء الاصطناعي':'AI provider connectivity tests');
+    setText(card.querySelector('[data-ai-desc]'),ar?'اختبارات يدوية منفصلة باستخدام بيانات حسابية وهمية فقط، دون بيانات العملاء أو تبديل المزوّد تلقائيًا.':'Manual, isolated tests using synthetic arithmetic only. No customer data and no automatic provider fallback.');
+    setText(card.querySelector('[data-ai-warning]'),ar?'تنبيه: قد يحتفظ مزوّدو Kilo المجانيون بمحتوى الطلبات؛ لا ترسل معلومات سرية.':'Warning: Free Kilo backends may retain prompt content; never submit private information.');
+    for(const [id] of PROVIDERS){
+      const row=card.querySelector('[data-ai-provider="'+id+'"]');
+      if(!row)continue;
+      const result=probeResults[id];
+      setText(row.querySelector('[data-ai-result]'),statusCopy(result?.status,ar)+(result?.latencyMs?' · '+result.latencyMs+' ms':''));
+      const button=row.querySelector('button');
+      if(button){button.disabled=probeBusy;setText(button,ar?'اختبار':'Test');}
+    }
+  };
+  const runProbe=async provider=>{
+    if(!ownerDiagnosticsAllowed||probeBusy||!PROVIDERS.some(p=>p[0]===provider))return;
+    probeBusy=true;
+    probeResults[provider]={status:'running'};
+    refreshProbeCard();
+    try{
+      const user=window.firebase?.auth?.().currentUser;
+      if(!user)throw Error('No authenticated account');
+      const uid=user.uid,token=await user.getIdToken();
+      const response=await fetch('/api/ai-core',{
+        method:'POST',cache:'no-store',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice','X-Lourex-Admin-Diagnostics':'provider-probe'},
+        body:JSON.stringify({provider}),signal:AbortSignal.timeout(11000)
+      });
+      if(window.firebase?.auth?.().currentUser?.uid!==uid)return;
+      const result=await response.json();
+      if(response.status===403){ownerDiagnosticsAllowed=false;probeResults[provider]={status:'connection_failed'};refresh();return;}
+      probeResults[provider]=response.ok&&typeof result.status==='string'?
+        {status:result.status,latencyMs:Number(result.latencyMs)||0}:{status:response.status===429?'rate_limited':'request_failed'};
+    }catch{probeResults[provider]={status:'connection_failed'};}
+    finally{probeBusy=false;refreshProbeCard();}
+  };
+  const ensureProbeCard=page=>{
+    let card=document.getElementById(PROVIDER_CARD_ID);
+    if(!(card instanceof HTMLElement)){
+      card=document.createElement('section');
+      card.id=PROVIDER_CARD_ID;card.className='ta-settings-card lourex-ai-provider-diagnostics';
+      card.innerHTML='<header><div><h4 data-ai-title></h4><p data-ai-desc></p></div></header><div class="ta-settings-card-body"><div data-ai-rows></div><p class="lourex-diagnostics-scope" data-ai-warning></p></div>';
+      const rows=card.querySelector('[data-ai-rows]');
+      for(const [id,name] of PROVIDERS){
+        const row=document.createElement('div');row.dataset.aiProvider=id;row.className='lourex-diagnostics-stat';
+        row.style.cssText='display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:9px;padding:12px;border:1px solid var(--ft-line,#303030);border-radius:10px';
+        const label=document.createElement('strong');label.textContent=name;label.style.cssText='flex:1;min-width:90px';
+        const result=document.createElement('small');result.dataset.aiResult='';result.style.cssText='flex:2;min-width:135px';
+        const button=document.createElement('button');button.type='button';button.className='lourex-diagnostics-action';button.addEventListener('click',()=>void runProbe(id));
+        row.append(label,result,button);rows.append(row);
+      }
+    }
+    if(card.parentElement!==page){card.remove();page.append(card);}
+    refreshProbeCard();
+  };
   const ensureDataCenterCards=()=>{
     const page=dataCenterPage();
     if(!(page instanceof HTMLElement)){
       document.getElementById(OVERVIEW_ID)?.remove();
       document.getElementById(CARD_ID)?.remove();
+      document.getElementById(PROVIDER_CARD_ID)?.remove();
       return;
     }
     let overview=document.getElementById(OVERVIEW_ID);
@@ -122,6 +198,7 @@
     }
     if(!ownerDiagnosticsAllowed){
       document.getElementById(CARD_ID)?.remove();
+      document.getElementById(PROVIDER_CARD_ID)?.remove();
       updateOverview(overview);
       return;
     }
@@ -139,6 +216,7 @@
     if(diagnostics.parentElement!==page){diagnostics.remove();if(activity?.parentNode===page)activity.insertAdjacentElement('afterend',diagnostics);else page.append(diagnostics);}
     updateOverview(overview);
     updateDiagnostics(diagnostics);
+    ensureProbeCard(page);
   };
 
   const removeLegacyDiagnosticsNav=()=>document.getElementById(LEGACY_NAV_BUTTON_ID)?.remove();

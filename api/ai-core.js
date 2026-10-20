@@ -1,5 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {diagnosticsOwnerUidAllowed} from './_ai/admin-diagnostics-auth.js';
+import {probeConfiguredProvider} from './_ai/admin-provider-probe.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
 
@@ -121,6 +122,19 @@ export default async function handler(request,response){
       sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
     }
     sendJson(response,200,{allowed:true});return;
+  }
+  if(request.headers['x-lourex-admin-diagnostics']==='provider-probe'){
+    if(!diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID)){
+      sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
+    }
+    if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED'});return;}
+    let payload;try{payload=await readJson(request);}catch{sendJson(response,400,{code:'INVALID_REQUEST'});return;}
+    // Accept only a provider ID. Prompt and model are fixed server-side.
+    if(!payload||typeof payload.provider!=='string'||Object.keys(payload).length!==1){
+      sendJson(response,400,{code:'INVALID_REQUEST'});return;
+    }
+    const result=await probeConfiguredProvider(payload.provider);
+    sendJson(response,200,result);return;
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
