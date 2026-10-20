@@ -1,0 +1,34 @@
+name: Document closing contract
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/document-final-qa-v130.test.mjs'
+      - 'tests/live-document-regressions-v584.test.mjs'
+      - 'tests/live-document-studio-pdf-ux-v583.test.mjs'
+      - 'tests/v329-visual-recovery-contract.test.mjs'
+      - 'tests/v330-critical-documents-closeout.test.mjs'
+      - 'tests/v333-critical-documents-visual-functional-closeout.test.mjs'
+      - '.github/workflows/document-closing-contract.yml'
+permissions:
+  contents: read
+concurrency:
+  group: document-closing-contract-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  focused-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Closing contracts and canonical A4 owner
+        run: node --test tests/document-final-qa-v130.test.mjs tests/live-document-regressions-v584.test.mjs tests/live-document-studio-pdf-ux-v583.test.mjs tests/v329-visual-recovery-contract.test.mjs tests/v330-critical-documents-closeout.test.mjs tests/v333-critical-documents-visual-functional-closeout.test.mjs tests/document-premium-redesign-v141.test.mjs
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Production build without deployment
+        run: npm run build

@@ -82,7 +82,7 @@ const [renderer,canonical,balance,direction,sw]=await Promise.all([
  ]);
  for(const token of ['shouldUseDetailsPage','hardOverflow','lastWeight>allowedLastWeight','data-pagination-ready','getBoundingClientRect'])assert.ok(renderer.includes(token),token);
  assert.match(canonical,/\.doc-body\{[^}]*display:flex;flex:1[^}]*flex-direction:column/);
- assert.match(canonical,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:0;padding-top:7mm/);
+ assert.match(canonical,/\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:auto;padding-top:7mm/);
  assert.match(canonical,/\.bottom-grid\{[^}]*margin-top:5mm[^}]*align-items:start/);
  assert.match(canonical,/\.invoice-page\.lang-ar/);
  assert.match(canonical,/@media print/);

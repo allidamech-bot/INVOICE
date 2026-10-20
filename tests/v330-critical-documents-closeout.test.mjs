@@ -83,7 +83,7 @@ test('v330 printable finish remains data and pagination neutral',async()=>{
 const [gallery,guard,paper]=await Promise.all([read('src/styles/v330-critical-documents-closeout.css'),read('src/styles/v330-template-contrast-guard.css'),read('src/styles/document-premium-redesign-v141.css')]);
  assert.match(paper,/\.invoice-page\.template-obsidian\{--paper:#15191c/);
  assert.match(paper,/\.doc-footer\{/);
- assert.match(paper,/\.final-details\{[^}]*margin-top:0/);
+ assert.match(paper,/\.final-details\{[^}]*margin-top:auto/);
  assert.doesNotMatch(guard,/\.invoice-page\.template-obsidian\{--paper:/);
  assert.doesNotMatch(gallery+guard,/firebase|indexedDB|saveVault|calculateTotals|window\.location/i);
 });
