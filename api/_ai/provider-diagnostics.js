@@ -21,9 +21,11 @@ function settingsFor(provider){
 }
 function payloadFor(provider){
   if(provider==='gemini')return{contents:[{role:'user',parts:[{text:SYNTHETIC_PROMPT}]}],generationConfig:{temperature:0,maxOutputTokens:120}};
-  return{model:MODEL[provider],messages:[{role:'user',content:SYNTHETIC_PROMPT}],temperature:0,
-    ...(provider==='groq'||provider==='cloudflare'?{max_completion_tokens:160}:{max_tokens:120}),
-    ...(provider==='cloudflare'?{options:{rejectIfBusy:true}}:{})};
+  return{model:MODEL[provider],messages:[{role:'user',content:SYNTHETIC_PROMPT}],
+    ...(provider!=='kilo'?{temperature:0}:{}),
+    ...(provider==='groq'?{max_completion_tokens:160,reasoning_effort:'low',include_reasoning:false}:{}),
+    ...(provider==='cloudflare'?{max_completion_tokens:160,options:{rejectIfBusy:true}}:{}),
+    ...(provider==='kilo'?{max_tokens:120}:{})};
 }
 function compactText(root,provider){
   if(provider==='gemini')return root?.candidates?.[0]?.content?.parts?.map(part=>part?.text||'').join('')||'';
