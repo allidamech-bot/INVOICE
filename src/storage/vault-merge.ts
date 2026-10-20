@@ -658,6 +658,20 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     guardNewWarehouseTransfers(base,latest,remotePostingBase,latest.warehouses,savedItems);
     guardNewWarehouseDebits(base,latest,remotePostingBase);
   }
+  // A remote draft or freshly posted service purchase may create a real
+  // supplier payable without any local purchase edit or stock movement.
+  // Validate remote new/changed purchase cost syntax and the authoritative
+  // merged purchase identity/state as strictly as a local write, without
+  // retroactively validating unchanged stored historical purchase amounts.
+  const remotePurchaseById=new Map(latest.purchases.map(purchase=>[purchase.id,purchase]));
+  const basePurchaseById=new Map(base.purchases.map(purchase=>[purchase.id,purchase]));
+  for(const id of purchaseIdsAffected(base,latest)){
+    const remote=remotePurchaseById.get(id);
+    const original=basePurchaseById.get(id);
+    if(remote)guardPurchaseMoneyChanges(original,remote);
+    const merged=purchases.find(purchase=>purchase.id===id);
+    if(merged)guardPurchaseState(merged,purchases,movements,savedItems);
+  }
   for(const id of affectedPurchases){const purchase=purchases.find(item=>item.id===id);for(const line of purchase?.items??[])if(line.savedItemId)touchedItems.add(line.savedItemId);}
   for(const itemId of touchedItems){
     const latestQuantity=inventoryQuantity(itemId,latest.inventoryMovements);
@@ -827,6 +841,7 @@ function guardAllocatedPaymentChanges<T extends {id:string}>(
 
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   guardNewOperationalRecordIds(base.purchases,intended.purchases,'purchase');
+  guardNewOperationalRecordIds(base.purchases,latest.purchases,'purchase');
   guardNewOperationalRecordIds(base.expenses,intended.expenses,'expense');
   guardNewOperationalRecordIds(base.expenses,latest.expenses,'expense');
   // Do not replay two physical transfers/issues only to persist the last same-ID movement.
