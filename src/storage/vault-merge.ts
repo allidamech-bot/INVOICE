@@ -840,6 +840,10 @@ function guardAllocatedPaymentChanges<T extends {id:string}>(
 }
 
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
+  // Saved product IDs also back immutable warehouse movements and invoice
+  // item references: never let fresh same-ID imports collapse their identities.
+  guardNewOperationalRecordIds(base.savedItems,intended.savedItems,'saved item');
+  guardNewOperationalRecordIds(base.savedItems,latest.savedItems,'saved item');
   guardNewOperationalRecordIds(base.purchases,intended.purchases,'purchase');
   guardNewOperationalRecordIds(base.purchases,latest.purchases,'purchase');
   guardNewOperationalRecordIds(base.expenses,intended.expenses,'expense');
@@ -999,6 +1003,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   for(const entry of treasuryEntries)if(!entry.voidedAt&&entry.sourceType==='supplier-payment'&&supplierPayments.some(payment=>payment.id===entry.sourceId&&payment.voidedAt))throw new Error('Active cash/bank entry references a voided supplier payment. Void the treasury entry first.');
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems,inventoryMovements);
+  // Validate external device changes against the same physical unit,
+  // tracking-classification and SKU/cost restrictions as local edits.
+  guardSavedItemChanges(base.savedItems,latest.savedItems,savedItems,inventoryMovements);
   guardFinancialSettlementChanges(base,intended,documents,payments);
   // A remote paid-invoice deletion, void or monetary rewrite must pass the same
   // invariant before an unrelated local edit can accept it. Deep record equality
