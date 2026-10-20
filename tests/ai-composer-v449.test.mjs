@@ -38,11 +38,27 @@ test('v450 plus menu uses restrained semantic color accents instead of one flat 
   assert.match(css,/color-mix\(in srgb,var\(--ai-tone/);
 });
 
-test('v450 advisor identity uses the official LOUREX logo instead of exposing the robot glyph',()=>{
-  assert.match(css,/\.lourex-ai-launcher>svg,#lourex-ai-panel \.lourex-ai-mark>svg\{display:none!important\}/);
-  assert.match(css,/brand\/lourex-logo\.svg/);
-  assert.match(css,/\.lourex-ai-launcher:before/);
-  assert.match(css,/\.lourex-ai-mark:before/);
+// PR #822 introduced the shared companion glyph while retaining the logo fallback.
+function assertAdvisorIdentity(styles){
+  const hidden=styles.match(/([^{}]+)\{display:none!important\}/g)||[];
+  for(const host of ['.lourex-ai-launcher','#lourex-ai-panel .lourex-ai-mark']){
+    assert.ok(hidden.some(rule=>rule.split('{')[0].split(',').map(s=>s.trim()).includes(host+'>svg:not(.lxw-brand-glyph)')),
+      host+': hide legacy glyphs but preserve the companion');
+    const fallback=styles.match(/([^{}]+)\{[^{}]*background:url\("\.\/brand\/lourex-logo\.svg"\)[^{}]*\}/g)||[];
+    assert.ok(fallback.some(rule=>rule.split('{')[0].split(',').map(s=>s.trim()).includes(host+':not(:has(.lxw-brand-glyph)):before')),
+      host+': logo fallback must only appear without a companion');
+    assert.ok(!hidden.some(rule=>rule.split('{')[0].split(',').map(s=>s.trim()).includes(host+'>svg')),
+      host+': must not hide all SVG identities');
+  }
+}
+
+test('advisor identity preserves the shared companion and conditional official-logo fallback',()=>{
+  assertAdvisorIdentity(css);
+});
+
+test('advisor identity contract rejects hiding the companion or duplicating its logo',()=>{
+  assert.throws(()=>assertAdvisorIdentity(css.replaceAll('>svg:not(.lxw-brand-glyph)','>svg')),/hide legacy glyphs/);
+  assert.throws(()=>assertAdvisorIdentity(css.replaceAll(':not(:has(.lxw-brand-glyph)):before',':before')),/logo fallback/);
 });
 
 test('v449 workflow launchers and modal actions are semantic, bilingual and non-positional',()=>{
