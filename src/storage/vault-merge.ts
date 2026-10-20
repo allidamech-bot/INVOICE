@@ -217,6 +217,18 @@ function guardConcurrentRecordChanges<T extends {id:string}>(base:T[],intended:T
     if(current&&!sameRecord(current,wanted))throw new Error(`${label} changed on another device. ${recovery}`);
   }
 }
+// A posted purchase establishes a supplier liability even when all its lines
+// are services and no stock movements exist. Keep the original record after
+// posting or reversal; draft cleanup remains allowed.
+function guardPostedPurchaseContinuity(base:PurchaseRecord[],intended:PurchaseRecord[],latest:PurchaseRecord[]):void{
+  const wanted=new Set(intended.map(row=>row.id));
+  const current=new Set(latest.map(row=>row.id));
+  for(const purchase of base){
+    if(purchase.status==='draft')continue;
+    if(!wanted.has(purchase.id)||!current.has(purchase.id))
+      throw new Error('Posted or reversed purchase history cannot be deleted. Reverse the purchase instead.');
+  }
+}
 function guardDraftPurchaseConflicts(base:PurchaseRecord[],intended:PurchaseRecord[],latest:PurchaseRecord[]):void{
   if(intended===base)return;
   const intendedById=new Map(intended.map(item=>[item.id,item]));
@@ -495,6 +507,7 @@ function guardNewOperationalRecordIds<T extends {id:string}>(base:T[],intended:T
   }
 }
 function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,suppliers:Supplier[],purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[]):void{
+  guardPostedPurchaseContinuity(base.purchases,intended.purchases,latest.purchases);
   guardConcurrentRecordChanges(base.suppliers,intended.suppliers,latest.suppliers,'Supplier');
   guardConcurrentRecordChanges(base.expenses,intended.expenses,latest.expenses,'Expense');
   guardDraftPurchaseConflicts(base.purchases,intended.purchases,latest.purchases);
