@@ -43,11 +43,11 @@ test('live API gate accepts only a signed token belonging to the configured owne
    const signed=head+'.'+payload;
    return signed+'.'+sign('RSA-SHA256',Buffer.from(signed),privateKey).toString('base64url');
  };
- const call=async(auth,origin='https://invoice-three-puce.vercel.app')=>{
+ const call=async(auth,origin='https://invoice-three-puce.vercel.app',diagnosticAction='access-check')=>{
    const req=Readable.from(['{}']);
    req.method='POST';
    req.headers={host:'invoice-three-puce.vercel.app',origin,'x-requested-with':'LOUREX-Invoice',
-     'x-lourex-admin-diagnostics':'access-check',...(auth?{authorization:'Bearer '+auth}:{})};
+     'x-lourex-admin-diagnostics':diagnosticAction,...(auth?{authorization:'Bearer '+auth}:{})};
    const res={statusCode:0,headers:{},body:null,setHeader(k,v){this.headers[k]=v;},
      end(raw){this.body=JSON.parse(String(raw||'{}'));}};
    await core(req,res);return res;
@@ -70,6 +70,11 @@ test('live API gate accepts only a signed token belonging to the configured owne
    assert.equal(authorized.statusCode,200,'correct verified Firebase UID alone grants access');
    assert.deepEqual(authorized.body,{allowed:true});
    assert.equal(authorized.headers['Cache-Control'],'no-store');
+   const deniedProbe=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app','provider-probe');
+   assert.equal(deniedProbe.statusCode,403,'team owners are not diagnostics administrators');
+   const invalidProvider=await call(makeToken(owner,'viewer'),'https://invoice-three-puce.vercel.app','provider-probe');
+   assert.equal(invalidProvider.statusCode,400,'owner may not pick arbitrary provider models');
+   assert.equal(invalidProvider.body?.code,'INVALID_DIAGNOSTIC_PROVIDER');
    const foreignOrigin=await call(makeToken(owner),'https://untrusted.example');
    assert.equal(foreignOrigin.statusCode,403,'even an owner token must respect origin guard');
    process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID='';

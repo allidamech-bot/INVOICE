@@ -1,5 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {diagnosticsOwnerUidAllowed} from './_ai/admin-diagnostics-auth.js';
+import {SYNTHETIC_PROVIDER_IDS,runSyntheticProviderDiagnostic} from './_ai/provider-diagnostics.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
 
@@ -12,6 +13,20 @@ const NAV_TARGETS=['home','documents','customers','receivables','reports','items
 const ALLOWED_CAPABILITIES=['workspace.help','finance.explain','business.explain','pricing.explain','document.review','workspace.navigate','item.archive','item.restore','item.updateMetadata','item.reviewDuplicate','document.createDraft','document.updateDraft'];
 const ACTION_CAPABILITIES=['workspace.navigate','item.archive','item.restore','item.updateMetadata','item.reviewDuplicate','document.createDraft','document.updateDraft'];
 const rateBuckets=new Map();
+const diagnosticRateBuckets=new Map();
+function diagnosticRateAllowed(uid){
+  const now=Date.now();
+  const prior=diagnosticRateBuckets.get(uid);
+  const entry=!prior||now-prior.startedAt>=10*60*1000?{startedAt:now,count:0}:prior;
+  entry.count+=1;diagnosticRateBuckets.set(uid,entry);
+  if(diagnosticRateBuckets.size>100){
+    for(const [id,bucket] of diagnosticRateBuckets){
+      if(now-bucket.startedAt>=10*60*1000)diagnosticRateBuckets.delete(id);
+    }
+  }
+  return entry.count<=8;
+}
+
 
 function sendJson(response,status,payload){response.statusCode=status;response.setHeader('Content-Type','application/json; charset=utf-8');response.setHeader('Cache-Control','no-store');response.setHeader('X-Content-Type-Options','nosniff');response.setHeader('Referrer-Policy','no-referrer');response.end(JSON.stringify(payload));}
 function requestHosts(request){return [request.headers.host,request.headers['x-forwarded-host'],request.headers['x-original-host']].flatMap(value=>String(value||'').split(',')).map(value=>value.trim().toLowerCase()).filter(Boolean);}
@@ -121,6 +136,25 @@ export default async function handler(request,response){
       sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
     }
     sendJson(response,200,{allowed:true});return;
+  }
+  if(request.headers['x-lourex-admin-diagnostics']==='provider-probe'){
+    // Exact signed Firebase UID gate; no role-based access or automatic fallback.
+    if(!diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID)){
+      sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
+    }
+    if(!diagnosticRateAllowed(request.aiVerifiedUid)){
+      response.setHeader('Retry-After','600');
+      sendJson(response,429,{code:'DIAGNOSTIC_RATE_LIMITED'});return;
+    }
+    let requestBody;
+    try{requestBody=await readJson(request);}catch{sendJson(response,400,{code:'INVALID_DIAGNOSTIC_REQUEST'});return;}
+    const provider=requestBody?.provider;
+    if(!SYNTHETIC_PROVIDER_IDS.includes(provider)){
+      sendJson(response,400,{code:'INVALID_DIAGNOSTIC_PROVIDER'});return;
+    }
+    // The client cannot choose a prompt, model, URL, key, business context or tools.
+    const probe=await runSyntheticProviderDiagnostic(provider);
+    sendJson(response,200,probe);return;
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
