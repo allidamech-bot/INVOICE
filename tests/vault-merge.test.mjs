@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyVault } from '../dist/src/lib/defaults.js';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
+import { beginRevisionDraft,createRevisionRecord } from '../dist/src/lib/document-lifecycle.js';
 import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 
 function customer(id,name){const now=new Date().toISOString();return{id,companyNameEn:name,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'',paymentTermPresetId:'',paymentTerms:'',paymentDueDays:'',creditLimit:'',creditCurrency:'',notes:'',createdAt:now,updatedAt:now};}
@@ -163,10 +164,16 @@ test('starting a new revision intentionally can still move a current final docum
   const base=emptyVault();
   const finalDoc={...createBlankDocument('invoice','INV-2026-0102',base.company),status:'final',revision:1};
   base.documents=[finalDoc];
-  const revisionDraft={...finalDoc,status:'draft',revision:2,updatedAt:'2026-09-05T15:02:00.000Z'};
-  const merged=mergeVaultIntent(base,{...base,documents:[revisionDraft]},base);
+  // Reproduce the actual supported revision workflow: protect the previous
+  // issued version before a final document becomes a higher revision draft.
+  const revisionDraft=beginRevisionDraft(finalDoc);
+  const snapshot=createRevisionRecord(finalDoc);
+  const merged=mergeVaultIntent(base,{...base,documents:[revisionDraft],
+    documentRevisions:[...base.documentRevisions,snapshot]},base);
   assert.equal(merged.documents[0].status,'draft');
   assert.equal(merged.documents[0].revision,2);
+  assert.equal(merged.documentRevisions[0].snapshot.status,'final');
+  assert.equal(merged.documentRevisions[0].snapshot.id,finalDoc.id);
 });
 
 test('a stale delete cannot remove a document that became final concurrently',()=>{
