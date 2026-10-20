@@ -613,6 +613,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   guardConcurrentRecordChanges(base.expenses,intended.expenses,latest.expenses,'Expense');
   guardDraftPurchaseConflicts(base.purchases,intended.purchases,latest.purchases);
   guardSupplierChanges(base.suppliers,intended.suppliers);
+  guardSupplierChanges(base.suppliers,latest.suppliers);
   guardExpenseChanges(base.expenses,intended.expenses);
   // A remotely added/edited expense is real spend even when the local save
   // only changes a supplier. Validate both sides with the same amount rules.
@@ -842,6 +843,12 @@ function guardAllocatedPaymentChanges<T extends {id:string}>(
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   // Saved product IDs also back immutable warehouse movements and invoice
   // item references: never let fresh same-ID imports collapse their identities.
+  // Customer and supplier IDs are long-lived foreign keys for commercial
+  // documents and settlements. Never let fresh same-ID records collapse.
+  guardNewOperationalRecordIds(base.customers,intended.customers,'customer');
+  guardNewOperationalRecordIds(base.customers,latest.customers,'customer');
+  guardNewOperationalRecordIds(base.suppliers,intended.suppliers,'supplier');
+  guardNewOperationalRecordIds(base.suppliers,latest.suppliers,'supplier');
   guardNewOperationalRecordIds(base.savedItems,intended.savedItems,'saved item');
   guardNewOperationalRecordIds(base.savedItems,latest.savedItems,'saved item');
   guardNewOperationalRecordIds(base.purchases,intended.purchases,'purchase');
@@ -1002,6 +1009,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardAllocatedPaymentChanges(base.supplierPayments,intended.supplierPayments,treasuryEntries,'supplier-payment','Supplier payment');
   for(const entry of treasuryEntries)if(!entry.voidedAt&&entry.sourceType==='supplier-payment'&&supplierPayments.some(payment=>payment.id===entry.sourceId&&payment.voidedAt))throw new Error('Active cash/bank entry references a voided supplier payment. Void the treasury entry first.');
   guardCustomerChanges(base.customers,intended.customers,customers);
+  // Cloud-side edits are subject to the same name, email and credit control
+  // authority; previously stored unchanged legacy fields remain untouched.
+  guardCustomerChanges(base.customers,latest.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems,inventoryMovements);
   // Validate external device changes against the same physical unit,
   // tracking-classification and SKU/cost restrictions as local edits.
