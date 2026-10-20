@@ -86,7 +86,7 @@ function financialInvoiceIds(base:VaultPayload,intended:VaultPayload):Set<string
     const intendedById=new Map(intended.payments.map(payment=>[payment.id,payment]));
     for(const payment of intended.payments){
       const before=baseById.get(payment.id);
-      if(before===payment)continue;
+      if(before&&sameRecord(before,payment))continue;
       if(payment.invoiceId)ids.add(payment.invoiceId);
       if(before?.invoiceId&&before.invoiceId!==payment.invoiceId)ids.add(before.invoiceId);
     }
@@ -97,7 +97,7 @@ function financialInvoiceIds(base:VaultPayload,intended:VaultPayload):Set<string
     const intendedById=new Map(intended.documents.map(document=>[document.id,document]));
     for(const document of intended.documents){
       const before=baseById.get(document.id);
-      if(before===document)continue;
+      if(before&&sameRecord(before,document))continue;
       for(const candidate of [before,document]){
         if(!candidate)continue;
         if(candidate.role==='credit-note'){
@@ -773,6 +773,10 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems,inventoryMovements);
   guardFinancialSettlementChanges(base,intended,documents,payments);
+  // A remote paid-invoice deletion, void or monetary rewrite must pass the same
+  // invariant before an unrelated local edit can accept it. Deep record equality
+  // in financialInvoiceIds skips unchanged deserialized legacy records.
+  guardFinancialSettlementChanges(base,latest,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   // All newly posted active treasury entries share the same cash/bank authority
