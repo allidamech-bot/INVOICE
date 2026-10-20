@@ -72,7 +72,7 @@ export function normalizePaymentRecord(invoice:LourexDocument,payments:PaymentRe
   const collectibleCents=totalCents>creditCents?totalCents-creditCents:0n;
   if(otherCents+amountCents>collectibleCents)throw new Error('Payment cannot exceed the remaining invoice balance after credit notes.');
   const now=new Date().toISOString();const existing=payments.find(payment=>payment.id===source.id);
-  return{...source,invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:invoice.customerSnapshot?.sourceCustomerId||'',customerNameEn:invoice.customerSnapshot?.companyNameEn||'',customerNameAr:invoice.customerSnapshot?.companyNameAr||'',currency:invoice.currency,amount:centsString(amountCents),method:METHODS.has(source.method)?source.method:'other',reference:(source.reference||'').trim(),notes:(source.notes||'').trim(),createdAt:existing?.createdAt||source.createdAt||now,updatedAt:now};
+  return{...source,workspaceId:source.workspaceId||invoice.workspaceId||'default',branchId:source.branchId||invoice.branchId||'main',invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:invoice.customerSnapshot?.sourceCustomerId||'',customerNameEn:invoice.customerSnapshot?.companyNameEn||'',customerNameAr:invoice.customerSnapshot?.companyNameAr||'',currency:invoice.currency,amount:centsString(amountCents),method:METHODS.has(source.method)?source.method:'other',reference:(source.reference||'').trim(),notes:(source.notes||'').trim(),createdAt:existing?.createdAt||source.createdAt||now,updatedAt:now};
 }
 export function assertInvoicePaymentInvariant(invoice:LourexDocument,payments:PaymentRecord[],documents:LourexDocument[]=[]):void{
   const linked=payments.filter(payment=>payment.invoiceId===invoice.id);
