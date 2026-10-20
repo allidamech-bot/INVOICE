@@ -497,6 +497,36 @@ function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],m
     if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Purchase inventory unit cost must be zero or greater.');
   }
 }
+// Once a customer invoice is issued it represents a financial claim, even
+// before any receipt is collected. Neither side of an offline merge may delete
+// that claim or rewrite its commercial facts while keeping status=final.
+// Deliberate final->draft revision uses the separate protected snapshot path;
+// purely visual metadata and the explicit void transition remain supported.
+function issuedInvoiceFinancialFacts(doc:LourexDocument):unknown{
+  return{
+    id:doc.id,kind:doc.kind,role:doc.role,number:doc.number,
+    issueDate:doc.issueDate,dueDate:doc.dueDate,currency:doc.currency,
+    customerSnapshot:doc.customerSnapshot,supplierSnapshot:doc.supplierSnapshot,
+    companySnapshot:doc.companySnapshot,
+    items:doc.items,adjustments:doc.adjustments,internalCosts:doc.internalCosts,
+    terms:doc.terms,creditForId:doc.creditForId,creditForNumber:doc.creditForNumber,
+    convertedFromId:doc.convertedFromId,bankAccountId:doc.bankAccountId,
+    paymentTermPresetId:doc.paymentTermPresetId
+  };
+}
+function guardIssuedInvoiceContinuity(base:VaultPayload,candidate:VaultPayload):void{
+  if(candidate.documents===base.documents)return;
+  const byId=new Map(candidate.documents.map(doc=>[doc.id,doc]));
+  for(const original of base.documents){
+    if(original.kind!=='invoice'||original.status!=='final')continue;
+    const next=byId.get(original.id);
+    if(!next)throw new Error('Issued invoice history cannot be deleted. Void the invoice instead.');
+    // Only the audited revision workflow may turn an issued final into a draft.
+    if(next.status==='draft')continue;
+    if(!sameRecord(issuedInvoiceFinancialFacts(original),issuedInvoiceFinancialFacts(next)))
+      throw new Error('Issued invoice financial terms are immutable. Use a documented revision.');
+  }
+}
 // A final document may become an editable draft only after the *same write*
 // preserves its exact preceding issued version. Historical snapshots are not
 // recreated or normalized: only a new final -> revision-draft transition is
@@ -914,6 +944,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // A financial revision is a historical document snapshot, not an editable
   // cached copy. New record IDs cannot collapse, and stored versions never
   // disappear or silently change across independent device edits.
+  guardIssuedInvoiceContinuity(base,intended);
+  guardIssuedInvoiceContinuity(base,latest);
   guardFinalDocumentRevisionOpening(base,intended);
   guardFinalDocumentRevisionOpening(base,latest);
   guardDocumentRevisionHistory(base.documentRevisions,intended.documentRevisions,latest.documentRevisions);
