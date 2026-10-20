@@ -12,6 +12,7 @@ on:
       - 'src/storage/vault-merge.ts'
       - 'tests/audit-supplier-payment-void-merge.test.mjs'
       - 'tests/treasury-accounts-hardening-v474.test.mjs'
+      - 'tests/audit-treasury-reconciliation-source-scope.test.mjs'
       - 'tests/ai-business-consistency-v450.test.mjs'
       - 'tests/financial-validation.test.mjs'
       - '.github/workflows/lourex-customer-settlement-parity.yml'
@@ -57,4 +58,5 @@ jobs:
             tests/audit-supplier-payment-void-merge.test.mjs \
             tests/audit-supplier-payables-asof.test.mjs \
             tests/accounts-payable-batch9.test.mjs \
-            tests/treasury-accounts-hardening-v474.test.mjs
+            tests/treasury-accounts-hardening-v474.test.mjs \
+            tests/audit-treasury-reconciliation-source-scope.test.mjs
