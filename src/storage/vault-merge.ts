@@ -888,6 +888,25 @@ function guardSupplierPaymentHistory(base:SupplierPaymentRecord[],candidate:Supp
   }
 }
 
+// A supplier settlement must remain in the branch that owns its posted
+// purchase. Check fresh imports and remote receipts before they are merged;
+// historical settled rows retain their original scope and audit spelling.
+function guardNewSupplierPaymentScope(
+  base:SupplierPaymentRecord[],candidate:SupplierPaymentRecord[],purchases:PurchaseRecord[]
+):void{
+  if(candidate===base)return;
+  const historicalIds=new Set(base.map(payment=>payment.id));
+  const purchasesById=new Map(purchases.map(purchase=>[purchase.id,purchase]));
+  for(const payment of candidate){
+    if(historicalIds.has(payment.id))continue;
+    const purchase=purchasesById.get(payment.purchaseId);
+    if(!purchase)continue; // The existing payable invariant rejects missing purchases.
+    if((payment.workspaceId||'default')!==(purchase.workspaceId||'default')||
+       (payment.branchId||'main')!==(purchase.branchId||'main'))
+      throw new Error('Supplier payment must belong to the same company and branch as its purchase.');
+  }
+}
+
 function guardAllocatedPaymentChanges<T extends {id:string}>(
   base:T[],intended:T[],entries:VaultPayload['treasuryEntries'],
   sourceType:'customer-payment'|'supplier-payment',label:string
@@ -1071,6 +1090,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardSupplierPaymentHistory(base.supplierPayments,latest.supplierPayments);
   guardConcurrentRecordChanges(base.supplierPayments,intended.supplierPayments,latest.supplierPayments,'Supplier payment','Reopen Supplier Payables before saving or deleting the payment.');
   const supplierPayments=mergeRecords(base.supplierPayments,intended.supplierPayments,latest.supplierPayments);
+  guardNewSupplierPaymentScope(base.supplierPayments,intended.supplierPayments,purchases);
+  guardNewSupplierPaymentScope(base.supplierPayments,latest.supplierPayments,purchases);
   // Check against the final merged history so a concurrently appended expense
   // also protects its supplier from deletion by a stale device.
   guardSupplierLinkedHistoryDeletion(base.suppliers,suppliers,expenses,supplierPayments);
