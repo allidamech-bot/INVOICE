@@ -222,7 +222,9 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
   // service worker can still leave their responses inside a same-name PWA cache.
   // Retire those two assets only; never touch IndexedDB, account data or AI keys.
   const current=await caches.open(CACHE);
-  await Promise.allSettled(['./src/app/AuthScreenSelector.js','./src/components/AuthScreens.js','./health.html','./health.js'].map(asset=>current.delete(asset)));
+  await Promise.allSettled(['./src/app/AuthScreenSelector.js','./src/components/AuthScreens.js'].map(asset=>current.delete(asset)));
+  // Purge previously public offline diagnostic viewers as a separate security cleanup.
+  await Promise.allSettled(['./health.html','./health.js'].map(asset=>current.delete(asset)));
   await self.clients.claim();
 })()));
 self.addEventListener('fetch',event=>{
