@@ -621,6 +621,32 @@ function guardTreasuryEntryHistory(
 // A payment already allocated to an active cash/bank entry cannot be edited or
 // deleted independently. Void/correct its treasury allocation first, preserving
 // the financial audit trail and preventing orphaned source references.
+// Supplier settlement history is append-only on BOTH sides of an offline merge.
+// A recorded payment can only transition to a one-time, reasoned cancellation;
+// neither device may silently erase or rewrite the prior money and source links.
+function guardSupplierPaymentHistory(base:SupplierPaymentRecord[],candidate:SupplierPaymentRecord[]):void{
+  if(candidate===base)return;
+  const byId=new Map(candidate.map(row=>[row.id,row]));
+  const immutable=(payment:SupplierPaymentRecord)=>({
+    id:payment.id,purchaseId:payment.purchaseId,purchaseNumber:payment.purchaseNumber,
+    supplierId:payment.supplierId,supplierNameEn:payment.supplierNameEn,supplierNameAr:payment.supplierNameAr,
+    currency:payment.currency,amount:payment.amount,date:payment.date,method:payment.method,
+    reference:payment.reference,notes:payment.notes,createdAt:payment.createdAt,
+    workspaceId:payment.workspaceId||'default',branchId:payment.branchId||'main'
+  });
+  for(const original of base){
+    const next=byId.get(original.id);
+    if(!next)throw new Error('Supplier payment history cannot be deleted. Void the payment instead.');
+    if(!sameRecord(immutable(original),immutable(next)))
+      throw new Error('Recorded supplier payment is immutable. Void it and create a corrected payment.');
+    if(original.voidedAt&&(
+      original.voidedAt!==next.voidedAt||original.voidReason!==next.voidReason
+    ))throw new Error('A voided supplier payment cannot be restored or changed.');
+    if(!original.voidedAt&&next.voidedAt&&(!next.voidReason?.trim()||!Number.isFinite(Date.parse(next.voidedAt))))
+      throw new Error('Supplier payment void requires a reason and valid timestamp.');
+  }
+}
+
 function guardAllocatedPaymentChanges<T extends {id:string}>(
   base:T[],intended:T[],entries:VaultPayload['treasuryEntries'],
   sourceType:'customer-payment'|'supplier-payment',label:string
@@ -733,24 +759,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
       if(!isFinancialDecimalInput(payment.amount))
         throw new Error('New supplier payment amount has invalid monetary grouping.');
     }
-    const intendedById=new Map(intended.supplierPayments.map(row=>[row.id,row]));
-    for(const original of base.supplierPayments){
-      const next=intendedById.get(original.id);
-      if(!next)throw new Error('Supplier payment history cannot be deleted. Void the payment instead.');
-      const immutable=(payment:SupplierPaymentRecord)=>({
-        id:payment.id,purchaseId:payment.purchaseId,purchaseNumber:payment.purchaseNumber,
-        supplierId:payment.supplierId,supplierNameEn:payment.supplierNameEn,supplierNameAr:payment.supplierNameAr,
-        currency:payment.currency,amount:payment.amount,date:payment.date,method:payment.method,
-        reference:payment.reference,notes:payment.notes,createdAt:payment.createdAt,
-        workspaceId:payment.workspaceId||'default',branchId:payment.branchId||'main'
-      });
-      if(!sameRecord(immutable(original),immutable(next)))throw new Error('Recorded supplier payment is immutable. Void it and create a corrected payment.');
-      if(original.voidedAt&&(
-        original.voidedAt!==next.voidedAt||original.voidReason!==next.voidReason
-      ))throw new Error('A voided supplier payment cannot be restored or changed.');
-      if(!original.voidedAt&&next.voidedAt&&(!next.voidReason?.trim()||!Number.isFinite(Date.parse(next.voidedAt))))throw new Error('Supplier payment void requires a reason and valid timestamp.');
-    }
   }
+  guardSupplierPaymentHistory(base.supplierPayments,intended.supplierPayments);
+  guardSupplierPaymentHistory(base.supplierPayments,latest.supplierPayments);
   guardConcurrentRecordChanges(base.supplierPayments,intended.supplierPayments,latest.supplierPayments,'Supplier payment','Reopen Supplier Payables before saving or deleting the payment.');
   const supplierPayments=mergeRecords(base.supplierPayments,intended.supplierPayments,latest.supplierPayments);
   guardAllocatedPaymentChanges(base.payments,intended.payments,treasuryEntries,'customer-payment','Customer payment');
