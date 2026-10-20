@@ -75,13 +75,26 @@ test('normal posted purchase and its later reversal preserve quantity, identity 
   assert.equal(reversedVault.inventoryMovements[1].branchId,'main');
 });
 
-test('same-ID identical purchase receipt replay remains single and historical records stay unchanged',()=>{
+test('concurrent purchase receipt replay remains explicitly rejected; unchanged history stays untouched',()=>{
   const {base,intended}=fixture();
-  const replay=mergeVaultIntent(base,intended,structuredClone(intended));
-  assert.equal(replay.purchases.length,1);
-  assert.equal(replay.inventoryMovements.length,1);
+  // Unlike invoice-issued stock (which has a deterministic source proof), generic
+  // purchase movement IDs are independent records. Existing concurrency authority
+  // intentionally rejects even an identical same-ID fresh movement before merging.
+  assert.throws(()=>mergeVaultIntent(base,intended,structuredClone(intended)),
+    /Concurrent inventory movement already exists/);
   const before=JSON.stringify(intended);
   const unrelated=mergeVaultIntent(intended,unrelatedSave(intended),structuredClone(intended));
   assert.equal(unrelated.inventoryMovements.length,1);
   assert.equal(JSON.stringify(intended),before);
+});
+
+test('normal purchase movements without explicit scope inherit their linked purchase branch',()=>{
+  const {base,intended,receipt}=fixture();
+  const nonDefault={...intended,purchases:[{...intended.purchases[0],workspaceId:'other-company',branchId:'regional'}],
+    inventoryMovements:[{...receipt,workspaceId:undefined,branchId:undefined}]};
+  const catalog={...base,suppliers:[{...base.suppliers[0],workspaceId:'other-company'}],
+    savedItems:[{...base.savedItems[0],workspaceId:'other-company'}]};
+  const saved=mergeVaultIntent(catalog,{...nonDefault,suppliers:catalog.suppliers,savedItems:catalog.savedItems},catalog);
+  assert.equal(saved.inventoryMovements.length,1);
+  assert.equal(saved.purchases[0].branchId,'regional');
 });
