@@ -683,6 +683,27 @@ function guardNewTreasuryReconciliationEvents(
 // Treasury movements are an audit ledger, not mutable form records. The Cash &
 // Bank screen corrects an entry by voiding it, preserving its original details.
 // Enforce that same contract for direct, offline and concurrently merged writes.
+// A newly synchronized bank entry may already have been posted AND voided on
+// another device. Preserve those legitimate two-step histories, but require
+// their final cancellation metadata to be internally auditable. Previously
+// saved rows (including old legacy formats) are deliberately grandfathered.
+function guardNewTreasuryVoidMetadata(
+  base:VaultPayload['treasuryEntries'],
+  candidate:VaultPayload['treasuryEntries']
+):void{
+  if(candidate===base)return;
+  const knownIds=new Set(base.map(entry=>entry.id));
+  for(const entry of candidate){
+    if(knownIds.has(entry.id)||!entry.voidedAt)continue;
+    const created=Date.parse(entry.createdAt||'');
+    const cancelled=Date.parse(entry.voidedAt);
+    if(!Number.isFinite(created)||!Number.isFinite(cancelled)||
+       cancelled<created||!isIsoDate(entry.voidedAt.slice(0,10))||
+       !entry.voidReason?.trim()||entry.updatedAt!==entry.voidedAt)
+      throw new Error('New treasury entry cancellation audit metadata is invalid.');
+  }
+}
+
 function guardTreasuryEntryHistory(
   base:VaultPayload['treasuryEntries'],
   intended:VaultPayload['treasuryEntries'],
@@ -772,6 +793,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   for(const account of treasuryAccounts)assertTreasuryAccount(account);
   guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before saving this entry.');
   guardTreasuryEntryHistory(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
+  guardNewTreasuryVoidMetadata(base.treasuryEntries,intended.treasuryEntries);
+  guardNewTreasuryVoidMetadata(base.treasuryEntries,latest.treasuryEntries);
   // A remote new posting is not trusted merely because it arrived from another
   // device. Reject new remote ID collisions before the generic ID-keyed merge.
   guardNewOperationalRecordIds(base.treasuryEntries,latest.treasuryEntries,'treasury entry');
