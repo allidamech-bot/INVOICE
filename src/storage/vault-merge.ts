@@ -1392,8 +1392,13 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     const checked=treasuryEntries.filter(entry=>storedIds.has(entry.id)||Boolean(entry.voidedAt));
     for(const entry of treasuryEntries){
       if(storedIds.has(entry.id)||entry.voidedAt)continue;
+      // A sync replay must use the immutable movement's own company/branch
+      // rather than whichever branch the other device currently has selected.
+      // appendTreasuryEntry still validates the real linked source and accounts;
+      // direct UI posting retains its original active-branch guard.
       appendTreasuryEntry({
         ...latest,documents,payments,supplierPayments,purchases,suppliers,treasuryAccounts,
+        appSettings:{...latest.appSettings,activeWorkspaceId:entry.workspaceId,activeBranchId:entry.branchId},
         treasuryEntries:checked
       },entry);
       checked.push(entry);
