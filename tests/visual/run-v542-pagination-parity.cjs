@@ -85,16 +85,19 @@ async function inspect(type,name,financial=''){
       const rgba=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
       let inkPixels=0;for(let i=0;i<rgba.length;i+=4)if(rgba[i]<220||rgba[i+1]<220||rgba[i+2]<220)inkPixels++;
       const base64=btoa(text);
+      const png=canvas.toDataURL('image/png').split(',')[1];
       const parsedPages=pdf.numPages;await pdf.destroy();
-      return{bytes:bytes.length,pageObjects:(text.match(/\/Type\s*\/Page\b/g)||[]).length,hasSingleCount:/\/Count\s+1\b/.test(text),parsedPages,searchableText,inkPixels,base64};
+      return{bytes:bytes.length,pageObjects:(text.match(/\/Type\s*\/Page\b/g)||[]).length,hasSingleCount:/\/Count\s+1\b/.test(text),parsedPages,searchableText,inkPixels,base64,png};
     },href);
+    writeFileSync(path.join(output,`v542-${name}.pdf`),Buffer.from(pdfArtifact.base64,'base64'));
+    writeFileSync(path.join(output,`v542-${name}-downloaded-pdf.png`),Buffer.from(pdfArtifact.png,'base64'));
     assert.ok(pdfArtifact.bytes>10000,`${name}: generated PDF blob is unexpectedly small (${pdfArtifact.bytes} bytes)`);
     assert.equal(pdfArtifact.pageObjects,1,`${name}: downloaded PDF blob contains ${pdfArtifact.pageObjects} physical pages`);
     assert.equal(pdfArtifact.hasSingleCount,true,`${name}: downloaded PDF page tree does not report Count 1`);
     assert.equal(pdfArtifact.parsedPages,1,`${name}: PDF parser found extra pages`);
     assert.ok(pdfArtifact.inkPixels>2000,`${name}: downloaded PDF rendered blank`);
     const normalized=pdfArtifact.searchableText.replace(/[٠-٩]/g,char=>String(char.charCodeAt(0)-0x660)).replace(/[۰-۹]/g,char=>String(char.charCodeAt(0)-0x6f0)).replace(/[,٬\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/٫/g,'.');
-    assert.match(normalized,/LOUREX/,`${name}: company identity missing from PDF`);
+    assert.match(normalized,financial==='invoice-ar'?/لوركس/:/LOUREX/,`${name}: company identity missing from PDF`);
     if(financial){
       const documentNumber=financial==='credit-bilingual'?'CN-QA-2026-0046':'INV-QA-2026-0046';
       assert.ok(normalized.includes(documentNumber),`${name}: PDF document number missing`);
@@ -103,13 +106,11 @@ async function inspect(type,name,financial=''){
       if(financial==='credit-bilingual')assert.ok(normalized.includes('INV-QA-2026-0046'),`${name}: credit source reference missing`);
       if(financial!=='invoice-en')assert.match(normalized,/[\u0600-\u06ff]/,`${name}: Arabic searchable text missing`);
     }
-    writeFileSync(path.join(output,`v542-${name}.pdf`),Buffer.from(pdfArtifact.base64,'base64'));
     const cancel=page.locator('.lourex-ios-output-cancel');if(await cancel.count())await cancel.last().click();
 
     await page.locator('.mobile-preview-stage .invoice-page').first().screenshot({path:path.join(output,`v542-${name}-preview.png`)});
     await page.evaluate(()=>{const portal=document.querySelector('.print-portal');if(portal instanceof HTMLElement){portal.style.left='0';portal.style.top='0';portal.style.zIndex='999';}});
     await page.locator('.print-portal .invoice-page').first().screenshot({path:path.join(output,`v542-${name}-pdf-source.png`)});
-    await page.locator('#qa-downloaded-pdf').screenshot({path:path.join(output,`v542-${name}-downloaded-pdf.png`)});
     assert.deepEqual(errors,[],`${name}: browser errors`);
     return{name,...metrics,pdfBytes:pdfArtifact.bytes,pdfPages:pdfArtifact.pageObjects};
   }finally{await browser.close();}
