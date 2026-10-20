@@ -838,12 +838,12 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
       checked.push(entry);
     }
   }
-  // Financial and commercial document audit events must not collapse when newly
-  // written IDs collide. Validate both local and incoming remote event batches;
-  // existing historical event identities are not rewritten or migrated.
+  // Delivery-linked invoice evidence has a specialized immutable identity
+  // guard and precise conflict errors. Keep it first, then reject other new
+  // audit ID collisions before the generic merge can lose a financial event.
+  assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   guardNewOperationalRecordIds(base.documentEvents,intended.documentEvents,'document event');
   guardNewOperationalRecordIds(base.documentEvents,latest.documentEvents,'document event');
-  assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertInvoiceStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertSalesReturnLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
