@@ -41,7 +41,8 @@ test('saved credit, physical return, correction and unpaid invoice void keep fin
   assert.equal(stock(),'6');
   const originalIssue=JSON.stringify(vault.inventoryMovements.find(row=>row.sourceId===invoice.id));
   const credit={...createCreditNoteDraft(finalInvoice,'CN-QA-RETURN-CYCLE','20.00'),status:'final',issueDate:day};
-  credit.items=[{...credit.items[0],id:'qa-return-credit-line',quantity:'2',unitPrice:'10.00'}];
+  // Partial monetary credits start generic; a physical return explicitly selects the sold catalog item.
+  credit.items=[{...finalInvoice.items[0],id:'qa-return-credit-line',quantity:'2',unitPrice:'10.00'}];
   save({...vault,documents:[...vault.documents,credit]});
   assert.equal(stock(),'6','credit alone cannot receive goods');
   let summary=invoicePaymentSummary(finalInvoice,vault.payments,day,vault.documents);
