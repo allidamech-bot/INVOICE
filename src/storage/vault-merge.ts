@@ -614,6 +614,9 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   guardDraftPurchaseConflicts(base.purchases,intended.purchases,latest.purchases);
   guardSupplierChanges(base.suppliers,intended.suppliers);
   guardExpenseChanges(base.expenses,intended.expenses);
+  // A remotely added/edited expense is real spend even when the local save
+  // only changes a supplier. Validate both sides with the same amount rules.
+  guardExpenseChanges(base.expenses,latest.expenses);
   guardInventoryLedgerIntent(base,intended,latest);
   const affectedPurchases=purchaseIdsAffected(base,intended);
   const baseById=new Map(base.purchases.map(purchase=>[purchase.id,purchase]));
@@ -825,6 +828,7 @@ function guardAllocatedPaymentChanges<T extends {id:string}>(
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   guardNewOperationalRecordIds(base.purchases,intended.purchases,'purchase');
   guardNewOperationalRecordIds(base.expenses,intended.expenses,'expense');
+  guardNewOperationalRecordIds(base.expenses,latest.expenses,'expense');
   // Do not replay two physical transfers/issues only to persist the last same-ID movement.
   guardNewOperationalRecordIds(base.inventoryMovements,intended.inventoryMovements,'inventory movement');
   guardNewOperationalRecordIds(base.inventoryMovements,latest.inventoryMovements,'inventory movement');
