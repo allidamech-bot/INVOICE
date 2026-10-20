@@ -51,7 +51,7 @@ test('v193 visual QA explicitly rejects hidden step six, editor nav overlap and 
   assert.match(directory,/mobile bottom nav covers focused product editor/);
   assert.match(directory,/product editor exceeds phone viewport/);
   assert.match(financial,/purchase editor clips outside phone viewport/);
-  assert.match(financial,/purchase list should leave the phone viewport while editor is focused/);
+  assert.match(financial,/draft purchase must expose editable fields/);
   assert.match(financial,/action clipped or covered/);
 });
 
