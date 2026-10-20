@@ -29,8 +29,9 @@ const inject=[
           let body=await fs.readFile(file);
           if(file.endsWith('/tests/visual/template-visual-qa.js')){
             const source=body.toString();
-            assert.ok(source.includes('\ntry{\n'),'fixture injection boundary');
-            body=source.replace('\ntry{\n','\n'+inject+'\ntry{\n');
+            const marker='  const rendered=React.createElement';
+            assert.ok(source.includes(marker),'fixture injection boundary');
+            body=source.replace(marker,inject+'\n'+marker);
           }
           await route.fulfill({body,contentType:({'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2'})[path.extname(file)]||'application/octet-stream'});
         }catch(error){errors.push(String(error));await route.fulfill({status:404,body:''});}
