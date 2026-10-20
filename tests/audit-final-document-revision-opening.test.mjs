@@ -12,7 +12,11 @@ function setup(){
   invoice.id='invoice-safe-revision-gate';
   invoice.status='final';invoice.lifecycleStatus='active';
   invoice.role='standard';invoice.issueDate='2026-10-01';invoice.dueDate='2026-11-01';
-  invoice.items=[{...invoice.items[0],descriptionEn:'Non-stock consulting',quantity:'1',unitPrice:'135.00'}];
+  invoice.customerSnapshot={sourceCustomerId:'buyer-revision-gate',companyNameEn:'Revision Buyer',
+    companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',
+    phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+  invoice.items=[{...invoice.items[0],descriptionEn:'Non-stock consulting',
+    quantity:'1',unitPrice:'135.00',stockTreatment:'non-stock'}];
   return {invoice,vault:{...root,documents:[invoice]}};
 }
 const unrelated=(vault)=>({...vault,expenses:[{...createExpense('USD'),
