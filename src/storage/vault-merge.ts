@@ -146,8 +146,16 @@ function guardCustomerPaymentScopeChanges(
     if(original&&original.invoiceId===payment.invoiceId&&
        (original.workspaceId||'default')===(payment.workspaceId||'default')&&
        (original.branchId||'main')===(payment.branchId||'main'))continue;
+    // A blank source skips financialInvoiceIds entirely: reject it here before
+    // an imported/remote receipt can disappear from the invoice's receivables.
+    if(!payment.invoiceId?.trim())throw new Error('Customer payment must reference a source invoice.');
+    // The normal payment form edits a receipt only within its original invoice.
+    // Require an explicit delete/re-record for a different invoice, rather than
+    // silently transferring recorded money across invoices on either device.
+    if(original?.invoiceId&&original.invoiceId!==payment.invoiceId)
+      throw new Error('Customer payment cannot change its source invoice. Delete the incorrect receipt and record a new one.');
     const invoice=invoiceById.get(payment.invoiceId);
-    if(!invoice)continue; // The existing settlement invariant rejects orphan receipts.
+    if(!invoice)continue; // The settlement invariant rejects nonblank missing invoice IDs.
     if((payment.workspaceId||'default')!==(invoice.workspaceId||'default')||
        (payment.branchId||'main')!==(invoice.branchId||'main'))
       throw new Error('Customer payment must belong to the same company and branch as its invoice.');
