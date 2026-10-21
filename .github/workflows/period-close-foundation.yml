@@ -1,0 +1,37 @@
+name: Closed period foundation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/period-close.ts'
+      - 'src/lib/reports.ts'
+      - 'src/lib/tax-vat.ts'
+      - 'src/lib/receivables.ts'
+      - 'src/lib/payments.ts'
+      - 'src/lib/payables.ts'
+      - 'src/lib/treasury-ledger.ts'
+      - 'src/lib/warehouses.ts'
+      - 'src/lib/operations.ts'
+      - 'src/types.ts'
+      - 'tests/period-close.test.mjs'
+      - '.github/workflows/period-close-foundation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: period-close-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx tsc -p tsconfig.json
+      - run: node --test tests/period-close.test.mjs tests/settlement-transaction-date-policy.test.mjs tests/audit-supplier-payables-asof.test.mjs tests/audit-treasury-void-history.test.mjs tests/credit-note-treatment.test.mjs tests/fx-signed-rounding-vat-characterization.test.mjs
