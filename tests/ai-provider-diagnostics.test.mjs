@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {runSyntheticProviderDiagnostic,SYNTHETIC_PROVIDER_IDS} from '../api/_ai/provider-diagnostics.js';
+import {runSyntheticProviderDiagnostic,SYNTHETIC_PROVIDER_IDS,OLLAMA_SYNTHETIC_MODELS} from '../api/_ai/provider-diagnostics.js';
 
 const names=['GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','KILO_API_KEY','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY','LOUREX_AI_MISTRAL_FREE_VERIFIED','LOUREX_AI_OLLAMA_FREE_VERIFIED'];
 async function sandbox(fn){
@@ -115,4 +115,78 @@ test('Mistral and Ollama cannot spend any credit without explicit verified-free 
    assert.equal(result.correct,false);
   }
  });
+});
+
+
+test('Ollama alternate is only the owner-verified free-list model; no arbitrary or paid model can be requested',async()=>{
+ await sandbox(async()=>{
+  assert.deepEqual(OLLAMA_SYNTHETIC_MODELS,['gemma4:31b','gpt-oss:20b']);
+  let calls=0;
+  const failFetch=async()=>{calls++;throw Error('Invalid model must not hit network');};
+  for(const provider of ['groq','mistral','openrouter','kilo']){
+   const bad=await runSyntheticProviderDiagnostic(provider,{mode:'financial',model:'gpt-oss:20b',fetchImpl:failFetch});
+   assert.equal(bad.status,'INVALID_DIAGNOSTIC_MODEL');
+  }
+  for(const model of ['gpt-oss:120b-cloud','gemma4:999b','arbitrary/paid',null,42,{}]){
+   const bad=await runSyntheticProviderDiagnostic('ollama',{mode:'financial',model,fetchImpl:failFetch});
+   assert.equal(bad.status,'INVALID_DIAGNOSTIC_MODEL');
+  }
+  assert.equal(calls,0);
+ });
+});
+
+test('Ollama free GPT-OSS alternate uses exactly one fixed synthetic five-case QA call',async()=>{
+ await sandbox(async()=>{
+  let calls=0;
+  const result=await runSyntheticProviderDiagnostic('ollama',{
+   mode:'financial',model:'gpt-oss:20b',
+   fetchImpl:async(url,options)=>{
+    calls++;
+    assert.equal(url,'https://ollama.com/api/chat');
+    assert.equal(options.method,'POST');
+    const body=JSON.parse(options.body);
+    assert.equal(body.model,'gpt-oss:20b');
+    assert.equal(body.stream,false);
+    assert.equal(body.format,'json');
+    assert.equal(body.messages.length,1);
+    assert.match(body.messages[0].content,/FIVE INDEPENDENT, SYNTHETIC/);
+    assert.ok(!JSON.stringify(body).includes('customerId'));
+    return reply({model:'gpt-oss:20b',done_reason:'stop',
+      message:{role:'assistant',content:JSON.stringify({D1:214.2,D2:725,D3:220.8,D4:770,D5:100})}});
+   }
+  });
+  assert.equal(calls,1);
+  assert.equal(result.model,'gpt-oss:20b');
+  assert.equal(result.status,'PASSED');
+  assert.equal(result.score,5);
+  assert.equal(result.cases.length,5);
+ });
+});
+
+test('Ollama alternate remains blocked when free-account authorization is absent',async()=>{
+ await sandbox(async()=>{
+  delete process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED;
+  let calls=0;
+  const result=await runSyntheticProviderDiagnostic('ollama',{mode:'financial',model:'gpt-oss:20b',
+    fetchImpl:async()=>{calls++;throw Error('no inference allowed');}});
+  assert.equal(result.status,'FREE_TIER_NOT_VERIFIED');
+  assert.equal(calls,0);
+ });
+});
+
+test('owner model override is validated ahead of per-provider budget and cannot reach live chat',()=>{
+ const core=readFileSync(new URL('../api/ai-core.js',import.meta.url),'utf8');
+ const ui=readFileSync(new URL('../public/health.html',import.meta.url),'utf8');
+ const client=readFileSync(new URL('../public/health.js',import.meta.url),'utf8');
+ const gate=core.indexOf("request.headers['x-lourex-admin-diagnostics']==='provider-probe'");
+ const owner=core.indexOf('diagnosticsOwnerUidAllowed(',gate);
+ const validation=core.indexOf('OLLAMA_SYNTHETIC_MODELS.includes(requestedModel)',owner);
+ const budget=core.indexOf('diagnosticRateAllowed(',owner);
+ const live=core.indexOf("if(!rateAllowed(request))",gate);
+ assert.ok(gate!==-1&&gate<owner&&owner<validation&&validation<budget&&budget<live);
+ assert.match(core,/provider!=='ollama'\|\|mode!=='financial'/);
+ assert.match(ui,/data-diagnostic-model="gpt-oss:20b"/);
+ assert.match(ui,/data-ollama-alt-result/);
+ assert.match(client,/alternativeModel!==null/);
+ assert.match(client,/mode:'financial',model:alternativeModel/);
 });
