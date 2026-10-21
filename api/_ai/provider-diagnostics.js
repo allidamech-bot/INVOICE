@@ -4,7 +4,10 @@ import {FINANCIAL_QA_PROMPT,classifyFinancialAccuracyResponse} from './provider-
 // Owner-triggered, synthetic-only AI provider smoke test.
 // It never reads client context, business records, or provider fallback routing.
 const SYNTHETIC_PROMPT='Synthetic accounting arithmetic test with NO customer or business data. An example order has 8 items priced at 125 USD each. Apply a 10% discount to the subtotal, then 18% tax to the discounted total. Reply ONLY with the numeric final total (no currency symbol, letters, separators or explanation).';
-const MODEL={groq:'openai/gpt-oss-120b',cloudflare:'@cf/google/gemma-4-26b-a4b-it',gemini:'gemini-2.5-flash-lite',kilo:'kilo-auto/free',openrouter:'openrouter/free',mistral:'mistral-small-latest',ollama:'gemma4:31b'};
+// The Kilo diagnostic pins a published $0/$0 per-token model. Avoid
+// kilo-auto/free selecting a different reasoning model on each probe.
+// This does NOT modify the business AI router or permit private input.
+const MODEL={groq:'openai/gpt-oss-120b',cloudflare:'@cf/google/gemma-4-26b-a4b-it',gemini:'gemini-2.5-flash-lite',kilo:'google/gemma-4-26b-a4b-it:free',openrouter:'openrouter/free',mistral:'mistral-small-latest',ollama:'gemma4:31b'};
 const MAX_RESPONSE_BYTES=24_000;
 const PROVIDER_TIMEOUT_MS=12_000;
 
@@ -30,7 +33,7 @@ function payloadFor(provider,mode='single'){
   if(provider==='gemini')return{contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:financial?512:256}};
   if(provider==='ollama')return{model:MODEL.ollama,messages:[{role:'user',content:prompt}],stream:false,options:{temperature:0,num_predict:financial?512:160},...(financial?{format:'json'}:{})};
   return{model:MODEL[provider],messages:[{role:'user',content:prompt}],
-    ...(provider!=='kilo'?{temperature:0}:{}),
+    temperature:0,
     ...(provider==='groq'?{max_completion_tokens:financial?384:160,reasoning_effort:'low',include_reasoning:false}:{}),
     ...(provider==='cloudflare'?{max_completion_tokens:256,chat_template_kwargs:{enable_thinking:false},options:{rejectIfBusy:true}}:{}),
     ...(provider==='kilo'?{max_tokens:financial?512:384}:{}),

@@ -21,7 +21,9 @@ test('each provider receives only a synthetic arithmetic prompt, single provider
     assert.ok(serialized.includes('8 items')&&serialized.includes('10%')&&serialized.includes('18%'));
     assert.ok(!serialized.includes('invoiceNumber')&&!serialized.includes('customerId'));
     if(provider==='kilo'){
-     assert.equal(body.model,'kilo-auto/free');
+     assert.equal(body.model,'google/gemma-4-26b-a4b-it:free');
+     assert.ok(body.model.endsWith(':free'),'Kilo diagnostic may never select a paid model');
+     assert.equal(body.temperature,0,'pin deterministic decoding in the isolated diagnostic');
      assert.equal(url,'https://ai-gateway.kilo.ai/api/v1/chat/completions');
     }
     if(provider==='groq')assert.equal(body.model,'openai/gpt-oss-120b');
