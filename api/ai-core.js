@@ -4,6 +4,7 @@ import {SYNTHETIC_PROVIDER_IDS,OLLAMA_SYNTHETIC_MODELS,runSyntheticProviderDiagn
 import {diagnosticRateAllowed} from './_ai/diagnostics-rate-limit.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
+import {hypotheticalInvoiceBalance} from './_ai/hypothetical-finance.js';
 
 const MAX_BODY_BYTES=180000;
 const MAX_MESSAGE_CHARS=6000;
@@ -183,6 +184,11 @@ export default async function handler(request,response){
     sendJson(response,422,{code:'AI_SOURCE_INCOMPLETE',message:'The attached sources exceed the safe 10-file or complete-text limits (12000 characters each, 72000 total), or contain invalid data. Split or reduce the sources; no incomplete set was analyzed.'});return;
   }
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX AI received an invalid business context.'});return;}
+
+  // Both Advisor and Controller answer bounded hypotheticals without
+  // prompting a model, preparing actions, or touching company records.
+  const hypothetical=hypotheticalInvoiceBalance(cleaned.message,cleaned.context.language);
+  if(hypothetical){sendJson(response,200,{model:'deterministic-hypothetical',answer:hypothetical.answer,proposal:null});return;}
 
   // Free-form dialogue is the default for both modes. Do not make normal
   // questions pass an executable proposal schema merely to receive an answer.
