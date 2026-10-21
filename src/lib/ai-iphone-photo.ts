@@ -41,6 +41,8 @@ async function decodePhoto(file:File):Promise<{image:CanvasImageSource;width:num
  * Returned File is suitable for the existing JPEG-only API. */
 export async function jpegFromIphonePhoto(file:File,signal?:AbortSignal):Promise<File>{
   if(!isIphoneHeicPhoto(file))return file;
+  if(/^image\/(?:heic|heif)-sequence$/i.test(file.type))
+    throw new Error('A multi-frame HEIC/HEIF file cannot be analyzed as one photo. Export individual JPEG frames and retry.');
   abortIfNeeded(signal);
   if(!file.size||file.size>MAX_INPUT_HEIC_BYTES)
     throw new Error('This iPhone photo must be nonempty and at most 16 MB.');
