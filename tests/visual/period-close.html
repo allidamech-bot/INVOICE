@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head><body><div class="app-ui"><main id="fixture" style="max-width:1000px;margin:auto;padding:16px;min-width:0"></main></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {PeriodCloseSettings} from './src/components/PeriodCloseSettings.js';
+import {emptyVault} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar';setUiLanguage(ar?'ar':'en');document.documentElement.dir=ar?'rtl':'ltr';document.documentElement.lang=ar?'ar':'en';
+const vault=emptyVault();vault.branches.push({...vault.branches[0],id:'east',name:'East QA'});const doc=createBlankDocument('invoice','QA',vault.company);Object.assign(doc,{id:'qa-main',status:'final',workspaceId:'default',branchId:'main',issueDate:'2026-10-01',currency:'USD'});doc.items[0].quantity='1';doc.items[0].unitPrice='100';vault.documents=[doc,{...structuredClone(doc),id:'qa-east',branchId:'east'}];window.qaVault=vault;window.qaWrites=[];
+window.qaHash=async()=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(vault)))),b=>b.toString(16).padStart(2,'0')).join('');window.qaStatus={format:'LOUREX_PERIOD_STATUS_V1',version:1,enrolled:false,revision:'a'.repeat(32),sha256:await window.qaHash(),generation:0,boundaries:[]};window.qaReports=[];window.qaOperations=[];
+ReactDOM.render(React.createElement(PeriodCloseSettings,{uid:'qa-owner',vault,blocked:false,onPrepare:async()=>vault}),document.getElementById('fixture'));
+</script></body></html>

@@ -11,7 +11,7 @@ export const fail=(status,code)=>{throw new PeriodError(status,code);};
 export function validatePeriodCommand(value){
   if(!value||typeof value!=='object'||Array.isArray(value))fail(400,'INVALID_COMMAND');
   const {operation,opId,expectedRevision,expectedGeneration}=value;
-  if(!['enroll','commit','close','reopen'].includes(operation)||!hexId(opId)
+  if(!['inspect','enroll','commit','close','reopen'].includes(operation)||!hexId(opId)
     ||typeof expectedRevision!=='string'||!/^[A-Za-z0-9-]{12,90}$/.test(expectedRevision)
     ||!Number.isSafeInteger(expectedGeneration)||expectedGeneration<0)fail(400,'INVALID_COMMAND');
   const keys=['operation','opId','expectedRevision','expectedGeneration'];
