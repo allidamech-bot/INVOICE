@@ -1,6 +1,7 @@
 # Closed-period protection: decision proposal
 
-Status: **proposed, awaiting owner accounting and authorization decision**.
+Status: **owner approved the business rules and public repository publication on
+21 October 2026**. Implementation and deployment remain separate states.
 Baseline: `0be5cf9eb4c941dbe8d27a49066ba57434228dbc`.
 This is a reviewable design, not implemented protection or a closeout of 13–21.
 
@@ -96,10 +97,11 @@ through backup, restore, migration and account switching.
 These examples are proposed acceptance cases, **not a reconstruction of the
 missing original wording of checklist items 13–21**.
 
-## Decision needed
+## Approved decision and implementation boundary
 
-Approve or amend the company-wide inclusive close date, owner-only online reopen
-with reason, preserved publication versions and authoritative enforcement target.
-No accounting behavior should be implemented under an assumed approval of those
-decisions. After approval, write a file-level implementation plan and review its
-cloud compatibility and rollout boundaries before product code changes.
+The owner approved the company-wide inclusive close date, owner-only online
+reopen with reason, preserved publication versions and authoritative enforcement
+target. The owner also explicitly approved publishing the two review documents
+to the public project repository. This does not authorize deployment or live
+Firebase rules changes. The file-level plan is
+`superpowers/plans/2026-10-21-period-close.md`.
