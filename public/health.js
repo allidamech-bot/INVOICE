@@ -302,7 +302,10 @@
         const actual=typeof data?.actualModel==='string'&&data.actualModel.length<=110&&data.actualModel!==model?
           ' · Routed model / النموذج المستخدم: '+data.actualModel:'';
         // textContent, never HTML: no provider-supplied executable markup.
-        result.textContent=label+reported+reason+finish+preview+(model?' · '+model:'')+actual+latency;
+        result.textContent=label+reported+reason+finish+preview+
+          (model?'\nModel: '+model:'')+
+          (actual?'\n'+actual.replace(/^ · /,''):'')+
+          (latency?'\nResponse time / زمن الاستجابة: '+Math.round(data.latencyMs)+' ms':'');
       }
     }catch{
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
@@ -384,12 +387,15 @@
       if(Array.isArray(data?.cases)&&data.cases.length===5&&Number.isInteger(data.score)&&data.score>=0&&data.score<=5){
         const details=data.cases.map(item=>{
           if(!qaCaseLabels[item?.id]||!Number.isFinite(item.reported)||!Number.isFinite(item.expected))return '';
-          return qaCaseLabels[item.id]+' '+(item.correct===true?'✓':'✗')+
-            ' ['+Number(item.reported).toFixed(2)+' / '+Number(item.expected).toFixed(2)+']';
+          return item.id+' '+(item.correct===true?'✓':'✗')+
+            ' ['+Number(item.reported).toFixed(2)+' / '+Number(item.expected).toFixed(2)+'] · '+qaCaseLabels[item.id];
         }).filter(Boolean);
-        result.textContent='Synthetic accuracy / دقة وهمية: '+data.score+'/5'+model+latency+
-          (details.length?' · '+details.join(' · '):'')+
-          ' · Not a production accounting certification / ليس اعتمادًا محاسبيًا';
+        result.textContent='Synthetic accuracy / دقة وهمية: '+data.score+'/5'+
+          (data.score===5?' ✓':' — Review required / تحتاج مراجعة')+
+          (model?'\n'+model.replace(/^ · /,''):'')+
+          (latency?'\nResponse time: '+Math.round(data.latencyMs)+' ms':'')+
+          (details.length?'\n'+details.join('\n'):'')+
+          '\nNot a production accounting certification / ليس اعتمادًا محاسبيًا';
       }else{
         const reason=reasonLabels[data?.reason]?' · '+reasonLabels[data.reason]:'';
         result.textContent=(probeLabels[data?.status]||'QA not gradeable / تعذر تقييم الاختبار')+reason+model+latency;
