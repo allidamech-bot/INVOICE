@@ -12,7 +12,7 @@ const {chromium,webkit}=require('playwright');
    const url='http://127.0.0.1:4173/tests/visual/credit-note-treatment.html?lang='+lang;
    await page.goto(url);
    const dialog=page.getByRole('dialog'),create=dialog.getByRole('button',{name:lang==='ar'?'إنشاء مسودة':'Create draft',exact:true});
-   await dialog.waitFor();
+   await dialog.waitFor({timeout:10000}).catch(async error=>{throw new Error('Fixture boot: '+JSON.stringify(errors)+'; '+await page.locator('body').textContent()+'; '+error);});
    assert.equal(await create.isDisabled(),true);
    assert.equal(await page.evaluate(()=>window.qaCreated),null);
    await dialog.locator('select').selectOption('invoice-tax');
