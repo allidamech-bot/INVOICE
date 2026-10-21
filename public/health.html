@@ -78,12 +78,22 @@
   </section>
   <section class="card" id="providerDiagnostics">
     <strong>AI provider diagnostics / تشخيص مزوّدي الذكاء الاصطناعي</strong>
-    <p class="note">Manual, one provider at a time. Uses a fixed synthetic arithmetic question only. It never sends invoices, customer data, document text or financial ledgers. No fallback provider or paid Kilo model is used. Each provider can be tested up to 12 times within 10 minutes independently.
+    <p class="note">Manual, one provider at a time. Uses a fixed synthetic arithmetic question only. It never sends invoices, customer data, document text or financial ledgers. No fallback provider or paid Kilo model is used. Each provider can be tested up to 12 times within 10 minutes independently. The Gemini key check reads model metadata only, without generating text; success does not guarantee inference quota.
     <span dir="rtl">اختبار يدوي لمزوّد واحد في كل مرة، بسؤال حسابي وهمي ثابت. لا يُرسل فواتير أو بيانات عملاء، ولا ينتقل إلى مزوّد آخر. نموذج Kilo المختار مجاني فقط.</span></p>
     <div class="provider-probe-list">
       <div class="provider-probe-row"><strong>Groq</strong><button class="btn secondary" type="button" data-provider-test="groq">Test / اختبار</button><span class="provider-probe-result" data-provider-result="groq">Not tested / لم يُختبر</span></div>
       <div class="provider-probe-row"><strong>Cloudflare</strong><button class="btn secondary" type="button" data-provider-test="cloudflare">Test / اختبار</button><span class="provider-probe-result" data-provider-result="cloudflare">Not tested / لم يُختبر</span></div>
-      <div class="provider-probe-row"><strong>Gemini</strong><button class="btn secondary" type="button" data-provider-test="gemini">Test / اختبار</button><span class="provider-probe-result" data-provider-result="gemini">Not tested / لم يُختبر</span></div>
+      <div class="provider-probe-row">
+        <strong>Gemini</strong>
+        <div class="actions">
+          <button class="btn secondary" type="button" data-provider-test="gemini">Test / اختبار</button>
+          <button class="btn secondary" type="button" id="geminiKeyCheck">Check key / فحص المفتاح</button>
+        </div>
+        <div class="provider-probe-result">
+          <div data-provider-result="gemini">Not tested / لم يُختبر</div>
+          <div id="geminiKeyResult" role="status">Key not checked / لم يُفحص المفتاح</div>
+        </div>
+      </div>
       <div class="provider-probe-row"><strong>Kilo Gateway</strong><button class="btn secondary" type="button" data-provider-test="kilo">Test / اختبار</button><span class="provider-probe-result" data-provider-result="kilo">Not tested / لم يُختبر</span></div>
     </div>
   </section>
