@@ -57,6 +57,7 @@ function readAnswer(root,provider){
   const message=choice?.message;
   return{
     text:partsText(message?.content)||partsText(message?.parsed)||
+      (message?.parsed&&typeof message.parsed==='object'?JSON.stringify(message.parsed):'')||
       (provider==='cloudflare'&&typeof root?.result?.response==='string'?root.result.response:''),
     reason:String(choice?.finish_reason||choice?.finishReason||'').slice(0,32),
     model:parent?.model||root?.model||''
