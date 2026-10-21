@@ -1,3 +1,5 @@
+import {classifySyntheticProviderAnswer} from './provider-diagnostic-classifier.js';
+
 // Owner-triggered, synthetic-only AI provider smoke test.
 // It never reads client context, business records, or provider fallback routing.
 const SYNTHETIC_PROMPT='Synthetic accounting arithmetic test with NO customer or business data. An example order has 8 items priced at 125 USD each. Apply a 10% discount to the subtotal, then 18% tax to the discounted total. Reply ONLY with the numeric final total (no currency symbol, letters, separators or explanation).';
@@ -20,18 +22,12 @@ function settingsFor(provider){
   }
 }
 function payloadFor(provider){
-  if(provider==='gemini')return{contents:[{role:'user',parts:[{text:SYNTHETIC_PROMPT}]}],generationConfig:{temperature:0,maxOutputTokens:120}};
+  if(provider==='gemini')return{contents:[{role:'user',parts:[{text:SYNTHETIC_PROMPT}]}],generationConfig:{temperature:0,maxOutputTokens:256}};
   return{model:MODEL[provider],messages:[{role:'user',content:SYNTHETIC_PROMPT}],
     ...(provider!=='kilo'?{temperature:0}:{}),
     ...(provider==='groq'?{max_completion_tokens:160,reasoning_effort:'low',include_reasoning:false}:{}),
-    ...(provider==='cloudflare'?{max_completion_tokens:160,options:{rejectIfBusy:true}}:{}),
-    ...(provider==='kilo'?{max_tokens:120}:{})};
-}
-function compactText(root,provider){
-  if(provider==='gemini')return root?.candidates?.[0]?.content?.parts?.map(part=>part?.text||'').join('')||'';
-  const choices=root?.choices||root?.result?.choices;
-  const content=choices?.[0]?.message?.content;
-  return typeof content==='string'?content:'';
+    ...(provider==='cloudflare'?{max_completion_tokens:256,options:{rejectIfBusy:true}}:{}),
+    ...(provider==='kilo'?{max_tokens:384}:{})};
 }
 function safeCategory(status){
   if(status===401||status===403)return'KEY_REJECTED';
@@ -39,11 +35,6 @@ function safeCategory(status){
   if(status===429)return'RATE_LIMITED';
   if(status===400||status===404||status===422)return'MODEL_UNAVAILABLE';
   return status>=500?'PROVIDER_UNAVAILABLE':'PROVIDER_ERROR';
-}
-function validTotal(text){
-  const clean=String(text||'').trim().replace(/^\`{3}(?:text)?\s*|\s*\`{3}$/g,'').trim();
-  if(!/^[0-9]{1,9}(?:\.[0-9]{1,2})?$/.test(clean))return false;
-  return Math.abs(Number(clean)-1062)<0.005;
 }
 export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch}={}){
   if(typeof provider!=='string'||!Object.prototype.hasOwnProperty.call(MODEL,provider))return{status:'INVALID_PROVIDER'};
@@ -61,17 +52,15 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch}=
       const response=await fetchImpl(cfg.url,{method:'POST',headers,body:JSON.stringify(payloadFor(provider)),signal:controller.signal});
       // Bound a stalled or maliciously oversized JSON response. Nothing logged.
       const declared=Number(response.headers?.get?.('content-length')||0);
-      if(declared>MAX_RESPONSE_BYTES)return{status:'INVALID_RESPONSE'};
+      if(declared>MAX_RESPONSE_BYTES)return{status:'INVALID_RESPONSE',reason:'RESPONSE_TOO_LARGE'};
       const raw=await response.text();
-      if(raw.length>MAX_RESPONSE_BYTES)return{status:'INVALID_RESPONSE'};
+      if(raw.length>MAX_RESPONSE_BYTES)return{status:'INVALID_RESPONSE',reason:'RESPONSE_TOO_LARGE'};
       if(!response.ok)return{status:safeCategory(response.status)};
-      let parsed;try{parsed=JSON.parse(raw);}catch{return{status:'INVALID_RESPONSE'};}
-      const answer=compactText(parsed,provider);
-      if(!answer||answer.length>400)return{status:'INVALID_RESPONSE'};
-      return{status:validTotal(answer)?'PASSED':'WRONG_ANSWER'};
+      let parsed;try{parsed=JSON.parse(raw);}catch{return{status:'INVALID_RESPONSE',reason:'UPSTREAM_NON_JSON'};}
+      return classifySyntheticProviderAnswer(parsed,provider);
     })();
     const result=await Promise.race([request,deadline]);
-    return{provider,model,status:result.status,latencyMs:Date.now()-started,correct:result.status==='PASSED'};
+    return{provider,model,...result,latencyMs:Date.now()-started,correct:result.status==='PASSED'};
   }catch(error){
     const timedOut=controller.signal.aborted||error?.message==='DIAGNOSTIC_TIMEOUT';
     return{provider,model,status:timedOut?'TIMEOUT':'NETWORK_ERROR',latencyMs:Date.now()-started,correct:false};

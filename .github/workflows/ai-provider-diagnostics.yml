@@ -1,0 +1,31 @@
+name: LOUREX AI Provider Diagnostics
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/_ai/provider-diagnostic-classifier.js'
+      - 'api/_ai/provider-diagnostics.js'
+      - 'tests/ai-provider-diagnostic-classifier.test.mjs'
+      - 'tests/ai-provider-diagnostics.test.mjs'
+      - 'tests/ai-provider-diagnostic-rate-limit.test.mjs'
+      - 'public/health.js'
+      - '.github/workflows/ai-provider-diagnostics.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ai-provider-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  synthetic-provider-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Offline synthetic provider probes (no API keys, no customer data)
+        run: node --test --test-concurrency=1 tests/ai-provider-diagnostic-classifier.test.mjs tests/ai-provider-diagnostics.test.mjs tests/ai-provider-diagnostic-rate-limit.test.mjs
