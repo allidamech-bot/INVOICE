@@ -42,3 +42,14 @@ test('F16 generated browser UI uses verified progress rather than just file clas
  assert.match(generated,/instance\.__lourexLastConversationSources=\[\]/);
  assert.match(generated,/typeof __lourexSetConversationSources==='function'/);
 });
+
+test('F16 incomplete or failed multi-file AI delivery keeps all selected attachments for retry',async()=>{
+ const owner=await readFile(new URL('../scripts/ai-batch3-conversation-lifecycle-fix.mjs',import.meta.url),'utf8');
+ const compiled=await readFile(new URL('../dist/src/components/AiCopilot.js',import.meta.url),'utf8');
+ assert.match(owner,/Attachment response must be confirmed before its source chips are discarded/);
+ assert.match(compiled,/const previousAssistantIds=new Set/);
+ assert.match(compiled,/const verifiedResponse=/);
+ assert.match(compiled,/if\(!verifiedResponse\|\|instance\.state\.error\)/);
+ assert.match(compiled,/All attachments remain available to retry/);
+ assert.match(compiled,/instance\.setState\(\{conversationAttachments:\[\],attachmentMenuOpen:false\}\)/);
+});
