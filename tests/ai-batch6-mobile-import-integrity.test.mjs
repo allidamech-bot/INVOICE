@@ -38,7 +38,8 @@ test('AI extracted product review preserves all diffs, source currencies and exp
   assert.match(product,/row\.saleCurrency\|\|draft\.sourceCurrency\|\|t\('currency missing'/);
   assert.match(product,/row\.costCurrency\|\|draft\.sourceCurrency\|\|t\('currency missing'/);
   assert.match(product,/review\.classification==='duplicate-candidate'\|\|review\.classification==='needs-review'/);
-  assert.match(product,/mutateVaultSafely\(vault=>applyDraft/);
+  assert.match(product,/mutateVaultSafely\(vault=>\{/);
+   assert.match(product,/return applyDraft\(vault,draft,this\.state\.selected,fresh\)/);
   assert.match(product,/selectedCount/);
 });
 
