@@ -55,3 +55,18 @@ test('Batch 2 closeout prevents mutation-observer feedback while keeping scope d
   assert.match(source,/__lourexConversationDesignBatch2Closeout/);
   assert.doesNotMatch(source,/assistantCapabilityAllowed|document\.createDraft|payment\.record|inventory\.adjust/);
 });
+
+
+test('Typed LOUREX conversation polishes only chat bubbles and preserves the established outer UI',async()=>{
+  const css=await read('src/styles/ai-conversation-workspace.css');
+  const anchor='/* LOUREX AI — message-only conversation polish: preserve existing app shell. */';
+  const index=css.lastIndexOf(anchor);
+  assert.ok(index>0,'the message-only CSS closeout must be present');
+  const last=css.slice(index);
+  assert.match(last,/\\.lxw-message-turn\\.is-assistant \\.lourex-ai-message\\.assistant/);
+  assert.match(last,/\\.lxw-message-turn\\.is-user \\.lourex-ai-message\\.user/);
+  assert.match(last,/\\.lourex-ai-message-actions button/);
+  assert.match(last,/min-height:44px!important/);
+  assert.doesNotMatch(last,/\\.lourex-ai-head|\\.lourex-ai-title|\\.lourex-ai-compose|\\.lxw-mode-tabs|\\.lourex-ai-launcher|\\.lourex-ai-panel\\{/,
+    'new presentation CSS must not restyle chat shell, tabs, composer or launcher');
+});
