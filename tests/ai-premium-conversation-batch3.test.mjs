@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import {readFile,readdir} from 'node:fs/promises';
 
 const root=new URL('../',import.meta.url);
@@ -101,4 +102,25 @@ test('Conversation attachment validation rejects too many or oversized combined 
   assert.equal(validateConversationFiles([fake('a',1),fake('b',1),fake('c',1),fake('d',1)]).length,4);
   assert.throws(()=>validateConversationFiles(Array.from({length:11},(_,i)=>fake(String(i),1))),/up to 10/i);
   assert.throws(()=>validateConversationFiles([fake('large',16_000_001)]),/16 MB/i);
+});
+
+test('Premium composer Return inserts a new line on touch devices and sends with an explicit shortcut',async()=>{
+  const src=await read('scripts/ai-batch3-premium-conversation.mjs');
+  const match=src.match(/onKeyDown:(event=>\{[\s\S]*?\}),onPaste:event=>/);
+  assert.ok(match,'the compiled composer keyboard handler must be present in its build owner');
+  const fire=(touch,options={})=>{
+    let sent=0,prevented=0;
+    const onKeyDown=vm.runInNewContext('('+match[1]+')',{
+      window:{matchMedia:()=>({matches:touch})},navigator:{maxTouchPoints:touch?5:0}
+    });
+    onKeyDown({key:'Enter',shiftKey:false,ctrlKey:false,metaKey:false,nativeEvent:{isComposing:false},
+      preventDefault(){prevented++;},currentTarget:{form:{requestSubmit(){sent++;}}},...options});
+    return{sent,prevented};
+  };
+  assert.deepEqual(fire(true),{sent:0,prevented:0},'iPhone Return must insert a newline');
+  assert.deepEqual(fire(true,{ctrlKey:true}),{sent:1,prevented:1},'explicit Ctrl+Enter may send on touch');
+  assert.deepEqual(fire(false),{sent:1,prevented:1},'desktop Enter retains existing send behavior');
+  assert.deepEqual(fire(false,{shiftKey:true}),{sent:0,prevented:0},'desktop Shift+Enter inserts newline');
+  assert.deepEqual(fire(false,{nativeEvent:{isComposing:true}}),{sent:0,prevented:0},'IME composition must not send');
+  assert.deepEqual(fire(true,{key:' ' }),{sent:0,prevented:0},'space must not send');
 });
