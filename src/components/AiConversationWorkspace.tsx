@@ -1188,6 +1188,6 @@ function syncWorkspaceViewport():void {
 }
 export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
-  if(previous!==host.props){host.__workspaceComposerDrafts?.clear();clearConversationToolPresentation(host);host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
+  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceComposerDrafts?.clear();host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
 }
 export function unmountConversationWorkspace(host:Host):void {host.__workspaceComposerDrafts?.clear();if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
