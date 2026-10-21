@@ -13,19 +13,30 @@ function normalizeText(value){
 }
 function textFromPart(value){
   if(typeof value==='string')return value;
-  if(Array.isArray(value))return value.map(p=>typeof p==='string'?p:typeof p?.text==='string'?p.text:'').filter(Boolean).join(' ');
+  if(Array.isArray(value))return value.map(p=>typeof p==='string'?p:
+    typeof p?.text==='string'?p.text:
+    typeof p?.text?.value==='string'?p.text.value:'').filter(Boolean).join(' ');
   return '';
+}
+function safeModel(value){
+  return typeof value==='string'&&/^[a-zA-Z0-9@/._:+-]{1,110}$/.test(value)?value:undefined;
 }
 function selectedResponse(root,provider){
   if(provider==='gemini'){
     const item=root?.candidates?.[0];
-    return{text:textFromPart(item?.content?.parts||[]),finish:item?.finishReason||'',tokens:root?.usageMetadata?.candidatesTokenCount||0};
+    return{text:textFromPart(item?.content?.parts?.filter(p=>p?.thought!==true)||[]),
+      finish:item?.finishReason||'',tokens:root?.usageMetadata?.candidatesTokenCount||0,
+      model:root?.modelVersion||''};
   }
   const parent=root?.result?.choices?root.result:root;
   const choice=parent?.choices?.[0];
   const content=textFromPart(choice?.message?.content);
-  const alternate=!choice?textFromPart(root?.result?.response)||textFromPart(root?.response):'';
-  return{text:content||alternate,finish:choice?.finish_reason||'',tokens:parent?.usage?.completion_tokens||0};
+  const parsed=choice?.message?.parsed;
+  const parsedText=textFromPart(parsed)||
+    (parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?JSON.stringify(parsed):'');
+  const alternate=textFromPart(root?.result?.response)||textFromPart(root?.response);
+  return{text:content||parsedText||alternate,finish:choice?.finish_reason||'',
+    tokens:parent?.usage?.completion_tokens||0,model:parent?.model||root?.model||''};
 }
 function safeFinish(value){
   const str=String(value||'').trim().toUpperCase();
@@ -46,9 +57,17 @@ export function classifySyntheticProviderAnswer(root,provider){
   const answer=normalizeText(selected.text);
   const finishReason=safeFinish(selected.finish);
   const completionTokens=Number.isSafeInteger(selected.tokens)&&selected.tokens>=0&&selected.tokens<=1000000?selected.tokens:undefined;
-  const common={finishReason,...(completionTokens!==undefined?{completionTokens}:{})};
+  const actualModel=safeModel(selected.model);
+  const common={finishReason,...(completionTokens!==undefined?{completionTokens}:{}),
+    ...(actualModel?{actualModel}:{})};
+  if(root?.error||root?.success===false){
+    return{...common,status:'PROVIDER_ERROR',reason:'UPSTREAM_ERROR_BODY'};
+  }
   if(!answer){
-    return{...common,status:finishReason==='LENGTH'||finishReason==='MAX_TOKENS'?'OUTPUT_TRUNCATED':'INVALID_RESPONSE',reason:'EMPTY_CONTENT'};
+    const truncated=['LENGTH','MAX_TOKENS','MAX_OUTPUT_TOKENS'].includes(finishReason);
+    const blocked=['SAFETY','RECITATION','CONTENT_FILTER'].includes(finishReason);
+    return{...common,status:truncated?'OUTPUT_TRUNCATED':blocked?'OUTPUT_BLOCKED':'INVALID_RESPONSE',
+      reason:blocked?'OUTPUT_BLOCKED':'EMPTY_CONTENT'};
   }
   if(answer.length>1000)return{...common,status:'ANSWER_FORMAT',reason:'OVERLONG_ANSWER',answerPreview:safePreview(answer)};
   const clean=answer.replace(/^`{3}(?:text)?\s*|\s*`{3}$/gi,'').trim();
