@@ -38,6 +38,7 @@ test('a completed manifest keeps its chunks even when auth changes after commit'
     encodePayload:()=>new Uint8Array([1,2]),
     sha256:async()=> 'a'.repeat(64),
     getPlainCloudMeta:async()=>null,
+    getPeriodCloudControl:async()=>null,
     newRevision:()=> 'rev-1234567890123',
     CHUNK_BYTES:180000,WRITE_BATCH_SIZE:12,FORMAT:'LOUREX_PLAIN_WORKSPACE_V2',
     chunkId:(rev,i)=>rev+'-'+i,

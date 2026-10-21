@@ -1,7 +1,7 @@
 import type { PlainWorkspaceRecord, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION } from '../lib/defaults.js';
 import { activeAccountStorageUid, acknowledgePlainWorkspace, acknowledgeIdenticalPlainWorkspace, getPlainWorkspace, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
-import { currentCloudUser } from './firebase.js';
+import { currentCloudUser, currentCloudIdToken } from './firebase.js';
 import { assertRestorableBackupVault } from '../lib/backup.js';
 
 /**
@@ -30,6 +30,7 @@ export interface PlainCloudMeta {
   chunkCount:number;
   updatedAt:string;
   parentRevision:string|null;
+  chunkStorage?:'period-generations-v1';
 }
 export type PlainCloudSyncResult='empty'|'same'|'pushed'|'pulled'|'diverged'|'retry';
 
@@ -47,6 +48,7 @@ function newRevision():string {
 }
 function validMeta(value:any):value is PlainCloudMeta {
   return Boolean(value&&value.format===FORMAT&&value.version===2
+    &&(value.chunkStorage===undefined||value.chunkStorage==='period-generations-v1')
     &&typeof value.revision==='string'&&/^[a-z0-9-]{12,90}$/i.test(value.revision)
     &&Number.isInteger(value.schemaVersion)&&value.schemaVersion>0&&value.schemaVersion<=APP_SCHEMA_VERSION
     &&Number.isInteger(value.bytes)&&value.bytes>0&&value.bytes<=MAX_BYTES
@@ -94,7 +96,7 @@ function chunkId(revision:string,index:number):string {
 
 export async function getPlainCloudMeta(uid:string):Promise<PlainCloudMeta|null>{
   requireUid(uid);
-  const snapshot=await metaRef(uid).get();
+  const snapshot=await metaRef(uid).get({source:'server'});
   requireUid(uid);
   if(!snapshot.exists)return null;
   const value=snapshot.data();
@@ -106,11 +108,15 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
   requireUid(uid);
   const meta=expected??await getPlainCloudMeta(uid);
   if(!meta)return null;
+  if(!validMeta(meta))throw new Error('The cloud workspace manifest format is invalid.');
   const bytes=new Uint8Array(meta.bytes);
   let written=0;
   for(let offset=0;offset<meta.chunkCount;offset+=8){
     const indices=Array.from({length:Math.min(8,meta.chunkCount-offset)},(_,i)=>offset+i);
-    const snapshots=await Promise.all(indices.map(i=>collection(uid).doc(chunkId(meta.revision,i)).get()));
+    const chunks=meta.chunkStorage==='period-generations-v1'
+      ?firebase.firestore().collection('users').doc(uid).collection('periodGenerations').doc(meta.revision).collection('chunks')
+      :collection(uid);
+    const snapshots=await Promise.all(indices.map(i=>chunks.doc(chunkId(meta.revision,i)).get()));
     requireUid(uid);
     for(let i=0;i<snapshots.length;i++){
       const data=snapshots[i]?.data();
@@ -126,7 +132,7 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
   if(written!==meta.bytes||(await sha256(bytes))!==meta.sha256)
     throw new Error('The cloud workspace failed its integrity check.');
   const latest=await getPlainCloudMeta(uid);
-  if(!latest||latest.revision!==meta.revision||latest.sha256!==meta.sha256)
+  if(!latest||latest.revision!==meta.revision||latest.sha256!==meta.sha256||latest.chunkStorage!==meta.chunkStorage)
     throw new Error('The cloud workspace changed during download. Retry.');
   const payload=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)) as VaultPayload;
   assertRestorableBackupVault(payload);
@@ -146,12 +152,19 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
   const bytes=encodePayload(local.payload),hash=await sha256(bytes);
   const previous=await getPlainCloudMeta(uid);
   requireUid(uid);
+  const control=await getPeriodCloudControl(uid);
+  if(previous?.chunkStorage==='period-generations-v1'&&!control)throw new Error('Trusted period control enrollment is unavailable.');
   if(previous&&previous.sha256===hash){
     await acknowledgeIdenticalPlainWorkspace(uid,local.localRevision,previous.revision,hash);
     return 'same';
   }
   if(!replaceRemote&&(previous?.revision??null)!==(local.baseCloudRevision??null))
     return 'remote-changed';
+  if(control){
+    if((previous?.revision??null)!==(local.baseCloudRevision??null))return 'remote-changed';
+    if(!previous||previous.chunkStorage!=='period-generations-v1')throw new Error('Invalid protected workspace manifest.');
+    return publishProtectedWorkspace(uid,local,bytes,hash,previous,control.generation);
+  }
   const revision=newRevision(),count=Math.ceil(bytes.length/CHUNK_BYTES);
   const meta:PlainCloudMeta={
     format:FORMAT,version:2,revision,schemaVersion:local.schemaVersion,
@@ -256,4 +269,65 @@ export function subscribePlainCloudChanges(uid:string,onChange:()=>void):()=>voi
     onChange();
   },()=>undefined);
   return typeof off==='function'?off:()=>{};
+}
+
+/** Always consult the authenticated server: cached absence cannot downgrade an enrolled account. */
+export async function getPeriodCloudControl(uid:string):Promise<{generation:number}|null>{
+  requireUid(uid);
+  const snapshot=await firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'});
+  requireUid(uid);
+  if(!snapshot.exists)return null;
+  const value=snapshot.data();
+  if(value?.format!=='LOUREX_PERIOD_CONTROL_V1'||value.version!==1||value.ownerUid!==uid
+    ||!Number.isSafeInteger(value.generation)||value.generation<1||!Array.isArray(value.boundaries)
+    ||value.boundaries.some((b:any)=>!b||typeof b.workspaceId!=='string'||!b.workspaceId
+      ||typeof b.through!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(b.through)
+      ||typeof b.reportId!=='string'||!/^[a-f0-9]{32}$/.test(b.reportId))
+    ||new Set(value.boundaries.map((b:any)=>b.workspaceId)).size!==value.boundaries.length)
+    throw new Error('Invalid trusted period control. Account data was not published.');
+  return {generation:value.generation};
+}
+
+async function publishProtectedWorkspace(uid:string,local:PlainWorkspaceRecord,bytes:Uint8Array,hash:string,previous:PlainCloudMeta,generation:number):Promise<'pushed'|'remote-changed'>{
+  const opId=newRevision(),count=Math.ceil(bytes.length/CHUNK_BYTES);
+  const root=firebase.firestore().collection('users').doc(uid).collection('periodStaging').doc(opId);
+  const meta:PlainCloudMeta={format:FORMAT,version:2,revision:opId,schemaVersion:local.schemaVersion,bytes:bytes.length,sha256:hash,chunkCount:count,updatedAt:local.updatedAt,parentRevision:previous.revision};
+  // Create-only rules preserve staged bytes. Never overwrite or clean up an
+  // ambiguous request: only the trusted server can publish authoritative data.
+  for(let offset=0;offset<count;offset+=WRITE_BATCH_SIZE){
+    requireUid(uid);
+    const batch=firebase.firestore().batch();
+    for(let i=offset;i<Math.min(count,offset+WRITE_BATCH_SIZE);i++)batch.set(root.collection('chunks').doc(String(i).padStart(5,'0')),{revision:opId,index:i,data:b64(bytes.subarray(i*CHUNK_BYTES,Math.min(bytes.length,(i+1)*CHUNK_BYTES)))});
+    await batch.commit();
+  }
+  requireUid(uid);
+  const batch=firebase.firestore().batch();batch.set(root,meta);await batch.commit();
+  const token=await currentCloudIdToken();requireUid(uid);
+  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),60_000);
+  try{
+    const response=await fetch('/api/workspace-commit',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice',Authorization:'Bearer '+token},body:JSON.stringify({operation:'commit',opId,expectedRevision:previous.revision,expectedGeneration:generation}),signal:abort.signal});
+    requireUid(uid);
+    if(!response.ok){
+      if(response.status===409)return 'remote-changed';
+      const body=await response.json().catch(()=>null);
+      if(body?.code==='PERIOD_CHANGED')throw new Error('PERIOD_CHANGED: This edit changes a closed period. Your device draft is retained.');
+      throw new Error('Protected workspace synchronization failed. Your device draft is retained.');
+    }
+    // Never treat an HTTP response as proof of the exact payload. Re-read the
+    // authoritative manifest and verify the staged hash before acknowledging.
+    const committed=await getPlainCloudMeta(uid);
+    if(!committed||committed.sha256!==hash||committed.chunkStorage!=='period-generations-v1')return 'remote-changed';
+    await acknowledgePlainWorkspace(uid,local.localRevision,committed.revision,hash,local.baseCloudRevision);
+    return 'pushed';
+  }catch(error){
+    // A lost response may follow a successful commit. Only an exact hash from
+    // the authenticated account reconciles it; rejected/local work stays intact.
+    requireUid(uid);
+    const committed=await getPlainCloudMeta(uid).catch(()=>null);requireUid(uid);
+    if(committed?.sha256===hash&&committed.chunkStorage==='period-generations-v1'){
+      await acknowledgePlainWorkspace(uid,local.localRevision,committed.revision,hash,local.baseCloudRevision);
+      return 'pushed';
+    }
+    throw error;
+  }finally{clearTimeout(timer);}
 }
