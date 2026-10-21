@@ -236,6 +236,8 @@
     render();
   },HEALTH_DEADLINE_MS);
   const providerButtons=[...document.querySelectorAll('[data-provider-test]')];
+  const accuracyButtons=[...document.querySelectorAll('[data-provider-accuracy]')];
+  const allProbeButtons=[...providerButtons,...accuracyButtons];
   const safeProviders=new Set(['groq','cloudflare','gemini','kilo']);
   let probeRunning=false;
   const probeLabels={
@@ -269,7 +271,7 @@
     const provider=button.getAttribute('data-provider-test');
     if(probeRunning||!safeProviders.has(provider))return;
     probeRunning=true;
-    providerButtons.forEach(item=>item.disabled=true);
+    allProbeButtons.forEach(item=>item.disabled=true);
     const result=document.querySelector('[data-provider-result="'+provider+'"]');
     if(result)result.textContent='Testing… / جارٍ الاختبار…';
     try{
@@ -301,7 +303,63 @@
       }
     }catch{
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
-    }finally{probeRunning=false;providerButtons.forEach(item=>item.disabled=false);}
+    }finally{probeRunning=false;allProbeButtons.forEach(item=>item.disabled=false);}
+  });
+  const qaCaseLabels={
+    D1:'Discount + tax / خصم وضريبة',
+    D2:'Partial receipts / دفعات جزئية',
+    D3:'Fixed FX / تحويل عملة',
+    D4:'Credit note / إشعار دائن',
+    D5:'Tax-inclusive net / صافي قبل الضريبة'
+  };
+  for(const button of accuracyButtons)button.addEventListener('click',async()=>{
+    const provider=button.getAttribute('data-provider-accuracy');
+    if(probeRunning||!safeProviders.has(provider))return;
+    probeRunning=true;
+    allProbeButtons.forEach(item=>item.disabled=true);
+    const result=document.querySelector('[data-accuracy-result="'+provider+'"]');
+    if(result)result.textContent='Five-case financial QA running… / جارٍ اختبار خمس مسائل مالية وهمية…';
+    try{
+      const user=window.firebase?.auth()?.currentUser;
+      if(!user)throw new Error('SIGN_IN_REQUIRED');
+      const token=await user.getIdToken();
+      const response=await fetch('/api/ai-core',{
+        method:'POST',cache:'no-store',
+        headers:{Authorization:'Bearer '+token,'X-Requested-With':'LOUREX-Invoice',
+          'X-Lourex-Admin-Diagnostics':'provider-probe','Content-Type':'application/json'},
+        body:JSON.stringify({provider,mode:'financial'}),signal:AbortSignal.timeout(18000)
+      });
+      const data=await response.json();
+      if(!result)return;
+      if(!response.ok){
+        result.textContent=response.status===403?'Access denied / الوصول مرفوض':
+          response.status===429&&data?.code==='DIAGNOSTIC_RATE_LIMITED'?
+          ('LOUREX test cap for '+provider+' only. Retry in '+Math.ceil(Math.max(1,Number(data.retryAfterSeconds)||1)/60)+' min / تجاوز حدّ لوريكس لهذا المزوّد فقط'):
+          'Test unavailable / تعذر الاختبار';
+        return;
+      }
+      const model=typeof data?.actualModel==='string'&&data.actualModel.length<=110?
+        ' · Model: '+data.actualModel:typeof data?.model==='string'?' · '+data.model.slice(0,80):'';
+      const latency=Number.isFinite(data?.latencyMs)?' · '+Math.round(data.latencyMs)+' ms':'';
+      if(Array.isArray(data?.cases)&&data.cases.length===5&&Number.isInteger(data.score)&&data.score>=0&&data.score<=5){
+        const details=data.cases.map(item=>{
+          if(!qaCaseLabels[item?.id]||!Number.isFinite(item.reported)||!Number.isFinite(item.expected))return '';
+          return qaCaseLabels[item.id]+' '+(item.correct===true?'✓':'✗')+
+            ' ['+Number(item.reported).toFixed(2)+' / '+Number(item.expected).toFixed(2)+']';
+        }).filter(Boolean);
+        result.textContent='Synthetic accuracy / دقة وهمية: '+data.score+'/5'+model+latency+
+          (details.length?' · '+details.join(' · '):'')+
+          ' · Not a production accounting certification / ليس اعتمادًا محاسبيًا';
+      }else{
+        const reason=reasonLabels[data?.reason]?' · '+reasonLabels[data.reason]:'';
+        result.textContent=(probeLabels[data?.status]||'QA not gradeable / تعذر تقييم الاختبار')+reason+model+latency;
+      }
+    }catch{
+      if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
+    }finally{
+      probeRunning=false;
+      allProbeButtons.forEach(item=>item.disabled=false);
+    }
   });
   document.getElementById('back').addEventListener('click',()=>{if(history.length>1)history.back();else location.href='./';});
   document.getElementById('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(fullReportText());document.getElementById('copy').textContent='Copied full report / تم النسخ';}catch{}});
