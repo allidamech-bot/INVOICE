@@ -155,3 +155,22 @@ test('F21 no content/price/customer payload is leaked to provider by the documen
   }
   assert.ok(!JSON.stringify(index).includes('ACCOUNT'));
 });
+
+test('F21 hypothetical invoice and payment examples never hijack Advisor into saved-document counts',async()=>{
+  const {vault,buildAdvisorDataV2,finance,business}=await fixture();
+  const g=await gateway({answer:'Hypothetical scenario received; no stored-document count requested.'});
+  const cases=[
+    ['إذا عندي فاتورة افتراضية قيمتها 1500 دولار، دفعت 400 ثم 350، كم المتبقي؟','ar'],
+    ['عندي فاتورة بمبلغ 1500 دولار دفعت منها 400 و350، كم الباقي؟','ar'],
+    ['Suppose I have an invoice of 1500 USD, paid 400 and 350; what is remaining?','en']
+  ];
+  for(const [message,language] of cases){
+    const data=buildAdvisorDataV2(vault,finance,business,'business',message);
+    const result=await g.request(message,data,'advisor',language);
+    assert.equal(result.statusCode,200);
+    assert.equal(result.body.model,'lourex-dialogue','hypothetical examples must bypass saved-document status shortcut');
+    assert.equal(result.body.proposal,null,'Advisor remains read-only');
+    assert.doesNotMatch(result.body.answer,/سجل المستندات المحفوظة|saved invoice records/iu);
+  }
+  assert.equal(g.planned,cases.length,'each hypothetical scenario must reach conversation processing');
+});
