@@ -261,6 +261,7 @@
   };
   const reasonLabels={
     EMPTY_CONTENT:'No text returned / لم يُرجع نصًا',
+    TRUNCATED_CONTENT:'Incomplete answer rejected / رُفضت إجابة غير مكتملة',
     UPSTREAM_NON_JSON:'Non-JSON provider response / رد غير متوافق',
     RESPONSE_TOO_LARGE:'Response exceeds safe size / الرد أكبر من الحد الآمن',
     OVERLONG_ANSWER:'Verbose answer / إجابة مطوّلة',
