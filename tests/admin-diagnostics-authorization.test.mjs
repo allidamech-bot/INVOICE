@@ -43,8 +43,8 @@ test('live API gate accepts only a signed token belonging to the configured owne
    const signed=head+'.'+payload;
    return signed+'.'+sign('RSA-SHA256',Buffer.from(signed),privateKey).toString('base64url');
  };
- const call=async(auth,origin='https://invoice-three-puce.vercel.app',diagnosticAction='access-check')=>{
-   const req=Readable.from(['{}']);
+ const call=async(auth,origin='https://invoice-three-puce.vercel.app',diagnosticAction='access-check',body='{}')=>{
+   const req=Readable.from([body]);
    req.method='POST';
    req.headers={host:'invoice-three-puce.vercel.app',origin,'x-requested-with':'LOUREX-Invoice',
      'x-lourex-admin-diagnostics':diagnosticAction,...(auth?{authorization:'Bearer '+auth}:{})};
@@ -72,6 +72,13 @@ test('live API gate accepts only a signed token belonging to the configured owne
    assert.equal(authorized.headers['Cache-Control'],'no-store');
    const deniedProbe=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app','provider-probe');
    assert.equal(deniedProbe.statusCode,403,'team owners are not diagnostics administrators');
+   const deniedFinance=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app',
+     'provider-probe',JSON.stringify({provider:'kilo',mode:'financial'}));
+   assert.equal(deniedFinance.statusCode,403,'employee owners cannot trigger the five-case financial QA suite');
+   const invalidMode=await call(makeToken(owner,'viewer'),'https://invoice-three-puce.vercel.app',
+     'provider-probe',JSON.stringify({provider:'kilo',mode:'paid'}));
+   assert.equal(invalidMode.statusCode,400,'the administrator cannot change the fixed financial QA suite');
+   assert.equal(invalidMode.body?.code,'INVALID_DIAGNOSTIC_MODE');
    const invalidProvider=await call(makeToken(owner,'viewer'),'https://invoice-three-puce.vercel.app','provider-probe');
    assert.equal(invalidProvider.statusCode,400,'owner may not pick arbitrary provider models');
    assert.equal(invalidProvider.body?.code,'INVALID_DIAGNOSTIC_PROVIDER');
