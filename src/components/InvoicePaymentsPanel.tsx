@@ -4,11 +4,13 @@ import { displayDate, makeId, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments, invoicePaymentSummary, invoicePayments, paymentMethodLabel } from '../lib/payments.js';
 import { Button, ConfirmDialog, Input, Select, Textarea } from './UI.js';
+import {customerPaymentVoucher} from '../lib/payment-voucher.js';
+import {PaymentVoucherModal} from './PaymentVoucherModal.js';
 
 interface Props{document:LourexDocument;documents:LourexDocument[];payments:PaymentRecord[];onSave:(payment:PaymentRecord)=>Promise<void>;onDelete:(payment:PaymentRecord)=>Promise<void>;}
-interface State{open:boolean;amount:string;date:string;method:PaymentMethod;reference:string;notes:string;saving:boolean;deletingId:string;pendingDelete:PaymentRecord|null;error:string;}
+interface State{open:boolean;amount:string;date:string;method:PaymentMethod;reference:string;notes:string;saving:boolean;deletingId:string;pendingDelete:PaymentRecord|null;voucherId:string;error:string;}
 export class InvoicePaymentsPanel extends React.Component<Props,State>{
-  state:State={open:false,amount:'',date:todayIso(),method:'bank-transfer',reference:'',notes:'',saving:false,deletingId:'',pendingDelete:null,error:''};
+  state:State={open:false,amount:'',date:todayIso(),method:'bank-transfer',reference:'',notes:'',saving:false,deletingId:'',pendingDelete:null,voucherId:'',error:''};
   private saveInFlight=false;
   private deleteInFlight=false;
 
@@ -40,6 +42,12 @@ export class InvoicePaymentsPanel extends React.Component<Props,State>{
     }catch(e){this.setState({saving:false,error:e instanceof Error?e.message:t('Unable to save payment.','تعذر حفظ الدفعة.')});}
     finally{this.saveInFlight=false;}
   };
+  private openVoucher=(paymentId:string)=>{
+    try{
+      customerPaymentVoucher(this.props.document,paymentId,this.props.payments);
+      this.setState({voucherId:paymentId,error:''});
+    }catch(error){this.setState({error:error instanceof Error?error.message:t('This payment has no valid receipt.','لا يوجد سند قبض صالح لهذه الدفعة.')});}
+  };
   private requestRemove=(payment:PaymentRecord)=>{
     if(this.deleteInFlight||this.saveInFlight)return;
     this.setState({pendingDelete:payment,error:''});
@@ -48,7 +56,7 @@ export class InvoicePaymentsPanel extends React.Component<Props,State>{
     const payment=this.state.pendingDelete;
     if(!payment||this.deleteInFlight||this.saveInFlight)return;
     this.deleteInFlight=true;
-    this.setState({deletingId:payment.id,pendingDelete:null,error:''});
+    this.setState({deletingId:payment.id,pendingDelete:null,voucherId:'',error:''});
     try{await this.props.onDelete(payment);}
     catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to delete payment.','تعذر حذف الدفعة.')});}
     finally{this.deleteInFlight=false;this.setState({deletingId:''});}
@@ -61,8 +69,9 @@ export class InvoicePaymentsPanel extends React.Component<Props,State>{
       {!this.state.open&&this.state.error?<p className="payment-error" role="alert">{this.state.error}</p>:null}
       {summary.status!=='paid'&&!this.state.open&&!integrityIssues?<Button icon="plus" variant="primary" onClick={this.openForm} disabled={Boolean(this.state.deletingId)}>{t('Record Payment','تسجيل دفعة')}</Button>:null}
       {this.state.open?<div className="payment-entry-form"><div className="payment-form-grid"><label><span>{t('Amount','المبلغ')}</span><Input inputMode="decimal" value={this.state.amount} onChange={(e:any)=>this.setState({amount:e.target.value,error:''})}/></label><label><span>{t('Date','التاريخ')}</span><Input type="date" min={doc.issueDate} value={this.state.date} onChange={(e:any)=>this.setState({date:e.target.value,error:''})}/></label><label><span>{t('Method','الوسيلة')}</span><Select value={this.state.method} onChange={(e:any)=>this.setState({method:e.target.value as PaymentMethod})}>{(['cash','bank-transfer','card','cheque','other'] as PaymentMethod[]).map(method=><option key={method} value={method}>{paymentMethodLabel(method,arabic)}</option>)}</Select></label><label><span>{t('Reference','المرجع')}</span><Input value={this.state.reference} placeholder={t('Transfer / receipt reference','مرجع التحويل / الإيصال')} onChange={(e:any)=>this.setState({reference:e.target.value})}/></label></div><label className="payment-notes-field"><span>{t('Notes','ملاحظات')}</span><Textarea rows={2} value={this.state.notes} onChange={(e:any)=>this.setState({notes:e.target.value})}/></label>{this.state.error?<p className="payment-error" role="alert">{this.state.error}</p>:null}<div className="payment-form-actions"><Button onClick={this.closeForm} disabled={this.state.saving}>{t('Cancel','إلغاء')}</Button><Button variant="primary" icon="save" onClick={()=>void this.save()} disabled={this.state.saving||Boolean(this.state.deletingId)}>{this.state.saving?t('Saving…','جارٍ الحفظ…'):t('Save Payment','حفظ الدفعة')}</Button></div></div>:null}
-      {payments.length?<div className="payment-history"><h3>{t('Payment history','سجل المدفوعات')}</h3>{payments.map(payment=><article className="payment-row" key={payment.id}><div><strong>{formatMoney(payment.amount,payment.currency)}</strong><span>{displayDate(payment.date,getUiLanguage())} · {paymentMethodLabel(payment.method,arabic)}</span></div><div className="payment-row-details">{payment.reference?<span>{t('Ref.','مرجع')}: {payment.reference}</span>:null}{payment.notes?<small>{payment.notes}</small>:null}</div><Button variant="ghost" disabled={this.state.saving||Boolean(this.state.deletingId)} onClick={()=>this.requestRemove(payment)}>{this.state.deletingId===payment.id?t('Deleting…','جارٍ الحذف…'):t('Delete','حذف')}</Button></article>)}</div>:<p className="payment-empty">{t('No payments recorded yet.','لا توجد دفعات مسجلة بعد.')}</p>}
+      {payments.length?<div className="payment-history"><h3>{t('Payment history','سجل المدفوعات')}</h3>{payments.map(payment=><article className="payment-row" key={payment.id}><div><strong>{formatMoney(payment.amount,payment.currency)}</strong><span>{displayDate(payment.date,getUiLanguage())} · {paymentMethodLabel(payment.method,arabic)}</span></div><div className="payment-row-details">{payment.reference?<span>{t('Ref.','مرجع')}: {payment.reference}</span>:null}{payment.notes?<small>{payment.notes}</small>:null}</div>{accountedIds.has(payment.id)?<Button variant="ghost" disabled={this.state.saving||Boolean(this.state.deletingId)} onClick={()=>this.openVoucher(payment.id)}>{t('Receipt / PDF','سند قبض / PDF')}</Button>:null}<Button variant="ghost" disabled={this.state.saving||Boolean(this.state.deletingId)} onClick={()=>this.requestRemove(payment)}>{this.state.deletingId===payment.id?t('Deleting…','جارٍ الحذف…'):t('Delete','حذف')}</Button></article>)}</div>:<p className="payment-empty">{t('No payments recorded yet.','لا توجد دفعات مسجلة بعد.')}</p>}
     </section>
+    <PaymentVoucherModal voucher={this.state.voucherId&&accountedIds.has(this.state.voucherId)?customerPaymentVoucher(doc,this.state.voucherId,this.props.payments):null} onClose={()=>this.setState({voucherId:''})}/>
     <ConfirmDialog open={Boolean(this.state.pendingDelete)} title={t('Delete payment record?','حذف سجل الدفعة؟')} message={t('Deleting this payment changes the invoice balance and collection history.','حذف هذه الدفعة سيغيّر رصيد الفاتورة وسجل التحصيل.')} confirmLabel={t('Delete payment','حذف الدفعة')} onCancel={()=>this.setState({pendingDelete:null})} onConfirm={()=>void this.remove()}/>
   </>;}
 }
