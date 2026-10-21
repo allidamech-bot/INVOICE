@@ -123,3 +123,21 @@ test('UI retains the owner gate and renders resolved model metadata as text only
  assert.match(script,/result\.textContent=label/);
  assert.doesNotMatch(script,/result\.innerHTML\s*=/);
 });
+
+test('a numerically correct but unfinished or safety-blocked reply is never PASSED',()=>{
+ for(const provider of ['kilo','openrouter','cloudflare']){
+  for(const finish_reason of ['length','max_tokens','max_output_tokens']){
+   const reply={model:'free/test-model',choices:[{message:{content:'1062'},finish_reason}]};
+   const r=classifySyntheticProviderAnswer(reply,provider);
+   assert.equal(r.status,'OUTPUT_TRUNCATED',provider+' '+finish_reason);
+   assert.equal(r.reason,'TRUNCATED_CONTENT');
+   assert.equal(r.reportedTotal,undefined);
+   assert.equal(r.actualModel,'free/test-model');
+  }
+ }
+ const safety=classifySyntheticProviderAnswer({
+  candidates:[{finishReason:'SAFETY',content:{parts:[{text:'1062'}]}}]
+ },'gemini');
+ assert.equal(safety.status,'OUTPUT_BLOCKED');
+ assert.equal(safety.reportedTotal,undefined);
+});

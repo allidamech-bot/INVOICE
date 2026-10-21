@@ -64,12 +64,15 @@ export function classifySyntheticProviderAnswer(root,provider){
   if(root?.error||root?.success===false){
     return{...common,status:'PROVIDER_ERROR',reason:'UPSTREAM_ERROR_BODY'};
   }
-  if(!answer){
-    const truncated=['LENGTH','MAX_TOKENS','MAX_OUTPUT_TOKENS'].includes(finishReason);
-    const blocked=['SAFETY','RECITATION','CONTENT_FILTER'].includes(finishReason);
-    return{...common,status:truncated?'OUTPUT_TRUNCATED':blocked?'OUTPUT_BLOCKED':'INVALID_RESPONSE',
-      reason:blocked?'OUTPUT_BLOCKED':'EMPTY_CONTENT'};
-  }
+  // A correct-looking number inside a cut-off or blocked message is not a
+  // completed answer. Reject it BEFORE trying to grade numeric content.
+  // In particular, auto/free routers can change the underlying model between
+  // probes; a response may contain partial visible text and still be truncated.
+  const truncated=['LENGTH','MAX_TOKENS','MAX_OUTPUT_TOKENS'].includes(finishReason);
+  const blocked=['SAFETY','RECITATION','CONTENT_FILTER'].includes(finishReason);
+  if(truncated)return{...common,status:'OUTPUT_TRUNCATED',reason:answer?'TRUNCATED_CONTENT':'EMPTY_CONTENT'};
+  if(blocked)return{...common,status:'OUTPUT_BLOCKED',reason:'OUTPUT_BLOCKED'};
+  if(!answer)return{...common,status:'INVALID_RESPONSE',reason:'EMPTY_CONTENT'};
   if(answer.length>1000)return{...common,status:'ANSWER_FORMAT',reason:'OVERLONG_ANSWER',answerPreview:safePreview(answer)};
   const clean=answer.replace(/^`{3}(?:text)?\s*|\s*`{3}$/gi,'').trim();
   const nums=possibleAmounts(clean);
