@@ -57,3 +57,9 @@ build and typecheck PASS; diff whitespace check PASS. Existing data-URL storage
 fixture resolves the new real dependency by absolute URL. Existing source
 contracts now require the additional independently verified context argument;
 their UID/archive/CAS assertions remain intact.
+
+CI correction: the credit-treatment workflow failed because it required the
+candidate to reproduce three failures from a frozen historical base. The current
+candidate had zero of those failures. Replaced that historical comparison with
+the entire current Node suite, without exclusions, tolerated failures or fixed
+old commits. Existing focused finance and browser gates remain unchanged.
