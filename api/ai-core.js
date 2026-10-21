@@ -4,6 +4,7 @@ import {SYNTHETIC_PROVIDER_IDS,OLLAMA_SYNTHETIC_MODELS,runSyntheticProviderDiagn
 import {diagnosticRateAllowed} from './_ai/diagnostics-rate-limit.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
+import {hypotheticalInvoicePaymentAnswer} from './_ai/hypothetical-invoice-payment.js';
 
 const MAX_BODY_BYTES=180000;
 const MAX_MESSAGE_CHARS=6000;
@@ -183,6 +184,12 @@ export default async function handler(request,response){
     sendJson(response,422,{code:'AI_SOURCE_INCOMPLETE',message:'The attached sources exceed the safe 10-file or complete-text limits (12000 characters each, 72000 total), or contain invalid data. Split or reduce the sources; no incomplete set was analyzed.'});return;
   }
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX AI received an invalid business context.'});return;}
+
+  // Shared, read-only exact hypothetical arithmetic for Advisor and Controller.
+  // Never bypass attachment interpretation or action approval for real records.
+  const hypothetical=!cleaned.context.conversationSources?.length
+    ?hypotheticalInvoicePaymentAnswer(cleaned.message,cleaned.context.language):null;
+  if(hypothetical){sendJson(response,200,{model:'deterministic-hypothetical-money',answer:hypothetical.answer,proposal:null});return;}
 
   // Free-form dialogue is the default for both modes. Do not make normal
   // questions pass an executable proposal schema merely to receive an answer.
