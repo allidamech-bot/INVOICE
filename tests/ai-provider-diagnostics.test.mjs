@@ -25,7 +25,13 @@ test('each provider receives only a synthetic arithmetic prompt, single provider
      assert.equal(url,'https://ai-gateway.kilo.ai/api/v1/chat/completions');
     }
     if(provider==='groq')assert.equal(body.model,'openai/gpt-oss-120b');
-    if(provider==='cloudflare')assert.equal(body.model,'@cf/google/gemma-4-26b-a4b-it');
+    if(provider==='cloudflare'){
+     assert.equal(body.model,'@cf/google/gemma-4-26b-a4b-it');
+     assert.deepEqual(body.chat_template_kwargs,{enable_thinking:false},'avoid spending 256 completion tokens on Gemma reasoning');
+     assert.equal(body.max_completion_tokens,256,'do not raise free-tier output usage for the diagnostics');
+    }
+    if(provider==='gemini'||provider==='groq'||provider==='kilo')
+     assert.equal(body.chat_template_kwargs,undefined,'no other provider should inherit Cloudflare-only options');
     if(provider==='gemini')assert.ok(url.endsWith('/gemini-2.5-flash-lite:generateContent'));
     return provider==='gemini'?reply({candidates:[{content:{parts:[{text:'1062'}]}}]}):
      provider==='cloudflare'?reply({result:{choices:[{message:{content:'1062'}}]}}):
@@ -74,4 +80,18 @@ test('UI requires owner verification, only manual buttons, server-side signed UI
  assert.match(js,/button\.addEventListener\('click',async\(\)=>/);
  assert.match(api,/request\.headers\['x-lourex-admin-diagnostics'\]==='provider-probe'/);
  assert.match(api,/diagnosticsOwnerUidAllowed\(request\.aiVerifiedUid,process\.env\.LOUREX_AI_DIAGNOSTICS_ADMIN_UID\)/);
+});
+
+test('a truncated Cloudflare model answer is not counted as a correct calculation',async()=>{
+ await sandbox(async()=>{
+  let calls=0;
+  const result=await runSyntheticProviderDiagnostic('cloudflare',{fetchImpl:async()=>{
+   calls++;
+   return reply({choices:[{finish_reason:'length',message:{content:''}}],usage:{completion_tokens:256}});
+  }});
+  assert.equal(calls,1);
+  assert.equal(result.status,'OUTPUT_TRUNCATED');
+  assert.equal(result.correct,false);
+  assert.equal(result.reason,'EMPTY_CONTENT');
+ });
 });
