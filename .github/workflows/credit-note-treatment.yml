@@ -1,0 +1,33 @@
+name: Explicit credit note VAT treatment
+on:
+  pull_request:
+    paths:
+      - 'src/lib/document-lifecycle.ts'
+      - 'src/components/CreditNoteTreatmentDialog.tsx'
+      - 'src/app/App.tsx'
+      - 'tests/credit-note-treatment.test.mjs'
+      - 'tests/visual/credit-note-treatment.html'
+      - 'tests/visual/run-credit-note-treatment.cjs'
+      - '.github/workflows/credit-note-treatment.yml'
+permissions:
+  contents: read
+jobs:
+  accounting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc -p tsconfig.json
+      - name: Focused treatment behavior
+        run: node --test tests/credit-note-treatment.test.mjs
+      - name: Related finance and VAT regression
+        run: node --test tests/fx-signed-rounding-vat-characterization.test.mjs tests/tax-vat-batch10.test.mjs tests/financial-e2e-v145.test.mjs tests/accounting-foundation-batch7.test.mjs tests/customer-return-void-saved-cycle.test.mjs
+      - run: npm run typecheck
+      - run: npm run build
