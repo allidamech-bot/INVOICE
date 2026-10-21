@@ -47,7 +47,7 @@ function readAnswer(root,provider){
   if(provider==='gemini'){
     const candidate=root?.candidates?.[0];
     return{
-      text:partsText(candidate?.content?.parts),
+      text:partsText(candidate?.content?.parts?.filter(part=>part?.thought!==true)),
       reason:String(candidate?.finishReason||'').slice(0,32),
       model:root?.modelVersion||''
     };
@@ -56,7 +56,8 @@ function readAnswer(root,provider){
   const choice=parent?.choices?.[0];
   const message=choice?.message;
   return{
-    text:partsText(message?.content)||partsText(message?.parsed),
+    text:partsText(message?.content)||partsText(message?.parsed)||
+      (provider==='cloudflare'&&typeof root?.result?.response==='string'?root.result.response:''),
     reason:String(choice?.finish_reason||choice?.finishReason||'').slice(0,32),
     model:parent?.model||root?.model||''
   };
@@ -64,7 +65,7 @@ function readAnswer(root,provider){
 function numericAnswer(text){
   let value=String(text||'').trim();
   if(!value||value.length>400)return null;
-  value=value.replace(/^\\\`{3}(?:text|json)?\s*|\s*\\\`{3}$/gi,'').trim();
+  value=value.replace(/^\x60{3}(?:text|json)?\s*|\s*\x60{3}$/gi,'').trim();
   // Some providers return a JSON scalar or an object despite the numeric instruction.
   if(/^[{\[]/.test(value)){
     try{
