@@ -357,10 +357,13 @@
   };
   for(const button of accuracyButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-accuracy');
+    const alternativeModel=button.getAttribute('data-diagnostic-model');
     if(probeRunning||!safeProviders.has(provider))return;
+    // The alternative is intentionally limited to ONE owner-clicked synthetic suite.
+    if(alternativeModel!==null&&(provider!=='ollama'||alternativeModel!=='gpt-oss:20b'))return;
     probeRunning=true;
     allProbeButtons.forEach(item=>item.disabled=true);
-    const result=document.querySelector('[data-accuracy-result="'+provider+'"]');
+    const result=document.querySelector(alternativeModel!==null?'[data-ollama-alt-result]':'[data-accuracy-result="'+provider+'"]');
     if(result)result.textContent='Five-case financial QA running… / جارٍ اختبار خمس مسائل مالية وهمية…';
     try{
       const user=window.firebase?.auth()?.currentUser;
@@ -370,7 +373,7 @@
         method:'POST',cache:'no-store',
         headers:{Authorization:'Bearer '+token,'X-Requested-With':'LOUREX-Invoice',
           'X-Lourex-Admin-Diagnostics':'provider-probe','Content-Type':'application/json'},
-        body:JSON.stringify({provider,mode:'financial'}),signal:AbortSignal.timeout(18000)
+        body:JSON.stringify(alternativeModel!==null?{provider,mode:'financial',model:alternativeModel}:{provider,mode:'financial'}),signal:AbortSignal.timeout(18000)
       });
       const data=await response.json();
       if(!result)return;
