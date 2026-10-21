@@ -27,7 +27,13 @@ function approvedCompiledModuleUrl(fileName){
   return pathToFileURL(resolve(...parts)).href;
 }
 
+const runtimeImport=new Function('moduleUrl','return import(moduleUrl)');
+
 export async function loadCompiledFinance(name){
   if(!Object.hasOwn(KNOWN,name))throw new Error('Unsupported server finance module');
-  return import(approvedCompiledModuleUrl(KNOWN[name]));
+  // This is a fixed, allowlisted server module URL, not user-supplied code.
+  // Keeping import() behind a runtime factory prevents @vercel/nft from
+  // statically walking the entire compiled finance/AI dependency directory;
+  // Vercel includes those files as unchanged function assets.
+  return runtimeImport(approvedCompiledModuleUrl(KNOWN[name]));
 }
