@@ -263,6 +263,15 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
   const hasSources=sources.length>0;
+  // A self-contained what-if balance is NOT a command to collect customer cash.
+  // Let the authenticated dialogue gateway's shared deterministic calculator
+  // answer it; no Controller plan, ledger read or approval may be staged.
+  const hypotheticalBalance=!hasSources&&
+    /(?:فاتور[ةه]|invoice|bill)/iu.test(input.message)&&
+    /(?:دفعت|دفعة|دفعات|سددت|paid|payment)/iu.test(input.message)&&
+    /(?:المتبقي|الباقي|باقي|تبقى|remaining|balance\s+due|outstanding)/iu.test(input.message)&&
+    !/(?:\bINV[-_/]?\d|فاتورة\s*رقم|رقم\s+الفاتورة|محفوظ[ةه]?|saved|recorded)/iu.test(input.message);
+  if(hypotheticalBalance)return null;
   // Do not let an absent/malformed conversationMode inherit the legacy
   // orchestrator's Controller default. The live boundary is deny-by-default;
   // only the explicit selected Controller tab may stage an action.
