@@ -10,6 +10,8 @@ import {randomBytes,webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {readPlainBackup} from '../dist/src/lib/backup.js';
+import {validatePeriodArchive} from '../dist/src/lib/period-archive.js';
 import {isIsoDate} from '../dist/src/lib/id.js';
 
 const project='demo-lourex-period';
@@ -184,8 +186,15 @@ test('actual browser transport stages through owner rules, honors closed history
   const decode=v=>'stringValue'in v?v.stringValue:'integerValue'in v?Number(v.integerValue):'nullValue'in v?null:'arrayValue'in v?(v.arrayValue.values||[]).map(decode):'timestampValue'in v?v.timestampValue:Object.fromEntries(Object.entries(v.mapValue?.fields||{}).map(([k,value])=>[k,decode(value)]));
   const headers={authorization:'Bearer '+clientToken(uid),'content-type':'application/json'};
   const ref=path=>({path,collection:name=>collection(path+'/'+name),get:async()=>{const res=await fetch(host+'/'+path,{headers});if(res.status===404)return{exists:false,data:()=>undefined};assert.equal(res.status,200,await res.clone().text());const value=await res.json();return{exists:true,data:()=>Object.fromEntries(Object.entries(value.fields).map(([k,v])=>[k,decode(v)]))};}});
-  const collection=path=>({doc:name=>ref(path+'/'+name)});
+  const collection=path=>({doc:name=>ref(path+'/'+name),orderBy:()=>query(path)});
+  const query=(path,after='',limit=100)=>({startAfter:value=>query(path,value,limit),limit:value=>query(path,after,value),get:async()=>{
+    const split=path.lastIndexOf('/'),parent=path.slice(0,split),name=path.slice(split+1);
+    const structuredQuery={from:[{collectionId:name}],orderBy:[{field:{fieldPath:'__name__'},direction:'ASCENDING'}],limit,...(after?{startAt:{values:[{referenceValue:'projects/'+project+'/databases/(default)/documents/'+path+'/'+after}],before:false}}:{})};
+    const response=await fetch(host+'/'+parent+':runQuery',{method:'POST',headers,body:JSON.stringify({structuredQuery})});assert.equal(response.status,200,await response.clone().text());
+    return{docs:(await response.json()).filter(row=>row.document).map(row=>({id:row.document.name.split('/').at(-1),data:()=>Object.fromEntries(Object.entries(row.document.fields).map(([k,v])=>[k,decode(v)]))}))};
+  }});
   const firestore=()=>({collection,batch(){const writes=[];return{set:(r,v)=>writes.push({update:{name:'projects/'+project+'/databases/(default)/documents/'+r.path,fields:encode(v).mapValue.fields},currentDocument:{exists:false}}),commit:async()=>{const response=await fetch(host+':commit',{method:'POST',headers,body:JSON.stringify({writes})});assert.equal(response.status,200,await response.text());}};},runTransaction:()=>{throw Error('Client legacy publication forbidden');}});
+  firestore.FieldPath={documentId:()=> '__name__'};
   let local=null,acks=0;
   const modules={'../lib/id.js':{isIsoDate},'../lib/defaults.js':{APP_SCHEMA_VERSION:21},'../storage/db.js':{cachePlainPeriodProtection:async()=>{},activeAccountStorageUid:()=>uid,acknowledgePlainWorkspace:async(_uid,_local,revision,sha)=>{acks++;local={...local,baseCloudRevision:revision,baseCloudSha256:sha};return true;},acknowledgeIdenticalPlainWorkspace:async()=>true},'./firebase.js':{currentCloudUser:()=>({uid}),currentCloudIdToken:async()=>clientToken(uid)},'../lib/backup.js':{assertRestorableBackupVault:()=>{}}};
   const context={exports:{},require:name=>modules[name],firebase:{firestore},crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,Date,Promise,btoa,atob,AbortController,setTimeout,clearTimeout,navigator:{onLine:true},fetch:async(url,options)=>{assert.equal(url,'/api/workspace-commit');try{const result=await service.execute(identity,JSON.parse(options.body));return{ok:true,status:200,json:async()=>result};}catch(error){return{ok:false,status:error.status,json:async()=>({code:error.code})};}}};
@@ -202,5 +211,20 @@ test('actual browser transport stages through owner rules, honors closed history
   assert.equal(await api.uploadPlainCloudWorkspace(uid,local),'pushed');assert.equal(acks,2);
   assert.equal((await root.collection('periodReports').doc(closed.reportId).get()).exists,true);
   assert.equal((await api.downloadPlainCloudWorkspace(uid)).payload.documents[0].items[0].unitPrice,'200');
+  const latest=(await root.collection('accounting').doc('control').get()).data();
+  const replacementReport=await service.execute(identity,{operation:'close',opId:id(),expectedRevision:local.baseCloudRevision,expectedGeneration:latest.generation,workspaceId:'default',through:'2026-10-31',reason:'QA replacement publication'});
+  const archive=await api.getPeriodReportArchive(uid);await validatePeriodArchive(archive);
+  assert.equal(archive.reports.length,2);assert.equal(archive.operations.length,6);
+  assert.ok(archive.reports.some(r=>r.reportId===closed.reportId));assert.ok(archive.reports.some(r=>r.reportId===replacementReport.reportId));
+  assert.equal(archive.reports.find(r=>r.reportId===closed.reportId).state.sources.documents[0].items[0].unitPrice,'100');
+  assert.equal(archive.reports.find(r=>r.reportId===replacementReport.reportId).state.sources.documents[0].items[0].unitPrice,'200');
+  const backupText=JSON.stringify({format:'LOUREX_WORKSPACE_EXPORT_V2',version:2,payload:base,periodArchive:archive});
+  const restored=await readPlainBackup({size:Buffer.byteLength(backupText),text:async()=>backupText});
+  local={...local,payload:restored,localRevision:id()};
+  await assert.rejects(api.uploadPlainCloudWorkspace(uid,local),/PERIOD_CHANGED/);
+  assert.equal((await api.downloadPlainCloudWorkspace(uid)).payload.documents[0].items[0].unitPrice,'200');
+  for(const report of archive.reports)assert.equal((await root.collection('periodReports').doc(report.reportId).get()).data().sha256,report.sha256);
+
+
 });
 test.after(async()=>{await db.terminate();await deleteApp(app);});

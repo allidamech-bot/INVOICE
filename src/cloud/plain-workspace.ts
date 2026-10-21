@@ -1,3 +1,4 @@
+import type {PeriodArchive,ArchivedPeriodReport,ArchivedPeriodOperation} from '../lib/period-archive.js';
 import type { PlainWorkspaceRecord, VaultPayload } from '../types.js';
 import type {LocalPeriodProtection} from '../lib/period-local.js';
 import {isIsoDate} from '../lib/id.js';
@@ -295,6 +296,17 @@ export async function getPeriodCloudControl(uid:string):Promise<LocalPeriodProte
     throw new Error('Invalid trusted period control. Account data was not published.');
   const reports:LocalPeriodProtection['reports']=[];
   for(const boundary of value.boundaries){
+    const {state}=await readPeriodReport(uid,boundary);
+    reports.push({...boundary,state});
+  }
+  const latest=await firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'});requireUid(uid);
+  if(!latest.exists||JSON.stringify(latest.data())!==JSON.stringify(value))throw new Error('Trusted period control changed during verification. Retry.');
+  const protection:LocalPeriodProtection={version:1,uid,generation:value.generation,reports};
+  await cachePlainPeriodProtection(uid,protection);requireUid(uid);
+  return protection;
+}
+
+async function readPeriodReport(uid:string,boundary:{reportId:string;workspaceId:string;through:string}):Promise<{meta:any;state:any}>{
     const ref=firebase.firestore().collection('users').doc(uid).collection('periodReports').doc(boundary.reportId);
     const snapshot=await ref.get({source:'server'});requireUid(uid);const report=snapshot.data();
     if(!snapshot.exists||report?.format!=='LOUREX_PERIOD_REPORT_V1'||report.version!==1||report.reportId!==boundary.reportId
@@ -316,13 +328,39 @@ export async function getPeriodCloudControl(uid:string):Promise<LocalPeriodProte
     if(await sha256(bytes)!==report.sha256)throw new Error('Trusted closed period report failed integrity verification.');
     const state=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
     if(state?.version!==1||state.workspaceId!==boundary.workspaceId||state.through!==boundary.through)throw new Error('Invalid trusted closed period report state.');
-    reports.push({...boundary,state});
+    return {meta:report,state};
+}
+
+/** Complete immutable report/audit catalog. No imported evidence ever writes these namespaces. */
+export async function getPeriodReportArchive(uid:string):Promise<PeriodArchive|undefined>{
+  const known=await getPeriodCloudControl(uid);if(!known)return undefined;requireUid(uid);
+  const root=firebase.firestore().collection('users').doc(uid),controlRef=root.collection('accounting').doc('control');
+  const initial=await controlRef.get({source:'server'});requireUid(uid);const control=initial.data();
+  if(!initial.exists||control.generation!==known.generation)throw new Error('Period history changed during backup. Retry.');
+  const catalog=async(name:string,max:number)=>{
+    const rows:any[]=[];let last='';
+    for(;;){
+      let query=root.collection(name).orderBy(firebase.firestore.FieldPath.documentId()).limit(100);
+      if(last)query=query.startAfter(last);
+      const page=await query.get({source:'server'});requireUid(uid);
+      for(const doc of page.docs){if(doc.id<=last||!/^[a-f0-9]{32}$/.test(doc.id))throw new Error('Invalid period archive catalog.');rows.push({id:doc.id,data:doc.data()});last=doc.id;}
+      if(rows.length>max)throw new Error('Period archive is too large. No partial backup was saved.');
+      if(page.docs.length<100)return rows;
+    }
+  };
+  const timestamp=(value:any):string=>typeof value==='string'?value:typeof value?.toDate==='function'?value.toDate().toISOString():'';
+  const reports:ArchivedPeriodReport[]=[];let bytes=0;
+  for(const row of await catalog('periodReports',10000)){
+    const meta=row.data;bytes+=Number(meta?.bytes);
+    if(!Number.isSafeInteger(bytes)||bytes>50*1024*1024)throw new Error('Period archive exceeds 50 MB. No partial backup was saved.');
+    if(meta?.reportId!==row.id)throw new Error('Invalid period archive report identity.');
+    const {state}=await readPeriodReport(uid,{reportId:row.id,workspaceId:meta.workspaceId,through:meta.through});
+    reports.push({reportId:row.id,workspaceId:meta.workspaceId,through:meta.through,sourceRevision:meta.sourceRevision,actorUid:meta.actorUid,reason:meta.reason,publishedAt:timestamp(meta.publishedAt),sha256:meta.sha256,state});
   }
-  const latest=await firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'});requireUid(uid);
-  if(!latest.exists||JSON.stringify(latest.data())!==JSON.stringify(value))throw new Error('Trusted period control changed during verification. Retry.');
-  const protection:LocalPeriodProtection={version:1,uid,generation:value.generation,reports};
-  await cachePlainPeriodProtection(uid,protection);requireUid(uid);
-  return protection;
+  const operations:ArchivedPeriodOperation[]=(await catalog('periodOperations',50000)).map(row=>({opId:row.id,operation:row.data.operation,actorUid:row.data.actorUid,reason:row.data.reason??'',workspaceId:row.data.workspaceId??'',at:timestamp(row.data.at),result:row.data.result}));
+  const latest=await controlRef.get({source:'server'});requireUid(uid);
+  if(!latest.exists||JSON.stringify(latest.data())!==JSON.stringify(control))throw new Error('Period history changed during backup. Retry.');
+  return {format:'LOUREX_PERIOD_ARCHIVE_V1',version:1,sourceUid:uid,generation:control.generation,reports,operations,boundaries:control.boundaries};
 }
 
 async function publishProtectedWorkspace(uid:string,local:PlainWorkspaceRecord,bytes:Uint8Array,hash:string,previous:PlainCloudMeta,generation:number):Promise<'pushed'|'remote-changed'>{
