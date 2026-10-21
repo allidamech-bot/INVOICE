@@ -249,6 +249,10 @@
     PROVIDER_UNAVAILABLE:'Service unavailable / الخدمة غير متاحة',
     PROVIDER_ERROR:'Provider error / خطأ من المزوّد',
     INVALID_RESPONSE:'Invalid response / استجابة غير صالحة',
+    EMPTY_OUTPUT:'No visible answer returned / لم يُعِد النموذج إجابة ظاهرة',
+    OUTPUT_TRUNCATED:'Model output cut off / انقطعت استجابة النموذج قبل اكتمالها',
+    OUTPUT_BLOCKED:'Provider blocked output / المزوّد منع إخراج الإجابة',
+    UNPARSEABLE_ANSWER:'Connected, answer format not numeric / متصل لكن الإجابة ليست رقمًا واضحًا',
     TIMEOUT:'Timed out / انتهت المهلة',
     NETWORK_ERROR:'Network error / خطأ اتصال'
   };
@@ -276,7 +280,11 @@
         const label=probeLabels[data?.status]||'Test failed / فشل الاختبار';
         const latency=Number.isFinite(data?.latencyMs)?' · '+Math.round(data.latencyMs)+' ms':'';
         const model=typeof data?.model==='string'?data.model.slice(0,80):'';
-        result.textContent=label+(model?' · '+model:'')+latency;
+        // Provider answer is displayed as plain text, never interpreted as HTML.
+        const answer=typeof data?.answerPreview==='string'?' · Answer / الإجابة: '+data.answerPreview.slice(0,110):'';
+        const actual=typeof data?.actualModel==='string'&&data.actualModel!==model?
+          ' · Routed to / النموذج الفعلي: '+data.actualModel.slice(0,110):'';
+        result.textContent=label+(model?' · '+model:'')+actual+answer+latency;
       }
     }catch{
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
