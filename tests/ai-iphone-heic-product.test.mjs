@@ -61,6 +61,7 @@ test('Unsupported HEIC decoding and cancelled conversion reject rather than uplo
   const savedBitmap=globalThis.createImageBitmap,savedImage=globalThis.Image;
   globalThis.createImageBitmap=undefined;globalThis.Image=undefined;
   try{
+    await assert.rejects(convert(sample('Animated.HEIF','image/heif-sequence')),/multi-frame HEIC\/HEIF/);
     await assert.rejects(convert(sample('Unsupported.HEIC')),/HEIC decoding is not supported/);
     const abort=new AbortController();abort.abort();
     await assert.rejects(convert(sample('Cancelled.HEIC'),abort.signal),{name:'AbortError'});
@@ -80,6 +81,9 @@ test('Product AI uses a file-complete HEIC handoff rather than classifying just 
   assert.match(workflow,/multiple=\{this\.state\.forcedRoute==='product_list'\}/);
   assert.match(workflow,/setPendingSource\(route,file,route==='product_list'/);
   assert.match(bridge,/files:Array\.isArray\(pending\.files\)\?pending\.files:undefined/);
+  assert.match(review,/sheets\.length>12/);
+  assert.match(review,/spreadsheetSheetsAsText\(sheets,MAX_TEXT_CHARS\+1\)/);
+  assert.match(review,/text\.length>MAX_TEXT_CHARS/);
   assert.match(review,/const sourceFile=isIphoneHeicPhoto\(file\)\?await jpegFromIphonePhoto\(file,controller\.signal\):file/);
   assert.match(review,/fileName:file\.name,mimeType,data:bytesToBase64\(await sourceFile\.arrayBuffer\(\)\)/);
   assert.match(converter,/canvas\.toBlob/);
