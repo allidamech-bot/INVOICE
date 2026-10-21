@@ -47,11 +47,49 @@ service cloud.firestore {
         && (!changed.hasAny(['decision','decisionAt']) || (changed.hasAll(['decision','decisionAt']) && resource.data.allowDecision == true && resource.data.decision == '' && request.resource.data.decision in ['accepted','rejected'] && request.resource.data.decisionAt == request.time));
     }
 
+    function periodEnrolled(userId) {
+      // Existence is the barrier. A malformed control must never restore legacy writes.
+      return exists(/databases/$(database)/documents/users/$(userId)/accounting/control);
+    }
+    function ownBusinessAccount(userId) {
+      return request.auth != null && request.auth.uid == userId && businessAccount();
+    }
+    // Keep the existing recursive own-UID read boundary, including recovery.
     match /users/{userId}/{document=**} {
       allow read: if request.auth != null && request.auth.uid == userId && businessAccount();
+    }
+    match /users/{userId} {
+      allow write: if ownBusinessAccount(userId) && trustedWorkspaceWriter();
+    }
+    match /users/{userId}/{collectionId}/{document=**} {
       // A verified viewer/invalid employee claim cannot mutate the plaintext
       // workspace manifest, vault chunks, or history by bypassing the client.
-      allow write: if request.auth != null && request.auth.uid == userId && trustedWorkspaceWriter();
+      allow write: if ownBusinessAccount(userId) && trustedWorkspaceWriter()
+        && !(collectionId in ['accounting','periodOperations','periodReports','periodGenerations','periodStaging'])
+        && (!periodEnrolled(userId)
+          || !(collectionId in ['workspace','workspaceHistory','vault','vaultHistory']));
+    }
+    match /users/{userId}/periodStaging/{operationId} {
+      allow create: if ownBusinessAccount(userId) && trustedWorkspaceWriter()
+        && periodEnrolled(userId) && operationId.matches('^[a-f0-9]{32}$')
+        && request.resource.data.keys().hasOnly(['format','version','revision','schemaVersion','bytes','sha256','chunkCount','updatedAt','parentRevision'])
+        && request.resource.data.format == 'LOUREX_PLAIN_WORKSPACE_V2'
+        && request.resource.data.version == 2 && request.resource.data.schemaVersion == 21
+        && request.resource.data.revision == operationId
+        && request.resource.data.bytes is int && request.resource.data.bytes > 0 && request.resource.data.bytes <= 45000000
+        && request.resource.data.chunkCount is int && request.resource.data.chunkCount > 0 && request.resource.data.chunkCount <= 250
+        && request.resource.data.sha256 is string && request.resource.data.sha256.matches('^[a-f0-9]{64}$')
+        && request.resource.data.updatedAt is string
+        && (request.resource.data.parentRevision == null || request.resource.data.parentRevision is string);
+      match /chunks/{indexId} {
+        allow create: if ownBusinessAccount(userId) && trustedWorkspaceWriter()
+          && periodEnrolled(userId) && operationId.matches('^[a-f0-9]{32}$')
+          && indexId.matches('^[0-9]{5}$')
+          && request.resource.data.keys().hasOnly(['revision','index','data'])
+          && request.resource.data.revision == operationId
+          && request.resource.data.index is int && request.resource.data.index >= 0 && request.resource.data.index < 250
+          && request.resource.data.data is string && request.resource.data.data.size() > 0 && request.resource.data.data.size() <= 240000;
+      }
     }
 
     match /publicShares/{shareId} {

@@ -2,7 +2,16 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/ai-core.js": {
+      "includeFiles": "dist/src/**"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/workspace-commit",
+      "destination": "/api/ai-core?lourexPeriod=1"
+    },
     {
       "source": "/__/auth/:path*",
       "destination": "https://lourex-invoice.firebaseapp.com/__/auth/:path*"
