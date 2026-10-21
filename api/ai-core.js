@@ -42,7 +42,7 @@ export function sanitizeControllerConversationSources(value){
     if(!row||typeof row!=='object'||Array.isArray(row)||typeof row.extracted!=='string')return null;
     const fileName=cleanText(row.fileName,180),route=cleanText(row.route,40);
     if(!fileName||!routes.has(route)||row.extracted.length>MAX_CONTROLLER_SOURCE_CHARS)return null;
-    const extracted=row.extracted.replace(/[\\u0000-\\u0009\\u000b-\\u001f\\u007f]/g,' ');
+    const extracted=row.extracted.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g,' ');
     total+=extracted.length;
     if(total>MAX_CONTROLLER_TOTAL_SOURCE_CHARS)return null;
     result.push({fileName,route,extracted});
