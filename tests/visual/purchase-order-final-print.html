@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><script>
+const q=new URLSearchParams(location.search),ar=q.get('lang')==='ar';
+document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+document.documentElement.dataset.uiTheme='light';
+document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('printing'));
+</script></head>
+<body><div id="root"><div class="app-root"><div class="app-ui"></div><div class="print-portal" id="qa-output"></div></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {TemplateRenderer} from './src/templates/TemplateRenderer.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {createSupplier,supplierSnapshotFrom} from './src/lib/operations.js';
+import {calculateTotals} from './src/lib/money.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const query=new URLSearchParams(location.search),ar=query.get('lang')==='ar',template=query.get('template')==='executive'?'executive':'obsidian';
+setUiLanguage(ar?'ar':'en');
+const company={...defaultCompany(),nameEn:'LOUREX Synthetic QA',nameAr:'لوريكس اختبار اصطناعي'};
+const supplier={...createSupplier(),id:'supplier-po-print-qa',nameEn:'Atlas Supplier',nameAr:'أطلس للتوريد',address:'Istanbul Warehouse',city:'Istanbul',country:'Türkiye',defaultCurrency:'USD'};
+const doc=createBlankDocument('purchase-order','PO-QA-2026-003',company);
+Object.assign(doc,{id:'po-print-qa',status:'final',lifecycleStatus:'active',issueDate:'2026-10-16',dueDate:'2026-10-30',language:ar?'ar':'en',currency:'USD',supplierSnapshot:supplierSnapshotFrom(supplier),customerSnapshot:null});
+doc.items=[
+ {...doc.items[0],id:'po-item-1',descriptionEn:'Synthetic valve assembly',descriptionAr:'مجموعة صمام تجريبية',quantity:'2',unit:'PCS',unitPrice:'125.00'},
+ {...doc.items[0],id:'po-item-2',descriptionEn:'Synthetic fitting',descriptionAr:'وصلة تجريبية',quantity:'1',unit:'PCS',unitPrice:'75.00'}
+];
+doc.adjustments={...doc.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:true,taxPercent:'10'};
+doc.appearance={...doc.appearance,templateId:template,showBank:false,showSignature:false,showStamp:false};
+window.qaSourceSnapshot=()=>JSON.stringify(doc);
+window.qaPurchaseOrder={id:doc.id,number:doc.number,kind:doc.kind,status:doc.status,language:doc.language,currency:doc.currency,supplierName:supplier.nameEn,totals:calculateTotals(doc.items,doc.adjustments),lineCount:doc.items.length};
+ReactDOM.render(React.createElement(TemplateRenderer,{document:doc,scale:1}),document.getElementById('qa-output'));
+</script></body></html>
