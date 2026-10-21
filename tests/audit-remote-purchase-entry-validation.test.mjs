@@ -1,9 +1,13 @@
-import test from 'node:test';
+import test, {beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createExpense,createSupplier,createPurchase,createPurchaseItem,postPurchase,purchaseTotals} from '../dist/src/lib/operations.js';
 import {supplierPayablesByCurrency} from '../dist/src/lib/payables.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
+
+// Factories must create records before the fixed historical report cutoff.
+// Each test's mock clock is automatically restored by its test context.
+beforeEach(t=>t.mock.timers.enable({apis:['Date'],now:Date.UTC(2026,9,10,12)}));
 
 function fixture(){
   const supplier={...createSupplier(),id:'supplier-remote-purchase-verify',
@@ -72,6 +76,9 @@ test('legitimate remote posted service purchase and independent expense preserve
     {...vault,purchases:[posted]});
   assert.equal(merged.purchases.length,1);
   assert.equal(merged.purchases[0].status,'posted');
+  assert.equal(merged.purchases[0].postedAt,'2026-10-10T12:00:00.000Z');
+  assert.deepEqual(supplierPayablesByCurrency(merged.purchases,[],'2026-10-09'),[],
+    'purchase remains excluded before its actual posting date');
   assert.equal(merged.expenses.length,1);
   assert.equal(purchaseTotals(merged.purchases[0]).landedTotal,'120.00');
   assert.equal(supplierPayablesByCurrency(merged.purchases,[],'2026-10-20')[0].remaining,'120.00');

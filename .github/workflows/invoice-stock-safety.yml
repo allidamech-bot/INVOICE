@@ -33,6 +33,9 @@ on:
       - 'src/lib/backup.ts'
       - 'tests/stock-backup-integrity-20261015.test.mjs'
       - 'tests/sales-return-stock-20261015.test.mjs'
+      - 'tests/audit-new-payment-identity-collisions.test.mjs'
+      - 'tests/audit-remote-purchase-entry-validation.test.mjs'
+      - 'tests/audit-supplier-payment-scope-integrity.test.mjs'
       - '.github/workflows/invoice-stock-safety.yml'
 
 permissions:
@@ -53,6 +56,10 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci --no-audit --no-fund
+      - name: Compile source for focused date regressions
+        run: npx tsc -p tsconfig.json
+      - name: Historical supplier fixture date regressions
+        run: node --test tests/audit-new-payment-identity-collisions.test.mjs tests/audit-remote-purchase-entry-validation.test.mjs tests/audit-supplier-payment-scope-integrity.test.mjs
       - name: TypeScript typecheck
         run: npm run typecheck
       - name: Build production bundle locally (no deployment)
