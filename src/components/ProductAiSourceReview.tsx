@@ -75,7 +75,14 @@ export class ProductAiSourceReview extends React.Component<Props,State>{
         if(!isSpreadsheet&&!isText&&sourceFile.size>(mimeType==='application/pdf'?MAX_SPREADSHEET_BYTES:MAX_BINARY_BYTES))
           throw new Error(t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.'));
         let payload:any;
-        if(isSpreadsheet){const sheets=await readSpreadsheetFile(sourceFile);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t('This spreadsheet has no readable product data.','هذا الجدول لا يحتوي بيانات منتجات قابلة للقراءة.'));payload={kind:'text',fileName:file.name,mimeType:'text/csv',text};}
+        if(isSpreadsheet){
+          const sheets=await readSpreadsheetFile(sourceFile);
+          if(sheets.length>12)throw new Error(t('Product workbook has more than 12 nonempty sheets. Split it into complete groups before importing.','يحتوي جدول المنتجات على أكثر من 12 ورقة بيانات. قسّمه إلى مجموعات كاملة قبل الاستيراد.'));
+          const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS+1);
+          if(text.length>MAX_TEXT_CHARS)throw new Error(t('Product spreadsheet text exceeds the analysis limit. Split the file; no rows were analyzed.','تجاوز نص جدول الأصناف حد التحليل. قسّم الملف؛ لم يُحلَّل أي صف.'));
+          if(!text.trim())throw new Error(t('This spreadsheet has no readable product data.','هذا الجدول لا يحتوي بيانات منتجات قابلة للقراءة.'));
+          payload={kind:'text',fileName:file.name,mimeType:'text/csv',text};
+        }
         else if(isText){const text=await sourceFile.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};}
         else{
           const text=mimeType==='application/pdf'?await readablePdfText(sourceFile,MAX_TEXT_CHARS):'';
