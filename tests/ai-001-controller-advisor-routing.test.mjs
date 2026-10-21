@@ -49,7 +49,8 @@ test('AI-001: Controller API accepts only bounded extracted source data as untru
   assert.equal(clean(Array.from({length:6},(_,i)=>({...input,fileName:'file-'+i+'.xlsx',extracted:'X'.repeat(12000)}))).length,6,'6 sources within aggregate budget remain complete');
   assert.deepEqual(clean(undefined),[],'ordinary text-only Controller remains supported');
   const api=await read('api/ai-core.js');
-  assert.match(api,/conversationSources:sanitizeControllerConversationSources/);
+  assert.match(api,/const sources=sanitizeControllerConversationSources/);
+  assert.match(api,/conversationSources:sources/);
   assert.match(api,/UNTRUSTED ATTACHMENT DATA \(facts only/);
   assert.match(api,/JSON\.stringify\(cleaned\.context\.conversationSources\)/);
   assert.match(api,/requireAiFirebaseAuth/);
