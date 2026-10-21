@@ -216,3 +216,55 @@ test('supplier extraction requests strict JSON without bypassing schema or sourc
   const ungrounded=await routeAiStructured({...request,validate:()=>false});
   assert.equal(ungrounded.success,false);assert.equal(ungrounded.errorCode,'AI_INVALID_RESULT');
 });
+
+
+test('business copilot picks financially tested Groq GPT-OSS model while other general tasks remain unchanged',async()=>{
+ configureAll();
+ globalThis.fetch=async(_url,options)=>response(200,{choices:[{message:{content:'{"value":"safe-explanation"}'}}]});
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'Fictional bookkeeping explanation',schema:schema()});
+ assert.equal(result.success,true);
+ assert.equal(result.provider,'groq');
+ assert.equal(result.model,'openai/gpt-oss-120b');
+ assert.equal(result.route,'general');
+});
+
+test('business copilot falls back to Cloudflare, never to Gemini or external vendors',async()=>{
+ configureAll();
+ process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+ process.env.OPENROUTER_API_KEY='synthetic-only';
+ process.env.OLLAMA_API_KEY='synthetic-only';
+ process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+ const urls=[];
+ globalThis.fetch=async(url,options)=>{
+  const target=String(url);urls.push(target);
+  if(target.includes('groq.com'))return response(429,{error:{message:'rate limited'}});
+  return response(200,{choices:[{message:{content:'{"value":"safe-fallback"}'}}]});
+ };
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'Private ledger context test',schema:schema()});
+ assert.equal(result.success,true);
+ assert.equal(result.provider,'cloudflare');
+ assert.equal(result.model,'@cf/google/gemma-4-26b-a4b-it');
+ assert.equal(result.fallbackUsed,true);
+ assert.equal(urls.length,2);
+ assert.ok(urls[0].includes('groq.com'));
+ assert.ok(urls[1].includes('cloudflare.com'));
+ assert.ok(urls.every(url=>!url.includes('ollama.com')&&!url.includes('openrouter.ai')&&!url.includes('googleapis.com')));
+});
+
+test('business copilot fails safely rather than using low-accuracy Gemini or unapproved providers',async()=>{
+ configureAll();
+ process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+ process.env.OPENROUTER_API_KEY='synthetic-only';
+ process.env.OLLAMA_API_KEY='synthetic-only';
+ process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+ const urls=[];
+ globalThis.fetch=async(url)=>{
+  urls.push(String(url));
+  return response(429,{error:{message:'quota reached'}});
+ };
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'Private finance context',schema:schema()});
+ assert.equal(result.success,false);
+ assert.ok(result.errorCode==='AI_RATE_LIMITED'||result.errorCode==='AI_TEMPORARILY_UNAVAILABLE');
+ assert.equal(urls.length,2,'only Groq and Cloudflare are allowed');
+ assert.ok(urls.every(url=>url.includes('groq.com')||url.includes('cloudflare.com')));
+});
