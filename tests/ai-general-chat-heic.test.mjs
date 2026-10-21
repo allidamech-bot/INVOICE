@@ -55,3 +55,12 @@ test('General conversation rejects HEIC sequence, unsupported decode and cancell
     if(oldImage===undefined)delete globalThis.Image;else globalThis.Image=oldImage;
   }
 });
+
+test('Existing JPEG conversation attachments pass unchanged without HEIC recompression',async()=>{
+  const {conversationAttachmentPayload}=await import('../dist/src/lib/ai-conversation-attachments.js');
+  const jpeg=new File([jpegBytes()],'existing-price-list.jpg',{type:'image/jpeg'});
+  const payload=await conversationAttachmentPayload(jpeg);
+  assert.equal(payload.kind,'file');
+  assert.equal(payload.mimeType,'image/jpeg');
+  assert.deepEqual([...Buffer.from(payload.data,'base64')],[...jpegBytes()]);
+});
