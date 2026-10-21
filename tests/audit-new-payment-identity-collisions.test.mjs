@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, {beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault,defaultCompany,customerSnapshotFrom} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
@@ -6,6 +6,10 @@ import {normalizePaymentRecord,invoicePaymentSummary} from '../dist/src/lib/paym
 import {createSupplier,createPurchase,createPurchaseItem,postPurchase} from '../dist/src/lib/operations.js';
 import {createSupplierPayment,normalizeSupplierPayment,purchasePayableSummary} from '../dist/src/lib/payables.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
+
+// Factories must create records before the fixed historical report cutoff.
+// Each test's mock clock is automatically restored by its test context.
+beforeEach(t=>t.mock.timers.enable({apis:['Date'],now:Date.UTC(2026,9,10,12)}));
 
 function customerFixture(){
   const invoice=createBlankDocument('invoice','INV-UNIQUE-ID',defaultCompany());
@@ -56,6 +60,7 @@ test('distinct valid customer receipts and supplier settlements remain accepted 
   assert.equal(cash.payments.length,2);
   assert.equal(invoicePaymentSummary(buyer.invoice,cash.payments,'2026-10-20',cash.documents).paid,'55.00');
   const vendor=supplierFixture(),s2={...vendor.second,id:'new-supplier-id-2'};
+  assert.equal(vendor.first.date,'2026-10-10');
   const posted=mergeVaultIntent(vendor.base,{...vendor.base,supplierPayments:[vendor.first,s2]},vendor.base);
   assert.equal(posted.supplierPayments.length,2);
   assert.equal(purchasePayableSummary(vendor.posted,posted.supplierPayments,'2026-10-20').paid,'25.00');

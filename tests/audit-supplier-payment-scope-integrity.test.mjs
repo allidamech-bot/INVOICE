@@ -1,9 +1,13 @@
-import test from 'node:test';
+import test, {beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createSupplier,createPurchase,createPurchaseItem,postPurchase} from '../dist/src/lib/operations.js';
 import {createSupplierPayment,normalizeSupplierPayment,purchasePayableSummary} from '../dist/src/lib/payables.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
+
+// Factories must create records before the fixed historical report cutoff.
+// Each test's mock clock is automatically restored by its test context.
+beforeEach(t=>t.mock.timers.enable({apis:['Date'],now:Date.UTC(2026,9,10,12)}));
 
 function fixture(){
   const supplier={...createSupplier(),nameEn:'Scoped Supplier'};
@@ -47,6 +51,9 @@ test('same-branch partial settlements from two devices both survive and total on
   const merged=mergeVaultIntent(base,{...base,supplierPayments:[payment]},
     {...base,supplierPayments:[other]});
   assert.equal(merged.supplierPayments.length,2);
+  assert.equal(payment.date,'2026-10-10');
+  assert.equal(purchasePayableSummary(purchase,merged.supplierPayments,'2026-10-09').paid,'0.00',
+    'future-dated payments remain excluded from earlier reports');
   const summary=purchasePayableSummary(purchase,merged.supplierPayments,'2026-10-20');
   assert.equal(summary.paid,'25.00');
   assert.equal(summary.remaining,'25.00');
