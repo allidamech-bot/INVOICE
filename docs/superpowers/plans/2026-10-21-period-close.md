@@ -100,11 +100,18 @@ uses the last verified generation; server CAS remains authoritative for changes
 made on other devices while disconnected. Retained report backup/export and
 full owner-control acceptance remain open.
 
-- [ ] Write RED cases for ordinary save, full mutation, AI bridge, remote merge, import, restore, company/branch switching and local CAS conflict. Every path either preserves the closed state or is rejected without replacing the prior state.
-- [ ] Extend schema deliberately with retained report references, versions and audit continuity. A legacy backup cannot remove server-owned control/history; restoring business data remains subject to the closed-state comparison.
-- [ ] Preserve server-published immutable snapshot payloads and export references/data for account backup; prove restore does not overwrite a retained version. No storage deletion or chunk GC may prune referenced report history.
-- [ ] Implement queue/preflight integration and unsynced offline behavior. A pending local draft is not a committed financial posting; show rejected synchronization clearly and retain recoverable user work.
-- [ ] Run continuity, existing workspace/backup/cloud CAS/AI mutation tests and full Node suite; report inherited failures by exact test name rather than weakening assertions. Commit after review.
+- [x] Write RED cases for ordinary save, full mutation, AI bridge, remote merge, import, restore, company/branch switching and local CAS conflict. Every path either preserves the closed state or is rejected without replacing the prior state.
+- [x] Extend schema deliberately with retained report references, versions and audit continuity. A legacy backup cannot remove server-owned control/history; restoring business data remains subject to the closed-state comparison.
+- [x] Preserve server-published immutable snapshot payloads and export references/data for account backup; prove restore does not overwrite a retained version. No storage deletion or chunk GC may prune referenced report history.
+- [x] Implement queue/preflight integration and unsynced offline behavior. A pending local draft is not a committed financial posting; show rejected synchronization clearly and retain recoverable user work.
+- [x] Run continuity, existing workspace/backup/cloud CAS/AI mutation tests and full Node suite; report inherited failures by exact test name rather than weakening assertions. Commit after review.
+
+Task 3C evidence: `docs/PERIOD_REPORT_ARCHIVE_2026-10-21.md`. V2 envelopes
+retain compatibility through an optional separately versioned report/audit
+archive. Import restores business data subject to existing trusted policy; it
+never recreates server authority from editable file contents. Complete export
+requires a current online catalog and the existing 50 MB file bound. No report
+GC or authoritative-history overwrite was introduced.
 
 ## Task 4: Owner controls and end-to-end acceptance
 

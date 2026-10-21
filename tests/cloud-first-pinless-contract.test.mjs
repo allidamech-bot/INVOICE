@@ -36,7 +36,7 @@ test('User-triggered backup remains optional and PIN-free',async()=>{
   assert.match(backup,/export async function exportPlainBackup\(/);
   assert.match(backup,/LOUREX_WORKSPACE_EXPORT_V2/);
   assert.match(settings,/onBackup:\(\)=>Promise<void>/);
-  assert.match(app,/await exportPlainBackup\(local.payload\)/);
+  assert.match(app,/await exportPlainBackup\(local.payload,periodArchive\)/);
 });
 
 test('simultaneous first login from two devices hydrates the winning cloud snapshot instead of demanding a PIN or reload',async()=>{

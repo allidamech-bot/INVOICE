@@ -56,7 +56,7 @@ test('B03: optional plain local export and import do not need a PIN and preserve
   const backup=app.slice(app.indexOf('  private backup=async('),app.indexOf('  private restore=async('));
   assert.match(backup,/await this\.drainVaultWrites\(\)/);
   assert.match(backup,/uid!==currentCloudUser\(\)\?\.uid/);
-  assert.match(backup,/await exportPlainBackup\(local\.payload\)/);
+  assert.match(backup,/await exportPlainBackup\(local\.payload,periodArchive\)/);
   assert.doesNotMatch(backup,/verifyPin\(|exportBackup\(password/);
   const restore=app.slice(app.indexOf('  private restore=async('),app.indexOf('  private requireVault('));
   assert.match(restore,/readPlainBackup\(file\)/);
@@ -67,7 +67,7 @@ test('B03: optional plain local export and import do not need a PIN and preserve
   const backupModule=await readFile('src/lib/backup.ts','utf8');
   assert.match(backupModule,/LOUREX_WORKSPACE_EXPORT_V2/);
   assert.match(backupModule,/assertRestorableBackupVault\(parsed\.payload\)/);
-  assert.match(backupModule,/exportPlainBackup\(vault:VaultPayload\)/);
+  assert.match(backupModule,/exportPlainBackup\(vault:VaultPayload,periodArchive\?:PeriodArchive\)/);
 });
 
 test('B03: backup read enforces size and basic vault shape after authentication, and reports share cancel',async()=>{

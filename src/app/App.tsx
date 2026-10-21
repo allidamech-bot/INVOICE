@@ -36,7 +36,7 @@ import { AccountEntryScreen } from '../components/AccountEntryScreen.js';
 import { exportPlainBackup, readPlainBackup, assertPostedStockRestoreContinuity } from '../lib/backup.js';
 import { synchronizeActiveWorkspaceOnSave } from '../storage/vault.js';
 import { getPlainWorkspace, savePlainWorkspace, updatePlainWorkspaceIfUnchanged, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
-import { assertPlainCloudWorkspaceUploadable, reconcilePlainCloudWorkspace, uploadPlainCloudWorkspace, downloadPlainCloudWorkspace, getPlainCloudMeta } from '../cloud/plain-workspace.js';
+import { assertPlainCloudWorkspaceUploadable, reconcilePlainCloudWorkspace, uploadPlainCloudWorkspace, downloadPlainCloudWorkspace, getPlainCloudMeta, getPeriodReportArchive } from '../cloud/plain-workspace.js';
 import type { PlainWorkspaceRecord } from '../types.js';
 import { DocumentsPage } from '../components/DocumentsPage.js';
 import { CustomersPage } from '../components/CustomersPage.js';
@@ -754,7 +754,9 @@ export class App extends React.Component<{},State> {
     if(!uid||uid!==currentCloudUser()?.uid)throw new Error('Sign in to your account first.');
     const local=await getPlainWorkspace();
     if(!local)throw new Error('The account workspace is unavailable.');
-    await exportPlainBackup(local.payload);
+    const periodArchive=await getPeriodReportArchive(uid);
+    if(uid!==currentCloudUser()?.uid||uid!==activeAccountStorageUid())throw new Error('Account changed during backup.');
+    await exportPlainBackup(local.payload,periodArchive);
   };
   private restore=async(file:File)=>{
     this.editorMustBeClosed('importing a local copy','استيراد نسخة محلية');
