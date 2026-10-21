@@ -1,6 +1,6 @@
 import type {PaymentVoucher} from '../lib/payment-voucher.js';
 import {formatMoney} from '../lib/money.js';
-import {displayDate} from '../lib/id.js';
+import {displayDate,todayIso} from '../lib/id.js';
 import {getUiLanguage,isArabic,t} from '../lib/i18n.js';
 import {Button,Modal} from './UI.js';
 
@@ -14,13 +14,15 @@ function methodLabel(method:PaymentVoucher['method']){
 }
 /** Evidence view: reads saved transactions; never creates a second receipt or ledger entry. */
 export class PaymentVoucherModal extends React.Component<Props>{
+  private printTimer:number|undefined;
   componentDidMount(){window.addEventListener('afterprint',this.afterPrint);}
-  componentWillUnmount(){window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-payment-voucher');}
-  private afterPrint=()=>document.body.classList.remove('printing-payment-voucher');
-  private print=()=>{if(!this.props.voucher)return;document.body.classList.add('printing-payment-voucher');window.setTimeout(()=>{if(this.props.voucher)window.print();else this.afterPrint();},40);};
+  componentDidUpdate(previous:Props){if(previous.voucher&&(!this.props.voucher||previous.voucher.recordId!==this.props.voucher.recordId||previous.voucher.sourceId!==this.props.voucher.sourceId||previous.voucher.kind!==this.props.voucher.kind))this.afterPrint();}
+  componentWillUnmount(){window.removeEventListener('afterprint',this.afterPrint);this.afterPrint();}
+  private afterPrint=()=>{if(this.printTimer!==undefined){window.clearTimeout(this.printTimer);this.printTimer=undefined;}document.body.classList.remove('printing-payment-voucher');};
+  private print=()=>{if(!this.props.voucher)return;this.afterPrint();document.body.classList.add('printing-payment-voucher');this.printTimer=window.setTimeout(()=>{this.printTimer=undefined;if(this.props.voucher)window.print();else this.afterPrint();},40);};
   render():any{
     const v=this.props.voucher;if(!v)return null;
-    const receipt=v.kind==='customer-receipt',arabic=isArabic();
+    const receipt=v.kind==='customer-receipt',arabic=isArabic(),future=v.date>todayIso();
     const name=(arabic?v.partyNameAr||v.partyNameEn:v.partyNameEn||v.partyNameAr)||t('Not specified','غير محدد');
     const company=(arabic?v.companyNameAr||v.companyNameEn:v.companyNameEn||v.companyNameAr)||'LOUREX';
     const row=(title:string,value:string)=><div className="lx-payment-voucher-field"><span>{title}</span><strong><bdi>{value||'—'}</bdi></strong></div>;
@@ -31,6 +33,8 @@ export class PaymentVoucherModal extends React.Component<Props>{
           <div className="lx-payment-voucher-brand">{v.companyLogo?<img src={v.companyLogo} alt="" />:null}<div><strong>{company}</strong><small>{t('Recorded financial transaction','عملية مالية مسجلة')}</small></div></div>
           <div className="lx-payment-voucher-title"><h2>{receipt?t('Receipt Voucher','سند قبض'):t('Payment Voucher','سند دفع')}</h2><small>{t('Record ID','معرف السجل')}</small><bdi>{v.recordId}</bdi></div>
         </header>
+        {!receipt?<p className="lx-payment-voucher-disclaimer" data-voucher-company-current>{t('Company name and logo use current settings; historical issuer details were not saved with this payment.','اسم الشركة وشعارها من الإعدادات الحالية؛ لم تُحفظ هوية المُصدر التاريخية مع هذه الدفعة.')}</p>:null}
+        {future?<p className="lx-payment-voucher-disclaimer" data-voucher-future role="status">{t('Future-dated payment. It is excluded from today’s balance until its effective date.','دفعة مؤرخة بتاريخ مستقبلي. لا تُحتسب في رصيد اليوم حتى حلول تاريخها.')}</p>:null}
         <div className="lx-payment-voucher-amount"><small>{receipt?t('Amount received','المبلغ المقبوض'):t('Amount paid','المبلغ المدفوع')}</small><strong data-voucher-amount><bdi>{formatMoney(v.amount,v.currency)}</bdi></strong></div>
         <section className="lx-payment-voucher-fields">
           {row(receipt?t('Received from','استلمنا من'):t('Paid to','دُفع إلى'),name)}

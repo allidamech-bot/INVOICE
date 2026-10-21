@@ -76,3 +76,30 @@ test('voucher entry points select recorded IDs and suppress invalid or voided re
   assert.match(css,/body\.printing-payment-voucher/);
   assert.match(css,/app-ui>:not\(\.modal-backdrop\)/);
 });
+
+test('voucher scope uses canonical legacy default/main, never a missing-field wildcard',()=>{
+  for(const fields of [['workspaceId'],['branchId'],['workspaceId','branchId']]){
+    for(const side of ['source','payment','both']){
+      const {invoice,payment}=customer(),f=supplier();
+      for(const key of fields){
+        if(side!=='payment'){delete invoice[key];delete f.purchase[key];}
+        if(side!=='source'){delete payment[key];delete f.payment[key];}
+      }
+      // Both omitted means the same legacy default scope; one omitted must
+      // never match the fixture's explicit non-default company or branch.
+      if(side==='both'){
+        assert.equal(customerPaymentVoucher(invoice,payment.id,[payment]).amount,'25.00');
+        assert.equal(supplierPaymentVoucher(f.purchase,f.payment.id,[f.payment],f.company).amount,'20.00');
+      }else{
+        assert.throws(()=>customerPaymentVoucher(invoice,payment.id,[payment]),/does not belong/);
+        assert.throws(()=>supplierPaymentVoucher(f.purchase,f.payment.id,[f.payment],f.company),/active linked/);
+      }
+    }
+  }
+  const {invoice,payment}=customer(),f=supplier();
+  Object.assign(invoice,{workspaceId:'default',branchId:'main'});
+  Object.assign(f.purchase,{workspaceId:'default',branchId:'main'});
+  for(const p of [payment,f.payment]){delete p.workspaceId;delete p.branchId;}
+  assert.equal(customerPaymentVoucher(invoice,payment.id,[payment]).amount,'25.00');
+  assert.equal(supplierPaymentVoucher(f.purchase,f.payment.id,[f.payment],f.company).amount,'20.00');
+});

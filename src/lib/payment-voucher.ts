@@ -23,8 +23,10 @@ export interface PaymentVoucher {
   companyLogo:string;
 }
 function sameScope(source:{workspaceId?:string;branchId?:string},payment:{workspaceId?:string;branchId?:string}):boolean{
-  return (!source.workspaceId||!payment.workspaceId||source.workspaceId===payment.workspaceId)
-    &&(!source.branchId||!payment.branchId||source.branchId===payment.branchId);
+  // Match the persistence/merge interpretation of legacy records. A missing
+  // scope means default/main; it must not match an arbitrary explicit scope.
+  return (source.workspaceId||'default')===(payment.workspaceId||'default')
+    &&(source.branchId||'main')===(payment.branchId||'main');
 }
 function storedMoney(amount:string):boolean{
   return isDecimalInput(amount)&&decimalToScaled(amount,2)>0n;
