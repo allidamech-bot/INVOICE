@@ -72,6 +72,11 @@ test('live API gate accepts only a signed token belonging to the configured owne
    assert.equal(authorized.headers['Cache-Control'],'no-store');
    const deniedProbe=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app','provider-probe');
    assert.equal(deniedProbe.statusCode,403,'team owners are not diagnostics administrators');
+   const deniedKeyCheck=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app','gemini-key-check');
+   assert.equal(deniedKeyCheck.statusCode,403,'other Firebase UIDs cannot inspect Gemini credentials');
+   const noOriginKeyCheck=await call(makeToken(owner),'https://untrusted.example','gemini-key-check');
+   assert.equal(noOriginKeyCheck.statusCode,403,'Gemini metadata checks enforce same origin');
+
    const invalidProvider=await call(makeToken(owner,'viewer'),'https://invoice-three-puce.vercel.app','provider-probe');
    assert.equal(invalidProvider.statusCode,400,'owner may not pick arbitrary provider models');
    assert.equal(invalidProvider.body?.code,'INVALID_DIAGNOSTIC_PROVIDER');
