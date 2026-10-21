@@ -41,5 +41,5 @@ export function combineProductAiSourceDrafts(inputs:ProductAiNamedDraft[]):Produ
     }
     sourceNames.push(name);
   }
-  return {draft:{sourceCurrency:'',items:result,notes:inputs.map(({fileName,draft})=>draft.notes?fileName+': '+draft.notes:'').filter(Boolean).join('\n').slice(0,1600)},rowFiles,sourceNames};
+  return {draft:{sourceCurrency:'',items:result,notes:inputs.map(({fileName,draft})=>draft.notes?fileName+': '+draft.notes:'').filter(Boolean).join('\n')},rowFiles,sourceNames};
 }
