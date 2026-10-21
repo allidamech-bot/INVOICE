@@ -1,0 +1,30 @@
+name: FX signed rounding and partial credit characterization
+on:
+  pull_request:
+    paths:
+      - 'src/lib/fx-rates.ts'
+      - 'tests/fx-signed-rounding-vat-characterization.test.mjs'
+      - '.github/workflows/fx-signed-rounding.yml'
+permissions:
+  contents: read
+jobs:
+  accounting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Compile actual source
+        run: npx tsc -p tsconfig.json
+      - name: Focused FX regression and VAT characterization
+        run: node --test tests/fx-signed-rounding-vat-characterization.test.mjs
+      - name: Related treasury FX and tax tests
+        run: node --test tests/treasury-accounts-v474.test.mjs tests/tax-vat-batch10.test.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build without deployment
+        run: npm run build
