@@ -52,23 +52,25 @@ Task 1 evidence and exact limits: `docs/PERIOD_CLOSE_FOUNDATION_2026-10-21.md`.
 
 ## Task 2: Trusted publication and close/reopen transaction
 
-**Files:** Create `api/_accounting/period-commit.js`, `api/workspace-commit.js`,
-`tests/period-commit.test.mjs`, `tests/period-rules-emulator.integration.mjs`.
-Modify `src/cloud/plain-workspace.ts`, `firestore.rules` and the existing emulator gate.
+**Files:** Create `api/_accounting/{period-format,period-store,admin,workspace-handler}.js`,
+`tests/period-server.test.mjs`, `tests/period-server-emulator.integration.mjs` and
+`.github/workflows/period-close-server.yml`. Modify `api/ai-core.js`, `vercel.json`,
+`firestore.rules` and the pinned package manifest/lock. Client integration in
+`src/cloud/plain-workspace.ts` follows in Task 3 before activation.
 
 **Interfaces:**
 - Consume Task 1's exact projection semantics through a bundled server artifact generated from the same source; never duplicate financial arithmetic in JS.
-- `POST /api/workspace-commit`: authenticated bearer token, operation (`commit`, `close`, `reopen`), expected manifest revision, server-validated staged candidate reference; close adds company ID/cutoff/reason, reopen adds company ID/reason.
+- `POST /api/workspace-commit`: authenticated bearer token, operation (`enroll`, `commit`, `close`, `reopen`), operation ID, expected manifest revision and control generation; commit reads the immutable staged candidate at that own-UID operation ID; close adds company ID/cutoff/reason, reopen adds company ID/reason. Transport shares an existing deployed function, preserving the 12-function budget.
 - Server identity comes from `verifyFirebaseIdToken`; reject nonowner/cross-UID claims. Body/operator fields never supply the actor UID.
 - Return committed manifest revision and control generation, or a stable conflict/forbidden code with no raw credentials or payload in logs.
 
-- [ ] Build tests for forged/anonymous/expired/nonowner tokens, cross-UID paths, arbitrary candidate paths, oversized payloads, missing chunks, hash mismatch and unsupported schemas.
-- [ ] Supply a server-only Firestore adapter with least-privilege credentials. Never infer service-account credentials from the browser API key or reuse user-provided admin-role fields. Missing configuration fails closed; no fallback to client publication once protection is enabled.
-- [ ] Validate the candidate read before committing. Server-owned generation chunks must be immutable after verification; use restrictive staging/server-published namespaces. Stage large payloads outside the HTTP request body, retaining existing chunk limits. Publish manifest, control version and audit event atomically; preserve preceding manifest history.
-- [ ] Add idempotency tied to operation ID plus verified request fingerprint and UID. Duplicate request cannot close/reopen twice; same ID with another payload is rejected. Lost-response reconciliation must discover an already successful operation.
-- [ ] Emulator-test denied direct manifest/control/event/snapshot writes, old-client replacement/deletion, malicious chunk overwrite and stale-device commit after another device closes. Include concurrent commits, close versus commit and reopen versus close.
-- [ ] Keep the legacy path for accounts never enrolled only. Enrollment must atomically establish server authority before the first close; rules cannot use a browser-deletable flag. Protected accounts cannot downgrade or remove control records.
-- [ ] Verify locally with synthetic emulator data, API tests, typecheck and build; commit without running a rules release or deployment.
+- [x] Build tests for forged/anonymous/expired/nonowner tokens, cross-UID paths, arbitrary candidate paths, oversized payloads, missing chunks, hash mismatch and unsupported schemas.
+- [x] Supply a server-only Firestore adapter with least-privilege credentials. Never infer service-account credentials from the browser API key or reuse user-provided admin-role fields. Missing configuration fails closed; no fallback to client publication once protection is enabled.
+- [x] Validate the candidate read before committing. Server-owned generation chunks must be immutable after verification; use restrictive staging/server-published namespaces. Stage large payloads outside the HTTP request body, retaining existing chunk limits. Publish manifest, control version and audit event atomically; preserve preceding manifest history.
+- [x] Add idempotency tied to operation ID plus verified request fingerprint and UID. Duplicate request cannot close/reopen twice; same ID with another payload is rejected. Lost-response reconciliation must discover an already successful operation.
+- [x] Emulator-test denied direct manifest/control/event/snapshot writes, old-client replacement/deletion, malicious chunk overwrite and stale-device commit after another device closes. Include concurrent commits, close versus commit and reopen versus close.
+- [x] Keep the legacy path for accounts never enrolled only. Enrollment must atomically establish server authority before the first close; rules cannot use a browser-deletable flag. Protected accounts cannot downgrade or remove control records.
+- [x] Verify locally with synthetic emulator data, API tests, typecheck and build; commit without running a rules release or deployment.
 
 ## Task 3: Persistence, restore and recovery continuity
 
@@ -77,6 +79,12 @@ Modify `src/cloud/plain-workspace.ts`, `firestore.rules` and the existing emulat
 `src/storage/vault.ts`; create `tests/period-continuity.test.mjs`.
 
 **Interfaces:** Consume the trusted control generation and boundary set from Task 2; preserve it as verified account context rather than authorizing payload metadata. Client preflight invokes Task 1; the server remains final authority.
+
+Task 2 manifest extension: `chunkStorage: period-generations-v1` references the
+fixed own-UID `periodGenerations/{revision}/chunks` namespace. Task 3 must support
+this in metadata validation and downloading before enrollment is offered. It must
+not accept arbitrary collection paths from metadata. Enrollment changes the
+manifest revision while preserving the verified payload and archives its parent.
 
 - [ ] Write RED cases for ordinary save, full mutation, AI bridge, remote merge, import, restore, company/branch switching and local CAS conflict. Every path either preserves the closed state or is rejected without replacing the prior state.
 - [ ] Extend schema deliberately with retained report references, versions and audit continuity. A legacy backup cannot remove server-owned control/history; restoring business data remains subject to the closed-state comparison.

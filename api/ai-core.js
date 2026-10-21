@@ -116,6 +116,12 @@ function resultForRequest(parsed,cleaned){const safe=cleaned.context.conversatio
 function needsDeepReasoning(cleaned){return cleaned.context.screen==='reports'||/(cfo|report|profit|profitability|margin|supplier|procurement|collection|receivable|overdue|anomaly|trend|comparison|compare|تقرير|تحليل|ربح|ربحية|هامش|مورد|مشتريات|تحصيل|متأخر|مقارنة)/i.test(cleaned.message);}
 
 export default async function handler(request,response){
+  // Deterministic financial transport shares this deployed function to preserve
+  // the existing 12-function budget. It never enters the AI/provider workflow.
+  if(request.query?.lourexPeriod==='1'||new URLSearchParams(String(request.url||'').split('?')[1]||'').get('lourexPeriod')==='1'){
+    const {default:periodHandler}=await import('./_accounting/workspace-handler.js');
+    return periodHandler(request,response);
+  }
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST for LOUREX AI.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'LOUREX AI requests must come from this LOUREX Invoice deployment.'});return;}
   if(!await requireAiFirebaseAuth(request,response))return;
