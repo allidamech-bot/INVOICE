@@ -15,7 +15,7 @@ test('v312 keeps the requested ten-document order and labels',async()=>{
     ['purchase-order','Purchase Order','طلب شراء'],
     ['invoice','Commercial Invoice','فاتورة تجارية'],
     ['delivery-note','Delivery Note','سند تسليم'],
-    ['payment-receipt','Payment Receipt','إيصال دفع'],
+    ['payment-receipt','Manual Payment Receipt','إيصال دفع يدوي'],
     ['credit-note','Credit Note','إشعار دائن'],
     ['statement-account','Statement of Account','كشف حساب']
   ];

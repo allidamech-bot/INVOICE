@@ -184,8 +184,8 @@ async function runDocumentsDensity(language){
         const buttons=menu.locator('.ta-documents-create-choices button');
         const names=(await buttons.locator('strong').allTextContents()).map(name=>name.trim());
         const expected=language==='ar'
-          ?['عرض سعر','فاتورة','فاتورة مبدئية','سند تسليم','طلب عرض سعر','طلب شراء','مسودة','إيصال دفع']
-          :['Quotation','Invoice','Proforma Invoice','Delivery Note','RFQ','Purchase Order','Draft','Payment Receipt'];
+          ?['عرض سعر','فاتورة','فاتورة مبدئية','سند تسليم','طلب عرض سعر','طلب شراء','مسودة','إيصال دفع يدوي']
+          :['Quotation','Invoice','Proforma Invoice','Delivery Note','RFQ','Purchase Order','Draft','Manual Payment Receipt'];
         if(names.length!==8)failures.push(`expected 8 document choices in dialog, found ${names.length}`);
         for(const name of expected)if(!names.includes(name))failures.push(`missing document choice: ${name}`);
         if(await buttons.count()>0){
