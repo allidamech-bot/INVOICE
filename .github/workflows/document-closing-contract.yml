@@ -5,6 +5,12 @@ on:
     paths:
       - 'src/lib/audit-diff.ts'
       - 'tests/draft-deletion-audit-20261021.test.mjs'
+      - 'src/lib/payment-voucher.ts'
+      - 'src/components/PaymentVoucherModal.tsx'
+      - 'src/components/InvoicePaymentsPanel.tsx'
+      - 'src/components/SupplierPayablesPage.tsx'
+      - 'src/styles/payables-batch9.css'
+      - 'tests/payment-vouchers-20261021.test.mjs'
       - 'tests/document-final-qa-v130.test.mjs'
       - 'tests/live-document-regressions-v584.test.mjs'
       - 'tests/live-document-studio-pdf-ux-v583.test.mjs'
@@ -36,3 +42,5 @@ jobs:
         run: npm run build
       - name: Draft deletion audit and persisted history
         run: node --test tests/draft-deletion-audit-20261021.test.mjs
+      - name: Linked customer and supplier payment vouchers
+        run: node --test tests/payment-vouchers-20261021.test.mjs tests/receivables-v133.test.mjs tests/purchase-payment-saved-cycle.test.mjs

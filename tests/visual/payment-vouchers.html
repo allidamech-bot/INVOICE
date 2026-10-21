@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base href="../../dist/"><link rel="icon" href="data:,"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root"><div class="app-ui"><main id="visual-app"></main></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {InvoicePaymentsPanel} from './src/components/InvoicePaymentsPanel.js';
+import {SupplierPayablesPage} from './src/components/SupplierPayablesPage.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {createSupplier,createPurchase,createPurchaseItem,supplierSnapshotFrom} from './src/lib/operations.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const args=new URLSearchParams(location.search),lang=args.get('lang')==='ar'?'ar':'en',mode=args.get('mode')==='supplier'?'supplier':'customer';
+setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
+const errorWrite=async()=>{throw Error('Voucher preview must never persist a second financial transaction');};
+if(mode==='customer'){
+ const invoice=createBlankDocument('invoice','INV-QA-RECEIPT',company);
+ Object.assign(invoice,{id:'invoice-for-receipt',status:'final',lifecycleStatus:'active',role:'standard',issueDate:'2026-01-02',dueDate:'2026-01-31',currency:'USD',workspaceId:'default',branchId:'main'});
+ invoice.customerSnapshot={sourceCustomerId:'customer-receipt',companyNameEn:'Atlas Customer',companyNameAr:'أطلس العميل',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+ invoice.items=[{...invoice.items[0],quantity:'1',unitPrice:'100.00'}];invoice.adjustments={...invoice.adjustments,taxEnabled:false,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false};
+ const payment={id:'customer-voucher-001',invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:'customer-receipt',customerNameEn:'Atlas Customer',customerNameAr:'أطلس العميل',currency:'USD',workspaceId:'default',branchId:'main',amount:'42.00',date:'2026-01-05',method:'bank-transfer',reference:'TRANSFER-42',notes:'Synthetic test record',createdAt:'2026-01-05T12:00:00.000Z',updatedAt:'2026-01-05T12:00:00.000Z'};
+ window.qaSource=()=>JSON.stringify({invoice,payments:[payment]});
+ ReactDOM.render(React.createElement(InvoicePaymentsPanel,{document:invoice,documents:[invoice],payments:[payment],onSave:errorWrite,onDelete:errorWrite}),document.getElementById('visual-app'));
+}else{
+ const supplier={...createSupplier(),id:'supplier-voucher',nameEn:'Atlas Supplier',nameAr:'أطلس المورد',defaultCurrency:'USD'};
+ const purchase=createPurchase([],[supplier],'USD');
+ Object.assign(purchase,{id:'purchase-for-voucher',number:'PUR-QA-VOUCHER',status:'posted',date:'2026-01-02',dueDate:'2026-01-31',postedAt:'2026-01-02T12:00:00.000Z',supplierSnapshot:supplierSnapshotFrom(supplier),workspaceId:'default',branchId:'main'});
+ purchase.items=[{...createPurchaseItem(),quantity:'1',unitCost:'100.00',descriptionEn:'Synthetic service'}];
+ const payment={id:'supplier-voucher-001',purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:supplier.id,supplierNameEn:supplier.nameEn,supplierNameAr:supplier.nameAr,currency:'USD',workspaceId:'default',branchId:'main',amount:'42.00',date:'2026-01-05',method:'bank-transfer',reference:'TRANSFER-42',notes:'Synthetic test record',createdAt:'2026-01-05T12:00:00.000Z',updatedAt:'2026-01-05T12:00:00.000Z'};
+ window.qaSource=()=>JSON.stringify({purchase,supplierPayments:[payment]});
+ ReactDOM.render(React.createElement(SupplierPayablesPage,{company,suppliers:[supplier],purchases:[purchase],supplierPayments:[payment],onSaveSupplierPayment:errorWrite,onDeleteSupplierPayment:errorWrite}),document.getElementById('visual-app'));
+}
+</script></body></html>
