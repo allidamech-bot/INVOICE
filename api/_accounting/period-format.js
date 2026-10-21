@@ -1,7 +1,10 @@
 import {createHash} from 'node:crypto';
-import {APP_SCHEMA_VERSION} from '../../dist/src/lib/defaults.js';
-import {assertRestorableBackupVault} from '../../dist/src/lib/backup.js';
-import {isIsoDate} from '../../dist/src/lib/id.js';
+import {loadCompiledFinance} from './compiled-finance-loader.js';
+const [{APP_SCHEMA_VERSION},{assertRestorableBackupVault},{isIsoDate}]=await Promise.all([
+  loadCompiledFinance('defaults'),
+  loadCompiledFinance('backup'),
+  loadCompiledFinance('id')
+]);
 
 export const CHUNK_BYTES=180_000,MAX_WORKSPACE_BYTES=45_000_000;
 export const hexId=value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value);
