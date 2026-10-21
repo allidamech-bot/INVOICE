@@ -31,6 +31,7 @@ test('Overpayments do not become negative open balances',()=>{
 test('Mixing currencies is rejected rather than using fabricated FX',()=>{
   const result=calc('فاتورة افتراضية قيمتها 1500 USD دفعت 400 EUR و350 USD كم المتبقي؟');
   assert.equal(result?.remaining,'');assert.match(result?.answer,/أكثر من عملة/);
+  assert.equal(result?.paid,'','mixed-currency amounts must never be aggregated even internally');
 });
 test('No currency cannot silently become USD',()=>{
   const result=calc('فاتورة افتراضية قيمتها 1000، دفعت 100 و200 كم المتبقي؟');
@@ -46,6 +47,7 @@ test('Reject real saved invoice lookup and unsupported financial assumptions',()
   assert.equal(calc('فاتورة افتراضية قيمتها 1500 USD بعد خصم 10% دفعت 400 كم المتبقي'),null);
   assert.equal(calc('فاتورة افتراضية قيمتها 1500 USD دفعت 400 كم المتبقي احفظها'),null);
   assert.equal(calc('فاتورة افتراضية قيمتها 1.500,00 USD دفعت 400 كم المتبقي'),null);
+  assert.equal(calc('Hypothetical invoice 1500 USD, paid 400,50 and 350, remaining?','en'),null,'a malformed payment may never be dropped');
 });
 test('Reject date, second invoice, additional claim, or negative payment',()=>{
   assert.equal(calc('فاتورة افتراضية 1500 USD دفعت 400 بتاريخ 2026-10-22 و350 كم المتبقي'),null);
