@@ -238,12 +238,13 @@
   const providerButtons=[...document.querySelectorAll('[data-provider-test]')];
   const accuracyButtons=[...document.querySelectorAll('[data-provider-accuracy]')];
   const allProbeButtons=[...providerButtons,...accuracyButtons];
-  const safeProviders=new Set(['groq','cloudflare','gemini','kilo']);
+  const safeProviders=new Set(['groq','cloudflare','gemini','kilo','openrouter','mistral','ollama']);
   let probeRunning=false;
   const probeLabels={
     PASSED:'Correct answer / إجابة صحيحة',
     WRONG_ANSWER:'Connected, incorrect answer / متصل لكن الإجابة خاطئة',
     NOT_CONFIGURED:'No key configured / المفتاح غير مهيأ',
+    FREE_TIER_NOT_VERIFIED:'Free allowance unverified — no request sent / لم تُؤكّد مجانية الخطة، لم يُرسل طلب',
     KEY_REJECTED:'API key rejected / المفتاح مرفوض',
     PAYMENT_REQUIRED:'Payment required / يتطلب رصيدًا مدفوعًا',
     RATE_LIMITED:'Provider rate limit / حدّ الاستخدام لدى الشركة',

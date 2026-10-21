@@ -4,7 +4,7 @@ import {FINANCIAL_QA_PROMPT,classifyFinancialAccuracyResponse} from './provider-
 // Owner-triggered, synthetic-only AI provider smoke test.
 // It never reads client context, business records, or provider fallback routing.
 const SYNTHETIC_PROMPT='Synthetic accounting arithmetic test with NO customer or business data. An example order has 8 items priced at 125 USD each. Apply a 10% discount to the subtotal, then 18% tax to the discounted total. Reply ONLY with the numeric final total (no currency symbol, letters, separators or explanation).';
-const MODEL={groq:'openai/gpt-oss-120b',cloudflare:'@cf/google/gemma-4-26b-a4b-it',gemini:'gemini-2.5-flash-lite',kilo:'kilo-auto/free'};
+const MODEL={groq:'openai/gpt-oss-120b',cloudflare:'@cf/google/gemma-4-26b-a4b-it',gemini:'gemini-2.5-flash-lite',kilo:'kilo-auto/free',openrouter:'openrouter/free',mistral:'mistral-small-latest',ollama:'gemma4:31b'};
 const MAX_RESPONSE_BYTES=24_000;
 const PROVIDER_TIMEOUT_MS=12_000;
 
@@ -19,17 +19,23 @@ function settingsFor(provider){
     }
     case 'gemini':return{key:process.env.GEMINI_API_KEY?.trim(),url:'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent'};
     case 'kilo':return{key:process.env.KILO_API_KEY?.trim(),url:'https://ai-gateway.kilo.ai/api/v1/chat/completions'};
+    case 'openrouter':return{key:process.env.OPENROUTER_API_KEY?.trim(),url:'https://openrouter.ai/api/v1/chat/completions'};
+    case 'mistral':return{key:process.env.MISTRAL_API_KEY?.trim(),url:'https://api.mistral.ai/v1/chat/completions'};
+    case 'ollama':return{key:process.env.OLLAMA_API_KEY?.trim(),url:'https://ollama.com/api/chat'};
     default:return null;
   }
 }
 function payloadFor(provider,mode='single'){
   const financial=mode==='financial',prompt=financial?FINANCIAL_QA_PROMPT:SYNTHETIC_PROMPT;
   if(provider==='gemini')return{contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:financial?512:256}};
+  if(provider==='ollama')return{model:MODEL.ollama,messages:[{role:'user',content:prompt}],stream:false,options:{temperature:0,num_predict:financial?512:160},...(financial?{format:'json'}:{})};
   return{model:MODEL[provider],messages:[{role:'user',content:prompt}],
     ...(provider!=='kilo'?{temperature:0}:{}),
     ...(provider==='groq'?{max_completion_tokens:financial?384:160,reasoning_effort:'low',include_reasoning:false}:{}),
     ...(provider==='cloudflare'?{max_completion_tokens:256,chat_template_kwargs:{enable_thinking:false},options:{rejectIfBusy:true}}:{}),
-    ...(provider==='kilo'?{max_tokens:financial?512:384}:{})};
+    ...(provider==='kilo'?{max_tokens:financial?512:384}:{}),
+    ...(provider==='openrouter'?{max_tokens:financial?512:192,provider:{data_collection:'deny'}}:{}),
+    ...(provider==='mistral'?{max_tokens:financial?512:192,...(financial?{response_format:{type:'json_object'}}:{})}:{})};
 }
 function safeCategory(status){
   if(status===401||status===403)return'KEY_REJECTED';
@@ -41,7 +47,11 @@ function safeCategory(status){
 export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,mode='single'}={}){
   if(typeof provider!=='string'||!Object.prototype.hasOwnProperty.call(MODEL,provider))return{status:'INVALID_PROVIDER'};
   if(mode!=='single'&&mode!=='financial')return{status:'INVALID_DIAGNOSTIC_MODE'};
-  const model=MODEL[provider],cfg=settingsFor(provider);
+  const model=MODEL[provider];
+  // These models may consume credits on a paid plan. Keys alone are never consent.
+  if(provider==='mistral'&&process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED!=='true')return{provider,model,status:'FREE_TIER_NOT_VERIFIED',latencyMs:0,correct:false};
+  if(provider==='ollama'&&process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED!=='true')return{provider,model,status:'FREE_TIER_NOT_VERIFIED',latencyMs:0,correct:false};
+  const cfg=settingsFor(provider);
   if(!cfg?.key||!cfg.url)return{provider,model,status:'NOT_CONFIGURED',latencyMs:0,correct:false};
   const started=Date.now();
   const controller=new AbortController();
