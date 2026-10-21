@@ -12,6 +12,9 @@ const MAX_RESPONSE_BYTES=24_000;
 const PROVIDER_TIMEOUT_MS=12_000;
 
 export const SYNTHETIC_PROVIDER_IDS=Object.freeze(Object.keys(MODEL));
+// This alternate was listed in the owner's Ollama free-usage catalog.
+// Keep it an explicit owner-triggered, synthetic-only comparison, not a live model switch.
+export const OLLAMA_SYNTHETIC_MODELS=Object.freeze(['gemma4:31b','gpt-oss:20b']);
 
 function settingsFor(provider){
   switch(provider){
@@ -28,10 +31,10 @@ function settingsFor(provider){
     default:return null;
   }
 }
-function payloadFor(provider,mode='single'){
+function payloadFor(provider,mode='single',selectedModel=MODEL[provider]){
   const financial=mode==='financial',prompt=financial?FINANCIAL_QA_PROMPT:SYNTHETIC_PROMPT;
   if(provider==='gemini')return{contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:financial?512:256}};
-  if(provider==='ollama')return{model:MODEL.ollama,messages:[{role:'user',content:prompt}],stream:false,options:{temperature:0,num_predict:financial?512:160},...(financial?{format:'json'}:{})};
+  if(provider==='ollama')return{model:selectedModel,messages:[{role:'user',content:prompt}],stream:false,options:{temperature:0,num_predict:financial?512:160},...(financial?{format:'json'}:{})};
   return{model:MODEL[provider],messages:[{role:'user',content:prompt}],
     temperature:0,
     ...(provider==='groq'?{max_completion_tokens:financial?384:160,reasoning_effort:'low',include_reasoning:false}:{}),
@@ -47,10 +50,13 @@ function safeCategory(status){
   if(status===400||status===404||status===422)return'MODEL_UNAVAILABLE';
   return status>=500?'PROVIDER_UNAVAILABLE':'PROVIDER_ERROR';
 }
-export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,mode='single'}={}){
+export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,mode='single',model:requestedModel}={}){
   if(typeof provider!=='string'||!Object.prototype.hasOwnProperty.call(MODEL,provider))return{status:'INVALID_PROVIDER'};
   if(mode!=='single'&&mode!=='financial')return{status:'INVALID_DIAGNOSTIC_MODE'};
-  const model=MODEL[provider];
+  // Never pass a browser-supplied arbitrary model ID upstream. Models other
+  // than Ollama's verified free catalog selection cannot be overridden.
+  if(requestedModel!==undefined&&(provider!=='ollama'||!OLLAMA_SYNTHETIC_MODELS.includes(requestedModel)))return{status:'INVALID_DIAGNOSTIC_MODEL'};
+  const model=requestedModel||MODEL[provider];
   // These models may consume credits on a paid plan. Keys alone are never consent.
   if(provider==='mistral'&&process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED!=='true')return{provider,model,status:'FREE_TIER_NOT_VERIFIED',latencyMs:0,correct:false};
   if(provider==='ollama'&&process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED!=='true')return{provider,model,status:'FREE_TIER_NOT_VERIFIED',latencyMs:0,correct:false};
@@ -65,7 +71,7 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,m
   try{
     const headers={'Content-Type':'application/json',...(provider==='gemini'?{'x-goog-api-key':cfg.key}:{Authorization:'Bearer '+cfg.key})};
     const request=(async()=>{
-      const response=await fetchImpl(cfg.url,{method:'POST',headers,body:JSON.stringify(payloadFor(provider,mode)),signal:controller.signal});
+      const response=await fetchImpl(cfg.url,{method:'POST',headers,body:JSON.stringify(payloadFor(provider,mode,model)),signal:controller.signal});
       // Bound a stalled or maliciously oversized JSON response. Nothing logged.
       const declared=Number(response.headers?.get?.('content-length')||0);
       if(declared>MAX_RESPONSE_BYTES)return{status:'INVALID_RESPONSE',reason:'RESPONSE_TOO_LARGE'};
