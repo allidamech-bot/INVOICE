@@ -31,3 +31,15 @@ jobs:
         run: node --test tests/fx-signed-rounding-vat-characterization.test.mjs tests/tax-vat-batch10.test.mjs tests/financial-e2e-v145.test.mjs tests/accounting-foundation-batch7.test.mjs tests/customer-return-void-saved-cycle.test.mjs
       - run: npm run typecheck
       - run: npm run build
+      - name: Full Node regression suite
+        run: node --test --test-concurrency=2 tests/*.test.mjs
+      - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Credit treatment UI on desktop and mobile Chromium and WebKit
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/credit-treatment-http.log 2>&1 &
+          qa_server_pid=$!
+          trap 'kill "$qa_server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{if((await fetch("http://127.0.0.1:4173/tests/visual/credit-note-treatment.html")).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Fixture server did not start");'
+          node tests/visual/run-credit-note-treatment.cjs

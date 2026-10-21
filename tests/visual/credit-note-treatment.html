@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {CreditNoteTreatmentDialog} from './src/components/CreditNoteTreatmentDialog.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {emptyVault} from './src/lib/defaults.js';
+import {createCreditNoteDraft} from './src/lib/document-lifecycle.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');document.documentElement.dir=ar?'rtl':'ltr';document.documentElement.lang=ar?'ar':'en';
+const source=createBlankDocument('invoice','INV-QA-TREATMENT',emptyVault().company);
+Object.assign(source,{id:'qa-treatment',status:'final',currency:'USD',language:ar?'ar':'en',issueDate:'2026-10-01'});
+source.items=[{...source.items[0],quantity:'1',unitPrice:'100'}];
+source.adjustments={...source.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:true,taxPercent:'20'};
+window.qaCreated=null;window.qaClosed=false;
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(CreditNoteTreatmentDialog,{
+ source,available:'60.00',onClose:()=>{window.qaClosed=true;},
+ onCreate:async(amount,treatment)=>{window.qaCreated=createCreditNoteDraft(source,'CN-QA-UI',amount,treatment);}
+}));
+</script></body></html>

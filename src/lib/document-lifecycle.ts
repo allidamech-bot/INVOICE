@@ -1,7 +1,7 @@
 import type { DocumentAttachment, DocumentEventRecord, DocumentEventType, DocumentRevisionRecord, LourexDocument, PaymentRecord, VaultPayload } from '../types.js';
 import { duplicateDocument, emptyItem, validateDocument } from './documents.js';
 import { isIsoDate, makeId } from './id.js';
-import { calculateTotals, decimalToScaled } from './money.js';
+import { calculateTotals, decimalToScaled, isNonNegativeFinancialDecimalInput, normalizeDecimalInput } from './money.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments } from './payments.js';
 
 function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`; }
@@ -48,7 +48,41 @@ export function restoreRevisionSnapshot(current:LourexDocument,revisions:Documen
   const attachments=(current.attachments??[]).length?(current.attachments??[]).map(attachment=>({...attachment})):legacyPayload?(record.snapshot.attachments??[]).map(attachment=>({...attachment})):[];
   return{...restored,attachments,updatedAt:new Date().toISOString()};
 }
-export function createCreditNoteDraft(source:LourexDocument,number:string,available:string):LourexDocument{if(source.kind!=='invoice'||source.role==='credit-note'||source.status!=='final'||source.lifecycleStatus==='voided')throw new Error('Credit notes can only be created from an active final invoice.');const copy=duplicateDocument(source,number);const sourceTotal=calculateTotals(source.items,source.adjustments).grandTotal;const fullCredit=decimalToScaled(available,2)===decimalToScaled(sourceTotal,2);let items=copy.items;let adjustments=copy.adjustments;if(!fullCredit){const item=emptyItem();item.descriptionEn=`Credit against ${source.number}`;item.descriptionAr=`إشعار دائن مقابل ${source.number}`;item.quantity='1';item.unit='Unit';item.unitPrice=available;items=[item];adjustments={discountEnabled:false,discountMode:'fixed',discountValue:'0.00',shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled:false,taxPercent:'0'};}const reference=source.language==='ar'?`مرجع الفاتورة: ${source.number}`:source.language==='bilingual'?`Credit against ${source.number} / مرجع الفاتورة: ${source.number}`:`Credit against ${source.number}`;const remarks=[reference,copy.terms.remarks.trim()].filter(Boolean).join('\n');const internalCosts=fullCredit?{...copy.internalCosts}:{shippingCost:'0.00',otherCost:'0.00'};return{...copy,kind:'invoice',role:'credit-note',status:'draft',lifecycleStatus:'active',revision:1,creditForId:source.id,creditForNumber:source.number,voidedAt:'',voidReason:'',convertedFromId:'',dueDate:'',items,adjustments,internalCosts,appearance:{...copy.appearance,showBank:false},terms:{...copy.terms,remarks}};}
+
+export interface CreditNoteTreatment { mode:'invoice-tax'|'keep-vat'; reason:string; }
+function applyCreditNoteTreatment(source:LourexDocument,credit:LourexDocument,amount:string,treatment:CreditNoteTreatment):LourexDocument{
+  if(!treatment||!['invoice-tax','keep-vat'].includes(treatment.mode))throw new Error('Select a credit note VAT treatment.');
+  const reason=typeof treatment.reason==='string'?treatment.reason.trim():'';
+  if(!reason||reason.length>1000)throw new Error('A credit note reason is required (maximum 1000 characters).');
+  const normalized=normalizeDecimalInput(amount);
+  if(!isNonNegativeFinancialDecimalInput(amount)||!/^\d*(?:\.\d{0,2}0*)?$/.test(normalized))throw new Error('Credit amount must use currency-cent precision.');
+  const gross=decimalToScaled(amount,2),original=decimalToScaled(calculateTotals(source.items,source.adjustments).grandTotal,2);
+  if(gross<=0n||gross>original)throw new Error('Credit amount must be positive and cannot exceed the source invoice total.');
+  let result=credit;
+  if(treatment.mode==='keep-vat'||gross!==original){
+    const item=emptyItem();
+    item.descriptionEn=`Credit against ${source.number}`;
+    item.descriptionAr=`إشعار دائن مقابل ${source.number}`;
+    item.quantity='1';item.unit='Unit';
+    const taxEnabled=treatment.mode==='invoice-tax'&&source.adjustments.taxEnabled;
+    const taxPercent=taxEnabled?source.adjustments.taxPercent:'0';
+    if(!isNonNegativeFinancialDecimalInput(taxPercent))throw new Error('Source invoice tax rate is invalid.');
+    const divisor=1_000_000n,denominator=divisor+decimalToScaled(taxPercent,4);
+    const net=(gross*divisor+denominator/2n)/denominator;
+    item.unitPrice=centsString(net);
+    const adjustments={discountEnabled:false,discountMode:'fixed' as const,discountValue:'0.00',
+      shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled,taxPercent};
+    if(decimalToScaled(calculateTotals([item],adjustments).grandTotal,2)!==gross)
+      throw new Error('This gross credit cannot be represented exactly with the invoice tax rate and cent rounding. Review the credit amount.');
+    result={...credit,items:[item],adjustments,internalCosts:{shippingCost:'0.00',otherCost:'0.00'}};
+  }
+  const label=treatment.mode==='invoice-tax'
+    ?'VAT treatment: source invoice tax / المعالجة الضريبية: ضريبة الفاتورة الأصلية'
+    :'VAT treatment: unchanged VAT / المعالجة الضريبية: دون تعديل الضريبة';
+  return {...result,terms:{...result.terms,remarks:[result.terms.remarks,label,`Reason / السبب: ${reason}`].filter(Boolean).join('\n')}};
+}
+
+export function createCreditNoteDraft(source:LourexDocument,number:string,available:string,treatment?:CreditNoteTreatment):LourexDocument{if(source.kind!=='invoice'||source.role==='credit-note'||source.status!=='final'||source.lifecycleStatus==='voided')throw new Error('Credit notes can only be created from an active final invoice.');const copy=duplicateDocument(source,number);const sourceTotal=calculateTotals(source.items,source.adjustments).grandTotal;const fullCredit=decimalToScaled(available,2)===decimalToScaled(sourceTotal,2);let items=copy.items;let adjustments=copy.adjustments;if(!fullCredit){const item=emptyItem();item.descriptionEn=`Credit against ${source.number}`;item.descriptionAr=`إشعار دائن مقابل ${source.number}`;item.quantity='1';item.unit='Unit';item.unitPrice=available;items=[item];adjustments={discountEnabled:false,discountMode:'fixed',discountValue:'0.00',shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled:false,taxPercent:'0'};}const reference=source.language==='ar'?`مرجع الفاتورة: ${source.number}`:source.language==='bilingual'?`Credit against ${source.number} / مرجع الفاتورة: ${source.number}`:`Credit against ${source.number}`;const remarks=[reference,copy.terms.remarks.trim()].filter(Boolean).join('\n');const internalCosts=fullCredit?{...copy.internalCosts}:{shippingCost:'0.00',otherCost:'0.00'};const credit:LourexDocument={...copy,kind:'invoice',role:'credit-note',status:'draft',lifecycleStatus:'active',revision:1,creditForId:source.id,creditForNumber:source.number,voidedAt:'',voidReason:'',convertedFromId:'',dueDate:'',items,adjustments,internalCosts,appearance:{...copy.appearance,showBank:false},terms:{...copy.terms,remarks}};return treatment===undefined?credit:applyCreditNoteTreatment(source,credit,available,treatment);}
 export function assertDocumentLifecycleInvariant(doc:LourexDocument,documents:LourexDocument[],payments:PaymentRecord[]):void{
   if(doc.lifecycleStatus==='voided'&&doc.status!=='final')throw new Error('A voided document must remain final.');
   if(doc.status==='final'&&doc.lifecycleStatus!=='voided'){
