@@ -55,7 +55,7 @@ test('unknown names, wrong answers and payment errors do not initiate fallback',
   const rate=await runSyntheticProviderDiagnostic('groq',{fetchImpl:async()=>reply({},429)});
   assert.equal(rate.status,'RATE_LIMITED');
   const invalid=await runSyntheticProviderDiagnostic('gemini',{fetchImpl:async()=>reply({candidates:[]})});
-  assert.equal(invalid.status,'INVALID_RESPONSE');
+  assert.equal(invalid.status,'EMPTY_OUTPUT');
  });
 });
 test('missing key and invalid provider never call external services',async()=>{
@@ -74,4 +74,87 @@ test('UI requires owner verification, only manual buttons, server-side signed UI
  assert.match(js,/button\.addEventListener\('click',async\(\)=>/);
  assert.match(api,/request\.headers\['x-lourex-admin-diagnostics'\]==='provider-probe'/);
  assert.match(api,/diagnosticsOwnerUidAllowed\(request\.aiVerifiedUid,process\.env\.LOUREX_AI_DIAGNOSTICS_ADMIN_UID\)/);
+});
+
+test('legitimate formatted totals are accepted without weakening arithmetic validation',async()=>{
+ await sandbox(async()=>{
+  const cases=[
+   {provider:'gemini',body:{candidates:[{content:{parts:[{text:'1,062.00 USD'}]}}]},expected:'PASSED'},
+   {provider:'gemini',body:{candidates:[{content:{parts:[{text:'١٬٠٦٢'}]}}]},expected:'PASSED'},
+   {provider:'cloudflare',body:{result:{model:'@cf/google/gemma-4-26b-a4b-it',choices:[{message:{content:[{type:'text',text:'Total: $1,062 USD'}]}}]}},expected:'PASSED'},
+   {provider:'cloudflare',body:{result:{response:'1062'}},expected:'PASSED'},
+   {provider:'kilo',body:{model:'nvidia/free-example',choices:[{message:{content:'\x60\x60\x60text\n1062\n\x60\x60\x60'},finish_reason:'stop'}]},expected:'PASSED'},
+   {provider:'kilo',body:{choices:[{message:{parsed:{total:1062}}}]},expected:'PASSED'},
+   {provider:'gemini',body:{candidates:[{content:{parts:[{text:'900 and later 1062'}]}}]},expected:'UNPARSEABLE_ANSWER'},
+   {provider:'kilo',body:{choices:[{message:{content:'1042'}}]},expected:'WRONG_ANSWER'}
+  ];
+  for(const entry of cases){
+    let attempts=0;
+    const output=await runSyntheticProviderDiagnostic(entry.provider,{fetchImpl:async()=>{
+      attempts++;
+      return reply(entry.body);
+    }});
+    assert.equal(attempts,1,'must never fallback to another provider');
+    assert.equal(output.status,entry.expected,entry.provider+' '+JSON.stringify(entry.body));
+    if(entry.expected==='PASSED')assert.equal(output.answerPreview,'1062');
+    if(entry.expected==='WRONG_ANSWER')assert.equal(output.answerPreview,'1042');
+    assert.equal(output.correct,entry.expected==='PASSED');
+    assert.ok(!JSON.stringify(output).includes('synthetic-'),'no API key output');
+  }
+ });
+});
+
+test('an empty, blocked, or truncated answer is not falsely described as a bad key or incorrect arithmetic',async()=>{
+ await sandbox(async()=>{
+  const samples=[
+   {provider:'kilo',body:{choices:[{message:{content:null},finish_reason:'length'}]},expected:'OUTPUT_TRUNCATED'},
+   {provider:'kilo',body:{choices:[{message:{content:null},finish_reason:'stop'}]},expected:'EMPTY_OUTPUT'},
+   {provider:'gemini',body:{candidates:[{finishReason:'MAX_TOKENS',content:{parts:[]}}]},expected:'OUTPUT_TRUNCATED'},
+   {provider:'gemini',body:{candidates:[{finishReason:'SAFETY',content:{parts:[]}}]},expected:'OUTPUT_BLOCKED'},
+   {provider:'cloudflare',body:{success:false,errors:[{message:'synthetic-sensitive-provider-error'}]},expected:'PROVIDER_ERROR'},
+   {provider:'kilo',body:{error:{message:'synthetic-sensitive-provider-error'}},expected:'PROVIDER_ERROR'}
+  ];
+  for(const sample of samples){
+   const output=await runSyntheticProviderDiagnostic(sample.provider,{fetchImpl:async()=>reply(sample.body)});
+   assert.equal(output.status,sample.expected);
+   assert.equal(output.correct,false);
+   assert.ok(!JSON.stringify(output).includes('synthetic-sensitive-provider-error'),'never disclose upstream error bodies');
+  }
+ });
+});
+
+test('free Kilo remains explicit, Gemini uses no thinking, and limits allow short substantive responses',async()=>{
+ await sandbox(async()=>{
+  for(const provider of ['kilo','gemini','cloudflare']){
+   let requests=0;
+   const output=await runSyntheticProviderDiagnostic(provider,{fetchImpl:async(_url,options)=>{
+    requests++;
+    const body=JSON.parse(options.body);
+    if(provider==='kilo'){
+      assert.equal(body.model,'kilo-auto/free');
+      assert.equal(body.max_tokens,512);
+    }else if(provider==='gemini'){
+      assert.equal(body.generationConfig.maxOutputTokens,256);
+      assert.equal(body.generationConfig.thinkingConfig.thinkingBudget,0);
+    }else{
+      assert.equal(body.max_completion_tokens,256);
+    }
+    return provider==='gemini'?
+      reply({candidates:[{content:{parts:[{text:'1062'}]}}]}):
+      reply({choices:[{message:{content:'1062'}}]});
+   }});
+   assert.equal(requests,1);
+   assert.equal(output.status,'PASSED');
+  }
+ });
+});
+
+test('diagnostic UI distinguishes provider answer, actual model and empty/truncated result',()=>{
+ const js=readFileSync(new URL('../public/health.js',import.meta.url),'utf8');
+ for(const code of ['EMPTY_OUTPUT','OUTPUT_TRUNCATED','OUTPUT_BLOCKED','UNPARSEABLE_ANSWER'])
+   assert.ok(js.includes(code),code+' needs a separate truthful label');
+ assert.match(js,/result\.textContent=label/);
+ assert.match(js,/data\?\.answerPreview/);
+ assert.match(js,/data\?\.actualModel/);
+ assert.doesNotMatch(js,/innerHTML\s*=\s*label/);
 });
