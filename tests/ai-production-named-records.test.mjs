@@ -8,6 +8,7 @@ import {createManualInventoryMovement} from '../dist/src/lib/operations.js';
 import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {orchestrateAiToolRequest,formatAiToolAnswer} from '../dist/src/lib/ai-tool-client.js';
 import {namedRecordReadPlan} from '../dist/src/lib/ai-named-record-read.js';
+import {scopeVault} from '../dist/src/lib/workspaces.js';
 
 const now='2026-10-18T00:00:00.000Z';
 function fixture(){
@@ -264,7 +265,7 @@ test('customer history explicitly reports omitted older entries without changing
     v.documents.push(row);
   }
   const before=structuredClone(v);
-  const runtime=createAiToolRuntime(v,context());
+  const runtime=createAiToolRuntime(scopeVault(v),context());
   const plan={version:1,goal:'Read history',calls:[{id:'history',tool:'customer.getHistory',args:{customerId:'qa-customer-id'},reason:'Grounded ledger'}]};
   const result=executeAiToolPlan(runtime,plan);
   const row=result.results[0];
@@ -288,7 +289,7 @@ test('customer history explicitly reports omitted older entries without changing
   assert.deepEqual(v,before,'read must never mutate original invoices or payments');
 });
 test('short customer history does not falsely warn of omitted entries',()=>{
-  const v=fixture(),runtime=createAiToolRuntime(v,context());
+  const v=fixture(),runtime=createAiToolRuntime(scopeVault(v),context());
   const plan={version:1,goal:'Read history',calls:[{id:'history',tool:'customer.getHistory',args:{customerId:'qa-customer-id'},reason:'Read full available ledger'}]};
   const out=executeAiToolPlan(runtime,plan);
   const usd=out.results[0].data.statements.find(x=>x.currency==='USD');
