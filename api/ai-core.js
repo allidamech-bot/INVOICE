@@ -142,8 +142,12 @@ export default async function handler(request,response){
       response.setHeader('Retry-After',String(testBudget.retryAfterSeconds));
       sendJson(response,429,{code:'DIAGNOSTIC_RATE_LIMITED',provider,retryAfterSeconds:testBudget.retryAfterSeconds});return;
     }
-    // The client cannot choose a prompt, model, URL, key, business context or tools.
-    const probe=await runSyntheticProviderDiagnostic(provider);
+    // Only the two server-owned synthetic suites are allowed; browser cannot set prompt or model.
+    const mode=requestBody?.mode===undefined?'single':requestBody.mode;
+    if(mode!=='single'&&mode!=='financial'){
+      sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
+    }
+    const probe=await runSyntheticProviderDiagnostic(provider,{mode});
     sendJson(response,200,probe);return;
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
