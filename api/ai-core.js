@@ -1,6 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {diagnosticsOwnerUidAllowed} from './_ai/admin-diagnostics-auth.js';
-import {SYNTHETIC_PROVIDER_IDS,runSyntheticProviderDiagnostic,checkProviderCredential} from './_ai/provider-diagnostics.js';
+import {SYNTHETIC_PROVIDER_IDS,OLLAMA_SYNTHETIC_MODELS,runSyntheticProviderDiagnostic,checkProviderCredential} from './_ai/provider-diagnostics.js';
 import {diagnosticRateAllowed} from './_ai/diagnostics-rate-limit.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
@@ -152,12 +152,20 @@ export default async function handler(request,response){
     if(mode==='key-check'&&provider!=='mistral'&&provider!=='ollama'){
       sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
     }
+    // Optional model override is only available for the owner's fixed Ollama
+    // financial suite and never for other providers, key checks or live advice.
+    const requestedModel=requestBody?.model;
+    if(requestedModel!==undefined&&(provider!=='ollama'||mode!=='financial'||!OLLAMA_SYNTHETIC_MODELS.includes(requestedModel))){
+      sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODEL'});return;
+    }
     const testBudget=diagnosticRateAllowed(request.aiVerifiedUid,provider);
     if(!testBudget.allowed){
       response.setHeader('Retry-After',String(testBudget.retryAfterSeconds));
       sendJson(response,429,{code:'DIAGNOSTIC_RATE_LIMITED',provider,retryAfterSeconds:testBudget.retryAfterSeconds});return;
     }
-    const probe=mode==='key-check'?await checkProviderCredential(provider):await runSyntheticProviderDiagnostic(provider,{mode});
+    const probe=mode==='key-check'?await checkProviderCredential(provider):
+      requestedModel===undefined?await runSyntheticProviderDiagnostic(provider,{mode}):
+        await runSyntheticProviderDiagnostic(provider,{mode,model:requestedModel});
     sendJson(response,200,probe);return;
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
