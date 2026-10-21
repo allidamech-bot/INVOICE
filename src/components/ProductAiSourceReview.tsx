@@ -8,6 +8,7 @@ import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { reviewProductAiRows, type ProductAiClassification, type ProductAiDraftItem, type ProductAiRowReview } from '../lib/product-ai-review.js';
 import { Button, Icon, Modal } from './UI.js';
+import { isIphoneHeicPhoto, jpegFromIphonePhoto } from '../lib/ai-iphone-photo.js';
 import { combineProductAiSourceDrafts, MAX_PRODUCT_AI_FILES, MAX_PRODUCT_AI_TOTAL_BYTES, type ProductAiNamedDraft } from '../lib/ai-product-multi-source.js';
 
 const MAX_BINARY_BYTES=2_600_000;
@@ -61,22 +62,25 @@ export class ProductAiSourceReview extends React.Component<Props,State>{
       for(let index=0;index<files.length;index++){
         const file=files[index]!;
         this.setState({activeFileName:file.name,completedFiles:index});
-        const mimeType=mimeFor(file),isText=mimeType==='text/plain',isSpreadsheet=spreadsheetFile(file);
+        // HEIC stays on device; only a bounded, genuinely decoded JPEG reaches AI.
+        const sourceFile=isIphoneHeicPhoto(file)?await jpegFromIphonePhoto(file,controller.signal):file;
+        if(controller.signal.aborted)return;
+        const mimeType=mimeFor(sourceFile),isText=mimeType==='text/plain',isSpreadsheet=spreadsheetFile(sourceFile);
         if(!isSpreadsheet&&!isText&&!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType))
           throw new Error(t('This AI review accepts PDF, image, Excel, CSV or text product sources.','تقبل هذه المراجعة PDF أو الصور أو Excel أو CSV أو نصوص المنتجات.'));
-        if(isSpreadsheet&&file.size>MAX_SPREADSHEET_BYTES)
+        if(isSpreadsheet&&sourceFile.size>MAX_SPREADSHEET_BYTES)
           throw new Error(t('Reduce this spreadsheet below 12 MB for reliable AI review.','خفّض حجم الجدول لأقل من 12 MB للمراجعة الموثوقة بالذكاء الاصطناعي.'));
-        if(isText&&file.size>MAX_TEXT_BYTES)
+        if(isText&&sourceFile.size>MAX_TEXT_BYTES)
           throw new Error(t('This text source is too large for AI review.','مصدر النص كبير جدًا للمراجعة بالذكاء الاصطناعي.'));
-        if(!isSpreadsheet&&!isText&&file.size>(mimeType==='application/pdf'?MAX_SPREADSHEET_BYTES:MAX_BINARY_BYTES))
+        if(!isSpreadsheet&&!isText&&sourceFile.size>(mimeType==='application/pdf'?MAX_SPREADSHEET_BYTES:MAX_BINARY_BYTES))
           throw new Error(t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.'));
         let payload:any;
-        if(isSpreadsheet){const sheets=await readSpreadsheetFile(file);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t('This spreadsheet has no readable product data.','هذا الجدول لا يحتوي بيانات منتجات قابلة للقراءة.'));payload={kind:'text',fileName:file.name,mimeType:'text/csv',text};}
-        else if(isText){const text=await file.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};}
+        if(isSpreadsheet){const sheets=await readSpreadsheetFile(sourceFile);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t('This spreadsheet has no readable product data.','هذا الجدول لا يحتوي بيانات منتجات قابلة للقراءة.'));payload={kind:'text',fileName:file.name,mimeType:'text/csv',text};}
+        else if(isText){const text=await sourceFile.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};}
         else{
-          const text=mimeType==='application/pdf'?await readablePdfText(file,MAX_TEXT_CHARS):'';
+          const text=mimeType==='application/pdf'?await readablePdfText(sourceFile,MAX_TEXT_CHARS):'';
           if(text.trim())payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};
-          else{if(file.size>MAX_BINARY_BYTES)throw new Error(t('Reduce this scanned PDF below 2.6 MB.','خفّض حجم PDF الممسوح ضوئيًا لأقل من 2.6 MB.'));payload={kind:'file',fileName:file.name,mimeType,data:bytesToBase64(await file.arrayBuffer())};}
+          else{if(sourceFile.size>MAX_BINARY_BYTES)throw new Error(t('Reduce this scanned PDF below 2.6 MB.','خفّض حجم PDF الممسوح ضوئيًا لأقل من 2.6 MB.'));payload={kind:'file',fileName:file.name,mimeType,data:bytesToBase64(await sourceFile.arrayBuffer())};}
         }
         if(controller.signal.aborted)return;
         const body=await requestAiJson('/api/product-source-ai',payload,controller.signal);
