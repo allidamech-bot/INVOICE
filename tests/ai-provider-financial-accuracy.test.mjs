@@ -5,17 +5,18 @@ import {FINANCIAL_QA_CASES,FINANCIAL_QA_PROMPT,classifyFinancialAccuracyResponse
 import {runSyntheticProviderDiagnostic,SYNTHETIC_PROVIDER_IDS} from '../api/_ai/provider-diagnostics.js';
 
 const expected={D1:214.2,D2:725,D3:220.8,D4:770,D5:100};
-const dummyKeys=['GROQ_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','GEMINI_API_KEY','KILO_API_KEY'];
+const dummyKeys=['GROQ_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','GEMINI_API_KEY','KILO_API_KEY','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY','LOUREX_AI_MISTRAL_FREE_VERIFIED','LOUREX_AI_OLLAMA_FREE_VERIFIED'];
 async function withSyntheticKeys(fn){
  const previous=dummyKeys.map(k=>[k,process.env[k]]);
  Object.assign(process.env,{
   GROQ_API_KEY:'test-groq-non-secret',CLOUDFLARE_AI_API_TOKEN:'test-cf-non-secret',
   CLOUDFLARE_ACCOUNT_ID:'test-cf-account',GEMINI_API_KEY:'test-gemini-non-secret',
-  KILO_API_KEY:'test-kilo-non-secret'
+  KILO_API_KEY:'test-kilo-non-secret',OPENROUTER_API_KEY:'test-openrouter-non-secret',MISTRAL_API_KEY:'test-mistral-non-secret',OLLAMA_API_KEY:'test-ollama-non-secret',LOUREX_AI_MISTRAL_FREE_VERIFIED:'true',LOUREX_AI_OLLAMA_FREE_VERIFIED:'true'
  });
  try{await fn();}finally{for(const [k,v] of previous){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
 }
 const fakeBody=(provider,data=expected)=>{
+ if(provider==='ollama')return{message:{content:JSON.stringify(data)},done_reason:'stop',model:'gemma4:31b'};
  if(provider==='gemini')return{candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],modelVersion:'gemini-2.5-flash-lite'};
  if(provider==='cloudflare')return{result:{choices:[{finish_reason:'stop',message:{content:JSON.stringify(data)}}]}};
  return{choices:[{finish_reason:'stop',message:{content:JSON.stringify(data)}}]};
@@ -44,6 +45,9 @@ test('financial pack calls only selected provider with server-owned fixed JSON t
      assert.deepEqual(body.chat_template_kwargs,{enable_thinking:false});
      assert.equal(body.max_completion_tokens,256);
     }
+    if(provider==='openrouter'){assert.equal(body.model,'openrouter/free');assert.deepEqual(body.provider,{data_collection:'deny'});}
+    if(provider==='mistral'){assert.equal(body.model,'mistral-small-latest');assert.deepEqual(body.response_format,{type:'json_object'});}
+    if(provider==='ollama'){assert.equal(body.model,'gemma4:31b');assert.equal(body.format,'json');assert.equal(body.stream,false);}
     if(provider==='kilo'){
      assert.equal(body.model,'kilo-auto/free');
      assert.equal(url,'https://ai-gateway.kilo.ai/api/v1/chat/completions');

@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runSyntheticProviderDiagnostic,SYNTHETIC_PROVIDER_IDS} from '../api/_ai/provider-diagnostics.js';
 
-const names=['GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','KILO_API_KEY'];
+const names=['GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','KILO_API_KEY','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY','LOUREX_AI_MISTRAL_FREE_VERIFIED','LOUREX_AI_OLLAMA_FREE_VERIFIED'];
 async function sandbox(fn){
  const before=names.map(key=>[key,process.env[key]]);
- Object.assign(process.env,{GROQ_API_KEY:'synthetic-groq-token',GEMINI_API_KEY:'synthetic-gemini-token',CLOUDFLARE_AI_API_TOKEN:'synthetic-cf-token',CLOUDFLARE_ACCOUNT_ID:'synthetic-account',KILO_API_KEY:'synthetic-kilo-token'});
+ Object.assign(process.env,{GROQ_API_KEY:'synthetic-groq-token',GEMINI_API_KEY:'synthetic-gemini-token',CLOUDFLARE_AI_API_TOKEN:'synthetic-cf-token',CLOUDFLARE_ACCOUNT_ID:'synthetic-account',KILO_API_KEY:'synthetic-kilo-token',OPENROUTER_API_KEY:'synthetic-openrouter-token',MISTRAL_API_KEY:'synthetic-mistral-token',OLLAMA_API_KEY:'synthetic-ollama-token',LOUREX_AI_MISTRAL_FREE_VERIFIED:'true',LOUREX_AI_OLLAMA_FREE_VERIFIED:'true'});
  try{await fn();}finally{for(const [k,v] of before){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
 }
 function reply(data,status=200){return{ok:status===200,status,headers:{get:()=>null},text:async()=>JSON.stringify(data)};}
 test('each provider receives only a synthetic arithmetic prompt, single provider, no fallback',async()=>{
  await sandbox(async()=>{
-  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq','cloudflare','gemini','kilo']);
+  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq','cloudflare','gemini','kilo','openrouter','mistral','ollama']);
   for(const provider of SYNTHETIC_PROVIDER_IDS){
    let calls=0;
    const fetchImpl=async(url,options)=>{
@@ -25,15 +25,20 @@ test('each provider receives only a synthetic arithmetic prompt, single provider
      assert.equal(url,'https://ai-gateway.kilo.ai/api/v1/chat/completions');
     }
     if(provider==='groq')assert.equal(body.model,'openai/gpt-oss-120b');
+    if(provider==='openrouter'){assert.equal(body.model,'openrouter/free');assert.equal(url,'https://openrouter.ai/api/v1/chat/completions');assert.deepEqual(body.provider,{data_collection:'deny'});}
+    if(provider==='mistral'){assert.equal(body.model,'mistral-small-latest');assert.equal(url,'https://api.mistral.ai/v1/chat/completions');}
+    if(provider==='ollama'){assert.equal(body.model,'gemma4:31b');assert.equal(url,'https://ollama.com/api/chat');assert.equal(body.stream,false);}
+
     if(provider==='cloudflare'){
      assert.equal(body.model,'@cf/google/gemma-4-26b-a4b-it');
      assert.deepEqual(body.chat_template_kwargs,{enable_thinking:false},'avoid spending 256 completion tokens on Gemma reasoning');
      assert.equal(body.max_completion_tokens,256,'do not raise free-tier output usage for the diagnostics');
     }
-    if(provider==='gemini'||provider==='groq'||provider==='kilo')
+    if(provider!=='cloudflare')
      assert.equal(body.chat_template_kwargs,undefined,'no other provider should inherit Cloudflare-only options');
     if(provider==='gemini')assert.ok(url.endsWith('/gemini-2.5-flash-lite:generateContent'));
-    return provider==='gemini'?reply({candidates:[{content:{parts:[{text:'1062'}]}}]}):
+    return provider==='ollama'?reply({message:{content:'1062'},done_reason:'stop',model:'gemma4:31b'}):
+     provider==='gemini'?reply({candidates:[{content:{parts:[{text:'1062'}]}}]}):
      provider==='cloudflare'?reply({result:{choices:[{message:{content:'1062'}}]}}):
      reply({choices:[{message:{content:'1062'}}]});
    };
@@ -48,7 +53,7 @@ test('each provider receives only a synthetic arithmetic prompt, single provider
 test('unknown names, wrong answers and payment errors do not initiate fallback',async()=>{
  await sandbox(async()=>{
   let calls=0;
-  for(const name of ['paid','openrouter',{},null]){
+  for(const name of ['paid','openrouter/paid',{},null]){
    const result=await runSyntheticProviderDiagnostic(name,{fetchImpl:async()=>{calls++;throw Error('Unexpected network');}});
    assert.equal(result.status,'INVALID_PROVIDER');
   }
@@ -93,5 +98,19 @@ test('a truncated Cloudflare model answer is not counted as a correct calculatio
   assert.equal(result.status,'OUTPUT_TRUNCATED');
   assert.equal(result.correct,false);
   assert.equal(result.reason,'EMPTY_CONTENT');
+ });
+});
+
+test('Mistral and Ollama cannot spend any credit without explicit verified-free opt-in',async()=>{
+ await sandbox(async()=>{
+  delete process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED;
+  delete process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED;
+  for(const provider of ['mistral','ollama'])for(const mode of ['single','financial']){
+   let calls=0;
+   const result=await runSyntheticProviderDiagnostic(provider,{mode,fetchImpl:async()=>{calls++;throw new Error('Unexpected outbound request');}});
+   assert.equal(calls,0,provider);
+   assert.equal(result.status,'FREE_TIER_NOT_VERIFIED',provider);
+   assert.equal(result.correct,false);
+  }
  });
 });

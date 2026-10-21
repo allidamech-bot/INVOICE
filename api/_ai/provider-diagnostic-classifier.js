@@ -22,6 +22,7 @@ function safeModel(value){
   return typeof value==='string'&&/^[a-zA-Z0-9@/._:+-]{1,110}$/.test(value)?value:undefined;
 }
 export function selectedResponse(root,provider){
+  if(provider==='ollama')return{text:textFromPart(root?.message?.content),finish:root?.done_reason||'',tokens:root?.eval_count||0,model:root?.model||''};
   if(provider==='gemini'){
     const item=root?.candidates?.[0];
     return{text:textFromPart(item?.content?.parts?.filter(p=>p?.thought!==true)||[]),
