@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 async function harness(){
  const rows=new Map();let source=await readFile('dist/src/storage/db.js','utf8');
+ source=source.replace("'../lib/period-local.js'",JSON.stringify(new URL('../dist/src/lib/period-local.js',import.meta.url).href));
  const from=source.indexOf('function openDb()'),to=source.indexOf('export async function getRecord',from);
  assert.ok(from>=0&&to>from);source=source.slice(0,from)+'function openDb(){return Promise.resolve(globalThis.__aiCacheDb);}\n'+source.slice(to)+'\nexport function testScope(uid){activeStorageUid=uid;}';
  const db={name:'lourex-invoice-account-one',transaction(){

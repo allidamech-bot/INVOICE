@@ -1,6 +1,8 @@
 import type { PlainWorkspaceRecord, VaultPayload } from '../types.js';
+import type {LocalPeriodProtection} from '../lib/period-local.js';
+import {isIsoDate} from '../lib/id.js';
 import { APP_SCHEMA_VERSION } from '../lib/defaults.js';
-import { activeAccountStorageUid, acknowledgePlainWorkspace, acknowledgeIdenticalPlainWorkspace, getPlainWorkspace, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
+import { activeAccountStorageUid, cachePlainPeriodProtection, acknowledgePlainWorkspace, acknowledgeIdenticalPlainWorkspace, getPlainWorkspace, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
 import { currentCloudUser, currentCloudIdToken } from './firebase.js';
 import { assertRestorableBackupVault } from '../lib/backup.js';
 
@@ -104,8 +106,10 @@ export async function getPlainCloudMeta(uid:string):Promise<PlainCloudMeta|null>
   return value;
 }
 
-export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainCloudMeta):Promise<{payload:VaultPayload;meta:PlainCloudMeta}|null>{
+export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainCloudMeta):Promise<{payload:VaultPayload;meta:PlainCloudMeta;protection:LocalPeriodProtection|null}|null>{
   requireUid(uid);
+  if(expected&&!validMeta(expected))throw new Error('The cloud workspace manifest format is invalid.');
+  const protection=await getPeriodCloudControl(uid);
   const meta=expected??await getPlainCloudMeta(uid);
   if(!meta)return null;
   if(!validMeta(meta))throw new Error('The cloud workspace manifest format is invalid.');
@@ -139,7 +143,7 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
   if(payload.schemaVersion!==meta.schemaVersion)
     throw new Error('The downloaded workspace schema does not match the verified manifest.');
   requireUid(uid);
-  return {payload,meta};
+  return {payload,meta,protection};
 }
 
 // Orphan chunks are intentionally left untouched after an ambiguous network
@@ -216,6 +220,7 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
 /** Reads remote revisions without overwriting concurrent local work. */
 export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainCloudSyncResult>{
   requireUid(uid);
+  await getPeriodCloudControl(uid);
   const [local,remote]=await Promise.all([getPlainWorkspace(),getPlainCloudMeta(uid)]);
   requireUid(uid);
   if(!local&&!remote)return 'empty';
@@ -227,7 +232,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
       updatedAt:result.meta.updatedAt,localRevision:crypto.randomUUID(),
       baseCloudRevision:result.meta.revision,baseCloudSha256:result.meta.sha256
     };
-    const installed=await replacePlainWorkspaceIfUnchanged(uid,null,replacement);
+    const installed=await replacePlainWorkspaceIfUnchanged(uid,null,replacement,null,result.protection??undefined);
     return installed?'pulled':'retry';
   }
   if(!local)return 'empty';
@@ -255,7 +260,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
     baseCloudRevision:result.meta.revision,baseCloudSha256:result.meta.sha256
   };
   // The checked local generation may have changed during the download.
-  const installed=await replacePlainWorkspaceIfUnchanged(uid,local.localRevision,replacement,'replaced-by-cloud');
+  const installed=await replacePlainWorkspaceIfUnchanged(uid,local.localRevision,replacement,'replaced-by-cloud',result.protection??undefined);
   return installed?'pulled':'retry';
 }
 
@@ -268,11 +273,14 @@ export function subscribePlainCloudChanges(uid:string,onChange:()=>void):()=>voi
     if(!validMeta(data))return;
     onChange();
   },()=>undefined);
-  return typeof off==='function'?off:()=>{};
+  const controlOff=firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').onSnapshot((snapshot:any)=>{
+    if(snapshot.exists)onChange();
+  },()=>undefined);
+  return ()=>{if(typeof off==='function')off();if(typeof controlOff==='function')controlOff();};
 }
 
 /** Always consult the authenticated server: cached absence cannot downgrade an enrolled account. */
-export async function getPeriodCloudControl(uid:string):Promise<{generation:number}|null>{
+export async function getPeriodCloudControl(uid:string):Promise<LocalPeriodProtection|null>{
   requireUid(uid);
   const snapshot=await firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'});
   requireUid(uid);
@@ -281,11 +289,40 @@ export async function getPeriodCloudControl(uid:string):Promise<{generation:numb
   if(value?.format!=='LOUREX_PERIOD_CONTROL_V1'||value.version!==1||value.ownerUid!==uid
     ||!Number.isSafeInteger(value.generation)||value.generation<1||!Array.isArray(value.boundaries)
     ||value.boundaries.some((b:any)=>!b||typeof b.workspaceId!=='string'||!b.workspaceId
-      ||typeof b.through!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(b.through)
+      ||typeof b.through!=='string'||!isIsoDate(b.through)
       ||typeof b.reportId!=='string'||!/^[a-f0-9]{32}$/.test(b.reportId))
     ||new Set(value.boundaries.map((b:any)=>b.workspaceId)).size!==value.boundaries.length)
     throw new Error('Invalid trusted period control. Account data was not published.');
-  return {generation:value.generation};
+  const reports:LocalPeriodProtection['reports']=[];
+  for(const boundary of value.boundaries){
+    const ref=firebase.firestore().collection('users').doc(uid).collection('periodReports').doc(boundary.reportId);
+    const snapshot=await ref.get({source:'server'});requireUid(uid);const report=snapshot.data();
+    if(!snapshot.exists||report?.format!=='LOUREX_PERIOD_REPORT_V1'||report.version!==1||report.reportId!==boundary.reportId
+      ||report.workspaceId!==boundary.workspaceId||report.through!==boundary.through||!Number.isSafeInteger(report.bytes)||report.bytes<1||report.bytes>135_000_000
+      ||report.chunkCount!==Math.ceil(report.bytes/CHUNK_BYTES)||typeof report.sha256!=='string'||!/^[a-f0-9]{64}$/.test(report.sha256))
+      throw new Error('Invalid trusted closed period report. Reconnect before saving.');
+    const bytes=new Uint8Array(report.bytes);
+    for(let start=0;start<report.chunkCount;start+=8){
+      const snapshots=await Promise.all(Array.from({length:Math.min(8,report.chunkCount-start)},(_,i)=>ref.collection('chunks').doc(chunkId(boundary.reportId,start+i)).get({source:'server'})));
+      requireUid(uid);
+      for(let offset=0;offset<snapshots.length;offset++){
+        const index=start+offset,doc=snapshots[offset],chunk=doc.data();
+        if(!doc.exists||chunk?.revision!==boundary.reportId||chunk.index!==index)throw new Error('Invalid trusted closed period report chunk.');
+        const part=decodeB64(chunk.data),expected=Math.min(CHUNK_BYTES,report.bytes-index*CHUNK_BYTES);
+        if(part.length!==expected)throw new Error('Invalid trusted closed period report chunk length.');
+        bytes.set(part,index*CHUNK_BYTES);
+      }
+    }
+    if(await sha256(bytes)!==report.sha256)throw new Error('Trusted closed period report failed integrity verification.');
+    const state=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+    if(state?.version!==1||state.workspaceId!==boundary.workspaceId||state.through!==boundary.through)throw new Error('Invalid trusted closed period report state.');
+    reports.push({...boundary,state});
+  }
+  const latest=await firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'});requireUid(uid);
+  if(!latest.exists||JSON.stringify(latest.data())!==JSON.stringify(value))throw new Error('Trusted period control changed during verification. Retry.');
+  const protection:LocalPeriodProtection={version:1,uid,generation:value.generation,reports};
+  await cachePlainPeriodProtection(uid,protection);requireUid(uid);
+  return protection;
 }
 
 async function publishProtectedWorkspace(uid:string,local:PlainWorkspaceRecord,bytes:Uint8Array,hash:string,previous:PlainCloudMeta,generation:number):Promise<'pushed'|'remote-changed'>{

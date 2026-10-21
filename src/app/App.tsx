@@ -481,7 +481,7 @@ export class App extends React.Component<{},State> {
         localRevision:crypto.randomUUID(),updatedAt:remote.meta.updatedAt,
         baseCloudRevision:remote.meta.revision,baseCloudSha256:remote.meta.sha256
       };
-      const ok=await replacePlainWorkspaceIfUnchanged(uid,current?.localRevision??null,replacement,'replaced-by-cloud');
+      const ok=await replacePlainWorkspaceIfUnchanged(uid,current?.localRevision??null,replacement,'replaced-by-cloud',remote.protection??undefined);
       if(!ok)throw new Error('Local data changed during cloud restore. Retry to avoid losing edits.');
       const vault=this.normalizedVault(remote.payload);
       this.vaultWriteTail=Promise.resolve(vault);

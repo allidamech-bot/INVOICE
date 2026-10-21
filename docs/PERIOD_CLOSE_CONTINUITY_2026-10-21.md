@@ -52,3 +52,7 @@ An initial run had three incomplete compiled assistant-runtime artifact failures
 plus two transport-related source-fixture contracts. The contracts were preserved
 and updated only for the added dependency; a complete production rebuild and
 full rerun passed without assistant-source changes or weakened assertions.
+
+Task 3B follow-up: the deferred calendar validation minor is resolved using the
+shared ISO date validator, with a reproducing RED-to-GREEN case. See
+`PERIOD_CLOSE_LOCAL_2026-10-21.md` for local protection and atomic hydration.

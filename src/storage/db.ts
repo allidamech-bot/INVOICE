@@ -1,3 +1,4 @@
+import {assertLocalPeriodCandidate,validateLocalPeriodProtection,type LocalPeriodProtection} from '../lib/period-local.js';
 import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord, PlainWorkspaceRecord, PlainWorkspaceArchiveRecord, VaultPayload } from '../types.js';
 
 const LEGACY_DB_NAME = 'lourex-invoice';
@@ -359,7 +360,8 @@ export async function putPlainWorkspace(record:PlainWorkspaceRecord):Promise<voi
   if(!uid||record.uid!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
   if(record.id!=='workspace-v2'||record.schemaVersion!==record.payload?.schemaVersion||!record.localRevision)
     throw new Error('Invalid account workspace payload.');
-  await putRecord(record);
+  const existing=await getPlainWorkspace();
+  if(!await replacePlainWorkspaceIfUnchanged(uid,existing?.localRevision??null,record))throw new Error('Concurrent account workspace change. Retry.');
 }
 export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseCloudRevision:string|null,baseCloudSha256:string|null):Promise<PlainWorkspaceRecord>{
   if(activeAccountStorageUid()!==uid)throw new Error('Account storage scope changed. Workspace was not saved.');
@@ -375,32 +377,42 @@ export async function savePlainWorkspace(uid:string,payload:VaultPayload,baseClo
  */
 export async function replacePlainWorkspaceIfUnchanged(
   uid:string,expectedLocalRevision:string|null,replacement:PlainWorkspaceRecord,
-  archiveReason:PlainWorkspaceArchiveRecord['reason']|null=null
+  archiveReason:PlainWorkspaceArchiveRecord['reason']|null=null,verifiedProtection?:LocalPeriodProtection
 ):Promise<boolean>{
   if(!uid||activeStorageUid!==uid||replacement.uid!==uid
     ||replacement.id!=='workspace-v2'||replacement.schemaVersion!==replacement.payload?.schemaVersion
     ||!replacement.localRevision)throw new Error('Account storage scope changed or invalid payload.');
   const db=await openDb();
   return new Promise<boolean>((resolve,reject)=>{
-    let applied=false;
+    let applied=false,rejected:unknown;
     const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
     const req=store.get('workspace-v2');
     req.onsuccess=()=>{
       const existing=req.result as PlainWorkspaceRecord|undefined;
       if(activeStorageUid!==uid){tx.abort();return;}
       if((existing?.localRevision??null)!==expectedLocalRevision)return;
+      let protection=existing?.periodProtection;
+      try{
+        if(verifiedProtection!==undefined){
+          validateLocalPeriodProtection(uid,verifiedProtection);
+          if(protection!==undefined)validateLocalPeriodProtection(uid,protection);
+          if(!protection||verifiedProtection.generation>protection.generation)protection=verifiedProtection;
+          else if(verifiedProtection.generation===protection.generation&&JSON.stringify(verifiedProtection)!==JSON.stringify(protection))throw new Error('Conflicting trusted period cache. Reconnect.');
+        }
+        if(protection!==undefined)assertLocalPeriodCandidate(uid,replacement.payload,protection);
+      }catch(error){rejected=error;tx.abort();return;}
       if(existing&&archiveReason){
         const archivedAt=new Date().toISOString();
         const id=`workspace-v2-archive:${archivedAt}:${crypto.randomUUID()}` as const;
         const archive:PlainWorkspaceArchiveRecord={...existing,id,reason:archiveReason,archivedAt};
         store.put(archive);
       }
-      store.put(replacement);
+      store.put({...replacement,periodProtection:protection});
       applied=true;
     };
     tx.oncomplete=()=>resolve(applied);
     tx.onerror=()=>reject(tx.error??new Error('Workspace replacement failed.'));
-    tx.onabort=()=>reject(tx.error??new Error('Workspace replacement aborted.'));
+    tx.onabort=()=>reject(rejected??tx.error??new Error('Workspace replacement aborted.'));
   });
 }
 
@@ -411,13 +423,14 @@ export async function updatePlainWorkspaceIfUnchanged(
   if(!uid||activeStorageUid!==uid)throw new Error('Account storage scope changed.');
   const db=await openDb();
   return new Promise<PlainWorkspaceRecord|null>((resolve,reject)=>{
-    let result:PlainWorkspaceRecord|null=null;
+    let result:PlainWorkspaceRecord|null=null,rejected:unknown;
     const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
     const req=store.get('workspace-v2');
     req.onsuccess=()=>{
       const existing=req.result as PlainWorkspaceRecord|undefined;
       if(activeStorageUid!==uid){tx.abort();return;}
       if(!existing||existing.uid!==uid||existing.localRevision!==expectedLocalRevision)return;
+      try{if(existing.periodProtection!==undefined)assertLocalPeriodCandidate(uid,payload,existing.periodProtection);}catch(error){rejected=error;tx.abort();return;}
       result={...existing,payload,schemaVersion:payload.schemaVersion,
         // Edits are applied using an IndexedDB CAS. A newer snapshot is thus a
         // proven descendant of the previous immutable local generation.
@@ -427,7 +440,40 @@ export async function updatePlainWorkspaceIfUnchanged(
     };
     tx.oncomplete=()=>resolve(result);
     tx.onerror=()=>reject(tx.error??new Error('Concurrent workspace save failed.'));
-    tx.onabort=()=>reject(tx.error??new Error('Concurrent workspace save aborted.'));
+    tx.onabort=()=>reject(rejected??tx.error??new Error('Concurrent workspace save aborted.'));
+  });
+}
+
+/** Install only a freshly server-verified context; preserve drafts and business CAS identity. */
+export async function cachePlainPeriodProtection(uid:string,value:LocalPeriodProtection):Promise<void>{
+  validateLocalPeriodProtection(uid,value);
+  if(activeStorageUid!==uid)throw new Error('Account storage scope changed.');
+  const db=await openDb();
+  return new Promise<void>((resolve,reject)=>{
+    let rejected:unknown;
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE),request=store.get('workspace-v2');
+    request.onsuccess=()=>{
+      const existing=request.result as PlainWorkspaceRecord|undefined;
+      if(activeStorageUid!==uid){tx.abort();return;}
+      if(!existing)return;
+      if(existing.uid!==uid){tx.abort();return;}
+      try{
+        let retained=existing.periodProtection;
+        // A fresh verified server read can repair a damaged advisory cache.
+        // It never replaces the device's pending business payload.
+        if(retained!==undefined){try{validateLocalPeriodProtection(uid,retained);}catch{retained=undefined;}}
+        if(retained!==undefined){
+          if(retained.generation>value.generation)return;
+          if(retained.generation===value.generation){
+            if(JSON.stringify(retained)!==JSON.stringify(value))throw new Error('Conflicting trusted period cache. Reconnect.');
+            return;
+          }
+        }
+        store.put({...existing,periodProtection:structuredClone(value)});
+      }catch(error){rejected=error;tx.abort();}
+    };
+    tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error??new Error('Period cache write failed.'));
+    tx.onabort=()=>reject(rejected??tx.error??new Error('Period cache account changed.'));
   });
 }
 

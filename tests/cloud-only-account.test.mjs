@@ -37,7 +37,7 @@ test('manual cloud restore uses the signed-in UID, validates remote integrity an
   const restore=app.slice(app.indexOf('  private cloudRestore=async'),app.indexOf('  private keepLocalCloudCopy=async'));
   assert.match(restore,/await this\.beginProtectedOperation\(\)/);
   assert.match(restore,/downloadPlainCloudWorkspace\(uid\)/);
-  assert.match(restore,/replacePlainWorkspaceIfUnchanged\(uid,current\?\.localRevision\?\?null,replacement,'replaced-by-cloud'\)/);
+  assert.match(restore,/replacePlainWorkspaceIfUnchanged\(uid,current\?\.localRevision\?\?null,replacement,'replaced-by-cloud',remote\.protection\?\?undefined\)/);
   assert.match(restore,/this\.endProtectedOperation\(\)/);
   assert.match(cloud,/assertRestorableBackupVault\(payload\)/);
   assert.doesNotMatch(restore,/verifyPin\(|unlockVault\(/);

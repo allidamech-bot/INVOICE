@@ -63,6 +63,7 @@ test('same cloud SHA with a newer local generation retries rather than claiming 
     baseCloudSha256:'1'.repeat(64),payload:{schemaVersion:1}};
   vm.runInNewContext(compiled,{
     exports,Promise,requireUid:()=>{},
+    getPeriodCloudControl:async()=>null,
     getPlainWorkspace:async()=>snapshot,
     getPlainCloudMeta:async()=>({revision:'remote-new',sha256:'2'.repeat(64)}),
     sha256:async()=> '2'.repeat(64),
@@ -80,6 +81,7 @@ test('cloud pull losing an IndexedDB generation race retries without overwriting
   let attempts=0;
   vm.runInNewContext(compiled,{
     exports,Promise,crypto:{randomUUID:()=> 'replacement-b'},requireUid:()=>{},
+    getPeriodCloudControl:async()=>null,
     getPlainWorkspace:async()=>local,
     getPlainCloudMeta:async()=>({revision:'cloud-b',sha256:'2'.repeat(64)}),
     sha256:async()=> '1'.repeat(64),

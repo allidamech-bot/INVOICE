@@ -661,6 +661,8 @@ export interface RecurringWorkflowRecord {
 /** Account-bound, PIN-free local workspace cache. The encrypted legacy records remain untouched. */
 export interface PlainWorkspaceRecord {
   id: 'workspace-v2';
+  /** Verified account context, never read from imported business payloads. */
+  periodProtection?: import('./lib/period-local.js').LocalPeriodProtection;
   uid: string;
   payload: VaultPayload;
   schemaVersion: number;

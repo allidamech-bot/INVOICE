@@ -10,6 +10,7 @@ import {randomBytes,webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {isIsoDate} from '../dist/src/lib/id.js';
 
 const project='demo-lourex-period';
 if(!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||''))throw new Error('Local Firestore emulator is required; live projects are forbidden.');
@@ -186,7 +187,7 @@ test('actual browser transport stages through owner rules, honors closed history
   const collection=path=>({doc:name=>ref(path+'/'+name)});
   const firestore=()=>({collection,batch(){const writes=[];return{set:(r,v)=>writes.push({update:{name:'projects/'+project+'/databases/(default)/documents/'+r.path,fields:encode(v).mapValue.fields},currentDocument:{exists:false}}),commit:async()=>{const response=await fetch(host+':commit',{method:'POST',headers,body:JSON.stringify({writes})});assert.equal(response.status,200,await response.text());}};},runTransaction:()=>{throw Error('Client legacy publication forbidden');}});
   let local=null,acks=0;
-  const modules={'../lib/defaults.js':{APP_SCHEMA_VERSION:21},'../storage/db.js':{activeAccountStorageUid:()=>uid,acknowledgePlainWorkspace:async(_uid,_local,revision,sha)=>{acks++;local={...local,baseCloudRevision:revision,baseCloudSha256:sha};return true;},acknowledgeIdenticalPlainWorkspace:async()=>true},'./firebase.js':{currentCloudUser:()=>({uid}),currentCloudIdToken:async()=>clientToken(uid)},'../lib/backup.js':{assertRestorableBackupVault:()=>{}}};
+  const modules={'../lib/id.js':{isIsoDate},'../lib/defaults.js':{APP_SCHEMA_VERSION:21},'../storage/db.js':{cachePlainPeriodProtection:async()=>{},activeAccountStorageUid:()=>uid,acknowledgePlainWorkspace:async(_uid,_local,revision,sha)=>{acks++;local={...local,baseCloudRevision:revision,baseCloudSha256:sha};return true;},acknowledgeIdenticalPlainWorkspace:async()=>true},'./firebase.js':{currentCloudUser:()=>({uid}),currentCloudIdToken:async()=>clientToken(uid)},'../lib/backup.js':{assertRestorableBackupVault:()=>{}}};
   const context={exports:{},require:name=>modules[name],firebase:{firestore},crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,Date,Promise,btoa,atob,AbortController,setTimeout,clearTimeout,navigator:{onLine:true},fetch:async(url,options)=>{assert.equal(url,'/api/workspace-commit');try{const result=await service.execute(identity,JSON.parse(options.body));return{ok:true,status:200,json:async()=>result};}catch(error){return{ok:false,status:error.status,json:async()=>({code:error.code})};}}};
   const code=ts.transpileModule(await readFile(new URL('../src/cloud/plain-workspace.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
   vm.runInNewContext(code,context);const api=context.exports;
