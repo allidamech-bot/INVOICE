@@ -90,7 +90,7 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
           }
         }
         host.__businessThreads=store.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===uid))
-          .map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
+          .map(t=>({id:t.id,title:t.title,summary:t.summary,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
       }
     }
     host.setState({__workspaceHistorySyncStatus:needsReopen?'pending':installRemote?'synced':'uploaded',__workspaceHistorySyncError:needsReopen?'Conversation changed on another device. Reopen it before editing.':'',__workspaceHistoryRemoteCount:result.downloaded});
@@ -226,7 +226,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
     const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
     host.__businessMemories=scopedAssistantMemories(memory,'business',scope.workspaceId,scope.branchId);
-    host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
+    host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,summary:t.summary,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
   }else{host.__businessMemories=[];host.__businessThreads=[];}
 
   // A Personal or Temporary thread must obey the same account/thread stability

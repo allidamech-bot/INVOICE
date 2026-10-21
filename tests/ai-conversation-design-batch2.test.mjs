@@ -55,3 +55,19 @@ test('Batch 2 closeout prevents mutation-observer feedback while keeping scope d
   assert.match(source,/__lourexConversationDesignBatch2Closeout/);
   assert.doesNotMatch(source,/assistantCapabilityAllowed|document\.createDraft|payment\.record|inventory\.adjust/);
 });
+
+test('Typed LOUREX conversation polishes only chat bubbles and preserves the established outer UI',async()=>{
+  const css=await read('src/styles/ai-conversation-workspace.css');
+  const anchor='/* LOUREX AI — message-only conversation polish: preserve existing app shell. */';
+  const index=css.lastIndexOf(anchor);
+  assert.ok(index>0,'the message-only CSS closeout must be present');
+  const last=css.slice(index);
+  assert.ok(last.includes('.lxw-message-turn.is-assistant .lourex-ai-message.assistant'));
+  assert.ok(last.includes('.lxw-message-turn.is-user .lourex-ai-message.user'));
+  assert.ok(last.includes('.lourex-ai-message-actions button'));
+  assert.ok(last.includes('min-height:44px!important'));
+  const selectors=last.split('\n').filter(line=>line.includes('#lourex-ai-panel')&&line.includes('{'));
+  for(const banned of ['.lourex-ai-head','.lourex-ai-title','.lourex-ai-compose','.lxw-mode-tabs','.lourex-ai-launcher']){
+    assert.ok(!selectors.some(line=>line.includes(banned)),banned+' must not be restyled by message-only CSS');
+  }
+});

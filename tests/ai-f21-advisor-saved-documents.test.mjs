@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
+import {hypotheticalInvoicePaymentAnswer} from '../api/_ai/hypothetical-invoice-payment.js';
 
 const AS_OF='2026-10-13';
 const scope={scope:'business',workspaceId:'default',branchId:'main'};
@@ -42,6 +43,7 @@ function gateway(model){
     const lib=vm.runInNewContext(source+'\n({handler,cleanAdvisor,documentNumberInRequest,deterministicDocumentAnswer})',{
       Buffer,URL,process:{env:{}},console,
       requireAiFirebaseAuth:async()=>true,
+      hypotheticalInvoicePaymentAnswer,
       sanitizeDialogueCatalog:()=>null,
       sanitizeReadEvidence:()=>[],
       naturalLourexDialogue:async()=>{planned++;return{success:true,answer:model?.answer||'Status is unavailable',proposal:null};},
@@ -154,4 +156,26 @@ test('F21 no content/price/customer payload is leaked to provider by the documen
     assert.equal('notes' in record,false,'private notes must never appear in the Advisor registry');
   }
   assert.ok(!JSON.stringify(index).includes('ACCOUNT'));
+});
+
+test('F21 hypothetical invoice and payment examples never hijack Advisor into saved-document counts',async()=>{
+  const {vault,buildAdvisorDataV2,finance,business}=await fixture();
+  const g=await gateway({answer:'Hypothetical scenario received; no stored-document count requested.'});
+  const cases=[
+    ['إذا عندي فاتورة افتراضية قيمتها 1500 دولار، دفعت 400 ثم 350، كم المتبقي؟','ar','deterministic-hypothetical-money'],
+    ['عندي فاتورة بمبلغ 1500 دولار دفعت منها 400 و350، كم الباقي؟','ar','lourex-dialogue'],
+    ['Suppose I have an invoice of 1500 USD, paid 400 and 350; what is remaining?','en','deterministic-hypothetical-money']
+  ];
+  for(const [message,language,expectedModel] of cases){
+    const data=buildAdvisorDataV2(vault,finance,business,'business',message);
+    const result=await g.request(message,data,'advisor',language);
+    assert.equal(result.statusCode,200);
+    assert.equal(result.body.model,expectedModel,'only explicit hypotheticals use exact local arithmetic');
+    assert.equal(result.body.proposal,null,'Advisor remains read-only');
+    assert.doesNotMatch(result.body.answer,/سجل المستندات المحفوظة|saved invoice records/iu);
+    if(expectedModel==='deterministic-hypothetical-money'){
+      assert.match(result.body.answer,/750\.00/,'exact amount: 1500 - 400 - 350');
+    }
+  }
+  assert.equal(g.planned,1,'only the non-explicit example needs generative dialogue');
 });

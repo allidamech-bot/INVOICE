@@ -3310,3 +3310,58 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-
 @media(prefers-reduced-motion:reduce){
  #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-chevron{transition:none}
 }
+
+
+/* LOUREX AI — message-only conversation polish: preserve existing app shell. */
+/* Scoped to the typed conversation message list. No header, tabs, composer,
+   navigation, global palette or application layout rules are changed. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant{
+  direction:ltr!important;align-items:flex-start!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user{
+  direction:ltr!important;align-items:flex-end!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant .lourex-ai-message.assistant{
+  box-sizing:border-box!important;align-self:flex-start!important;
+  width:fit-content!important;max-width:min(94%,690px)!important;
+  margin:0!important;padding:12px 16px!important;
+  border:1px solid var(--lxw-line)!important;
+  border-radius:18px 18px 18px 6px!important;
+  background:var(--lxw-surface-2)!important;color:var(--lxw-text)!important;
+  box-shadow:none!important;font-size:15px!important;line-height:1.7!important;
+  overflow-wrap:anywhere;white-space:normal!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user{
+  box-sizing:border-box!important;align-self:flex-end!important;
+  width:fit-content!important;min-width:0!important;max-width:min(84%,580px)!important;
+  margin:0!important;padding:11px 15px!important;
+  border:1px solid var(--lxw-line)!important;
+  border-radius:18px 18px 6px 18px!important;
+  background:var(--lxw-surface-2)!important;color:var(--lxw-text)!important;
+  box-shadow:none!important;font-size:15px!important;line-height:1.65!important;
+  white-space:pre-wrap!important;overflow-wrap:anywhere;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'][dir='rtl'] .lxw-message-turn.is-user .lourex-ai-message.user{
+  border-radius:18px 18px 6px 18px!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant .lourex-ai-message-actions{
+  align-self:flex-start!important;justify-content:flex-start!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message-actions{
+  align-self:flex-end!important;justify-content:flex-end!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lourex-ai-message-actions button{
+  width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;
+}
+/* Detailed tables and financial readouts need the full available reading width. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant:has(.lxw-response-table,.lxw-financial-readout,.lourex-ai-answer-table-wrap) .lourex-ai-message.assistant{
+  max-width:100%!important;
+}
+@media(max-width:480px){
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant .lourex-ai-message.assistant{
+    max-width:96%!important;padding:12px 14px!important;
+  }
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user{
+    max-width:86%!important;padding:10px 13px!important;
+  }
+}

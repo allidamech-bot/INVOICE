@@ -12,7 +12,8 @@ test('AI source import batches only safe-new rows; existing and likely matches r
  assert.match(source,/private toggle=\(index:number\)=>/);
  assert.match(source,/review\.classification==='duplicate-candidate'\|\|review\.classification==='needs-review'\)return/);
  assert.match(source,/disabled=\{blocked\} checked=\{Boolean\(this\.state\.selected\[index\]\)\}/);
- assert.match(source,/mutateVaultSafely\(vault=>applyDraft/);
+ assert.match(source,/mutateVaultSafely\(vault=>\{/);
+ assert.match(source,/return applyDraft\(vault,draft,this\.state\.selected,fresh\)/);
 });
 
 test('AI product source review retains every difference and makes evidence expandable',async()=>{

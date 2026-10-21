@@ -1,6 +1,7 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog} from './_ai/lourex-dialogue.js';
+import {hypotheticalInvoicePaymentAnswer} from './_ai/hypothetical-invoice-payment.js';
 
 const MAX_BODY_BYTES=180000;
 const MAX_MESSAGE_CHARS=6000;
@@ -77,6 +78,10 @@ function cleanDocumentEvidence(value,message){
 function deterministicDocumentAnswer(cleaned){
   if(cleaned.context.conversationMode!=='advisor')return null;
   const docs=cleaned.context.advisorV2?.documents,message=cleaned.message;
+  // A hypothetical or payment-arithmetic question is never an instruction to
+  // read stored document counts, even when phrased as "I have an invoice".
+  // Keep the exact saved-record status fast path for genuine status questions.
+  if(/(?:افتراض|افتراضي|افتراضية|افترض|لنفترض|سيناريو|مثال|مثلاً|مثلا|إذا|اذا|لو\s|دفعت|دفعنا|دفعة|دفعات|سددت|سددنا|المدفوع|المتبقي|الباقي|كم\s+بقي|\b(?:hypothetical|suppose|assuming|scenario|what\s+if|paid|payments?|remaining)\b)/iu.test(message))return null;
   if(!docs||!/(?:فاتور|مستند|عرض\s*سعر|invoice|document|quotation|quote)/iu.test(message)||
      !/(?:هل|عندي|موجود|محفوظ|حفظ|صدرت|إصدار|حالة|وين|أين|is\b|has\b|saved|exists|status|issued|did\b)/iu.test(message))return null;
   const ar=cleaned.context.language==='ar',number=docs.requestedNumber;
@@ -116,6 +121,9 @@ export default async function handler(request,response){
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX Advisor received an invalid deterministic context.'});return;}
+  // Explicitly hypothetical payment arithmetic must not read saved invoices or call an LLM.
+  const hypothetical=hypotheticalInvoicePaymentAnswer(cleaned.message,cleaned.context.language);
+  if(hypothetical){sendJson(response,200,{model:'deterministic-hypothetical-money',answer:hypothetical.answer,proposal:null});return;}
   const exactDocumentAnswer=deterministicDocumentAnswer(cleaned);
   if(exactDocumentAnswer){sendJson(response,200,{model:'deterministic-documents',answer:exactDocumentAnswer,proposal:null});return;}
 

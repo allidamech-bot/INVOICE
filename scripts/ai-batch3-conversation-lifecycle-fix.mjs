@@ -84,6 +84,19 @@ source=source.replace(wrappedAsk,[
  " return baseAsk(raw);",
  "}"
 ].join(''));
+// Attachment response must be confirmed before its source chips are discarded.
+const deliveryStart="await baseAsk((message+'\\n📎 '+names).slice(0,6000));instance.setState({conversationAttachments:[],attachmentMenuOpen:false});";
+if(!source.includes(deliveryStart))throw new Error('Attachment delivery confirmation target changed.');
+source=source.replace(deliveryStart,
+  "const previousAssistantIds=new Set((instance.state.messages||[]).filter(row=>row.role==='assistant').map(row=>row.id));"+
+  "await baseAsk((message+'\\n📎 '+names).slice(0,6000));"+
+  "const verifiedResponse=(instance.state.messages||[]).some(row=>row.role==='assistant'&&!previousAssistantIds.has(row.id));"+
+  "if(!verifiedResponse||instance.state.error){"+
+    "if(!instance.state.error)instance.setState({error:t('No complete analysis reply was received. All attachments remain available to retry.','لم يصل رد تحليل مكتمل. جميع المرفقات ما زالت متاحة لإعادة المحاولة.')});"+
+    "return;"+
+  "}"+
+  "instance.setState({conversationAttachments:[],attachmentMenuOpen:false});");
+
 const newUpload="validateConversationFiles(rows.map(row=>row.file));instance.setState({conversationAttachments:rows,error:''});";
 if(!source.includes(newUpload))throw new Error('Attachment selection cache invalidation target changed.');
 source=source.replace(newUpload,"validateConversationFiles(rows.map(row=>row.file));if(rows.length>existing.length){instance.__lourexLastConversationSources=[];instance.__lourexLastConversationFiles=[];instance.__lourexLastConversationSourceScope='';if(typeof __lourexSetConversationSources==='function')__lourexSetConversationSources([]);}instance.setState({conversationAttachments:rows,error:''});");

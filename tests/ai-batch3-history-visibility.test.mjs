@@ -50,3 +50,19 @@ test('History open state resets with account, workspace, thread or mode changes'
   assert.match(component,/__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:''/);
   assert.match(component,/host\.setState\(\{__workspaceHistoryOpen:false\}\)/);
 });
+
+test('History searches title and scoped summary without changing the application shell',()=>{
+  assert.ok(component.includes("const searchable=[row.title,row.summary]"));
+  assert.ok(component.includes("normalize('NFKC')"));
+  assert.ok(runtime.includes('title:t.title,summary:t.summary,updatedAt:t.updatedAt'));
+  assert.ok(runtime.includes("t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId"));
+});
+
+test('Navigation preserves unsent composer drafts only in the active account scope',()=>{
+  assert.ok(component.includes('const drafts=new Map<string,string>()'));
+  assert.ok(component.includes('if(text)drafts.set(key,text);else drafts.delete(key)'));
+  assert.ok(component.includes("input:drafts.get(kernelScopeKey(arrived.scope))||''"));
+  assert.ok(component.includes('host.__workspaceComposerDrafts?.clear()'));
+  assert.ok(component.includes('preserveUnsentDraft()'));
+  assert.ok(component.includes("id===host.__lourexAssistantThreadId&&String(host.state.input||'').trim()"));
+});

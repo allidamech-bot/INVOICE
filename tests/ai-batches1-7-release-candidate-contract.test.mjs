@@ -60,7 +60,8 @@ test('mobile products and suppliers retain source, currency and guarded approval
   assert.match(supplier,/r\.currency\|\|''/);
   assert.match(importer,/className="product-import-table-wrap lxw-ai-product-review"/);
   assert.match(importer,/review\.diff\.map\(diff=>/);
-  assert.match(importer,/mutateVaultSafely\(vault=>applyDraft/);
+  assert.match(importer,/mutateVaultSafely\(vault=>\{/);
+  assert.match(importer,/return applyDraft\(vault,draft,this\.state\.selected,fresh\)/);
   assert.match(workspace,/className="lxw-mobile-pricing"/);
   assert.match(workspace,/artifactId:doc\.id,revision:doc\.revision,lineId:row\.id/);
 });
