@@ -251,6 +251,7 @@
     INVALID_RESPONSE:'Empty or malformed provider response / استجابة فارغة أو غير صالحة',
     ANSWER_FORMAT:'Answer format cannot be graded / تنسيق الإجابة غير قابل للتقييم',
     OUTPUT_TRUNCATED:'Model response cut off / الإجابة مقطوعة بسبب حد الرموز',
+    OUTPUT_BLOCKED:'Provider blocked model output / المزوّد منع إخراج الإجابة',
     TIMEOUT:'Timed out / انتهت المهلة',
     NETWORK_ERROR:'Network error / خطأ اتصال'
   };
@@ -260,7 +261,9 @@
     RESPONSE_TOO_LARGE:'Response exceeds safe size / الرد أكبر من الحد الآمن',
     OVERLONG_ANSWER:'Verbose answer / إجابة مطوّلة',
     NO_NUMERIC_ANSWER:'No numeric result / لا توجد نتيجة رقمية',
-    MULTIPLE_NUMBERS:'Multiple numbers in response / عدة أرقام في الإجابة'
+    MULTIPLE_NUMBERS:'Multiple numbers in response / عدة أرقام في الإجابة',
+    OUTPUT_BLOCKED:'Safety/content restriction / قيود الأمان أو المحتوى',
+    UPSTREAM_ERROR_BODY:'Provider returned an error envelope / المزوّد أعاد رسالة خطأ'
   };
   for(const button of providerButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-test');
@@ -291,7 +294,10 @@
         const finish=data?.finishReason==='LENGTH'||data?.finishReason==='MAX_TOKENS'?' · Token limit reached / انتهى حد الرموز':'';
         // The server only exposes a short character-filtered preview of a synthetic reply.
         const preview=typeof data?.answerPreview==='string'&&data.answerPreview.length<=110?' · '+data.answerPreview:'';
-        result.textContent=label+reported+reason+finish+preview+(model?' · '+model:'')+latency;
+        const actual=typeof data?.actualModel==='string'&&data.actualModel.length<=110&&data.actualModel!==model?
+          ' · Routed model / النموذج المستخدم: '+data.actualModel:'';
+        // textContent, never HTML: no provider-supplied executable markup.
+        result.textContent=label+reported+reason+finish+preview+(model?' · '+model:'')+actual+latency;
       }
     }catch{
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';

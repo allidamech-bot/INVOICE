@@ -70,3 +70,56 @@ test('Kilo synthetic probe requests remain on free route, cannot fall back, and 
   if(previous===undefined)delete process.env.KILO_API_KEY;else process.env.KILO_API_KEY=previous;
  }
 });
+
+
+test('server recognizes parsed OpenAI content arrays and Cloudflare wrapper without extra network calls',()=>{
+ const examples=[
+  {body:{choices:[{message:{content:[{type:'text',text:{value:'1062'}}]}}]},provider:'kilo'},
+  {body:{result:{choices:[{message:{parsed:{total:1062}}}]}},provider:'cloudflare'},
+  {body:{result:{choices:[{message:{content:null}}],response:'1062'}},provider:'cloudflare'}
+ ];
+ for(const {body,provider} of examples){
+  const result=classifySyntheticProviderAnswer(body,provider);
+  assert.equal(result.status,'PASSED',provider);
+  assert.equal(result.reportedTotal,1062);
+ }
+});
+
+test('200 HTTP provider error envelopes and safety blocks are not misclassified as invalid output or bad math',()=>{
+ const cases=[
+  {provider:'kilo',body:{error:{message:'SECRET_UPSTREAM_ERROR'}},status:'PROVIDER_ERROR',reason:'UPSTREAM_ERROR_BODY'},
+  {provider:'cloudflare',body:{success:false,errors:[{message:'SECRET_UPSTREAM_ERROR'}]},status:'PROVIDER_ERROR',reason:'UPSTREAM_ERROR_BODY'},
+  {provider:'gemini',body:{candidates:[{finishReason:'SAFETY',content:{parts:[]}}]},status:'OUTPUT_BLOCKED',reason:'OUTPUT_BLOCKED'},
+  {provider:'kilo',body:{choices:[{finish_reason:'content_filter',message:{content:null}}]},status:'OUTPUT_BLOCKED',reason:'OUTPUT_BLOCKED'},
+  {provider:'gemini',body:{candidates:[{finishReason:'MAX_OUTPUT_TOKENS',content:{parts:[]}}]},status:'OUTPUT_TRUNCATED',reason:'EMPTY_CONTENT'}
+ ];
+ for(const entry of cases){
+  const result=classifySyntheticProviderAnswer(entry.body,entry.provider);
+  assert.equal(result.status,entry.status);
+  assert.equal(result.reason,entry.reason);
+  assert.ok(!JSON.stringify(result).includes('SECRET_UPSTREAM_ERROR'),'upstream errors are never reflected');
+ }
+});
+
+test('Kilo underlying model metadata is exposed only when safe; Gemini skips thought parts',()=>{
+ const direct=classifySyntheticProviderAnswer({model:'nvidia/free-model',choices:[{message:{content:'1062'}}]},'kilo');
+ assert.equal(direct.status,'PASSED');
+ assert.equal(direct.actualModel,'nvidia/free-model');
+ const hostile=classifySyntheticProviderAnswer({model:'free-model<script>',choices:[{message:{content:'1062'}}]},'kilo');
+ assert.equal(hostile.status,'PASSED');
+ assert.equal(hostile.actualModel,undefined);
+ const gemini=classifySyntheticProviderAnswer({
+  modelVersion:'gemini-2.5-flash-lite',
+  candidates:[{finishReason:'STOP',content:{parts:[{thought:true,text:'do not grade 1042'},{text:'1062'}]}}]
+ },'gemini');
+ assert.equal(gemini.status,'PASSED');
+ assert.equal(gemini.actualModel,'gemini-2.5-flash-lite');
+});
+
+test('UI retains the owner gate and renders resolved model metadata as text only',async()=>{
+ const script=await import('node:fs/promises').then(fs=>fs.readFile(new URL('../public/health.js',import.meta.url),'utf8'));
+ assert.match(script,/if\(!await ownerPermission\(\)\)/);
+ assert.match(script,/data\?\.actualModel/);
+ assert.match(script,/result\.textContent=label/);
+ assert.doesNotMatch(script,/result\.innerHTML\s*=/);
+});
