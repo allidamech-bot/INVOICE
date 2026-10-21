@@ -171,7 +171,7 @@ test('F21 hypothetical invoice and payment examples never hijack Advisor into sa
     const result=await g.request(message,data,'advisor',language);
     assert.equal(result.statusCode,200);
     assert.equal(result.body.model,'deterministic-hypothetical','hypothetical examples must be answered exactly without the model');
-    assert.match(result.body.answer,/750\\.00/,'computed remaining is exact');
+    assert.match(result.body.answer,/750\.00/,'computed remaining is exact');
     assert.equal(result.body.proposal,null,'Advisor remains read-only');
     assert.doesNotMatch(result.body.answer,/سجل المستندات المحفوظة|saved invoice records/iu);
   }
