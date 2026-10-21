@@ -86,7 +86,19 @@ function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:L
     result.push(before&&preserveConcurrentDocument(before,wanted,latestItem)?latestItem:wanted);
     seen.add(latestItem.id);
   }
-  for(const item of intended)if(!seen.has(item.id))result.push(item);
+  for(const item of intended)if(!seen.has(item.id)){
+    const before=baseById.get(item.id);
+    if(before?.status==='draft'){
+      // A known draft missing from latest was removed, not newly created.
+      // Scope stamping of a legacy default/main row is not an editor change.
+      const scoped=(doc:LourexDocument)=>({...doc,workspaceId:doc.workspaceId||'default',branchId:doc.branchId||'main'});
+      if(!sameRecord(scoped(before),scoped(item)))
+        throw new Error(t('This draft was removed on another device. Reopen Documents before saving; your changes were not saved.',
+          'حُذفت هذه المسودة على جهاز آخر. أعد فتح المستندات قبل الحفظ؛ لم تُحفظ تعديلاتك.'));
+      continue;
+    }
+    result.push(item);
+  }
   return result;
 }
 

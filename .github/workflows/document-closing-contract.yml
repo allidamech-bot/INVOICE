@@ -4,7 +4,13 @@ on:
     branches: [main]
     paths:
       - 'src/lib/audit-diff.ts'
+      - 'src/storage/vault-merge.ts'
+      - 'src/storage/vault.ts'
+      - 'src/lib/workspaces.ts'
+      - 'src/lib/backup.ts'
+      - 'src/app/App.tsx'
       - 'tests/draft-deletion-audit-20261021.test.mjs'
+      - 'tests/draft-deletion-continuity-20261021.test.mjs'
       - 'src/lib/payment-voucher.ts'
       - 'src/components/PaymentVoucherModal.tsx'
       - 'src/components/InvoicePaymentsPanel.tsx'
@@ -45,6 +51,6 @@ jobs:
       - name: Production build without deployment
         run: npm run build
       - name: Draft deletion audit and persisted history
-        run: node --test tests/draft-deletion-audit-20261021.test.mjs
+        run: node --test tests/draft-deletion-audit-20261021.test.mjs tests/draft-deletion-continuity-20261021.test.mjs tests/vault-merge.test.mjs
       - name: Linked customer and supplier payment vouchers
         run: node --test tests/payment-vouchers-20261021.test.mjs tests/payment-voucher-ui.test.mjs tests/receivables-v133.test.mjs tests/purchase-payment-saved-cycle.test.mjs
