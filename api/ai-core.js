@@ -28,18 +28,26 @@ function rateAllowed(request){const now=Date.now(),key=requestIp(request),existi
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 
 function cleanText(value,max=120){return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
+const MAX_CONTROLLER_SOURCES=10;
+const MAX_CONTROLLER_SOURCE_CHARS=12_000;
+const MAX_CONTROLLER_TOTAL_SOURCE_CHARS=72_000;
 // AI-001: Attachments reach Core as bounded, untrusted evidence, never authority.
 // Only the browser's active conversation mode can select the executable route.
 export function sanitizeControllerConversationSources(value){
-  if(!Array.isArray(value))return[];
+  if(value===undefined||value===null)return[];
+  if(!Array.isArray(value)||value.length>MAX_CONTROLLER_SOURCES)return null;
   const routes=new Set(['customer','supplier','supplier_purchase','quote_request','product_list','unknown']);
-  return value.slice(0,4).map(row=>{
-    if(!row||typeof row!=='object')return null;
+  const result=[];let total=0;
+  for(const row of value){
+    if(!row||typeof row!=='object'||Array.isArray(row)||typeof row.extracted!=='string')return null;
     const fileName=cleanText(row.fileName,180),route=cleanText(row.route,40);
-    if(!fileName||!routes.has(route))return null;
-    const extracted=String(row.extracted??'').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g,' ').slice(0,8000);
-    return{fileName,route,extracted};
-  }).filter(Boolean);
+    if(!fileName||!routes.has(route)||row.extracted.length>MAX_CONTROLLER_SOURCE_CHARS)return null;
+    const extracted=row.extracted.replace(/[\\u0000-\\u0009\\u000b-\\u001f\\u007f]/g,' ');
+    total+=extracted.length;
+    if(total>MAX_CONTROLLER_TOTAL_SOURCE_CHARS)return null;
+    result.push({fileName,route,extracted});
+  }
+  return result;
 }
 function cleanDate(value){const text=cleanText(value,10);return /^\d{4}-\d{2}-\d{2}$/.test(text)?text:'';}
 function cleanMonth(value){const text=cleanText(value,7);return /^\d{4}-\d{2}$/.test(text)?text:'';}
@@ -100,7 +108,7 @@ function cleanDraftTerms(value){return{incoterm:cleanText(value?.incoterm,80),pa
 function cleanDraftActiveDocument(value){if(!value||typeof value!=='object')return null;const id=cleanText(value.id,120),number=cleanText(value.number,80),kind=cleanEnum(value.kind,['proforma','invoice']),status=cleanEnum(value.status,['draft','final']),currency=cleanCurrency(value.currency),language=cleanEnum(value.language,['en','ar','bilingual'],'en');if(!id||!number||!kind||!status)return null;return{id,number,kind,status,currency,language,customerName:cleanText(value.customerName,120),items:cleanArray(value.items,40,cleanDraftActiveItem),terms:cleanDraftTerms(value.terms),notes:cleanText(value.notes,500)};}
 function cleanDrafting(value){if(!value||typeof value!=='object')return null;const currency=cleanCurrency(value.defaults?.currency)||'USD';const language=cleanEnum(value.defaults?.language,['en','ar','bilingual'],'en');return{customers:cleanArray(value.customers,12,cleanDraftCustomer),items:cleanArray(value.items,18,cleanDraftItem),defaults:{currency,language,incoterm:cleanText(value.defaults?.incoterm,80),paymentTerms:cleanText(value.defaults?.paymentTerms,120),deliveryTime:cleanText(value.defaults?.deliveryTime,120),validity:cleanText(value.defaults?.validity,100)},activeDocument:cleanDraftActiveDocument(value.activeDocument)};}
 
-function cleanRequest(body){if(String(body?.message||'').trim().length>MAX_MESSAGE_CHARS||String(body?.context?.conversationWorkingMemory||'').length>36000)return null;const message=String(body?.message||'').trim().slice(0,MAX_MESSAGE_CHARS);const screen=String(body?.context?.screen||'');const language=body?.context?.language==='ar'?'ar':'en';const conversationMode=body?.context?.conversationMode==='controller'?'controller':'advisor';const aiResponseDetail=cleanEnum(body?.context?.aiResponseDetail,['brief','balanced','detailed'],'balanced');const finance=cleanFinance(body?.context?.finance),business=cleanBusiness(body?.context?.business);const pricing=cleanPricing(body?.context?.pricing,business?.asOf||finance?.asOf||'');const drafting=cleanDrafting(body?.context?.drafting);if(!message||body?.context?.version!==5||!SCREENS.has(screen)||!finance||!business||!pricing||!drafting)return null;return{message,context:{version:5,screen,language,conversationMode,aiResponseDetail,allowedCapabilities:conversationMode==='advisor'?ALLOWED_CAPABILITIES.filter(capability=>!ACTION_CAPABILITIES.includes(capability)):ALLOWED_CAPABILITIES,finance,business,pricing,drafting,dialogueCatalog:sanitizeDialogueCatalog(body?.context?.dialogueCatalog),verifiedReadEvidence:sanitizeReadEvidence(body?.context?.verifiedReadEvidence),documentConversation:sanitizeDocumentConversation(body?.context?.documentConversation),conversationSources:sanitizeControllerConversationSources(body?.context?.conversationSources),workingMemory:String(body?.context?.conversationWorkingMemory||'')}};}
+function cleanRequest(body){if(String(body?.message||'').trim().length>MAX_MESSAGE_CHARS||String(body?.context?.conversationWorkingMemory||'').length>36000)return null;const message=String(body?.message||'').trim().slice(0,MAX_MESSAGE_CHARS);const screen=String(body?.context?.screen||'');const language=body?.context?.language==='ar'?'ar':'en';const conversationMode=body?.context?.conversationMode==='controller'?'controller':'advisor';const aiResponseDetail=cleanEnum(body?.context?.aiResponseDetail,['brief','balanced','detailed'],'balanced');const finance=cleanFinance(body?.context?.finance),business=cleanBusiness(body?.context?.business);const pricing=cleanPricing(body?.context?.pricing,business?.asOf||finance?.asOf||'');const drafting=cleanDrafting(body?.context?.drafting);const sources=sanitizeControllerConversationSources(body?.context?.conversationSources);if(sources===null||!message||body?.context?.version!==5||!SCREENS.has(screen)||!finance||!business||!pricing||!drafting)return null;return{message,context:{version:5,screen,language,conversationMode,aiResponseDetail,allowedCapabilities:conversationMode==='advisor'?ALLOWED_CAPABILITIES.filter(capability=>!ACTION_CAPABILITIES.includes(capability)):ALLOWED_CAPABILITIES,finance,business,pricing,drafting,dialogueCatalog:sanitizeDialogueCatalog(body?.context?.dialogueCatalog),verifiedReadEvidence:sanitizeReadEvidence(body?.context?.verifiedReadEvidence),documentConversation:sanitizeDocumentConversation(body?.context?.documentConversation),conversationSources:sources,workingMemory:String(body?.context?.conversationWorkingMemory||'')}};}
 
 function cleanGeneratedPatch(value){if(!value||typeof value!=='object')return null;const patch={};for(const [key,max] of [['sku',48],['descriptionEn',160],['descriptionAr',160],['hsCode',48],['origin',80],['packing',80],['unit',40],['category',80]]){const cleaned=cleanText(value[key],max);if(cleaned)patch[key]=cleaned;}const tags=cleanTags(value.tags);if(tags.length)patch.tags=tags;return Object.keys(patch).length?patch:null;}
 function cleanGeneratedItem(row){if(!row||typeof row!=='object')return null;const quantity=cleanPositive(row.quantity,true),unit=cleanText(row.unit,40),unitPrice=cleanPositive(row.unitPrice,true);if(!quantity||!unit)return null;return{savedItemId:cleanText(row.savedItemId,120),descriptionEn:cleanText(row.descriptionEn,160),descriptionAr:cleanText(row.descriptionAr,160),quantity,unit,unitPrice};}
@@ -170,6 +178,10 @@ export default async function handler(request,response){
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
+  const uploaded=body?.context?.conversationSources;
+  if(uploaded!==undefined&&uploaded!==null&&sanitizeControllerConversationSources(uploaded)===null){
+    sendJson(response,422,{code:'AI_SOURCE_INCOMPLETE',message:'The attached sources exceed the safe 10-file or complete-text limits (12000 characters each, 72000 total), or contain invalid data. Split or reduce the sources; no incomplete set was analyzed.'});return;
+  }
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX AI received an invalid business context.'});return;}
 
   // Free-form dialogue is the default for both modes. Do not make normal
