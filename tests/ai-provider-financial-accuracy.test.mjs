@@ -111,3 +111,13 @@ test('admin-only UI requires manual click and protected Firebase UID before grad
  assert.ok(gate.indexOf('diagnosticsOwnerUidAllowed(')<gate.indexOf('runSyntheticProviderDiagnostic(provider,{mode})'));
  assert.ok(gate.includes("mode!=='single'&&mode!=='financial'"));
 });
+
+test('owner financial diagnostics render one case per line and preserve mobile bidirectional legibility',()=>{
+ const html=readFileSync(new URL('../public/health.html',import.meta.url),'utf8');
+ const script=readFileSync(new URL('../public/health.js',import.meta.url),'utf8');
+ assert.match(html,/\.provider-probe-result\{[^}]*white-space:pre-line/);
+ assert.match(html,/\.provider-probe-result\{[^}]*unicode-bidi:plaintext/);
+ assert.ok(script.includes("details.join('\\n')"),'five calculations must not be squeezed into one inline sentence');
+ assert.ok(script.includes("data.score===5?' ✓':' — Review required"));
+ assert.ok(script.includes('Not a production accounting certification'));
+});
