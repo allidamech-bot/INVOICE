@@ -8,6 +8,7 @@ import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { reviewProductAiRows, type ProductAiClassification, type ProductAiDraftItem, type ProductAiRowReview } from '../lib/product-ai-review.js';
 import { Button, Icon, Modal } from './UI.js';
+import { combineProductAiSourceDrafts, MAX_PRODUCT_AI_FILES, MAX_PRODUCT_AI_TOTAL_BYTES, type ProductAiNamedDraft } from '../lib/ai-product-multi-source.js';
 
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_TEXT_BYTES=1_000_000;
@@ -15,8 +16,8 @@ const MAX_SPREADSHEET_BYTES=12_000_000;
 const MAX_TEXT_CHARS=120_000;
 type ProductSourceDraft={sourceCurrency:string;notes:string;items:ProductAiDraftItem[]};
 type Stage='analyzing'|'review'|'saving'|'done'|'error';
-interface Props{file:File;onDone:()=>void;}
-interface State{stage:Stage;draft:ProductSourceDraft|null;reviews:ProductAiRowReview[];model:string;error:string;selected:boolean[];savedCount:number;filter:'all'|'new'|'matches'|'blocked';}
+interface Props{file:File;files?:File[];onDone:()=>void;}
+interface State{stage:Stage;draft:ProductSourceDraft|null;reviews:ProductAiRowReview[];model:string;error:string;selected:boolean[];savedCount:number;filter:'all'|'new'|'matches'|'blocked';activeFileName:string;completedFiles:number;sourceNames:string[];rowFiles:string[];}
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
 function mimeFor(file:File):string{const name=file.name.toLowerCase();return file.type||(name.endsWith('.txt')?'text/plain':name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');}
 function spreadsheetFile(file:File):boolean{return /\.(xlsx|xls|csv)$/i.test(file.name);}
@@ -40,27 +41,63 @@ function applyDraft(vault:VaultPayload,draft:ProductSourceDraft,selected:boolean
 
 export class ProductAiSourceReview extends React.Component<Props,State>{
   private abort:AbortController|null=null;private saving=false;
-  state:State={stage:'analyzing',draft:null,reviews:[],model:'',error:'',selected:[],savedCount:0,filter:'all'};
+  state:State={stage:'analyzing',draft:null,reviews:[],model:'',error:'',selected:[],savedCount:0,filter:'all',activeFileName:'',completedFiles:0,sourceNames:[],rowFiles:[]};
   componentDidMount():void{void this.analyze();}
   componentWillUnmount():void{this.abort?.abort();}
+  private selectedFiles=():File[]=>this.props.files?.length?this.props.files:[this.props.file];
   private analyze=async()=>{
-    const file=this.props.file,mimeType=mimeFor(file),isText=mimeType==='text/plain',isSpreadsheet=spreadsheetFile(file);
-    if(!isSpreadsheet&&!isText&&!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)){this.setState({stage:'error',error:t('This AI review accepts PDF, image, Excel, CSV or text product sources.','تقبل هذه المراجعة PDF أو الصور أو Excel أو CSV أو نصوص المنتجات.')});return;}
-    if(isSpreadsheet&&file.size>MAX_SPREADSHEET_BYTES){this.setState({stage:'error',error:t('Reduce this spreadsheet below 12 MB for reliable AI review.','خفّض حجم الجدول لأقل من 12 MB للمراجعة الموثوقة بالذكاء الاصطناعي.')});return;}
-    if(isText&&file.size>MAX_TEXT_BYTES){this.setState({stage:'error',error:t('This text source is too large for AI review.','مصدر النص كبير جدًا للمراجعة بالذكاء الاصطناعي.')});return;}
-    if(!isSpreadsheet&&!isText&&file.size>(mimeType==='application/pdf'?MAX_SPREADSHEET_BYTES:MAX_BINARY_BYTES)){this.setState({stage:'error',error:t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.')});return;}
+    const files=this.selectedFiles();
+    if(!files.length||files.length>MAX_PRODUCT_AI_FILES||files.some(file=>!file||!file.size)||
+       files.reduce((sum,file)=>sum+file.size,0)>MAX_PRODUCT_AI_TOTAL_BYTES){
+      this.setState({stage:'error',error:t('Choose 1–4 nonempty product files totaling 16 MB or less. Nothing was saved.','اختر من ملف إلى أربعة ملفات أصناف غير فارغة مجموعها 16 ميغابايت أو أقل. لم يُحفظ شيء.')});return;
+    }
+    if(new Set(files.map(file=>[file.name,file.size,file.lastModified].join('|'))).size!==files.length){
+      this.setState({stage:'error',error:t('The same product file was selected more than once. Remove duplicates and retry.','تم اختيار ملف الأصناف نفسه أكثر من مرة. احذف التكرار ثم أعد المحاولة.')});return;
+    }
     const controller=new AbortController();this.abort=controller;
+    this.setState({stage:'analyzing',error:'',activeFileName:'',completedFiles:0,draft:null,reviews:[],selected:[],sourceNames:[],rowFiles:[]});
+    const extracted:ProductAiNamedDraft[]=[];const models:string[]=[];
     try{
-      let payload:any;
-      if(isSpreadsheet){const sheets=await readSpreadsheetFile(file);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t('This spreadsheet has no readable product data.','هذا الجدول لا يحتوي بيانات منتجات قابلة للقراءة.'));payload={kind:'text',fileName:file.name,mimeType:'text/csv',text};}
-      else if(isText){const text=await file.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};}
-      else {
-        const text=mimeType==='application/pdf'?await readablePdfText(file,MAX_TEXT_CHARS):'';
-        if(text.trim())payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};
-        else {if(file.size>MAX_BINARY_BYTES)throw new Error(t('Reduce this scanned PDF below 2.6 MB.','خفّض حجم PDF الممسوح ضوئيًا لأقل من 2.6 MB.'));payload={kind:'file',fileName:file.name,mimeType,data:bytesToBase64(await file.arrayBuffer())};}
+      for(let index=0;index<files.length;index++){
+        const file=files[index]!;
+        this.setState({activeFileName:file.name,completedFiles:index});
+        const mimeType=mimeFor(file),isText=mimeType==='text/plain',isSpreadsheet=spreadsheetFile(file);
+        if(!isSpreadsheet&&!isText&&!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType))
+          throw new Error(t('This AI review accepts PDF, image, Excel, CSV or text product sources.','تقبل هذه المراجعة PDF أو الصور أو Excel أو CSV أو نصوص المنتجات.'));
+        if(isSpreadsheet&&file.size>MAX_SPREADSHEET_BYTES)
+          throw new Error(t('Reduce this spreadsheet below 12 MB for reliable AI review.','خفّض حجم الجدول لأقل من 12 MB للمراجعة الموثوقة بالذكاء الاصطناعي.'));
+        if(isText&&file.size>MAX_TEXT_BYTES)
+          throw new Error(t('This text source is too large for AI review.','مصدر النص كبير جدًا للمراجعة بالذكاء الاصطناعي.'));
+        if(!isSpreadsheet&&!isText&&file.size>(mimeType==='application/pdf'?MAX_SPREADSHEET_BYTES:MAX_BINARY_BYTES))
+          throw new Error(t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.'));
+        let payload:any;
+        if(isSpreadsheet){const sheets=await readSpreadsheetFile(file);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t('This spreadsheet has no readable product data.','هذا الجدول لا يحتوي بيانات منتجات قابلة للقراءة.'));payload={kind:'text',fileName:file.name,mimeType:'text/csv',text};}
+        else if(isText){const text=await file.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};}
+        else{
+          const text=mimeType==='application/pdf'?await readablePdfText(file,MAX_TEXT_CHARS):'';
+          if(text.trim())payload={kind:'text',fileName:file.name,mimeType:'text/plain',text};
+          else{if(file.size>MAX_BINARY_BYTES)throw new Error(t('Reduce this scanned PDF below 2.6 MB.','خفّض حجم PDF الممسوح ضوئيًا لأقل من 2.6 MB.'));payload={kind:'file',fileName:file.name,mimeType,data:bytesToBase64(await file.arrayBuffer())};}
+        }
+        if(controller.signal.aborted)return;
+        const body=await requestAiJson('/api/product-source-ai',payload,controller.signal);
+        if(controller.signal.aborted)return;
+        if(!body?.draft||!Array.isArray(body.draft.items)||!body.draft.items.length)
+          throw new Error(t('An attached product file returned no complete rows. Nothing can be saved.','أحد ملفات الأصناف لم يُرجع بيانات أصناف مكتملة. لا يمكن الحفظ.'));
+        extracted.push({fileName:file.name,draft:body.draft as ProductSourceDraft});
+        models.push(String(body.model||'LOUREX AI'));
+        this.setState({completedFiles:index+1});
       }
-      const body=await requestAiJson('/api/product-source-ai',payload,controller.signal);if(controller.signal.aborted)return;const draft=body.draft as ProductSourceDraft;const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before reviewing product matches.','افتح قفل LOUREX قبل مراجعة مطابقة المنتجات.'));if(controller.signal.aborted)return;const reviews=reviewProductAiRows(resumed.vault.savedItems,draft.items,draft.sourceCurrency);this.setState({stage:'review',draft,reviews,model:String(body.model||'LOUREX AI'),selected:reviews.map(review=>review.defaultSelected),error:''});
-    }catch(error){if(controller.signal.aborted)return;this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}finally{if(this.abort===controller)this.abort=null;}
+      const combined=combineProductAiSourceDrafts(extracted);
+      const resumed=await resumeVaultSession();
+      if(!resumed)throw new Error(t('Unlock LOUREX before reviewing product matches.','افتح قفل LOUREX قبل مراجعة مطابقة المنتجات.'));
+      if(controller.signal.aborted)return;
+      const reviews=reviewProductAiRows(resumed.vault.savedItems,combined.draft.items,combined.draft.sourceCurrency);
+      this.setState({stage:'review',draft:combined.draft,reviews,model:[...new Set(models)].join(' / '),selected:reviews.map(review=>review.defaultSelected),sourceNames:combined.sourceNames,rowFiles:combined.rowFiles,activeFileName:'',error:''});
+    }catch(error){
+      if(controller.signal.aborted)return;
+      const name=files[Math.min(extracted.length,files.length-1)]?.name||'';
+      this.setState({stage:'error',error:(name?name+': ':'')+(error instanceof Error?error.message:String(error))});
+    }finally{if(this.abort===controller)this.abort=null;}
   };
   private toggle=(index:number)=>{const review=this.state.reviews[index];if(!review||review.classification==='duplicate-candidate'||review.classification==='needs-review')return;const selected=[...this.state.selected];selected[index]=!selected[index];this.setState({selected});};
    /* Bulk selection is intentionally limited to verified new products.
