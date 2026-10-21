@@ -46,7 +46,20 @@ export function auditEventsForVaultDiff(base:VaultPayload,intended:VaultPayload)
     const previous=base.savedItems.find(item=>item.id===event.auditEntityId),current=intended.savedItems.find(item=>item.id===event.auditEntityId);
     return Boolean(previous&&current&&productChanged(previous,current));
   });
-  return[...events,...products];
+  // An unissued document can be discarded without its row remaining in the
+  // workspace. Retain the deletion itself in the existing immutable-style audit
+  // history rather than relying on an orphaned document record for evidence.
+  // Issued/voided documents have a separate lifecycle and must not be treated
+  // as freely deletable drafts.
+  const deletedDrafts=base.documents
+    .filter(document=>document.status==='draft'&&!intended.documents.some(current=>current.id===document.id))
+    .map(document=>createAuditEvent({
+      entityType:'document',entityId:document.id,entityLabel:document.number||'Draft',
+      action:'deleted',workspaceId:document.workspaceId||workspaceId,
+      branchId:document.branchId||branchId,
+      note:`Deleted unissued draft (${document.kind}, revision ${document.revision}).`
+    }));
+  return[...events,...products,...deletedDrafts];
 }
 
 export function appendAuditEventsForVaultDiff(base:VaultPayload,intended:VaultPayload):VaultPayload{

@@ -3,6 +3,8 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'src/lib/audit-diff.ts'
+      - 'tests/draft-deletion-audit-20261021.test.mjs'
       - 'tests/document-final-qa-v130.test.mjs'
       - 'tests/live-document-regressions-v584.test.mjs'
       - 'tests/live-document-studio-pdf-ux-v583.test.mjs'
@@ -32,3 +34,5 @@ jobs:
       - run: npm run typecheck
       - name: Production build without deployment
         run: npm run build
+      - name: Draft deletion audit and persisted history
+        run: node --test tests/draft-deletion-audit-20261021.test.mjs
