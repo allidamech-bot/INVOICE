@@ -57,7 +57,7 @@ test('Kilo synthetic probe requests remain on free route, cannot fall back, and 
    calls++;
    assert.equal(url,'https://ai-gateway.kilo.ai/api/v1/chat/completions');
    const body=JSON.parse(opt.body);
-   assert.equal(body.model,'kilo-auto/free');
+   assert.equal(body.model,'google/gemma-4-26b-a4b-it:free');
    assert.equal(body.max_tokens,384);
    assert.equal(body.messages.length,1);
    assert.ok(body.messages[0].content.includes('Synthetic accounting'));
