@@ -1,6 +1,7 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog} from './_ai/lourex-dialogue.js';
+import {hypotheticalInvoiceBalance} from './_ai/hypothetical-finance.js';
 
 const MAX_BODY_BYTES=180000;
 const MAX_MESSAGE_CHARS=6000;
@@ -120,6 +121,9 @@ export default async function handler(request,response){
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid LOUREX AI request.'});return;}
   const cleaned=cleanRequest(body);if(!cleaned){sendJson(response,400,{code:'INVALID_CONTEXT',message:'LOUREX Advisor received an invalid deterministic context.'});return;}
+  // Self-contained payment arithmetic must never load saved-invoice counts or call a provider.
+  const hypothetical=hypotheticalInvoiceBalance(cleaned.message,cleaned.context.language);
+  if(hypothetical){sendJson(response,200,{model:'deterministic-hypothetical',answer:hypothetical.answer,proposal:null});return;}
   const exactDocumentAnswer=deterministicDocumentAnswer(cleaned);
   if(exactDocumentAnswer){sendJson(response,200,{model:'deterministic-documents',answer:exactDocumentAnswer,proposal:null});return;}
 
