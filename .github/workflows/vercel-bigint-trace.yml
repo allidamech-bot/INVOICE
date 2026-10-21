@@ -1,0 +1,33 @@
+name: Vercel Node trace isolation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/_accounting/**'
+      - 'scripts/verify-vercel-nft-trace.mjs'
+      - '.github/workflows/vercel-bigint-trace.yml'
+permissions:
+  contents: read
+concurrency:
+  group: vercel-nft-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Validate runtime finance module imports and period service
+        run: node --test tests/vercel-bigint-trace-isolation.test.mjs tests/period-server.test.mjs tests/period-close.test.mjs
+      - name: Trace real Vercel serverless import graph
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund @vercel/nft@1.11.0
+          node scripts/verify-vercel-nft-trace.mjs

@@ -1,8 +1,11 @@
 import {randomBytes} from 'node:crypto';
 import {FieldValue} from 'firebase-admin/firestore';
-import {closedPeriodState,assertClosedPeriodUnchanged} from '../../dist/src/lib/period-close.js';
-import {assertPostedStockRestoreContinuity} from '../../dist/src/lib/backup.js';
-import {isIsoDate} from '../../dist/src/lib/id.js';
+import {loadCompiledFinance} from './compiled-finance-loader.js';
+const [{closedPeriodState,assertClosedPeriodUnchanged},{assertPostedStockRestoreContinuity},{isIsoDate}]=await Promise.all([
+  loadCompiledFinance('period'),
+  loadCompiledFinance('backup'),
+  loadCompiledFinance('id')
+]);
 import {validatePeriodCommand,validateMeta,decodeWorkspace,decodeReport,encodeWorkspace,encodeBytes,hexId,hash,fail,PeriodError} from './period-format.js';
 
 const newId=()=>randomBytes(16).toString('hex');
