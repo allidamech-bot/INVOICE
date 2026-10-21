@@ -21,7 +21,7 @@ function textFromPart(value){
 function safeModel(value){
   return typeof value==='string'&&/^[a-zA-Z0-9@/._:+-]{1,110}$/.test(value)?value:undefined;
 }
-function selectedResponse(root,provider){
+export function selectedResponse(root,provider){
   if(provider==='gemini'){
     const item=root?.candidates?.[0];
     return{text:textFromPart(item?.content?.parts?.filter(p=>p?.thought!==true)||[]),

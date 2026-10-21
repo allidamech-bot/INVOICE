@@ -137,13 +137,17 @@ export default async function handler(request,response){
     if(!SYNTHETIC_PROVIDER_IDS.includes(provider)){
       sendJson(response,400,{code:'INVALID_DIAGNOSTIC_PROVIDER'});return;
     }
+    // Validate the fixed suite before charging this provider's independent QA quota.
+    const mode=requestBody?.mode===undefined?'single':requestBody.mode;
+    if(mode!=='single'&&mode!=='financial'){
+      sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
+    }
     const testBudget=diagnosticRateAllowed(request.aiVerifiedUid,provider);
     if(!testBudget.allowed){
       response.setHeader('Retry-After',String(testBudget.retryAfterSeconds));
       sendJson(response,429,{code:'DIAGNOSTIC_RATE_LIMITED',provider,retryAfterSeconds:testBudget.retryAfterSeconds});return;
     }
-    // The client cannot choose a prompt, model, URL, key, business context or tools.
-    const probe=await runSyntheticProviderDiagnostic(provider);
+    const probe=await runSyntheticProviderDiagnostic(provider,{mode});
     sendJson(response,200,probe);return;
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}

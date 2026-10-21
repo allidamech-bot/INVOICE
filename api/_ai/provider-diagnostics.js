@@ -1,4 +1,5 @@
 import {classifySyntheticProviderAnswer} from './provider-diagnostic-classifier.js';
+import {FINANCIAL_QA_PROMPT,classifyFinancialAccuracyResponse} from './provider-financial-accuracy.js';
 
 // Owner-triggered, synthetic-only AI provider smoke test.
 // It never reads client context, business records, or provider fallback routing.
@@ -21,13 +22,14 @@ function settingsFor(provider){
     default:return null;
   }
 }
-function payloadFor(provider){
-  if(provider==='gemini')return{contents:[{role:'user',parts:[{text:SYNTHETIC_PROMPT}]}],generationConfig:{temperature:0,maxOutputTokens:256}};
-  return{model:MODEL[provider],messages:[{role:'user',content:SYNTHETIC_PROMPT}],
+function payloadFor(provider,mode='single'){
+  const financial=mode==='financial',prompt=financial?FINANCIAL_QA_PROMPT:SYNTHETIC_PROMPT;
+  if(provider==='gemini')return{contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:financial?512:256}};
+  return{model:MODEL[provider],messages:[{role:'user',content:prompt}],
     ...(provider!=='kilo'?{temperature:0}:{}),
-    ...(provider==='groq'?{max_completion_tokens:160,reasoning_effort:'low',include_reasoning:false}:{}),
+    ...(provider==='groq'?{max_completion_tokens:financial?384:160,reasoning_effort:'low',include_reasoning:false}:{}),
     ...(provider==='cloudflare'?{max_completion_tokens:256,chat_template_kwargs:{enable_thinking:false},options:{rejectIfBusy:true}}:{}),
-    ...(provider==='kilo'?{max_tokens:384}:{})};
+    ...(provider==='kilo'?{max_tokens:financial?512:384}:{})};
 }
 function safeCategory(status){
   if(status===401||status===403)return'KEY_REJECTED';
@@ -36,8 +38,9 @@ function safeCategory(status){
   if(status===400||status===404||status===422)return'MODEL_UNAVAILABLE';
   return status>=500?'PROVIDER_UNAVAILABLE':'PROVIDER_ERROR';
 }
-export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch}={}){
+export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,mode='single'}={}){
   if(typeof provider!=='string'||!Object.prototype.hasOwnProperty.call(MODEL,provider))return{status:'INVALID_PROVIDER'};
+  if(mode!=='single'&&mode!=='financial')return{status:'INVALID_DIAGNOSTIC_MODE'};
   const model=MODEL[provider],cfg=settingsFor(provider);
   if(!cfg?.key||!cfg.url)return{provider,model,status:'NOT_CONFIGURED',latencyMs:0,correct:false};
   const started=Date.now();
@@ -49,7 +52,7 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch}=
   try{
     const headers={'Content-Type':'application/json',...(provider==='gemini'?{'x-goog-api-key':cfg.key}:{Authorization:'Bearer '+cfg.key})};
     const request=(async()=>{
-      const response=await fetchImpl(cfg.url,{method:'POST',headers,body:JSON.stringify(payloadFor(provider)),signal:controller.signal});
+      const response=await fetchImpl(cfg.url,{method:'POST',headers,body:JSON.stringify(payloadFor(provider,mode)),signal:controller.signal});
       // Bound a stalled or maliciously oversized JSON response. Nothing logged.
       const declared=Number(response.headers?.get?.('content-length')||0);
       if(declared>MAX_RESPONSE_BYTES)return{status:'INVALID_RESPONSE',reason:'RESPONSE_TOO_LARGE'};
@@ -57,7 +60,7 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch}=
       if(raw.length>MAX_RESPONSE_BYTES)return{status:'INVALID_RESPONSE',reason:'RESPONSE_TOO_LARGE'};
       if(!response.ok)return{status:safeCategory(response.status)};
       let parsed;try{parsed=JSON.parse(raw);}catch{return{status:'INVALID_RESPONSE',reason:'UPSTREAM_NON_JSON'};}
-      return classifySyntheticProviderAnswer(parsed,provider);
+      return mode==='financial'?classifyFinancialAccuracyResponse(parsed,provider):classifySyntheticProviderAnswer(parsed,provider);
     })();
     const result=await Promise.race([request,deadline]);
     return{provider,model,...result,latencyMs:Date.now()-started,correct:result.status==='PASSED'};
