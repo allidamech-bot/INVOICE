@@ -237,7 +237,8 @@
   },HEALTH_DEADLINE_MS);
   const providerButtons=[...document.querySelectorAll('[data-provider-test]')];
   const accuracyButtons=[...document.querySelectorAll('[data-provider-accuracy]')];
-  const allProbeButtons=[...providerButtons,...accuracyButtons];
+  const keyButtons=[...document.querySelectorAll('[data-provider-key-check]')];
+  const allProbeButtons=[...providerButtons,...accuracyButtons,...keyButtons];
   const safeProviders=new Set(['groq','cloudflare','gemini','kilo','openrouter','mistral','ollama']);
   let probeRunning=false;
   const probeLabels={
@@ -301,6 +302,43 @@
           ' · Routed model / النموذج المستخدم: '+data.actualModel:'';
         // textContent, never HTML: no provider-supplied executable markup.
         result.textContent=label+reported+reason+finish+preview+(model?' · '+model:'')+actual+latency;
+      }
+    }catch{
+      if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
+    }finally{probeRunning=false;allProbeButtons.forEach(item=>item.disabled=false);}
+  });
+  // Metadata-only checks for unverified vendors. No prompts, inference or payment.
+  for(const button of keyButtons)button.addEventListener('click',async()=>{
+    const provider=button.getAttribute('data-provider-key-check');
+    if(probeRunning||!['mistral','ollama'].includes(provider))return;
+    probeRunning=true;allProbeButtons.forEach(item=>item.disabled=true);
+    const result=document.querySelector('[data-provider-key-result="'+provider+'"]');
+    if(result)result.textContent='Checking key only… / جارٍ فحص المفتاح فقط…';
+    try{
+      const user=window.firebase?.auth()?.currentUser;
+      if(!user)throw new Error('SIGN_IN_REQUIRED');
+      const token=await user.getIdToken();
+      const response=await fetch('/api/ai-core',{
+        method:'POST',cache:'no-store',
+        headers:{Authorization:'Bearer '+token,'X-Requested-With':'LOUREX-Invoice','X-Lourex-Admin-Diagnostics':'provider-probe','Content-Type':'application/json'},
+        body:JSON.stringify({provider,mode:'key-check'}),signal:AbortSignal.timeout(15000)
+      });
+      const data=await response.json();
+      if(result){
+        if(!response.ok)result.textContent=response.status===403?'Owner access required / يلزم حساب المالك':response.status===429?'Diagnostic limit reached / انتهى حد الفحص':'Key check unavailable / تعذر فحص المفتاح';
+        else{
+          const labels={
+            KEY_AUTHENTICATED:'Key authenticated — free allowance NOT verified / المفتاح صالح، مجانية الخطة غير مؤكدة',
+            KEY_REJECTED:'Key rejected / المفتاح مرفوض',
+            NOT_CONFIGURED:'Key missing / المفتاح غير موجود',
+            RATE_LIMITED:'Provider limit reached / حدّ استخدام المزوّد',
+            TIMEOUT:'Connection timed out / انتهت مهلة الاتصال',
+            NETWORK_ERROR:'Connection failed / تعذر الاتصال',
+            PROVIDER_UNAVAILABLE:'Provider unavailable / المزوّد غير متاح'
+          };
+          result.textContent=(labels[data?.status]||'Key status inconclusive / نتيجة فحص المفتاح غير حاسمة')+
+            ' · No AI request sent / دون طلب توليد';
+        }
       }
     }catch{
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
