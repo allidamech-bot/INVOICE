@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
+import {hypotheticalInvoiceBalance} from '../api/_ai/hypothetical-finance.js';
 
 const AS_OF='2026-10-13';
 const scope={scope:'business',workspaceId:'default',branchId:'main'};
@@ -42,6 +43,7 @@ function gateway(model){
     const lib=vm.runInNewContext(source+'\n({handler,cleanAdvisor,documentNumberInRequest,deterministicDocumentAnswer})',{
       Buffer,URL,process:{env:{}},console,
       requireAiFirebaseAuth:async()=>true,
+      hypotheticalInvoiceBalance,
       sanitizeDialogueCatalog:()=>null,
       sanitizeReadEvidence:()=>[],
       naturalLourexDialogue:async()=>{planned++;return{success:true,answer:model?.answer||'Status is unavailable',proposal:null};},
@@ -168,9 +170,10 @@ test('F21 hypothetical invoice and payment examples never hijack Advisor into sa
     const data=buildAdvisorDataV2(vault,finance,business,'business',message);
     const result=await g.request(message,data,'advisor',language);
     assert.equal(result.statusCode,200);
-    assert.equal(result.body.model,'lourex-dialogue','hypothetical examples must bypass saved-document status shortcut');
+    assert.equal(result.body.model,'deterministic-hypothetical','hypothetical examples must be answered exactly without the model');
+    assert.match(result.body.answer,/750\\.00/,'computed remaining is exact');
     assert.equal(result.body.proposal,null,'Advisor remains read-only');
     assert.doesNotMatch(result.body.answer,/سجل المستندات المحفوظة|saved invoice records/iu);
   }
-  assert.equal(g.planned,cases.length,'each hypothetical scenario must reach conversation processing');
+  assert.equal(g.planned,0,'hypothetical arithmetic must not reach model or company-record shortcuts');
 });
