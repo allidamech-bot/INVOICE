@@ -110,7 +110,7 @@ export async function conversationAttachmentPayload(file:File,signal?:AbortSigna
     return{kind:'text',mimeType:'text/plain',text};
   }
   const mime=conversationAttachmentMime(file);
-  if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error('Supported images are PNG, JPG and WebP. Convert HEIC/GIF to JPG or PNG first; PDF, Excel, CSV and TXT are also supported.');
+  if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error('Supported images are PNG, JPG, WebP and HEIC/HEIF where the browser supports decoding. Convert GIF to JPG or PNG first; PDF, Excel, CSV and TXT are also supported.');
   if(file.size>MAX_BINARY_BYTES)throw new Error('Scanned PDF/image must be below 2.6 MB for safe AI analysis. Compress the scanned PDF or export readable PDF text; every page must be reviewed.');
   await verifyBinarySource(file,mime);
   return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
