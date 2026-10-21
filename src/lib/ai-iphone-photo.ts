@@ -34,8 +34,8 @@ async function decodePhoto(file:File):Promise<{image:CanvasImageSource;width:num
       img.onerror=()=>reject(new Error('HEIC decoding is not supported in this browser. Export the photo as JPEG from Photos and select it again.'));
       img.src=url;
     });
-    return {image,width:image.naturalWidth,height:image.naturalHeight,close:()=>{image.src='';}};
-  }finally{URL.revokeObjectURL(url);}
+    return {image,width:image.naturalWidth,height:image.naturalHeight,close:()=>{image.src='';URL.revokeObjectURL(url);}};
+  }catch(error){URL.revokeObjectURL(url);throw error;}
 }
 /** Preserve original filename separately in the per-source evidence UI.
  * Returned File is suitable for the existing JPEG-only API. */
@@ -67,7 +67,7 @@ export async function jpegFromIphonePhoto(file:File,signal?:AbortSignal):Promise
         const header=new Uint8Array(await blob.slice(0,3).arrayBuffer());
         if(header[0]!==255||header[1]!==216||header[2]!==255)
           throw new Error('The converted image is not a valid JPEG. Nothing was analyzed.');
-        const name=file.name.replace(/\.(?:heic|heif)$/i,'')||'iPhone-photo';
+        const name=file.name.replace(/\.[^.]+$/,'')||'iPhone-photo';
         return new File([blob],name+'.jpg',{type:'image/jpeg',lastModified:file.lastModified});
       }
       maxSide=Math.floor(maxSide*0.8);
