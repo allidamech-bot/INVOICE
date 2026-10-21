@@ -118,3 +118,33 @@ test('simple local financial reads avoid a second provider call and retain exact
  }
  assert.equal(providerCalls,0,'Avoid paying the latency and provider quota twice for deterministic responses');
 });
+
+test('P0 grounded customer summary never becomes a model claim that an existing customer is absent',async()=>{
+  let calls=0;
+  const h=explanationHarness(async()=>{calls++;return {answer:'The customer was not found in the current workspace.'};},
+    'Explain the outstanding balance of customer LOUREX QA TEST');
+  h.result.results=[{id:'customer',tool:'customer.getSummary',class:'read',ok:true,source:'lourex-local-engine',
+    data:{id:'qa-customer-id',name:'LOUREX QA TEST',receivables:[{currency:'USD',outstanding:'250.00'}]}}];
+  h.result.answer='Recorded customer LOUREX QA TEST outstanding: 250.00 USD.';
+  const out=await h.run();
+  assert.equal(calls,0,'a second free-text model must not supersede the exact customer ID and recorded receivable');
+  assert.equal(out.foundationSelectionText,undefined);
+  assert.match(out.answer,/250\.00 USD/);
+  assert.equal(out.proposal,null);
+});
+
+test('P0 mixed customer and product record explanations keep both verified identities intact',async()=>{
+  let calls=0;
+  const h=explanationHarness(async()=>{calls++;return{answer:'Customer and product are not present.'};},
+    'Explain LOUREX QA TEST balance and QA-ACCEPT-001 stock and price');
+  h.result.results=[
+    {id:'customer',tool:'customer.getSummary',class:'read',ok:true,source:'lourex-local-engine',data:{id:'qa-customer-id',receivables:[{currency:'USD',outstanding:'250.00'}]}},
+    {id:'product',tool:'product.getSummary',class:'read',ok:true,source:'lourex-local-engine',data:{id:'qa-product-id',sku:'QA-ACCEPT-001',quantity:'7',lastUnitPrice:'100',lastCurrency:'USD'}}
+  ];
+  h.result.answer='Customer outstanding: 250.00 USD. Product QA-ACCEPT-001: 7 PCS, last price 100 USD.';
+  const out=await h.run();
+  assert.equal(calls,0,'mixed exact-ID evidence must not be replaced by contradictory prose');
+  assert.equal(out.foundationSelectionText,undefined);
+  assert.match(out.answer,/250\.00 USD/);
+  assert.match(out.answer,/QA-ACCEPT-001/);
+});

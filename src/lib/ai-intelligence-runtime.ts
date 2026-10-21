@@ -559,11 +559,18 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
   // delay or token usage just to restate deterministic data. Ask for model reasoning
   // only when the user's own wording explicitly requests interpretation or advice.
   const wantsExplanatoryAnalysis=/(?:ليش|ليه|لماذا|ليش\s+هيك|كيف|اشرح|فسر|فسّر|حلل|حلّل|تحليل|تفسير|شو\s+يعني|ماذا\s+يعني|تنصح|بنصح|نصيحة|توصية|اقترح|\b(?:why|how|explain|interpret|analyze|analyse|analysis|recommend|advise|assess|evaluate|insight)\b|\bwhat\s+does\s+.+\s+mean\b)/iu.test(input.message);
-  // Customer statement payments must remain explicit, dated evidence; a second
-  // explanatory model can collapse their recorded rows into "Entries: ...".
-  const hasCustomerStatement=result?.results.some(row=>row.ok&&row.tool==='customer.getHistory')??false;
+  // Named customer/product/document/supplier read results already carry the
+  // exact scoped record identity and its deterministic amounts. Never permit
+  // an optional free-text explanation to replace those facts with a false
+  // "not found" claim or mix up amounts from another record. Keep the second
+  // model only for aggregate analysis without an individually grounded entity.
+  const hasExactEntityEvidence=result?.results.some(row=>row.ok&&[
+    'customer.getSummary','customer.getReceivables','customer.getHistory',
+    'supplier.getSummary','product.getSummary','product.getCostHistory',
+    'document.get','purchase.get'
+  ].includes(row.tool))??false;
   if(result&&!result.proposal&&!result.workingDraft&&!(result as any).foundationSelectionText&&
-    !hasCustomerStatement&&wantsExplanatoryAnalysis&&result.results.length&&result.results.every(row=>row.ok&&['read','calculate'].includes(row.class))){
+    !hasExactEntityEvidence&&wantsExplanatoryAnalysis&&result.results.length&&result.results.every(row=>row.ok&&['read','calculate'].includes(row.class))){
     const expectedScope=kernelScopeKey(host.__intelligenceKernel.scope);
     try{
       const reply=await requestAiJson('/api/ai-advisor-v2',{
