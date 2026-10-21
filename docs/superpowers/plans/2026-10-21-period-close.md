@@ -42,11 +42,13 @@ Read existing `payments.ts`, `receivables.ts`, `payables.ts`,
 - `ClosedPeriodState` contains a versioned deterministic JSON projection and currency-separated report results, including party and branch identifiers. Retain source record/revision references; do not hash unretained data.
 - Existing report contracts: `financialReportByCurrency(documents,payments,'',through)`, `outputVatReport(documents,'',through)`, `receivablesByCurrency(documents,payments,through)`, `supplierPayablesByCurrency(purchases,supplierPayments,through)`, `treasuryProjection(payments,supplierPayments,expenses,entries,reconciliations,defaultCurrency,through)` and `treasuryAccountBalance(accountId,entries,through)`. Call only on the intended company's rows, grouping all branches explicitly. Existing `warehouseBalances` has no as-of parameter: filter movements by the validated inclusive date before calling it, and retain the dated valuation source rows rather than inventing an as-of valuation API.
 
-- [ ] Write failing real-engine fixtures: company A closed through 2026-10-31, company B open; reject 31 October receipt, accept 1 November payment against October invoice, reject moving/changing/deleting protected records, allow nonposting draft edits.
-- [ ] Add invoice/credit VAT, purchases, expenses, treasury, inventory valuation and opening balance cases; verify aggregate equality cannot hide moving an amount between customers, branches, accounts or currencies.
-- [ ] Pin whether later void/reversal preserves the closed projection using actual existing engines. Reject operations that change it; do not silently redate corrections.
-- [ ] Run `npx tsc -p tsconfig.json && node --test tests/period-close.test.mjs`; observe intended RED, implement pure projection/comparison and run GREEN. Include malformed date, leap day, missing scope and duplicate identity cases.
-- [ ] Commit only the pure tested foundation; it does not activate locks or change schema by itself.
+- [x] Write failing real-engine fixtures: company A closed through 2026-10-31, company B open; reject 31 October receipt, accept 1 November payment against October invoice, reject moving/changing/deleting protected records, allow nonposting draft edits.
+- [x] Add invoice/credit VAT, purchases, expenses, treasury, inventory valuation source rows and opening balance cases; verify aggregate equality cannot hide moving an amount between customers, branches, accounts or currencies.
+- [x] Pin whether later void/reversal preserves the closed projection using actual existing engines. Reject operations that change it; do not silently redate corrections.
+- [x] Run `npx tsc -p tsconfig.json && node --test tests/period-close.test.mjs`; observe intended RED, implement pure projection/comparison and run GREEN. Include malformed date, leap day, missing scope and duplicate identity cases.
+- [x] Commit only the pure tested foundation; it does not activate locks or change schema by itself.
+
+Task 1 evidence and exact limits: `docs/PERIOD_CLOSE_FOUNDATION_2026-10-21.md`.
 
 ## Task 2: Trusted publication and close/reopen transaction
 
