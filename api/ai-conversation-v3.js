@@ -4,7 +4,7 @@ import {naturalLourexDialogue,sanitizeDialogueCatalog} from './_ai/lourex-dialog
 
 const MAX_BODY_BYTES=420000;
 const MAX_MESSAGE_CHARS=6000;
-const MAX_SOURCES=4;
+const MAX_SOURCES=10;
 const RATE_WINDOW_MS=5*60*1000;
 const RATE_MAX=16;
 const SCREENS=new Set(['home','documents','customers','receivables','reports','items','operations','editor']);
