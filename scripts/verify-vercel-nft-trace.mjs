@@ -1,13 +1,33 @@
 import {nodeFileTrace} from '@vercel/nft';
+import {readFile} from 'node:fs/promises';
 
 const entries=['api/ai-core.js'];
-const start=Date.now();
-try{
- const result=await nodeFileTrace(entries,{base:process.cwd(),processCwd:process.cwd(),analysis:{emitGlobs:true,computeFileReferences:true,evaluatePureExpressions:true}});
- const files=[...result.fileList];
- const traced=files.filter(path=>path.startsWith('dist/src/')||path.startsWith('api/_accounting/'));
- console.log('VERCEL_NFT_TRACE_PASS',JSON.stringify({entry:entries[0],count:files.length,domainTraced:traced.length,elapsedMs:Date.now()-start,domainFiles:traced.slice(0,24)}));
-}catch(error){
- console.error('VERCEL_NFT_TRACE_FAILED',error instanceof Error?error.stack:String(error));
- process.exitCode=1;
+const variants=[
+ {label:'full',ignore:[]},
+ {label:'ignore-accounting-graph',ignore:['api/_accounting/**']},
+ {label:'ignore-compiled-domain',ignore:['dist/src/**']},
+ {label:'ignore-firebase-admin',ignore:['node_modules/firebase-admin/**']},
+ {label:'ignore-google-cloud',ignore:['node_modules/@google-cloud/**']},
+ {label:'ignore-protobuf',ignore:['node_modules/protobufjs/**']}
+];
+let fullPass=false;
+for(const variant of variants){
+ const start=Date.now(),recent=[];
+ try{
+   const result=await nodeFileTrace(entries,{
+     base:process.cwd(),processCwd:process.cwd(),ignore:variant.ignore,
+     fileIOConcurrency:8,
+     readFile:async path=>{
+       recent.push(path.replace(process.cwd()+'/',''));if(recent.length>45)recent.shift();
+       return readFile(path,'utf8');
+     },
+     analysis:{emitGlobs:true,computeFileReferences:true,evaluatePureExpressions:true}
+   });
+   const files=[...result.fileList];
+   console.log('VERCEL_NFT_PASS',JSON.stringify({variant:variant.label,count:files.length,domainFiles:files.filter(path=>path.startsWith('api/_accounting/')||path.startsWith('dist/src/')).slice(0,12),ms:Date.now()-start}));
+   if(variant.label==='full')fullPass=true;
+ }catch(error){
+   console.error('VERCEL_NFT_FAIL',JSON.stringify({variant:variant.label,message:error instanceof Error?error.message:String(error),recentFiles:recent.slice(-22),ms:Date.now()-start}));
+ }
 }
+if(!fullPass)process.exitCode=1;
