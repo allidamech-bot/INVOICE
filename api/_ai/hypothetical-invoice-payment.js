@@ -20,7 +20,12 @@ function normalizeText(value){
  .replace(/٬/g,',').replace(/٫/g,'.')
  .replace(/[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g,'');
 }
-function numericTokens(value){return Array.from(value.matchAll(NUMBER),match=>match[0]);}
+function numericTokens(value){
+ const values=Array.from(value.matchAll(NUMBER),match=>match[0]);
+ // Reject malformed or ambiguous numeric groups instead of ignoring them.
+ if(/\d/.test(value.replace(NUMBER,' ')))return null;
+ return values;
+}
 function decimalUnits(raw){
  const value=raw.replaceAll(',','');
  if(!/^\d{1,12}(?:\.\d{1,4})?$/.test(value))return null;
@@ -66,9 +71,10 @@ export function hypotheticalInvoicePaymentAnswer(rawMessage,language='ar'){
  const remainingQuestion=REMAINING.exec(trailing);
  if(!remainingQuestion||remainingQuestion.index===0)return null;
  const paymentText=trailing.slice(0,remainingQuestion.index);
- if(INVOICE.test(paymentText)||numericTokens(trailing.slice(remainingQuestion.index)).length>0)return null;
+ const questionNumbers=numericTokens(trailing.slice(remainingQuestion.index));
+ if(INVOICE.test(paymentText)||questionNumbers===null||questionNumbers.length>0)return null;
  const totals=numericTokens(leading),payments=numericTokens(paymentText);
- if(totals.length!==1||payments.length<1||payments.length>12)return null;
+ if(!totals||!payments||totals.length!==1||payments.length<1||payments.length>12)return null;
  const invoiceTotal=decimalUnits(totals[0]);
  if(invoiceTotal===null||invoiceTotal<=0n)return null;
  const amounts=payments.map(decimalUnits);
@@ -76,7 +82,7 @@ export function hypotheticalInvoicePaymentAnswer(rawMessage,language='ar'){
  const paid=amounts.reduce((sum,value)=>sum+value,0n);
  const available=currencies(message),ar=language==='ar';
  if(available.length>1){
-  return {answer:ar?'المثال يذكر أكثر من عملة. لا يمكن طرح الدفعات من الفاتورة دون تحويل معتمد وواضح؛ لم أستخدم أرصدة الشركة ولم تُسجل أي عملية.':'This hypothetical contains multiple currencies. I cannot subtract payments without an explicitly supported conversion. No company records were consulted or changed.',currency:'',invoiceTotal:printUnits(invoiceTotal),paid:printUnits(paid),remaining:'',overpayment:'',paymentCount:amounts.length};
+  return {answer:ar?'المثال يذكر أكثر من عملة. لا يمكن طرح الدفعات من الفاتورة دون تحويل معتمد وواضح؛ لم أستخدم أرصدة الشركة ولم تُسجل أي عملية.':'This hypothetical contains multiple currencies. I cannot subtract payments without an explicitly supported conversion. No company records were consulted or changed.',currency:'',invoiceTotal:'',paid:'',remaining:'',overpayment:'',paymentCount:amounts.length};
  }
  const currency=available[0]||'',unit=currency?' '+currency:'';
  const balance=invoiceTotal-paid,detail=amounts.map(printUnits).join(' + ');
