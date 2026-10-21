@@ -68,3 +68,26 @@ test('No currency is invented when standalone amounts are unlabeled',()=>{
  assert.match(got.answer,/No currency was specified/);
  assert.doesNotMatch(got.answer,/USD|EUR|SAR/);
 });
+
+test('Controller never stages a collection or invokes the AI tool planner for a standalone what-if balance',async()=>{
+ const [{orchestrateAiToolRequest},{emptyVault}]=await Promise.all([
+  import('../dist/src/lib/ai-tool-client.js'),
+  import('../dist/src/lib/defaults.js')
+ ]);
+ const result=await orchestrateAiToolRequest({
+  message:'عندي فاتورة افتراضية قيمتها 1500 دولار دفعت منها 400 و350، كم المتبقي؟',
+  vault:emptyVault(),language:'ar',
+  context:{conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}}
+ });
+ assert.equal(result,null,'the canonical server calculator, not Controller execution, owns this response');
+});
+
+test('Both authenticated AI gateways use the same deterministic hypothetical calculator before any provider',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ for(const path of ['api/ai-advisor-v2.js','api/ai-core.js']){
+  const code=await readFile(new URL('../'+path,import.meta.url),'utf8');
+  assert.match(code,/import \{hypotheticalInvoiceBalance\} from '\.\/_ai\/hypothetical-finance\.js'/);
+  assert.match(code,/const hypothetical=hypotheticalInvoiceBalance\(cleaned\.message,cleaned\.context\.language\)/);
+  assert.match(code,/model:'deterministic-hypothetical',answer:hypothetical\.answer,proposal:null/);
+ }
+});
