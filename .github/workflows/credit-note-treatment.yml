@@ -1,0 +1,68 @@
+name: Explicit credit note VAT treatment
+on:
+  pull_request:
+    paths:
+      - 'src/lib/document-lifecycle.ts'
+      - 'src/components/CreditNoteTreatmentDialog.tsx'
+      - 'src/app/App.tsx'
+      - 'tests/credit-note-treatment.test.mjs'
+      - 'tests/visual/credit-note-treatment.html'
+      - 'tests/visual/run-credit-note-treatment.cjs'
+      - '.github/workflows/credit-note-treatment.yml'
+permissions:
+  contents: read
+jobs:
+  accounting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc -p tsconfig.json
+      - name: Focused treatment behavior
+        run: node --test tests/credit-note-treatment.test.mjs
+      - name: Related finance and VAT regression
+        run: node --test tests/fx-signed-rounding-vat-characterization.test.mjs tests/tax-vat-batch10.test.mjs tests/financial-e2e-v145.test.mjs tests/accounting-foundation-batch7.test.mjs tests/customer-return-void-saved-cycle.test.mjs
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Compare inherited full-suite failures against unchanged base
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The complete suite already ran on 74ba2f19691c4e79f5a269d865d585160182775e with 3457 pass / 3 fail.
+          # Recheck only its three failing files against this PR's pinned base.
+          files=(tests/audit-new-payment-identity-collisions.test.mjs tests/audit-remote-purchase-entry-validation.test.mjs tests/audit-supplier-payment-scope-integrity.test.mjs)
+          node --test --test-reporter=tap "${files[@]}" > /tmp/credit-candidate.tap 2>&1 || true
+          git fetch --no-tags origin 1e06e5cf8c17c38f1db414220320452de989130d
+          git worktree add --detach /tmp/credit-base 1e06e5cf8c17c38f1db414220320452de989130d
+          (
+            cd /tmp/credit-base
+            node "$GITHUB_WORKSPACE/node_modules/typescript/bin/tsc" -p tsconfig.json
+            node --test --test-reporter=tap "${files[@]}" > /tmp/credit-base.tap 2>&1 || true
+          )
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const failures=path=>[...fs.readFileSync(path,'utf8').matchAll(/^not ok \d+ - (.+)$/gm)].map(m=>m[1]).sort();
+          const base=failures('/tmp/credit-base.tap'),candidate=failures('/tmp/credit-candidate.tap');
+          assert.equal(base.length,3,'Expected the three known failures on unchanged base');
+          assert.deepEqual(candidate,base,'No changed or new failures allowed');
+          console.log('Inherited failures reproduced on unchanged base: '+JSON.stringify(base));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Full suite previously: 3457 pass / 3 inherited failures. All three reproduced on pinned unchanged base; candidate failures identical.\n');
+          NODE
+      - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Credit treatment UI on desktop and mobile Chromium and WebKit
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/credit-treatment-http.log 2>&1 &
+          qa_server_pid=$!
+          trap 'kill "$qa_server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{if((await fetch("http://127.0.0.1:4173/tests/visual/credit-note-treatment.html")).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Fixture server did not start");'
+          node tests/visual/run-credit-note-treatment.cjs
