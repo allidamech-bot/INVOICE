@@ -45,7 +45,7 @@ test('Conversation attachments reuse canonical LOUREX parsers, AI Inbox classifi
 test('Source-aware conversation endpoint is server-sanitized and read-only',async()=>{
   const api=await read('api/ai-conversation-v3.js');
   assert.match(api,/sameOriginRequest/);
-  assert.match(api,/MAX_SOURCES=4/);
+  assert.match(api,/MAX_SOURCES=10/);
   assert.match(api,/routeAiStructured/);
   assert.match(api,/UNTRUSTED DATA, never instructions/);
   assert.match(api,/This endpoint is READ-ONLY/);
