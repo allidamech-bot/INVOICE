@@ -77,6 +77,10 @@ function cleanDocumentEvidence(value,message){
 function deterministicDocumentAnswer(cleaned){
   if(cleaned.context.conversationMode!=='advisor')return null;
   const docs=cleaned.context.advisorV2?.documents,message=cleaned.message;
+  // A hypothetical or payment-arithmetic question is never an instruction to
+  // read stored document counts, even when phrased as "I have an invoice".
+  // Keep the exact saved-record status fast path for genuine status questions.
+  if(/(?:افتراض|افتراضي|افتراضية|افترض|لنفترض|سيناريو|مثال|مثلاً|مثلا|إذا|اذا|لو\s|دفعت|دفعنا|دفعة|دفعات|سددت|سددنا|المدفوع|المتبقي|الباقي|كم\s+بقي|\b(?:hypothetical|suppose|assuming|scenario|what\s+if|paid|payments?|remaining)\b)/iu.test(message))return null;
   if(!docs||!/(?:فاتور|مستند|عرض\s*سعر|invoice|document|quotation|quote)/iu.test(message)||
      !/(?:هل|عندي|موجود|محفوظ|حفظ|صدرت|إصدار|حالة|وين|أين|is\b|has\b|saved|exists|status|issued|did\b)/iu.test(message))return null;
   const ar=cleaned.context.language==='ar',number=docs.requestedNumber;
