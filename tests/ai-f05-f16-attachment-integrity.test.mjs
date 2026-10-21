@@ -69,9 +69,11 @@ test('F05 binary PDF signature is verified, scanned documents use native PDF rou
  const unsupported=new File(['GIF89a'],'animated.gif',{type:'image/gif'});
  const bad=new File(['fake'],'fake.pdf',{type:'application/pdf'});
  assert.rejects(()=>conversationAttachmentPayload(bad),/content does not match/);
- await assert.rejects(()=>conversationAttachmentPayload(unsupported),/PNG, JPG and WebP/);
+ await assert.rejects(()=>conversationAttachmentPayload(unsupported),/PNG, JPG, WebP and HEIC\/HEIF/);
  assert.match(CONVERSATION_ATTACHMENT_ACCEPT,/\.xlsx/);
  assert.match(CONVERSATION_ATTACHMENT_ACCEPT,/\.pdf/);
+ assert.match(CONVERSATION_ATTACHMENT_ACCEPT,/\.heic/);
+ assert.match(CONVERSATION_ATTACHMENT_ACCEPT,/\.heif/);
  assert.doesNotMatch(CONVERSATION_ATTACHMENT_ACCEPT,/image\/\*/);
  assert.ok(valid.size>0);
 });
