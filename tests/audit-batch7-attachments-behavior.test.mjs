@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {isIphoneHeicPhoto,jpegFromIphonePhoto} from '../dist/src/lib/ai-iphone-photo.js';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 function fixture(request=async()=>({source:{summary:'Safe source'}})){
- const calls=[],ctx={exports:{},require:()=>({requestAiJson:async(...args)=>{calls.push(args[0]);return request(...args);},readablePdfText:async()=> 'Selectable invoice text',readSpreadsheetFile:async()=>[],spreadsheetSheetsAsText:()=> 'SKU,quantity\nA1,2'}),Uint8Array,DOMException,btoa,Date,Math,Map,Set};
+ const calls=[],ctx={exports:{},require:()=>({requestAiJson:async(...args)=>{calls.push(args[0]);return request(...args);},isIphoneHeicPhoto,jpegFromIphonePhoto,readablePdfText:async()=> 'Selectable invoice text',readSpreadsheetFile:async()=>[],spreadsheetSheetsAsText:()=> 'SKU,quantity\nA1,2'}),Uint8Array,DOMException,btoa,Date,Math,Map,Set};
  vm.runInNewContext(ts.transpileModule(read('src/lib/ai-conversation-attachments.ts'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,ctx);return {...ctx.exports,calls};
 }
 const signatures=[['image/png','image.png',[137,80,78,71,13,10,26,10]],['image/jpeg','image.jpg',[255,216,255,0]],['image/webp','image.webp',[82,73,70,70,0,0,0,0,87,69,66,80]],['application/pdf','file.pdf',[37,80,68,70,45,49,46,55]]];
