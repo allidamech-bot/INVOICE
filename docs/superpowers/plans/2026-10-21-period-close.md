@@ -86,6 +86,12 @@ this in metadata validation and downloading before enrollment is offered. It mus
 not accept arbitrary collection paths from metadata. Enrollment changes the
 manifest revision while preserving the verified payload and archives its parent.
 
+Task 3A transport checkpoint: the own-UID immutable namespace downloader and
+protected cloud publisher now have a separate reviewable increment. This does
+not complete Task 3: local preflight across mutation/import paths, verified
+offline boundary/report caching, retained-report backup/export continuity and
+Task 4 controls remain open. Enrollment stays unavailable until those gates pass.
+
 - [ ] Write RED cases for ordinary save, full mutation, AI bridge, remote merge, import, restore, company/branch switching and local CAS conflict. Every path either preserves the closed state or is rejected without replacing the prior state.
 - [ ] Extend schema deliberately with retained report references, versions and audit continuity. A legacy backup cannot remove server-owned control/history; restoring business data remains subject to the closed-state comparison.
 - [ ] Preserve server-published immutable snapshot payloads and export references/data for account backup; prove restore does not overwrite a retained version. No storage deletion or chunk GC may prune referenced report history.
