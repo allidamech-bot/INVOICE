@@ -248,9 +248,19 @@
     MODEL_UNAVAILABLE:'Model unavailable / النموذج غير متاح',
     PROVIDER_UNAVAILABLE:'Service unavailable / الخدمة غير متاحة',
     PROVIDER_ERROR:'Provider error / خطأ من المزوّد',
-    INVALID_RESPONSE:'Invalid response / استجابة غير صالحة',
+    INVALID_RESPONSE:'Empty or malformed provider response / استجابة فارغة أو غير صالحة',
+    ANSWER_FORMAT:'Answer format cannot be graded / تنسيق الإجابة غير قابل للتقييم',
+    OUTPUT_TRUNCATED:'Model response cut off / الإجابة مقطوعة بسبب حد الرموز',
     TIMEOUT:'Timed out / انتهت المهلة',
     NETWORK_ERROR:'Network error / خطأ اتصال'
+  };
+  const reasonLabels={
+    EMPTY_CONTENT:'No text returned / لم يُرجع نصًا',
+    UPSTREAM_NON_JSON:'Non-JSON provider response / رد غير متوافق',
+    RESPONSE_TOO_LARGE:'Response exceeds safe size / الرد أكبر من الحد الآمن',
+    OVERLONG_ANSWER:'Verbose answer / إجابة مطوّلة',
+    NO_NUMERIC_ANSWER:'No numeric result / لا توجد نتيجة رقمية',
+    MULTIPLE_NUMBERS:'Multiple numbers in response / عدة أرقام في الإجابة'
   };
   for(const button of providerButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-test');
@@ -276,7 +286,12 @@
         const label=probeLabels[data?.status]||'Test failed / فشل الاختبار';
         const latency=Number.isFinite(data?.latencyMs)?' · '+Math.round(data.latencyMs)+' ms':'';
         const model=typeof data?.model==='string'?data.model.slice(0,80):'';
-        result.textContent=label+(model?' · '+model:'')+latency;
+        const reported=Number.isFinite(data?.reportedTotal)?' · Returned: '+data.reportedTotal+' / الناتج: '+data.reportedTotal:'';
+        const reason=reasonLabels[data?.reason]?' · '+reasonLabels[data.reason]:'';
+        const finish=data?.finishReason==='LENGTH'||data?.finishReason==='MAX_TOKENS'?' · Token limit reached / انتهى حد الرموز':'';
+        // The server only exposes a short character-filtered preview of a synthetic reply.
+        const preview=typeof data?.answerPreview==='string'&&data.answerPreview.length<=110?' · '+data.answerPreview:'';
+        result.textContent=label+reported+reason+finish+preview+(model?' · '+model:'')+latency;
       }
     }catch{
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
