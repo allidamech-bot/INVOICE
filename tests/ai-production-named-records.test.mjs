@@ -6,7 +6,7 @@ import {emptyVault,customerSnapshotFrom} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {createManualInventoryMovement} from '../dist/src/lib/operations.js';
 import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
-import {orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
+import {orchestrateAiToolRequest,formatAiToolAnswer} from '../dist/src/lib/ai-tool-client.js';
 import {namedRecordReadPlan} from '../dist/src/lib/ai-named-record-read.js';
 
 const now='2026-10-18T00:00:00.000Z';
@@ -251,4 +251,49 @@ test('invoice and customer read parser rejects mutations but not the nouns سج�
  ])assert.equal(namedRecordReadPlan(q,rt),null,q);
  assert.deepEqual(namedRecordReadPlan('اعرض سجل المدفوعات للفاتورة INV-2026-0003 ولا تفترض أن كل الدفعات حدثت اليوم',rt).calls.map(row=>row.tool),
  ['document.get','customer.getSummary','customer.getHistory']);
+});
+
+test('customer history explicitly reports omitted older entries without changing complete ledger totals',()=>{
+  const v=fixture();
+  for(let i=0;i<13;i++){
+    const row=structuredClone(v.documents[0]);
+    row.id='QA-HISTORY-'+i;
+    row.number='QA-HISTORY-'+i;
+    row.issueDate='2026-10-17';
+    row.items[0].unitPrice='10';
+    v.documents.push(row);
+  }
+  const before=structuredClone(v);
+  const runtime=createAiToolRuntime(v,context());
+  const plan={version:1,goal:'Read history',calls:[{id:'history',tool:'customer.getHistory',args:{customerId:'qa-customer-id'},reason:'Grounded ledger'}]};
+  const result=executeAiToolPlan(runtime,plan);
+  const row=result.results[0];
+  assert.equal(row.ok,true);
+  const usd=row.data.statements.find(x=>x.currency==='USD');
+  assert.equal(usd.entriesTotal,16,'2 original invoices + 1 payment + 13 added invoices');
+  assert.equal(usd.entriesShown,12);
+  assert.equal(usd.incomplete,true);
+  assert.equal(usd.entries.length,12);
+  assert.equal(usd.billed,'430.00');
+  assert.equal(usd.paid,'50.00');
+  assert.equal(usd.outstanding,'380.00');
+  const ar=formatAiToolAnswer(plan,result.results,'ar');
+  const en=formatAiToolAnswer(plan,result.results,'en');
+  assert.match(ar,/كشف جزئي/);
+  assert.match(ar,/12/);
+  assert.match(ar,/16/);
+  assert.match(en,/Partial history/);
+  assert.match(en,/12/);
+  assert.match(en,/16/);
+  assert.deepEqual(v,before,'read must never mutate original invoices or payments');
+});
+test('short customer history does not falsely warn of omitted entries',()=>{
+  const v=fixture(),runtime=createAiToolRuntime(v,context());
+  const plan={version:1,goal:'Read history',calls:[{id:'history',tool:'customer.getHistory',args:{customerId:'qa-customer-id'},reason:'Read full available ledger'}]};
+  const out=executeAiToolPlan(runtime,plan);
+  const usd=out.results[0].data.statements.find(x=>x.currency==='USD');
+  assert.equal(usd.entriesTotal,3);
+  assert.equal(usd.entriesShown,3);
+  assert.equal(usd.incomplete,false);
+  assert.doesNotMatch(formatAiToolAnswer(plan,out.results,'en'),/Partial history/);
 });
