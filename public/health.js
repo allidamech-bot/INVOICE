@@ -265,11 +265,62 @@
     OUTPUT_BLOCKED:'Safety/content restriction / قيود الأمان أو المحتوى',
     UPSTREAM_ERROR_BODY:'Provider returned an error envelope / المزوّد أعاد رسالة خطأ'
   };
+  const geminiKeyButton=document.getElementById('geminiKeyCheck');
+  const geminiKeyResult=document.getElementById('geminiKeyResult');
+  const metadataLabels={
+    METADATA_ACCESS_OK:'Key accepted for model lookup / المفتاح مقبول لجلب بيانات النموذج',
+    NOT_CONFIGURED:'Key not configured / المفتاح غير مهيأ',
+    KEY_REJECTED:'Key missing, invalid or expired / المفتاح غير صالح أو منتهي',
+    ACCESS_DENIED:'Model access denied / الوصول إلى النموذج مرفوض',
+    PAYMENT_REQUIRED:'Payment required / يتطلب رصيدًا',
+    RATE_LIMITED:'Google rate limit / تجاوز حد Google',
+    MODEL_UNAVAILABLE:'Model not found / النموذج غير متاح',
+    PROVIDER_UNAVAILABLE:'Google service unavailable / الخدمة غير متاحة',
+    REQUEST_REJECTED:'Google rejected metadata request / Google رفضت الاستعلام',
+    INVALID_RESPONSE:'Invalid model metadata / بيانات النموذج غير صالحة',
+    TIMEOUT:'Metadata request timed out / انتهت مهلة الفحص',
+    NETWORK_ERROR:'Network request failed / تعذر الاتصال'
+  };
+  geminiKeyButton?.addEventListener('click',async()=>{
+    if(probeRunning)return;
+    probeRunning=true;
+    providerButtons.forEach(item=>item.disabled=true);
+    geminiKeyButton.disabled=true;
+    if(geminiKeyResult)geminiKeyResult.textContent='Checking model access… / جارٍ فحص صلاحية الوصول…';
+    try{
+      const user=window.firebase?.auth()?.currentUser;
+      if(!user)throw new Error('SIGN_IN_REQUIRED');
+      const token=await user.getIdToken();
+      const response=await fetch('/api/ai-core',{
+        method:'POST',cache:'no-store',
+        headers:{Authorization:'Bearer '+token,'X-Requested-With':'LOUREX-Invoice','X-Lourex-Admin-Diagnostics':'gemini-key-check'},
+        signal:AbortSignal.timeout(10000)
+      });
+      const info=await response.json();
+      if(!response.ok){
+        if(geminiKeyResult)geminiKeyResult.textContent=response.status===403?
+          'Access denied / الوصول مرفوض':
+          response.status===429?'Local check limit / تجاوز حد فحص لوريكس':'Check unavailable / تعذر الفحص';
+      }else if(geminiKeyResult){
+        const label=metadataLabels[info?.status]||'Unknown check result / نتيجة غير معروفة';
+        const caveat=info?.status==='METADATA_ACCESS_OK'?
+          ' · Generation quota NOT checked / لم تُفحص حصة توليد الإجابات':'';
+        geminiKeyResult.textContent=label+caveat;
+      }
+    }catch{
+      if(geminiKeyResult)geminiKeyResult.textContent='Connection/authentication error / خطأ اتصال أو تحقق';
+    }finally{
+      probeRunning=false;
+      providerButtons.forEach(item=>item.disabled=false);
+      geminiKeyButton.disabled=false;
+    }
+  });
   for(const button of providerButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-test');
     if(probeRunning||!safeProviders.has(provider))return;
     probeRunning=true;
     providerButtons.forEach(item=>item.disabled=true);
+    if(geminiKeyButton)geminiKeyButton.disabled=true;
     const result=document.querySelector('[data-provider-result="'+provider+'"]');
     if(result)result.textContent='Testing… / جارٍ الاختبار…';
     try{
@@ -301,7 +352,7 @@
       }
     }catch{
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
-    }finally{probeRunning=false;providerButtons.forEach(item=>item.disabled=false);}
+    }finally{probeRunning=false;providerButtons.forEach(item=>item.disabled=false);if(geminiKeyButton)geminiKeyButton.disabled=false;}
   });
   document.getElementById('back').addEventListener('click',()=>{if(history.length>1)history.back();else location.href='./';});
   document.getElementById('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(fullReportText());document.getElementById('copy').textContent='Copied full report / تم النسخ';}catch{}});
