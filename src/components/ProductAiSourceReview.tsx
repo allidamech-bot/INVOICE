@@ -106,10 +106,12 @@ export class ProductAiSourceReview extends React.Component<Props,State>{
    private showReview=(review:ProductAiRowReview|undefined):boolean=>{if(this.state.filter==='all')return true;if(this.state.filter==='new')return review?.classification==='new-product';if(this.state.filter==='matches')return review?.classification==='existing-match'||review?.classification==='likely-match';return !review||review.classification==='duplicate-candidate'||review.classification==='needs-review';};
   private save=async()=>{const draft=this.state.draft;if(!draft||this.saving||this.state.stage==='saving')return;const count=this.state.selected.filter(Boolean).length;if(!count)return;this.saving=true;this.setState({stage:'saving',error:''});try{await mutateVaultSafely(vault=>{
         const fresh=reviewProductAiRows(vault.savedItems,draft.items,draft.sourceCurrency);
+        const selectedTargetIds=new Set<string>();
         for(let index=0;index<this.state.selected.length;index++){
           if(!this.state.selected[index])continue;
           const before=this.state.reviews[index],after=fresh[index];
-          if(!before||!after||before.classification!==after.classification||before.matchId!==after.matchId||
+          if(after?.matchId){if(selectedTargetIds.has(after.matchId))throw new Error(t('Two source rows target the same existing product. Resolve the duplicate before saving.','سطران من المصادر يستهدفان الصنف الموجود نفسه. عالج التكرار قبل الحفظ.'));selectedTargetIds.add(after.matchId);}
+          if(!before||!after||before.classification!==after.classification||before.matchId!==after.matchId||before.reason!==after.reason||JSON.stringify(before.diff)!==JSON.stringify(after.diff)||
              after.classification==='duplicate-candidate'||after.classification==='needs-review')
             throw new Error(t('Product records changed since review. Refresh all files before saving; nothing was changed.','تغيّرت سجلات الأصناف منذ المراجعة. أعد تحليل جميع الملفات قبل الحفظ؛ لم يُغيّر شيء.'));
         }
