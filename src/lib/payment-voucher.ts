@@ -41,8 +41,8 @@ export function customerPaymentVoucher(invoice:LourexDocument,paymentId:string,p
   return{
     kind:'customer-receipt',recordId:payment.id,sourceId:invoice.id,sourceNumber:invoice.number,
     paymentReference:payment.reference,amount:payment.amount,currency:invoice.currency,date:payment.date,
-    method:payment.method,notes:payment.notes,partyNameEn:payment.customerNameEn||invoice.customerSnapshot?.companyNameEn||'',
-    partyNameAr:payment.customerNameAr||invoice.customerSnapshot?.companyNameAr||'',
+    method:payment.method,notes:payment.notes,partyNameEn:invoice.customerSnapshot?.companyNameEn||payment.customerNameEn||'',
+    partyNameAr:invoice.customerSnapshot?.companyNameAr||payment.customerNameAr||'',
     companyNameEn:invoice.companySnapshot.nameEn,companyNameAr:invoice.companySnapshot.nameAr,
     companyLogo:invoice.companySnapshot.logoDataUrl
   };
