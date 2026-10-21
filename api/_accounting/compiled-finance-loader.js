@@ -18,8 +18,16 @@ const KNOWN=Object.freeze({
   period:'period-close.js'
 });
 
+// Keep the module URL behind a runtime function call. @vercel/nft can
+// otherwise partially evaluate an inline resolve(process.cwd(), 'dist', ...)
+// and eagerly analyze every compiled client-side financial file during
+// serverless packaging. The checked path is still deterministic at runtime.
+function approvedCompiledModuleUrl(fileName){
+  const parts=[process.cwd(),'dist','src','lib',fileName];
+  return pathToFileURL(resolve(...parts)).href;
+}
+
 export async function loadCompiledFinance(name){
   if(!Object.hasOwn(KNOWN,name))throw new Error('Unsupported server finance module');
-  const modulePath=resolve(process.cwd(),'dist','src','lib',KNOWN[name]);
-  return import(pathToFileURL(modulePath).href);
+  return import(approvedCompiledModuleUrl(KNOWN[name]));
 }
