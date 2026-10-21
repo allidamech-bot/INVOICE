@@ -26,7 +26,7 @@ function payloadFor(provider){
   return{model:MODEL[provider],messages:[{role:'user',content:SYNTHETIC_PROMPT}],
     ...(provider!=='kilo'?{temperature:0}:{}),
     ...(provider==='groq'?{max_completion_tokens:160,reasoning_effort:'low',include_reasoning:false}:{}),
-    ...(provider==='cloudflare'?{max_completion_tokens:256,options:{rejectIfBusy:true}}:{}),
+    ...(provider==='cloudflare'?{max_completion_tokens:256,chat_template_kwargs:{enable_thinking:false},options:{rejectIfBusy:true}}:{}),
     ...(provider==='kilo'?{max_tokens:384}:{})};
 }
 function safeCategory(status){
