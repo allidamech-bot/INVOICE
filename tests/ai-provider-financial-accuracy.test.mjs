@@ -104,7 +104,9 @@ test('admin-only UI requires manual click and protected Firebase UID before grad
   assert.ok(ui.includes('data-accuracy-result="'+provider+'"'));
  }
  assert.match(script,/button\.addEventListener\('click',async\(\)=>/);
- assert.match(script,/body:JSON\.stringify\(\{provider,mode:'financial'\}\)/);
+ assert.match(script,/body:JSON\.stringify\(alternativeModel!==null\?/);
+ assert.match(script,/\{provider,mode:'financial',model:alternativeModel\}/);
+ assert.match(script,/\{provider,mode:'financial'\}/);
  const start=core.indexOf("if(request.headers['x-lourex-admin-diagnostics']==='provider-probe')");
  const end=core.indexOf("  if(!rateAllowed(request))",start);
  const gate=core.slice(start,end);
