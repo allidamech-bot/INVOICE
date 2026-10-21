@@ -1,6 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {diagnosticsOwnerUidAllowed} from './_ai/admin-diagnostics-auth.js';
-import {SYNTHETIC_PROVIDER_IDS,runSyntheticProviderDiagnostic} from './_ai/provider-diagnostics.js';
+import {SYNTHETIC_PROVIDER_IDS,runSyntheticProviderDiagnostic,checkProviderCredential} from './_ai/provider-diagnostics.js';
 import {diagnosticRateAllowed} from './_ai/diagnostics-rate-limit.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
@@ -139,7 +139,11 @@ export default async function handler(request,response){
     }
     // Validate the fixed suite before charging this provider's independent QA quota.
     const mode=requestBody?.mode===undefined?'single':requestBody.mode;
-    if(mode!=='single'&&mode!=='financial'){
+    if(mode!=='single'&&mode!=='financial'&&mode!=='key-check'){
+      sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
+    }
+    // Key checks are metadata-only and limited to the two manually gated vendors.
+    if(mode==='key-check'&&provider!=='mistral'&&provider!=='ollama'){
       sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
     }
     const testBudget=diagnosticRateAllowed(request.aiVerifiedUid,provider);
@@ -147,7 +151,7 @@ export default async function handler(request,response){
       response.setHeader('Retry-After',String(testBudget.retryAfterSeconds));
       sendJson(response,429,{code:'DIAGNOSTIC_RATE_LIMITED',provider,retryAfterSeconds:testBudget.retryAfterSeconds});return;
     }
-    const probe=await runSyntheticProviderDiagnostic(provider,{mode});
+    const probe=mode==='key-check'?await checkProviderCredential(provider):await runSyntheticProviderDiagnostic(provider,{mode});
     sendJson(response,200,probe);return;
   }
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'LOUREX AI is temporarily rate limited.'});return;}

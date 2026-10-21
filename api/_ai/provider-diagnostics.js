@@ -79,3 +79,33 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,m
     return{provider,model,status:timedOut?'TIMEOUT':'NETWORK_ERROR',latencyMs:Date.now()-started,correct:false};
   }finally{clearTimeout(timeout);}
 }
+
+ 
+// Read-only account authentication check. No chat/completion requests, prompts,
+// customer data, model inference, or consumption of model-output tokens.
+// This checks the credential, NOT eligibility for a free model or billing status.
+export async function checkProviderCredential(provider,{fetchImpl=fetch}={}){
+  if(provider!=='mistral'&&provider!=='ollama')return{status:'INVALID_PROVIDER'};
+  const model=MODEL[provider],cfg=settingsFor(provider);
+  if(!cfg?.key)return{provider,model,status:'NOT_CONFIGURED',inference:false,latencyMs:0};
+  const url=provider==='mistral'?'https://api.mistral.ai/v1/models':'https://ollama.com/api/tags';
+  const started=Date.now(),controller=new AbortController();
+  let timer;
+  const deadline=new Promise((_,reject)=>{
+    timer=setTimeout(()=>{controller.abort();reject(new Error('CREDENTIAL_TIMEOUT'));},8_000);
+  });
+  try{
+    const request=fetchImpl(url,{
+      method:'GET',headers:{Authorization:'Bearer '+cfg.key,Accept:'application/json'},
+      cache:'no-store',redirect:'error',signal:controller.signal
+    });
+    const response=await Promise.race([request,deadline]);
+    // Never inspect or return potentially sensitive account metadata.
+    if(response.body?.cancel)await Promise.race([response.body.cancel().catch(()=>{}),Promise.resolve()]);
+    return{provider,model,status:response.ok?'KEY_AUTHENTICATED':safeCategory(response.status),
+      inference:false,latencyMs:Date.now()-started};
+  }catch(error){
+    return{provider,model,status:controller.signal.aborted||error?.message==='CREDENTIAL_TIMEOUT'?'TIMEOUT':'NETWORK_ERROR',
+      inference:false,latencyMs:Date.now()-started};
+  }finally{clearTimeout(timer);}
+}

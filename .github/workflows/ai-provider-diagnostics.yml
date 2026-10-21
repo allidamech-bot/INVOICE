@@ -5,10 +5,13 @@ on:
     paths:
       - 'api/_ai/provider-diagnostic-classifier.js'
       - 'api/_ai/provider-diagnostics.js'
+      - 'api/ai-core.js'
       - 'tests/ai-provider-diagnostic-classifier.test.mjs'
       - 'tests/ai-provider-diagnostics.test.mjs'
+      - 'tests/ai-provider-credential-preflight.test.mjs'
       - 'tests/ai-provider-diagnostic-rate-limit.test.mjs'
       - 'public/health.js'
+      - 'public/health.html'
       - '.github/workflows/ai-provider-diagnostics.yml'
   workflow_dispatch:
 permissions:
@@ -28,4 +31,4 @@ jobs:
         with:
           node-version: '24'
       - name: Offline synthetic provider probes (no API keys, no customer data)
-        run: node --test --test-concurrency=1 tests/ai-provider-diagnostic-classifier.test.mjs tests/ai-provider-diagnostics.test.mjs tests/ai-provider-diagnostic-rate-limit.test.mjs
+        run: node --test --test-concurrency=1 tests/ai-provider-diagnostic-classifier.test.mjs tests/ai-provider-diagnostics.test.mjs tests/ai-provider-credential-preflight.test.mjs tests/ai-provider-diagnostic-rate-limit.test.mjs
