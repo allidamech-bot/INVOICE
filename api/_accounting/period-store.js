@@ -63,6 +63,11 @@ export function createPeriodService(db){
     const input=validatePeriodCommand(raw),fingerprint=hash(JSON.stringify(input));
     const root=db.collection('users').doc(identity.uid),metaRef=root.collection('workspace').doc('meta'),controlRef=root.collection('accounting').doc('control');
     const operationRef=root.collection('periodOperations').doc(input.opId);
+    if(input.operation==='inspect')return db.runTransaction(async tx=>{
+      const [metaDoc,controlDoc]=await tx.getAll(metaRef,controlRef),meta=validateMeta(metaDoc.data());
+      const control=controlDoc.exists?controlValue(controlDoc,identity.uid):null;
+      return {format:'LOUREX_PERIOD_STATUS_V1',version:1,enrolled:Boolean(control),revision:meta.revision,sha256:meta.sha256,generation:control?.generation??0,boundaries:control?.boundaries??[]};
+    });
     const previousResult=receiptValue(await operationRef.get(),fingerprint);if(previousResult)return previousResult;
     if(input.operation==='enroll'){
       const initial=validateMeta((await metaRef.get()).data());

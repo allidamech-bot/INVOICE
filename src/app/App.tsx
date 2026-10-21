@@ -747,6 +747,31 @@ export class App extends React.Component<{},State> {
   private decideApproval=async(id:string,decision:'approved'|'rejected')=>{const vault=this.requireVault();await this.persist(decideApprovalRequest(vault,id,decision));this.showToast(decision==='approved'?t('Approval granted.','تمت الموافقة.'):t('Approval rejected.','تم رفض الطلب.'),'success');};
   private saveCompany=async(company:CompanySettings)=>{const vault=this.requireVault();const smartDefaults={...vault.appSettings.smartDefaults,currency:company.defaultCurrency||'USD',language:company.defaultLanguage,incoterm:company.defaultIncoterm,paymentTerms:company.defaultPaymentTerms,deliveryTime:company.defaultDeliveryTime};const appSettings={...vault.appSettings,smartDefaults};await this.persist({...vault,company,appSettings});await this.syncPublicPreferences(company.logoDataUrl,this.requireVault().appSettings.uiLanguage);};
   private saveAppSettings=async(appSettings:AppSettings)=>{const vault=this.requireVault();const next={...appSettings,uiLanguage:appSettings.uiLanguage??'en'};await this.persist({...vault,appSettings:next});const current=this.requireVault();await this.syncPublicPreferences(current.company.logoDataUrl,current.appSettings.uiLanguage);touchSession();this.resetAutoLock();};
+  private preparePeriodOwner=async(action?:'enroll'|'close'|'reopen'):Promise<VaultPayload>=>{
+    this.editorMustBeClosed('managing closed periods','إدارة الفترات المقفلة');
+    if(this.vaultReplacing||this.cloudReconcileRunning)throw new Error(t('Account synchronization is still finishing. Retry shortly.','ما زالت مزامنة الحساب قيد الإنهاء. أعد المحاولة بعد لحظة.'));
+    const uid=this.state.cloudUser?.uid,epoch=this.accountEpoch;
+    if(!uid)throw new Error(t('Sign in to your account first.','سجّل الدخول إلى الحساب أولًا.'));
+    await this.beginProtectedOperation();
+    try{
+      if(epoch!==this.accountEpoch||uid!==currentCloudUser()?.uid||uid!==activeAccountStorageUid())throw new Error('Account changed during period preparation.');
+      // Reading status/reopening must remain possible with a rejected pending
+      // draft. Only enrollment/closing first publish this device's accepted work.
+      if(action==='close'||action==='enroll'){
+        const result=await reconcilePlainCloudWorkspace(uid);
+        if(result==='diverged'){this.handleCloudConflict();throw new Error(t('Resolve the device/cloud conflict before closing a period.','حل تعارض الجهاز والسحابة قبل إقفال الفترة.'));}
+        if(result==='retry')throw new Error(t('Newer changes are still synchronizing. Retry the preview.','ما زالت التعديلات الأحدث قيد المزامنة. أعد معاينة التقرير.'));
+        const local=await getPlainWorkspace();
+        if(!local||uid!==currentCloudUser()?.uid||epoch!==this.accountEpoch)throw new Error('Account changed during period preparation.');
+        const vault=this.normalizedVault(local.payload);this.vaultWriteTail=Promise.resolve(vault);
+        await new Promise<void>(resolve=>this.setState({vault,cloudSyncState:'synced'},resolve));
+        return local.payload;
+      }
+      const remote=await downloadPlainCloudWorkspace(uid);
+      if(!remote||uid!==currentCloudUser()?.uid||epoch!==this.accountEpoch)throw new Error(t('A current cloud workspace is required.','يلزم وجود نسخة سحابية حالية للحساب.'));
+      return remote.payload;
+    }finally{this.endProtectedOperation();}
+  };
   private backup=async()=>{
     this.editorMustBeClosed('downloading a local copy','تنزيل نسخة محلية');
     await this.drainVaultWrites();
@@ -869,7 +894,7 @@ export class App extends React.Component<{},State> {
       </AppShell>
       <RecurringWorkflowsManager open={this.state.recurringOpen} filter={this.state.recurringFilter} workflows={vault.recurringWorkflows} sourceDocument={vault.documents.find(item=>item.id===this.state.recurringSourceDocumentId)??null} sourcePurchase={vault.purchases.find(item=>item.id===this.state.recurringSourcePurchaseId)??null} onClose={this.closeRecurringManager} onSave={this.saveRecurringWorkflow} onDelete={this.deleteRecurringWorkflow} onGenerate={this.generateRecurringWorkflow} onOpenGenerated={this.openRecurringGenerated}/>
       <GlobalSearch documents={vault.documents} payments={vault.payments} customers={vault.customers} items={vault.savedItems} suppliers={vault.suppliers} purchases={vault.purchases} language={activeLanguage} onNavigate={navigate} onOpenDocument={(doc)=>void this.openDocument(doc)} onNewDocument={(kind)=>void this.newDocument(kind)}/>
-      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} documentEvents={vault.documentEvents} teamMembers={vault.teamMembers} approvalPolicies={vault.approvalPolicies} approvalRequests={vault.approvalRequests} workspaces={vault.workspaces} branches={vault.branches} onCreateWorkspace={this.createCompanyWorkspace} onSwitchWorkspace={this.switchCompanyWorkspace} onCreateBranch={this.createWorkspaceBranch} onSwitchBranch={this.switchWorkspaceBranch} onSaveTeamMember={this.saveTeamMember} onToggleTeamMember={this.toggleTeamMember} onSetActiveTeamMember={this.setActiveTeamMember} onToggleApprovalPolicy={this.toggleApprovalPolicy} onDecideApproval={this.decideApproval} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onBackup={this.backup} onRestore={this.restore}/>
+      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} documentEvents={vault.documentEvents} teamMembers={vault.teamMembers} approvalPolicies={vault.approvalPolicies} approvalRequests={vault.approvalRequests} workspaces={vault.workspaces} branches={vault.branches} onCreateWorkspace={this.createCompanyWorkspace} onSwitchWorkspace={this.switchCompanyWorkspace} onCreateBranch={this.createWorkspaceBranch} onSwitchBranch={this.switchWorkspaceBranch} onSaveTeamMember={this.saveTeamMember} onToggleTeamMember={this.toggleTeamMember} onSetActiveTeamMember={this.setActiveTeamMember} onToggleApprovalPolicy={this.toggleApprovalPolicy} onDecideApproval={this.decideApproval} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onBackup={this.backup} onRestore={this.restore} periodVault={this.state.vault??undefined} onPeriodPrepare={this.preparePeriodOwner}/>
       {this.cloudModal()}
       {this.catalogLauncherModal(vault)}
       {this.state.creditSourceId&&vault.documents.some(doc=>doc.id===this.state.creditSourceId)?<CreditNoteTreatmentDialog

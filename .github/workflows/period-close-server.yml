@@ -6,6 +6,11 @@ on:
       - 'api/ai-core.js'
       - 'api/_accounting/**'
       - 'api/_ai/firebase-auth.js'
+      - 'src/components/PeriodCloseSettings.tsx'
+      - 'src/components/SettingsModal.tsx'
+      - 'src/app/App.tsx'
+      - 'tests/period-owner*'
+      - 'tests/visual/*period-close*'
       - 'src/lib/period-close.ts'
       - 'src/lib/period-local.ts'
       - 'src/lib/period-archive.ts'
@@ -45,6 +50,29 @@ jobs:
           java-version: '21'
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx tsc -p tsconfig.json
-      - run: node --test tests/period-server.test.mjs tests/period-close.test.mjs tests/period-cloud-continuity.test.mjs tests/period-local-continuity.test.mjs tests/period-report-backup.test.mjs
+      - run: node --test tests/period-owner-controls.test.mjs tests/period-server.test.mjs tests/period-close.test.mjs tests/period-cloud-continuity.test.mjs tests/period-local-continuity.test.mjs tests/period-report-backup.test.mjs
       - name: Real emulator only - trusted commits and old client rules
         run: npx --yes firebase-tools@14.12.1 emulators:exec --only firestore --project demo-lourex-period --config firebase.ai-ci.json "node --test tests/period-server-emulator.integration.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
+
+  owner-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false playwright@1.56.1 http-server@14.1.1
+      - run: npx playwright install --with-deps chromium webkit
+      - run: |
+          npx http-server . -p 4173 -c-1 > /tmp/period-http.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/tests/visual/period-close.html >/dev/null && break; sleep 1; done
+          node tests/visual/run-period-close.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: period-owner-browser
+          path: artifacts/period-close/

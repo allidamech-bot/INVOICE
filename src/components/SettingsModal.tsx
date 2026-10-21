@@ -1,5 +1,6 @@
+import {PeriodCloseSettings} from './PeriodCloseSettings.js';
 import { handleTabKeyDown } from '../lib/tab-navigation.js';
-import type { AppSettings, ApprovalPolicyRecord, ApprovalRequestRecord, BranchRecord, CompanySettings, DocumentEventRecord, TeamMemberRecord, WorkspaceRecord } from '../types.js';
+import type { VaultPayload, AppSettings, ApprovalPolicyRecord, ApprovalRequestRecord, BranchRecord, CompanySettings, DocumentEventRecord, TeamMemberRecord, WorkspaceRecord } from '../types.js';
 import { fileToRawDataUrl } from '../lib/files.js';
 import { rebuildLogoWithoutBackgroundDataUrl, openManualBackgroundEditor } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
@@ -16,6 +17,7 @@ interface Props {
   open:boolean; company:CompanySettings; appSettings:AppSettings; onClose:()=>void;
   onSaveCompany:(company:CompanySettings)=>Promise<void>; onSaveAppSettings:(settings:AppSettings)=>Promise<void>;
   cloudUser:CloudUser|null; onCloudRestore:()=>Promise<void>; onCloudSignOut:()=>Promise<void>;
+  periodVault?:VaultPayload;onPeriodPrepare?:(action?:'enroll'|'close'|'reopen')=>Promise<VaultPayload>;
   onBackup:()=>Promise<void>; onRestore:(file:File)=>Promise<void>; documentEvents:DocumentEventRecord[];
   teamMembers:TeamMemberRecord[]; approvalPolicies:ApprovalPolicyRecord[]; approvalRequests:ApprovalRequestRecord[];
   onSaveTeamMember:(member:TeamMemberRecord)=>Promise<void>; onToggleTeamMember:(id:string)=>Promise<void>; onSetActiveTeamMember:(id:string)=>Promise<void>; onToggleApprovalPolicy:(id:string,enabled:boolean)=>Promise<void>; onDecideApproval:(id:string,decision:'approved'|'rejected')=>Promise<void>;
@@ -366,6 +368,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private dataCenter():any{return <div className="ta-settings-page ta-data-center-page">
     {this.pageHeader(t('Data Center','مركز البيانات'),t('Data & activity','البيانات والنشاط'),
       t('Your Firebase account saves automatically. Download a local copy only when needed.','يحفظ حساب Firebase البيانات تلقائيًا. نزّل نسخة محلية فقط عند الحاجة.'))}
+    {this.props.periodVault&&this.props.onPeriodPrepare?<PeriodCloseSettings uid={this.props.cloudUser?.uid??null} vault={this.props.periodVault} blocked={this.state.busy||this.hasUnsavedSettings()} onPrepare={this.props.onPeriodPrepare}/>:null}
     {this.card(t('Download local copy','تنزيل نسخة محلية'),
       t('An optional file for personal safekeeping. It is not encrypted; protect it as sensitive business data.','ملف اختياري للاحتفاظ به. النسخة غير مشفّرة؛ احمِها لأنها تحتوي على بيانات تجارية.'),<>
       <div className="ta-settings-card-actions">

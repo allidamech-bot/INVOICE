@@ -84,3 +84,4 @@ test('the public financial alias uses deterministic transport without a thirteen
     const foreign=req(token());foreign.query={lourexPeriod:'1'};foreign.headers.origin='https://evil.example';const denied=res();await core(foreign,denied);assert.equal(denied.statusCode,403);
   }finally{globalThis.fetch=previous;if(enabled===undefined)delete process.env.LOUREX_PERIOD_SERVER_ENABLED;else process.env.LOUREX_PERIOD_SERVER_ENABLED=enabled;}
 });
+test('owner readiness inspection is an explicit bounded command without policy mutation fields',()=>{assert.doesNotThrow(()=>validatePeriodCommand({...command,operation:'inspect'}));assert.throws(()=>validatePeriodCommand({...command,operation:'inspect',workspaceId:'default'}));});

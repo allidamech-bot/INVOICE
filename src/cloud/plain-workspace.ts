@@ -406,3 +406,37 @@ async function publishProtectedWorkspace(uid:string,local:PlainWorkspaceRecord,b
     throw error;
   }finally{clearTimeout(timer);}
 }
+
+export interface OwnerPeriodCommand {
+  operation:'inspect'|'enroll'|'close'|'reopen';opId:string;expectedRevision:string;expectedGeneration:number;
+  workspaceId?:string;reason?:string;through?:string;
+}
+export interface OwnerPeriodStatus {format:'LOUREX_PERIOD_STATUS_V1';version:1;enrolled:boolean;revision:string;sha256:string;generation:number;boundaries:Array<{workspaceId:string;through:string;reportId:string}>;}
+export class PeriodOwnerError extends Error {constructor(public code:string,public status=0){super(code);}}
+/** Owner authority is decided by the authenticated endpoint, never the selected local operator. */
+export async function requestOwnerPeriodCommand(uid:string,input:OwnerPeriodCommand):Promise<any>{
+  requireUid(uid);
+  if(typeof navigator!=='undefined'&&!navigator.onLine)throw new PeriodOwnerError('PERIOD_OFFLINE');
+  const command:any={operation:input.operation,opId:input.opId,expectedRevision:input.expectedRevision,expectedGeneration:input.expectedGeneration};
+  if(input.operation==='close'||input.operation==='reopen'){command.workspaceId=input.workspaceId;command.reason=input.reason?.trim();}
+  if(input.operation==='close')command.through=input.through;
+  const body=JSON.stringify(command);
+  if(new TextEncoder().encode(body).length>16_000)throw new PeriodOwnerError('INVALID_COMMAND');
+  const token=await currentCloudIdToken();requireUid(uid);
+  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),60_000);
+  try{
+    const response=await fetch('/api/workspace-commit',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice',Authorization:'Bearer '+token},body,signal:abort.signal});
+    const data=await response.json().catch(()=>null);requireUid(uid);
+    if(!response.ok)throw new PeriodOwnerError(String(data?.code||(response.status===403?'PERIOD_OWNER_REQUIRED':response.status===401?'PERIOD_SIGN_IN_REQUIRED':'PERIOD_SERVICE_UNAVAILABLE')),response.status);
+    if(!data||!Number.isSafeInteger(data.generation)||typeof data.revision!=='string')throw new PeriodOwnerError('PERIOD_INVALID_RESPONSE');
+    return data;
+  }catch(error){
+    requireUid(uid);
+    if(input.operation!=='inspect'&&(!(error instanceof PeriodOwnerError)||error.status>=500)){
+      const receipt=await firebase.firestore().collection('users').doc(uid).collection('periodOperations').doc(input.opId).get({source:'server'}).catch(()=>null);requireUid(uid);
+      const value=receipt?.data();
+      if(receipt?.exists&&value?.actorUid===uid&&value.fingerprint===await sha256(new TextEncoder().encode(body))&&Number.isSafeInteger(value.result?.generation)&&typeof value.result?.revision==='string')return value.result;
+    }
+    throw error instanceof PeriodOwnerError?error:new PeriodOwnerError('PERIOD_NETWORK_UNKNOWN');
+  }finally{clearTimeout(timer);}
+}

@@ -39,7 +39,11 @@ function clientToken(uid){return Buffer.from(JSON.stringify({alg:'none',typ:'JWT
 async function clientWrite(path,method='PATCH',fields={}){return fetch('http://'+process.env.FIRESTORE_EMULATOR_HOST+'/v1/projects/'+project+'/databases/(default)/documents/users/'+actor.uid+'/'+path,{method,headers:{authorization:'Bearer '+clientToken(actor.uid),'content-type':'application/json'},...(method==='DELETE'?{}:{body:JSON.stringify({fields})})});}
 
 test('trusted enrollment, close, stale rejection, reopen and retained publication use real Firestore transactions',async()=>{
-  await seed();await command('enroll');
+  await seed();
+  const inspectionId=id(),before=await service.execute(actor,{operation:'inspect',opId:inspectionId,expectedRevision:revision,expectedGeneration:0});
+  assert.equal(before.enrolled,false);assert.equal(before.generation,0);assert.equal((await root.collection('periodOperations').get()).size,0);assert.equal((await root.collection('accounting').doc('control').get()).exists,false);
+  await command('enroll');
+  const after=await service.execute(actor,{operation:'inspect',opId:inspectionId,expectedRevision:revision,expectedGeneration:0});assert.equal(after.enrolled,true);assert.equal(after.generation,1);assert.equal((await root.collection('periodOperations').get()).size,1);assert.equal((await root.collection('periodOperations').doc(inspectionId).get()).exists,false);
   const closed=await command('close',{workspaceId:'default',through:'2026-10-31',reason:'QA October close'});
   const report=await root.collection('periodReports').doc(closed.result.reportId).get();assert.equal(report.exists,true);
   const bad=structuredClone(base);bad.documents[0].items[0].unitPrice='200';
