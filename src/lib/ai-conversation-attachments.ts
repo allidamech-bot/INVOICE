@@ -2,6 +2,7 @@ import { requestAiJson } from './ai-request.js';
 import { readablePdfText, rasterScannedPdfPages } from './pdf-source.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from './spreadsheet-reader.js';
 import {exactSpreadsheetQuote} from './ai-spreadsheet-quote.js';
+import {isIphoneHeicPhoto,jpegFromIphonePhoto} from './ai-iphone-photo.js';
 
 export type ConversationAttachmentRoute='customer'|'supplier'|'supplier_purchase'|'quote_request'|'product_list'|'unknown';
 export interface ConversationAttachmentClassification{route:ConversationAttachmentRoute;documentType:string;confidence:number;reason:string;}
@@ -24,7 +25,7 @@ export type ConversationAttachmentProgress=(phase:ConversationAttachmentPhase)=>
 
 type AiPayload={kind:'text'|'file'|'pages';mimeType:string;text?:string;data?:string;pages?:{index:number;pageCount:number;mimeType:'image/jpeg';data:string}[]};
 
-export const CONVERSATION_ATTACHMENT_ACCEPT='.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,.pdf,.xlsx,.xls,.csv,.txt,text/plain,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+export const CONVERSATION_ATTACHMENT_ACCEPT='.heic,.heif,image/heic,image/heif,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,.pdf,.xlsx,.xls,.csv,.txt,text/plain,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
 /** Safari Files may provide no MIME or application/octet-stream for valid PDFs.
  * Guess only from an allowed filename extension, then verify file signatures.
  * A declared non-generic type is NOT silently overridden by the extension. */
@@ -78,7 +79,15 @@ async function verifyBinarySource(file:File,mime:string):Promise<void>{
   if(!valid)throw new Error('Attachment content does not match its PDF/image type. Choose a valid supported file.');
 }
 
-export async function conversationAttachmentPayload(file:File):Promise<AiPayload>{
+export async function conversationAttachmentPayload(file:File,signal?:AbortSignal):Promise<AiPayload>{
+  // Share Product AI's device-local HEIC decoder; keep the original File
+  // and filename as source evidence, and never send HEIC to the AI backend.
+  if(isIphoneHeicPhoto(file)){
+    const jpeg=await jpegFromIphonePhoto(file,signal);
+    if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+    await verifyBinarySource(jpeg,'image/jpeg');
+    return{kind:'file',mimeType:'image/jpeg',data:bytesToBase64(await jpeg.arrayBuffer())};
+  }
   const name=file.name.toLowerCase();
   if(name.endsWith('.pdf')||conversationAttachmentMime(file)==='application/pdf'){
     if(file.size>MAX_DOCUMENT_BYTES)throw new Error('PDF must be 12 MB or smaller.');
@@ -129,7 +138,7 @@ async function genericExtraction(fileName:string,payload:AiPayload,signal?:Abort
 export async function analyzeConversationAttachment(file:File,signal?:AbortSignal,onProgress?:ConversationAttachmentProgress):Promise<ConversationAttachmentAnalysis>{
   onProgress?.('reading');
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
-  let payload=await conversationAttachmentPayload(file);
+  let payload=await conversationAttachmentPayload(file,signal);
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   if(payload.kind==='file'&&payload.mimeType==='application/pdf'){
     // OCR fallback: short scanned PDFs are treated as an ordered set of
