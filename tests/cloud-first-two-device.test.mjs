@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {webcrypto} from 'node:crypto';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {isIsoDate} from '../dist/src/lib/id.js';
 
 const SOURCE=new URL('../src/cloud/plain-workspace.ts',import.meta.url);
 function fakeFirebase(){
@@ -37,6 +38,7 @@ async function client(firebase,uid){
   }).outputText;
   const state={local:null,archives:[]};
   const db={
+    cachePlainPeriodProtection:async()=>{},
     activeAccountStorageUid:()=>uid,
     getPlainWorkspace:async()=>state.local,
     acknowledgePlainWorkspace:async(_uid,localRevision,revision,sha,expectedParent)=>{
@@ -61,7 +63,7 @@ async function client(firebase,uid){
     }
   };
   const modules={
-    '../lib/defaults.js':{APP_SCHEMA_VERSION:100},
+    '../lib/id.js':{isIsoDate},'../lib/defaults.js':{APP_SCHEMA_VERSION:100},
     '../storage/db.js':db,
     './firebase.js':{currentCloudUser:()=>({uid})},
     '../lib/backup.js':{assertRestorableBackupVault:v=>{

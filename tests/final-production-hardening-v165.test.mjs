@@ -40,7 +40,7 @@ test('cloud recovery is explicit while automatic V2 publication remains loss-saf
   assert.match(cloud,/Promise<'same'\|'pushed'\|'remote-changed'>/);
   assert.match(cloud,/return 'remote-changed'/);
   assert.match(cloud,/runTransaction\(async\(tx:any\)=>/);
-  assert.match(cloud,/replacePlainWorkspaceIfUnchanged\(uid,local\.localRevision,replacement,'replaced-by-cloud'\)/);
+  assert.match(cloud,/replacePlainWorkspaceIfUnchanged\(uid,local\.localRevision,replacement,'replaced-by-cloud',result\.protection\?\?undefined\)/);
   assert.match(app,/private cloudReplaceBlocked=\(\)=>this\.state\.screen==='editor'\|\|this\.state\.settingsOpen\|\|this\.state\.cloudModal/);
   const restore=app.slice(app.indexOf('private cloudRestore=async'),app.indexOf('private keepLocalCloudCopy=async'));
   assert.match(restore,/await this\.beginProtectedOperation\(\)/);
