@@ -695,20 +695,30 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
   const rows=(Array.isArray(host.__businessThreads)?host.__businessThreads:[])
     .filter((row:any)=>row&&typeof row.id==='string')
     .filter((row:any)=>{
-      const needle=String(query||'').trim().toLocaleLowerCase();
-      return !needle||String(row.title||'').toLocaleLowerCase().includes(needle);
+      const needle=String(query||'').normalize('NFKC').trim().toLocaleLowerCase();
+      const searchable=[row.title,row.summary].filter(value=>typeof value==='string').join(' ').normalize('NFKC').toLocaleLowerCase();
+      return !needle||searchable.includes(needle);
     })
     .sort((a:any,b:any)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
   const busy=disabled(host)||Boolean(host.state.__workspaceHistoryBusy);
+  // A new thread with an unsent message but no saved thread identity cannot
+  // be safely reopened from history after switching away.
+  const preserveUnsentDraft=():boolean=>{
+    if(!String(host.state.input||'').trim()||(host.__businessThreads||[]).some((row:any)=>row.id===host.__lourexAssistantThreadId))return true;
+    host.setState({__workspaceHistoryError:label(ar,
+      'Send or clear the unsent message before leaving this new conversation.',
+      'أرسل الرسالة غير المرسلة أو امسحها قبل مغادرة هذه المحادثة الجديدة.')});
+    return false;
+  };
   const openThread=async(id:string)=>{
-    if(busy)return;
+    if(busy||!preserveUnsentDraft())return;
     host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
     try{await host.__lourexOpenThread(id);if(host.__lourexAssistantThreadId!==id)throw new Error('Conversation was not opened. Retry.');host.setState({__workspaceHistoryOpen:false});}
     catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
     finally{host.setState({__workspaceHistoryBusy:false});}
   };
   const newThread=async()=>{
-    if(busy)return;
+    if(busy||!preserveUnsentDraft())return;
     const previousMode=normalizeAiConversationMode(host.__intelligenceKernel?.mode),previousId=host.__lourexAssistantThreadId;
     host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
     try{
@@ -721,6 +731,12 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
   };
   const deleteThread=async(id:string)=>{
     if(busy)return;
+    if(id===host.__lourexAssistantThreadId&&String(host.state.input||'').trim()){
+      host.setState({__workspaceHistoryError:label(ar,
+        'Send or clear your unsent message before deleting this conversation.',
+        'أرسل رسالتك غير المرسلة أو امسحها قبل حذف هذه المحادثة.')});
+      return;
+    }
     host.setState({__workspaceHistoryBusy:true,__workspaceHistoryError:''});
     try{
       await host.__lourexDeleteThread(id);
@@ -741,7 +757,7 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
       <strong>{label(ar,'Conversations','المحادثات')}</strong>
       <button type="button" disabled={busy} onClick={()=>void newThread()}>{label(ar,'New','جديدة')}</button>
     </header>
-    <input className="lxw-history-search" type="search" value={query} onChange={(event:any)=>setQuery(event.target.value)} aria-label={label(ar,'Search conversation titles','البحث في عناوين المحادثات')} placeholder={label(ar,'Search saved conversations…','ابحث في المحادثات المحفوظة…')}/>
+    <input className="lxw-history-search" type="search" value={query} onChange={(event:any)=>setQuery(event.target.value)} aria-label={label(ar,'Search conversation titles and summaries','البحث في عناوين المحادثات وملخصاتها')} placeholder={label(ar,'Search conversations…','ابحث في المحادثات…')}/>
     {host.state.__workspaceHistoryError?<p role="alert" className="lxw-history-error">{workspaceError(ar,String(host.state.__workspaceHistoryError))}</p>:null}
     <p className="lxw-history-sync" role="status">
       {host.state.__workspaceHistorySyncStatus==='syncing'?label(ar,'Syncing account conversations…','جارٍ مزامنة محادثات الحساب…'):
@@ -1029,15 +1045,29 @@ export function installConversationWorkspace(host:Host):void {
     }).catch((error:Error)=>host.setState({error:error.message}))
       .finally(()=>{host.__workspaceDismissBusy=false;});
   };
+  // In-memory only; key includes account, workspace, branch and thread identity.
+  const drafts=new Map<string,string>();
+  host.__workspaceComposerDrafts=drafts;
   // Immediately remove volatile UI references during scope/thread changes. Hydrate
   // the requested thread before redisplaying its encrypted working artifact.
   for(const name of ['__lourexSetScope','__lourexOpenThread','__lourexNewConversation','__lourexDeleteThread']){
     const old=host[name]?.bind(host);if(!old)continue;
     if(name==='__lourexSetScope')host.__workspaceBaseSetScope=old;
-    host[name]=async(...args:any[])=>{if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.__lourexLastConversationSourceScope='';(globalThis as any).__lourexConversationSourcesV3=[];host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:'',__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});await old(...args);await refresh();};
+    host[name]=async(...args:any[])=>{
+      if(disabled(host)&&!host.__workspaceInternalModeSwitch)return;
+      const departing=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(departing?.scope){
+        const key=kernelScopeKey(departing.scope),text=String(host.state.input||'');
+        if(text)drafts.set(key,text);else drafts.delete(key);
+      }
+      clearConversationToolPresentation(host);host.__intelligenceKernel=undefined;host.__foundationVault=undefined;host.__lourexLatestContext=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__lourexLastConversationSources=[];host.__lourexLastConversationFiles=[];host.__lourexLastConversationSourceScope='';(globalThis as any).__lourexConversationSourcesV3=[];
+      host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:'',__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});
+      await old(...args);await refresh();
+      const arrived=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(arrived?.scope)host.setState({input:drafts.get(kernelScopeKey(arrived.scope))||''});
+    };
   }
   // Each mode opens its own scoped thread. Never relabel an existing turn.
-  const drafts=new Map<string,string>();
   // Preserve the exact last-used thread separately for each mode and company.
   const recentModeThread=new Map<string,string>();
   host.__workspaceSwitchMode=async(target:AiConversationMode)=>{
@@ -1158,6 +1188,6 @@ function syncWorkspaceViewport():void {
 }
 export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
-  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
+  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceComposerDrafts?.clear();host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
 }
-export function unmountConversationWorkspace(host:Host):void {if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
+export function unmountConversationWorkspace(host:Host):void {host.__workspaceComposerDrafts?.clear();if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
