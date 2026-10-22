@@ -34,7 +34,7 @@ function removeLineIndex(input:string):number|null{
   const match=input.match(/^(?:احذف|أحذف|امسح|remove|delete)\s+(?:الصنف|صنف|البند|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,3})$/iu);
   return match?Number(latinDigits(match[1]!)):null;
 }
-function parseAddedLine(input:string):{name:string;quantity:string;unitPrice:string;unit:string;sku:string}|null{
+function parseAddedLine(input:string):{name:string;quantity:string;unitPrice:string;unit:string;sku:string;packing:string}|null{
   const match=input.match(/^(?:أضف|اضف|add)\s+(?:صنف|منتج|item|product)\s*[:：]\s*(.+)$/isu);
   if(!match)return null;
   const fields=match[1]!.split(/[;؛\n]+/).map(part=>part.trim()).filter(Boolean);
