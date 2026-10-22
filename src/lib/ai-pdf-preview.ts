@@ -61,7 +61,7 @@ export function prepareAiPdfPreview(
       descriptionAr:row.descriptionAr||stock?.descriptionAr||'',
       quantity:row.quantity,unit:row.unit,unitPrice:row.unitPrice,
       hsCode:existing?.hsCode||stock?.hsCode||'',origin:existing?.origin||stock?.origin||'',
-      packing:existing?.packing||stock?.packing||'',unitCost:existing?.unitCost||''
+      packing:row.packing!==undefined?row.packing:(existing?.packing||stock?.packing||''),unitCost:existing?.unitCost||''
     };
     return item;
   });
