@@ -103,6 +103,20 @@ function matchCustomer(runtime:AiToolRuntime,name:string,email:string):string{
   );
   return candidates.length===1?candidates[0]!.id:'';
 }
+/** Compare complete structured quote evidence, not a user-controlled filename.
+ * Preserve source-row array order, but normalize JSON property order and
+ * whitespace so the same uploaded RFQ renamed/reformatted cannot double bill.
+ * No file bytes or customer details are logged or persisted by this check. */
+function duplicateSourceEvidenceSignature(row:QuoteSourceFact):string{
+  const raw=String(row.quoteSheetCandidate||row.extracted||'').trim();
+  try{
+    const parsed=JSON.parse(raw);
+    return JSON.stringify(parsed,(_key,value)=>
+      value&&typeof value==='object'&&!Array.isArray(value)
+        ?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b,'en')))
+        :value);
+  }catch{return raw.normalize('NFKC');}
+}
 export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiToolRuntime,message:string):AiDocumentDraftProposal|null{
   if(runtime.scope!=='business'||runtime.conversationMode!=='controller'||!explicitQuoteConversionIntent(message))return null;
   if(sources.length>1){
@@ -113,8 +127,8 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     if(sources.length>10)throw new Error('SOURCE_INCOMPLETE: More than ten source files; use reviewed batches. Nothing was prepared.');
     const signatures=new Set<string>();
     for(const row of sources){
-      const signature=String(row.fileName||'')+'|'+String(row.quoteSheetCandidate||row.extracted||'');
-      if(signatures.has(signature))throw new Error('SOURCE_INCOMPLETE: An identical source file is attached twice; reject double counting.');
+      const signature=duplicateSourceEvidenceSignature(row);
+      if(signatures.has(signature))throw new Error('SOURCE_INCOMPLETE: Duplicate quotation content: an identical source file was attached twice, even if renamed. No draft was staged.');
       signatures.add(signature);
     }
     const drafts=sources.map((source,index)=>{
