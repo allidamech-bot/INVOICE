@@ -15,7 +15,7 @@ export function explicitAttachedFileFollowup(message:string):boolean {
  // to discard the attachments. Only explicit rejection clears reuse intent.
  const rejectArabic=/(?:لا\s+تستخدم|بدون\s+استخدام|تجاهل|احذف|احذفها|تخلص\s+من|(?:^|[\s،,؛])(?:انس|انسى|إنسى)(?=[\s،,؛.!?]|$))/iu.test(
    text.replace(/لا\s+تتجاهل/gu,''));
- const rejectEnglish=/(?:\b(?:ignore|remove|discard|delete|forget)\b|\b(?:do\s+not|don't|without)\s+use\b)/iu.test(
+ const rejectEnglish=/(?:\b(?:ignore|remove|discard|delete|forget)\b|\b(?:do\s+not|don't|without)\s+us(?:e|ing)\b)/iu.test(
    text.replace(/\b(?:do\s+not|don't)\s+ignore\b/giu,''));
  return reference&&task&&!rejectArabic&&!rejectEnglish;
 }
