@@ -2,6 +2,7 @@ import { AiIdentityMark } from './AiIdentityMark.js';
 import {AiFinancialReadout} from './AiFinancialReadout.js';
 import {parseFinancialReadout} from '../lib/ai-financial-readout.js';
 import { automaticElectronicDocument } from '../lib/secure-share.js';
+import { planAiChatPdfQr } from '../lib/ai-chat-pdf-qr-policy.js';
 import { workspaceText, workspaceError } from '../lib/ai-workspace-presentation.js';
 import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from './AiReliabilityWorkspace.js';
 import { strictAiActor } from '../lib/ai-foundation-approval.js';
@@ -428,10 +429,11 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',savedId);}catch{}
   const pdfStage=react.useRef(null as HTMLDivElement|null);
   const [PdfRenderer,setPdfRenderer]=React.useState(null as any);
-  const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string;electronicShareId?:string}|null);
+  const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string;electronicShareId?:string;offlineCopy?:boolean}|null);
   const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
+  const [pdfQrError,setPdfQrError]=React.useState('');
   const [discardExpanded,setDiscardExpanded]=React.useState(false);
   const dismissal=useInlineDecline(host,host.state.proposal);
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
@@ -444,27 +446,36 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   React.useEffect(()=>{setDiscardExpanded(false);},[pdfIdentity,host.state.proposal]);
   React.useEffect(()=>{
     pdfSequence.current+=1;pdfStarting.current=false;
-    setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');
+    setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');setPdfQrError('');
   },[pdfIdentity]);
   React.useEffect(()=>()=>{if(pdfResult?.url)URL.revokeObjectURL(pdfResult.url);},[pdfResult?.url]);
-  const createPdf=async()=>{
+  const createPdf=async(allowOfflineCopy=false)=>{
+    if(allowOfflineCopy&&!pdfQrError)return; // Explicit fallback appears only after a QR failure.
     if(pdfStarting.current||pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
     const identity=pdfIdentity,request=++pdfSequence.current;
     pdfStarting.current=true;
-    setPdfBusy(true);setPdfError('');setPdfResult(null);
+    setPdfBusy(true);setPdfError('');setPdfResult(null);setPdfQrError('');
+    let qrAttemptFailed=false;
     try{
       const document=prepareAiPdfPreview(kernel,vault,ar?'ar':'en',savedId);
       // No renderer initialization on ordinary chat turns. The canonical A4
       // React class is loaded only after a Controller expressly asks for PDF.
-      let electronicShareId='';
-      if(automaticElectronicDocument(document)){const {ensureDocumentElectronicCopy}=await import('../cloud/secure-share-owner.js');const share=await ensureDocumentElectronicCopy(document,{isCurrent:()=>identity===latestPdfIdentity.current&&request===pdfSequence.current});electronicShareId=share.id;}
+      const qr=await planAiChatPdfQr(document,async()=>{
+        try{
+          const {ensureDocumentElectronicCopy}=await import('../cloud/secure-share-owner.js');
+          const share=await ensureDocumentElectronicCopy(document,{isCurrent:()=>identity===latestPdfIdentity.current&&request===pdfSequence.current});
+          if(!share?.id)throw new Error('Electronic QR reference is missing.');
+          return share.id;
+        }catch(error){qrAttemptFailed=true;throw error;}
+      },allowOfflineCopy);
       const {TemplateRenderer}=await import('../templates/TemplateRenderer.js');
       if(identity!==latestPdfIdentity.current||request!==pdfSequence.current)return;
       setPdfRenderer(()=>TemplateRenderer);
-      setPdfSource({document,identity,electronicShareId});
+      setPdfSource({document:qr.document,identity,electronicShareId:qr.electronicShareId,offlineCopy:qr.offlineCopy});
     }catch(e){
       if(identity===latestPdfIdentity.current&&request===pdfSequence.current){
-        setPdfError(e instanceof Error?e.message:String(e));
+        setPdfError(qrAttemptFailed?label(ar,'Electronic QR connection failed. Choose Retry PDF or explicitly preview a marked local copy without QR.','فشل الاتصال لإنشاء QR الإلكتروني. أعد المحاولة أو اختر صراحةً معاينة نسخة محلية موسومة بدون QR.'):e instanceof Error?e.message:String(e));
+        if(qrAttemptFailed)setPdfQrError('qr-unavailable');
         setPdfBusy(false);pdfStarting.current=false;
       }
     }
@@ -570,6 +581,8 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     </div>:null}
     <section className="lxw-ai-pdf-actions" aria-label={label(ar,'Real PDF document','مستند PDF فعلي')}>
       {pdfError?<p role="alert">{workspaceError(ar,pdfError)}</p>:null}
+      {pdfQrError?<button type="button" className="lxw-pdf-download" disabled={pdfBusy||disabled(host)} onClick={()=>void createPdf(true)}>{label(ar,'Preview marked local copy without QR','معاينة نسخة محلية موسومة بدون QR')}</button>:null}
+      {pdfSource?.offlineCopy?<p role="status">{label(ar,'LOCAL COPY — NO QR. This is a preview only, not an authenticated electronic document. Do not send it as an issued electronic copy.','نسخة محلية بدون QR. هذه معاينة فقط وليست نسخة إلكترونية موثقة. لا ترسلها باعتبارها النسخة الإلكترونية الصادرة.')}</p>:null}
       {viewPdf?<div className="lxw-ai-pdf-result">
         <div className="lxw-ai-pdf-file" role="group" aria-label={label(ar,'Generated PDF file','ملف PDF المنشأ')}>
           <span className="lxw-pdf-symbol" aria-hidden="true">PDF</span><div className="lxw-pdf-file-meta"><strong dir="auto">{viewPdf.name}</strong><small><bdi>{Math.ceil(viewPdf.bytes/1024)} KB</bdi> · {label(ar,'Ready','جاهز')}</small></div>
