@@ -27,6 +27,39 @@ test('F15 only an explicit reference to the uploaded file reuses prior extractio
   assert.equal(explicitAttachedFileFollowup(message),false,message);
  }
 });
+test('F15 multi-file Arabic and English follow-ups retain same-thread evidence only on explicit merge intent',()=>{
+ for(const message of [
+   'ادمج الملفات المرفقة في عرض سعر موحد',
+   'اجمع الثلاث ملفات في عرض سعر واحد',
+   'وحّد المرفقات السابقة في عرض سعر',
+   'حلل كل الملفات التي رفعتها',
+   'Combine the uploaded files into one quotation',
+   'Merge all attachments into a single quotation',
+   'Consolidate the previously uploaded documents',
+   'Analyze these files together'
+ ])assert.equal(explicitAttachedFileFollowup(message),true,message);
+ for(const message of [
+   'ادمج بيانات العملاء في تقرير واحد',
+   'ادمج تصوراتي عن المخزون في خطة جديدة',
+   'Prepare a new quotation without any attachment',
+   'احذف الملفات المرفقة',
+   'تجاهل الملفات السابقة وابدأ من جديد',
+   'لا تستخدم الملفات التي رفعتها',
+   'Ignore all uploaded files and prepare a new invoice',
+   'Merge the customer balances',
+   'Merge these files into a quote without using the attached files'
+ ])assert.equal(explicitAttachedFileFollowup(message),false,message);
+});
+
+test('F15 negated ignore and copy verbs do not silently discard eligible file evidence',()=>{
+ for(const message of [
+   'لا تتجاهل المرفقات، ادمج الملفات في عرض سعر',
+   "Don't ignore the uploaded files: merge the attachments",
+   'انسخ بيانات الملفات ثم حللها'
+ ])assert.equal(explicitAttachedFileFollowup(message),true,message);
+ assert.equal(explicitAttachedFileFollowup('انس الملفات ولا تستخدمها'),false);
+});
+
 test('F15 compiled attachment handler uses exact scoped evidence and clears it even on failed reply',async()=>{
  const generated=await readFile(new URL('../dist/src/components/AiCopilot.js',import.meta.url),'utf8');
  assert.match(generated,/__lourexLastConversationSourceScope=attachmentScopeKey/);
