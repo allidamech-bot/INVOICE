@@ -129,3 +129,55 @@ test('real App rejects a queued stale autosave after deletion while retaining th
   assert.ok(!p.get().payload.documents.some(row=>row.id===f.draft.id));
   assert.equal(deletion(p.get().payload).length,1);assert.deepEqual(p.counts(),{writes:1,syncs:1});
 });
+
+for(const legacy of [false,true])test(`scope-stamped unrelated and timestamp-only saves preserve newer draft content (legacy=${legacy})`,()=>{
+  const f=fixture('proforma',legacy),latest={...f.base,documents:f.base.documents.map(row=>row.id===f.draft.id
+    ?{...row,notes:'Newer remote text',updatedAt:'2099-01-01T00:00:00.000Z'}:row)};
+  for(const touch of [false,true]){
+    const intended=unrelated(f.base);
+    if(touch)intended.documents=intended.documents.map(row=>row.id===f.draft.id?{...row,updatedAt:'2099-01-02T00:00:00.000Z'}:row);
+    const merged=mergeVaultIntent(f.base,intended,latest);
+    assert.deepEqual(merged.documents.find(row=>row.id===f.draft.id),latest.documents.find(row=>row.id===f.draft.id));
+    assert.equal(merged.appSettings.autoLockMinutes,15);
+  }
+});
+
+test('conflicting draft edits or issuance reject the whole stale save even when timestamps match',()=>{
+  for(const status of ['draft','final'])for(const changedAt of [f=>f.draft.updatedAt,()=> '2099-01-01T00:00:00.000Z']){
+    const f=fixture(),latest={...f.base,documents:f.base.documents.map(row=>row.id===f.draft.id
+      ?{...row,notes:'Remote work',updatedAt:changedAt(f)}:row)};
+    const intended=applyWorkspaceScope(f.base,{...f.base,documents:f.base.documents.map(row=>row.id===f.draft.id
+      ?{...row,status,notes:'Local work'}:row)});
+    const before=JSON.stringify({latest,intended});
+    assert.throws(()=>mergeVaultIntent(f.base,intended,latest),/changed.*another.*save/i);
+    assert.equal(JSON.stringify({latest,intended}),before,'neither side of a rejected conflict is mutated');
+  }
+});
+
+test('independent draft edits, identical concurrent content and timestamp-only remote changes can still save',()=>{
+  const f=fixture(),local={...f.draft,notes:'Local work',updatedAt:'2099-01-01T00:00:00.000Z'};
+  const intended=applyWorkspaceScope(f.base,{...f.base,documents:f.base.documents.map(row=>row.id===local.id?local:row)});
+  for(const remote of [f.draft,{...f.draft,updatedAt:'2099-01-02T00:00:00.000Z'}, {...local,updatedAt:'2099-01-03T00:00:00.000Z'}]){
+    const latest={...f.base,documents:f.base.documents.map(row=>row.id===remote.id?remote:row)};
+    assert.equal(mergeVaultIntent(f.base,intended,latest).documents.find(row=>row.id===local.id).notes,'Local work');
+  }
+  const other={...f.base,documents:f.base.documents.map(row=>row.id!==local.id?{...row,notes:'Other document work'}:row)};
+  const merged=mergeVaultIntent(f.base,intended,other);
+  assert.equal(merged.documents.find(row=>row.id===local.id).notes,'Local work');
+  assert.equal(merged.documents.find(row=>row.id!==local.id).notes,'Other document work');
+});
+
+test('real App queue preserves a newer draft through unrelated settings saves and rejects competing text without a second commit',async()=>{
+  for(const conflict of [false,true]){
+    const f=fixture(),p=await persistence(f),base=p.h.requireVault();
+    const first={...base,documents:base.documents.map(row=>row.id===f.draft.id?{...row,notes:'First committed work'}:row)};
+    const second=conflict?{...base,documents:base.documents.map(row=>row.id===f.draft.id?{...row,notes:'Competing unsaved work'}:row)}:unrelated(base);
+    const input=JSON.stringify(second),saving=p.h.persist(first);
+    const next=p.h.persist(second);
+    const finished=conflict?assert.rejects(next,/changed.*another.*save/i):next;
+    await Promise.all([saving,finished]);
+    assert.equal(p.get().payload.documents.find(row=>row.id===f.draft.id).notes,'First committed work');
+    assert.equal(JSON.stringify(second),input);assert.equal(deletion(p.get().payload).length,0);
+    assert.deepEqual(p.counts(),{writes:conflict?1:2,syncs:conflict?1:2});
+  }
+});
