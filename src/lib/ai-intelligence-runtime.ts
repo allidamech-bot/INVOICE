@@ -58,7 +58,7 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
         const remoteCurrent=store.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
         const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
         const visible=(host.state.messages||[]).filter((row:any)=>row.role==='user'||row.role==='assistant');
-        const received=(remoteCurrent?.messages||[]).map(row=>({id:row.id,role:row.role,text:row.text}));
+        const received=(remoteCurrent?.messages||[]).map(row=>({id:row.id,role:row.role,text:row.text,...(row.financialReadout?{financialReadout:row.financialReadout}:{})}));
         const changed=Boolean(remoteCurrent&&JSON.stringify(visible.map((row:any)=>[row.id,row.role,row.text]))!==JSON.stringify(received.map(row=>[row.id,row.role,row.text])));
         const wasDeleted=Boolean(!remoteCurrent&&store.deletedThreads?.[scope.threadId]);
         const requiresReset=Boolean(kernel&&kernelScopeKey(kernel.scope)===kernelScopeKey(scope)&&
@@ -123,7 +123,7 @@ async function persistKernel(host:Host,requireScope=false):Promise<void>{
   if(!host.__intelligenceKernel||host.__intelligenceKernel.scope.scope==='temporary')return;
   const kernel=structuredClone(host.__intelligenceKernel) as ConversationKernel;
   const receipts=structuredClone(host.__foundationReceipts||[]);
-  const messages=(host.state.messages||[]).map((row:any)=>({id:stableHistoryMessageId(row),role:row.role,text:row.text}));
+  const messages=(host.state.messages||[]).map((row:any)=>({id:stableHistoryMessageId(row),role:row.role,text:row.text,...(row.financialReadout?{financialReadout:row.financialReadout}:{})}));
   const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready to save this conversation. Sign in and retry.');
     if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope)){
       if(requireScope)throw new Error('Account, company or conversation changed before the declined approval was saved.');
