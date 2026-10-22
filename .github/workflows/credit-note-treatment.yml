@@ -14,11 +14,16 @@ permissions:
 jobs:
   accounting:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Trust this checkout path inside the test container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -34,7 +39,6 @@ jobs:
       - name: Entire current regression suite - no exclusions or expected failures
         run: node --test --test-concurrency=2 tests/*.test.mjs
       - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
-      - run: npx playwright install --with-deps chromium webkit
       - name: Credit treatment UI on desktop and mobile Chromium and WebKit
         shell: bash
         run: |

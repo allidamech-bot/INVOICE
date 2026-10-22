@@ -8,10 +8,12 @@ import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {appendAuditEventsForVaultDiff} from '../dist/src/lib/audit-diff.js';
 import {auditEventsFor} from '../dist/src/lib/audit-trail.js';
 import {scopeVault,applyWorkspaceScope,overlayWorkspaceScope} from '../dist/src/lib/workspaces.js';
-import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
+import {mergeVaultIntent,sameDocumentContent} from '../dist/src/storage/vault-merge.js';
 import {migrateVault,synchronizeActiveWorkspaceOnSave} from '../dist/src/storage/vault.js';
 import {assertPlainCloudWorkspaceUploadable} from '../dist/src/cloud/plain-workspace.js';
 import {exportPlainBackup,readPlainBackup} from '../dist/src/lib/backup.js';
+import {auditedDocument} from '../dist/src/lib/document-lifecycle.js';
+import {isDeliveryLinkedInvoice} from '../dist/src/lib/sales-delivery-invoice.js';
 
 function fixture(kind='invoice',legacy=false){
   const full=emptyVault();
@@ -73,7 +75,9 @@ async function persistence(f){
   const start=source.indexOf('private persist=async('),end=source.indexOf('private persistFullMutation=async(',start);
   assert.ok(start>=0&&end>start);
   let stored={uid:'qa-audit-account',localRevision:'qa-r1',payload:structuredClone(f.full)},rejectCas=false,writes=0,syncs=0;
+  const toasts=[];
   const context={exports:{},Error,Promise,structuredClone,scopeVault,applyWorkspaceScope,overlayWorkspaceScope,mergeVaultIntent,
+    auditedDocument,isDeliveryLinkedInvoice,sameDocumentContent,t:en=>en,
     appendAuditEventsForVaultDiff,synchronizeActiveWorkspaceOnSave,assertPlainCloudWorkspaceUploadable,
     currentCloudUser:()=>({uid:stored.uid}),activeAccountStorageUid:()=>stored.uid,
     getPlainWorkspace:async()=>structuredClone(stored),
@@ -81,12 +85,15 @@ async function persistence(f){
       if(rejectCas||uid!==stored.uid||revision!==stored.localRevision)return null;
       writes++;stored={...stored,localRevision:'qa-r'+(writes+1),payload:structuredClone(next)};return stored;
     }};
-  vm.runInNewContext(ts.transpileModule('class Harness{'+source.slice(start,end)+'}\nexports.Harness=Harness;',
+  const deleteStart=source.indexOf('private deleteDocument=async('),deleteEnd=source.indexOf('private savePayment=async(',deleteStart);
+  assert.ok(deleteStart>=0&&deleteEnd>deleteStart);
+  vm.runInNewContext(ts.transpileModule('class Harness{'+source.slice(start,end)+source.slice(deleteStart,deleteEnd)+'}\nexports.Harness=Harness;',
     {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,context);
   const h=new context.exports.Harness();h.state={vault:structuredClone(f.full),cloudUser:{uid:stored.uid},unlocked:true};
   h.requireVault=()=>scopeVault(h.state.vault);h.vaultWriteTail=Promise.resolve(null);
   h.waitForProtectedDataOperation=async()=>{};h.setState=(patch,done)=>{Object.assign(h.state,patch);done?.();};h.scheduleCloudSync=()=>{syncs++;};
-  return{h,get:()=>stored,counts:()=>({writes,syncs}),reject:value=>{rejectCas=value;}};
+  h.showToast=(message,tone)=>toasts.push({message,tone});
+  return{h,get:()=>stored,counts:()=>({writes,syncs}),reject:value=>{rejectCas=value;},toasts};
 }
 
 test('real App save queue does not recreate a deleted draft on replay and does not commit an audit event after failed CAS',async()=>{
@@ -180,4 +187,62 @@ test('real App queue preserves a newer draft through unrelated settings saves an
     assert.equal(JSON.stringify(second),input);assert.equal(deletion(p.get().payload).length,0);
     assert.deepEqual(p.counts(),{writes:conflict?1:2,syncs:conflict?1:2});
   }
+});
+
+for(const status of ['draft','final'])test(`delete action reports a retained concurrent ${status} truthfully without a deletion event`,async()=>{
+  const f=fixture('proforma'),p=await persistence(f),base=p.h.requireVault();
+  p.h.state.deletingDoc=f.draft;
+  const first=p.h.persist({...base,documents:base.documents.map(row=>row.id===f.draft.id
+    ?{...row,status,notes:'Saved before deletion',updatedAt:'2099-01-01T00:00:00.000Z'}:row)});
+  const removed=p.h.deleteDocument();await Promise.all([first,removed]);
+  const retained=p.get().payload.documents.find(row=>row.id===f.draft.id);
+  assert.equal(retained?.notes,'Saved before deletion');assert.equal(retained?.status,status);
+  assert.equal(deletion(p.get().payload).length,0);
+  assert.equal(p.toasts.some(row=>row.tone==='success'),false,'retained document must never be reported as deleted');
+  assert.equal(p.toasts.at(-1)?.tone,'error');assert.match(p.toasts.at(-1).message,/not deleted|changed/i);
+  assert.equal(p.h.state.deletingDoc,null,'stale confirmation must close so retry requires reviewing the current row');
+});
+
+test('concurrent content changes with unchanged timestamps also survive a stale delete request',async()=>{
+  const f=fixture('proforma'),p=await persistence(f),base=p.h.requireVault();p.h.state.deletingDoc=f.draft;
+  const saved=p.h.persist({...base,documents:base.documents.map(row=>row.id===f.draft.id?{...row,notes:'Newer content, same timestamp'}:row)});
+  const deleted=p.h.deleteDocument();await Promise.all([saved,deleted]);
+  assert.equal(p.get().payload.documents.find(row=>row.id===f.draft.id)?.notes,'Newer content, same timestamp');
+  assert.equal(deletion(p.get().payload).length,0);assert.equal(p.toasts.at(-1)?.tone,'error');
+});
+
+test('ordinary draft deletion reports success only after removal, and a failed local save never reports success',async()=>{
+  for(const fail of [false,true]){
+    const f=fixture(),p=await persistence(f);p.h.state.deletingDoc=f.draft;p.reject(fail);
+    await p.h.deleteDocument();
+    assert.equal(p.get().payload.documents.some(row=>row.id===f.draft.id),fail);
+    assert.equal(deletion(p.get().payload).length,fail?0:1);
+    assert.equal(p.toasts.at(-1)?.tone,fail?'error':'success');
+    assert.equal(p.toasts.filter(row=>row.tone==='success').length,fail?0:1);
+  }
+});
+
+test('a session change after local deletion cannot report success against another or unavailable account view',async()=>{
+  for(const change of ['account','locked']){
+    const f=fixture(),p=await persistence(f);p.h.state.deletingDoc=f.draft;
+    p.h.scheduleCloudSync=()=>{
+      if(change==='account')p.h.state.cloudUser={uid:'qa-other-account'};
+      else p.h.state.vault=null;
+    };
+    await p.h.deleteDocument();
+    assert.ok(!p.get().payload.documents.some(row=>row.id===f.draft.id),'the original local operation already completed');
+    assert.equal(deletion(p.get().payload).length,1);
+    assert.equal(p.toasts.some(row=>row.tone==='success'),false);
+    assert.equal(p.toasts.at(-1)?.tone,'error');assert.match(p.toasts.at(-1).message,/confirmed|session/i);
+  }
+});
+
+test('a delete confirmation opened before a completed edit cannot delete the newer document without review',async()=>{
+  const f=fixture('proforma'),p=await persistence(f),base=p.h.requireVault();p.h.state.deletingDoc=f.draft;
+  await p.h.persist({...base,documents:base.documents.map(row=>row.id===f.draft.id?{...row,notes:'Edited while confirmation was open'}:row)});
+  const before=JSON.stringify(p.get()),count=p.counts();
+  await p.h.deleteDocument();
+  assert.equal(JSON.stringify(p.get()),before,'stale confirmation must not commit a deletion');
+  assert.deepEqual(p.counts(),count);assert.equal(deletion(p.get().payload).length,0);
+  assert.equal(p.toasts.at(-1)?.tone,'error');assert.equal(p.h.state.deletingDoc,null);
 });

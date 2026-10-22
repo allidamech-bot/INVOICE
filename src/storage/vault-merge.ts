@@ -47,7 +47,7 @@ function mergeRecords<T extends { id:string }>(base:T[], intended:T[], latest:T[
 }
 
 function documentRevision(document:LourexDocument):number{return Math.max(1,Math.trunc(document.revision||1));}
-function sameDocumentContent(left:LourexDocument,right:LourexDocument):boolean{
+export function sameDocumentContent(left:LourexDocument,right:LourexDocument):boolean{
   const content=(doc:LourexDocument)=>{
     const {updatedAt,...value}=doc;
     return {...value,workspaceId:doc.workspaceId||'default',branchId:doc.branchId||'main'};
@@ -85,7 +85,7 @@ function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:L
     const before=baseById.get(latestItem.id);
     const wanted=intendedById.get(latestItem.id);
     if(!wanted){
-      if(!before||documentChangedSinceBase(before,latestItem))result.push(latestItem);
+      if(!before||documentChangedSinceBase(before,latestItem)||!sameDocumentContent(before,latestItem))result.push(latestItem);
       seen.add(latestItem.id);
       continue;
     }
