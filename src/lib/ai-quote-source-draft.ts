@@ -128,7 +128,7 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     const signatures=new Set<string>();
     for(const row of sources){
       const signature=duplicateSourceEvidenceSignature(row);
-      if(signatures.has(signature))throw new Error('SOURCE_INCOMPLETE: Duplicate quotation content across attachments; renamed copies cannot be counted twice. No draft was staged.');
+      if(signatures.has(signature))throw new Error('SOURCE_INCOMPLETE: Duplicate quotation content: an identical source file was attached twice, even if renamed. No draft was staged.');
       signatures.add(signature);
     }
     const drafts=sources.map((source,index)=>{
