@@ -206,7 +206,7 @@ function QuotePreviewSummary({doc,ar}:{doc:WorkspaceDocument;ar:boolean}):any {
         const name=(ar?row.descriptionAr||row.descriptionEn:row.descriptionEn||row.descriptionAr)||label(ar,'Unnamed item','صنف بدون وصف');
         return <li key={row.id} className="lxw-review-item">
           <div className="lxw-review-item-heading"><span className="lxw-review-index" aria-hidden="true">{i+1}</span><strong>{name}</strong><b dir="ltr" className={total==='—'?'lxw-review-unknown':'lxw-review-amount'}>{total==='—'?'—':total+' '+doc.currency}</b></div>
-          <dl><div><dt>{label(ar,'Quantity','الكمية')}</dt><dd dir="ltr">{row.quantity||'—'} {row.unit}</dd></div><div><dt>{label(ar,'Unit price','سعر الوحدة')}</dt><dd dir="ltr">{row.unitPrice||'—'} {doc.currency}</dd></div></dl>
+          <dl><div><dt>{label(ar,'Quantity','الكمية')}</dt><dd dir="ltr">{row.quantity||'—'} {row.unit}</dd></div><div><dt>{label(ar,'Unit price','سعر الوحدة')}</dt><dd dir="ltr">{row.unitPrice||'—'} {doc.currency}</dd></div>{row.packing?<div><dt>{label(ar,'Packing','التعبئة')}</dt><dd>{row.packing}</dd></div>:null}</dl>
           {total==='—'?<small className="lxw-review-unknown">{label(ar,'Price or quantity needs review','الكمية أو السعر يحتاج مراجعة')}</small>:null}
         </li>;
       })}</ol>:<p className="lxw-review-unknown">{label(ar,'No item lines yet.','لم تُضف أصناف بعد.')}</p>}
