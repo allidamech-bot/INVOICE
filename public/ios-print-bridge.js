@@ -225,16 +225,45 @@
 
   const loadScript = (src, ready) => new Promise((resolve,reject) => {
     if (ready()) { resolve(); return; }
-    const existing = Array.from(document.scripts).find(script => script.src === src);
-    if (existing) {
-      existing.addEventListener('load',()=>ready()?resolve():reject(new Error('PDF library did not initialize.')),{once:true});
-      existing.addEventListener('error',()=>reject(new Error('Unable to load PDF library.')),{once:true});
-      return;
+    // A previously failed (or loaded without initializing) script must not
+    // trap the next Save PDF attempt waiting for an event that already fired.
+    let script = Array.from(document.scripts).find(item => item.src === src);
+    if (script?.dataset?.lourexPdfLoadState === 'failed' ||
+        script?.dataset?.lourexPdfLoadState === 'loaded') {
+      script.remove();
+      script = null;
     }
-    const script = document.createElement('script'); script.src = src; script.async = true; script.crossOrigin = 'anonymous';
-    script.addEventListener('load',()=>ready()?resolve():reject(new Error('PDF library did not initialize.')),{once:true});
-    script.addEventListener('error',()=>reject(new Error('Unable to load PDF library.')),{once:true});
-    document.head.appendChild(script);
+    const isNew = !script;
+    if (!script) script = document.createElement('script');
+    let settled = false;
+    let timeoutId = 0;
+    const settle = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      script.removeEventListener('load',onLoad);
+      script.removeEventListener('error',onError);
+      if (error) {
+        script.dataset.lourexPdfLoadState = 'failed';
+        script.remove();
+        reject(error);
+      } else {
+        script.dataset.lourexPdfLoadState = 'loaded';
+        resolve();
+      }
+    };
+    const onLoad = () => settle(ready() ? null : new Error('PDF library did not initialize.'));
+    const onError = () => settle(new Error('Unable to load PDF library.'));
+    script.addEventListener('load',onLoad,{once:true});
+    script.addEventListener('error',onError,{once:true});
+    // A pre-existing script may have already fired its final event. Bound
+    // the wait and release its stale node so a later attempt can fetch again.
+    timeoutId = setTimeout(()=>settle(new Error('PDF library loading timed out. Retry Save PDF.')),15000);
+    if (isNew) {
+      script.src = src; script.async = true; script.crossOrigin = 'anonymous';
+      script.dataset.lourexPdfLoadState = 'loading';
+      document.head.appendChild(script);
+    }
   });
   const ensurePdfLibraries = async () => {
     await loadScript(HTML2CANVAS_URL,()=>typeof window.html2canvas === 'function');
