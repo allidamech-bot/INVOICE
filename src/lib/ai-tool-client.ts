@@ -75,6 +75,15 @@ function toolFacts(data:unknown,ar:boolean):string[]{
     if(object.incomplete===true)lines.unshift(ar
       ?'تنبيه: المصدر أعلن أن النتيجة جزئية. اطلب السجلات المتبقية قبل اعتبار القائمة مكتملة.'
       :'Notice: the source marks this result incomplete. Request the remaining records before relying on a full list.');
+    for(const [key,kind] of [['recentDocuments','document'],['recentPurchases','purchase']] as const){
+      const total=object[key+'Total'],shown=object[key+'Shown'];
+      if(object[key+'Incomplete']===true&&typeof total==='number'&&typeof shown==='number'&&
+        Number.isSafeInteger(total)&&Number.isSafeInteger(shown)&&total>shown&&shown>=0){
+        lines.unshift(ar
+          ?'تنبيه: قائمة '+(kind==='document'?'المستندات':'المشتريات')+' الأخيرة جزئية؛ المعروض '+shown+' من أصل '+total+'. المجاميع المالية تحسب من السجلات المؤهلة كاملة، وليس من القائمة المختصرة.'
+          :'Notice: recent '+kind+' list is partial; showing '+shown+' of '+total+'. Financial totals are calculated from all eligible records, not from this shortened list.');
+      }
+    }
     return lines;
   }
   return [ar?'النتيجة: '+readableToolValue(data):'Result: '+readableToolValue(data)];
