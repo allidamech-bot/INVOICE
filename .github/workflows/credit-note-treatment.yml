@@ -5,6 +5,8 @@ on:
       - 'src/lib/document-lifecycle.ts'
       - 'src/components/CreditNoteTreatmentDialog.tsx'
       - 'src/app/App.tsx'
+      - 'src/storage/vault-merge.ts'
+      - 'tests/purchase-post-confirmation-20261022.test.mjs'
       - 'tests/credit-note-treatment.test.mjs'
       - 'tests/visual/credit-note-treatment.html'
       - 'tests/visual/run-credit-note-treatment.cjs'
