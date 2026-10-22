@@ -8,7 +8,10 @@ function comparable(value:any):string{
   delete clone.updatedAt;
   if('usageCount'in clone)delete clone.usageCount;
   if('lastUsedAt'in clone)delete clone.lastUsedAt;
-  return JSON.stringify(clone);
+  // JSON object key order is representation, not a user edit. Preserve array
+  // order and every value while canonicalizing nested object keys for audit.
+  return JSON.stringify(clone,(_key,item)=>item&&typeof item==='object'&&!Array.isArray(item)
+    ?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
 }
 function labelFor(type:AuditEntityType,value:any):string{
   if(type==='customer')return String(value?.companyNameEn||value?.companyNameAr||'Customer');

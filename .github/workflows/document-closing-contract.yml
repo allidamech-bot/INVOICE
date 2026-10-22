@@ -13,6 +13,7 @@ on:
       - 'tests/purchase-post-confirmation-20261022.test.mjs'
       - 'tests/customer-payment-delete-confirmation-20261023.test.mjs'
       - 'tests/draft-deletion-audit-20261021.test.mjs'
+      - 'tests/audit-field-order-continuity-20261023.test.mjs'
       - 'tests/draft-deletion-continuity-20261021.test.mjs'
       - 'src/lib/payment-voucher.ts'
       - 'src/components/PaymentVoucherModal.tsx'
@@ -53,8 +54,8 @@ jobs:
       - run: npm run typecheck
       - name: Production build without deployment
         run: npm run build
-      - name: Draft deletion audit and persisted history
-        run: node --test tests/draft-deletion-audit-20261021.test.mjs tests/draft-deletion-continuity-20261021.test.mjs tests/vault-merge.test.mjs
+      - name: Full Node regression including audit and persisted history
+        run: node --test tests/*.test.mjs
       - name: Purchase posting confirmation and saved baseline
         run: node --test tests/purchase-post-confirmation-20261022.test.mjs tests/purchase-delete-confirmation-20261022.test.mjs tests/audit-remote-posted-purchase-immutability.test.mjs
       - name: Linked customer and supplier payment vouchers
