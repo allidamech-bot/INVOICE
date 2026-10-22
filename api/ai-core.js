@@ -1,6 +1,6 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {diagnosticsOwnerUidAllowed} from './_ai/admin-diagnostics-auth.js';
-import {SYNTHETIC_PROVIDER_IDS,OLLAMA_SYNTHETIC_MODELS,runSyntheticProviderDiagnostic,checkProviderCredential} from './_ai/provider-diagnostics.js';
+import {SYNTHETIC_PROVIDER_IDS,OLLAMA_SYNTHETIC_MODELS,runSyntheticProviderDiagnostic,checkProviderCredential,providerConfigurationSnapshot} from './_ai/provider-diagnostics.js';
 import {diagnosticRateAllowed} from './_ai/diagnostics-rate-limit.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeReadEvidence,sanitizeDialogueCatalog,sanitizeDocumentConversation,dialogueRepeatsLastAnswer} from './_ai/lourex-dialogue.js';
@@ -140,6 +140,13 @@ export default async function handler(request,response){
       sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
     }
     sendJson(response,200,{allowed:true});return;
+  }
+  if(request.headers['x-lourex-admin-diagnostics']==='provider-inventory'){
+    // A separate admin-only read; no inference, upstream fetch or key disclosure.
+    if(!diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID)){
+      sendJson(response,403,{code:'OWNER_DIAGNOSTICS_FORBIDDEN'});return;
+    }
+    sendJson(response,200,{providers:providerConfigurationSnapshot()});return;
   }
   if(request.headers['x-lourex-admin-diagnostics']==='provider-probe'){
     // Exact signed Firebase UID gate; no role-based access or automatic fallback.

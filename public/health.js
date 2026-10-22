@@ -241,6 +241,42 @@
   const allProbeButtons=[...providerButtons,...accuracyButtons,...keyButtons];
   const safeProviders=new Set(['groq','cloudflare','gemini','kilo','openrouter','mistral','ollama']);
   let probeRunning=false;
+  // The server alone knows which environment gates are configured. This read
+  // makes no vendor calls, uses the same owner gate, and never displays keys.
+  async function loadProviderInventory(){
+    const slots=[...document.querySelectorAll('[data-provider-config]')];
+    const unavailable='Configuration unavailable / تعذر قراءة إعدادات الخادم';
+    try{
+      const user=window.firebase?.auth()?.currentUser;
+      if(!user)throw new Error('SIGN_IN_REQUIRED');
+      const uid=user.uid,token=await user.getIdToken();
+      const response=await fetch('/api/ai-core',{
+        method:'POST',cache:'no-store',
+        headers:{Authorization:'Bearer '+token,'X-Requested-With':'LOUREX-Invoice',
+          'X-Lourex-Admin-Diagnostics':'provider-inventory'},
+        signal:AbortSignal.timeout(10000)
+      });
+      if(!response.ok)throw new Error('INVENTORY_UNAVAILABLE');
+      const data=await response.json();
+      if(!Array.isArray(data?.providers)||data.providers.length!==7)throw new Error('INVALID_INVENTORY');
+      if(window.firebase?.auth()?.currentUser?.uid!==uid)throw new Error('ACCOUNT_CHANGED');
+      const records=new Map(data.providers.filter(row=>safeProviders.has(row?.provider))
+        .map(row=>[row.provider,row]));
+      for(const slot of slots){
+        const state=records.get(slot.getAttribute('data-provider-config'));
+        if(!state){slot.textContent=unavailable;continue;}
+        const credential=state.configured===true?'Key configured / المفتاح مُعدّ':'Key missing / المفتاح غير مُعدّ';
+        const qa=state.syntheticProbeAllowed===true?'QA permitted / الاختبار متاح':
+          state.freeVerified===false?'Free tier unverified / المجانية غير مؤكدة':'QA blocked / الاختبار محجوب';
+        const route=state.diagnosticsOnly===true?'Diagnostics only / للتشخيص فقط':
+          state.routerEnvironmentEligible===true?'Routing env eligible / إعدادات التوجيه مستوفاة':
+          state.privacyOptIn===false?'Privacy opt-in required / موافقة الخصوصية مطلوبة':
+          'Routing env incomplete / إعدادات التوجيه غير مكتملة';
+        slot.textContent=credential+' · '+qa+' · '+route;
+      }
+    }catch{slots.forEach(slot=>{slot.textContent=unavailable;});}
+  }
+  void loadProviderInventory();
   const probeLabels={
     PASSED:'Correct answer / إجابة صحيحة',
     WRONG_ANSWER:'Connected, incorrect answer / متصل لكن الإجابة خاطئة',

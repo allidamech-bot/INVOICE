@@ -70,6 +70,16 @@ test('live API gate accepts only a signed token belonging to the configured owne
    assert.equal(authorized.statusCode,200,'correct verified Firebase UID alone grants access');
    assert.deepEqual(authorized.body,{allowed:true});
    assert.equal(authorized.headers['Cache-Control'],'no-store');
+   const inventory=await call(makeToken(owner,'viewer'),'https://invoice-three-puce.vercel.app','provider-inventory');
+   assert.equal(inventory.statusCode,200);
+   assert.equal(inventory.headers['Cache-Control'],'no-store');
+   assert.deepEqual(inventory.body.providers.map(row=>row.provider),
+     ['groq','cloudflare','gemini','kilo','openrouter','mistral','ollama']);
+   const deniedInventory=await call(makeToken(stranger,'owner'),
+     'https://invoice-three-puce.vercel.app','provider-inventory');
+   assert.equal(deniedInventory.statusCode,403);
+   const missingInventory=await call(null,'https://invoice-three-puce.vercel.app','provider-inventory');
+   assert.equal(missingInventory.statusCode,401);
    const deniedProbe=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app','provider-probe');
    assert.equal(deniedProbe.statusCode,403,'team owners are not diagnostics administrators');
    const deniedFinance=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app',

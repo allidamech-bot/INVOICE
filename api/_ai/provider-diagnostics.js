@@ -135,3 +135,30 @@ export async function checkProviderCredential(provider,{fetchImpl=fetch}={}){
       inference:false,latencyMs:Date.now()-started};
   }finally{clearTimeout(timer);}
 }
+
+// Owner-visible deployment eligibility, never key validity or billing claims.
+// Routing may still be blocked by task capabilities and data classification.
+export function providerConfigurationSnapshot(env=process.env){
+  const configured={
+    groq:Boolean(env.GROQ_API_KEY?.trim()),
+    cloudflare:Boolean(env.CLOUDFLARE_AI_API_TOKEN?.trim()&&env.CLOUDFLARE_ACCOUNT_ID?.trim()),
+    gemini:Boolean(env.GEMINI_API_KEY?.trim()),
+    kilo:Boolean(env.KILO_API_KEY?.trim()),
+    openrouter:Boolean(env.OPENROUTER_API_KEY?.trim()),
+    mistral:Boolean(env.MISTRAL_API_KEY?.trim()),
+    ollama:Boolean(env.OLLAMA_API_KEY?.trim())
+  };
+  const optIn=env.LOUREX_AI_NEW_PROVIDERS_ENABLED==='true';
+  const verified={mistral:env.LOUREX_AI_MISTRAL_FREE_VERIFIED==='true',
+    ollama:env.LOUREX_AI_OLLAMA_FREE_VERIFIED==='true'};
+  return SYNTHETIC_PROVIDER_IDS.map(provider=>{
+    const keyReady=configured[provider],needsVerification=provider==='mistral'||provider==='ollama';
+    const external=provider==='openrouter'||needsVerification;
+    const freeVerified=needsVerification?verified[provider]:null;
+    return{provider,configured:keyReady,
+      syntheticProbeAllowed:keyReady&&(!needsVerification||freeVerified===true),
+      routerEnvironmentEligible:keyReady&&provider!=='kilo'&&
+        (!external||(optIn&&(!needsVerification||freeVerified===true))),
+      freeVerified,privacyOptIn:external?optIn:null,diagnosticsOnly:provider==='kilo'};
+  });
+}
