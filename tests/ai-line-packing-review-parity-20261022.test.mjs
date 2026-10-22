@@ -42,6 +42,7 @@ test('line-specific Arabic packing stages without converting price, units, count
  assert.equal(working.subtotal,'600.00');
  const preview=prepareAiPdfPreview(kernel,vault,'ar');
  assert.equal(preview.items[0].packing,'كرتون ٦ علب × ٣ كيلو');
+ assert.equal(preview.appearance.showPacking,true,'an explicitly reviewed packing field must be visible on PDF');
  assert.equal(preview.items[0].quantity,'12');
  assert.equal(preview.items[0].unit,'CTN');
  assert.equal(preview.items[0].unitPrice,'50');
@@ -96,6 +97,7 @@ test('existing draft packing edit preserves identity and is previewed without a 
  stageKernelArtifact(kernel,change.proposal);
  const preview=prepareAiPdfPreview(kernel,vault,'ar');
  assert.equal(preview.items[0].packing,'كرتون داخل كرتون - ٢٤ علبة');
+ assert.equal(preview.appearance.showPacking,true,'reviewed edits reveal packing even when the saved draft hid its column');
  assert.equal(preview.items[0].quantity,'3');
  assert.equal(preview.items[0].unitPrice,'70');
  assert.deepEqual(vault,before,'preview cannot persist edits');
@@ -107,7 +109,31 @@ test('reviewed packing reaches existing guarded save path, not a direct side-eff
  assert.match(source,/if\(entry\.packing!==undefined\)line\.packing=entry\.packing/);
  assert.match(source,/packing:entry\.packing\|\|''/);
  assert.match(source,/edit\.packing!==undefined\?\{packing:edit\.packing\}/);
+ assert.match(source,/proposal\.items\.some\(entry=>Boolean\(entry\.packing\?\.trim\(\)\)\)\)doc\.appearance=\{\.\.\.doc\.appearance,showPacking:true\}/);
+ assert.match(source,/const explicitPacking=proposal\.addItems\.some/);
  assert.match(source,/assertAiDocumentCreateApproval\(vault,proposal\)/);
  assert.match(source,/assertAiDocumentUpdateApproval\(vault,proposal\)/);
  assert.doesNotMatch(source,/const packingCharge=/);
+});
+
+test('packing column stays hidden on untouched drafts, and saved document appearances are not changed',()=>{
+ const {vault,kernel}=fixture(),before=structuredClone(vault);
+ const plain=prepareAiPdfPreview(kernel,vault,'en');
+ assert.equal(plain.appearance.showPacking,false,'ordinary AI draft keeps historical hidden optional column');
+ assert.deepEqual(vault,before);
+ const doc=createBlankDocument('proforma','PI-2026-EXISTING',vault.company);
+ doc.workspaceId='default';doc.branchId='main';doc.status='draft';
+ doc.appearance.showPacking=false;
+ doc.items=[{id:'some-item',descriptionEn:'Packed goods',descriptionAr:'',quantity:'2',unit:'CTN',unitPrice:'5',unitCost:'',origin:'',hsCode:'',packing:'6 boxes'}];
+ vault.documents=[doc];
+ const savedPdf=prepareAiPdfPreview(kernel,vault,'en',doc.id);
+ assert.equal(savedPdf.items[0].packing,'6 boxes');
+ assert.equal(savedPdf.appearance.showPacking,false,'saved document appearance remains user-controlled');
+ assert.equal(vault.documents[0].appearance.showPacking,false);
+});
+
+test('template only renders the packing column when its explicit appearance flag is true',()=>{
+ const source=readFileSync(new URL('../src/templates/TemplateRenderer.tsx',import.meta.url),'utf8');
+ assert.match(source,/const showPacking = doc\.appearance\.showPacking && doc\.items\.some/);
+ assert.match(source,/<th>\{localized\(doc, 'Packing', 'التعبئة'\)\}/);
 });
