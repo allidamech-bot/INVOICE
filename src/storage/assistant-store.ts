@@ -1,9 +1,10 @@
 import { normalizeConversationKernel, reconcileCancelledApprovals, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
+import {normalizeFinancialReadout,type FinancialReadout} from '../lib/ai-financial-readout.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, type AiConversationExperiencePreferences } from '../lib/ai-conversation-mode.js';
 import { getRecord, putRecord } from './db.js';
 import type { AssistantScope } from '../lib/ai-assistant-foundation.js';
 
-export interface AssistantStoredMessage{id:string;role:'user'|'assistant';text:string;createdAt:string;}
+export interface AssistantStoredMessage{id:string;role:'user'|'assistant';text:string;createdAt:string;financialReadout?:FinancialReadout;}
 export interface AssistantThread{
   id:string;
   scope:Exclude<AssistantScope,'temporary'>;
@@ -19,7 +20,7 @@ export interface AssistantThread{
 }
 export interface AssistantStoreState{version:1;threads:AssistantThread[];currentBusinessThreadId:string;currentPersonalThreadId:string;aiPreferences:AiConversationExperiencePreferences;updatedAt:string;deletedThreads?:Record<string,string>;}
 interface EncryptedAssistantRecord{id:'assistant-state';version:1;iv:string;cipher:string;updatedAt:string;}
-interface MessageLike{id?:string;role:'user'|'assistant';text:string;createdAt?:string;}
+interface MessageLike{id?:string;role:'user'|'assistant';text:string;createdAt?:string;financialReadout?:FinancialReadout;}
 
 const RECORD_ID='assistant-state' as const;
 const MAX_THREADS=30;
@@ -30,6 +31,9 @@ const MAX_PROVIDER_MEMORY_CHARS=520;
 const PROVIDER_SUMMARY_PREFIX='Earlier conversation summary: ';
 
 function safeText(value:unknown,max:number):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
+// Message bodies can contain structured reports and deliberate paragraphs.
+// Unlike titles, preserve interior line breaks; never let control bytes into history.
+function safeMessageText(value:unknown,max:number):string{return typeof value==='string'?value.normalize('NFKC').replace(/\r\n?/g,'\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g,' ').trim().slice(0,max):'';}
 function now():string{return new Date().toISOString();}
 function makeId(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;}
 function emptyState():AssistantStoreState{return{version:1,threads:[],currentBusinessThreadId:'',currentPersonalThreadId:'',aiPreferences:{...DEFAULT_AI_CONVERSATION_PREFERENCES},updatedAt:now(),deletedThreads:{}};}
@@ -38,9 +42,10 @@ function b64ToArrayBuffer(value:string):ArrayBuffer{const binary=atob(value),byt
 function normalizedMessage(value:any):AssistantStoredMessage|null{
   if(!value||typeof value!=='object')return null;
   const role=value.role==='assistant'?'assistant':value.role==='user'?'user':null;
-  const text=safeText(value.text,MAX_MESSAGE_CHARS);
+  const text=safeMessageText(value.text,MAX_MESSAGE_CHARS);
   if(!role||!text)return null;
-  return{id:safeText(value.id,120)||makeId(role),role,text,createdAt:safeText(value.createdAt,40)||now()};
+  const financialReadout=role==='assistant'?normalizeFinancialReadout(value.financialReadout):null;
+  return{id:safeText(value.id,120)||makeId(role),role,text,createdAt:safeText(value.createdAt,40)||now(),...(financialReadout?{financialReadout}:{})};
 }
 function normalizedThread(value:any):AssistantThread|null{
   if(!value||typeof value!=='object')return null;
