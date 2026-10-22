@@ -9,6 +9,8 @@ on:
       - 'src/lib/workspaces.ts'
       - 'src/lib/backup.ts'
       - 'src/app/App.tsx'
+      - 'src/components/OperationsPage.tsx'
+      - 'tests/purchase-post-confirmation-20261022.test.mjs'
       - 'tests/draft-deletion-audit-20261021.test.mjs'
       - 'tests/draft-deletion-continuity-20261021.test.mjs'
       - 'src/lib/payment-voucher.ts'
@@ -52,5 +54,7 @@ jobs:
         run: npm run build
       - name: Draft deletion audit and persisted history
         run: node --test tests/draft-deletion-audit-20261021.test.mjs tests/draft-deletion-continuity-20261021.test.mjs tests/vault-merge.test.mjs
+      - name: Purchase posting confirmation and saved baseline
+        run: node --test tests/purchase-post-confirmation-20261022.test.mjs tests/purchase-delete-confirmation-20261022.test.mjs tests/audit-remote-posted-purchase-immutability.test.mjs
       - name: Linked customer and supplier payment vouchers
         run: node --test tests/payment-vouchers-20261021.test.mjs tests/payment-voucher-ui.test.mjs tests/receivables-v133.test.mjs tests/purchase-payment-saved-cycle.test.mjs
