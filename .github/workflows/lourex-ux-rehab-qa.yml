@@ -46,6 +46,8 @@ on:
       - 'src/lib/ai-workspace-model.ts'
       - 'src/lib/ai-pdf-preview.ts'
       - 'tests/ai-line-packing-review-parity-20261022.test.mjs'
+      - 'src/lib/ai-job-history.ts'
+      - 'tests/ai-job-history-uid-isolation-20261022.test.mjs'
       - 'src/lib/ai-commercial-intelligence.ts'
       - 'src/lib/ai-workspace-model.ts'
       - 'src/components/AiCommercialWorkspace.tsx'
