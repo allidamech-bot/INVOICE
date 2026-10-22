@@ -44,6 +44,7 @@ on:
       - 'src/lib/ai-quote-source-draft.ts'
       - 'api/quote-source-ai.js'
       - 'tests/ai-quotation-explicit-source-packing-20261022.test.mjs'
+      - 'tests/ai-multisource-dedup-20261022.test.mjs'
       - 'src/lib/ai-document-conversation.ts'
       - 'src/lib/ai-document-review.ts'
       - 'src/lib/ai-document-approval-guard.ts'
