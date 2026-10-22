@@ -2,6 +2,24 @@ name: LOUREX Controller Document Journey
 on:
   push:
     branches: [feat/ai-controller-execution]
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/lourex-controller-execution.yml'
+      - 'src/components/AiCopilot.tsx'
+      - 'src/components/AiConversationWorkspace.tsx'
+      - 'src/lib/ai-conversation-kernel.ts'
+      - 'src/lib/ai-intelligence-runtime.ts'
+      - 'src/lib/ai-quote-source-draft.ts'
+      - 'src/lib/ai-document-conversation.ts'
+      - 'src/lib/ai-document-approval-guard.ts'
+      - 'src/lib/ai-workspace-model.ts'
+      - 'src/lib/ai-pdf-preview.ts'
+      - 'src/storage/assistant-store.ts'
+      - 'tests/ai-f08-high-volume-quote.test.mjs'
+      - 'tests/ai-f18-multi-source-quote.test.mjs'
+      - 'tests/ai-controller-packing-closed-loop-20261022.test.mjs'
+      - 'tests/visual/run-controller-document-journey.cjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,7 +44,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck && npm run build
       - name: Targeted document and approval tests
-        run: node --test tests/ai-party-highlights.test.mjs tests/ai-advisor-controller-handoff.test.mjs tests/ai-selected-products-price.test.mjs tests/ai-record-selection.test.mjs tests/ai-working-draft-plan.test.mjs tests/ai-f01-real-pdf-preview.test.mjs tests/ai-f03-scoped-document-followups.test.mjs tests/ai-f14-approval-dismissal-race.test.mjs tests/ai-f17-natural-saved-document-preview.test.mjs tests/ai-f08-high-volume-quote.test.mjs
+        run: node --test tests/ai-party-highlights.test.mjs tests/ai-advisor-controller-handoff.test.mjs tests/ai-selected-products-price.test.mjs tests/ai-record-selection.test.mjs tests/ai-working-draft-plan.test.mjs tests/ai-f01-real-pdf-preview.test.mjs tests/ai-f03-scoped-document-followups.test.mjs tests/ai-f14-approval-dismissal-race.test.mjs tests/ai-f17-natural-saved-document-preview.test.mjs tests/ai-f08-high-volume-quote.test.mjs tests/ai-f18-multi-source-quote.test.mjs tests/ai-controller-packing-closed-loop-20261022.test.mjs tests/ai-working-draft-derived-preview-20261017.test.mjs
       - run: npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
       - name: Isolated file-to-document journey (provider translation stub, actual files and persistence)
         run: |
