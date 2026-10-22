@@ -162,7 +162,9 @@ export class App extends React.Component<{},State> {
     // amount is logged. Distinguish slow Firebase reconciliation from local
     // IndexedDB hydration and React first paint on real iPhone Safari.
     const startedAt=typeof performance!=='undefined'?performance.now():Date.now();
+    let pendingPhase='begin';
     const startupPhase=(phase:string)=>{
+      pendingPhase=phase;
       try{
         const now=typeof performance!=='undefined'?performance.now():Date.now();
         (window as any).__LOUREX_DIAGNOSTICS__?.mark?.(
@@ -171,12 +173,28 @@ export class App extends React.Component<{},State> {
       }catch{}
     };
     startupPhase('begin');
+    // An account with a large historical cloud workspace can wait beyond the
+    // static 12-second recovery screen without a JS exception. Record only the
+    // fixed, code-owned pending phase; never log UID or workspace content.
+    // Observation only: do not race, cancel, skip or reorder cloud authority.
+    const startupPendingTimer=window.setTimeout(()=>{
+      try{
+        if(!this.state.loading)return;
+        const now=typeof performance!=='undefined'?performance.now():Date.now();
+        (window as any).__LOUREX_DIAGNOSTICS__?.mark?.(
+          'startup-await-timeout',
+          'phase='+pendingPhase+' elapsedMs='+Math.max(0,Math.round(now-startedAt))
+        );
+      }catch{}
+    },12_000);
     try{
+      startupPhase('preferences-wait');
       const preferences=await getPublicPreferences();
       startupPhase('preferences-ready');
       let uiLanguage=preferences?.uiLanguage??'en';
       const publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';
       setUiLanguage(uiLanguage);
+      startupPhase('firebase-auth-wait');
       const user=await waitForCloudUser();
       startupPhase('firebase-auth-ready');
       if(!user){
@@ -185,8 +203,10 @@ export class App extends React.Component<{},State> {
       }
       if(activeAccountStorageUid()!==user.uid){
         setActiveAccountUid(user.uid);
+        startupPhase('account-storage-wait');
         await activateAccountStorage(user.uid);
       }
+      startupPhase('local-workspace-wait');
       let local=await getPlainWorkspace();
       startupPhase('local-workspace-read');
       let syncState:CloudSyncState='local';
@@ -224,6 +244,7 @@ export class App extends React.Component<{},State> {
         syncMessage=t('Offline. Changes are saved on this device until your account reconnects.','غير متصل. تُحفظ التعديلات على هذا الجهاز حتى يعود الاتصال بالحساب.');
       }
       if(!local){
+        startupPhase('first-account-bootstrap-wait');
         // Cloud-first bootstrap: do NOT create an authoritative local blank
         // until the server has committed it. A simultaneous second device
         // must never strand this browser with a divergent empty local record.
@@ -265,6 +286,7 @@ export class App extends React.Component<{},State> {
       uiLanguage=vault.appSettings.uiLanguage??uiLanguage;
       setUiLanguage(uiLanguage);
       this.vaultWriteTail=Promise.resolve(vault);
+      startupPhase('account-metadata-wait');
       await putCloudAccount(user.uid,user.email);
       this.setState({loading:false,firstRun:false,unlocked:true,vault,
         uiLanguage,publicLogo:vault.company.logoDataUrl||publicLogo,cloudUser:user,cloudLinked:true,
@@ -282,6 +304,8 @@ export class App extends React.Component<{},State> {
       this.setState({loading:false,firstRun:false,unlocked:false,vault:null,
         cloudUser:currentCloudUser(),cloudLinked:false,cloudSyncState:'error',
         cloudSyncMessage:error instanceof Error?error.message:String(error)});
+    }finally{
+      window.clearTimeout(startupPendingTimer);
     }
   };
 
