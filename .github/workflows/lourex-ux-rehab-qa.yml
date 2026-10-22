@@ -69,6 +69,8 @@ on:
       - 'src/styles/editor-canonical-v314.css'
       - 'src/styles/roadmap-hardening-final.css'
       - 'public/startup-watchdog-v321.js'
+      - 'public/theme-bootstrap-v347.js'
+      - 'tests/ios-startup-first-real-surface-qa.test.mjs'
       - 'tests/visual/ux-rehab-startup-late-hydration-20261016.html'
       - 'tests/ux-rehab-*.test.mjs'
       - 'tests/visual/run-ux-rehab-picker-webkit-20261016.cjs'
