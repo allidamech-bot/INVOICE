@@ -64,7 +64,8 @@ test('remote reversal must retain original posted financial facts and contain re
 });
 
 test('legitimate remote reversal and independent local expense preserve pre-reversal payable history',()=>{
-  const {base,posted}=setup(),reversed=reversePurchase(posted,'Service cancelled',[],[]).purchase;
+  const {base,posted}=setup(),reversed={...reversePurchase(posted,'Service cancelled',[],[]).purchase,
+    reversedAt:'2026-10-20T09:00:00.000Z',updatedAt:'2026-10-20T09:00:00.000Z'};
   const saved=mergeVaultIntent(base,localExpense(base),
     {...base,purchases:[reversed]});
   assert.equal(saved.purchases[0].status,'reversed');
@@ -72,6 +73,9 @@ test('legitimate remote reversal and independent local expense preserve pre-reve
   assert.equal(saved.expenses.length,1);
   assert.equal(supplierPayablesByCurrency(saved.purchases,[],'2026-10-10')[0].remaining,'120.00',
     'prior reporting date still sees the original supplier claim');
+  assert.equal(supplierPayablesByCurrency(saved.purchases,[],'2026-10-19')[0].remaining,'120.00');
+  assert.equal(supplierPayablesByCurrency(saved.purchases,[],'2026-10-20').length,0,
+    'the reversal becomes effective on its fixed historical date');
   assert.equal(supplierPayablesByCurrency(saved.purchases,[],'2026-10-21').length,0,
     'reversal removes the current supplier obligation');
 });
