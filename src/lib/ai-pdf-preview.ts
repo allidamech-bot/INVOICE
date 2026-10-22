@@ -65,6 +65,13 @@ export function prepareAiPdfPreview(
     };
     return item;
   });
+  // A user-reviewed line-specific packing description must be visible in the
+  // exact A4 preview; new blank documents otherwise hide this optional column.
+  // Do not alter the configured appearance for untouched or saved documents.
+  const explicitlyPacked=proposal.capability==='document.createDraft'
+    ?proposal.items.some(row=>Boolean(row.packing?.trim()))
+    :proposal.addItems.some(row=>Boolean(row.packing?.trim()))||proposal.itemEdits.some(edit=>Boolean(edit.packing?.trim()));
+  if(explicitlyPacked)document.appearance={...document.appearance,showPacking:true};
   document.status='draft';
   // Explicit watermark distinguishes non-authoritative output from an issued
   // invoice, including when the working proposal came from an existing invoice.
