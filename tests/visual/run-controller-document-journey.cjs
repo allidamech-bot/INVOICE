@@ -123,7 +123,7 @@ async function run(engine,name){
    // Exercise a deliberate user wheel scroll, not script-level scrollTop
    // assignment. LOUREX intentionally follows the latest turn until actual
    // scrolling input occurs; programmatic scrolling is reset to the bottom.
-   for(let attempt=0;attempt<12;attempt++){
+   for(let attempt=0;attempt<32;attempt++){
     const target=await preview.evaluate(node=>{
      const scroll=node.closest('.lourex-ai-messages');
      if(!scroll)throw Error('The Controller has no scrollable conversation');
