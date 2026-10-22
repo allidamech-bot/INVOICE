@@ -1,14 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
 
 // Only the Firebase account binding is replaced for the isolated test.
 // The exact compiled production module and its sessionStorage logic execute.
 const code=await readFile(new URL('../dist/src/lib/ai-job-history.js',import.meta.url),'utf8');
 const binding=/import\s*\{\s*activeAccountStorageUid\s*\}\s*from\s*['"]\.\.\/storage\/db\.js['"];?/u;
 assert.match(code,binding,'job history uses the real active Firebase storage identity');
+const cloudBinding=/import\s*\{\s*currentCloudUser\s*\}\s*from\s*['"]\.\.\/cloud\/firebase\.js['"];?/u;
+assert.match(code,cloudBinding,'job history must also match the authenticated Firebase identity');
 const fixture=code.replace(binding,
-  "let testUid=null;const activeAccountStorageUid=()=>testUid;export const setTestUid=(value)=>{testUid=value;};");
+  "let testUid=null;const activeAccountStorageUid=()=>testUid;export const setTestStorageUid=(value)=>{testUid=value;};")
+  .replace(cloudBinding,
+  "let authUid=null;const currentCloudUser=()=>authUid?{uid:authUid}:null;export const setTestAuthUid=(value)=>{authUid=value;};export const setTestUid=(value)=>{testUid=value;authUid=value;};");
 const jobs=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(fixture));
 const storage=new Map();
 const oldSession=globalThis.sessionStorage;
@@ -79,6 +84,55 @@ test('history still bounds and sanitizes all fields within a single account',()=
  jobs.updateAiJob(first.id,{note:'n'.repeat(1000)});
  assert.equal(jobs.readAiJobHistory()[0].note.length,220);
  assert.equal(jobs.readAiJobHistory()[0].status,'processing');
+});
+
+test('history UI must render current UID rows rather than stale React-state filenames',()=>{
+ storage.clear();jobs.setTestUid('uid-a');
+ jobs.startAiJob('private-a-invoice.pdf');
+ const staleUiState=jobs.readAiJobHistory();
+ assert.equal(staleUiState[0].sourceName,'private-a-invoice.pdf');
+ jobs.setTestUid('uid-b');
+ jobs.startAiJob('private-b-invoice.pdf');
+ const currentRows=jobs.readAiJobHistory();
+ assert.deepEqual(currentRows.map(row=>row.sourceName),['private-b-invoice.pdf']);
+ assert.notDeepEqual(currentRows,staleUiState,'cached React rows are unsafe after account switch');
+ const source=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+ const start=source.indexOf('private renderHistory=');
+ const end=source.indexOf('private renderInbox=',start);
+ assert.ok(start>0&&end>start,'history renderer must exist');
+ const view=source.slice(start,end);
+ assert.match(view,/const jobs=readAiJobHistory\(\)/,'read bound account at render time');
+ assert.match(view,/jobs\.map\(job=>/,'render current-account rows');
+ assert.match(view,/disabled=\{!jobs\.length\}/,'clear-current-account control uses current list');
+ assert.doesNotMatch(view,/this\.state\.jobs/,'never render old account filenames from cached React state');
+});
+
+test('Firebase account transition denies stale local UID history, writes and clears',()=>{
+ storage.clear();jobs.setTestUid('uid-a');
+ const a=jobs.startAiJob('private-a.pdf');
+ assert.equal(jobs.readAiJobHistory()[0].sourceName,'private-a.pdf');
+ // Auth switches before the storage scope moves: neither account can read A.
+ jobs.setTestAuthUid('uid-b');
+ assert.deepEqual(jobs.readAiJobHistory(),[]);
+ jobs.startAiJob('must-not-save-during-transition.pdf');
+ assert.equal(jobs.updateAiJob(a.id,{status:'failed'}),null);
+ jobs.clearAiJobHistory();
+ jobs.setTestStorageUid('uid-b');
+ assert.deepEqual(jobs.readAiJobHistory(),[]);
+ jobs.startAiJob('private-b.pdf');
+ assert.equal(jobs.readAiJobHistory()[0].sourceName,'private-b.pdf');
+ // Firebase sign-out happens while the last local UID still exists.
+ jobs.setTestAuthUid(null);
+ assert.deepEqual(jobs.readAiJobHistory(),[]);
+ jobs.clearAiJobHistory();
+ jobs.setTestAuthUid('uid-b');
+ assert.equal(jobs.readAiJobHistory()[0].sourceName,'private-b.pdf');
+ jobs.setTestStorageUid('uid-a');
+ assert.deepEqual(jobs.readAiJobHistory(),[]);
+ jobs.setTestAuthUid('uid-a');
+ assert.equal(jobs.readAiJobHistory()[0].sourceName,'private-a.pdf');
+ assert.equal(jobs.readAiJobHistory()[0].status,'processing');
+ assert.ok(![...storage.values()].some(value=>value.includes('must-not-save-during-transition.pdf')));
 });
 
 test('cleanup restores the real JS session global',()=>{
