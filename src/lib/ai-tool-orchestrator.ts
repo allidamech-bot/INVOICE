@@ -185,7 +185,30 @@ function readDocument(runtime:AiToolRuntime,args:Record<string,unknown>):unknown
 function readPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const row=findPurchase(runtime,args);if(!row)throw new Error('Purchase was not found in the active branch.');return{id:row.id,number:row.number,date:row.date,dueDate:row.dueDate,status:row.status,currency:row.currency,supplierName:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||'',items:row.items.slice(0,20).map((item:any)=>({savedItemId:item.savedItemId,sku:item.sku,descriptionEn:item.descriptionEn,quantity:item.quantity,unit:item.unit,unitCost:item.unitCost,landedUnitCost:item.landedUnitCost}))};}
 function treasurySnapshot(runtime:AiToolRuntime):unknown{const rows=treasuryProjection(runtime.vault.payments,runtime.vault.supplierPayments,runtime.vault.expenses,runtime.vault.treasuryEntries,runtime.vault.treasuryReconciliations,runtime.vault.company.defaultCurrency||'USD');const currencies=Array.from(new Set([...runtime.vault.treasuryAccounts.map(row=>row.currency),...rows.map(row=>row.currency)])).sort();return{accounts:runtime.vault.treasuryAccounts.filter(row=>row.active).map(row=>({id:row.id,label:row.label,kind:row.kind,currency:row.currency,balance:treasuryAccountBalance(row.id,runtime.vault.treasuryEntries)})),activity:currencies.map(code=>({currency:code,...treasuryTotals(rows,code)}))};}
 function inventoryStatus(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const q=clean(args.query,160),matchesAll=inventoryBalances(runtime.vault.savedItems,runtime.vault.inventoryMovements).filter(row=>!q||matches([row.item.sku,row.item.descriptionEn,row.item.descriptionAr].join(' '),q));const rows=matchesAll.slice(0,30).map(row=>({itemId:row.item.id,sku:row.item.sku,name:itemName(row.item),quantity:row.quantity,state:row.quantityScaled<0n?'negative':row.quantityScaled===0n?'zero':'positive'}));return{total:matchesAll.length,shown:rows.length,incomplete:rows.length<matchesAll.length,rows};}
-function searchRecords(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const q=clean(args.query,160);if(q.length<2)throw new Error('Search query is too short.');const role=strictAiActor(runtime.vault).role;const hits:any[]=[];const add=(type:string,id:string,label:string,meta:any={})=>{if(hits.length<20&&matches(`${label} ${JSON.stringify(meta)}`,q))hits.push({type,id,label,...meta});};if(graphKindAllowed(role,'customer'))for(const row of runtime.vault.customers)add('customer',row.id,customerName(row),{email:row.email,phone:row.phone});if(graphKindAllowed(role,'supplier'))for(const row of runtime.vault.suppliers)add('supplier',row.id,supplierName(row),{email:row.email,phone:row.phone});if(graphKindAllowed(role,'product'))for(const row of runtime.vault.savedItems)add('product',row.id,itemName(row),{sku:row.sku,hsCode:row.hsCode});if(graphKindAllowed(role,'document'))for(const row of runtime.vault.documents)add('document',row.id,row.number,{kind:row.kind,date:row.issueDate});if(graphKindAllowed(role,'purchase'))for(const row of runtime.vault.purchases)add('purchase',row.id,row.number,{date:row.date,supplier:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||''});return hits.slice(0,12);}
+function searchRecords(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{
+  const q=clean(args.query,160);
+  if(q.length<2)throw new Error('Search query is too short.');
+  const needle=lower(q),role=strictAiActor(runtime.vault).role;
+  const hits:Array<{score:number;order:number;row:Record<string,unknown>}>=[];
+  const add=(type:string,id:string,label:string,meta:Record<string,unknown>={})=>{
+    // Search actual values, never JSON field names. An "email" query should
+    // not match every customer merely because the metadata has an email key.
+    const values=[id,label,...Object.values(meta).filter((v):v is string=>typeof v==='string')].map(lower).filter(Boolean);
+    const score=values.some(value=>value===needle)?3:
+      values.some(value=>value.startsWith(needle))?2:
+      values.some(value=>value.includes(needle))?1:0;
+    if(score)hits.push({score,order:hits.length,row:{type,id,label,...meta}});
+  };
+  if(graphKindAllowed(role,'customer'))for(const row of runtime.vault.customers)add('customer',row.id,customerName(row),{email:row.email,phone:row.phone});
+  if(graphKindAllowed(role,'supplier'))for(const row of runtime.vault.suppliers)add('supplier',row.id,supplierName(row),{email:row.email,phone:row.phone});
+  if(graphKindAllowed(role,'product'))for(const row of runtime.vault.savedItems)add('product',row.id,itemName(row),{sku:row.sku,hsCode:row.hsCode});
+  if(graphKindAllowed(role,'document'))for(const row of runtime.vault.documents)add('document',row.id,row.number,{kind:row.kind,date:row.issueDate});
+  if(graphKindAllowed(role,'purchase'))for(const row of runtime.vault.purchases)add('purchase',row.id,row.number,{date:row.date,supplier:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||''});
+  // Rank across ALL authorized scoped categories before applying the 12-row
+  // UI cap. Exact SKU/document number must not be starved by many earlier
+  // partial customer-name hits; ties keep their original stable ordering.
+  return hits.sort((a,b)=>b.score-a.score||a.order-b.order).slice(0,12).map(hit=>hit.row);
+}
 
 function requireMoney(args:Record<string,unknown>,key:string):string{const value=money(args[key]);if(!value)throw new Error(`${key} must be a non-negative decimal.`);return value;}
 function calculation(tool:AiToolId,runtime:AiToolRuntime,args:Record<string,unknown>):unknown{
