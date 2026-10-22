@@ -28,7 +28,8 @@ function previewRows(items:AiDraftItemInput[],drafting:Drafting,currency:string,
     rows.push(String(number)+'. '+(name||'—')+(catalog?.sku?' [SKU '+catalog.sku+']':'')+
       '\n   '+(ar?'الكمية: ':'Qty: ')+(item.quantity||'—')+(printable.unit?' '+printable.unit:'')+
       '  ·  '+(ar?'السعر: ':'Unit: ')+(price||'—')+' '+currency+
-      '  ·  '+(ar?'الإجمالي: ':'Line: ')+amount+' '+currency);
+      '  ·  '+(ar?'الإجمالي: ':'Line: ')+amount+' '+currency+
+      (item.packing?'\n   '+(ar?'تعبئة الصنف: ':'Line packing: ')+item.packing:''));
   }
   return{text:rows.join('\n'),subtotal:complete?subtotal:null};
 }
