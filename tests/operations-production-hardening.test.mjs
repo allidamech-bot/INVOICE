@@ -55,7 +55,9 @@ test('concurrent posting cannot receive the same purchase into inventory twice',
   const base=draftPurchaseVault();
   const latest=applyPost(base);
   const intended=applyPost(base);
-  assert.throws(()=>mergeVaultIntent(base,intended,latest),/receipts do not match|already reflected|inventory/i);
+  const before=JSON.stringify({base,intended,latest});
+  assert.throws(()=>mergeVaultIntent(base,intended,latest),/posted purchases are immutable|receipts do not match|already reflected|inventory/i);
+  assert.equal(JSON.stringify({base,intended,latest}),before,'a rejected duplicate posting cannot change either stock source');
 });
 
 test('concurrent purchase reversal cannot subtract the same stock twice',()=>{
