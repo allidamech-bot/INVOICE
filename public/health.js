@@ -311,10 +311,10 @@
       if(result)result.textContent='Connection/authentication failed / تعذر الاتصال أو التحقق';
     }finally{probeRunning=false;allProbeButtons.forEach(item=>item.disabled=false);}
   });
-  // Metadata-only checks for unverified vendors. No prompts, inference or payment.
+  // Owner-only metadata checks. No prompts, inference or payment.
   for(const button of keyButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-key-check');
-    if(probeRunning||!['mistral','ollama'].includes(provider))return;
+    if(probeRunning||!['gemini','mistral','ollama'].includes(provider))return;
     probeRunning=true;allProbeButtons.forEach(item=>item.disabled=true);
     const result=document.querySelector('[data-provider-key-result="'+provider+'"]');
     if(result)result.textContent='Checking key only… / جارٍ فحص المفتاح فقط…';
@@ -333,6 +333,9 @@
         else{
           const labels={
             KEY_AUTHENTICATED:'Key authenticated — free allowance NOT verified / المفتاح صالح، مجانية الخطة غير مؤكدة',
+            METADATA_ACCESS_OK:'Gemini model lookup accepted — generation quota NOT checked / مفتاح Gemini مقبول لبيانات النموذج، حصة التوليد غير مفحوصة',
+            ACCESS_DENIED:'Gemini model access denied / الوصول إلى نموذج Gemini مرفوض',
+            INVALID_RESPONSE:'Unexpected model metadata / بيانات النموذج غير صالحة',
             KEY_REJECTED:'Key rejected / المفتاح مرفوض',
             NOT_CONFIGURED:'Key missing / المفتاح غير موجود',
             RATE_LIMITED:'Provider limit reached / حدّ استخدام المزوّد',
