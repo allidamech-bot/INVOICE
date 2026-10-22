@@ -16,6 +16,7 @@ mkdirSync(output,{recursive:true});
     try{
      await page.goto(`http://127.0.0.1:4173/tests/visual/payment-vouchers.html?mode=${mode}&lang=${lang}&long=1&logo=${logo}`);
      const source=await page.evaluate(()=>window.qaSource());
+     const screenBackground=await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor);
      const action=()=>page.getByRole('button',{name:mode==='customer'?/Receipt \/ PDF|سند قبض \/ PDF/:/Voucher \/ PDF|سند دفع \/ PDF/}).first();
      await action().click();
      const voucher=page.locator('[data-payment-voucher]');await voucher.waitFor();
@@ -29,6 +30,7 @@ mkdirSync(output,{recursive:true});
      await page.locator('.modal-footer button').last().click();
      await page.waitForFunction(()=>window.qaPrints===1);
      await page.emulateMedia({media:'print'});
+     assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),'rgb(255, 255, 255)','print-only root background');
      assert.equal(await page.locator('.modal-footer').isVisible(),false);
      assert.equal(await page.locator('.modal-header').isVisible(),false);
      await voucher.screenshot({path:`${output}/${label}.png`});
@@ -41,14 +43,19 @@ mkdirSync(output,{recursive:true});
        const pages=[];
        for(let n=1;n<=pdf.numPages;n++){
         const p=await pdf.getPage(n),content=await p.getTextContent();
-        pages.push({text:content.items.map(x=>x.str||'').join(' '),width:p.view[2],height:p.view[3],
+        const viewport=p.getViewport({scale:1}),canvas=document.createElement('canvas');
+        canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+        const ctx=canvas.getContext('2d');await p.render({canvasContext:ctx,viewport}).promise;
+        const bottomRgb=Array.from(ctx.getImageData(2,canvas.height-3,1,1).data).slice(0,3);
+        pages.push({bottomRgb,raster:canvas.toDataURL('image/png').split(',')[1],text:content.items.map(x=>x.str||'').join(' '),width:p.view[2],height:p.view[3],
          outside:content.items.filter(x=>x.str?.trim()&&(x.transform[4]<-1||x.transform[5]<-1||x.transform[4]+x.width>p.view[2]+1||x.transform[5]+x.height*.7>p.view[3]+1)).map(x=>x.str)});
        }
        await pdf.destroy();return pages;
       },pdf.toString('base64'));
+      for(const [i,p] of result.entries()){writeFileSync(`${output}/${label}-page-${i+1}.png`,Buffer.from(p.raster,'base64'));delete p.raster;}
       writeFileSync(`${output}/${label}.json`,JSON.stringify(result,null,2));
       assert.ok(result.length>1,'fixture must exercise multiple A4 pages');
-      for(const p of result){assert.ok(p.text.trim(),'no blank page');assert.deepEqual(p.outside,[],'no text origins clipped outside A4');}
+      for(const p of result){assert.ok(p.bottomRgb.every(c=>c>=245),'A4 bottom margin must not inherit dark application canvas');assert.ok(p.text.trim(),'no blank page');assert.deepEqual(p.outside,[],'no text origins clipped outside A4');}
       const flat=result.map(p=>p.text).join('').normalize('NFKC').replace(/\s/g,'');
       for(let i=1;i<=100;i++)assert.equal(flat.split(`QA-LINE-${String(i).padStart(3,'0')}`).length-1,1,'each note appears exactly once');
       assert.ok(flat.includes('QA-LAST-LINE-100'),'last line retained');
@@ -68,6 +75,7 @@ mkdirSync(output,{recursive:true});
      }
      await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
      await page.emulateMedia({media:'screen'});
+     assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),screenBackground,'normal application theme preserved');
      assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-payment-voucher')),false);
      await page.locator('.modal-footer button').last().click();
      await page.waitForFunction(()=>window.qaPrints===2);
