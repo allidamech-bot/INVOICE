@@ -132,6 +132,12 @@ test('packing column stays hidden on untouched drafts, and saved document appear
  assert.equal(vault.documents[0].appearance.showPacking,false);
 });
 
+test('in-chat document review shows per-line packing without changing the AI shell',()=>{
+ const view=readFileSync(new URL('../src/components/AiConversationWorkspace.tsx',import.meta.url),'utf8');
+ assert.match(view,/row\.packing\?<div><dt>\{label\(ar,'Packing','التعبئة'\)\}<\/dt><dd>\{row\.packing\}/);
+ assert.match(view,/className="lxw-review-item"/);
+});
+
 test('template only renders the packing column when its explicit appearance flag is true',()=>{
  const source=readFileSync(new URL('../src/templates/TemplateRenderer.tsx',import.meta.url),'utf8');
  assert.match(source,/const showPacking = doc\.appearance\.showPacking && doc\.items\.some/);
