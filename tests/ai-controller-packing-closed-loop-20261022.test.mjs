@@ -55,6 +55,23 @@ test('Controller runtime recognizes exact Arabic packaging forms before free-for
  assert.match(source,/reviseKernelDraft\(next,original,message,drafting/);
 });
 
+test('Controller parser accepts definite and bare Arabic packaging forms on the exact same line',()=>{
+ const {vault,kernel,before}=staged();
+ for(const [request,expected] of [
+   ['غيّر التعبئة الصنف 1 إلى علبة داخل كرتون','علبة داخل كرتون'],
+   ['غيّر التغليف الصنف 1 إلى كرتون ٦ علب','كرتون ٦ علب'],
+   ['غير تعبئة الصنف 1 إلى 6 × 3 كيلو','6 × 3 كيلو'],
+   ['غيّر تغليف الصنف رقم 1 إلى 6 bags','6 bags']
+ ]){
+  const update=change(kernel,vault,request);
+  assert.equal(update?.changed,true,request);
+  assert.equal(kernel.artifact.proposal.items[0].packing,expected);
+  assert.equal(kernel.artifact.proposal.items[0].quantity,'12');
+  assert.equal(kernel.artifact.proposal.items[0].unitPrice,'50');
+ }
+ assert.deepEqual(vault,before);
+});
+
 test('uploaded source -> reviewed two-line quotation -> Arabic edit -> undo/redo -> preview A4 without vault write',()=>{
  const {vault,before,kernel,draft}=staged();
  assert.equal(draft.items.length,2);
