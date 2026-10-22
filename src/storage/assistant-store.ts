@@ -30,6 +30,9 @@ const MAX_PROVIDER_MEMORY_CHARS=520;
 const PROVIDER_SUMMARY_PREFIX='Earlier conversation summary: ';
 
 function safeText(value:unknown,max:number):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
+// Message bodies can contain structured reports and deliberate paragraphs.
+// Unlike titles, preserve interior line breaks; never let control bytes into history.
+function safeMessageText(value:unknown,max:number):string{return typeof value==='string'?value.normalize('NFKC').replace(/\r\n?/g,'\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g,' ').trim().slice(0,max):'';}
 function now():string{return new Date().toISOString();}
 function makeId(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;}
 function emptyState():AssistantStoreState{return{version:1,threads:[],currentBusinessThreadId:'',currentPersonalThreadId:'',aiPreferences:{...DEFAULT_AI_CONVERSATION_PREFERENCES},updatedAt:now(),deletedThreads:{}};}
@@ -38,7 +41,7 @@ function b64ToArrayBuffer(value:string):ArrayBuffer{const binary=atob(value),byt
 function normalizedMessage(value:any):AssistantStoredMessage|null{
   if(!value||typeof value!=='object')return null;
   const role=value.role==='assistant'?'assistant':value.role==='user'?'user':null;
-  const text=safeText(value.text,MAX_MESSAGE_CHARS);
+  const text=safeMessageText(value.text,MAX_MESSAGE_CHARS);
   if(!role||!text)return null;
   return{id:safeText(value.id,120)||makeId(role),role,text,createdAt:safeText(value.createdAt,40)||now()};
 }
