@@ -83,11 +83,13 @@ async function run(engine,name){
   await card.getByLabel('Draft customer',{exact:true}).selectOption('qa-buyer');
   await card.locator('summary').click();
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
-  // Return to compact controls after explicitly reviewing the 85-item list.
-  // The full source lines remain preserved in the working artifact and PDF.
-  await card.locator('summary').click();
+  // Native keyboard activation keeps the details disclosure accessible
+  // after its 85 lines have been inspected, even if chat autoscroll makes a
+  // touch click on the earlier summary temporarily unreachable.
+  // Do not force-click or mutate the DOM's open attribute.
+  await card.locator('summary').press('Enter');
   assert.equal(await card.locator('details').first().getAttribute('open'),null,
-    'the long source list closes without losing its rows');
+    'keyboard activation closes the inspected source list without losing its rows');
   const count=()=>page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length);
   async function assistantMeta(){
    return page.evaluate(async()=>{
