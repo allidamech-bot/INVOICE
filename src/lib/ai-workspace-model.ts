@@ -15,7 +15,7 @@ import {AI_WORKING_QUOTE_MAX_LINES,aiDraftUndoDepth} from './ai-document-limits.
 import {setExactRecordSelection} from './ai-record-selection.js';
 
 export type WorkspaceDraft = AiDocumentDraftProposal | AiDocumentUpdateProposal;
-export interface WorkspaceLine { id:string; descriptionEn:string; descriptionAr:string; quantity:string; unit:string; unitPrice:string; savedItemId:string; }
+export interface WorkspaceLine { id:string; descriptionEn:string; descriptionAr:string; quantity:string; unit:string; unitPrice:string; savedItemId:string; packing?:string; }
 export interface WorkspaceDiff { field:string; before:string; after:string; }
 export interface WorkspaceDocument { id:string; revision:number; status:'draft'|'saved'; title:string; currency:string; customer:string; rows:WorkspaceLine[]; subtotal:string|null; terms:{label:string;value:string}[]; blockers:string[]; diff:WorkspaceDiff[]; }
 export interface PickerRow { id:string; label:string; detail:string; }
@@ -54,18 +54,18 @@ const clean=(value:unknown)=>typeof value==='string'?value:'';
 function draftRows(artifact:WorkingArtifact,drafting:AiContextEnvelope['drafting']):WorkspaceLine[] {
   const p=artifact.proposal;
   const resolve=(row:any,currency:string)=>resolveAiCommercialLine(row,drafting.items.find(item=>item.id===row.savedItemId),currency);
-  if(p.capability==='document.createDraft')return p.items.map((row,i)=>({...resolve(row,p.currency),id:artifact.lineIds[i]!}));
+  if(p.capability==='document.createDraft')return p.items.map((row,i)=>({...resolve(row,p.currency),packing:row.packing,id:artifact.lineIds[i]!}));
   const active=drafting.activeDocument;
   if(!active||active.id!==p.documentId)throw new Error('Draft is no longer available in this company or branch.');
   const ids=artifact.lineIds.slice(0,active.items.length).every((id,i)=>id===active.items[i]?.id)?artifact.lineIds.slice(active.items.length):artifact.lineIds;
-  return [...active.items.map(row=>({...row,...p.itemEdits.find(edit=>edit.itemId===row.id),id:row.id,savedItemId:''})),...p.addItems.map((row,i)=>({...resolve(row,active.currency),id:ids[i]!}))];
+  return [...active.items.map(row=>({...row,...p.itemEdits.find(edit=>edit.itemId===row.id),id:row.id,savedItemId:''})),...p.addItems.map((row,i)=>({...resolve(row,active.currency),packing:row.packing,id:ids[i]!}))];
 }
 function differences(before:WorkspaceLine[],after:WorkspaceLine[]):WorkspaceDiff[] {
-  const fields=['descriptionEn','descriptionAr','quantity','unit','unitPrice'] as const;
+  const fields=['descriptionEn','descriptionAr','quantity','unit','unitPrice','packing'] as const;
   return after.flatMap((row,i)=>{
     const old=before.find(item=>item.id===row.id);
     if(!old)return [{field:String(i+1),before:'',after:row.descriptionEn||row.descriptionAr}];
-    return fields.filter(field=>old[field]!==row[field]).map(field=>({field:`${i+1} · ${field}`,before:old[field],after:row[field]}));
+    return fields.filter(field=>old[field]!==row[field]).map(field=>({field:`${i+1} · ${field}`,before:old[field]||'',after:row[field]||''}));
   });
 }
 export function workspaceDocument(kernel:ConversationKernel,vault:VaultPayload,language:'ar'|'en',savedId=''):WorkspaceDocument|null {

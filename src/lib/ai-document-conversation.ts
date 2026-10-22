@@ -34,33 +34,33 @@ function removeLineIndex(input:string):number|null{
   const match=input.match(/^(?:احذف|أحذف|امسح|remove|delete)\s+(?:الصنف|صنف|البند|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,3})$/iu);
   return match?Number(latinDigits(match[1]!)):null;
 }
-function parseAddedLine(input:string):{name:string;quantity:string;unitPrice:string;unit:string;sku:string}|null{
+function parseAddedLine(input:string):{name:string;quantity:string;unitPrice:string;unit:string;sku:string;packing:string}|null{
   const match=input.match(/^(?:أضف|اضف|add)\s+(?:صنف|منتج|item|product)\s*[:：]\s*(.+)$/isu);
   if(!match)return null;
   const fields=match[1]!.split(/[;؛\n]+/).map(part=>part.trim()).filter(Boolean);
-  if(fields.length<3||fields.length>5)throw new Error('Provide item name; quantity: N; price: N, optionally unit: text and sku: code.');
+  if(fields.length<3||fields.length>6)throw new Error('Provide item name; quantity: N; price: N, optionally unit: text and sku: code.');
   const name=fields.shift()!.trim();
   if(!name||name.length>160)throw new Error('Explicit item name is missing or too long.');
-  const result={name,quantity:'',unitPrice:'',unit:'',sku:''};
+  const result={name,quantity:'',unitPrice:'',unit:'',sku:'',packing:''};
   const seen=new Set<string>();
   for(const entry of fields){
-    const pair=entry.match(/^([^:=：]{2,24})\s*[:=：]\s*(.{1,100})$/u);
+    const pair=entry.match(/^([^:=：]{2,24})\s*[:=：]\s*(.{1,120})$/u);
     if(!pair)throw new Error('Use clearly labeled quantity, price, unit or SKU fields.');
     const key=pair[1]!.trim().toLowerCase(),value=pair[2]!.trim();
-    const target=/^(?:الكمية|كمية|quantity|qty)$/.test(key)?'quantity':/^(?:السعر|سعر|price|unit price)$/.test(key)?'unitPrice':/^(?:الوحدة|وحدة|unit)$/.test(key)?'unit':/^(?:sku|الكود|كود)$/.test(key)?'sku':null;
+    const target=/^(?:الكمية|كمية|quantity|qty)$/.test(key)?'quantity':/^(?:السعر|سعر|price|unit price)$/.test(key)?'unitPrice':/^(?:الوحدة|وحدة|unit)$/.test(key)?'unit':/^(?:sku|الكود|كود)$/.test(key)?'sku':/^(?:التعبئة|تغليف|packing)$/.test(key)?'packing':null;
     if(!target||seen.has(target))throw new Error('Unknown or repeated item field.');
     seen.add(target);result[target]=value;
   }
   if(!result.quantity||!result.unitPrice)throw new Error('Quantity and selling price are required for a new item.');
   result.quantity=number(result.quantity,true);
   result.unitPrice=number(result.unitPrice,false);
-  if(result.unit.length>40||result.sku.length>80)throw new Error('Unit or SKU is too long.');
+  if(result.unit.length>40||result.sku.length>80||result.packing.length>120||/[\u0000-\u001f\u007f]/.test(result.packing))throw new Error('Unit, SKU or packing is invalid or too long.');
   return result;
 }
 function sameDraftReference(proposal:AiDocumentUpdateProposal,drafting:DraftReference):boolean{
   return drafting.activeDocument?.id===proposal.documentId&&drafting.activeDocument.status==='draft';
 }
-function setLineValue(proposal:Proposal,drafting:DraftReference,index:number,field:'quantity'|'unitPrice',value:string):Proposal{
+function setLineValue(proposal:Proposal,drafting:DraftReference,index:number,field:'quantity'|'unitPrice'|'packing',value:string):Proposal{
   if(!Number.isInteger(index)||index<1)throw new Error('Item index must start at 1.');
   if(proposal.capability==='document.createDraft'){
     if(index>proposal.items.length)throw new Error('Selected item index is outside this draft.');
@@ -141,6 +141,17 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
       return result({...proposal,items},ar);
     }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
   }
+  // Explicit line packing is user-provided metadata. Never interpret it as a
+  // quantity, selling unit, price conversion, or permission to save.
+  const packingChange=input.match(/^(?:غيّر|غير|عدّل|عدل|اجعل|set|change|update)\s+(?:تعبئة|تغليف|packing)\s+(?:ال)?(?:صنف|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,3})\s*(?:إلى|الى|to|=|:)\s*(.{1,120})$/iu);
+  if(packingChange){
+    try{
+      const index=Number(latinDigits(packingChange[1]!)),value=packingChange[2]!.trim();
+      if(!value||value.length>120||/[\u0000-\u001f\u007f]/u.test(value))
+        throw new Error('Specify one safe packing description (maximum 120 characters).');
+      return result(setLineValue(proposal,drafting,index,'packing',value),ar);
+    }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
+  }
   const change=quantityOrPriceChange(input);
   if(change){
     try{
@@ -187,7 +198,7 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
       if(count>=(proposal.capability==='document.createDraft'?AI_WORKING_QUOTE_MAX_LINES:20))throw new Error('Document line limit reached. No row was dropped.');
       const match=parsed.sku?drafting.items.filter(row=>row.sku&&row.sku.toLowerCase()===parsed.sku.toLowerCase()):[];
       if(parsed.sku&&match.length!==1)throw new Error('SKU must identify exactly one product in the active company.');
-      const row:AiDraftItemInput={savedItemId:match[0]?.id||'',descriptionEn:parsed.name,descriptionAr:'',quantity:parsed.quantity,unitPrice:parsed.unitPrice,unit:parsed.unit||match[0]?.unit||''};
+      const row:AiDraftItemInput={savedItemId:match[0]?.id||'',descriptionEn:parsed.name,descriptionAr:'',quantity:parsed.quantity,unitPrice:parsed.unitPrice,unit:parsed.unit||match[0]?.unit||'',...(parsed.packing?{packing:parsed.packing}:{})};
       if(proposal.capability==='document.createDraft')return result({...proposal,items:[...proposal.items,row]},ar);
       if(!sameDraftReference(proposal,drafting))throw new Error('The target draft has changed.');
       return result({...proposal,addItems:[...proposal.addItems,row]},ar);
