@@ -143,7 +143,7 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
   }
   // Explicit line packing is user-provided metadata. Never interpret it as a
   // quantity, selling unit, price conversion, or permission to save.
-  const packingChange=input.match(/^(?:غيّر|غير|عدّل|عدل|اجعل|set|change|update)\s+(?:تعبئة|تغليف|packing)\s+(?:ال)?(?:صنف|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,3})\s*(?:إلى|الى|to|=|:)\s*(.{1,120})$/iu);
+  const packingChange=input.match(/^(?:غيّر|غير|عدّل|عدل|اجعل|set|change|update)\s+(?:(?:ال)?تعبئة|(?:ال)?تغليف|packing)\s+(?:ال)?(?:صنف|بند|item|line)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]{1,3})\s*(?:إلى|الى|to|=|:)\s*(.{1,120})$/iu);
   if(packingChange){
     try{
       const index=Number(latinDigits(packingChange[1]!)),value=packingChange[2]!.trim();
