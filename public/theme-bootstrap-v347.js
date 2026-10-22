@@ -46,7 +46,14 @@
       // React replaces the static #lourex-boot node during mount. Treat its
       // direct .loading-screen successor as the same startup owner so the theme
       // bootstrap cannot release the page background between those two paints.
-      if(startupSurface())return;
+      // Between React removing the static boot node and mounting the first
+      // app/auth/recovery surface, #root can briefly be empty on Safari.
+      // Do not unlock scrolling or disconnect in that gap.
+      if(startupSurface()||!mount.querySelector(
+        ':scope > .workspace-shell, :scope > .ta-shell, :scope > .ta-auth-page, '+
+        ':scope > .auth-page, :scope > .auth-recovery-state, :scope > .app-recovery, '+
+        ':scope > .app-recovery-screen, :scope > .app-ui'
+      ))return;
       delete root.dataset.lourexBooting;
       root.style.removeProperty('--boot-bg');
       // A theme change may occur while auth is loading. Do not restore the
