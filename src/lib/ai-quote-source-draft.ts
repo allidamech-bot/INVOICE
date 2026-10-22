@@ -186,6 +186,13 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     const sourceCost=supplierSource&&exactSource
       ?(row.unitCostColumnPresent===true?row.unitCost:row.unitPrice)
       :supplierSource?row.unitCost:row.unitPrice;
+    // Preserve only an explicitly extracted package description attached to
+    // this source row. Never turn '6 x 3kg' into the order quantity or price.
+    const rawPacking=row.packing;
+    if(rawPacking!==undefined&&
+      (typeof rawPacking!=='string'||rawPacking.length>120||/[\u0000-\u001f\u007f]/u.test(rawPacking)))
+      throw new Error('SOURCE_INCOMPLETE: Packing is invalid or oversized on line '+(index+1)+'. No rows omitted.');
+    const packing=sourceText(rawPacking,120);
     const unit=sourceText(row.unit,40);
     // Supplier quantities without an explicit purchasing unit cannot be
     // safely reinterpreted as customer-order quantities (CTN vs PCS, etc.).
@@ -196,7 +203,7 @@ export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiTool
     const unitPrice=margin!==null?sellingPriceForGrossMargin(sourcePrice,margin)
       :markup!==null?sellingPriceForMarkup(sourcePrice,markup)
       :supplierSource?'':sourcePrice;
-    return{savedItemId:'',descriptionEn:descriptionEn||sku,descriptionAr,quantity,unit,unitPrice};
+    return{savedItemId:'',descriptionEn:descriptionEn||sku,descriptionAr,quantity,unit,unitPrice,...(packing?{packing}:{})};
   });
   const currency=sourceText(data.currency,3).toUpperCase();
   if(currency&&!/^[A-Z]{3}$/.test(currency))throw new Error('SOURCE_INCOMPLETE: The source currency is unclear.');
