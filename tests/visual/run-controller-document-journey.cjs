@@ -117,7 +117,27 @@ async function run(engine,name){
   await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
   assert.equal(await count(),0,'selecting customers while drafting must not persist');
   async function pdf(){
-   await card.getByRole('button',{name:'Generate PDF preview',exact:true}).click();
+   const preview=card.getByRole('button',{name:'Generate PDF preview',exact:true});
+   // With 85 expanded items, reach the action by scrolling the actual chat
+   // viewport as an iPhone user would. Never force-click an offscreen element.
+   await preview.evaluate(node=>{
+    const scroller=node.closest('.lourex-ai-messages');
+    if(scroller){
+     const action=node.getBoundingClientRect(),visible=scroller.getBoundingClientRect();
+     scroller.scrollTop+=action.top-(visible.top+Math.min(160,visible.height/2));
+    }else node.scrollIntoView({block:'center',inline:'nearest'});
+   });
+   const geometry=await preview.evaluate(node=>{
+    const rect=node.getBoundingClientRect(),panel=node.closest('.lourex-ai-messages');
+    const region=panel?.getBoundingClientRect();
+    return{top:Math.round(rect.top),bottom:Math.round(rect.bottom),viewport:innerHeight,
+      chatTop:region?Math.round(region.top):null,chatBottom:region?Math.round(region.bottom):null,
+      scrollTop:panel?.scrollTop??null,scrollHeight:panel?.scrollHeight??null,
+      enabled:!node.disabled};
+   });
+   assert.ok(geometry.enabled&&geometry.top>=0&&geometry.bottom<=geometry.viewport,
+      'PDF preview must be reachable by real viewport scrolling: '+JSON.stringify(geometry));
+   await preview.click({timeout:10000});
    const link=card.getByRole('link',{name:'Download PDF',exact:true});await link.waitFor({timeout:90000});
    const href=await link.getAttribute('href');
    const result=await page.evaluate(async href=>{
@@ -210,4 +230,4 @@ async function run(engine,name){
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
  }finally{await browser.close();}
 }
-(async()=>{await run(chromium,'Chromium');await run(webkit,'WebKit');})().catch(e=>{console.error(e);process.exitCode=1});
+(async()=>{await run(webkit,'WebKit');await run(chromium,'Chromium');})().catch(e=>{console.error(e);process.exitCode=1});
