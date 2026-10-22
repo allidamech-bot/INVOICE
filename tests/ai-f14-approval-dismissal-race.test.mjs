@@ -43,7 +43,7 @@ test('F14 encrypted local store survives late legacy messages and stale saves',a
     .replace(/import .* from '.*';/g,line=>line.includes("'./db.js'")
       ?'const {getRecord,putRecord}=globalThis.__f14Db;'
       :line.replace("'../lib/ai-conversation-kernel.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-kernel.js',import.meta.url).href))
-        .replace("'../lib/ai-conversation-mode.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-mode.js',import.meta.url).href)));
+        .replace("'../lib/ai-conversation-mode.js'",JSON.stringify(new URL('../dist/src/lib/ai-conversation-mode.js',import.meta.url).href)).replace("'../lib/ai-financial-readout.js'",JSON.stringify(new URL('../dist/src/lib/ai-financial-readout.js',import.meta.url).href)));
   const store=await import('data:text/javascript;base64,'+Buffer.from(storeSource).toString('base64')+'#'+crypto.randomUUID());
   const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
   const {k}=makeKernel();
