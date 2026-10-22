@@ -92,27 +92,44 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,m
  
 // Read-only account authentication check. No chat/completion requests, prompts,
 // customer data, model inference, or consumption of model-output tokens.
-// This checks the credential, NOT eligibility for a free model or billing status.
+// Gemini reads ONE fixed model's metadata; Mistral/Ollama retain their existing
+// catalog checks. Credential lookup cannot certify inference quota or pricing.
 export async function checkProviderCredential(provider,{fetchImpl=fetch}={}){
-  if(provider!=='mistral'&&provider!=='ollama')return{status:'INVALID_PROVIDER'};
+  if(!['gemini','mistral','ollama'].includes(provider))return{status:'INVALID_PROVIDER'};
   const model=MODEL[provider],cfg=settingsFor(provider);
   if(!cfg?.key)return{provider,model,status:'NOT_CONFIGURED',inference:false,latencyMs:0};
-  const url=provider==='mistral'?'https://api.mistral.ai/v1/models':'https://ollama.com/api/tags';
+  const gemini=provider==='gemini';
+  const url=gemini?'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite':
+    provider==='mistral'?'https://api.mistral.ai/v1/models':'https://ollama.com/api/tags';
   const started=Date.now(),controller=new AbortController();
   let timer;
   const deadline=new Promise((_,reject)=>{
     timer=setTimeout(()=>{controller.abort();reject(new Error('CREDENTIAL_TIMEOUT'));},8_000);
   });
   try{
-    const request=fetchImpl(url,{
-      method:'GET',headers:{Authorization:'Bearer '+cfg.key,Accept:'application/json'},
-      cache:'no-store',redirect:'error',signal:controller.signal
-    });
-    const response=await Promise.race([request,deadline]);
-    // Never inspect or return potentially sensitive account metadata.
-    if(response.body?.cancel)await Promise.race([response.body.cancel().catch(()=>{}),Promise.resolve()]);
-    return{provider,model,status:response.ok?'KEY_AUTHENTICATED':safeCategory(response.status),
-      inference:false,latencyMs:Date.now()-started};
+    const request=(async()=>{
+      const response=await fetchImpl(url,{
+        method:'GET',
+        headers:{...(gemini?{'x-goog-api-key':cfg.key}:{Authorization:'Bearer '+cfg.key}),Accept:'application/json'},
+        cache:'no-store',redirect:'error',signal:controller.signal
+      });
+      if(gemini&&response.ok){
+        // Validate the returned fixed model without reflecting any Google
+        // response body or key into the owner's diagnostics.
+        const declared=Number(response.headers?.get?.('content-length')||0);
+        if(declared>12_000)return{status:'INVALID_RESPONSE'};
+        const raw=await response.text();
+        if(raw.length>12_000)return{status:'INVALID_RESPONSE'};
+        let data;try{data=JSON.parse(raw);}catch{return{status:'INVALID_RESPONSE'};}
+        if(data?.name!=='models/gemini-2.5-flash-lite')return{status:'INVALID_RESPONSE'};
+        return{status:'METADATA_ACCESS_OK',generativeMethodListed:Array.isArray(data.supportedGenerationMethods)&&data.supportedGenerationMethods.includes('generateContent')};
+      }
+      // Never inspect or return potentially sensitive upstream account metadata.
+      if(response.body?.cancel)await Promise.race([response.body.cancel().catch(()=>{}),Promise.resolve()]);
+      return{status:response.ok?'KEY_AUTHENTICATED':gemini&&response.status===403?'ACCESS_DENIED':safeCategory(response.status)};
+    })();
+    const result=await Promise.race([request,deadline]);
+    return{provider,model,...result,inference:false,latencyMs:Date.now()-started};
   }catch(error){
     return{provider,model,status:controller.signal.aborted||error?.message==='CREDENTIAL_TIMEOUT'?'TIMEOUT':'NETWORK_ERROR',
       inference:false,latencyMs:Date.now()-started};
