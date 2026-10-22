@@ -16,7 +16,7 @@ function createFixture(){
     }
   };
   const meta={setAttribute:(name,value)=>props.set('meta-'+name,value)};
-  const mount={querySelector:selector=>selector===':scope > .loading-screen'&&childClass==='loading-screen'?{}:null};
+  const mount={querySelector:selector=>selector===':scope > .loading-screen'?(childClass==='loading-screen'?{}:null):(selector.includes('.'+childClass)?{}:null)};
   const document={
     documentElement:root,
     querySelector:selector=>selector==='meta[name="theme-color"]'?meta:null,

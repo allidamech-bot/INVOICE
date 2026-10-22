@@ -32,7 +32,7 @@ function boot(preference,systemDark=false,blocked=false){
   let observerCallback,domCallback,loading=true,disconnected=false;
   const root={dataset:{},style:{setProperty(name,value){this[name]=value;},removeProperty(name){delete this[name];}}};
   const meta={setAttribute(name,value){this[name]=value;}};
-  const mount={querySelector:()=>loading?{}:null};
+  const mount={querySelector:selector=>selector===':scope > .loading-screen'?(loading?{}:null):(!loading&&selector.includes('.workspace-shell')?{}:null)};
   // This theme-only fixture contains no deferred font link. Do not return the
   // generic loading sentinel as a fake <link> after startup font deferral.
   const document={documentElement:root,querySelector:selector=>selector.includes('data-lourex-deferred-fonts')?null:selector.includes('theme-color')?meta:loading?{}:null,getElementById:()=>mount,addEventListener:(_event,callback)=>{domCallback=callback;}};
