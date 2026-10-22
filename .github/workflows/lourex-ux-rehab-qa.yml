@@ -56,6 +56,7 @@ on:
       - 'tests/ai-job-history-uid-isolation-20261022.test.mjs'
       - 'src/lib/ai-attachment-followup.ts'
       - 'tests/ai-f15-scoped-attachment-followup.test.mjs'
+      - 'tests/emulator/ai-chat-pdf-ordinary-user-qr.integration.mjs'
       - 'src/lib/ai-commercial-intelligence.ts'
       - 'src/lib/ai-workspace-model.ts'
       - 'src/components/AiCommercialWorkspace.tsx'
@@ -314,7 +315,7 @@ jobs:
           ./node_modules/.bin/firebase emulators:exec \
             --only firestore --config firebase.ai-ci.json \
             --project demo-lourex-ai-integration-719 \
-            "node --test --test-concurrency=1 tests/emulator/ai-history.test.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
+            "node --test --test-concurrency=1 tests/emulator/ai-history.test.mjs tests/firebase-firestore-rules-emulator.integration.mjs tests/emulator/ai-chat-pdf-ordinary-user-qr.integration.mjs"
       - name: Exercise real browser Firebase Auth, two-device recovery and posted stock (local emulators only)
         shell: bash
         run: |
