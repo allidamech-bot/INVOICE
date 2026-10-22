@@ -12,7 +12,7 @@ import {mergeVaultIntent,sameDocumentContent} from '../dist/src/storage/vault-me
 import {migrateVault,synchronizeActiveWorkspaceOnSave} from '../dist/src/storage/vault.js';
 import {assertPlainCloudWorkspaceUploadable} from '../dist/src/cloud/plain-workspace.js';
 import {exportPlainBackup,readPlainBackup} from '../dist/src/lib/backup.js';
-import {auditedDocument} from '../dist/src/lib/document-lifecycle.js';
+import {auditedDocument,createDocumentEvent} from '../dist/src/lib/document-lifecycle.js';
 import {isDeliveryLinkedInvoice} from '../dist/src/lib/sales-delivery-invoice.js';
 
 function fixture(kind='invoice',legacy=false){
@@ -172,6 +172,45 @@ test('independent draft edits, identical concurrent content and timestamp-only r
   const merged=mergeVaultIntent(f.base,intended,other);
   assert.equal(merged.documents.find(row=>row.id===local.id).notes,'Local work');
   assert.equal(merged.documents.find(row=>row.id!==local.id).notes,'Other document work');
+});
+
+for(const kind of ['proforma','invoice','purchase-order'])
+test(`different concurrent ${kind} issuances cannot overwrite the already issued version`,()=>{
+  for(const matchingTimestamp of [false,true]){
+    const f=fixture(kind),draft={...f.draft,
+      customerSnapshot:{sourceCustomerId:'qa-buyer',companyNameEn:'QA Buyer',companyNameAr:''},
+      items:[{...f.draft.items[0],descriptionEn:'QA service',quantity:'1',unitPrice:'100',stockTreatment:'non-stock'}]};
+    const base={...f.base,documents:f.base.documents.map(row=>row.id===draft.id?draft:row)};
+    const remote={...draft,status:'final',notes:'Already issued on device A',updatedAt:matchingTimestamp?draft.updatedAt:'2099-01-01T00:00:00.000Z'};
+    const local={...draft,status:'final',notes:'Different issue on device B'};
+    const latest={...base,documents:base.documents.map(row=>row.id===draft.id?remote:row)};
+    const intended=applyWorkspaceScope(base,{...base,documents:base.documents.map(row=>row.id===draft.id?local:row)});
+    const before=JSON.stringify({base,latest,intended});
+    assert.throws(()=>mergeVaultIntent(base,intended,latest),/issued.*another.*save/i);
+    assert.equal(JSON.stringify({base,latest,intended}),before,'rejected issuance must preserve both source versions');
+  }
+});
+
+test('ordinary issuance and identical concurrent issuance replay remain supported',()=>{
+  const f=fixture('proforma'),issued={...f.draft,status:'final',notes:'Reviewed issue'};
+  const intended=applyWorkspaceScope(f.base,{...f.base,documents:f.base.documents.map(row=>row.id===issued.id?issued:row)});
+  const normal=mergeVaultIntent(f.base,intended,f.base);
+  assert.equal(normal.documents.find(row=>row.id===issued.id).status,'final');
+  const latest={...f.base,documents:f.base.documents.map(row=>row.id===issued.id?{...issued,updatedAt:'2099-01-01T00:00:00.000Z'}:row)};
+  const replay=mergeVaultIntent(f.base,intended,latest);
+  assert.ok(sameDocumentContent(replay.documents.find(row=>row.id===issued.id),issued));
+});
+
+test('real App queue rejects conflicting issuance before a second commit or issuance event',async()=>{
+  const f=fixture('proforma'),p=await persistence(f),base=p.h.requireVault();
+  const issue=notes=>({...base,documents:base.documents.map(row=>row.id===f.draft.id?{...row,status:'final',notes}:row),
+    documentEvents:[...base.documentEvents,createDocumentEvent({...f.draft,status:'final'},'issued',notes)]});
+  const first=p.h.persist(issue('First approved issue'));
+  const second=assert.rejects(p.h.persist(issue('Conflicting second issue')),/issued.*another.*save/i);
+  await Promise.all([first,second]);
+  assert.equal(p.get().payload.documents.find(row=>row.id===f.draft.id).notes,'First approved issue');
+  assert.equal(p.get().payload.documentEvents.filter(row=>row.documentId===f.draft.id&&row.type==='issued').length,1);
+  assert.deepEqual(p.counts(),{writes:1,syncs:1});
 });
 
 test('real App queue preserves a newer draft through unrelated settings saves and rejects competing text without a second commit',async()=>{
