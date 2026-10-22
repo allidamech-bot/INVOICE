@@ -16,12 +16,40 @@ function setup(){
   const posted={...postPurchase(draft,[],[]).purchase,
     postedAt:'2026-10-02T09:00:00.000Z',updatedAt:'2026-10-02T09:00:00.000Z'};
   const base={...emptyVault(),suppliers:[supplier],purchases:[posted]};
-  return {base,posted,supplier};
+  return {base,posted,supplier,draft};
 }
 function localExpense(base){
   return {...base,expenses:[{...createExpense('USD'),id:'independent-office-expense',
     description:'Internet service',amount:'10.00'}]};
 }
+
+for(const action of ['edit','delete','repost'])
+test(`a stale draft ${action} cannot replace or erase a concurrently posted service payable`,()=>{
+  const {base:issued,posted,draft,supplier}=setup(),base={...issued,purchases:[draft]};
+  const changed={...draft,notes:'Late stale work',items:draft.items.map(row=>({...row,unitCost:'5.00'}))};
+  const purchases=action==='delete'?[]:action==='repost'?[postPurchase(changed,[],[]).purchase]:[changed];
+  const intended={...base,purchases},latest={...base,purchases:[posted]},before=JSON.stringify({base,intended,latest});
+  assert.throws(()=>mergeVaultIntent(base,intended,latest),/posted.*immutable|purchase history.*deleted/i);
+  assert.equal(JSON.stringify({base,intended,latest}),before);
+  assert.equal(supplierPayablesByCurrency(latest.purchases,[],'2026-10-10')[0].remaining,'120.00');
+  assert.equal(latest.inventoryMovements.length,0,'a service payable must not depend on stock evidence');
+});
+
+test('a concurrently posted service purchase survives an unrelated local save and identical replay',()=>{
+  const {base:issued,posted,draft}=setup(),base={...issued,purchases:[draft]},latest={...base,purchases:[posted]};
+  for(const intended of [localExpense(base),{...base,purchases:[structuredClone(posted)]}]){
+    const saved=mergeVaultIntent(base,intended,latest);
+    assert.deepEqual(saved.purchases,[posted]);
+    assert.equal(supplierPayablesByCurrency(saved.purchases,[],'2026-10-10')[0].remaining,'120.00');
+  }
+});
+
+test('ordinary local posting and independent remote-only posted purchases remain supported',()=>{
+  const {base:issued,posted,draft}=setup(),base={...issued,purchases:[draft]};
+  assert.equal(mergeVaultIntent(base,{...base,purchases:[posted]},base).purchases[0].status,'posted');
+  const empty={...base,purchases:[]},saved=mergeVaultIntent(empty,localExpense(empty),{...empty,purchases:[posted]});
+  assert.deepEqual(saved.purchases,[posted]);assert.equal(saved.expenses.length,1);
+});
 
 test('remote price increase or decrease of a posted service purchase cannot silently rewrite supplier payable',()=>{
   const {base,posted}=setup(),before=JSON.stringify(base);

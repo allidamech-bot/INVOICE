@@ -866,6 +866,12 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   guardInventoryLedgerIntent(base,intended,latest);
   const affectedPurchases=purchaseIdsAffected(base,intended);
   const baseById=new Map(base.purchases.map(purchase=>[purchase.id,purchase]));
+  // A draft may already have become an immutable liability on the other
+  // device. Protect that accepted posting against the final merged result,
+  // including service purchases with no stock movements to expose a downgrade.
+  const postedSinceBase=latest.purchases.filter(purchase=>purchase.status!=='draft'&&baseById.get(purchase.id)?.status==='draft');
+  guardPostedPurchaseContinuity(postedSinceBase,purchases,purchases);
+  guardPostedPurchaseAuditChanges(postedSinceBase,purchases);
   const intendedById=new Map(intended.purchases.map(purchase=>[purchase.id,purchase]));
   for(const id of affectedPurchases){
     const before=baseById.get(id),wanted=intendedById.get(id),merged=purchases.find(purchase=>purchase.id===id);
