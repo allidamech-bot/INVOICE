@@ -8,7 +8,7 @@ export const ICC_SOURCE='https://iccwbo.org/business-solutions/incoterms-rules/'
 export interface ScenarioInput { quantity:string; unitCost:string; unitPrice:string; currency:string; freight:string; duty:string; otherCosts:string; toCurrency:string; date:string; }
 export interface CommercialScenario { input:ScenarioInput; goods:string; landed:string; revenue:string; profit:string|null; margin:string|null; converted:string|null; fx?:{id:string;rate:string;date:string;source:string;inverse:boolean}; assumptions:string[]; }
 export interface ExternalQuote { id:string; productId:string; supplier:string; currency:string; unit:string; unitCost:string; quantity:string; source:string; date:string; capturedAt:string; excerpt:string; reliability:'external-unverified'; }
-export interface CommercialState { scenario?:CommercialScenario; sources:ExternalQuote[]; supplierProductId?:string; pack?:{cartons:string;unitsPerCarton:string;units:string}; obligations?:{from:string;to:string;warnings:string[];source:string;checkedAt:string}; }
+export interface CommercialState { scenario?:CommercialScenario; sources:ExternalQuote[]; supplierProductId?:string; pack?:{cartons:string;unitsPerCarton:string;units:string;boxesPerCarton?:string;unitsPerBox?:string;boxes?:string}; obligations?:{from:string;to:string;warnings:string[];source:string;checkedAt:string}; }
 export function decimal(value:string,positive=false):string { const result=normalizeDecimalInput(value);if(!/^(?:0|[1-9]\d{0,12})(?:\.\d{1,4})?$/.test(result)||(positive&&decimalToScaled(result,4)<=0n))throw new Error('Enter an explicit valid decimal. / أدخل رقمًا عشريًا واضحًا.');return result; }
 export function moneyString(value:bigint):string {const a=value<0n?-value:value;return (value<0n?'-':'')+a/100n+'.'+String(a%100n).padStart(2,'0');}
 function currency(value:string):string {if(!/^[A-Z]{3}$/.test(value))throw new Error('Use a three-letter currency.');return value;}
@@ -24,6 +24,21 @@ export function commercialScenario(vault:VaultPayload,input:ScenarioInput):Comme
   if(!goods)out.assumptions.push('Cost is missing; landed cost, profit and margin are unknown.');return out;
 }
 export function convertPack(cartons:string,unitsPerCarton:string){const c=decimal(cartons,true),u=decimal(unitsPerCarton,true);if(!/^\d+$/.test(c)||!/^\d+$/.test(u))throw new Error('Whole cartons and whole units per carton are required.');return {cartons:c,unitsPerCarton:u,units:(BigInt(c)*BigInt(u)).toString()};}
+/** Pure review-only conversion of outer cartons -> inner boxes -> units.
+ * This never changes the quote line quantity, pricing unit, stock or accounting.
+ * All three values must be explicit positive whole numbers. */
+export function convertNestedPack(cartons:string,boxesPerCarton:string,unitsPerBox:string){
+  const outer=decimal(cartons,true),inner=decimal(boxesPerCarton,true),pieces=decimal(unitsPerBox,true);
+  if(![outer,inner,pieces].every(value=>/^\d+$/.test(value)))
+    throw new Error('Whole cartons, inner boxes per carton and units per box are required.');
+  const boxCount=BigInt(outer)*BigInt(inner);
+  const unitsPerCarton=BigInt(inner)*BigInt(pieces);
+  const total=BigInt(outer)*unitsPerCarton;
+  if(total>1_000_000_000_000n)
+    throw new Error('Nested packaging exceeds the 1,000,000,000,000-unit review limit.');
+  return{cartons:outer,boxesPerCarton:inner,unitsPerBox:pieces,boxes:boxCount.toString(),
+    unitsPerCarton:unitsPerCarton.toString(),units:total.toString()};
+}
 /** Obligation changes do not imply a price conversion. Only reviewed terms may edit a draft. */
 export function compareIncoterms(from:string,to:string){
   const code=(value:string)=>value.trim().toUpperCase().match(/^(EXW|FCA|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP)(?:\s|$)/)?.[1];
