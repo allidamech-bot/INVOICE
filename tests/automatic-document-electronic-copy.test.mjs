@@ -6,6 +6,7 @@ import ts from 'typescript';
 import * as domain from '../dist/src/lib/secure-share.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {defaultCompany,emptyVault} from '../dist/src/lib/defaults.js';
+import {sameDocumentContent} from '../dist/src/storage/vault-merge.js';
 const read=p=>readFile(p,'utf8');
 
 function document(kind='proforma'){
@@ -125,7 +126,8 @@ test('issuance connects QR only after protected accounting save and never bypass
   const d=document(),vault=emptyVault();vault.documents=[{...d,status:'draft'}];let persisted=0,connected=0,gated=0;
   const ctx={Date,automaticElectronicDocument:domain.automaticElectronicDocument,ensureDocumentElectronicCopy:async(doc,options)=>{assert.equal(persisted,1,'QR publication follows accounting save');assert.equal(options.isCurrent(),true);connected++;return {};},salesOrderForQuotation:()=>null,isDeliveryLinkedInvoice:()=>false,
    approvalGate:()=>{gated++;return {allowed,created:false};},assertCustomerCreditLimit:()=>{},assertInvoicePaymentInvariant:()=>{},assertDocumentLifecycleInvariant:()=>{},assertDeliveryInvoiceIntegrity:()=>{},createDocumentEvent:(doc,type)=>({documentId:doc.id,type}),documentUsesCommercialDefaults:()=>true,t:en=>en,
-   accountEpoch:1,state:{unlocked:true,vault},requireVault:()=>ctx.state.vault,persist:async next=>{ctx.state.vault=next;persisted++;},setState:patch=>Object.assign(ctx.state,patch),showToast:()=>{}};
+   currentCloudUser:()=>({uid:'qa-issuer'}),activeAccountStorageUid:()=> 'qa-issuer',sameDocumentContent,
+   accountEpoch:1,state:{unlocked:true,vault,cloudUser:{uid:'qa-issuer'}},requireVault:()=>ctx.state.vault,persist:async next=>{ctx.state.vault=next;persisted++;},setState:patch=>Object.assign(ctx.state,patch),showToast:()=>{}};
   vm.runInNewContext(code,ctx);
   if(allowed){await ctx.run(d);assert.equal(persisted,1);assert.equal(connected,1);assert.equal(ctx.state.vault.documents[0].status,'final');assert.equal(ctx.state.vault.documents[0].items[0].unitPrice,'5.00');}
   else{await assert.rejects(ctx.run(d),/Approval is required/);assert.equal(persisted,0);assert.equal(connected,0);}
