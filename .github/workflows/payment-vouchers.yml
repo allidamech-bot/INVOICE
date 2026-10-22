@@ -16,6 +16,7 @@ on:
       - 'tests/visual/payment-vouchers.html'
       - 'tests/visual/run-payment-vouchers.cjs'
       - 'tests/visual/run-payment-voucher-hardening.cjs'
+      - 'tests/visual/run-payment-voucher-long-print.cjs'
       - '.github/workflows/payment-vouchers.yml'
 permissions:
   contents: read
@@ -37,8 +38,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run build
-      - name: Pure financial identity and payment lifecycle tests
-        run: node --test tests/payment-vouchers-20261021.test.mjs tests/payment-voucher-ui.test.mjs tests/receivables-v133.test.mjs tests/purchase-payment-saved-cycle.test.mjs
+      - name: Full Node regression including payment identity and lifecycle
+        run: node --test tests/*.test.mjs
       - run: npm install --no-save --package-lock=false playwright@1.56.1 http-server@14.1.1
       - run: npx playwright install --with-deps chromium webkit
       - name: Actual payment receipt and supplier voucher browser and native PDF checks
@@ -50,6 +51,7 @@ jobs:
           node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/payment-vouchers.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Voucher test server missing");'
           node tests/visual/run-payment-vouchers.cjs
           node tests/visual/run-payment-voucher-hardening.cjs
+          node tests/visual/run-payment-voucher-long-print.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
