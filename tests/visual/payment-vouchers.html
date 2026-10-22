@@ -22,7 +22,7 @@ if(long){
 const longPayment=payment=>{
  if(long){
   payment.reference='TRANSFER-42-'+('REFERENCE0123456789'.repeat(16));
-  payment.notes=Array.from({length:100},(_,i)=>`QA-LINE-${String(i+1).padStart(3,'0')} ${lang==='ar'?'ملاحظة اختبار اصطناعية للتحقق من اكتمال طباعة السند دون فقدان المحتوى':'Synthetic acceptance note verifying complete voucher printing without lost content'}`).join('\n')+'\nQA-LAST-LINE-100';
+  payment.notes='QA-NOTES-BEGIN\n'+Array.from({length:100},(_,i)=>`QA-LINE-${String(i+1).padStart(3,'0')} ${lang==='ar'?'ملاحظة اختبار اصطناعية للتحقق من اكتمال طباعة السند دون فقدان المحتوى':'Synthetic acceptance note verifying complete voucher printing without lost content'}`).join('\n')+'\nQA-LAST-LINE-100';
   if('customerNameEn' in payment){payment.customerNameEn+=' Long Customer Name'.repeat(12);payment.customerNameAr+=' اسم العميل الطويل'.repeat(12);}
  }
  return payment;

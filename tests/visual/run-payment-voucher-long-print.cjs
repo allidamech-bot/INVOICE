@@ -49,12 +49,20 @@ mkdirSync(output,{recursive:true});
       writeFileSync(`${output}/${label}.json`,JSON.stringify(result,null,2));
       assert.ok(result.length>1,'fixture must exercise multiple A4 pages');
       for(const p of result){assert.ok(p.text.trim(),'no blank page');assert.deepEqual(p.outside,[],'no text origins clipped outside A4');}
-      const flat=result.map(p=>p.text).join('').replace(/\s/g,'');
+      const flat=result.map(p=>p.text).join('').normalize('NFKC').replace(/\s/g,'');
       for(let i=1;i<=100;i++)assert.equal(flat.split(`QA-LINE-${String(i).padStart(3,'0')}`).length-1,1,'each note appears exactly once');
       assert.ok(flat.includes('QA-LAST-LINE-100'),'last line retained');
       assert.ok(flat.includes('TRANSFER-42-'+('REFERENCE0123456789'.repeat(16))),'complete long reference retained');
       const noteWords=(lang==='ar'?'ملاحظة اختبار اصطناعية للتحقق من اكتمال طباعة السند دون فقدان المحتوى':'Synthetic acceptance note verifying complete voucher printing without lost content').split(' ');
-      for(const word of noteWords)assert.ok(flat.split(word).length-1>=100,`note body retained: ${word}`);
+      if(lang==='ar'){
+       // Chromium PDF text uses shaped presentation glyphs in visual order.
+       // NFKC plus a complete Arabic glyph inventory detects loss without
+       // mistaking PDF extraction order for the browser's rendered word order.
+       const glyphs=value=>Array.from(value.normalize('NFKC')).filter(c=>/[\u0621-\u064a]/.test(c)).sort().join('');
+       const noteText=flat.split('QA-NOTES-BEGIN')[1]?.split('QA-LAST-LINE-100')[0];
+       assert.ok(noteText,'bounded complete note section');
+       assert.equal(glyphs(noteText),glyphs(noteWords.join(' ').repeat(100)),'complete Arabic note glyph inventory');
+      }else for(const word of noteWords)assert.ok(flat.split(word).length-1>=100,`note body retained: ${word}`);
       for(const needle of [mode==='customer'?'customer-voucher-001':'supplier-voucher-001',mode==='customer'?'INV-QA-RECEIPT':'PUR-QA-VOUCHER','TRANSFER-42-','USD'])assert.ok(flat.includes(needle),`PDF identity: ${needle}`);
       assert.ok(!/Showmorepayments|Print\/SavePDF|طباعة\/حفظPDF/.test(flat),'controls must not leak into PDF');
      }
