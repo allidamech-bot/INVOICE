@@ -18,7 +18,8 @@ source=source.replace(auditToken,`if (toolResult) {\n                this.__lour
 
 const payloadToken="const payload = toolResult ? { answer: toolResult.answer, proposal: toolResult.proposal, __lourexToolOrchestrated: true } : await requestAiJson(advisorEndpoint, { message: requestMessage, context }, controller.signal);";
 if(!source.includes(payloadToken))throw new Error('AI conversation Batch 4 could not find the orchestrated payload handoff.');
-source=source.replace(payloadToken,"const payload = toolResult ? { answer: __lourexNaturalizeToolAnswer(toolResult, toolResult.foundationReplyLanguage || (this.props.language === 'ar' ? 'ar' : 'en')), proposal: toolResult.proposal, __lourexToolOrchestrated: true } : await requestAiJson(advisorEndpoint, { message: requestMessage, context }, controller.signal);");
+source=source.replace(payloadToken,"const payload = toolResult ? { answer: __lourexNaturalizeToolAnswer(toolResult, toolResult.foundationReplyLanguage || (this.props.language === 'ar' ? 'ar' : 'en')), __lourexFinancialReadout: financialReadoutFromToolRows(toolResult, toolResult.foundationReplyLanguage || (this.props.language === 'ar' ? 'ar' : 'en')), proposal: toolResult.proposal, __lourexToolOrchestrated: true } : await requestAiJson(advisorEndpoint, { message: requestMessage, context }, controller.signal);");
+source="import {financialReadoutFromToolRows} from '../lib/ai-financial-readout.js';\n"+source;
 
 const proposalToken="const proposal = payload?.__lourexToolOrchestrated && payload?.proposal?.capability === 'tool.execute' ? payload.proposal : safeProposal(payload?.proposal, context, message);";
 if(!source.includes(proposalToken))throw new Error('AI conversation Batch 4 could not find the orchestrated proposal gate.');

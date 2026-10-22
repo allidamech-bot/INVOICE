@@ -1,9 +1,10 @@
 import { normalizeConversationKernel, reconcileCancelledApprovals, type ConversationKernel } from '../lib/ai-conversation-kernel.js';
+import {normalizeFinancialReadout,type FinancialReadout} from '../lib/ai-financial-readout.js';
 import { DEFAULT_AI_CONVERSATION_PREFERENCES, normalizeAiConversationPreferences, type AiConversationExperiencePreferences } from '../lib/ai-conversation-mode.js';
 import { getRecord, putRecord } from './db.js';
 import type { AssistantScope } from '../lib/ai-assistant-foundation.js';
 
-export interface AssistantStoredMessage{id:string;role:'user'|'assistant';text:string;createdAt:string;}
+export interface AssistantStoredMessage{id:string;role:'user'|'assistant';text:string;createdAt:string;financialReadout?:FinancialReadout;}
 export interface AssistantThread{
   id:string;
   scope:Exclude<AssistantScope,'temporary'>;
@@ -19,7 +20,7 @@ export interface AssistantThread{
 }
 export interface AssistantStoreState{version:1;threads:AssistantThread[];currentBusinessThreadId:string;currentPersonalThreadId:string;aiPreferences:AiConversationExperiencePreferences;updatedAt:string;deletedThreads?:Record<string,string>;}
 interface EncryptedAssistantRecord{id:'assistant-state';version:1;iv:string;cipher:string;updatedAt:string;}
-interface MessageLike{id?:string;role:'user'|'assistant';text:string;createdAt?:string;}
+interface MessageLike{id?:string;role:'user'|'assistant';text:string;createdAt?:string;financialReadout?:FinancialReadout;}
 
 const RECORD_ID='assistant-state' as const;
 const MAX_THREADS=30;
@@ -43,7 +44,8 @@ function normalizedMessage(value:any):AssistantStoredMessage|null{
   const role=value.role==='assistant'?'assistant':value.role==='user'?'user':null;
   const text=safeMessageText(value.text,MAX_MESSAGE_CHARS);
   if(!role||!text)return null;
-  return{id:safeText(value.id,120)||makeId(role),role,text,createdAt:safeText(value.createdAt,40)||now()};
+  const financialReadout=role==='assistant'?normalizeFinancialReadout(value.financialReadout):null;
+  return{id:safeText(value.id,120)||makeId(role),role,text,createdAt:safeText(value.createdAt,40)||now(),...(financialReadout?{financialReadout}:{})};
 }
 function normalizedThread(value:any):AssistantThread|null{
   if(!value||typeof value!=='object')return null;
