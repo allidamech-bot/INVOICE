@@ -52,7 +52,7 @@ jobs:
       - run: npx tsc -p tsconfig.json
       - run: node --test tests/period-owner-controls.test.mjs tests/period-server.test.mjs tests/period-close.test.mjs tests/period-cloud-continuity.test.mjs tests/period-local-continuity.test.mjs tests/period-report-backup.test.mjs
       - name: Real emulator only - trusted commits and old client rules
-        run: npx --yes firebase-tools@14.12.1 emulators:exec --only firestore --project demo-lourex-period --config firebase.ai-ci.json "node --test tests/period-server-emulator.integration.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
+        run: npx --yes firebase-tools@14.12.1 emulators:exec --only firestore --project demo-lourex-period --config firebase.ai-ci.json "node --test tests/period-server-emulator.integration.mjs tests/period-server-publication-acceptance.integration.mjs tests/firebase-firestore-rules-emulator.integration.mjs"
 
   owner-browser:
     runs-on: ubuntu-latest
