@@ -94,6 +94,11 @@ function customerHistoryFacts(data:unknown,ar:boolean):string[]{
       ' · '+(ar?'المدفوع: ':'Paid: ')+clean(statement.paid,40)+
       ' · '+(ar?'المستحق: ':'Outstanding: ')+clean(statement.outstanding,40));
     const entries=Array.isArray(statement.entries)?statement.entries:[];
+    const total=typeof statement.entriesTotal==='number'&&Number.isSafeInteger(statement.entriesTotal)&&statement.entriesTotal>=entries.length
+      ?statement.entriesTotal:entries.length;
+    if(statement.incomplete===true||total>entries.length)lines.push(ar
+      ?'تنبيه: كشف جزئي — عرض آخر '+entries.length+' من أصل '+total+' حركة مسجلة بعملة '+currency+'. الأرصدة الإجمالية تشمل كل الحركات.'
+      :'Partial history — showing the most recent '+entries.length+' of '+total+' recorded '+currency+' entries. Currency totals include all entries.');
     if(!entries.length){lines.push(ar?'لا توجد حركات مسجلة لهذه العملة.':'No recorded entries for this currency.');continue;}
     for(const value of entries){
       if(!value||typeof value!=='object'||Array.isArray(value))continue;
