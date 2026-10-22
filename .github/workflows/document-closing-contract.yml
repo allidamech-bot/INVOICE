@@ -11,6 +11,7 @@ on:
       - 'src/app/App.tsx'
       - 'src/components/OperationsPage.tsx'
       - 'tests/purchase-post-confirmation-20261022.test.mjs'
+      - 'tests/customer-payment-delete-confirmation-20261023.test.mjs'
       - 'tests/draft-deletion-audit-20261021.test.mjs'
       - 'tests/draft-deletion-continuity-20261021.test.mjs'
       - 'src/lib/payment-voucher.ts'
@@ -58,3 +59,5 @@ jobs:
         run: node --test tests/purchase-post-confirmation-20261022.test.mjs tests/purchase-delete-confirmation-20261022.test.mjs tests/audit-remote-posted-purchase-immutability.test.mjs
       - name: Linked customer and supplier payment vouchers
         run: node --test tests/payment-vouchers-20261021.test.mjs tests/payment-voucher-ui.test.mjs tests/receivables-v133.test.mjs tests/purchase-payment-saved-cycle.test.mjs
+      - name: Customer receipt deletion confirmation and audit accuracy
+        run: node --test tests/customer-payment-delete-confirmation-20261023.test.mjs
