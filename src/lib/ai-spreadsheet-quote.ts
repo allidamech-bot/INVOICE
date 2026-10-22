@@ -17,6 +17,8 @@ const HEADERS={
   // Cost evidence is never implicitly a customer selling price.
   unitCost:new Set(['unit cost','purchase price','cost price','supplier price','buying price','purchase unit price','cost per unit','سعر الشراء','تكلفة الوحدة','سعر التكلفة','سعر المورد','التكلفة']),
   sku:new Set(['sku','item code','product code','code','كود','رمز الصنف','كود الصنف']),
+  // The entire cell is review-only packaging evidence, never a unit multiplier.
+  packing:new Set(['packing','pack description','packing description','package details','packing details','inner packing','التغليف','التعبئة','وصف التعبئة','تفاصيل التغليف']),
   currency:new Set(['currency','العملة']),
 } as const;
 type Column=keyof typeof HEADERS;
@@ -42,7 +44,7 @@ function decimal(raw:string,positive:boolean,sheet:string,row:number):string{
 export interface DeterministicQuoteSheet{
   customerName:string;customerEmail:string;customerPhone:string;currency:string;
   incoterm:string;paymentTerms:string;deliveryTime:string;validity:string;remarks:string;notes:string;
-  items:{sku:string;descriptionEn:string;descriptionAr:string;quantity:string;unit:string;unitPrice:string;unitCost:string;unitCostColumnPresent:boolean;
+  items:{sku:string;descriptionEn:string;descriptionAr:string;quantity:string;unit:string;packing:string;unitPrice:string;unitCost:string;unitCostColumnPresent:boolean;
     quantityConfidence:number;quantityAmbiguous:boolean;quantityNote:string;productConfidence:number;productNote:string}[];
   sourceRowCount:number;sheetCount:number;parser:'exact-spreadsheet-columns';
 }
@@ -71,14 +73,16 @@ export function exactSpreadsheetQuote(sheets:SpreadsheetSheet[]):DeterministicQu
       const qty=cell(row,map.quantity),rawPrice=cell(row,map.unitPrice),rawCost=cell(row,map.unitCost);
       if(!name&&!sku||!qty)throw new Error('SOURCE_INCOMPLETE: Worksheet '+sheet.name+' row '+(i+1)+' has incomplete quote fields. No rows dropped.');
       if(name.length>180||sku.length>60)throw new Error('SOURCE_INCOMPLETE: Product field exceeds the quote size limit on row '+(i+1)+'.');
-      const unit=cell(row,map.unit),money=cell(row,map.currency).toUpperCase();
+      const unit=cell(row,map.unit),packing=cell(row,map.packing),money=cell(row,map.currency).toUpperCase();
+      if(packing.length>120||/[\u0000-\u001f\u007f]/u.test(packing))
+        throw new Error('SOURCE_INCOMPLETE: Packing description is invalid or oversized in '+sheet.name+' row '+(i+1)+'. No rows omitted.');
       if(unit.length>40)throw new Error('SOURCE_INCOMPLETE: Order unit too long in '+sheet.name+' row '+(i+1));
       if(money&&!/^[A-Z]{3}$/.test(money))throw new Error('SOURCE_INCOMPLETE: Invalid currency in '+sheet.name+' row '+(i+1));
       if(money&&allCurrency&&money!==allCurrency)throw new Error('SOURCE_INCOMPLETE: Mixed currencies must be reviewed separately. No document was prepared.');
       if(money)allCurrency=money;
       const arabic=/[\u0600-\u06ff]/u.test(name);
       items.push({sku,descriptionEn:arabic?'':name,descriptionAr:arabic?name:'',
-        quantity:decimal(qty,true,sheet.name,i+1),unit,
+        quantity:decimal(qty,true,sheet.name,i+1),unit,packing,
         unitPrice:decimal(rawPrice,false,sheet.name,i+1),
         unitCost:decimal(rawCost,false,sheet.name,i+1),unitCostColumnPresent:map.unitCost!==undefined,
         quantityConfidence:1,quantityAmbiguous:false,quantityNote:unit?'':'Order unit was not present in the worksheet; review.',
