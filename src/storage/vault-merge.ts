@@ -93,6 +93,12 @@ function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:L
     // cannot distinguish an unrelated save from an intentional document edit.
     if(before&&(before===wanted||sameDocumentContent(before,wanted))){result.push(latestItem);seen.add(latestItem.id);continue;}
     const preserve=before&&preserveConcurrentDocument(before,wanted,latestItem);
+    // Two devices may issue different versions of the same stored draft.
+    // A shared final status/revision does not make the issued contents equal.
+    if(before?.status==='draft'&&!preserve&&wanted.status==='final'&&latestItem.status==='final'
+      &&!sameDocumentContent(wanted,latestItem))
+      throw new Error(t('This document was issued in another save. Reopen Documents before issuing; your changes were not saved.',
+        'صدر هذا المستند بعملية حفظ أخرى. أعد فتح المستندات قبل الإصدار؛ لم تُحفظ تعديلاتك.'));
     if(before&&!preserve&&before.status==='draft'&&latestItem.status==='draft'
       &&!sameDocumentContent(before,latestItem)&&!sameDocumentContent(wanted,latestItem))
       throw new Error(t('This draft changed in another save. Reopen Documents before saving; your changes were not saved.',
