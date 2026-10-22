@@ -427,6 +427,13 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     (kernel.entity?.entityType==='document'?kernel.entity.entityId:'')));
   let doc:WorkspaceDocument|null=null;
   try{doc=workspaceDocument(kernel,vault,ar?'ar':'en',savedId);}catch{}
+  // Phase-only telemetry: report where account-specific PDF generation stopped,
+  // even if Safari closes before an error message can be displayed. Never
+  // record document identity, filename, customer, amount or exception text.
+  type PdfStage='document'|'qr'|'template'|'render'|'validate'|'identity'|'complete';
+  const markPdfStage=(stage:PdfStage,status:'start'|'ok'|'failed')=>{
+    try{(window as any).__LOUREX_DIAGNOSTICS__?.mark?.('ai-chat-pdf-stage','stage='+stage+' status='+status);}catch{}
+  };
   const pdfStage=react.useRef(null as HTMLDivElement|null);
   const [PdfRenderer,setPdfRenderer]=React.useState(null as any);
   const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string;electronicShareId?:string;offlineCopy?:boolean}|null);
@@ -456,8 +463,13 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     pdfStarting.current=true;
     setPdfBusy(true);setPdfError('');setPdfResult(null);setPdfQrError('');
     let qrAttemptFailed=false;
+    let phase:PdfStage='document';
+    markPdfStage(phase,'start');
     try{
       const document=prepareAiPdfPreview(kernel,vault,ar?'ar':'en',savedId);
+      markPdfStage(phase,'ok');
+      phase='qr';
+      markPdfStage(phase,'start');
       // No renderer initialization on ordinary chat turns. The canonical A4
       // React class is loaded only after a Controller expressly asks for PDF.
       const qr=await planAiChatPdfQr(document,async()=>{
@@ -468,12 +480,17 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
           return share.id;
         }catch(error){qrAttemptFailed=true;throw error;}
       },allowOfflineCopy);
+      markPdfStage(phase,'ok');
+      phase='template';
+      markPdfStage(phase,'start');
       const {TemplateRenderer}=await import('../templates/TemplateRenderer.js');
+      markPdfStage(phase,'ok');
       if(identity!==latestPdfIdentity.current||request!==pdfSequence.current)return;
       setPdfRenderer(()=>TemplateRenderer);
       setPdfSource({document:qr.document,identity,electronicShareId:qr.electronicShareId,offlineCopy:qr.offlineCopy});
     }catch(e){
       if(identity===latestPdfIdentity.current&&request===pdfSequence.current){
+        markPdfStage(phase,'failed');
         setPdfError(qrAttemptFailed?aiChatQrFailureGuidance(e,ar).message:e instanceof Error?e.message:String(e));
         if(qrAttemptFailed)setPdfQrError('qr-unavailable');
         setPdfBusy(false);pdfStarting.current=false;
@@ -491,13 +508,21 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     if(!pdfSource)return;
     let cancelled=false;
     const timer=window.setTimeout(async()=>{
+      let phase:PdfStage='render';
+      markPdfStage(phase,'start');
       try{
         const build=(window as any).__LOUREX_BUILD_CHAT_PDF__;
         if(typeof build!=='function')throw new Error('The LOUREX PDF engine is not available. Reload and retry.');
         const stage=pdfStage.current;
         if(!stage)throw new Error('The A4 preview renderer is not mounted.');
         const file=await build(stage,'LOUREX-'+pdfSource.document.number);
+        markPdfStage(phase,'ok');
+        phase='validate';
+        markPdfStage(phase,'start');
         await assertGeneratedAiPdfFile(file);
+        markPdfStage(phase,'ok');
+        phase='identity';
+        markPdfStage(phase,'start');
         const active=host.__intelligenceKernel as ConversationKernel|undefined;
         // The same saved identity must be used at the start AND completion of
         // PDF rendering. After a reload the scoped kernel entity is durable,
@@ -509,8 +534,11 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         if(cancelled)return;
         const url=URL.createObjectURL(file);
         if(cancelled){URL.revokeObjectURL(url);return;}
+        markPdfStage(phase,'ok');
+        phase='complete';
         setPdfResult({url,name:(file as File).name||'LOUREX-Preview.pdf',bytes:file.size});
-      }catch(error){if(!cancelled)setPdfError(error instanceof Error?error.message:String(error));}
+        markPdfStage(phase,'ok');
+      }catch(error){if(!cancelled){markPdfStage(phase,'failed');setPdfError(error instanceof Error?error.message:String(error));}}
       finally{if(!cancelled){setPdfBusy(false);pdfStarting.current=false;}}
     },0);
     return()=>{cancelled=true;window.clearTimeout(timer);};
