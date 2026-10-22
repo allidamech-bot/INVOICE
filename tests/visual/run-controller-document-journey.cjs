@@ -131,12 +131,16 @@ async function run(engine,name){
     const rect=node.getBoundingClientRect(),panel=node.closest('.lourex-ai-messages');
     const region=panel?.getBoundingClientRect();
     return{top:Math.round(rect.top),bottom:Math.round(rect.bottom),viewport:innerHeight,
+      left:Math.round(rect.left),right:Math.round(rect.right),viewportWidth:innerWidth,
       chatTop:region?Math.round(region.top):null,chatBottom:region?Math.round(region.bottom):null,
+      chatLeft:region?Math.round(region.left):null,chatRight:region?Math.round(region.right):null,
       scrollTop:panel?.scrollTop??null,scrollHeight:panel?.scrollHeight??null,
+      scrollLeft:panel?.scrollLeft??null,scrollWidth:panel?.scrollWidth??null,
       enabled:!node.disabled};
    });
-   assert.ok(geometry.enabled&&geometry.top>=0&&geometry.bottom<=geometry.viewport,
+   assert.ok(geometry.enabled&&geometry.top>=0&&geometry.bottom<=geometry.viewport&&geometry.left>=0&&geometry.right<=geometry.viewportWidth,
       'PDF preview must be reachable by real viewport scrolling: '+JSON.stringify(geometry));
+   console.log('Controller PDF action geometry '+name+': '+JSON.stringify(geometry));
    await preview.click({timeout:10000});
    const link=card.getByRole('link',{name:'Download PDF',exact:true});await link.waitFor({timeout:90000});
    const href=await link.getAttribute('href');
