@@ -40,6 +40,7 @@ test('F15 multi-file Arabic and English follow-ups retain same-thread evidence o
  ])assert.equal(explicitAttachedFileFollowup(message),true,message);
  for(const message of [
    'ادمج بيانات العملاء في تقرير واحد',
+   'ادمج تصوراتي عن المخزون في خطة جديدة',
    'Prepare a new quotation without any attachment',
    'احذف الملفات المرفقة',
    'تجاهل الملفات السابقة وابدأ من جديد',

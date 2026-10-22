@@ -9,7 +9,7 @@ export function explicitAttachedFileFollowup(message:string):boolean {
  // Natural singular/plural references must work after a source analysis:
  // "ادمج الملفات" and "combine the uploaded files" are explicit reuse intents.
  // A general request to merge records, without mentioning files, is not.
- const reference=/(?:الملف(?:ات)?|ملفات?|المرفق(?:ات)?|مرفقات?|الصورة|الصور|صور|(?:attached|uploaded|previously uploaded)\s+(?:files?|attachments?|documents?|images?)|(?:the|these|those|all|previous)\s+(?:files?|attachments?|uploads?|images?)|this file|previous file|file i uploaded|from the attachment|from this file)/iu.test(text);
+ const reference=/(?:الملف(?:ات)?|ملفات?|المرفق(?:ات)?|مرفقات?|الصورة|الصور|(?:^|[\s،,؛:])صور(?=$|[\s،,؛.!?])|(?:attached|uploaded|previously uploaded)\s+(?:files?|attachments?|documents?|images?)|(?:the|these|those|all|previous)\s+(?:files?|attachments?|uploads?|images?)|this file|previous file|file i uploaded|from the attachment|from this file)/iu.test(text);
  const task=/(?:حوّل|حول|اعمل|جهز|أنشئ|انشئ|حلل|استخرج|كم صنف|راجع|ادمج|إدمج|اجمع|إجمع|وحّد|وحد|وحّدها|ادمجها|اجمعها|create|convert|make|analy[sz]e|extract|review|count|combine|merge|consolidate|unify)/iu.test(text);
  // "انسخ" (copy) and "لا تتجاهل" (do not ignore) are NOT instructions
  // to discard the attachments. Only explicit rejection clears reuse intent.
