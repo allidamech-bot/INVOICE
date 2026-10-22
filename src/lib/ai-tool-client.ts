@@ -75,6 +75,15 @@ function toolFacts(data:unknown,ar:boolean):string[]{
     if(object.incomplete===true)lines.unshift(ar
       ?'تنبيه: المصدر أعلن أن النتيجة جزئية. اطلب السجلات المتبقية قبل اعتبار القائمة مكتملة.'
       :'Notice: the source marks this result incomplete. Request the remaining records before relying on a full list.');
+    for(const key of ['costHistory','history'] as const){
+      const total=object[key+'Total'],shown=object[key+'Shown'];
+      if(object[key+'Incomplete']===true&&typeof total==='number'&&typeof shown==='number'&&
+        Number.isSafeInteger(total)&&Number.isSafeInteger(shown)&&total>shown&&shown>=0){
+        lines.unshift(ar
+          ?'تنبيه: سجل تكلفة الصنف جزئي؛ المعروض '+shown+' من أصل '+total+' سعر شراء مسجل. العملات والأسعار محفوظة كما هي؛ لا تفترض متوسط تكلفة من الجزء المعروض.'
+          :'Notice: product purchase cost history is partial; showing '+shown+' of '+total+' recorded entries. Currencies and prices are unchanged; do not infer a historical average from these rows.');
+      }
+    }
     for(const [key,kind] of [['recentDocuments','document'],['recentPurchases','purchase']] as const){
       const total=object[key+'Total'],shown=object[key+'Shown'];
       if(object[key+'Incomplete']===true&&typeof total==='number'&&typeof shown==='number'&&
