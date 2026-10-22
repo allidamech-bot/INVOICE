@@ -2,7 +2,7 @@ import { AiIdentityMark } from './AiIdentityMark.js';
 import {AiFinancialReadout} from './AiFinancialReadout.js';
 import {parseFinancialReadout} from '../lib/ai-financial-readout.js';
 import { automaticElectronicDocument } from '../lib/secure-share.js';
-import { planAiChatPdfQr } from '../lib/ai-chat-pdf-qr-policy.js';
+import { aiChatQrFailureGuidance, planAiChatPdfQr } from '../lib/ai-chat-pdf-qr-policy.js';
 import { workspaceText, workspaceError } from '../lib/ai-workspace-presentation.js';
 import { KnowledgeWorkspace, ReliabilityWorkspace, DiagnosticsWorkspace } from './AiReliabilityWorkspace.js';
 import { strictAiActor } from '../lib/ai-foundation-approval.js';
@@ -474,7 +474,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
       setPdfSource({document:qr.document,identity,electronicShareId:qr.electronicShareId,offlineCopy:qr.offlineCopy});
     }catch(e){
       if(identity===latestPdfIdentity.current&&request===pdfSequence.current){
-        setPdfError(qrAttemptFailed?label(ar,'Electronic QR connection failed. Choose Retry PDF or explicitly preview a marked local copy without QR.','فشل الاتصال لإنشاء QR الإلكتروني. أعد المحاولة أو اختر صراحةً معاينة نسخة محلية موسومة بدون QR.'):e instanceof Error?e.message:String(e));
+        setPdfError(qrAttemptFailed?aiChatQrFailureGuidance(e,ar).message:e instanceof Error?e.message:String(e));
         if(qrAttemptFailed)setPdfQrError('qr-unavailable');
         setPdfBusy(false);pdfStarting.current=false;
       }
