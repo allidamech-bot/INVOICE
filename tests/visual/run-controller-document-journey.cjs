@@ -116,43 +116,41 @@ async function run(engine,name){
   await inDraftRecords.locator('input[type=checkbox]').click();
   await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
   assert.equal(await count(),0,'selecting customers while drafting must not persist');
-  async function pdf(){
-   const preview=card.getByRole('button',{name:'Generate PDF preview',exact:true});
-   // With 85 expanded items, reach the action by scrolling the actual chat
-   // viewport as an iPhone user would. Never force-click an offscreen element.
-   // Exercise a deliberate user wheel scroll, not script-level scrollTop
-   // assignment. LOUREX intentionally follows the latest turn until actual
-   // scrolling input occurs; programmatic scrolling is reset to the bottom.
+  // A long conversation keeps following the latest turn until a deliberate
+  // user wheel/touch scroll occurs. Browser automation's programmatic
+  // scrollIntoView is not that input and gets snapped to the bottom.
+  async function clickVisibleChatAction(target,description){
    for(let attempt=0;attempt<32;attempt++){
-    const target=await preview.evaluate(node=>{
+    const position=await target.evaluate(node=>{
      const scroll=node.closest('.lourex-ai-messages');
      if(!scroll)throw Error('The Controller has no scrollable conversation');
-     const action=node.getBoundingClientRect(),viewport=scroll.getBoundingClientRect();
+     const rect=node.getBoundingClientRect(),viewport=scroll.getBoundingClientRect();
      const desired=viewport.top+Math.min(160,viewport.height/2);
-     return{needed:Math.round(action.top-desired),mouseX:viewport.left+viewport.width/2,
+     return{needed:Math.round(rect.top-desired),mouseX:viewport.left+viewport.width/2,
        mouseY:viewport.top+viewport.height/2,
-       inView:action.top>=viewport.top+2&&action.bottom<=viewport.bottom-2};
+       inView:rect.top>=viewport.top+2&&rect.bottom<=viewport.bottom-2};
     });
-    if(target.inView)break;
-    await page.mouse.move(target.mouseX,target.mouseY);
-    await page.mouse.wheel(0,Math.max(-1200,Math.min(1200,target.needed)));
+    if(position.inView)break;
+    await page.mouse.move(position.mouseX,position.mouseY);
+    await page.mouse.wheel(0,Math.max(-1200,Math.min(1200,position.needed)));
     await page.waitForTimeout(75);
    }
-   const geometry=await preview.evaluate(node=>{
-    const rect=node.getBoundingClientRect(),panel=node.closest('.lourex-ai-messages');
-    const region=panel?.getBoundingClientRect();
+   const geometry=await target.evaluate(node=>{
+    const rect=node.getBoundingClientRect(),scroll=node.closest('.lourex-ai-messages');
+    const box=scroll?.getBoundingClientRect();
     return{top:Math.round(rect.top),bottom:Math.round(rect.bottom),viewport:innerHeight,
       left:Math.round(rect.left),right:Math.round(rect.right),viewportWidth:innerWidth,
-      chatTop:region?Math.round(region.top):null,chatBottom:region?Math.round(region.bottom):null,
-      chatLeft:region?Math.round(region.left):null,chatRight:region?Math.round(region.right):null,
-      scrollTop:panel?.scrollTop??null,scrollHeight:panel?.scrollHeight??null,
-      scrollLeft:panel?.scrollLeft??null,scrollWidth:panel?.scrollWidth??null,
+      chatTop:box?Math.round(box.top):null,chatBottom:box?Math.round(box.bottom):null,
+      scrollTop:scroll?.scrollTop??null,scrollHeight:scroll?.scrollHeight??null,
       enabled:!node.disabled};
    });
-   assert.ok(geometry.enabled&&geometry.top>=0&&geometry.bottom<=geometry.viewport&&geometry.left>=0&&geometry.right<=geometry.viewportWidth,
-      'PDF preview must be reachable by real viewport scrolling: '+JSON.stringify(geometry));
-   console.log('Controller PDF action geometry '+name+': '+JSON.stringify(geometry));
-   await preview.click({timeout:10000});
+   assert.ok(geometry.enabled&&geometry.top>=0&&geometry.bottom<=geometry.viewport&&
+     geometry.left>=0&&geometry.right<=geometry.viewportWidth,
+     description+' must be reachable by real viewport scrolling: '+JSON.stringify(geometry));
+   await target.click({timeout:10000}); // Never force-click invisible controls.
+  }
+  async function pdf(){
+   await clickVisibleChatAction(card.getByRole('button',{name:'Generate PDF preview',exact:true}),'PDF preview');
    const link=card.getByRole('link',{name:'Download PDF',exact:true});await link.waitFor({timeout:90000});
    const href=await link.getAttribute('href');
    const result=await page.evaluate(async href=>{
@@ -172,7 +170,7 @@ async function run(engine,name){
   await say('redo');assert.match(await card.innerText(),/1,?732\.00/);
   assert.notEqual(await pdf(),firstPdf);
   await say('save this draft');
-  await panel.getByRole('button',{name:'Decline',exact:true}).click();
+  await clickVisibleChatAction(panel.getByRole('button',{name:'Decline',exact:true}),'Decline');
   await page.waitForTimeout(300);assert.equal(await count(),0);await card.waitFor();
   await say('save this draft');
   // Chat text can request a review, but never authorizes a write. The
@@ -180,7 +178,7 @@ async function run(engine,name){
   assert.equal(await count(),0,'chat request alone cannot persist a draft');
   const saveButton=card.getByRole('button',{name:'Save draft',exact:true});
   assert.equal(await saveButton.isEnabled(),true,'the reviewed draft must have an explicit Save action');
-  await saveButton.click();
+  await clickVisibleChatAction(saveButton,'Save draft');
   // The UI confirmation occurs after the transaction and its document artifact
   // are returned. An isolated one-off count can race another vault writer.
   await panel.locator('.lourex-ai-created-artifact').waitFor({timeout:30000});
@@ -213,7 +211,7 @@ async function run(engine,name){
   assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id,
     'Restored document must match durable storage: '+JSON.stringify({beforeReloadMeta,afterReloadMeta}));
   assert.match(await restored.innerText(),/Saved/);
-  await restored.getByRole('button',{name:'Generate PDF preview',exact:true}).click();
+  await clickVisibleChatAction(restored.getByRole('button',{name:'Generate PDF preview',exact:true}),'Reopened PDF preview');
   try{
    await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:45000});
   }catch(error){
