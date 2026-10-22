@@ -5,7 +5,8 @@ import {readFile} from 'node:fs/promises';
 test('v590 autosave persists without rebinding the active editor document prop',async()=>{
   const app=await readFile('src/app/App.tsx','utf8');
   assert.match(app,/postIssuedInvoiceStock/);
-  assert.match(app,/await this\.persist\(\{\.\.\.stock\.vault,documents,documentEvents,appSettings\}\);if\(!auto\)this\.setState\(\{editorDoc:updated\}\);if\(!auto\)this\.showToast/);
+  assert.match(app,/await this\.persist\(\{\.\.\.stock\.vault,documents,documentEvents,appSettings\}\);/);
+  assert.match(app,/if\(!auto\)this\.setState\(\{editorDoc:saved\}\);if\(!auto\)this\.showToast/);
 });
 
 test('v590 A4 pagination ignores autosave-only document identity churn',async()=>{
