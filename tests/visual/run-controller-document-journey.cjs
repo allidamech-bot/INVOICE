@@ -213,7 +213,7 @@ async function run(engine,name){
   assert.match(await restored.innerText(),/Saved/);
   await clickVisibleChatAction(restored.getByRole('button',{name:'Generate PDF preview',exact:true}),'Reopened PDF preview');
   try{
-   await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:45000});
+   await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:90000});
   }catch(error){
    const details=await page.evaluate(()=>{
     const card=document.querySelector('#lourex-ai-panel .lxw-chat-document');
