@@ -40,6 +40,8 @@ on:
       - 'tests/ai-financial-reply-presentation-20261019.test.mjs'
       - 'src/components/AiFinancialReadout.tsx'
       - 'src/lib/ai-financial-readout.ts'
+      - 'src/lib/ai-job-history.ts'
+      - 'tests/ai-job-history-uid-isolation-20261022.test.mjs'
       - 'src/lib/ai-commercial-intelligence.ts'
       - 'src/lib/ai-workspace-model.ts'
       - 'src/components/AiCommercialWorkspace.tsx'
