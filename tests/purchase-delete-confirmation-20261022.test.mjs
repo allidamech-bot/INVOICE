@@ -4,7 +4,8 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {emptyVault} from '../dist/src/lib/defaults.js';
-import {createPurchase,createPurchaseItem,createSupplier} from '../dist/src/lib/operations.js';
+import {createPurchase,createPurchaseItem,createSupplier,postPurchase} from '../dist/src/lib/operations.js';
+import {supplierPayablesByCurrency} from '../dist/src/lib/payables.js';
 import {scopeVault,applyWorkspaceScope,overlayWorkspaceScope} from '../dist/src/lib/workspaces.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {appendAuditEventsForVaultDiff} from '../dist/src/lib/audit-diff.js';
@@ -81,4 +82,18 @@ test('a purchase posted after opening deletion confirmation remains protected',a
   const p=await fixture();p.h.state.vault.purchases[0].status='posted';
   await assert.rejects(p.h.deletePurchaseRecord(p.purchase),/Only draft purchases/i);
   assert.deepEqual(p.counts(),{writes:0,syncs:0});assert.equal(p.toasts.length,0);
+});
+
+test('actual App save queue cannot turn a newly posted service purchase back into a stale draft',async()=>{
+  const p=await fixture(),base=p.h.requireVault(),posted=postPurchase(p.purchase,[],[]).purchase;
+  const first=p.h.persist({...base,purchases:base.purchases.map(row=>row.id===posted.id?posted:row)});
+  const rejected=assert.rejects(p.h.persist({...base,purchases:base.purchases.map(row=>row.id===posted.id
+    ?{...row,notes:'Old draft save'}:row)}),/posted.*immutable/i);
+  await Promise.all([first,rejected]);
+  const saved=p.get().payload;
+  assert.equal(saved.purchases.find(row=>row.id===posted.id).status,'posted');
+  assert.equal(supplierPayablesByCurrency(saved.purchases,[])[0].remaining,'100.00');
+  assert.equal(saved.documentEvents.filter(row=>row.auditEntityId===posted.id&&row.auditAction==='posted').length,1);
+  assert.equal(saved.inventoryMovements.length,0);
+  assert.deepEqual(p.counts(),{writes:1,syncs:1});
 });
