@@ -6,7 +6,7 @@ import type { VaultPayload } from '../types.js';
 import { scopeVault } from './workspaces.js';
 import { aiProductArchived } from './ai-business.js';
 import { normalizeDecimalInput, lineTotal, decimalToScaled } from './money.js';
-import { commercialScenario, convertPack, externalQuote, compareSuppliers, compareIncoterms, decimal, moneyString, type ScenarioInput, type ExternalQuote } from './ai-commercial-intelligence.js';
+import { commercialScenario, convertPack, convertNestedPack, externalQuote, compareSuppliers, compareIncoterms, decimal, moneyString, type ScenarioInput, type ExternalQuote } from './ai-commercial-intelligence.js';
 import { cancelMission } from './ai-mission-runner.js';
 import { stageKernelArtifact } from './ai-conversation-kernel.js';
 import { reviewAiDocumentProposal } from './ai-document-review.js';
@@ -27,7 +27,7 @@ export type WorkspaceCommand =
   | { kind:'cash-simulation'; asOf:string; until:string; flows:CashAssumption[] }
   | { kind:'clear-diagnostics' }
   | { kind:'scenario'; input:ScenarioInput }
-  | { kind:'pack'; cartons:string; unitsPerCarton:string }
+  | { kind:'pack'; cartons:string; unitsPerCarton:string; boxesPerCarton?:string; unitsPerBox?:string }
   | { kind:'external-source'; source:Omit<ExternalQuote,'id'|'capturedAt'|'reliability'> }
   | { kind:'suppliers'; productId:string }
   | { kind:'cancel-mission'; missionId:string }
@@ -104,7 +104,17 @@ export function applyWorkspaceCommand(kernel:ConversationKernel,vault:VaultPaylo
   if(command.kind==='clear-diagnostics'){kernel.diagnostics=[];return;}
   const commercial=()=>kernel.commercial|| (kernel.commercial={sources:[]});
   if(command.kind==='scenario'){commercial().scenario=commercialScenario(vault,command.input);return;}
-  if(command.kind==='pack'){commercial().pack=convertPack(command.cartons,command.unitsPerCarton);return;}
+  if(command.kind==='pack'){
+    const nested=Boolean(command.boxesPerCarton?.trim()||command.unitsPerBox?.trim());
+    // Keep direct-carton and nested-box fields mutually exclusive. This
+    // calculation is a preview, not a change to a document or its pricing.
+    if(nested&&command.unitsPerCarton.trim())
+      throw new Error('Choose direct units per carton OR inner boxes per carton, not both.');
+    commercial().pack=nested
+      ?convertNestedPack(command.cartons,command.boxesPerCarton||'',command.unitsPerBox||'')
+      :convertPack(command.cartons,command.unitsPerCarton);
+    return;
+  }
   if(command.kind==='external-source'){if(commercial().sources.length>=50)throw new Error('Evidence limit reached; no source was dropped.');commercial().sources.push(externalQuote(vault,command.source));return;}
   if(command.kind==='suppliers'){compareSuppliers(vault,command.productId,commercial().sources);commercial().supplierProductId=command.productId;return;}
   if(command.kind==='cancel-mission'){const mission=kernel.missions?.find(m=>m.id===command.missionId);if(!mission)throw new Error('Mission not found.');cancelMission(mission);return;}
