@@ -10,6 +10,8 @@ on:
       - 'src/components/SupplierDocumentImport.tsx'
       - 'src/components/ProcurementAiCompare.tsx'
       - 'src/lib/ai-tool-client.ts'
+      - 'src/lib/ai-tool-orchestrator.ts'
+      - 'tests/ai-search-exact-record-ranking.test.mjs'
       - 'src/lib/ai-workflow-quote-guard.ts'
       - 'src/lib/ai-import-authorization.ts'
       - 'src/styles/ai-conversation-workspace.css'

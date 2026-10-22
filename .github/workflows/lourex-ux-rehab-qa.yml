@@ -43,6 +43,8 @@ on:
       - 'tests/visual/ai-financial-readout-20261019.html'
       - 'tests/visual/run-ai-financial-readout-20261019.cjs'
       - 'src/lib/ai-tool-client.ts'
+      - 'src/lib/ai-tool-orchestrator.ts'
+      - 'tests/ai-search-exact-record-ranking.test.mjs'
       - 'src/lib/ai-named-record-read.ts'
       - 'tests/ai-production-named-records.test.mjs'
       - 'src/lib/ai-tool-presentation.ts'
