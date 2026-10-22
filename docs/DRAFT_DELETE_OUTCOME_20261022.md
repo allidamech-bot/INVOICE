@@ -50,6 +50,11 @@ step is removed; all Chromium/WebKit, viewport, language, assertions and
 artifact steps remain. The trusted-server job is unchanged.
 The credit-note VAT job used the same slow installation step; it now uses the
 same matching image, preserving every accounting test and browser assertion.
+The container exposed Git's ownership guard in the release-script dry-run
+test. A synthetic repository reproduced the refusal and verified that trusting
+only its exact checkout path resolves it. The VAT job explicitly adds its own
+`GITHUB_WORKSPACE` to Git's safe-directory list; no wildcard or release guard
+is relaxed, and the original release test remains unchanged.
 
 Reference: https://github.com/microsoft/playwright/blob/v1.56.1/docs/src/ci.md
 and https://github.com/microsoft/playwright/blob/v1.56.1/docs/src/docker.md.
