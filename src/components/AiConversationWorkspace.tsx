@@ -464,6 +464,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         try{
           const {ensureDocumentElectronicCopy}=await import('../cloud/secure-share-owner.js');
           const share=await ensureDocumentElectronicCopy(document,{isCurrent:()=>identity===latestPdfIdentity.current&&request===pdfSequence.current});
+          if(!share?.id)throw new Error('Electronic QR reference is missing.');
           return share.id;
         }catch(error){qrAttemptFailed=true;throw error;}
       },allowOfflineCopy);
