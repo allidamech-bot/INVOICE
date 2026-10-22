@@ -47,6 +47,13 @@ function mergeRecords<T extends { id:string }>(base:T[], intended:T[], latest:T[
 }
 
 function documentRevision(document:LourexDocument):number{return Math.max(1,Math.trunc(document.revision||1));}
+function sameDocumentContent(left:LourexDocument,right:LourexDocument):boolean{
+  const content=(doc:LourexDocument)=>{
+    const {updatedAt,...value}=doc;
+    return {...value,workspaceId:doc.workspaceId||'default',branchId:doc.branchId||'main'};
+  };
+  return sameRecord(content(left),content(right));
+}
 function documentChangedSinceBase(base:LourexDocument,latest:LourexDocument):boolean{
   return base.updatedAt!==latest.updatedAt||base.status!==latest.status||base.lifecycleStatus!==latest.lifecycleStatus||documentRevision(base)!==documentRevision(latest);
 }
@@ -82,8 +89,15 @@ function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:L
       seen.add(latestItem.id);
       continue;
     }
-    if(before&&before===wanted){result.push(latestItem);seen.add(latestItem.id);continue;}
-    result.push(before&&preserveConcurrentDocument(before,wanted,latestItem)?latestItem:wanted);
+    // Workspace stamping clones even unchanged rows; object identity alone
+    // cannot distinguish an unrelated save from an intentional document edit.
+    if(before&&(before===wanted||sameDocumentContent(before,wanted))){result.push(latestItem);seen.add(latestItem.id);continue;}
+    const preserve=before&&preserveConcurrentDocument(before,wanted,latestItem);
+    if(before&&!preserve&&before.status==='draft'&&latestItem.status==='draft'
+      &&!sameDocumentContent(before,latestItem)&&!sameDocumentContent(wanted,latestItem))
+      throw new Error(t('This draft changed in another save. Reopen Documents before saving; your changes were not saved.',
+        'تغيّرت هذه المسودة بعملية حفظ أخرى. أعد فتح المستندات قبل الحفظ؛ لم تُحفظ تعديلاتك.'));
+    result.push(preserve?latestItem:wanted);
     seen.add(latestItem.id);
   }
   for(const item of intended)if(!seen.has(item.id)){
