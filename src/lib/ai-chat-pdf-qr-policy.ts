@@ -34,7 +34,7 @@ export async function planAiChatPdfQr(
 
 /** User-safe account QR diagnosis. Never reflect Firebase exception text,
  * document IDs, tokens or provider internals into the chat conversation. */
-export function aiChatQrFailureGuidance(error:unknown,ar:boolean):{kind:'inactive'|'auth'|'permission'|'network'|'stale'|'other';message:string}{
+export function aiChatQrFailureGuidance(error:unknown,ar:boolean):{kind:'inactive'|'auth'|'permission'|'network'|'stale'|'size'|'other';message:string}{
   const issue=error&&typeof error==='object'?error as {code?:unknown;message?:unknown}:null;
   const code=typeof issue?.code==='string'?issue.code.toLowerCase():'';
   const message=typeof issue?.message==='string'?issue.message.toLowerCase():
@@ -46,6 +46,10 @@ export function aiChatQrFailureGuidance(error:unknown,ar:boolean):{kind:'inactiv
   const network=identified('unavailable')||identified('deadline-exceeded')||
     /\b(?:network request failed|failed to fetch|offline|connection lost|internet unavailable)\b/i.test(message);
   const stale=/\baccount or document changed\b/i.test(message);
+  // A large document can be saved in the chunked private workspace but fail
+  // the smaller immutable public-share snapshot limit. Retrying unchanged
+  // cannot fix this. Explain the safe reduction action instead of hiding it.
+  const size=/\b(?:document is too large for a secure customer link|secure customer link.*too large)\b/i.test(message);
   if(inactive)return{kind:'inactive',message:ar
     ?'رابط QR الإلكتروني منتهي أو متوقف. افتح النسخة الإلكترونية لهذا المستند لإعادة تفعيل الرابط، ثم أعد إنشاء PDF. يمكنك اختيار معاينة محلية موسومة بدون QR.'
     :'The electronic QR is expired or disabled. Open this document’s Electronic document area to reactivate it, then retry PDF. A marked local preview without QR is also available.'};
@@ -58,6 +62,9 @@ export function aiChatQrFailureGuidance(error:unknown,ar:boolean):{kind:'inactiv
   if(network)return{kind:'network',message:ar
     ?'تعذر الوصول إلى خدمة QR السحابية. تحقق من الاتصال ثم أعد إنشاء PDF، أو اختر معاينة محلية موسومة بدون QR.'
     :'The cloud QR service could not be reached. Check your connection and retry PDF, or choose a marked local preview without QR.'};
+  if(size)return{kind:'size',message:ar
+    ?'حجم المستند أكبر من المسموح لإنشاء رابط QR الإلكتروني. قلّل حجم صور الشعار أو التوقيع أو الختم المضمّنة في المستند ثم أعد إنشاء PDF. يمكنك اختيار معاينة محلية موسومة بدون QR.'
+    :'This document is too large for an electronic QR link. Reduce embedded logo, signature, or stamp image sizes, then retry PDF. You may explicitly preview a marked local copy without QR.'};
   if(stale)return{kind:'stale',message:ar
     ?'تغير الحساب أو المستند أثناء إنشاء QR. افتح المستند الحالي مجددًا وأعد إنشاء PDF؛ لا تعتمد نسخة قديمة.'
     :'The account or document changed while preparing the QR. Reopen the current document and retry PDF; do not use an outdated copy.'};
