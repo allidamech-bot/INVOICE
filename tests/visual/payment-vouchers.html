@@ -12,6 +12,21 @@ import {setUiLanguage} from './src/lib/i18n.js';
 const args=new URLSearchParams(location.search),lang=args.get('lang')==='ar'?'ar':'en',mode=args.get('mode')==='supplier'?'supplier':'customer';
 setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
 const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
+const long=args.has('long');
+if(long){
+ const shape=args.get('logo')||'wide',dimensions=shape==='tall'?[240,2400]:shape==='square'?[1600,1600]:[2400,240];
+ company.logoDataUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${dimensions[0]}" height="${dimensions[1]}" viewBox="0 0 240 240"><rect width="240" height="240" fill="#123456"/><text x="20" y="120" fill="white">QA LOGO</text></svg>`);
+ company.nameEn+=' International Trading and Sourcing'.repeat(5);
+ company.nameAr+=' للتجارة الدولية والاستيراد والتصدير'.repeat(5);
+}
+const longPayment=payment=>{
+ if(long){
+  payment.reference='TRANSFER-42-'+('REFERENCE0123456789'.repeat(16));
+  payment.notes=Array.from({length:100},(_,i)=>`QA-LINE-${String(i+1).padStart(3,'0')} ${lang==='ar'?'ملاحظة اختبار اصطناعية للتحقق من اكتمال طباعة السند دون فقدان المحتوى':'Synthetic acceptance note verifying complete voucher printing without lost content'}`).join('\n')+'\nQA-LAST-LINE-100';
+  if('customerNameEn' in payment){payment.customerNameEn+=' Long Customer Name'.repeat(12);payment.customerNameAr+=' اسم العميل الطويل'.repeat(12);}
+ }
+ return payment;
+};
 const errorWrite=async()=>{throw Error('Voucher preview must never persist a second financial transaction');};
 if(mode==='customer'){
  const invoice=createBlankDocument('invoice','INV-QA-RECEIPT',company);
@@ -19,14 +34,18 @@ if(mode==='customer'){
  invoice.customerSnapshot={sourceCustomerId:'customer-receipt',companyNameEn:'Atlas Customer',companyNameAr:'أطلس العميل',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
  invoice.items=[{...invoice.items[0],quantity:'1',unitPrice:'100.00'}];invoice.adjustments={...invoice.adjustments,taxEnabled:false,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false};
  const payment={id:'customer-voucher-001',invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:'customer-receipt',customerNameEn:'Atlas Customer',customerNameAr:'أطلس العميل',currency:'USD',workspaceId:'default',branchId:'main',amount:'42.00',date:args.has('future')?'2099-01-05':'2026-01-05',method:'bank-transfer',reference:'TRANSFER-42',notes:'Synthetic test record',createdAt:'2026-01-05T12:00:00.000Z',updatedAt:'2026-01-05T12:00:00.000Z'};
+ longPayment(payment);
+ if(long){invoice.customerSnapshot.companyNameEn=payment.customerNameEn;invoice.customerSnapshot.companyNameAr=payment.customerNameAr;}
  window.qaSource=()=>JSON.stringify({invoice,payments:[payment]});
  ReactDOM.render(React.createElement(InvoicePaymentsPanel,{document:invoice,documents:[invoice],payments:[payment],onSave:errorWrite,onDelete:errorWrite}),document.getElementById('visual-app'));
 }else{
  const supplier={...createSupplier(),id:'supplier-voucher',nameEn:'Atlas Supplier',nameAr:'أطلس المورد',defaultCurrency:'USD'};
+ if(long){supplier.nameEn+=' Long Supplier Name'.repeat(12);supplier.nameAr+=' اسم المورد الطويل'.repeat(12);}
  const purchase=createPurchase([],[supplier],'USD');
  Object.assign(purchase,{id:'purchase-for-voucher',number:'PUR-QA-VOUCHER',status:'posted',date:'2026-01-02',dueDate:'2026-01-31',postedAt:'2026-01-02T12:00:00.000Z',supplierSnapshot:supplierSnapshotFrom(supplier),workspaceId:'default',branchId:'main'});
  purchase.items=[{...createPurchaseItem(),quantity:'1',unitCost:'100.00',descriptionEn:'Synthetic service'}];
  const payment={id:'supplier-voucher-001',purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:supplier.id,supplierNameEn:supplier.nameEn,supplierNameAr:supplier.nameAr,currency:'USD',workspaceId:'default',branchId:'main',amount:'42.00',date:args.has('future')?'2099-01-05':'2026-01-05',method:'bank-transfer',reference:'TRANSFER-42',notes:'Synthetic test record',createdAt:'2026-01-05T12:00:00.000Z',updatedAt:'2026-01-05T12:00:00.000Z'};
+ longPayment(payment);
  const count=args.has('many')?25:1;
  const purchases=Array.from({length:count},(_,i)=>({...structuredClone(purchase),id:purchase.id+'-'+(i+1),number:purchase.number+'-'+(i+1)}));
  const supplierPayments=purchases.map((p,i)=>({...payment,id:'supplier-voucher-'+String(i+1).padStart(3,'0'),purchaseId:p.id,purchaseNumber:p.number}));

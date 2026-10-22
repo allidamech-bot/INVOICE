@@ -16,6 +16,7 @@ on:
       - 'tests/visual/payment-vouchers.html'
       - 'tests/visual/run-payment-vouchers.cjs'
       - 'tests/visual/run-payment-voucher-hardening.cjs'
+      - 'tests/visual/run-payment-voucher-long-print.cjs'
       - '.github/workflows/payment-vouchers.yml'
 permissions:
   contents: read
@@ -50,6 +51,7 @@ jobs:
           node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/payment-vouchers.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Voucher test server missing");'
           node tests/visual/run-payment-vouchers.cjs
           node tests/visual/run-payment-voucher-hardening.cjs
+          node tests/visual/run-payment-voucher-long-print.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
