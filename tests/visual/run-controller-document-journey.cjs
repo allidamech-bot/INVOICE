@@ -120,13 +120,24 @@ async function run(engine,name){
    const preview=card.getByRole('button',{name:'Generate PDF preview',exact:true});
    // With 85 expanded items, reach the action by scrolling the actual chat
    // viewport as an iPhone user would. Never force-click an offscreen element.
-   await preview.evaluate(node=>{
-    const scroller=node.closest('.lourex-ai-messages');
-    if(scroller){
-     const action=node.getBoundingClientRect(),visible=scroller.getBoundingClientRect();
-     scroller.scrollTop+=action.top-(visible.top+Math.min(160,visible.height/2));
-    }else node.scrollIntoView({block:'center',inline:'nearest'});
-   });
+   // Exercise a deliberate user wheel scroll, not script-level scrollTop
+   // assignment. LOUREX intentionally follows the latest turn until actual
+   // scrolling input occurs; programmatic scrolling is reset to the bottom.
+   for(let attempt=0;attempt<12;attempt++){
+    const target=await preview.evaluate(node=>{
+     const scroll=node.closest('.lourex-ai-messages');
+     if(!scroll)throw Error('The Controller has no scrollable conversation');
+     const action=node.getBoundingClientRect(),viewport=scroll.getBoundingClientRect();
+     const desired=viewport.top+Math.min(160,viewport.height/2);
+     return{needed:Math.round(action.top-desired),mouseX:viewport.left+viewport.width/2,
+       mouseY:viewport.top+viewport.height/2,
+       inView:action.top>=viewport.top+2&&action.bottom<=viewport.bottom-2};
+    });
+    if(target.inView)break;
+    await page.mouse.move(target.mouseX,target.mouseY);
+    await page.mouse.wheel(0,Math.max(-1200,Math.min(1200,target.needed)));
+    await page.waitForTimeout(75);
+   }
    const geometry=await preview.evaluate(node=>{
     const rect=node.getBoundingClientRect(),panel=node.closest('.lourex-ai-messages');
     const region=panel?.getBoundingClientRect();
