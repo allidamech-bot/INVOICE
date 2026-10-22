@@ -140,9 +140,12 @@ async function run(engine,name){
   await panel.getByRole('button',{name:'Decline',exact:true}).click();
   await page.waitForTimeout(300);assert.equal(await count(),0);await card.waitFor();
   await say('save this draft');
-  await card.getByRole('button',{name:'Approve and save quotation',exact:true}).click();
-  await card.getByRole('button',{name:'I reviewed the full draft',exact:true}).click();
-  await card.getByRole('button',{name:'Approve and save quotation',exact:true}).click();
+  // Chat text can request a review, but never authorizes a write. The
+  // user-owned Save draft button approves the displayed exact revision.
+  assert.equal(await count(),0,'chat request alone cannot persist a draft');
+  const saveButton=card.getByRole('button',{name:'Save draft',exact:true});
+  assert.equal(await saveButton.isEnabled(),true,'the reviewed draft must have an explicit Save action');
+  await saveButton.click();
   // The UI confirmation occurs after the transaction and its document artifact
   // are returned. An isolated one-off count can race another vault writer.
   await panel.locator('.lourex-ai-created-artifact').waitFor({timeout:30000});
@@ -175,7 +178,7 @@ async function run(engine,name){
   assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id,
     'Restored document must match durable storage: '+JSON.stringify({beforeReloadMeta,afterReloadMeta}));
   assert.match(await restored.innerText(),/Saved/);
-  await restored.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
+  await restored.getByRole('button',{name:'Generate PDF preview',exact:true}).click();
   try{
    await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:45000});
   }catch(error){
