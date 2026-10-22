@@ -1,4 +1,5 @@
 import {activeAccountStorageUid} from '../storage/db.js';
+import {currentCloudUser} from '../cloud/firebase.js';
 
 export type AiJobStatus='processing'|'needs-review'|'completed'|'failed'|'cancelled';
 export interface AiJobHistoryEntry{
@@ -19,7 +20,10 @@ const KEY_PREFIX='lourex-ai-job-history-v2:';
  * so it is discarded rather than migrated into the currently logged-in user. */
 function currentJobKey():string|null{
   const uid=activeAccountStorageUid();
-  return uid?KEY_PREFIX+encodeURIComponent(uid):null;
+  // Firebase identity can change before IndexedDB finishes switching scopes.
+  // Never read, clear or write filenames under a stale local account UID.
+  if(!uid||currentCloudUser()?.uid!==uid)return null;
+  return KEY_PREFIX+encodeURIComponent(uid);
 }
 function discardLegacyUnscopedHistory():void{
   try{sessionStorage.removeItem(LEGACY_KEY);}catch{}
