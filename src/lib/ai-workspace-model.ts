@@ -65,7 +65,7 @@ function differences(before:WorkspaceLine[],after:WorkspaceLine[]):WorkspaceDiff
   return after.flatMap((row,i)=>{
     const old=before.find(item=>item.id===row.id);
     if(!old)return [{field:String(i+1),before:'',after:row.descriptionEn||row.descriptionAr}];
-    return fields.filter(field=>old[field]!==row[field]).map(field=>({field:`${i+1} · ${field}`,before:old[field],after:row[field]}));
+    return fields.filter(field=>old[field]!==row[field]).map(field=>({field:`${i+1} · ${field}`,before:old[field]||'',after:row[field]||''}));
   });
 }
 export function workspaceDocument(kernel:ConversationKernel,vault:VaultPayload,language:'ar'|'en',savedId=''):WorkspaceDocument|null {
