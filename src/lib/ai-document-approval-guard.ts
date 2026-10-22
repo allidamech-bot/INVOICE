@@ -3,9 +3,9 @@ import {aiProductArchived} from './ai-business.js';
 import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 import {resolveAiCommercialLine,printableAiCommercialLine} from './ai-commercial-line.js';
 
-interface LineInput{savedItemId?:string;descriptionEn?:string;descriptionAr?:string;unit?:string;quantity?:string;unitPrice?:string;}
+interface LineInput{savedItemId?:string;descriptionEn?:string;descriptionAr?:string;unit?:string;quantity?:string;unitPrice?:string;packing?:string;}
 interface DraftApproval{customerId?:string;customerDraft?:{companyNameEn?:string;companyNameAr?:string;email?:string}|null;currency:string;items:LineInput[];}
-interface UpdateApproval{documentId:string;addItems:LineInput[];itemEdits:Array<{itemId:string;descriptionEn?:string;descriptionAr?:string;unit?:string;quantity?:string;unitPrice?:string}>;termsPatch?:Record<string,unknown>;notes?:unknown;language?:unknown;}
+interface UpdateApproval{documentId:string;addItems:LineInput[];itemEdits:Array<{itemId:string;descriptionEn?:string;descriptionAr?:string;unit?:string;quantity?:string;unitPrice?:string;packing?:string}>;termsPatch?:Record<string,unknown>;notes?:unknown;language?:unknown;}
 function scoped(row:{workspaceId?:string},active:string):boolean{return (row.workspaceId||'default')===active;}
 function validDecimal(value:unknown,positive:boolean):boolean{
   const raw=String(value??'').trim();
@@ -16,6 +16,8 @@ function validDecimal(value:unknown,positive:boolean):boolean{
 function validateLine(vault:VaultPayload,line:LineInput,currency:string,scope:string):void{
   if(!line||typeof line!=='object'||Array.isArray(line))throw new Error('Invalid commercial document line.');
   if(!validDecimal(line.quantity,true))throw new Error('Every document line requires a valid positive quantity.');
+  if(line.packing!==undefined&&(typeof line.packing!=='string'||line.packing.length>120||/[\u0000-\u001f\u007f]/u.test(line.packing)))
+    throw new Error('Invalid or oversized line packing.');
   const id=String(line.savedItemId||'').trim();
   if(id){
     const product=vault.savedItems.find(item=>item.id===id);
@@ -81,9 +83,9 @@ export function assertAiDocumentUpdateApproval(vault:VaultPayload,proposal:Updat
   for(const edit of proposal.itemEdits){
     if(!edit||!items.has(edit.itemId)||edited.has(edit.itemId))throw new Error('Missing or duplicated document line identity.');
     edited.add(edit.itemId);
-    for(const field of ['descriptionEn','descriptionAr','unit'] as const){
+    for(const field of ['descriptionEn','descriptionAr','unit','packing'] as const){
       const value=edit[field];
-      if(value!==undefined&&(typeof value!=='string'||value.length>(field==='unit'?40:160)))
+      if(value!==undefined&&(typeof value!=='string'||value.length>(field==='unit'?40:field==='packing'?120:160)||/[\u0000-\u001f\u007f]/u.test(value)))
         throw new Error('Invalid or oversized edited document item field: '+field);
     }
     if(edit.quantity!==undefined&&!validDecimal(edit.quantity,true))throw new Error('Document quantity must be positive.');
