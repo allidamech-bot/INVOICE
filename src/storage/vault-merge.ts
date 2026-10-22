@@ -340,6 +340,14 @@ function guardDraftPurchaseConflicts(base:PurchaseRecord[],intended:PurchaseReco
     if(!remoteChanged)continue;
     if(!wanted&&!current)continue;
     if(wanted&&current&&sameRecord(wanted,current))continue;
+    // A posting queued against the old draft must not replace an accepted
+    // draft edit or recreate a deleted draft. Timestamp/scope stamping alone
+    // does not change the reviewed purchase content.
+    if(wanted?.status==='posted'&&(!current||current.status==='draft')){
+      const content=(row:PurchaseRecord)=>{const {updatedAt,...value}=row;return {...value,workspaceId:row.workspaceId||'default',branchId:row.branchId||'main'};};
+      if(!current||!sameRecord(content(before),content(current)))
+        throw new Error('Purchase changed on another device. Reopen Operations before posting it.');
+    }
     if((wanted&&wanted.status!=='draft')||(current&&current.status!=='draft'))continue;
     throw new Error('Purchase changed on another device. Reopen Operations before saving or deleting it.');
   }

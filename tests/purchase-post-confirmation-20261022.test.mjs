@@ -138,3 +138,56 @@ test('missing or mismatched saved baseline is rejected before approval or persis
     assert.equal(JSON.stringify(p.get()),before);assert.deepEqual(p.counts(),{writes:0,syncs:0,gates:0});
   }
 });
+
+for(const change of ['cost','notes','delete'])
+test(`queued purchase posting cannot overwrite an earlier accepted draft ${change}`,async()=>{
+  const p=await fixture();p.page.postPurchase();
+  const first=change==='delete'
+    ?p.h.persist({...p.h.requireVault(),purchases:p.h.requireVault().purchases.filter(row=>row.id!==p.purchase.id)})
+    :p.change(change);
+  const second=p.page.confirmAction();await Promise.all([first,second]);
+  assert.match(p.page.state.error,/purchase.*changed|draft.*changed/i);
+  const saved=p.get().payload,row=saved.purchases.find(row=>row.id===p.purchase.id);
+  if(change==='delete')assert.equal(row,undefined);
+  else{
+    assert.equal(row.status,'draft');
+    if(change==='cost')assert.equal(row.items[0].unitCost,'75');
+    else assert.equal(row.notes,'New saved purchase instructions');
+  }
+  assert.equal(saved.documentEvents.filter(event=>event.auditEntityId===p.purchase.id&&event.auditAction==='posted').length,0);
+  assert.equal(saved.inventoryMovements.length,0);assert.equal(p.toasts.length,0);
+  assert.deepEqual(p.counts(),{writes:1,syncs:1,gates:1});
+  assert.ok(p.page.state.purchaseEdit,'the rejected posting must retain the editor');
+});
+
+test('posting against a timestamp-only queued save remains valid',async()=>{
+  const p=await fixture();p.page.postPurchase();const base=p.h.requireVault();
+  const first=p.h.persist({...base,purchases:base.purchases.map(row=>row.id===p.purchase.id
+    ?{...row,updatedAt:'2099-01-01T00:00:00.000Z'}:row)});
+  const second=p.page.confirmAction();await Promise.all([first,second]);
+  assert.equal(p.page.state.error,'');
+  const saved=p.get().payload,row=saved.purchases.find(row=>row.id===p.purchase.id);
+  assert.equal(row.status,'posted');assert.equal(supplierPayablesByCurrency([row],[])[0].remaining,'100.00');
+  assert.equal(saved.documentEvents.filter(event=>event.auditEntityId===p.purchase.id&&event.auditAction==='posted').length,1);
+  assert.deepEqual(p.counts(),{writes:2,syncs:2,gates:1});
+});
+
+for(const change of ['cost','notes','delete'])
+test(`merge rejects a local posting against a concurrently changed draft ${change} without mutating inputs`,async()=>{
+  const p=await fixture(),base=p.h.requireVault(),intended={...base,purchases:[postPurchase(p.purchase,[],[]).purchase]};
+  const current=structuredClone(p.purchase);
+  if(change==='cost')current.items[0].unitCost='75';else current.notes='Accepted remotely';
+  const latest={...base,purchases:change==='delete'?[]:[current]},before=JSON.stringify({base,intended,latest});
+  assert.throws(()=>mergeVaultIntent(base,intended,latest),/purchase.*changed|draft.*changed/i);
+  assert.equal(JSON.stringify({base,intended,latest}),before);
+});
+
+test('canonical default scope alone does not block a concurrent purchase posting',async()=>{
+  const p=await fixture(),base=p.h.requireVault(),current=structuredClone(p.purchase);
+  delete current.workspaceId;delete current.branchId;current.updatedAt='2099-01-01T00:00:00.000Z';
+  const intended={...base,purchases:[postPurchase(p.purchase,[],[]).purchase]},latest={...base,purchases:[current]};
+  const before=JSON.stringify({base,intended,latest}),saved=mergeVaultIntent(base,intended,latest);
+  assert.equal(saved.purchases[0].status,'posted');
+  assert.equal(supplierPayablesByCurrency(saved.purchases,[])[0].remaining,'100.00');
+  assert.equal(JSON.stringify({base,intended,latest}),before);
+});
