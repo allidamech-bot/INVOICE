@@ -117,8 +117,9 @@ async function run(engine,name){
   await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
   assert.equal(await count(),0,'selecting customers while drafting must not persist');
   // A long conversation keeps following the latest turn until a deliberate
-  // user wheel/touch scroll occurs. Browser automation's programmatic
-  // scrollIntoView is not that input and gets snapped to the bottom.
+  // user wheel/touch scroll occurs. Wheel input must target the empty
+  // side gutter of the OUTER chat scroller: the center may hit a nested
+  // 85-item list that consumes the wheel without moving the chat.
   async function clickVisibleChatAction(target,description){
    for(let attempt=0;attempt<32;attempt++){
     const position=await target.evaluate(node=>{
@@ -126,7 +127,7 @@ async function run(engine,name){
      if(!scroll)throw Error('The Controller has no scrollable conversation');
      const rect=node.getBoundingClientRect(),viewport=scroll.getBoundingClientRect();
      const desired=viewport.top+Math.min(160,viewport.height/2);
-     return{needed:Math.round(rect.top-desired),mouseX:viewport.left+viewport.width/2,
+     return{needed:Math.round(rect.top-desired),mouseX:viewport.left+8,
        mouseY:viewport.top+viewport.height/2,
        inView:rect.top>=viewport.top+2&&rect.bottom<=viewport.bottom-2};
     });
