@@ -324,6 +324,31 @@ test('AI Inbox quote and supplier save retries create distinct terminal job atte
   }
 });
 
+test('pagehide cancels a running AI Inbox extraction but never interrupts a draft save',()=>{
+  const ui=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+  const lifecycle=ui.slice(ui.indexOf('componentDidMount():void'),ui.indexOf('private current='));
+  assert.match(lifecycle,/window\.addEventListener\('pagehide',this\.onInboxPageHide\)/,
+    'a real browser navigation must trigger Inbox cancellation even if React does not unmount');
+  assert.match(lifecycle,/window\.removeEventListener\('pagehide',this\.onInboxPageHide\)/,
+    'unmount must release the pagehide listener');
+  const handler=lifecycle.slice(lifecycle.indexOf('private onInboxPageHide=()=>'),lifecycle.indexOf('private current='));
+  assert.match(handler,/if\(this\.saving\)return/,
+    'navigation during a potentially committed save must not assert cancellation');
+  assert.match(handler,/if\(this\.pending\|\|this\.inFlightJobId\)this\.cancelAnalysis\(\)/,
+    'only an active pending request may be finalized on pagehide');
+  const visibility=ui.slice(ui.indexOf('private onVoiceVisibilityChange='),ui.indexOf('private onComposerVoiceRequest='));
+  assert.doesNotMatch(visibility,/onInboxPageHide|cancelAnalysis/,
+    'backgrounding Safari must not cancel Inbox extraction');
+  storage.clear();jobs.setTestUid('qa-pagehide');
+  const active=jobs.startAiJob('navigated-away.pdf');
+  jobs.updateAiJob(active.id,{route:'quote_request'});
+  jobs.updateAiJob(active.id,{status:'cancelled',note:'Analysis cancelled'});
+  const cancelled=jobs.readAiJobHistory().find(row=>row.id===active.id);
+  jobs.updateAiJob(active.id,{status:'needs-review',note:'Late network response'});
+  assert.deepEqual(jobs.readAiJobHistory().find(row=>row.id===active.id),cancelled,
+    'network completion after pagehide may not resurrect a cancelled job');
+});
+
 test('cleanup restores the real JS session global',()=>{
  if(oldSession===undefined)delete globalThis.sessionStorage;
  else globalThis.sessionStorage=oldSession;
