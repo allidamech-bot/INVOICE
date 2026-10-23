@@ -49,6 +49,14 @@ function write(entries:AiJobHistoryEntry[]):void{
 export function startAiJob(sourceName:string):AiJobHistoryEntry{
   const now=new Date().toISOString();const entry:AiJobHistoryEntry={id:`ai-job-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,sourceName:safeText(sourceName)||'AI source',documentType:'',route:'',status:'processing',createdAt:now,updatedAt:now,note:''};write([entry,...readAiJobHistory().filter(row=>row.id!==entry.id)]);return entry;
 }
+/** Reuse only an active review; a failed/cancelled/completed workflow
+ * cannot be retried by mutating its final history row. A fresh manual attempt
+ * gets a new, UID-scoped job identity while preserving the previous outcome. */
+export function activeOrFreshAiJob(id:string,sourceName:string):AiJobHistoryEntry{
+  const existing=id?readAiJobHistory().find(row=>row.id===id):undefined;
+  return existing&&(existing.status==='processing'||existing.status==='needs-review')
+    ?existing:startAiJob(sourceName);
+}
 export function updateAiJob(id:string,patch:Partial<Pick<AiJobHistoryEntry,'documentType'|'route'|'status'|'note'>>):AiJobHistoryEntry|null{
   const rows=readAiJobHistory();const index=rows.findIndex(row=>row.id===id);if(index<0)return null;const current=rows[index]!;
   // A stale provider callback must not turn a cancelled, failed or completed
