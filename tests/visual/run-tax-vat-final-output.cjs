@@ -29,16 +29,23 @@ function parseCsv(text){const rows=[],row=[];let value='',quoted=false;for(let i
  await page.screenshot({path:out+'/'+engine+'-'+lang+'-'+mode+'.png',fullPage:true});
  if(engine==='chromium'){
  const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true});writeFileSync(out+'/'+engine+'-'+lang+'-'+mode+'.pdf',pdf);
- const parts=await page.evaluate(async base64=>{const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc='./vendor/pdf.worker.mjs';const doc=await pdfjs.getDocument({data:Uint8Array.from(atob(base64),c=>c.charCodeAt(0))}).promise,result=[];for(let n=1;n<=doc.numPages;n++){const p=await doc.getPage(n),text=await p.getTextContent();result.push(text.items.map(x=>x.str||'').join(' '));}await doc.destroy();return result;},pdf.toString('base64'));
+ const expectedFooter=await page.locator('.report-print-footer').innerText();
+ const {parts,footers}=await page.evaluate(async base64=>{const pdfjs=await import('./vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc='./vendor/pdf.worker.mjs';const doc=await pdfjs.getDocument({data:Uint8Array.from(atob(base64),c=>c.charCodeAt(0))}).promise,result=[],footers=[];for(let n=1;n<=doc.numPages;n++){const p=await doc.getPage(n),text=await p.getTextContent();result.push(text.items.map(x=>x.str||'').join(' '));const anchor=text.items.find(x=>x.str?.includes('LOUREX'));if(anchor)footers.push(text.items.filter(x=>x.str&&x.transform[5]<=anchor.transform[5]+2).map(x=>x.str).join(' '));}await doc.destroy();return {parts:result,footers};},pdf.toString('base64'));
  assert.ok(parts.length>0&&parts.length<=20);assert.ok(parts.every(s=>s.trim()),'no blank PDF pages');const text=normalize(parts.join(' '));
  for(const wanted of expected)assert.equal(text.split(wanted.number).length-1,1,'PDF document appears once '+wanted.number);
  assert.ok(text.includes(end),'PDF report period');assert.ok(!text.includes('EXCLUDED'),'filtered drafts/void/future excluded');assert.ok(!text.includes('QA-SHELL-MUST-NOT-PRINT'),'no shell controls');
  if(mode!=='empty')for(const value of ['295.00','1950.00','300.00','-5.00'])assert.ok(text.includes(value)||(lang==='ar'&&value.startsWith('-')&&text.includes(value.slice(1)+'-')),'PDF independent tax total '+value);
  if(mode!=='all')assert.ok(!text.includes('EUR'),'selected currency respected');
- // Arabic PDF.js items can be individual visual-order presentation glyphs.
- const arabicGlyphs=parts.join('').replace(/[^\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufeff]/g,'');
- const arabicLogical=normalize([...arabicGlyphs].reverse().join(''));
- assert.ok(lang==='ar'?(text.includes('ضريبةالمدخلاتمستبعدة')||arabicLogical.includes('ضريبةالمدخلاتمستبعدة')):text.includes('InputVAT'),'output-only scope limitation retained');
+ // Compare only the footer's PDF region, anchored on its unique LOUREX text.
+ // Arabic fonts may emit visual-order presentation glyphs; values/array order
+ // elsewhere remain exact, while every footer Arabic character is retained.
+ assert.equal(footers.length,1,'exactly one scope footer in native PDF');
+ if(lang==='ar'){
+  const glyphs=value=>[...value.normalize('NFKC').replace(/[^\u0600-\u06ff]/g,'')].sort().join('');
+  assert.equal(glyphs(footers[0]),glyphs(expectedFooter),'complete Arabic scope footer glyph inventory');
+  assert.ok(footers[0].includes('LOUREX'));
+ }else assert.equal(normalize(footers[0]),normalize(expectedFooter),'complete English scope footer');
+
  }
  assert.equal(await page.evaluate(()=>window.qaSource()),before,'CSV and print never mutate source documents');await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-tax-vat-report')),false);assert.deepEqual(errors,[]);console.log('PASS tax final output '+engine+' '+lang+' '+mode);await page.close();
  }}finally{await browser.close();}
