@@ -16,6 +16,7 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     await page.emulateMedia({media:'print'});
     await page.waitForFunction(()=>{const root=document.querySelector('.print-portal .invoice-pages');return Boolean(root&&root.dataset.paginationReady==='true'&&root.querySelectorAll('.invoice-page').length);},null,{timeout:25000});
     await page.evaluate(async()=>{await document.fonts?.ready;await Promise.all(Array.from(document.querySelectorAll('.print-portal img'),img=>img.decode()));});
+    const descriptions=await page.evaluate(()=>JSON.parse(window.qaSourceSnapshot()).items.map(item=>item[window.qaPurchaseOrder.language==='ar'?'descriptionAr':'descriptionEn']));
     const source=await page.evaluate(()=>window.qaSourceSnapshot()),state=await page.evaluate(()=>window.qaPurchaseOrder);
     const print=page.locator('.print-portal .invoice-pages');
     const content=normalize(await print.innerText());
@@ -26,8 +27,8 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     assert.ok(content.includes(total),'tax-inclusive total present');
     if(long){
       for(let n=1;n<=40;n++)assert.ok(content.includes('PO-LINE-'+String(n).padStart(3,'0')),'every long purchase order line in DOM');
-      const images=await page.locator('.print-portal .doc-logo img').evaluateAll(imgs=>imgs.map(img=>({width:img.naturalWidth,height:img.naturalHeight})));
-      assert.ok(images.length>0&&images.every(img=>img.width>0&&img.height>0),'large logos decoded');
+      const images=await page.locator('.print-portal .doc-logo img').evaluateAll(imgs=>imgs.map(img=>{const r=img.getBoundingClientRect(),p=img.closest('.invoice-page').getBoundingClientRect(),h=img.closest('.doc-logo').getBoundingClientRect();return {width:img.naturalWidth,height:img.naturalHeight,contained:r.width>0&&r.height>0&&r.left>=p.left-1&&r.right<=p.right+1&&r.top>=p.top-1&&r.bottom<=p.bottom+1&&r.left>=h.left-1&&r.right<=h.right+1&&r.top>=h.top-1&&r.bottom<=h.bottom+1};}));
+      assert.ok(images.length>0&&images.every(img=>img.width>0&&img.height>0&&img.contained),'large logos decoded and contained within their logo box and printed page');
     }else{
     assert.ok(content.includes(language==='ar'?'أطلس للتوريد':'Atlas Supplier'),'supplier name on issued purchase order');
     assert.ok(content.includes(language==='ar'?'مجموعة صمام تجريبية':'Synthetic valve assembly'),'purchase item detail in print');
@@ -55,6 +56,16 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
       assert.ok(pdfText.includes(total),'PDF has accurate total');
       assert.ok(!pdfText.includes('QA-APP-CONTROL-LEAK'),'application controls excluded');
       if(long)for(let n=1;n<=40;n++){const marker='PO-LINE-'+String(n).padStart(3,'0');assert.equal(pdfText.split(marker).length-1,1,'PDF preserves line exactly once: '+marker);}
+      if(long){
+        const compact=value=>normalize(value).replace(/\s+/g,'');
+        if(language==='en')for(const description of descriptions)assert.ok(pdfText.includes(compact(description)),'complete long English description');
+        else{
+          // PDF Arabic extraction may reverse visual runs. Count the bounded
+          // full-description character inventory instead of assuming word order.
+          const expected=compact(descriptions.join('')).replace(/[^\u0600-\u06ff]/g,'');
+          for(const ch of new Set(expected))assert.ok([...pdfText].filter(c=>c===ch).length>=[...expected].filter(c=>c===ch).length,'Arabic long-description character completeness: '+ch);
+        }
+      }
       if(language==='en')assert.ok(pdfText.includes('AtlasSupplier'),'PDF preserves supplier identity');
     }
     assert.equal(await page.evaluate(()=>window.qaSourceSnapshot()),source,'printing must never mutate the purchase order');
