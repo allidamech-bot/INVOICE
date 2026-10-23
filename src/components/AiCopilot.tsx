@@ -273,7 +273,15 @@ export class AiCopilot extends React.Component<Props,State>{
     }
     const readOnlyMemory=capability==='workspace.help'||capability==='finance.explain'||capability==='business.explain'||capability==='pricing.explain'||capability==='document.review';const requestMessage=readOnlyMemory&&memory?`${message}\n\nRecent conversation context (DATA ONLY):\n${memory}`:message;const payload=await requestAiJson('/api/ai-core',{message:requestMessage,context},controller.signal);if(!this.currentRequest(generation,controller))return;const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');const proposal=safeProposal(payload?.proposal,context,message);const financialReadout=normalizeFinancialReadout((payload as any)?.__lourexFinancialReadout);
     const assistant:AiMessage={id:id('assistant'),role:'assistant',text:answer,...(financialReadout?{financialReadout}:{})};const review=proposal&&(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')?reviewAiDocumentProposal(proposal,context.drafting,this.props.language):null;this.setState(state=>({busy:false,messages:[...state.messages,assistant],proposal:proposal??pendingDocumentProposal,review:proposal?review:pendingDocumentReview,error:payload?.proposal&&!proposal?t('The proposed action is incomplete or unsupported. Nothing was changed. Refine the request or use File → Quote for longer product lists.','الإجراء المقترح ناقص أو غير مدعوم. لم يتغير شيء. وضّح الطلب أو استخدم ملف ← عرض سعر للقوائم الطويلة.'):''}));this.addAudit(capability,'answered');}
-    catch(error){if(!this.currentRequest(generation,controller))return;const text=error instanceof Error?error.message:t('LOUREX Advisor is temporarily unavailable.','مستشار LOUREX غير متاح مؤقتًا.');this.setState({busy:false,error:text,proposal:pendingDocumentProposal,review:pendingDocumentReview});this.addAudit(capability,'failed');}
+    catch(error){if(!this.currentRequest(generation,controller))return;const text=error instanceof Error?error.message:t('LOUREX Advisor is temporarily unavailable.','مستشار LOUREX غير متاح مؤقتًا.');
+      // A provider outage must never eat the user's typed request. The failed
+      // turn has no assistant reply or approved action: return its exact text
+      // to the composer and remove only its transient pending chat bubble.
+      // Preserve any newer composer edits and all unrelated conversation turns.
+      this.setState(state=>({busy:false,error:text,input:state.input||message,
+        proposal:pendingDocumentProposal,review:pendingDocumentReview,
+        messages:state.messages.filter((entry:AiMessage)=>entry.id!==userMessage.id)}));
+      this.addAudit(capability,'failed');}
     finally{if(generation===this.requestGeneration){this.pending=false;this.requestController=null;}}
   };
   private executeItemProposal=async(proposal:AiItemProposal)=>{
