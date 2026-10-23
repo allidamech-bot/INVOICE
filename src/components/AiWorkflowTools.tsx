@@ -134,9 +134,20 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
       const body=forced?null:await postAi('/api/ai-inbox',source.fileName,source.payload,controller.signal);
       if(!this.current(generation,controller))return;
       const classification=forced?{route:forced,documentType:'unknown',confidence:1,reason:t('Selected workflow','مسار محدد')} as AiInboxClassification:body.classification as AiInboxClassification;
-      updateAiJob(job.id,{route:classification.route,documentType:classification.documentType,status:'needs-review',note:classification.reason});
-      this.setState({classification,model:String(body?.model||'LOUREX AI'),stage:'review',jobs:readAiJobHistory()});
+      // Classification alone is not a reviewable quotation/supplier result.
+      // Keep job processing until extraction and its account-scoped review
+      // finish; a rejected/aborted extraction never produces a ready job.
+      const needsExtraction=['quote_request','supplier_purchase','supplier'].includes(classification.route);
+      updateAiJob(job.id,{route:classification.route,documentType:classification.documentType,
+        ...(needsExtraction?{}:{status:'needs-review' as const}),note:classification.reason});
+      this.setState({classification,model:String(body?.model||'LOUREX AI'),
+        stage:needsExtraction?'extracting':'review',jobs:readAiJobHistory()});
       await this.extractForRoute(classification.route,source.fileName,source.payload,controller,generation);
+      if(!this.current(generation,controller))return;
+      if(needsExtraction){
+        updateAiJob(job.id,{status:'needs-review'});
+        this.setState({jobs:readAiJobHistory()});
+      }
     }catch(error){if(!this.current(generation,controller))return;if(jobId)updateAiJob(jobId,{status:'failed',note:error instanceof Error?error.message:String(error)});this.setState({stage:'error',error:error instanceof Error?error.message:String(error),jobs:readAiJobHistory()});}
     finally{if(generation===this.generation){this.pending=false;if(this.mounted)this.setState({});}if(this.abort===controller)this.abort=null;}
   };
@@ -156,8 +167,17 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     if(route==='product_list'){
       this.setState({classification:{route,documentType:'unknown',confidence:1,reason:t('Selected Product AI review','تم اختيار مراجعة ذكاء الأصناف')},forcedRoute:route,error:'',stage:'review'});return;
     }this.pending=true;const generation=++this.generation,controller=new AbortController();this.abort=controller;
-    const documentType=this.state.classification?.documentType||'unknown';this.setState({classification:{route,documentType,confidence:1,reason:t('Chosen manually','تم الاختيار يدويًا')},forcedRoute:route,error:'',stage:'reading'});this.markJob({route,status:'needs-review',note:t('Chosen manually','تم الاختيار يدويًا')});
-    try{const source=await this.payload();if(!this.current(generation,controller))return;await this.extractForRoute(route,source.fileName,source.payload,controller,generation);if(this.current(generation,controller))this.setState({stage:'review'});}
+    const documentType=this.state.classification?.documentType||'unknown';this.setState({classification:{route,documentType,confidence:1,reason:t('Chosen manually','تم الاختيار يدويًا')},forcedRoute:route,error:'',stage:'reading'});const needsExtraction=['quote_request','supplier_purchase','supplier'].includes(route);
+    this.markJob({route,status:needsExtraction?'processing':'needs-review',note:t('Chosen manually','تم الاختيار يدويًا')});
+    try{
+      const source=await this.payload();
+      if(!this.current(generation,controller))return;
+      await this.extractForRoute(route,source.fileName,source.payload,controller,generation);
+      if(this.current(generation,controller)){
+        if(needsExtraction)this.markJob({status:'needs-review'});
+        this.setState({stage:'review'});
+      }
+    }
     catch(error){if(!this.current(generation,controller))return;this.markJob({status:'failed',note:error instanceof Error?error.message:String(error)});this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}
     finally{if(generation===this.generation){this.pending=false;if(this.mounted)this.setState({});}if(this.abort===controller)this.abort=null;}
   };
