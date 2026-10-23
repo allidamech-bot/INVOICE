@@ -166,6 +166,10 @@ jobs:
     name: WebKit synthetic iPhone picker smoke
     needs: validate
     runs-on: ubuntu-latest
+    # Same verified, pinned official browser image as the Controller E2E CI.
+    # Avoid 35-minute browser/native-dependency installs on ephemeral runners.
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -179,10 +183,12 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Build isolated test bundle (no deployment)
         run: npm run build
-      - name: Install WebKit for offline browser QA
+      - name: Use matching offline Chromium and WebKit (pinned CI image)
         run: |
-          npm install --no-save --no-package-lock --no-audit --no-fund playwright
-          npx playwright install --with-deps chromium webkit
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          node -e "const {chromium,webkit}=require('playwright');if(!chromium.executablePath()||!webkit.executablePath())process.exit(1)"
+          test -f "$(node -p "require('playwright').chromium.executablePath()")"
+          test -f "$(node -p "require('playwright').webkit.executablePath()")"
       - name: Exercise synthetic AI chat and picker/editor flows on phone and tablet
         run: |
           npx http-server . -p 4173 -a 127.0.0.1 -c-1 >/tmp/lourex-ux-picker-server.log 2>&1 &
