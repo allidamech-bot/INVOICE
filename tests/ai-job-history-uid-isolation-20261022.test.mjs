@@ -192,6 +192,24 @@ test('AI Inbox does not advertise a reviewable result until extraction finishes'
   assert.equal(jobs.readAiJobHistory()[0].status,'needs-review');
 });
 
+test('final AI job metadata and timestamp stay frozen after duplicate or status-less callbacks',()=>{
+  storage.clear();jobs.setTestUid('qa-final-immutable');
+  for(const status of ['completed','failed','cancelled']){
+    const job=jobs.startAiJob(status+'.pdf');
+    jobs.updateAiJob(job.id,{status,note:'Final '+status,route:'quote_request',documentType:'quotation'});
+    const before=jobs.readAiJobHistory().find(row=>row.id===job.id);
+    const extra=jobs.updateAiJob(job.id,{note:'Stale callback leaked data',route:'supplier'});
+    assert.deepEqual(extra,before,status+' update without status must be rejected');
+    jobs.updateAiJob(job.id,{status,note:'Duplicate terminal result',route:'supplier_purchase'});
+    assert.deepEqual(jobs.readAiJobHistory().find(row=>row.id===job.id),before,
+      status+' duplicate terminal update must preserve final note, route, document type and updatedAt');
+  }
+  const pending=jobs.startAiJob('still-processing.png');
+  jobs.updateAiJob(pending.id,{route:'quote_request',note:'Valid progress'});
+  assert.equal(jobs.readAiJobHistory().find(row=>row.id===pending.id).note,'Valid progress',
+    'ordinary in-progress metadata edits must remain supported');
+});
+
 test('manual AI Inbox retry gets a new job ID after failure or cancellation, without altering history',()=>{
   storage.clear();jobs.setTestUid('qa-manual-retry');
   const failed=jobs.startAiJob('source.pdf');
