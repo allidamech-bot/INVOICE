@@ -4,6 +4,22 @@ export const MAX_PRODUCT_AI_FILES=4;
 export const MAX_PRODUCT_AI_TOTAL_BYTES=16_000_000;
 export const MAX_PRODUCT_AI_COMBINED_ROWS=120;
 
+/** iPhone Files can expose a valid PDF, image or TXT with a generic MIME.
+ * Use a familiar extension ONLY when the browser gave no usable MIME.
+ * Do not override an explicit non-generic type; extraction must fail closed
+ * if that type is unsupported rather than silently changing its meaning. */
+export function productAiSourceMime(file:Pick<File,'name'|'type'>):string {
+  const declared=String(file.type||'').toLowerCase().trim();
+  if(declared&&declared!=='application/octet-stream'&&declared!=='binary/octet-stream')return declared;
+  const name=String(file.name||'').toLowerCase();
+  if(name.endsWith('.pdf'))return'application/pdf';
+  if(name.endsWith('.png'))return'image/png';
+  if(/\\.jpe?g$/.test(name))return'image/jpeg';
+  if(name.endsWith('.webp'))return'image/webp';
+  if(name.endsWith('.txt'))return'text/plain';
+  return declared;
+}
+
 export interface ProductAiSourceDraft {
   sourceCurrency:string;
   notes:string;
