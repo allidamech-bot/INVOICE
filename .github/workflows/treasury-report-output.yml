@@ -1,0 +1,56 @@
+name: Treasury reconciliation output
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/TreasuryLedgerPage.tsx'
+      - 'src/components/TreasuryReconciliationReport.tsx'
+      - 'src/lib/treasury-report.ts'
+      - 'src/lib/treasury-ledger.ts'
+      - 'src/styles/tailadmin-finance-workspaces-v320.css'
+      - 'tests/treasury-period-report.test.mjs'
+      - 'tests/visual/treasury-report-output.html'
+      - 'tests/visual/run-treasury-report-output.cjs'
+      - '.github/workflows/treasury-report-output.yml'
+permissions:
+  contents: read
+concurrency:
+  group: treasury-report-output-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  treasury-output:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Trust the checked-out workspace inside the test container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Full Node contracts including treasury calculation and history
+        run: node --test tests/*.test.mjs
+      - run: npm install --no-save --package-lock=false playwright@1.56.1 http-server@14.1.1
+      - name: Actual treasury CSV, browser and native PDF acceptance
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-treasury-http.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/treasury-report-output.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Treasury fixture did not start");'
+          node tests/visual/run-treasury-report-output.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: treasury-report-output
+          path: visual-qa-output/treasury-report/
+          retention-days: 7

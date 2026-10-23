@@ -192,3 +192,50 @@
 @media print {
   body.printing-financial-report .financial-report-print .ta-table td:first-child :is(strong,small) { display:block!important; }
 }
+
+/* Read-only treasury period output, isolated from other document printers. */
+.lx-treasury-report-output { padding:20px; background:var(--panel,#fff); border:1px solid var(--border,#ddd); border-radius:12px; }
+.lx-treasury-report-heading { display:flex; gap:16px; align-items:flex-start; margin-bottom:16px; }
+.lx-treasury-report-heading img { width:100px; height:60px; object-fit:contain; flex:0 0 auto; }
+.lx-treasury-report-output h2,.lx-treasury-report-output h3,.lx-treasury-report-output p { margin:0 0 10px; overflow-wrap:anywhere; }
+.lx-treasury-report-account,.lx-treasury-report-unallocated { margin:20px 0; }
+.lx-treasury-report-balances { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.lx-treasury-report-balances strong,.lx-treasury-report-output td small { display:block; }
+.lx-treasury-report-output td small { margin-top:4px; }
+.lx-treasury-report-output footer { font-size:12px; margin-top:18px; }
+.lx-treasury-report-filters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin-bottom:16px; }
+.lx-treasury-report-filters label { display:grid; gap:6px; min-width:120px; flex:1 1 160px; max-width:100%; }
+.lx-treasury-report-filters :is(input,select) { min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
+@media(max-width:600px) { .lx-treasury-report-output { padding:12px; } .lx-treasury-report-balances { grid-template-columns:1fr; gap:6px; } }
+@media print {
+  @page lourex-treasury-report { size:A4 portrait; margin:12mm; }
+  body.printing-treasury-report { background:#fff!important; color:#111!important; }
+  body.printing-treasury-report :is(#root,.app-root,.app-ui,.ta-shell,.ta-main,.main-content,.finance-workspace,#finance-panel,.lx-treasury-report) {
+    display:block!important; position:static!important; width:auto!important; height:auto!important; min-height:0!important; max-height:none!important; overflow:visible!important; margin:0!important; padding:0!important; background:#fff!important; transform:none!important;
+  }
+  body.printing-treasury-report :is(.ta-sidebar,.ta-header,.ta-topbar,.ta-mobile-nav,.ta-bottom-nav,.print-portal,.notification-center,.lx-treasury-report-controls),
+  body.printing-treasury-report .app-root > :not(.app-ui),
+  body.printing-treasury-report .app-ui > :not(.ta-shell),
+  body.printing-treasury-report .ta-shell > :not(.ta-main),
+  body.printing-treasury-report .ta-main > :not(.main-content),
+  body.printing-treasury-report .main-content > :not(.finance-workspace),
+  body.printing-treasury-report .finance-workspace > :not(#finance-panel) { display:none!important; }
+  body.printing-treasury-report .lx-treasury-report-output { page:lourex-treasury-report; display:block!important; padding:0!important; border:0!important; color:#111!important; background:#fff!important; font-size:9pt!important; }
+  body.printing-treasury-report .lx-treasury-report-output * { color:#111!important; box-shadow:none!important; text-shadow:none!important; }
+  body.printing-treasury-report .lx-treasury-report-heading { break-inside:avoid; }
+  body.printing-treasury-report .lx-treasury-report-heading img { max-width:100px!important; max-height:60px!important; }
+  body.printing-treasury-report .lx-treasury-report-output :is(h2,h3,p,small,footer) { font-size:9pt!important; line-height:1.4!important; }
+  body.printing-treasury-report .lx-treasury-report-output h3 { break-after:avoid; }
+  body.printing-treasury-report .lx-treasury-report-balances { display:grid!important; grid-template-columns:repeat(3,minmax(0,1fr))!important; break-inside:avoid; }
+  body.printing-treasury-report .lx-treasury-report-output .ta-table-wrap { overflow:visible!important; }
+  body.printing-treasury-report .lx-treasury-report-output table { width:100%!important; min-width:0!important; table-layout:fixed!important; border-collapse:collapse!important; }
+  body.printing-treasury-report .lx-treasury-report-output :is(th,td) { padding:5px!important; font-size:8pt!important; line-height:1.35!important; white-space:normal!important; overflow-wrap:anywhere!important; border-bottom:1px solid #ddd!important; }
+  body.printing-treasury-report .lx-treasury-report-output :is(th,td):nth-child(3) { width:35%!important; }
+  body.printing-treasury-report .lx-treasury-report-output tr { break-inside:avoid; }
+  body.printing-treasury-report .lx-treasury-report-output thead { display:table-header-group!important; }
+}
+@media print {
+  html:has(body.printing-treasury-report),
+  html body.printing-treasury-report #root .app-ui .ta-shell.workspace-shell,
+  html body.printing-treasury-report #root .app-ui .ta-main { background:#fff!important; }
+}
