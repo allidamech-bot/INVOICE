@@ -20,6 +20,18 @@ export function productAiSourceMime(file:Pick<File,'name'|'type'>):string {
   return declared;
 }
 
+/** Reject mislabeled PDF and image bytes before any Product AI provider call.
+ * The claimed MIME / file extension alone is never evidence of file content. */
+export async function verifyProductAiBinarySignature(file:Pick<File,'slice'>,mime:string):Promise<void> {
+  const bytes=new Uint8Array(await file.slice(0,12).arrayBuffer());
+  const ascii=(start:number,count:number)=>String.fromCharCode(...bytes.slice(start,start+count));
+  const valid=mime==='application/pdf'?ascii(0,5)==='%PDF-':
+    mime==='image/png'?bytes.length>=8&&bytes[0]===0x89&&ascii(1,3)==='PNG'&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10:
+    mime==='image/jpeg'?bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255:
+    mime==='image/webp'?bytes.length>=12&&ascii(0,4)==='RIFF'&&ascii(8,4)==='WEBP':false;
+  if(!valid)throw new Error('SOURCE_INCOMPLETE: Product file bytes do not match the declared PDF/image type. No products were saved.');
+}
+
 export interface ProductAiSourceDraft {
   sourceCurrency:string;
   notes:string;

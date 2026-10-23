@@ -9,7 +9,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { reviewProductAiRows, type ProductAiClassification, type ProductAiDraftItem, type ProductAiRowReview } from '../lib/product-ai-review.js';
 import { Button, Icon, Modal } from './UI.js';
 import { isIphoneHeicPhoto, jpegFromIphonePhoto } from '../lib/ai-iphone-photo.js';
-import { combineProductAiSourceDrafts, productAiSourceMime, MAX_PRODUCT_AI_FILES, MAX_PRODUCT_AI_TOTAL_BYTES, type ProductAiNamedDraft } from '../lib/ai-product-multi-source.js';
+import { combineProductAiSourceDrafts, productAiSourceMime, verifyProductAiBinarySignature, MAX_PRODUCT_AI_FILES, MAX_PRODUCT_AI_TOTAL_BYTES, type ProductAiNamedDraft } from '../lib/ai-product-multi-source.js';
 
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_TEXT_BYTES=1_000_000;
@@ -73,6 +73,9 @@ export class ProductAiSourceReview extends React.Component<Props,State>{
           throw new Error(t('This text source is too large for AI review.','مصدر النص كبير جدًا للمراجعة بالذكاء الاصطناعي.'));
         if(!isSpreadsheet&&!isText&&sourceFile.size>(mimeType==='application/pdf'?MAX_SPREADSHEET_BYTES:MAX_BINARY_BYTES))
           throw new Error(t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.'));
+        // Verify the file bytes, not just Safari's declared MIME or filename.
+        // Runs before local PDF text extraction and before any provider request.
+        if(!isSpreadsheet&&!isText)await verifyProductAiBinarySignature(sourceFile,mimeType);
         let payload:any;
         if(isSpreadsheet){
           const sheets=await readSpreadsheetFile(sourceFile);

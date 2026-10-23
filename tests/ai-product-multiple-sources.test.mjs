@@ -6,6 +6,30 @@ const read=p=>readFile(new URL('../'+p,import.meta.url),'utf8');
 const product=(sku,changes={})=>({sku,descriptionEn:'Product '+sku,descriptionAr:'',brand:'',hsCode:'',origin:'',packing:'',cartonQuantity:'',unit:'PCS',salePrice:'',saleCurrency:'',unitCost:'',costCurrency:'',category:'',notes:'',...changes});
 const source=(fileName,items,currency='')=>({fileName,draft:{items,sourceCurrency:currency,notes:''}});
 
+test('Product AI refuses mismatched binary signatures before uploading PDF and image bytes',async()=>{
+  const {verifyProductAiBinarySignature:verify}=await import('../dist/src/lib/ai-product-multi-source.js');
+  const file=bytes=>new File([new Uint8Array(bytes)],'selected.file');
+  const valid=[
+    ['application/pdf',[37,80,68,70,45,49,46,55]],
+    ['image/png',[137,80,78,71,13,10,26,10]],
+    ['image/jpeg',[255,216,255,224,0,0]],
+    ['image/webp',[82,73,70,70,0,0,0,0,87,69,66,80]]
+  ];
+  for(const [mime,bytes] of valid)await assert.doesNotReject(verify(file(bytes),mime),mime);
+  for(const [mime,bytes] of [
+    ['application/pdf',[60,104,116,109,108,62]],
+    ['image/jpeg',[137,80,78,71,13,10,26,10]],
+    ['image/png',[255,216,255]],
+    ['image/webp',[82,73,70,70,0,0,0,0,78,79,80,69]],
+    ['image/png',[]],
+    ['application/octet-stream',[37,80,68,70,45]]
+  ])await assert.rejects(verify(file(bytes),mime),/SOURCE_INCOMPLETE.*do not match/,mime);
+  const ui=await read('src/components/ProductAiSourceReview.tsx');
+  assert.match(ui,/verifyProductAiBinarySignature\(sourceFile,mimeType\)/);
+  assert.ok(ui.indexOf('verifyProductAiBinarySignature(sourceFile,mimeType)')<ui.indexOf("requestAiJson('/api/product-source-ai'"),
+    'reject invalid bytes before Product AI sends to its provider');
+});
+
 test('Product AI accepts generic-MIME Safari Files only for explicitly supported extensions',async()=>{
   const {productAiSourceMime:mime}=await import('../dist/src/lib/ai-product-multi-source.js');
   for(const [name,type,expected] of [
