@@ -47,67 +47,29 @@ test('Product AI aggregates every row and preserves original source ordering and
   assert.deepEqual(review([],group.draft.items,group.draft.sourceCurrency).map(row=>row.classification),['new-product','new-product','new-product','new-product']);
 });
 
-test('Product AI validates sale and cost currency independently for every extracted source row',async()=>{
+test('Product AI fails closed on malformed row-level sale and cost currencies',async()=>{
   const {combineProductAiSourceDrafts:combine}=await import('../dist/src/lib/ai-product-multi-source.js');
-  for(const [field,invalid] of [
-    ['saleCurrency','US'],['saleCurrency','USD/EUR'],
-    ['saleCurrency','US
-  const {combineProductAiSourceDrafts:combine}=await import('../dist/src/lib/ai-product-multi-source.js');
-  const {reviewProductAiRows:review}=await import('../dist/src/lib/product-ai-review.js');
-  const combined=combine([source('first.jpg',[product('SKU-77')]),source('second.jpg',[product('SKU-77')])]);
-  const matched=review([],combined.draft.items,combined.draft.sourceCurrency);
-  assert.equal(matched.length,2);
-  assert.deepEqual(matched.map(row=>row.classification),['duplicate-candidate','duplicate-candidate']);
-  assert.deepEqual(matched.map(row=>row.defaultSelected),[false,false]);
-});
-
-test('Product AI cannot proceed after one empty source, file overflow or combined row overflow',async()=>{
-  const {combineProductAiSourceDrafts:combine}=await import('../dist/src/lib/ai-product-multi-source.js');
-  assert.throws(()=>combine([source('first.png',[product('A')]),source('empty.png',[])]),/SOURCE_INCOMPLETE/);
-  assert.throws(()=>combine(Array.from({length:5},(_,i)=>source('file'+i+'.png',[product('SKU'+i)]))),/1–4/);
-  assert.throws(()=>combine([source('first.xlsx',Array.from({length:110},(_,i)=>product('SKU-'+i))),source('second.xlsx',Array.from({length:11},(_,i)=>product('SKN-'+i)))]),/120 rows/);
-  assert.throws(()=>combine([source('bad.xlsx',[product('SKU')],'INVALID')]),/invalid currency/);
-});
-
-test('Product AI importer keeps shell unchanged and revalidates the fresh product catalog before saving',async()=>{
-  const [modal,workflow,bridge]=await Promise.all([
-    read('src/components/ProductAiSourceReview.tsx'),
-    read('src/components/AiWorkflowTools.tsx'),
-    read('public/lourex-ai-workflows.js')
-  ]);
-  assert.match(workflow,/private chooseProductFiles=\(files:File\[\]\)=>/);
-  assert.match(workflow,/multiple=\{this.state.forcedRoute==='product_list'\}/);
-  assert.match(workflow,/setPendingSource\(route,file,route==='product_list'/);
-  assert.match(bridge,/files:Array\.isArray\(pending\.files\)\?pending\.files:undefined/);
-  assert.match(modal,/for\(let index=0;index<files.length;index\+\+\)/);
-  assert.match(modal,/combineProductAiSourceDrafts\(extracted\)/);
-  assert.match(modal,/reviewProductAiRows\(resumed\.vault\.savedItems,combined\.draft\.items/);
-  assert.match(modal,/rowFiles\[index\]/);
-  assert.match(modal,/const fresh=reviewProductAiRows\(vault\.savedItems,draft\.items/);
-  assert.match(modal,/return applyDraft\(vault,draft,this\.state\.selected,fresh\)/);
-  assert.match(modal,/Retry all files/);
-  assert.doesNotMatch(modal,/mutateVaultSafely\(vault=>applyDraft\(vault,draft,this\.state\.selected,this\.state\.reviews\)\)/);
-});
-],['costCurrency','12'],
-    ['costCurrency','EUR,GBP']
+  for(const bad of [
+    product('A',{salePrice:'10',saleCurrency:'USD/EUR'}),
+    product('B',{salePrice:'10',saleCurrency:'US'}),
+    product('C',{unitCost:'8',costCurrency:'12'}),
+    product('D',{unitCost:'8',costCurrency:'EUR,GBP'})
   ]){
     assert.throws(()=>combine([
-      source('valid-first.xlsx',[product('SAFE',{salePrice:'12',saleCurrency:'USD'})],'USD'),
-      source('bad-second.png',[product('INVALID',{unitCost:'8',...{[field]:invalid}})],'SAR')
-    ]),/SOURCE_INCOMPLETE: A product row has an invalid (?:sale|cost) currency/,
-    field+'='+invalid+' must reject the entire source batch rather than exposing an approvable partial list');
+      source('valid.xlsx',[product('VALID',{salePrice:'10',saleCurrency:'USD'})],'USD'),
+      source('bad.png',[bad],'SAR')
+    ]),/SOURCE_INCOMPLETE: A product row has an invalid/);
   }
-  const mixed=combine([
-    source('first.png',[product('A',{salePrice:'10',saleCurrency:' eur '})],'SAR'),
-    source('second.pdf',[product('B',{unitCost:'5',costCurrency:' gbp '})],'USD')
+  const good=combine([
+    source('first.png',[product('X',{salePrice:'10',saleCurrency:' eur '})],'SAR'),
+    source('second.pdf',[product('Y',{unitCost:'5',costCurrency:' gbp '})],'USD')
   ]);
-  assert.equal(mixed.draft.items[0].saleCurrency,'EUR','explicit valid currency overrides source default');
-  assert.equal(mixed.draft.items[1].costCurrency,'GBP','cost currency can differ safely from sale currency');
-  const missing=combine([source('unclear.png',[product('C',{unitCost:'7'})])]);
-  assert.equal(missing.draft.items[0].costCurrency,'','do not invent currencies for missing source facts');
+  assert.equal(good.draft.items[0].saleCurrency,'EUR');
+  assert.equal(good.draft.items[1].costCurrency,'GBP');
+  const missing=combine([source('unknown.png',[product('Z',{unitCost:'7'})])]);
+  assert.equal(missing.draft.items[0].costCurrency,'');
   const {reviewProductAiRows:review}=await import('../dist/src/lib/product-ai-review.js');
-  assert.equal(review([],missing.draft.items,'')[0].classification,'needs-review',
-    'missing currency blocks default import rather than filling from a guessed currency');
+  assert.equal(review([],missing.draft.items,'')[0].classification,'needs-review');
 });
 
 test('Product AI marks cross-file duplicates as blocked before any default selection',async()=>{
