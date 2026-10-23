@@ -3380,3 +3380,52 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is
     max-width:86%!important;padding:10px 13px!important;
   }
 }
+
+/* AI Controller only: direct document review using the canonical A4 renderer.
+   No iframe/blob preview: Safari can show a blank PDF viewer. The actual
+   generated PDF remains a separate download, never a saved invoice action. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-preview{
+  box-sizing:border-box;min-width:0;display:grid;gap:9px;
+  border:1px solid var(--lxw-line,#444);border-radius:12px;padding:10px;
+  background:var(--lxw-surface,#171717);color:var(--lxw-text,#eee);
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-toolbar{
+  display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:9px;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-toolbar strong{
+  font-size:12px;font-weight:700;line-height:1.5;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-toolbar>div{
+  display:flex;gap:7px;flex-wrap:wrap;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-toolbar button{
+  min-height:38px;padding:6px 10px;border:1px solid var(--lxw-line,#555);
+  border-radius:9px;color:inherit;background:var(--lxw-surface-2,#272727);
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-viewport{
+  box-sizing:border-box;width:100%;min-width:0;max-height:min(70vh,720px);
+  overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  direction:ltr;background:#c8cdd2;border:1px solid #5c666e;border-radius:8px;
+  padding:6px;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-extent{
+  position:relative;display:block;margin:0 auto;min-width:0;max-width:none!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-paper{
+  position:absolute;left:0;top:0;box-sizing:border-box;
+  width:210mm!important;min-width:210mm!important;max-width:none!important;
+  transform-origin:top left;pointer-events:none;background:#fff;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-paper [class~='invoice-pages']{
+  width:210mm!important;min-width:210mm!important;max-width:none!important;
+  flex:none!important;transform:none!important;margin:0!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-paper [class~='invoice-page']{
+  box-sizing:border-box!important;width:210mm!important;min-width:210mm!important;
+  max-width:210mm!important;height:297mm!important;min-height:297mm!important;
+  flex:0 0 297mm!important;margin:0!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-viewport:focus-visible,
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-toolbar button:focus-visible{
+  outline:2px solid #8bd4b9;outline-offset:2px;
+}

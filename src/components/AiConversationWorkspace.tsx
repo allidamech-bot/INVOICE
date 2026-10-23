@@ -419,6 +419,54 @@ function ConversationRecordList({host}:{host:Host}):any {
     <small>{label(ar,'Selection only. No records are changed until a separate approval.','التحديد فقط؛ لا تتغير السجلات دون موافقة مستقلة.')}</small>
   </section>;
 }
+/** True in-chat A4 preview. Safari/iPad PDF blob iframes can render blank, so
+ * render the same canonical document model visibly, without touching the PDF
+ * bridge, saved records or the separate downloadable generated File. */
+function InlineControllerPdfPreview({Renderer,source,ar,onClose}:{Renderer:any;source:{document:LourexDocument;identity:string;electronicShareId?:string};ar:boolean;onClose:()=>void}):any {
+  const viewport=react.useRef(null as HTMLDivElement|null);
+  const stage=react.useRef(null as HTMLDivElement|null);
+  const extent=react.useRef(null as HTMLDivElement|null);
+  const [actualSize,setActualSize]=React.useState(false);
+  React.useEffect(()=>{
+    const container=viewport.current,paper=stage.current,space=extent.current;
+    if(!container||!paper||!space)return;
+    let frame=0;
+    const fit=()=>{
+      window.cancelAnimationFrame(frame);
+      frame=window.requestAnimationFrame(()=>{
+        if(!container.isConnected||!paper.isConnected)return;
+        const width=Math.max(794,paper.scrollWidth);
+        const height=Math.max(1123,paper.scrollHeight);
+        const scale=actualSize?1:Math.min(1,Math.max(.1,(container.clientWidth-12)/width));
+        paper.style.transform='scale('+scale+')';
+        space.style.width=Math.ceil(width*scale)+'px';
+        space.style.height=Math.ceil(height*scale)+'px';
+      });
+    };
+    const resize=typeof ResizeObserver!=='undefined'?new ResizeObserver(fit):null;
+    resize?.observe(container);
+    const mutation=typeof MutationObserver!=='undefined'?new MutationObserver(fit):null;
+    mutation?.observe(paper,{subtree:true,childList:true});
+    window.addEventListener('resize',fit);
+    fit();
+    return()=>{window.cancelAnimationFrame(frame);resize?.disconnect();mutation?.disconnect();window.removeEventListener('resize',fit);};
+  },[actualSize,source.identity]);
+  return <section className="lxw-pdf-direct-preview" role="region" aria-label={label(ar,'Document preview inside the conversation','معاينة المستند داخل المحادثة')}>
+    <div className="lxw-pdf-direct-toolbar">
+      <strong>{label(ar,'A4 document preview · unsaved','معاينة مستند A4 · دون حفظ')}</strong>
+      <div><button type="button" onClick={()=>setActualSize(value=>!value)}>{actualSize?label(ar,'Fit page','ملاءمة الصفحة'):label(ar,'100% zoom','تكبير 100%')}</button>
+      <button type="button" onClick={onClose} aria-label={label(ar,'Close preview','إغلاق المعاينة')}>{label(ar,'Close','إغلاق')}</button></div>
+    </div>
+    <div className="lxw-pdf-direct-viewport" ref={viewport} tabIndex={0} aria-label={label(ar,'Scroll PDF document pages','تمرير صفحات المستند')}>
+      <div className="lxw-pdf-direct-extent" ref={extent}>
+        <div className="lxw-pdf-direct-paper" ref={stage}>
+          <Renderer document={source.document} scale={1} electronicShareId={source.electronicShareId}/>
+        </div>
+      </div>
+    </div>
+  </section>;
+}
+
 function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any {
   const kernel=host.__intelligenceKernel as ConversationKernel,vault=host.__foundationVault,ar=aiUiAr(host);
   // A saved document reference survives chat reload in the scoped kernel.
@@ -439,6 +487,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string;electronicShareId?:string;offlineCopy?:boolean}|null);
   const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
+  const [pdfPreviewOpen,setPdfPreviewOpen]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
   const [pdfQrError,setPdfQrError]=React.useState('');
   const [discardExpanded,setDiscardExpanded]=React.useState(false);
@@ -453,7 +502,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   React.useEffect(()=>{setDiscardExpanded(false);},[pdfIdentity,host.state.proposal]);
   React.useEffect(()=>{
     pdfSequence.current+=1;pdfStarting.current=false;
-    setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfError('');setPdfQrError('');
+    setPdfSource(null);setPdfResult(null);setPdfBusy(false);setPdfPreviewOpen(false);setPdfError('');setPdfQrError('');
   },[pdfIdentity]);
   React.useEffect(()=>()=>{if(pdfResult?.url)URL.revokeObjectURL(pdfResult.url);},[pdfResult?.url]);
   const createPdf=async(allowOfflineCopy=false)=>{
@@ -461,7 +510,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     if(pdfStarting.current||pdfBusy||normalizeAiConversationMode(kernel.mode)!=='controller')return;
     const identity=pdfIdentity,request=++pdfSequence.current;
     pdfStarting.current=true;
-    setPdfBusy(true);setPdfError('');setPdfResult(null);setPdfQrError('');
+    setPdfBusy(true);setPdfError('');setPdfResult(null);setPdfPreviewOpen(false);setPdfQrError('');
     let qrAttemptFailed=false;
     let phase:PdfStage='document';
     markPdfStage(phase,'start');
@@ -537,6 +586,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         markPdfStage(phase,'ok');
         phase='complete';
         setPdfResult({url,name:(file as File).name||'LOUREX-Preview.pdf',bytes:file.size});
+        setPdfPreviewOpen(true);
         markPdfStage(phase,'ok');
       }catch(error){if(!cancelled){markPdfStage(phase,'failed');setPdfError(error instanceof Error?error.message:String(error));}}
       finally{if(!cancelled){setPdfBusy(false);pdfStarting.current=false;}}
@@ -586,7 +636,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
     {doc.status==='draft'&&kernel.artifact?.proposal.capability==='document.createDraft'?<label className="lxw-document-customer-select">{label(ar,'Customer','العميل')} <select aria-label={label(ar,'Draft customer','عميل المسودة')} value={kernel.artifact.proposal.customerId} disabled={disabled(host)} onChange={(event:any)=>dispatch(host,{kind:'customer',artifactId:doc!.id,revision:doc!.revision,entityId:event.target.value})}><option value="">{doc.customer||label(ar,'Choose customer','اختر العميل')}</option>{workspaceDrafting(vault).customers.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>:null}
     <div className="lxw-document-action-grid" role="group" aria-label={label(ar,'Document actions','إجراءات المستند')}>
       {doc.status==='draft'?<button type="button" className="lxw-document-action lxw-document-action-approve" aria-busy={Boolean(host.state.__workspaceSaving)} aria-describedby={doc.blockers.length?'lxw-document-blockers':undefined} disabled={disabled(host)||Boolean(doc.blockers.length)} onClick={()=>void saveIntelligenceDraft(host,doc.id,doc.revision)}>{iconAccept}<span>{host.state.__workspaceSaving?label(ar,'Saving…','جارٍ الحفظ…'):label(ar,'Save draft','حفظ المسودة')}</span></button>:null}
-      {viewPdf?<a className="lxw-document-action lxw-document-action-preview" href={viewPdf.url} target="_blank" rel="noopener noreferrer" aria-label={label(ar,'Preview PDF in a new tab','معاينة PDF في تبويب جديد')}>{iconPdf}<span>{label(ar,'Preview PDF','معاينة PDF')}</span></a>:
+      {viewPdf?<button type="button" className="lxw-document-action lxw-document-action-preview" aria-expanded={pdfPreviewOpen} onClick={()=>setPdfPreviewOpen(value=>!value)}>{iconPdf}<span>{label(ar,'Preview PDF','معاينة PDF')}</span></button>:
         <button type="button" className="lxw-document-action lxw-document-action-preview" aria-label={label(ar,'Generate PDF preview','إنشاء ومعاينة PDF')} aria-busy={pdfBusy} disabled={pdfBusy||disabled(host)||Boolean(doc.blockers.length)||doc.subtotal===null} onClick={()=>void createPdf()}>{iconPdf}<span>{pdfBusy?label(ar,'Generating PDF…','جارٍ تجهيز PDF…'):label(ar,'Preview PDF','معاينة PDF')}</span></button>}
       <button type="button" className="lxw-document-action lxw-document-action-edit" disabled={disabled(host)} onClick={()=>host.setState({__workspaceOpen:true,__workspacePane:'workspace',__workspaceTab:doc.status==='draft'?'edit':'preview',__workspaceEditing:doc.status==='draft'})}>{iconEdit}<span>{doc.status==='draft'?label(ar,'Edit','تحرير'):label(ar,'View document','عرض المستند')}</span></button>
       {doc.status==='draft'?(approvalDecline||<button type="button" className="lxw-document-action lxw-document-action-reject" disabled={disabled(host)||saveReviewPending} onClick={()=>setDiscardExpanded(true)}>{iconReject}<span>{label(ar,'Reject draft','رفض المسودة')}</span></button>):null}
@@ -617,6 +667,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         </div>
         <div className="lxw-ai-pdf-file-actions"><a className="lxw-pdf-download" href={viewPdf.url} download={viewPdf.name}>{label(ar,'Download PDF','تنزيل PDF')}</a></div>
       </div>:null}
+      {viewPdf&&pdfPreviewOpen&&PdfRenderer&&pdfSource?<InlineControllerPdfPreview key={pdfIdentity} Renderer={PdfRenderer} source={pdfSource} ar={ar} onClose={()=>setPdfPreviewOpen(false)}/>:null}
     </section>
     {pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
       aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
