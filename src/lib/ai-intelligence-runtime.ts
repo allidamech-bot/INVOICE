@@ -20,8 +20,7 @@ import {applyWorkingDraftPlan,wantsWorkingDraftPdfRefresh} from './ai-working-dr
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
 import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
-import {parseConversationalSalePrice,parsePriceFollowup,resolvePriceProduct,prepareConversationalSalePrice} from './ai-conversational-price.js';
-import {explicitQuoteConversionIntent} from './ai-quote-source-draft.js';
+import {parseConversationalSalePrice,parsePriceFollowup,resolvePriceProduct,prepareConversationalSalePrice,quotationCreationHasPriority} from './ai-conversational-price.js';
 import {scopedDialogueCatalog} from './ai-dialogue-catalog.js';
 import {requestedPartyHighlight,prepareSelectedPartyHighlight} from './ai-party-highlights.js';
 import {resumableWorkingApproval,retireWorkingApproval} from './ai-draft-resumption.js';
@@ -861,7 +860,7 @@ export function installIntelligenceRuntime(host:Host):void{
         // A fresh quotation command supersedes an incomplete product-price
         // clarification. Never reuse an earlier product-pricing pending state
         // as authority for a new Controller document request.
-        if(explicitQuoteConversionIntent(message))kernel.pendingPrice=undefined;
+        if(quotationCreationHasPriority(message))kernel.pendingPrice=undefined;
         const parsedSalePrice=kernel.artifact||host.state.proposal?null:parseConversationalSalePrice(message);
         const awaitingSalePrice=!kernel.artifact&&!host.state.proposal&&
           kernel.pendingPrice&&kernel.turn-kernel.pendingPrice.startedAtTurn<=5?kernel.pendingPrice:null;

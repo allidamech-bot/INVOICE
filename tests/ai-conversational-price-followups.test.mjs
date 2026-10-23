@@ -38,7 +38,7 @@ test('AI-01: quotation creation with explicit line prices is not a saved product
 });
 test('AI-01: Controller clears stale product-price clarification before a quotation request',async()=>{
  const source=await readFile(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
- const clear=source.indexOf('if(explicitQuoteConversionIntent(message))kernel.pendingPrice=undefined;');
+ const clear=source.indexOf('if(quotationCreationHasPriority(message))kernel.pendingPrice=undefined;');
  const parse=source.indexOf('const parsedSalePrice=kernel.artifact||host.state.proposal?null:parseConversationalSalePrice(message);',clear);
  const pending=source.indexOf('const awaitingSalePrice=',parse);
  assert.ok(clear>0&&parse>clear&&pending>parse,'new quotation intent resets earlier price followup before controller parsing');

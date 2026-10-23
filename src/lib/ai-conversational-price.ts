@@ -36,6 +36,9 @@ function sameUnit(a:string,b:string):boolean{
   const u=(v:string)=>unitOf(v)||(normalized(v)==='ctn'?'CTN':normalized(v)==='pcs'?'PCS':normalized(v).toUpperCase());
   return u(a)===u(b);
 }
+export function quotationCreationHasPriority(message:string):boolean{
+  return explicitQuoteConversionIntent(message);
+}
 export function parseConversationalSalePrice(message:string):Pick<ConversationalPriceIntent,'amount'|'currency'|'unit'>|null{
   const s=digits(message).replace(/\s+/g,' ').trim();
   if(!s||s.length>300||
@@ -44,7 +47,7 @@ export function parseConversationalSalePrice(message:string):Pick<Conversational
     /(?:كم|ما هو|ماهي|what is)\s+(?:سعر|price)/iu.test(s))return null;
   // A unit price quoted inside a NEW document request is a line-item fact,
   // never authorization to change the company's saved product selling price.
-  if(explicitQuoteConversionIntent(s))return null;
+  if(quotationCreationHasPriority(s))return null;
   const priceMark=/(?:سعر\s*(?:ال)?بيع|سعر\s*(?:ال)?منتج|سعر\s*(?:ال)?صنف|selling\s*price|sale\s*price|unit\s*price)/iu;
   if(!priceMark.test(s))return null;
   const numeric=s.match(/(?:سعر\s*(?:ال)?بيع|سعر\s*(?:ال)?منتج|سعر\s*(?:ال)?صنف|selling\s*price|sale\s*price|unit\s*price)(?:\s*(?:هذا|لهذا|للصنف|للمنتج))?\s*(?:إلى|الى|هو|يكون|ب|=|:|to|at|is|of)?\s*(\d{1,12}(?:[.,]\d{1,4})?)/iu)
