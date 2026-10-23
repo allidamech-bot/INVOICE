@@ -1,6 +1,11 @@
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict');
-const {mkdirSync,writeFileSync}=require('node:fs');
+const {mkdirSync,writeFileSync,readFileSync}=require('node:fs');
+const path=require('node:path');
+const catalog=[...readFileSync(path.join(__dirname,'../../src/templates/TemplateThumbnails.tsx'),'utf8').matchAll(/\bid: '([^']+)'/g)].map(m=>m[1]);
+const selection=process.argv.find(arg=>arg.startsWith('--templates='));
+const templates=selection?selection.slice('--templates='.length).split(','):['obsidian','executive'];
+assert.ok(templates.length&&new Set(templates).size===templates.length&&templates.every(id=>catalog.includes(id)),'templates must be distinct registered IDs');
 const long=process.argv.includes('--long'),invoice=process.argv.includes('--invoice');
 assert.ok(!invoice||long,'invoice acceptance requires --long');
 const kind=invoice?'invoice':'purchase-order',number=invoice?'INV-QA-2026-LONG':'PO-QA-2026-003';
@@ -9,9 +14,10 @@ mkdirSync(out,{recursive:true});
 const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660)).replace(/[٬,\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/٫/g,'.');
 (async()=>{
  for(const [engine,driver] of [['chromium',chromium],['webkit',webkit]]){
+  if(process.env.CHROMIUM_ONLY&&engine!=='chromium')continue;
   const browser=await driver.launch({headless:true});
   try{
-   for(const language of ['en','ar'])for(const template of ['obsidian','executive'])for(const logo of (long?['wide','tall','square']:['default'])){
+   for(const language of ['en','ar'])for(const template of templates)for(const logo of (long?['wide','tall','square']:['default'])){
     const page=await browser.newPage({viewport:{width:language==='ar'?390:1280,height:900}});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto('http://127.0.0.1:4173/tests/visual/purchase-order-final-print.html?lang='+language+'&template='+template+(invoice?'&kind=invoice':'')+(long?'&long=1&logo='+logo:''));
@@ -22,7 +28,8 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     const source=await page.evaluate(()=>window.qaSourceSnapshot()),state=await page.evaluate(()=>window.qaPurchaseOrder);
     const print=page.locator('.print-portal .invoice-pages');
     const content=normalize(await print.innerText());
-    assert.equal(state.kind,kind);assert.equal(state.status,'final');
+    assert.equal(state.kind,kind);assert.equal(state.status,'final');assert.equal(state.templateId,template,'fixture must render the requested registered template');
+    assert.equal(await print.locator('.invoice-page:not(.template-'+template+')').count(),0,'every rendered page uses the requested template');
     const total=long?'440.00':'357.50';
     assert.equal(state.lineCount,long?40:2);assert.equal(state.totals.grandTotal,total);
     assert.ok(content.includes(number),'actual issued document number');
