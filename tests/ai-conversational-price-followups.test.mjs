@@ -24,6 +24,25 @@ test('the user can say selling price 50 per carton in Arabic and English without
   assert.equal(parseConversationalSalePrice(phrase),null,phrase);
  }
 });
+test('AI-01: quotation creation with explicit line prices is not a saved product-price edit',()=>{
+ const quoteRequests=[
+  'أنشئ مسودة عرض سعر تجريبية فقط دون حفظ لعميل باسم QA Demo Customer بصنفين: QA Apple quantity 2 PCS unit price 10 USD وQA Orange quantity 3 PCS unit price 20 USD. الإجمالي المتوقع 80 USD. اعرض المسودة للمراجعة فقط ولا تحفظ أي شيء.',
+  'أنشئ عرض سعر من بندين: صنف أ سعر البيع 10 USD، صنف ب سعر البيع 20 USD',
+  'Create a quotation for buyer QA with Apple 2 PCS unit price 10 USD and Orange 3 PCS unit price 20 USD',
+  'Prepare a proforma draft with selling price 50 USD per carton for a customer'
+ ];
+ for(const request of quoteRequests)assert.equal(parseConversationalSalePrice(request),null,'quote line prices cannot start product modification: '+request);
+ // Product pricing outside a quotation still uses its original review-only gateway.
+ assert.equal(parseConversationalSalePrice('Set selling price to 50 USD per carton')?.amount,'50');
+ assert.equal(parseConversationalSalePrice('سعر البيع 50 للكرتون')?.amount,'50');
+});
+test('AI-01: Controller clears stale product-price clarification before a quotation request',async()=>{
+ const source=await readFile(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
+ const clear=source.indexOf('if(explicitQuoteConversionIntent(message))kernel.pendingPrice=undefined;');
+ const parse=source.indexOf('const parsedSalePrice=kernel.artifact||host.state.proposal?null:parseConversationalSalePrice(message);',clear);
+ const pending=source.indexOf('const awaitingSalePrice=',parse);
+ assert.ok(clear>0&&parse>clear&&pending>parse,'new quotation intent resets earlier price followup before controller parsing');
+});
 test('contextual selected product produces only a before/after approval payload',()=>{
  const {vault,kernel}=fixture(),before=structuredClone(vault);
  const list=stageScopedRecordList(kernel,vault,'product');
