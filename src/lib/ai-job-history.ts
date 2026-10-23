@@ -62,8 +62,10 @@ export function updateAiJob(id:string,patch:Partial<Pick<AiJobHistoryEntry,'docu
   // A stale provider callback must not turn a cancelled, failed or completed
   // job back into a reviewable operation. Retry always starts a fresh job ID.
   // Preserve its last confirmed terminal note and timestamp as well.
-  if(['completed','failed','cancelled'].includes(current.status)&&
-     patch.status!==undefined&&patch.status!==current.status)return current;
+  // Final outcomes are immutable, including note, route and timestamp.
+  // A provider callback with no status (or a repeated same status) must not
+  // edit the result recorded when saving, failing or cancelling finished.
+  if(['completed','failed','cancelled'].includes(current.status))return current;
   const next:AiJobHistoryEntry={...current,documentType:patch.documentType===undefined?current.documentType:safeText(patch.documentType,80),route:patch.route===undefined?current.route:safeText(patch.route,60),status:patch.status&&validStatus(patch.status)?patch.status:current.status,note:patch.note===undefined?current.note:safeText(patch.note,220),updatedAt:new Date().toISOString()};rows[index]=next;write(rows);return next;
 }
 export function clearAiJobHistory():void{discardLegacyUnscopedHistory();const key=currentJobKey();if(!key)return;try{sessionStorage.removeItem(key);}catch{}}
