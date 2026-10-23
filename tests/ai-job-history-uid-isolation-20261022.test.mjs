@@ -283,3 +283,48 @@ test('cleanup restores the real JS session global',()=>{
  if(oldSession===undefined)delete globalThis.sessionStorage;
  else globalThis.sessionStorage=oldSession;
 });
+
+test('AI Inbox quote and supplier save retries create distinct terminal job attempts',()=>{
+  storage.clear();jobs.setTestUid('qa-save-retry');
+  for(const [route,name] of [['quote_request','retry-quote.pdf'],['supplier_purchase','retry-purchase.pdf']]){
+    const review=jobs.startAiJob(name);
+    jobs.updateAiJob(review.id,{route,status:'needs-review'});
+    const first=jobs.activeOrFreshAiJob(review.id,name);
+    assert.equal(first.id,review.id,'first save uses the active reviewed job');
+    jobs.updateAiJob(first.id,{status:'processing',note:'Saving draft'});
+    jobs.updateAiJob(first.id,{status:'failed',note:'Temporary save error'});
+    const failed=jobs.readAiJobHistory().find(row=>row.id===first.id);
+    const retry=jobs.activeOrFreshAiJob(first.id,name);
+    assert.notEqual(retry.id,first.id,'a failed save cannot reactivate a final job');
+    jobs.updateAiJob(retry.id,{route,status:'processing',note:'Retrying draft save'});
+    jobs.updateAiJob(retry.id,{status:'completed',note:'Draft saved once'});
+    const finished=jobs.readAiJobHistory().find(row=>row.id===retry.id);
+    assert.equal(finished.status,'completed');
+    assert.equal(finished.route,route);
+    assert.equal(finished.note,'Draft saved once');
+    assert.deepEqual(jobs.readAiJobHistory().find(row=>row.id===first.id),failed,
+      'the original failure and its timestamp remain immutable');
+  }
+  const ui=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+  for(const [name,tail,route] of [
+    ['saveSupplier','saveQuote','supplier_purchase'],
+    ['saveQuote','supplierProposalSaved','quote_request']
+  ]){
+    const start=ui.indexOf('private '+name+'=async()=>');
+    const end=ui.indexOf('private '+tail+'=',start);
+    assert.ok(start>0&&end>start,name+' source must be found');
+    const body=ui.slice(start,end);
+    assert.match(body,/const job=activeOrFreshAiJob\(this\.state\.currentJobId/,
+      name+' must create a new job after a failed save');
+    assert.match(body,/this\.setState\(\{currentJobId:job\.id\}\)/,
+      name+' must associate its new attempt with the review');
+    assert.ok(body.includes("updateAiJob(job.id,{route:'"+route+"',status:'processing'"),
+      name+' marks this attempt as processing before saving');
+    assert.match(body,/updateAiJob\(job\.id,\{status:'completed',note:label\}\)/,
+      name+' records success against this exact attempt');
+    assert.match(body,/updateAiJob\(job\.id,\{status:'failed',note:/,
+      name+' records failure against this exact attempt');
+    assert.doesNotMatch(body,/this\.markJob\(/,
+      name+' must not rely on potentially stale React currentJobId');
+  }
+});
