@@ -13,6 +13,7 @@ on:
       - 'tests/ai-provider-financial-accuracy.test.mjs'
       - 'tests/ai-provider-credential-preflight.test.mjs'
       - 'tests/ai-provider-diagnostic-rate-limit.test.mjs tests/ai-multi-provider-router.test.mjs'
+      - 'tests/ai-diagnostics-access-reasons.test.mjs'
       - 'public/health.js'
       - 'public/health.html'
       - '.github/workflows/ai-provider-diagnostics.yml'
@@ -34,4 +35,4 @@ jobs:
         with:
           node-version: '24'
       - name: Offline synthetic provider probes (no API keys, no customer data)
-        run: node --test --test-concurrency=1 tests/ai-provider-diagnostic-classifier.test.mjs tests/ai-provider-diagnostics.test.mjs tests/ai-provider-financial-accuracy.test.mjs tests/ai-provider-credential-preflight.test.mjs tests/ai-provider-diagnostic-rate-limit.test.mjs
+        run: node --test --test-concurrency=1 tests/ai-diagnostics-access-reasons.test.mjs tests/ai-provider-diagnostic-classifier.test.mjs tests/ai-provider-diagnostics.test.mjs tests/ai-provider-financial-accuracy.test.mjs tests/ai-provider-credential-preflight.test.mjs tests/ai-provider-diagnostic-rate-limit.test.mjs
