@@ -160,8 +160,13 @@ export function assertPostedStockRestoreContinuity(current:VaultPayload,replacem
   const previous=current.inventoryMovements.filter(protectedStock);
   if(!previous.length)return;
   const incoming=new Map(replacement.inventoryMovements.map(row=>[row.id,row]));
+  // Object key order can change during JSON export without changing evidence.
+  // Keep every value and array position significant, including timestamps.
+  const content=(value:unknown)=>JSON.stringify(value,(_key,item)=>
+    item&&typeof item==='object'&&!Array.isArray(item)
+      ?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
   const requireSame=(original:unknown,other:unknown)=>{
-    if(JSON.stringify(original)!==JSON.stringify(other))
+    if(content(original)!==content(other))
       throw new Error('This older local copy would erase or modify posted invoice stock/return audit history. Existing account data was not replaced.');
   };
   const documentIds=new Set<string>();
