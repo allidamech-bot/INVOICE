@@ -1,0 +1,55 @@
+const {chromium,webkit}=require('playwright');
+const assert=require('node:assert/strict');
+const {mkdirSync,writeFileSync}=require('node:fs');
+const out='visual-qa-output/inventory-movement-print';mkdirSync(out,{recursive:true});
+const compact=s=>s.replace(/[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'');
+(async()=>{let cases=0,pdfs=0;for(const [engine,driver] of [['chromium',chromium],['webkit',webkit]]){
+ if(process.env.CHROMIUM_ONLY&&engine!=='chromium')continue;
+ const browser=await driver.launch({headless:true});try{for(const lang of ['en','ar'])for(const count of [3,40,205]){
+ const page=await browser.newPage({viewport:{width:count===3?390:1280,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(`http://127.0.0.1:4173/tests/visual/inventory-movement-print.html?lang=${lang}&count=${count}`);
+ await page.getByRole('tab',{name:lang==='ar'?/حركات المخزون/:/Inventory Movements/}).click();
+ const button=page.getByRole('button',{name:lang==='ar'?'طباعة / حفظ PDF':'Print / Save PDF',exact:true});assert.equal(await button.count(),1,'movement history must offer printed output');
+ const before=await page.evaluate(()=>window.qaSource()),expected=await page.evaluate(()=>window.qaExpected());
+ const report=page.locator('body > .lx-inventory-movement-report'),rows=report.locator('tbody tr');
+ assert.equal(await rows.count(),count);assert.equal(await page.locator('.ta-inventory-history .ta-ops-row').count(),Math.min(200,count));assert.equal(await report.isVisible(),false);
+ const printedRows=await rows.evaluateAll(nodes=>nodes.map(n=>({id:n.getAttribute('data-movement'),cells:[...n.querySelectorAll('td')].map(c=>c.textContent)})));
+ assert.equal(new Set(printedRows.map(r=>r.id)).size,count,'no duplicated movement IDs');
+ for(const movement of expected){
+   const actual=printedRows.find(r=>r.id===movement.id);assert.ok(actual,`printed movement ${movement.id}`);const cells=actual.cells;
+   assert.equal(cells[2],movement.quantity);assert.ok(cells[0].includes(movement.date));assert.ok(cells[1].includes(movement.sku));assert.ok(cells[1].includes(movement.sourceNumber));assert.ok(cells[1].includes(movement.sourceId));assert.ok(cells[3].includes(movement.note),'full saved note');
+   const from=movement.fromWarehouseId||(movement.type==='transfer'||movement.quantity.startsWith('-')?'warehouse-main':null),to=movement.toWarehouseId||(movement.type==='transfer'||!movement.quantity.startsWith('-')?'warehouse-main':null);
+   if(from)assert.ok(cells[3].includes(from));if(to)assert.ok(cells[3].includes(to));if(!from)assert.ok(cells[3].includes(lang==='ar'?'من: —':'From: —'));if(!to)assert.ok(cells[3].includes(lang==='ar'?'إلى: —':'To: —'));
+ }
+ await page.evaluate(()=>{window.qaPrintCalls=0;window.print=()=>{window.qaPrintCalls++;};});await button.click();assert.equal(await page.evaluate(()=>window.qaPrintCalls),1);assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-inventory-report')),true);
+ await page.emulateMedia({media:'print'});assert.equal(await report.isVisible(),true);assert.equal(await page.locator('#root').isVisible(),false);
+ const clipping=await report.locator('td').evaluateAll(nodes=>nodes.filter(n=>n.scrollWidth>n.clientWidth+2).map(n=>n.textContent));assert.deepEqual(clipping,[]);
+ if(engine==='chromium'&&count!==205){
+   const file=`${out}/${engine}-${lang}-${count}.pdf`,pdf=await page.pdf({path:file,preferCSSPageSize:true,printBackground:true});pdfs++;
+   const extracted=await page.evaluate(async base64=>{
+     const pdfjs=await import('/dist/vendor/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc='/dist/vendor/pdf.worker.mjs';
+     const doc=await pdfjs.getDocument({data:Uint8Array.from(atob(base64),c=>c.charCodeAt(0))}).promise,parts=[],outside=[];
+     for(let n=1;n<=doc.numPages;n++){
+       const p=await doc.getPage(n),content=await p.getTextContent();parts.push(content.items.map(x=>x.str||'').join(' '));
+       for(const item of content.items){if(!item.str?.trim())continue;const x=item.transform[4],y=item.transform[5];if(x< -1||x+item.width>p.view[2]+1||y< -1||y>p.view[3]+1)outside.push({page:n,text:item.str,x,y});}
+     }
+     await doc.destroy();return {parts,outside};
+   },pdf.toString('base64'));
+   const pages=extracted.parts,text=pages.join(' '),normalized=compact(text);writeFileSync(file+'.txt',pages.join('\n\f\n'));
+   assert.ok(pages.length>0);for(const part of pages)assert.ok(part.trim(),'no blank PDF page');assert.deepEqual(extracted.outside,[],'PDF text stays inside page');
+   for(const m of expected){assert.ok(normalized.includes(compact(m.id)),`PDF movement ${m.id}`);assert.ok(normalized.includes(compact(m.sourceNumber)),`PDF reference ${m.sourceNumber}`);assert.ok(normalized.includes(compact(m.quantity)),`PDF quantity ${m.id}`);if(m.note.includes('END-'))assert.ok(normalized.includes(m.note.match(/END-\d+/)[0]),'PDF note ending');if(lang==='en')assert.ok(normalized.includes(compact(m.note)),'complete English PDF note');}
+   if(lang==='ar'){const glyphs=s=>[...s.normalize('NFKC').replace(/[^\u0600-\u06ff]/g,'')].sort().join('');const printed=await report.innerText(),heading=await report.locator('thead').innerText();assert.equal(glyphs(text),glyphs(printed+heading.repeat(pages.filter(part=>expected.some(m=>compact(part).includes(compact(m.id)))).length-1)),'complete Arabic PDF glyph inventory including repeated table headings');}
+   assert.ok(!text.includes('Synthetic QA'));assert.ok(!text.includes('Record Movement'));console.log('PDF '+lang+' '+count+' '+pages.length+' pages');
+ }
+ await page.evaluate(()=>document.body.classList.add('printing-inventory-report'));await page.screenshot({path:`${out}/${engine}-${lang}-${count}.png`,fullPage:count!==205});await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-inventory-report')),false);await page.emulateMedia({media:'screen'});
+ // Existing filters must select identical output; transfers match either endpoint.
+ const filters=page.locator('.ta-inventory-history-filters select');await filters.nth(0).selectOption('transfer');const transfers=expected.filter(m=>m.type==='transfer');assert.equal(await rows.count(),transfers.length);for(const id of [await filters.nth(2).locator('option').nth(1).getAttribute('value'),'QA-REMOTE']){await filters.nth(2).selectOption(id);assert.equal(await rows.count(),transfers.filter(m=>m.fromWarehouseId===id||m.toWarehouseId===id).length);}
+ await filters.nth(2).selectOption('');await filters.nth(0).selectOption('');const dates=page.locator('.ta-inventory-history-filters input[type=date]');await dates.nth(0).fill('2027-01-01');assert.equal(await rows.count(),0);await dates.nth(0).fill('');assert.equal(await rows.count(),count);await dates.nth(1).fill('2026-10-01');assert.equal(await rows.count(),1);await dates.nth(1).fill('');await filters.nth(1).selectOption('damage');assert.equal(await rows.count(),expected.filter(m=>m.reasonCategory==='damage').length);await filters.nth(1).selectOption('');assert.equal(await rows.count(),count);
+ const search=page.getByRole('searchbox');await search.fill('no-matching-reference');assert.equal(await rows.count(),0);await search.fill('REF-TRANSFER');assert.equal(await rows.count(),1);await search.fill('');assert.equal(await rows.count(),count);
+ // Exceptions and component unmount cannot strand the app in print mode.
+ await page.evaluate(()=>{window.print=()=>{throw Error('Synthetic print failure');};});await button.click();assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-inventory-report')),false);
+ assert.equal(await page.evaluate(()=>window.qaSource()),before);assert.equal(await page.evaluate(()=>window.qaMutations),0);assert.deepEqual(errors,[]);await page.evaluate(async()=>{const db=await import('/dist/src/storage/db.js');await db.activateAccountStorage('QA-DIFFERENT-ACCOUNT');window.qaPrintCalls=0;window.print=()=>{window.qaPrintCalls++;};});await button.click();assert.equal(await page.evaluate(()=>window.qaPrintCalls),0,'stale account cannot print');assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-inventory-report')),false);
+ await page.evaluate(()=>{document.body.classList.add('printing-inventory-report');});await page.locator('#products-inventory-tab-products').click();assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-inventory-report')),false);
+ console.log(`PASS inventory movement print ${engine} ${lang} ${count}`);cases++;await page.close();
+ }}finally{await browser.close();}
+}console.log(`${cases} browser cases; ${pdfs} native Chromium PDFs`);})().catch(e=>{console.error(e);process.exitCode=1;});

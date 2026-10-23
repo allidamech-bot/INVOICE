@@ -41,3 +41,23 @@ html:is([data-ui-theme="dark"],[data-theme="dark"]) .lx-inventory-planning .lx-i
   .lx-inventory-plan-metrics>div{padding:9px}
   .lx-inventory-plan-row-foot{gap:8px}
 }
+
+/* Body-level portal keeps inventory output independent of application layout. */
+.lx-inventory-movement-report { display:none; }
+@media print {
+  @page lourex-inventory-movements { size:A4; margin:12mm; }
+  html:has(body.printing-inventory-report),body.printing-inventory-report { page:lourex-inventory-movements; background:#fff!important; color:#111!important; margin:0!important; padding:0!important; height:auto!important; min-height:0!important; overflow:visible!important; }
+  body.printing-inventory-report > :not(.lx-inventory-movement-report) { display:none!important; }
+  body.printing-inventory-report > .lx-inventory-movement-report:not(#root) { page:lourex-inventory-movements; display:block!important; margin:0!important; padding:0!important; width:auto!important; background:#fff!important; color:#111!important; font:9pt/1.5 "Noto Sans Arabic",Arial,sans-serif!important; }
+  .lx-inventory-movement-report * { color:#111!important; background:transparent!important; box-shadow:none!important; text-shadow:none!important; white-space:normal!important; overflow-wrap:anywhere!important; }
+  .lx-inventory-movement-report h1 { font-size:16pt; margin:0 0 8pt; }
+  .lx-inventory-movement-report p { margin:4pt 0; }
+  .lx-inventory-movement-report table { width:100%; table-layout:fixed; border-collapse:collapse; }
+  .lx-inventory-movement-report :is(th,td) { border:1px solid #aaa; padding:5pt; vertical-align:top; text-align:start; font-size:8pt; }
+  .lx-inventory-movement-report :is(th,td):nth-child(1) { width:20%; }
+  .lx-inventory-movement-report :is(th,td):nth-child(2) { width:28%; }
+  .lx-inventory-movement-report :is(th,td):nth-child(3) { width:10%; }
+  .lx-inventory-movement-report thead { display:table-header-group; }
+  .lx-inventory-movement-report tr { break-inside:avoid; }
+  .lx-inventory-movement-report footer { margin-top:8pt; }
+}
