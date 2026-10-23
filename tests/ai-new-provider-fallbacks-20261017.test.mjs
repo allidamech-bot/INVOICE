@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {routeAiStructured} from '../api/_ai/router.js';
+let routeAiStructured,routerInstance=0;
 
 const originalEnv={...process.env};
 const originalFetch=globalThis.fetch;
 const keyNames=['GROQ_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','GEMINI_API_KEY','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY','LOUREX_AI_NEW_PROVIDERS_ENABLED','LOUREX_AI_MISTRAL_FREE_VERIFIED','LOUREX_AI_OLLAMA_FREE_VERIFIED'];
 
-test.beforeEach(()=>{
+test.beforeEach(async()=>{
+  ({routeAiStructured}=await import('../api/_ai/router.js?external-test='+ ++routerInstance));
   for(const name of keyNames)delete process.env[name];
 });
 test.afterEach(()=>{

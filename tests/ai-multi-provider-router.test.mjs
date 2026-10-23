@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,statSync} from 'node:fs';
 import {join} from 'node:path';
-import {AI_FREE_ONLY,AI_MODEL_REGISTRY,geminiSchemaToJsonSchema,routeAiStructured,validateJsonSchema} from '../api/_ai/router.js';
+import {AI_FREE_ONLY,AI_MODEL_REGISTRY,geminiSchemaToJsonSchema,validateJsonSchema} from '../api/_ai/router.js';
 
 const originalFetch=globalThis.fetch;
 const originalSetTimeout=globalThis.setTimeout;
 const originalDateNow=Date.now;
 const originalEnv={...process.env};
 let testClock=originalDateNow();
+let routeAiStructured,routerInstance=0;
 function response(status,payload,headers={}){return{ok:status>=200&&status<300,status,headers:{get:name=>headers[String(name).toLowerCase()]||null},async text(){return typeof payload==='string'?payload:JSON.stringify(payload);}};}
 function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalSetTimeout;Date.now=originalDateNow;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];for(const [key,value] of Object.entries(originalEnv))process.env[key]=value;}
 function schema(){return{type:'OBJECT',properties:{value:{type:'STRING'}},required:['value']};}
@@ -16,7 +17,7 @@ function confidenceSchema(){return{type:'OBJECT',properties:{value:{type:'STRING
 function configureAll(){process.env.GROQ_API_KEY='test-groq';process.env.CLOUDFLARE_AI_API_TOKEN='test-cf';process.env.CLOUDFLARE_ACCOUNT_ID='acct';process.env.GEMINI_API_KEY='test-gemini';}
 function allSourceFiles(root){const out=[];for(const name of readdirSync(root)){const path=join(root,name),stat=statSync(path);if(stat.isDirectory())out.push(...allSourceFiles(path));else if(/\.(?:js|jsx|ts|tsx|mjs|cjs)$/.test(name))out.push(path);}return out;}
 
-test.beforeEach(()=>{testClock+=60_000;Date.now=()=>testClock;});
+test.beforeEach(async()=>{testClock+=60_000;Date.now=()=>testClock;({routeAiStructured}=await import('../api/_ai/router.js?test='+ ++routerInstance));});
 test.afterEach(restore);
 
 test('free-only registry contains only the approved provider/model set',()=>{
@@ -298,4 +299,77 @@ test('deep private dialogue fails closed if only an unscreened vendor is configu
  const result=await routeAiStructured({taskType:'cfo_report',reasoningLevel:'deep',prompt:'Synthetic data',schema:schema()});
  assert.equal(result.success,false);
  assert.equal(calls,0);
+});
+
+
+test('HTTP timeout hands off after one deadline instead of repeating the stalled provider',async()=>{
+ configureAll();let clock=testClock;Date.now=()=>clock;const calls=[];
+ globalThis.fetch=async(url)=>{
+  calls.push({url:String(url),at:clock});
+  if(String(url).includes('groq.com')){clock+=18_000;return response(504,{});}
+  clock+=2_000;return response(200,{choices:[{message:{content:'{"value":"recovered"}'}}]});
+ };
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'Synthetic timeout',schema:schema(),timeoutMs:18_000});
+ assert.equal(result.success,true);
+ assert.equal(calls.filter(call=>call.url.includes('groq.com')).length,1);
+ assert.equal(calls.find(call=>call.url.includes('cloudflare.com')).at-testClock,18_000);
+ assert.equal(result.totalLatencyMs,20_000);
+ assert.equal(result.attemptCount,2);
+});
+
+test('configured providers in quota cooldown report capacity instead of missing configuration',async()=>{
+ configureAll();let calls=0;
+ globalThis.fetch=async()=>{calls++;return response(429,{}, {'retry-after':'60'});};
+ const request={taskType:'business_copilot',prompt:'Synthetic quota',schema:schema()};
+ const first=await routeAiStructured(request);
+ assert.equal(first.errorCode,'AI_RATE_LIMITED');
+ const second=await routeAiStructured(request);
+ assert.equal(second.errorCode,'AI_RATE_LIMITED');
+ assert.equal(calls,2,'cooldown must suppress all new upstream requests');
+});
+
+test('fallback rechecks quota opened by another in-flight request before dispatch',async()=>{
+ configureAll();let releaseFirst;let groqCalls=0,cloudflareCalls=0;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes('groq.com')){
+   groqCalls++;
+   if(groqCalls===1)return new Promise(resolve=>{releaseFirst=()=>resolve(response(401,{}));});
+   return response(429,{});
+  }
+  cloudflareCalls++;return response(429,{});
+ };
+ const request={taskType:'business_copilot',prompt:'Synthetic concurrency',schema:schema()};
+ const pending=routeAiStructured(request);
+ const competing=await routeAiStructured(request);
+ assert.equal(competing.errorCode,'AI_RATE_LIMITED');
+ releaseFirst();const resumed=await pending;
+ assert.equal(resumed.success,false);
+ assert.equal(cloudflareCalls,1,'must not call a provider newly in cooldown');
+ assert.equal(resumed.errorCode,'AI_RATE_LIMITED');
+});
+
+
+test('slow 5xx gives the alternate provider its turn while preserving fast transient retries',async()=>{
+ configureAll();let clock=testClock;Date.now=()=>clock;let groqCalls=0;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes('groq.com')){groqCalls++;clock+=12_000;return response(503,{});}
+  clock+=1_000;return response(200,{choices:[{message:{content:'{"value":"available"}'}}]});
+ };
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'Synthetic slow overload',schema:schema(),timeoutMs:18_000});
+ assert.equal(result.success,true);assert.equal(groqCalls,1);
+ assert.equal(result.totalLatencyMs,13_000);assert.equal(result.attemptCount,2);
+});
+
+test('route timing logs contain only fixed metadata and never user content or credentials',async()=>{
+ configureAll();const originalInfo=console.info,originalWarn=console.warn,logs=[];
+ console.info=(...args)=>logs.push(args);console.warn=(...args)=>logs.push(args);
+ globalThis.fetch=async()=>response(200,{choices:[{message:{content:'{"value":"synthetic-response-secret"}'}}]});
+ try{
+  const result=await routeAiStructured({taskType:'business_copilot',prompt:'synthetic-prompt-secret',requestId:'synthetic-timing',schema:schema()});
+  assert.equal(result.success,true);assert.equal(result.totalLatencyMs,0);assert.equal(result.attemptCount,1);
+  const summary=logs.find(row=>row[0]==='[LOUREX AI route]')?.[1];
+  assert.equal(summary.requestId,'synthetic-timing');assert.equal(summary.attemptCount,1);assert.equal(summary.totalLatencyMs,0);
+  const serialized=JSON.stringify(logs);
+  for(const secret of ['synthetic-prompt-secret','synthetic-response-secret','test-groq','test-cf','test-gemini'])assert.equal(serialized.includes(secret),false);
+ }finally{console.info=originalInfo;console.warn=originalWarn;}
 });
