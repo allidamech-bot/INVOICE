@@ -3213,76 +3213,81 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-
 /* LOUREX financial answer: ONE owning surface, not stacked summary cards.
    Scoped to the Advisor panel; legacy global cards/approval UI stay untouched. */
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr{
+  --lxbr-header-bg:#1a2c34;--lxbr-card-bg:#182731;--lxbr-items-bg:#1a3034;
+  --lxbr-head-border:#35525b;--lxbr-line:#334958;--lxbr-section-line:#324752;
+  --lxbr-title:#eef7f8;--lxbr-ink:#f0f7f9;--lxbr-secondary:#aec8d2;
+  --lxbr-subtle:#a7c0c8;--lxbr-balance:#9ed9cc;--lxbr-item-ink:#d2e4ea;
+  --lxbr-accent:#6ab9aa;
   display:grid;gap:16px;min-width:0;width:100%;max-width:100%;
   padding:0 0 10px;color:var(--lxw-text,#ebf1f4);
   font:inherit;line-height:1.55;overflow-wrap:anywhere;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-heading{
-  padding:14px 16px;border:1px solid #35525b;border-inline-start:3px solid #6ab9aa;
-  border-radius:14px;background:#1a2c34;box-shadow:none;
+  padding:14px 16px;border:1px solid var(--lxbr-head-border);border-inline-start:3px solid var(--lxbr-accent);
+  border-radius:14px;background:var(--lxbr-header-bg);box-shadow:none;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-eyebrow{
-  display:block;margin-bottom:6px;color:#aac4c9;font-size:11px;font-weight:650;
+  display:block;margin-bottom:6px;color:var(--lxbr-subtle);font-size:11px;font-weight:650;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-heading h3{
   margin:0!important;font-size:17px!important;font-weight:750!important;
-  line-height:1.55!important;color:#eef7f8!important;overflow-wrap:anywhere;
+  line-height:1.55!important;color:var(--lxbr-title)!important;overflow-wrap:anywhere;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-party{
-  margin:9px 0 0!important;font-size:13px!important;color:#b5d4d5!important;
+  margin:9px 0 0!important;font-size:13px!important;color:var(--lxbr-secondary)!important;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-section{
   min-width:0;padding:0 1px;background:none!important;border:0!important;box-shadow:none!important;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-section h4{
-  margin:0 0 11px!important;padding:0 0 9px;border-bottom:1px solid #324752;
-  color:#e8f4f3!important;font-size:14px!important;font-weight:750!important;
+  margin:0 0 11px!important;padding:0 0 9px;border-bottom:1px solid var(--lxbr-section-line);
+  color:var(--lxbr-title)!important;font-size:14px!important;font-weight:750!important;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-facts{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;padding:0;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-fact{
-  min-width:0;padding:10px 12px;border:1px solid #314653;
-  border-radius:11px;background:#182731;
+  min-width:0;padding:10px 12px;border:1px solid var(--lxbr-line);
+  border-radius:11px;background:var(--lxbr-card-bg);
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-fact dt{
-  margin:0 0 6px;color:#a7c0c8;font-size:11.5px;line-height:1.45;
+  margin:0 0 6px;color:var(--lxbr-subtle);font-size:11.5px;line-height:1.45;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-fact dd{
-  margin:0;font-size:14px;font-weight:700;color:#f0f7f9;unicode-bidi:plaintext;
+  margin:0;font-size:14px;font-weight:700;color:var(--lxbr-ink);unicode-bidi:plaintext;
   overflow-wrap:anywhere;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-ledger{
   display:grid;gap:10px;list-style:none;margin:0;padding:0;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-ledger li{
-  margin:0;padding:12px 14px;background:#182731;border:1px solid #334958;
+  margin:0;padding:12px 14px;background:var(--lxbr-card-bg);border:1px solid var(--lxbr-line);
   border-radius:12px;list-style:none;min-width:0;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-entry-head{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
-  color:#eaf4f4;font-size:13px;
+  color:var(--lxbr-ink);font-size:13px;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-entry-head span{
-  color:#aec6cb;font-size:11px;white-space:nowrap;
+  color:var(--lxbr-secondary);font-size:11px;white-space:nowrap;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-reference{
-  margin:7px 0!important;color:#aec8d2;font-size:12px;overflow-wrap:anywhere;
+  margin:7px 0!important;color:var(--lxbr-secondary);font-size:12px;overflow-wrap:anywhere;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] :is(.lxbr-amount,.lxbr-balance){
-  margin:6px 0 0!important;font-size:12.5px;color:#ecf3f5;unicode-bidi:plaintext;
+  margin:6px 0 0!important;font-size:12.5px;color:var(--lxbr-ink);unicode-bidi:plaintext;
 }
-#lourex-ai-panel[data-lourex-workspace='2'] .lxbr-balance{color:#9ed9cc}
+#lourex-ai-panel[data-lourex-workspace='2'] .lxbr-balance{color:var(--lxbr-balance)}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-note{
-  margin:8px 0 0!important;font-size:12px;color:#b1c8cd;line-height:1.6;
+  margin:8px 0 0!important;font-size:12px;color:var(--lxbr-secondary);line-height:1.6;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-items{
-  margin:0;border:1px solid #45636a;background:#1a3034;border-radius:13px;min-width:0;
+  margin:0;border:1px solid var(--lxbr-line);background:var(--lxbr-items-bg);border-radius:13px;min-width:0;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-items summary{
   min-height:48px;padding:13px 14px;display:flex;align-items:center;
   justify-content:space-between;gap:12px;cursor:pointer;list-style:none;
-  color:#d4f0e7;font-size:13.5px;font-weight:700;
+  color:var(--lxbr-title);font-size:13.5px;font-weight:700;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-items summary::-webkit-details-marker{display:none}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-items summary:focus-visible{
@@ -3292,14 +3297,14 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-items[open] .lxbr-chevron{transform:rotate(180deg)}
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-item-content{
   max-height:440px;overflow:auto;padding:8px 14px 14px;
-  border-top:1px solid #36525a;overscroll-behavior:contain;
+  border-top:1px solid var(--lxbr-line);overscroll-behavior:contain;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-item-content ol{
   display:grid;gap:0;list-style:none;margin:0;padding:0;
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-item-content li{
-  padding:9px 0;border-bottom:1px solid #344d55;list-style:none;
-  margin:0;font-size:12.5px;line-height:1.65;color:#d2e4ea;
+  padding:9px 0;border-bottom:1px solid var(--lxbr-line);list-style:none;
+  margin:0;font-size:12.5px;line-height:1.65;color:var(--lxbr-item-ink);
 }
 #lourex-ai-panel[data-lourex-workspace='2'] .lxbr-item-content li:last-child{border-bottom:0}
 @media(max-width:520px){
@@ -3312,6 +3317,16 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is(.lourex-ai-plus-
 }
 
 
+
+/* Advisor financial record values only — no changes to AI shell or global theme. */
+html[data-ui-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxbr,
+html[data-theme='light'] body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxbr{
+  --lxbr-header-bg:#edf6f4;--lxbr-card-bg:#ffffff;--lxbr-items-bg:#f4f9f8;
+  --lxbr-head-border:#b8cfcb;--lxbr-line:#d6e2e4;--lxbr-section-line:#c5d8db;
+  --lxbr-title:#162e34;--lxbr-ink:#1e3540;--lxbr-secondary:#405b64;
+  --lxbr-subtle:#43616b;--lxbr-balance:#13594e;--lxbr-item-ink:#31515b;
+  --lxbr-accent:#297d70;color:var(--lxbr-ink);
+}
 /* LOUREX AI — message-only conversation polish: preserve existing app shell. */
 /* Scoped to the typed conversation message list. No header, tabs, composer,
    navigation, global palette or application layout rules are changed. */
