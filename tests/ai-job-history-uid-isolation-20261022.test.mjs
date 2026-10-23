@@ -181,7 +181,7 @@ test('AI Inbox does not advertise a reviewable result until extraction finishes'
   const manual=source.slice(source.indexOf('private forceRoute=async('),source.indexOf('private handoff=()=>'));
   assert.match(manual,/status:needsExtraction\?'processing':'needs-review'/,
     'manual re-routing must restore processing for routes that extract');
-  assert.ok(manual.indexOf("this.markJob({status:'needs-review'})")>
+  assert.ok(manual.indexOf("updateAiJob(job.id,{status:'needs-review'})")>
     manual.indexOf('await this.extractForRoute('),
     'manual route must not claim review until its extraction completes');
   storage.clear();jobs.setTestUid('qa-pending-review');
@@ -190,6 +190,41 @@ test('AI Inbox does not advertise a reviewable result until extraction finishes'
   assert.equal(jobs.readAiJobHistory()[0].status,'processing');
   jobs.updateAiJob(job.id,{status:'needs-review'});
   assert.equal(jobs.readAiJobHistory()[0].status,'needs-review');
+});
+
+test('manual AI Inbox retry gets a new job ID after failure or cancellation, without altering history',()=>{
+  storage.clear();jobs.setTestUid('qa-manual-retry');
+  const failed=jobs.startAiJob('source.pdf');
+  jobs.updateAiJob(failed.id,{status:'failed',note:'Provider 429'});
+  const retry=jobs.activeOrFreshAiJob(failed.id,'source.pdf');
+  assert.notEqual(retry.id,failed.id,'failed job may never be reactivated');
+  assert.equal(retry.status,'processing');
+  jobs.updateAiJob(retry.id,{route:'quote_request',status:'needs-review'});
+  assert.equal(jobs.readAiJobHistory().find(x=>x.id===failed.id).note,'Provider 429');
+  assert.equal(jobs.readAiJobHistory().find(x=>x.id===failed.id).status,'failed');
+  assert.equal(jobs.activeOrFreshAiJob(retry.id,'source.pdf').id,retry.id,
+    'switching a still-active review route must not spawn duplicate jobs');
+  jobs.updateAiJob(retry.id,{status:'cancelled',note:'Cancelled by user'});
+  const next=jobs.activeOrFreshAiJob(retry.id,'source.pdf');
+  assert.notEqual(next.id,retry.id,'cancelled job must stay cancelled after retry');
+  assert.equal(jobs.readAiJobHistory().find(x=>x.id===retry.id).status,'cancelled');
+  jobs.updateAiJob(next.id,{status:'completed',note:'Reviewed draft saved'});
+  const afterSaved=jobs.activeOrFreshAiJob(next.id,'source.pdf');
+  assert.notEqual(afterSaved.id,next.id,'completed job must not be reopened');
+  assert.equal(jobs.readAiJobHistory().find(x=>x.id===next.id).note,'Reviewed draft saved');
+  jobs.setTestUid('qa-other-user');
+  const other=jobs.activeOrFreshAiJob(failed.id,'other.xlsx');
+  assert.notEqual(other.id,failed.id);
+  assert.deepEqual(jobs.readAiJobHistory().map(x=>x.sourceName),['other.xlsx'],
+    'manual retry cannot reuse or reveal a previous Firebase users source');
+  const source=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+  const manual=source.slice(source.indexOf('private forceRoute=async('),source.indexOf('private handoff=()=>'));
+  assert.match(manual,/activeOrFreshAiJob\(this\.state\.currentJobId/,
+    'manual route must select current-UID live job or allocate a new one');
+  assert.match(manual,/updateAiJob\(job\.id,\{route,status:/,
+    'manual retry updates the newly selected ID, not a stale React state field');
+  assert.doesNotMatch(manual,/this\.markJob\(/,
+    'manual async success and failure must never use a potentially stale job ID');
 });
 
 test('cleanup restores the real JS session global',()=>{
