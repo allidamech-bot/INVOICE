@@ -165,6 +165,33 @@ test('terminal AI jobs reject late status resurrection and retries use a new ide
   assert.equal(jobs.readAiJobHistory().find(row=>row.id===failed.id).status,'failed');
 });
 
+test('AI Inbox does not advertise a reviewable result until extraction finishes',()=>{
+  const source=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+  const classify=source.slice(source.indexOf('private classify=async()=>'),source.indexOf('private extractForRoute=async('));
+  assert.match(classify,/const needsExtraction=\['quote_request','supplier_purchase','supplier'\]\.includes\(classification\.route\)/);
+  assert.match(classify,/stage:needsExtraction\?'extracting':'review'/,
+    'quote and supplier extraction must not expose review UI early');
+  const extract=classify.indexOf('await this.extractForRoute(');
+  const completed=classify.indexOf("updateAiJob(job.id,{status:'needs-review'})",extract);
+  assert.ok(extract>=0&&completed>extract,'job becomes reviewable only after extraction resolves');
+  assert.match(classify.slice(extract,completed),/if\(!this\.current\(generation,controller\)\)return/,
+    'cancelled or stale provider completion cannot mark reviewable');
+  assert.match(classify,/updateAiJob\(job.id,\{status:'failed'/,
+    'extraction failures must remain failed rather than ready');
+  const manual=source.slice(source.indexOf('private forceRoute=async('),source.indexOf('private handoff=()=>'));
+  assert.match(manual,/status:needsExtraction\?'processing':'needs-review'/,
+    'manual re-routing must restore processing for routes that extract');
+  assert.ok(manual.indexOf("this.markJob({status:'needs-review'})")>
+    manual.indexOf('await this.extractForRoute('),
+    'manual route must not claim review until its extraction completes');
+  storage.clear();jobs.setTestUid('qa-pending-review');
+  const job=jobs.startAiJob('slow-supplier-quote.pdf');
+  jobs.updateAiJob(job.id,{route:'quote_request',documentType:'quotation'});
+  assert.equal(jobs.readAiJobHistory()[0].status,'processing');
+  jobs.updateAiJob(job.id,{status:'needs-review'});
+  assert.equal(jobs.readAiJobHistory()[0].status,'needs-review');
+});
+
 test('cleanup restores the real JS session global',()=>{
  if(oldSession===undefined)delete globalThis.sessionStorage;
  else globalThis.sessionStorage=oldSession;
