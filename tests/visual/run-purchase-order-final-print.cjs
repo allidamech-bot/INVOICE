@@ -41,14 +41,21 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
       const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true,margin:{top:'0',bottom:'0',left:'0',right:'0'}});
       assert.equal(pdf.subarray(0,5).toString(),'%PDF-','valid native PDF');
       writeFileSync(out+'/'+engine+'-'+language+'-'+template+(long?'-long-'+logo:'')+'.pdf',pdf);
-      const parsed=await page.evaluate(async data=>{
+      const cells=await page.locator('.print-portal .invoice-page').evaluateAll(pages=>pages.map(page=>{const p=page.getBoundingClientRect();return Array.from(page.querySelectorAll('tbody .description-cell'),cell=>{const r=cell.getBoundingClientRect();return {id:cell.parentElement.dataset.sourceItemId,left:(r.left-p.left)/p.width,right:(r.right-p.left)/p.width,top:(r.top-p.top)/p.height,bottom:(r.bottom-p.top)/p.height};});}));
+      const parsed=await page.evaluate(async ({data,cells})=>{
         const pdfjs=await import('/dist/vendor/pdf.mjs');
         pdfjs.GlobalWorkerOptions.workerSrc='/dist/vendor/pdf.worker.mjs';
-        const doc=await pdfjs.getDocument({data:Uint8Array.from(atob(data),c=>c.charCodeAt(0))}).promise,parts=[];
-        for(let n=1;n<=doc.numPages;n++){const p=await doc.getPage(n),txt=await p.getTextContent();parts.push(txt.items.map(item=>item.str||'').join(' '));}
-        const result={pages:doc.numPages,content:parts.join(' '),allPages:parts};
+        const doc=await pdfjs.getDocument({data:Uint8Array.from(atob(data),c=>c.charCodeAt(0))}).promise,parts=[],descriptions={};
+        for(let n=1;n<=doc.numPages;n++){
+          const p=await doc.getPage(n),txt=await p.getTextContent(),v=p.getViewport({scale:1});parts.push(txt.items.map(item=>item.str||'').join(' '));
+          for(const cell of cells[n-1]){
+            const text=txt.items.filter(item=>{if(!item.str)return false;const x=(item.transform[4]+item.width/2)/v.width,y=1-(item.transform[5]+item.height/3)/v.height;return x>=cell.left-.001&&x<=cell.right+.001&&y>=cell.top-.001&&y<=cell.bottom+.001;}).map(item=>item.str).join(' ');
+            descriptions[cell.id]=(descriptions[cell.id]||'')+' '+text;
+          }
+        }
+        const result={pages:doc.numPages,content:parts.join(' '),allPages:parts,descriptions};
         await doc.destroy();return result;
-      },pdf.toString('base64'));
+      },{data:pdf.toString('base64'),cells});
       assert.equal(parsed.pages,pages,'printed pagination and real PDF page count');
       assert.ok(parsed.allPages.every(pageText=>pageText.trim().length>0),'no blank PDF pages');
       const pdfText=normalize(parsed.content).replace(/\s+/g,'');
@@ -58,12 +65,15 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
       if(long)for(let n=1;n<=40;n++){const marker='PO-LINE-'+String(n).padStart(3,'0');assert.equal(pdfText.split(marker).length-1,1,'PDF preserves line exactly once: '+marker);}
       if(long){
         const compact=value=>normalize(value).replace(/\s+/g,'');
-        if(language==='en')for(const description of descriptions)assert.ok(pdfText.includes(compact(description)),'complete long English description');
-        else{
-          // PDF Arabic extraction may reverse visual runs. Count the bounded
-          // full-description character inventory instead of assuming word order.
-          const expected=compact(descriptions.join('')).replace(/[^\u0600-\u06ff]/g,'');
-          for(const ch of new Set(expected))assert.ok([...pdfText].filter(c=>c===ch).length>=[...expected].filter(c=>c===ch).length,'Arabic long-description character completeness: '+ch);
+        for(let i=0;i<descriptions.length;i++){
+          const actual=compact(parsed.descriptions['po-long-'+i]||''),expected=compact(descriptions[i]);
+          if(language==='en')assert.equal(actual,expected,'complete English description including continuation fragments');
+          else{
+            // Arabic PDF extraction may reverse visual runs. Compare exact
+            // glyph inventories within this item's description cells only.
+            const glyphs=value=>[...value.replace(/[^\u0600-\u06ff]/g,'')].sort().join('');
+            assert.equal(glyphs(actual),glyphs(expected),'complete Arabic description including continuation fragments');
+          }
         }
       }
       if(language==='en')assert.ok(pdfText.includes('AtlasSupplier'),'PDF preserves supplier identity');
