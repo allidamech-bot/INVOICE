@@ -28,6 +28,7 @@ import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoic
 import {requestedCatalogQuoteFamily,naturalCatalogQuoteReply} from './ai-catalog-conversation.js';
 import {graphKindAllowed} from './ai-business-memory-graph.js';
 import {strictAiActor} from './ai-foundation-approval.js';
+import {exactTextQuotePreview} from './ai-text-quote-preview.js';
 import {namedRecordReadPlan} from './ai-named-record-read.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
@@ -292,6 +293,18 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
   const scopedVault=scopeVault(input.vault);
   const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
+  // A fully specified REVIEW-ONLY quote must be usable even if the free AI
+  // planner cannot return a valid tool plan. This creates a scoped in-chat
+  // artifact, not a save proposal or vault write. Ambiguity falls through.
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&previewOnlyDocumentIntent(input.message)){
+    const workingDraft=exactTextQuotePreview(input.message);
+    if(workingDraft)return{
+      answer:input.language==='ar'
+        ?'جهزت بطاقة عرض السعر للمراجعة فقط من البيانات التي ذكرتها. لم أحفظ مستندًا أو أنشئ عميلًا.'
+        :'Prepared an unsaved quotation card from your exact input. No document or customer was saved.',
+      proposal:null,workingDraft,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'
+    };
+  }
   // An incomplete named-family quote starts with a real catalog conversation.
   // Never let a generic search.records plan masquerade as a prepared quotation.
   // Quantified/customer-specific instructions continue to their normal guarded
