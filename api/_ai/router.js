@@ -241,7 +241,7 @@ function configuredCandidates(route,attachments=[],allowExternal=false,taskType=
   // Reasoning and attachments may narrow capabilities, never widen approval.
   const businessDialogue=['business_copilot','cfo_report'].includes(taskType);
   const sequence=businessDialogue?BUSINESS_COPILOT_ROUTE:routeEntries(route);
-  return sequence.map(([provider,model])=>findModel(provider,model)).filter(model=>model?.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true)&&circuitAvailable(model.provider,model.model)&&(!imageCount||model.maxImages>=imageCount));
+  return sequence.map(([provider,model])=>findModel(provider,model)).filter(model=>model?.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true)&&(!imageCount||model.maxImages>=imageCount));
 }
 function providerError(provider,model,status,bodyText){
   if(status===429)return{category:'rate_limit',code:'AI_RATE_LIMITED',retryable:false};
@@ -374,24 +374,38 @@ export async function routeAiStructured(options={}){
   const route=classifyRoute({taskType,reasoningLevel,attachments});
   // Explicit server-side data classification is mandatory. Never infer safety from
   // task names (workspace_help can also carry private conversation memory).
+  // Only explicitly classified workspace help can use the external sandbox.
+  // A mistaken synthetic tag on extraction/business tasks never grants approval.
   // Existing business endpoints do not set this flag, so private prompts stay
   // on the original provider set even if project-wide opt-in is accidentally set.
-  const allowExternal=options.externalDataClass==='public-synthetic'&&route==='general';
+  const allowExternal=options.externalDataClass==='public-synthetic'&&route==='general'&&taskType==='workspace_help';
   const candidates=configuredCandidates(route,attachments,allowExternal,taskType);
   if(!candidates.length)return{success:false,errorCode:'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false};
   const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
-  let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null;
+  let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null,attemptCount=0;
   const routeStartedAt=Date.now();
+  function finish(result){
+    const timing={totalLatencyMs:Date.now()-routeStartedAt,attemptCount};
+    // Metadata only: never log prompts, response content, credentials or business data.
+    console.info('[LOUREX AI route]',{requestId,taskType,route,status:result.success?'ok':'failed',errorCode:result.errorCode,...timing});
+    return{...result,...timing};
+  }
   providerRoute:
   for(let index=0;index<candidates.length;index+=1){
     const model=candidates[index];
     for(let attempt=0;attempt<MAX_PROVIDER_ATTEMPTS;attempt+=1){
+      // A concurrent request may have opened a quota/circuit after candidate selection.
+      if(!circuitAvailable(model.provider,model.model)){
+        lastCode=(providerRateLimitUntil.get(model.provider)||0)>Date.now()?'AI_RATE_LIMITED':'AI_TEMPORARILY_UNAVAILABLE';
+        break;
+      }
       const remaining=ROUTER_BUDGET_MS-(Date.now()-routeStartedAt);
       if(remaining<PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS){lastCode='AI_TIMEOUT';break providerRoute;}
       // Reserve a small window for later free-tier fallback models.
       const futureReserve=Math.min((candidates.length-index-1)*PROVIDER_MIN_MS,Math.max(0,remaining-PROVIDER_MIN_MS-ROUTER_SETTLE_RESERVE_MS));
       const perAttemptMs=Math.min(30_000,Math.max(PROVIDER_MIN_MS,Number(options.timeoutMs)||DEFAULT_TIMEOUT_MS),remaining-ROUTER_SETTLE_RESERVE_MS-futureReserve);
       const startedAt=Date.now();
+      attemptCount+=1;
       try{
         const result=await callProvider(model,{taskType,prompt:options.prompt,messages:options.messages,attachments,schema,reasoningLevel,timeoutMs:Math.max(PROVIDER_MIN_MS,perAttemptMs),maxOutputTokens:options.maxOutputTokens});
         const schemaValid=validateJsonSchema(result.data,jsonSchema),customValid=schemaValid&&(typeof options.validate!=='function'||options.validate(result.data)!==false);
@@ -400,10 +414,15 @@ export async function routeAiStructured(options={}){
         recordSuccess(model.provider,model.model);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'ok',category:lowConfidence?'low-confidence':'ok',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:true});
         const accepted={success:true,data:result.data,provider:model.provider,model:model.model,latencyMs:Date.now()-startedAt,validation:{schema:true,lowConfidence,needsReview:lowConfidence},confidence:lowConfidence?'low':'validated',fallbackUsed:index>0,requestId,route,rateLimit:rateLimitSnapshot(result.headers)};
         if(lowConfidence&&options.qualityFallback===true&&index+1<candidates.length){lowConfidenceResult=lowConfidenceResult||accepted;break;}
-        return accepted;
+        return finish(accepted);
       }catch(error){
         const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});
-        if(retryableSameProvider(error,attempt)){
+        // A full timeout is already a failed attempt, not a reason to repeat it.
+        // Keep quick transient retries, but let a healthy alternate have its turn
+        // after a slow upstream failure instead of consuming another deadline.
+        const alternateAvailable=candidates.slice(index+1).some(candidate=>circuitAvailable(candidate.provider,candidate.model));
+        const slowFailure=Date.now()-startedAt>=perAttemptMs/2;
+        if(category!=='timeout'&&!(alternateAvailable&&slowFailure)&&retryableSameProvider(error,attempt)){
           const delay=RETRY_BASE_MS*(attempt+1);
           if(Date.now()-routeStartedAt+delay+PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS>=ROUTER_BUDGET_MS){lastCode='AI_TIMEOUT';break providerRoute;}
           await sleep(delay);continue;
@@ -412,8 +431,8 @@ export async function routeAiStructured(options={}){
       }
     }
   }
-  if(lowConfidenceResult)return{...lowConfidenceResult,fallbackUsed:true,validation:{...lowConfidenceResult.validation,needsReview:true}};
-  return{success:false,errorCode:lastCode==='AI_NOT_CONFIGURED'?'AI_TEMPORARILY_UNAVAILABLE':lastCode,requestId,route,fallbackUsed:candidates.length>1};
+  if(lowConfidenceResult)return finish({...lowConfidenceResult,fallbackUsed:true,validation:{...lowConfidenceResult.validation,needsReview:true}});
+  return finish({success:false,errorCode:lastCode==='AI_NOT_CONFIGURED'?'AI_TEMPORARILY_UNAVAILABLE':lastCode,requestId,route,fallbackUsed:candidates.length>1});
 }
 
 export function aiRouterPublicError(result){
