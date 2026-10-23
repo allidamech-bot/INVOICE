@@ -1,4 +1,10 @@
 import test from 'node:test';
+import {readFile} from 'node:fs/promises';
+import {webcrypto} from 'node:crypto';
+import vm from 'node:vm';
+import ts from 'typescript';
+import {synchronizeActiveWorkspaceOnSave} from '../dist/src/storage/vault.js';
+import {assertPlainCloudWorkspaceUploadable} from '../dist/src/cloud/plain-workspace.js';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
@@ -134,4 +140,77 @@ test('restore continuity protects a voided invoice, credit note and return proof
  const erased=clone(returned);
  erased.inventoryMovements=erased.inventoryMovements.filter(m=>!m.invoiceVoidStock);
  assert.throws(()=>assertPostedStockRestoreContinuity(returned,erased),/posted invoice stock/);
+});
+
+// JSON object member order is serialization detail; arrays and values are evidence.
+const reorderKeys=value=>Array.isArray(value)?value.map(reorderKeys):value&&typeof value==='object'
+ ?Object.fromEntries(Object.entries(value).reverse().map(([key,item])=>[key,reorderKeys(item)])):value;
+for(const collection of ['documents','inventoryMovements'])test(`identical posted ${collection} survives backup key reordering`,async()=>{
+ const {issued}=setup(),copy=clone(issued);copy[collection]=reorderKeys(copy[collection]);
+ const restored=await readPlainBackup(serialize(copy));
+ assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(issued,restored));
+ assert.deepEqual(restored,issued);assert.equal(quantity(restored),'6');
+});
+
+test('restore comparison still protects every value, nested evidence and array order',()=>{
+ const {issued}=setup();issued.documents[0].attachments=[evidence('order-a'),evidence('order-b')];
+ const changes=[
+  v=>{v.inventoryMovements.find(m=>m.id.startsWith('sales-invoice-stock:')).quantity='-9';},
+  v=>{v.inventoryMovements.find(m=>m.id.startsWith('sales-invoice-stock:')).note='Changed evidence';},
+  v=>{v.documents[0].updatedAt='2099-01-01T00:00:00.000Z';},
+  v=>{v.documents[0].attachments[0].dataUrl='changed';},
+  v=>{v.documents[0].attachments.reverse();},
+  v=>{v.documents=[];}
+ ];
+ for(const change of changes){const copy=reorderKeys(issued);change(copy);assert.throws(()=>assertPostedStockRestoreContinuity(issued,copy),/erase or modify posted invoice stock/);}
+});
+
+async function restoreHarness(initial,rejectCas=false){
+ let stored={id:'workspace-v2',uid:'qa-stock-restore',schemaVersion:initial.schemaVersion,payload:clone(initial),localRevision:'before-restore',baseCloudRevision:'cloud-base',baseCloudSha256:'a'.repeat(64)},writes=0,syncs=0,ends=0;
+ const context={exports:{},Error,Promise,Date,crypto:webcrypto,readPlainBackup,synchronizeActiveWorkspaceOnSave,assertPlainCloudWorkspaceUploadable,assertPostedStockRestoreContinuity,t:en=>en,
+  currentCloudUser:()=>({uid:stored.uid}),getPlainWorkspace:async()=>clone(stored),
+  replacePlainWorkspaceIfUnchanged:async(uid,revision,replacement,reason)=>{
+   assert.equal(uid,stored.uid);assert.equal(revision,stored.localRevision);assert.equal(reason,'replaced-by-backup');
+   if(rejectCas)return false;writes++;stored=clone(replacement);return true;
+  }};
+ const source=await readFile('src/app/App.tsx','utf8'),parsed=ts.createSourceFile('App.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ const cls=parsed.statements.find(ts.isClassDeclaration),members=cls.members.filter(n=>['restore','normalizedVault'].includes(n.name?.getText(parsed))).map(n=>n.getText(parsed));assert.equal(members.length,2);
+ vm.runInNewContext(ts.transpileModule('class Harness{'+members.join('\n')+'}\nexports.Harness=Harness;',{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS},
+ }).outputText,context);
+ const h=new context.exports.Harness();h.state={vault:clone(initial),cloudUser:{uid:stored.uid},cloudSyncState:'synced',uiLanguage:'en'};
+ h.editorMustBeClosed=()=>{};h.beginProtectedOperation=async()=>{};h.endProtectedOperation=()=>ends++;
+ h.setState=(patch,done)=>{Object.assign(h.state,patch);done?.();};h.scheduleCloudSync=delay=>{assert.equal(delay,300);syncs++;};
+ return{h,get:()=>stored,counts:()=>({writes,syncs,ends})};
+}
+test('actual App.restore accepts identical reordered stock evidence and retains stored audit identities',async()=>{
+ const {issued}=setup();issued.documentEvents=[{id:'qa-preserved-event',documentId:issued.documents[0].id,type:'created',at:'2026-10-01T00:00:00.000Z',note:'Existing audit evidence',workspaceId:'default',branchId:'main'}];
+ const p=await restoreHarness(issued);await p.h.restore(serialize(reorderKeys(issued)));
+ assert.deepEqual(p.get().payload.documents,issued.documents);assert.deepEqual(p.get().payload.inventoryMovements,issued.inventoryMovements);
+ assert.deepEqual(p.get().payload.documentEvents,issued.documentEvents);assert.deepEqual(p.h.state.vault.documentEvents,issued.documentEvents);
+ assert.deepEqual(p.counts(),{writes:1,syncs:1,ends:1});assert.equal(p.get().baseCloudRevision,'cloud-base');
+});
+test('actual App.restore rejects changed protected invoice metadata before CAS without partial UI or sync changes',async()=>{
+ const {issued}=setup(),p=await restoreHarness(issued),copy=reorderKeys(issued);
+ copy.documents[0].updatedAt='2099-01-01T00:00:00.000Z';
+ const before=JSON.stringify(p.get()),ui=JSON.stringify(p.h.state.vault);
+ await assert.rejects(p.h.restore(serialize(copy)),/erase or modify posted invoice stock/);
+ assert.equal(JSON.stringify(p.get()),before);assert.equal(JSON.stringify(p.h.state.vault),ui);assert.deepEqual(p.counts(),{writes:0,syncs:0,ends:1});
+});
+test('actual App.restore still rejects a lost CAS after equivalent reordered evidence passed',async()=>{
+ const {issued}=setup(),p=await restoreHarness(issued,true),before=JSON.stringify(p.get()),ui=JSON.stringify(p.h.state.vault);
+ await assert.rejects(p.h.restore(serialize(reorderKeys(issued))),/Account data changed during import/);
+ assert.equal(JSON.stringify(p.get()),before);assert.equal(JSON.stringify(p.h.state.vault),ui);assert.deepEqual(p.counts(),{writes:0,syncs:0,ends:1});
+});
+
+test('reordered nested physical-return evidence roundtrips without weakening its protection',async()=>{
+ const {issued,invoice}=setup();
+ const returned=postVoidedInvoiceWithPhysicalReceipt(issued,invoice,{
+  reason:'All cartons physically returned with evidence',date,evidence:evidence('reordered-return-proof'),operatorId:'owner'
+ }).vault;
+ const restored=await readPlainBackup(serialize(reorderKeys(returned)));
+ assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(returned,restored));
+ assert.deepEqual(restored,returned);assert.equal(quantity(restored),'10');
+ restored.inventoryMovements.find(m=>m.invoiceVoidStock).invoiceVoidStock.invoiceId='changed-source';
+ assert.throws(()=>assertPostedStockRestoreContinuity(returned,restored),/erase or modify/);
 });

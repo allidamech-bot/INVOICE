@@ -14,6 +14,7 @@ on:
       - 'tests/customer-payment-delete-confirmation-20261023.test.mjs'
       - 'tests/draft-deletion-audit-20261021.test.mjs'
       - 'tests/audit-field-order-continuity-20261023.test.mjs'
+      - 'tests/stock-backup-integrity-20261015.test.mjs'
       - 'tests/audit-new-document-event-id-collisions.test.mjs'
       - 'tests/draft-deletion-continuity-20261021.test.mjs'
       - 'src/lib/payment-voucher.ts'
