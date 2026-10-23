@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 (async()=>{
  for(const [name,driver] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await driver.launch({headless:true});
-  try{for(const scenario of ['roundtrip','cas','two-tab','transaction-abort','account','protected','period']){
+  try{for(const scenario of ['audit-persist','audit-abort','roundtrip','cas','two-tab','transaction-abort','account','protected','period']){
    const context=await browser.newContext();
    try{
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
