@@ -6,6 +6,27 @@ const read=p=>readFile(new URL('../'+p,import.meta.url),'utf8');
 const product=(sku,changes={})=>({sku,descriptionEn:'Product '+sku,descriptionAr:'',brand:'',hsCode:'',origin:'',packing:'',cartonQuantity:'',unit:'PCS',salePrice:'',saleCurrency:'',unitCost:'',costCurrency:'',category:'',notes:'',...changes});
 const source=(fileName,items,currency='')=>({fileName,draft:{items,sourceCurrency:currency,notes:''}});
 
+test('Product AI accepts generic-MIME Safari Files only for explicitly supported extensions',async()=>{
+  const {productAiSourceMime:mime}=await import('../dist/src/lib/ai-product-multi-source.js');
+  for(const [name,type,expected] of [
+    ['Vendor List.PDF','application/octet-stream','application/pdf'],
+    ['Photo.JPG','binary/octet-stream','image/jpeg'],
+    ['iPhone.PNG','','image/png'],
+    ['Photo.JPEG','application/octet-stream','image/jpeg'],
+    ['Photo.WEBP','','image/webp'],
+    ['Source.TXT','application/octet-stream','text/plain'],
+  ])assert.equal(mime({name,type}),expected,name);
+  assert.equal(mime({name:'vendor.pdf',type:'image/png'}),'image/png',
+    'do not silently override an explicitly declared conflicting MIME');
+  assert.equal(mime({name:'untrusted.gif',type:'application/octet-stream'}),'application/octet-stream',
+    'never pretend an unsupported GIF is a PDF/image');
+  assert.equal(mime({name:'photo',type:''}),'','no file type or extension must not be guessed');
+  const ui=await read('src/components/ProductAiSourceReview.tsx');
+  assert.match(ui,/productAiSourceMime\(sourceFile\)/,
+    'Product AI must use this MIME guard rather than its old truthy file.type fallback');
+  assert.doesNotMatch(ui,/mimeFor\(sourceFile\)/);
+});
+
 test('Product AI aggregates every row and preserves original source ordering and currency',async()=>{
   const [{combineProductAiSourceDrafts:combine},{reviewProductAiRows:review}]=await Promise.all([
     import('../dist/src/lib/ai-product-multi-source.js'),

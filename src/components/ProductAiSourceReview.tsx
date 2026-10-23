@@ -9,7 +9,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { reviewProductAiRows, type ProductAiClassification, type ProductAiDraftItem, type ProductAiRowReview } from '../lib/product-ai-review.js';
 import { Button, Icon, Modal } from './UI.js';
 import { isIphoneHeicPhoto, jpegFromIphonePhoto } from '../lib/ai-iphone-photo.js';
-import { combineProductAiSourceDrafts, MAX_PRODUCT_AI_FILES, MAX_PRODUCT_AI_TOTAL_BYTES, type ProductAiNamedDraft } from '../lib/ai-product-multi-source.js';
+import { combineProductAiSourceDrafts, productAiSourceMime, MAX_PRODUCT_AI_FILES, MAX_PRODUCT_AI_TOTAL_BYTES, type ProductAiNamedDraft } from '../lib/ai-product-multi-source.js';
 
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_TEXT_BYTES=1_000_000;
@@ -20,7 +20,6 @@ type Stage='analyzing'|'review'|'saving'|'done'|'error';
 interface Props{file:File;files?:File[];onDone:()=>void;}
 interface State{stage:Stage;draft:ProductSourceDraft|null;reviews:ProductAiRowReview[];model:string;error:string;selected:boolean[];savedCount:number;filter:'all'|'new'|'matches'|'blocked';activeFileName:string;completedFiles:number;sourceNames:string[];rowFiles:string[];}
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
-function mimeFor(file:File):string{const name=file.name.toLowerCase();return file.type||(name.endsWith('.txt')?'text/plain':name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');}
 function spreadsheetFile(file:File):boolean{return /\.(xlsx|xls|csv)$/i.test(file.name);}
 function displayName(row:ProductAiDraftItem):string{return row.descriptionEn||row.descriptionAr||row.sku||t('Unnamed product','صنف بلا اسم');}
 function classificationLabel(value:ProductAiClassification):string{if(value==='existing-match')return t('Existing Match','مطابقة موجودة');if(value==='likely-match')return t('Likely Match','مطابقة محتملة');if(value==='new-product')return t('New Product','منتج جديد');if(value==='duplicate-candidate')return t('Duplicate Candidate','مرشح تكرار');return t('Needs Review','يحتاج مراجعة');}
@@ -65,7 +64,7 @@ export class ProductAiSourceReview extends React.Component<Props,State>{
         // HEIC stays on device; only a bounded, genuinely decoded JPEG reaches AI.
         const sourceFile=isIphoneHeicPhoto(file)?await jpegFromIphonePhoto(file,controller.signal):file;
         if(controller.signal.aborted)return;
-        const mimeType=mimeFor(sourceFile),isText=mimeType==='text/plain',isSpreadsheet=spreadsheetFile(sourceFile);
+        const mimeType=productAiSourceMime(sourceFile),isText=mimeType==='text/plain',isSpreadsheet=spreadsheetFile(sourceFile);
         if(!isSpreadsheet&&!isText&&!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType))
           throw new Error(t('This AI review accepts PDF, image, Excel, CSV or text product sources.','تقبل هذه المراجعة PDF أو الصور أو Excel أو CSV أو نصوص المنتجات.'));
         if(isSpreadsheet&&sourceFile.size>MAX_SPREADSHEET_BYTES)
