@@ -1,0 +1,71 @@
+<!doctype html><meta charset="utf-8"><title>Isolated financial restore acceptance</title>
+<script type="module">
+import * as db from '../../dist/src/storage/db.js';
+import {RestoreHarness,configure} from '../../dist/qa/restore-harness.js';
+import {emptyVault} from '../../dist/src/lib/defaults.js';
+import {createBlankDocument} from '../../dist/src/lib/documents.js';
+import {createManualInventoryMovement,inventoryBalances} from '../../dist/src/lib/operations.js';
+import {postIssuedInvoiceStock} from '../../dist/src/lib/invoice-stock.js';
+import {normalizePaymentRecord} from '../../dist/src/lib/payments.js';
+import {closedPeriodState} from '../../dist/src/lib/period-close.js';
+const check=(condition,message)=>{if(!condition)throw Error(message);};
+const canonical=v=>JSON.stringify(v,(_k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.fromEntries(Object.entries(x).sort(([a],[b])=>a.localeCompare(b))):x);
+const same=(a,b,message)=>check(canonical(a)===canonical(b),message);
+const reorder=x=>Array.isArray(x)?x.map(reorder):x&&typeof x==='object'?Object.fromEntries(Object.entries(x).reverse().map(([k,v])=>[k,reorder(v)])):x;
+const file=v=>new File([JSON.stringify({format:'LOUREX_WORKSPACE_EXPORT_V2',version:2,createdAt:'2026-10-23T00:00:00.000Z',payload:v})],'qa.lourex-json',{type:'application/json'});
+function fixture(){
+ const v=emptyVault(),date='2026-10-02',now=date+'T00:00:00.000Z';
+ const item={id:'qa-stock',sku:'QA',descriptionEn:'Synthetic cartons',descriptionAr:'كراتين اختبار',hsCode:'',origin:'',packing:'',unit:'Carton',createdAt:now,updatedAt:now,lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'4.50',lastCostCurrency:'USD',usageCount:0,lastUsedAt:now,workspaceId:v.appSettings.activeWorkspaceId,branchId:v.appSettings.activeBranchId};
+ v.savedItems=[item];v.inventoryMovements=[{...createManualInventoryMovement(item,'opening','10',date,'Synthetic opening'),workspaceId:item.workspaceId,branchId:item.branchId}];
+ const invoice=createBlankDocument('invoice','INV-IDB-QA',v.company);Object.assign(invoice,{issueDate:date,dueDate:date,status:'final',workspaceId:item.workspaceId,branchId:item.branchId});
+ invoice.customerSnapshot={sourceCustomerId:'qa-customer',companyNameEn:'Synthetic Buyer',companyNameAr:'عميل اختبار',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+ invoice.items=[{...invoice.items[0],id:'qa-line',quantity:'4',unit:'Carton',unitPrice:'10.00',descriptionEn:item.descriptionEn,savedItemId:item.id,stockTreatment:'tracked',skuSnapshot:item.sku}];v.documents=[invoice];
+ const issued=postIssuedInvoiceStock(v,invoice).vault;
+ issued.payments=[normalizePaymentRecord(invoice,[],{id:'qa-receipt',amount:'15.00',date,method:'bank-transfer',reference:'QA-PARTIAL',notes:'Synthetic receipt',createdAt:now},issued.documents)];
+ issued.documentEvents=[{id:'qa-event-fixed',documentId:invoice.id,type:'created',at:now,note:'Synthetic fixed audit',workspaceId:'default',branchId:'main'}];
+ return issued;
+}
+function harness(v,uid){
+ const h=new RestoreHarness();h.state={vault:structuredClone(v),cloudUser:{uid},cloudSyncState:'synced',uiLanguage:'en'};
+ h.syncs=0;h.ends=0;h.editorMustBeClosed=()=>{};h.drainVaultWrites=async()=>{};
+ h.beginProtectedOperation=async()=>{};h.endProtectedOperation=()=>h.ends++;
+ h.setState=(patch,done)=>{Object.assign(h.state,patch);done?.();};h.scheduleCloudSync=delay=>{check(delay===300,'sync delay');h.syncs++;};return h;
+}
+window.qaRead=async uid=>{await db.activateAccountStorage(uid);return db.getPlainWorkspace();};
+window.qaRun=async scenario=>{
+ const uid='qa-'+scenario+'-a',other='qa-'+scenario+'-b',v=fixture();
+ await db.activateAccountStorage(uid);configure(uid);await db.savePlainWorkspace(uid,v,'cloud-base','a'.repeat(64));
+ const h=harness(v,uid),before=await db.getPlainWorkspace();
+ if(scenario==='roundtrip'){
+  let captured;Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{captured=data.files[0];}});Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});
+  await h.backup();check(captured instanceof File,'actual backup exports File');
+  const exported=JSON.parse(await captured.text());same(exported.payload,v,'backup real local payload');
+  await h.restore(file(reorder(exported.payload)));const first=await db.getPlainWorkspace();
+  check(first.localRevision!==before.localRevision,'restore has new local revision');
+  await h.restore(file(reorder(first.payload)));const second=await db.getPlainWorkspace();
+  same(second.payload,first.payload,'retry no financial duplication');same(second.payload,v,'all financial records preserved');
+  check(inventoryBalances(second.payload.savedItems,second.payload.inventoryMovements).find(r=>r.item.id==='qa-stock').quantity==='6','stock remains six');
+  check(h.syncs===2&&h.ends===2,'successful operation callbacks');
+  return {uid,expected:second};
+ }
+ let expected=before,error='';
+ if(scenario==='cas')configure(uid,async()=>{const newer=structuredClone(v);newer.company.nameEn='Newer accepted local edit';await db.updatePlainWorkspaceIfUnchanged(uid,before.localRevision,newer);expected=await db.getPlainWorkspace();});
+ if(scenario==='account'){
+  await db.activateAccountStorage(other);await db.savePlainWorkspace(other,emptyVault(),null,null);const b=await db.getPlainWorkspace();await db.activateAccountStorage(uid);
+  configure(uid,async()=>{await db.activateAccountStorage(other);configure(other);});h.otherExpected=b;
+ }
+ const candidate=reorder(v);if(scenario==='protected')candidate.documents[0].updatedAt='2099-01-01T00:00:00.000Z';
+ if(scenario==='period'){
+  const boundary={workspaceId:v.appSettings.activeWorkspaceId,through:'2026-10-31'};
+  await db.cachePlainPeriodProtection(uid,{version:1,uid,generation:1,reports:[{...boundary,reportId:'a'.repeat(32),state:closedPeriodState(v,boundary)}]});expected=await db.getPlainWorkspace();candidate.payments[0].amount='16.00';
+ }
+ try{await h.restore(file(candidate));}catch(e){error=e.message;}
+ check(Boolean(error),'negative restore must reject');
+ const pattern={cas:/Account data changed during import/,account:/scope changed|aborted|Account changed/i,protected:/erase or modify posted invoice stock/,period:/closed period/}[scenario];check(pattern.test(error),'correct rejection: '+error);
+ check(h.syncs===0&&h.ends===1,'no successful sync on rejection');same(h.state.vault,v,'UI unchanged on rejection');
+ if(scenario==='account'){same(await db.getPlainWorkspace(),h.otherExpected,'other account untouched');await db.activateAccountStorage(uid);}
+ same(await db.getPlainWorkspace(),expected,'real database untouched by rejected restore');
+ return {uid,expected,other:scenario==='account'?{uid:other,expected:h.otherExpected}:null};
+};
+window.qaReady=true;
+</script>
