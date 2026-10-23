@@ -1,8 +1,10 @@
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
-const long=process.argv.includes('--long');
-const out='visual-qa-output/purchase-order-native-pdf';
+const long=process.argv.includes('--long'),invoice=process.argv.includes('--invoice');
+assert.ok(!invoice||long,'invoice acceptance requires --long');
+const kind=invoice?'invoice':'purchase-order',number=invoice?'INV-QA-2026-LONG':'PO-QA-2026-003';
+const out='visual-qa-output/'+(invoice?'invoice-native-pdf':'purchase-order-native-pdf');
 mkdirSync(out,{recursive:true});
 const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660)).replace(/[٬,\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/٫/g,'.');
 (async()=>{
@@ -12,7 +14,7 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
    for(const language of ['en','ar'])for(const template of ['obsidian','executive'])for(const logo of (long?['wide','tall','square']:['default'])){
     const page=await browser.newPage({viewport:{width:language==='ar'?390:1280,height:900}});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.goto('http://127.0.0.1:4173/tests/visual/purchase-order-final-print.html?lang='+language+'&template='+template+(long?'&long=1&logo='+logo:''));
+    await page.goto('http://127.0.0.1:4173/tests/visual/purchase-order-final-print.html?lang='+language+'&template='+template+(invoice?'&kind=invoice':'')+(long?'&long=1&logo='+logo:''));
     await page.emulateMedia({media:'print'});
     await page.waitForFunction(()=>{const root=document.querySelector('.print-portal .invoice-pages');return Boolean(root&&root.dataset.paginationReady==='true'&&root.querySelectorAll('.invoice-page').length);},null,{timeout:25000});
     await page.evaluate(async()=>{await document.fonts?.ready;await Promise.all(Array.from(document.querySelectorAll('.print-portal img'),img=>img.decode()));});
@@ -20,13 +22,18 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     const source=await page.evaluate(()=>window.qaSourceSnapshot()),state=await page.evaluate(()=>window.qaPurchaseOrder);
     const print=page.locator('.print-portal .invoice-pages');
     const content=normalize(await print.innerText());
-    assert.equal(state.kind,'purchase-order');assert.equal(state.status,'final');
+    assert.equal(state.kind,kind);assert.equal(state.status,'final');
     const total=long?'440.00':'357.50';
     assert.equal(state.lineCount,long?40:2);assert.equal(state.totals.grandTotal,total);
-    assert.ok(content.includes('PO-QA-2026-003'),'actual purchase order number');
+    assert.ok(content.includes(number),'actual issued document number');
     assert.ok(content.includes(total),'tax-inclusive total present');
+    if(invoice){
+      assert.ok(content.includes(state.partyName),'invoice customer identity');
+      assert.ok(content.includes(state.companyName),'invoice issuer identity');
+      assert.ok(content.includes(language==='ar'?'فاتورة':'INVOICE'),'invoice title');
+    }
     if(long){
-      for(let n=1;n<=40;n++)assert.ok(content.includes((language==='ar'?'بند':'PO-LINE-')+String(n).padStart(3,'0')),'every long purchase order line in DOM');
+      for(let n=1;n<=40;n++)assert.ok(content.includes((language==='ar'?'بند':'PO-LINE-')+String(n).padStart(3,'0')),'every long document line in DOM');
       const images=await page.locator('.print-portal .doc-logo img').evaluateAll(imgs=>imgs.map(img=>{const r=img.getBoundingClientRect(),p=img.closest('.invoice-page').getBoundingClientRect(),h=img.closest('.doc-logo').getBoundingClientRect();return {width:img.naturalWidth,height:img.naturalHeight,contained:r.width>0&&r.height>0&&r.left>=p.left-1&&r.right<=p.right+1&&r.top>=p.top-1&&r.bottom<=p.bottom+1&&r.left>=h.left-1&&r.right<=h.right+1&&r.top>=h.top-1&&r.bottom<=h.bottom+1};}));
       assert.ok(images.length>0&&images.every(img=>img.width>0&&img.height>0&&img.contained),'large logos decoded and contained within their logo box and printed page');
     }else{
@@ -59,7 +66,7 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
       assert.equal(parsed.pages,pages,'printed pagination and real PDF page count');
       assert.ok(parsed.allPages.every(pageText=>pageText.trim().length>0),'no blank PDF pages');
       const pdfText=normalize(parsed.content).replace(/\s+/g,'');
-      assert.ok(pdfText.includes('PO-QA-2026-003'),'PDF has correct purchase order reference');
+      assert.ok(pdfText.includes(number),'PDF has correct document reference');
       assert.ok(pdfText.includes(total),'PDF has accurate total');
       assert.ok(!pdfText.includes('QA-APP-CONTROL-LEAK'),'application controls excluded');
       if(long&&language==='en')for(let n=1;n<=40;n++){const marker='PO-LINE-'+String(n).padStart(3,'0');assert.equal(pdfText.split(marker).length-1,1,'PDF preserves line exactly once: '+marker);}
@@ -77,11 +84,11 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
           }
         }
       }
-      if(language==='en')assert.ok(pdfText.includes('AtlasSupplier'),'PDF preserves supplier identity');
+      if(language==='en'){assert.ok(pdfText.includes(invoice?'AtlasSyntheticCustomer':'AtlasSupplier'),'PDF preserves correct party identity');if(invoice)assert.ok(pdfText.includes(state.companyName.replace(/\s+/g,'')),'PDF preserves invoice issuer');}
     }
-    assert.equal(await page.evaluate(()=>window.qaSourceSnapshot()),source,'printing must never mutate the purchase order');
+    assert.equal(await page.evaluate(()=>window.qaSourceSnapshot()),source,'printing must never mutate the source document');
     assert.deepEqual(errors,[],'browser errors');
-    console.log('PASS issued purchase order '+engine+' '+language+' '+template+(long?' long '+logo:''));
+    console.log('PASS issued '+kind+' '+engine+' '+language+' '+template+(long?' long '+logo:''));
     await page.close();
    }
   }finally{await browser.close();}
