@@ -236,6 +236,6 @@
 }
 @media print {
   html:has(body.printing-treasury-report),
-  html body.printing-treasury-report #root .app-ui .ta-shell,
+  html body.printing-treasury-report #root .app-ui .ta-shell.workspace-shell,
   html body.printing-treasury-report #root .app-ui .ta-main { background:#fff!important; }
 }
