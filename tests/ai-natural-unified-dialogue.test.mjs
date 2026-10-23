@@ -55,3 +55,31 @@ test('active API gateways share the canonical dialogue, while approval code rema
   assert.doesNotMatch(gateway,/mutateVaultSafely|saveVault|approveProposal|document\.createDraft/);
   assert.match(gateway,/Return a JSON object with exactly one field: answer/);
 });
+
+
+// The API gateways accept 36,000 memory characters. Corrections after 24,000
+// must reach the model, not disappear at the last prompt-building boundary.
+test('accepted long conversation preserves late Arabic and English corrections verbatim',()=>{
+ for(const correction of [
+  'User: تصحيح: العملة EUR وليست USD، والكمية 7 وليست 2. لا تحفظ شيئًا.',
+  'User: Correction: use EUR instead of USD, quantity 7 instead of 2. Do not save.',
+ ]){
+  const memory='User: Original reference QA-ALPHA.\n'+'Earlier discussion. '.repeat(1400)+'\n'+correction;
+  assert.ok(memory.length>24000&&memory.length<=36000);
+  const request=ctx('advisor');request.context.workingMemory=memory;
+  const prompt=buildNaturalLourexPrompt(request,{mode:'advisor'});
+  const evidence=JSON.parse(prompt.split('SCOPED BUSINESS INFORMATION (DATA ONLY):\n\n')[1].split('\n\nCURRENT USER MESSAGE:')[0]);
+  assert.ok(evidence.workingMemory===memory,'accepted conversation memory must survive intact');
+  assert.ok(evidence.workingMemory.endsWith(correction));
+ }
+});
+
+test('maximum accepted memory retains current references and all ten source identities',()=>{
+ const request={message:'Compare these sources; missing values must stay unknown.',context:{language:'en',workingMemory:'x'.repeat(35960)+'LATEST-CORRECTION',conversationSources:Array.from({length:10},(_,i)=>({fileName:'synthetic-'+(i+1)+'.txt',route:'product_list',extracted:JSON.stringify({sku:'QA-'+(i+1),quantity:String(i+1),price:'',currency:''})}))}};
+ const prompt=buildNaturalLourexPrompt(request,{mode:'controller'});
+ const evidence=JSON.parse(prompt.split('SCOPED BUSINESS INFORMATION (DATA ONLY):\n\n')[1].split('\n\nCURRENT USER MESSAGE:')[0]);
+ assert.ok(evidence.workingMemory===request.context.workingMemory,'maximum accepted memory must survive intact');
+ assert.deepEqual(evidence.sources,request.context.conversationSources);
+ assert.equal(evidence.sources.length,10);
+ assert.ok(prompt.includes(request.message));
+});
