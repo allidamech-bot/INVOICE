@@ -176,7 +176,7 @@ test('AI Inbox does not advertise a reviewable result until extraction finishes'
   assert.ok(extract>=0&&completed>extract,'job becomes reviewable only after extraction resolves');
   assert.match(classify.slice(extract,completed),/if\(!this\.current\(generation,controller\)\)return/,
     'cancelled or stale provider completion cannot mark reviewable');
-  assert.match(classify,/updateAiJob\(job.id,\{status:'failed'/,
+  assert.match(classify,/if\(jobId\)updateAiJob\(jobId,\{status:'failed'/,
     'extraction failures must remain failed rather than ready');
   const manual=source.slice(source.indexOf('private forceRoute=async('),source.indexOf('private handoff=()=>'));
   assert.match(manual,/status:needsExtraction\?'processing':'needs-review'/,
