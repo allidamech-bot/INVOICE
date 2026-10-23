@@ -18,8 +18,8 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All seven PRs below were directly rechecked as merged. These are delivered
-rounds, not seven invented original checklist items.
+All eight PRs below were directly rechecked as merged. These are delivered
+rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
 |---|---|---|
@@ -30,6 +30,8 @@ rounds, not seven invented original checklist items.
 | [1004](https://github.com/allidamech-bot/INVOICE/pull/1004) | Tax report print visibility and actual UI/CSV/PDF parity | `66a18f68c5ed6e7bf4847c2f2a8676b4dabbb8fb` |
 | [1011](https://github.com/allidamech-bot/INVOICE/pull/1011) | Read-only treasury period report with per-account opening/closing, late void effects, separate unallocated movements, CSV/PDF | `b5adea05eaceb446cf07d2b04afeac7c56ae26e8` |
 | [1013](https://github.com/allidamech-bot/INVOICE/pull/1013) | Real stock transfers correctly labelled separately from adjustments in history and filters | `3f76d5330badd7bbe99d1590f3f3da25686e1548` |
+
+| [1015](https://github.com/allidamech-bot/INVOICE/pull/1015) | Item 5: read-only inventory movement print output, all filtered matches beyond the screen cap, full notes/references/signed quantities/warehouse endpoints; 12 browser cases and 4 native PDFs | `d2f5c77a469939c81ecec6629c4663b90bec71be` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -46,7 +48,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 2 | Saved supplier payment voucher; #942/#982 and saved-cycle evidence | Accepted automated path; historical issuer policy must not be fabricated |
 | 3 | Final purchase order output; #935/#992 | Accepted bounded browser/PDF cases |
 | 4 | Posted-purchase document output | Deferred: no live independent print route established; old draft branch remains untouched pending explicit reopening |
-| 5 | Inventory movement report output, references and quantities | Open: no print/export route found in the live movement screen; #1013 fixes a type label only |
+| 5 | Inventory movement report output, references and quantities | Implemented and accepted in #1015: 12 Chromium/WebKit cases, 4 native Chromium PDFs, 3/40/205 movements, filters/account guard/no writes; physical iPhone separate |
 | 6 | Management financial report final output | Performance report path accepted in #1002; no claim that every report view is covered |
 | 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004 |
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
@@ -110,6 +112,12 @@ explicitly deferred. Only then publish the binary remaining total. Do not use
 the old “37 remaining”, subtract PR counts, or manufacture a new total by
 grouping unknown work into broad headings.
 
-Next product task already identified from known wording: item 5, inventory
-movement final output. It remains unstarted as an output feature. No new
-application implementation is part of this register-only round.
+Owner authorized original item 5 after reviewing this register. It is now
+merged in #1015 at `d2f5c77a469939c81ecec6629c4663b90bec71be`, tested head
+`0aa136a49cee1cfb97e5c115bce264d09d58caef`: all nine checks across six
+workflows passed, including 3867 Node tests. No deployment occurred.
+
+Next known remaining acceptance work is to enumerate the uncovered outputs
+and template combinations under original items 11 and 12 before selecting a
+bounded implementation round. Item 4 remains explicitly deferred. This update
+does not invent an exact remaining total or close missing original wording.
