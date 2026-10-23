@@ -83,6 +83,13 @@ async function run(engine,name){
   await card.getByLabel('Draft customer',{exact:true}).selectOption('qa-buyer');
   await card.locator('summary').click();
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
+  // Native keyboard activation keeps the details disclosure accessible
+  // after its 85 lines have been inspected, even if chat autoscroll makes a
+  // touch click on the earlier summary temporarily unreachable.
+  // Do not force-click or mutate the DOM's open attribute.
+  await card.locator('summary').press('Enter');
+  assert.equal(await card.locator('details').first().getAttribute('open'),null,
+    'keyboard activation closes the inspected source list without losing its rows');
   const count=()=>page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length);
   async function assistantMeta(){
    return page.evaluate(async()=>{
@@ -116,8 +123,42 @@ async function run(engine,name){
   await inDraftRecords.locator('input[type=checkbox]').click();
   await page.waitForFunction(()=>document.querySelector('.lxw-records-picker header small')?.textContent.includes('1 selected'));
   assert.equal(await count(),0,'selecting customers while drafting must not persist');
+  // A long conversation keeps following the latest turn until a deliberate
+  // user wheel/touch scroll occurs. Wheel input must target the empty
+  // side gutter of the OUTER chat scroller: the center may hit a nested
+  // 85-item list that consumes the wheel without moving the chat.
+  async function clickVisibleChatAction(target,description){
+   for(let attempt=0;attempt<32;attempt++){
+    const position=await target.evaluate(node=>{
+     const scroll=node.closest('.lourex-ai-messages');
+     if(!scroll)throw Error('The Controller has no scrollable conversation');
+     const rect=node.getBoundingClientRect(),viewport=scroll.getBoundingClientRect();
+     const desired=viewport.top+Math.min(160,viewport.height/2);
+     return{needed:Math.round(rect.top-desired),mouseX:viewport.left+8,
+       mouseY:viewport.top+viewport.height/2,
+       inView:rect.top>=viewport.top+2&&rect.bottom<=viewport.bottom-2};
+    });
+    if(position.inView)break;
+    await page.mouse.move(position.mouseX,position.mouseY);
+    await page.mouse.wheel(0,Math.max(-1200,Math.min(1200,position.needed)));
+    await page.waitForTimeout(75);
+   }
+   const geometry=await target.evaluate(node=>{
+    const rect=node.getBoundingClientRect(),scroll=node.closest('.lourex-ai-messages');
+    const box=scroll?.getBoundingClientRect();
+    return{top:Math.round(rect.top),bottom:Math.round(rect.bottom),viewport:innerHeight,
+      left:Math.round(rect.left),right:Math.round(rect.right),viewportWidth:innerWidth,
+      chatTop:box?Math.round(box.top):null,chatBottom:box?Math.round(box.bottom):null,
+      scrollTop:scroll?.scrollTop??null,scrollHeight:scroll?.scrollHeight??null,
+      enabled:!node.disabled};
+   });
+   assert.ok(geometry.enabled&&geometry.top>=0&&geometry.bottom<=geometry.viewport&&
+     geometry.left>=0&&geometry.right<=geometry.viewportWidth,
+     description+' must be reachable by real viewport scrolling: '+JSON.stringify(geometry));
+   await target.click({timeout:10000}); // Never force-click invisible controls.
+  }
   async function pdf(){
-   await card.getByRole('button',{name:'Generate PDF preview',exact:true}).click();
+   await clickVisibleChatAction(card.getByRole('button',{name:'Generate PDF preview',exact:true}),'PDF preview');
    const link=card.getByRole('link',{name:'Download PDF',exact:true});await link.waitFor({timeout:90000});
    const href=await link.getAttribute('href');
    const result=await page.evaluate(async href=>{
@@ -137,12 +178,15 @@ async function run(engine,name){
   await say('redo');assert.match(await card.innerText(),/1,?732\.00/);
   assert.notEqual(await pdf(),firstPdf);
   await say('save this draft');
-  await panel.getByRole('button',{name:'Decline',exact:true}).click();
+  await clickVisibleChatAction(panel.getByRole('button',{name:'Decline',exact:true}),'Decline');
   await page.waitForTimeout(300);assert.equal(await count(),0);await card.waitFor();
   await say('save this draft');
-  await card.getByRole('button',{name:'Approve and save quotation',exact:true}).click();
-  await card.getByRole('button',{name:'I reviewed the full draft',exact:true}).click();
-  await card.getByRole('button',{name:'Approve and save quotation',exact:true}).click();
+  // Chat text can request a review, but never authorizes a write. The
+  // user-owned Save draft button approves the displayed exact revision.
+  assert.equal(await count(),0,'chat request alone cannot persist a draft');
+  const saveButton=card.getByRole('button',{name:'Save draft',exact:true});
+  assert.equal(await saveButton.isEnabled(),true,'the reviewed draft must have an explicit Save action');
+  await clickVisibleChatAction(saveButton,'Save draft');
   // The UI confirmation occurs after the transaction and its document artifact
   // are returned. An isolated one-off count can race another vault writer.
   await panel.locator('.lourex-ai-created-artifact').waitFor({timeout:30000});
@@ -175,9 +219,9 @@ async function run(engine,name){
   assert.equal(await restored.getAttribute('data-artifact-id'),saved.second[0].id,
     'Restored document must match durable storage: '+JSON.stringify({beforeReloadMeta,afterReloadMeta}));
   assert.match(await restored.innerText(),/Saved/);
-  await restored.getByRole('button',{name:'Generate PDF · no save',exact:true}).click();
+  await clickVisibleChatAction(restored.getByRole('button',{name:'Generate PDF preview',exact:true}),'Reopened PDF preview');
   try{
-   await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:45000});
+   await restored.getByRole('link',{name:'Download PDF',exact:true}).waitFor({timeout:90000});
   }catch(error){
    const details=await page.evaluate(()=>{
     const card=document.querySelector('#lourex-ai-panel .lxw-chat-document');
@@ -207,4 +251,4 @@ async function run(engine,name){
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
  }finally{await browser.close();}
 }
-(async()=>{await run(chromium,'Chromium');await run(webkit,'WebKit');})().catch(e=>{console.error(e);process.exitCode=1});
+(async()=>{await run(webkit,'WebKit');await run(chromium,'Chromium');})().catch(e=>{console.error(e);process.exitCode=1});
