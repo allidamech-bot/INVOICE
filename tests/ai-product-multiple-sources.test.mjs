@@ -22,9 +22,9 @@ test('Product AI accepts generic-MIME Safari Files only for explicitly supported
     'never pretend an unsupported GIF is a PDF/image');
   assert.equal(mime({name:'photo',type:''}),'','no file type or extension must not be guessed');
   const ui=await read('src/components/ProductAiSourceReview.tsx');
-  assert.match(ui,/productAiSourceMime\\(sourceFile\\)/,
+  assert.match(ui,/productAiSourceMime\(sourceFile\)/,
     'Product AI must use this MIME guard rather than its old truthy file.type fallback');
-  assert.doesNotMatch(ui,/mimeFor\\(sourceFile\\)/);
+  assert.doesNotMatch(ui,/mimeFor\(sourceFile\)/);
 });
 
 test('Product AI aggregates every row and preserves original source ordering and currency',async()=>{
