@@ -1,10 +1,12 @@
 (() => {
   // Fail closed: never read runtime logs or run diagnostics until the server
   // verifies this Firebase user matches the single owner UID in Vercel.
+  let ownerAccessReason='ACCESS_NOT_CONFIRMED';
+  const denyOwnerAccess=reason=>{ownerAccessReason=reason;return false;};
   async function ownerPermission(){
     try{
       const fb=window.firebase;
-      if(!fb||typeof fb.auth!=='function')return false;
+      if(!fb||typeof fb.auth!=='function')return denyOwnerAccess('SDK_UNAVAILABLE');
       if(!fb.apps.length)fb.initializeApp({
         apiKey:'AIzaSyAgakNDqcKlyAFiOyfm1ebA8PB-_HKM-go',
         authDomain:'lourex-invoice.firebaseapp.com',projectId:'lourex-invoice'
@@ -12,23 +14,51 @@
       const user=await new Promise(resolve=>{
         let off=()=>{},settled=false;
         const settle=value=>{if(settled)return;settled=true;clearTimeout(timer);off();resolve(value);};
-        const timer=setTimeout(()=>settle(null),6500);
-        off=fb.auth().onAuthStateChanged(settle,()=>settle(null));
+        const timer=setTimeout(()=>{ownerAccessReason='SESSION_RESTORE_TIMEOUT';settle(null);},6500);
+        off=fb.auth().onAuthStateChanged(settle,()=>{ownerAccessReason='SESSION_RESTORE_FAILED';settle(null);});
       });
-      if(!user||typeof user.getIdToken!=='function')return false;
-      const token=await user.getIdToken();
+      if(!user||typeof user.getIdToken!=='function')return denyOwnerAccess(ownerAccessReason==='ACCESS_NOT_CONFIRMED'?'SIGN_IN_REQUIRED':ownerAccessReason);
+      let tokenTimer,token;
+      try{
+        token=await Promise.race([user.getIdToken(),new Promise((_,reject)=>{
+          tokenTimer=setTimeout(()=>reject(new Error('TOKEN_REFRESH_TIMEOUT')),7000);
+        })]);
+      }catch(error){return denyOwnerAccess(error?.message==='TOKEN_REFRESH_TIMEOUT'?'TOKEN_REFRESH_TIMEOUT':'TOKEN_REFRESH_FAILED');}
+      finally{clearTimeout(tokenTimer);}
       const response=await fetch('/api/ai-core',{
         method:'POST',cache:'no-store',
         headers:{'Authorization':'Bearer '+token,'X-Requested-With':'LOUREX-Invoice','X-Lourex-Admin-Diagnostics':'access-check'},
         signal:AbortSignal.timeout(7000)
       });
-      return response.ok&&(await response.json())?.allowed===true;
-    }catch{return false;}
+      if(response.status===401)return denyOwnerAccess('SESSION_REJECTED');
+      if(response.status===403)return denyOwnerAccess('OWNER_DIAGNOSTICS_FORBIDDEN');
+      if(!response.ok)return denyOwnerAccess('ACCESS_SERVICE_UNAVAILABLE');
+      let payload;try{payload=await response.json();}catch{return denyOwnerAccess('ACCESS_INVALID_RESPONSE');}
+      return payload?.allowed===true||denyOwnerAccess('ACCESS_NOT_CONFIRMED');
+    }catch(error){return denyOwnerAccess(error?.name==='TimeoutError'||error?.name==='AbortError'?'ACCESS_TIMEOUT':'ACCESS_NETWORK_ERROR');}
   }
   void (async()=>{
     if(!await ownerPermission()){
       const gate=document.getElementById('ownerGate');
-      if(gate)gate.textContent='Administrator-only diagnostics. Return to LOUREX. / التشخيص متاح للمسؤول المصرّح له فقط.';
+      if(gate){
+        // Fixed reason codes only. Never expose UID, tokens, server bodies or provider keys.
+        const help={
+          SDK_UNAVAILABLE:'Diagnostics sign-in module did not load / لم تُحمّل وحدة جلسة التشخيص.',
+          SIGN_IN_REQUIRED:'No signed-in session was restored on this page / لم تُستعد جلسة تسجيل الدخول في هذه الصفحة.',
+          SESSION_RESTORE_TIMEOUT:'Session restoration timed out / انتهت مهلة استعادة الجلسة.',
+          SESSION_RESTORE_FAILED:'Session restoration failed / تعذّرت استعادة الجلسة.',
+          TOKEN_REFRESH_TIMEOUT:'Session verification timed out / انتهت مهلة التحقق من الجلسة.',
+          TOKEN_REFRESH_FAILED:'Session verification failed / تعذّر التحقق من الجلسة.',
+          SESSION_REJECTED:'The server rejected this session / رفض الخادم جلسة الدخول.',
+          OWNER_DIAGNOSTICS_FORBIDDEN:'This session does not have diagnostics-owner permission / هذه الجلسة لا تملك صلاحية مالك التشخيص.',
+          ACCESS_SERVICE_UNAVAILABLE:'Diagnostics access service is unavailable / خدمة التحقق من صلاحية التشخيص غير متاحة.',
+          ACCESS_INVALID_RESPONSE:'Diagnostics access response was invalid / استجابة التحقق من الصلاحية غير صالحة.',
+          ACCESS_TIMEOUT:'Diagnostics access check timed out / انتهت مهلة التحقق من الصلاحية.',
+          ACCESS_NETWORK_ERROR:'Could not reach diagnostics access service / تعذّر الاتصال بخدمة التحقق من الصلاحية.',
+          ACCESS_NOT_CONFIRMED:'The server did not confirm owner access / لم يؤكد الخادم صلاحية المالك.'
+        };
+        gate.textContent='Administrator-only diagnostics / تشخيص المدير — '+ownerAccessReason+' — '+help[ownerAccessReason];
+      }
       return;
     }
     document.getElementById('ownerGate')?.remove();
