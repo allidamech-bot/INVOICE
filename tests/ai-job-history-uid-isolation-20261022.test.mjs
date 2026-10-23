@@ -279,11 +279,6 @@ test('unmount and close cancel only the captured in-flight AI Inbox identity',()
   assert.equal(jobs.readAiJobHistory().find(x=>x.id===old.id).note,'Already saved');
 });
 
-test('cleanup restores the real JS session global',()=>{
- if(oldSession===undefined)delete globalThis.sessionStorage;
- else globalThis.sessionStorage=oldSession;
-});
-
 test('AI Inbox quote and supplier save retries create distinct terminal job attempts',()=>{
   storage.clear();jobs.setTestUid('qa-save-retry');
   for(const [route,name] of [['quote_request','retry-quote.pdf'],['supplier_purchase','retry-purchase.pdf']]){
@@ -328,3 +323,9 @@ test('AI Inbox quote and supplier save retries create distinct terminal job atte
       name+' must not rely on potentially stale React currentJobId');
   }
 });
+
+test('cleanup restores the real JS session global',()=>{
+ if(oldSession===undefined)delete globalThis.sessionStorage;
+ else globalThis.sessionStorage=oldSession;
+});
+
