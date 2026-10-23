@@ -11,7 +11,7 @@ export function explicitlyNamedQuotationCustomer(message:string):string{
   const before=input.slice(Math.max(0,found.index-28),found.index).trimEnd();
   if(/(?:^|[\s،,])(?:بلا|بدون|من\s+دون|no|without|لا)(?:\s+(?:اسم|بيانات|وجود))?$/iu.test(before))return '';
   const raw=found[1]||'';
-  const name=raw.split(/(?:[؛،,.:()[\]\n]|\s+(?:(?:بصنفين|بصنف|بندين|الصنف|والصنف|صنفين|صنف|المنتج|والعملة|العملة|الكمية|كمية|السعر|سعر|وفيه|ويتضمن|عدد|with|containing|items?|lines?|quantity|qty|unit\s+price|currency|total)(?=[\s،,;:.!?]|$)))/iu)[0].replace(/\s+/gu,' ').trim();
+  const name=(raw.split(/(?:[؛،,.:()[\]\n]|\s+(?:(?:بصنفين|بصنف|بندين|الصنف|والصنف|صنفين|صنف|المنتج|والعملة|العملة|الكمية|كمية|السعر|سعر|وفيه|ويتضمن|عدد|with|containing|items?|lines?|quantity|qty|unit\s+price|currency|total)(?=[\s،,;:.!?]|$)))/iu)[0]||'').replace(/\s+/gu,' ').trim();
   if(name.length<2||name.length>100||!/^\p{L}/u.test(name)||/^(?:لا|none|unknown|unnamed|غير محدد)$/iu.test(name))return '';
   return name;
 }
