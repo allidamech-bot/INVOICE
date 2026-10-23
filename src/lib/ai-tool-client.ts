@@ -163,7 +163,7 @@ function likelyToolIntent(message:string,context:any):boolean{const q=clean(mess
 
 function previewOnlyDocumentIntent(message:string):boolean{
   const q=clean(message,6000).toLowerCase();
-  return Boolean(q&&/(?:preview\s*only|only\s+(?:a\s+)?preview|do\s+not\s+save|don't\s+save|without\s+saving|review\s*only|just\s+(?:show|preview)|no\s+save|معاينة\s*فقط|للمعاينة\s*فقط|لا\s*تحفظ|بدون\s*حفظ|فقط\s*اعرض|اعرض\s*فقط)/i.test(q));
+  return Boolean(q&&/(?:preview\s*only|only\s+(?:a\s+)?preview|do\s+not\s+save|don't\s+save|without\s+saving|review\s*only|just\s+(?:show|preview)|no\s+save|معاينة\s*فقط|للمعاينة\s*فقط|لا\s*تحفظ|بدون\s*حفظ|فقط\s*اعرض|اعرض\s*فقط|للمراجعة\s*فقط|فقط\s*للمراجعة|للعرض\s*فقط)/i.test(q));
 }
 function mentionedDocumentKind(message:string):'proforma'|'invoice'|null{
   const q=clean(message,6000).toLowerCase();
