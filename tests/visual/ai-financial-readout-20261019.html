@@ -26,7 +26,7 @@ import {renderConversationWorkspace} from './src/components/AiConversationWorksp
 import {formatAiBusinessRecordReply} from './src/lib/ai-tool-presentation.js';
 const params=new URLSearchParams(location.search);
 const lang=params.get('lang')==='en'?'en':'ar';
-document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+document.documentElement.dataset.uiTheme=params.get('theme')==='light'?'light':'dark';document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
 const panel=document.getElementById('lourex-ai-panel');panel.dir=lang==='ar'?'rtl':'ltr';
 const invoice={
  number:'INV-2026-0003',kind:'invoice',status:'final',issueDate:'2026-10-16',
