@@ -30,7 +30,6 @@ rounds, not a count of original checklist items.
 | [1004](https://github.com/allidamech-bot/INVOICE/pull/1004) | Tax report print visibility and actual UI/CSV/PDF parity | `66a18f68c5ed6e7bf4847c2f2a8676b4dabbb8fb` |
 | [1011](https://github.com/allidamech-bot/INVOICE/pull/1011) | Read-only treasury period report with per-account opening/closing, late void effects, separate unallocated movements, CSV/PDF | `b5adea05eaceb446cf07d2b04afeac7c56ae26e8` |
 | [1013](https://github.com/allidamech-bot/INVOICE/pull/1013) | Real stock transfers correctly labelled separately from adjustments in history and filters | `3f76d5330badd7bbe99d1590f3f3da25686e1548` |
-
 | [1015](https://github.com/allidamech-bot/INVOICE/pull/1015) | Item 5: read-only inventory movement print output, all filtered matches beyond the screen cap, full notes/references/signed quantities/warehouse endpoints; 12 browser cases and 4 native PDFs | `d2f5c77a469939c81ecec6629c4663b90bec71be` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
