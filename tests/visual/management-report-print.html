@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root"><div class="app-root"><div class="app-ui" id="visual-app"></div></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {ReportsPage} from './src/components/ReportsPage.js';
+import {AppShell} from './src/components/AppShell.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar',h=React.createElement;
+setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const company={...defaultCompany(),nameEn:'Synthetic Management QA',nameAr:'شركة اختبار التقارير الإدارية',logoDataUrl:'./brand/lourex-logo.svg'};
+const customers=[],documents=[],payments=[],now='2026-10-15T00:00:00.000Z';
+for(let n=1;n<=40;n++){
+ const id='QA-CUSTOMER-'+String(n).padStart(3,'0'),currency=n%2?'USD':'EUR';
+ const customer={id,companyNameEn:id+' Synthetic International Trading and Industrial Components',companyNameAr:id+' شركة التجارة الدولية والمكونات الصناعية للاختبار',createdAt:now,updatedAt:now};customers.push(customer);
+ const doc=createBlankDocument('invoice','INV-REPORT-'+n,company);Object.assign(doc,{id:'qa-invoice-'+n,status:'final',lifecycleStatus:'active',role:'standard',currency,issueDate:'2026-10-15',dueDate:'2026-10-20',workspaceId:'default',branchId:'main'});
+ doc.customerSnapshot={...customer,sourceCustomerId:id};doc.items=[{...doc.items[0],quantity:'1',unitPrice:'100.00',unitCost:'60.00',descriptionEn:'Synthetic service',descriptionAr:'خدمة اختبار'}];
+ Object.assign(doc.adjustments,{taxEnabled:false,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false});doc.internalCosts={shippingCost:'0.00',otherCost:'0.00'};documents.push(doc);
+ payments.push({id:'qa-payment-'+n,invoiceId:doc.id,invoiceNumber:doc.number,customerId:id,customerNameEn:customer.companyNameEn,customerNameAr:customer.companyNameAr,currency,amount:'25.00',date:'2026-10-16',method:'bank-transfer',reference:'QA-BANK-'+n,notes:'',createdAt:now,updatedAt:now,workspaceId:'default',branchId:'main'});
+}
+const future=structuredClone(documents[0]);Object.assign(future,{id:'future-invoice',number:'INV-FUTURE-EXCLUDED',issueDate:'2026-11-01',dueDate:'2026-11-20',customerSnapshot:{sourceCustomerId:'future-customer',companyNameEn:'QA-FUTURE-EXCLUDED',companyNameAr:'QA-FUTURE-EXCLUDED'}});documents.push(future);
+window.qaSource=()=>JSON.stringify({company,customers,documents,payments});window.qaPrintCalls=0;window.print=()=>window.qaPrintCalls++;
+const page=h(ReportsPage,{company,customers,documents,payments,suppliers:[],purchases:[],items:[],initialPeriod:{from:'2026-10-01',to:'2026-10-31'},ref:instance=>window.qaReport=instance});
+ReactDOM.render(h(AppShell,{screen:'reports',logoDataUrl:company.logoDataUrl,language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:'QA-SHELL-MUST-NOT-PRINT',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},h('main',{className:'main-content'},h('div',null,'QA-SHELL-MUST-NOT-PRINT'),page)),document.getElementById('visual-app'));
+</script></body></html>
