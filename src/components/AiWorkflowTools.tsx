@@ -8,7 +8,7 @@ import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
 import { aiWorkflowPrompt, searchBusinessRecords, type AiBusinessSearchResult, type AiInboxClassification, type AiInboxDocumentType, type AiInboxRoute, type AiWorkflowMode } from '../lib/ai-workflows.js';
 import { applyQuoteAiPricingCommand, buildQuoteAiReview, type QuoteAiReview, type QuoteAiSourceDraft, type QuoteAiSourceItem, type QuoteAiWarning } from '../lib/quote-ai-review.js';
-import { readAiJobHistory, startAiJob, updateAiJob, clearAiJobHistory, type AiJobHistoryEntry } from '../lib/ai-job-history.js';
+import { readAiJobHistory, startAiJob, activeOrFreshAiJob, updateAiJob, clearAiJobHistory, type AiJobHistoryEntry } from '../lib/ai-job-history.js';
 import { normalizeSupplierAiProposal, type SupplierAiProposal } from '../lib/supplier-ai-capture.js';
 import { createBlankDocument, nextDocumentNumber } from '../lib/documents.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
@@ -168,17 +168,28 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
       this.setState({classification:{route,documentType:'unknown',confidence:1,reason:t('Selected Product AI review','تم اختيار مراجعة ذكاء الأصناف')},forcedRoute:route,error:'',stage:'review'});return;
     }this.pending=true;const generation=++this.generation,controller=new AbortController();this.abort=controller;
     const documentType=this.state.classification?.documentType||'unknown';this.setState({classification:{route,documentType,confidence:1,reason:t('Chosen manually','تم الاختيار يدويًا')},forcedRoute:route,error:'',stage:'reading'});const needsExtraction=['quote_request','supplier_purchase','supplier'].includes(route);
-    this.markJob({route,status:needsExtraction?'processing':'needs-review',note:t('Chosen manually','تم الاختيار يدويًا')});
+    const job=activeOrFreshAiJob(this.state.currentJobId,
+      this.state.file?.name||t('Pasted text','النص الملصق'));
+    // Capture this attempt's identity synchronously. React state may update
+    // later, and an earlier failed/cancelled job must never be reused.
+    this.setState({currentJobId:job.id});
+    updateAiJob(job.id,{route,status:needsExtraction?'processing':'needs-review',
+      note:t('Chosen manually','تم الاختيار يدويًا')});
+    this.refreshJobs();
     try{
       const source=await this.payload();
       if(!this.current(generation,controller))return;
       await this.extractForRoute(route,source.fileName,source.payload,controller,generation);
       if(this.current(generation,controller)){
-        if(needsExtraction)this.markJob({status:'needs-review'});
+        if(needsExtraction){
+          updateAiJob(job.id,{status:'needs-review'});
+          this.refreshJobs();
+        }
         this.setState({stage:'review'});
       }
     }
-    catch(error){if(!this.current(generation,controller))return;this.markJob({status:'failed',note:error instanceof Error?error.message:String(error)});this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}
+    catch(error){if(!this.current(generation,controller))return;updateAiJob(job.id,{status:'failed',note:error instanceof Error?error.message:String(error)});
+      this.refreshJobs();this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}
     finally{if(generation===this.generation){this.pending=false;if(this.mounted)this.setState({});}if(this.abort===controller)this.abort=null;}
   };
   private handoff=()=>{const route=this.state.classification?.route;if(route!=='customer'&&route!=='product_list')return;const text=this.state.pastedText.trim();const file=this.state.file??(text?new File([text],'AI-Inbox.txt',{type:'text/plain'}):null);if(!file)return;setPendingSource(route,file,route==='product_list'?(this.state.productFiles.length?this.state.productFiles:[file]):undefined);this.markJob({status:'needs-review',note:t('Handed off for review','تم تحويله للمراجعة')});this.setState({open:false});window.dispatchEvent(new CustomEvent('lourex-global-action',{detail:{action:'navigate',target:route==='customer'?'customers':'items'}}));};
