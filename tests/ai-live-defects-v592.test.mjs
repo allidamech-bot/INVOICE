@@ -62,3 +62,21 @@ test('v592 keeps high-impact finance tools protected',async()=>{
   assert.match(source,/\['accounting\.post','high-impact'/);
   assert.match(source,/if\(HIGH_IMPACT\.has\(call\.tool\)\)return/);
 });
+
+test('AI-01 live Arabic review-only instruction cannot be promoted to durable draft',async()=>{
+ const {promoteDocumentCreationPlan}=await import('../dist/src/lib/ai-tool-client.js');
+ const executable={version:1,goal:'quote',calls:[{id:'qa',tool:'document.createDraft',args:{kind:'proforma',customerName:'QA Demo Customer',items:[]},reason:'provider suggested write'}]};
+ const prepare={version:1,goal:'quote',calls:[{id:'qa',tool:'quotation.prepare',args:{kind:'proforma',items:[]},reason:'review'}]};
+ for(const message of [
+  'أنشئ مسودة عرض سعر تجريبية لعميل QA Demo Customer بصنفين: QA Apple عدد 2 PCS بسعر وحدة 10 USD وQA Orange عدد 3 PCS بسعر وحدة 20 USD. الإجمالي 80 USD. اعرض المسودة للمراجعة فقط.',
+  'أنشئ مسودة عرض سعر للعميل سالم للمراجعة فقط',
+  'جهّز عرض سعر للعرض فقط',
+  'Create quotation for QA Demo Customer, for review only'
+ ]){
+  assert.equal(promoteDocumentCreationPlan(executable,message).calls[0].tool,'quotation.prepare',message);
+  assert.equal(promoteDocumentCreationPlan(prepare,message).calls[0].tool,'quotation.prepare',message);
+ }
+ assert.equal(promoteDocumentCreationPlan(prepare,'أنشئ عرض سعر للعميل سالم واحفظه بعد موافقتي').calls[0].tool,'document.createDraft','normal explicit draft action stays behind signed review');
+ const server=await read('api/ai-core.js');
+ assert.match(server,/للمراجعة\\s\*فقط/,'API also recognizes user review-only guard before accepting provider execution');
+});
