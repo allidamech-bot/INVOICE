@@ -14,7 +14,7 @@ export function productAiSourceMime(file:Pick<File,'name'|'type'>):string {
   const name=String(file.name||'').toLowerCase();
   if(name.endsWith('.pdf'))return'application/pdf';
   if(name.endsWith('.png'))return'image/png';
-  if(/\\.jpe?g$/.test(name))return'image/jpeg';
+  if(/\.jpe?g$/.test(name))return'image/jpeg';
   if(name.endsWith('.webp'))return'image/webp';
   if(name.endsWith('.txt'))return'text/plain';
   return declared;
