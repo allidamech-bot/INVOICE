@@ -5,7 +5,7 @@ document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl'
 document.documentElement.dataset.uiTheme='light';
 document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('printing'));
 </script></head>
-<body><div id="root"><div class="app-root"><div class="app-ui"></div><div class="print-portal" id="qa-output"></div></div></div>
+<body><div id="root"><div class="app-root"><div class="app-ui">QA-APP-CONTROL-LEAK</div><div class="print-portal" id="qa-output"></div></div></div>
 <script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
 import {TemplateRenderer} from './src/templates/TemplateRenderer.js';
 import {createBlankDocument} from './src/lib/documents.js';
@@ -14,15 +14,28 @@ import {createSupplier,supplierSnapshotFrom} from './src/lib/operations.js';
 import {calculateTotals} from './src/lib/money.js';
 import {setUiLanguage} from './src/lib/i18n.js';
 const query=new URLSearchParams(location.search),ar=query.get('lang')==='ar',template=query.get('template')==='executive'?'executive':'obsidian';
+const long=query.get('long')==='1';
 setUiLanguage(ar?'ar':'en');
 const company={...defaultCompany(),nameEn:'LOUREX Synthetic QA',nameAr:'لوريكس اختبار اصطناعي'};
 const supplier={...createSupplier(),id:'supplier-po-print-qa',nameEn:'Atlas Supplier',nameAr:'أطلس للتوريد',address:'Istanbul Warehouse',city:'Istanbul',country:'Türkiye',defaultCurrency:'USD'};
+if(long){
+ company.nameEn='LOUREX Synthetic Industrial Components and International Procurement QA';
+ company.nameAr='لوريكس الاختبار الاصطناعي للمكونات الصناعية والمشتريات الدولية';
+ const [w,h]=query.get('logo')==='tall'?[240,2400]:query.get('logo')==='wide'?[2400,240]:[1600,1600];
+ company.logoDataUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#176979"/><path d="M0 0L${w} ${h}M${w} 0L0 ${h}" stroke="#ffd65b" stroke-width="${Math.min(w,h)/6}"/></svg>`);
+ supplier.nameEn='Atlas Supplier for Synthetic Industrial Components and International Procurement';
+ supplier.nameAr='أطلس المورد التجريبي للمكونات الصناعية والمشتريات الدولية';
+}
 const doc=createBlankDocument('purchase-order','PO-QA-2026-003',company);
 Object.assign(doc,{id:'po-print-qa',status:'final',lifecycleStatus:'active',issueDate:'2026-10-16',dueDate:'2026-10-30',language:ar?'ar':'en',currency:'USD',supplierSnapshot:supplierSnapshotFrom(supplier),customerSnapshot:null});
 doc.items=[
  {...doc.items[0],id:'po-item-1',descriptionEn:'Synthetic valve assembly',descriptionAr:'مجموعة صمام تجريبية',quantity:'2',unit:'PCS',unitPrice:'125.00'},
  {...doc.items[0],id:'po-item-2',descriptionEn:'Synthetic fitting',descriptionAr:'وصلة تجريبية',quantity:'1',unit:'PCS',unitPrice:'75.00'}
 ];
+if(long)doc.items=Array.from({length:40},(_,i)=>({...doc.items[0],id:'po-long-'+i,sku:'QA-SKU'+String(i+1).padStart(3,'0'),
+ descriptionEn:'PO-LINE-'+String(i+1).padStart(3,'0')+' '+('Synthetic industrial valve assembly with detailed procurement specifications and delivery inspection requirements. '.repeat(3)),
+ descriptionAr:'بند'+String(i+1).padStart(3,'0')+' '+('مجموعة صمام صناعية تجريبية مع مواصفات شراء مفصلة ومتطلبات فحص التسليم والتحقق من الجودة. '.repeat(3)),
+ quantity:'1',unitPrice:'10.00'}));
 doc.adjustments={...doc.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:true,taxPercent:'10'};
 doc.appearance={...doc.appearance,templateId:template,showBank:false,showSignature:false,showStamp:false};
 window.qaSourceSnapshot=()=>JSON.stringify(doc);
