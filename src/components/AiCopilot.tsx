@@ -27,6 +27,7 @@ import {reviewAiDocumentProposal,type AiDocumentReview} from '../lib/ai-document
 import {reviseAiPendingDocumentDraft} from '../lib/ai-document-conversation.js';
 import { decimalToScaled, normalizeDecimalInput } from '../lib/money.js';
 import { advisorCalculation } from '../lib/advisor-calculator.js';
+import { explicitlyNamedQuotationCustomer } from '../lib/ai-explicit-quote-customer.js';
 import { SupplierDocumentImport } from './SupplierDocumentImport.js';
 import { isSupplierDocumentKind } from '../lib/document-kinds.js';
 import { Icon } from './UI.js';
@@ -144,7 +145,22 @@ export function safeProposal(value:any,context:AiContextEnvelope,message=''):AiP
   if(['item.archive','item.restore','item.updateMetadata','item.reviewDuplicate'].includes(value.capability)&&productIds.has(String(value.itemId||''))){const capability=value.capability as AiItemProposal['capability'];const relatedItemId=productIds.has(String(value.relatedItemId||''))?String(value.relatedItemId):'';const patch=capability==='item.updateMetadata'?safeMetadataPatch(value.patch):undefined;if(capability==='item.updateMetadata'&&!patch)return null;return{capability,itemId:String(value.itemId),relatedItemId,label:bounded(value.label||'Review product action',80),rationale:bounded(value.rationale,220),patch};}
   if(value.capability==='document.createDraft'){
     if(!Array.isArray(value.items)||value.items.length>20||value.items.some((entry:any)=>!entry||typeof entry!=='object'||Array.isArray(entry)))return null;
-    const kind=value.kind==='invoice'?'invoice':value.kind==='proforma'?'proforma':null;if(!kind)return null;const defaultCurrency=bounded(context.drafting.defaults.currency,8).toUpperCase();const requestedCurrency=bounded(value.currency,8).toUpperCase();const currency=requestedCurrency&&(requestedCurrency===defaultCurrency||messageContainsText(message,requestedCurrency))?requestedCurrency:defaultCurrency;if(!/^[A-Z0-9]{2,8}$/.test(currency))return null;const customer=context.drafting.customers.find(row=>row.id===String(value.customerId||''));const customerId=customer&&messageContainsText(message,customer.name)?customer.id:'';const customerDraft=customerId?null:safeCustomerDraft(value.customerDraft??value.customer,message);const language:DocumentLanguage=value.language==='ar'||value.language==='bilingual'?value.language:'en';const items=Array.isArray(value.items)?value.items.slice(0,20).map((entry:any)=>safeDraftItem(entry,context,message,currency)).filter(Boolean) as AiDraftItemInput[]:[];if(!items.length)return null;return{capability:'document.createDraft',kind,customerId,customerDraft,currency,language,items,incoterm:groundedText(value.incoterm,message,context.drafting.defaults.incoterm,80),paymentTerms:groundedText(value.paymentTerms,message,context.drafting.defaults.paymentTerms,120),deliveryTime:groundedText(value.deliveryTime,message,context.drafting.defaults.deliveryTime,120),validity:groundedAiValidity(value.validity,message,context.drafting.defaults.validity,100),remarks:groundedText(value.remarks,message,'',500),notes:groundedText(value.notes,message,'',500),label:bounded(value.label||`Create ${kind} draft`,80),rationale:bounded(value.rationale,220)};
+    const kind=value.kind==='invoice'?'invoice':value.kind==='proforma'?'proforma':null;if(!kind)return null;const defaultCurrency=bounded(context.drafting.defaults.currency,8).toUpperCase();const requestedCurrency=bounded(value.currency,8).toUpperCase();const currency=requestedCurrency&&(requestedCurrency===defaultCurrency||messageContainsText(message,requestedCurrency))?requestedCurrency:defaultCurrency;if(!/^[A-Z0-9]{2,8}$/.test(currency))return null;const customer=context.drafting.customers.find(row=>row.id===String(value.customerId||''));let customerId=customer&&messageContainsText(message,customer.name)?customer.id:'';let customerDraft=customerId?null:safeCustomerDraft(value.customerDraft??value.customer,message);
+    // A provider can omit a customer explicitly named in this quotation.
+    // Recover only the name from the CURRENT user request; it remains
+    // an unsaved preview until the existing signed save-approval gateway.
+    if(!customerId&&!customerDraft){
+      const name=explicitlyNamedQuotationCustomer(message);
+      if(name){
+        const exact=context.drafting.customers.filter(row=>normalized(row.name)===normalized(name));
+        if(exact.length===1)customerId=exact[0]!.id;
+        else if(exact.length===0){
+          const ar=/[\u0600-\u06ff]/u.test(name);
+          customerDraft={companyNameEn:ar?'':name,companyNameAr:ar?name:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+        }
+        // Multiple exact matches remain blocked; no guessed customer IDs.
+      }
+    }const language:DocumentLanguage=value.language==='ar'||value.language==='bilingual'?value.language:'en';const items=Array.isArray(value.items)?value.items.slice(0,20).map((entry:any)=>safeDraftItem(entry,context,message,currency)).filter(Boolean) as AiDraftItemInput[]:[];if(!items.length)return null;return{capability:'document.createDraft',kind,customerId,customerDraft,currency,language,items,incoterm:groundedText(value.incoterm,message,context.drafting.defaults.incoterm,80),paymentTerms:groundedText(value.paymentTerms,message,context.drafting.defaults.paymentTerms,120),deliveryTime:groundedText(value.deliveryTime,message,context.drafting.defaults.deliveryTime,120),validity:groundedAiValidity(value.validity,message,context.drafting.defaults.validity,100),remarks:groundedText(value.remarks,message,'',500),notes:groundedText(value.notes,message,'',500),label:bounded(value.label||`Create ${kind} draft`,80),rationale:bounded(value.rationale,220)};
   }
   if(value.capability==='document.updateDraft'){
     if(value.addItems!==undefined&&(!Array.isArray(value.addItems)||value.addItems.length>20||value.addItems.some((entry:any)=>!entry||typeof entry!=='object'||Array.isArray(entry))))return null;
