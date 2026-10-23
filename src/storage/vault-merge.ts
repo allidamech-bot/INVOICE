@@ -1,4 +1,4 @@
-import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
 import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isFinancialDecimalInput, isNonNegativeDecimalInput, isNonNegativeFinancialDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
@@ -821,6 +821,22 @@ function guardDocumentRevisionHistory(
       throw new Error('Document revision history is immutable.');
   }
 }
+// A new audit ID arriving independently from two devices must identify the
+// same event. Otherwise the generic ID merge would erase one side's evidence.
+function guardConcurrentDocumentEventIds(base:DocumentEventRecord[],intended:DocumentEventRecord[],latest:DocumentEventRecord[]):void{
+  const existing=new Set(base.map(event=>event.id)),remoteById=new Map(latest.map(event=>[event.id,event]));
+  const content=(event:DocumentEventRecord)=>JSON.stringify({...event,
+    workspaceId:event.workspaceId||'default',branchId:event.branchId||'main'},
+    (_key,value)=>value&&typeof value==='object'&&!Array.isArray(value)
+      ?Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]])):value);
+  for(const event of intended){
+    if(existing.has(event.id))continue; // Do not reinterpret stored history.
+    const remote=remoteById.get(event.id);
+    if(remote&&content(event)!==content(remote))throw new Error(t(
+      'Concurrent document event ID collision. Refresh before saving; neither audit event was replaced.',
+      'تعارض معرّف حدث جديد بين عمليتي حفظ. حدّث البيانات قبل الحفظ؛ لم يُستبدل أي حدث في سجل التدقيق.'));
+  }
+}
 // Preserve every newly imported purchase/expense independently: generic mergeRecords
 // indexes by ID and otherwise silently keeps the last duplicate.
 function guardNewOperationalRecordIds<T extends {id:string}>(base:T[],intended:T[],label:string):void{
@@ -1498,6 +1514,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertDeliveryInvoiceLedgerContinuity(base.documentEvents,intended.documentEvents,latest.documentEvents);
   guardNewOperationalRecordIds(base.documentEvents,intended.documentEvents,'document event');
   guardNewOperationalRecordIds(base.documentEvents,latest.documentEvents,'document event');
+  guardConcurrentDocumentEventIds(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertSalesStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertInvoiceStockLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   assertSalesReturnLedgerContinuity(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
