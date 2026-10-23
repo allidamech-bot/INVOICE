@@ -89,18 +89,27 @@ function canonicalSearchQuery(result:AiBusinessSearchResult):string{if(result.ki
 function sourceCommercialTerms(draft:QuoteAiSourceDraft):string[]{return [draft.incoterm,draft.paymentTerms,draft.deliveryTime,draft.validity,draft.remarks,draft.notes].map(value=>value.trim()).filter(Boolean);}
 
 export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRoute?:AiInboxRoute;disabled?:boolean},State>{
-  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceCaptureTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
+  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private inFlightJobId='';private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceCaptureTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
   state:State={open:false,view:'menu',stage:'idle',file:null,productFiles:[],pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false,voiceStarting:false,jobs:readAiJobHistory(),currentJobId:'',savedReference:''};
   componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.addEventListener('pagehide',this.onVoicePageHide);document.addEventListener('visibilitychange',this.onVoiceVisibilityChange);}
   componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.removeEventListener('pagehide',this.onVoicePageHide);document.removeEventListener('visibilitychange',this.onVoiceVisibilityChange);this.cancelAnalysis();this.stopVoice();}
-  private cancelAnalysis=()=>{this.generation++;this.pending=false;this.abort?.abort();this.abort=null;};
+  private cancelAnalysis=()=>{
+    // The mounted component owns this attempt even if React has not yet
+    // committed currentJobId. Aborting or unmounting must not leave a
+    // processing entry stranded in account-scoped session history.
+    if(this.inFlightJobId)updateAiJob(this.inFlightJobId,{
+      status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')
+    });
+    this.inFlightJobId='';
+    this.generation++;this.pending=false;this.abort?.abort();this.abort=null;
+  };
   private current=(generation:number,controller:AbortController)=>this.mounted&&generation===this.generation&&!controller.signal.aborted;
   private refreshJobs=()=>this.setState({jobs:readAiJobHistory()});
   private markJob=(patch:Parameters<typeof updateAiJob>[1])=>{if(this.state.currentJobId)updateAiJob(this.state.currentJobId,patch);this.refreshJobs();};
   private busy=()=>this.pending||this.saving||['reading','classifying','extracting','pricing','saving'].includes(this.state.stage);
-  private resetInbox=(forcedRoute:AiInboxRoute|null=null)=>{if(this.saving)return;if(this.pending)this.markJob({status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')});this.cancelAnalysis();this.setState({view:'inbox',stage:'idle',file:null,productFiles:[],pastedText:'',classification:null,forcedRoute,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',currentJobId:'',savedReference:''});};
+  private resetInbox=(forcedRoute:AiInboxRoute|null=null)=>{if(this.saving)return;if(this.pending&&!this.inFlightJobId)this.markJob({status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')});this.cancelAnalysis();this.setState({view:'inbox',stage:'idle',file:null,productFiles:[],pastedText:'',classification:null,forcedRoute,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',currentJobId:'',savedReference:''});};
   private openMenu=()=>{if(this.busy())return;this.setState({open:true,view:'menu',error:'',savedLabel:'',jobs:readAiJobHistory()});};
-  private close=()=>{if(this.saving||this.state.stage==='saving')return;if(this.busy())this.markJob({status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')});this.cancelAnalysis();this.stopVoice();this.setState({open:false,stage:'idle',error:'',listening:false,voiceStarting:false});};
+  private close=()=>{if(this.saving||this.state.stage==='saving')return;if(this.busy()&&!this.inFlightJobId)this.markJob({status:'cancelled',note:t('Analysis cancelled','تم إلغاء التحليل')});this.cancelAnalysis();this.stopVoice();this.setState({open:false,stage:'idle',error:'',listening:false,voiceStarting:false});};
   private openTool=(eventName:string)=>{if(this.busy())return;this.setState({open:false,error:''});window.setTimeout(()=>window.dispatchEvent(new Event(eventName)),0);};
   private chooseFile=(file:File|null)=>{if(!file||this.busy())return;this.setState({file,productFiles:[file],pastedText:'',classification:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',stage:'idle',savedLabel:'',currentJobId:'',savedReference:''});if(this.input)this.input.value='';};
   // Only Product AI accepts multiple files; other workflow contracts stay single-file.
@@ -128,7 +137,7 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     this.setState({stage:'reading',error:'',classification:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,savedLabel:''});let jobId='';
     try{
       const source=await this.payload();if(!this.current(generation,controller))return;
-      const job=startAiJob(source.fileName);jobId=job.id;this.setState({currentJobId:job.id,jobs:readAiJobHistory()});
+      const job=startAiJob(source.fileName);jobId=job.id;this.inFlightJobId=job.id;this.setState({currentJobId:job.id,jobs:readAiJobHistory()});
       const forced=this.state.forcedRoute;
       if(!forced)this.setState({stage:'classifying'});
       const body=forced?null:await postAi('/api/ai-inbox',source.fileName,source.payload,controller.signal);
@@ -149,7 +158,7 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
         this.setState({jobs:readAiJobHistory()});
       }
     }catch(error){if(!this.current(generation,controller))return;if(jobId)updateAiJob(jobId,{status:'failed',note:error instanceof Error?error.message:String(error)});this.setState({stage:'error',error:error instanceof Error?error.message:String(error),jobs:readAiJobHistory()});}
-    finally{if(generation===this.generation){this.pending=false;if(this.mounted)this.setState({});}if(this.abort===controller)this.abort=null;}
+    finally{if(generation===this.generation){this.inFlightJobId='';this.pending=false;if(this.mounted)this.setState({});}if(this.abort===controller)this.abort=null;}
   };
   private extractForRoute=async(route:AiInboxRoute,fileName:string,payload:AiPayload,controller:AbortController,generation:number)=>{
     if(!['quote_request','supplier_purchase','supplier'].includes(route))return;this.setState({stage:'extracting',error:''});
@@ -170,6 +179,7 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     const documentType=this.state.classification?.documentType||'unknown';this.setState({classification:{route,documentType,confidence:1,reason:t('Chosen manually','تم الاختيار يدويًا')},forcedRoute:route,error:'',stage:'reading'});const needsExtraction=['quote_request','supplier_purchase','supplier'].includes(route);
     const job=activeOrFreshAiJob(this.state.currentJobId,
       this.state.file?.name||t('Pasted text','النص الملصق'));
+    this.inFlightJobId=job.id;
     // Capture this attempt's identity synchronously. React state may update
     // later, and an earlier failed/cancelled job must never be reused.
     this.setState({currentJobId:job.id});
@@ -190,7 +200,7 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
     }
     catch(error){if(!this.current(generation,controller))return;updateAiJob(job.id,{status:'failed',note:error instanceof Error?error.message:String(error)});
       this.refreshJobs();this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}
-    finally{if(generation===this.generation){this.pending=false;if(this.mounted)this.setState({});}if(this.abort===controller)this.abort=null;}
+    finally{if(generation===this.generation){this.inFlightJobId='';this.pending=false;if(this.mounted)this.setState({});}if(this.abort===controller)this.abort=null;}
   };
   private handoff=()=>{const route=this.state.classification?.route;if(route!=='customer'&&route!=='product_list')return;const text=this.state.pastedText.trim();const file=this.state.file??(text?new File([text],'AI-Inbox.txt',{type:'text/plain'}):null);if(!file)return;setPendingSource(route,file,route==='product_list'?(this.state.productFiles.length?this.state.productFiles:[file]):undefined);this.markJob({status:'needs-review',note:t('Handed off for review','تم تحويله للمراجعة')});this.setState({open:false});window.dispatchEvent(new CustomEvent('lourex-global-action',{detail:{action:'navigate',target:route==='customer'?'customers':'items'}}));};
   private applyQuoteCommand=async()=>{
