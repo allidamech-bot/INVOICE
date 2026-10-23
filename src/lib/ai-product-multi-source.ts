@@ -48,6 +48,16 @@ export function combineProductAiSourceDrafts(inputs:ProductAiNamedDraft[]):Produ
     for(const raw of input.draft.items){
       if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('SOURCE_INCOMPLETE: Invalid product row in a source.');
       const row={...raw};
+      // Every explicit row-level currency is untrusted extracted data.
+      // Validate it independently of the file-level default; otherwise a
+      // malformed value such as "USD/EUR" could reach confirmed product
+      // master prices despite the document currency being valid.
+      for(const field of ['saleCurrency','costCurrency'] as const){
+        const value=String(row[field]??'').trim().toUpperCase();
+        if(value&&!/^[A-Z]{3}$/.test(value))
+          throw new Error('SOURCE_INCOMPLETE: A product row has an invalid '+(field==='saleCurrency'?'sale':'cost')+' currency. No products were saved.');
+        row[field]=value;
+      }
       // In a mixed-currency batch, carry the original source currency only
       // for amounts which actually appear. Never assume a default USD/EUR.
       if(row.salePrice&&!row.saleCurrency)row.saleCurrency=currency;

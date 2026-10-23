@@ -47,6 +47,31 @@ test('Product AI aggregates every row and preserves original source ordering and
   assert.deepEqual(review([],group.draft.items,group.draft.sourceCurrency).map(row=>row.classification),['new-product','new-product','new-product','new-product']);
 });
 
+test('Product AI fails closed on malformed row-level sale and cost currencies',async()=>{
+  const {combineProductAiSourceDrafts:combine}=await import('../dist/src/lib/ai-product-multi-source.js');
+  for(const bad of [
+    product('A',{salePrice:'10',saleCurrency:'USD/EUR'}),
+    product('B',{salePrice:'10',saleCurrency:'US'}),
+    product('C',{unitCost:'8',costCurrency:'12'}),
+    product('D',{unitCost:'8',costCurrency:'EUR,GBP'})
+  ]){
+    assert.throws(()=>combine([
+      source('valid.xlsx',[product('VALID',{salePrice:'10',saleCurrency:'USD'})],'USD'),
+      source('bad.png',[bad],'SAR')
+    ]),/SOURCE_INCOMPLETE: A product row has an invalid/);
+  }
+  const good=combine([
+    source('first.png',[product('X',{salePrice:'10',saleCurrency:' eur '})],'SAR'),
+    source('second.pdf',[product('Y',{unitCost:'5',costCurrency:' gbp '})],'USD')
+  ]);
+  assert.equal(good.draft.items[0].saleCurrency,'EUR');
+  assert.equal(good.draft.items[1].costCurrency,'GBP');
+  const missing=combine([source('unknown.png',[product('Z',{unitCost:'7'})])]);
+  assert.equal(missing.draft.items[0].costCurrency,'');
+  const {reviewProductAiRows:review}=await import('../dist/src/lib/product-ai-review.js');
+  assert.equal(review([],missing.draft.items,'')[0].classification,'needs-review');
+});
+
 test('Product AI marks cross-file duplicates as blocked before any default selection',async()=>{
   const {combineProductAiSourceDrafts:combine}=await import('../dist/src/lib/ai-product-multi-source.js');
   const {reviewProductAiRows:review}=await import('../dist/src/lib/product-ai-review.js');
