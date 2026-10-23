@@ -324,29 +324,40 @@ test('AI Inbox quote and supplier save retries create distinct terminal job atte
   }
 });
 
-test('pagehide cancels a running AI Inbox extraction but never interrupts a draft save',()=>{
+test('pagehide cancels a running AI Inbox extraction without interrupting a save or BFCache restore',()=>{
   const ui=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
   const lifecycle=ui.slice(ui.indexOf('componentDidMount():void'),ui.indexOf('private current='));
-  assert.match(lifecycle,/window\.addEventListener\('pagehide',this\.onInboxPageHide\)/,
-    'a real browser navigation must trigger Inbox cancellation even if React does not unmount');
-  assert.match(lifecycle,/window\.removeEventListener\('pagehide',this\.onInboxPageHide\)/,
-    'unmount must release the pagehide listener');
+  for(const event of ['pagehide','pageshow']){
+    const handler=event==='pagehide'?'onInboxPageHide':'onInboxPageShow';
+    assert.ok(lifecycle.includes("window.addEventListener('"+event+"',this."+handler+")"),
+      'register '+event+' event to manage full navigation or Safari BFCache');
+    assert.ok(lifecycle.includes("window.removeEventListener('"+event+"',this."+handler+")"),
+      'unregister '+event+' handler on React unmount');
+  }
   const handler=lifecycle.slice(lifecycle.indexOf('private onInboxPageHide=()=>'),lifecycle.indexOf('private current='));
   assert.match(handler,/if\(this\.saving\)return/,
-    'navigation during a potentially committed save must not assert cancellation');
-  assert.match(handler,/if\(this\.pending\|\|this\.inFlightJobId\)this\.cancelAnalysis\(\)/,
-    'only an active pending request may be finalized on pagehide');
+    'a possibly committed draft save cannot be marked cancelled');
+  assert.match(handler,/if\(this\.pending\|\|this\.inFlightJobId\)\{/,
+    'only an in-flight AI request is cancelled on navigation');
+  assert.match(handler,/this\.inboxInterruptedByPageHide=true;\s*this\.cancelAnalysis\(\)/,
+    'remember interrupted request before aborting provider');
+  assert.match(handler,/private onInboxPageShow=\(\)=>\{/,
+    'restoring BFCache tab must have a reconciliation handler');
+  assert.match(handler,/this\.inboxInterruptedByPageHide=false/,
+    'BFCache recovery marker must be one-shot');
+  assert.match(handler,/stage:'error',error:t\('AI analysis was interrupted by navigation/,
+    'restored tab must leave stale reading/extracting busy UI and present retry');
   const visibility=ui.slice(ui.indexOf('private onVoiceVisibilityChange='),ui.indexOf('private onComposerVoiceRequest='));
-  assert.doesNotMatch(visibility,/onInboxPageHide|cancelAnalysis/,
-    'backgrounding Safari must not cancel Inbox extraction');
+  assert.doesNotMatch(visibility,/onInboxPageHide|onInboxPageShow|cancelAnalysis/,
+    'switching apps must not cancel active analysis');
   storage.clear();jobs.setTestUid('qa-pagehide');
   const active=jobs.startAiJob('navigated-away.pdf');
   jobs.updateAiJob(active.id,{route:'quote_request'});
   jobs.updateAiJob(active.id,{status:'cancelled',note:'Analysis cancelled'});
   const cancelled=jobs.readAiJobHistory().find(row=>row.id===active.id);
-  jobs.updateAiJob(active.id,{status:'needs-review',note:'Late network response'});
+  jobs.updateAiJob(active.id,{status:'needs-review',note:'Late provider callback'});
   assert.deepEqual(jobs.readAiJobHistory().find(row=>row.id===active.id),cancelled,
-    'network completion after pagehide may not resurrect a cancelled job');
+    'late provider response may not resurrect a cancelled job');
 });
 
 test('cleanup restores the real JS session global',()=>{

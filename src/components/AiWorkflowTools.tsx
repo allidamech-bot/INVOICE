@@ -105,10 +105,10 @@ function canonicalSearchQuery(result:AiBusinessSearchResult):string{if(result.ki
 function sourceCommercialTerms(draft:QuoteAiSourceDraft):string[]{return [draft.incoterm,draft.paymentTerms,draft.deliveryTime,draft.validity,draft.remarks,draft.notes].map(value=>value.trim()).filter(Boolean);}
 
 export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRoute?:AiInboxRoute;disabled?:boolean},State>{
-  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private inFlightJobId='';private saving=false;private mounted=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceCaptureTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
+  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private recognition:any=null;private generation=0;private pending=false;private inFlightJobId='';private saving=false;private mounted=false;private inboxInterruptedByPageHide=false;private voiceGeneration=0;private voiceRetryTimer:ReturnType<typeof setTimeout>|null=null;private voiceCaptureTimer:ReturnType<typeof setTimeout>|null=null;private voiceReleaseUntil=0;
   state:State={open:false,view:'menu',stage:'idle',file:null,productFiles:[],pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,supplierProposal:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false,voiceStarting:false,jobs:readAiJobHistory(),currentJobId:'',savedReference:''};
-  componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.addEventListener('pagehide',this.onVoicePageHide);window.addEventListener('pagehide',this.onInboxPageHide);document.addEventListener('visibilitychange',this.onVoiceVisibilityChange);}
-  componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.removeEventListener('pagehide',this.onVoicePageHide);window.removeEventListener('pagehide',this.onInboxPageHide);document.removeEventListener('visibilitychange',this.onVoiceVisibilityChange);this.cancelAnalysis();this.stopVoice();}
+  componentDidMount():void{this.mounted=true;window.addEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.addEventListener('pagehide',this.onVoicePageHide);window.addEventListener('pagehide',this.onInboxPageHide);window.addEventListener('pageshow',this.onInboxPageShow);document.addEventListener('visibilitychange',this.onVoiceVisibilityChange);}
+  componentWillUnmount():void{this.mounted=false;window.removeEventListener('lourex-ai-composer-voice-request',this.onComposerVoiceRequest);window.removeEventListener('pagehide',this.onVoicePageHide);window.removeEventListener('pagehide',this.onInboxPageHide);window.removeEventListener('pageshow',this.onInboxPageShow);document.removeEventListener('visibilitychange',this.onVoiceVisibilityChange);this.cancelAnalysis();this.stopVoice();}
   private cancelAnalysis=()=>{
     // The mounted component owns this attempt even if React has not yet
     // committed currentJobId. Aborting or unmounting must not leave a
@@ -125,7 +125,17 @@ export class AiWorkflowTools extends React.Component<{compact?:boolean;defaultRo
   // Do not interfere with an already-committed or still-pending draft save.
   private onInboxPageHide=()=>{
     if(this.saving)return;
-    if(this.pending||this.inFlightJobId)this.cancelAnalysis();
+    if(this.pending||this.inFlightJobId){
+      this.inboxInterruptedByPageHide=true;
+      this.cancelAnalysis();
+    }
+  };
+  // Safari back/forward cache can restore the same React tree after pagehide.
+  // Release its stale extracting/reading state and offer a visible retry.
+  private onInboxPageShow=()=>{
+    if(!this.inboxInterruptedByPageHide)return;
+    this.inboxInterruptedByPageHide=false;
+    if(this.mounted)this.setState({stage:'error',error:t('AI analysis was interrupted by navigation. Retry the source.','انقطع تحليل AI بسبب مغادرة الصفحة. أعد المحاولة.')});
   };
   private current=(generation:number,controller:AbortController)=>this.mounted&&generation===this.generation&&!controller.signal.aborted;
   private refreshJobs=()=>this.setState({jobs:readAiJobHistory()});
