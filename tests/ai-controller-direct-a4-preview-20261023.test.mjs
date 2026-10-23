@@ -11,8 +11,8 @@ test('Controller PDF preview is a visible A4 renderer, never a download-only or 
   assert.match(source,/className="lxw-pdf-direct-viewport"/);
   assert.match(source,/className="lxw-pdf-direct-paper"/);
   assert.doesNotMatch(source,/<iframe title=\{label\(ar,'LOUREX PDF file preview'/);
-  assert.match(styles,/\\.lxw-pdf-direct-paper \\[class~='invoice-pages'\\]/);
-  assert.match(styles,/\\.lxw-pdf-direct-paper \\[class~='invoice-page'\\]/);
+  assert.match(styles,/\.lxw-pdf-direct-paper \[class~='invoice-pages'\]/);
+  assert.match(styles,/\.lxw-pdf-direct-paper \[class~='invoice-page'\]/);
   assert.match(styles,/transform-origin:top left/);
   assert.match(source,/new ResizeObserver\(fit\)/);
   assert.match(source,/new MutationObserver\(fit\)/);
