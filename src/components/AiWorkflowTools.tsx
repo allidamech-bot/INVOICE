@@ -9,6 +9,7 @@ import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet
 import { aiWorkflowPrompt, searchBusinessRecords, type AiBusinessSearchResult, type AiInboxClassification, type AiInboxDocumentType, type AiInboxRoute, type AiWorkflowMode } from '../lib/ai-workflows.js';
 import { applyQuoteAiPricingCommand, buildQuoteAiReview, type QuoteAiReview, type QuoteAiSourceDraft, type QuoteAiSourceItem, type QuoteAiWarning } from '../lib/quote-ai-review.js';
 import { readAiJobHistory, startAiJob, activeOrFreshAiJob, updateAiJob, clearAiJobHistory, type AiJobHistoryEntry } from '../lib/ai-job-history.js';
+import { productAiSourceMime, verifyProductAiBinarySignature } from '../lib/ai-product-multi-source.js';
 import { normalizeSupplierAiProposal, type SupplierAiProposal } from '../lib/supplier-ai-capture.js';
 import { createBlankDocument, nextDocumentNumber } from '../lib/documents.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
@@ -38,16 +39,31 @@ interface State{
 }
 
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
+async function verifyInboxBinarySource(file:File,mime:string):Promise<void>{
+  try{await verifyProductAiBinarySignature(file,mime);}
+  catch{throw new Error(t('The file content does not match its PDF/image type. No AI request was sent.','محتوى الملف لا يطابق نوع PDF/الصورة. لم يُرسل أي طلب إلى الذكاء الاصطناعي.'));}
+}
 async function sourcePayload(file:File):Promise<AiPayload>{
   const name=file.name.toLowerCase();
-  if(name.endsWith('.pdf')||file.type==='application/pdf'){
+  // Safari Files sometimes reports application/octet-stream for genuine PDF
+  // and image files. Only infer from supported extensions for generic MIME.
+  // A declared conflicting MIME must never be silently overridden.
+  const mime=productAiSourceMime(file);
+  if(name.endsWith('.pdf')&&mime!=='application/pdf')throw new Error(t('PDF file type does not match its filename.','نوع ملف PDF لا يطابق اسمه.'));
+  if(name.endsWith('.pdf')||mime==='application/pdf'){
     if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('This PDF is larger than 12 MB.','حجم PDF أكبر من 12 MB.'));
+    await verifyInboxBinarySource(file,'application/pdf');
     const text=await readablePdfText(file,MAX_TEXT_CHARS);
     if(text.trim())return{kind:'text',mimeType:'text/plain',text};
   }
   if(name.endsWith('.xlsx')||name.endsWith('.xls')||name.endsWith('.csv')){if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('This spreadsheet is larger than 12 MB.','حجم الجدول أكبر من 12 MB.'));const sheets=await readSpreadsheetFile(file);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t('The spreadsheet has no readable business data.','الجدول لا يحتوي بيانات أعمال قابلة للقراءة.'));return{kind:'text',mimeType:'text/csv',text};}
-  if(name.endsWith('.txt')){if(file.size>1_000_000)throw new Error(t('This text file is too large.','الملف النصي كبير جدًا.'));const text=await file.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));if(!text.trim())throw new Error(t('The text file is empty.','الملف النصي فارغ.'));return{kind:'text',mimeType:'text/plain',text};}
-  const mime=file.type||(name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error(t('Use PDF, image, Excel, CSV or TXT.','استخدم PDF أو صورة أو Excel أو CSV أو TXT.'));if(file.size>MAX_BINARY_BYTES)throw new Error(t('This PDF/image is too large for safe AI analysis. Reduce it below 2.6 MB.','ملف PDF/الصورة كبير للتحليل الآمن. خفّضه لأقل من 2.6 MB.'));return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
+  if(name.endsWith('.txt')){if(mime!=='text/plain')throw new Error(t('Text file type does not match its filename.','نوع الملف النصي لا يطابق اسمه.'));if(file.size>1_000_000)throw new Error(t('This text file is too large.','الملف النصي كبير جدًا.'));const text=await file.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));if(!text.trim())throw new Error(t('The text file is empty.','الملف النصي فارغ.'));return{kind:'text',mimeType:'text/plain',text};}
+  if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error(t('Use PDF, image, Excel, CSV or TXT.','استخدم PDF أو صورة أو Excel أو CSV أو TXT.'));
+  if(file.size>MAX_BINARY_BYTES)throw new Error(t('This PDF/image is too large for safe AI analysis. Reduce it below 2.6 MB.','ملف PDF/الصورة كبير للتحليل الآمن. خفّضه لأقل من 2.6 MB.'));
+  // Refuse mislabeled/corrupted image or scanned PDF bytes before posting to
+  // AI; the extension and browser-supplied MIME are only candidate types.
+  await verifyInboxBinarySource(file,mime);
+  return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
 async function postAi(endpoint:string,fileName:string,payload:AiPayload,signal?:AbortSignal):Promise<any>{return requestAiJson(endpoint,{fileName,...payload},signal);}
 /** Legacy voice composer fallback. The active chat may render a textarea

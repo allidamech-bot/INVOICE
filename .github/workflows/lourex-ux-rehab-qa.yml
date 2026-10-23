@@ -54,6 +54,8 @@ on:
       - 'src/lib/ai-workspace-model.ts'
       - 'src/lib/ai-pdf-preview.ts'
       - 'tests/ai-line-packing-review-parity-20261022.test.mjs'
+      - 'src/components/AiWorkflowTools.tsx'
+      - 'tests/ai-inbox-safari-source-integrity.test.mjs'
       - 'src/lib/ai-job-history.ts'
       - 'tests/ai-job-history-uid-isolation-20261022.test.mjs'
       - 'src/lib/ai-attachment-followup.ts'
