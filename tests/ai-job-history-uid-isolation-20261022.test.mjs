@@ -245,6 +245,40 @@ test('manual AI Inbox retry gets a new job ID after failure or cancellation, wit
     'manual async success and failure must never use a potentially stale job ID');
 });
 
+test('unmount and close cancel only the captured in-flight AI Inbox identity',()=>{
+  const source=readFileSync(new URL('../src/components/AiWorkflowTools.tsx',import.meta.url),'utf8');
+  const teardown=source.slice(source.indexOf('componentWillUnmount():void'),source.indexOf('private current='));
+  assert.match(teardown,/componentWillUnmount\(\):void\{[^\n]*this\.cancelAnalysis\(\)/,
+    'unmount must invoke the same cancellation path as closing the modal');
+  assert.match(teardown,/if\(this\.inFlightJobId\)updateAiJob\(this\.inFlightJobId,\{/,
+    'cancel the captured real attempt, not an old React state ID');
+  assert.match(teardown,/status:'cancelled'/,
+    'unmount must not leave a processing row forever');
+  assert.ok(teardown.indexOf("this.inFlightJobId=''")<
+    teardown.indexOf('this.generation++'),
+    'clear the ownership before invalidating callbacks');
+  const classify=source.slice(source.indexOf('private classify=async()=>'),source.indexOf('private extractForRoute=async('));
+  const manual=source.slice(source.indexOf('private forceRoute=async('),source.indexOf('private handoff=()=>'));
+  assert.match(classify,/jobId=job\.id;this\.inFlightJobId=job\.id/,
+    'automatic classifier captures the active ID synchronously');
+  assert.match(manual,/this\.inFlightJobId=job\.id/,
+    'manual retry must also capture its new ID');
+  for(const [label,path] of [['classify',classify],['manual',manual]]){
+    assert.match(path,/finally\{if\(generation===this\.generation\)\{this\.inFlightJobId='';this\.pending=false/,
+      label+' must release ownership only for its own generation');
+  }
+  storage.clear();jobs.setTestUid('qa-unmount');
+  const old=jobs.startAiJob('old-finished.pdf');
+  jobs.updateAiJob(old.id,{status:'completed',note:'Already saved'});
+  const active=jobs.startAiJob('new-running.pdf');
+  jobs.updateAiJob(active.id,{status:'cancelled',note:'Analysis cancelled'});
+  jobs.updateAiJob(active.id,{status:'completed',note:'Late network response'});
+  assert.equal(jobs.readAiJobHistory().find(x=>x.id===active.id).status,'cancelled');
+  assert.equal(jobs.readAiJobHistory().find(x=>x.id===old.id).status,'completed',
+    'cancel affects only the captured in-flight job, never previous saves');
+  assert.equal(jobs.readAiJobHistory().find(x=>x.id===old.id).note,'Already saved');
+});
+
 test('cleanup restores the real JS session global',()=>{
  if(oldSession===undefined)delete globalThis.sessionStorage;
  else globalThis.sessionStorage=oldSession;
