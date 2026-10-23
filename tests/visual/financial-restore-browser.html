@@ -26,10 +26,10 @@ function fixture(){
  return issued;
 }
 function harness(v,uid){
- const h=new RestoreHarness();h.state={vault:structuredClone(v),cloudUser:{uid},cloudSyncState:'synced',uiLanguage:'en'};
- h.syncs=0;h.ends=0;h.editorMustBeClosed=()=>{};h.drainVaultWrites=async()=>{};
+ const h=new RestoreHarness();h.state={vault:structuredClone(v),cloudUser:{uid},cloudSyncState:'synced',uiLanguage:'en',unlocked:true};
+ h.syncs=0;h.ends=0;h.editorMustBeClosed=()=>{};h.vaultWriteTail=Promise.resolve(null);
  h.beginProtectedOperation=async()=>{};h.endProtectedOperation=()=>h.ends++;
- h.setState=(patch,done)=>{Object.assign(h.state,patch);done?.();};h.scheduleCloudSync=delay=>{check(delay===300,'sync delay');h.syncs++;};return h;
+ h.setState=(patch,done)=>{Object.assign(h.state,patch);done?.();};h.scheduleCloudSync=delay=>{check(delay===undefined||delay===300,'sync delay');h.syncs++;};return h;
 }
 // Read the complete synthetic account store, including restore archives.
 window.qaRecords=uid=>new Promise((resolve,reject)=>{
@@ -50,8 +50,41 @@ window.qaUpdate=async({uid,revision})=>{
 window.qaRead=async uid=>{await db.activateAccountStorage(uid);return db.getPlainWorkspace();};
 window.qaRun=async scenario=>{
  const uid='qa-'+scenario+'-a',other='qa-'+scenario+'-b',v=fixture();
+ if(scenario.startsWith('audit-')){
+  const draft=createBlankDocument('proforma','PI-QA-AUDIT',v.company);
+  Object.assign(draft,{id:'qa-audit-deleted-draft',status:'draft',workspaceId:'default',branchId:'main'});v.documents.push(draft);
+ }
  await db.activateAccountStorage(uid);configure(uid);await db.savePlainWorkspace(uid,v,'cloud-base','a'.repeat(64));
  const h=harness(v,uid),before=await db.getPlainWorkspace(),recordsBefore=await window.qaRecords(uid);
+ if(scenario.startsWith('audit-')){
+  const intended=structuredClone(h.requireVault());intended.documents=intended.documents.filter(d=>d.id!=='qa-audit-deleted-draft');
+  if(scenario==='audit-abort'){
+   const nativePut=IDBObjectStore.prototype.put;let written=false,error='';
+   IDBObjectStore.prototype.put=function(record,...args){const request=nativePut.call(this,record,...args);
+    if(record.id==='workspace-v2'&&this.transaction.db.name==='lourex-invoice-account-'+encodeURIComponent(uid))request.addEventListener('success',()=>{written=true;this.transaction.abort();});
+    return request;
+   };
+   try{await h.persist(intended);}catch(e){error=e.message;}finally{IDBObjectStore.prototype.put=nativePut;}
+   check(written&&/abort|Concurrent workspace save failed/i.test(error),'persist aborted after native workspace write succeeded');
+   same(await db.getPlainWorkspace(),before,'failed persist stores no deletion or successful audit');
+   same(await window.qaRecords(uid),recordsBefore,'failed persist leaves all records unchanged');
+   same(h.state.vault,v,'failed persist leaves UI unchanged');check(h.syncs===0,'failed persist schedules no sync');
+  }
+  await h.persist(intended);const accepted=await db.getPlainWorkspace();
+  check(!accepted.payload.documents.some(d=>d.id==='qa-audit-deleted-draft'),'accepted draft deleted');
+  const deletion=accepted.payload.documentEvents.filter(e=>e.auditEntityId==='qa-audit-deleted-draft'&&e.auditAction==='deleted');
+  check(deletion.length===1,'accepted deletion has exactly one audit event');
+  check(deletion[0].workspaceId==='default'&&deletion[0].branchId==='main','deletion audit scope');
+  same(accepted.payload.documentEvents.filter(e=>e.id==='qa-event-fixed'),v.documentEvents,'prior financial audit unchanged');
+  same(accepted.payload.payments,v.payments,'customer receipt unchanged');same(accepted.payload.inventoryMovements,v.inventoryMovements,'stock unchanged');
+  await h.persist(structuredClone(h.requireVault()));const replayed=await db.getPlainWorkspace();same(replayed.payload.documentEvents,accepted.payload.documentEvents,'unchanged persistence does not duplicate audit');
+  let captured;Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{captured=data.files[0];}});Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});
+  await h.backup();const exported=JSON.parse(await captured.text());same(exported.payload.documentEvents,accepted.payload.documentEvents,'actual backup preserves accepted event identities');
+  await h.restore(file(reorder(exported.payload)));
+  const result=await db.getPlainWorkspace();same(result.payload,replayed.payload,'restore preserves accepted deletion, financial data and audit');
+  check(h.syncs===3,'only accepted save, replay and restore schedule sync');
+  return {uid,expected:result,records:await window.qaRecords(uid)};
+ }
  if(scenario==='roundtrip'){
   let captured;Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{captured=data.files[0];}});Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});
   await h.backup();check(captured instanceof File,'actual backup exports File');
