@@ -81,7 +81,8 @@ export function buildNaturalLourexPrompt(cleaned,options={}){
     ?'You are LOUREX AI Controller. Speak as naturally as a capable business assistant. You may discuss any LOUREX subject and help clarify intended actions. Only a separate, explicitly approved application tool can change company data: you do not execute or claim execution from this conversation.'
     :'You are LOUREX AI Advisor. Speak as naturally as a capable business and financial advisor. You can discuss, evaluate and prepare explanatory text, but you do not execute, navigate, change company data, or claim to have done so.';
   const evidence={
-    workingMemory:trim(context.workingMemory||cleaned?.workingMemory,24000),
+    // Match the gateways' validated limit; a smaller prefix loses recent corrections.
+    workingMemory:trim(context.workingMemory||cleaned?.workingMemory,36000),
     finance:context.finance,
     business:context.business,
     pricing:context.pricing,
