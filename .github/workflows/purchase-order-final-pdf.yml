@@ -38,6 +38,7 @@ jobs:
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/purchase-order-final-print.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Purchase order fixture did not start");'
           node tests/visual/run-purchase-order-final-print.cjs
+          node tests/visual/run-purchase-order-final-print.cjs --long
       - uses: actions/upload-artifact@v4
         if: always()
         with:
