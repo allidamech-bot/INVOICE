@@ -26,7 +26,7 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     assert.ok(content.includes('PO-QA-2026-003'),'actual purchase order number');
     assert.ok(content.includes(total),'tax-inclusive total present');
     if(long){
-      for(let n=1;n<=40;n++)assert.ok(content.includes('PO-LINE-'+String(n).padStart(3,'0')),'every long purchase order line in DOM');
+      for(let n=1;n<=40;n++)assert.ok(content.includes((language==='ar'?'بند':'PO-LINE-')+String(n).padStart(3,'0')),'every long purchase order line in DOM');
       const images=await page.locator('.print-portal .doc-logo img').evaluateAll(imgs=>imgs.map(img=>{const r=img.getBoundingClientRect(),p=img.closest('.invoice-page').getBoundingClientRect(),h=img.closest('.doc-logo').getBoundingClientRect();return {width:img.naturalWidth,height:img.naturalHeight,contained:r.width>0&&r.height>0&&r.left>=p.left-1&&r.right<=p.right+1&&r.top>=p.top-1&&r.bottom<=p.bottom+1&&r.left>=h.left-1&&r.right<=h.right+1&&r.top>=h.top-1&&r.bottom<=h.bottom+1};}));
       assert.ok(images.length>0&&images.every(img=>img.width>0&&img.height>0&&img.contained),'large logos decoded and contained within their logo box and printed page');
     }else{
@@ -62,7 +62,7 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
       assert.ok(pdfText.includes('PO-QA-2026-003'),'PDF has correct purchase order reference');
       assert.ok(pdfText.includes(total),'PDF has accurate total');
       assert.ok(!pdfText.includes('QA-APP-CONTROL-LEAK'),'application controls excluded');
-      if(long)for(let n=1;n<=40;n++){const marker='PO-LINE-'+String(n).padStart(3,'0');assert.equal(pdfText.split(marker).length-1,1,'PDF preserves line exactly once: '+marker);}
+      if(long&&language==='en')for(let n=1;n<=40;n++){const marker='PO-LINE-'+String(n).padStart(3,'0');assert.equal(pdfText.split(marker).length-1,1,'PDF preserves line exactly once: '+marker);}
       if(long){
         const compact=value=>normalize(value).replace(/\s+/g,'');
         for(let i=0;i<descriptions.length;i++){
@@ -71,6 +71,7 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
           else{
             // Arabic PDF extraction may reverse visual runs. Compare exact
             // glyph inventories within this item's description cells only.
+            assert.equal(actual.split(String(i+1).padStart(3,'0')).length-1,1,'Arabic item reference appears once in its description');
             const glyphs=value=>[...value.replace(/[^\u0600-\u06ff]/g,'')].sort().join('');
             assert.equal(glyphs(actual),glyphs(expected),'complete Arabic description including continuation fragments');
           }

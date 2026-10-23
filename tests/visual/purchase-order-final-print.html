@@ -34,7 +34,7 @@ doc.items=[
 ];
 if(long)doc.items=Array.from({length:40},(_,i)=>({...doc.items[0],id:'po-long-'+i,sku:'QA-SKU'+String(i+1).padStart(3,'0'),
  descriptionEn:'PO-LINE-'+String(i+1).padStart(3,'0')+' '+('Synthetic industrial valve assembly with detailed procurement specifications and delivery inspection requirements. '.repeat(3)),
- descriptionAr:'PO-LINE-'+String(i+1).padStart(3,'0')+' '+('مجموعة صمام صناعية تجريبية مع مواصفات شراء مفصلة ومتطلبات فحص التسليم والتحقق من الجودة. '.repeat(3)),
+ descriptionAr:'بند'+String(i+1).padStart(3,'0')+' '+('مجموعة صمام صناعية تجريبية مع مواصفات شراء مفصلة ومتطلبات فحص التسليم والتحقق من الجودة. '.repeat(3)),
  quantity:'1',unitPrice:'10.00'}));
 doc.adjustments={...doc.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:true,taxPercent:'10'};
 doc.appearance={...doc.appearance,templateId:template,showBank:false,showSignature:false,showStamp:false};
