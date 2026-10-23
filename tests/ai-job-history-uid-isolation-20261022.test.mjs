@@ -135,6 +135,36 @@ test('Firebase account transition denies stale local UID history, writes and cle
  assert.ok(![...storage.values()].some(value=>value.includes('must-not-save-during-transition.pdf')));
 });
 
+test('terminal AI jobs reject late status resurrection and retries use a new identity',()=>{
+  storage.clear();jobs.setTestUid('qa-terminal-states');
+  const cancelled=jobs.startAiJob('cancelled-source.pdf');
+  jobs.updateAiJob(cancelled.id,{status:'cancelled',note:'User cancelled'});
+  const cancelledAt=jobs.readAiJobHistory().find(row=>row.id===cancelled.id).updatedAt;
+  jobs.updateAiJob(cancelled.id,{status:'completed',note:'Stale provider returned after cancellation'});
+  let entry=jobs.readAiJobHistory().find(row=>row.id===cancelled.id);
+  assert.equal(entry.status,'cancelled');
+  assert.equal(entry.note,'User cancelled');
+  assert.equal(entry.updatedAt,cancelledAt,'rejected callback may not silently alter terminal timestamp');
+  const reviewed=jobs.startAiJob('review-source.xlsx');
+  jobs.updateAiJob(reviewed.id,{status:'needs-review'});
+  jobs.updateAiJob(reviewed.id,{status:'processing'});
+  jobs.updateAiJob(reviewed.id,{status:'completed',note:'Saved once'});
+  jobs.updateAiJob(reviewed.id,{status:'failed',note:'Late error after save'});
+  entry=jobs.readAiJobHistory().find(row=>row.id===reviewed.id);
+  assert.equal(entry.status,'completed');
+  assert.equal(entry.note,'Saved once');
+  const failed=jobs.startAiJob('failed-source.png');
+  jobs.updateAiJob(failed.id,{status:'failed',note:'Provider failed'});
+  jobs.updateAiJob(failed.id,{status:'needs-review',note:'Outdated retry callback'});
+  entry=jobs.readAiJobHistory().find(row=>row.id===failed.id);
+  assert.equal(entry.status,'failed');
+  assert.equal(entry.note,'Provider failed');
+  const retry=jobs.startAiJob('failed-source.png');
+  assert.notEqual(retry.id,failed.id,'retry needs its own job identity');
+  assert.equal(retry.status,'processing');
+  assert.equal(jobs.readAiJobHistory().find(row=>row.id===failed.id).status,'failed');
+});
+
 test('cleanup restores the real JS session global',()=>{
  if(oldSession===undefined)delete globalThis.sessionStorage;
  else globalThis.sessionStorage=oldSession;
