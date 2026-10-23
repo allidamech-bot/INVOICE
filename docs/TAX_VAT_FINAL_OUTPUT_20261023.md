@@ -41,10 +41,13 @@ PDF checks retain each reference once, dates, currency and known totals, no blan
 pages or shell sentinel, and the explicit Input VAT exclusion. Source documents
 must remain unchanged and afterprint must clear print mode.
 
-Arabic PDF.js output may consist of visual-order individual presentation glyphs.
-The scope-note assertion reverses raw Arabic glyph order before NFKC normalization
-when necessary; negative totals retain the explicit minus in either extracted
-RTL or LTR order. CSV financial values remain exact signed decimal comparisons.
+Arabic PDF.js output can reorder presentation glyphs differently by installed
+font. The test isolates the footer's PDF region using its unique LOUREX baseline,
+then compares its complete normalized Arabic character inventory with the actual
+rendered footer. The failed CI artifact retained all 103 expected Arabic characters
+exactly; the former partial-phrase extraction assertion was too narrow. English
+footer text is compared completely. Negative totals retain the explicit minus in
+either extracted RTL or LTR order, and CSV values remain exact signed decimals.
 These extraction accommodations do not change rendered output or accounting.
 
 ## Evidence and limits
