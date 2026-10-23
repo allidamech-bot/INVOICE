@@ -1,0 +1,53 @@
+name: Inventory movement print acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/OperationsPage.tsx'
+      - 'src/components/InventoryMovementReport.tsx'
+      - 'src/styles/inventory-planning-batch7.css'
+      - 'tests/visual/inventory-movement-print.html'
+      - 'tests/visual/run-inventory-movement-print.cjs'
+      - '.github/workflows/inventory-movement-print.yml'
+permissions:
+  contents: read
+concurrency:
+  group: inventory-movement-print-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  movement-print:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - run: npm run typecheck
+      - run: npm run build
+      - run: node --test tests/*.test.mjs
+      - name: Existing warehouse balance and transfer safety
+        run: node --test tests/inventory-warehouse-saved-cycle.test.mjs tests/audit-warehouse-transfer-scope-integrity.test.mjs tests/b10-warehouse-ledger-parity.test.mjs
+      - run: npm install --no-save --package-lock=false playwright@1.56.1 http-server@14.1.1
+      - name: Movement output, complete filters and native PDFs
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-inventory-http.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/inventory-movement-print.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Inventory fixture did not start");'
+          node tests/visual/run-inventory-movement-print.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inventory-movement-print
+          path: visual-qa-output/inventory-movement-print/
+          retention-days: 7
