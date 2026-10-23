@@ -268,3 +268,34 @@ test('business copilot fails safely rather than using low-accuracy Gemini or una
  assert.equal(urls.length,2,'only Groq and Cloudflare are allowed');
  assert.ok(urls.every(url=>url.includes('groq.com')||url.includes('cloudflare.com')));
 });
+
+
+test('private deep and vision dialogue never escapes the financially screened model pair',async()=>{
+ configureAll();
+ const seen=[];
+ globalThis.fetch=async(url,options)=>{
+  seen.push({url:String(url),model:JSON.parse(options.body).model});
+  if(String(url).includes('groq.com'))return response(401,{});
+  return response(200,{choices:[{message:{content:'{"value":"screened"}'}}]});
+ };
+ for(const request of [
+  {taskType:'cfo_report',reasoningLevel:'deep'},
+  {taskType:'business_copilot',reasoningLevel:'deep'},
+  {taskType:'business_copilot',attachments:[{kind:'image',mimeType:'image/png',data:'YWJj'}]},
+ ]){
+  seen.length=0;
+  const result=await routeAiStructured({...request,prompt:'Synthetic private-context routing check',schema:schema()});
+  assert.equal(result.success,true);
+  assert.equal(result.model,'@cf/google/gemma-4-26b-a4b-it');
+  assert.ok(seen.every(call=>['openai/gpt-oss-120b','@cf/google/gemma-4-26b-a4b-it'].includes(call.model)));
+ }
+});
+
+test('deep private dialogue fails closed if only an unscreened vendor is configured',async()=>{
+ delete process.env.GROQ_API_KEY;delete process.env.CLOUDFLARE_AI_API_TOKEN;delete process.env.CLOUDFLARE_ACCOUNT_ID;
+ process.env.GEMINI_API_KEY='synthetic-only';
+ let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{candidates:[{content:{parts:[{text:'{"value":"must not dispatch"}'}]}}]});};
+ const result=await routeAiStructured({taskType:'cfo_report',reasoningLevel:'deep',prompt:'Synthetic data',schema:schema()});
+ assert.equal(result.success,false);
+ assert.equal(calls,0);
+});
