@@ -63,7 +63,7 @@ function payableStatusLabel(status:ReturnType<typeof purchasePayableSummary>['st
 function expenseCategoryLabel(category:string):string{
   if(category==='General')return t('General','عام');if(category==='Freight')return t('Freight','شحن');if(category==='Customs')return t('Customs','جمارك');if(category==='Storage')return t('Storage','تخزين');if(category==='Transport')return t('Transport','نقل');if(category==='Marketing')return t('Marketing','تسويق');if(category==='Office')return t('Office','مكتب');if(category==='Professional')return t('Professional','خدمات مهنية');if(category==='Bank Fees')return t('Bank Fees','رسوم بنكية');if(category==='Other')return t('Other','أخرى');return category;
 }
-function movementTypeLabel(type:InventoryMovementType):string{if(type==='purchase')return t('Purchase receipt','استلام شراء');if(type==='purchase-reversal')return t('Purchase reversal','عكس شراء');if(type==='opening')return t('Opening stock','رصيد افتتاحي');if(type==='issue')return t('Stock issue','إخراج مخزون');return t('Adjustment','تسوية');}
+function movementTypeLabel(type:InventoryMovementType):string{if(type==='transfer')return t('Stock transfer','تحويل مخزون');if(type==='purchase')return t('Purchase receipt','استلام شراء');if(type==='purchase-reversal')return t('Purchase reversal','عكس شراء');if(type==='opening')return t('Opening stock','رصيد افتتاحي');if(type==='issue')return t('Stock issue','إخراج مخزون');return t('Adjustment','تسوية');}
 
 export class OperationsPage extends React.Component<Props,State>{
   private mutationInFlight=false;

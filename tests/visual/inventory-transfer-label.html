@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head><body><div id="root"><div class="app-root"><div class="app-ui" id="visual-app"></div></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {ProductsInventoryWorkspace} from './src/components/ProductsInventoryWorkspace.js';
+import {AppShell} from './src/components/AppShell.js';
+import {createWarehouseTransfer,defaultWarehouseId,warehouseItemQuantity} from './src/lib/warehouses.js';
+import {createManualInventoryMovement,inventoryBalances} from './src/lib/operations.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar',h=React.createElement,now='2026-10-23T00:00:00.000Z';setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const workspaceId='default',branchId='main',source=defaultWarehouseId(branchId),destination='QA-REMOTE';
+const item={id:'QA-ITEM',sku:'QA-SKU',descriptionEn:'Synthetic transfer product',descriptionAr:'صنف تحويل اصطناعي',unit:'PCS',lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'5.00',lastCostCurrency:'USD',createdAt:now,updatedAt:now,usageCount:0,lastUsedAt:now,workspaceId,branchId};
+const opening={...createManualInventoryMovement(item,'opening','10','2026-10-01','QA opening','5.00','USD'),id:'QA-OPENING',workspaceId,branchId,toWarehouseId:source,sourceNumber:'REF-OPENING'};
+const transfer={...createWarehouseTransfer(item,source,destination,'4','2026-10-02','QA transfer'),id:'QA-TRANSFER',workspaceId,branchId,sourceNumber:'REF-TRANSFER'};
+const adjustment={...createManualInventoryMovement(item,'adjustment','2','2026-10-03','QA adjustment','5.00','USD'),id:'QA-ADJUSTMENT',workspaceId,branchId,toWarehouseId:source,sourceNumber:'REF-ADJUSTMENT'};
+const movements=[opening,transfer,adjustment],warehouses=[{id:source,name:'QA primary',code:'MAIN',active:true,workspaceId,branchId,createdAt:now,updatedAt:now},{id:destination,name:'QA remote',code:'REMOTE',active:true,workspaceId,branchId,createdAt:now,updatedAt:now}];
+window.qaMutations=0;const deny=async()=>{window.qaMutations++;throw Error('Read-only acceptance must not mutate');};
+window.qaSource=()=>JSON.stringify({item,movements,warehouses});window.qaBalances=()=>({source:String(warehouseItemQuantity(item.id,source,movements,source)),destination:String(warehouseItemQuantity(item.id,destination,movements,source)),total:inventoryBalances([item],movements)[0].quantity});
+const props={items:[item],currency:'USD',defaultCurrency:'USD',workspaceId,branchId,warehouses,suppliers:[],purchases:[],expenses:[],inventoryMovements:movements,onSaveItem:deny,onSaveItems:deny,onDeleteItem:deny,onSaveSupplier:deny,onDeleteSupplier:deny,onSavePurchase:deny,onDeletePurchase:deny,onPostPurchase:deny,onReversePurchase:deny,onSaveExpense:deny,onDeleteExpense:deny,onSaveInventoryMovement:deny,onDeleteInventoryMovement:deny};
+ReactDOM.render(h(AppShell,{screen:'items',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:'Synthetic QA',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},h('main',{className:'main-content'},h(ProductsInventoryWorkspace,props))),document.getElementById('visual-app'));
+</script></body></html>
