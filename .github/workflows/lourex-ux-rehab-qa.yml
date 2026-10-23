@@ -35,6 +35,8 @@ on:
       - 'src/components/EditorDesignSummary.tsx'
       - 'tests/visual/run-editor-design-discovery.cjs'
       - 'src/components/ProductAiSourceReview.tsx'
+      - 'src/lib/ai-product-multi-source.ts'
+      - 'tests/ai-product-multiple-sources.test.mjs'
       - 'src/components/AiConversationWorkspace.tsx'
       - 'scripts/ai-conversation-owner-stage4.mjs'
       - 'tests/ai-financial-reply-presentation-20261019.test.mjs'
