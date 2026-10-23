@@ -42,6 +42,7 @@ test('AI-01 fail-closed text parsing never guesses missing or conflicting line d
   question.replace('QA Preview Only Buyer',''),
   question.replace('3 PCS بسعر وحدة 20 USD','0 PCS بسعر وحدة 20 USD'),
   question.replace('للمراجعة فقط','واحفظه'),
+  question.replace('للمراجعة فقط','للحفظ الآن'),
   question+' والصنف QA Banana عدد 1 PCS بسعر وحدة 10 USD'
  ];
  for(const message of invalid)assert.equal(exactTextQuotePreview(message),null,message);

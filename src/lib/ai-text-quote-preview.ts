@@ -9,7 +9,7 @@ export function exactTextQuotePreview(message:string):AiDocumentDraftProposal|nu
   const input=String(message||'').normalize('NFKC').trim();
   if(!input||input.length>6000||
     !/(?:عرض\s*سعر|quotation|quote|proforma)/iu.test(input)||
-    !/(?:للمراجعة\s*فقط|فقط\s*للمراجعة|للعرض\s*فقط|معاينة\s*فقط|بدون\s*حفظ|لا\s*تحفظ|review\s*only|preview\s*only|do\s*not\s*save|without\s+saving)/iu.test(input))
+    !/(?:للمراجعة\s*فقط|فقط\s*للمراجعة|للعرض\s*فقط|معاينة\s*فقط|بدون\s*حفظ|لا\s*تحفظ|for\s+review\s+only|(?:^|[،,;.!?]\s*)preview\s*only(?:[.!?]|$)|do\s*not\s*save|without\s+saving)/iu.test(input))
     return null;
   const buyer=explicitlyNamedQuotationCustomer(input);
   if(!buyer||/^(?:بصنفين|بندين|صنفين|with\s+two\s+items)/iu.test(buyer))return null;
