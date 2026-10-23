@@ -17,6 +17,7 @@ mkdirSync(output,{recursive:true});
 const cases=[
  {engine:webkit,browser:'webkit',width:390,height:844,lang:'ar'},
  {engine:webkit,browser:'webkit',width:820,height:1180,lang:'ar'},
+ {engine:webkit,browser:'webkit',width:390,height:844,lang:'ar',theme:'light'},
  {engine:chromium,browser:'chromium',width:390,height:844,lang:'en'}
 ];
 (async()=>{
@@ -28,7 +29,7 @@ const cases=[
    const errors=[];
    page.on('pageerror',error=>errors.push(String(error)));
    await page.route('**/api/**',route=>route.abort());
-   await page.goto('http://127.0.0.1:4173/tests/visual/ai-financial-readout-20261019.html?lang='+spec.lang,{waitUntil:'networkidle'});
+   await page.goto('http://127.0.0.1:4173/tests/visual/ai-financial-readout-20261019.html?lang='+spec.lang+'&theme='+(spec.theme||'dark'),{waitUntil:'networkidle'});
    await page.waitForFunction(()=>Boolean(window.lourexReportFixture),null,{timeout:30000});
    const panel=page.locator('#lourex-ai-panel');
    const reportCard=panel.locator('article.lxbr');
@@ -39,6 +40,14 @@ const cases=[
    assert.match(await reportCard.innerText(),/QA752-PAY-01 TEST ONLY/);
    assert.match(await reportCard.innerText(),/3000\.00/);
    assert.match(await reportCard.innerText(),/3399\.00/);
+   const colors=await reportCard.evaluate(node=>({
+    bg:getComputedStyle(node.querySelector('.lxbr-heading')).backgroundColor,
+    title:getComputedStyle(node.querySelector('.lxbr-heading h3')).color
+   }));
+   if(spec.theme==='light'){
+    assert.ok(luminance(colors.bg)>0.75&&luminance(colors.title)<0.15,
+      'light-theme financial evidence must not be a dark-themed card: '+JSON.stringify(colors));
+   }
    const disclosure=reportCard.locator('details.lxbr-items');
    assert.equal(await disclosure.count(),1);
    assert.equal(await disclosure.getAttribute('open'),null,'items are collapsed before interaction');
@@ -82,7 +91,7 @@ const cases=[
     assert.ok(contrast(sample.ink,sample.bg)>=4.5,'financial text contrast must be readable: '+JSON.stringify(sample));
    }
 
-   await page.screenshot({path:output+'/'+spec.browser+'-'+spec.width+'-'+spec.lang+'-collapsed.png',fullPage:true,animations:'disabled'});
+   await page.screenshot({path:output+'/'+spec.browser+'-'+spec.width+'-'+spec.lang+'-'+(spec.theme||'dark')+'-collapsed.png',fullPage:true,animations:'disabled'});
    await disclosure.locator('summary').click();
    assert.notEqual(await disclosure.getAttribute('open'),null,'the actual disclosure can be expanded');
    assert.equal(await reportCard.locator('.lxbr-item-content li').count(),20);
@@ -91,7 +100,7 @@ const cases=[
    await panel.locator('.lourex-ai-message-actions button').click();
    assert.equal(await page.evaluate(()=>window.lourexReportFixture.copyCount()),1,'original Copy action remains operational');
    assert.deepEqual(errors,[],'no client runtime exceptions');
-   report.push({browser:spec.browser,width:spec.width,lang:spec.lang,measurements,passed:true});
+   report.push({browser:spec.browser,width:spec.width,lang:spec.lang,theme:spec.theme||'dark',measurements,passed:true});
   }finally{await browser.close();}
  }
  writeFileSync(output+'/results.json',JSON.stringify(report,null,2));
