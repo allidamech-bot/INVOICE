@@ -39,6 +39,10 @@ interface State{
 }
 
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
+async function verifyInboxBinarySource(file:File,mime:string):Promise<void>{
+  try{await verifyProductAiBinarySignature(file,mime);}
+  catch{throw new Error(t('The file content does not match its PDF/image type. No AI request was sent.','محتوى الملف لا يطابق نوع PDF/الصورة. لم يُرسل أي طلب إلى الذكاء الاصطناعي.'));}
+}
 async function sourcePayload(file:File):Promise<AiPayload>{
   const name=file.name.toLowerCase();
   // Safari Files sometimes reports application/octet-stream for genuine PDF
@@ -48,7 +52,7 @@ async function sourcePayload(file:File):Promise<AiPayload>{
   if(name.endsWith('.pdf')&&mime!=='application/pdf')throw new Error(t('PDF file type does not match its filename.','نوع ملف PDF لا يطابق اسمه.'));
   if(name.endsWith('.pdf')||mime==='application/pdf'){
     if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('This PDF is larger than 12 MB.','حجم PDF أكبر من 12 MB.'));
-    await verifyProductAiBinarySignature(file,'application/pdf');
+    await verifyInboxBinarySource(file,'application/pdf');
     const text=await readablePdfText(file,MAX_TEXT_CHARS);
     if(text.trim())return{kind:'text',mimeType:'text/plain',text};
   }
@@ -58,7 +62,7 @@ async function sourcePayload(file:File):Promise<AiPayload>{
   if(file.size>MAX_BINARY_BYTES)throw new Error(t('This PDF/image is too large for safe AI analysis. Reduce it below 2.6 MB.','ملف PDF/الصورة كبير للتحليل الآمن. خفّضه لأقل من 2.6 MB.'));
   // Refuse mislabeled/corrupted image or scanned PDF bytes before posting to
   // AI; the extension and browser-supplied MIME are only candidate types.
-  await verifyProductAiBinarySignature(file,mime);
+  await verifyInboxBinarySource(file,mime);
   return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
 async function postAi(endpoint:string,fileName:string,payload:AiPayload,signal?:AbortSignal):Promise<any>{return requestAiJson(endpoint,{fileName,...payload},signal);}
