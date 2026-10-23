@@ -31,6 +31,8 @@ const cases=[
    await page.route('**/api/**',route=>route.abort());
    await page.goto('http://127.0.0.1:4173/tests/visual/ai-financial-readout-20261019.html?lang='+spec.lang+'&theme='+(spec.theme||'dark'),{waitUntil:'networkidle'});
    await page.waitForFunction(()=>Boolean(window.lourexReportFixture),null,{timeout:30000});
+   assert.equal(await page.evaluate(()=>window.lourexReportFixture.typed),true,
+     'browser fixture must exercise native tool-result financial readout, not legacy markdown');
    const panel=page.locator('#lourex-ai-panel');
    const reportCard=panel.locator('article.lxbr');
    assert.equal(await reportCard.count(),1,'financial readout has exactly one single DOM owner');
