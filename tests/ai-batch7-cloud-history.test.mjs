@@ -231,3 +231,22 @@ test('cloud ordering of identical same-time messages preserves the exact local w
   assert.equal(modeConflict.kernel?.artifact,undefined,'a mode conflict cannot retain execution state');
   assert.equal(modeConflict.kernel?.mode,'advisor');
 });
+
+test('instant local replies retain user-before-assistant order through cloud round trips',()=>{
+ const OriginalDate=globalThis.Date;
+ globalThis.Date=class extends OriginalDate{constructor(...args){super(...(args.length?args:[at]));}static now(){return OriginalDate.parse(at);}};
+ try{
+  const input={threadId:'instant-local',scope:'business',workspaceId:'company-a',branchId:'main',messages:[
+   {id:'z-user',role:'user',text:'Synthetic cost 50, price 100: calculate margin'},
+   {id:'a-assistant',role:'assistant',text:'50.00%'}]};
+  const first=upsertAssistantThread(local(),input);
+  const merged=mergeAssistantCloudThread(cloud('instant-local',first.thread.messages),cloud('instant-local',[]));
+  assert.deepEqual(merged.messages.map(row=>row.id),['z-user','a-assistant']);
+  const second=upsertAssistantThread(first.state,{...input,messages:[...input.messages,
+   {id:'y-user',role:'user',text:'Now calculate markup'},
+   {id:'b-assistant',role:'assistant',text:'100.00%'}]});
+  assert.deepEqual(second.thread.messages.slice(0,2).map(row=>row.createdAt),first.thread.messages.map(row=>row.createdAt));
+  const again=mergeAssistantCloudThread(cloud('instant-local',second.thread.messages),merged);
+  assert.deepEqual(again.messages.map(row=>row.id),['z-user','a-assistant','y-user','b-assistant']);
+ }finally{globalThis.Date=OriginalDate;}
+});
