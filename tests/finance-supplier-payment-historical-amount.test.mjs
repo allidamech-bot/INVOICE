@@ -74,3 +74,56 @@ test('a corrupted earlier stored settlement blocks a new payment instead of prop
   const next={...payment,id:'new',amount:'100.00',date:'2026-10-15'};
   assert.throws(()=>normalizeSupplierPayment(purchase,supplier,[payment],next),/supplier payment amount/i);
 });
+
+
+test('effective legacy payment with wrong currency cannot disappear from supplier reports',()=>{
+  const {purchase,supplier,payment}=fixture();
+  payment.currency='EUR';
+  const before=JSON.stringify([purchase,payment]);
+  for(const report of [
+    ()=>purchasePayableSummary(purchase,[payment],'2026-10-15'),
+    ()=>supplierPayablesByCurrency([purchase],[payment],'2026-10-15'),
+    ()=>supplierStatement(supplier.id,[purchase],[payment],'2026-10-15')
+  ])assert.throws(report,/supplier payment currency does not match/i);
+  assert.equal(JSON.stringify([purchase,payment]),before);
+});
+
+test('future mismatched-currency payment cannot poison an earlier accounting cutoff',()=>{
+  const {purchase,supplier,payment}=fixture();
+  payment.currency='EUR';payment.date='2026-11-05';
+  assert.equal(purchasePayableSummary(purchase,[payment],'2026-10-15').remaining,'1000.00');
+  assert.equal(supplierStatement(supplier.id,[purchase],[payment],'2026-10-15')[0].entries.length,1);
+  assert.throws(()=>purchasePayableSummary(purchase,[payment],'2026-11-06'),/supplier payment currency does not match/i);
+});
+
+test('voided foreign-currency historical payment is visible before cancellation, not after',()=>{
+  const {purchase,supplier,payment}=fixture();
+  payment.currency='EUR';payment.voidedAt='2026-10-12T10:00:00.000Z';
+  assert.throws(()=>purchasePayableSummary(purchase,[payment],'2026-10-11'),/supplier payment currency does not match/i);
+  assert.equal(purchasePayableSummary(purchase,[payment],'2026-10-13').remaining,'1000.00');
+  assert.equal(supplierStatement(supplier.id,[purchase],[payment],'2026-10-13')[0].entries.length,1);
+});
+
+test('cross-company or different-branch payment with colliding legacy purchase id stays excluded',()=>{
+  const {purchase,supplier,payment}=fixture();
+  payment.currency='EUR';
+  const otherCompany={...payment,workspaceId:'other-company'};
+  const otherBranch={...payment,branchId:'other-branch'};
+  assert.equal(purchasePayableSummary(purchase,[otherCompany,otherBranch],'2026-10-15').remaining,'1000.00');
+  assert.equal(supplierPayablesByCurrency([purchase],[otherCompany,otherBranch],'2026-10-15')[0].paid,'0.00');
+  assert.equal(supplierStatement(supplier.id,[purchase],[otherCompany,otherBranch],'2026-10-15')[0].entries.length,1);
+});
+
+test('new supplier settlement rejects a previous active foreign-currency payment before duplicate posting',()=>{
+  const {purchase,supplier,payment}=fixture();
+  const previous={...payment,currency:'EUR'};
+  const next={...payment,id:'new-payment',date:'2026-10-15',amount:'100.00'};
+  assert.throws(()=>normalizeSupplierPayment(purchase,supplier,[previous],next),/supplier payment currency does not match/i);
+});
+
+test('legacy payment with lowercase matching currency stays valid and accurately counted',()=>{
+  const {purchase,supplier,payment}=fixture();
+  payment.currency='usd';
+  assert.equal(purchasePayableSummary(purchase,[payment],'2026-10-15').paid,'200.00');
+  assert.equal(supplierStatement(supplier.id,[purchase],[payment],'2026-10-15')[0].paid,'200.00');
+});
