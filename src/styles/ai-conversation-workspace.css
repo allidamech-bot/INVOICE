@@ -3599,3 +3599,8 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-ai-motion='redu
 @media(prefers-reduced-motion:reduce){
   html body #root #lourex-ai-panel[data-lourex-workspace='2'] :is([data-lxw-presence],.lxw-settings,.lxw-history){animation:none!important;transition:none!important;scroll-behavior:auto!important;}
 }
+
+/* Keep numeric expressions in their authored reading order inside RTL prose. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-ltr{direction:ltr!important;unicode-bidi:isolate!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table[dir='ltr']{direction:ltr!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table[dir='rtl']{direction:rtl!important;}

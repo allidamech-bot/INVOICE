@@ -7,6 +7,8 @@ on:
       - 'src/components/AiMenuPresence.tsx'
       - 'src/styles/ai-conversation-workspace.css'
       - 'src/lib/ai-chat-scroll.ts'
+      - 'src/lib/ai-text-layout.ts'
+      - 'tests/ai-text-layout.test.mjs'
       - 'scripts/qa-ai-chat-scroll-chrome.mjs'
       - 'scripts/qa-ai-chat-visual-chrome.mjs'
       - 'scripts/ai-batch3-premium-conversation.mjs'
@@ -39,6 +41,7 @@ jobs:
       - name: Scoped chat, mode and PDF regression tests
         run: >
           node --test --test-concurrency=2
+          tests/ai-text-layout.test.mjs
           tests/ai-chat-ipad-conversation-20261014.test.mjs
           tests/ai-f01-real-pdf-preview.test.mjs
           tests/ai-conversation-workspace.test.mjs

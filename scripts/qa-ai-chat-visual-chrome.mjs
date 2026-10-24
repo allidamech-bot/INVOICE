@@ -123,11 +123,23 @@ try{
   paint(true);await pause(30);paint(false);await pause(40);paint(true);await pause(220);
   const reopened=Boolean(mount.querySelector('[role=menu]:not([inert])'));
   paint(false,true);const reduced=!mount.querySelector('[role=menu]');
+  const {aiInlineTextRuns,aiTextDirection}=await import('/src/lib/ai-text-layout.js');
+  const source='هامش الربح: 60.00%. الحسبة: (100 − 40) ÷ 100 × 100.';
+  const runs=aiInlineTextRuns(source);
+  ReactDOM.render(React.createElement(React.Fragment,null,
+   React.createElement('p',{dir:'rtl'},...runs.map((r,i)=>r.direction?React.createElement('bdi',{key:i,dir:r.direction,className:'lxw-inline-ltr'},r.text):r.text)),
+   React.createElement('div',{className:'lxw-response-table'},React.createElement('table',{dir:aiTextDirection('SKU Quantity')},React.createElement('tbody',null,React.createElement('tr',null,React.createElement('td',null,'SKU'),React.createElement('td',null,'Quantity')))))),mount);
+  const paragraph=mount.querySelector('p'),formula=Array.from(paragraph.querySelectorAll('bdi')).find(e=>e.textContent.includes('−'));
+  const text=formula.firstChild,offset=text.textContent.indexOf('40');
+  const x=(start,size)=>{const r=document.createRange();r.setStart(text,start);r.setEnd(text,start+size);return r.getBoundingClientRect().x;};
+  const math=x(text.textContent.indexOf('100'),3)<x(offset,2);
+  const fidelity=paragraph.textContent===source;
+  const cells=mount.querySelectorAll('td');const tableLtr=cells[0].getBoundingClientRect().x<cells[1].getBoundingClientRect().x;
   ReactDOM.unmountComponentAtNode(mount);
-  return {opening,keyboard,closing,removed,reopened,reduced,dismissed};
+  return {opening,keyboard,closing,removed,reopened,reduced,dismissed,math,fidelity,tableLtr};
  })()`});
  const motion=presence.result?.value;
- assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1,'Menu lifecycle regression: '+JSON.stringify(presence));
+ assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1&&motion.math&&motion.fidelity&&motion.tableLtr,'Menu lifecycle regression: '+JSON.stringify(presence));
  console.log('PASS actual React menu presence: '+JSON.stringify(motion));
 
  // Simulate iPadOS visualViewport height contraction when the keyboard is up.
