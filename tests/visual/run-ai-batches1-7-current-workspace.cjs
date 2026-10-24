@@ -51,7 +51,7 @@ const report=[];
    assert.deepEqual((await tabs.allTextContents()).map(s=>s.trim()),c.lang==='ar'?['المتحكم','المستشار']:['Controller','Advisor']);
    assert.equal(await panel.getAttribute('data-workspace-mode'),'controller','business chat opens in Controller');
    const visual=await panel.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color,dir:node.dir};});
-   const expectedCanvas=c.theme==='dark'?'rgb(23, 25, 24)':'rgb(250, 250, 248)';
+   const expectedCanvas=c.theme==='dark'?'rgb(16, 26, 22)':'rgb(247, 250, 248)';
    assert.equal(visual.bg,expectedCanvas,'chat uses the approved Quiet Intelligence canvas for the selected site theme');
    assert.ok(contrast(visual.color,visual.bg)>=4.5,'conversation body text meets WCAG AA');
    // A malformed selector once caused the browser to discard every later
@@ -103,10 +103,16 @@ const report=[];
    assert.ok(box.y+box.height<=c.height+2,'AI panel does not overflow vertically');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true,'page must not scroll horizontally');
    const history=panel.locator('.lxw-history-trigger');
-   await history.waitFor({state:'visible'});
-   const bounds=await history.boundingBox();
-   assert.ok(bounds?.height>=44&&bounds.width>=38,'history is touch-accessible');
-   await history.click();
+   if(c.width<=430){
+    await panel.locator('.lourex-ai-overflow-trigger').click();
+    await panel.getByRole('menuitem',{name:c.lang==='ar'?'المحادثات':'Conversations',exact:true}).click();
+   }else{
+    await history.waitFor({state:'visible'});
+    const bounds=await history.boundingBox();
+    assert.ok(bounds?.height>=44&&bounds.width>=38,'history is touch-accessible');
+    await history.click();
+   }
+   assert.ok(await panel.locator('.lourex-ai-title strong').isVisible(),'LOUREX identity remains visible on narrow phones');
    await panel.locator('.lxw-history').waitFor({state:'visible'});
    const search=panel.locator('.lxw-history-search');
    assert.equal(await search.getAttribute('type'),'search');
