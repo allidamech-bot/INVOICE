@@ -55,14 +55,15 @@ The Vercel deployment currently attached to the production alias
 `invoice-three-puce.vercel.app` is `dpl_6DcuJZjrQbk7Q5wVnrYGgtwHZdAb`,
 with status `READY` and GitHub source `main` at
 `cd613c4f93f674e72a6930b0ac9dd67cc6d2a4d8` (AI #1051).
-The GitHub main history has advanced to
-`562e0a0ff5d4f29c71641b5440e004ce4b5fb98f`
-(financial test-only #1052). **Exact source-SHA parity between production
-and latest main is therefore no longer true.** The sole subsequent
-merged change identified in this snapshot is #1052, which adds only a
-Node test (no production runtime files). Consequently, this source
-difference alone is not evidence of a missing runtime fix and is not a
-reason to force a new deployment.
+The independently queried GitHub main history has advanced to
+`4357813eed91542729007327cb95b0d46c89d053`
+(financial #1054 merged, after finance test-only #1052 and separate AI #1053).
+**Exact source-SHA parity between the inspected production alias and
+latest main is not true.** Unlike test-only #1052, financial #1054
+changes the runtime report-print safety guards. The production alias
+was still serving `cd613c4f...` at this check, so the new guard
+has **not** been verified deployed or usable on a physical device.
+No production promotion or re-deployment was initiated.
 
 The earlier observed production deployment
 `dpl_8gZzZJ7xMWDW1Z4TaoTdSG8h7ePp` at `c1811669...`
@@ -117,6 +118,28 @@ the outstanding physical iPhone and deployed browser acceptance gates.
   Do not equate the automated saved-state acceptance with deployed UI
   verification. The owner explicitly asked not to use further browsers.
 
+## New management / VAT queued print source isolation — 24 October 2026
+
+- [#1054](https://github.com/allidamech-bot/INVOICE/pull/1054) merged at
+  `4357813eed91542729007327cb95b0d46c89d053`. Actual
+  `ReportsPage` and `TaxVatCenter` delayed print callbacks now check
+  that originating account-storage UID, input props and selected report state
+  remain current before native print. Relevant queued prints are cancelled on
+  component updates. No source financial totals or tax calculations changed.
+- New scoped Node 24 acceptance transpiles the actual report components and
+  checks 12 synthetic cases (ordinary print, duplicate click, storage account
+  switch, props/data and filter changes, tab navigation, exception recovery).
+  CI `40119772985` passed including TypeScript typecheck. Four existing
+  automatic GitHub workflows on the same PR head also passed:
+  `40119772983` Vercel Node trace, `40119772950` management PDF,
+  `40119772977` tax PDF, `40119772954` financial browser QA.
+  These were automatically triggered by repository path rules; no separate
+  interactive browser session or customer-account access was initiated.
+- Original items **6/7** gain a source-isolation safeguard, **not**
+  final live-site, native iPhone or all-report print certification.
+  Current production alias was inspected and still served an older main SHA
+  after #1054 merge. Deployment and live-account acceptance remain open.
+
 ## Original numbering: preserved without invented missing wording
 
 “Accepted evidence” below describes its bounded tested path, not universal
@@ -129,8 +152,8 @@ production certification. An unavailable original sentence is not a new bug.
 | 3 | Final purchase order output; #935/#992 | Accepted bounded browser/PDF cases |
 | 4 | Posted-purchase document output | Deferred: no live independent print route established; old draft branch remains untouched pending explicit reopening |
 | 5 | Inventory movement report output, references and quantities | Implemented and accepted in #1015: 12 Chromium/WebKit cases, 4 native Chromium PDFs, 3/40/205 movements, filters/account guard/no writes; physical iPhone separate |
-| 6 | Management financial report final output | Performance report path accepted in #1002; #1043 guards stale native print after leaving Performance and passes focused Chromium/WebKit regression. No claim that every report view or physical-device path is covered |
-| 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004; #1044 adds safe print-timer cancellation on report navigation and tests ordinary printing after return |
+| 6 | Management financial report final output | Performance report path accepted in #1002; #1043 guards stale native print after leaving Performance and passes focused Chromium/WebKit regression. #1054 cancels prints queued before account, data or filter changes. No claim that every report view or physical-device path is covered |
+| 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004; #1044 adds safe print-timer cancellation on report navigation and tests ordinary printing after return; #1054 guards delayed print against account, data and filter changes |
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
 | 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
