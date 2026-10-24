@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All fourteen PRs below were directly rechecked as merged. These are delivered
+All fifteen PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -37,6 +37,7 @@ rounds, not a count of original checklist items.
 | [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: long customer/supplier/company names and long invoice/purchase/payment references through actual statement search → modal → print → native PDF; focused and existing regression workflows passed; synthetic single-document-and-payment scenarios only | `7b069f29818132f0c47322dfc221b2fa620e3252` |
 | [1038](https://github.com/allidamech-bot/INVOICE/pull/1038) | Item 22 bounded mixed-cost evidence: landed receipt history across differing prices/currencies, frozen final-invoice stock cost, one-time issue and no negative inventory; 3 synthetic tests, typecheck/build passed; FIFO/WAC/COGS policy expressly unresolved | `43f4cada73a03cd8e7704bf1c8f4aaf2f8fd7465` |
 | [1039](https://github.com/allidamech-bot/INVOICE/pull/1039) | Items 11/12: actual synthetic App.requestPrint on 40-line issued invoice (Obsidian) and PO (Minimal), EN/AR, 4 Chromium browser cases and 4 native A4 PDFs with 7 pages per case; WebKit synthetic harness failed before boot and is not accepted | `5c86ebb8d053909dfaba19a000f59a581342b8a5` |
+| [1040](https://github.com/allidamech-bot/INVOICE/pull/1040) | Closed-period settings now default to the device-local calendar day instead of UTC; both offset directions verified in component tests; trusted server, Firestore emulator, owner browser and Vercel trace CI passed. This is not production-service activation or live-device acceptance | `76a198faa3c0d87230fd477f9db96d1b0d7b5e3f` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
