@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All eight PRs below were directly rechecked as merged. These are delivered
+All nine PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -31,6 +31,7 @@ rounds, not a count of original checklist items.
 | [1011](https://github.com/allidamech-bot/INVOICE/pull/1011) | Read-only treasury period report with per-account opening/closing, late void effects, separate unallocated movements, CSV/PDF | `b5adea05eaceb446cf07d2b04afeac7c56ae26e8` |
 | [1013](https://github.com/allidamech-bot/INVOICE/pull/1013) | Real stock transfers correctly labelled separately from adjustments in history and filters | `3f76d5330badd7bbe99d1590f3f3da25686e1548` |
 | [1015](https://github.com/allidamech-bot/INVOICE/pull/1015) | Item 5: read-only inventory movement print output, all filtered matches beyond the screen cap, full notes/references/signed quantities/warehouse endpoints; 12 browser cases and 4 native PDFs | `d2f5c77a469939c81ecec6629c4663b90bec71be` |
+| [1016](https://github.com/allidamech-bot/INVOICE/pull/1016) | Items 11/12: long final invoices on the other 16 registered templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; exact amounts, item completeness, no duplicate lines, logos and saved template selection | `b74579adaf56e66fb5e46a8802a7e70d370e24fe` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -53,8 +54,8 @@ production certification. An unavailable original sentence is not a new bug.
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed cases closed in #910; do not repeat |
 | 10 | Supplier statement | Agreed cases closed in #910; do not repeat |
-| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994 and later report acceptance do not prove all remaining outputs |
-| 12 | Templates not covered by recent acceptance | Partial: full required template/output matrix is not finalized |
+| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016 and later report acceptance cover bounded outputs; bilingual, fixed reports and live entry paths remain |
+| 12 | Templates not covered by recent acceptance | Partial: #1016 covers all 18 registered long-invoice templates (2 previously, 16 added); remaining 16 long purchase-order templates and other kinds/entry paths still lack dedicated acceptance |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 14 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 15 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
@@ -116,7 +117,12 @@ merged in #1015 at `d2f5c77a469939c81ecec6629c4663b90bec71be`, tested head
 `0aa136a49cee1cfb97e5c115bce264d09d58caef`: all nine checks across six
 workflows passed, including 3867 Node tests. No deployment occurred.
 
-Next known remaining acceptance work is to enumerate the uncovered outputs
-and template combinations under original items 11 and 12 before selecting a
-bounded implementation round. Item 4 remains explicitly deferred. This update
+On 24 October 2026, #1016 merged on `main` at
+`b74579adaf56e66fb5e46a8802a7e70d370e24fe`, after its exact-head
+four-shard long-invoice workflow and prior financial document workflow completed
+successfully (five jobs; no new test run needed at merge). #1016 changes only
+financial test/coverage files, not AI, production accounting or storage.
+The dedicated 40-line purchase-order suite still covers only Obsidian/Executive;
+next bounded target is the other sixteen registered PO templates, without
+claiming physical iPhone acceptance or closing original items 11/12. Item 4 remains explicitly deferred. This update
 does not invent an exact remaining total or close missing original wording.
