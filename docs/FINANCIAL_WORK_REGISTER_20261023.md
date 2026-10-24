@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All nineteen PRs below were directly rechecked as merged. These are delivered
+All twenty PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -42,6 +42,7 @@ rounds, not a count of original checklist items.
 | [1042](https://github.com/allidamech-bot/INVOICE/pull/1042) | Original item 11 partial: fixed real 390px treasury report filter overflow with extreme native account labels (implicit Grid min-content track expanded to 2,867px); constrained Grid track and filters, verified all 4 EN/AR Chromium/WebKit UI+CSV/print cases, 2 native Chromium PDFs, all text sentinels and 140.00 USD unchanged closing balance; existing treasury and Vercel CI passed. No physical iPhone/deployment certification | `f18a281f08873df775c2d42ac4fc136ac2764b26` |
 | [1043](https://github.com/allidamech-bot/INVOICE/pull/1043) | Original item 6 bounded UI safety: cancel queued management report native print after report-tab navigation or component unmount; preserve ordinary print/PDF, avoid stale body print state. 8 added Chromium/WebKit EN/AR navigation cases + 12 existing UI/PDF cases, 21 focused report tests; all three exact-head workflows successful. No physical iPhone/deployment certification | `bc81516708f8d9e39cfe06db4ac271e345cff5d5` |
 | [1044](https://github.com/allidamech-bot/INVOICE/pull/1044) | Original item 7 output safety: avoid stale Tax / VAT native print when navigating away or unmounting the report; 8 Chromium/WebKit EN/AR navigation cancellation cases alongside 12 existing VAT CSV/print cases and 18 tax/financial Node tests, 2 exact-head CI workflows passed. Accounting and CSV values unchanged. No deployed or physical iPhone acceptance claimed | `9766224c6d50f097a2badced8a3da4e5e1385178` |
+| [1046](https://github.com/allidamech-bot/INVOICE/pull/1046) | Follow-up safety for original items 9/10 (previous statement-output cases remain closed): fixed delayed native-print callback surviving customer/supplier statement modal close, account switch or page unmount; 24 EN/AR Chromium/WebKit cancellation cases and 16 prior short/long statements with 8 Chromium PDF parses passed, 21 account Node tests and all 5 exact-head workflows succeeded. Original account/output contract unchanged; no physical iPhone or production certification | `c1811669d9590cade929960cbeb268b04c75d806` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -74,8 +75,8 @@ production certification. An unavailable original sentence is not a new bug.
 | 6 | Management financial report final output | Performance report path accepted in #1002; #1043 guards stale native print after leaving Performance and passes focused Chromium/WebKit regression. No claim that every report view or physical-device path is covered |
 | 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004; #1044 adds safe print-timer cancellation on report navigation and tests ordinary printing after return |
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
-| 9 | Customer statement | Agreed cases closed in #910; do not repeat |
-| 10 | Supplier statement | Agreed cases closed in #910; do not repeat |
+| 9 | Customer statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
+| 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
 | 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, physical iPhone/real deployed access remain separate; #1041 resolves synthetic App WebKit boot and passes four WebKit App print cases; #1042 adds real treasury report's extreme names/references/notes, 390px mobile filter reachability, CSV and Chromium PDF |
 | 12 | Templates not covered by recent acceptance | Partial: registered 18-template EN/AR/bilingual renderer coverage accepted #994/#992/#1016/#1032/#1034; #1039 validates Obsidian invoice and Minimal PO through Chromium App printing; #1041 adds WebKit App entry for both in EN/AR. Do not claim all templates through App, native WebKit PDF, or physical Safari acceptance |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
