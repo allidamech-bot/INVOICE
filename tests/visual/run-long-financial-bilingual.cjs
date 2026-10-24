@@ -141,6 +141,11 @@ mkdirSync(out,{recursive:true});
        return false;
       });
       assert.ok(exactEnglish,'English PDF description complete '+i);
+      if(arGlyphs(text)!==arGlyphs(ar)&&i===0){
+       const arabicAll=arGlyphs(parsed.allPages.join(' '));
+       const required=arGlyphs(original.items.map(it=>it.descriptionAr).join(' '));
+       console.error('BILINGUAL_PDF_DIAG',JSON.stringify({template,kind,engine,pages:parsed.pages,firstCell:text.slice(0,350),firstCellArabicLength:arGlyphs(text).length,expectedArabicLength:arGlyphs(ar).length,allPdfArabicLength:arabicAll.length,allExpectedArabicLength:required.length,allPdfSample:parsed.allPages.join(' ').slice(0,1700),enFirst:englishChars(text).slice(0,170)}));
+      }
       assert.equal(arGlyphs(text),arGlyphs(ar),'Arabic PDF description glyphs complete '+i);
       const marker='PO-LINE-'+String(i+1).padStart(3,'0');
       assert.equal(pdfContent.split(marker).length-1,1,'bilingual PDF line exactly once '+i);
