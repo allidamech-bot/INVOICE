@@ -196,6 +196,35 @@ the outstanding physical iPhone and deployed browser acceptance gates.
   verification, owner sign-in or physical iPhone. Original item 8's earlier
   output acceptance remains as recorded and must not be counted twice.
 
+## Supplier payment historical amount guard — 24 October 2026
+
+- [#1059](https://github.com/allidamech-bot/INVOICE/pull/1059)
+  merged at `59d3c612e10acf29bcb646f8b0673a0b1b654b08`:
+  a malformed, zero or negative effective historical supplier payment is no
+  longer silently interpreted as zero inside the supplier payable summary,
+  payable aging or supplier account statement. Read-only projections instead
+  refuse to report an apparently valid outstanding balance until the
+  underlying stored payment is reviewed. New payment normalization also
+  refuses to propose another payment while an effective earlier settled
+  amount is unreadable.
+- Future-dated invalid payments remain outside earlier as-of reports.
+  Payments voided on/before the selected cutoff are excluded under existing
+  historical transaction/void-date policy. Old source rows are **not**
+  rewritten, deleted, normalized or revalued.
+- Five synthetic Node tests were added for normal, malformed, future,
+  voided and duplicate-settlement contexts. Exact PR-head workflows all
+  passed: [closed-period #40122257222](https://github.com/allidamech-bot/INVOICE/actions/runs/40122257222),
+  [Vercel trace #40122257211](https://github.com/allidamech-bot/INVOICE/actions/runs/40122257211),
+  [financial parity #40122257185](https://github.com/allidamech-bot/INVOICE/actions/runs/40122257185)
+  (including full Node regression suite), and
+  [account statements #40122257165](https://github.com/allidamech-bot/INVOICE/actions/runs/40122257165)
+  (existing printed statements).
+- Financial safeguard only. Original item 10's already accepted statement
+  output is not re-counted or closed a second time. No AI files, invoice
+  posting, supplier transaction persistence, real-account data or
+  production deployment were modified in this PR. Live-account/iPhone
+  acceptance remains separate.
+
 ## Original numbering: preserved without invented missing wording
 
 “Accepted evidence” below describes its bounded tested path, not universal
@@ -212,7 +241,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004; #1044 adds safe print-timer cancellation on report navigation and tests ordinary printing after return; #1054 guards delayed print against account, data and filter changes |
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; #1057 now refuses mixed-currency historical ledger entries that would contaminate a displayed account balance; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
-| 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
+| 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. #1059 adds fail-closed protection against malformed historical supplier settlements in payable and statement projections. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
 | 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, physical iPhone/real deployed access remain separate; #1041 resolves synthetic App WebKit boot and passes four WebKit App print cases; #1042 adds real treasury report's extreme names/references/notes, 390px mobile filter reachability, CSV and Chromium PDF; #1056 adds bounded extreme bilingual names/references and 205-row CSV export acceptance for management/VAT (not native PDF or full UI) |
 | 12 | Templates not covered by recent acceptance | Partial: registered 18-template EN/AR/bilingual renderer coverage accepted #994/#992/#1016/#1032/#1034; #1039 validates Obsidian invoice and Minimal PO through Chromium App printing; #1041 adds WebKit App entry for both in EN/AR. Do not claim all templates through App, native WebKit PDF, or physical Safari acceptance |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
