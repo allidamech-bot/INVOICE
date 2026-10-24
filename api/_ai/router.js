@@ -377,6 +377,8 @@ export async function routeAiStructured(options={}){
   if(!candidates.length)return{success:false,errorCode:'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false};
   const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
   let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null,attemptCount=0;
+  // Internal callers may shorten the fallback chain, never extend its global cap.
+  const totalBudgetMs=Number.isFinite(options.totalBudgetMs)?Math.max(0,Math.min(ROUTER_BUDGET_MS,options.totalBudgetMs)):ROUTER_BUDGET_MS;
   const routeStartedAt=Date.now();
   function finish(result){
     const timing={totalLatencyMs:Date.now()-routeStartedAt,attemptCount};
@@ -393,7 +395,7 @@ export async function routeAiStructured(options={}){
         lastCode=(providerRateLimitUntil.get(model.provider)||0)>Date.now()?'AI_RATE_LIMITED':'AI_TEMPORARILY_UNAVAILABLE';
         break;
       }
-      const remaining=ROUTER_BUDGET_MS-(Date.now()-routeStartedAt);
+      const remaining=totalBudgetMs-(Date.now()-routeStartedAt);
       if(remaining<PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS){lastCode='AI_TIMEOUT';break providerRoute;}
       // Reserve a small window for later free-tier fallback models.
       const futureReserve=Math.min((candidates.length-index-1)*PROVIDER_MIN_MS,Math.max(0,remaining-PROVIDER_MIN_MS-ROUTER_SETTLE_RESERVE_MS));
@@ -418,7 +420,7 @@ export async function routeAiStructured(options={}){
         const slowFailure=Date.now()-startedAt>=perAttemptMs/2;
         if(category!=='timeout'&&!(alternateAvailable&&slowFailure)&&retryableSameProvider(error,attempt)){
           const delay=RETRY_BASE_MS*(attempt+1);
-          if(Date.now()-routeStartedAt+delay+PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS>=ROUTER_BUDGET_MS){lastCode='AI_TIMEOUT';break providerRoute;}
+          if(Date.now()-routeStartedAt+delay+PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS>=totalBudgetMs){lastCode='AI_TIMEOUT';break providerRoute;}
           await sleep(delay);continue;
         }
         break;
