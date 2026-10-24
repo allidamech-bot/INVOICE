@@ -22,7 +22,7 @@ const injection=[
  for(const [engine,driver] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await driver.launch({headless:true});
   try{
-   for(const lang of ['en','ar']){
+   for(const lang of (process.env.LOUREX_TREASURY_ONE_CASE==='1'?['en']:['en','ar'])){
     const page=await browser.newPage({viewport:{width:390,height:844},acceptDownloads:true});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/tests/visual/treasury-report-output.html*',async route=>{
@@ -57,7 +57,14 @@ const injection=[
          return originalClick.apply(this,args);
        };
      });
-     await page.getByRole('button',{name:label('Export CSV','تصدير CSV'),exact:true}).click();
+     const positions=await page.evaluate(()=>{
+       const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Export CSV'||b.textContent.trim()==='تصدير CSV');
+       const pos=node=>{const r=node.getBoundingClientRect(),st=getComputedStyle(node);return{tag:node.tagName,cls:String(node.className).slice(0,100),left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width),scrollWidth:node.scrollWidth,clientWidth:node.clientWidth,overflowX:st.overflowX,display:st.display};};
+       const ancestor=[];for(let node=button;node;node=node.parentElement)ancestor.push(pos(node));
+       return{innerWidth,scrollX,documentWidth:document.documentElement.scrollWidth,ancestor:ancestor.slice(0,13)};
+     });
+     console.log('TREASURY_LONG_TEXT_CSV_MOBILE_GEOMETRY',JSON.stringify({engine,lang,positions}));
+     await page.getByRole('button',{name:label('Export CSV','تصدير CSV'),exact:true}).click({timeout:6000});
      const capture=await page.evaluate(async()=>({
        clicks:window.qaTreasuryCsvClicks,
        csv:window.qaTreasuryCsvBlob?await window.qaTreasuryCsvBlob.text():null
