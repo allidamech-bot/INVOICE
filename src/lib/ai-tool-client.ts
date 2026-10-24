@@ -293,6 +293,21 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
   const scopedVault=scopeVault(input.vault);
   const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
+  // An explicit supplied-data question cannot read the selected workspace
+  // record. Preserve pure deterministic calculations, including server-side
+  // enforcement; do not turn "no records" into "no calculation".
+  const suppliedOnly=runtime.conversationMode==='advisor'&&/(?:\bno\s+(?:company\s+)?records\b|\b(?:do\s+not|don't)\s+(?:use|consult|search|check)\s+(?:company\s+)?records\b|\bwithout\s+(?:using|consulting|searching|checking)\s+(?:company\s+)?records\b|(?:لا\s+(?:تستخدم|تبحث|تراجع)|(?:دون|بدون)\s+(?:استخدام|الرجوع|البحث|مراجعة)).{0,45}(?:سجلات|السجلات))/iu.test(input.message);
+  if(suppliedOnly){
+    let payload:any;
+    try{
+      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',conversationMode:'advisor',dataScope:'supplied-only',message:input.message,scope:runtime.scope,sources},input.signal,15_000);
+    }catch(error){if(input.signal?.aborted)throw error;return null;}
+    const plan=validateAiToolPlan(payload?.plan,runtime.scope,'advisor');
+    const calculations=new Set(['pricing.margin','pricing.markup','pricing.targetPrice','landedCost.calculate','scenario.calculate','breakEven.calculate','inventory.coverage']);
+    if(!plan?.calls.length||plan.calls.some(call=>!calculations.has(call.tool)))return null;
+    const execution=executeAiToolPlan(runtime,plan);
+    return{answer:formatAnswer(plan,execution.results,input.language),proposal:null,plan,results:execution.results,plannedBy:'ai'};
+  }
   // A fully specified REVIEW-ONLY quote must be usable even if the free AI
   // planner cannot return a valid tool plan. This creates a scoped in-chat
   // artifact, not a save proposal or vault write. Ambiguity falls through.

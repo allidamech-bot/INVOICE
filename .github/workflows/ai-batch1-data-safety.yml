@@ -14,6 +14,7 @@ on:
       - 'tests/ai-search-exact-record-ranking.test.mjs'
       - 'tests/ai-dialogue-negated-completion.test.mjs'
       - 'tests/ai-dialogue-output-fidelity.test.mjs'
+      - 'tests/ai-supplied-data-routing.test.mjs'
       - 'src/lib/ai-workflow-quote-guard.ts'
       - 'src/lib/ai-import-authorization.ts'
       - 'src/styles/ai-conversation-workspace.css'
@@ -64,6 +65,7 @@ jobs:
           tests/ai-natural-unified-dialogue.test.mjs
           tests/ai-dialogue-negated-completion.test.mjs
           tests/ai-dialogue-output-fidelity.test.mjs
+          tests/ai-supplied-data-routing.test.mjs
           tests/ai-f21-advisor-saved-documents.test.mjs
           tests/ai-conversational-price-followups.test.mjs
           tests/ai-dialogue-catalog-evidence.test.mjs
