@@ -394,3 +394,32 @@ test('insufficient request budget dispatches no provider',async()=>{
  const result=await routeAiStructured({taskType:'business_copilot',prompt:'Synthetic deadline',schema:schema(),totalBudgetMs:4_000});
  assert.equal(result.errorCode,'AI_TIMEOUT');assert.equal(calls,0);
 });
+
+test('definitive provider/model rejections quarantine immediately then allow bounded recovery',async()=>{
+ for(const status of [401,403,404]){
+  ({routeAiStructured}=await import('../api/_ai/router.js?rejection='+status));
+  configureAll();let groqCalls=0;let recovered=false;
+  globalThis.fetch=async(url)=>{
+   if(String(url).includes('groq.com')){groqCalls++;if(!recovered)return response(status,{});}
+   return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
+  };
+  const request={taskType:'business_copilot',prompt:'Synthetic rejected model',schema:schema()};
+  assert.equal((await routeAiStructured(request)).provider,'cloudflare');
+  assert.equal((await routeAiStructured(request)).provider,'cloudflare');
+  assert.equal(groqCalls,1,'a definitive rejection must not be retried on the next customer turn');
+  testClock+=300_001;recovered=true;
+  assert.equal((await routeAiStructured(request)).provider,'groq','quarantine must expire and permit recovery');
+  assert.equal(groqCalls,2);
+ }
+});
+
+test('request-specific schema rejection does not disable the model for other requests',async()=>{
+ configureAll();let groqCalls=0;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes('groq.com')&&++groqCalls===1)return response(400,{error:{message:'unsupported response_format schema'}});
+  return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
+ };
+ const request={taskType:'business_copilot',prompt:'Synthetic schema',schema:schema()};
+ assert.equal((await routeAiStructured(request)).provider,'cloudflare');
+ assert.equal((await routeAiStructured(request)).provider,'groq');
+});

@@ -12,6 +12,7 @@ const ROUTER_SETTLE_RESERVE_MS=1_500;
 const MAX_OUTPUT_TOKENS=4096;
 const CIRCUIT_FAILURE_THRESHOLD=2;
 const CIRCUIT_OPEN_MS=30_000;
+const REJECTED_MODEL_OPEN_MS=300_000;
 const MAX_PROVIDER_ATTEMPTS=2;
 const RETRY_BASE_MS=125;
 
@@ -82,14 +83,18 @@ function retryAfterDurationMs(value){
   return Number.isFinite(millis)?Math.min(86_400_000,Math.max(30_000,millis)):60_000;
 }
 function recordSuccess(provider,model){circuitState.delete(modelKey(provider,model));}
-function recordFailure(provider,model,category,retryAfterMs){
+function recordFailure(provider,model,category,retryAfterMs,status){
   if(!['timeout','rate_limit','unavailable','network','upstream'].includes(category))return;
   if(category==='rate_limit'){
     providerRateLimitUntil.set(provider,Date.now()+(Number.isFinite(retryAfterMs)?retryAfterMs:60_000));
   }
   const key=modelKey(provider,model),previous=circuitState.get(key)||{failures:0,openUntil:0};
   const failures=previous.failures+1;
-  circuitState.set(key,{failures,openUntil:failures>=CIRCUIT_FAILURE_THRESHOLD?Date.now()+CIRCUIT_OPEN_MS:0});
+  // A rejected credential/model will not recover by sending the next user's
+  // prompt immediately. Quarantine this model only; other models may be usable.
+  // Schema-specific 400 errors must never disable unrelated requests.
+  const rejected=[401,403,404].includes(status);
+  circuitState.set(key,{failures,openUntil:rejected?Date.now()+REJECTED_MODEL_OPEN_MS:failures>=CIRCUIT_FAILURE_THRESHOLD?Date.now()+CIRCUIT_OPEN_MS:0});
 }
 function safeRequestId(value){const text=String(value||'').trim();return /^[A-Za-z0-9._:-]{1,120}$/.test(text)?text:randomUUID();}
 function safeTaskType(value){return String(value||'general').replace(/[^a-zA-Z0-9._-]/g,'').slice(0,80)||'general';}
@@ -412,7 +417,7 @@ export async function routeAiStructured(options={}){
         if(lowConfidence&&options.qualityFallback===true&&index+1<candidates.length){lowConfidenceResult=lowConfidenceResult||accepted;break;}
         return finish(accepted);
       }catch(error){
-        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});
+        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});
         // A full timeout is already a failed attempt, not a reason to repeat it.
         // Keep quick transient retries, but let a healthy alternate have its turn
         // after a slow upstream failure instead of consuming another deadline.
