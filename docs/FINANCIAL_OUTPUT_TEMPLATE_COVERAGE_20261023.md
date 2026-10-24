@@ -10,7 +10,7 @@ physical iPhone result or complete forty-item closure is inferred here.
 |---|---|---|
 | Customer receipt / supplier payment voucher | #982; `run-payment-voucher-long-print.cjs`: 100 note lines, long names/references, English/Arabic, three logo shapes, both engines, native Chromium PDFs | Fixed voucher layout, not 18 selectable commercial templates |
 | Purchase order | #992; `run-purchase-order-final-print.cjs`: short and 40-line long descriptions, English/Arabic, long mode three logo shapes; Obsidian/Executive | #1032 accepted the remaining sixteen registered templates with dedicated 40-line browser/native-PDF cases; actual app-entry and device journeys remain separate |
-| Invoice | #994; same runner with `--long --invoice`, actual customerSnapshot; 40 long descriptions, English/Arabic, three logo shapes, Obsidian/Executive | This round adds the other sixteen templates; bilingual and actual App.requestPrint are separate |
+| Invoice | #994; same runner with `--long --invoice`, actual customerSnapshot; 40 long descriptions, English/Arabic, three logo shapes, Obsidian/Executive | #1016 accepted the other sixteen templates; bilingual and actual App.requestPrint are separate |
 | Customer statement | #910 and `run-customer-statement-print.cjs`: 1/40 invoices plus partial receipt | Many rows do not prove every long name or reference scenario |
 | Supplier statement | #910 and `run-supplier-statement-print.cjs`: 1/100 purchases plus partial payment | Fixed statement layout, not the commercial template selector |
 | Management performance report | #1002; 40 customers, currencies/search, browser and native PDF | Does not establish every ReportsPage report or arbitrary long customer names |
@@ -50,8 +50,8 @@ coverage; those expensive suites were not rerun for this inventory.
 | carbon | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
 
 #1016 and #1032 are merged; the respective exact-head, four-shard CI successes
-are the automated long-invoice and long-purchase-order execution evidence. This table never treats merely having a test as
-proof of a successful run. The old two-template suite remains a regression
+are the automated long-invoice and long-purchase-order execution evidence.
+The table never treats merely having a test as proof of a successful run. The old two-template suite remains a regression
 check because the shared fixture/runner changes; it is not counted as new work.
 
 ## This bounded round
@@ -111,4 +111,4 @@ is deliberately rerun in these shards.
 at `60549a30c4a3f58c19df2cb17a03f2a561eca4da`. This closes only the
 sixteen-template dedicated long purchase-order gap; the
 bilingual long-document, fixed-report text extremes, real App print journeys,
-physical iPhone and deferred original item 4 would remain separate.
+physical iPhone and deferred original item 4 remain separate.
