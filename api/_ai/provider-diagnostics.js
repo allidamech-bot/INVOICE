@@ -7,7 +7,7 @@ const SYNTHETIC_PROMPT='Synthetic accounting arithmetic test with NO customer or
 // The Kilo diagnostic pins a published $0/$0 per-token model. Avoid
 // kilo-auto/free selecting a different reasoning model on each probe.
 // This does NOT modify the business AI router or permit private input.
-const MODEL={groq:'openai/gpt-oss-120b',cloudflare:'@cf/google/gemma-4-26b-a4b-it',gemini:'gemini-2.5-flash-lite',kilo:'google/gemma-4-26b-a4b-it:free',openrouter:'openrouter/free',mistral:'mistral-small-latest',ollama:'gemma4:31b'};
+const MODEL={groq:'openai/gpt-oss-120b',cloudflare:'@cf/google/gemma-4-26b-a4b-it',gemini:'gemini-2.5-flash-lite',kilo:'google/gemma-4-26b-a4b-it:free',openrouter:'openrouter/free',ollama:'gemma4:31b'};
 const MAX_RESPONSE_BYTES=24_000;
 const PROVIDER_TIMEOUT_MS=12_000;
 
@@ -26,7 +26,6 @@ function settingsFor(provider){
     case 'gemini':return{key:process.env.GEMINI_API_KEY?.trim(),url:'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent'};
     case 'kilo':return{key:process.env.KILO_API_KEY?.trim(),url:'https://ai-gateway.kilo.ai/api/v1/chat/completions'};
     case 'openrouter':return{key:process.env.OPENROUTER_API_KEY?.trim(),url:'https://openrouter.ai/api/v1/chat/completions'};
-    case 'mistral':return{key:process.env.MISTRAL_API_KEY?.trim(),url:'https://api.mistral.ai/v1/chat/completions'};
     case 'ollama':return{key:process.env.OLLAMA_API_KEY?.trim(),url:'https://ollama.com/api/chat'};
     default:return null;
   }
@@ -40,8 +39,7 @@ function payloadFor(provider,mode='single',selectedModel=MODEL[provider]){
     ...(provider==='groq'?{max_completion_tokens:financial?384:160,reasoning_effort:'low',include_reasoning:false}:{}),
     ...(provider==='cloudflare'?{max_completion_tokens:256,chat_template_kwargs:{enable_thinking:false},options:{rejectIfBusy:true}}:{}),
     ...(provider==='kilo'?{max_tokens:financial?512:384}:{}),
-    ...(provider==='openrouter'?{max_tokens:financial?512:192,provider:{data_collection:'deny'}}:{}),
-    ...(provider==='mistral'?{max_tokens:financial?512:192,...(financial?{response_format:{type:'json_object'}}:{})}:{})};
+    ...(provider==='openrouter'?{max_tokens:financial?512:192,provider:{data_collection:'deny'}}:{})};
 }
 function safeCategory(status){
   if(status===401||status===403)return'KEY_REJECTED';
@@ -58,7 +56,6 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,m
   if(requestedModel!==undefined&&(provider!=='ollama'||!OLLAMA_SYNTHETIC_MODELS.includes(requestedModel)))return{status:'INVALID_DIAGNOSTIC_MODEL'};
   const model=requestedModel||MODEL[provider];
   // These models may consume credits on a paid plan. Keys alone are never consent.
-  if(provider==='mistral'&&process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED!=='true')return{provider,model,status:'FREE_TIER_NOT_VERIFIED',latencyMs:0,correct:false};
   if(provider==='ollama'&&process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED!=='true')return{provider,model,status:'FREE_TIER_NOT_VERIFIED',latencyMs:0,correct:false};
   const cfg=settingsFor(provider);
   if(!cfg?.key||!cfg.url)return{provider,model,status:'NOT_CONFIGURED',latencyMs:0,correct:false};
@@ -92,15 +89,15 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,m
  
 // Read-only account authentication check. No chat/completion requests, prompts,
 // customer data, model inference, or consumption of model-output tokens.
-// Gemini reads ONE fixed model's metadata; Mistral/Ollama retain their existing
+// Gemini reads ONE fixed model's metadata; Ollama retains its existing
 // catalog checks. Credential lookup cannot certify inference quota or pricing.
 export async function checkProviderCredential(provider,{fetchImpl=fetch}={}){
-  if(!['gemini','mistral','ollama'].includes(provider))return{status:'INVALID_PROVIDER'};
+  if(!['gemini','ollama'].includes(provider))return{status:'INVALID_PROVIDER'};
   const model=MODEL[provider],cfg=settingsFor(provider);
   if(!cfg?.key)return{provider,model,status:'NOT_CONFIGURED',inference:false,latencyMs:0};
   const gemini=provider==='gemini';
   const url=gemini?'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite':
-    provider==='mistral'?'https://api.mistral.ai/v1/models':'https://ollama.com/api/tags';
+    'https://ollama.com/api/tags';
   const started=Date.now(),controller=new AbortController();
   let timer;
   const deadline=new Promise((_,reject)=>{
@@ -145,14 +142,12 @@ export function providerConfigurationSnapshot(env=process.env){
     gemini:Boolean(env.GEMINI_API_KEY?.trim()),
     kilo:Boolean(env.KILO_API_KEY?.trim()),
     openrouter:Boolean(env.OPENROUTER_API_KEY?.trim()),
-    mistral:Boolean(env.MISTRAL_API_KEY?.trim()),
     ollama:Boolean(env.OLLAMA_API_KEY?.trim())
   };
   const optIn=env.LOUREX_AI_NEW_PROVIDERS_ENABLED==='true';
-  const verified={mistral:env.LOUREX_AI_MISTRAL_FREE_VERIFIED==='true',
-    ollama:env.LOUREX_AI_OLLAMA_FREE_VERIFIED==='true'};
+  const verified={ollama:env.LOUREX_AI_OLLAMA_FREE_VERIFIED==='true'};
   return SYNTHETIC_PROVIDER_IDS.map(provider=>{
-    const keyReady=configured[provider],needsVerification=provider==='mistral'||provider==='ollama';
+    const keyReady=configured[provider],needsVerification=provider==='ollama';
     const external=provider==='openrouter'||needsVerification;
     const freeVerified=needsVerification?verified[provider]:null;
     return{provider,configured:keyReady,

@@ -55,22 +55,12 @@ test('OpenRouter uses only its zero-price model selector and disables data-colle
   assert.equal(seen.headers.Authorization,'Bearer fake-key');
 });
 
-test('Mistral is excluded until operator separately confirms free-plan mode',async()=>{
+test('Mistral stays removed even if old free-plan flags and key remain',async()=>{
   process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
   process.env.MISTRAL_API_KEY='fake-key';
-  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
-  const denied=await ask();
-  assert.equal(denied.success,false);
-  assert.equal(calls,0);
   process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED='true';
-  let body,url;
-  globalThis.fetch=async(u,options)=>{url=String(u);body=JSON.parse(options.body);return response(200,{choices:[{message:{content:'{"value":"mistral-ok"}'}}]});};
-  const result=await ask();
-  assert.equal(result.success,true);
-  assert.equal(result.provider,'mistral');
-  assert.match(url,/api\.mistral\.ai/);
-  assert.equal(body.model,'mistral-small-latest');
-  assert.deepEqual(body.response_format,{type:'json_object'});
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const result=await ask();assert.equal(result.success,false);assert.equal(calls,0);
 });
 
 test('Ollama Cloud uses direct hosted API, no local device, and validates JSON locally',async()=>{

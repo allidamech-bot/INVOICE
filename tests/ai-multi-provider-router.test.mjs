@@ -30,7 +30,6 @@ test('free-only registry contains only the approved provider/model set',()=>{
     'cloudflare:@cf/openai/gpt-oss-120b',
     'gemini:gemini-2.5-flash-lite',
     'openrouter:openrouter/free',
-    'mistral:mistral-small-latest',
     'ollama:gemma4:31b',
   ]);
   assert.ok(AI_MODEL_REGISTRY.every(entry=>entry.freeTierEligible===true));

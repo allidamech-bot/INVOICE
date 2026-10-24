@@ -269,7 +269,7 @@
   const accuracyButtons=[...document.querySelectorAll('[data-provider-accuracy]')];
   const keyButtons=[...document.querySelectorAll('[data-provider-key-check]')];
   const allProbeButtons=[...providerButtons,...accuracyButtons,...keyButtons];
-  const safeProviders=new Set(['groq','cloudflare','gemini','kilo','openrouter','mistral','ollama']);
+  const safeProviders=new Set(['groq','cloudflare','gemini','kilo','openrouter','ollama']);
   let probeRunning=false;
   // The server alone knows which environment gates are configured. This read
   // makes no vendor calls, uses the same owner gate, and never displays keys.
@@ -380,7 +380,7 @@
   // Owner-only metadata checks. No prompts, inference or payment.
   for(const button of keyButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-key-check');
-    if(probeRunning||!['gemini','mistral','ollama'].includes(provider))return;
+    if(probeRunning||!['gemini','ollama'].includes(provider))return;
     probeRunning=true;allProbeButtons.forEach(item=>item.disabled=true);
     const result=document.querySelector('[data-provider-key-result="'+provider+'"]');
     if(result)result.textContent='Checking key only… / جارٍ فحص المفتاح فقط…';

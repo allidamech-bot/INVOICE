@@ -10,7 +10,7 @@ const keys={
  MISTRAL_API_KEY:'synthetic-secret-mistral',OLLAMA_API_KEY:'synthetic-secret-ollama'
 };
 const named=rows=>Object.fromEntries(rows.map(row=>[row.provider,row]));
-test('seven provider configuration states are secrets-free and Kilo is diagnostics-only',()=>{
+test('six provider configuration states are secrets-free and Kilo is diagnostics-only',()=>{
  const rows=providerConfigurationSnapshot(keys),map=named(rows);
  assert.deepEqual(rows.map(row=>row.provider),SYNTHETIC_PROVIDER_IDS);
  for(const value of Object.values(keys))assert.ok(!JSON.stringify(rows).includes(value));
@@ -18,23 +18,22 @@ test('seven provider configuration states are secrets-free and Kilo is diagnosti
  assert.equal(map.kilo.diagnosticsOnly,true);
  assert.equal(map.kilo.routerEnvironmentEligible,false);
  for(const p of ['groq','cloudflare','gemini'])assert.equal(map[p].routerEnvironmentEligible,true);
- for(const p of ['openrouter','mistral','ollama'])assert.equal(map[p].routerEnvironmentEligible,false);
- for(const p of ['mistral','ollama'])assert.equal(map[p].syntheticProbeAllowed,false);
+ for(const p of ['openrouter','ollama'])assert.equal(map[p].routerEnvironmentEligible,false);
+ for(const p of ['ollama'])assert.equal(map[p].syntheticProbeAllowed,false);
 });
 test('free-plan verification never substitutes for privacy opt-in, nor for credentials',()=>{
  const opted=named(providerConfigurationSnapshot({...keys,LOUREX_AI_NEW_PROVIDERS_ENABLED:'true'}));
  assert.equal(opted.openrouter.routerEnvironmentEligible,true);
- assert.equal(opted.mistral.routerEnvironmentEligible,false);
  assert.equal(opted.ollama.routerEnvironmentEligible,false);
  const allowed=named(providerConfigurationSnapshot({...keys,LOUREX_AI_NEW_PROVIDERS_ENABLED:'true',
    LOUREX_AI_MISTRAL_FREE_VERIFIED:'true',LOUREX_AI_OLLAMA_FREE_VERIFIED:'true'}));
- for(const p of ['mistral','ollama']){
+ for(const p of ['ollama']){
    assert.equal(allowed[p].syntheticProbeAllowed,true);
    assert.equal(allowed[p].routerEnvironmentEligible,true);
  }
  const noOpt=named(providerConfigurationSnapshot({...keys,
    LOUREX_AI_MISTRAL_FREE_VERIFIED:'true',LOUREX_AI_OLLAMA_FREE_VERIFIED:'true'}));
- for(const p of ['mistral','ollama']){
+ for(const p of ['ollama']){
    assert.equal(noOpt[p].syntheticProbeAllowed,true);
    assert.equal(noOpt[p].routerEnvironmentEligible,false);
  }

@@ -46,7 +46,6 @@ test('financial pack calls only selected provider with server-owned fixed JSON t
      assert.equal(body.max_completion_tokens,256);
     }
     if(provider==='openrouter'){assert.equal(body.model,'openrouter/free');assert.deepEqual(body.provider,{data_collection:'deny'});}
-    if(provider==='mistral'){assert.equal(body.model,'mistral-small-latest');assert.deepEqual(body.response_format,{type:'json_object'});}
     if(provider==='ollama'){assert.equal(body.model,'gemma4:31b');assert.equal(body.format,'json');assert.equal(body.stream,false);}
     if(provider==='kilo'){
      assert.equal(body.model,'google/gemma-4-26b-a4b-it:free');

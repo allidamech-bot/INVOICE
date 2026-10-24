@@ -8,12 +8,10 @@ const original=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
 test.afterEach(()=>{for(const k of keys){if(original[k]===undefined)delete process.env[k];else process.env[k]=original[k];}});
 
 test('owner credential preflight never invokes model generation and does not require billable free-tier opt-in',async()=>{
-  process.env.MISTRAL_API_KEY='synthetic-mistral-key';
   process.env.OLLAMA_API_KEY='synthetic-ollama-key';
   delete process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED;
   delete process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED;
   for(const [provider,url] of [
-    ['mistral','https://api.mistral.ai/v1/models'],
     ['ollama','https://ollama.com/api/tags']
   ]){
     let calls=0;
@@ -35,12 +33,12 @@ test('owner credential preflight never invokes model generation and does not req
 });
 
 test('key-check failures are redacted and do not mark a key as good',async()=>{
-  process.env.MISTRAL_API_KEY='synthetic-mistral-key';
-  const check=await checkProviderCredential('mistral',{fetchImpl:async()=>({ok:false,status:401})});
+  process.env.OLLAMA_API_KEY='synthetic-ollama-key';
+  const check=await checkProviderCredential('ollama',{fetchImpl:async()=>({ok:false,status:401})});
   assert.equal(check.status,'KEY_REJECTED');
   assert.equal(check.inference,false);
-  assert.equal(JSON.stringify(check).includes('synthetic-mistral-key'),false);
-  const payment=await checkProviderCredential('mistral',{fetchImpl:async()=>({ok:false,status:402})});
+  assert.equal(JSON.stringify(check).includes('synthetic-ollama-key'),false);
+  const payment=await checkProviderCredential('ollama',{fetchImpl:async()=>({ok:false,status:402})});
   assert.equal(payment.status,'PAYMENT_REQUIRED');
 });
 
@@ -63,7 +61,7 @@ test('credential mode remains inside the same owner-authenticated server gate',(
   const keyMode=api.indexOf("mode==='key-check'",gate);
   assert.ok(gate!==-1&&owner>gate&&keyMode>owner);
   assert.match(api,/checkProviderCredential\(provider\)/);
-  for(const provider of ['mistral','ollama']){
+  for(const provider of ['ollama']){
     assert.match(page,new RegExp('data-provider-key-check="'+provider+'"'));
     assert.match(client,/mode:'key-check'/);
   }
