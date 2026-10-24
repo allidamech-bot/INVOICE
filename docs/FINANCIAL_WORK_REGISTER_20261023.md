@@ -50,30 +50,39 @@ in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
 
 ## Read-only production deployment verification — 24 October 2026
 
-**Latest verified state (supersedes the earlier stale production check):**
-The authenticated Vercel deployment serving the exact production alias
-`invoice-three-puce.vercel.app` is `dpl_8gZzZJ7xMWDW1Z4TaoTdSG8h7ePp` in `READY` state
-(target: `production`), with attached aliases
-`invoice-three-puce.vercel.app ; invoice-alidaamishs-projects.vercel.app ; invoice-git-main-alidaamishs-projects.vercel.app`.
-Its GitHub source is `main` at `c1811669d9590cade929960cbeb268b04c75d806`
-(financial [#1046](https://github.com/allidamech-bot/INVOICE/pull/1046)).
-The independently queried GitHub `main` HEAD matches this production SHA
-at the time of this read-only inspection. **Production deployment drift is
-resolved at this snapshot** and the recent merged financial changes are included
-in the source of the current production deployment.
+**Latest verified snapshot (24 October 2026; supersedes the #1046-only snapshot):**
+The Vercel deployment currently attached to the production alias
+`invoice-three-puce.vercel.app` is `dpl_6DcuJZjrQbk7Q5wVnrYGgtwHZdAb`,
+with status `READY` and GitHub source `main` at
+`cd613c4f93f674e72a6930b0ac9dd67cc6d2a4d8` (AI #1051).
+The GitHub main history has advanced to
+`562e0a0ff5d4f29c71641b5440e004ce4b5fb98f`
+(financial test-only #1052). **Exact source-SHA parity between production
+and latest main is therefore no longer true.** The sole subsequent
+merged change identified in this snapshot is #1052, which adds only a
+Node test (no production runtime files). Consequently, this source
+difference alone is not evidence of a missing runtime fix and is not a
+reason to force a new deployment.
 
-This is **source/deployment parity only**, not a signed-off interactive release:
-the tool's `READY` state does not prove app login, per-account IndexedDB,
-Firebase security/storage rules, in-browser service-worker refresh, mobile
-print/share, or physical Safari/PWA correctness. A public HTML request could
-not be independently fetched from the read-only web fetcher, so no live
-browser/UI behavior is asserted. No deployment, promotion, server setting,
-financial transaction, Firebase rule or account data was changed during this
-verification. Real-device acceptance remains open; iPhone should be validated
-against the deployed SHA above, including login, invoice/PO output, customer
-and supplier statements, treasury, VAT, backup/restore (only in an isolated
-test account), and no duplicate/blank PDF output. Do not run destructive
-restore/stock operations on live customer data.
+The earlier observed production deployment
+`dpl_8gZzZJ7xMWDW1Z4TaoTdSG8h7ePp` at `c1811669...`
+(financial #1046) was READY when checked previously, but is **not** the
+current production-alias deployment in the latest inspection.
+
+GitHub Actions exact-head verification for #1052:
+`40118418013` (Finance Invoice Stock 200 To 180 (Node Only))
+completed successfully, including TypeScript compilation and the scoped
+200 -> 180 stock/warehouse saved-cycle acceptance. This does not prove
+the production UI behavior, a real logged-in customer account, or any
+physical iPhone browser acceptance.
+
+Production deployment and browser/account acceptance remain separate.
+The `READY` status is a deployment status, not proof of live login,
+per-account IndexedDB, Firebase rules, service-worker refresh, mobile
+print/share or physical Safari correctness. No release, rollback,
+real-account write, cloud-rule change, or physical-device execution
+was performed in this evidence update. The owner explicitly requested
+no further browser automation.
 
 ## New owner-requested tracked-invoice stock acceptance — 24 October 2026
 
