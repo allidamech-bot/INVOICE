@@ -3429,3 +3429,39 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-view
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-pdf-direct-toolbar button:focus-visible{
   outline:2px solid #8bd4b9;outline-offset:2px;
 }
+
+/* Conversation reading scale. Own text sizing here so legacy message, compact
+   list and phone rules cannot shrink different parts of the same answer. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn{
+  --lxw-reading-size:16px;
+  --lxw-reading-leading:1.75;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn :is(.lourex-ai-message,.lourex-ai-user-copy,.lourex-ai-answer-copy,.lxw-markdown){
+  font-size:var(--lxw-reading-size)!important;
+  line-height:var(--lxw-reading-leading)!important;
+  font-weight:400;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lxw-markdown :is(p,ul,ol,li,.lxw-result-name,.lxw-result-sku,.lxw-reply-question-title,.lxw-reply-question-detail){
+  font-size:var(--lxw-reading-size)!important;
+  line-height:var(--lxw-reading-leading)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lxw-markdown :is(strong,b,em,code){
+  font-size:inherit!important;
+  line-height:inherit!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lxw-markdown :is(strong,b){font-weight:650!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lxw-markdown :is(h3,h4){
+  font-size:18px!important;line-height:1.5!important;font-weight:650!important;
+  margin-block:16px 8px!important;letter-spacing:normal!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lxw-markdown> :first-child{margin-block-start:0!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lxw-markdown :is(p,li){margin-block-end:8px!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .lxw-response-table :is(th,td){
+  font-size:15px!important;line-height:1.65!important;
+  padding:10px 12px!important;font-variant-numeric:tabular-nums;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user,
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant .lourex-ai-message.assistant{
+  font-size:var(--lxw-reading-size)!important;
+  line-height:var(--lxw-reading-leading)!important;
+}
