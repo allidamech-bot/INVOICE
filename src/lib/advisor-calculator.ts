@@ -1,7 +1,7 @@
 import { decimalToScaled, isNonNegativeDecimalInput, lineTotal, normalizeDecimalInput } from './money.js';
 
 export interface AdvisorCalculation {
-  kind:'margin-price'|'markup-price'|'sale-profit'|'landed-cost';
+  kind:'margin-price'|'markup-price'|'sale-profit'|'landed-cost'|'unit-profitability';
   summary:string;
 }
 
@@ -67,7 +67,34 @@ function freightValue(message:string):string{return capture(message,[`(?:freight
 function dutyValue(message:string):string{return capture(message,[`(?:duty|customs?)\\s*(?:is|=|:)?\\s*${NUMBER}`,`(?:جمارك|الجمارك|رسوم جمركية)\\s*(?:هي|=|:)?\\s*${NUMBER}`]);}
 function otherValue(message:string):string{return capture(message,[`(?:other costs?|other charges?)\\s*(?:is|=|:)?\\s*${NUMBER}`,`(?:تكاليف أخرى|تكاليف اخرى|مصاريف أخرى|مصاريف اخرى)\\s*(?:هي|=|:)?\\s*${NUMBER}`]);}
 
+/** A deliberately narrow scalar calculation: current-message labels only,
+ * one unambiguous cost/price pair, same explicit currency or neither supplied. */
+export function explicitAdvisorUnitProfitability(message:string,language:'en'|'ar'='en'):AdvisorCalculation|null{
+  if(!/\b(?:calculate|compute|what\s+is|what's)\b|احسب|كم\s+(?:هامش|نسبة)/iu.test(message))return null;
+  if(/\b(?:do\s+not|don't|without)\s+(?:calculate|compute)\b|لا\s+تحسب|دون\s+حساب|\b(?:translate|repeat|reproduce|quote|recommend|explain|compare|create|invoice)\b|ترجم|انسخ|اكتب\s+النص|اشرح|قارن|تنصح|أنشئ|انشئ|فاتورة|عرض\s+سعر/iu.test(message))return null;
+  if(/[%٪]|\b(?:quantity|qty|total|freight|shipping|tax|duty)\b|الكمية|كمية|إجمالي|اجمالي|شحن|ضريبة|جمارك/iu.test(message))return null;
+  const intent=message.replace(/\bnot\s+(?:gross\s+)?(?:margin|markup)\b|ليس\s+(?:نسبة\s+)?(?:الزيادة على التكلفة|هامش الربح)/giu,'');
+  const margin=/\b(?:gross\s+)?margin\b|هامش/iu.test(intent),markup=/\bmarkup\b|الزيادة على التكلفة/iu.test(intent);
+  if(margin===markup)return null;
+  const numeric='([0-9٠-٩۰-۹]+(?:[.٫][0-9٠-٩۰-۹]+)?)(?![\\p{L}\\p{N}_]|[.,٫٬][0-9٠-٩۰-۹])';
+  const currency='(USD|EUR|SAR|AED|TRY|GBP|JPY|CNY|CHF|KWD|QAR|دولار|يورو|ريال|ليرة|\\$|€)';
+  const pair=(labels:string)=>Array.from(message.matchAll(new RegExp('(?<![\\p{L}\\p{N}_])[وف]?(?:'+labels+')\\s*(?:is|at|هو|هي|=|:)?\\s*'+numeric+'(?:\\s*'+currency+'(?![\\p{L}\\p{N}_]))?','giu')));
+  const costs=pair('unit cost|cost|التكلفة|تكلفة|الكلفة'),prices=pair('selling price|sale price|price|سعر البيع|سعر بيع');
+  if(costs.length!==1||prices.length!==1)return null;
+  const normalizeCurrency=(v:string|undefined)=>({دولار:'USD',يورو:'EUR',ريال:'SAR',ليرة:'TRY','$':'USD','€':'EUR'}[v||'']||String(v||'').toUpperCase());
+  const costCurrency=normalizeCurrency(costs[0]![2]),priceCurrency=normalizeCurrency(prices[0]![2]);
+  if(costCurrency!==priceCurrency)return null;
+  if(!costCurrency&&/\b[A-Z]{3}\b/.test(message))return null;
+  const cost=normalizedNumber(costs[0]![1]),price=normalizedNumber(prices[0]![1]);
+  if(!cost||!price)return null;
+  const c=decimalToScaled(cost,4),p=decimalToScaled(price,4),denominator=margin?p:c,ar=language==='ar';
+  if(denominator===0n)return{kind:'unit-profitability',summary:ar?'لا يمكن حساب النسبة لأن أساس القسمة يساوي صفرًا.':'The percentage is undefined because its denominator is zero.'};
+  const percent=fixed(roundedDivide((p-c)*10_000n,denominator),2),basis=ar?(margin?'هامش الربح على المبيعات':'نسبة الزيادة على التكلفة'):(margin?'Gross margin on sales':'Markup on cost');
+  return{kind:'unit-profitability',summary:ar?`${basis}: ${percent}%. الحسبة المحلية: (${price} − ${cost}) ÷ ${margin?price:cost} × 100.`:`${basis}: ${percent}%. Local calculation: (${price} − ${cost}) / ${margin?price:cost} × 100.`};
+}
+
 export function advisorCalculation(message:string,language:'en'|'ar'='en'):AdvisorCalculation|null{
+  const explicit=explicitAdvisorUnitProfitability(message,language);if(explicit)return explicit;
   const ar=language==='ar';
   const cost=costValue(message),margin=marginValue(message),markup=markupValue(message);
   if(cost&&margin){

@@ -15,6 +15,8 @@ on:
       - 'tests/ai-dialogue-negated-completion.test.mjs'
       - 'tests/ai-dialogue-output-fidelity.test.mjs'
       - 'tests/ai-supplied-data-routing.test.mjs'
+      - 'src/lib/advisor-calculator.ts'
+      - 'tests/ai-explicit-unit-profitability.test.mjs'
       - 'src/lib/ai-workflow-quote-guard.ts'
       - 'src/lib/ai-import-authorization.ts'
       - 'src/styles/ai-conversation-workspace.css'
@@ -66,6 +68,7 @@ jobs:
           tests/ai-dialogue-negated-completion.test.mjs
           tests/ai-dialogue-output-fidelity.test.mjs
           tests/ai-supplied-data-routing.test.mjs
+          tests/ai-explicit-unit-profitability.test.mjs
           tests/ai-cfo-deal-desk-batch5.test.mjs
           tests/ai-server-role-and-sandbox.test.mjs
           tests/ai-f21-advisor-saved-documents.test.mjs
