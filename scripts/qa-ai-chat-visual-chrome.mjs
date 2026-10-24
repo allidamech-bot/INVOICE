@@ -12,7 +12,7 @@ assert.ok(bin,'Chromium required');
 const markup=[
 '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">',
 '<link rel="stylesheet" href="/styles/app.bundle.css"><link rel="stylesheet" href="/ai-composer-v449.css">',
-'<style>html,body,#root{margin:0;width:100%;min-height:100%;}body{background:#080808}</style></head><body><div id="root">',
+'<script src="/vendor/react.production.min.js"></script><script src="/vendor/react-dom.production.min.js"></script><style>html,body,#root{margin:0;width:100%;min-height:100%;}body{background:#080808}</style></head><body><div id="root">',
 '<aside class="lourex-ai-panel" id="lourex-ai-panel" dir="rtl" data-lourex-workspace="2" data-lourex-conversation-remediation="3" data-workspace-mode="controller" data-workspace-ready="true">',
 '<header class="lourex-ai-head"><div class="lourex-ai-title">LOUREX AI</div><div class="lourex-ai-head-actions"><button>☷</button></div></header>',
 '<nav class="lxw-mode-tabs"><button aria-selected="true">المتحكم</button><button aria-selected="false">المستشار</button></nav>',
@@ -40,7 +40,7 @@ const markup=[
 '<div class="lxw-inline-approval-row"><button class="lxw-inline-preview-button">عرض التفاصيل</button><div class="lxw-inline-approval-buttons"><button>رفض</button><button class="primary">اعتماد المسودة</button></div></div></section>',
 '<div class="lxw-thinking"><span class="lxw-thinking-dots"><i></i><i></i><i></i></span><span>LOUREX AI يعالج طلبك…</span></div>',
 '</div><footer class="lourex-ai-compose"><div class="lourex-ai-attachment-strip"><div class="lourex-ai-attachment-chip"><strong class="lourex-ai-attachment-name">International-Quotation-Long-File-Name-TEST.pdf</strong><button class="lourex-ai-attachment-review">مراجعة</button><button class="lourex-ai-attachment-remove">×</button><small>جاهز للمراجعة · لم يحفظ</small></div></div><form><button class="lourex-ai-composer-plus">＋</button><textarea class="lourex-ai-premium-textarea" placeholder="اسأل LOUREX"></textarea><button class="lourex-ai-composer-mic">🎤</button><button class="lourex-ai-send">➤</button></form></footer>',
-'</div></div></aside></div></body></html>'
+'</div></div><div id="lxw-motion-test" class="lourex-ai-overflow" style="position:absolute;top:80px;inset-inline-end:12px;width:220px"></div></aside></div></body></html>'
 ].join('');
 const file='__lourex_ai_visual_qa__.html',profile=await mkdtemp(join(tmpdir(),'lourex-visual-'));
 const children=[];let ws;
@@ -103,6 +103,32 @@ try{
     for(const [name,ratio] of Object.entries(d.actionContrast))assert.ok(ratio>=4.5,'Low text contrast for '+name+' at '+width+': '+ratio);
    assert.ok(d.viewportOverflow<=3,'Page horizontal overflow '+d.viewportOverflow);
  }
+
+ // Exercise the actual React presence component: closing, rapid reopen,
+ // keyboard navigation and reduced motion. Only inert fixture buttons exist.
+ const presence=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{
+  const {AiMenuPresence}=await import('/src/components/AiMenuPresence.js');
+  const mount=document.getElementById('lxw-motion-test');let dismissed=0;
+  const pause=ms=>new Promise(r=>setTimeout(r,ms));
+  const content=()=>React.createElement('div',{role:'menu',className:'lourex-ai-overflow-menu'},
+    React.createElement('button',{role:'menuitem'},'New conversation'),React.createElement('button',{role:'menuitem'},'History'));
+  const paint=(open,reduced=false)=>ReactDOM.render(React.createElement(AiMenuPresence,{content:open?content():null,reduced,onDismiss:()=>{dismissed++;paint(false);}}),mount);
+  paint(true);await pause(30);let menu=mount.querySelector('[role=menu]');
+  const opening=Boolean(menu)&&getComputedStyle(menu).animationName==='lxw-surface-in';
+  menu.querySelector('button').focus();menu.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+  const keyboard=document.activeElement.textContent==='History';
+  menu.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  menu=mount.querySelector('[role=menu]');const closing=Boolean(menu?.inert)&&menu.getAttribute('aria-hidden')==='true'&&getComputedStyle(menu).pointerEvents==='none';
+  await pause(220);const removed=!mount.querySelector('[role=menu]');
+  paint(true);await pause(30);paint(false);await pause(40);paint(true);await pause(220);
+  const reopened=Boolean(mount.querySelector('[role=menu]:not([inert])'));
+  paint(false,true);const reduced=!mount.querySelector('[role=menu]');
+  ReactDOM.unmountComponentAtNode(mount);
+  return {opening,keyboard,closing,removed,reopened,reduced,dismissed};
+ })()`});
+ const motion=presence.result?.value;
+ assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1,'Menu lifecycle regression: '+JSON.stringify(presence));
+ console.log('PASS actual React menu presence: '+JSON.stringify(motion));
 
  // Simulate iPadOS visualViewport height contraction when the keyboard is up.
  // We check computed CSS and footer bounds, not native Safari behavior.
