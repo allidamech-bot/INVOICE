@@ -8,6 +8,8 @@ import {Button,Field,Input,Select,Textarea} from './UI.js';
 interface Props {uid:string|null;vault:VaultPayload;blocked:boolean;onPrepare:(action?:'enroll'|'close'|'reopen')=>Promise<VaultPayload>;}
 interface State {busy:boolean;status:OwnerPeriodStatus|null;workspaceId:string;through:string;reason:string;agreed:boolean;confirmation:''|'enroll'|'close'|'reopen';preview:ClosedPeriodState|null;archive:PeriodArchive|null;error:string;message:string;}
 const opId=()=>{const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');};
+// The close-date picker must use the operator's calendar day, not the UTC day.
+const localToday=()=>{const now=new Date();return [now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');};
 async function hash(payload:VaultPayload){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(payload)))),b=>b.toString(16).padStart(2,'0')).join('');}
 function explain(error:any):string{
  if(error?.code==='PERIOD_OWNER_REQUIRED'||error?.status===403)return t('Only the verified account owner can manage closed periods.','إدارة الفترات المقفلة متاحة لمالك الحساب المتحقق منه فقط.');
@@ -20,7 +22,7 @@ function explain(error:any):string{
 }
 export class PeriodCloseSettings extends React.Component<Props,State>{
  private alive=true;private epoch=0;private running=false;private prepared:VaultPayload|null=null;private pending:OwnerPeriodCommand|null=null;
- constructor(props:Props){super(props);this.state={busy:false,status:null,workspaceId:props.vault.appSettings.activeWorkspaceId||'default',through:new Date().toISOString().slice(0,10),reason:'',agreed:false,confirmation:'',preview:null,archive:null,error:'',message:''};}
+ constructor(props:Props){super(props);this.state={busy:false,status:null,workspaceId:props.vault.appSettings.activeWorkspaceId||'default',through:localToday(),reason:'',agreed:false,confirmation:'',preview:null,archive:null,error:'',message:''};}
  componentDidMount(){window.addEventListener('offline',this.offline);void this.refresh();}
  componentWillUnmount(){this.alive=false;this.epoch++;window.removeEventListener('offline',this.offline);}
  componentDidUpdate(previous:Props){if(previous.uid!==this.props.uid||(!this.running&&(previous.vault!==this.props.vault||previous.blocked!==this.props.blocked))){this.epoch++;this.running=false;this.prepared=null;this.pending=null;this.setState({busy:false,status:null,preview:null,confirmation:'',archive:null,agreed:false});}}
