@@ -1,5 +1,6 @@
 import type { CompanySettings, LourexDocument } from '../types.js';
 import { displayDate, todayIso } from '../lib/id.js';
+import { activeAccountStorageUid } from '../storage/db.js';
 import { formatMoney } from '../lib/money.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
 import { outputVatReport, type TaxVatDocumentRow } from '../lib/tax-vat.js';
@@ -21,6 +22,15 @@ export class TaxVatCenter extends React.Component<Props,State>{
   state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',preset:'year'};
   private printTimer:number|undefined;
   componentDidMount():void{window.addEventListener('afterprint',this.afterPrint);}
+  componentDidUpdate(previousProps:Props,previousState:State):void{
+    if(this.printTimer!==undefined&&(
+      previousProps.company!==this.props.company||
+      previousProps.documents!==this.props.documents||
+      previousState.from!==this.state.from||
+      previousState.to!==this.state.to||
+      previousState.currency!==this.state.currency
+    ))this.cancelPendingPrint();
+  }
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);this.cancelPendingPrint();}
   private cancelPendingPrint=()=>{
     if(this.printTimer!==undefined){window.clearTimeout(this.printTimer);this.printTimer=undefined;}
@@ -31,9 +41,12 @@ export class TaxVatCenter extends React.Component<Props,State>{
   private clearFilters=()=>this.setState({from:'',to:todayIso(),currency:'ALL',preset:'all'});
   private print=()=>{
     if(this.printTimer!==undefined)return;
+    const storageUid=activeAccountStorageUid(),queuedProps=this.props,queuedState=this.state;
     document.body.classList.add('printing-tax-vat-report');
     this.printTimer=window.setTimeout(()=>{
       this.printTimer=undefined;
+      if(activeAccountStorageUid()!==storageUid||this.props!==queuedProps||
+        this.state!==queuedState){this.cancelPendingPrint();return;}
       try{window.print();}catch{this.cancelPendingPrint();}
     },40);
   };
