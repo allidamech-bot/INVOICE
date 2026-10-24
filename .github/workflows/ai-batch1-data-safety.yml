@@ -66,6 +66,8 @@ jobs:
           tests/ai-dialogue-negated-completion.test.mjs
           tests/ai-dialogue-output-fidelity.test.mjs
           tests/ai-supplied-data-routing.test.mjs
+          tests/ai-cfo-deal-desk-batch5.test.mjs
+          tests/ai-server-role-and-sandbox.test.mjs
           tests/ai-f21-advisor-saved-documents.test.mjs
           tests/ai-conversational-price-followups.test.mjs
           tests/ai-dialogue-catalog-evidence.test.mjs
