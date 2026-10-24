@@ -1,0 +1,60 @@
+name: Long bilingual financial documents acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/visual/run-long-financial-bilingual.cjs'
+      - 'tests/visual/purchase-order-final-print.html'
+      - '.github/workflows/long-bilingual-financial-documents.yml'
+permissions:
+  contents: read
+concurrency:
+  group: long-bilingual-financial-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  bilingual-financial-documents:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: 1
+            templates: executive,obsidian,minimal,trade
+          - group: 2
+            templates: signature,cobalt,editorial,split,prism
+          - group: 3
+            templates: slate,horizon,mono,aurora,ledger
+          - group: 4
+            templates: noir,midnight,blackivory,carbon
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node --check tests/visual/run-long-financial-bilingual.cjs
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false playwright@1.56.1 http-server@14.1.1
+      - name: Native bilingual invoice and purchase order with 40 long lines
+        shell: bash
+        env:
+          QA_TEMPLATES: ${{ matrix.templates }}
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-long-bilingual-http.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/purchase-order-final-print.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Bilingual fixture did not start");'
+          node tests/visual/run-long-financial-bilingual.cjs --templates="$QA_TEMPLATES"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bilingual-long-financial-${{ matrix.group }}
+          path: visual-qa-output/bilingual-long-financial/
+          retention-days: 7
