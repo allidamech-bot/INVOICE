@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All ten PRs below were directly rechecked as merged. These are delivered
+All eleven PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -33,6 +33,7 @@ rounds, not a count of original checklist items.
 | [1015](https://github.com/allidamech-bot/INVOICE/pull/1015) | Item 5: read-only inventory movement print output, all filtered matches beyond the screen cap, full notes/references/signed quantities/warehouse endpoints; 12 browser cases and 4 native PDFs | `d2f5c77a469939c81ecec6629c4663b90bec71be` |
 | [1016](https://github.com/allidamech-bot/INVOICE/pull/1016) | Items 11/12: long final invoices on the other 16 registered templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; exact amounts, item completeness, no duplicate lines, logos and saved template selection | `b74579adaf56e66fb5e46a8802a7e70d370e24fe` |
 | [1032](https://github.com/allidamech-bot/INVOICE/pull/1032) | Items 11/12: remaining sixteen registered long purchase-order templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; four Playwright shards passed on exact PR head | `60549a30c4a3f58c19df2cb17a03f2a561eca4da` |
+| [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: 40-line English/Arabic simultaneous bilingual long invoice and purchase order output over all 18 registered templates; four CI shards passed, 72 browser cases, 36 native PDF cases | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -55,8 +56,8 @@ production certification. An unavailable original sentence is not a new bug.
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed cases closed in #910; do not repeat |
 | 10 | Supplier statement | Agreed cases closed in #910; do not repeat |
-| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016/#1032 and later report acceptance cover bounded outputs; bilingual, fixed reports and live entry paths remain |
-| 12 | Templates not covered by recent acceptance | Partial: all 18 registered long-invoice templates covered by #994/#1016 and long purchase-order templates by #992/#1032; bilingual long outputs, other applicable document types and real App print paths remain unaccepted |
+| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016/#1032/#1034 cover bounded long mono/bilingual outputs; fixed-report extreme names/references, app entry paths and iPhone remain |
+| 12 | Templates not covered by recent acceptance | Partial: all 18 registered long-invoice and long-PO templates covered by #994/#1016/#992/#1032, with bilingual long-document output accepted in #1034; other commercial kinds and live App print paths remain unaccepted |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 14 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 15 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
@@ -134,3 +135,5 @@ Next remaining task: dedicated long bilingual financial-document output;
 long names/references in fixed reports, actual application print journeys and
 physical iPhone Safari/PWA remain separately unaccepted. Item 4 remains deferred. Item 4 remains explicitly deferred. This update
 does not invent an exact remaining total or close missing original wording.
+
+On 24 October 2026, #1034 merged at `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` after four green CI shards on exact head `de154978d12457928707dd29362ce035117a422e`. No production or AI code changed. The long bilingual acceptance covers 18 templates across invoice/purchase order, 72 browser cases and 36 native PDFs. Items 11/12 remain **partial** because fixed-report extreme text, actual app entry flows, iPhone, and other applicable financial types are not accepted by the renderer-only tests.
