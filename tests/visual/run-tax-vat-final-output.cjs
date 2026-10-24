@@ -48,5 +48,38 @@ function parseCsv(text){const rows=[],row=[];let value='',quoted=false;for(let i
 
  }
  assert.equal(await page.evaluate(()=>window.qaSource()),before,'CSV and print never mutate source documents');await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-tax-vat-report')),false);assert.deepEqual(errors,[]);console.log('PASS tax final output '+engine+' '+lang+' '+mode);await page.close();
- }}finally{await browser.close();}
+ }
+ // An immediate exit from Tax / VAT must not print the next report.
+ // Schedule print and leave in one browser task: no Playwright timing races.
+ for(const lang of ['en','ar'])for(const route of ['switch','unmount']){
+  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('http://127.0.0.1:4173/tests/visual/tax-vat-final-output.html?lang='+lang);
+  await page.getByRole('tab',{name:lang==='ar'?'الضريبة / VAT':'Tax / VAT',exact:true}).click();
+  await page.locator('.lx-tax-center').waitFor();
+  await page.evaluate(mode=>{
+   const button=[...document.querySelectorAll('.lx-tax-header button')].find(element=>['Print / Save PDF','طباعة / حفظ PDF'].includes(element.textContent.trim()));
+   if(!button)throw Error('Tax native print button missing');
+   button.click();
+   if(!document.body.classList.contains('printing-tax-vat-report'))throw Error('VAT print intent not scheduled');
+   if(mode==='switch')window.qaReport.setState({view:'performance'});
+   else ReactDOM.unmountComponentAtNode(document.getElementById('visual-app'));
+  },route);
+  await page.waitForTimeout(100);
+  assert.equal(await page.evaluate(()=>window.qaPrintCalls),0,'VAT print must be canceled after navigation');
+  assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-tax-vat-report')),false,'VAT print-only body flag must be cleared');
+  if(route==='switch'){
+   assert.ok(await page.getByRole('tab',{name:lang==='ar'?'الأداء':'Performance',exact:true}).count(),'performance tab restored');
+   await page.getByRole('tab',{name:lang==='ar'?'الضريبة / VAT':'Tax / VAT',exact:true}).click();
+   await page.locator('.lx-tax-center').waitFor();
+   await page.getByRole('button',{name:lang==='ar'?'طباعة / حفظ PDF':'Print / Save PDF',exact:true}).click();
+   await page.waitForFunction(()=>window.qaPrintCalls===1);
+   await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
+   assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-tax-vat-report')),false,'ordinary VAT print still releases body flag');
+  }
+  assert.deepEqual(errors,[],'no browser errors');
+  console.log('PASS VAT pending print cancellation '+engine+' '+lang+' '+route);
+  await page.close();
+ }
+ }finally{await browser.close();}
 }})().catch(e=>{console.error(e);process.exitCode=1;});
