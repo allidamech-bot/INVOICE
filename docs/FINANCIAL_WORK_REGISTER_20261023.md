@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All fifteen PRs below were directly rechecked as merged. These are delivered
+All sixteen PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -38,6 +38,7 @@ rounds, not a count of original checklist items.
 | [1038](https://github.com/allidamech-bot/INVOICE/pull/1038) | Item 22 bounded mixed-cost evidence: landed receipt history across differing prices/currencies, frozen final-invoice stock cost, one-time issue and no negative inventory; 3 synthetic tests, typecheck/build passed; FIFO/WAC/COGS policy expressly unresolved | `43f4cada73a03cd8e7704bf1c8f4aaf2f8fd7465` |
 | [1039](https://github.com/allidamech-bot/INVOICE/pull/1039) | Items 11/12: actual synthetic App.requestPrint on 40-line issued invoice (Obsidian) and PO (Minimal), EN/AR, 4 Chromium browser cases and 4 native A4 PDFs with 7 pages per case; WebKit synthetic harness failed before boot and is not accepted | `5c86ebb8d053909dfaba19a000f59a581342b8a5` |
 | [1040](https://github.com/allidamech-bot/INVOICE/pull/1040) | Closed-period settings now default to the device-local calendar day instead of UTC; both offset directions verified in component tests; trusted server, Firestore emulator, owner browser and Vercel trace CI passed. This is not production-service activation or live-device acceptance | `76a198faa3c0d87230fd477f9db96d1b0d7b5e3f` |
+| [1041](https://github.com/allidamech-bot/INVOICE/pull/1041) | Items 11/12: fixed WebKit synthetic inline-module 404 (`/tests/visual/src/app/App.js`), enabling actual `App.requestPrint` through 40-line final invoice (Obsidian) and PO (Minimal), both EN/AR: 8 Chromium/WebKit cases, seven A4 pages each; native PDF parsing remains Chromium-only. Physical iPhone and production print remain unverified | `621ed1c9d13cb1fb4ef41bc29c180cfad080d9d1` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -72,8 +73,8 @@ production certification. An unavailable original sentence is not a new bug.
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed cases closed in #910; do not repeat |
 | 10 | Supplier statement | Agreed cases closed in #910; do not repeat |
-| 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, WebKit/iPhone/real deployed access remain separate |
-| 12 | Templates not covered by recent acceptance | Partial: registered 18-template EN/AR/bilingual renderer coverage accepted #994/#992/#1016/#1032/#1034; #1039 validates Obsidian invoice and Minimal PO through Chromium App printing only. Do not claim all templates through App or physical Safari acceptance |
+| 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, physical iPhone/real deployed access remain separate; #1041 resolves synthetic App WebKit boot and passes four WebKit App print cases |
+| 12 | Templates not covered by recent acceptance | Partial: registered 18-template EN/AR/bilingual renderer coverage accepted #994/#992/#1016/#1032/#1034; #1039 validates Obsidian invoice and Minimal PO through Chromium App printing; #1041 adds WebKit App entry for both in EN/AR. Do not claim all templates through App, native WebKit PDF, or physical Safari acceptance |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 14 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 15 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
