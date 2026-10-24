@@ -43,6 +43,18 @@ Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
 #978–979, #982, #984–985, #990, #992, #994–995. Do not restart them.
 
+## Read-only production deployment verification — 24 October 2026
+
+Authenticated Vercel project inspection found `invoice-three-puce.vercel.app`
+serving deployment `dpl_8EcKAX88WKLshsq6jBbCTFQWTUd7` in READY state,
+built from GitHub `main` commit `5d3a1e81216ac607c1f4d88586d042bfff731db6`
+(PR #1031). This predates verified finance `main` at `76a198faa3c0d87230fd477f9db96d1b0d7b5e3f`
+(#1040). The inspected latest twelve production deployments contain no newer
+production build. Hence the recent finance fixes are **merged and tested, but
+not verified on the current production alias**. No new Vercel deployment,
+promotion, Firebase rules release, period enrollment or accounting mutation was
+performed. Release/physical-device acceptance remains open.
+
 ## Original numbering: preserved without invented missing wording
 
 “Accepted evidence” below describes its bounded tested path, not universal
