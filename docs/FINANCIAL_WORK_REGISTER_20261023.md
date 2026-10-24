@@ -166,6 +166,36 @@ the outstanding physical iPhone and deployed browser acceptance gates.
   Original item 11 remains **partial**. No AI or financial calculation,
   posting, storage, or production runtime files changed.
 
+## Treasury historical currency guard — 24 October 2026
+
+- [#1057](https://github.com/allidamech-bot/INVOICE/pull/1057)
+  merged at `8fac847f11d792b8ba3f34747c9241d5c280646d`
+  for original item 8's **read-only treasury report integrity**.
+  Older/corrupt ledger entries referencing a cash or bank account in a
+  different currency are now rejected, not silently added to opening or
+  closing balances under that account's displayed currency. This is a
+  report-level check only; entry posting and financial storage are unchanged.
+- Scope of guard: selected same-workspace and same-branch account entries
+  effective through report end, including earlier entries affecting the
+  opening balance and voids occurring within the selected period.
+  A future entry, other branch, or a mismatch fully voided before report
+  start does not block a clean historical report. No implicit FX conversion.
+- Additional Node tests checked pre-period USD/EUR mismatch, mid-period
+  mismatch, malformed transfer currency provenance, independent valid EUR
+  account, future row, pre-period void and in-period void. Existing treasury
+  report Node tests also remained green.
+- Exact-head GitHub Actions passed:
+  [treasury #40121287597](https://github.com/allidamech-bot/INVOICE/actions/runs/40121287597)
+  (TypeScript, production build, full Node accounting regressions,
+  existing treasury CSV/browser/native PDF output), and
+  [trace #40121287608](https://github.com/allidamech-bot/INVOICE/actions/runs/40121287608).
+  These runs were automatically triggered by repository rules;
+  no user account, real transaction, AI file or deployment was touched.
+- **Acceptance boundary:** historical discrepancy guard is now code-reviewed
+  and CI-tested; it does not certify a production data cleanup, live bank
+  verification, owner sign-in or physical iPhone. Original item 8's earlier
+  output acceptance remains as recorded and must not be counted twice.
+
 ## Original numbering: preserved without invented missing wording
 
 “Accepted evidence” below describes its bounded tested path, not universal
@@ -180,7 +210,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 5 | Inventory movement report output, references and quantities | Implemented and accepted in #1015: 12 Chromium/WebKit cases, 4 native Chromium PDFs, 3/40/205 movements, filters/account guard/no writes; physical iPhone separate |
 | 6 | Management financial report final output | Performance report path accepted in #1002; #1043 guards stale native print after leaving Performance and passes focused Chromium/WebKit regression. #1054 cancels prints queued before account, data or filter changes. No claim that every report view or physical-device path is covered |
 | 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004; #1044 adds safe print-timer cancellation on report navigation and tests ordinary printing after return; #1054 guards delayed print against account, data and filter changes |
-| 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
+| 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; #1057 now refuses mixed-currency historical ledger entries that would contaminate a displayed account balance; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
 | 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
 | 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, physical iPhone/real deployed access remain separate; #1041 resolves synthetic App WebKit boot and passes four WebKit App print cases; #1042 adds real treasury report's extreme names/references/notes, 390px mobile filter reachability, CSV and Chromium PDF; #1056 adds bounded extreme bilingual names/references and 205-row CSV export acceptance for management/VAT (not native PDF or full UI) |
