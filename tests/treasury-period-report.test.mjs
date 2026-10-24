@@ -48,3 +48,14 @@ test('cross-currency transfer to a same-currency account is refused in report ev
   }));
   assert.throws(()=>treasuryPeriodReport(f),/currency|عملة/i);
 });
+
+test('previously voided legacy currency error does not block a later clean period',()=>{
+  const f=fixture();
+  f.entries.push(entry('old-mismatch-voided','2026-08-10','19.00','bank',{
+    currency:'EUR',voidedAt:'2026-09-12T00:00:00.000Z'
+  }));
+  assert.equal(treasuryPeriodReport(f).accounts.find(a=>a.id==='bank').closing,'140.00');
+  f.entries[f.entries.length-1].voidedAt='2026-10-12T00:00:00.000Z';
+  assert.throws(()=>treasuryPeriodReport(f),/currency|عملة/i,
+    'void inside selected period is a displayed movement and must remain guarded');
+});
