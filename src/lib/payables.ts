@@ -24,7 +24,15 @@ function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=c
 function cleanCurrency(value:string):string{return value.trim().toUpperCase();}
 function dayNumber(iso:string):number{const [year='0',month='1',day='1']=iso.split('-');return Math.floor(Date.UTC(Number(year),Number(month)-1,Number(day))/86_400_000);}
 function purchaseSupplierId(purchase:PurchaseRecord):string{return purchase.supplierSnapshot?.sourceSupplierId?.trim()||`legacy-purchase:${purchase.id}`;}
-function paymentCents(payment:SupplierPaymentRecord):bigint{return isDecimalInput(payment.amount)?decimalToScaled(payment.amount,2):0n;}
+function paymentCents(payment:SupplierPaymentRecord):bigint{
+  // A historical payment is still financial evidence. Silently treating a
+  // malformed or non-positive settled amount as zero overstates payables and
+  // can encourage a duplicate supplier payment.
+  if(!isDecimalInput(payment.amount))throw new Error('Recorded supplier payment amount is invalid. Review the payment before reporting.');
+  const amount=decimalToScaled(payment.amount,2);
+  if(amount<=0n)throw new Error('Recorded supplier payment amount must be positive. Review the payment before reporting.');
+  return amount;
+}
 function liabilityCents(purchase:PurchaseRecord):bigint{return decimalToScaled(purchaseTotals(purchase).landedTotal,2);}
 function paymentKnownOnOrBefore(payment:SupplierPaymentRecord,asOf:string):boolean{
   if(!asOf)return true;
