@@ -62,7 +62,16 @@ export function sanitizeDocumentConversation(value){
   return {kind:value.kind,userFacts:value.userFacts.map(text=>text.trim()),lastQuestion:trim(value.lastQuestion,1500)};
 }
 export function dialogueClaimsDocumentCreation(answer){
-  return /(?:\b(?:created|saved|prepared|generated|built|drafted)\b.{0,80}\b(?:draft|quote|quotation|invoice)\b|(?:تم|أنشأت|انشأت|حفظت|أعددت|اعددت|جهزت|جهّزت).{0,80}(?:مسودة|عرض سعر|فاتورة))/iu.test(String(answer||''));
+  // Denying execution is truthful in this text-only channel. Mask only the
+  // explicitly negated predicate, so another positive claim remains checked.
+  // Do not treat "not only" / Arabic exception constructions as denials.
+  const text=String(answer||'')
+    .replace(/\b(?:not|never|(?:have|has|had|was|were|is|are|did|do|does)n['’]t)\s+(?:(?:yet|ever|already|been)\s+)*(?:created|saved|prepared|generated|built|drafted)\b/giu,'')
+    .replace(/(^|[\s،؛:])(?:لم|لن|لا|ما)\s+(?:يتم|تم|أنشأت|انشأت|حفظت|أعددت|اعددت|جهزت|جهّزت)(?![\p{L}\p{N}_])/giu,(match,prefix,offset,whole)=>{
+      const clause=whole.slice(offset+match.length).split(/[.!؟?\n،؛;]/,1)[0];
+      return /(?:^|\s)(?:إلا|الا|سوى|فقط)(?=\s|$)/u.test(clause)?match:prefix;
+    });
+  return /(?:\b(?:created|saved|prepared|generated|built|drafted)\b.{0,80}\b(?:draft|quote|quotation|invoice)\b|(?<![\p{L}\p{N}_])(?:[وف]?(?:تم|يتم)(?![\p{L}\p{N}_])|[وف]?(?:أنشأت|انشأت|حفظت|أعددت|اعددت|جهزت|جهّزت)).{0,80}(?:مسودة|عرض سعر|فاتورة))/iu.test(text);
 }
 export function dialogueRepeatsLastAnswer(answer,context,message){
   if(/repeat|again|كرر|أعد|اعد|عيد/iu.test(String(message||'')))return false;
