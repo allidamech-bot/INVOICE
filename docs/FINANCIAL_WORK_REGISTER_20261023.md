@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All eleven PRs below were directly rechecked as merged. These are delivered
+All twelve PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -35,6 +35,7 @@ rounds, not a count of original checklist items.
 | [1032](https://github.com/allidamech-bot/INVOICE/pull/1032) | Items 11/12: remaining sixteen registered long purchase-order templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; four Playwright shards passed on exact PR head | `60549a30c4a3f58c19df2cb17a03f2a561eca4da` |
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: bilingual 40-line final invoices and purchase orders across all 18 templates; 72 Chromium/WebKit cases and 36 native PDFs, 4/4 shards passed on exact head after fixing test extraction of Arabic presentation forms | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: 40-line English/Arabic simultaneous bilingual long invoice and purchase order output over all 18 registered templates; four CI shards passed, 72 browser cases, 36 native PDF cases | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
+| [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: account statement customer/supplier names and posted/payment references with extreme synthetic text; real statement print entry, English/Arabic, Chromium/WebKit, native PDFs plus original statement regression both passed | `7b069f29818132f0c47322dfc221b2fa620e3252` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -57,7 +58,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed cases closed in #910; do not repeat |
 | 10 | Supplier statement | Agreed cases closed in #910; do not repeat |
-| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016/#1032/#1034 cover bounded long mono/bilingual outputs; fixed-report extreme names/references, app entry paths and iPhone remain |
+| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016/#1032/#1034 and #1036 cover commercial long output and customer/supplier statement text extremes; other fixed-report extremes, App print entry and physical iPhone remain unaccepted |
 | 12 | Templates not covered by recent acceptance | Partial: all 18 registered long-invoice and long-PO templates covered by #994/#1016/#992/#1032, with bilingual long-document output accepted in #1034; other commercial kinds and live App print paths remain unaccepted |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 14 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
@@ -146,3 +147,5 @@ printing paths and physical iPhone Safari/PWA. Item 4 remains deferred. Item 4 r
 does not invent an exact remaining total or close missing original wording.
 
 On 24 October 2026, #1034 merged at `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` after four green CI shards on exact head `de154978d12457928707dd29362ce035117a422e`. No production or AI code changed. The long bilingual acceptance covers 18 templates across invoice/purchase order, 72 browser cases and 36 native PDFs. Items 11/12 remain **partial** because fixed-report extreme text, actual app entry flows, iPhone, and other applicable financial types are not accepted by the renderer-only tests.
+
+On 24 October 2026, #1036 merged at `7b069f29818132f0c47322dfc221b2fa620e3252` after two exact-head workflows passed: dedicated long account statement names/references in actual receipt/payment statement modal-to-PDF routes, and existing short/long statement regression. Two opt-in synthetic fixture scenarios and the test runner/workflow only; no production, AI or actual customer records changed. Original item 11 remains partial because further reports and physical-device/App printing are separate.
