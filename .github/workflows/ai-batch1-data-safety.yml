@@ -12,6 +12,7 @@ on:
       - 'src/lib/ai-tool-client.ts'
       - 'src/lib/ai-tool-orchestrator.ts'
       - 'tests/ai-search-exact-record-ranking.test.mjs'
+      - 'tests/ai-dialogue-negated-completion.test.mjs'
       - 'src/lib/ai-workflow-quote-guard.ts'
       - 'src/lib/ai-import-authorization.ts'
       - 'src/styles/ai-conversation-workspace.css'
@@ -60,6 +61,7 @@ jobs:
           node --test --test-concurrency=2
           tests/ai-batch1-quote-data-safety.test.mjs
           tests/ai-natural-unified-dialogue.test.mjs
+          tests/ai-dialogue-negated-completion.test.mjs
           tests/ai-conversational-price-followups.test.mjs
           tests/ai-dialogue-catalog-evidence.test.mjs
           tests/ai-tool-catalog-security-coverage.test.mjs
