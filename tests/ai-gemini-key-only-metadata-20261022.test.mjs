@@ -89,15 +89,15 @@ test('Gemini metadata check reuses existing authenticated same-origin owner-only
   assert.ok(auth>0&&probe>auth&&owner>probe&&check>owner,'owner auth precedes Gemini metadata');
   assert.match(api,/if\(!sameOriginRequest\(request\)\)/);
   assert.match(api,/diagnosticRateAllowed\(request\.aiVerifiedUid,provider\)/);
-  assert.match(api,/mode==='key-check'&&!\['gemini','mistral','ollama'\]\.includes\(provider\)/);
+  assert.match(api,/mode==='key-check'&&!\['gemini','ollama'\]\.includes\(provider\)/);
   assert.match(html,/data-provider-key-check="gemini"/);
-  assert.match(ui,/\['gemini','mistral','ollama'\]\.includes\(provider\)/);
+  assert.match(ui,/\['gemini','ollama'\]\.includes\(provider\)/);
   assert.match(ui,/body:JSON\.stringify\(\{provider,mode:'key-check'\}\)/);
   assert.doesNotMatch(ui,/GEMINI_API_KEY/);
 });
 
-test('existing Mistral/Ollama metadata checks still avoid inference and keep their auth endpoints',async()=>{
-  const nameToEnv={mistral:'MISTRAL_API_KEY',ollama:'OLLAMA_API_KEY'};
+test('existing Ollama metadata checks still avoid inference and keep their auth endpoints',async()=>{
+  const nameToEnv={ollama:'OLLAMA_API_KEY'};
   for(const [name,variable] of Object.entries(nameToEnv)){
     const old=process.env[variable];
     process.env[variable]=KEY;
@@ -112,7 +112,7 @@ test('existing Mistral/Ollama metadata checks still avoid inference and keep the
       }});
       assert.equal(res.status,'KEY_AUTHENTICATED');
       assert.equal(res.inference,false);
-      assert.equal(called,name==='mistral'?'https://api.mistral.ai/v1/models':'https://ollama.com/api/tags');
+      assert.equal(called,'https://ollama.com/api/tags');
     }finally{if(old===undefined)delete process.env[variable];else process.env[variable]=old;}
   }
 });
