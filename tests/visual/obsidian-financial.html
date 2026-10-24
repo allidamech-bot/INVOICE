@@ -12,21 +12,31 @@ import {todayIso} from './src/lib/id.js';
 import {createSupplier,createPurchase,createPurchaseItem,createExpense,createManualInventoryMovement,supplierSnapshotFrom} from './src/lib/operations.js';
 const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',screen=params.get('screen')||'reports',h=React.createElement;
 setUiLanguage(ar?'ar':'en');
+const extremeText=params.get('extremeText')==='1';
+const LONG_CUSTOMER_EN='Atlas Cross-Border Industrial Procurement and Precision Engineering Components Trading International Supply Chain Holdings Division Long Identity QA End';
+const LONG_CUSTOMER_AR='أطلس للتجارة الدولية والمكونات الصناعية المتقدمة ومستلزمات الهندسة الدقيقة وسلاسل التوريد الدولية قسم المشتريات والاختبار طويل الاسم نهاية';
+const LONG_COMPANY_EN='LOUREX International Industrial Procurement and Global Logistics Financial Documentation Services Long Company Identity QA End';
+const LONG_COMPANY_AR='لوركس للتجارة الدولية والخدمات اللوجستية وإدارة الوثائق المالية الصناعية قسم الاختبار والأسماء الطويلة والتوريد العالمي نهاية';
+const LONG_INVOICE_REF='INV-LONG-2026-A1B2C3D4E5F6G7H8J9K0L1M2N3P4Q5R6S7T8V9W0X1Y2Z3-END';
+const LONG_RECEIPT_REF='REC-LONG-2026-AA11BB22CC33DD44EE55FF66GG77HH88JJ99KK00-END';
+
 const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة',logoDataUrl:'./brand/lourex-logo.svg',city:'Istanbul',country:'Türkiye',defaultCurrency:'USD'};
 const year=todayIso().slice(0,4),now=new Date().toISOString();
 const customer=(id,en,arName,currency)=>({id,createdAt:now,updatedAt:now,companyNameEn:en,companyNameAr:arName,contactPerson:ar?'سارة أحمد':'Sara Ahmed',addressEn:'Business District, Suite 204',addressAr:'المنطقة التجارية، مكتب ٢٠٤',city:'Dubai',country:'UAE',phone:'+971 50 000 0000',email:`finance-${id}@example.test`,vatTaxNumber:`TRN-${id}`,commercialRegistration:`CR-${id}`,preferredCurrency:currency,paymentTermPresetId:'',paymentTerms:'Net 30',paymentDueDays:'30',creditLimit:'50000',creditCurrency:currency,notes:''});
 const customers=[customer('atlas','Atlas Trading','أطلس للتجارة','USD'),customer('cedar','Cedar Markets','أسواق سيدار','EUR'),customer('harbor','Harbor Supply','إمداد الميناء','USD')];
+if(extremeText){company.nameEn=LONG_COMPANY_EN;company.nameAr=LONG_COMPANY_AR;customers[0].companyNameEn=LONG_CUSTOMER_EN;customers[0].companyNameAr=LONG_CUSTOMER_AR;}
 function invoice({id,number,currency,price,cost,issueMonth,dueMonth,customerIndex=0}){
  const c=customers[customerIndex],doc=createBlankDocument('invoice',number,company);doc.id=id;doc.status='final';doc.lifecycleStatus='active';doc.role='standard';doc.currency=currency;doc.issueDate=`${year}-${issueMonth}-10`;doc.dueDate=`${year}-${dueMonth}-20`;
  doc.customerSnapshot={sourceCustomerId:c.id,companyNameEn:c.companyNameEn,companyNameAr:c.companyNameAr,contactPerson:c.contactPerson,addressEn:c.addressEn,addressAr:c.addressAr,city:c.city,country:c.country,phone:c.phone,email:c.email,vatTaxNumber:c.vatTaxNumber,commercialRegistration:c.commercialRegistration};
  doc.items=[{...doc.items[0],descriptionEn:'Commercial equipment',descriptionAr:'معدات تجارية',quantity:'2',unitPrice:price,unitCost:cost}];doc.internalCosts={shippingCost:'35.00',otherCost:'15.00'};return doc;
 }
-const usdA=invoice({id:'inv-usd-a',number:`INV-${year}-0001`,currency:'USD',price:'1250.00',cost:'720.00',issueMonth:'01',dueMonth:'02',customerIndex:0});
+const usdA=invoice({id:'inv-usd-a',number:extremeText?LONG_INVOICE_REF:`INV-${year}-0001`,currency:'USD',price:'1250.00',cost:'720.00',issueMonth:'01',dueMonth:'02',customerIndex:0});
 const eurA=invoice({id:'inv-eur-a',number:`INV-${year}-0002`,currency:'EUR',price:'980.00',cost:'610.00',issueMonth:'03',dueMonth:'04',customerIndex:1});
 const usdB=invoice({id:'inv-usd-b',number:`INV-${year}-0003`,currency:'USD',price:'640.00',cost:'390.00',issueMonth:'06',dueMonth:'07',customerIndex:2});
 const documents=[usdA,eurA,usdB];
 const payment=(doc,id,amount,month)=>({id,invoiceId:doc.id,invoiceNumber:doc.number,customerId:doc.customerSnapshot.sourceCustomerId,customerNameEn:doc.customerSnapshot.companyNameEn,customerNameAr:doc.customerSnapshot.companyNameAr,currency:doc.currency,amount,date:`${year}-${month}-15`,method:'bank-transfer',reference:id,notes:'',createdAt:now,updatedAt:now});
 const payments=[payment(usdA,'pay-usd-1','700.00','02'),payment(eurA,'pay-eur-1','500.00','04'),payment(usdB,'pay-usd-2','300.00','07')];
+if(extremeText)payments[0].reference=LONG_RECEIPT_REF;
 
 const statementRows=Number(params.get('statementRows')||1);
 if(![1,40].includes(statementRows))throw new Error('Unsupported statement QA row count');
