@@ -78,6 +78,7 @@ mkdirSync(out,{recursive:true});
      const item=bilingual.items[i],rendered=domCells[item.id]||'';
      assert.ok(dom.includes('PO-LINE-'+String(i+1).padStart(3,'0')),'English line marker '+i);
      assert.ok(dom.includes('بند'+String(i+1).padStart(3,'0')),'Arabic line marker '+i);
+     if(!englishChars(rendered).includes(englishChars(item.descriptionEn)))console.error('BILINGUAL_DOM_DIAG',JSON.stringify({template,kind,engine,itemId:item.id,keys:Object.keys(domCells).slice(0,5),actual:rendered.slice(0,700),actualEnglish:englishChars(rendered).slice(0,700),expectedEnglish:englishChars(item.descriptionEn).slice(0,700)}));
      assert.ok(englishChars(rendered).includes(englishChars(item.descriptionEn)),'complete English DOM description '+i);
      assert.equal(arGlyphs(rendered),arGlyphs(item.descriptionAr),'complete Arabic DOM description '+i);
     }
