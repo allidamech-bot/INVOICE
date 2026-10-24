@@ -113,7 +113,9 @@ const injection=[
        assert.ok(pages.every(x=>x.trim().length),'no blank native PDF pages');
        const extracted=compressed(pages.join(' '));
        for(const end of marker)assert.ok(extracted.includes(end),'native PDF missing complete text ending: '+end);
-       for(let n=1;n<=40;n++){
+       // MOVE-001 has been intentionally replaced by the long REF-END-719 source reference.
+       // Preserve the other 39 ordinary references and the first row's unique sentinel.
+       for(let n=2;n<=40;n++){
          const key='MOVE-'+String(n).padStart(3,'0');
          assert.equal(extracted.split(key).length-1,1,'native PDF movement appears exactly once: '+key);
        }
