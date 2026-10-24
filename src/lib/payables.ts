@@ -73,11 +73,28 @@ export function supplierPaymentsForPurchase(purchase:PurchaseRecord,payments:Sup
   const currency=cleanCurrency(purchase.currency);
   return payments.filter(payment=>payment.purchaseId===purchase.id&&cleanCurrency(payment.currency)===currency);
 }
+// The legacy lookup above is intentionally kept for callers that need a simple
+// currency-matched list. Financial balances must additionally reject an
+// effective, same-scope payment in an unexpected currency, rather than
+// silently dropping it and overstating a supplier's outstanding debt.
+function effectiveSupplierPaymentsForPurchase(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],asOf=''):SupplierPaymentRecord[]{
+  if(purchase.status!=='posted')return[];
+  const workspaceId=purchase.workspaceId||'default',branchId=purchase.branchId||'main';
+  const currency=cleanCurrency(purchase.currency);
+  return payments.filter(payment=>payment.purchaseId===purchase.id&&
+    (payment.workspaceId||'default')===workspaceId&&
+    (payment.branchId||'main')===branchId&&
+    (asOf?paymentKnownOnOrBefore(payment,asOf):!payment.voidedAt)
+  ).map(payment=>{
+    if(cleanCurrency(payment.currency)!==currency)throw new Error('Recorded supplier payment currency does not match the purchase. Review the payment before reporting.');
+    return payment;
+  });
+}
 
 export function purchasePayableSummary(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],today=todayIso()):PurchasePayableSummary{
   const effective=postedPurchaseAt(purchase,today);
   const total=liabilityCents(effective);
-  const linked=effective.status==='posted'?supplierPaymentsForPurchase(effective,payments).filter(payment=>paymentKnownOnOrBefore(payment,today)):[];
+  const linked=effective.status==='posted'?effectiveSupplierPaymentsForPurchase(effective,payments,today):[];
   const paid=linked.reduce((sum,payment)=>sum+paymentCents(payment),0n);
   const remaining=effective.status==='posted'?(total>paid?total-paid:0n):effective.status==='draft'?total:0n;
   const days=effective.status==='posted'&&remaining>0n?supplierDaysOverdue(effective.dueDate,today):0;
@@ -114,7 +131,7 @@ export function supplierStatement(supplierId:string,purchases:PurchaseRecord[],p
     const effective=postedPurchaseAt(purchase,today);
     const currency=cleanCurrency(purchase.currency),total=liabilityCents(purchase);
     push(currency,{date:purchase.date,reference:purchase.number,type:'purchase',description:purchase.supplierSnapshot?.nameEn||purchase.supplierSnapshot?.nameAr||purchase.number,debit:0n,credit:total,purchaseNumber:purchase.number,order:1});
-    for(const payment of supplierPaymentsForPurchase(effective,payments).filter(item=>paymentKnownOnOrBefore(item,today)))push(currency,{date:payment.date,reference:payment.reference||payment.id,type:'payment',description:payment.reference||purchase.number,debit:paymentCents(payment),credit:0n,purchaseNumber:purchase.number,order:2});
+    for(const payment of effectiveSupplierPaymentsForPurchase(effective,payments,today))push(currency,{date:payment.date,reference:payment.reference||payment.id,type:'payment',description:payment.reference||purchase.number,debit:paymentCents(payment),credit:0n,purchaseNumber:purchase.number,order:2});
   }
   const summaries=supplierPayablesByCurrency(purchases,payments,today,supplierId);
   return[...rows.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([currency,entries])=>{
@@ -148,7 +165,7 @@ export function normalizeSupplierPayment(purchase:PurchaseRecord,supplier:Suppli
   if(!(amountFormat==='stored-record'?isDecimalInput(payment.amount):isFinancialDecimalInput(payment.amount))||decimalToScaled(payment.amount,2)<=0n)
     throw new Error('Supplier payment amount must be greater than zero and use valid monetary grouping.');
   const total=liabilityCents(purchase);
-  const paidExcludingCurrent=payments.filter(item=>item.purchaseId===purchase.id&&item.id!==payment.id&&!item.voidedAt).reduce((sum,item)=>sum+paymentCents(item),0n);
+  const paidExcludingCurrent=effectiveSupplierPaymentsForPurchase(purchase,payments).filter(item=>item.id!==payment.id).reduce((sum,item)=>sum+paymentCents(item),0n);
   const amount=decimalToScaled(payment.amount,2);
   if(paidExcludingCurrent+amount>total)throw new Error('Supplier payment cannot exceed the remaining purchase balance.');
   return{...payment,purchaseNumber:purchase.number,supplierId,supplierNameEn:supplier?.nameEn||purchase.supplierSnapshot?.nameEn||payment.supplierNameEn||'',supplierNameAr:supplier?.nameAr||purchase.supplierSnapshot?.nameAr||payment.supplierNameAr||'',currency,amount:centsString(amount),reference:payment.reference.trim(),notes:payment.notes.trim(),updatedAt:nowIso()};
