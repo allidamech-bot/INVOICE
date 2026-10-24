@@ -75,6 +75,39 @@ and supplier statements, treasury, VAT, backup/restore (only in an isolated
 test account), and no duplicate/blank PDF output. Do not run destructive
 restore/stock operations on live customer data.
 
+## New owner-requested tracked-invoice stock acceptance — 24 October 2026
+
+The owner asked to prove that **200 cartons** on hand become **180 cartons**
+when a saved commercial invoice for **20 cartons** is finally issued, with
+a documented source-linked debit and no repeat issue. This is separate from
+the outstanding physical iPhone and deployed browser acceptance gates.
+
+- [#1050](https://github.com/allidamech-bot/INVOICE/pull/1050) merged at
+  `1453f593ba6595196d725df61d2ae512e6a51a88`: synthetic posted
+  purchase receipts add 200 cartons to the default warehouse, a saved sales
+  invoice **draft** leaves 200, first final posting leaves **180** and adds
+  exactly one `issue -20.0000` with matching invoice ID/number/SKU/warehouse.
+  Vault reload/replay preserves 180 without duplicate issue; selling 181 more
+  is rejected without changing the ledger.
+- [#1052](https://github.com/allidamech-bot/INVOICE/pull/1052) merged at
+  `562e0a0ff5d4f29c71641b5440e004ce4b5fb98f`: strengthened the
+  acceptance to drive **actual App.saveDocument and App.persist methods**
+  through a compiled source-extracted Node harness. Verified draft saved at
+  200, failed compare-and-swap commit leaves draft and 200 unchanged with no
+  false issued confirmation, successful retry commits final invoice plus
+  one -20 movement leaving 180 in stored/reopened vault.
+- The #1052 first CI attempt exposed an inaccurate *test fixture*: the
+  synthetic domain-only posted purchase lacked company/branch stamps that
+  real App persistence supplies. Corrected the fixture's initial scope
+  normalization, without relaxing the immutable posted-purchase guards.
+  Corrected exact-head focused CI: **3 passed, 0 failed**, TypeScript
+  compilation passed; then the PR was merged.
+- **Scope:** financial Node integration only; no modification to live
+  business records, no production accounting behavior change, no AI work,
+  browser, real multi-device execution, iPhone Safari or actual PDF evidence.
+  Do not equate the automated saved-state acceptance with deployed UI
+  verification. The owner explicitly asked not to use further browsers.
+
 ## Original numbering: preserved without invented missing wording
 
 “Accepted evidence” below describes its bounded tested path, not universal
