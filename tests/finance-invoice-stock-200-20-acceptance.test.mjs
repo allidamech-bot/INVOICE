@@ -146,7 +146,13 @@ test('real App.saveDocument: draft 200, rejected final save 200, committed final
     'production App save and queue methods must remain available for this acceptance gate');
 
   const {vault,item,invoice}=isolatedCartonFixture();
-  const full={...vault,documents:[invoice]};
+  // This fixture's earlier domain-only purchase posting intentionally did
+  // not pass through App.persist. Normalize the synthetic seed exactly as
+  // the real App would have stamped company/branch IDs when first saved.
+  // Otherwise a subsequent unrelated save appears to "edit" an immutable
+  // posted purchase by adding those scope fields.
+  const seed={...vault,documents:[invoice]};
+  const full=workspace.applyWorkspaceScope(workspace.scopeVault(seed),seed);
   const accountUid='synthetic-qa-account-only';
   let stored={uid:accountUid,localRevision:'qa-stock-r1',payload:reopen(full)};
   let blocked=false,commits=0;
