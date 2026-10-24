@@ -28,3 +28,17 @@ test('captured Advisor pricing question returns locally before any inference',as
   assert.match(result.answer,/50\.00%/);assert.equal(JSON.stringify(vault),snapshot);
  }finally{globalThis.fetch=before;}
 });
+
+test('captured Arabic unit-cost wording avoids inference and preserves ambiguity guards',async()=>{
+ const message='اختبار اصطناعي فقط، دون بيانات الشركة أو أي إجراء: تكلفة الوحدة 40 وسعر البيع 100. احسب هامش الربح على المبيعات.';
+ const calculation=advisorCalculation(message,'ar');
+ assert.ok(calculation,'explicit unit-cost label should enter deterministic calculation');
+ assert.match(calculation.summary,/60\.00%/);
+ const before=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;throw new Error('Unexpected inference');};
+ try{
+  const result=await orchestrateAiToolRequest({message,context:{conversationMode:'advisor',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}},vault:emptyVault(),language:'ar'});
+  assert.equal(result.plannedBy,'local');assert.equal(calls,0);assert.match(result.answer,/60\.00%/);
+ }finally{globalThis.fetch=before;}
+ for(const text of ['تكلفة الوحدة 40 أو تكلفة الوحدة 60 وسعر البيع 100. احسب هامش الربح.','تكلفة الوحدة 40 EUR وسعر البيع 100 USD. احسب هامش الربح.'])assert.equal(advisorCalculation(text,'ar'),null);
+});

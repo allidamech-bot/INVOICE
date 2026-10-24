@@ -79,7 +79,7 @@ export function explicitAdvisorUnitProfitability(message:string,language:'en'|'a
   const numeric='([0-9٠-٩۰-۹]+(?:[.٫][0-9٠-٩۰-۹]+)?)(?![\\p{L}\\p{N}_]|[.,٫٬][0-9٠-٩۰-۹])';
   const currency='(USD|EUR|SAR|AED|TRY|GBP|JPY|CNY|CHF|KWD|QAR|دولار|يورو|ريال|ليرة|\\$|€)';
   const pair=(labels:string)=>Array.from(message.matchAll(new RegExp('(?<![\\p{L}\\p{N}_])[وف]?(?:'+labels+')\\s*(?:is|at|هو|هي|=|:)?\\s*'+numeric+'(?:\\s*'+currency+'(?![\\p{L}\\p{N}_]))?','giu')));
-  const costs=pair('unit cost|cost|التكلفة|تكلفة|الكلفة'),prices=pair('selling price|sale price|price|سعر البيع|سعر بيع');
+  const costs=pair('unit cost|cost|تكلفة الوحدة|التكلفة|تكلفة|الكلفة'),prices=pair('selling price|sale price|price|سعر البيع|سعر بيع');
   if(costs.length!==1||prices.length!==1)return null;
   const normalizeCurrency=(v:string|undefined)=>({دولار:'USD',يورو:'EUR',ريال:'SAR',ليرة:'TRY','$':'USD','€':'EUR'}[v||'']||String(v||'').toUpperCase());
   const costCurrency=normalizeCurrency(costs[0]![2]),priceCurrency=normalizeCurrency(prices[0]![2]);
