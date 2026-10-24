@@ -13,6 +13,7 @@ on:
       - 'src/lib/ai-tool-orchestrator.ts'
       - 'tests/ai-search-exact-record-ranking.test.mjs'
       - 'tests/ai-dialogue-negated-completion.test.mjs'
+      - 'tests/ai-dialogue-output-fidelity.test.mjs'
       - 'src/lib/ai-workflow-quote-guard.ts'
       - 'src/lib/ai-import-authorization.ts'
       - 'src/styles/ai-conversation-workspace.css'
@@ -62,6 +63,7 @@ jobs:
           tests/ai-batch1-quote-data-safety.test.mjs
           tests/ai-natural-unified-dialogue.test.mjs
           tests/ai-dialogue-negated-completion.test.mjs
+          tests/ai-dialogue-output-fidelity.test.mjs
           tests/ai-f21-advisor-saved-documents.test.mjs
           tests/ai-conversational-price-followups.test.mjs
           tests/ai-dialogue-catalog-evidence.test.mjs
