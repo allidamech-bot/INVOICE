@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
 const output='visual-qa-output/long-statement-text';
 mkdirSync(output,{recursive:true});
-const compact=value=>String(value).normalize('NFKC').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\s]/g,'');
+const compact=value=>String(value).normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660)).replace(/[٬,\u200e\u200f\u202a-\u202e\u2066-\u2069\s]/g,'').replace(/٫/g,'.');
 const refCount=(text,ref)=>compact(text).split(compact(ref)).length-1;
 const cases=[
  {name:'customer',url:'obsidian-financial.html?screen=receivables',selector:'.customer-statement-print',table:'.statement-table tbody tr',search:'.ta-account-controls input',item:'.ta-account-row',button:/^(Statement|كشف حساب)$/,rows:40},
