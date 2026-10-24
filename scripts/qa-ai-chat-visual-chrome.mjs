@@ -79,7 +79,7 @@ try{
      "const position={userRight:Math.round(p.right-user.right),assistantLeft:Math.round(assistant.left-p.left),footerTop:Math.round(footer.top),historyBottom:Math.round(history.bottom)};",
      "const rgb=c=>c.match(/[0-9.]+/g)?.slice(0,3).map(Number)||[0,0,0],lum=c=>{const v=rgb(c).map(x=>{const y=x/255;return y<=.04045?y/12.92:Math.pow((y+.055)/1.055,2.4)});return v[0]*.2126+v[1]*.7152+v[2]*.0722},contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};",
      "const actionContrast={};for(const [key,selector] of [['save','.lxw-document-save'],['approve','.lxw-inline-approval-buttons>.primary'],['reject','.lxw-inline-approval-buttons>button:first-child'],['pdf','.lxw-ai-pdf-actions>button'],['preview','.lxw-pdf-preview'],['download','.lxw-pdf-download']]){const cs=style(selector);actionContrast[key]=Math.round(Math.min(...paint(selector).map(bg=>contrast(cs.color,bg)))*10)/10;}",
-     "return {ok:true,width:innerWidth,rtl:RTL,overflows,small,colors,fonts,readingFonts,tableFonts,continuation,position,actionContrast,spacing:{messages:style('.lourex-ai-messages').rowGap,document:style('.lxw-chat-document').rowGap},viewportOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth};",
+     "return {ok:true,width:innerWidth,rtl:RTL,overflows,small,colors,fonts,readingFonts,tableFonts,continuation,scrollbars:style('#lourex-ai-panel').scrollbarColor,canvas:style('#lourex-ai-panel').backgroundColor,position,actionContrast,spacing:{messages:style('.lourex-ai-messages').rowGap,document:style('.lxw-chat-document').rowGap},viewportOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth};",
      "})().catch(e=>({error:String(e.stack||e)}))"
    ].join('').replaceAll('RTL',String(rtl));
    const response=await send('Runtime.evaluate',{expression:code,awaitPromise:true,returnByValue:true});
@@ -87,6 +87,7 @@ try{
    assert.ok(d?.ok,'Visual fixture crashed at '+width+': '+JSON.stringify(d));
    console.log('VISUAL '+JSON.stringify(d));
    assert.equal(d.width,width);
+   assert.ok(d.scrollbars.includes(d.canvas),'Scrollbar track must follow the active conversation canvas: '+d.scrollbars);
    assert.equal(d.continuation.color,d.continuation.bodyColor,'Answer continuation must not be demoted to muted metadata');
    assert.equal(d.continuation.opacity,'1');
    assert.equal(d.continuation.size,'16px');

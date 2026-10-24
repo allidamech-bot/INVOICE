@@ -3604,3 +3604,5 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-ai-motion='redu
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-ltr{direction:ltr!important;unicode-bidi:isolate!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table[dir='ltr']{direction:ltr!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table[dir='rtl']{direction:rtl!important;}
+/* Native scroll surfaces inherit the active AI theme instead of a black track. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2']{scrollbar-color:var(--lxw-muted) var(--lxw-bg);scrollbar-width:thin;}
