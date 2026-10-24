@@ -26,10 +26,27 @@ function moneyList(rows:{currency:string;outstanding:string}[]):string{return ro
 function overdueList(rows:{currency:string;overdue:string}[]):string{return rows.filter(row=>row.overdue!=='0.00').map(row=>formatMoney(row.overdue,row.currency)).join(' · ')||'—';}
 
 class CustomerStatementModal extends React.Component<{open:boolean;customerId:string;customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];company:CompanySettings;onClose:()=>void}>{
+  private pendingPrint:number|undefined;
   componentDidMount():void{window.addEventListener('afterprint',this.afterPrint);}
-  componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-customer-statement');}
-  private afterPrint=()=>document.body.classList.remove('printing-customer-statement');
-  private print=()=>{document.body.classList.add('printing-customer-statement');window.setTimeout(()=>window.print(),40);};
+  componentDidUpdate(previous:Readonly<{open:boolean;customerId:string}>):void{
+    if(previous.open&&(!this.props.open||previous.customerId!==this.props.customerId))this.cancelPendingPrint();
+  }
+  componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);this.cancelPendingPrint();}
+  private cancelPendingPrint=()=>{
+    if(this.pendingPrint!==undefined){window.clearTimeout(this.pendingPrint);this.pendingPrint=undefined;}
+    document.body.classList.remove('printing-customer-statement');
+  };
+  private afterPrint=()=>this.cancelPendingPrint();
+  private print=()=>{
+    if(!this.props.open||!this.props.customerId||this.pendingPrint!==undefined)return;
+    const customerId=this.props.customerId;
+    document.body.classList.add('printing-customer-statement');
+    this.pendingPrint=window.setTimeout(()=>{
+      this.pendingPrint=undefined;
+      if(!this.props.open||this.props.customerId!==customerId){this.cancelPendingPrint();return;}
+      try{window.print();}catch{this.cancelPendingPrint();}
+    },40);
+  };
   render():any{
     if(!this.props.open||!this.props.customerId)return null;
     const customer=this.props.customers.find(item=>item.id===this.props.customerId)??null;

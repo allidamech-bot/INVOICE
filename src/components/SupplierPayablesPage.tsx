@@ -35,9 +35,17 @@ function stateLabel(state:ReturnType<typeof purchasePayableSummary>['state']):st
 export class SupplierPayablesPage extends React.Component<Props,State>{
   state:State={query:'',filter:'open',statementSupplierId:'',paymentPurchaseId:'',draft:null,working:false,error:'',deletePayment:null,voidReason:'',voucherId:'',paymentLimit:12};
   constructor(props:Props){super(props);ensurePayablesStyles();}
+  private pendingStatementPrint:number|undefined;
   componentDidMount():void{window.addEventListener('lourex-supplier-payables-open',this.handleExternalOpen as EventListener);window.addEventListener('afterprint',this.afterPrint);}
-  componentWillUnmount():void{window.removeEventListener('lourex-supplier-payables-open',this.handleExternalOpen as EventListener);window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-supplier-statement');}
-  private afterPrint=()=>document.body.classList.remove('printing-supplier-statement');
+  componentDidUpdate(_previousProps:Props,previousState:State):void{
+    if(previousState.statementSupplierId&&previousState.statementSupplierId!==this.state.statementSupplierId)this.cancelPendingStatementPrint();
+  }
+  componentWillUnmount():void{window.removeEventListener('lourex-supplier-payables-open',this.handleExternalOpen as EventListener);window.removeEventListener('afterprint',this.afterPrint);this.cancelPendingStatementPrint();}
+  private cancelPendingStatementPrint=()=>{
+    if(this.pendingStatementPrint!==undefined){window.clearTimeout(this.pendingStatementPrint);this.pendingStatementPrint=undefined;}
+    document.body.classList.remove('printing-supplier-statement');
+  };
+  private afterPrint=()=>this.cancelPendingStatementPrint();
   private handleExternalOpen=(event:Event)=>{const supplierId=(event as CustomEvent<{supplierId?:string}>).detail?.supplierId||'';if(supplierId)this.setState({query:'',filter:'all',statementSupplierId:supplierId,error:''});};
   private postedPurchases=()=>this.props.purchases.filter(purchase=>purchase.status==='posted'&&postedOnOrBefore(purchase,todayIso())).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.number.localeCompare(b.number));
   private openPayment=(purchase:PurchaseRecord)=>{
@@ -67,7 +75,16 @@ export class SupplierPayablesPage extends React.Component<Props,State>{
       this.setState({voucherId:paymentId,error:''});
     }catch(error){this.setState({error:error instanceof Error?error.message:t('Supplier voucher is unavailable.','سند دفع المورد غير متاح.')});}
   };
-  private printStatement=()=>{document.body.classList.add('printing-supplier-statement');window.setTimeout(()=>window.print(),40);};
+  private printStatement=()=>{
+    const supplierId=this.state.statementSupplierId;
+    if(!supplierId||this.pendingStatementPrint!==undefined)return;
+    document.body.classList.add('printing-supplier-statement');
+    this.pendingStatementPrint=window.setTimeout(()=>{
+      this.pendingStatementPrint=undefined;
+      if(this.state.statementSupplierId!==supplierId){this.cancelPendingStatementPrint();return;}
+      try{window.print();}catch{this.cancelPendingStatementPrint();}
+    },40);
+  };
   private filteredPurchases():PurchaseRecord[]{
     const q=this.state.query.trim().toLowerCase();
     return this.postedPurchases().filter(purchase=>{
