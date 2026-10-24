@@ -40,6 +40,7 @@ jobs:
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/long-document-app-print-entry.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("App print fixture did not start");'
           node tests/visual/run-long-document-app-print-entry.cjs
+          LOUREX_APP_PRINT_ENGINES=webkit node tests/visual/run-long-document-app-print-entry.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

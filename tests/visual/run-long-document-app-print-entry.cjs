@@ -11,21 +11,24 @@ const cases=[
  {kind:'purchase-order',template:'minimal'}
 ];
 (async()=>{
- // App-instance fixture is established on Chromium. WebKit harness startup currently
- // fails before qaReady on a 404 asset; this does not certify or disprove iPhone.
+ // Chromium's prior full acceptance is preserved. The WebKit opt-in may run a
+ // single bounded case while collecting an exact boot trace before broadening.
  const engines=(process.env.LOUREX_APP_PRINT_ENGINES||'chromium').split(',');
+ const scenarios=(process.env.LOUREX_APP_PRINT_ONE_CASE==='1')?[{lang:'en',scenario:cases[0]}]:['en','ar'].flatMap(lang=>cases.map(scenario=>({lang,scenario})));
  for(const [engine,driver] of [['chromium',chromium],['webkit',webkit]].filter(([id])=>engines.includes(id))){
   const browser=await driver.launch({headless:true});
   try{
-   for(const lang of ['en','ar'])for(const scenario of cases){
+   for(const {lang,scenario} of scenarios){
     const page=await browser.newPage({viewport:{width:lang==='ar'?390:1280,height:900}});
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+    const errors=[],assetFailures=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+    page.on('response',response=>{if(response.status()>=400)assetFailures.push(response.status()+' '+new URL(response.url()).pathname);});
+    page.on('requestfailed',request=>assetFailures.push('NETWORK '+new URL(request.url()).pathname+' '+(request.failure()?.errorText||'')));
     const search=new URLSearchParams({lang,kind:scenario.kind,template:scenario.template});
     await page.goto('http://127.0.0.1:4173/tests/visual/long-document-app-print-entry.html?'+search);
     try{await page.waitForFunction(()=>window.qaReady===true,null,{timeout:12000});}
     catch(error){
      const debug=await page.evaluate(()=>({ready:window.qaReady,htmlLang:document.documentElement.lang,docState:document.readyState,rendered:document.body?.innerText?.slice(0,300),errors:window.qaErrors}));
-     console.error('APP_LONG_PRINT_BOOT_DIAG',JSON.stringify({engine,lang,kind:scenario.kind,errors,debug}));
+     console.error('APP_LONG_PRINT_BOOT_DIAG',JSON.stringify({engine,lang,kind:scenario.kind,errors,assetFailures,debug}));
      throw error;
     }
     const before=await page.evaluate(()=>window.qaSourceSnapshot());
@@ -75,7 +78,7 @@ const cases=[
      }
     }
     assert.equal(await page.evaluate(()=>window.qaSourceSnapshot()),before,'App printing cannot mutate original issued document');
-    assert.deepEqual(errors,[],'no browser errors during real App print entry');
+    assert.deepEqual(errors,[],'no browser errors during real App print entry; failed assets: '+assetFailures.join(', '));
     await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
     console.log('PASS App.requestPrint '+engine+' '+lang+' '+scenario.kind+' '+scenario.template+' pages='+pages);
     await page.close();

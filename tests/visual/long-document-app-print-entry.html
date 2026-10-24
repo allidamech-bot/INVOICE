@@ -12,7 +12,8 @@ const rows=new Map();window.qaRecords=rows;window.qaPrints=[];window.qaErrors=[]
 const ref=path=>({path,collection:name=>ref(path+'/'+name),doc:name=>ref(path+'/'+name),get:async()=>({exists:rows.has(path),data:()=>rows.get(path)}),update:async patch=>Object.assign(rows.get(path),patch)});
 const db={collection:name=>ref(name),runTransaction:async fn=>{let release;const old=queue;queue=new Promise(r=>release=r);await old;try{const pending=[];const value=await fn({get:r=>r.get(),set:(r,v)=>pending.push([r.path,v])});for(const [path,v] of pending)rows.set(path,v);return value;}finally{release();}}};
 window.firebase={apps:[{name:'[DEFAULT]'}],auth:()=>({currentUser:{uid:'synthetic-qa-owner',email:'qa@example.test'}}),firestore:Object.assign(()=>db,{Timestamp:{fromDate:d=>d},FieldValue:{serverTimestamp:()=>new Date()}})};
-const {App}=await import('./src/app/App.js');
+// Dynamic import resolves from the module's URL on WebKit rather than the document base.
+const {App}=await import(new URL('../../dist/src/app/App.js',location.href).href);
 const company=defaultCompany();company.nameEn='LOUREX synthetic QA';company.nameAr='لوركس تجريبي';
 const kind=q.get('kind')==='purchase-order'?'purchase-order':'invoice';
 const doc=createBlankDocument(kind,kind==='invoice'?'INV-LONG-APP-QA-2026':'PO-LONG-APP-QA-2026',company);
