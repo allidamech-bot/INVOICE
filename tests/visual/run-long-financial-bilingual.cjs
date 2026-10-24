@@ -67,12 +67,19 @@ mkdirSync(out,{recursive:true});
     assert.ok(dom.includes('440.00'),'unmodified tax-inclusive total');
     assert.ok(dom.includes(compact(bilingual.language==='bilingual'?(kind==='invoice'?bilingual.customerSnapshot.companyNameEn:bilingual.supplierSnapshot.nameEn):'')),'English party identity');
     assert.ok(dom.includes(compact(kind==='invoice'?bilingual.customerSnapshot.companyNameAr:bilingual.supplierSnapshot.nameAr)),'Arabic party identity');
+    // Collate pagination continuation fragments per source item, excluding
+    // intervening page headers/footers when checking full bilingual text.
+    const domCells=await root.locator('tbody .description-cell').evaluateAll(cells=>{
+     const parts={};
+     for(const cell of cells){const id=cell.parentElement.dataset.sourceItemId;parts[id]=(parts[id]||'')+' '+cell.textContent;}
+     return parts;
+    });
     for(let i=0;i<40;i++){
-     const item=bilingual.items[i];
+     const item=bilingual.items[i],rendered=domCells[item.id]||'';
      assert.ok(dom.includes('PO-LINE-'+String(i+1).padStart(3,'0')),'English line marker '+i);
      assert.ok(dom.includes('بند'+String(i+1).padStart(3,'0')),'Arabic line marker '+i);
-     assert.ok(dom.includes(compact(item.descriptionEn)),'complete English description in browser '+i);
-     assert.ok(dom.includes(compact(item.descriptionAr)),'complete Arabic description in browser '+i);
+     assert.ok(englishChars(rendered).includes(englishChars(item.descriptionEn)),'complete English DOM description '+i);
+     assert.equal(arGlyphs(rendered),arGlyphs(item.descriptionAr),'complete Arabic DOM description '+i);
     }
     if(engine==='chromium'){
      const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true,margin:{top:'0',bottom:'0',left:'0',right:'0'}});
