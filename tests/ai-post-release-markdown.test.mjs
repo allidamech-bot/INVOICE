@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {aiInlineTextRuns,aiTextDirection} from '../dist/src/lib/ai-text-layout.js';
 
 const compiled=readFileSync('dist/src/components/AiConversationWorkspace.js','utf8');
 const React={
@@ -9,8 +10,8 @@ const React={
   isValidElement:value=>Boolean(value&&typeof value==='object'&&'type' in value),
   Children:{toArray:value=>[value].flat(Infinity).filter(v=>v!==null&&v!==undefined)},
 };
-const context=vm.createContext({React,react:React});
-vm.runInContext(compiled.slice(compiled.indexOf('function markdownInline('),compiled.indexOf('const label =')),context);
+const context=vm.createContext({React,react:React,aiInlineTextRuns,aiTextDirection});
+vm.runInContext(compiled.slice(compiled.indexOf('function bidiInlineText('),compiled.indexOf('const label =')),context);
 const p=text=>React.createElement('p',null,text);
 const tags=nodes=>nodes.flatMap(node=>typeof node==='object'?[node.type,...tags(node.props.children)]:[]);
 
@@ -81,4 +82,17 @@ test('product label is bold while the exact SKU stays isolated LTR beneath it',(
  const sku=row.props.children.find(n=>n?.type==='bdi');
  assert.equal(sku.props.dir,'ltr');
  assert.deepEqual(Array.from(sku.props.children),['(SKU: FOP-170926-273204)']);
+});
+
+
+test('actual renderer isolates the captured formula and selects table direction from headers',()=>{
+ const nodes=context.markdownParagraphs([p('هامش الربح: 60.00%. الحسبة: (100 − 40) ÷ 100 × 100.')]);
+ const walk=items=>items.flatMap(n=>n&&typeof n==='object'?[n,...walk(n.props.children||[])]:[]);
+ const formula=walk(nodes).find(n=>n.type==='bdi'&&n.props.children.join('').includes('−'));
+ assert.equal(formula.props.dir,'ltr');
+ assert.equal(formula.props.children.join(''),'(100 − 40) ÷ 100 × 100');
+ for(const [header,expected] of [['SKU | Quantity','ltr'],['الصنف | الكمية','rtl']]){
+  const table=walk(context.assistantMessageBlocks(header+'\n--- | ---\nQA-X1 | 8')).find(n=>n.type==='table');
+  assert.equal(table.props.dir,expected);
+ }
 });

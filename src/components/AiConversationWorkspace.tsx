@@ -1,3 +1,4 @@
+import { aiInlineTextRuns, aiTextDirection } from '../lib/ai-text-layout.js';
 import { AiMenuPresence } from './AiMenuPresence.js';
 import { AiIdentityMark } from './AiIdentityMark.js';
 import {AiFinancialReadout} from './AiFinancialReadout.js';
@@ -28,14 +29,18 @@ import type { LourexDocument } from '../types.js';
 type Host=any;
 const react=React as any;
 // Text is rendered as React nodes only. Never interpret provider HTML or links.
+function bidiInlineText(value:string,key:string):any {
+  return aiInlineTextRuns(value).map((run,i)=>run.direction
+    ?<bdi key={key+'-bidi-'+i} className="lxw-inline-ltr" dir="ltr">{run.text}</bdi>:run.text);
+}
 function markdownInline(value:any,key:string):any {
   if(typeof value!=='string')return value; // preserve scoped evidence callbacks
   return value.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g).map((part,i)=>{
     const id=key+'-'+i;
-    if(part.startsWith('**')&&part.endsWith('**'))return <strong key={id}>{part.slice(2,-2)}</strong>;
-    if(part.startsWith('`')&&part.endsWith('`'))return <code key={id}>{part.slice(1,-1)}</code>;
-    if(part.startsWith('*')&&part.endsWith('*'))return <em key={id}>{part.slice(1,-1)}</em>;
-    return part;
+    if(part.startsWith('**')&&part.endsWith('**'))return <strong key={id}>{bidiInlineText(part.slice(2,-2),id)}</strong>;
+    if(part.startsWith('`')&&part.endsWith('`'))return <code key={id} dir={aiTextDirection(part.slice(1,-1))}>{bidiInlineText(part.slice(1,-1),id)}</code>;
+    if(part.startsWith('*')&&part.endsWith('*'))return <em key={id}>{bidiInlineText(part.slice(1,-1),id)}</em>;
+    return bidiInlineText(part,id);
   });
 }
 /** Presentation-only hierarchy. Punctuation never creates an action. */
@@ -134,7 +139,7 @@ function assistantMessageBlocks(text:string):any[] {
       lineIndex+=2;
       while(lineIndex<lines.length&&lines[lineIndex]!.includes('|')){rows.push(cells(lines[lineIndex]!));lineIndex++;}
       lineIndex--;
-      blocks.push(<div className="lxw-response-table" key={'table-'+blocks.length} tabIndex={0} role="region" aria-label="AI results"><table><thead><tr>{headers.map((cell,i)=><th key={i} scope="col" dir="auto">{markdownInline(cell,'th-'+i)}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={i}>{headers.map((_,j)=><td key={j} dir="auto">{markdownInline(row[j]||'—','td-'+i+'-'+j)}</td>)}</tr>)}</tbody></table></div>);
+      blocks.push(<div className="lxw-response-table" key={'table-'+blocks.length} tabIndex={0} role="region" aria-label="AI results"><table dir={aiTextDirection(headers.join(' '))}><thead><tr>{headers.map((cell,i)=><th key={i} scope="col" dir="auto">{markdownInline(cell,'th-'+i)}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={i}>{headers.map((_,j)=><td key={j} dir="auto">{markdownInline(row[j]||'—','td-'+i+'-'+j)}</td>)}</tr>)}</tbody></table></div>);
       continue;
     }
     const trimmed=line.trim();
