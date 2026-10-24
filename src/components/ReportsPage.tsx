@@ -41,9 +41,17 @@ function csvCell(value:string|number):string{
 export class ReportsPage extends React.Component<Props,State>{
   state:State={view:'performance',from:this.props.initialPeriod?.from||`${todayIso().slice(0,4)}-01-01`,to:this.props.initialPeriod?.to||todayIso(),currency:'ALL',query:'',preset:this.props.initialPeriod?null:'year'};
 
+  private printTimer:number|undefined;
   componentDidMount():void{ensureTaxVatStyles();window.addEventListener('afterprint',this.afterPrint);}
-  componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-financial-report');}
-  private afterPrint=()=>document.body.classList.remove('printing-financial-report');
+  componentDidUpdate(_previousProps:Props,previousState:State):void{
+    if(previousState.view==='performance'&&this.state.view!=='performance')this.cancelPendingPrint();
+  }
+  componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);this.cancelPendingPrint();}
+  private cancelPendingPrint=()=>{
+    if(this.printTimer!==undefined){window.clearTimeout(this.printTimer);this.printTimer=undefined;}
+    document.body.classList.remove('printing-financial-report');
+  };
+  private afterPrint=()=>this.cancelPendingPrint();
   private clearFilters=()=>this.setState({from:'',to:todayIso(),currency:'ALL',query:'',preset:'all'});
 
   private setPreset=(preset:PeriodPreset)=>{
@@ -54,7 +62,15 @@ export class ReportsPage extends React.Component<Props,State>{
     this.setState({from:'',to:today,preset});
   };
 
-  private print=()=>{document.body.classList.add('printing-financial-report');window.setTimeout(()=>window.print(),40);};
+  private print=()=>{
+    if(this.state.view!=='performance'||this.printTimer!==undefined)return;
+    document.body.classList.add('printing-financial-report');
+    this.printTimer=window.setTimeout(()=>{
+      this.printTimer=undefined;
+      if(this.state.view!=='performance'){this.cancelPendingPrint();return;}
+      try{window.print();}catch{this.cancelPendingPrint();}
+    },40);
+  };
 
   private exportCsv=(rows:CustomerPerformanceRow[])=>{
     const headers=[t('Currency','العملة'),t('Customer','العميل'),t('Net Sales','صافي المبيعات'),t('Gross Profit','الربح الإجمالي'),t('Margin %','الهامش %'),t('Collected','المحصّل'),t('Outstanding','المتبقي'),t('Overdue','المتأخر'),t('Invoices','الفواتير'),t('Credit Notes','الإشعارات الدائنة'),t('Profit Complete','اكتمال الربحية')];
