@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All seventeen PRs below were directly rechecked as merged. These are delivered
+All eighteen PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -40,6 +40,7 @@ rounds, not a count of original checklist items.
 | [1040](https://github.com/allidamech-bot/INVOICE/pull/1040) | Closed-period settings now default to the device-local calendar day instead of UTC; both offset directions verified in component tests; trusted server, Firestore emulator, owner browser and Vercel trace CI passed. This is not production-service activation or live-device acceptance | `76a198faa3c0d87230fd477f9db96d1b0d7b5e3f` |
 | [1041](https://github.com/allidamech-bot/INVOICE/pull/1041) | Items 11/12: fixed WebKit synthetic inline-module 404 (`/tests/visual/src/app/App.js`), enabling actual `App.requestPrint` through 40-line final invoice (Obsidian) and PO (Minimal), both EN/AR: 8 Chromium/WebKit cases, seven A4 pages each; native PDF parsing remains Chromium-only. Physical iPhone and production print remain unverified | `621ed1c9d13cb1fb4ef41bc29c180cfad080d9d1` |
 | [1042](https://github.com/allidamech-bot/INVOICE/pull/1042) | Original item 11 partial: fixed real 390px treasury report filter overflow with extreme native account labels (implicit Grid min-content track expanded to 2,867px); constrained Grid track and filters, verified all 4 EN/AR Chromium/WebKit UI+CSV/print cases, 2 native Chromium PDFs, all text sentinels and 140.00 USD unchanged closing balance; existing treasury and Vercel CI passed. No physical iPhone/deployment certification | `f18a281f08873df775c2d42ac4fc136ac2764b26` |
+| [1043](https://github.com/allidamech-bot/INVOICE/pull/1043) | Original item 6 bounded UI safety: cancel queued management report native print after report-tab navigation or component unmount; preserve ordinary print/PDF, avoid stale body print state. 8 added Chromium/WebKit EN/AR navigation cases + 12 existing UI/PDF cases, 21 focused report tests; all three exact-head workflows successful. No physical iPhone/deployment certification | `bc81516708f8d9e39cfe06db4ac271e345cff5d5` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -69,7 +70,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 3 | Final purchase order output; #935/#992 | Accepted bounded browser/PDF cases |
 | 4 | Posted-purchase document output | Deferred: no live independent print route established; old draft branch remains untouched pending explicit reopening |
 | 5 | Inventory movement report output, references and quantities | Implemented and accepted in #1015: 12 Chromium/WebKit cases, 4 native Chromium PDFs, 3/40/205 movements, filters/account guard/no writes; physical iPhone separate |
-| 6 | Management financial report final output | Performance report path accepted in #1002; no claim that every report view is covered |
+| 6 | Management financial report final output | Performance report path accepted in #1002; #1043 guards stale native print after leaving Performance and passes focused Chromium/WebKit regression. No claim that every report view or physical-device path is covered |
 | 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004 |
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed cases closed in #910; do not repeat |
