@@ -24,6 +24,15 @@ export function treasuryPeriodReport(input:TreasuryReportInput):TreasuryPeriodRe
   const result:TreasuryPeriodReport={workspaceId:input.workspaceId,branchId:input.branchId,from:input.from,to:input.to,currency,accountId,accounts:[],unallocated:accountId==='ALL'?projection.filter(r=>!r.fromAccountId&&!r.toAccountId&&r.date>=input.from&&(currency==='ALL'||r.currency===currency)).map(r=>{if(!isNonNegativeDecimalInput(r.amount))throw new Error(t('Report amount is invalid.','مبلغ التقرير غير صالح.'));return {...r,amount:money(decimalToScaled(r.amount,2))};}):[]};
   for(const account of accounts.filter(a=>(accountId==='ALL'||a.id===accountId)&&(currency==='ALL'||a.currency===currency))){
     const related=entries.filter(e=>e.fromAccountId===account.id||e.toAccountId===account.id);
+    // Historical ledger rows can predate the current posting validators. Never
+    // present a balance in this account's currency if an effective dated entry
+    // belongs to another currency: there is no implicit FX conversion.
+    if(related.some(e=>{
+      const voidDate=e.voidedAt?.slice(0,10)||'';
+      // A previously voided entry cannot affect opening or movements.
+      const relevant=e.date<=input.to&&(!voidDate||(voidDate>=input.from&&voidDate>=e.date));
+      return relevant&&e.currency.trim().toUpperCase()!==account.currency.trim().toUpperCase();
+    }))throw new Error(t('Treasury entry currency does not match its account. Review the ledger before reporting.','عملة قيد الخزينة لا تطابق عملة الحساب. راجع الدفتر قبل إصدار التقرير.'));
     if(!account.active&&!related.some(e=>e.date<=input.to))continue;
     const opening=treasuryAccountBalanceScaled(account.id,related,before),closing=treasuryAccountBalanceScaled(account.id,related,input.to),movements:TreasuryReportMovement[]=[];
     for(const entry of related){

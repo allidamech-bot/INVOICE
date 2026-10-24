@@ -13,3 +13,49 @@ test('linked collections appear once and other scopes never leak',()=>{const f=f
 test('CSV retains exact negative balances and escapes user text as text',()=>{const f=fixture();f.accounts[0].label='=SUM(1,2)';f.entries[3].reference='-1+2';const csv=treasuryReportCsv(treasuryPeriodReport(f));assert.ok(csv.startsWith('\uFEFF'));assert.ok(csv.includes('"\'=SUM(1,2)"'));assert.ok(csv.includes("'-1+2"));assert.ok(csv.includes(',-30.00,'));assert.ok(csv.includes(',-20.00,'));});
 test('legacy unallocated currency uses company default and keeps supplier/expense rows separate',()=>{const f=fixture();f.defaultCurrency='EUR';f.payments[0].currency='';f.supplierPayments=[{id:'supplier',date:'2026-10-12',currency:'EUR',amount:'6.00',supplierNameEn:'Supplier',reference:'SUP',createdAt:at}];f.expenses=[{id:'expense',date:'2026-10-12',currency:'EUR',amount:'3.00',description:'Expense',reference:'EXP',createdAt:at}];const r=treasuryPeriodReport({...f,currency:'EUR'});assert.equal(r.unallocated.length,3);assert.ok(r.unallocated.every(x=>x.currency==='EUR'));assert.equal(r.accounts[0].closing,'7.00');});
 test('unallocated CSV money is normalized and cannot execute malformed historical amounts',()=>{const f=fixture();f.payments[0].amount='1,25';assert.equal(treasuryPeriodReport(f).unallocated[0].amount,'1.25');f.payments[0].amount='=1+1';assert.throws(()=>treasuryPeriodReport(f),/amount|monetary/i);});
+
+test('historical mismatched EUR entry cannot silently contaminate USD cash balances',()=>{
+  const f=fixture();const before=JSON.stringify(f);
+  f.entries.push(entry('bad-usd-bank','2026-10-20','25.00','bank',{currency:'EUR'}));
+  const immutable=JSON.stringify(f);
+  assert.throws(()=>treasuryPeriodReport(f),/currency|عملة/i);
+  assert.equal(JSON.stringify(f),immutable,'read-only validation never alters source');
+  assert.notEqual(before,immutable);
+});
+
+test('currency mismatches before report from-date also block an incorrect opening balance',()=>{
+  const f=fixture();
+  f.entries.push(entry('bad-opening','2026-09-09','19.00','bank',{currency:'EUR'}));
+  assert.throws(()=>treasuryPeriodReport(f),/currency|عملة/i);
+});
+
+test('only related on-or-before-date entries are guarded; matching EUR accounts remain independent',()=>{
+  const f=fixture();
+  f.entries.push(entry('euros-correct','2026-10-15','3.00','euro',{currency:'EUR'}));
+  f.entries.push(entry('future-invalid','2026-11-25','250.00','bank',{currency:'EUR'}));
+  const report=treasuryPeriodReport(f);
+  assert.equal(report.accounts.find(a=>a.id==='bank').closing,'140.00');
+  assert.equal(report.accounts.find(a=>a.id==='euro').closing,'10.00');
+  const filtered=treasuryPeriodReport({...f,currency:'EUR'});
+  assert.deepEqual(filtered.accounts.map(a=>a.id),['euro']);
+  assert.equal(filtered.accounts[0].closing,'10.00');
+});
+
+test('cross-currency transfer to a same-currency account is refused in report even for legacy stored rows',()=>{
+  const f=fixture();
+  f.entries.push(entry('bad-transfer','2026-10-17','5.00','euro',{
+    fromAccountId:'bank',type:'transfer',currency:'USD'
+  }));
+  assert.throws(()=>treasuryPeriodReport(f),/currency|عملة/i);
+});
+
+test('previously voided legacy currency error does not block a later clean period',()=>{
+  const f=fixture();
+  f.entries.push(entry('old-mismatch-voided','2026-08-10','19.00','bank',{
+    currency:'EUR',voidedAt:'2026-09-12T00:00:00.000Z'
+  }));
+  assert.equal(treasuryPeriodReport(f).accounts.find(a=>a.id==='bank').closing,'140.00');
+  f.entries[f.entries.length-1].voidedAt='2026-10-12T00:00:00.000Z';
+  assert.throws(()=>treasuryPeriodReport(f),/currency|عملة/i,
+    'void inside selected period is a displayed movement and must remain guarded');
+});
