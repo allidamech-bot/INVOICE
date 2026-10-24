@@ -161,11 +161,17 @@ export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?
   const created=newAssistantThread(input.scope,input.workspaceId,input.branchId);
   const base=existing??(requestedId?{...created,id:requestedId}:created);
   const previousTimes=new Map(base.messages.map(row=>[row.id,row.createdAt] as const));
-  // The runtime supplies message IDs but often omits createdAt. Keep their first
-  // timestamp stable so another device cannot reorder a conversation on save.
-  const messages:AssistantStoredMessage[]=input.messages.map((row:MessageLike)=>normalizedMessage({
-    ...row,createdAt:row.createdAt||previousTimes.get(String(row.id||'')),
-  })).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
+  // Keep recorded timestamps immutable. Newly appended messages need distinct,
+  // increasing times: a local answer can arrive in the same millisecond as its
+  // question, and cloud history breaks equal-time ties by random message ID.
+  let previousTime=Number.NEGATIVE_INFINITY;
+  const messages:AssistantStoredMessage[]=input.messages.map((row:MessageLike)=>{
+    const recordedAt=row.createdAt||previousTimes.get(String(row.id||''));
+    const createdAt=recordedAt||new Date(Math.max(Date.now(),previousTime+1)).toISOString();
+    const next=normalizedMessage({...row,createdAt});
+    if(next&&Number.isFinite(Date.parse(next.createdAt)))previousTime=Math.max(previousTime,Date.parse(next.createdAt));
+    return next;
+  }).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
   const thread:AssistantThread={...base,title:titleFrom(messages,base.title),summary:summarizeAssistantConversation(messages),messages,updatedAt:now()};
   const threads=[thread,...normalized.threads.filter((row:AssistantThread)=>row.id!==thread.id)].sort((a:AssistantThread,b:AssistantThread)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS);
   const next:AssistantStoreState={version:1,threads,currentBusinessThreadId:input.scope==='business'?thread.id:normalized.currentBusinessThreadId,currentPersonalThreadId:input.scope==='personal'?thread.id:normalized.currentPersonalThreadId,aiPreferences:normalized.aiPreferences,updatedAt:now(),deletedThreads:normalized.deletedThreads};
