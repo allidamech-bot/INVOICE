@@ -9,7 +9,7 @@ physical iPhone result or complete forty-item closure is inferred here.
 | Output | Existing bounded evidence | Important boundary |
 |---|---|---|
 | Customer receipt / supplier payment voucher | #982; `run-payment-voucher-long-print.cjs`: 100 note lines, long names/references, English/Arabic, three logo shapes, both engines, native Chromium PDFs | Fixed voucher layout, not 18 selectable commercial templates |
-| Purchase order | #992; `run-purchase-order-final-print.cjs`: short and 40-line long descriptions, English/Arabic, long mode three logo shapes; Obsidian/Executive | Sixteen other templates lack this dedicated 40-line native financial-output acceptance |
+| Purchase order | #992; `run-purchase-order-final-print.cjs`: short and 40-line long descriptions, English/Arabic, long mode three logo shapes; Obsidian/Executive | #1032 accepted the remaining sixteen registered templates with dedicated 40-line browser/native-PDF cases; actual app-entry and device journeys remain separate |
 | Invoice | #994; same runner with `--long --invoice`, actual customerSnapshot; 40 long descriptions, English/Arabic, three logo shapes, Obsidian/Executive | This round adds the other sixteen templates; bilingual and actual App.requestPrint are separate |
 | Customer statement | #910 and `run-customer-statement-print.cjs`: 1/40 invoices plus partial receipt | Many rows do not prove every long name or reference scenario |
 | Supplier statement | #910 and `run-supplier-statement-print.cjs`: 1/100 purchases plus partial payment | Fixed statement layout, not the commercial template selector |
@@ -31,26 +31,26 @@ coverage; those expensive suites were not rerun for this inventory.
 | Registered ID | Existing general quotation design suite | Dedicated long invoice | Dedicated long purchase order |
 |---|---|---|---|
 | executive | Defined | #994 | #992 |
-| minimal | Defined | Added this round | Not established here |
-| trade | Defined | Added this round | Not established here |
-| signature | Defined | Added this round | Not established here |
+| minimal | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| trade | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| signature | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
 | obsidian | Defined | #994 | #992 |
-| cobalt | Defined | Added this round | Not established here |
-| editorial | Defined | Added this round | Not established here |
-| split | Defined | Added this round | Not established here |
-| prism | Defined | Added this round | Not established here |
-| slate | Defined | Added this round | Not established here |
-| horizon | Defined | Added this round | Not established here |
-| mono | Defined | Added this round | Not established here |
-| aurora | Defined | Added this round | Not established here |
-| ledger | Defined | Added this round | Not established here |
-| noir | Defined | Added this round | Not established here |
-| midnight | Defined | Added this round | Not established here |
-| blackivory | Defined | Added this round | Not established here |
-| carbon | Defined | Added this round | Not established here |
+| cobalt | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| editorial | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| split | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| prism | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| slate | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| horizon | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| mono | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| aurora | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| ledger | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| noir | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| midnight | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| blackivory | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
+| carbon | Defined | #1016 merged, four-shard CI passed | #1032 merged, four-shard CI passed |
 
-“Added this round” describes acceptance code; the PR's exact-head CI results
-are the execution evidence. This table never treats merely having a test as
+#1016 and #1032 are merged; the respective exact-head, four-shard CI successes
+are the automated long-invoice and long-purchase-order execution evidence. This table never treats merely having a test as
 proof of a successful run. The old two-template suite remains a regression
 check because the shared fixture/runner changes; it is not counted as new work.
 
@@ -72,8 +72,6 @@ AI files, App.tsx, vault merge, storage, packages and deployment are unchanged.
 
 ## What remains after this bounded acceptance
 
-- Dedicated 40-line long purchase-order acceptance for the other sixteen
-  templates; existing general quotation tests do not substitute for it.
 - Bilingual long financial-document native output, separately from existing
   general bilingual quotation design coverage.
 - Long-name/reference cases in fixed reports/statements where the scripts
@@ -88,7 +86,7 @@ Items 11 and 12 remain partial. These are concrete coverage boundaries, not
 newly invented original tasks or an exact remaining count for the forty items.
 
 
-## 24 October follow-on: purchase-order matrix (CI result pending)
+## 24 October follow-on: purchase-order matrix (CI passed and merged)
 
 [PR #1016](https://github.com/allidamech-bot/INVOICE/pull/1016) was merged
 at `b74579adaf56e66fb5e46a8802a7e70d370e24fe`. Its four groups and
@@ -97,19 +95,20 @@ exact PR head. This establishes automated **long invoice** coverage for all
 18 registered templates (two previously and sixteen from #1016); it does not
 establish live iPhone or app-entry printing.
 
-This follow-on change adds
+[PR #1032](https://github.com/allidamech-bot/INVOICE/pull/1032) added
 `.github/workflows/long-purchase-order-template-coverage.yml` to run the
 **existing** `--long` purchase-order test route (without `--invoice`) on
 the sixteen missing template IDs in four disjoint groups. Each group checks
 40 item descriptions, English/Arabic, three logo aspect ratios, both Chromium
-and WebKit, and native Chromium PDFs: planned total **192 browser cases and
+and WebKit, and native Chromium PDFs: confirmed matrix **192 browser cases and
 96 PDFs**. It reuses existing exact-grand-total, page/description continuity,
 PDF item uniqueness, per-template page class, supplier identity in English
 PDFs, logo containment and source immutability assertions. No production,
 AI, accounting policy or storage code is altered; no unrelated passed suite
 is deliberately rerun in these shards.
 
-**Acceptance status: pending exact-head CI.** Passing this bounded matrix
-would close only the 16-template dedicated long purchase-order gap; the
+**Acceptance status: exact-head CI success, four of four shards; merged on main**
+at `60549a30c4a3f58c19df2cb17a03f2a561eca4da`. This closes only the
+sixteen-template dedicated long purchase-order gap; the
 bilingual long-document, fixed-report text extremes, real App print journeys,
 physical iPhone and deferred original item 4 would remain separate.
