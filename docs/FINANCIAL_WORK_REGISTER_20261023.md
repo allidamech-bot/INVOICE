@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All nine PRs below were directly rechecked as merged. These are delivered
+All ten PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -32,6 +32,7 @@ rounds, not a count of original checklist items.
 | [1013](https://github.com/allidamech-bot/INVOICE/pull/1013) | Real stock transfers correctly labelled separately from adjustments in history and filters | `3f76d5330badd7bbe99d1590f3f3da25686e1548` |
 | [1015](https://github.com/allidamech-bot/INVOICE/pull/1015) | Item 5: read-only inventory movement print output, all filtered matches beyond the screen cap, full notes/references/signed quantities/warehouse endpoints; 12 browser cases and 4 native PDFs | `d2f5c77a469939c81ecec6629c4663b90bec71be` |
 | [1016](https://github.com/allidamech-bot/INVOICE/pull/1016) | Items 11/12: long final invoices on the other 16 registered templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; exact amounts, item completeness, no duplicate lines, logos and saved template selection | `b74579adaf56e66fb5e46a8802a7e70d370e24fe` |
+| [1032](https://github.com/allidamech-bot/INVOICE/pull/1032) | Items 11/12: remaining sixteen registered long purchase-order templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; four Playwright shards passed on exact PR head | `60549a30c4a3f58c19df2cb17a03f2a561eca4da` |
 
 Earlier merged financial repairs and acceptance remain delivered as recorded
 in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
@@ -54,8 +55,8 @@ production certification. An unavailable original sentence is not a new bug.
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed cases closed in #910; do not repeat |
 | 10 | Supplier statement | Agreed cases closed in #910; do not repeat |
-| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016 and later report acceptance cover bounded outputs; bilingual, fixed reports and live entry paths remain |
-| 12 | Templates not covered by recent acceptance | Partial: #1016 covers all 18 registered long-invoice templates (2 previously, 16 added); remaining 16 long purchase-order templates and other kinds/entry paths still lack dedicated acceptance |
+| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016/#1032 and later report acceptance cover bounded outputs; bilingual, fixed reports and live entry paths remain |
+| 12 | Templates not covered by recent acceptance | Partial: all 18 registered long-invoice templates covered by #994/#1016 and long purchase-order templates by #992/#1032; bilingual long outputs, other applicable document types and real App print paths remain unaccepted |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 14 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 15 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
@@ -122,7 +123,14 @@ On 24 October 2026, #1016 merged on `main` at
 four-shard long-invoice workflow and prior financial document workflow completed
 successfully (five jobs; no new test run needed at merge). #1016 changes only
 financial test/coverage files, not AI, production accounting or storage.
-The dedicated 40-line purchase-order suite still covers only Obsidian/Executive;
-next bounded target is the other sixteen registered PO templates, without
-claiming physical iPhone acceptance or closing original items 11/12. Item 4 remains explicitly deferred. This update
+On 24 October 2026, [#1032](https://github.com/allidamech-bot/INVOICE/pull/1032)
+merged on `main` at `60549a30c4a3f58c19df2cb17a03f2a561eca4da`.
+Its exact-head, four-shard PO workflow passed: sixteen additional long PO
+templates, 192 browser cases and 96 native Chromium PDFs. The original two
+Obsidian/Executive PO templates were already covered in #992. This establishes
+bounded automated long invoice and long PO coverage across all eighteen
+registered templates, not live-device or complete item-11/12 acceptance.
+Next remaining task: dedicated long bilingual financial-document output;
+long names/references in fixed reports, actual application print journeys and
+physical iPhone Safari/PWA remain separately unaccepted. Item 4 remains deferred. Item 4 remains explicitly deferred. This update
 does not invent an exact remaining total or close missing original wording.
