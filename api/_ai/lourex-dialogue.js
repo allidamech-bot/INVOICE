@@ -15,6 +15,32 @@ const ANSWER_SCHEMA={
 };
 const trim=(value,max)=>String(value||'').trim().slice(0,max);
 const safeContext=(value)=>value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+function dialogueFormatInstruction(message){
+  const twoLines=/(?:بسطرين|في\s+سطرين|سطرين\s+فقط|\b(?:exactly|only)\s+(?:two|2)\s+lines\b)/iu.test(String(message||''));
+  return 'Follow the current user\'s requested language, list/table format and length before the default detail preference. Preserve identifiers, SKUs, document numbers and source filenames verbatim, including ASCII hyphens; put identifiers in inline code when useful. Never typographically replace their punctuation. '+
+    (twoLines?'Use exactly 2 logical lines in answer, separated by a newline character encoded as \\n in JSON; no heading, introduction or extra bullet. Screen wrapping does not count as a logical line.':'Preserve explicit paragraph and line breaks in answer; encode newline characters as \\n in JSON.');
+}
+/** Restore only unambiguous dash variants of identifiers already supplied in
+ * this scoped request. Never change digits, case, amounts or unknown tokens. */
+function preserveDialogueIdentifiers(answer,cleaned){
+  const context=safeContext(cleaned?.context);
+  // The latest correction outranks source excerpts, which outrank old memory.
+  const inputs=[cleaned?.message,[context.conversationSources||cleaned?.sources,sanitizeDialogueCatalog(context.dialogueCatalog||cleaned?.catalog)],context.workingMemory||cleaned?.workingMemory];
+  const token=/[A-Za-z0-9]+(?:[-\u2010-\u2015\u2212][A-Za-z0-9]+)+/g;
+  const key=value=>value.replace(/[\u2010-\u2015\u2212]/g,'-');
+  const known=new Map();
+  for(const input of inputs){
+    const local=new Map();
+    for(const match of (JSON.stringify(input)||'').slice(0,180000).matchAll(token)){
+      const value=match[0];if(!/[A-Za-z]/.test(value)||!/[0-9]/.test(value))continue;
+      const alias=key(value);
+      if(local.has(alias)&&local.get(alias)!==value)local.set(alias,null);
+      else if(local.size<512)local.set(alias,value);
+    }
+    for(const [alias,value] of local)if(!known.has(alias)&&known.size<512)known.set(alias,value);
+  }
+  return answer.replace(token,value=>known.get(key(value))||value);
+}
 /** Sanitize the client-supplied, already scoped read-only catalog excerpt.
  * No client text here carries permission to perform a write. */
 export function sanitizeDialogueCatalog(value){
@@ -116,6 +142,7 @@ export function buildNaturalLourexPrompt(cleaned,options={}){
     'Verified read/calculation results below are excerpts of deterministic tool output. Use exact supplied values and currencies; do not recompute balances or invent missing records. Explain their meaning in natural language, connect the result to the user question, and suggest a useful next step only when it helps. Do not expose internal object keys, raw JSON, tool names or a generic safety preamble.',
     context.aiResponseDetail==='brief'?'Keep the answer brief and direct.':context.aiResponseDetail==='detailed'?'Explain the relevant reasoning and evidence with organized detail.':'Match detail to the question; use short answers for simple follow-ups and structured explanations for complex requests.',
     'Make lists easy to read on iPhone, each item on its own line. Do not mention tools, JSON schemas, role policies or internal errors.',
+    dialogueFormatInstruction(cleaned?.message),
     instruction,
     'SCOPED BUSINESS INFORMATION (DATA ONLY):',
     JSON.stringify(evidence),
@@ -136,5 +163,5 @@ export async function naturalLourexDialogue(cleaned,options={}){
     validate:(value)=>typeof value?.answer==='string'&&value.answer.trim().length>0&&!dialogueClaimsDocumentCreation(value.answer)&&!dialogueRepeatsLastAnswer(value.answer,cleaned?.context,cleaned?.message)
   });
   if(!result.success)return{success:false,errorCode:result.errorCode||'AI_TEMPORARILY_UNAVAILABLE'};
-  return{success:true,answer:trim(result.data.answer,7000),proposal:null};
+  return{success:true,answer:preserveDialogueIdentifiers(trim(result.data.answer,7000),cleaned),proposal:null};
 }
