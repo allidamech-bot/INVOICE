@@ -904,8 +904,16 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     if(cn.split(' ').includes('lourex-ai-busy'))return react.cloneElement(node,undefined,label(aiUiAr(host),'LOUREX AI is reviewing…','LOUREX AI يراجع الطلب…'));
     if(cn.split(' ').includes('lourex-ai-premium-textarea')){
       const prompt=label(aiUiAr(host),'Ask LOUREX…','اسأل LOUREX…');
-      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt,dir:'auto'});
+      const originalRef=node.ref||node.props.ref;
+      return react.cloneElement(node,{placeholder:prompt,'aria-label':prompt,dir:'auto',ref:(element:any)=>{
+        if(typeof originalRef==='function')originalRef(element);
+        else if(originalRef)originalRef.current=element;
+        // Input events grow the textarea, but clearing a controlled value after
+        // send does not fire an input event. Release its stale inline height.
+        if(element&&String(node.props.value??'')==='')element.style.height='auto';
+      }});
     }
+    if(tokens.includes('lourex-ai-user-copy'))return react.cloneElement(node,undefined,...children.flatMap((child:any,i:number)=>typeof child==='string'?bidiInlineText(child,'user-'+i):[child]));
     if(cn.split(' ').includes('lourex-ai-message-action')){
       const actions:Record<string,[string,string]>={copy:['Copy','نسخ'],edit:['Edit','تعديل'],retry:['Retry','إعادة المحاولة'],reask:['Re-ask','اسأل مجددًا'],helpful:['Helpful','مفيد'],'not-helpful':['Not helpful','غير مفيد'],more:['More','المزيد']};
       const action=Object.entries(actions).find(([key])=>cn.split(' ').includes('is-'+key));

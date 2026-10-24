@@ -136,11 +136,24 @@ try{
   const math=x(text.textContent.indexOf('100'),3)<x(offset,2);
   const fidelity=paragraph.textContent===source;
   const cells=mount.querySelectorAll('td');const tableLtr=cells[0].getBoundingClientRect().x<cells[1].getBoundingClientRect().x;
+  const {renderConversationWorkspace}=await import('/src/components/AiConversationWorkspace.js');
+  const {newConversationKernel}=await import('/src/lib/ai-conversation-kernel.js');
+  const {emptyVault}=await import('/src/lib/defaults.js');
+  const props={language:'ar'},kernel=newConversationKernel({scope:'business',workspaceId:'default',branchId:'main',threadId:'fixture',accountId:''});
+  const host={props,__workspaceObservedProps:props,__intelligenceKernel:kernel,__foundationVault:emptyVault(),__lourexAssistantThreadId:'fixture',state:{assistantScope:'business',messages:[]}};
+  const textarea=value=>ReactDOM.render(renderConversationWorkspace(host,React.createElement('textarea',{className:'lourex-ai-premium-textarea',value,readOnly:true})),mount);
+  textarea('multiline draft');let input=mount.querySelector('textarea');input.style.height='132px';input.focus();
+  textarea('edited draft');const draftPreserved=input.style.height==='132px'&&document.activeElement===input;
+  textarea('');const composerShrunk=mount.querySelector('textarea')===input&&input.style.height==='auto'&&input.getBoundingClientRect().height<132;
+  const userSource='الحسبة: (100 − 40) ÷ 100 × 100 = 60.00%.';
+  ReactDOM.render(renderConversationWorkspace(host,React.createElement('div',{className:'lourex-ai-message user'},React.createElement('div',{className:'lourex-ai-user-copy'},userSource))),mount);
+  const userCopy=mount.querySelector('.lourex-ai-user-copy'),userBdi=userCopy.querySelector('bdi');
+  const userIsolated=userCopy.textContent===userSource&&userBdi?.dir==='ltr';
   ReactDOM.unmountComponentAtNode(mount);
-  return {opening,keyboard,closing,removed,reopened,reduced,dismissed,math,fidelity,tableLtr};
+  return {opening,keyboard,closing,removed,reopened,reduced,dismissed,math,fidelity,tableLtr,draftPreserved,composerShrunk,userIsolated};
  })()`});
  const motion=presence.result?.value;
- assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1&&motion.math&&motion.fidelity&&motion.tableLtr,'Menu lifecycle regression: '+JSON.stringify(presence));
+ assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1&&motion.math&&motion.fidelity&&motion.tableLtr&&motion.draftPreserved&&motion.composerShrunk&&motion.userIsolated,'Menu lifecycle regression: '+JSON.stringify(presence));
  console.log('PASS actual React menu presence: '+JSON.stringify(motion));
 
  // Simulate iPadOS visualViewport height contraction when the keyboard is up.
