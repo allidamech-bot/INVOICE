@@ -1,0 +1,30 @@
+name: Finance queued report print account isolation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/ReportsPage.tsx'
+      - 'src/components/TaxVatCenter.tsx'
+      - 'tests/finance-report-print-scope.test.mjs'
+      - '.github/workflows/finance-report-print-scope.yml'
+permissions:
+  contents: read
+concurrency:
+  group: finance-report-print-scope-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  report-print-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Verify queued management and VAT prints remain in their source account
+        run: node --test tests/finance-report-print-scope.test.mjs
