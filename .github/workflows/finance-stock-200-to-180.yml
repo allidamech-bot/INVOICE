@@ -1,0 +1,34 @@
+name: Finance Invoice Stock 200 To 180 (Node Only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-invoice-stock-200-20-acceptance.test.mjs'
+      - '.github/workflows/finance-stock-200-to-180.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-stock-200-180-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Compile domain modules without browser or app build
+        run: npx tsc -p tsconfig.json
+      - name: Verify exact 200 to 180 financial acceptance and existing warehouse lifecycle
+        run: node --test tests/finance-invoice-stock-200-20-acceptance.test.mjs tests/inventory-warehouse-saved-cycle.test.mjs
