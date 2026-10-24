@@ -16,10 +16,15 @@ const cases=[
   try{
    for(const lang of ['en','ar'])for(const scenario of cases){
     const page=await browser.newPage({viewport:{width:lang==='ar'?390:1280,height:900}});
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
     const search=new URLSearchParams({lang,kind:scenario.kind,template:scenario.template});
     await page.goto('http://127.0.0.1:4173/tests/visual/long-document-app-print-entry.html?'+search);
-    await page.waitForFunction(()=>window.qaReady===true);
+    try{await page.waitForFunction(()=>window.qaReady===true,null,{timeout:12000});}
+    catch(error){
+     const debug=await page.evaluate(()=>({ready:window.qaReady,htmlLang:document.documentElement.lang,docState:document.readyState,rendered:document.body?.innerText?.slice(0,300),errors:window.qaErrors}));
+     console.error('APP_LONG_PRINT_BOOT_DIAG',JSON.stringify({engine,lang,kind:scenario.kind,errors,debug}));
+     throw error;
+    }
     const before=await page.evaluate(()=>window.qaSourceSnapshot());
     const doc=JSON.parse(before);
     const amount=await page.evaluate(()=>window.qaTotal);
