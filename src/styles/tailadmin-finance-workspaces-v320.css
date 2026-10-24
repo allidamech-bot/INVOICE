@@ -203,8 +203,8 @@
 .lx-treasury-report-balances strong,.lx-treasury-report-output td small { display:block; }
 .lx-treasury-report-output td small { margin-top:4px; }
 .lx-treasury-report-output footer { font-size:12px; margin-top:18px; }
-.lx-treasury-report-filters { display:flex; min-width:0; max-width:100%; width:100%; box-sizing:border-box; flex-wrap:wrap; align-items:end; gap:12px; margin-bottom:16px; }
-.lx-treasury-report-filters label { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; min-width:120px; flex:1 1 160px; max-width:100%; }
+.lx-treasury-report-filters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin-bottom:16px; }
+.lx-treasury-report-filters label { display:grid; gap:6px; min-width:120px; flex:1 1 160px; max-width:100%; }
 .lx-treasury-report-filters :is(input,select) { min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
 @media(max-width:600px) { .lx-treasury-report-output { padding:12px; } .lx-treasury-report-balances { grid-template-columns:1fr; gap:6px; } }
 @media print {
