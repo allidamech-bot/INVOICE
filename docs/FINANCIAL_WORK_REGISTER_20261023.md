@@ -140,6 +140,32 @@ the outstanding physical iPhone and deployed browser acceptance gates.
   Current production alias was inspected and still served an older main SHA
   after #1054 merge. Deployment and live-account acceptance remain open.
 
+## Long mixed-language fixed-report CSV — 24 October 2026
+
+- [#1056](https://github.com/allidamech-bot/INVOICE/pull/1056) merged at
+  `3803dea4faf9c3c5ce634eb071aaa4043f6a7cae` for original item 11
+  in the **CSV export** subset of management performance and output VAT.
+  Added four read-only synthetic Node cases that transpile and call the
+  **actual ReportsPage.exportCsv and TaxVatCenter.exportCsv methods**.
+- Accepted scope: very long mixed Arabic/English customer identities and
+  tax-document references; exact embedded commas, quotes and CRLF; original
+  UTF-8 BOM bytes in the Blob; multiple currencies kept separate; signed
+  credit-note VAT amounts; leading formula-like customer/document fields
+  prefixed safely; 205 selected test rows exported with none dropped or
+  duplicated; source fixtures unchanged.
+- Exact-head [run #40120592027](https://github.com/allidamech-bot/INVOICE/actions/runs/40120592027)
+  succeeded on `5c1d253ed2d8c7ebed6a16fe4f4d24e1db1b9046`, including
+  TypeScript typecheck and previous report print-guard regressions.
+  The first test attempt failed because `Blob.text()` removes the UTF-8
+  BOM during decoding; the test was corrected to check raw Blob bytes,
+  without production changes. This was a fixture error, not evidence of an
+  app CSV defect.
+- **Boundary:** direct component export methods on synthetic rows only;
+  no app navigation, displayed-row search, real account, browser print,
+  native PDF, physical iPhone or production deployment acceptance.
+  Original item 11 remains **partial**. No AI or financial calculation,
+  posting, storage, or production runtime files changed.
+
 ## Original numbering: preserved without invented missing wording
 
 “Accepted evidence” below describes its bounded tested path, not universal
@@ -157,7 +183,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
 | 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
-| 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, physical iPhone/real deployed access remain separate; #1041 resolves synthetic App WebKit boot and passes four WebKit App print cases; #1042 adds real treasury report's extreme names/references/notes, 390px mobile filter reachability, CSV and Chromium PDF |
+| 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, physical iPhone/real deployed access remain separate; #1041 resolves synthetic App WebKit boot and passes four WebKit App print cases; #1042 adds real treasury report's extreme names/references/notes, 390px mobile filter reachability, CSV and Chromium PDF; #1056 adds bounded extreme bilingual names/references and 205-row CSV export acceptance for management/VAT (not native PDF or full UI) |
 | 12 | Templates not covered by recent acceptance | Partial: registered 18-template EN/AR/bilingual renderer coverage accepted #994/#992/#1016/#1032/#1034; #1039 validates Obsidian invoice and Minimal PO through Chromium App printing; #1041 adds WebKit App entry for both in EN/AR. Do not claim all templates through App, native WebKit PDF, or physical Safari acceptance |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 14 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
