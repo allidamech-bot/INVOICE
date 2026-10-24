@@ -58,7 +58,7 @@ function parseCsv(text){const rows=[],row=[];let value='',quoted=false;for(let i
   await page.getByRole('tab',{name:lang==='ar'?'الضريبة / VAT':'Tax / VAT',exact:true}).click();
   await page.locator('.lx-tax-center').waitFor();
   await page.evaluate(mode=>{
-   const button=[...document.querySelectorAll('.lx-tax-header button')].find(element=>/Print \\/ Save PDF|طباعة \\/ حفظ PDF/.test(element.textContent));
+   const button=[...document.querySelectorAll('.lx-tax-header button')].find(element=>['Print / Save PDF','طباعة / حفظ PDF'].includes(element.textContent.trim()));
    if(!button)throw Error('Tax native print button missing');
    button.click();
    if(!document.body.classList.contains('printing-tax-vat-report'))throw Error('VAT print intent not scheduled');
