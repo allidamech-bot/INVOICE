@@ -23,13 +23,14 @@ function seed(){
 }
 function buy(source,item,supplier,id,quantity,price,freight,currency='USD'){
  const p=createPurchase(source.purchases,[supplier],currency);
- p.id=id;p.number='PUR-'+id;p.date='2026-10-20';p.dueDate='2026-10-30';
+ p.id=id;p.number='PUR-'+id;p.date='2026-10-20';p.dueDate='2026-10-30';p.currency=currency;
  p.items=[{...createPurchaseItem(item),id:id+'-line',quantity,unitCost:price,landedUnitCost:''}];
  p.freight=freight;p.duty='0.00';p.otherCosts='0.00';
  const prior=JSON.stringify(source);
  const result=postPurchase(p,source.savedItems,source.inventoryMovements);
  assert.equal(JSON.stringify(source),prior,'posting helper cannot mutate its input');
  assert.equal(result.purchase.status,'posted');
+ assert.equal(result.purchase.currency,currency,'synthetic purchase explicitly uses requested currency');
  assert.equal(result.movements.length,1,'one physical incoming movement per single purchase line');
  return {vault:{...source,purchases:[...source.purchases,result.purchase],
    inventoryMovements:[...source.inventoryMovements,...result.movements],savedItems:result.savedItems},result};
