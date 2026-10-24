@@ -120,6 +120,7 @@ function scopeFor(host:Host,vault:VaultPayload):KernelScope{
   return{scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,threadId:host.__lourexAssistantThreadId||'',accountId:activeAccountStorageUid()||''};
 }
 async function persistKernel(host:Host,requireScope=false):Promise<void>{
+  if(host.__foundationTurnBusy&&host.state.__workspaceTurnPending&&!host.state.busy&&!host.state.attachmentBusy)host.setState({__workspaceTurnSaving:true});
   if(!host.__intelligenceKernel||host.__intelligenceKernel.scope.scope==='temporary')return;
   const kernel=structuredClone(host.__intelligenceKernel) as ConversationKernel;
   const receipts=structuredClone(host.__foundationReceipts||[]);
@@ -768,7 +769,7 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.setState({__workspaceTurnPending:true});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.setState({__workspaceTurnPending:true,__workspaceTurnSaving:false});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
     try{
       await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
@@ -1115,7 +1116,11 @@ export function installIntelligenceRuntime(host:Host):void{
       }
 
       if(!kernel.artifact){const selected=resolveKernelSelection(kernel,message);if(selected){const scoped=scopeVault(resumed.vault);const rows=selected.entityType==='customer'?scoped.customers:selected.entityType==='supplier'?scoped.suppliers:selected.entityType==='product'?scoped.savedItems:selected.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===selected.entityId)){kernel.selection=undefined;kernel.entity=undefined;throw new Error('The displayed selection is stale. Search again.');}host.setState((state:any)=>({input:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:selected.label}]}));await flush(host);await persistKernel(host);return;}}
-      await ask(raw);await flush(host);await host.__lourexAssistantPersistQueue;
+      await ask(raw);await flush(host);
+      // The response owner is done. Keep the durability/duplicate-send guard,
+      // but do not describe the remaining history write as model processing.
+      host.setState({__workspaceTurnSaving:true});
+      await host.__lourexAssistantPersistQueue;
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
       const previewStaged=host.__foundationPreviewStaged;host.__foundationPreviewStaged=undefined;
       if(previewStaged&&previewStaged.scope===kernelScopeKey(kernel.scope)&&kernel.artifact?.id===previewStaged.artifactId&&kernel.artifact?.revision===previewStaged.revision){
@@ -1130,7 +1135,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }else if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
     }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
-    finally{host.__foundationTurnBusy=false;host.setState({__workspaceTurnPending:false});await recordDiagnostic(host,'turn',started,turnScope);}
+    finally{host.__foundationTurnBusy=false;host.setState({__workspaceTurnPending:false,__workspaceTurnSaving:false});await recordDiagnostic(host,'turn',started,turnScope);}
   };
 }
 

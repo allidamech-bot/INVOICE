@@ -775,10 +775,10 @@ function ConversationScrollKeeper({scopeKey,lastUserId}:{scopeKey:string;lastUse
 function ConversationWelcomeMark():any {
   return <div className="lxw-welcome-identity" aria-hidden="true"><span className="lxw-welcome-orbit"/><AiIdentityMark/></div>;
 }
-function ConversationThinkingIndicator({ar}:{ar:boolean}):any {
+function ConversationThinkingIndicator({ar,saving=false}:{ar:boolean;saving?:boolean}):any {
   return <div className="lxw-thinking" role="status" aria-live="polite">
-    <span className="lxw-thinking-dots" aria-hidden="true"><i/><i/><i/></span>
-    <span>{label(ar,'LOUREX AI is working on your request…','LOUREX AI يعالج طلبك…')}</span>
+    {saving?<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M5 3h12l4 4v14H3V3h2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg>:<span className="lxw-thinking-dots" aria-hidden="true"><i/><i/><i/></span>}
+    <span>{saving?label(ar,'Saving conversation…','جارٍ حفظ المحادثة…'):label(ar,'LOUREX AI is working on your request…','LOUREX AI يعالج طلبك…')}</span>
   </div>;
 }
 function conversationModeTabs(host:Host,mode:AiConversationMode|undefined,locked:boolean):any {
@@ -973,12 +973,12 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
     }
     if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='advisor'){
        return react.cloneElement(node,undefined,...children,
-         (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null,
+         (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)} saving={Boolean(host.state.__workspaceTurnSaving&&!host.state.busy&&!host.state.attachmentBusy)}/>:null,
          <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
      }
      if(cn.split(' ').includes('lourex-ai-messages')&&workspaceVisible(host)&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)==='controller'){
       return react.cloneElement(node,undefined,...children,
-        (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)}/>:null,
+        (host.state.__workspaceTurnPending||host.state.busy||host.state.attachmentBusy)?<ConversationThinkingIndicator ar={aiUiAr(host)} saving={Boolean(host.state.__workspaceTurnSaving&&!host.state.busy&&!host.state.attachmentBusy)}/>:null,
         <ConversationDocumentCard key={kernelScopeKey(host.__intelligenceKernel.scope)} host={host}/>,
         <ConversationRecordList key={'records-'+kernelScopeKey(host.__intelligenceKernel.scope)+'-'+(host.__intelligenceKernel.selection?.id||'')} host={host}/>,
          <ConversationScrollKeeper key={'scroll-'+kernelScopeKey(host.__intelligenceKernel.scope)} scopeKey={kernelScopeKey(host.__intelligenceKernel.scope)} lastUserId={String([...(host.state.messages||[])].reverse().find((row:any)=>row.role==='user')?.id||'')}/>);
