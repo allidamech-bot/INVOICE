@@ -67,16 +67,18 @@ const injection=[
        }
        return{innerWidth,scrollX,documentWidth:document.documentElement.scrollWidth,ancestor:ancestor.slice(0,13),rules:rules.slice(-16)};
      });
-     console.log('TREASURY_LONG_TEXT_CSV_MOBILE_GEOMETRY',JSON.stringify({engine,lang,positions}));
+     assert.ok(positions.ancestor[0].left>=0&&positions.ancestor[0].right<=positions.innerWidth+1,'CSV button remains reachable inside mobile viewport');
+     assert.ok(positions.ancestor[1].width<=positions.innerWidth+1,'filters remain constrained by the mobile viewport');
+     console.log('TREASURY_MOBILE_FILTERS_OK',JSON.stringify({engine,lang,viewport:positions.innerWidth,filtersWidth:positions.ancestor[1].width,csvX:positions.ancestor[0].left}));
      await page.getByRole('button',{name:label('Export CSV','تصدير CSV'),exact:true}).click({timeout:6000});
-     const capture=await page.evaluate(async()=>({
-       clicks:window.qaTreasuryCsvClicks,
-       csv:window.qaTreasuryCsvBlob?await window.qaTreasuryCsvBlob.text():null
-     }));
+     const capture=await page.evaluate(async()=>{
+       const bytes=window.qaTreasuryCsvBlob?new Uint8Array(await window.qaTreasuryCsvBlob.arrayBuffer()):null;
+       return {clicks:window.qaTreasuryCsvClicks,bom:bytes?Array.from(bytes.slice(0,3)):[],csv:bytes?new TextDecoder('utf-8',{ignoreBOM:true}).decode(bytes):null};
+     });
      assert.equal(capture.clicks,1,'CSV output must initiate exactly one named download');
      assert.ok(capture.csv,'actual CSV Blob must be created');
      const csv=capture.csv;
-     assert.ok(csv.startsWith('\uFEFF'),'CSV preserves UTF-8 BOM');
+     assert.deepEqual(capture.bom,[239,187,191],'CSV UTF-8 BOM is present in the underlying downloadable bytes');
      for(const end of marker.filter(x=>x!=='COMPANY-END-719'))assert.ok(csv.includes(end),'CSV missing account/reference/note ending: '+end);
      assert.ok(csv.includes('140.00'),'CSV preserves financial closing balance');
 
