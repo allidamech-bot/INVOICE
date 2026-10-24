@@ -36,7 +36,7 @@ test('supplied-only Advisor rejects record tools but retains deterministic calcu
 test('server enforces calculation-only scope even if the model ignores its schema',async()=>{
  const code=(await readFile(new URL('../api/ai-inbox.js',import.meta.url),'utf8')).replace(/^import .+;\s*$/gm,'').replace('export default async function handler','async function handler');
  let candidate,prompt,schema;
- const lib=vm.runInNewContext(code+'\n({handleToolPlan})',{Buffer,URL,console,process:{env:{}},routeAiStructured:async opts=>{prompt=opts.prompt;schema=opts.schema;return opts.validate(candidate)?{success:true,data:candidate}:{success:false,errorCode:'AI_INVALID_RESULT'};}});
+ const lib=vm.runInNewContext(code+'\n({handleToolPlan})',{Buffer,URL,console,assert,process:{env:{}},routeAiStructured:async opts=>{assert.equal(opts.totalBudgetMs,11_000);prompt=opts.prompt;schema=opts.schema;return opts.validate(candidate)?{success:true,data:candidate}:{success:false,errorCode:'AI_INVALID_RESULT'};}});
  for(const [tool,argsJson,status] of [['finance.getSummary','{}',422],['fx.convertUsingRecordedRate','{}',422],['pricing.margin','{"cost":"50","price":"100"}',200]]){
   candidate={version:1,goal:'Synthetic supplied data',calls:[{id:'one',tool,argsJson,reason:'Synthetic'}]};
   const res={setHeader(){},end(body){this.body=JSON.parse(body);}};

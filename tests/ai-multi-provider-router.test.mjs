@@ -372,3 +372,25 @@ test('route timing logs contain only fixed metadata and never user content or cr
   for(const secret of ['synthetic-prompt-secret','synthetic-response-secret','test-groq','test-cf','test-gemini'])assert.equal(serialized.includes(secret),false);
  }finally{console.info=originalInfo;console.warn=originalWarn;}
 });
+
+
+test('short tool-planner budget reserves fallback before the browser deadline',async()=>{
+ configureAll();let deadline=0;const deadlines=[];
+ globalThis.setTimeout=(fn,ms,...args)=>{deadline=ms;return originalSetTimeout(fn,ms,...args);};
+ globalThis.fetch=async()=>{
+  deadlines.push(deadline);testClock+=deadline;
+  throw new DOMException('Synthetic stalled provider','AbortError');
+ };
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'Synthetic deadline',schema:schema(),timeoutMs:12_000,totalBudgetMs:11_000});
+ assert.equal(result.success,false);
+ assert.equal(result.errorCode,'AI_TIMEOUT');
+ assert.ok(result.totalLatencyMs<=11_000,JSON.stringify(deadlines));
+ assert.equal(deadlines.length,2,'reserve an alternate approved provider');
+ assert.ok(deadlines.every(ms=>ms>=3_000));
+});
+
+test('insufficient request budget dispatches no provider',async()=>{
+ configureAll();let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'Synthetic deadline',schema:schema(),totalBudgetMs:4_000});
+ assert.equal(result.errorCode,'AI_TIMEOUT');assert.equal(calls,0);
+});
