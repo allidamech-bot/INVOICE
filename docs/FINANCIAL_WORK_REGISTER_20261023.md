@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All twelve PRs below were directly rechecked as merged. These are delivered
+All thirteen PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -35,6 +35,7 @@ rounds, not a count of original checklist items.
 | [1032](https://github.com/allidamech-bot/INVOICE/pull/1032) | Items 11/12: remaining sixteen registered long purchase-order templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; four Playwright shards passed on exact PR head | `60549a30c4a3f58c19df2cb17a03f2a561eca4da` |
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: bilingual 40-line final invoices and purchase orders across all 18 templates; 72 Chromium/WebKit cases and 36 native PDFs, 4/4 shards passed on exact head after fixing test extraction of Arabic presentation forms | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
 | [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: long customer/supplier/company names and long invoice/purchase/payment references through actual statement search → modal → print → native PDF; focused and existing regression workflows passed; synthetic single-document-and-payment scenarios only | `7b069f29818132f0c47322dfc221b2fa620e3252` |
+| [1038](https://github.com/allidamech-bot/INVOICE/pull/1038) | Item 22 bounded mixed-cost evidence: landed receipt history across differing prices/currencies, frozen final-invoice stock cost, one-time issue and no negative inventory; 3 synthetic tests, typecheck/build passed; FIFO/WAC/COGS policy expressly unresolved | `43f4cada73a03cd8e7704bf1c8f4aaf2f8fd7465` |
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: 40-line English/Arabic simultaneous bilingual long invoice and purchase order output over all 18 registered templates; four CI shards passed, 72 browser cases, 36 native PDF cases | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
 | [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: account statement customer/supplier names and posted/payment references with extreme synthetic text; real statement print entry, English/Arabic, Chromium/WebKit, native PDFs plus original statement regression both passed | `7b069f29818132f0c47322dfc221b2fa620e3252` |
 
@@ -70,7 +71,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 19 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 20 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 21 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
-| 22 | Inventory valuation/cost with differing purchase prices | Preliminary policy review inherited; individual final acceptance not established here |
+| 22 | Inventory valuation/cost with differing purchase prices | Partial: #1038 tested distinct landed cost receipt history, issue snapshots, currencies and negative-stock blocking; no FIFO/weighted-average valuation or reconciled inventory COGS policy accepted (see docs/FINANCE_INVENTORY_COST_EVIDENCE_20261024.md) |
 | 23 | Accounting policy group; exact individual sentence unavailable | No individual closure asserted |
 | 24 | Accounting policy group; exact individual sentence unavailable | No individual closure asserted |
 | 25 | Accounting policy group; exact individual sentence unavailable | No individual closure asserted |
@@ -159,3 +160,5 @@ does not invent an exact remaining total or close missing original wording.
 On 24 October 2026, #1034 merged at `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` after four green CI shards on exact head `de154978d12457928707dd29362ce035117a422e`. No production or AI code changed. The long bilingual acceptance covers 18 templates across invoice/purchase order, 72 browser cases and 36 native PDFs. Items 11/12 remain **partial** because fixed-report extreme text, actual app entry flows, iPhone, and other applicable financial types are not accepted by the renderer-only tests.
 
 On 24 October 2026, #1036 merged at `7b069f29818132f0c47322dfc221b2fa620e3252` after two exact-head workflows passed: dedicated long account statement names/references in actual receipt/payment statement modal-to-PDF routes, and existing short/long statement regression. Two opt-in synthetic fixture scenarios and the test runner/workflow only; no production, AI or actual customer records changed. Original item 11 remains partial because further reports and physical-device/App printing are separate.
+
+On 24 October 2026, [#1038](https://github.com/allidamech-bot/INVOICE/pull/1038) merged at `43f4cada73a03cd8e7704bf1c8f4aaf2f8fd7465` after its exact-head focused workflow passed (3/3 synthetic tests plus typecheck/build). It characterizes historical landed-cost receipt snapshots, final-invoice single stock issue, no oversell and currency provenance. No AI or production logic changed; original item 22 remains partial until explicit costing-method/FX/COGS policy is approved. Do not infer an accounting valuation engine from these tests.
