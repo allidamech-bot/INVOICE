@@ -11,7 +11,7 @@ test('AI product tables preserve columns, emphasis, mixed language and the follo
  assert.equal(nodes.filter(n=>n.type==='table').length,1);
  assert.equal(nodes.filter(n=>n.type==='th').length,2);
  assert.equal(nodes.filter(n=>n.type==='td').length,4);
- assert.ok(nodes.some(n=>n.type==='strong'&&n.props.children.includes('Ulker')));
+ assert.ok(nodes.some(n=>n.type==='strong'&&n.props.children.flat(Infinity).includes('Ulker')));
  assert.ok(nodes.some(n=>n.type==='p'&&JSON.stringify(n).includes('راجع الأسعار')));
 });
 test('provider markup remains literal text and cannot create actions or HTML',()=>{
