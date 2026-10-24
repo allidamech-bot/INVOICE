@@ -6,6 +6,7 @@ on:
       - 'src/components/ReportsPage.tsx'
       - 'src/components/TaxVatCenter.tsx'
       - 'tests/finance-report-print-scope.test.mjs'
+      - 'tests/finance-fixed-report-long-csv.test.mjs'
       - '.github/workflows/finance-report-print-scope.yml'
 permissions:
   contents: read
@@ -27,4 +28,4 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - name: Verify queued management and VAT prints remain in their source account
-        run: node --test tests/finance-report-print-scope.test.mjs
+        run: node --test tests/finance-report-print-scope.test.mjs tests/finance-fixed-report-long-csv.test.mjs
