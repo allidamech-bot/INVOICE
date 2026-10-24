@@ -87,6 +87,45 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     results.push({engine,lang,statementRows,pdf:engine==='chromium'});
     await page.close();
    }
+   // A statement print is bound to its original supplier until native print opens.
+   for(const lang of ['en','ar'])for(const departure of ['close','change','unmount']){
+    const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
+    page.on('pageerror',error=>errors.push(String(error)));
+    await page.addInitScript(()=>{window.__statementPrints=0;window.print=()=>window.__statementPrints++;});
+    await page.goto('http://127.0.0.1:4173/tests/visual/supplier-statement-print.html?lang='+lang);
+    await page.locator('.lx-payables-row:not(.is-head)').first().waitFor();
+    const original=await page.evaluate(()=>window.financialSourceSnapshot());
+    await page.locator('.lx-payables-search input').fill('Atlas');
+    await page.locator('.lx-payables-row:not(.is-head)').first().getByRole('button',{name:lang==='ar'?'الكشف':'Statement'}).click();
+    await page.locator('.lx-supplier-statement').waitFor();
+    await page.evaluate(mode=>{
+     const button=[...document.querySelectorAll('.modal-footer button')].find(node=>node.textContent.includes('Print / Save PDF')||node.textContent.includes('طباعة / حفظ PDF'));
+     if(!button)throw Error('Supplier print button missing');
+     button.click();
+     if(!document.body.classList.contains('printing-supplier-statement'))throw Error('Supplier print intent missing');
+     if(mode==='unmount')ReactDOM.unmountComponentAtNode(document.getElementById('visual-app'));
+     else if(mode==='change')window.dispatchEvent(new CustomEvent('lourex-supplier-payables-open',{detail:{supplierId:'qa-supplier-foreign'}}));
+     else {
+      const close=[...document.querySelectorAll('.modal-footer button')].find(node=>['Close','إغلاق'].includes(node.textContent.trim()));
+      if(!close)throw Error('Supplier statement Close action missing');
+      close.click();
+     }
+    },departure);
+    await page.waitForTimeout(90);
+    assert.equal(await page.evaluate(()=>window.__statementPrints),0,'closed/replaced supplier statement must not print');
+    assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-supplier-statement')),false,'supplier print-only state removed');
+    if(departure==='change'){
+     const statementText=await page.locator('.lx-supplier-statement').innerText();
+     assert.ok(statementText.includes(lang==='ar'?'الميناء':'Harbor'),'new supplier statement replaces original');
+     await page.locator('.modal-footer').getByRole('button',{name:lang==='ar'?'طباعة / حفظ PDF':'Print / Save PDF',exact:true}).click();
+     await page.waitForFunction(()=>window.__statementPrints===1);
+     await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
+    }else if(departure==='close')assert.equal(await page.locator('.lx-supplier-statement').count(),0,'supplier modal is closed');
+    if(departure!=='unmount')assert.equal(await page.evaluate(()=>window.financialSourceSnapshot()),original,'no payable or supplier payment changes');
+    assert.deepEqual(errors,[]);
+    console.log('PASS supplier statement pending-print '+engine+' '+lang+' '+departure);
+    await page.close();
+   }
   }finally{await browser.close();}
  }
  writeFileSync(output+'/results.json',JSON.stringify(results,null,2));
