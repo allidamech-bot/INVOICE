@@ -18,7 +18,7 @@ physical iPhone acceptance, or closure of other checklist requirements.
 
 ## Work actually completed since the supplied handoff
 
-All thirteen PRs below were directly rechecked as merged. These are delivered
+All fourteen PRs below were directly rechecked as merged. These are delivered
 rounds, not a count of original checklist items.
 
 | PR | Delivered behavior/evidence | Merge SHA |
@@ -36,6 +36,7 @@ rounds, not a count of original checklist items.
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: bilingual 40-line final invoices and purchase orders across all 18 templates; 72 Chromium/WebKit cases and 36 native PDFs, 4/4 shards passed on exact head after fixing test extraction of Arabic presentation forms | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
 | [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: long customer/supplier/company names and long invoice/purchase/payment references through actual statement search → modal → print → native PDF; focused and existing regression workflows passed; synthetic single-document-and-payment scenarios only | `7b069f29818132f0c47322dfc221b2fa620e3252` |
 | [1038](https://github.com/allidamech-bot/INVOICE/pull/1038) | Item 22 bounded mixed-cost evidence: landed receipt history across differing prices/currencies, frozen final-invoice stock cost, one-time issue and no negative inventory; 3 synthetic tests, typecheck/build passed; FIFO/WAC/COGS policy expressly unresolved | `43f4cada73a03cd8e7704bf1c8f4aaf2f8fd7465` |
+| [1039](https://github.com/allidamech-bot/INVOICE/pull/1039) | Items 11/12: actual synthetic App.requestPrint on 40-line issued invoice (Obsidian) and PO (Minimal), EN/AR, 4 Chromium browser cases and 4 native A4 PDFs with 7 pages per case; WebKit synthetic harness failed before boot and is not accepted | `5c86ebb8d053909dfaba19a000f59a581342b8a5` |
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: 40-line English/Arabic simultaneous bilingual long invoice and purchase order output over all 18 registered templates; four CI shards passed, 72 browser cases, 36 native PDF cases | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
 | [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: account statement customer/supplier names and posted/payment references with extreme synthetic text; real statement print entry, English/Arabic, Chromium/WebKit, native PDFs plus original statement regression both passed | `7b069f29818132f0c47322dfc221b2fa620e3252` |
 
@@ -60,8 +61,8 @@ production certification. An unavailable original sentence is not a new bug.
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed cases closed in #910; do not repeat |
 | 10 | Supplier statement | Agreed cases closed in #910; do not repeat |
-| 11 | Long names/descriptions in outputs not yet covered | Partial: #982/#992/#994/#1016/#1032/#1034 and #1036 cover commercial long output and customer/supplier statement text extremes; other fixed-report extremes, App print entry and physical iPhone remain unaccepted |
-| 12 | Templates not covered by recent acceptance | Partial: all 18 registered long-invoice and long-PO templates covered by #994/#1016/#992/#1032, with bilingual long-document output accepted in #1034; other commercial kinds and live App print paths remain unaccepted |
+| 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, WebKit/iPhone/real deployed access remain separate |
+| 12 | Templates not covered by recent acceptance | Partial: registered 18-template EN/AR/bilingual renderer coverage accepted #994/#992/#1016/#1032/#1034; #1039 validates Obsidian invoice and Minimal PO through Chromium App printing only. Do not claim all templates through App or physical Safari acceptance |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 14 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
 | 15 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
@@ -162,3 +163,5 @@ On 24 October 2026, #1034 merged at `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` a
 On 24 October 2026, #1036 merged at `7b069f29818132f0c47322dfc221b2fa620e3252` after two exact-head workflows passed: dedicated long account statement names/references in actual receipt/payment statement modal-to-PDF routes, and existing short/long statement regression. Two opt-in synthetic fixture scenarios and the test runner/workflow only; no production, AI or actual customer records changed. Original item 11 remains partial because further reports and physical-device/App printing are separate.
 
 On 24 October 2026, [#1038](https://github.com/allidamech-bot/INVOICE/pull/1038) merged at `43f4cada73a03cd8e7704bf1c8f4aaf2f8fd7465` after its exact-head focused workflow passed (3/3 synthetic tests plus typecheck/build). It characterizes historical landed-cost receipt snapshots, final-invoice single stock issue, no oversell and currency provenance. No AI or production logic changed; original item 22 remains partial until explicit costing-method/FX/COGS policy is approved. Do not infer an accounting valuation engine from these tests.
+
+On 24 October 2026, [#1039](https://github.com/allidamech-bot/INVOICE/pull/1039) merged at `5c86ebb8d053909dfaba19a000f59a581342b8a5`; exact-head CI passed on `a4c5db03a09f9075f023df07b7528c8e06111f6b`. The test exercises the actual App.requestPrint function in a synthetic saved-final long invoice and purchase order (2 kinds × 2 languages; four Chromium cases and four native A4 PDFs, seven pages each), no lost/duplicate 40 lines, amount 440.00 preserved. An attempted WebKit expansion failed to bootstrap the standalone test fixture following an HTTP 404; this **does not** prove production Safari failure or success. Scope was transparently limited to Chromium. Physical iPhone Safari/PWA, deployed account and additional real App print entry paths remain unaccepted. No AI, accounting core, App production code, data or deployment changed.
