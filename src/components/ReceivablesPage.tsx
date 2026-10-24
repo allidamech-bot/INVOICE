@@ -28,7 +28,7 @@ function overdueList(rows:{currency:string;overdue:string}[]):string{return rows
 class CustomerStatementModal extends React.Component<{open:boolean;customerId:string;customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];company:CompanySettings;onClose:()=>void}>{
   private pendingPrint:number|undefined;
   componentDidMount():void{window.addEventListener('afterprint',this.afterPrint);}
-  componentDidUpdate(previous:Readonly<typeof this.props>):void{
+  componentDidUpdate(previous:Readonly<{open:boolean;customerId:string}>):void{
     if(previous.open&&(!this.props.open||previous.customerId!==this.props.customerId))this.cancelPendingPrint();
   }
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);this.cancelPendingPrint();}
