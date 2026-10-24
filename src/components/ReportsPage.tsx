@@ -1,4 +1,5 @@
 import { handleTabKeyDown } from '../lib/tab-navigation.js';
+import { activeAccountStorageUid } from '../storage/db.js';
 import { ContextualAdvisorAction } from './ContextualAdvisorAction.js';
 import { contextualReportQuestion } from '../lib/contextual-report-question.js';
 import type { CompanySettings, Customer, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier } from '../types.js';
@@ -43,8 +44,18 @@ export class ReportsPage extends React.Component<Props,State>{
 
   private printTimer:number|undefined;
   componentDidMount():void{ensureTaxVatStyles();window.addEventListener('afterprint',this.afterPrint);}
-  componentDidUpdate(_previousProps:Props,previousState:State):void{
-    if(previousState.view==='performance'&&this.state.view!=='performance')this.cancelPendingPrint();
+  componentDidUpdate(previousProps:Props,previousState:State):void{
+    if(previousState.view==='performance'&&this.state.view!=='performance'){this.cancelPendingPrint();return;}
+    if(this.printTimer!==undefined&&(
+      previousProps.company!==this.props.company||
+      previousProps.documents!==this.props.documents||
+      previousProps.payments!==this.props.payments||
+      previousProps.customers!==this.props.customers||
+      previousState.from!==this.state.from||
+      previousState.to!==this.state.to||
+      previousState.currency!==this.state.currency||
+      previousState.query!==this.state.query
+    ))this.cancelPendingPrint();
   }
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);this.cancelPendingPrint();}
   private cancelPendingPrint=()=>{
@@ -64,10 +75,12 @@ export class ReportsPage extends React.Component<Props,State>{
 
   private print=()=>{
     if(this.state.view!=='performance'||this.printTimer!==undefined)return;
+    const storageUid=activeAccountStorageUid(),queuedProps=this.props,queuedState=this.state;
     document.body.classList.add('printing-financial-report');
     this.printTimer=window.setTimeout(()=>{
       this.printTimer=undefined;
-      if(this.state.view!=='performance'){this.cancelPendingPrint();return;}
+      if(this.state.view!=='performance'||activeAccountStorageUid()!==storageUid||
+        this.props!==queuedProps||this.state!==queuedState){this.cancelPendingPrint();return;}
       try{window.print();}catch{this.cancelPendingPrint();}
     },40);
   };
