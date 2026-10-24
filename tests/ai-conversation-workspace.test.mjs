@@ -137,6 +137,23 @@ test('final render adapter moves exact approval into workspace and hides stale/p
  assert.ok(flatten(body.props.children[0]).some(node=>node.props?.className==='lourex-ai-compose'),'composer must remain distinct from scroll list');
  let copied=0;const copy=()=>copied++,message=e('div',{className:'lourex-ai-message user'},e('div',{className:'lourex-ai-user-copy'},'Short question'),e('div',{className:'lourex-ai-message-actions'},e('button',{className:'lourex-ai-message-action is-copy',onClick:copy},'Copy')));
  const turn=renderConversationWorkspace(h,message);assert.equal(turn.props.className,'lxw-message-turn is-user');const bubble=turn.props.children[0],actions=turn.props.children[1];assert.equal(bubble.props.dir,'auto');assert.equal(bubble.props.children.props.className,'lourex-ai-user-copy');assert.equal(actions.props.className,'lourex-ai-message-actions');assert.equal(actions.props.children.props.onClick,copy);actions.props.children.props.onClick();assert.equal(copied,1,'moving actions out of the bubble preserves the real callback');
+ const formula='الحسبة: (100 − 40) ÷ 100 × 100 = 60.00%.';
+ const formulaTurn=renderConversationWorkspace(h,e('div',{className:'lourex-ai-message user'},e('div',{className:'lourex-ai-user-copy'},formula)));
+ const formulaNodes=flatten(formulaTurn);
+ const isolated=formulaNodes.find(n=>n.type==='bdi');
+ assert.ok(isolated,'user formulas must receive the same directional isolation as replies');
+ assert.equal(isolated.props.dir,'ltr');
+ const textOf=n=>typeof n==='string'?n:Array.isArray(n)?n.map(textOf).join(''):n&&typeof n==='object'?textOf(n.props?.children):'';
+ assert.equal(textOf(formulaTurn),formula,'preserve exact user text');
+ let forwarded=null;const originalRef=el=>{forwarded=el;},onInput=()=>{};
+ for(const value of ['', 'still typing']){
+  const textarea=renderConversationWorkspace(h,e('textarea',{className:'lourex-ai-premium-textarea',value,ref:originalRef,onInput}));
+  const element={style:{height:'132px'}};
+  textarea.props.ref(element);
+  assert.equal(element.style.height,value?'132px':'auto','empty controlled composer must shrink after send without resizing drafts');
+  assert.equal(forwarded,element);assert.equal(textarea.props.onInput,onInput);
+  textarea.props.ref(null);assert.equal(forwarded,null);
+ }
  h.props={language:'en'};
  const loading=renderConversationWorkspace(h,tree);assert.equal(loading.props['data-workspace-ready'],'false');
  assert.equal(loading.props['aria-label'],'LOUREX AI');
