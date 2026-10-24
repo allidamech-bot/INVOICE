@@ -55,14 +55,14 @@ const quantity=v=>inventoryBalances(v.savedItems,v.inventoryMovements).find(x=>x
 test('distinct sequential landed purchase costs keep individual immutable receipt valuations',()=>{
  const {vault,item,supplier}=seed();
  const first=buy(vault,item,supplier,'mixed-01','4','5.00','4.00');
- assert.equal(first.result.purchase.items[0].landedUnitCost,'6.00');
- assert.equal(first.result.movements[0].unitCost,'6.00');
+ assert.equal(first.result.purchase.items[0].landedUnitCost,'6.0000');
+ assert.equal(first.result.movements[0].unitCost,'6.0000');
  assert.equal(first.result.movements[0].currency,'USD');
  const second=buy(first.vault,item,supplier,'mixed-02','2','9.00','2.00');
- assert.equal(second.result.purchase.items[0].landedUnitCost,'10.00');
- assert.equal(second.result.movements[0].unitCost,'10.00');
- assert.equal(second.vault.inventoryMovements[0].unitCost,'6.00','new purchase must not revalue first receipt');
- assert.equal(second.vault.savedItems[0].lastUnitCost,'10.00','current catalog cost is most recently posted receipt');
+ assert.equal(second.result.purchase.items[0].landedUnitCost,'10.0000');
+ assert.equal(second.result.movements[0].unitCost,'10.0000');
+ assert.equal(second.vault.inventoryMovements[0].unitCost,'6.0000','new purchase must not revalue first receipt');
+ assert.equal(second.vault.savedItems[0].lastUnitCost,'10.0000','current catalog cost is most recently posted receipt');
  assert.equal(quantity(second.vault),'6','stock combines physical quantities without collapsing historical costs');
 });
 
@@ -81,15 +81,15 @@ test('sale issues only on final invoice, uses current cost snapshot once, and la
  const debit=sold.vault.inventoryMovements.find(m=>m.sourceId===final.id);
  assert.ok(debit);
  assert.equal(debit.quantity,'-3.0000');
- assert.equal(debit.unitCost,'10.00');
+ assert.equal(debit.unitCost,'10.0000');
  assert.equal(debit.currency,'USD');
  assert.equal(quantity(sold.vault),'3');
  assert.equal(postIssuedInvoiceStock(sold.vault,final).created,false,'replay cannot double-debit stock');
  assert.equal(calculateProfitability(final).grossProfit,'30.00','profitability uses frozen invoice line unit cost');
  const third=buy(sold.vault,second.vault.savedItems[0],supplier,'mixed-03','1','15.00','0.00','EUR');
- assert.equal(third.vault.savedItems[0].lastUnitCost,'15.00');
+ assert.equal(third.vault.savedItems[0].lastUnitCost,'15.0000');
  assert.equal(third.vault.savedItems[0].lastCostCurrency,'EUR');
- assert.equal(third.vault.inventoryMovements.find(m=>m.sourceId===final.id).unitCost,'10.00');
+ assert.equal(third.vault.inventoryMovements.find(m=>m.sourceId===final.id).unitCost,'10.0000');
  assert.equal(third.vault.inventoryMovements.find(m=>m.sourceId===final.id).currency,'USD');
  assert.equal(third.vault.inventoryMovements.at(-1).currency,'EUR','purchase provenance retains its own currency without implicit FX');
  assert.equal(calculateProfitability(final).grossProfit,'30.00','later purchase must not retroactively alter issued document');
