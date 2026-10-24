@@ -62,6 +62,7 @@ jobs:
           tests/ai-batch1-quote-data-safety.test.mjs
           tests/ai-natural-unified-dialogue.test.mjs
           tests/ai-dialogue-negated-completion.test.mjs
+          tests/ai-f21-advisor-saved-documents.test.mjs
           tests/ai-conversational-price-followups.test.mjs
           tests/ai-dialogue-catalog-evidence.test.mjs
           tests/ai-tool-catalog-security-coverage.test.mjs

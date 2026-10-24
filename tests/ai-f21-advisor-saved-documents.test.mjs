@@ -62,6 +62,28 @@ function gateway(model){
   });
 }
 
+test('F21 explicit synthetic or no-record requests discuss the conversation instead of looking up its label',async()=>{
+  const {vault,buildAdvisorDataV2,finance,business}=await fixture();
+  const cases=[
+    ['اختبار اصطناعي QA-DENIAL فقط: لم أطلب إنشاء أو حفظ أي مستند في هذا الاختبار. هل أنشأت أو حفظت مسودة عرض سعر أو فاتورة؟ لا تستخدم سجلات الشركة.','ar'],
+    ['اختبار اصطناعي QA-DEMO: هل حفظت أي فاتورة؟','ar'],
+    ['Synthetic test QA-DENIAL: did you save an invoice?','en'],
+    ['هل حفظت فاتورة في هذه المحادثة؟ لا تستخدم سجلات الشركة.','ar'],
+    ['هل حفظت مسودة عرض سعر؟ دون الرجوع إلى السجلات.','ar'],
+    ['Did you save an invoice in this conversation? Do not use company records.','en'],
+    ['Did you save a quotation? Without consulting the registry.','en'],
+  ];
+  for(const [message,language] of cases){
+    const g=await gateway({answer:'No document was saved in this conversation.'});
+    const data=buildAdvisorDataV2(vault,finance,business,'business',message);
+    const res=await g.request(message,data,'advisor',language);
+    assert.equal(res.statusCode,200);
+    assert.equal(res.body.model,'lourex-dialogue',message);
+    assert.equal(res.body.proposal,null);
+    assert.doesNotMatch(res.body.answer,/سجل المستندات المحفوظة|saved invoice records|could not find/iu);
+  }
+});
+
 test('F21 saved invoice drafts are distinct from issued sales and voided records',async()=>{
   const {vault,buildAdvisorDocumentRegistry,buildAdvisorDataV2,finance,business}=await fixture();
   const ledger=buildAdvisorDocumentRegistry(vault,AS_OF,'هل حفظت الفاتورة INV-2026-0001؟');

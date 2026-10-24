@@ -78,6 +78,10 @@ function cleanDocumentEvidence(value,message){
 function deterministicDocumentAnswer(cleaned){
   if(cleaned.context.conversationMode!=='advisor')return null;
   const docs=cleaned.context.advisorV2?.documents,message=cleaned.message;
+  // A test label or an explicit request not to consult records is not a
+  // document-status lookup. Keep these questions in conversational dialogue.
+  if(/(?:اصطناع|\bsynthetic\b)/iu.test(message)||
+     /(?:(?:لا\s+(?:تستخدم|تبحث|تراجع|ترجع)|(?:دون|بدون)\s+(?:استخدام|الرجوع|البحث|مراجعة)).{0,45}(?:سجلات|السجلات)|\b(?:do\s+not|don't|without)\s+(?:use|using|consult|consulting|search|searching|check|checking)\b[^.!?\n]{0,45}\b(?:records|registry)\b)/iu.test(message))return null;
   // A hypothetical or payment-arithmetic question is never an instruction to
   // read stored document counts, even when phrased as "I have an invoice".
   // Keep the exact saved-record status fast path for genuine status questions.
