@@ -30,8 +30,10 @@ jobs:
       - run: node --check tests/visual/run-long-document-app-print-entry.cjs
       - run: npm run build
       - run: npm install --no-save --package-lock=false playwright@1.56.1 http-server@14.1.1
-      - name: Long final invoice and purchase order through App.requestPrint
+      - name: Long final invoice and purchase order through App.requestPrint (Chromium evidence)
         shell: bash
+        env:
+          LOUREX_APP_PRINT_ENGINES: chromium
         run: |
           node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-long-app-print.log 2>&1 &
           pid=$!
