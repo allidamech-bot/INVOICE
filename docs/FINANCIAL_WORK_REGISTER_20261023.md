@@ -225,6 +225,39 @@ the outstanding physical iPhone and deployed browser acceptance gates.
   production deployment were modified in this PR. Live-account/iPhone
   acceptance remains separate.
 
+## Historical supplier payment currency consistency — 24 October 2026
+
+- [#1060](https://github.com/allidamech-bot/INVOICE/pull/1060)
+  merged at `f2448e965d91125205a2a1e3b31d3fff80d749db`.
+  A real source-code gap was confirmed: the legacy
+  `supplierPaymentsForPurchase` filtered payments with a mismatched
+  currency silently. When used alone to build historical accounts payable,
+  this could overstate supplier debt and obscure a linked settlement.
+  Reporting and new-payment validation now use an additional scoped,
+  effective-history helper that refuses a matching purchase ID but wrong
+  currency before calculating a financial balance.
+- Dates/scopes preserved: only records from the purchase's company and
+  branch are considered; records posted later than the as-of date and
+  payments already voided at the cutoff do not contaminate earlier/clean
+  periods. Matching legacy lowercase currency codes continue to be
+  counted. Historical bytes, audit dates, posting state and settlement
+  records are untouched; no automatic FX.
+- Six new synthetic tests on the existing #1059 financial test file
+  cover wrong-currency reports, future payment cutoffs, historical
+  cancellations, colliding IDs from another company/branch, blocking
+  another settlement atop a wrong-currency payment and matching lowercase
+  currency. Exact-head CI `5a4f827525d5396ecb62f1b38b102063bdb286a6`:
+  [settlement parity #40122799577](https://github.com/allidamech-bot/INVOICE/actions/runs/40122799577),
+  [closed period #40122799572](https://github.com/allidamech-bot/INVOICE/actions/runs/40122799572),
+  [Vercel trace #40122799580](https://github.com/allidamech-bot/INVOICE/actions/runs/40122799580),
+  [account statement print #40122799554](https://github.com/allidamech-bot/INVOICE/actions/runs/40122799554)
+  all successful. Repository CI launched its own standard browser/PDF
+  fixture; no user session/browser automation was initiated separately.
+- This is further hardening, **not** a new original checklist item
+  or live reconciliation certification. Original item 10 remains already
+  accepted for its bounded output tests; real account and physical
+  iPhone acceptance remain separate. No AI files or production release.
+
 ## Original numbering: preserved without invented missing wording
 
 “Accepted evidence” below describes its bounded tested path, not universal
@@ -241,7 +274,7 @@ production certification. An unavailable original sentence is not a new bug.
 | 7 | Tax report final output matching filters and figures | Accepted bounded CSV/PDF cases in #1004; #1044 adds safe print-timer cancellation on report navigation and tests ordinary printing after return; #1054 guards delayed print against account, data and filter changes |
 | 8 | Treasury reconciliation output, opening/movement/closing/status | Implemented and accepted in #1011; #1057 now refuses mixed-currency historical ledger entries that would contaminate a displayed account balance; physical device/deployed acceptance separate |
 | 9 | Customer statement | Agreed output cases closed in #910; do not repeat. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
-| 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. #1059 adds fail-closed protection against malformed historical supplier settlements in payable and statement projections. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
+| 10 | Supplier statement | Agreed output cases closed in #910; do not repeat. #1060 rejects hidden mismatched-currency active historical supplier settlements while preserving scoped/as-of results. #1059 adds fail-closed protection against malformed historical supplier settlements in payable and statement projections. Follow-up #1046 closes newly identified delayed-print race after modal/account navigation (separate from original acceptance) |
 | 11 | Long names/descriptions in outputs not yet covered | Partial: long issued invoice/PO renderer outputs #1016/#1032/#1034 and short statement extremes #1036 accepted; #1039 adds Chromium actual App print entry for 40 lines only. Other fixed report references, physical iPhone/real deployed access remain separate; #1041 resolves synthetic App WebKit boot and passes four WebKit App print cases; #1042 adds real treasury report's extreme names/references/notes, 390px mobile filter reachability, CSV and Chromium PDF; #1056 adds bounded extreme bilingual names/references and 205-row CSV export acceptance for management/VAT (not native PDF or full UI) |
 | 12 | Templates not covered by recent acceptance | Partial: registered 18-template EN/AR/bilingual renderer coverage accepted #994/#992/#1016/#1032/#1034; #1039 validates Obsidian invoice and Minimal PO through Chromium App printing; #1041 adds WebKit App entry for both in EN/AR. Do not claim all templates through App, native WebKit PDF, or physical Safari acceptance |
 | 13 | Closed-period group; exact individual sentence unavailable | Group implemented/tested; individual final mapping unresolved |
