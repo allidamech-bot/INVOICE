@@ -16,6 +16,14 @@ const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس ل
 const year=todayIso().slice(0,4),now=new Date().toISOString();
 const customer=(id,en,arName,currency)=>({id,createdAt:now,updatedAt:now,companyNameEn:en,companyNameAr:arName,contactPerson:ar?'سارة أحمد':'Sara Ahmed',addressEn:'Business District, Suite 204',addressAr:'المنطقة التجارية، مكتب ٢٠٤',city:'Dubai',country:'UAE',phone:'+971 50 000 0000',email:`finance-${id}@example.test`,vatTaxNumber:`TRN-${id}`,commercialRegistration:`CR-${id}`,preferredCurrency:currency,paymentTermPresetId:'',paymentTerms:'Net 30',paymentDueDays:'30',creditLimit:'50000',creditCurrency:currency,notes:''});
 const customers=[customer('atlas','Atlas Trading','أطلس للتجارة','USD'),customer('cedar','Cedar Markets','أسواق سيدار','EUR'),customer('harbor','Harbor Supply','إمداد الميناء','USD')];
+const qaExtremeText=params.get('textExtreme')==='1';
+if(qaExtremeText){
+  customers[0].companyNameEn='Atlas Trading International Technical Components Procurement and Logistics Consortium for Industrial Materials';
+  customers[0].companyNameAr='أطلس للتجارة الدولية وتوريد المكونات التقنية والخدمات اللوجستية والمعدات الصناعية المتخصصة';
+  company.nameEn='LOUREX International Procurement and Distribution Financial Services Trading Consortium';
+  company.nameAr='لوريكس الدولية لخدمات التجارة والمشتريات والتوزيع وإدارة الحسابات المالية';
+}
+
 function invoice({id,number,currency,price,cost,issueMonth,dueMonth,customerIndex=0}){
  const c=customers[customerIndex],doc=createBlankDocument('invoice',number,company);doc.id=id;doc.status='final';doc.lifecycleStatus='active';doc.role='standard';doc.currency=currency;doc.issueDate=`${year}-${issueMonth}-10`;doc.dueDate=`${year}-${dueMonth}-20`;
  doc.customerSnapshot={sourceCustomerId:c.id,companyNameEn:c.companyNameEn,companyNameAr:c.companyNameAr,contactPerson:c.contactPerson,addressEn:c.addressEn,addressAr:c.addressAr,city:c.city,country:c.country,phone:c.phone,email:c.email,vatTaxNumber:c.vatTaxNumber,commercialRegistration:c.commercialRegistration};
@@ -27,6 +35,12 @@ const usdB=invoice({id:'inv-usd-b',number:`INV-${year}-0003`,currency:'USD',pric
 const documents=[usdA,eurA,usdB];
 const payment=(doc,id,amount,month)=>({id,invoiceId:doc.id,invoiceNumber:doc.number,customerId:doc.customerSnapshot.sourceCustomerId,customerNameEn:doc.customerSnapshot.companyNameEn,customerNameAr:doc.customerSnapshot.companyNameAr,currency:doc.currency,amount,date:`${year}-${month}-15`,method:'bank-transfer',reference:id,notes:'',createdAt:now,updatedAt:now});
 const payments=[payment(usdA,'pay-usd-1','700.00','02'),payment(eurA,'pay-eur-1','500.00','04'),payment(usdB,'pay-usd-2','300.00','07')];
+if(qaExtremeText){
+ usdA.number='INV-QA-LONG-REFERENCE-2026-TECHNICAL-COMPONENTS-INDUSTRIAL-DISTRIBUTION-CONTRACT-0001';
+ payments[0].invoiceNumber=usdA.number;
+ payments[0].reference='PAY-QA-LONG-REFERENCE-2026-RECONCILIATION-TRANSFER-AND-INVOICE-SETTLEMENT-0001';
+}
+
 
 const statementRows=Number(params.get('statementRows')||1);
 if(![1,40].includes(statementRows))throw new Error('Unsupported statement QA row count');

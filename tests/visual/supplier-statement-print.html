@@ -12,6 +12,14 @@ const lang=new URLSearchParams(location.search).get('lang')==='ar'?'ar':'en';
 setUiLanguage(lang);
 const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة',logoDataUrl:'./brand/lourex-logo.svg'};
 const supplier={...createSupplier(),id:'qa-supplier-atlas',nameEn:'Atlas Components',nameAr:'أطلس',defaultCurrency:'USD'};
+const qaExtremeText=new URLSearchParams(location.search).get('textExtreme')==='1';
+if(qaExtremeText){
+ supplier.nameEn='Atlas Components Industrial Manufacturing Engineering and International Supply Chain Consortium';
+ supplier.nameAr='أطلس للمكونات الصناعية والهندسية والتصنيع وخدمات سلسلة التوريد الدولية المتخصصة';
+ company.nameEn='LOUREX International Procurement and Distribution Financial Services Trading Consortium';
+ company.nameAr='لوريكس الدولية لخدمات التجارة والمشتريات والتوزيع وإدارة الحسابات المالية';
+}
+
 const foreignSupplier={...createSupplier(),id:'qa-supplier-foreign',nameEn:'Harbor Supply',nameAr:'الميناء',defaultCurrency:'EUR'};
 const suppliers=[supplier,foreignSupplier];
 const purchase=createPurchase([],suppliers,'USD');
@@ -21,6 +29,12 @@ const foreignPurchase={...purchase,id:'qa-purchase-foreign',number:'PUR-2026-000
 const purchases=[purchase,foreignPurchase];
 const payment={...createSupplierPayment(purchase,supplier,[]),id:'qa-supplier-payment',amount:'350',date:'2026-01-15',reference:'QA-SPAY-001'};
 const supplierPayments=[payment];
+if(qaExtremeText){
+ purchase.number='PUR-QA-LONG-REFERENCE-2026-INTERNATIONAL-INDUSTRIAL-EQUIPMENT-SUPPLY-CONTRACT-0001';
+ payment.purchaseNumber=purchase.number;
+ payment.reference='SPAY-QA-LONG-REFERENCE-2026-RECONCILIATION-BANK-TRANSFER-INDUSTRIAL-SETTLEMENT-0001';
+}
+
 
 const statementRows=Number(new URLSearchParams(location.search).get('statementRows')||1);
 if(![1,100].includes(statementRows))throw new Error('Unsupported statement QA row count');
