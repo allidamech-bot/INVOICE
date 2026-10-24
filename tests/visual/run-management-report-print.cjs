@@ -36,7 +36,7 @@ const normalize=s=>s.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.charCodeAt
  assert.equal(await page.evaluate(()=>window.qaSource()),before,'printing never mutates financial sources');
  await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-financial-report')),false,'afterprint clears print state');
  assert.deepEqual(errors,[]);console.log('PASS management report '+engine+' '+lang+' '+mode);await page.close();
- }}
+ }
  // An immediate screen switch or unmount must cancel the queued native print.
  // Run the action and navigation in a single browser task to reproduce the race
  // without a false pass caused by Playwright's asynchronous RPC scheduling.
