@@ -288,7 +288,9 @@
       });
       if(!response.ok)throw new Error('INVENTORY_UNAVAILABLE');
       const data=await response.json();
-      if(!Array.isArray(data?.providers)||data.providers.length!==7)throw new Error('INVALID_INVENTORY');
+      if(!Array.isArray(data?.providers)||data.providers.length!==safeProviders.size||
+        new Set(data.providers.map(row=>row?.provider)).size!==safeProviders.size||
+        data.providers.some(row=>!safeProviders.has(row?.provider)))throw new Error('INVALID_INVENTORY');
       if(window.firebase?.auth()?.currentUser?.uid!==uid)throw new Error('ACCOUNT_CHANGED');
       const records=new Map(data.providers.filter(row=>safeProviders.has(row?.provider))
         .map(row=>[row.provider,row]));
