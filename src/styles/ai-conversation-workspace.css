@@ -1940,7 +1940,7 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question{
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question-title strong{
   color:var(--lxw-text)!important;font-size:15px!important;
 }
-html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question-detail{color:var(--lxw-muted)!important}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-reply-question-detail{color:var(--lxw-text)!important}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-result-sku{color:var(--lxw-muted)!important}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-message-actions{
   min-height:36px!important;height:auto!important;gap:2px!important;
