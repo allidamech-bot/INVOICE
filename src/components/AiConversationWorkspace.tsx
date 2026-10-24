@@ -1,3 +1,4 @@
+import { AiMenuPresence } from './AiMenuPresence.js';
 import { AiIdentityMark } from './AiIdentityMark.js';
 import {AiFinancialReadout} from './AiFinancialReadout.js';
 import {normalizeFinancialReadout,parseFinancialReadout} from '../lib/ai-financial-readout.js';
@@ -272,11 +273,13 @@ function AiExperienceSettings({host}:{host:Host}):any {
     </label>;
   return <section className="lxw-settings" role="region" aria-label={label(ar,'LOUREX AI settings','إعدادات LOUREX AI')}>
     <header className="lxw-settings-head"><div><strong>{label(ar,'AI preferences','تفضيلات المساعد')}</strong><small>{label(ar,'Independent from the main LOUREX site settings','مستقلة عن إعدادات موقع LOUREX')}</small></div><button type="button" onClick={()=>host.setState({__workspaceSettingsOpen:false})}>{label(ar,'Done','تم')}</button></header>
+    <fieldset className="lxw-settings-group"><legend>{label(ar,'Language','اللغة')}</legend>
     {field('lxw-ui-language','AI interface language','لغة واجهة المحادثة','Does not change the main site language.','لا تغيّر لغة الموقع الرئيسية.',prefs.interfaceLanguage,[{value:'inherit',en:'Same as site',ar:'مثل لغة الموقع'},{value:'ar',en:'Arabic',ar:'العربية'},{value:'en',en:'English',ar:'الإنجليزية'}],'interfaceLanguage')}
     {field('lxw-reply-language','Answer language','لغة الإجابات','The language to request from LOUREX AI.','اللغة المطلوبة لردود LOUREX AI.',prefs.replyLanguage,[{value:'auto',en:'Follow the conversation',ar:'حسب المحادثة'},{value:'ar',en:'Arabic',ar:'العربية'},{value:'en',en:'English',ar:'الإنجليزية'}],'replyLanguage')}
+    </fieldset><fieldset className="lxw-settings-group"><legend>{label(ar,'Conversation experience','تجربة المحادثة')}</legend>
     {field('lxw-response-detail','Response length','تفصيل الإجابات','Choose how much detail to request in analysis.','حدّد مقدار التفاصيل المطلوب في التحليل.',prefs.detail,[{value:'balanced',en:'Balanced',ar:'متوازن'},{value:'brief',en:'Concise',ar:'مختصر'},{value:'detailed',en:'Detailed',ar:'مفصل'}],'detail')}
     {field('lxw-motion','Motion and transitions','الحركة والانتقالات','Use device preference or reduce optional animations.','اتبع إعداد الجهاز أو خفف المؤثرات الاختيارية.',prefs.motion,[{value:'system',en:'Follow device',ar:'حسب الجهاز'},{value:'reduced',en:'Reduce motion',ar:'تقليل الحركة'}],'motion')}
-    <div className="lxw-settings-info"><strong>{label(ar,'Voice and permissions','الصوت والصلاحيات')}</strong><p>{label(ar,'Voice text remains editable before sending. Advisor stays read-only regardless of these settings.','يظل النص الصوتي قابلًا للمراجعة قبل الإرسال. ويبقى المستشار للقراءة والتحليل فقط مهما تغيّرت الإعدادات.')}</p></div>
+    </fieldset><div className="lxw-settings-info"><strong>{label(ar,'Voice and permissions','الصوت والصلاحيات')}</strong><p>{label(ar,'Voice text remains editable before sending. Advisor stays read-only regardless of these settings.','يظل النص الصوتي قابلًا للمراجعة قبل الإرسال. ويبقى المستشار للقراءة والتحليل فقط مهما تغيّرت الإعدادات.')}</p></div>
     {host.state.__workspaceSettingsError?<p role="alert" className="lxw-settings-error">{host.state.__workspaceSettingsError}</p>:null}
     {saving?<p role="status" className="lxw-settings-note">{label(ar,'Saving preferences…','جارٍ حفظ التفضيلات…')}</p>:null}
   </section>;
@@ -904,14 +907,20 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
       if(action){const name=label(aiUiAr(host),...action[1]);return react.cloneElement(node,{'aria-label':name,title:name},...children);}
     }
     if(cn.split(' ').includes('lourex-ai-close'))return react.cloneElement(node,{'aria-label':label(aiUiAr(host),'Close','إغلاق'),title:label(aiUiAr(host),'Close','إغلاق')},...children);
-    if(cn.split(' ').includes('lourex-ai-overflow-trigger'))return react.cloneElement(node,{'aria-label':label(aiUiAr(host),'Conversation menu','قائمة المحادثة')},...children);
+    if(cn.split(' ').includes('lourex-ai-overflow-trigger'))return react.cloneElement(node,{'aria-label':label(aiUiAr(host),'Conversation menu','قائمة المحادثة'),title:label(aiUiAr(host),'Conversation menu','قائمة المحادثة')},<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11V6a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v11l4-3h5"/><path d="M18 14v7M14.5 17.5h7"/></svg>);
     if(cn.split(' ').includes('lourex-ai-overflow-menu')){
       const names=[label(aiUiAr(host),'New conversation','محادثة جديدة'),label(aiUiAr(host),'Conversations','المحادثات')];
       return react.cloneElement(node,undefined,...children.map((button:any,i:number)=>{
         if(!react.isValidElement(button)||!names[i])return button;
         const parts=react.Children.toArray(button.props.children);
-        return react.cloneElement(button,i===1?{onClick:(event:any)=>{button.props?.onClick?.(event);host.setState({__workspaceHistoryOpen:true,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'});}}:undefined,parts[0],<span>{names[i]}</span>);
+        const icon=<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{i===0?<><path d="M12 5v14M5 12h14"/></>:<><path d="M4 11a8 8 0 1 1 2 6M4 5v6h6"/><path d="M12 7v5l3 2"/></>}</svg>;
+        return react.cloneElement(button,i===1?{onClick:(event:any)=>{button.props?.onClick?.(event);host.setState({__workspaceHistoryOpen:true,__workspaceHistoryError:'',__workspaceSettingsOpen:false,__workspaceOpen:false,__workspacePane:'chat'});}}:undefined,icon,<span>{names[i]}</span>);
       }));
+    }
+    if(tokens.includes('lourex-ai-overflow')){
+      const menu=children.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-overflow-menu'));
+      const trigger=children.find((child:any)=>String(child?.props?.className||'').split(' ').includes('lourex-ai-overflow-trigger'));
+      return react.cloneElement(node,undefined,...children.filter((child:any)=>child!==menu),<AiMenuPresence key={'menu-'+(host.__intelligenceKernel?.scope?kernelScopeKey(host.__intelligenceKernel.scope):'loading')} content={menu||null} reduced={currentAiExperiencePreferences(host).motion==='reduced'} onDismiss={()=>trigger?.props?.onClick?.()}/>);
     }
     if(cn.split(' ').includes('lourex-ai-answer-copy'))return react.cloneElement(node,{className:cn+' lxw-markdown'},...markdownParagraphs(children));
     if(cn.split(' ').includes('lourex-ai-message')&&(cn.split(' ').includes('user')||cn.split(' ').includes('assistant'))){

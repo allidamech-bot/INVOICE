@@ -51,7 +51,7 @@ const report=[];
    assert.deepEqual((await tabs.allTextContents()).map(s=>s.trim()),c.lang==='ar'?['المتحكم','المستشار']:['Controller','Advisor']);
    assert.equal(await panel.getAttribute('data-workspace-mode'),'controller','business chat opens in Controller');
    const visual=await panel.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color,dir:node.dir};});
-   const expectedCanvas=c.theme==='dark'?'rgb(23, 25, 24)':'rgb(250, 250, 248)';
+   const expectedCanvas=c.theme==='dark'?'rgb(16, 26, 22)':'rgb(247, 250, 248)';
    assert.equal(visual.bg,expectedCanvas,'chat uses the approved Quiet Intelligence canvas for the selected site theme');
    assert.ok(contrast(visual.color,visual.bg)>=4.5,'conversation body text meets WCAG AA');
    // A malformed selector once caused the browser to discard every later
@@ -84,7 +84,7 @@ const report=[];
      return result;
     }finally{card.remove();}
    });
-   assert.equal(documentVisual.bg,c.theme==='dark'?'rgb(34, 37, 36)':'rgb(255, 255, 255)',
+   assert.equal(documentVisual.bg,c.theme==='dark'?'rgb(23, 36, 29)':'rgb(255, 255, 255)',
     'document surface must follow the conversation theme');
    assert.equal(documentVisual.enabled.bg,'rgb(47, 107, 93)','Save uses the conversation green family');
    assert.equal(documentVisual.disabled.bg,documentVisual.summary.bg,'disabled Save uses the theme secondary surface');
@@ -102,14 +102,37 @@ const report=[];
    assert.ok(box.x+box.width<=c.width+2,'AI panel does not overflow horizontally');
    assert.ok(box.y+box.height<=c.height+2,'AI panel does not overflow vertically');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true,'page must not scroll horizontally');
+   // Review the actual preferences and upper menu, not only the empty chat.
+   await panel.getByRole('button',{name:c.lang==='ar'?'إعدادات المساعد':'AI settings',exact:true}).click();
+   const preferences=panel.locator('.lxw-settings');
+   await preferences.waitFor({state:'visible'});
+   assert.equal(await preferences.locator('fieldset').count(),2,'preferences are grouped by purpose');
+   assert.equal(await preferences.locator('select').count(),4,'existing preferences remain reachable');
+   const preferenceMetrics=await preferences.locator('select').evaluateAll(nodes=>nodes.map(el=>({height:el.getBoundingClientRect().height,size:parseFloat(getComputedStyle(el).fontSize)})));
+   assert.ok(preferenceMetrics.every(row=>row.height>=44&&row.size>=16),'settings controls remain touch-readable');
+   await page.screenshot({path:`${output}/settings-${c.name}-${c.width}-${c.lang}-${c.theme}.png`,animations:'disabled'});
+   await preferences.getByRole('button',{name:c.lang==='ar'?'تم':'Done',exact:true}).click();
+   await preferences.waitFor({state:'hidden'});
+   await panel.locator('.lourex-ai-overflow-trigger').click();
+   await panel.locator('.lourex-ai-overflow-menu:not([inert])').waitFor({state:'visible'});
+   await page.screenshot({path:`${output}/menu-${c.name}-${c.width}-${c.lang}-${c.theme}.png`,animations:'disabled'});
+   await panel.locator('.lourex-ai-overflow-trigger').click();
+   await panel.locator('.lourex-ai-overflow-menu').waitFor({state:'hidden'});
    const history=panel.locator('.lxw-history-trigger');
-   await history.waitFor({state:'visible'});
-   const bounds=await history.boundingBox();
-   assert.ok(bounds?.height>=44&&bounds.width>=38,'history is touch-accessible');
-   await history.click();
+   if(c.width<=430){
+    await panel.locator('.lourex-ai-overflow-trigger').click();
+    await panel.getByRole('menuitem',{name:c.lang==='ar'?'المحادثات':'Conversations',exact:true}).click();
+   }else{
+    await history.waitFor({state:'visible'});
+    const bounds=await history.boundingBox();
+    assert.ok(bounds?.height>=44&&bounds.width>=38,'history is touch-accessible');
+    await history.click();
+   }
+   assert.ok(await panel.locator('.lourex-ai-title strong').isVisible(),'LOUREX identity remains visible on narrow phones');
    await panel.locator('.lxw-history').waitFor({state:'visible'});
    const search=panel.locator('.lxw-history-search');
    assert.equal(await search.getAttribute('type'),'search');
+   await page.screenshot({path:`${output}/history-${c.name}-${c.width}-${c.lang}-${c.theme}.png`,animations:'disabled'});
    assert.ok((await search.evaluate(el=>Number.parseFloat(getComputedStyle(el).fontSize)))>=16,'history search avoids Safari keyboard zoom');
    await search.fill('nonexistent-qa-thread');
    assert.equal(await panel.locator('.lxw-history-row').count(),0,'history title search filters records');

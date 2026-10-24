@@ -12,9 +12,9 @@ assert.ok(bin,'Chromium required');
 const markup=[
 '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">',
 '<link rel="stylesheet" href="/styles/app.bundle.css"><link rel="stylesheet" href="/ai-composer-v449.css">',
-'<style>html,body,#root{margin:0;width:100%;min-height:100%;}body{background:#080808}</style></head><body><div id="root">',
+'<script src="/vendor/react.production.min.js"></script><script src="/vendor/react-dom.production.min.js"></script><style>html,body,#root{margin:0;width:100%;min-height:100%;}body{background:#080808}</style></head><body><div id="root">',
 '<aside class="lourex-ai-panel" id="lourex-ai-panel" dir="rtl" data-lourex-workspace="2" data-lourex-conversation-remediation="3" data-workspace-mode="controller" data-workspace-ready="true">',
-'<header class="lourex-ai-head"><div class="lourex-ai-title">LOUREX AI</div><div class="lourex-ai-head-actions"><button>☷</button></div></header>',
+'<header class="lourex-ai-head"><div class="lourex-ai-title"><span class="lourex-ai-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></span><div><strong>LOUREX AI</strong><small>مساعد أعمالك الذكي</small></div></div><button class="lxw-history-trigger" aria-label="History"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button><button class="lxw-workspace-trigger" aria-label="Workspace"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button><button class="lxw-settings-trigger" aria-label="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button><div class="lourex-ai-head-actions" style="display:flex;gap:6px"><div class="lourex-ai-overflow"><button class="lourex-ai-overflow-trigger" aria-label="Conversation menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button></div><button class="lourex-ai-close" aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg></button></div></header>',
 '<nav class="lxw-mode-tabs"><button aria-selected="true">المتحكم</button><button aria-selected="false">المستشار</button></nav>',
 '<div class="lxw-mode-description"><span class="lxw-mode-symbol">◇</span><span>المتحكم ينفّذ عرض السعر ويعرض الملفات بعد مراجعتها</span></div>',
 '<div class="lxw-body"><div class="lxw-chat"><div class="lourex-ai-messages">',
@@ -40,7 +40,7 @@ const markup=[
 '<div class="lxw-inline-approval-row"><button class="lxw-inline-preview-button">عرض التفاصيل</button><div class="lxw-inline-approval-buttons"><button>رفض</button><button class="primary">اعتماد المسودة</button></div></div></section>',
 '<div class="lxw-thinking"><span class="lxw-thinking-dots"><i></i><i></i><i></i></span><span>LOUREX AI يعالج طلبك…</span></div>',
 '</div><footer class="lourex-ai-compose"><div class="lourex-ai-attachment-strip"><div class="lourex-ai-attachment-chip"><strong class="lourex-ai-attachment-name">International-Quotation-Long-File-Name-TEST.pdf</strong><button class="lourex-ai-attachment-review">مراجعة</button><button class="lourex-ai-attachment-remove">×</button><small>جاهز للمراجعة · لم يحفظ</small></div></div><form><button class="lourex-ai-composer-plus">＋</button><textarea class="lourex-ai-premium-textarea" placeholder="اسأل LOUREX"></textarea><button class="lourex-ai-composer-mic">🎤</button><button class="lourex-ai-send">➤</button></form></footer>',
-'</div></div></aside></div></body></html>'
+'</div></div><div id="lxw-motion-test" class="lourex-ai-overflow" style="position:absolute;top:80px;inset-inline-end:12px;width:220px"></div></aside></div></body></html>'
 ].join('');
 const file='__lourex_ai_visual_qa__.html',profile=await mkdtemp(join(tmpdir(),'lourex-visual-'));
 const children=[];let ws;
@@ -66,10 +66,10 @@ try{
      "if(!RTL){document.documentElement.dir='ltr';document.getElementById('lourex-ai-panel').dir='ltr';}",
      "const get=s=>document.querySelector(s),style=s=>getComputedStyle(get(s));",
      "const paint=s=>{const cs=style(s),stops=cs.backgroundImage.match(/rgba?\\([^)]+\\)/g);if(stops?.length)return stops;let el=get(s);while(el){const bg=getComputedStyle(el).backgroundColor;if(bg!=='rgba(0, 0, 0, 0)')return [bg];el=el.parentElement;}throw Error('No opaque background for '+s);};",
-     "const regions=['.lourex-ai-messages','.lxw-chat-document','.lxw-review-banner','.lxw-review-facts','.lxw-review-item','.lxw-review-subtotal','.lxw-ai-pdf-actions','.lxw-ai-pdf-file','.lxw-pdf-file-meta','.lxw-ai-pdf-file-actions','.lxw-chat-document-controls','.lxw-inline-approval','.lxw-inline-approval-buttons','.lxw-thinking','.lourex-ai-attachment-chip','.lourex-ai-compose form','.lxw-mode-tabs'];",
+     "const regions=['.lourex-ai-head','.lourex-ai-messages','.lxw-chat-document','.lxw-review-banner','.lxw-review-facts','.lxw-review-item','.lxw-review-subtotal','.lxw-ai-pdf-actions','.lxw-ai-pdf-file','.lxw-pdf-file-meta','.lxw-ai-pdf-file-actions','.lxw-chat-document-controls','.lxw-inline-approval','.lxw-inline-approval-buttons','.lxw-thinking','.lourex-ai-attachment-chip','.lourex-ai-compose form','.lxw-mode-tabs'];",
      "const overflows=regions.flatMap(s=>{const el=get(s);return el.scrollWidth>el.clientWidth+2?[{s,pixels:el.scrollWidth-el.clientWidth}]:[];});",
-     "const controls=['.lxw-chat-document-controls>button','.lxw-ai-pdf-actions>button','.lxw-ai-pdf-file-actions>a','.lxw-inline-approval-buttons>button','.lxw-inline-preview-button','.lourex-ai-attachment-review','.lourex-ai-attachment-remove','.lourex-ai-composer-plus','.lourex-ai-composer-mic','.lourex-ai-send','.lxw-mode-tabs>button'];",
-     "const small=controls.flatMap(s=>Array.from(document.querySelectorAll(s)).filter(e=>e.getBoundingClientRect().height<43).map(e=>({label:e.textContent.trim(),height:Math.round(e.getBoundingClientRect().height)})));",
+     "const controls=['.lourex-ai-head button','.lxw-chat-document-controls>button','.lxw-ai-pdf-actions>button','.lxw-ai-pdf-file-actions>a','.lxw-inline-approval-buttons>button','.lxw-inline-preview-button','.lourex-ai-attachment-review','.lourex-ai-attachment-remove','.lourex-ai-composer-plus','.lourex-ai-composer-mic','.lourex-ai-send','.lxw-mode-tabs>button'];",
+     "const small=controls.flatMap(s=>Array.from(document.querySelectorAll(s)).filter(e=>e.getClientRects().length&&e.getBoundingClientRect().height<43).map(e=>({label:e.textContent.trim(),height:Math.round(e.getBoundingClientRect().height)})));",
      "const colors={};for(const [key,s] of [['edit','.lxw-chat-document-controls>button:first-child'],['save','.lxw-document-save'],['createPDF','.lxw-ai-pdf-actions>button'],['preview','.lxw-pdf-preview'],['download','.lxw-pdf-download'],['approve','.lxw-inline-approval-buttons>.primary'],['reject','.lxw-inline-approval-buttons>button:first-child']])colors[key]=style(s).background;",
      "const fonts={message:parseFloat(style('.lourex-ai-message').fontSize),review:parseFloat(style('.lxw-review-item dd').fontSize),button:parseFloat(style('.lxw-document-save').fontSize)};",
      "const readingFonts=['.lourex-ai-message.user','.lourex-ai-user-copy','.lourex-ai-answer-copy','.lxw-markdown p','.lxw-markdown li','.lxw-markdown li strong','.lxw-markdown code'].flatMap(s=>Array.from(document.querySelectorAll(s)).map(e=>({s,size:parseFloat(getComputedStyle(e).fontSize),line:parseFloat(getComputedStyle(e).lineHeight)})));",
@@ -103,6 +103,32 @@ try{
     for(const [name,ratio] of Object.entries(d.actionContrast))assert.ok(ratio>=4.5,'Low text contrast for '+name+' at '+width+': '+ratio);
    assert.ok(d.viewportOverflow<=3,'Page horizontal overflow '+d.viewportOverflow);
  }
+
+ // Exercise the actual React presence component: closing, rapid reopen,
+ // keyboard navigation and reduced motion. Only inert fixture buttons exist.
+ const presence=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{
+  const {AiMenuPresence}=await import('/src/components/AiMenuPresence.js');
+  const mount=document.getElementById('lxw-motion-test');let dismissed=0;
+  const pause=ms=>new Promise(r=>setTimeout(r,ms));
+  const content=()=>React.createElement('div',{role:'menu',className:'lourex-ai-overflow-menu'},
+    React.createElement('button',{role:'menuitem'},'New conversation'),React.createElement('button',{role:'menuitem'},'History'));
+  const paint=(open,reduced=false)=>ReactDOM.render(React.createElement(AiMenuPresence,{content:open?content():null,reduced,onDismiss:()=>{dismissed++;paint(false);}}),mount);
+  paint(true);await pause(30);let menu=mount.querySelector('[role=menu]');
+  const opening=Boolean(menu)&&getComputedStyle(menu).animationName==='lxw-surface-in';
+  menu.querySelector('button').focus();menu.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+  const keyboard=document.activeElement.textContent==='History';
+  menu.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  menu=mount.querySelector('[role=menu]');const closing=Boolean(menu?.inert)&&menu.getAttribute('aria-hidden')==='true'&&getComputedStyle(menu).pointerEvents==='none';
+  await pause(220);const removed=!mount.querySelector('[role=menu]');
+  paint(true);await pause(30);paint(false);await pause(40);paint(true);await pause(220);
+  const reopened=Boolean(mount.querySelector('[role=menu]:not([inert])'));
+  paint(false,true);const reduced=!mount.querySelector('[role=menu]');
+  ReactDOM.unmountComponentAtNode(mount);
+  return {opening,keyboard,closing,removed,reopened,reduced,dismissed};
+ })()`});
+ const motion=presence.result?.value;
+ assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1,'Menu lifecycle regression: '+JSON.stringify(presence));
+ console.log('PASS actual React menu presence: '+JSON.stringify(motion));
 
  // Simulate iPadOS visualViewport height contraction when the keyboard is up.
  // We check computed CSS and footer bounds, not native Safari behavior.

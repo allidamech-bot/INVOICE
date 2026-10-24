@@ -56,12 +56,14 @@ test('Batch 2 closeout prevents mutation-observer feedback while keeping scope d
   assert.doesNotMatch(source,/assistantCapabilityAllowed|document\.createDraft|payment\.record|inventory\.adjust/);
 });
 
-test('Typed LOUREX conversation polishes only chat bubbles and preserves the established outer UI',async()=>{
+test('Historical message-only polish stays scoped before the separately authorized full AI UX owner',async()=>{
   const css=await read('src/styles/ai-conversation-workspace.css');
   const anchor='/* LOUREX AI — message-only conversation polish: preserve existing app shell. */';
   const index=css.lastIndexOf(anchor);
   assert.ok(index>0,'the message-only CSS closeout must be present');
-  const last=css.slice(index);
+  const end=css.indexOf('/* Cohesive conversation experience:',index);
+  assert.ok(end>index,'full AI UX must have its own explicit ownership boundary');
+  const last=css.slice(index,end);
   assert.ok(last.includes('.lxw-message-turn.is-assistant .lourex-ai-message.assistant'));
   assert.ok(last.includes('.lxw-message-turn.is-user .lourex-ai-message.user'));
   assert.ok(last.includes('.lourex-ai-message-actions button'));
