@@ -30,9 +30,13 @@ function exporter(kind,language='en'){
   };
   const Component=runInNewContext(compiled+'\n'+name+';',context,{filename:file});
   const instance=new Component(props);
-  return {instance,props,download:async()=>({
-    text:await downloadBlob.text(),filename,clicks
-  })};
+  return {instance,props,download:async()=>{
+    // Blob.text() strips UTF-8 BOM by specification; test the actual bytes.
+    const bytes=Buffer.from(await downloadBlob.arrayBuffer());
+    assert.deepEqual([...bytes.subarray(0,3)],[0xef,0xbb,0xbf],
+      'physical CSV starts with UTF-8 BOM bytes');
+    return {text:bytes.toString('utf8'),filename,clicks};
+  }};
 }
 
 // Deliberately independent RFC-4180 style parser: validates text, quoted
