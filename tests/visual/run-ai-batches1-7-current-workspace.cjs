@@ -84,7 +84,7 @@ const report=[];
      return result;
     }finally{card.remove();}
    });
-   assert.equal(documentVisual.bg,c.theme==='dark'?'rgb(34, 37, 36)':'rgb(255, 255, 255)',
+   assert.equal(documentVisual.bg,c.theme==='dark'?'rgb(23, 36, 29)':'rgb(255, 255, 255)',
     'document surface must follow the conversation theme');
    assert.equal(documentVisual.enabled.bg,'rgb(47, 107, 93)','Save uses the conversation green family');
    assert.equal(documentVisual.disabled.bg,documentVisual.summary.bg,'disabled Save uses the theme secondary surface');
