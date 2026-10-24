@@ -25,7 +25,7 @@ export function TreasuryReconciliationReport(props:Props):any {
   const scopedAccounts=props.accounts.filter(inScope),availableRows=treasuryProjection(props.payments.filter(inScope),props.supplierPayments.filter(inScope),props.expenses.filter(inScope),props.entries.filter(inScope),props.reconciliations.filter(inScope),props.company.defaultCurrency),currencies=Array.from(new Set([...scopedAccounts.map(a=>a.currency),...availableRows.map(r=>r.currency)])).sort();
   return <section className="lx-treasury-report ta-finance-page">
     <header className="ta-page-header lx-treasury-report-controls"><h2>{t('Treasury reconciliation report','تقرير مطابقة الخزينة')}</h2><Button onClick={props.onBack}>{t('Back to ledger','العودة إلى الدفتر')}</Button></header>
-    <div className="lx-treasury-report-controls lx-treasury-report-filters">
+    <div className="lx-treasury-report-controls lx-treasury-report-filters" style={{minWidth:0,maxWidth:"100%",width:"100%",boxSizing:"border-box"}}>
       <label>{t('From','من')}<Input type="date" value={from} onChange={(e:any)=>{setFrom(e.target.value);invalidate();}}/></label>
       <label>{t('To','إلى')}<Input type="date" value={to} onChange={(e:any)=>{setTo(e.target.value);invalidate();}}/></label>
       <label>{t('Currency','العملة')}<Select value={currency} onChange={(e:any)=>{setCurrency(e.target.value);setAccountId('ALL');invalidate();}}><option value="ALL">{t('All currencies','كل العملات')}</option>{currencies.map(code=><option key={code}>{code}</option>)}</Select></label>
