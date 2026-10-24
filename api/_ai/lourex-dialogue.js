@@ -24,15 +24,20 @@ function dialogueFormatInstruction(message){
  * this scoped request. Never change digits, case, amounts or unknown tokens. */
 function preserveDialogueIdentifiers(answer,cleaned){
   const context=safeContext(cleaned?.context);
-  const input=JSON.stringify([cleaned?.message,context.workingMemory||cleaned?.workingMemory,context.conversationSources||cleaned?.sources,sanitizeDialogueCatalog(context.dialogueCatalog||cleaned?.catalog)]).slice(0,180000);
+  // The latest correction outranks source excerpts, which outrank old memory.
+  const inputs=[cleaned?.message,[context.conversationSources||cleaned?.sources,sanitizeDialogueCatalog(context.dialogueCatalog||cleaned?.catalog)],context.workingMemory||cleaned?.workingMemory];
   const token=/[A-Za-z0-9]+(?:[-\u2010-\u2015\u2212][A-Za-z0-9]+)+/g;
   const key=value=>value.replace(/[\u2010-\u2015\u2212]/g,'-');
   const known=new Map();
-  for(const match of input.matchAll(token)){
-    const value=match[0];if(!/[A-Za-z]/.test(value)||!/[0-9]/.test(value))continue;
-    const alias=key(value);
-    if(known.has(alias)&&known.get(alias)!==value)known.set(alias,null);
-    else if(known.size<512)known.set(alias,value);
+  for(const input of inputs){
+    const local=new Map();
+    for(const match of (JSON.stringify(input)||'').slice(0,180000).matchAll(token)){
+      const value=match[0];if(!/[A-Za-z]/.test(value)||!/[0-9]/.test(value))continue;
+      const alias=key(value);
+      if(local.has(alias)&&local.get(alias)!==value)local.set(alias,null);
+      else if(local.size<512)local.set(alias,value);
+    }
+    for(const [alias,value] of local)if(!known.has(alias)&&known.size<512)known.set(alias,value);
   }
   return answer.replace(token,value=>known.get(key(value))||value);
 }

@@ -12,6 +12,7 @@ test('dialogue preserves known identifier spelling without guessing numbers or m
   {message:'Compare AB-001 and AB‐001 as distinct source labels.',answer:'AB‐001',want:'AB‐001'},
   {message:'Keep the quantities exact: SKU QA-X1.',answer:'QA‐X2: -1.25 USD; 20–30 days; ordinary‐word',want:'QA‐X2: -1.25 USD; 20–30 days; ordinary‐word'},
   {message:'Use a table now.',memory:'Previous user: use exactly two lines. Item QA-X1.',answer:'| SKU |\n| --- |\n| QA‐X1 |',want:'| SKU |\n| --- |\n| QA-X1 |',notLines:true},
+  {message:'Correction: the exact SKU is QA-X1.',memory:'Assistant previously wrote QA‐X1.',answer:'QA‐X1: unknown',want:'QA-X1: unknown'},
  ];
  try{
   process.env.GROQ_API_KEY='synthetic-only';delete process.env.CLOUDFLARE_AI_API_TOKEN;delete process.env.GEMINI_API_KEY;
