@@ -24,25 +24,37 @@ function __lourexAttachmentStrip(instance){const rows=instance.state.conversatio
   instance.__lourexAttachmentAbort=controller;
   const completed=new Array(rows.length);
   let nextIndex=0;
+  // Extraction is reusable only for the identical immutable File and complete
+  // account/workspace/branch/thread/mode. It never becomes action approval.
+  const scopeKey=()=>{
+    const kernel=instance.__intelligenceKernel,scope=kernel?.scope;
+    const parts=[scope?.accountId,scope?.scope,scope?.workspaceId,scope?.branchId,scope?.threadId,kernel?.mode];
+    return parts.every(value=>typeof value==='string'&&value.length>0)?JSON.stringify(parts):'';
+  };
+  const analysisScope=scopeKey();
   instance.setState({attachmentBusy:true});
   const ensureCurrent=()=>{
-    if(controller.signal.aborted||instance.__lourexAttachmentAbort!==controller||instance.mounted===false)
+    if(controller.signal.aborted||instance.__lourexAttachmentAbort!==controller||instance.mounted===false||scopeKey()!==analysisScope)
       throw new DOMException('Cancelled','AbortError');
   };
   const updateRow=(row,patch)=>{
-    if(controller.signal.aborted||instance.__lourexAttachmentAbort!==controller||instance.mounted===false)return;
+    if(controller.signal.aborted||instance.__lourexAttachmentAbort!==controller||instance.mounted===false||scopeKey()!==analysisScope)return;
     instance.setState(state=>({conversationAttachments:(state.conversationAttachments||[]).map(item=>item.id===row.id?{...item,...patch}:item)}));
   };
   const worker=async()=>{
     while(nextIndex<rows.length){
       ensureCurrent();
       const index=nextIndex++,row=rows[index];
+      if(analysisScope&&row.status==='done'&&row.source&&row.sourceScope===analysisScope&&row.sourceFile===row.file){
+        completed[index]={file:row.file,source:row.source};
+        continue;
+      }
       updateRow(row,{status:'processing',phase:'reading',error:''});
       try{
         const analysis=await analyzeConversationAttachment(row.file,controller.signal,phase=>updateRow(row,{status:'processing',phase,error:''}),{mode:instance.__intelligenceKernel?.mode});
         ensureCurrent();
         completed[index]=analysis;
-        updateRow(row,{status:'done',source:analysis.source,error:''});
+        updateRow(row,{status:'done',source:analysis.source,sourceScope:analysisScope,sourceFile:row.file,error:''});
       }catch(error){
         if(!controller.signal.aborted&&instance.__lourexAttachmentAbort===controller&&instance.mounted!==false)
           updateRow(row,{status:'error',error:error instanceof Error?error.message:String(error)});
@@ -55,6 +67,7 @@ function __lourexAttachmentStrip(instance){const rows=instance.state.conversatio
     // Two workers preserve file order while avoiding up to 10 sequential
     // remote extraction chains and unbounded concurrency/rate-limit storms.
     await Promise.all(Array.from({length:Math.min(2,rows.length)},()=>worker()));
+    ensureCurrent();
     return completed;
   }finally{
     if(instance.__lourexAttachmentAbort===controller){
