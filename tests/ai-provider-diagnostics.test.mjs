@@ -12,7 +12,7 @@ async function sandbox(fn){
 function reply(data,status=200){return{ok:status===200,status,headers:{get:()=>null},text:async()=>JSON.stringify(data)};}
 test('each provider receives only a synthetic arithmetic prompt, single provider, no fallback',async()=>{
  await sandbox(async()=>{
-  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq','cloudflare','gemini','kilo','openrouter','mistral','ollama']);
+  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq','cloudflare','gemini','kilo','openrouter','ollama']);
   for(const provider of SYNTHETIC_PROVIDER_IDS){
    let calls=0;
    const fetchImpl=async(url,options)=>{
@@ -28,7 +28,6 @@ test('each provider receives only a synthetic arithmetic prompt, single provider
     }
     if(provider==='groq')assert.equal(body.model,'openai/gpt-oss-120b');
     if(provider==='openrouter'){assert.equal(body.model,'openrouter/free');assert.equal(url,'https://openrouter.ai/api/v1/chat/completions');assert.deepEqual(body.provider,{data_collection:'deny'});}
-    if(provider==='mistral'){assert.equal(body.model,'mistral-small-latest');assert.equal(url,'https://api.mistral.ai/v1/chat/completions');}
     if(provider==='ollama'){assert.equal(body.model,'gemma4:31b');assert.equal(url,'https://ollama.com/api/chat');assert.equal(body.stream,false);}
 
     if(provider==='cloudflare'){
@@ -103,11 +102,11 @@ test('a truncated Cloudflare model answer is not counted as a correct calculatio
  });
 });
 
-test('Mistral and Ollama cannot spend any credit without explicit verified-free opt-in',async()=>{
+test('Ollama cannot spend any credit without explicit verified-free opt-in',async()=>{
  await sandbox(async()=>{
   delete process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED;
   delete process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED;
-  for(const provider of ['mistral','ollama'])for(const mode of ['single','financial']){
+  for(const provider of ['ollama'])for(const mode of ['single','financial']){
    let calls=0;
    const result=await runSyntheticProviderDiagnostic(provider,{mode,fetchImpl:async()=>{calls++;throw new Error('Unexpected outbound request');}});
    assert.equal(calls,0,provider);
@@ -123,7 +122,7 @@ test('Ollama alternate is only the owner-verified free-list model; no arbitrary 
   assert.deepEqual(OLLAMA_SYNTHETIC_MODELS,['gemma4:31b','gpt-oss:20b']);
   let calls=0;
   const failFetch=async()=>{calls++;throw Error('Invalid model must not hit network');};
-  for(const provider of ['groq','mistral','openrouter','kilo']){
+  for(const provider of ['groq','openrouter','kilo']){
    const bad=await runSyntheticProviderDiagnostic(provider,{mode:'financial',model:'gpt-oss:20b',fetchImpl:failFetch});
    assert.equal(bad.status,'INVALID_DIAGNOSTIC_MODEL');
   }
