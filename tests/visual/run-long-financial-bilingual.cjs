@@ -71,16 +71,20 @@ mkdirSync(out,{recursive:true});
     // intervening page headers/footers when checking full bilingual text.
     const domCells=await root.locator('tbody .description-cell').evaluateAll(cells=>{
      const parts={};
-     for(const cell of cells){const id=cell.parentElement.dataset.sourceItemId;parts[id]=(parts[id]||'')+' '+cell.textContent;}
+     for(const cell of cells){
+      const id=cell.parentElement.dataset.sourceItemId;
+      if(!parts[id])parts[id]={en:'',ar:''};
+      parts[id].en+=' '+[...cell.querySelectorAll('.bidi-en')].map(span=>span.textContent).join(' ');
+      parts[id].ar+=' '+[...cell.querySelectorAll('.bidi-ar')].map(span=>span.textContent).join(' ');
+     }
      return parts;
     });
     for(let i=0;i<40;i++){
-     const item=bilingual.items[i],rendered=domCells[item.id]||'';
+     const item=bilingual.items[i],rendered=domCells[item.id]||{en:'',ar:''};
      assert.ok(dom.includes('PO-LINE-'+String(i+1).padStart(3,'0')),'English line marker '+i);
      assert.ok(dom.includes('بند'+String(i+1).padStart(3,'0')),'Arabic line marker '+i);
-     if(!englishChars(rendered).includes(englishChars(item.descriptionEn)))console.error('BILINGUAL_DOM_DIAG',JSON.stringify({template,kind,engine,itemId:item.id,keys:Object.keys(domCells).slice(0,5),actual:rendered.slice(0,700),actualEnglish:englishChars(rendered).slice(0,700),expectedEnglish:englishChars(item.descriptionEn).slice(0,700)}));
-     assert.ok(englishChars(rendered).includes(englishChars(item.descriptionEn)),'complete English DOM description '+i);
-     assert.equal(arGlyphs(rendered),arGlyphs(item.descriptionAr),'complete Arabic DOM description '+i);
+     assert.equal(englishChars(rendered.en),englishChars(item.descriptionEn),'complete English DOM description '+i);
+     assert.equal(arGlyphs(rendered.ar),arGlyphs(item.descriptionAr),'complete Arabic DOM description '+i);
     }
     if(engine==='chromium'){
      const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true,margin:{top:'0',bottom:'0',left:'0',right:'0'}});
@@ -89,8 +93,11 @@ mkdirSync(out,{recursive:true});
      const cells=await root.locator('.invoice-page').evaluateAll(sheets=>sheets.map(sheet=>{
       const rect=sheet.getBoundingClientRect();
       return [...sheet.querySelectorAll('tbody .description-cell')].map(cell=>{
-       const r=cell.getBoundingClientRect();
-       return {id:cell.parentElement.dataset.sourceItemId,left:(r.left-rect.left)/rect.width,right:(r.right-rect.left)/rect.width,top:(r.top-rect.top)/rect.height,bottom:(r.bottom-rect.top)/rect.height};
+       const bands=[...cell.querySelectorAll('.bidi-en,.bidi-ar')].map(span=>{
+        const r=span.getBoundingClientRect();
+        return {lang:span.classList.contains('bidi-en')?'en':'ar',left:(r.left-rect.left)/rect.width,right:(r.right-rect.left)/rect.width,top:(r.top-rect.top)/rect.height,bottom:(r.bottom-rect.top)/rect.height};
+       });
+       return {id:cell.parentElement.dataset.sourceItemId,bands};
       });
      }));
      const parsed=await page.evaluate(async ({data,cells})=>{
@@ -103,12 +110,15 @@ mkdirSync(out,{recursive:true});
        const text=await pdfPage.getTextContent(),size=pdfPage.getViewport({scale:1});
        allPages.push(text.items.map(item=>item.str||'').join(' '));
        for(const cell of cells[index]){
-        const value=text.items.filter(item=>{
-         if(!item.str)return false;
-         const x=(item.transform[4]+item.width/2)/size.width,y=1-(item.transform[5]+item.height/3)/size.height;
-         return x>=cell.left-.001&&x<=cell.right+.001&&y>=cell.top-.001&&y<=cell.bottom+.001;
-        }).map(item=>item.str).join(' ');
-        descriptions[cell.id]=(descriptions[cell.id]||'')+' '+value;
+        if(!descriptions[cell.id])descriptions[cell.id]={en:'',ar:''};
+        for(const band of cell.bands){
+         const value=text.items.filter(item=>{
+          if(!item.str)return false;
+          const x=(item.transform[4]+item.width/2)/size.width,y=1-(item.transform[5]+item.height/3)/size.height;
+          return x>=band.left-.001&&x<=band.right+.001&&y>=band.top-.001&&y<=band.bottom+.001;
+         }).map(item=>item.str).join(' ');
+         descriptions[cell.id][band.lang]+=' '+value;
+        }
        }
       }
       const result={pages:file.numPages,allPages,descriptions};
@@ -121,10 +131,10 @@ mkdirSync(out,{recursive:true});
      assert.ok(pdfContent.includes('440.00'),'correct final total in PDF');
      assert.ok(!pdfContent.includes('QA-APP-CONTROL-LEAK'),'app controls excluded from PDF');
      for(let i=0;i<40;i++){
-      const text=parsed.descriptions['po-long-'+i]||'';
+      const text=parsed.descriptions['po-long-'+i]||{en:'',ar:''};
       const en=original.items[i].descriptionEn,ar=original.items[i].descriptionAr;
-      assert.ok(englishChars(text).includes(englishChars(en)),'English PDF description complete '+i);
-      assert.equal(arGlyphs(text),arGlyphs(ar),'Arabic PDF description glyphs complete '+i);
+      assert.equal(englishChars(text.en),englishChars(en),'English PDF description complete '+i);
+      assert.equal(arGlyphs(text.ar),arGlyphs(ar),'Arabic PDF description glyphs complete '+i);
       const marker='PO-LINE-'+String(i+1).padStart(3,'0');
       assert.equal(pdfContent.split(marker).length-1,1,'bilingual PDF line exactly once '+i);
      }
