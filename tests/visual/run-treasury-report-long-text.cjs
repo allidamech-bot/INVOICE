@@ -45,11 +45,26 @@ const injection=[
      assert.equal(await report.locator('[data-movement]').count(),44,'all original ledger movements remain visible');
      assert.ok((await report.locator('[data-account="BANK"] [data-balance="closing"]').innerText()).includes('140.00'),'verified closing balance');
 
-     const promise=page.waitForEvent('download');
+     // Browser download events can be swallowed by WebKit's headless context.
+     // Capture the exact CSV Blob and actual filename-bearing anchor click.
+     // The established treasury-output suite covers real browser download events.
+     await page.evaluate(()=>{
+       window.qaTreasuryCsvBlob=null;window.qaTreasuryCsvClicks=0;
+       const makeUrl=URL.createObjectURL.bind(URL),originalClick=HTMLAnchorElement.prototype.click;
+       URL.createObjectURL=function(blob){window.qaTreasuryCsvBlob=blob;return makeUrl(blob);};
+       HTMLAnchorElement.prototype.click=function(...args){
+         if(this.download?.startsWith('LOUREX-Treasury-'))window.qaTreasuryCsvClicks++;
+         return originalClick.apply(this,args);
+       };
+     });
      await page.getByRole('button',{name:label('Export CSV','تصدير CSV'),exact:true}).click();
-     const download=await promise,stream=await download.createReadStream(),parts=[];
-     for await(const part of stream)parts.push(part);
-     const csv=Buffer.concat(parts).toString('utf8');
+     const capture=await page.evaluate(async()=>({
+       clicks:window.qaTreasuryCsvClicks,
+       csv:window.qaTreasuryCsvBlob?await window.qaTreasuryCsvBlob.text():null
+     }));
+     assert.equal(capture.clicks,1,'CSV output must initiate exactly one named download');
+     assert.ok(capture.csv,'actual CSV Blob must be created');
+     const csv=capture.csv;
      assert.ok(csv.startsWith('\uFEFF'),'CSV preserves UTF-8 BOM');
      for(const end of marker.filter(x=>x!=='COMPANY-END-719'))assert.ok(csv.includes(end),'CSV missing account/reference/note ending: '+end);
      assert.ok(csv.includes('140.00'),'CSV preserves financial closing balance');
