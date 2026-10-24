@@ -1,5 +1,6 @@
 import type { VaultPayload } from '../types.js';
 import { requestAiJson, AiRequestError } from './ai-request.js';
+import {explicitAdvisorUnitProfitability} from './advisor-calculator.js';
 import { scopeVault } from './workspaces.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, proposalForExecutableTool, type AiToolPlan, type AiToolResult, type AiToolId, type AiToolRuntime } from './ai-tool-orchestrator.js';
@@ -293,6 +294,10 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
   const scopedVault=scopeVault(input.vault);
   const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
+  if(!hasSources&&runtime.conversationMode==='advisor'){
+    const calculation=explicitAdvisorUnitProfitability(input.message,input.language);
+    if(calculation)return{answer:calculation.summary,proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+  }
   // An explicit supplied-data question cannot read the selected workspace
   // record. Preserve pure deterministic calculations, including server-side
   // enforcement; do not turn "no records" into "no calculation".
