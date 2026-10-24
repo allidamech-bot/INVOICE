@@ -106,7 +106,7 @@ mkdirSync(out,{recursive:true});
       const file=await pdfjs.getDocument({data:Uint8Array.from(atob(data),x=>x.charCodeAt(0))}).promise;
       const descriptions={},allPages=[];
       for(let index=0;index<file.numPages;index++){
-       const pdfPage=await file.getPage(index);
+       const pdfPage=await file.getPage(index+1);
        const text=await pdfPage.getTextContent(),size=pdfPage.getViewport({scale:1});
        allPages.push(text.items.map(item=>item.str||'').join(' '));
        for(const cell of cells[index]){
