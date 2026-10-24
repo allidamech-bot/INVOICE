@@ -39,7 +39,10 @@ function payloadFor(provider,mode='single',selectedModel=MODEL[provider]){
     ...(provider==='groq'?{max_completion_tokens:financial?384:160,reasoning_effort:'low',include_reasoning:false}:{}),
     ...(provider==='cloudflare'?{max_completion_tokens:256,chat_template_kwargs:{enable_thinking:false},options:{rejectIfBusy:true}}:{}),
     ...(provider==='kilo'?{max_tokens:financial?512:384}:{}),
-    ...(provider==='openrouter'?{max_tokens:financial?512:192,provider:{data_collection:'deny'}}:{})};
+    // Free routing may select a reasoning model. Thinking and visible output
+    // share max_tokens; the old 192/512 cap repeatedly returned empty LENGTH.
+    // Keep one bounded synthetic request, no paid route and no retry.
+    ...(provider==='openrouter'?{max_tokens:financial?2048:1024,reasoning:{effort:'low',exclude:true},provider:{data_collection:'deny'}}:{})};
 }
 function safeCategory(status){
   if(status===401||status===403)return'KEY_REJECTED';
