@@ -154,6 +154,15 @@ test('final render adapter moves exact approval into workspace and hides stale/p
   assert.equal(forwarded,element);assert.equal(textarea.props.onInput,onInput);
   textarea.props.ref(null);assert.equal(forwarded,null);
  }
+ h.state.__workspaceTurnPending=true;h.state.__workspaceTurnSaving=true;
+ const savingTree=renderConversationWorkspace(h,tree);
+ const status=flatten(savingTree).find(n=>n.type?.name==='ConversationThinkingIndicator');
+ assert.ok(status?.props.saving,'saving state must reach the actual chat indicator');
+ const statusTree=status.type(status.props);
+ assert.ok(textOf(statusTree).includes('جارٍ حفظ المحادثة'));
+ assert.ok(!textOf(statusTree).includes('يعالج طلبك'));
+ assert.equal(flatten(statusTree).filter(n=>n.props?.className==='lxw-thinking-dots').length,0,'no model-thinking dots after answer');
+ h.state.__workspaceTurnPending=false;h.state.__workspaceTurnSaving=false;
  h.props={language:'en'};
  const loading=renderConversationWorkspace(h,tree);assert.equal(loading.props['data-workspace-ready'],'false');
  assert.equal(loading.props['aria-label'],'LOUREX AI');
