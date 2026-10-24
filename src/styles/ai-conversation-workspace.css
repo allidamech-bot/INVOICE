@@ -3460,3 +3460,8 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn .l
   font-size:15px!important;line-height:1.65!important;
   padding:10px 12px!important;font-variant-numeric:tabular-nums;
 }
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-user .lourex-ai-message.user,
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-message-turn.is-assistant .lourex-ai-message.assistant{
+  font-size:var(--lxw-reading-size)!important;
+  line-height:var(--lxw-reading-leading)!important;
+}
