@@ -72,8 +72,6 @@ AI files, App.tsx, vault merge, storage, packages and deployment are unchanged.
 
 ## What remains after this bounded acceptance
 
-- Bilingual long financial-document native output, separately from existing
-  general bilingual quotation design coverage.
 - Long-name/reference cases in fixed reports/statements where the scripts
   currently demonstrate row volume rather than those exact text extremes.
 - Actual application print-entry journeys outside the isolated renderer and
@@ -112,3 +110,27 @@ at `60549a30c4a3f58c19df2cb17a03f2a561eca4da`. This closes only the
 sixteen-template dedicated long purchase-order gap; the
 bilingual long-document, fixed-report text extremes, real App print journeys,
 physical iPhone and deferred original item 4 remain separate.
+
+
+## 24 October: long bilingual financial-document acceptance
+
+[PR #1034](https://github.com/allidamech-bot/INVOICE/pull/1034) merged
+as `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` after **4/4 exact-head
+CI shards passed** at `de154978d12457928707dd29362ce035117a422e`.
+A standalone synthetic issued-document runner verified **72** Chromium/WebKit
+browser cases and **36** native Chromium PDF cases: long final invoice and
+purchase order, all 18 registered templates, 40 items per document, combined
+English+Arabic in each item's source and rendered output, original amounts
+(440.00 USD), correct party identities, retained line order, no blank PDF
+pages, template identity, PDF pagination, and unchanged source objects.
+
+During red test development, PDF.js extracted Arabic presentation-form Unicode
+that required `NFKC` normalization. This was fixed in the test parser only:
+full per-item Arabic glyph inventory remained an exact equality check; no
+financial renderer, AI, authentication, data or storage code changed.
+
+This is **bounded automated output acceptance** only. It does not establish
+actual `App.requestPrint` journey acceptance, iPhone Safari/PWA physical
+printing/download/share, long names/references for fixed-format financial
+reports/statements, or unspecified commercial document types. Original posted
+purchase item 4 remains expressly deferred.
