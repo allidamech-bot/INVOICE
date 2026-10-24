@@ -86,3 +86,30 @@ AI files, App.tsx, vault merge, storage, packages and deployment are unchanged.
 
 Items 11 and 12 remain partial. These are concrete coverage boundaries, not
 newly invented original tasks or an exact remaining count for the forty items.
+
+
+## 24 October follow-on: purchase-order matrix (CI result pending)
+
+[PR #1016](https://github.com/allidamech-bot/INVOICE/pull/1016) was merged
+at `b74579adaf56e66fb5e46a8802a7e70d370e24fe`. Its four groups and
+existing native financial document regression completed successfully on the
+exact PR head. This establishes automated **long invoice** coverage for all
+18 registered templates (two previously and sixteen from #1016); it does not
+establish live iPhone or app-entry printing.
+
+This follow-on change adds
+`.github/workflows/long-purchase-order-template-coverage.yml` to run the
+**existing** `--long` purchase-order test route (without `--invoice`) on
+the sixteen missing template IDs in four disjoint groups. Each group checks
+40 item descriptions, English/Arabic, three logo aspect ratios, both Chromium
+and WebKit, and native Chromium PDFs: planned total **192 browser cases and
+96 PDFs**. It reuses existing exact-grand-total, page/description continuity,
+PDF item uniqueness, per-template page class, supplier identity in English
+PDFs, logo containment and source immutability assertions. No production,
+AI, accounting policy or storage code is altered; no unrelated passed suite
+is deliberately rerun in these shards.
+
+**Acceptance status: pending exact-head CI.** Passing this bounded matrix
+would close only the 16-template dedicated long purchase-order gap; the
+bilingual long-document, fixed-report text extremes, real App print journeys,
+physical iPhone and deferred original item 4 would remain separate.
