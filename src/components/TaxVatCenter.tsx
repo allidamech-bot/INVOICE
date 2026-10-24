@@ -19,12 +19,24 @@ function rowType(row:TaxVatDocumentRow):string{return row.creditNote?t('Credit N
 
 export class TaxVatCenter extends React.Component<Props,State>{
   state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',preset:'year'};
+  private printTimer:number|undefined;
   componentDidMount():void{window.addEventListener('afterprint',this.afterPrint);}
-  componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-tax-vat-report');}
-  private afterPrint=()=>document.body.classList.remove('printing-tax-vat-report');
+  componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);this.cancelPendingPrint();}
+  private cancelPendingPrint=()=>{
+    if(this.printTimer!==undefined){window.clearTimeout(this.printTimer);this.printTimer=undefined;}
+    document.body.classList.remove('printing-tax-vat-report');
+  };
+  private afterPrint=()=>this.cancelPendingPrint();
   private setPreset=(preset:PeriodPreset)=>{const today=todayIso();if(preset==='month')this.setState({from:startOfMonth(today),to:today,preset});else if(preset==='quarter')this.setState({from:startOfQuarter(today),to:today,preset});else if(preset==='year')this.setState({from:`${today.slice(0,4)}-01-01`,to:today,preset});else this.setState({from:'',to:today,preset});};
   private clearFilters=()=>this.setState({from:'',to:todayIso(),currency:'ALL',preset:'all'});
-  private print=()=>{document.body.classList.add('printing-tax-vat-report');window.setTimeout(()=>window.print(),40);};
+  private print=()=>{
+    if(this.printTimer!==undefined)return;
+    document.body.classList.add('printing-tax-vat-report');
+    this.printTimer=window.setTimeout(()=>{
+      this.printTimer=undefined;
+      try{window.print();}catch{this.cancelPendingPrint();}
+    },40);
+  };
   private exportCsv=(rows:TaxVatDocumentRow[])=>{const headers=[t('Date','التاريخ'),t('Type','النوع'),t('Document','المستند'),t('Customer','العميل'),t('Currency','العملة'),t('VAT Rate','نسبة الضريبة'),t('Taxable Amount','المبلغ الخاضع'),t('Output VAT','ضريبة المخرجات'),t('Grand Total','الإجمالي')];const lines=[headers,...rows.map(row=>[row.issueDate,rowType(row),row.number,row.customerName,row.currency,row.taxRate,row.taxableAmount,row.outputVat,row.grandTotal])].map(row=>row.map(csvCell).join(','));const blob=new Blob([`\uFEFF${lines.join('\r\n')}`],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`LOUREX-Output-VAT-${this.state.from||'all'}-${this.state.to}.csv`;document.body.appendChild(anchor);anchor.click();anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),500);};
   render():any{
     const report=outputVatReport(this.props.documents,this.state.from,this.state.to),currencies=report.currencies.map(row=>row.currency),selected=this.state.currency!=='ALL'?this.state.currency:'',visibleCurrencies=selected?report.currencies.filter(row=>row.currency===selected):report.currencies,visibleRows=selected?report.rows.filter(row=>row.currency===selected):report.rows,logo=this.props.company.logoDataUrl||'./brand/lourex-logo.svg';
