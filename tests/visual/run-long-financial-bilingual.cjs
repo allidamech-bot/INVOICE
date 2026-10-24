@@ -12,7 +12,7 @@ const templates=selected?selected.slice('--templates='.length).split(','):['obsi
 assert.ok(templates.length>0&&new Set(templates).size===templates.length&&templates.every(id=>registry.includes(id)),'select distinct registered templates only');
 const normalize=value=>String(value).normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660)).replace(/[٬,\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/٫/g,'.');
 const compact=value=>normalize(value).replace(/\s+/g,'');
-const arGlyphs=value=>[...String(value).replace(/[^\u0600-\u06ff]/g,'')].sort().join('');
+const arGlyphs=value=>[...String(value).normalize('NFKC').replace(/[^\u0600-\u06ff]/g,'')].sort().join('');
 const englishChars=value=>compact(value).replace(/[^A-Za-z0-9]/g,'');
 const out='visual-qa-output/bilingual-long-financial';
 mkdirSync(out,{recursive:true});
@@ -141,11 +141,6 @@ mkdirSync(out,{recursive:true});
        return false;
       });
       assert.ok(exactEnglish,'English PDF description complete '+i);
-      if(arGlyphs(text)!==arGlyphs(ar)&&i===0){
-       const arabicAll=arGlyphs(parsed.allPages.join(' '));
-       const required=arGlyphs(original.items.map(it=>it.descriptionAr).join(' '));
-       console.error('BILINGUAL_PDF_DIAG',JSON.stringify({template,kind,engine,pages:parsed.pages,firstCell:text.slice(0,350),firstCellArabicLength:arGlyphs(text).length,expectedArabicLength:arGlyphs(ar).length,allPdfArabicLength:arabicAll.length,allExpectedArabicLength:required.length,allPdfSample:parsed.allPages.join(' ').slice(0,1700),enFirst:englishChars(text).slice(0,170)}));
-      }
       assert.equal(arGlyphs(text),arGlyphs(ar),'Arabic PDF description glyphs complete '+i);
       const marker='PO-LINE-'+String(i+1).padStart(3,'0');
       assert.equal(pdfContent.split(marker).length-1,1,'bilingual PDF line exactly once '+i);
