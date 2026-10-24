@@ -36,5 +36,37 @@ const normalize=s=>s.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.charCodeAt
  assert.equal(await page.evaluate(()=>window.qaSource()),before,'printing never mutates financial sources');
  await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-financial-report')),false,'afterprint clears print state');
  assert.deepEqual(errors,[]);console.log('PASS management report '+engine+' '+lang+' '+mode);await page.close();
- }}finally{await browser.close();}
+ }}
+ // An immediate screen switch or unmount must cancel the queued native print.
+ // Run the action and navigation in a single browser task to reproduce the race
+ // without a false pass caused by Playwright's asynchronous RPC scheduling.
+ for(const lang of ['en','ar'])for(const route of ['switch','unmount']){
+  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('http://127.0.0.1:4173/tests/visual/management-report-print.html?lang='+lang);
+  await page.locator('.ta-report-kpi').first().waitFor();
+  await page.evaluate(mode=>{
+   const button=[...document.querySelectorAll('.ta-page-actions button')].find(item=>/Print \/ Save PDF|طباعة \/ حفظ PDF/.test(item.textContent));
+   if(!button)throw Error('Native performance report print action missing');
+   button.click();
+   if(!document.body.classList.contains('printing-financial-report'))throw Error('Print intent was not scheduled');
+   if(mode==='switch')window.qaReport.setState({view:'profitability'});
+   else ReactDOM.unmountComponentAtNode(document.getElementById('visual-app'));
+  },route);
+  await page.waitForTimeout(100);
+  assert.equal(await page.evaluate(()=>window.qaPrintCalls),0,'navigation must cancel queued print');
+  assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-financial-report')),false,'navigation must clear print-only body state');
+  if(route==='switch'){
+   assert.ok(await page.locator('#reports-tab-profitability[aria-selected="true"]').count(),'profitability tab is active');
+   await page.locator('#reports-tab-performance').click();
+   await page.getByRole('button',{name:lang==='ar'?'طباعة / حفظ PDF':'Print / Save PDF',exact:true}).click();
+   await page.waitForFunction(()=>window.qaPrintCalls===1);
+   await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
+   assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-financial-report')),false,'ordinary native print still clears state');
+  }
+  assert.deepEqual(errors,[]);
+  console.log('PASS management pending-print cancellation '+engine+' '+lang+' '+route);
+  await page.close();
+ }
+}finally{await browser.close();}
 }})().catch(e=>{console.error(e);process.exitCode=1;});
