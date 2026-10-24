@@ -59,9 +59,13 @@ const injection=[
      });
      const positions=await page.evaluate(()=>{
        const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Export CSV'||b.textContent.trim()==='تصدير CSV');
-       const pos=node=>{const r=node.getBoundingClientRect(),st=getComputedStyle(node);return{tag:node.tagName,cls:String(node.className).slice(0,100),left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width),scrollWidth:node.scrollWidth,clientWidth:node.clientWidth,overflowX:st.overflowX,display:st.display};};
+       const pos=node=>{const r=node.getBoundingClientRect(),st=getComputedStyle(node);return{tag:node.tagName,cls:String(node.className).slice(0,100),left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width),scrollWidth:node.scrollWidth,clientWidth:node.clientWidth,overflowX:st.overflowX,display:st.display,cssWidth:st.width,minWidth:st.minWidth,maxWidth:st.maxWidth,inlineStyle:node.getAttribute('style')};};
        const ancestor=[];for(let node=button;node;node=node.parentElement)ancestor.push(pos(node));
-       return{innerWidth,scrollX,documentWidth:document.documentElement.scrollWidth,ancestor:ancestor.slice(0,13)};
+       const rules=[];
+       for(const sheet of document.styleSheets){
+         try{for(const rule of sheet.cssRules)if(rule.selectorText?.includes('lx-treasury-report-filters'))rules.push({selector:rule.selectorText,css:rule.style?.cssText?.slice(0,480)});}catch{}
+       }
+       return{innerWidth,scrollX,documentWidth:document.documentElement.scrollWidth,ancestor:ancestor.slice(0,13),rules:rules.slice(-16)};
      });
      console.log('TREASURY_LONG_TEXT_CSV_MOBILE_GEOMETRY',JSON.stringify({engine,lang,positions}));
      await page.getByRole('button',{name:label('Export CSV','تصدير CSV'),exact:true}).click({timeout:6000});
