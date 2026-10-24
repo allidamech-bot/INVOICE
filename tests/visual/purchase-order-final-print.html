@@ -8,13 +8,14 @@ document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('pr
 <body><div id="root"><div class="app-root"><div class="app-ui">QA-APP-CONTROL-LEAK</div><div class="print-portal" id="qa-output"></div></div></div>
 <script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
 import {TemplateRenderer} from './src/templates/TemplateRenderer.js';
+import {resolvedTemplateId} from './src/lib/appearance.js';
 import {createBlankDocument} from './src/lib/documents.js';
 import {defaultCompany,customerSnapshotFrom} from './src/lib/defaults.js';
 import {createSupplier,supplierSnapshotFrom} from './src/lib/operations.js';
 import {blankCustomer} from './src/components/CustomersPage.js';
 import {calculateTotals} from './src/lib/money.js';
 import {setUiLanguage} from './src/lib/i18n.js';
-const query=new URLSearchParams(location.search),ar=query.get('lang')==='ar',template=query.get('template')==='executive'?'executive':'obsidian';
+const query=new URLSearchParams(location.search),ar=query.get('lang')==='ar',template=resolvedTemplateId(query.get('template')||'obsidian');
 const long=query.get('long')==='1',invoice=query.get('kind')==='invoice';
 setUiLanguage(ar?'ar':'en');
 const company={...defaultCompany(),nameEn:'LOUREX Synthetic QA',nameAr:'لوريكس اختبار اصطناعي'};
@@ -44,6 +45,6 @@ if(long)doc.items=Array.from({length:40},(_,i)=>({...doc.items[0],id:'po-long-'+
 doc.adjustments={...doc.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:true,taxPercent:'10'};
 doc.appearance={...doc.appearance,templateId:template,showBank:false,showSignature:false,showStamp:false};
 window.qaSourceSnapshot=()=>JSON.stringify(doc);
-window.qaPurchaseOrder={id:doc.id,number:doc.number,kind:doc.kind,status:doc.status,language:doc.language,currency:doc.currency,supplierName:supplier.nameEn,partyName:invoice?(ar?doc.customerSnapshot.companyNameAr:doc.customerSnapshot.companyNameEn):(ar?supplier.nameAr:supplier.nameEn),companyName:ar?company.nameAr:company.nameEn,totals:calculateTotals(doc.items,doc.adjustments),lineCount:doc.items.length};
+window.qaPurchaseOrder={templateId:doc.appearance.templateId,id:doc.id,number:doc.number,kind:doc.kind,status:doc.status,language:doc.language,currency:doc.currency,supplierName:supplier.nameEn,partyName:invoice?(ar?doc.customerSnapshot.companyNameAr:doc.customerSnapshot.companyNameEn):(ar?supplier.nameAr:supplier.nameEn),companyName:ar?company.nameAr:company.nameEn,totals:calculateTotals(doc.items,doc.adjustments),lineCount:doc.items.length};
 ReactDOM.render(React.createElement(TemplateRenderer,{document:doc,scale:1}),document.getElementById('qa-output'));
 </script></body></html>
