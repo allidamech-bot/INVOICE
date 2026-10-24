@@ -12,6 +12,7 @@ on:
       - 'tests/ai-001-controller-advisor-routing.test.mjs'
       - 'tests/ai-premium-conversation-batch3.test.mjs'
       - 'tests/ai-advisor-exact-text.test.mjs'
+      - 'tests/ai-retry-completed-attachments.test.mjs'
       - '.github/workflows/ai-001-routing.yml'
 permissions:
   contents: read
@@ -40,6 +41,7 @@ jobs:
           tests/ai-001-controller-advisor-routing.test.mjs
           tests/ai-premium-conversation-batch3.test.mjs
           tests/ai-advisor-exact-text.test.mjs
+          tests/ai-retry-completed-attachments.test.mjs
           tests/ai-advisor-data-v2-batch2.test.mjs
           tests/audit-ai-firebase-auth.test.mjs
           tests/audit-ai-branch-isolation.test.mjs
