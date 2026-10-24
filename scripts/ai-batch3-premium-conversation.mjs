@@ -39,7 +39,7 @@ function __lourexAttachmentStrip(instance){const rows=instance.state.conversatio
       const index=nextIndex++,row=rows[index];
       updateRow(row,{status:'processing',phase:'reading',error:''});
       try{
-        const analysis=await analyzeConversationAttachment(row.file,controller.signal,phase=>updateRow(row,{status:'processing',phase,error:''}));
+        const analysis=await analyzeConversationAttachment(row.file,controller.signal,phase=>updateRow(row,{status:'processing',phase,error:''}),{mode:instance.__intelligenceKernel?.mode});
         ensureCurrent();
         completed[index]=analysis;
         updateRow(row,{status:'done',source:analysis.source,error:''});

@@ -135,11 +135,22 @@ async function genericExtraction(fileName:string,payload:AiPayload,signal?:Abort
   return completeSourceJson(body.source);
 }
 
-export async function analyzeConversationAttachment(file:File,signal?:AbortSignal,onProgress?:ConversationAttachmentProgress):Promise<ConversationAttachmentAnalysis>{
+export async function analyzeConversationAttachment(file:File,signal?:AbortSignal,onProgress?:ConversationAttachmentProgress,options:{mode?:unknown}={}):Promise<ConversationAttachmentAnalysis>{
   onProgress?.('reading');
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   let payload=await conversationAttachmentPayload(file,signal);
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  // Advisor needs complete evidence, not an import proposal. Small readable
+  // sources already contain that evidence: avoid two lossy remote calls before
+  // the actual question. Keep unknown route so raw text cannot authorize import.
+  // Oversized sources and all Controller workflows retain structured extraction.
+  if(options.mode==='advisor'&&payload.kind==='text'&&payload.text&&payload.text.length<=MAX_EXTRACT_CHARS){
+    onProgress?.('complete');
+    return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),
+      size:file.size,route:'unknown',documentType:'original-text',confidence:1,
+      reason:'Complete locally read source text. Untrusted evidence only; no structured import or verified financial result.',
+      extracted:payload.text}};
+  }
   if(payload.kind==='file'&&payload.mimeType==='application/pdf'){
     // OCR fallback: short scanned PDFs are treated as an ordered set of
     // high-resolution page images. Native PDF remains for longer sources.
