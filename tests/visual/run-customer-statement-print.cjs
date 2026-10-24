@@ -87,6 +87,48 @@ const normalize=value=>value.normalize('NFKC').replace(/[٠-٩]/g,c=>String(c.ch
     results.push({engine,lang,statementRows,pdf:engine==='chromium'});
     await page.close();
    }
+   // Cancel a queued print before it can target the wrong customer or page.
+   // Print and navigation happen synchronously within one browser task.
+   for(const lang of ['en','ar'])for(const departure of ['close','change','unmount']){
+    const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
+    page.on('pageerror',error=>errors.push(String(error)));
+    await page.addInitScript(()=>{window.__statementPrints=0;window.print=()=>window.__statementPrints++;});
+    await page.goto('http://127.0.0.1:4173/tests/visual/obsidian-financial.html?screen=receivables&lang='+lang);
+    await page.locator('.ta-account-row').first().waitFor();
+    const original=await page.evaluate(()=>window.financialSourceSnapshot());
+    await page.locator('.ta-account-controls input').fill('Atlas');
+    await page.locator('.ta-account-row').getByRole('button',{name:/^(Statement|كشف حساب)$/}).click();
+    await page.locator('.customer-statement-print').waitFor();
+    await page.evaluate(mode=>{
+     const button=document.querySelector('.statement-output-toolbar button');
+     if(!button)throw Error('Customer print button missing');
+     button.click();
+     if(!document.body.classList.contains('printing-customer-statement'))throw Error('Customer print intent missing');
+     if(mode==='unmount')ReactDOM.unmountComponentAtNode(document.getElementById('visual-app'));
+     else if(mode==='change')window.dispatchEvent(new CustomEvent('lourex-finance-statement-open',{detail:{customerId:'cedar'}}));
+     else{
+      const close=[...document.querySelectorAll('.modal-footer button')].find(node=>node.textContent.trim()==='Close'||node.textContent.trim()==='إغلاق');
+      if(!close)throw Error('Customer statement Close action missing');
+      close.click();
+     }
+    },departure);
+    await page.waitForTimeout(90);
+    assert.equal(await page.evaluate(()=>window.__statementPrints),0,'closed/replaced customer statement must not be printed');
+    assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-customer-statement')),false,'no stale customer print-only styling');
+    if(departure==='change'){
+     const statementText=await page.locator('.customer-statement-print').innerText();
+     assert.ok(statementText.includes(lang==='ar'?'سيدار':'Cedar'),'new customer statement replaces original');
+     await page.locator('.statement-output-toolbar button').click();
+     await page.waitForFunction(()=>window.__statementPrints===1);
+     await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
+    }else if(departure==='close'){
+     assert.equal(await page.locator('.customer-statement-print').count(),0,'customer modal is closed');
+    }
+    if(departure!=='unmount')assert.equal(await page.evaluate(()=>window.financialSourceSnapshot()),original,'navigation cannot alter saved customer ledger');
+    assert.deepEqual(errors,[],'customer statement navigation console');
+    console.log('PASS customer statement pending-print '+engine+' '+lang+' '+departure);
+    await page.close();
+   }
   }finally{await browser.close();}
  }
  writeFileSync(output+'/results.json',JSON.stringify(results,null,2));
