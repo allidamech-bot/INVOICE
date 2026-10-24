@@ -50,15 +50,30 @@ in the supplied handoff: #942–944, #954–955, #959–960, #966, #968, #976,
 
 ## Read-only production deployment verification — 24 October 2026
 
-Authenticated Vercel project inspection found `invoice-three-puce.vercel.app`
-serving deployment `dpl_8EcKAX88WKLshsq6jBbCTFQWTUd7` in READY state,
-built from GitHub `main` commit `5d3a1e81216ac607c1f4d88586d042bfff731db6`
-(PR #1031). This predates verified finance `main` at `76a198faa3c0d87230fd477f9db96d1b0d7b5e3f`
-(#1040). The inspected latest twelve production deployments contain no newer
-production build. Hence the recent finance fixes are **merged and tested, but
-not verified on the current production alias**. No new Vercel deployment,
-promotion, Firebase rules release, period enrollment or accounting mutation was
-performed. Release/physical-device acceptance remains open.
+**Latest verified state (supersedes the earlier stale production check):**
+The authenticated Vercel deployment serving the exact production alias
+`invoice-three-puce.vercel.app` is `dpl_8gZzZJ7xMWDW1Z4TaoTdSG8h7ePp` in `READY` state
+(target: `production`), with attached aliases
+`invoice-three-puce.vercel.app ; invoice-alidaamishs-projects.vercel.app ; invoice-git-main-alidaamishs-projects.vercel.app`.
+Its GitHub source is `main` at `c1811669d9590cade929960cbeb268b04c75d806`
+(financial [#1046](https://github.com/allidamech-bot/INVOICE/pull/1046)).
+The independently queried GitHub `main` HEAD matches this production SHA
+at the time of this read-only inspection. **Production deployment drift is
+resolved at this snapshot** and the recent merged financial changes are included
+in the source of the current production deployment.
+
+This is **source/deployment parity only**, not a signed-off interactive release:
+the tool's `READY` state does not prove app login, per-account IndexedDB,
+Firebase security/storage rules, in-browser service-worker refresh, mobile
+print/share, or physical Safari/PWA correctness. A public HTML request could
+not be independently fetched from the read-only web fetcher, so no live
+browser/UI behavior is asserted. No deployment, promotion, server setting,
+financial transaction, Firebase rule or account data was changed during this
+verification. Real-device acceptance remains open; iPhone should be validated
+against the deployed SHA above, including login, invoice/PO output, customer
+and supplier statements, treasury, VAT, backup/restore (only in an isolated
+test account), and no duplicate/blank PDF output. Do not run destructive
+restore/stock operations on live customer data.
 
 ## Original numbering: preserved without invented missing wording
 
