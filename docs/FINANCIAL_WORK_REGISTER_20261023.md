@@ -34,6 +34,7 @@ rounds, not a count of original checklist items.
 | [1016](https://github.com/allidamech-bot/INVOICE/pull/1016) | Items 11/12: long final invoices on the other 16 registered templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; exact amounts, item completeness, no duplicate lines, logos and saved template selection | `b74579adaf56e66fb5e46a8802a7e70d370e24fe` |
 | [1032](https://github.com/allidamech-bot/INVOICE/pull/1032) | Items 11/12: remaining sixteen registered long purchase-order templates, 192 Chromium/WebKit cases and 96 native Chromium PDFs; four Playwright shards passed on exact PR head | `60549a30c4a3f58c19df2cb17a03f2a561eca4da` |
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: bilingual 40-line final invoices and purchase orders across all 18 templates; 72 Chromium/WebKit cases and 36 native PDFs, 4/4 shards passed on exact head after fixing test extraction of Arabic presentation forms | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
+| [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: long customer/supplier/company names and long invoice/purchase/payment references through actual statement search → modal → print → native PDF; focused and existing regression workflows passed; synthetic single-document-and-payment scenarios only | `7b069f29818132f0c47322dfc221b2fa620e3252` |
 | [1034](https://github.com/allidamech-bot/INVOICE/pull/1034) | Items 11/12: 40-line English/Arabic simultaneous bilingual long invoice and purchase order output over all 18 registered templates; four CI shards passed, 72 browser cases, 36 native PDF cases | `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` |
 | [1036](https://github.com/allidamech-bot/INVOICE/pull/1036) | Item 11: account statement customer/supplier names and posted/payment references with extreme synthetic text; real statement print entry, English/Arabic, Chromium/WebKit, native PDFs plus original statement regression both passed | `7b069f29818132f0c47322dfc221b2fa620e3252` |
 
@@ -141,9 +142,18 @@ browser scenarios and 36 native PDFs across 18 registered templates,
 for final invoices and purchase orders with 40 long bilingual items.
 The test's PDF Arabic presentation-form normalization was corrected; no
 production document implementation, AI, accounting or storage files changed.
-Next remaining bounded output task is extreme long names/references in
-fixed reports and customer/supplier statements, followed by actual app
-printing paths and physical iPhone Safari/PWA. Item 4 remains deferred. Item 4 remains explicitly deferred. This update
+On 24 October 2026, concurrent financial [#1036](https://github.com/allidamech-bot/INVOICE/pull/1036)
+merged as `7b069f29818132f0c47322dfc221b2fa620e3252` with its focused
+statement print and prior regression workflows successful at exact head
+`8078de484cf615c3545bc284038019a5bf6a04ee`. Scope: long identity and
+reference fields for short synthetic customer/supplier statements through
+real UI print; 40/100 row-volume scenarios were previously tested only with
+ordinary names and must not be represented as combined extreme proof.
+Overlapping branch PR #1037 was closed unmerged on 24 October: it changed
+the same QA fixtures and would duplicate #1036; no original task is added or
+closed by #1037.
+Next: other fixed reports' long-name/reference coverage; actual application
+commercial-document print entry; physical iPhone Safari/PWA. Item 4 deferred. Item 4 remains explicitly deferred. This update
 does not invent an exact remaining total or close missing original wording.
 
 On 24 October 2026, #1034 merged at `5d46fe1eef22d30c2a261ad3e138fbb6632b17a9` after four green CI shards on exact head `de154978d12457928707dd29362ce035117a422e`. No production or AI code changed. The long bilingual acceptance covers 18 templates across invoice/purchase order, 72 browser cases and 36 native PDFs. Items 11/12 remain **partial** because fixed-report extreme text, actual app entry flows, iPhone, and other applicable financial types are not accepted by the renderer-only tests.
