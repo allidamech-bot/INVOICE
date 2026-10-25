@@ -394,8 +394,8 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
         proposal:null,plan,results:[],plannedBy:'local'};
       if(reason.includes('Multiple sources require an explicit request for one combined quotation.'))return{
         answer:input.language==='ar'
-          ?'المرفقات متعددة، ولم أحدّد هل المطلوب جمع صفوف مستقلة في عرض سعر واحد أم تطبيق تصحيح على الأصل. حدّد العلاقة بينها أولًا. لتصحيح الكميات من صورة، قل «اعتمد الكميات المصححة في الصورة»؛ سأطابق رموز الأصناف وأبقي الأسعار الناقصة فارغة. لم أحفظ أو أغيّر أي سجل.'
-          :'Please clarify whether the attachments contain separate rows for one combined quotation or a correction to the original. For an image quantity correction, say “use corrected quantities from the image”; I will match unique SKUs and keep missing prices blank. No records were saved or changed.',
+          ?'المرفقات متعددة، ولم أحدّد هل المطلوب جمع صفوف مستقلة في عرض سعر واحد أم تطبيق تصحيح على الأصل. حدّد العلاقة بينها أولًا. لتصحيح الكميات من صورة، قل «جهز عرض سعر واعتمد الكميات المصححة في الصورة»؛ سأطابق رموز الأصناف وأبقي الأسعار الناقصة فارغة. لم أحفظ أو أغيّر أي سجل.'
+          :'Please clarify whether the attachments contain separate rows for one combined quotation or a correction to the original. For an image quantity correction, say “prepare a quotation and use corrected quantities from the image”; I will match unique SKUs and keep missing prices blank. No records were saved or changed.',
         proposal:null,plan,results:[],plannedBy:'local'};
       return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
         proposal:null,plan,results:[],plannedBy:'local'};

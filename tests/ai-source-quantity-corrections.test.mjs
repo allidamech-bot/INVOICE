@@ -43,6 +43,10 @@ test('Controller stages the correction locally, and explains unsafe overlays in 
  const clarify=await orchestrateAiToolRequest({message:'جهز عرض سعر من المرفقين',vault,context:{...context,conversationSources:sources()},language:'ar'});
  assert.match(clarify.answer,/تصحيح على الأصل/);assert.doesNotMatch(clarify.answer,/SOURCE_INCOMPLETE|No records/);
  assert.equal(clarify.workingDraft,undefined);assert.deepEqual(vault,before);
+ const suggested=clarify.answer.match(/«([^»]+)»/u)?.[1];assert.ok(suggested);
+ const guided=await orchestrateAiToolRequest({message:suggested,vault,context:{...context,conversationSources:sources()},language:'ar'});
+ assert.equal(guided.workingDraft.items.length,2);assert.equal(guided.workingDraft.items[0].quantity,'10');
+ assert.deepEqual(vault,before);
 });
 test('partial, missing, duplicate or unknown SKU corrections fail closed',()=>{
  for(const fn of [d=>d.items.pop(),d=>delete d.items[0].sku,d=>d.items[1].sku='QA-A',d=>d.items[0].sku='OTHER',d=>d.items[0].quantity='invalid']){
