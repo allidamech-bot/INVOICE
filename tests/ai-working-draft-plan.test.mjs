@@ -8,15 +8,36 @@ import {exactSpreadsheetQuote} from '../dist/src/lib/ai-spreadsheet-quote.js';
 import {quoteSourceWorkingDraft} from '../dist/src/lib/ai-quote-source-draft.js';
 import {createAiToolRuntime} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {planWorkingDraft} from '../api/_ai/draft-plan.js';
-function fixture(){
+function fixture(items=Array.from({length:85},(_,i)=>['Product '+(i+1),'2','CTN','10','USD'])){
  const vault=emptyVault(),kernel=newConversationKernel({accountId:'qa',scope:'business',workspaceId:'default',branchId:'main',threadId:'qa'});
- const matrix=[['Product','Quantity','Unit','Unit Price','Currency'],...Array.from({length:85},(_,i)=>['Product '+(i+1),'2','CTN','10','USD'])];
+ const matrix=[['Product','Quantity','Unit','Unit Price','Currency'],...items];
  const source=JSON.stringify(exactSpreadsheetQuote([{name:'Products',matrix}]));
  const runtime=createAiToolRuntime(vault,{conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}});
  stageKernelArtifact(kernel,quoteSourceWorkingDraft([{fileName:'products.xlsx',route:'quote_request',confidence:1,extracted:source}],runtime,'convert this file to a quotation'));
  const plan={artifactId:kernel.artifact.id,revision:kernel.artifact.revision,action:'edit',operations:[{lineId:kernel.artifact.lineIds[2],field:'unitPrice',value:'26',evidence:'٢٦'}]};
  return {vault,kernel,plan};
 }
+test('explicit Arabic four and six ground atomic price and quantity patches without financial persistence',()=>{
+ const {vault,kernel,plan}=fixture([['Test Box','12','PCS','3.50','USD'],['Test Bag','4','PCS','2','USD']]),before=structuredClone(vault),originalKernel=structuredClone(kernel);
+ plan.operations=[{lineId:kernel.artifact.lineIds[0],field:'unitPrice',value:'4',evidence:'أربعة دولارات'},{lineId:kernel.artifact.lineIds[1],field:'quantity',value:'6',evidence:'ستة PCS'}];
+ const next=applyWorkingDraftPlan(kernel,vault,plan,'في نفس المسودة فقط، خلي سعر Test Box أربعة دولارات بدل 3.50 وخلي كمية Test Bag ستة PCS بدل أربعة. أعد حساب الإجمالي واعرض النتيجة للمراجعة دون حفظ أو إصدار.');
+ const doc=workspaceDocument(next,vault,'en');
+ assert.equal(doc.rows[0].unitPrice,'4');assert.equal(doc.rows[1].quantity,'6');
+ assert.equal(doc.rows.length,2);assert.equal(doc.rows[0].quantity,'12');assert.equal(doc.rows[1].unitPrice,'2');assert.equal(doc.subtotal,'60.00');
+ assert.equal(next.artifact.revision,kernel.artifact.revision+1);assert.equal(next.artifact.undo.length,1);
+ assert.deepEqual(vault,before);
+ for(const evidence of ['أربعة عشر','أربعة آلاف','سالب أربعة','أربعة ونصف','أربعة بالمئة','أربعة بدل ستة']){
+  const invalid=structuredClone(plan);invalid.operations[0].evidence=evidence;
+  assert.throws(()=>applyWorkingDraftPlan(kernel,vault,invalid,evidence+' وكمية الثاني ستة PCS'));
+ }
+ for(const context of ['سالب أربعة','- أربعة','أربعة عشر','أربعة آلاف','أربعة ونصف','أربعة بالمئة','أربعة فاصل خمسة','صنفأربعة']){
+  const truncated=structuredClone(plan);truncated.operations[0].evidence='أربعة';
+  assert.throws(()=>applyWorkingDraftPlan(kernel,vault,truncated,context+' وكمية الثاني ستة PCS'),'Do not accept a positive single word clipped out of negative/compound evidence');
+ }
+ const fabricated=structuredClone(plan);fabricated.operations[1].value='7';
+ assert.throws(()=>applyWorkingDraftPlan(kernel,vault,fabricated,'أربعة دولارات ستة PCS'));
+ assert.deepEqual(kernel,originalKernel);assert.deepEqual(vault,before);
+});
 test('85 extracted rows survive a model patch, recalculation and one-step undo/redo without persistence',()=>{
  const {vault,kernel,plan}=fixture(),before=structuredClone(vault);
  const next=applyWorkingDraftPlan(kernel,vault,plan,'خلي سعر الثالث ٢٦');
