@@ -78,7 +78,7 @@ const ua='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605
         assert.ok(initial.count>=1);
         assert.match(await amount.innerText(),/5,045\.00/,'financial total must recompute under keyboard');
         assert.ok(initial.events.length>=1,'real EditorPage save callback was not invoked');
-        const main=editor.locator('.ta-main');
+        const main=page.locator('.editor-screen .ta-main, .ta-shell.screen-editor > .ta-main, .ta-shell.is-editor > .ta-main').first();
         await main.evaluate(el=>{el.scrollTop=el.scrollHeight;});
         const scroll=await main.evaluate(el=>({pos:el.scrollTop,max:Math.max(0,el.scrollHeight-el.clientHeight)}));
         assert.ok(scroll.pos>=scroll.max-8,label+': cannot reach final financial form content under keyboard');
