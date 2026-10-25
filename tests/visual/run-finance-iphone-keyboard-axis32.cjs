@@ -41,9 +41,9 @@ const ua='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605
     await dock.waitFor({state:'visible'});
     const first=page.locator('.editor-screen .item-card.premium-item-card').first();
     await first.waitFor({state:'visible'});
-    const fields=first.locator('.item-pricing-grid input');
-    await fields.nth(2).waitFor({state:'visible'});
-    assert.ok(await fields.count()>=3,'actual editor exposes quantity, unit and unit price');
+    const fields=first.locator('.item-pricing-grid input[inputmode="decimal"]');
+    await fields.nth(1).waitFor({state:'visible'});
+    assert.equal(await fields.count(),2,'actual editor exposes editable quantity and unit price as decimal fields');
 
     // Focus the financial amount before simulating Safari's keyboard.
     await fields.nth(0).focus();
@@ -59,7 +59,7 @@ const ua='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605
     await dock.getByRole('button',{name:lang==='ar'?'حفظ':'Save',exact:true}).click({trial:true});
 
     await fields.nth(0).fill('7');
-    await fields.nth(2).fill('17.25');
+    await fields.nth(1).fill('17.25');
     await page.waitForFunction(()=>window.lastSaved?.items?.[0]?.quantity==='7'&&
       window.lastSaved?.items?.[0]?.unitPrice==='17.25',{timeout:15000});
     const saved=await page.evaluate(()=>({value:window.lastSaved,storage:window.qa32Read(),
