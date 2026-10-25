@@ -36,7 +36,7 @@ const clean=s=>String(s).normalize('NFKC').replace(/[٠-٩]/g,x=>String(x.charCo
     if(cfg.width!==390)await page.addStyleTag({content:
       '.qa-phone,.qa-phone .mobile-preview-stage{width:'+cfg.width+'px!important;max-width:'+cfg.width+'px!important;}'});
     await page.waitForFunction(()=>document.documentElement.dataset.ready==='true');
-    await page.waitForFunction(()=>[...document.querySelectorAll('.mobile-preview-stage .invoice-pages,.print-portal .invoice-pages')].length===2&&[...document.querySelectorAll('.mobile-preview-stage .invoice-pages,.print-portal .invoice-pages')].every(e=>e.dataset.paginationReady==='true'),{timeout:90000});
+    await page.waitForFunction(()=>[...document.querySelectorAll('.mobile-preview-stage .invoice-pages,.print-portal .invoice-pages')].length===2&&[...document.querySelectorAll('.mobile-preview-stage .invoice-pages,.print-portal .invoice-pages')].every(e=>e.dataset.paginationReady==='true'),null,{timeout:90000});
     await page.evaluate(async()=>{await document.fonts?.ready;});
     const result=await page.evaluate(()=>{
       const all=[...document.querySelectorAll('.mobile-preview-stage .invoice-pages,.print-portal .invoice-pages')];
