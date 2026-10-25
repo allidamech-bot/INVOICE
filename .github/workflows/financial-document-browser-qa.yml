@@ -11,6 +11,7 @@ on:
       - 'src/components/EditorPageCore.tsx'
       - 'src/lib/saved-items.ts'
       - 'tests/finance-vat-credit-period-integrity-26-27.test.mjs'
+      - 'tests/visual/*finance-vat-credit-26-27*'
       - 'tests/visual/*finance-cost-identity-22a*'
       - 'tests/visual/run-obsidian-financial.cjs'
       - 'tests/visual/run-tax-vat-batch10.cjs'
@@ -65,6 +66,7 @@ jobs:
           node tests/visual/run-tax-vat-batch10.cjs
           node tests/visual/run-editor-design-discovery.cjs
           node tests/visual/run-finance-cost-identity-22a.cjs
+          node tests/visual/run-finance-vat-credit-26-27.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -73,5 +75,6 @@ jobs:
             visual-qa-output/obsidian-financial/
             visual-qa-output/tax-vat-batch10/
             visual-qa-output/finance-cost-identity-22a/
+            visual-qa-output/finance-vat-credit-26-27/
             /tmp/lourex-editor-design/
           retention-days: 7
