@@ -824,7 +824,7 @@ function AiConversationHistory({host,ar}:{host:Host;ar:boolean}):any {
     try{
       await host.__lourexNewConversation();
       if(!host.__lourexAssistantThreadId||host.__lourexAssistantThreadId===previousId)throw new Error('New conversation was not created. Retry.');
-      if(previousMode==='advisor')await assignIntelligenceConversationMode(host,'advisor');
+      if(previousMode==='advisor'&&normalizeAiConversationMode(host.__intelligenceKernel?.mode)!=='advisor')await assignIntelligenceConversationMode(host,'advisor');
       host.setState({__workspaceHistoryOpen:false});
     }catch(error){host.setState({__workspaceHistoryError:error instanceof Error?error.message:String(error)});}
     finally{host.setState({__workspaceHistoryBusy:false});}
@@ -1181,6 +1181,19 @@ export function installConversationWorkspace(host:Host):void {
       host.setState({__workspaceOpen:false,__workspacePane:'chat',__workspaceSavedId:'',__workspaceEditing:false,__workspaceSettingsOpen:false,__workspaceHistoryOpen:false,__workspaceHistoryBusy:false,__workspaceHistoryError:'',__workspaceReviewedProposal:null,assistantEvidence:null,conversationAttachments:[],proposal:null,review:null});
       await old(...args);await refresh();
       const arrived=host.__intelligenceKernel as ConversationKernel|undefined;
+      if(name==='__lourexNewConversation'&&!host.__workspaceInternalModeSwitch&&departing?.scope.scope==='business'&&normalizeAiConversationMode(departing.mode)==='advisor'){
+        try{
+          if(!arrived?.scope.threadId||arrived.scope.threadId===departing.scope.threadId||kernelScopeKey({...arrived.scope,threadId:departing.scope.threadId})!==kernelScopeKey(departing.scope))throw new Error('New conversation scope could not be verified. Retry opening LOUREX AI.');
+          if(normalizeAiConversationMode(arrived.mode)!=='advisor')await assignIntelligenceConversationMode(host,'advisor');
+          // Hydration preceded the new empty thread's mode save. Keep the
+          // selector current so a rapid tab switch can recover its draft.
+          host.__businessThreads=[{id:arrived.scope.threadId,title:'',updatedAt:new Date().toISOString(),mode:'advisor',hasArtifact:false,artifactTitle:''},...(host.__businessThreads||[]).filter((row:any)=>row.id!==arrived.scope.threadId)];
+        }catch(error){
+          host.__workspaceObservedProps=undefined;
+          const message=error instanceof Error?error.message:String(error);
+          host.setState({error:message,__workspaceLoadError:message});return;
+        }
+      }
       if(arrived?.scope)host.setState({input:drafts.get(kernelScopeKey(arrived.scope))||''});
     };
   }
