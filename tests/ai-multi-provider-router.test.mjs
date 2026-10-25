@@ -20,6 +20,19 @@ function allSourceFiles(root){const out=[];for(const name of readdirSync(root)){
 test.beforeEach(async()=>{testClock+=60_000;Date.now=()=>testClock;({routeAiStructured}=await import('../api/_ai/router.js?test='+ ++routerInstance));});
 test.afterEach(restore);
 
+test('owner listener gets allowlisted Groq rejection fields rather than upstream body or prompt',async()=>{
+ configureAll();const events=[];
+ globalThis.fetch=async url=>String(url).includes('groq.com')?response(400,{error:{code:'invalid_request_error',param:'response_format',message:'response_format json_schema strict is unsupported PRIVATE-ACCOUNT test-groq'}}):response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
+ await routeAiStructured({taskType:'business_copilot',prompt:'PRIVATE-PROMPT',schema:schema(),onDiagnostic:e=>events.push(e)});
+ assert.deepEqual(events[0].rejection,{status:400,code:'invalid_request_error',param:'response_format',fields:['response_format','json_schema','strict']});
+ assert.doesNotMatch(JSON.stringify(events),/PRIVATE|test-groq|message/);
+ events.length=0;
+ globalThis.fetch=async url=>String(url).includes('groq.com')?response(400,{error:{code:'PRIVATE-CODE',param:'PRIVATE-PARAM',message:'unsupported PRIVATE-ACCOUNT'}}):response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
+ await routeAiStructured({taskType:'business_copilot',prompt:'PRIVATE-PROMPT',schema:schema(),onDiagnostic:e=>events.push(e)});
+ assert.deepEqual(events[0].rejection,{status:400,code:'unknown',param:'unknown',fields:[]});
+ assert.doesNotMatch(JSON.stringify(events),/PRIVATE/);
+});
+
 test('draft planner can opt into strict Groq decoding without changing other task schemas',async()=>{
  configureAll();const bodies=[];
  globalThis.fetch=async(_url,options)=>{bodies.push(JSON.parse(options.body));return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});};

@@ -103,7 +103,7 @@ function safeRequestId(value){const text=String(value||'').trim();return /^[A-Za
 function safeTaskType(value){return String(value||'general').replace(/[^a-zA-Z0-9._-]/g,'').slice(0,80)||'general';}
 function telemetry(event,listener){
   const safe={requestId:event.requestId,taskType:event.taskType,provider:event.provider,model:event.model,status:event.status,category:event.category,latencyMs:event.latencyMs,fallbackIndex:event.fallbackIndex,attempt:event.attempt,schemaValid:event.schemaValid};
-  if(typeof listener==='function'){try{listener(safe);}catch{}}
+  if(typeof listener==='function'){try{listener({...safe,...(event.rejection?{rejection:event.rejection}:{})});}catch{}}
   if(event.status==='ok')return;
   console.warn('[LOUREX AI router]',safe);
 }
@@ -266,6 +266,20 @@ function providerError(provider,model,status,bodyText){
   if(status>=500)return{category:'upstream',code:'AI_UPSTREAM_ERROR',retryable:true};
   return{category:'upstream',code:'AI_UPSTREAM_ERROR',retryable:false};
 }
+// Enumerated protocol metadata only. Never return the upstream message, values,
+// failed generation, or arbitrary code/parameter strings to a caller or logs.
+function groqRejection(status,text){
+  if(status!==400)return undefined;
+  let error;try{error=JSON.parse(text)?.error;}catch{}
+  const codes=['invalid_request_error','json_validate_failed','invalid_json_schema','model_not_found','model_not_supported','unsupported_parameter','context_length_exceeded'];
+  const names=['response_format','json_schema','strict','include_reasoning','reasoning_effort','reasoning_format','max_completion_tokens','max_tokens','temperature','additionalProperties','required','model','messages'];
+  const code=codes.includes(error?.code)?error.code:'unknown';
+  const params=[...names,'response_format.json_schema','response_format.json_schema.schema','response_format.json_schema.strict'];
+  const param=params.includes(error?.param)?error.param:'unknown';
+  const message=typeof error?.message==='string'?error.message:'';
+  const fields=names.filter(name=>new RegExp(`\\b${name}\\b`,'i').test(message));
+  return{status,code,param,fields};
+}
 async function fetchWithTimeout(url,options,timeoutMs){
   const controller=new AbortController();let timeout;
   // Abort alone is insufficient: a stalled response.text() can ignore the signal.
@@ -290,7 +304,7 @@ async function callGroq(model,request){
   const schema=geminiSchemaToJsonSchema(request.schema);
   const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:request.strictOutput===true||request.taskType==='supplier_purchase_extract',schema}},...groqReasoningOptions(model,request.reasoningLevel)};
   const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
-  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,rejection:groqRejection(response.status,text),retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
@@ -428,7 +442,7 @@ export async function routeAiStructured(options={}){
         if(lowConfidence&&options.qualityFallback===true&&index+1<candidates.length){lowConfidenceResult=lowConfidenceResult||accepted;break;}
         return finish(accepted);
       }catch(error){
-        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
+        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,rejection:error?.rejection,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
         // A full timeout is already a failed attempt, not a reason to repeat it.
         // Keep quick transient retries, but let a healthy alternate have its turn
         // after a slow upstream failure instead of consuming another deadline.

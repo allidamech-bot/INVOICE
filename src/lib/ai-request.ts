@@ -23,7 +23,18 @@ export function aiOwnerDiagnosticSummary(value:any):string{
     ['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)&&
     Number.isFinite(row?.latencyMs)&&row.latencyMs>=0&&row.latencyMs<=60000);
   if(!attempts.length)return '';
-  return '\n'+t('Planning diagnosis: ','تشخيص التخطيط: ')+attempts.map((row:any)=>`${row.provider}: ${row.category} ${Math.round(row.latencyMs)}ms`).join(' · ');
+  return '\n'+t('Planning diagnosis: ','تشخيص التخطيط: ')+attempts.map((row:any)=>{
+    let rejection='';
+    if(row.provider==='groq'&&row.rejection?.status===400){
+      const names=['response_format','json_schema','strict','include_reasoning','reasoning_effort','reasoning_format','max_completion_tokens','max_tokens','temperature','additionalProperties','required','model','messages'];
+      const codes=['invalid_request_error','json_validate_failed','invalid_json_schema','model_not_found','model_not_supported','unsupported_parameter','context_length_exceeded'];
+      const code=codes.includes(row.rejection.code)?row.rejection.code:'unknown';
+      const param=[...names,'response_format.json_schema','response_format.json_schema.schema','response_format.json_schema.strict'].includes(row.rejection.param)?row.rejection.param:'unknown';
+      const fields=Array.isArray(row.rejection.fields)?names.filter(name=>row.rejection.fields.includes(name)):[];
+      rejection=` [HTTP400 ${code} ${param} ${fields.join(',')}]`;
+    }
+    return `${row.provider}: ${row.category} ${Math.round(row.latencyMs)}ms${rejection}`;
+  }).join(' · ');
 }
 export async function requestAiJson(endpoint:string,payload:unknown,signal?:AbortSignal,timeoutMs=60_000):Promise<any>{
   const controller=new AbortController();let timedOut=false;
