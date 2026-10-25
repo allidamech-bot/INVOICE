@@ -32,8 +32,10 @@ function preserveDialogueIdentifiers(answer,cleaned){
   for(const input of inputs){
     const local=new Map();
     for(const match of (JSON.stringify(input)||'').slice(0,180000).matchAll(token)){
-      const value=match[0];if(!/[A-Za-z]/.test(value)||!/[0-9]/.test(value))continue;
-      const alias=key(value);
+      const value=match[0],alias=key(value);
+      // Uppercase alphabetic SKUs such as QA-A need exact punctuation too.
+      // Ordinary hyphenated prose and unknown labels remain untouched.
+      if(!/[A-Za-z]/.test(value)||!/[0-9]/.test(value)&&!/^[A-Z]+(?:-[A-Z]+)+$/.test(alias))continue;
       if(local.has(alias)&&local.get(alias)!==value)local.set(alias,null);
       else if(local.size<512)local.set(alias,value);
     }

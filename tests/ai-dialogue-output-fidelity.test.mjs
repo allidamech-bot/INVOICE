@@ -6,6 +6,9 @@ test('dialogue preserves known identifier spelling without guessing numbers or m
  const oldFetch=globalThis.fetch,keys=['GROQ_API_KEY','CLOUDFLARE_AI_API_TOKEN','GEMINI_API_KEY'];
  const env=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
  const cases=[
+  {message:'Compare the attached items.',sources:[{text:'SKU QA-A, SKU QA-B'}],answer:'QA‐A: 12.50 USD; QA‑B: missing',want:'QA-A: 12.50 USD; QA-B: missing'},
+  {message:'Keep QA-A and QA‐A distinct.',answer:'QA‐A',want:'QA‐A'},
+  {message:'Compare source SKU QA-A.',answer:'QA‐C: unknown; ordinary‐word; 20–30 days',want:'QA‐C: unknown; ordinary‐word; 20–30 days'},
   {message:'اعرض QA-X1 بسطرين فقط',answer:'QA‐X1: 10.00 USD\nالسعر مفقود للصنف الآخر.',want:'QA-X1: 10.00 USD\nالسعر مفقود للصنف الآخر.',lines:2},
   {message:'Use exactly two lines for the source items.',memory:'Source rows: QA-X1, QA-X2',answer:'QA‐X1: 10 USD\nQA‑X2: unknown',want:'QA-X1: 10 USD\nQA-X2: unknown',lines:2},
   {message:'Compare the attached items.',sources:[{text:'SKU AB-001'}],answer:'AB−001: unknown; AB‐002: unknown',want:'AB-001: unknown; AB‐002: unknown'},

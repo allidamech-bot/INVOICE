@@ -96,3 +96,23 @@ test('actual renderer isolates the captured formula and selects table direction 
   assert.equal(table.props.dir,expected);
  }
 });
+
+
+test('emphasized leading questions retain their closing Markdown delimiter before paragraph split',()=>{
+ const visible=n=>typeof n==='string'?n:Array.isArray(n)?n.map(visible).join(''):n&&typeof n==='object'?visible(n.props?.children):'';
+ for(const [input,want] of [
+  ['**هل يمكن حساب إجمالي كامل؟** لا، السعر ناقص.','هل يمكن حساب إجمالي كامل؟ لا، السعر ناقص.'],
+  ['**Can the full total be calculated?** No, one price is missing.','Can the full total be calculated? No, one price is missing.'],
+  ['*هل اكتملت البيانات؟* لا.','هل اكتملت البيانات؟ لا.'],
+  ['هل اكتملت البيانات؟ **لا، السعر ناقص.**','هل اكتملت البيانات؟ لا، السعر ناقص.']
+ ]){const nodes=context.markdownParagraphs([p(input)]);assert.equal(visible(nodes),want);assert.ok(tags(nodes).includes('strong'));}
+});
+test('a currency equation stays one LTR group across bold result styling',()=>{
+ const visible=n=>typeof n==='string'?n:Array.isArray(n)?n.map(visible).join(''):n&&typeof n==='object'?visible(n.props?.children):'';
+ const all=n=>Array.isArray(n)?n.flatMap(all):n&&typeof n==='object'?[n,...all(n.props?.children)]:[];
+ const nodes=context.markdownParagraphs([p('**فرق المبلغ:** 12.50 USD − 10.00 USD = **2.50 USD** (زيادة).')]);
+ const formula=all(nodes).find(n=>n.type==='bdi'&&visible(n).trim()==='12.50 USD − 10.00 USD = 2.50 USD');
+ assert.ok(formula,'the complete financial expression must have one direction boundary');
+ assert.ok(all(formula).some(n=>n.type==='strong'&&visible(n)==='2.50 USD'));
+ assert.equal(visible(nodes),'فرق المبلغ: 12.50 USD − 10.00 USD = 2.50 USD (زيادة).');
+});
