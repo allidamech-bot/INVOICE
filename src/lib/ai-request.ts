@@ -14,6 +14,17 @@ function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
   if(code==='AI_TEMPORARILY_UNAVAILABLE'||status===503)return t('AI providers are temporarily unavailable. Retry shortly. No data was changed.','مزوّدو الذكاء الاصطناعي غير متاحين مؤقتًا. أعد المحاولة بعد قليل. لم تتغير أي بيانات.');
   return fallback||t('LOUREX AI could not process this request.','تعذّر على ذكاء LOUREX معالجة الطلب.');
 }
+// Server sends this metadata only to its verified diagnostics owner. Never
+// render upstream bodies, prompts, credentials or arbitrary response fields.
+export function aiOwnerDiagnosticSummary(value:any):string{
+  if(value?.stage!=='draft-plan'||!Array.isArray(value.attempts))return '';
+  const attempts=value.attempts.slice(0,8).filter((row:any)=>
+    ['groq','cloudflare'].includes(row?.provider)&&
+    ['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)&&
+    Number.isFinite(row?.latencyMs)&&row.latencyMs>=0&&row.latencyMs<=60000);
+  if(!attempts.length)return '';
+  return '\n'+t('Planning diagnosis: ','تشخيص التخطيط: ')+attempts.map((row:any)=>`${row.provider}: ${row.category} ${Math.round(row.latencyMs)}ms`).join(' · ');
+}
 export async function requestAiJson(endpoint:string,payload:unknown,signal?:AbortSignal,timeoutMs=60_000):Promise<any>{
   const controller=new AbortController();let timedOut=false;
   const cancel=()=>controller.abort();
@@ -27,7 +38,7 @@ export async function requestAiJson(endpoint:string,payload:unknown,signal?:Abor
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     let body:any=null;try{body=await response.json();}catch{}
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
-    if(!response.ok){const code=String(body?.code||'');throw new AiRequestError(aiPublicErrorMessage(code,response.status,String(body?.message||'')),code,response.status);}
+    if(!response.ok){const code=String(body?.code||'');throw new AiRequestError(aiPublicErrorMessage(code,response.status,String(body?.message||''))+aiOwnerDiagnosticSummary(body?.diagnostic),code,response.status);}
     if(!body||typeof body!=='object'||Array.isArray(body))throw new Error(t('AI returned an unreadable response. Retry the analysis.','وصل رد غير قابل للقراءة من AI. أعد التحليل.'));
     return body;
   }catch(error){
