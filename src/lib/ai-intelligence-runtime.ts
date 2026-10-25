@@ -1053,7 +1053,7 @@ export function installIntelligenceRuntime(host:Host):void{
           host.setState({busy:true,error:''});await flush(host);
           try{
             const response=await requestAiJson('/api/ai-inbox',{mode:'working-draft-plan',conversationMode:'controller',
-              scope:'business',message,draft:workspaceDocument(kernel,resumed.vault,requestLanguage),customers:drafting.customers.map(row=>({id:row.id,name:row.name}))},controller.signal,15000);
+              scope:'business',message,draft:workspaceDocument(kernel,resumed.vault,requestLanguage),customers:drafting.customers.map(row=>({id:row.id,name:row.name}))},controller.signal,30000);
             const fresh=await resumeVaultSession();
             if(controller.signal.aborted||!fresh||currentConversationMode(host)!=='controller'||host.__intelligenceKernel!==kernel||
               kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||
