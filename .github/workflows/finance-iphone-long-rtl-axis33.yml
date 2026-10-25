@@ -1,0 +1,45 @@
+name: Finance iPhone long RTL PDF axis33
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/visual/run-finance-iphone-long-rtl-axis33.cjs'
+      - '.github/workflows/finance-iphone-long-rtl-axis33.yml'
+permissions:
+  contents: read
+concurrency:
+  group: finance-iphone-rtl-long-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  webkit-long-pdf:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - name: Long RTL/LTR invoice and credit PDF in touch-mode WebKit
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-axis33-http.log 2>&1 &
+          qa_server_pid=$!
+          trap 'kill "$qa_server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ok=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/v542-pagination-parity.html");if(r.ok){ok=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ok)throw Error("QA fixture unavailable")'
+          node tests/visual/run-finance-iphone-long-rtl-axis33.cjs
+      - name: Upload synthetic PDF QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finance-iphone-long-rtl-axis33
+          path: visual-qa-output/finance-iphone-rtl-long-axis33/
+          retention-days: 7
