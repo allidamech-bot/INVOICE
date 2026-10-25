@@ -56,7 +56,10 @@ const ua='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605
     let rect=await dock.evaluate(el=>el.getBoundingClientRect().toJSON());
     assert.ok(rect.top>=20&&rect.bottom<=381,
       'mobile invoice footer is hidden behind keyboard: '+JSON.stringify(rect));
-    await dock.getByRole('button',{name:lang==='ar'?'حفظ':'Save',exact:true}).click({trial:true});
+    // Ready-to-issue documents intentionally show Issue rather than Save; this test must never issue a synthetic document.
+    const primary=dock.locator('.mobile-action-buttons button.btn-primary').first();
+    await primary.waitFor({state:'visible'});
+    await primary.click({trial:true});
 
     await fields.nth(0).fill('7');
     await fields.nth(1).fill('17.25');
