@@ -15,6 +15,7 @@ const iphoneUA='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebK
      hasTouch:true,deviceScaleFactor:2,userAgent:iphoneUA,acceptDownloads:true});
    await context.addInitScript(()=>{
     try{Object.defineProperty(Navigator.prototype,'platform',{configurable:true,get:()=> 'iPhone'});}catch{}
+    try{Object.defineProperty(Navigator.prototype,'maxTouchPoints',{configurable:true,get:()=>5});}catch{}
    });
    try{
     const page=await context.newPage(),errors=[];
