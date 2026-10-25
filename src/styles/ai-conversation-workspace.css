@@ -3003,6 +3003,15 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table{
   scrollbar-width:thin;
   overscroll-behavior-inline:contain;
 }
+/* A structured answer grid must shrink below a wide table's intrinsic width.
+   Keep all columns reachable through the table's own horizontal scroller. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-structured-answer{
+  grid-template-columns:minmax(0,1fr)!important;
+}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-answer-block{
+  min-width:0!important;
+  max-width:100%!important;
+}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table{
   border-collapse:separate!important;
   border-spacing:0!important;
