@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createBlankDocument, emptyItem } from '../dist/src/lib/documents.js';
-import { defaultCompany } from '../dist/src/lib/defaults.js';
+import { defaultCompany, emptyVault } from '../dist/src/lib/defaults.js';
 import { calculateProfitability } from '../dist/src/lib/profitability.js';
+import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 import { applySavedItemSuggestionToLine, bindCatalogItemToLine, editDocumentItemField, mergeSavedItemSelections, preserveLatestUnitCostsForMatchingIdentity, savedUnitCostForCurrency } from '../dist/src/lib/saved-items.js';
 
 const saved=(id,unitCost='8.00',costCurrency='USD')=>({
@@ -80,4 +81,33 @@ test('22-A: editor uses the checked transitions and retains the final-document g
   assert.match(editor,/this\.state\.doc\.status==='final'\|\|this\.issuancePending/);
   const wrapper=await readFile(new URL('../src/components/EditorPage.tsx',import.meta.url),'utf8');
   assert.match(wrapper,/preserveLatestUnitCostsForMatchingIdentity\(doc.items,latest.items\)/);
+});
+
+
+test('22-A: saved draft and JSON reload retain B cost, never resurrect A on missing-currency B',()=>{
+  const originalVault=emptyVault();
+  const invoice=createBlankDocument('invoice','INV-QA-22A-RELOAD',originalVault.company);
+  invoice.currency='USD';
+  invoice.items=[line()];
+  originalVault.documents=[invoice];
+  const snapshots=[
+    {catalog:saved('B','8.00','USD'),expected:'8.00',complete:true},
+    {catalog:saved('B','8.00','EUR'),expected:'',complete:false}
+  ];
+  for(const {catalog,expected,complete} of snapshots){
+    const edited=applySavedItemSuggestionToLine(invoice.items[0],catalog,'USD');
+    // The outer editor may still hold A's older cost while the new selection saves.
+    const protectedLine=preserveLatestUnitCostsForMatchingIdentity([edited],invoice.items)[0];
+    const intent={...originalVault,documents:[{...invoice,items:[protectedLine],updatedAt:'2026-10-25T12:00:00.000Z'}]};
+    const committed=mergeVaultIntent(originalVault,intent,originalVault);
+    const reopened=JSON.parse(JSON.stringify(committed));
+    const persisted=reopened.documents.find(doc=>doc.id===invoice.id);
+    assert.ok(persisted,'draft must survive vault merge and reload');
+    assert.equal(persisted.items[0].savedItemId,'B');
+    assert.equal(persisted.items[0].unitCost,expected);
+    const summary=calculateProfitability(persisted);
+    assert.equal(summary.complete,complete);
+    assert.equal(summary.marginPercent==='',!complete);
+    assert.equal(originalVault.documents[0].items[0].unitCost,'5.00','historical original fixture must not be mutated');
+  }
 });
