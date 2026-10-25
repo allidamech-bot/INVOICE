@@ -7,7 +7,7 @@ import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument, validateStoredFinalForOutput } from '../lib/documents.js';
 import { getDocumentReadiness } from '../lib/readiness.js';
 import { documentQualityIssues } from '../lib/document-quality.js';
-import { findSavedItemMatch, historySuggestions, mergeSavedItemSelections, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
+import { applySavedItemSuggestionToLine, bindCatalogItemToLine, editDocumentItemField, findSavedItemMatch, historySuggestions, mergeSavedItemSelections, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
 import { customerMatchesSearch } from '../lib/customer-search.js';
 import { addDaysIso, daysBetweenIso, displayDate, isIsoDate, normalizeValidityDays } from '../lib/id.js';
 import { applyCustomerCommercialDefaults, applyPaymentTermPreset, bankAccountIdForDetails, bankAccountsForCompany, bankDetailsForId, customerCreditStatus, paymentTermPresetById, pricingSuggestedUnitPrice } from '../lib/commercial-controls.js';
@@ -296,15 +296,15 @@ export class EditorPage extends React.Component<Props,State>{
   private term=(key:keyof LourexDocument['terms'],value:string)=>this.mutate(d=>({...d,terms:{...d.terms,[key]:value}}));
   private adj=(key:keyof LourexDocument['adjustments'],value:any)=>this.mutate(d=>({...d,adjustments:{...d.adjustments,[key]:value}}));
   private appearance=(key:keyof LourexDocument['appearance'],value:any)=>this.mutate(d=>({...d,appearance:{...d.appearance,[key]:value}}));
-  private item=(id:string,key:keyof DocumentItem,value:string)=>this.mutate(d=>({...d,items:d.items.map(i=>{if(i.id!==id)return i;const identityEdit=['descriptionEn','descriptionAr','unit','packing'].includes(key);return{...i,[key]:value,...(identityEdit?{savedItemId:'',skuSnapshot:'',stockTreatment:undefined}:{})};})}));
+  private item=(id:string,key:keyof DocumentItem,value:string)=>this.mutate(d=>({...d,items:d.items.map(i=>i.id===id?editDocumentItemField(i,key,value):i)}));
   /** Link an existing invoice line to its catalog SKU without rewriting its commercial snapshot. */
   private bindStockCatalogItem=(lineId:string,catalogId:string)=>this.mutate(doc=>({
     ...doc,items:doc.items.map(line=>{
       if(line.id!==lineId)return line;
       const saved=this.props.savedItems.find(row=>row.id===catalogId&&!row.archived&&row.inventoryTracking!=='non-stock');
       if(!saved||!saved.sku?.trim()||saved.unit.trim().toLowerCase()!==line.unit.trim().toLowerCase())
-        return{...line,savedItemId:'',skuSnapshot:'',stockTreatment:'tracked' as const};
-      return{...line,savedItemId:saved.id,skuSnapshot:saved.sku,stockTreatment:'tracked' as const};
+        return bindCatalogItemToLine(line,undefined,doc.currency);
+      return bindCatalogItemToLine(line,saved,doc.currency);
     })
   }));
   private selectCustomer=(c:Customer)=>{this.mutate(d=>{const next={...d,customerSnapshot:customerSnapshotFrom(c)};return documentUsesCommercialDefaults(d.kind)?applyCustomerCommercialDefaults(next,c,this.props.company):next;});this.setState({customerQuery:(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr,customerOpen:false});};
@@ -318,8 +318,7 @@ export class EditorPage extends React.Component<Props,State>{
     return merged.filter(candidate=>{const key=(candidate.descriptionEn.trim().toLowerCase()||candidate.descriptionAr.trim());if(!key||seen.has(key)||!savedItemSearchText(candidate).includes(q))return false;seen.add(key);return true;}).slice(0,6);
   };
   private applySuggestion=(targetId:string,saved:SavedItem)=>{
-    const price=saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency?'':saved.lastUnitPrice;
-    this.mutate(doc=>({...doc,items:doc.items.map(item=>item.id===targetId?{...item,descriptionEn:saved.descriptionEn,descriptionAr:saved.descriptionAr,hsCode:saved.hsCode,origin:saved.origin,packing:saved.packing,unit:saved.unit||item.unit,unitPrice:price,savedItemId:saved.id,skuSnapshot:saved.sku||'',stockTreatment:saved.inventoryTracking==='non-stock'?'non-stock':'tracked'}:item)}));
+    this.mutate(doc=>({...doc,items:doc.items.map(item=>item.id===targetId?applySavedItemSuggestionToLine(item,saved,doc.currency):item)}));
     this.setState({suggestingItemId:'',expandedItems:{...this.state.expandedItems,[targetId]:Boolean(saved.hsCode||saved.origin||saved.packing)}});
     if(!saved.id.startsWith('history-'))void this.props.onUseSavedItems([saved]).catch(e=>this.setGlobalError(e instanceof Error?e.message:t('Unable to update item usage.','تعذر تحديث استخدام الصنف.')));
   };
