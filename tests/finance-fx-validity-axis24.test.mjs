@@ -57,7 +57,8 @@ test('24: company workspace-scoped FX selection never leaks rate from another co
   const own=fx('own','2026-10-01','3.75');
   base.fxRates=[own];
   const next=createWorkspace(base,'Synthetic Second Company','QA2');
-  const otherId=next.appSettings.activeWorkspaceId;
+  const otherId=next.workspaces.find(row=>row.id!=='default')?.id;
+  assert.ok(otherId,'new company workspace ID');
   const second=fx('foreign','2026-10-20','6.00',{workspaceId:otherId});
   next.fxRates.push(second);
   const selected=scopeVault(activateWorkspace(next,'default'));
