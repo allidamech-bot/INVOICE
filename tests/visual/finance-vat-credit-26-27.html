@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {TaxVatCenter} from './src/components/TaxVatCenter.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {createCreditNoteDraft} from './src/lib/document-lifecycle.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const company={...defaultCompany(),nameEn:'LOUREX Synthetic QA',nameAr:'لوركس للاختبار فقط'};
+function invoice(id,number,currency,tax,price){
+ const d=createBlankDocument('invoice',number,company);
+ Object.assign(d,{id,status:'final',issueDate:'2026-10-05',dueDate:'2026-12-01',currency,
+   workspaceId:'default',branchId:'main'});
+ d.customerSnapshot={...d.customerSnapshot,sourceCustomerId:'qa-vat-customer',companyNameEn:'QA Buyer'};
+ d.items=[{...d.items[0],descriptionEn:'Synthetic service',quantity:'1',unitPrice:price}];
+ d.adjustments={...d.adjustments,discountEnabled:false,shippingEnabled:false,
+   otherChargesEnabled:false,taxEnabled:true,taxPercent:tax};
+ return d;
+}
+const usd=invoice('qa-vat-usd','INV-QA-VAT-USD','USD','20','100');
+const eur=invoice('qa-vat-eur','INV-QA-VAT-EUR','EUR','10','200');
+const taxable={...createCreditNoteDraft(usd,'CN-QA-TAX-60','60',{
+  mode:'invoice-tax',reason:'Synthetic QA VAT adjustment'}),id:'qa-credit-tax',
+  status:'final',issueDate:'2026-11-03'};
+const keep={...createCreditNoteDraft(usd,'CN-QA-KEEP-20','20',{
+  mode:'keep-vat',reason:'Synthetic QA keep VAT'}),id:'qa-credit-keep',
+  status:'final',issueDate:'2026-11-04'};
+const docs=[usd,eur,taxable,keep];
+window.qaVatSource=()=>JSON.stringify(docs);
+ReactDOM.render(React.createElement(TaxVatCenter,{company,documents:docs}),document.getElementById('root'));
+</script></body></html>
