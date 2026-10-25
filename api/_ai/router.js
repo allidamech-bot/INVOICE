@@ -101,8 +101,9 @@ function recordFailure(provider,model,category,retryAfterMs,status){
 }
 function safeRequestId(value){const text=String(value||'').trim();return /^[A-Za-z0-9._:-]{1,120}$/.test(text)?text:randomUUID();}
 function safeTaskType(value){return String(value||'general').replace(/[^a-zA-Z0-9._-]/g,'').slice(0,80)||'general';}
-function telemetry(event){
+function telemetry(event,listener){
   const safe={requestId:event.requestId,taskType:event.taskType,provider:event.provider,model:event.model,status:event.status,category:event.category,latencyMs:event.latencyMs,fallbackIndex:event.fallbackIndex,attempt:event.attempt,schemaValid:event.schemaValid};
+  if(typeof listener==='function'){try{listener(safe);}catch{}}
   if(event.status==='ok')return;
   console.warn('[LOUREX AI router]',safe);
 }
@@ -414,14 +415,14 @@ export async function routeAiStructured(options={}){
       try{
         const result=await callProvider(model,{taskType,prompt:options.prompt,messages:options.messages,attachments,schema,reasoningLevel,timeoutMs:Math.max(PROVIDER_MIN_MS,perAttemptMs),maxOutputTokens:options.maxOutputTokens});
         const schemaValid=validateJsonSchema(result.data,jsonSchema),customValid=schemaValid&&(typeof options.validate!=='function'||options.validate(result.data)!==false);
-        if(!customValid){lastCode='AI_INVALID_RESULT';recordFailure(model.provider,model.model,'invalid');telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category:'schema',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});break;}
+        if(!customValid){lastCode='AI_INVALID_RESULT';recordFailure(model.provider,model.model,'invalid');telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category:'schema',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);break;}
         const lowConfidence=hasLowConfidence(result.data);
-        recordSuccess(model.provider,model.model);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'ok',category:lowConfidence?'low-confidence':'ok',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:true});
+        recordSuccess(model.provider,model.model);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'ok',category:lowConfidence?'low-confidence':'ok',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:true},options.onDiagnostic);
         const accepted={success:true,data:result.data,provider:model.provider,model:model.model,latencyMs:Date.now()-startedAt,validation:{schema:true,lowConfidence,needsReview:lowConfidence},confidence:lowConfidence?'low':'validated',fallbackUsed:index>0,requestId,route,rateLimit:rateLimitSnapshot(result.headers)};
         if(lowConfidence&&options.qualityFallback===true&&index+1<candidates.length){lowConfidenceResult=lowConfidenceResult||accepted;break;}
         return finish(accepted);
       }catch(error){
-        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false});
+        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
         // A full timeout is already a failed attempt, not a reason to repeat it.
         // Keep quick transient retries, but let a healthy alternate have its turn
         // after a slow upstream failure instead of consuming another deadline.

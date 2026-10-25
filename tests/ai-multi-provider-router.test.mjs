@@ -20,6 +20,16 @@ function allSourceFiles(root){const out=[];for(const name of readdirSync(root)){
 test.beforeEach(async()=>{testClock+=60_000;Date.now=()=>testClock;({routeAiStructured}=await import('../api/_ai/router.js?test='+ ++routerInstance));});
 test.afterEach(restore);
 
+test('explicit diagnostic listener receives bounded attempt metadata without request contents or keys',async()=>{
+ configureAll();const events=[];
+ globalThis.fetch=async url=>String(url).includes('groq.com')?response(400,{error:{message:'unsupported response_format PRIVATE-UPSTREAM'}}):response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
+ const result=await routeAiStructured({taskType:'business_copilot',prompt:'PRIVATE-PROMPT',schema:schema(),onDiagnostic:event=>events.push(event)});
+ assert.equal(result.success,true);assert.equal(events.length,2);
+ assert.equal(events[0].provider,'groq');assert.equal(events[0].category,'unsupported');
+ assert.equal(events[1].provider,'cloudflare');assert.equal(events[1].status,'ok');
+ assert.doesNotMatch(JSON.stringify(events),/PRIVATE|test-groq|test-cf/);
+});
+
 test('free-only registry contains only the approved provider/model set',()=>{
   assert.equal(AI_FREE_ONLY,true);
   assert.deepEqual(AI_MODEL_REGISTRY.map(entry=>`${entry.provider}:${entry.model}`),[
