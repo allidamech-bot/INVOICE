@@ -11,6 +11,7 @@ on:
       - 'src/components/EditorPageCore.tsx'
       - 'src/components/ProfitabilityPanel.tsx'
       - 'tests/finance-privacy-disclosure-35a.test.mjs'
+      - 'tests/visual/run-finance-privacy-disclosure-35a.cjs'
       - 'src/lib/saved-items.ts'
       - 'tests/visual/*finance-cost-identity-22a*'
       - 'tests/visual/run-obsidian-financial.cjs'
@@ -66,6 +67,7 @@ jobs:
           node tests/visual/run-tax-vat-batch10.cjs
           node tests/visual/run-editor-design-discovery.cjs
           node tests/visual/run-finance-cost-identity-22a.cjs
+          node tests/visual/run-finance-privacy-disclosure-35a.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -74,5 +76,6 @@ jobs:
             visual-qa-output/obsidian-financial/
             visual-qa-output/tax-vat-batch10/
             visual-qa-output/finance-cost-identity-22a/
+            visual-qa-output/finance-privacy-disclosure-35a/
             /tmp/lourex-editor-design/
           retention-days: 7
