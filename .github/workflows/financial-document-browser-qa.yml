@@ -10,6 +10,7 @@ on:
       - 'src/components/EditorPage.tsx'
       - 'src/components/EditorPageCore.tsx'
       - 'src/lib/saved-items.ts'
+      - 'tests/finance-vat-credit-period-integrity-26-27.test.mjs'
       - 'tests/visual/*finance-cost-identity-22a*'
       - 'tests/visual/run-obsidian-financial.cjs'
       - 'tests/visual/run-tax-vat-batch10.cjs'
@@ -35,7 +36,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Existing financial output and business-cycle regressions
-        run: node --test tests/financial-output-parity-v559.test.mjs tests/financial-e2e-v145.test.mjs
+        run: node --test tests/financial-output-parity-v559.test.mjs tests/financial-e2e-v145.test.mjs tests/finance-vat-credit-period-integrity-26-27.test.mjs
       - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
       - run: npx playwright install --with-deps chromium webkit
       - name: Existing financial, tax and document browser workflows
