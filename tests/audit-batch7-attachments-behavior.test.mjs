@@ -107,3 +107,14 @@ test('one failed extraction resets cancelled sibling progress and allows a clean
  const stable=JSON.stringify(h.state);pending[1].progress('complete');pending[1].resolve({file:rows[1].file,source:{id:'stale'}});await new Promise(resolve=>setImmediate(resolve));assert.equal(JSON.stringify(h.state),stable,'aborted worker cannot resurrect progress or install a stale source');
  fail=false;const retry=await run(h,h.state.conversationAttachments.slice(0,2));assert.deepEqual(Array.from(retry,x=>x.source.id),['test.pdf','test.png']);assert.ok(h.state.conversationAttachments.every(row=>row.status==='done'));assert.equal(h.state.attachmentBusy,false);
 });
+
+test('Advisor visual evidence uses one read-only extraction without import classification',async()=>{
+ const payloads=[],phases=[];
+ const h=fixture(async(url,payload)=>{payloads.push({url,payload});return payload.mode==='source-summary'?{source:{summary:'Synthetic correction',facts:['QA-A quantity 10'],missing:['QA-B price'],warnings:[]}}:{classification:{route:'supplier_purchase',confidence:.9}};});
+ const file=new File([new Uint8Array([137,80,78,71,13,10,26,10])],'qa-correction.png',{type:'image/png'});
+ const result=await h.analyzeConversationAttachment(file,undefined,p=>phases.push(p),{mode:'advisor'});
+ assert.equal(payloads.length,1,'analysis must not classify/extract an import before answering');
+ assert.equal(payloads[0].payload.mode,'source-summary');assert.equal(result.source.route,'unknown');
+ assert.match(result.source.extracted,/QA-A quantity 10/);assert.match(result.source.extracted,/QA-B price/);
+ assert.deepEqual(phases,['reading','extracting','complete']);
+});

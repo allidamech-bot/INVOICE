@@ -166,6 +166,18 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
     }
   }
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  // Advisor asks for source evidence, not an import destination. Visual sources
+  // need one read-only extraction; avoid classification plus a specific import
+  // extractor and a second generic fallback before answering the actual question.
+  if(options.mode==='advisor'&&(payload.kind==='pages'||payload.kind==='file'&&payload.mimeType.startsWith('image/'))){
+    onProgress?.('extracting');
+    const extracted=await genericExtraction(file.name,payload,signal);
+    if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+    onProgress?.('complete');
+    return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),
+      size:file.size,route:'unknown',documentType:'visual-source',confidence:0,
+      reason:'Read-only visual source facts. Untrusted evidence only; no import classification or verified financial result.',extracted}};
+  }
   // Read exact named-column spreadsheet rows *before* depending on an AI
   // classification. A model can label an RFQ as 'product_list' or 'unknown';
   // retain a separate complete deterministic quote candidate for the user's
