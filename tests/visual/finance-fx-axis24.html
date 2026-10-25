@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {FxRatesPage} from './src/components/FxRatesPage.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const ar=new URLSearchParams(location.search).get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');
+document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const rate={id:'fx-24-qa',workspaceId:'default',date:'2026-10-01',
+  fromCurrency:'USD',toCurrency:'SAR',rate:'3.75000000',sourceLabel:'Synthetic QA Bank',
+  notes:'',createdAt:'2026-10-01T10:00:00.000Z',updatedAt:'2026-10-01T10:00:00.000Z'};
+const props={rates:[rate],documents:[],payments:[],purchases:[],supplierPayments:[],defaultCurrency:'USD'};
+window.qaRate=()=>JSON.stringify(rate);
+ReactDOM.render(React.createElement(FxRatesPage,props),document.getElementById('root'));
+</script></body></html>
