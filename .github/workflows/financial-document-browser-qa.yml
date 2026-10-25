@@ -61,11 +61,11 @@ jobs:
             if (errors.length) throw new Error(JSON.stringify(errors));
           } finally { await browser.close(); }
           NODE
+          node tests/visual/run-tax-vat-iphone-axis30.cjs
           node tests/visual/run-obsidian-financial.cjs
           node tests/visual/run-tax-vat-batch10.cjs
           node tests/visual/run-editor-design-discovery.cjs
           node tests/visual/run-finance-cost-identity-22a.cjs
-          node tests/visual/run-tax-vat-iphone-axis30.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
