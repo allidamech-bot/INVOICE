@@ -32,7 +32,7 @@ import {strictAiActor} from './ai-foundation-approval.js';
 import {exactTextQuotePreview} from './ai-text-quote-preview.js';
 import {namedRecordReadPlan} from './ai-named-record-read.js';
 
-export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
+export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;sourceReviewRequired?:boolean;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function formatData(data:unknown,max=2200):string{try{const text=JSON.stringify(data,null,2);return text.length<=max?text:`${text.slice(0,max)}\n…`;}catch{return clean(data,max);}}
 function titleFor(tool:string,ar:boolean):string{const map:Record<string,[string,string]>={
@@ -391,14 +391,14 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
         answer:input.language==='ar'
           ?'لم أطبّق التصحيح لأن الملف الأصلي والصورة لا يقدّمان صفوفًا كاملة ومتطابقة بوضوح. راجع رموز الأصناف الفريدة، والأسعار والوحدات والتعبئة والعملة والعميل والشروط في الملفين. يمكنني اعتماد الكميات المصححة فقط بعد تطابق بقية البيانات؛ لن أجمع الأصل والتصحيح كأصناف إضافية. لم أحفظ أو أغيّر أي سجل.'
           :'The original and correction image do not provide complete, clearly matching rows. Review unique SKUs, prices, units, packing, currency, buyer and terms in both sources. Only quantities can be replaced after the other facts match; original and corrected rows will not be added twice. No records were saved or changed.',
-        proposal:null,plan,results:[],plannedBy:'local'};
+        proposal:null,sourceReviewRequired:true,plan,results:[],plannedBy:'local'};
       if(reason.includes('Multiple sources require an explicit request for one combined quotation.'))return{
         answer:input.language==='ar'
           ?'المرفقات متعددة، ولم أحدّد هل المطلوب جمع صفوف مستقلة في عرض سعر واحد أم تطبيق تصحيح على الأصل. حدّد العلاقة بينها أولًا. لتصحيح الكميات من صورة، قل «جهز عرض سعر واعتمد الكميات المصححة في الصورة»؛ سأطابق رموز الأصناف وأبقي الأسعار الناقصة فارغة. لم أحفظ أو أغيّر أي سجل.'
           :'Please clarify whether the attachments contain separate rows for one combined quotation or a correction to the original. For an image quantity correction, say “prepare a quotation and use corrected quantities from the image”; I will match unique SKUs and keep missing prices blank. No records were saved or changed.',
-        proposal:null,plan,results:[],plannedBy:'local'};
+        proposal:null,sourceReviewRequired:true,plan,results:[],plannedBy:'local'};
       return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
-        proposal:null,plan,results:[],plannedBy:'local'};
+        proposal:null,sourceReviewRequired:true,plan,results:[],plannedBy:'local'};
     }
   }
   // An explicitly pending in-memory draft belongs to this company/thread only.

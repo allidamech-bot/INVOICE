@@ -89,7 +89,9 @@ const deliveryStart="await baseAsk((message+'\\n📎 '+names).slice(0,6000));ins
 if(!source.includes(deliveryStart))throw new Error('Attachment delivery confirmation target changed.');
 source=source.replace(deliveryStart,
   "const previousAssistantIds=new Set((instance.state.messages||[]).filter(row=>row.role==='assistant').map(row=>row.id));"+
+  "instance.__lourexSourceReviewRequired=false;"+
   "await baseAsk((message+'\\n📎 '+names).slice(0,6000));"+
+  "if(instance.__lourexSourceReviewRequired){instance.setState({input:message,attachmentMenuOpen:false});return;}"+
   "const verifiedResponse=(instance.state.messages||[]).some(row=>row.role==='assistant'&&!previousAssistantIds.has(row.id));"+
   "if(!verifiedResponse||instance.state.error){"+
     "if(!instance.state.error)instance.setState({error:t('No complete analysis reply was received. All attachments remain available to retry.','لم يصل رد تحليل مكتمل. جميع المرفقات ما زالت متاحة لإعادة المحاولة.')});"+

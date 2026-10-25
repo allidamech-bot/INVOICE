@@ -109,6 +109,24 @@ try{
    assert.ok(d.viewportOverflow<=3,'Page horizontal overflow '+d.viewportOverflow);
  }
 
+ // The retained source preview must fit an actual narrow attachment chip,
+ // keep every row and scroll its own table without another provider call.
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ const sourceReview=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{
+   const {renderAttachmentSourceReview}=await import('/src/components/AiAttachmentSourceReview.js');
+   const chip=document.querySelector('.lourex-ai-attachment-chip'),mount=document.createElement('div');
+   mount.style.cssText='grid-column:1/-1;min-width:0;width:100%';chip.append(mount);
+   ReactDOM.render(renderAttachmentSourceReview({fileName:'synthetic.pdf',extracted:JSON.stringify({currency:'USD',items:[{sku:'QA-A',quantity:'10',unit:'PCS',unitPrice:'1.25'},{sku:'QA-B',quantity:'5',unit:'PCS',unitPrice:''}]})},true),mount);
+   const summary=mount.querySelector('summary');summary.click();await new Promise(ok=>requestAnimationFrame(ok));
+   const section=mount.querySelector('section'),table=mount.querySelector('.lxw-response-table'),r=section.getBoundingClientRect(),c=chip.getBoundingClientRect();
+   const result={left:r.left,right:r.right,chipLeft:c.left,chipRight:c.right,height:r.height,summaryHeight:summary.getBoundingClientRect().height,client:table.clientWidth,scroll:table.scrollWidth,rows:mount.querySelectorAll('tbody tr').length,text:mount.textContent};
+   ReactDOM.unmountComponentAtNode(mount);mount.remove();return result;
+ })()`});
+ const sr=sourceReview.result?.value;assert.ok(sr&&sr.left>=sr.chipLeft-1&&sr.right<=sr.chipRight+1,'Source review escaped its attachment: '+JSON.stringify(sr));
+ assert.ok(sr.height<=321&&sr.summaryHeight>=44&&sr.scroll>sr.client,'Source review must remain touch-sized and locally scrollable: '+JSON.stringify(sr));
+ assert.equal(sr.rows,2);assert.ok(sr.text.includes('غير مذكور'));console.log('SOURCE_REVIEW '+JSON.stringify(sr));
+ await send('Emulation.setDeviceMetricsOverride',{width:820,height:1180,deviceScaleFactor:1,mobile:true});
+
  // Exercise the actual React presence component: closing, rapid reopen,
  // keyboard navigation and reduced motion. Only inert fixture buttons exist.
  const presence=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,expression:`(async()=>{

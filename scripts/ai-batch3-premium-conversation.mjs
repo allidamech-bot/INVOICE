@@ -87,6 +87,12 @@ source=source.replace(oldProgress,"fileProgressLabel(rows,row,instance.props.lan
 source="import {fileProgressLabel} from '../lib/ai-file-progress.js';\n"+source;
 
 if(!source.includes('resolveAiConversationEndpoint(context.conversationMode'))throw new Error('AI Batch 3 mode-first endpoint routing is missing.');
+// Review the same extracted evidence that blocked conversion; do not spend
+// another provider request or silently replace it with a fresh classification.
+const remoteSourceReview="row.source?React.createElement('button',{type:'button',className:'lourex-ai-attachment-review',onClick:()=>window.dispatchEvent(new CustomEvent(__lourexConversationReviewEvent,{detail:{file:row.file,route:row.source.route}}))},t('Review','مراجعة')):null";
+if(!source.includes(remoteSourceReview))throw new Error('Cached attachment review target changed.');
+source=source.replace(remoteSourceReview,"row.source?renderAttachmentSourceReview(row.source,t('en','ar')==='ar'):null");
+source="import {renderAttachmentSourceReview} from './AiAttachmentSourceReview.js';\n"+source;
 if(!source.includes('lourex-ai-premium-textarea'))throw new Error('AI Batch 3 premium composer is missing.');
 await writeFile(copilotTarget,source);
 
