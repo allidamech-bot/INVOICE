@@ -12,6 +12,9 @@ test('working draft planning leaves time for failover and settles before its bro
   assert.equal(result.status,200);assert.equal(result.body.plan.action,'unrelated');
   assert.ok(Number.isFinite(captured.totalBudgetMs)&&captured.totalBudgetMs<=26000,'Full draft planner chain must have a finite 26s cap');
   assert.ok(captured.timeoutMs<=12000,'Keep a second provider window');
+  assert.equal(captured.strictOutput,true,'Cell patch planner must request constrained JSON decoding');
+  const checkClosed=node=>{if(node.type==='OBJECT'){assert.deepEqual([...node.required].sort(),Object.keys(node.properties).sort());Object.values(node.properties).forEach(checkClosed);}if(node.items)checkClosed(node.items);};
+  checkClosed(captured.schema);
   const runtime=await readFile('src/lib/ai-intelligence-runtime.ts','utf8');
   assert.match(runtime,/customers:drafting\.customers\.map\(row=>\(\{id:row\.id,name:row\.name\}\)\)\},controller\.signal,30000\)/,'Browser must allow the bounded fallback chain plus transport overhead');
  }finally{delete globalThis[key];}
