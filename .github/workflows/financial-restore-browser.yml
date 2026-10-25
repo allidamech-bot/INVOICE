@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'tests/visual/*financial-restore-browser*'
+      - 'tests/visual/run-financial-restore-iphone-axis30.cjs'
       - '.github/workflows/financial-restore-browser.yml'
       - 'src/storage/db.ts'
       - 'src/lib/backup.ts'
@@ -42,3 +43,10 @@ jobs:
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           node --input-type=module -e 'let ready=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/financial-restore-browser.html");if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error("Restore fixture did not start");'
           node tests/visual/run-financial-restore-browser.cjs
+          node tests/visual/run-financial-restore-iphone-axis30.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iphone-financial-restore-acceptance
+          path: visual-qa-output/finance-iphone-axis30/financial-restore-iphone.json
+          retention-days: 7
