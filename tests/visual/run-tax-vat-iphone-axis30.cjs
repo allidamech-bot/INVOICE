@@ -36,11 +36,11 @@ const iphoneUA='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebK
     assert.equal(await rows.count(),21,'20 USD invoices plus single accounted USD credit');
     assert.equal(await root.locator('.lx-tax-register .is-credit-note').count(),1);
     const measure=await page.evaluate(()=>({
-      width:innerWidth,touch:navigator.maxTouchPoints,platform:navigator.platform,
+      width:innerWidth,touch:navigator.maxTouchPoints,platform:navigator.platform,ua:navigator.userAgent,
       allSourcesIntact:typeof window.qaSource==='function'
     }));
     assert.equal(measure.width,width);
-    assert.ok(measure.touch>0&&measure.platform==='iPhone');
+    assert.ok(measure.touch>0&&measure.ua.includes('iPhone'),'WebKit must expose touch and iPhone user agent: '+JSON.stringify(measure));
     assert.equal(measure.allSourcesIntact,true);
 
     const exportButton=page.getByRole('button',{name:lang==='ar'?'تصدير CSV':'Export CSV',exact:true});
