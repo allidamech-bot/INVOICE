@@ -3611,6 +3611,13 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-ai-motion='redu
 
 /* Keep numeric expressions in their authored reading order inside RTL prose. */
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-inline-ltr{direction:ltr!important;unicode-bidi:isolate!important;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-attachment-source-review{grid-column:1/-1;min-width:0;max-width:100%;font-size:14px;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-attachment-source-review summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--lxw-text);font-weight:650;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-attachment-source-review>section{max-height:320px;overflow:auto;min-width:0;border-top:1px solid var(--lxw-line);padding-top:8px;line-height:1.6;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-attachment-source-review :is(p,dd,pre){margin:6px 0;overflow-wrap:anywhere;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-attachment-source-review dl{margin:8px 0;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-attachment-source-review dt{font-weight:650;}
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-attachment-source-review pre{white-space:pre-wrap;font:inherit;font-size:13px;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table[dir='ltr']{direction:ltr!important;}
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table[dir='rtl']{direction:rtl!important;}
 /* Native scroll surfaces inherit the active AI theme instead of a black track. */

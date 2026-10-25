@@ -25,6 +25,9 @@ on:
       - 'tests/ai-tool-catalog-security-coverage.test.mjs'
       - 'tests/ai-controller-supplier-quote-continuity.test.mjs'
       - 'tests/ai-source-quantity-corrections.test.mjs'
+      - 'tests/ai-blocked-source-review.test.mjs'
+      - 'tests/ai-attachment-source-review.test.mjs'
+      - 'src/components/AiAttachmentSourceReview.tsx'
       - 'src/lib/ai-quote-source-draft.ts'
       - 'src/lib/ai-spreadsheet-quote.ts'
       - 'tests/ai-workflow-advisor-handoff.test.mjs'
@@ -90,6 +93,8 @@ jobs:
           tests/ai-f18-multi-source-quote.test.mjs
           tests/ai-controller-supplier-quote-continuity.test.mjs
           tests/ai-source-quantity-corrections.test.mjs
+          tests/ai-blocked-source-review.test.mjs
+          tests/ai-attachment-source-review.test.mjs
           tests/audit-ai-branch-isolation.test.mjs
           tests/audit-ai-firebase-auth.test.mjs
           tests/b02-supplier-import-integrity.test.mjs

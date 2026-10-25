@@ -14,7 +14,7 @@ source=source.replace(pendingImportCall,'orchestrateAiToolRequest({ message, vau
 
 const auditToken='if (toolResult) this.__lourexLastToolAudit = aiToolAuditSummary(toolResult);';
 if(!source.includes(auditToken))throw new Error('AI conversation Batch 4 could not find the tool audit handoff.');
-source=source.replace(auditToken,`if (toolResult) {\n                this.__lourexLastToolAudit = aiToolAuditSummary(toolResult);\n                __lourexRememberProductImport(this,toolResult,context);\n                this.__lourexToolPresentation = __lourexToolPresentationFromResult(toolResult, toolResult.foundationInterfaceLanguage || (this.props.language === 'ar' ? 'ar' : 'en'));\n            } else this.__lourexToolPresentation = null;`);
+source=source.replace(auditToken,`this.__lourexSourceReviewRequired = toolResult?.sourceReviewRequired === true;\n            if (toolResult) {\n                this.__lourexLastToolAudit = aiToolAuditSummary(toolResult);\n                __lourexRememberProductImport(this,toolResult,context);\n                this.__lourexToolPresentation = __lourexToolPresentationFromResult(toolResult, toolResult.foundationInterfaceLanguage || (this.props.language === 'ar' ? 'ar' : 'en'));\n            } else this.__lourexToolPresentation = null;`);
 
 const payloadToken="const payload = toolResult ? { answer: toolResult.answer, proposal: toolResult.proposal, __lourexToolOrchestrated: true } : await requestAiJson(advisorEndpoint, { message: requestMessage, context }, controller.signal);";
 if(!source.includes(payloadToken))throw new Error('AI conversation Batch 4 could not find the orchestrated payload handoff.');
