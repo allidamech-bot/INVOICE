@@ -8,6 +8,13 @@ function safeReusableUnitCost(value:string|undefined):string{
   return normalizeDecimalInput(cost);
 }
 
+/** A catalog cost is evidence for a document line only in the same recorded currency. */
+export function savedUnitCostForCurrency(saved:Pick<SavedItem,'lastUnitCost'|'lastCostCurrency'>,currency:string):string{
+  const target=currency.trim().toUpperCase();
+  if(!target||saved.lastCostCurrency?.trim().toUpperCase()!==target)return '';
+  return safeReusableUnitCost(saved.lastUnitCost);
+}
+
 function reusableUnitCostForSave(value:string|undefined):string{
   const cost=(value??'').trim();
   if(!cost)return '';
@@ -89,16 +96,48 @@ export function isPristineDocumentItem(item: DocumentItem): boolean {
   return !item.descriptionEn.trim()&&!item.descriptionAr.trim()&&!item.hsCode.trim()&&!item.origin.trim()&&!item.packing.trim()&&!item.unitPrice.trim()&&!(item.unitCost??'').trim()&&item.quantity.trim()==='1';
 }
 
+
+/** Invalidate stale stock identity and internal cost when its commercial identity changes. */
+export function editDocumentItemField(item:DocumentItem,key:keyof DocumentItem,value:string):DocumentItem{
+  const changedIdentity=['descriptionEn','descriptionAr','unit','packing'].includes(key)&&item[key]!==value;
+  return {...item,[key]:value,...(changedIdentity?{savedItemId:'',skuSnapshot:'',stockTreatment:undefined,unitCost:''}:{})};
+}
+
+/** Selecting another catalog item must never carry the previous item's profit cost. */
+export function applySavedItemSuggestionToLine(item:DocumentItem,saved:SavedItem,currency:string):DocumentItem{
+  const price=saved.lastCurrency&&saved.lastCurrency!==currency?'':saved.lastUnitPrice;
+  return {...item,descriptionEn:saved.descriptionEn,descriptionAr:saved.descriptionAr,hsCode:saved.hsCode,origin:saved.origin,packing:saved.packing,unit:saved.unit||item.unit,unitPrice:price,unitCost:item.savedItemId===saved.id?item.unitCost:savedUnitCostForCurrency(saved,currency),savedItemId:saved.id,skuSnapshot:saved.sku||'',stockTreatment:saved.inventoryTracking==='non-stock'?'non-stock':'tracked'};
+}
+
+/** Manual SKU binding also changes cost identity, without rewriting sale price. */
+export function bindCatalogItemToLine(item:DocumentItem,saved:SavedItem|undefined,currency:string):DocumentItem{
+  if(!saved)return {...item,savedItemId:'',skuSnapshot:'',stockTreatment:'tracked',unitCost:item.savedItemId?'':item.unitCost};
+  return {...item,savedItemId:saved.id,skuSnapshot:saved.sku||'',stockTreatment:'tracked',unitCost:item.savedItemId===saved.id?item.unitCost:savedUnitCostForCurrency(saved,currency)};
+}
+
 export function mergeSavedItemSelections(items: DocumentItem[], savedItems: SavedItem[], currency: string): DocumentItem[] {
   if(!savedItems.length)return items;
   const additions=savedItems.map(saved=>{
     const item=documentItemFromSavedItem(saved);
     if(saved.lastCurrency&&saved.lastCurrency!==currency)item.unitPrice='';
-    if(saved.lastCostCurrency&&saved.lastCostCurrency!==currency)item.unitCost='';
+    item.unitCost=savedUnitCostForCurrency(saved,currency);
     return item;
   });
   if(items.length&&isPristineDocumentItem(items[0]!))return [...additions,...items.slice(1)];
   return [...items,...additions];
+}
+
+
+/** Avoid reapplying the old product's costs from an earlier autosave snapshot. */
+export function preserveLatestUnitCostsForMatchingIdentity(items:DocumentItem[],latest:DocumentItem[]):DocumentItem[]{
+  const byId=new Map(latest.map(item=>[item.id,item]));
+  const identityKeys=['savedItemId','skuSnapshot','descriptionEn','descriptionAr','unit','packing','stockTreatment'] as const;
+  return items.map(item=>{
+    const fresh=byId.get(item.id);
+    if(!fresh)return item;
+    const sameIdentity=identityKeys.every(key=>(item[key]??'')===(fresh[key]??''));
+    return {...item,unitCost:sameIdentity?(fresh.unitCost??''):(item.unitCost??'')};
+  });
 }
 
 export function markSavedItemsUsed(items: SavedItem[], usedItems: SavedItem[], usedAt=new Date().toISOString()): SavedItem[] {

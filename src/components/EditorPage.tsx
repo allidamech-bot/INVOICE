@@ -3,6 +3,7 @@ import { isLetterDocument } from '../lib/document-extras.js';
 import { documentCanConvertToInvoice } from '../lib/document-kinds.js';
 import type { AppSettings, CompanySettings, Customer, DocumentAttachment, DocumentEventRecord, DocumentItem, DocumentRevisionRecord, LourexDocument, PaymentRecord, SavedItem, Supplier } from '../types.js';
 import { t } from '../lib/i18n.js';
+import { preserveLatestUnitCostsForMatchingIdentity } from '../lib/saved-items.js';
 import { Button, Icon } from './UI.js';
 import { EditorPage as EditorPageCore } from './EditorPageCore.js';
 import { InvoicePaymentsPanel } from './InvoicePaymentsPanel.js';
@@ -182,8 +183,7 @@ export class EditorPage extends React.Component<Props,State>{
 
   private withLatestInternalCosts=(doc:LourexDocument):LourexDocument=>{
     const latest=this.props.document;if(latest.id!==doc.id)return doc;
-    const latestCosts=new Map(latest.items.map(item=>[item.id,item.unitCost??'']));
-    return{...doc,items:doc.items.map(item=>({...item,unitCost:latestCosts.has(item.id)?(latestCosts.get(item.id)??''):(item.unitCost??'')})),internalCosts:{shippingCost:latest.internalCosts?.shippingCost??doc.internalCosts?.shippingCost??'0.00',otherCost:latest.internalCosts?.otherCost??doc.internalCosts?.otherCost??'0.00'}};
+    return{...doc,items:preserveLatestUnitCostsForMatchingIdentity(doc.items,latest.items),internalCosts:{shippingCost:latest.internalCosts?.shippingCost??doc.internalCosts?.shippingCost??'0.00',otherCost:latest.internalCosts?.otherCost??doc.internalCosts?.otherCost??'0.00'}};
   };
 
   private saveWithProtectedRetry=async(doc:LourexDocument,auto?:boolean):Promise<void>=>{

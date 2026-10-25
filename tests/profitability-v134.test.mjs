@@ -98,7 +98,7 @@ test('v134 editor integration preserves newer internal costs against stale core 
   const editor=await read('src/components/EditorPage.tsx');
   assert.match(editor,/ProfitabilityPanel/);
   assert.match(editor,/withLatestInternalCosts/);
-  assert.match(editor,/latestCosts=new Map/);
+  assert.match(editor,/preserveLatestUnitCostsForMatchingIdentity\(doc\.items,latest\.items\)/);
   assert.match(editor,/this\.props\.onSave\(this\.withLatestInternalCosts\(doc\),auto\)/);
   assert.match(editor,/<ProfitabilityPanel[^>]*onSave=\{props\.onSave\}/);
 });
