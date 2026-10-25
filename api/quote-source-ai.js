@@ -50,7 +50,9 @@ export default async function handler(request,response){
   const schema={type:'OBJECT',properties:{customerName:{type:'STRING'},customerEmail:{type:'STRING'},customerPhone:{type:'STRING'},customerConfidence:{type:'NUMBER'},customerNote:{type:'STRING'},currency:{type:'STRING'},incoterm:{type:'STRING'},paymentTerms:{type:'STRING'},deliveryTime:{type:'STRING'},validity:{type:'STRING'},remarks:{type:'STRING'},notes:{type:'STRING'},items:{type:'ARRAY',items:itemSchema}},required:['customerName','customerEmail','customerPhone','customerConfidence','customerNote','currency','incoterm','paymentTerms','deliveryTime','validity','remarks','notes','items']};
   const prompt=kind==='text'?`${instruction}\nSource filename: ${JSON.stringify(fileName)}\nUntrusted source DATA:\n${text}`:`${instruction}\nSource filename: ${JSON.stringify(fileName)}`;
   const attachments=kind==='file'?[{kind:mimeType==='application/pdf'?'native-document':'image',mimeType,data,fileName}]:kind==='pages'?pageAttachments:[];
-  const result=await routeAiStructured({taskType:'quote_extract',prompt,attachments,schema,qualityFallback:true,timeoutMs:22_000,validate:value=>{const draft=cleanResult(value);if(!draft)return false;return includesExplicitSourceCodes(text,draft.items);}});
+  // The conversation source reader waits 45s. Finish the full provider chain
+  // inside that window rather than leaving an orphan request after UI timeout.
+  const result=await routeAiStructured({taskType:'quote_extract',prompt,attachments,schema,qualityFallback:true,timeoutMs:22_000,totalBudgetMs:40_000,validate:value=>{const draft=cleanResult(value);if(!draft)return false;return includesExplicitSourceCodes(text,draft.items);}});
   if(!result.success){
     if(result.errorCode==='AI_INVALID_RESULT'){sendJson(response,422,{code:'NO_QUOTE_DATA',message:'The quotation extraction is incomplete or uncertain. Review the source, split large files, and retry; no document was saved.'});return;}
     const publicError=aiRouterPublicError(result);sendJson(response,publicError.status,{code:publicError.code,message:'LOUREX could not analyze this quotation source.'});return;

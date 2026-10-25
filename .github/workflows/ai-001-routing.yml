@@ -10,6 +10,8 @@ on:
       - 'scripts/ai-batch3-conversation-lifecycle-fix.mjs'
       - 'api/ai-core.js'
       - 'api/ai-inbox.js'
+      - 'api/quote-source-ai.js'
+      - 'tests/ai-source-request-deadlines.test.mjs'
       - 'tests/ai-advisor-visual-source.test.mjs'
       - 'tests/audit-batch7-attachments-behavior.test.mjs'
       - 'tests/ai-001-controller-advisor-routing.test.mjs'
@@ -45,6 +47,7 @@ jobs:
           tests/ai-premium-conversation-batch3.test.mjs
           tests/ai-advisor-exact-text.test.mjs
           tests/ai-advisor-visual-source.test.mjs
+          tests/ai-source-request-deadlines.test.mjs
           tests/audit-batch7-attachments-behavior.test.mjs
           tests/ai-retry-completed-attachments.test.mjs
           tests/ai-advisor-data-v2-batch2.test.mjs
