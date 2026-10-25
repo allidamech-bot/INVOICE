@@ -45,6 +45,9 @@ const GENERAL_ROUTE=[['groq','qwen/qwen3.8-27b'],['cloudflare','@cf/google/gemma
 // Private business dialogue uses the financially probed model pair at every reasoning level.
 // Do not change image/document routes or general-purpose extraction behavior.
 const BUSINESS_COPILOT_ROUTE=[['groq','openai/gpt-oss-120b'],['cloudflare','@cf/google/gemma-4-26b-a4b-it']];
+// Read-only OCR/fact extraction needs vision, not the text-only finance model.
+// Preserve the same approved provider boundary, including when both fail.
+const BUSINESS_VISION_SOURCE_ROUTE=[['groq','qwen/qwen3.8-27b'],['cloudflare','@cf/google/gemma-4-26b-a4b-it']];
 const VISION_ROUTE=[['groq','qwen/qwen3.8-27b'],['cloudflare','@cf/google/gemma-4-26b-a4b-it'],['gemini',GEMINI_MODEL]];
 const DEEP_ROUTE=[['groq','openai/gpt-oss-120b'],['cloudflare','@cf/nvidia/nemotron-3-120b-a12b'],['cloudflare','@cf/openai/gpt-oss-120b'],['gemini',GEMINI_MODEL]];
 const NATIVE_DOCUMENT_ROUTE=[['gemini',GEMINI_MODEL]];
@@ -242,7 +245,8 @@ function configuredCandidates(route,attachments=[],allowExternal=false,taskType=
   // do not substitute Gemini (2/5 in live synthetic QA) or unapproved vendors for company finance dialogue.
   // Reasoning and attachments may narrow capabilities, never widen approval.
   const businessDialogue=['business_copilot','cfo_report'].includes(taskType);
-  const sequence=businessDialogue?BUSINESS_COPILOT_ROUTE:routeEntries(route);
+  const businessSource=taskType==='business_source_summary';
+  const sequence=businessSource&&route==='vision'?BUSINESS_VISION_SOURCE_ROUTE:businessDialogue||businessSource?BUSINESS_COPILOT_ROUTE:routeEntries(route);
   return sequence.map(([provider,model])=>findModel(provider,model)).filter(model=>model?.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true)&&(!imageCount||model.maxImages>=imageCount));
 }
 function providerError(provider,model,status,bodyText){

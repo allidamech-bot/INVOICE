@@ -423,3 +423,21 @@ test('request-specific schema rejection does not disable the model for other req
  assert.equal((await routeAiStructured(request)).provider,'cloudflare');
  assert.equal((await routeAiStructured(request)).provider,'groq');
 });
+
+test('private visual source extraction has Groq vision plus approved Cloudflare fallback only',async()=>{
+ configureAll();const calls=[];
+ globalThis.fetch=async(url,options)=>{
+  calls.push({url:String(url),model:JSON.parse(options.body).model});
+  if(String(url).includes('groq.com'))return response(429,{});
+  return response(200,{choices:[{message:{content:'{"value":"source facts"}'}}]});
+ };
+ const result=await routeAiStructured({taskType:'business_source_summary',attachments:[{kind:'image',mimeType:'image/png',data:'YWJj'}],prompt:'Synthetic image',schema:schema()});
+ assert.equal(result.success,true);assert.equal(calls[0].model,'qwen/qwen3.8-27b');assert.equal(result.provider,'cloudflare');
+ assert.equal(calls.length,2);
+});
+test('private visual source failure never escapes to Gemini or external sandbox vendors',async()=>{
+ configureAll();process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';process.env.OPENROUTER_API_KEY='test-free';process.env.OLLAMA_API_KEY='test-ollama';process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+ const calls=[];globalThis.fetch=async(url)=>{calls.push(String(url));if(String(url).includes('groq.com')||String(url).includes('cloudflare.com'))return response(404,{});return response(200,{candidates:[{content:{parts:[{text:'{"value":"unapproved"}'}]}}]});};
+ const result=await routeAiStructured({taskType:'business_source_summary',externalDataClass:'public-synthetic',attachments:[{kind:'image',mimeType:'image/png',data:'YWJj'}],prompt:'Synthetic privacy test',schema:schema()});
+ assert.equal(result.success,false);assert.equal(calls.length,2);assert.ok(calls.every(url=>url.includes('groq.com')||url.includes('cloudflare.com')));
+});
