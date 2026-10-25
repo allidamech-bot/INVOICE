@@ -20,6 +20,28 @@ function allSourceFiles(root){const out=[];for(const name of readdirSync(root)){
 test.beforeEach(async()=>{testClock+=60_000;Date.now=()=>testClock;({routeAiStructured}=await import('../api/_ai/router.js?test='+ ++routerInstance));});
 test.afterEach(restore);
 
+test('draft planner can opt into strict Groq decoding without changing other task schemas',async()=>{
+ configureAll();const bodies=[];
+ globalThis.fetch=async(_url,options)=>{bodies.push(JSON.parse(options.body));return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});};
+ await routeAiStructured({taskType:'business_copilot',prompt:'edit',schema:schema(),strictOutput:true});
+ await routeAiStructured({taskType:'business_copilot',prompt:'discuss',schema:schema()});
+ assert.equal(bodies[0].response_format.json_schema.strict,true);
+ assert.equal(bodies[1].response_format.json_schema.strict,false);
+ assert.equal(bodies[0].response_format.json_schema.schema.additionalProperties,false);
+});
+
+test('Groq generated JSON validation failure is schema failure and never quarantines a supported model',async()=>{
+ configureAll();const events=[],providers=[];let failed=false;
+ globalThis.fetch=async url=>{providers.push(String(url).includes('groq.com')?'groq':'cloudflare');
+  if(!failed){failed=true;return response(400,{error:{code:'json_validate_failed',message:'Generated JSON does not match the expected schema. PRIVATE-UPSTREAM'}});}
+  return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});};
+ await routeAiStructured({taskType:'business_copilot',prompt:'PRIVATE-PROMPT',schema:schema(),onDiagnostic:e=>events.push(e)});
+ await routeAiStructured({taskType:'business_copilot',prompt:'next request',schema:schema()});
+ assert.equal(events[0].category,'schema');
+ assert.equal(providers.at(-1),'groq','Generated content failure must not open model rejection quarantine');
+ assert.doesNotMatch(JSON.stringify(events),/PRIVATE/);
+});
+
 test('explicit diagnostic listener receives bounded attempt metadata without request contents or keys',async()=>{
  configureAll();const events=[];
  globalThis.fetch=async url=>String(url).includes('groq.com')?response(400,{error:{message:'unsupported response_format PRIVATE-UPSTREAM'}}):response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});

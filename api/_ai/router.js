@@ -255,6 +255,12 @@ function providerError(provider,model,status,bodyText){
   if(status===408||status===504)return{category:'timeout',code:'AI_TIMEOUT',retryable:true};
   if((status===401||status===403)&&provider==='cloudflare'&&/paid|upgrade|5035/i.test(bodyText))return{category:'unavailable',code:'AI_FREE_TIER_UNAVAILABLE',retryable:false};
   if(status===401||status===403)return{category:'unavailable',code:'AI_PROVIDER_UNAVAILABLE',retryable:false};
+  // Best-effort structured generation can reject the generated content with
+  // HTTP 400. This says nothing about whether the model supports the request.
+  if(status===400&&provider==='groq'){
+    let code;try{code=JSON.parse(bodyText)?.error?.code;}catch{}
+    if(code==='json_validate_failed'||/Generated JSON does not match the expected schema/i.test(bodyText))return{category:'schema',code:'AI_INVALID_RESULT',retryable:false};
+  }
   if(status===400&&/model|schema|response_format|unsupported/i.test(bodyText))return{category:'unsupported',code:'AI_MODEL_UNSUPPORTED',retryable:false};
   if(status===404)return{category:'unavailable',code:'AI_MODEL_UNAVAILABLE',retryable:false};
   if(status>=500)return{category:'upstream',code:'AI_UPSTREAM_ERROR',retryable:true};
@@ -282,7 +288,7 @@ function groqReasoningOptions(model,reasoningLevel){
 async function callGroq(model,request){
   const apiKey=process.env.GROQ_API_KEY?.trim();if(!apiKey)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
   const schema=geminiSchemaToJsonSchema(request.schema);
-  const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:request.taskType==='supplier_purchase_extract',schema}},...groqReasoningOptions(model,request.reasoningLevel)};
+  const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:request.strictOutput===true||request.taskType==='supplier_purchase_extract',schema}},...groqReasoningOptions(model,request.reasoningLevel)};
   const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
   if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
@@ -413,7 +419,7 @@ export async function routeAiStructured(options={}){
       const startedAt=Date.now();
       attemptCount+=1;
       try{
-        const result=await callProvider(model,{taskType,prompt:options.prompt,messages:options.messages,attachments,schema,reasoningLevel,timeoutMs:Math.max(PROVIDER_MIN_MS,perAttemptMs),maxOutputTokens:options.maxOutputTokens});
+        const result=await callProvider(model,{taskType,prompt:options.prompt,messages:options.messages,attachments,schema,reasoningLevel,strictOutput:options.strictOutput===true,timeoutMs:Math.max(PROVIDER_MIN_MS,perAttemptMs),maxOutputTokens:options.maxOutputTokens});
         const schemaValid=validateJsonSchema(result.data,jsonSchema),customValid=schemaValid&&(typeof options.validate!=='function'||options.validate(result.data)!==false);
         if(!customValid){lastCode='AI_INVALID_RESULT';recordFailure(model.provider,model.model,'invalid');telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category:'schema',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);break;}
         const lowConfidence=hasLowConfidence(result.data);
