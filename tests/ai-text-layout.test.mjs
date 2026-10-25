@@ -19,3 +19,9 @@ test('table direction follows header language independently of the interface',()
  assert.equal(aiTextDirection('123 — الصنف'),'rtl');
  assert.equal(aiTextDirection('数量 単価'),'ltr');
 });
+test('currency-bearing calculations remain one exact LTR expression',()=>{
+ const text='فرق المبلغ: 12.50 USD − 10.00 USD = 2.50 USD (زيادة).';
+ const runs=aiInlineTextRuns(text);assert.equal(runs.map(r=>r.text).join(''),text);
+ assert.ok(runs.some(r=>r.direction==='ltr'&&r.text.trim()==='12.50 USD − 10.00 USD = 2.50 USD'));
+ assert.ok(aiInlineTextRuns('المبلغ 2.50 USD.').some(r=>r.direction==='ltr'&&r.text==='2.50 USD'));
+});

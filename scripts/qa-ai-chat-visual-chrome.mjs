@@ -149,11 +149,16 @@ try{
   ReactDOM.render(renderConversationWorkspace(host,React.createElement('div',{className:'lourex-ai-message user'},React.createElement('div',{className:'lourex-ai-user-copy'},userSource))),mount);
   const userCopy=mount.querySelector('.lourex-ai-user-copy'),userBdi=userCopy.querySelector('bdi');
   const userIsolated=userCopy.textContent===userSource&&userBdi?.dir==='ltr';
+  mount.style.width='720px';
+  ReactDOM.render(renderConversationWorkspace(host,React.createElement('div',{className:'lourex-ai-message assistant'},'**فرق المبلغ:** 12.50 USD − 10.00 USD = **2.50 USD**.')),mount);
+  const equation=Array.from(mount.querySelectorAll('bdi')).find(e=>e.textContent.trim()==='12.50 USD − 10.00 USD = 2.50 USD');
+  const tokenX=token=>{let offset=equation.textContent.lastIndexOf(token),walker=document.createTreeWalker(equation,NodeFilter.SHOW_TEXT),n;while(n=walker.nextNode()){if(offset<n.textContent.length){const r=document.createRange();r.setStart(n,offset);r.setEnd(n,offset+token.length);return r.getBoundingClientRect().x;}offset-=n.textContent.length;}return NaN;};
+  const currencyLtr=Boolean(equation)&&tokenX('12.50')<tokenX('10.00')&&tokenX('10.00')<tokenX('2.50')&&equation.querySelector('strong')?.textContent==='2.50 USD';
   ReactDOM.unmountComponentAtNode(mount);
-  return {opening,keyboard,closing,removed,reopened,reduced,dismissed,math,fidelity,tableLtr,draftPreserved,composerShrunk,userIsolated};
+  return {opening,keyboard,closing,removed,reopened,reduced,dismissed,math,fidelity,tableLtr,draftPreserved,composerShrunk,userIsolated,currencyLtr};
  })()`});
  const motion=presence.result?.value;
- assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1&&motion.math&&motion.fidelity&&motion.tableLtr&&motion.draftPreserved&&motion.composerShrunk&&motion.userIsolated,'Menu lifecycle regression: '+JSON.stringify(presence));
+ assert.ok(motion?.opening&&motion.keyboard&&motion.closing&&motion.removed&&motion.reopened&&motion.reduced&&motion.dismissed===1&&motion.math&&motion.fidelity&&motion.tableLtr&&motion.draftPreserved&&motion.composerShrunk&&motion.userIsolated&&motion.currencyLtr,'Menu lifecycle regression: '+JSON.stringify(presence));
  console.log('PASS actual React menu presence: '+JSON.stringify(motion));
 
  // Simulate iPadOS visualViewport height contraction when the keyboard is up.

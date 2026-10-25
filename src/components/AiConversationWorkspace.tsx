@@ -35,12 +35,23 @@ function bidiInlineText(value:string,key:string):any {
 }
 function markdownInline(value:any,key:string):any {
   if(typeof value!=='string')return value; // preserve scoped evidence callbacks
-  return value.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g).map((part,i)=>{
-    const id=key+'-'+i;
-    if(part.startsWith('**')&&part.endsWith('**'))return <strong key={id}>{bidiInlineText(part.slice(2,-2),id)}</strong>;
-    if(part.startsWith('`')&&part.endsWith('`'))return <code key={id} dir={aiTextDirection(part.slice(1,-1))}>{bidiInlineText(part.slice(1,-1),id)}</code>;
-    if(part.startsWith('*')&&part.endsWith('*'))return <em key={id}>{bidiInlineText(part.slice(1,-1),id)}</em>;
-    return bidiInlineText(part,id);
+  const spans=value.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g).map(part=>{
+    if(part.startsWith('**')&&part.endsWith('**'))return{type:'strong',text:part.slice(2,-2)};
+    if(part.startsWith('`')&&part.endsWith('`'))return{type:'code',text:part.slice(1,-1)};
+    if(part.startsWith('*')&&part.endsWith('*'))return{type:'em',text:part.slice(1,-1)};
+    return{type:'text',text:part};
+  }).filter(span=>span.text.length);
+  // Determine direction on visible text, so an emphasized result cannot split
+  // a currency equation into independently reordered RTL fragments.
+  let index=0,used=0;
+  return aiInlineTextRuns(spans.map(span=>span.text).join('')).flatMap((run,i)=>{
+    const children:any[]=[];let remaining=run.text.length;
+    while(remaining&&index<spans.length){
+      const span=spans[index]!,size=Math.min(remaining,span.text.length-used),text=span.text.slice(used,used+size),id=key+'-'+i+'-'+children.length;
+      children.push(span.type==='text'?text:react.createElement(span.type,{key:id,...(span.type==='code'?{dir:aiTextDirection(span.text)}:{})},text));
+      remaining-=size;used+=size;if(used===span.text.length){index++;used=0;}
+    }
+    return run.direction?[<bdi key={key+'-bidi-'+i} className="lxw-inline-ltr" dir="ltr">{children}</bdi>]:children;
   });
 }
 /** Presentation-only hierarchy. Punctuation never creates an action. */
@@ -49,7 +60,17 @@ function messageParagraph(parts:any[],key:string):any {
     const text=parts.join(''),end=text.search(/[؟?]/);
     // A short question leads the paragraph; explanatory copy stays separate.
     if(end>=0&&end<220&&text.slice(0,end).trim()){
-      const question=text.slice(0,end+1),detail=text.slice(end+1);
+      let boundary=end+1;
+      // Keep a closing emphasis marker with the question it belongs to.
+      // Splitting "**Question?** detail" before its closing ** exposes both
+      // halves as literal Markdown instead of rendering the intended emphasis.
+      const closing=text.slice(boundary).match(/^(\*\*|\*|`)/)?.[0];
+      if(closing){
+        const prefix=text.slice(0,boundary);
+        const count=closing==='*'?(prefix.replace(/\*\*/g,'').match(/\*/g)||[]).length:prefix.split(closing).length-1;
+        if(count%2===1)boundary+=closing.length;
+      }
+      const question=text.slice(0,boundary),detail=text.slice(boundary);
       return <div className="lxw-reply-question" key={key} dir="auto"><p className="lxw-reply-question-title"><strong>{markdownInline(question,key+'-question')}</strong></p>{detail.trim()?<p className="lxw-reply-question-detail">{markdownInline(detail,key+'-detail')}</p>:null}</div>;
     }
   }

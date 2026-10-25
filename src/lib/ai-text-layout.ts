@@ -7,8 +7,10 @@ export function aiTextDirection(value:string):'rtl'|'ltr'{
 export function aiInlineTextRuns(value:string):AiInlineTextRun[]{
   const digits='[0-9\\u0660-\\u0669\\u06f0-\\u06f9]';
   const number=`[+−-]?${digits}+(?:[.,\\u066b\\u066c]${digits}+)*`;
-  const atom=`\\(?\\s*${number}(?:\\s*\\))?`;
-  const pattern=new RegExp(`(?<![\\p{L}\\p{N}_-])(?:${atom}(?:\\s*[+−–×÷*/=\\-]\\s*${atom})+(?:\\s*[%٪])?|${number}\\s*[%٪])(?![\\p{L}\\p{N}_-])`,'gu');
+  const currency='(?:USD|EUR|SAR|AED|TRY|GBP|JPY|CNY|CHF|KWD|QAR|[$€£¥])';
+  const money=`(?:${currency}\\s*${number}|${number}\\s*${currency})`;
+  const atom=`\\(?\\s*(?:${currency}\\s*)?${number}(?:\\s*${currency})?(?:\\s*\\))?`;
+  const pattern=new RegExp(`(?<![\\p{L}\\p{N}_-])(?:${atom}(?:\\s*[+−–×÷*/=\\-]\\s*${atom})+(?:\\s*[%٪])?|${number}\\s*[%٪]|${money})(?![\\p{L}\\p{N}_-])`,'gu');
   const runs:AiInlineTextRun[]=[];let cursor=0;
   for(const match of value.matchAll(pattern)){
     const start=match.index!;
