@@ -39,4 +39,6 @@ test('client diagnostic display accepts fixed categories only, never arbitrary e
  const ctx={exports:{},t:(en,ar)=>ar};vm.runInNewContext(ts.transpile(source,{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}),ctx);
  const summary=ctx.exports.aiOwnerDiagnosticSummary({stage:'draft-plan',attempts:[{provider:'groq',category:'timeout',latencyMs:12000,secret:'PRIVATE'},{provider:'cloudflare',category:'PRIVATE',latencyMs:1}]});
  assert.match(summary,/groq: timeout 12000ms/);assert.doesNotMatch(summary,/PRIVATE|cloudflare/);
+ const rejection=ctx.exports.aiOwnerDiagnosticSummary({stage:'draft-plan',attempts:[{provider:'groq',category:'unsupported',latencyMs:950,rejection:{status:400,code:'invalid_request_error',param:'response_format',fields:['json_schema','strict','PRIVATE'],message:'PRIVATE'}}]});
+ assert.match(rejection,/HTTP400 invalid_request_error response_format json_schema,strict/);assert.doesNotMatch(rejection,/PRIVATE/);
 });
