@@ -1,0 +1,46 @@
+name: Finance iPhone keyboard axis 32
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/visual/finance-editor-keyboard-axis32.html'
+      - 'tests/visual/run-finance-iphone-keyboard-axis32.cjs'
+      - '.github/workflows/finance-iphone-keyboard-axis32.yml'
+permissions:
+  contents: read
+concurrency:
+  group: finance-iphone-keyboard-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  webkit-keyboard:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - name: Execute real editor keyboard and persisted draft checks
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-axis32-http.log 2>&1 &
+          qa_server_pid=$!
+          trap 'kill "$qa_server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ok=false;for(let i=0;i<50;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/finance-editor-keyboard-axis32.html");if(r.ok){ok=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ok)throw Error("QA fixture unavailable")'
+          node tests/visual/run-finance-iphone-keyboard-axis32.cjs
+      - name: Upload QA screenshots and assertions
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finance-iphone-keyboard-axis32
+          path: visual-qa-output/finance-iphone-keyboard-axis32/
+          retention-days: 7
