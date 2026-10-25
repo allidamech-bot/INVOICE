@@ -40,7 +40,9 @@ const clean=s=>String(s).normalize('NFKC').replace(/[٠-٩]/g,x=>String(x.charCo
     await page.evaluate(async()=>{await document.fonts?.ready;});
     const result=await page.evaluate(()=>{
       const all=[...document.querySelectorAll('.mobile-preview-stage .invoice-pages,.print-portal .invoice-pages')];
-      return {viewport:innerWidth,lang:document.documentElement.lang,dir:document.documentElement.dir,
+      return {viewport:innerWidth,lang:document.documentElement.lang,dir:getComputedStyle(document.querySelector('.print-portal .invoice-page')).direction,
+        arabicDirections:[...all[1].querySelectorAll('.bidi-ar')].slice(0,3).map(e=>getComputedStyle(e).direction),
+        englishDirections:[...all[1].querySelectorAll('.bidi-en')].slice(0,3).map(e=>getComputedStyle(e).direction),
         preview:all[0]?.querySelectorAll('.invoice-page').length||0,
         output:all[1]?.querySelectorAll('.invoice-page').length||0,
         classes:[...all[1].querySelectorAll('.invoice-page')].map(p=>p.className),
@@ -53,7 +55,11 @@ const clean=s=>String(s).normalize('NFKC').replace(/[٠-٩]/g,x=>String(x.charCo
       };
     });
     assert.equal(result.viewport,cfg.width);
-    assert.equal(result.dir,cfg.lang==='ar'?'rtl':'ltr');
+    if(!cfg.bilingual)assert.equal(result.dir,cfg.financial==='invoice-ar'?'rtl':'ltr','document page direction must match its financial language');
+    if(cfg.bilingual){
+      assert.ok(result.arabicDirections.length>0&&result.arabicDirections.every(d=>d==='rtl'),'bilingual Arabic runs must be RTL');
+      assert.ok(result.englishDirections.length>0&&result.englishDirections.every(d=>d==='ltr'),'bilingual Latin runs must be LTR');
+    }
     assert.ok(result.preview>1&&result.preview<=30,'50 financial rows must paginate in iPhone preview');
     assert.equal(result.output,result.preview,'preview/print page count must match');
     assert.equal(result.emptyPages,0,'no blank financial document pages');
