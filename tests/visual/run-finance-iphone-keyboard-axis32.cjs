@@ -39,8 +39,10 @@ const ua='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605
     await editor.waitFor({state:'visible'});
     const dock=page.locator('.mobile-editor-actionbar');
     await dock.waitFor({state:'visible'});
-    const first=page.locator('.item-card').first();
+    const first=page.locator('.editor-screen .item-card.premium-item-card').first();
+    await first.waitFor({state:'visible'});
     const fields=first.locator('.item-pricing-grid input');
+    await fields.nth(2).waitFor({state:'visible'});
     assert.ok(await fields.count()>=3,'actual editor exposes quantity, unit and unit price');
 
     // Focus the financial amount before simulating Safari's keyboard.
