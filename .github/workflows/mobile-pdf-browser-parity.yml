@@ -19,6 +19,9 @@ concurrency:
 jobs:
   browser-pdf:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +36,6 @@ jobs:
       - name: Existing PDF and pagination regressions
         run: node --test tests/pdf-pagination-parity-v542.test.mjs tests/safari-pdf-single-page-v580.test.mjs tests/final-details-pagination-v127.test.mjs
       - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
-      - run: npx playwright install --with-deps chromium webkit
       - name: Compare mobile preview with downloaded PDF in Chromium and WebKit
         shell: bash
         run: |
