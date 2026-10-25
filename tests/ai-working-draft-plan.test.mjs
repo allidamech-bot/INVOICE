@@ -30,6 +30,10 @@ test('explicit Arabic four and six ground atomic price and quantity patches with
   const invalid=structuredClone(plan);invalid.operations[0].evidence=evidence;
   assert.throws(()=>applyWorkingDraftPlan(kernel,vault,invalid,evidence+' وكمية الثاني ستة PCS'));
  }
+ for(const context of ['سالب أربعة','- أربعة','أربعة عشر','أربعة آلاف','أربعة ونصف','أربعة بالمئة','أربعة فاصل خمسة','صنفأربعة']){
+  const truncated=structuredClone(plan);truncated.operations[0].evidence='أربعة';
+  assert.throws(()=>applyWorkingDraftPlan(kernel,vault,truncated,context+' وكمية الثاني ستة PCS'),'Do not accept a positive single word clipped out of negative/compound evidence');
+ }
  const fabricated=structuredClone(plan);fabricated.operations[1].value='7';
  assert.throws(()=>applyWorkingDraftPlan(kernel,vault,fabricated,'أربعة دولارات ستة PCS'));
  assert.deepEqual(kernel,originalKernel);assert.deepEqual(vault,before);

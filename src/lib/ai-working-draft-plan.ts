@@ -7,11 +7,21 @@ import {normalizeDecimalInput} from './money.js';
 // Accept an explicit single number word, optionally followed by its unit.
 // Compound numbers, fractions, negatives and surrounding instructions need
 // clarification; never take "four" out of "four thousand" as evidence for 4.
-function arabicSingleNumberEvidence(evidence:string):string|undefined{
-  const text=evidence.normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').trim();
+function arabicSingleNumberEvidence(evidence:string,message:string):string|undefined{
+  const normalize=(value:string)=>value.normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا');
+  const text=normalize(evidence).trim();
   const words:Record<string,string>={صفر:'0',واحد:'1',واحدة:'1',اثنان:'2',اثنين:'2',اثنتان:'2',اثنتين:'2',ثلاث:'3',ثلاثة:'3',اربع:'4',اربعة:'4',خمس:'5',خمسة:'5',ست:'6',ستة:'6',سبع:'7',سبعة:'7',ثمان:'8',ثماني:'8',ثمانية:'8',تسع:'9',تسعة:'9',عشر:'10',عشرة:'10'};
   const match=text.match(/^(\S+)(?:\s+(?:دولار|دولارات|قطعة|قطع|حبة|حبات|كرتون|كراتين|USD|PCS|CTN))?$/iu);
-  return match&&Object.prototype.hasOwnProperty.call(words,match[1]!)?words[match[1]!]:undefined;
+  if(!match||!Object.prototype.hasOwnProperty.call(words,match[1]!))return undefined;
+  const source=normalize(message),composition=[...Object.keys(words),'عشرين','عشرون','ثلاثين','ثلاثون','اربعين','اربعون','خمسين','خمسون','ستين','ستون','سبعين','سبعون','ثمانين','ثمانون','تسعين','تسعون','مئة','مائة','مية','الف','الاف','مليون','مليار','نصف','ربع','فاصل','بالمئة','بالمائة','بالمية','[0-9٠-٩۰-۹]+'].join('|');
+  const beforeCompound=new RegExp(`(?:^|\\s)(?:${composition}|سالب|ناقص)\\s*(?:و\\s*)?$`,'u');
+  const afterCompound=new RegExp(`^\\s*(?:و\\s*)?(?:${composition})(?=$|[\\s،.])`,'u');
+  let index=source.indexOf(text);if(index<0)return undefined;
+  for(;index>=0;index=source.indexOf(text,index+text.length)){
+    const before=source.slice(0,index),after=source.slice(index+text.length);
+    if(/[\p{L}\p{N}−-]$/u.test(before)||/^[\p{L}\p{N}%٪]/u.test(after)||/[-−]\s*$/u.test(before)||beforeCompound.test(before)||afterCompound.test(after))return undefined;
+  }
+  return words[match[1]!];
 }
 
 /** A PDF refresh is an output request following an unsaved field edit, not
@@ -47,7 +57,7 @@ export function applyWorkingDraftPlan(kernel:ConversationKernel,vault:VaultPaylo
     const numeric=op.field==='quantity'||op.field==='unitPrice';
     if(numeric){
       const supplied:string[]=(String(op.evidence).match(/-?[0-9٠-٩۰-۹]+(?:[.,٫][0-9٠-٩۰-۹]+)?/g)||[]).map(normalizeDecimalInput);
-      const arabic=arabicSingleNumberEvidence(op.evidence);if(arabic!==undefined)supplied.push(arabic);
+      const arabic=arabicSingleNumberEvidence(op.evidence,message);if(arabic!==undefined)supplied.push(arabic);
       if(!supplied.some(value=>Number(value)===Number(op.value))||!/^\d+(?:\.\d+)?$/.test(op.value))
         throw new Error('The requested numeric value is missing from the user message.');
     }else if(!op.evidence.includes(op.value))throw new Error('The replacement text was not supplied by the user.');
