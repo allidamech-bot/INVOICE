@@ -386,6 +386,17 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
         :'Extracted '+workingDraft.items.length+' source lines from '+sourceCount+' attachment(s) into an unsaved quotation draft. Nothing was saved or issued. Supplier costs never become customer selling prices automatically. Supply a selling price or request an explicit gross margin, and review the buyer, currency and units before PDF or save.';
       return{answer:message,proposal:null,workingDraft,plan,results:[],plannedBy:'local'};
     }catch(error){
+      const reason=error instanceof Error?error.message:String(error);
+      if(reason.startsWith('SOURCE_INCOMPLETE: CORRECTION_REVIEW:'))return{
+        answer:input.language==='ar'
+          ?'لم أطبّق التصحيح لأن الملف الأصلي والصورة لا يقدّمان صفوفًا كاملة ومتطابقة بوضوح. راجع رموز الأصناف الفريدة، والأسعار والوحدات والتعبئة والعملة والعميل والشروط في الملفين. يمكنني اعتماد الكميات المصححة فقط بعد تطابق بقية البيانات؛ لن أجمع الأصل والتصحيح كأصناف إضافية. لم أحفظ أو أغيّر أي سجل.'
+          :'The original and correction image do not provide complete, clearly matching rows. Review unique SKUs, prices, units, packing, currency, buyer and terms in both sources. Only quantities can be replaced after the other facts match; original and corrected rows will not be added twice. No records were saved or changed.',
+        proposal:null,plan,results:[],plannedBy:'local'};
+      if(reason.includes('Multiple sources require an explicit request for one combined quotation.'))return{
+        answer:input.language==='ar'
+          ?'المرفقات متعددة، ولم أحدّد هل المطلوب جمع صفوف مستقلة في عرض سعر واحد أم تطبيق تصحيح على الأصل. حدّد العلاقة بينها أولًا. لتصحيح الكميات من صورة، قل «اعتمد الكميات المصححة في الصورة»؛ سأطابق رموز الأصناف وأبقي الأسعار الناقصة فارغة. لم أحفظ أو أغيّر أي سجل.'
+          :'Please clarify whether the attachments contain separate rows for one combined quotation or a correction to the original. For an image quantity correction, say “use corrected quantities from the image”; I will match unique SKUs and keep missing prices blank. No records were saved or changed.',
+        proposal:null,plan,results:[],plannedBy:'local'};
       return{answer:(input.language==='ar'?'لم أجهّز مسودة من المرفق: ':'No quotation draft was prepared from this attachment: ')+(error instanceof Error?error.message:String(error))+' — No records changed.',
         proposal:null,plan,results:[],plannedBy:'local'};
     }

@@ -117,9 +117,48 @@ function duplicateSourceEvidenceSignature(row:QuoteSourceFact):string{
         :value);
   }catch{return raw.normalize('NFKC');}
 }
+/** A correction is an overlay, never a request to append the same lines twice.
+ * Only explicit image quantity corrections with complete matching SKU sets are
+ * supported. Ambiguous, partial and price/term changes remain review blockers. */
+function imageQuantityCorrectionRequested(message:string):boolean{
+  const text=String(message||'').normalize('NFKC').replace(/[ً-ٰٟ]/gu,'');
+  const match=/(?:اعتمد|استخدم|use|apply)\s+(?:الكميات\s+المصححة|corrected\s+quantities)\s+(?:في|من|from|in)\s+(?:الصورة|the\s+image)/iu.exec(text);
+  return Boolean(match&&!/(?:لا|لم|بدون|don't|do\s+not|never)\s*$/iu.test(text.slice(0,match.index)));
+}
+function correctedImageQuantities(sources:QuoteSourceFact[],runtime:AiToolRuntime,message:string):AiDocumentDraftProposal{
+  const fail=():never=>{throw new Error('SOURCE_INCOMPLETE: CORRECTION_REVIEW: Quantity corrections require two complete customer quote sources with unique matching SKUs, unchanged prices, units, packing, buyer, currency and terms. Review the source rows; nothing was prepared.');};
+  const images=sources.filter(s=>/\.(?:png|jpe?g|webp|heic|heif)$/iu.test(s.fileName));
+  if(sources.length!==2||images.length!==1||sources.some(s=>s.route!=='quote_request'))return fail();
+  const correction=images[0]!,original=sources.find(s=>s!==correction)!;
+  const base=quoteSourceWorkingDraft([original],runtime,message),revised=quoteSourceWorkingDraft([correction],runtime,message);
+  if(!base||!revised)return fail();
+  for(const field of ['kind','customerId','customerDraft','currency','language','incoterm','paymentTerms','deliveryTime','validity','remarks','notes'] as const)
+    if(JSON.stringify(base[field])!==JSON.stringify(revised[field]))return fail();
+  const rows=(source:QuoteSourceFact):string[]=>{
+    let data:any;try{data=JSON.parse(source.quoteSheetCandidate||source.extracted);}catch{return fail();}
+    if(!Array.isArray(data?.items))return fail();
+    const keys=data.items.map((row:any)=>sourceText(row?.sku,60));
+    if(keys.some((key:string)=>!key)||new Set(keys).size!==keys.length)return fail();
+    return keys;
+  };
+  const baseKeys=rows(original),revisionKeys=rows(correction);
+  if(baseKeys.length!==revisionKeys.length)return fail();
+  const revisionBySku=new Map(revisionKeys.map((key,index)=>[key,revised.items[index]!]));
+  const items=base.items.map((item,index)=>{
+    const replacement=revisionBySku.get(baseKeys[index]!);
+    if(!replacement||item.unitPrice!==replacement.unitPrice||item.unit!==replacement.unit||
+      (item.packing||'')!==(replacement.packing||''))return fail();
+    // Descriptions and prices remain original evidence. Only the explicitly
+    // authorized quantity is copied, using the exact SKU, not array position.
+    return{...item,quantity:replacement.quantity};
+  });
+  return{...base,items,label:'Unsaved quotation with reviewed image quantity corrections',
+    rationale:'Explicit user request applied quantities from '+sourceText(correction.fileName,120)+' to matching unique SKUs in '+sourceText(original.fileName,120)+'. No rows appended, no price or terms changed; no save or issue authorized.'};
+}
 export function quoteSourceWorkingDraft(sources:QuoteSourceFact[],runtime:AiToolRuntime,message:string):AiDocumentDraftProposal|null{
   if(runtime.scope!=='business'||runtime.conversationMode!=='controller'||!explicitQuoteConversionIntent(message))return null;
   if(sources.length>1){
+    if(imageQuantityCorrectionRequested(message))return correctedImageQuantities(sources,runtime,message);
     // The user must explicitly request ONE combined quote. Quietly merging
     // distinct RFQs or clients changes commercial meaning and is forbidden.
     if(!/(?:موحد|موحّد|واحد|واحدة|ادمج|دمج|اجمع|جمع|combine|merge|single|one\s+(?:quote|quotation))/iu.test(message))
