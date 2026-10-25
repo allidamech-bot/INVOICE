@@ -77,7 +77,7 @@ const iphoneUA='Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebK
     assert.equal(await page.evaluate(()=>document.body.classList.contains('printing-tax-vat-report')),false);
     assert.equal(await page.evaluate(()=>window.qaSource()),baseline,'printing and navigation never mutate invoices or payments');
     assert.deepEqual(errors,[],'no WebKit page/HTTP errors');
-    await root.screenshot({path:out+'/vat-'+lang+'-'+width+'.png',animations:'disabled'});
+    await page.screenshot({path:out+'/vat-'+lang+'-'+width+'.png',fullPage:false,animations:'disabled'});
     results.push({lang,width,pass:true,csvRows:21,printCalls:1});
     console.log('PASS iPhone WebKit tax/CSV/print '+lang+' '+width+'px');
    }finally{await context.close();}
