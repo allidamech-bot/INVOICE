@@ -16,7 +16,7 @@ import {appendAuditEventsForVaultDiff} from '../dist/src/lib/audit-diff.js';
 import {synchronizeActiveWorkspaceOnSave} from '../dist/src/storage/vault.js';
 import {assertPlainCloudWorkspaceUploadable} from '../dist/src/cloud/plain-workspace.js';
 import {approvalGate} from '../dist/src/lib/governance.js';
-import {assertDocumentLifecycleInvariant} from '../dist/src/lib/document-lifecycle.js';
+import {assertDocumentLifecycleInvariant,createDocumentEvent} from '../dist/src/lib/document-lifecycle.js';
 import {isDeliveryLinkedInvoice,assertDeliveryInvoiceIntegrity} from '../dist/src/lib/sales-delivery-invoice.js';
 import {confirmedSalesDeliveries} from '../dist/src/lib/sales-delivery-flow.js';
 import {salesOrderForQuotation} from '../dist/src/lib/sales-order-flow.js';
@@ -25,7 +25,6 @@ import {assertInvoicePaymentInvariant} from '../dist/src/lib/payments.js';
 import {documentUsesCommercialDefaults} from '../dist/src/lib/document-kinds.js';
 import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {automaticElectronicDocument} from '../dist/src/lib/secure-share.js';
-import {createDocumentEvent} from '../dist/src/lib/audit.js';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const asOf='2026-10-25';
