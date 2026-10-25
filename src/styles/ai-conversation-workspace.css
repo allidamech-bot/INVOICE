@@ -3593,6 +3593,9 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-compose f
   background:var(--lxw-surface)!important;border:1px solid var(--lxw-line)!important;
   border-radius:20px!important;box-shadow:0 3px 14px rgba(13,39,26,.06)!important;
 }
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-compose .lourex-ai-premium-textarea:is(:focus,:focus-visible){
+  outline:none!important;box-shadow:none!important;
+}
 @keyframes lxw-surface-in{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes lxw-surface-out{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(5px) scale(.985)}}
 @media(max-width:430px){

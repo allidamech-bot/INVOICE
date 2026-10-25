@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - 'src/lib/ai-conversation-mode.ts'
+      - 'src/lib/ai-composer-input.ts'
+      - 'tests/ai-composer-input-layout.test.mjs'
       - 'src/lib/ai-conversation-attachments.ts'
       - 'scripts/ai-batch3-premium-conversation.mjs'
       - 'scripts/ai-batch3-conversation-lifecycle-fix.mjs'
@@ -48,6 +50,7 @@ jobs:
           tests/ai-advisor-exact-text.test.mjs
           tests/ai-advisor-visual-source.test.mjs
           tests/ai-source-request-deadlines.test.mjs
+          tests/ai-composer-input-layout.test.mjs
           tests/audit-batch7-attachments-behavior.test.mjs
           tests/ai-retry-completed-attachments.test.mjs
           tests/ai-advisor-data-v2-batch2.test.mjs
