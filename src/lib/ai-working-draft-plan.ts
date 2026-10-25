@@ -4,6 +4,16 @@ import {applyWorkspaceCommand,workspaceDocument,workspaceDrafting} from './ai-wo
 import {aiDraftUndoDepth} from './ai-document-limits.js';
 import {normalizeDecimalInput} from './money.js';
 
+// Accept an explicit single number word, optionally followed by its unit.
+// Compound numbers, fractions, negatives and surrounding instructions need
+// clarification; never take "four" out of "four thousand" as evidence for 4.
+function arabicSingleNumberEvidence(evidence:string):string|undefined{
+  const text=evidence.normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').trim();
+  const words:Record<string,string>={صفر:'0',واحد:'1',واحدة:'1',اثنان:'2',اثنين:'2',اثنتان:'2',اثنتين:'2',ثلاث:'3',ثلاثة:'3',اربع:'4',اربعة:'4',خمس:'5',خمسة:'5',ست:'6',ستة:'6',سبع:'7',سبعة:'7',ثمان:'8',ثماني:'8',ثمانية:'8',تسع:'9',تسعة:'9',عشر:'10',عشرة:'10'};
+  const match=text.match(/^(\S+)(?:\s+(?:دولار|دولارات|قطعة|قطع|حبة|حبات|كرتون|كراتين|USD|PCS|CTN))?$/iu);
+  return match&&Object.prototype.hasOwnProperty.call(words,match[1]!)?words[match[1]!]:undefined;
+}
+
 /** A PDF refresh is an output request following an unsaved field edit, not
  * an extra draft cell operation. Never interpret an explicit negation as consent. */
 export function wantsWorkingDraftPdfRefresh(message:string):boolean{
@@ -37,6 +47,7 @@ export function applyWorkingDraftPlan(kernel:ConversationKernel,vault:VaultPaylo
     const numeric=op.field==='quantity'||op.field==='unitPrice';
     if(numeric){
       const supplied:string[]=(String(op.evidence).match(/-?[0-9٠-٩۰-۹]+(?:[.,٫][0-9٠-٩۰-۹]+)?/g)||[]).map(normalizeDecimalInput);
+      const arabic=arabicSingleNumberEvidence(op.evidence);if(arabic!==undefined)supplied.push(arabic);
       if(!supplied.some(value=>Number(value)===Number(op.value))||!/^\d+(?:\.\d+)?$/.test(op.value))
         throw new Error('The requested numeric value is missing from the user message.');
     }else if(!op.evidence.includes(op.value))throw new Error('The replacement text was not supplied by the user.');
