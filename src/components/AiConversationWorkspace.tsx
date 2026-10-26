@@ -448,52 +448,124 @@ function ConversationRecordList({host}:{host:Host}):any {
     <small>{label(ar,'Selection only. No records are changed until a separate approval.','التحديد فقط؛ لا تتغير السجلات دون موافقة مستقلة.')}</small>
   </section>;
 }
-/** True in-chat A4 preview. Safari/iPad PDF blob iframes can render blank, so
- * render the same canonical document model visibly, without touching the PDF
- * bridge, saved records or the separate downloadable generated File. */
-function InlineControllerPdfPreview({Renderer,source,ar,onClose}:{Renderer:any;source:{document:LourexDocument;identity:string;electronicShareId?:string};ar:boolean;onClose:()=>void}):any {
-  const viewport=react.useRef(null as HTMLDivElement|null);
-  const stage=react.useRef(null as HTMLDivElement|null);
-  const extent=react.useRef(null as HTMLDivElement|null);
-  const [actualSize,setActualSize]=React.useState(false);
+/** Show the pages of the already generated PDF itself. Safari PDF iframes can
+ * be blank: PDF.js paints the same File that Download receives to a canvas.
+ * No second TemplateRenderer, document write, numbering or print action. */
+function InlineControllerPdfPreview({file,ar,onClose}:{file:File;ar:boolean;onClose:()=>void}):any {
+  const scroll=react.useRef(null as HTMLDivElement|null);
+  const canvas=react.useRef(null as HTMLCanvasElement|null);
+  const closeButton=react.useRef(null as HTMLButtonElement|null);
+  const [pdf,setPdf]=React.useState(null as any);
+  const [pages,setPages]=React.useState(0);
+  const [page,setPage]=React.useState(1);
+  const [pageWidth,setPageWidth]=React.useState(595);
+  const [pageHeight,setPageHeight]=React.useState(842);
+  const [availableWidth,setAvailableWidth]=React.useState(340);
+  const [zoom,setZoom]=React.useState(0); // 0 = fit width; 1 = 100% A4 at 96 DPI
+  const [rendering,setRendering]=React.useState(true);
+  const [error,setError]=React.useState('');
   React.useEffect(()=>{
-    const container=viewport.current,paper=stage.current,space=extent.current;
-    if(!container||!paper||!space)return;
-    let frame=0;
-    const fit=()=>{
-      window.cancelAnimationFrame(frame);
-      frame=window.requestAnimationFrame(()=>{
-        if(!container.isConnected||!paper.isConnected)return;
-        const width=Math.max(794,paper.scrollWidth);
-        const height=Math.max(1123,paper.scrollHeight);
-        const scale=actualSize?1:Math.min(1,Math.max(.1,(container.clientWidth-12)/width));
-        paper.style.transform='scale('+scale+')';
-        space.style.width=Math.ceil(width*scale)+'px';
-        space.style.height=Math.ceil(height*scale)+'px';
-      });
-    };
-    const resize=typeof ResizeObserver!=='undefined'?new ResizeObserver(fit):null;
-    resize?.observe(container);
-    const mutation=typeof MutationObserver!=='undefined'?new MutationObserver(fit):null;
-    mutation?.observe(paper,{subtree:true,childList:true});
+    const previous=document.activeElement as HTMLElement|null;
+    const overflow=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    closeButton.current?.focus();
+    const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();onClose();}};
+    document.addEventListener('keydown',onKey);
+    return()=>{document.removeEventListener('keydown',onKey);document.body.style.overflow=overflow;previous?.focus?.();};
+  },[]);
+  React.useEffect(()=>{
+    const viewport=scroll.current;
+    if(!viewport)return;
+    const fit=()=>setAvailableWidth(Math.max(240,viewport.clientWidth));
+    const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(fit):null;
+    observer?.observe(viewport);
     window.addEventListener('resize',fit);
     fit();
-    return()=>{window.cancelAnimationFrame(frame);resize?.disconnect();mutation?.disconnect();window.removeEventListener('resize',fit);};
-  },[actualSize,source.identity]);
-  return <section className="lxw-pdf-direct-preview" role="region" aria-label={label(ar,'Document preview inside the conversation','معاينة المستند داخل المحادثة')}>
-    <div className="lxw-pdf-direct-toolbar">
-      <strong>{label(ar,'A4 document preview · unsaved','معاينة مستند A4 · دون حفظ')}</strong>
-      <div><button type="button" onClick={()=>setActualSize(value=>!value)}>{actualSize?label(ar,'Fit page','ملاءمة الصفحة'):label(ar,'100% zoom','تكبير 100%')}</button>
-      <button type="button" onClick={onClose} aria-label={label(ar,'Close preview','إغلاق المعاينة')}>{label(ar,'Close','إغلاق')}</button></div>
-    </div>
-    <div className="lxw-pdf-direct-viewport" ref={viewport} tabIndex={0} aria-label={label(ar,'Scroll PDF document pages','تمرير صفحات المستند')}>
-      <div className="lxw-pdf-direct-extent" ref={extent}>
-        <div className="lxw-pdf-direct-paper" ref={stage}>
-          <Renderer document={source.document} scale={1} electronicShareId={source.electronicShareId}/>
-        </div>
+    return()=>{observer?.disconnect();window.removeEventListener('resize',fit);};
+  },[]);
+  React.useEffect(()=>{
+    let disposed=false,task:any=null,loaded:any=null;
+    setPdf(null);setPages(0);setPage(1);setError('');
+    void (async()=>{
+      try{
+        const url=new URL('../../vendor/pdf.mjs',import.meta.url).href;
+        const pdfjs=await import(url);
+        if(disposed)return;
+        pdfjs.GlobalWorkerOptions.workerSrc=new URL('../../vendor/pdf.worker.mjs',import.meta.url).href;
+        task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false});
+        if(disposed){void task.destroy();return;}
+        task.onPassword=()=>{void task.destroy();};
+        loaded=await task.promise;
+        if(disposed){void loaded.destroy();return;}
+        if(!Number.isInteger(loaded.numPages)||loaded.numPages<1)throw new Error('The generated PDF has no pages.');
+        setPages(loaded.numPages);
+        setPdf(loaded);
+      }catch(e){if(!disposed)setError(e instanceof Error?e.message:String(e));}
+    })();
+    return()=>{disposed=true;if(loaded)void loaded.destroy();else if(task)void task.destroy();};
+  },[file]);
+  const fit=(Math.max(240,availableWidth-22)/Math.max(1,pageWidth))/(4/3);
+  const scale=(4/3)*(zoom===0?fit:zoom);
+  const cssWidth=Math.max(1,Math.round(pageWidth*scale));
+  const cssHeight=Math.max(1,Math.round(pageHeight*scale));
+  React.useEffect(()=>{
+    const target=canvas.current;
+    if(!pdf||!target)return;
+    let disposed=false,job:any=null;
+    setRendering(true);
+    void (async()=>{
+      try{
+        const selected=await pdf.getPage(page);
+        if(disposed)return;
+        const raw=selected.getViewport({scale:1});
+        setPageWidth(raw.width);setPageHeight(raw.height);
+        const paperScale=(4/3)*(zoom===0?(Math.max(240,availableWidth-22)/raw.width)/(4/3):zoom);
+        const width=raw.width*paperScale,height=raw.height*paperScale;
+        // Cap canvas memory on Retina iPhone at high magnification.
+        const ratio=Math.min(window.devicePixelRatio||1,2,4096/width,4096/height,Math.sqrt(12000000/(width*height)));
+        const pixelViewport=selected.getViewport({scale:paperScale*ratio});
+        target.width=Math.max(1,Math.round(pixelViewport.width));
+        target.height=Math.max(1,Math.round(pixelViewport.height));
+        target.style.width=Math.round(width)+'px';
+        target.style.height=Math.round(height)+'px';
+        const context=target.getContext('2d',{alpha:false});
+        if(!context)throw new Error('PDF canvas is unavailable.');
+        job=selected.render({canvasContext:context,viewport:pixelViewport,canvas:target});
+        await job.promise;
+        if(!disposed)setRendering(false);
+      }catch(e){
+        if(!disposed)setError(e instanceof Error?e.message:String(e));
+      }
+    })();
+    return()=>{disposed=true;try{job?.cancel();}catch{}};
+  },[pdf,page,zoom,availableWidth]);
+  const movePage=(next:number)=>{setPage(next);if(scroll.current){scroll.current.scrollTop=0;scroll.current.scrollLeft=0;}};
+  const frame=<div className="lxw-pdf-screen" role="dialog" aria-modal="true" aria-label={label(ar,'Actual generated PDF preview','معاينة ملف PDF الحقيقي')} dir={ar?'rtl':'ltr'}>
+    <div className="lxw-pdf-screen-toolbar">
+      <strong>{label(ar,'Actual PDF · preview only','ملف PDF الفعلي · معاينة فقط')}</strong>
+      <div className="lxw-pdf-screen-controls">
+        <button type="button" onClick={()=>setZoom(0)} aria-pressed={zoom===0}>{label(ar,'Fit width','ملاءمة العرض')}</button>
+        <button type="button" disabled={zoom===0||zoom<=.5} onClick={()=>setZoom(value=>Math.max(.5,+(value-.25).toFixed(2)))} aria-label={label(ar,'Zoom out','تصغير')}>−</button>
+        <span dir="ltr">{zoom===0?label(ar,'Fit','ملائم'):Math.round(zoom*100)+'%'}</span>
+        <button type="button" disabled={zoom>=2.5} onClick={()=>setZoom(value=>value===0?1:Math.min(2.5,+(value+.25).toFixed(2)))} aria-label={label(ar,'Zoom in','تكبير')}>+</button>
+        <button type="button" onClick={()=>setZoom(1)}>{label(ar,'100%','١٠٠٪')}</button>
+        <button ref={closeButton} type="button" className="lxw-pdf-screen-close" onClick={onClose}>{label(ar,'Close','إغلاق')}</button>
       </div>
     </div>
-  </section>;
+    <div className="lxw-pdf-screen-navigation">
+      <button type="button" disabled={page<=1} onClick={()=>movePage(page-1)}>{label(ar,'Previous page','الصفحة السابقة')}</button>
+      <span role="status">{page} / {pages||'…'}</span>
+      <button type="button" disabled={!pages||page>=pages} onClick={()=>movePage(page+1)}>{label(ar,'Next page','الصفحة التالية')}</button>
+    </div>
+    {error?<p className="lxw-pdf-screen-error" role="alert">{error}</p>:null}
+    <div className="lxw-pdf-screen-scroll" ref={scroll} tabIndex={0} aria-label={label(ar,'Scroll real PDF page','تمرير صفحة PDF الفعلية')}>
+      <div className="lxw-pdf-screen-page" style={{width:cssWidth+'px',height:cssHeight+'px'}}>
+        <canvas key={page+'-'+zoom+'-'+availableWidth} ref={canvas} role="img" aria-label={label(ar,'Rendered PDF page '+page,'صفحة PDF رقم '+page)}/>
+        {rendering&&!error?<span className="lxw-pdf-screen-loading" role="status">{label(ar,'Rendering PDF page…','جارٍ عرض صفحة PDF…')}</span>:null}
+      </div>
+    </div>
+  </div>;
+  return ReactDOM.createPortal(frame,document.body);
 }
 
 function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any {
@@ -514,7 +586,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const pdfStage=react.useRef(null as HTMLDivElement|null);
   const [PdfRenderer,setPdfRenderer]=React.useState(null as any);
   const [pdfSource,setPdfSource]=React.useState(null as {document:LourexDocument;identity:string;electronicShareId?:string;offlineCopy?:boolean}|null);
-  const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number}|null);
+  const [pdfResult,setPdfResult]=React.useState(null as {url:string;name:string;bytes:number;file:File}|null);
   const [pdfBusy,setPdfBusy]=React.useState(false);
   const [pdfPreviewOpen,setPdfPreviewOpen]=React.useState(false);
   const [pdfError,setPdfError]=React.useState('');
@@ -614,7 +686,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         if(cancelled){URL.revokeObjectURL(url);return;}
         markPdfStage(phase,'ok');
         phase='complete';
-        setPdfResult({url,name:(file as File).name||'LOUREX-Preview.pdf',bytes:file.size});
+        setPdfResult({url,name:(file as File).name||'LOUREX-Preview.pdf',bytes:file.size,file});
         setPdfPreviewOpen(true);
         markPdfStage(phase,'ok');
       }catch(error){if(!cancelled){markPdfStage(phase,'failed');setPdfError(error instanceof Error?error.message:String(error));}}
@@ -696,7 +768,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
         </div>
         <div className="lxw-ai-pdf-file-actions"><a className="lxw-pdf-download" href={viewPdf.url} download={viewPdf.name}>{label(ar,'Download PDF','تنزيل PDF')}</a></div>
       </div>:null}
-      {viewPdf&&pdfPreviewOpen&&PdfRenderer&&pdfSource?<InlineControllerPdfPreview key={pdfIdentity} Renderer={PdfRenderer} source={pdfSource} ar={ar} onClose={()=>setPdfPreviewOpen(false)}/>:null}
+      {viewPdf&&pdfPreviewOpen?<InlineControllerPdfPreview key={pdfIdentity} file={viewPdf.file} ar={ar} onClose={()=>setPdfPreviewOpen(false)}/>:null}
     </section>
     {pdfSource?<div className="lxw-ai-pdf-render-target" ref={pdfStage}
       aria-hidden="true" style={{position:'fixed',left:'-12000px',top:0,width:'210mm',minWidth:'210mm',maxWidth:'none',background:'#fff',pointerEvents:'none',zIndex:-1}}>
