@@ -448,3 +448,30 @@ reruns of unchanged passing suites. Keep #1097 Draft until acceptance.
 Do not modify LOUREX AI, production Firestore records, live inventory
 or account balances through this audit. Resolve 35-B/C, cash/bank QA
 and physical-iPhone acceptance separately before production sign-off.
+
+### 26 October addendum — voucher and treasury synthetic QA #1099
+
+- New [PR #1099](https://github.com/allidamech-bot/INVOICE/pull/1099)
+  was created from main `6054a13c8007dec7f5c5234a8460b15d68babcc0`
+  as a **test-only Draft**. Exact HEAD:
+  `66234ced0cc720d14b7b564f30570ca65d93fb19`.
+- Focused GitHub Actions run `40346118499`, "Finance voucher and treasury
+  reconciliation (Alif QA)", **completed successfully** (typecheck, build,
+  five direct in-memory financial tests).
+- Scenario: final USD 200 invoice + USD 50 customer collection => AR 150;
+  posted USD 120 supplier purchase + USD 30 disbursement => AP 90.
+  Beginning cash/bank balance 100; receipts/payments initially remain
+  **unallocated**; explicit ledger links change the bank balance to
+  100 + 50 - 30 = 120. Once allocated, source appears only once; duplicate
+  allocation, amount/currency mismatch, cross-branch posting and voided
+  supplier payment linking are rejected. Voiding a treasury link restores
+  the unallocated row without changing the original AR/AP settlement.
+- Invoice and supplier payment vouchers match their persisted payments.
+  Read-only statement/report calculations and no mutation of the fixture
+  source records are asserted.
+- **Important limits:** this is synthetic in-memory execution of actual
+  compiled accounting modules, **not** an authenticated QA-account session,
+  Firestore write/rule deployment verification, end-user iPhone Safari,
+  post-merge integration or production acceptance. The account-isolated
+  cash/bank workflow remains open, and the PR is unmerged. Do not count
+  the five tests as five original Alif items.
