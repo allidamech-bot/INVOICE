@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {
-  treasuryProjection,treasuryTotals,treasuryAccountBalance
+  treasuryProjection,treasuryTotals,treasuryLedgerTotals,treasuryAccountBalance
 } from '../dist/src/lib/treasury-ledger.js';
 import {treasuryPeriodReport} from '../dist/src/lib/treasury-report.js';
 
@@ -34,7 +35,7 @@ function view(entries,extra={}){
   return treasuryProjection([payment], [supplier], [expense], entries,
     extra.reconciliations||[],'USD',extra.asOf||'');
 }
-function totals(entries,extra={}){return treasuryTotals(view(entries,extra),'USD');}
+function totals(entries,extra={}){return treasuryLedgerTotals(view(entries,extra),'USD');}
 function report(entries){
   return treasuryPeriodReport({...scope,from:'2026-10-01',to:'2026-10-31',
     accounts:[account],entries,payments:[payment],
@@ -46,6 +47,8 @@ test('unallocated receipts, supplier payments and expenses never create bank mov
   const projected=view(entries);
   assert.equal(projected.filter(row=>!row.fromAccountId&&!row.toAccountId).length,3,
     'unallocated items must remain visible in movement queue');
+  assert.equal(treasuryTotals(projected,'USD').net,'13.00',
+    'existing projected cash-flow contract must remain unchanged');
   assert.deepEqual(totals(entries),{
     inflow:'0.00',outflow:'0.00',net:'0.00',internalTransfers:'0.00',
     reconciled:0,unreconciled:1
@@ -85,10 +88,16 @@ test('internal bank-to-cash transfer is not income or expense; unallocated recon
   const entries=[opening,transfer];
   const rows=view(entries,{reconciliations});
   assert.equal(rows.find(row=>row.id===payment.id).reconciled,true);
-  const summary=treasuryTotals(rows,'USD');
+  const summary=treasuryLedgerTotals(rows,'USD');
   assert.deepEqual([summary.inflow,summary.outflow,summary.net,summary.internalTransfers],
     ['0.00','0.00','0.00','5.00']);
   assert.equal(summary.reconciled,0,'unallocated workflow acknowledgements cannot count as bank reconciliations');
   assert.equal(treasuryAccountBalance('bank',entries),'95.00');
   assert.equal(treasuryAccountBalance('cash',entries),'5.00');
+});
+
+test('the user-facing Treasury page wires its KPIs to posted ledger totals, not projected flows',async()=>{
+  const ui=await readFile(new URL('../src/components/TreasuryLedgerPage.tsx',import.meta.url),'utf8');
+  assert.match(ui,/treasuryLedgerTotals\(rows,code\)/);
+  assert.doesNotMatch(ui,/treasuryTotals\(rows,code\)/);
 });
