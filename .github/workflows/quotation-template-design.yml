@@ -57,6 +57,8 @@ jobs:
         env:
           LOUREX_TEMPLATE_QA_OUTPUT: visual-qa-output/quotation-template-design
         run: node tests/visual/run-quotation-template-design.cjs
+      - name: Verify Arabic item-name LTR fallback in preview, saved PDF and long pagination
+        run: node tests/visual/run-arabic-item-description-fallback.cjs
       - name: Verify optional final-page composition and exported A4 closing
         env:
           LOUREX_CLOSING_PDF: 'true'
