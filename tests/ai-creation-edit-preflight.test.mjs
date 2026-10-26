@@ -37,7 +37,7 @@ test('failed creation preserves original working artifact and releases loading',
  assert.equal(h.__foundationTurnBusy,false);assert.deepEqual(vault,before);
 });
 test('current-draft references and mixed edit/create requests keep the edit-planning boundary',async()=>{
- for(const message of ['جهز عرض السعر الحالي فقط','جهز عرض سعر لهذه المسودة','Create a quote from this draft','Create a new quote and change the current price to four dollars']){
+ for(const message of ['جهز عرض السعر الحالي فقط','جهز عرض سعر لهذه المسودة','Create a quote from this draft',"Create a quotation? Don't create a new draft.",'Create a new quote and change the current price to four dollars']){
   const {h,calls,vault,before}=await fixture();await h.ask(message);
   assert.equal(calls[0],'/api/ai-inbox',message);assert.deepEqual(vault,before);
  }
