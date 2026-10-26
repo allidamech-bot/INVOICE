@@ -1,0 +1,33 @@
+name: Finance Alif Isolated Disaster Recovery Gate
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-alif-disaster-recovery-20261026.test.mjs'
+      - '.github/workflows/finance-alif-disaster-recovery-20261026.yml'
+permissions:
+  contents: read
+concurrency:
+  group: finance-alif-dr-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  synthetic-dr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Synthetic full financial backup / recovery only
+        run: node --test tests/finance-alif-disaster-recovery-20261026.test.mjs
+      - name: Explicit acceptance boundary
+        run: |
+          echo 'Isolated synthetic financial vault only. No production Firebase, AI, owner account, real storage or customer documents accessed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This does NOT prove cloud service DR, multi-device live recovery or physical iPhone import/export; these remain separate acceptance gates.' >> "$GITHUB_STEP_SUMMARY"
