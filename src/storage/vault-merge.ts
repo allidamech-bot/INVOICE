@@ -1037,15 +1037,25 @@ function guardNewTreasuryReconciliationSourceScope(
 ):void{
   if(candidate===base)return;
   const existing=new Set(base.map(row=>row.id));
-  const sourceScopes=new Map<string,{workspaceId?:string;branchId?:string}>();
-  for(const row of entries)sourceScopes.set('treasury:'+row.id,row);
-  for(const row of payments)sourceScopes.set('collection:'+row.id,row);
-  for(const row of supplierPayments)sourceScopes.set('supplier-payment:'+row.id,row);
-  for(const row of expenses)sourceScopes.set('expense:'+row.id,row);
+  // Unchanged legacy snapshots can contain repeated source IDs. A new
+  // reconciliation key must resolve to exactly one stored movement: a Map
+  // that retains only the last match makes the decision depend on array order.
+  const sourceScopes=new Map<string,Array<{workspaceId?:string;branchId?:string}>>();
+  const recordSource=(key:string,row:{workspaceId?:string;branchId?:string})=>{
+    const prior=sourceScopes.get(key);
+    if(prior)prior.push(row);else sourceScopes.set(key,[row]);
+  };
+  for(const row of entries)recordSource('treasury:'+row.id,row);
+  for(const row of payments)recordSource('collection:'+row.id,row);
+  for(const row of supplierPayments)recordSource('supplier-payment:'+row.id,row);
+  for(const row of expenses)recordSource('expense:'+row.id,row);
   for(const row of candidate){
     if(existing.has(row.id))continue; // Never migrate prior audit history.
-    const source=sourceScopes.get(row.movementKey);
-    if(!source)continue;
+    const matches=sourceScopes.get(row.movementKey);
+    if(!matches)continue; // Preserve legacy/external unresolved-key compatibility.
+    if(matches.length!==1)
+      throw new Error('Treasury reconciliation movement key is ambiguous across stored financial records.');
+    const source=matches[0];
     if((row.workspaceId||'default')!==(source.workspaceId||'default')||
        (row.branchId||'main')!==(source.branchId||'main'))
       throw new Error('Treasury reconciliation company or branch differs from its financial movement.');
