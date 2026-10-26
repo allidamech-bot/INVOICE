@@ -750,6 +750,17 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
   }
   const execution=executeAiToolPlan(runtime,plan);
+  // An explicit creation request with no buyer or products needs clarification,
+  // not an empty approval proposal or guesses copied from an older document.
+  const document=execution.proposal;
+  if(runtime.conversationMode==='controller'&&requestedDocumentKind(input.message)&&document?.capability==='document.createDraft'){
+    const missingBuyer=!document.customerId&&!document.customerDraft?.companyNameEn?.trim()&&!document.customerDraft?.companyNameAr?.trim();
+    const missingProducts=!document.items.length;
+    if(missingBuyer||missingProducts)return{answer:input.language==='ar'
+      ?'لإنشاء المستند الجديد، حدّد '+[missingBuyer?'العميل':null,missingProducts?'الأصناف والكميات والوحدات وأسعار البيع والعملة':null].filter(Boolean).join(' و')+'. لم أحفظ أو أصدر أي مستند.'
+      :'To create the new document, specify '+[missingBuyer?'the customer':null,missingProducts?'the products, quantities, units, selling prices and currency':null].filter(Boolean).join(' and ')+'. Nothing was saved or issued.',
+      proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+  }
   // An incomplete/truncated attachment cannot become a supposedly complete
   // working quote simply because the LLM chose the PREPARE tool.
   const workingDraft=hasSources&&sources.some(source=>source.truncated)

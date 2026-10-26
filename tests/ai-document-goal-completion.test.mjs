@@ -54,3 +54,18 @@ test('an empty creation payload is not goal completion',async()=>{
  const g=gateway([empty]),r=await g.run({message:'Create quotation',scope:'business',conversationMode:'controller',documentGoal:'proforma'});
  assert.equal(r.statusCode,422);
 });
+
+for(const args of [{kind:'proforma',items:[]},{kind:'proforma',items:[{descriptionEn:'QA product',quantity:'2',unit:'PCS',unitPrice:'10'}]},{kind:'proforma',customerDraft:{companyNameEn:'QA Buyer'},items:[]}])test('explicit draft creation requests missing buyer/products without a guessed proposal: '+JSON.stringify(args),async()=>{
+ const original={fetch:globalThis.fetch,window:globalThis.window,firebase:globalThis.firebase};
+ const vault=emptyVault(),before=structuredClone(vault),requests=[];
+ globalThis.window={setTimeout,clearTimeout};globalThis.firebase={apps:[{}],auth:()=>({currentUser:{uid:'fixture',getIdToken:async()=>'fixture-token'}})};
+ globalThis.fetch=async(_url,options)=>{requests.push(JSON.parse(options.body));return{ok:true,json:async()=>({plan:{version:1,goal:'Quotation',calls:[{id:'create',tool:'document.createDraft',args,reason:'Review request'}]}})};};
+ try{
+  const result=await orchestrateAiToolRequest({message:'أنشئ مسودة عرض سعر',vault,context:{conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}},language:'ar'});
+  assert.equal(requests.length,1);assert.equal(requests[0].documentGoal,'proforma');
+  assert.equal(result.proposal,null);assert.equal(result.workingDraft,undefined);
+  if(!args.customerDraft)assert.match(result.answer,/العميل/);
+  if(!args.items.length)assert.match(result.answer,/الأصناف/);
+  assert.deepEqual(vault,before);assert.deepEqual(result.results,[]);
+ }finally{Object.assign(globalThis,original);}
+});

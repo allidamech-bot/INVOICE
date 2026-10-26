@@ -9,9 +9,12 @@ import {normalizeDecimalInput} from './money.js';
  * Current-draft references, negation and mixed edit commands stay conservative. */
 export function standaloneDocumentCreation(message:string):boolean{
   const text=String(message||'').normalize('NFKC').trim();
-  if(/مسود|هذا\s+العرض|هالعرض|\b(?:this|that|the)\s+(?:draft|document|quotation|quote|invoice)\b/iu.test(text))return false;
+  const arabicCreation=/^(?:(?:طيب|تمام|حسنًا|حسنا)[،,]?\s*)?(?:سوي(?:\s*لي)?|سوّي(?:\s*لي)?|اعمل(?:\s*لي)?|جهز(?:\s*لي)?|جهّز(?:\s*لي)?|أنشئ|انشئ|حضّر|حضر)\s+(?:لي\s+)?(?:مسودة\s+)?(?:عرض\s+(?:ال)?سعر|فاتورة)(?=$|[\s،,.])/u.exec(text);
+  // «مسودة» modifies the requested output; later draft references remain edits.
+  const references=arabicCreation?text.slice(arabicCreation[0].length):text;
+  if(/مسود|هذا\s+العرض|هالعرض|\b(?:this|that|the)\s+(?:draft|document|quotation|quote|invoice)\b/iu.test(references))return false;
   if(/\b(?:edit|change|update|remove|delete|same|current|existing|previous|not|never|without|don['’]?t)\b|(?:عد[ّ]?ل|غي[ّ]?ر|خلي|خلّي|احذف|اضف|أضف|نفس|الحالي|الحالية|السابق|السابقة|بدل|لا\s+(?:ت|تن)|دون\s+إنشاء|دون\s+انشاء)/iu.test(text))return false;
-  return /^(?:(?:طيب|تمام|حسنًا|حسنا)[،,]?\s*)?(?:سوي(?:\s*لي)?|سوّي(?:\s*لي)?|اعمل(?:\s*لي)?|جهز(?:\s*لي)?|جهّز(?:\s*لي)?|أنشئ|انشئ|حضّر|حضر)\s+(?:لي\s+)?(?:عرض\s+(?:ال)?سعر|فاتورة)(?=$|[\s،,.])/u.test(text)||
+  return Boolean(arabicCreation)||
     /^(?:create|make|generate|build|draft|prepare)\s+(?:(?:me|a|an|the|new|another)\s+)*(?:quotation|quote|invoice)\b/iu.test(text);
 }
 
