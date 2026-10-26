@@ -152,3 +152,11 @@ export function treasuryTotals(rows:TreasuryProjectionRow[],currencyCode:string)
   for(const row of selected){if(row.source==='opening-balance')continue;const amount=decimalToScaled(row.amount,2);if(row.direction==='in')inflow+=amount;else if(row.direction==='out')outflow+=amount;else internal+=amount;}
   return{inflow:moneyString(inflow),outflow:moneyString(outflow),net:moneyString(inflow-outflow),internalTransfers:moneyString(internal),reconciled:selected.filter(row=>row.reconciled).length,unreconciled:selected.filter(row=>!row.reconciled).length};
 }
+// Actual cash/bank movement KPIs are deliberately narrower than the historical
+// projection-wide treasuryTotals contract, which also includes unapplied
+// receipts, supplier payments and expenses for operational analysis.
+export function treasuryLedgerTotals(
+  rows:TreasuryProjectionRow[],currencyCode:string
+):ReturnType<typeof treasuryTotals>{
+  return treasuryTotals(rows.filter(row=>Boolean(row.fromAccountId)||Boolean(row.toAccountId)),currencyCode);
+}
