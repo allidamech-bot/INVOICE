@@ -17,7 +17,7 @@ import { activeAccountStorageUid } from '../storage/db.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantState } from '../storage/assistant-store.js';
 import { lineTotal, isNonNegativeDecimalInput } from '../lib/money.js';
-import { prepareAiPdfPreview } from '../lib/ai-pdf-preview.js';
+import { prepareAiPdfPreview, loadGeneratedAiPdfRenderer } from '../lib/ai-pdf-preview.js';
 import { assertGeneratedAiPdfFile } from '../lib/ai-pdf-file-validation.js';
 import { attachAiChatScrollFollower, type AiChatScrollFollower } from '../lib/ai-chat-scroll.js';
 import { prepareAdvisorControllerHandoff } from '../lib/ai-advisor-controller-handoff.js';
@@ -488,10 +488,8 @@ function InlineControllerPdfPreview({file,ar,onClose}:{file:File;ar:boolean;onCl
     setPdf(null);setPages(0);setPage(1);setError('');
     void (async()=>{
       try{
-        const url=new URL('../../vendor/pdf.mjs',import.meta.url).href;
-        const pdfjs=await import(url);
+        const pdfjs=await loadGeneratedAiPdfRenderer();
         if(disposed)return;
-        pdfjs.GlobalWorkerOptions.workerSrc=new URL('../../vendor/pdf.worker.mjs',import.meta.url).href;
         task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false});
         if(disposed){void task.destroy();return;}
         task.onPassword=()=>{void task.destroy();};
