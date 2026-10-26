@@ -739,3 +739,62 @@ The legacy original forty-item wording still cannot be reconstructed
 verbatim from incomplete evidence. Earlier point-in-time text saying these
 PRs were open remains in this chronological register as historical evidence,
 but is **superseded by this merger section**.
+
+
+## 26 October 2026 — 35-B live Firebase rules evidence correction
+
+**Status: NOT ACCEPTED / DO NOT CHANGE PRODUCTION RULES.** This is a read-only
+correction of the evidence and prevents a false positive security incident.
+
+- The Firebase Console project `lourex-invoice` was accessed via a
+  read-only connected browser session (Google account, Firestore > Rules).
+  Firebase Rules history displayed a published version dated **16 October
+  2026, 6:34 PM** (the console's displayed time). No rules were edited
+  or published, and no Firestore data collections were opened.
+- **First browser extraction was ambiguous.** It reported a permissive
+  `allow read, write: if request.auth != null` fragment *and* indicated
+  unsaved/unpublished editor content. It did not reliably demonstrate that
+  this fragment belongs to the selected, deployed release. Do **not**
+  characterize a public cross-UID data leak as confirmed from that extraction.
+- A separate read-only selection of the **published** October 16 historical
+  version returned its `businessAccount()` and `trustedWorkspaceWriter()`
+  definitions including non-anonymous login and owner-claim restrictions.
+  **The output was truncated before the decisive `match /users/...` allow
+  lines**, so this is *partial* published-version evidence rather than
+  whole-rules source parity.
+- Git commit history was independently inspected. Commit
+  `c9708fc9d90e7afda22ba425566fcd78e8baa4b8` (15 October)
+  and commit `a59e52c936a16c2ee26760a844e45012e1569214`
+  (16 October) both explicitly require
+  `request.auth.uid == userId` for `/users/{userId}/...` read/write.
+  Commit `8671c471f2214e491535442d3b794702a5c3797b`
+  (21 October) extends period-control rules while preserving that
+  user-ID boundary; current source includes the same boundary.
+  **Git history is not proof the exact source was deployed.**
+- Historical, separate production test [GitHub run 39077268472]
+  (https://github.com/allidamech-bot/INVOICE/actions/runs/39077268472)
+  confirmed three *unsigned* synthetic-UID reads returned
+  `permission-denied` on 17 October. This does not prove authorized
+  owner success or cross-UID denial for signed-in accounts.
+  [Emulator CI 39583972138]
+  (https://github.com/allidamech-bot/INVOICE/actions/runs/39583972138)
+  passed authenticated two-UID isolation on 21 October, in a demo
+  emulator project only.
+- The third browser read to retrieve the exact published `allow` clauses
+  was not started because the TinyFish wallet reported insufficient funds.
+  Do not repeatedly retry a blocked paid session or invent its result.
+
+**Exact outstanding evidence for 35-B:** obtain through authorized,
+read-only Firebase Rules console/API access the *currently published*
+release ID/time and complete source, including every `allow` block for
+`/users/{userId}`, nested collections, and `/publicShares/{shareId}`;
+compare a normalized copy against the checked-in `firestore.rules`,
+report divergences and the publishing revision. Only then decide 35-B.
+A source-code or emulator comparison cannot substitute for this step.
+No owner workspace data, real customer identity, production rule deployment,
+new QA Firebase account or LOUREX AI code was touched.
+
+**Parallel-track discipline:** multiple AI PRs may independently advance
+`main`; this document only records financial-security audit evidence.
+An earlier historical entry claiming that production was at a specific SHA
+remains a time-stamped observation, not the current Vercel state.
