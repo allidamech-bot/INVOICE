@@ -564,3 +564,36 @@ Firebase deployment state.
   controlled, separate real-service QA account test is outstanding.
   No live project credentials were used, no customer data accessed, no
   production Firebase or Vercel change and no merge performed.
+
+### 26 October 2026 — treasury movement KPI separation, PR #1103
+
+- **Observed source discrepancy:** `TreasuryLedgerPage` computes bank/cash
+  account cards from explicit `treasuryEntries`, but the same screen's
+  inflow/outflow/movement-net KPIs passed `treasuryProjection` rows to
+  `treasuryTotals` without excluding unallocated customer receipts,
+  supplier disbursements, or expenses. This overstates *ledger movement
+  KPIs*, although the actual bank/cash account balances were unaffected.
+- **[PR #1103](https://github.com/allidamech-bot/INVOICE/pull/1103)**
+  is **Draft, unmerged**, based on
+  `9e02f54f5e381e12a75bceee03071d306ae0cd71`. It filters
+  `treasuryTotals` to account-linked rows only, preserving unallocated
+  entries in the separate queue, excluding opening balances from movement
+  net, and keeping internal transfers distinct from inflows/outflows.
+- Synthetic before/after contract:
+  Bank opening USD 100; USD 50 unallocated customer receipt,
+  USD 30 unallocated supplier payment and USD 7 unallocated expense
+  produce **zero** actual ledger movement. After allocating the receipt
+  and supplier payment, bank balance = USD 120 and net ledger movement =
+  USD +20. Voiding a linked receipt returns that payment to the
+  unallocated queue without counting the voided entry as cash movement.
+- The focused exact-head KPI CI workflow
+  [40374075544](https://github.com/allidamech-bot/INVOICE/actions/runs/40374075544)
+  **PASSED**, and the repo's automatic wider accounting, treasury output,
+  and isolated Vercel tracing workflows were also queued on the same PR
+  head. Their outcomes must be checked before release sign-off.
+- This changes only finance display aggregation, **not** creation, storage,
+  allocation, voiding, payment amounts, AR/AP, exchange rates, or
+  production data. No merge or deployment authorized.
+- Main advanced independently to `dea51b63e90f2934a878cae9a8fc5c6c6acf1ee4`
+  through AI-only changed paths while this PR's workflows were running.
+  That update does not itself prove combined merge acceptance.
