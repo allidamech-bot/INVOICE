@@ -118,4 +118,40 @@ test('unknown company and caller-supplied branch cannot mutate authoritative clo
  assert.equal(await authority(f),before);
 });
 
+test('lost server period control blocks silent re-enrollment, false unenrolled status and cached success',async()=>{
+ const f=await account();
+ const closeCommand=input(f,'close',{workspaceId:'default',through:'2026-10-31',reason:'Synthetic historical close'});
+ const closed=await execute(f,closeCommand);
+ const originalReport=(await f.root.collection('periodReports').doc(closed.reportId).get()).data();
+ // Emulate catastrophic loss in a brand-new demo Firebase emulator UID ONLY.
+ await f.root.collection('accounting').doc('control').delete();
+ const before=await authority(f);
+ const inspect={operation:'inspect',opId:id(),expectedRevision:f.state.revision,expectedGeneration:f.state.generation};
+ const enroll={operation:'enroll',opId:id(),expectedRevision:f.state.revision,expectedGeneration:0};
+ for(const command of [inspect,enroll,closeCommand]){
+  await assert.rejects(service.execute(f.identity,command),/PERIOD_AUTHORITY_MISSING/,
+   'the server must not claim a clean account or replay a success after losing control');
+  assert.equal(await authority(f),before,'failed recovery must not publish or mutate financial history');
+ }
+ assert.deepEqual((await f.root.collection('periodReports').doc(closed.reportId).get()).data(),originalReport);
+});
+
+test('retained immutable report alone blocks reset even if both control and operation receipts are lost',async()=>{
+ const f=await account(),closed=await close(f);
+ const report=(await f.root.collection('periodReports').doc(closed.reportId).get()).data();
+ await f.root.collection('accounting').doc('control').delete();
+ // A second isolated catastrophe removes operation metadata, but not the report.
+ const operations=await f.root.collection('periodOperations').get();
+ for(const operation of operations.docs)await operation.ref.delete();
+ const before=await authority(f);
+ await assert.rejects(service.execute(f.identity,{
+  operation:'inspect',opId:id(),expectedRevision:f.state.revision,expectedGeneration:f.state.generation
+ }),/PERIOD_AUTHORITY_MISSING/);
+ await assert.rejects(service.execute(f.identity,{
+  operation:'enroll',opId:id(),expectedRevision:f.state.revision,expectedGeneration:0
+ }),/PERIOD_AUTHORITY_MISSING/);
+ assert.equal(await authority(f),before,'no new authority or financial changes after loss');
+ assert.deepEqual((await f.root.collection('periodReports').doc(closed.reportId).get()).data(),report);
+});
+
 test.after(async()=>{await db.terminate();await deleteApp(app);});

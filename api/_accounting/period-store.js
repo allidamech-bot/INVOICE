@@ -26,6 +26,18 @@ function receiptValue(snapshot,fingerprint){
   return value.result;
 }
 
+// A missing control document is not proof that an enrolled financial period never
+// existed. The immutable operation/report records are independent server evidence.
+// Never resurrect an enrolled account with generation=1 after control loss.
+// An orphaned pre-transaction periodGenerations chunk is deliberately NOT evidence:
+// failed first enrollment attempts can leave those harmless chunks behind.
+async function assertNoLostAuthority(root,readQuery){
+  for(const collectionName of ['periodOperations','periodReports']){
+    const found=await readQuery(root.collection(collectionName).limit(1));
+    if(!found.empty)fail(503,'PERIOD_AUTHORITY_MISSING');
+  }
+}
+
 /** db is a server Firestore instance. No browser reference/token supplies authority. */
 export function createPeriodService(db){
   async function readPayload(root,meta,staged=false){
@@ -69,10 +81,22 @@ export function createPeriodService(db){
     if(input.operation==='inspect')return db.runTransaction(async tx=>{
       const [metaDoc,controlDoc]=await tx.getAll(metaRef,controlRef),meta=validateMeta(metaDoc.data());
       const control=controlDoc.exists?controlValue(controlDoc,identity.uid):null;
+      if(!control)await assertNoLostAuthority(root,query=>tx.get(query));
       return {format:'LOUREX_PERIOD_STATUS_V1',version:1,enrolled:Boolean(control),revision:meta.revision,sha256:meta.sha256,generation:control?.generation??0,boundaries:control?.boundaries??[]};
     });
-    const previousResult=receiptValue(await operationRef.get(),fingerprint);if(previousResult)return previousResult;
+    const previousResult=receiptValue(await operationRef.get(),fingerprint);
+    if(previousResult){
+      // Idempotent receipts are valid only while their owner control survives.
+      // Never report success from an archived receipt after loss of authority.
+      const current=await controlRef.get();
+      if(!current.exists)fail(503,'PERIOD_AUTHORITY_MISSING');
+      controlValue(current,identity.uid);
+      return previousResult;
+    }
     if(input.operation==='enroll'){
+      const controlBefore=await controlRef.get();
+      if(controlBefore.exists)fail(409,'ALREADY_ENROLLED');
+      await assertNoLostAuthority(root,query=>query.get());
       const initial=validateMeta((await metaRef.get()).data());
       if(initial.revision!==input.expectedRevision||input.expectedGeneration!==0){
         const prior=receiptValue(await operationRef.get(),fingerprint);if(prior)return prior;fail(409,'REVISION_CONFLICT');
@@ -87,6 +111,9 @@ export function createPeriodService(db){
       const [receipt,metaDoc,controlDoc]=await tx.getAll(operationRef,metaRef,controlRef);
       const prior=receiptValue(receipt,fingerprint);if(prior)return prior;
       if(controlDoc.exists)fail(409,'ALREADY_ENROLLED');
+      // Repeat the absence-of-history guard transactionally. A competing
+      // enrollment must not be mistaken for a pristine account.
+      await assertNoLostAuthority(root,query=>tx.get(query));
       const meta=validateMeta(metaDoc.data());if(meta.revision!==initial.revision||meta.sha256!==initial.sha256)fail(409,'REVISION_CONFLICT');
       const result={revision:adoptedMeta.revision,generation:1,boundaries:[]};
       tx.create(root.collection('workspaceHistory').doc(meta.revision),{...meta,archivedAt:FieldValue.serverTimestamp()});
