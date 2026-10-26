@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {isIphoneHeicPhoto,jpegFromIphonePhoto} from '../dist/src/lib/ai-iphone-photo.js';
+import {startConversationAttachmentBudget} from '../dist/src/lib/ai-conversation-attachments.js';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 function fixture(request=async()=>({source:{summary:'Safe source'}})){
  const calls=[],ctx={exports:{},require:()=>({requestAiJson:async(...args)=>{calls.push(args[0]);return request(...args);},isIphoneHeicPhoto,jpegFromIphonePhoto,readablePdfText:async()=> 'Selectable invoice text',readSpreadsheetFile:async()=>[],spreadsheetSheetsAsText:()=> 'SKU,quantity\nA1,2'}),Uint8Array,DOMException,btoa,Date,Math,Map,Set};
@@ -26,7 +27,7 @@ test('mixed file selection preserves ten sources and enforces count and total bu
  const h=fixture(),files=[new File(['a'],'a.txt',{type:'text/plain'}),new File(['a,b'],'b.csv',{type:'text/csv'}),new File([new Uint8Array(signatures[0][2])],'c.png',{type:'image/png'}),new File([new Uint8Array(signatures[3][2])],'d.pdf',{type:'application/pdf'})];const ten=Array.from({length:10},(_,i)=>files[i%4]);assert.deepEqual([...h.validateConversationFiles(ten)],ten);assert.throws(()=>h.validateConversationFiles([...ten,files[0]]),/up to 10/);assert.throws(()=>h.validateConversationFiles([{size:16_000_001}]),/16 MB/);
 });
 function generatedFunction(name,globals={},path='dist/src/components/AiCopilot.js'){
- const source=read(path),ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);let fn;function visit(n){if(ts.isFunctionDeclaration(n)&&n.name?.text===name)fn=n;ts.forEachChild(n,visit);}visit(ast);assert.ok(fn,'actual final emitted function');const ctx={AbortController,DOMException,...globals};vm.runInNewContext(fn.getText(ast)+'\nthis.run='+name+';',ctx);return ctx.run;
+ const source=read(path),ast=ts.createSourceFile(path,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);let fn;function visit(n){if(ts.isFunctionDeclaration(n)&&n.name?.text===name)fn=n;ts.forEachChild(n,visit);}visit(ast);assert.ok(fn,'actual final emitted function');const ctx={AbortController,DOMException,startConversationAttachmentBudget,...globals};vm.runInNewContext(fn.getText(ast)+'\nthis.run='+name+';',ctx);return ctx.run;
 }
 function instance(){return{mounted:true,state:{conversationAttachments:[{id:'row',status:'ready',file:{name:'a.txt'}}]},setState(change){this.state={...this.state,...(typeof change==='function'?change(this.state):change)};}};}
 test('cancelled older analysis cannot clear the newer controller or busy state, or install a late source',async()=>{
