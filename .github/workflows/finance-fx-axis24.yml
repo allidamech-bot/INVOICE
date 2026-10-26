@@ -1,0 +1,71 @@
+name: Finance FX input safety QA (Alif 24)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/fx-rates.ts'
+      - 'src/components/FxRatesPage.tsx'
+      - 'tests/finance-fx-validity-axis24.test.mjs'
+      - 'tests/visual/finance-fx-axis24.html'
+      - 'tests/visual/run-finance-fx-axis24.cjs'
+      - '.github/workflows/finance-fx-axis24.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-fx-axis24-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fx-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused synthetic FX input and history integrity
+        run: node --test tests/finance-fx-validity-axis24.test.mjs
+      - name: Reuse pinned browser container
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          test -f "$(node -p "require('playwright').chromium.executablePath()")"
+          test -f "$(node -p "require('playwright').webkit.executablePath()")"
+      - name: Real FX converter Chromium and WebKit UI checks
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-finance-fx.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module <<'NODE'
+          let ready=false;
+          for(let i=0;i<50;i++){
+            try {
+              const result=await fetch('http://127.0.0.1:4173/tests/visual/finance-fx-axis24.html');
+              if(result.ok){ready=true;break}
+            }catch{}
+            await new Promise(resolve=>setTimeout(resolve,100));
+          }
+          if(!ready)throw new Error('Synthetic FX fixture unavailable');
+          NODE
+          node tests/visual/run-finance-fx-axis24.cjs
+      - name: Preserve focused FX review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-fx-axis24-evidence
+          path: visual-qa-output/finance-fx-axis24/
+          retention-days: 7
+          if-no-files-found: warn
