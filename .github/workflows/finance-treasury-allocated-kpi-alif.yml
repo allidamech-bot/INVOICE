@@ -7,6 +7,7 @@ on:
       - 'src/lib/treasury-ledger.ts'
       - 'src/components/TreasuryLedgerPage.tsx'
       - 'tests/finance-treasury-allocated-kpi-alif.test.mjs'
+      - 'tests/finance-treasury-account-kpi-history-alif.test.mjs'
       - '.github/workflows/finance-treasury-allocated-kpi-alif.yml'
 
 permissions:
@@ -32,4 +33,4 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Focused synthetic treasury ledger KPI tests
-        run: node --test tests/finance-treasury-allocated-kpi-alif.test.mjs
+        run: node --test tests/finance-treasury-allocated-kpi-alif.test.mjs tests/finance-treasury-account-kpi-history-alif.test.mjs

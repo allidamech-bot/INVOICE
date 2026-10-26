@@ -113,6 +113,29 @@ export function markTreasuryEntryReconciled(entry:TreasuryLedgerRecord,reconcile
 export function treasuryAccountBalanceScaled(accountId:string,entries:TreasuryLedgerRecord[],asOf=''):bigint{let total=0n;for(const entry of entries){if(asOf){if(entry.date>asOf||(entry.voidedAt&&entry.voidedAt.slice(0,10)<=asOf))continue;}else if(entry.voidedAt)continue;const amount=decimalToScaled(entry.amount,2);if(entry.toAccountId===accountId)total+=amount;if(entry.fromAccountId===accountId)total-=amount;}return total;}
 export function treasuryAccountBalance(accountId:string,entries:TreasuryLedgerRecord[],asOf=''):string{return moneyString(treasuryAccountBalanceScaled(accountId,entries,asOf));}
 
+// Only the account-card reader needs fail-closed historical validation.
+// Preserve the existing ID-only balance API for other callers and archive
+// arithmetic, but never print an unverified mixed-currency/scope cash total.
+export function treasuryAccountDisplayBalance(
+  account:TreasuryAccountRecord,entries:TreasuryLedgerRecord[]
+):{balance:string|null;needsReview:boolean}{
+  const linked=entries.filter(entry=>!entry.voidedAt&&
+    (entry.fromAccountId===account.id||entry.toAccountId===account.id));
+  const scoped=(item:{workspaceId?:string;branchId?:string})=>
+    (item.workspaceId||'default')===(account.workspaceId||'default')&&
+    (item.branchId||'main')===(account.branchId||'main');
+  if(linked.some(entry=>!scoped(entry)||
+    (entry.currency||'').trim().toUpperCase()!==account.currency.trim().toUpperCase()||
+    !isNonNegativeDecimalInput(entry.amount)))
+    return{balance:null,needsReview:true};
+  try{
+    return{balance:treasuryAccountBalance(account.id,linked),needsReview:false};
+  }catch{
+    // Invalid legacy money is an account-review condition, not 0.00.
+    return{balance:null,needsReview:true};
+  }
+}
+
 export function createTreasuryReconciliation(movementKey:string,note='',reconciled=true):TreasuryReconciliationRecord{const now=new Date().toISOString();if(!movementKey.trim())throw new Error('Treasury movement key is required.');return{id:makeId('reconcile'),workspaceId:'',branchId:'',movementKey:movementKey.trim(),reconciledAt:reconciled?now:'',note:note.trim(),createdAt:now,updatedAt:now,action:reconciled?'reconcile':'undo'};}
 
 export function treasuryProjection(payments:PaymentRecord[],supplierPayments:SupplierPaymentRecord[],expenses:ExpenseRecord[],entries:TreasuryLedgerRecord[],reconciliations:TreasuryReconciliationRecord[],defaultCurrency='USD',asOf=''):TreasuryProjectionRow[]{
