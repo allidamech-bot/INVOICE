@@ -475,3 +475,62 @@ and physical-iPhone acceptance separately before production sign-off.
   post-merge integration or production acceptance. The account-isolated
   cash/bank workflow remains open, and the PR is unmerged. Do not count
   the five tests as five original Alif items.
+
+### 26 October 2026 — Firebase security evidence and 35-B/35-C split
+
+**No Firebase production configuration, Firestore data, secrets, account or deployment
+was modified in this audit.** Treat the following as three different evidence classes:
+
+1. **Source policy review (2026-10-26).** Checked-in `firestore.rules`
+   restricts `/users/{userId}/{document=**}` reads to the same
+   non-anonymous authenticated UID; own-account writes require
+   `ownBusinessAccount(userId) && trustedWorkspaceWriter()`; restricted
+   roles and wrong workspace-UID claims cannot write the plaintext workspace.
+   The public token path has a different, limited and expiring sharing policy.
+   File review alone does not prove the published Firestore release.
+2. **Local emulator — verified historical CI on 2026-10-21.** Exact
+   GitHub Actions run [39583972138](https://github.com/allidamech-bot/INVOICE/actions/runs/39583972138)
+   passed both the real Firestore rules emulator checks and real browser
+   Auth/Firestore emulator exercise. Browser C signed in as a **different UID**
+   and confirmed cross-account reads/writes were denied and local IndexedDB
+   data isolated. The [2026-10-20 security gate run 39468709567](https://github.com/allidamech-bot/INVOICE/actions/runs/39468709567)
+   also passed. This supports **35-C for local emulation only**, not
+   authenticated access control against the current live Firebase release.
+3. **Production unsigned, read-only guard — verified historical CI on
+   2026-10-17.** [Run 39077268472](https://github.com/allidamech-bot/INVOICE/actions/runs/39077268472)
+   logged three Firestore `permission-denied` results for anonymous
+   `workspace/meta`, `workspaceHistory`, and `assistantHistory`
+   probes against synthetic random UID paths through the deployed application
+   SDK. This proves only anonymous denial **at that time**, not matching
+   complete current source rules, owner read/write success, or different
+   authenticated-account denial.
+
+**35-B remains OPEN:** actual deployed Firestore rules content, publication
+revision/date, and source/deployment parity have not been retrieved via an
+authorized Firebase console or API session. Do not substitute source code,
+local emulator passes or old anonymous-denial results for that evidence.
+
+**35-C split:** historical local two-user Auth/Firestore emulator isolation
+is established; current real authenticated cross-UID denial and independent
+owner access through the deployed project remain unaccepted. No real customer
+identity, owner account or live workspace should be accessed for tests without
+separate controlled approval and an isolated QA setup.
+
+**Existing-test reuse / credit discipline:** reuse
+`tests/firebase-firestore-rules-emulator.integration.mjs`,
+`scripts/qa-cloud-auth-emulator-browser.mjs` and
+`.github/workflows/invoice-cloud-security-gate.yml`, rather than creating
+duplicate cross-UID coverage. There is an **emulator project ID naming
+inconsistency** to reconcile in a future targeted QA patch: the CI CLI uses
+`demo-lourex-pinless` but the raw Firestore test's REST/JWT path uses
+`demo-lourex-ai-integration-719`. Both existing test workflows passed;
+the discrepancy does not prove a production vulnerability. Align the
+IDs/guards before relying on a new exact-project emulator gate.
+Do not rerun broad suites solely to rediscover previous pass results.
+
+TinyFish's existing Google browser profile could not be used with the
+requested low-step execution cap on this account; it requires a beta
+feature. A default uncapped metered run was **not** started to avoid
+unbounded wallet use. This is an access/tooling block, not evidence about
+Firebase deployment state.
+
