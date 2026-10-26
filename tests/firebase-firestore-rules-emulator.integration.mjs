@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// This suite must probe the exact demo project that GitHub Actions starts.
-// Refuse to run against a live Firestore URL or an unexpected emulator project.
-const project='demo-lourex-pinless';
+// Match the project ID selected by Firebase CLI while remaining local-only.
+// These are the only demo IDs used by repository emulator workflows.
+const approvedDemoProjects=new Set(['demo-lourex-pinless','demo-lourex-ai-integration-719']);
+const project=process.env.GCLOUD_PROJECT||'demo-lourex-pinless';
 const emulatorHost=process.env.FIRESTORE_EMULATOR_HOST||'';
 if(emulatorHost!=='127.0.0.1:8080')
   throw new Error('Finance security QA requires the local Firestore emulator at 127.0.0.1:8080; never a production endpoint.');
-if(process.env.GCLOUD_PROJECT&&process.env.GCLOUD_PROJECT!==project)
-  throw new Error('Firestore emulator project mismatch: expected '+project+', got '+process.env.GCLOUD_PROJECT);
+if(!approvedDemoProjects.has(project))
+  throw new Error('Finance security QA requires an approved local demo project; never use a production project.');
 const origin='http://'+emulatorHost;
 const db='/v1/projects/'+project+'/databases/(default)/documents';
 const subject={company:{nameEn:'LOUREX QA'},documents:[],customers:[]};

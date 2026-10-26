@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {
-  fxRateForDate,fxRateMatchForDate,convertWithFxRate,convertWithFxMatch
+  fxRateForDate,fxRateMatchForDate,convertWithFxRate,convertWithFxMatch,validateFxRate
 } from '../dist/src/lib/fx-rates.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {scopeVault,createWorkspace,activateWorkspace} from '../dist/src/lib/workspaces.js';
@@ -50,6 +50,13 @@ test('24: invalid-only history fails closed with no invented FX conversion',()=>
     fx('invalid-source','2026-10-03','2',{sourceLabel:''})];
   assert.equal(fxRateMatchForDate(rows,'USD','SAR','2026-10-25'),undefined);
   assert.equal(fxRateMatchForDate(rows,'SAR','USD','2026-10-25'),undefined);
+});
+
+test('24: malformed legacy FX source metadata fails closed with a validation error',()=>{
+  const malformed={...fx('missing-source','2026-10-03','2')};
+  delete malformed.sourceLabel;
+  assert.ok(validateFxRate(malformed).includes('FX rate source is required.'));
+  assert.equal(fxRateMatchForDate([malformed],'USD','SAR','2026-10-25'),undefined);
 });
 
 test('24: company workspace-scoped FX selection never leaks rate from another company',()=>{

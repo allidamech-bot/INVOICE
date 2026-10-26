@@ -1,0 +1,34 @@
+name: Finance Alif Integrated Post-Merge Smoke (synthetic)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-alif-integrated-20261026.test.mjs'
+      - '.github/workflows/finance-alif-integrated-20261026.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: finance-alif-integration-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  integrated-finance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: One synthetic integrated accounting lifecycle
+        run: node --test tests/finance-alif-integrated-20261026.test.mjs
+      - name: Scope and acceptance boundary
+        run: |
+          echo 'Synthetic only: purchase/stock/invoice/AR/AP/bank/FX. No Firebase, AI, account, or live data.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Does not replace actual Firebase rules inspection or physical iPhone approval.' >> "$GITHUB_STEP_SUMMARY"
