@@ -3625,3 +3625,61 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table 
 html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lxw-response-table table[dir='rtl']{direction:rtl!important;}
 /* Native scroll surfaces inherit the active AI theme instead of a black track. */
 html body #root #lourex-ai-panel[data-lourex-workspace='2']{scrollbar-color:var(--lxw-muted) var(--lxw-bg);scrollbar-width:thin;}
+
+
+/* AI actual-file PDF viewer: portal above the conversation (never changes the A4 export).
+   The canvas is painted from the validated downloadable PDF, not another React invoice. */
+.lxw-pdf-screen{
+  position:fixed!important;inset:0!important;z-index:2147483000!important;
+  display:flex!important;flex-direction:column!important;min-width:0!important;
+  height:100vh!important;height:100dvh!important;box-sizing:border-box!important;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)!important;
+  background:#111218!important;color:#fff!important;font:14px/1.5 system-ui,-apple-system,sans-serif!important;
+}
+.lxw-pdf-screen-toolbar{
+  display:flex!important;flex-wrap:wrap!important;align-items:center!important;
+  justify-content:space-between!important;gap:8px!important;padding:10px 12px!important;
+  background:#181920!important;border-bottom:1px solid #3a3c49!important;flex:none!important;
+}
+.lxw-pdf-screen-toolbar strong{font-size:13px!important;font-weight:700!important;}
+.lxw-pdf-screen-controls{display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important;}
+.lxw-pdf-screen-controls button,.lxw-pdf-screen-navigation button{
+  min-height:44px!important;min-width:42px!important;border:1px solid #565967!important;
+  border-radius:8px!important;padding:8px 10px!important;background:#292c36!important;
+  color:#fff!important;font-size:13px!important;cursor:pointer!important;
+}
+.lxw-pdf-screen-controls button[aria-pressed='true']{border-color:#a4dec9!important;}
+.lxw-pdf-screen-controls button:disabled,.lxw-pdf-screen-navigation button:disabled{opacity:.45!important;cursor:default!important;}
+.lxw-pdf-screen-close{background:#394047!important;}
+.lxw-pdf-screen-controls span{min-width:38px;text-align:center;font-variant-numeric:tabular-nums;}
+.lxw-pdf-screen-navigation{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  gap:12px!important;padding:6px!important;flex:none!important;
+}
+.lxw-pdf-screen-navigation span{font-variant-numeric:tabular-nums;min-width:55px;text-align:center;}
+.lxw-pdf-screen-scroll{
+  flex:1 1 auto!important;min-height:0!important;width:100%!important;
+  box-sizing:border-box!important;overflow:auto!important;overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;direction:ltr!important;background:#777f89!important;
+  padding:10px!important;touch-action:pan-x pan-y!important;
+}
+.lxw-pdf-screen-page{
+  position:relative!important;box-sizing:content-box!important;min-width:0!important;
+  max-width:none!important;margin:0 auto 12px!important;background:#fff!important;
+  box-shadow:0 3px 18px #0006!important;
+}
+.lxw-pdf-screen-page canvas{display:block!important;max-width:none!important;height:auto;touch-action:pan-x pan-y!important;}
+.lxw-pdf-screen-loading{
+  position:absolute;inset:0;display:grid;place-items:center;text-align:center;
+  background:#fffc;color:#28313c;font-size:13px;
+}
+.lxw-pdf-screen-error{margin:8px 12px;color:#ffb6b6;overflow-wrap:anywhere;}
+.lxw-pdf-screen button:focus-visible,.lxw-pdf-screen-scroll:focus-visible{outline:2px solid #a4dec9!important;outline-offset:2px!important;}
+@media(max-width:430px){
+  .lxw-pdf-screen-toolbar{padding:7px 8px!important;gap:5px!important;}
+  .lxw-pdf-screen-toolbar strong{width:100%;text-align:center;}
+  .lxw-pdf-screen-controls{justify-content:center;width:100%;gap:5px!important;}
+  .lxw-pdf-screen-controls button{padding:7px 8px!important;}
+  .lxw-pdf-screen-navigation{justify-content:space-around!important;gap:6px!important;}
+  .lxw-pdf-screen-scroll{padding:6px!important;}
+}
