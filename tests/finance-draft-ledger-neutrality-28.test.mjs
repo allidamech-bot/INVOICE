@@ -61,6 +61,9 @@ async function fixture(){
   receipt.date='2026-10-20';receipt.dueDate='2026-11-20';
   receipt.items=[{...createPurchaseItem(item),quantity:'200',unitCost:'5.00'}];
   const posted=postPurchase(receipt,base.savedItems,base.inventoryMovements);
+  // Historical synthetic fixture: posting must precede the fixed 2026-10-25
+  // accounting cut-off. postPurchase normally stamps the actual test-run date.
+  posted.purchase.postedAt='2026-10-20T12:00:00.000Z';
   base.savedItems=posted.savedItems;
   base.purchases=[posted.purchase];
   base.inventoryMovements=posted.movements;
