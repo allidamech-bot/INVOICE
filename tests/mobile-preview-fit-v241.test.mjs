@@ -24,10 +24,16 @@ test('v241 makes preview-edge containment a required Browser Visual QA check',as
 });
 
 test('v241 refreshes installed PWA clients with the corrected preview geometry',async()=>{
-  const [patch,distSw]=await Promise.all([
+  const [patch,distSw,sourceSw]=await Promise.all([
     read('scripts/pwa-cache-v205.mjs'),
-    read('dist/sw.js')
+    read('dist/sw.js'),
+    read('public/sw.js')
   ]);
   assert.match(patch,/lourex-invoice-v241: narrow mobile A4 preview fit refresh/);
-  assert.match(distSw,/lourex-invoice-v241: narrow mobile A4 preview fit refresh/);
+  const activeCache=[...distSw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)].at(-1);
+  const sourceCache=[...sourceSw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)].at(-1);
+  assert.ok(activeCache,'built service worker has an active cache generation');
+  assert.ok(sourceCache,'source service worker has an active cache generation');
+  assert.equal(activeCache[1],sourceCache[1],'build preserves the current service-worker generation');
+  assert.ok(Number(activeCache[1])>241,'installed clients use a cache generation newer than the historical preview fix');
 });
