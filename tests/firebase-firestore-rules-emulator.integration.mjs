@@ -1,8 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const project='demo-lourex-ai-integration-719';
-const origin='http://127.0.0.1:8080';
+// This suite must probe the exact demo project that GitHub Actions starts.
+// Refuse to run against a live Firestore URL or an unexpected emulator project.
+const project='demo-lourex-pinless';
+const emulatorHost=process.env.FIRESTORE_EMULATOR_HOST||'';
+if(emulatorHost!=='127.0.0.1:8080')
+  throw new Error('Finance security QA requires the local Firestore emulator at 127.0.0.1:8080; never a production endpoint.');
+if(process.env.GCLOUD_PROJECT&&process.env.GCLOUD_PROJECT!==project)
+  throw new Error('Firestore emulator project mismatch: expected '+project+', got '+process.env.GCLOUD_PROJECT);
+const origin='http://'+emulatorHost;
 const db='/v1/projects/'+project+'/databases/(default)/documents';
 const subject={company:{nameEn:'LOUREX QA'},documents:[],customers:[]};
 const url=path=>origin+db+path;
