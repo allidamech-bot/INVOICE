@@ -39,7 +39,7 @@ if(!valid){
   const schema={type:'OBJECT',properties:{marker:{type:'STRING',enum:['LOUREX_SANDBOX_OK']}},required:['marker']};
   try{
     const result=await routeAiStructured({
-      taskType:'workspace_help',reasoningLevel:'standard',
+      taskType:'workspace_help',reasoningLevel:'standard',externalDataClass:'public-synthetic',
       prompt:'Synthetic schema connectivity check. No company records or financial tools. Return only JSON {"marker":"LOUREX_SANDBOX_OK"}.',
       schema,maxOutputTokens:80,timeoutMs:9000,qualityFallback:false
     });
