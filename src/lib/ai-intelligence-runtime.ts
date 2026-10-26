@@ -1051,7 +1051,10 @@ export function installIntelligenceRuntime(host:Host):void{
         ['document.createDraft','document.updateDraft'].includes(visible.capability)&&
         visible.capability===kernel.artifact.proposal.capability&&
         (visible.capability!=='document.updateDraft'||visible.documentId===(kernel.artifact.proposal as any).documentId));
-      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy&&!standaloneDocumentCreation(message)){
+      // Whole-message allowlist only: a greeting followed by any instruction
+      // still needs the existing draft-edit boundary. The normal dialogue owns the reply.
+      const conversationalOnly=/^(?:السلام\s+عليكم|مرحبا|صباح\s+الخير|كيف\s+حالك|hello|how\s+are\s+you)[.!?؟،,\s]*$/iu.test(message.normalize('NFKC'));
+      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy&&!standaloneDocumentCreation(message)&&!conversationalOnly){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
         if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
