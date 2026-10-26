@@ -101,17 +101,18 @@ test('wrong company or branch payment with a colliding purchase ID stays exclude
  }
 });
 
-test('a historical wrong-supplier ID survives unchanged through unrelated cloud merge but cannot misstate AP',()=>{
+test('a historical wrong-supplier ID blocks an unrelated cloud merge without rewriting source',()=>{
  const {purchase,supplier,payment}=fixture();
  const historical={...payment,supplierId:'qa-historical-wrong-supplier'};
  const vault={...emptyVault(),suppliers:[supplier],purchases:[purchase],
   supplierPayments:[historical]};
  const frozen=JSON.stringify(vault);
  const unrelated={...vault,appSettings:{...vault.appSettings,uiLanguage:'ar'}};
- const merged=mergeVaultIntent(vault,unrelated,structuredClone(vault));
- assert.equal(merged.supplierPayments[0].supplierId,historical.supplierId);
+ assert.throws(()=>mergeVaultIntent(vault,unrelated,structuredClone(vault)),
+  /supplier payment supplier does not match/i);
+ assert.equal(vault.supplierPayments[0].supplierId,historical.supplierId);
  assert.equal(JSON.stringify(vault),frozen);
- assert.throws(()=>purchasePayableSummary(purchase,merged.supplierPayments,cutoff),
+ assert.throws(()=>purchasePayableSummary(purchase,vault.supplierPayments,cutoff),
   /recorded supplier payment supplier does not match/i);
 });
 
