@@ -166,6 +166,23 @@ async function run(engine,name){
     return {size:bytes.length,header:binary.slice(0,5),pages:(binary.match(/\/Type\s*\/Page\b/g)||[]).length};
    },href);
    assert.equal(result.header,'%PDF-');assert.ok(result.size>10000);assert.ok(result.pages>1);
+   // WebKit/Chromium must display the *actual generated PDF bytes*, not a second A4 DOM.
+   const viewer=page.getByRole('dialog',{name:'Actual generated PDF preview'});
+   await viewer.waitFor({timeout:30000});
+   await page.waitForFunction(()=>{const canvas=document.querySelector('.lxw-pdf-screen-page canvas');
+     return canvas&&canvas.width>200&&canvas.height>200&&!document.querySelector('.lxw-pdf-screen-loading');},{},{timeout:30000});
+   const fitted=await viewer.locator('canvas').evaluate(node=>node.getBoundingClientRect().width);
+   const nav=viewer.locator('.lxw-pdf-screen-navigation');
+   assert.match(await nav.locator('span').innerText(),/^1\s*\/\s*\d+$/);
+   await nav.getByRole('button',{name:'Next page'}).click();
+   await page.waitForFunction(()=>document.querySelector('.lxw-pdf-screen-navigation')?.textContent?.includes('2 /'));
+   await viewer.getByRole('button',{name:'100%'}).click();
+   await page.waitForFunction(()=>{const node=document.querySelector('.lxw-pdf-screen-page canvas');
+     return node&&node.getBoundingClientRect().width>700&&!document.querySelector('.lxw-pdf-screen-loading');});
+   assert.ok((await viewer.locator('canvas').evaluate(node=>node.getBoundingClientRect().width))>fitted,
+     '100% view must enlarge the exact PDF page beyond fit-width on iPhone');
+   await viewer.getByRole('button',{name:'Close'}).click();
+   await viewer.waitFor({state:'detached'});
    const download=page.waitForEvent('download');await link.click();assert.equal(await(await download).failure(),null);
    return href;
   }
@@ -234,6 +251,9 @@ async function run(engine,name){
    });
    throw new Error('Saved document PDF not produced after reload: '+JSON.stringify(details)+'; '+String(error));
   }
+  const restoredViewer=page.getByRole('dialog',{name:'Actual generated PDF preview'});
+  await restoredViewer.waitFor({timeout:30000});
+  await restoredViewer.getByRole('button',{name:'Close'}).click();
   // A saved draft cannot shadow the subsequent in-chat business list. The
   // Controller must render a real selectable customer record after reload.
   await say('show all customers');

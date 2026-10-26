@@ -78,3 +78,13 @@ export function prepareAiPdfPreview(
   document.appearance={...document.appearance,watermark:{...document.appearance.watermark,enabled:true,type:'text',text:'DRAFT',pattern:'single'}};
   return document;
 }
+
+/** AI-only actual-file viewer. Reuse the vendored PDF.js that the application
+ * already installs; loading is on demand after explicit PDF preview intent.
+ * This helper keeps module-relative URLs out of the legacy CJS-tested chat UI. */
+export async function loadGeneratedAiPdfRenderer():Promise<any>{
+  const url=new URL('../../vendor/pdf.mjs',import.meta.url).href;
+  const pdfjs=await import(url);
+  pdfjs.GlobalWorkerOptions.workerSrc=new URL('../../vendor/pdf.worker.mjs',import.meta.url).href;
+  return pdfjs;
+}
