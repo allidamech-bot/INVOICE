@@ -1,0 +1,70 @@
+name: Finance cloud disclosure QA (Alif 35-A)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/ProfitabilityPanel.tsx'
+      - 'tests/finance-privacy-disclosure-35a.test.mjs'
+      - 'tests/visual/run-finance-privacy-disclosure-35a.cjs'
+      - 'docs/FINANCE_CLOUD_PRIVACY_DISCLOSURE_20261025.md'
+      - '.github/workflows/finance-privacy-disclosure-35a.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-disclosure-35a-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  privacy-disclosure-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused financial cloud disclosure contract
+        run: node --test tests/finance-privacy-disclosure-35a.test.mjs
+      - name: Reuse pinned Chromium and WebKit
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          test -f "$(node -p "require('playwright').chromium.executablePath()")"
+          test -f "$(node -p "require('playwright').webkit.executablePath()")"
+      - name: Browser-check disclosure in Arabic and English
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-finance-disclosure.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module <<'NODE'
+          let ready=false;
+          for(let i=0;i<50;i++){
+            try {
+              const response=await fetch('http://127.0.0.1:4173/tests/visual/obsidian-editor.html');
+              if(response.ok){ready=true;break}
+            }catch{}
+            await new Promise(resolve=>setTimeout(resolve,100));
+          }
+          if(!ready)throw new Error('Synthetic financial privacy fixture unavailable');
+          NODE
+          node tests/visual/run-finance-privacy-disclosure-35a.cjs
+      - name: Preserve bilingual privacy QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-privacy-disclosure-35a
+          path: visual-qa-output/finance-privacy-disclosure-35a/
+          retention-days: 7
+          if-no-files-found: warn
