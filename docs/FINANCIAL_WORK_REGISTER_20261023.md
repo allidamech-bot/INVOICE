@@ -629,3 +629,66 @@ Firebase deployment state.
   authenticated cloud acceptance, Firebase deployed-rule parity
   (35-B), or a Vercel production release. No merge, deploy or actual
   accounting record changed.
+
+
+## Independent Alif stage-zero resumption — 26 October 2026
+
+**Scope:** read-only reconciliation of existing GitHub/Vercel states and CI
+evidence. This section records a verification, **not** an application fix,
+automated retest, QA-session acceptance, merge or production release.
+
+- Independently queried GitHub `main`: `dea51b63e90f2934a878cae9a8fc5c6c6acf1ee4`;
+  the latest main commit is AI-only (#1101). Do not claim it as financial work.
+- Independently queried the Vercel production alias
+  `invoice-three-puce.vercel.app`: deployment
+  `dpl_8CDfuc9Myp9WR6CnrL3eUL23huGr`, status **READY**, target
+  `production`, GitHub source SHA
+  `dea51b63e90f2934a878cae9a8fc5c6c6acf1ee4`.
+  **At this verification, main and the aliased production SHA match.**
+  This supersedes earlier snapshots where production provenance could not
+  be established. READY does not prove QA/live functional correctness.
+- Rechecked twelve open, unmerged finance PRs plus documentation PR #1014.
+  All thirteen report individually mergeable *at the time queried*, and
+  #1097/#1099/#1102/#1103/#1014 remain Draft. The financial PR changed-file
+  lists do **not** share changed paths with one another; this is not a
+  guarantee of sequential post-merge integration and no merge occurred.
+- Verified the following PR HEAD/associated GitHub Actions results using
+  read-only PR metadata, changed-file lists and exact-commit workflow
+  results, without launching or rerunning tests:
+
+| Alif axis | PR | Exact verified HEAD | Associated workflow result |
+| --- | --- | --- | --- |
+| 35-A | #1073 | `9aa8290a5d1601fc24fc83847f0fe24610692bbd` | SUCCESS 2/2 |
+| 28 | #1074 | `e09f7d8e3861fff702ba38f4eaf74e37bef06db3` | SUCCESS 1/1 |
+| 24 | #1075 | `2404b2de2485cae08820adb76e47e25b597bd271` | SUCCESS 3/3 |
+| 25 | #1076 | `d298b02585293d45d2947e582c0955705df33b56` | SUCCESS 1/1 |
+| 26/27 | #1077 | `1bf60e82455ff263cfcd83f44a30eb93a52af0e5` | SUCCESS 1/1 |
+| 30 (simulated) | #1079 | `1cb7b9fcb9f33cd8cd85990635f9e69d6693f6c4` | SUCCESS 1/1 returned |
+| 31 (simulated) | #1080 | `174e0f7cdc7bd8a5a7a745cb2a21ba2b8e5bfb4f` | SUCCESS 1/1 |
+| 33 (simulated) | #1086 | `9e0cd63c0d7668a4513357c7308878b7bad51195` | SUCCESS 1/1 |
+| 32 (simulated) | #1097 | `89f639c301c77a13c5f72ca322db452c95ad5d03` | SUCCESS 1/1 |
+| 1/2/8 synthetic | #1099 | `66234ced0cc720d14b7b564f30570ca65d93fb19` | SUCCESS 1/1 |
+| 35-C emulator | #1102 | `a79501d1af43d3fc7ca556f9bbea5267bb91dc74` | SUCCESS 1/1 |
+| 8 treasury KPIs | #1103 | `97eade396cb4ff4fcc76d9402da59248ccdd9a73` | SUCCESS 5/5 |
+
+- Source spot review of #1103 confirms `treasuryTotals` remains the
+  historical projection-wide function. New `treasuryLedgerTotals` filters
+  account-linked movements and is used by the ledger KPI page only; previously
+  failed historical accounting regressions were addressed at the corrected head.
+- Source spot review of #1102 confirms only the test file is changed;
+  the local emulator project is fixed to `demo-lourex-pinless` with
+  loopback-only and project-mismatch guards. This is not a deployed-rule check.
+- Original axis-34 historical wording remains incomplete for some of the
+  original forty items; the auditable 1–40 matrix and its confidence labels
+  exist in the Alif plan and master status. Do not reconstruct missing literal
+  wording or call axis 34 fully accepted by inference.
+- Axis 39 now has refreshed **CI HEAD evidence**; it remains partial until
+  the required isolated QA, policy, device and integration gates are met.
+  Axis 4 remains deferred. Axis 22-B/C needs approved costing policy;
+  35-B needs a read-only copy of *deployed* Firestore rules; 35-C needs
+  separate real-service QA authorization; physical iPhone Safari axes
+  30–33, operational DR, and GO/NO-GO remain open.
+- **Files changed by this verification:** this register only, on PR #1014's
+  documentation branch. No source/AI tests or runtime files, no production
+  Firestore data/rules, no live account, no GitHub PR merge, no deployment.
+
