@@ -32,7 +32,8 @@ import {strictAiActor} from './ai-foundation-approval.js';
 import {exactTextQuotePreview} from './ai-text-quote-preview.js';
 import {namedRecordReadPlan} from './ai-named-record-read.js';
 
-export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;sourceReviewRequired?:boolean;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
+export type AiPlanningFailure='timeout'|'rate-limited'|'unavailable'|'not-configured'|'invalid-plan';
+export interface AiToolOrchestrationResult{answer:string;proposal:any|null;workingDraft?:any;sourceReviewRequired?:boolean;planningFailure?:AiPlanningFailure;stageDurations?:{providerMs?:number;proposalMs?:number};plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function formatData(data:unknown,max=2200):string{try{const text=JSON.stringify(data,null,2);return text.length<=max?text:`${text.slice(0,max)}\n…`;}catch{return clean(data,max);}}
 function titleFor(tool:string,ar:boolean):string{const map:Record<string,[string,string]>={
@@ -243,6 +244,11 @@ export function previewOnlyWorkingDraft(plan:AiToolPlan,results:AiToolResult[],r
  * instructions. A truncated source may be analyzed, but not turned into a
  * write proposal whose omitted rows the user has not reviewed. */
 const PLANNER_SOURCE_CHARS=2800;
+// The complete client wait for one tool-planning turn, including auth and body
+// parsing, is bounded here. The server route has its own shorter provider
+// fallback budget; this client never starts a dialogue/provider fallback after
+// an explicit Controller action fails planning.
+const TOOL_PLANNER_CLIENT_BUDGET_MS=15_000;
 export interface AiPlannerSourceFact{fileName:string;documentType:string;route:string;confidence:number;extracted:string;truncated:boolean;}
 export function aiPlannerSourceFacts(sources:unknown):AiPlannerSourceFact[]{
   if(!Array.isArray(sources))return [];
@@ -259,21 +265,34 @@ export function aiPlannerSourceFacts(sources:unknown):AiPlannerSourceFact[]{
 }
 export function explicitAiActionRequest(message:string):boolean{
   if(/^(?:how|why|should|explain|كيف|ليش|لماذا|اشرح|هل\s+تنصح|شو\s+رأيك)(?:\s|$)/iu.test(message.trim()))return false;
-  return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to)\b|(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|احذف|امسح|اعتمد|تجهز|تجهّز|تعمل|تضيف|تعدل|تعدّل|تغيّر)/iu.test(message);
+  return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to|show|display|view|list|find|search)\b|(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|اعرض|أظهر|اظهر|أرني|ارني|ابحث|هات|احذف|امسح|اعتمد|تجهز|تجهّز|تعمل|تضيف|تعدل|تعدّل|تغيّر)/iu.test(message);
 }
 
 /** When an explicit user action fails to plan, do not quietly replace the
  * operation with conversational output that could suggest it was performed. */
-export function aiPlanningUnavailableResult(message:string,language:'en'|'ar',reason:'unavailable'|'invalid'|'limited'|'not-configured'='unavailable'):AiToolOrchestrationResult{
+export function aiPlanningUnavailableResult(message:string,language:'en'|'ar',reason:'unavailable'|'invalid'|'limited'|'not-configured'|'timeout'='unavailable'):AiToolOrchestrationResult{
   const ar=language==='ar';
   const answer=reason==='not-configured'
     ?(ar?'مزوّدو AI غير مهيّئين لهذه النسخة من الموقع. لم يتم تجهيز الإجراء أو تغيير أي بيانات. يمكن استخدام الأدوات المحلية من مساحة العمل.':'AI providers are not configured for this deployment. No action was prepared and no data changed. Local tools remain available in the workspace.')
     :reason==='limited'
     ?(ar?'تعذر تجهيز الإجراء لأن طلبات AI بلغت الحد المؤقت. لم أغيّر أي بيانات. حاول مجددًا لاحقًا أو استخدم القسم المختص مباشرة.':'The AI planner is temporarily rate limited. No data was changed. Try again later or use the relevant workspace directly.')
+    :reason==='timeout'
+      ?(ar?'انتهت مهلة تخطيط الإجراء. لم أجهز أو أنفذ شيئًا. يمكنك إعادة محاولة التخطيط مرة واحدة من زر إعادة المحاولة.':'Action planning timed out. Nothing was prepared or executed. You can retry planning once with Retry.')
     :reason==='invalid'
       ?(ar?'لم أتمكن من إنشاء خطة آمنة وواضحة لهذا الإجراء. لم أغيّر أي بيانات. حدّد الأصناف أو المستندات والتعديلات المطلوبة، ثم أعد المحاولة.':'I could not form a valid, safe action plan. No data was changed. Specify the affected products or documents and the required edits, then retry.')
-      :(ar?'تعذر الاتصال بمخطط أوامر LOUREX. لم يتم إنشاء أي إجراء أو تعديل بيانات. أعد المحاولة أو استخدم القسم المختص مباشرة.':'The LOUREX action planner is unavailable. No action was prepared and no data was changed. Retry or use the relevant workspace directly.');
-  return{answer,proposal:null,plan:{version:1,goal:clean(message,240),calls:[]},results:[],plannedBy:'local'};
+      :(ar?'تعذر الاتصال بمخطط أوامر LOUREX مؤقتًا. لم يتم إنشاء أي إجراء أو تعديل بيانات. أعد محاولة التخطيط أو استخدم القسم المختص مباشرة.':'The LOUREX action planner is temporarily unavailable. No action was prepared and no data was changed. Retry planning or use the relevant workspace directly.');
+  const planningFailure:AiPlanningFailure=reason==='invalid'?'invalid-plan':reason==='limited'?'rate-limited':reason;
+  return{answer,proposal:null,planningFailure,plan:{version:1,goal:ar?'فشل تخطيط الإجراء':'Action planning failed',calls:[]},results:[],plannedBy:'local'};
+}
+
+function planningFailureReason(error:unknown):'unavailable'|'invalid'|'limited'|'not-configured'|'timeout'{
+  const candidate=error as {code?:unknown;status?:unknown;message?:unknown};
+  const code=String(candidate?.code||''),status=Number(candidate?.status),message=String(candidate?.message||'');
+  if(code==='AI_NOT_CONFIGURED')return'not-configured';
+  if(code==='AI_RATE_LIMITED'||status===429)return'limited';
+  if(code==='AI_TIMEOUT'||status===504||/\b(?:timed?\s*out|timeout)\b|انتهت مهلة|أطول من المسموح/iu.test(message))return'timeout';
+  if(['NO_TOOL_PLAN','INVALID_TOOL_PLAN','TRUNCATED_ACTION_SOURCE','AI_INVALID_RESULT'].includes(code)||status===422)return'invalid';
+  return'unavailable';
 }
 
 export async function orchestrateAiToolRequest(input:{message:string;vault:VaultPayload;context:any;language:'en'|'ar';signal?:AbortSignal;}):Promise<AiToolOrchestrationResult|null>{
@@ -672,7 +691,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
       const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[{id:'cfo-local-1',tool:'finance.getSummary',args:{},reason:'Build the CFO brief from deterministic Advisor V2 evidence.'}]};const execution=executeAiToolPlan(runtime,plan);return{answer:formatCfoBrief(brief,input.language),proposal:null,plan,results:execution.results,plannedBy:'local'};
     }
   }
-  const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:(namedRecordReadPlan(input.message,runtime)??deterministicAiToolPlan(input.message,runtime)),plannedBy:'local'|'ai'='local';
+  const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:(namedRecordReadPlan(input.message,runtime)??deterministicAiToolPlan(input.message,runtime)),plannedBy:'local'|'ai'='local',providerMs=0;
   // Advisor remains a genuine conversation. An imperative may be discussed or
   // evaluated, but a deterministic mutation/navigation plan must not replace
   // the advisor's reply with execution errors or a proposed action.
@@ -693,17 +712,31 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     const documentGoal=runtime.scope==='business'&&runtime.conversationMode==='controller'
       ?requestedDocumentKind(input.message):null;
     let payload:any;
+    const providerStarted=performance.now();
     try{
-      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',conversationMode:runtime.conversationMode==='controller'?'controller':'advisor',workingMemory:input.context?.conversationWorkingMemory||'',documentGoal,message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
+      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',conversationMode:runtime.conversationMode==='controller'?'controller':'advisor',workingMemory:input.context?.conversationWorkingMemory||'',documentGoal,message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,TOOL_PLANNER_CLIENT_BUDGET_MS);
     }catch(error){
+      providerMs=Math.max(0,performance.now()-providerStarted);
       if(input.signal?.aborted)throw error;
-      // A tool-planning service failure must not prevent ordinary discussion.
-      // The model has NOT staged any mutation, so the normal business-dialogue
-      // gateway can explain the request or ask for missing information.
+      // For a Controller command, falling through would let the conversation
+      // model sound as if the requested operation had been handled. Planning
+      // has not executed any tool, so return a retryable failure instead.
+      if(runtime.conversationMode==='controller'&&actionRequested){
+        const failed=aiPlanningUnavailableResult(input.message,input.language,planningFailureReason(error));
+        failed.stageDurations={providerMs};return failed;
+      }
+      // Ordinary conversation and Advisor remain on their existing dialogue.
       return null;
     }
+    providerMs=Math.max(0,performance.now()-providerStarted);
     plan=validateAiToolPlan(payload?.plan,runtime.scope,runtime.conversationMode);
-    if(!plan||!plan.calls.length)return null; // discuss instead of exposing planner JSON errors
+    if(!plan||!plan.calls.length){
+      if(runtime.conversationMode==='controller'&&actionRequested){
+        const failed=aiPlanningUnavailableResult(input.message,input.language,'invalid');
+        failed.stageDurations={providerMs};return failed;
+      }
+      return null; // ordinary discussion never exposes planner JSON errors
+    }
     if(!actionRequested){
       const classes=new Map(aiToolPlannerCatalog(runtime.scope,runtime.conversationMode).map(row=>[row.id,row.class]));
       if(plan.calls.some(call=>!['read','calculate'].includes(String(classes.get(call.tool)))))return null;
@@ -735,21 +768,28 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   if(runtime.conversationMode==='controller'){
     const desiredKind=requestedDocumentKind(input.message);
     const creates=plan.calls.filter(call=>call.tool==='document.createDraft');
+    const invalidAction=()=>{
+      const failed=aiPlanningUnavailableResult(input.message,input.language,'invalid');
+      if(plannedBy==='ai')failed.stageDurations={providerMs};
+      return failed;
+    };
     // A product lookup is evidence, not completion of an explicit document request.
     // Do not silently report success or start another conversational inference.
     if(desiredKind&&!creates.length&&!plan.calls.some(call=>
       call.tool===(desiredKind==='invoice'?'invoice.prepare':'quotation.prepare')))
-      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+      return invalidAction();
     if(creates.length&&explicitlyNegatedDocumentCreation(input.message))
-      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+      return invalidAction();
     if(desiredKind&&creates.some(call=>(clean(call.args.kind,30)==='invoice'?'invoice':'proforma')!==desiredKind))
-      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+      return invalidAction();
     if(desiredKind&&!creates.length&&plan.calls.some(call=>
       (call.tool==='invoice.prepare'&&desiredKind!=='invoice')||
       (call.tool==='quotation.prepare'&&desiredKind!=='proforma')))
-      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
+      return invalidAction();
   }
+  const proposalStarted=performance.now();
   const execution=executeAiToolPlan(runtime,plan);
+  const proposalMs=Math.max(0,performance.now()-proposalStarted);
   // An explicit creation request with no buyer or products needs clarification,
   // not an empty approval proposal or guesses copied from an older document.
   const document=execution.proposal;
@@ -771,7 +811,8 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     ?(input.language==='ar'?'\n\nمسودة عمل جاهزة داخل المحادثة (غير محفوظة). يمكنك تعديل الأصناف، التراجع، أو طلب PDF قبل أي اعتماد.':'\n\nUnsaved working draft available in this conversation. Revise lines, undo, or request PDF without approving or saving.')
     :previewPrepared&&hasSources&&sources.some(source=>source.truncated)
       ?(input.language==='ar'?'\n\nالمرفق ناقص في سياق التخطيط، لذلك لم أجهّز مسودة عمل قابلة للاعتماد. أعد رفع ملف قابل للقراءة بالكامل.':'\n\nAttachment content was truncated; no complete working draft was staged. Provide a fully readable source.'): '';
-  return{answer:boundedToolAnswer(baseAnswer+note,input.language==='ar'),proposal:execution.proposal,workingDraft:workingDraft||undefined,plan,results:execution.results,plannedBy};
+  return{answer:boundedToolAnswer(baseAnswer+note,input.language==='ar'),proposal:execution.proposal,workingDraft:workingDraft||undefined,
+    stageDurations:plannedBy==='ai'?{providerMs,proposalMs}:{proposalMs},plan,results:execution.results,plannedBy};
 }
 
 export function aiToolAuditSummary(result:AiToolOrchestrationResult):string{return JSON.stringify({plannedBy:result.plannedBy,goal:result.plan.goal,tools:compactToolResults(result.results).map(row=>({tool:row.tool,ok:row.ok,source:row.source}))});}

@@ -503,11 +503,32 @@ export function intelligenceReviseDraft(host:Host,proposal:any,message:string,dr
 }
 export interface FoundationToolOutcome { callId:string; state:'prepared'|'needs_approval'|'failed'|'blocked'; toolId:string; data:unknown; evidenceRefs:string[]; }
 export function foundationToolOutcomes(result:AiToolOrchestrationResult):FoundationToolOutcome[]{return result.results.map(row=>({callId:row.id,state:row.ok?(row.class==='execute'?'needs_approval':'prepared'):row.class==='high-impact'?'blocked':'failed',toolId:row.tool,data:row.data,evidenceRefs:[row.source]}));}
+function recordStageDiagnostic(host:Host,operation:DiagnosticOperation,start:number,expectedScope:string,state:'completed'|'failed'|'uncertain'='completed',durationMs?:number):void{
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(!kernel||!expectedScope||kernelScopeKey(kernel.scope)!==expectedScope)return;
+  const sample=diagnosticSample(operation,durationMs===undefined?start:performance.now()-durationMs,state);
+  kernel.diagnostics=normalizeDiagnostics([...(kernel.diagnostics||[]),sample]);
+}
 async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
+  const scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope),intakeStarted=performance.now();
   const requestedMode=currentConversationMode(host);
   const preferences=currentAiExperiencePreferences(host);
   const responseLanguage=resolveAiConversationReplyLanguage(preferences.replyLanguage,input.message,input.language);
-  const result=await orchestrateAiToolRequest({...input,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}});if(input.signal?.aborted)return null;
+  const planningStarted=performance.now();
+  recordStageDiagnostic(host,'intake',intakeStarted,scope||'');
+  let result:AiToolOrchestrationResult|null;
+  try{
+    result=await orchestrateAiToolRequest({...input,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}});
+  }catch(error){recordStageDiagnostic(host,'planning',planningStarted,scope||'','failed');throw error;}
+  const planFailed=Boolean(result?.planningFailure);
+  const actionFailed=planFailed||Boolean(result?.results.some(row=>!row.ok));
+  recordStageDiagnostic(host,'planning',planningStarted,scope||'',planFailed?'failed':'completed');
+  if(result?.stageDurations?.providerMs!==undefined)
+    recordStageDiagnostic(host,'provider',performance.now()-result.stageDurations.providerMs,scope||'',planFailed?'failed':'completed');
+  if(result?.stageDurations?.proposalMs!==undefined)
+    recordStageDiagnostic(host,'proposal',performance.now()-result.stageDurations.proposalMs,scope||'',planFailed?'failed':'completed');
+  const resultStarted=performance.now();
+  if(input.signal?.aborted)return null;
   const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
   if(result){
     // The final legacy formatter must preserve the reply locale already resolved
@@ -592,6 +613,8 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
       throw new Error('Conversation changed while explaining records.');
   }
   // No ordinal set from compact summaries: only an explicitly displayed exact list.
+  recordStageDiagnostic(host,'result',resultStarted,scope||'',actionFailed?'failed':'completed');
+  host.__foundationLastPlanningFailure=planFailed;
   return result;
 }
 function stampProposal(host:Host,proposal:any,vault:VaultPayload):void{
@@ -769,7 +792,7 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.setState({__workspaceTurnPending:true,__workspaceTurnSaving:false});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.__foundationLastPlanningFailure=false;host.setState({__workspaceTurnPending:true,__workspaceTurnSaving:false});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
     try{
       await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
@@ -1155,11 +1178,15 @@ export function installIntelligenceRuntime(host:Host):void{
 
 async function recordDiagnostic(host:Host,operation:DiagnosticOperation,start:number,expectedScope:string,override?:'failed'|'uncertain'):Promise<void>{
   const k=host.__intelligenceKernel as ConversationKernel|undefined;if(!k||!expectedScope||kernelScopeKey(k.scope)!==expectedScope)return;
-  const state=override||(operation==='approval'&&(host.__foundationReceipts||[]).at(-1)?.state==='uncertain'?'uncertain':host.state.error?'failed':'completed');
+  const state=override||(operation==='approval'&&(host.__foundationReceipts||[]).at(-1)?.state==='uncertain'?'uncertain':operation==='turn'&&host.__foundationLastPlanningFailure?'failed':host.state.error?'failed':'completed');
   k.diagnostics=normalizeDiagnostics([...(k.diagnostics||[]),diagnosticSample(operation,start,state)]);
   // Diagnostics are not a prerequisite to an already verified business commit.
-  await persistKernel(host).catch(()=>undefined);
+  const persistenceStarted=performance.now();let persistenceFailed=false;
+  try{await persistKernel(host);}catch{persistenceFailed=true;}
+  const latest=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(latest&&kernelScopeKey(latest.scope)===expectedScope)
+    latest.diagnostics=normalizeDiagnostics([...(latest.diagnostics||[]),diagnosticSample('persistence',persistenceStarted,persistenceFailed?'failed':'completed')]);
 }
 export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);try{await runIntelligenceWorkspace(host,command);}catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}if(command.kind!=='clear-diagnostics')await recordDiagnostic(host,'workspace',start,scope||'');}
 export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);const result=await runIntelligenceApproval(host,proposal,apply);await recordDiagnostic(host,'approval',start,scope||'');return result;}
-export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);let state:'failed'|'uncertain'|undefined;try{const result=await runIntelligenceTools(host,input);if(input.signal?.aborted)state='uncertain';else if(result?.results.some(row=>!row.ok))state='failed';return result;}catch(error){state='failed';throw error;}finally{await recordDiagnostic(host,'tools',start,scope||'',state);}}
+export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);let state:'failed'|'uncertain'|undefined;try{const result=await runIntelligenceTools(host,input);if(input.signal?.aborted)state='uncertain';else if(result?.planningFailure||result?.results.some(row=>!row.ok))state='failed';return result;}catch(error){state='failed';throw error;}finally{await recordDiagnostic(host,'tools',start,scope||'',state);}}

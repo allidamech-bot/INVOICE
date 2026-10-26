@@ -16,7 +16,7 @@ test('actual tool runtime and final chat formatter honor question/answer prefere
   for(const [site,message,preference,expected] of [['ar','Open products','auto','en'],['en','افتح المنتجات','auto','ar'],['ar','افتح المنتجات','en','en']]){
     const result={answer:'',results:[],plan:{calls:[]}},scope={accountId:'a',workspaceId:'w',branchId:'b',threadId:'t'};
     const host={__intelligenceKernel:{scope},props:{language:site}};
-    const context=vm.createContext({host,input:{message,language:site,context:{}},toolResult:result,
+    const context=vm.createContext({host,input:{message,language:site,context:{}},toolResult:result,performance,recordStageDiagnostic:()=>{},
       currentConversationMode:()=> 'controller',currentAiExperiencePreferences:()=>({replyLanguage:preference,interfaceLanguage:'en'}),resolveAiConversationReplyLanguage,
       orchestrateAiToolRequest:async()=>result,resumeVaultSession:async()=>({vault:{}}),scopeFor:()=>scope,kernelScopeKey:s=>JSON.stringify(s),foundationToolOutcomes:()=>[],
       __lourexNaturalizeToolAnswer:(_result,locale)=>locale,
