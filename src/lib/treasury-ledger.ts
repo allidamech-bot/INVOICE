@@ -148,7 +148,10 @@ export function treasuryProjection(payments:PaymentRecord[],supplierPayments:Sup
 type TreasureDirection='in'|'out'|'internal';
 
 export function treasuryTotals(rows:TreasuryProjectionRow[],currencyCode:string):{inflow:string;outflow:string;net:string;internalTransfers:string;reconciled:number;unreconciled:number}{
-  const code=currency(currencyCode),selected=rows.filter(row=>row.currency===code);let inflow=0n,outflow=0n,internal=0n;
+  // These KPIs describe posted cash/bank ledger movements only. Unallocated
+  // customer/supplier payments and expenses appear in the projection for
+  // follow-up, but must not inflate actual treasury movement totals.
+  const code=currency(currencyCode),selected=rows.filter(row=>row.currency===code&&(Boolean(row.fromAccountId)||Boolean(row.toAccountId)));let inflow=0n,outflow=0n,internal=0n;
   for(const row of selected){if(row.source==='opening-balance')continue;const amount=decimalToScaled(row.amount,2);if(row.direction==='in')inflow+=amount;else if(row.direction==='out')outflow+=amount;else internal+=amount;}
   return{inflow:moneyString(inflow),outflow:moneyString(outflow),net:moneyString(inflow-outflow),internalTransfers:moneyString(internal),reconciled:selected.filter(row=>row.reconciled).length,unreconciled:selected.filter(row=>!row.reconciled).length};
 }
