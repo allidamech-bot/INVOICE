@@ -1,0 +1,33 @@
+name: Finance date and signed rounding QA (Alif 25)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-date-rounding-boundary-axis25.test.mjs'
+      - '.github/workflows/finance-date-rounding-axis25.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-alif-1076-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-finance-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused synthetic financial invariants
+        run: node --test tests/finance-date-rounding-boundary-axis25.test.mjs
