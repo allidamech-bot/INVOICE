@@ -7,8 +7,15 @@ function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=c
 function paymentAmountCents(payment:PaymentRecord):bigint|null{if(!isDecimalInput(payment.amount))return null;const cents=decimalToScaled(payment.amount,2);return cents>0n?cents:null;}
 function creditAmountCents(credit:LourexDocument):bigint|null{const cents=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);return cents>0n?cents:null;}
 function settlementDateIsValid(invoice:LourexDocument,date:string):boolean{return isIsoDate(invoice.issueDate)&&isIsoDate(date)&&date>=invoice.issueDate;}
-function paymentMatchesInvoice(invoice:LourexDocument,payment:PaymentRecord):boolean{return payment.invoiceId===invoice.id&&payment.currency===invoice.currency&&payment.customerId===(invoice.customerSnapshot?.sourceCustomerId||'')&&settlementDateIsValid(invoice,payment.date);}
-function creditMatchesInvoice(invoice:LourexDocument,credit:LourexDocument):boolean{return credit.role==='credit-note'&&credit.creditForId===invoice.id&&credit.status==='final'&&credit.lifecycleStatus!=='voided'&&credit.currency===invoice.currency&&(credit.customerSnapshot?.sourceCustomerId||'')===(invoice.customerSnapshot?.sourceCustomerId||'')&&creditAmountCents(credit)!==null&&settlementDateIsValid(invoice,credit.issueDate);}
+// Legacy rows without explicit scope belong to default/main, not to any
+// arbitrary company or branch. Historical wrong-scope records remain stored,
+// but must never settle a different company's/branch's customer invoice.
+function sameFinancialScope(invoice:{workspaceId?:string;branchId?:string},linked:{workspaceId?:string;branchId?:string}):boolean{
+  return (invoice.workspaceId||'default')===(linked.workspaceId||'default')
+    &&(invoice.branchId||'main')===(linked.branchId||'main');
+}
+function paymentMatchesInvoice(invoice:LourexDocument,payment:PaymentRecord):boolean{return sameFinancialScope(invoice,payment)&&payment.invoiceId===invoice.id&&payment.currency===invoice.currency&&payment.customerId===(invoice.customerSnapshot?.sourceCustomerId||'')&&settlementDateIsValid(invoice,payment.date);}
+function creditMatchesInvoice(invoice:LourexDocument,credit:LourexDocument):boolean{return sameFinancialScope(invoice,credit)&&credit.role==='credit-note'&&credit.creditForId===invoice.id&&credit.status==='final'&&credit.lifecycleStatus!=='voided'&&credit.currency===invoice.currency&&(credit.customerSnapshot?.sourceCustomerId||'')===(invoice.customerSnapshot?.sourceCustomerId||'')&&creditAmountCents(credit)!==null&&settlementDateIsValid(invoice,credit.issueDate);}
 function assertInvoiceIssueDate(invoice:LourexDocument):void{if(!isIsoDate(invoice.issueDate))throw new Error('Invoice issue date is invalid. Correct the invoice before recording or changing settlements.');}
 function assertPaymentRecordIntegrity(invoice:LourexDocument,payment:PaymentRecord):bigint{
   const amount=paymentAmountCents(payment);
