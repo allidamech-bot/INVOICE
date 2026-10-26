@@ -690,9 +690,11 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
     const actionRequested=explicitAiActionRequest(input.message);
+    const documentGoal=runtime.scope==='business'&&runtime.conversationMode==='controller'
+      ?requestedDocumentKind(input.message):null;
     let payload:any;
     try{
-      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',conversationMode:runtime.conversationMode==='controller'?'controller':'advisor',workingMemory:input.context?.conversationWorkingMemory||'',message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
+      payload=await requestAiJson('/api/ai-inbox',{mode:'tool-plan',conversationMode:runtime.conversationMode==='controller'?'controller':'advisor',workingMemory:input.context?.conversationWorkingMemory||'',documentGoal,message:input.message,scope:runtime.scope,screen:input.context?.screen||'',entity:{type:clean(entity.type,30),id:clean(entity.id,120),label:clean(entity.label,160)},sources},input.signal,15_000);
     }catch(error){
       if(input.signal?.aborted)throw error;
       // A tool-planning service failure must not prevent ordinary discussion.
@@ -733,6 +735,11 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   if(runtime.conversationMode==='controller'){
     const desiredKind=requestedDocumentKind(input.message);
     const creates=plan.calls.filter(call=>call.tool==='document.createDraft');
+    // A product lookup is evidence, not completion of an explicit document request.
+    // Do not silently report success or start another conversational inference.
+    if(desiredKind&&!creates.length&&!plan.calls.some(call=>
+      call.tool===(desiredKind==='invoice'?'invoice.prepare':'quotation.prepare')))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(creates.length&&explicitlyNegatedDocumentCreation(input.message))
       return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(desiredKind&&creates.some(call=>(clean(call.args.kind,30)==='invoice'?'invoice':'proforma')!==desiredKind))
