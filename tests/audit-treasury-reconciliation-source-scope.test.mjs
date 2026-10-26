@@ -91,7 +91,7 @@ function ambiguousHistoricalExpenseFixture(){
     description:'Different regional synthetic service',amount:'35.00'};
   const snapshot={...base,expenses:[expense,regional]};
   const scopedEvent=(id,branchId='main',key='expense:duplicated-legacy-expense-id')=>
-    {...event(id,key),branchId};
+    ({...event(id,key),branchId});
   return{snapshot,expense,regional,scopedEvent};
 }
 
