@@ -180,4 +180,85 @@ test('authoritative generation marker blocks false fresh enrollment when control
  assert.equal(manifestAfter.chunkStorage,'period-generations-v1');
 });
 
+
+test('Alif 38: restore preserved trusted control, audit receipts and report chunks on an isolated demo UID',async()=>{
+ const f=await account();
+ const closeCommand=input(f,'close',{workspaceId:'default',through:'2026-10-31',
+  reason:'Synthetic DR authority snapshot'});
+ const closed=await execute(f,closeCommand);
+ const reportRef=f.root.collection('periodReports').doc(closed.reportId);
+ const controlRef=f.root.collection('accounting').doc('control');
+ const control=(await controlRef.get()).data(),report=(await reportRef.get()).data();
+ const receipts=(await f.root.collection('periodOperations').get()).docs.map(x=>({id:x.id,data:x.data()}));
+ const reportChunks=(await reportRef.collection('chunks').get()).docs.map(x=>({id:x.id,data:x.data()}));
+ assert.ok(control&&report&&receipts.length===2&&reportChunks.length>0);
+ assert.equal(report.sha256.length,64);
+ const before=await authority(f),beforePayload=await publishedPayload(f);
+
+ // The "backup" lives in memory inside this demo emulator test. No real
+ // Cloud Firestore restores, auth tokens, production UIDs or external storage.
+ for(const chunk of reportChunks)await reportRef.collection('chunks').doc(chunk.id).delete();
+ await reportRef.delete();
+ for(const receipt of receipts)await f.root.collection('periodOperations').doc(receipt.id).delete();
+ await controlRef.delete();
+ const damaged=await authority(f);
+ const inspect=input(f,'inspect');
+ await assert.rejects(service.execute(f.identity,inspect),/PERIOD_AUTHORITY_MISSING/);
+ await assert.rejects(service.execute(f.identity,{operation:'enroll',opId:id(),
+  expectedRevision:f.state.revision,expectedGeneration:0}),/PERIOD_AUTHORITY_MISSING/);
+ assert.equal(await authority(f),damaged,'failed commands must not change damaged source');
+
+ // Simulate restoring precisely the previous trusted server-owned records.
+ // Not an application recovery endpoint, operator approval or production runbook.
+ await reportRef.create(report);
+ for(const chunk of reportChunks)await reportRef.collection('chunks').doc(chunk.id).create(chunk.data);
+ for(const receipt of receipts)await f.root.collection('periodOperations').doc(receipt.id).create(receipt.data);
+ await assert.rejects(service.execute(f.identity,input(f,'inspect')),
+  /PERIOD_AUTHORITY_MISSING/,'restore is incomplete until control is present');
+ await controlRef.create(control);
+ assert.equal(await authority(f),before,'trusted financial authority and receipts recover byte-for-byte');
+ assert.deepEqual(await publishedPayload(f),beforePayload);
+ const inspected=await service.execute(f.identity,input(f,'inspect'));
+ assert.equal(inspected.enrolled,true);
+ assert.equal(inspected.generation,closed.generation);
+ assert.deepEqual(inspected.boundaries,closed.boundaries);
+ assert.deepEqual(await service.execute(f.identity,closeCommand),closed,
+  'retry uses original operation receipt, not a second close');
+ assert.equal(await authority(f),before,'replay after recovery does not create duplicates');
+
+ // A restored authority must still block mutation of a closed company.
+ const changed=structuredClone(f.payload);
+ changed.documents[0].items[0].unitPrice='500';
+ const forged=input(f,'commit');
+ await stage(f,forged.opId,changed);
+ const locked=await authority(f);
+ await assert.rejects(service.execute(f.identity,forged),/PERIOD_CHANGED/);
+ assert.equal(await authority(f),locked,'closed financial data remains immutable after restoring authority');
+ assert.deepEqual((await reportRef.get()).data(),report,'original retained report remains inspectable');
+});
+
+test('Alif 38: incomplete retained report prevents trusted reopen until exact chunk is restored',async()=>{
+ const f=await account(),closed=await close(f);
+ const reportRef=f.root.collection('periodReports').doc(closed.reportId);
+ const chunk=(await reportRef.collection('chunks').get()).docs[0];
+ assert.ok(chunk,'synthetic close must retain a published report chunk');
+ const oldChunk=chunk.data(),oldReport=(await reportRef.get()).data();
+ await chunk.ref.delete(); // demo emulator UID only, never production.
+ const damaged=await authority(f),reopen=input(f,'reopen',{
+  workspaceId:'default',reason:'QA explicit correction after DR'});
+ await assert.rejects(service.execute(f.identity,reopen),
+  /INVALID_WORKSPACE_CHUNKS|WORKSPACE_HASH_MISMATCH/,
+  'missing immutable report must not permit clearing a closed boundary');
+ assert.equal(await authority(f),damaged);
+ assert.equal((await f.root.collection('accounting').doc('control').get()).data().generation,
+  closed.generation);
+ await chunk.ref.create(oldChunk);
+ const reopened=await execute(f,reopen);
+ assert.equal(reopened.generation,closed.generation+1);
+ assert.deepEqual(reopened.boundaries,[],'valid owner reopen clears only active boundary');
+ assert.deepEqual((await reportRef.get()).data(),oldReport,
+  'successful owner reopen never removes the historical report');
+ assert.deepEqual((await chunk.ref.get()).data(),oldChunk);
+});
+
 test.after(async()=>{await db.terminate();await deleteApp(app);});
