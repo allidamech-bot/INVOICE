@@ -103,9 +103,9 @@ test('Alif vouchers: one persisted receipt and supplier disbursement match AR/AP
     ['customer-receipt','50.00',f.payment.id]);
   assert.deepEqual([disbursement.kind,disbursement.amount,disbursement.recordId],
     ['supplier-disbursement','30.00',f.supplierPayment.id]);
-  assert.deepEqual(
-    Object.values(invoicePaymentSummary(f.invoice,f.vault.payments,asOf,f.vault.documents))
-      .filter(Boolean).slice(0,0),[]);
+  const invoiceSummary=invoicePaymentSummary(f.invoice,f.vault.payments,asOf,f.vault.documents);
+  assert.deepEqual([invoiceSummary.total,invoiceSummary.paid,invoiceSummary.remaining],
+    ['200.00','50.00','150.00']);
   const receivables=receivablesByCurrency(f.vault.documents,f.vault.payments,asOf);
   assert.deepEqual([receivables[0].billed,receivables[0].paid,receivables[0].outstanding],
     ['200.00','50.00','150.00']);
@@ -149,8 +149,8 @@ test('Alif treasury: duplicate links, currency/amount and cross-branch inputs ar
     /already allocated|مسبق/);
   assert.throws(()=>appendTreasuryEntry(f.vault,movement('collection',f.bank,f.payment.id,'49.99','qa-wrong-amount')),
     /amount or currency|مبلغ/);
-  assert.throws(()=>appendTreasuryEntry(f.vault,movement('collection',f.bank,f.payment.id,'50.00','qa-wrong-branch')
-    &&{...movement('collection',f.bank,f.payment.id,'50.00','qa-wrong-branch'),branchId:'other'}),
+  assert.throws(()=>appendTreasuryEntry(f.vault,
+    {...movement('collection',f.bank,f.payment.id,'50.00','qa-wrong-branch'),branchId:'other'}),
     /Workspace changed|مساحة/);
   assert.throws(()=>appendTreasuryEntry(f.vault,{...movement('supplier-payment',f.bank,f.supplierPayment.id,'30.00','qa-eur'),currency:'EUR'}),
     /currency|عملة/i);
