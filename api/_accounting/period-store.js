@@ -167,6 +167,10 @@ export function createPeriodService(db){
       boundaries=[...boundaries.filter(b=>b.workspaceId!==input.workspaceId),{workspaceId:input.workspaceId,through:input.through,reportId}];
     }else{
       if(!boundaries.some(b=>b.workspaceId===input.workspaceId))fail(422,'PERIOD_NOT_CLOSED');
+      // Reopening must not discard the last active close boundary if a
+      // disaster/recovery omitted or corrupted its retained report. A report
+      // file from a local backup is evidence, not trusted server authority.
+      await assertPublishedState(root,before,boundaries);
       boundaries=boundaries.filter(b=>b.workspaceId!==input.workspaceId);
     }
     boundaries.sort((a,b)=>a.workspaceId<b.workspaceId?-1:a.workspaceId>b.workspaceId?1:0);
