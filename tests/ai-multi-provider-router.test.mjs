@@ -332,7 +332,7 @@ test('private deep and vision dialogue never escapes the financially screened mo
   const result=await routeAiStructured({...request,prompt:'Synthetic private-context routing check',schema:schema()});
   assert.equal(result.success,true);
   assert.equal(result.model,'@cf/google/gemma-4-26b-a4b-it');
-  assert.ok(seen.every(call=>['openai/gpt-oss-120b','@cf/google/gemma-4-26b-a4b-it'].includes(call.model)));
+  assert.ok(seen.every(call=>(request.attachments?['qwen/qwen3.8-27b','@cf/google/gemma-4-26b-a4b-it']:['openai/gpt-oss-120b','@cf/google/gemma-4-26b-a4b-it']).includes(call.model)));
  }
 });
 

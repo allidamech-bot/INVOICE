@@ -62,10 +62,10 @@ function rankCandidates(models,bucket){
     return (stats.quality-0.8)*100_000+(3_000-stats.latencyMs);
   };
   const ranked=models.map((model,index)=>({model,index,score:score(model)})).sort((a,b)=>b.score-a.score||a.index-b.index);
-  // Try another vendor before a second model sharing the same account/quota.
-  const seen=new Set(),first=[],rest=[];
-  for(const entry of ranked){if(seen.has(entry.model.provider))rest.push(entry.model);else{seen.add(entry.model.provider);first.push(entry.model);}}
-  return [...first,...rest];
+  // Select one model per vendor so a stalled shared account is not retried via another model.
+  const seen=new Set(),first=[];
+  for(const entry of ranked){if(!seen.has(entry.model.provider)){seen.add(entry.model.provider);first.push(entry.model);}}
+  return first;
 }
 
 const circuitState=new Map();
