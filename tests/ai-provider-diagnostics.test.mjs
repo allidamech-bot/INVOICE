@@ -91,7 +91,7 @@ test('a truncated retained model answer is not counted as a correct calculation'
 
 
 
-test('owner model override is validated ahead of per-provider budget and cannot reach live chat',()=>{
+test('removed Ollama model override has no UI entry and cannot reach live chat',()=>{
  const core=readFileSync(new URL('../api/ai-core.js',import.meta.url),'utf8');
  const ui=readFileSync(new URL('../public/health.html',import.meta.url),'utf8');
  const client=readFileSync(new URL('../public/health.js',import.meta.url),'utf8');
@@ -102,8 +102,8 @@ test('owner model override is validated ahead of per-provider budget and cannot 
  const live=core.indexOf("if(!rateAllowed(request))",gate);
  assert.ok(gate!==-1&&gate<owner&&owner<validation&&validation<budget&&budget<live);
  assert.match(core,/provider!=='ollama'\|\|mode!=='financial'/);
- assert.match(ui,/data-diagnostic-model="gpt-oss:20b"/);
- assert.match(ui,/data-ollama-alt-result/);
+ assert.doesNotMatch(ui,/data-diagnostic-model="gpt-oss:20b"/);
+ assert.doesNotMatch(ui,/data-ollama-alt-result/);
  assert.match(client,/alternativeModel!==null/);
  assert.match(client,/mode:'financial',model:alternativeModel/);
 });
