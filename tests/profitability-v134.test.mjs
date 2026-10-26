@@ -79,11 +79,12 @@ test('v134 migrates v8 vaults with safe blank item costs and zero internal overh
   assert.equal(migrated.savedItems[0].lastCostCurrency,'');
 });
 
-test('v134 keeps internal profitability outside all customer-facing document rendering',async()=>{
-  const [renderer,css,panel]=await Promise.all([
+test('v134 keeps internal profitability out of customer rendering, print and secure shares',async()=>{
+  const [renderer,css,panel,secureShare]=await Promise.all([
     read('src/templates/TemplateRenderer.tsx'),
     read('src/styles/profitability-v134.css'),
-    read('src/components/ProfitabilityPanel.tsx')
+    read('src/components/ProfitabilityPanel.tsx'),
+    read('src/lib/secure-share.ts')
   ]);
   assert.doesNotMatch(renderer,/internalCosts|ProfitabilityPanel|Gross profit|الربح الإجمالي/);
   const itemsTable=renderer.slice(renderer.indexOf('function ItemsTable'),renderer.indexOf('function Terms'));
@@ -91,7 +92,8 @@ test('v134 keeps internal profitability outside all customer-facing document ren
   assert.doesNotMatch(itemsTable,/unitCost|lastUnitCost|marginPercent|grossProfit|totalCost/);
   assert.match(css,/@media print\{\.profitability-panel\{display:none!important\}\}/);
   assert.match(panel,/Internal only · never printed/);
-  assert.match(panel,/not rendered in invoices, PDFs, print, or share output/);
+  assert.match(secureShare,/snapshot\.internalCosts=\{shippingCost:'0\.00',otherCost:'0\.00'\}/);
+  assert.match(secureShare,/snapshot\.items=snapshot\.items\.map\(item=>\(\{\.\.\.item,unitCost:''\}\)\)/);
 });
 
 test('v134 editor integration preserves newer internal costs against stale core autosaves',async()=>{
