@@ -269,7 +269,7 @@
   const accuracyButtons=[...document.querySelectorAll('[data-provider-accuracy]')];
   const keyButtons=[...document.querySelectorAll('[data-provider-key-check]')];
   const allProbeButtons=[...providerButtons,...accuracyButtons,...keyButtons];
-  const safeProviders=new Set(['groq','ollama']);
+  const safeProviders=new Set(['groq']);
   let probeRunning=false;
   // The server alone knows which environment gates are configured. This read
   // makes no vendor calls, uses the same owner gate, and never displays keys.

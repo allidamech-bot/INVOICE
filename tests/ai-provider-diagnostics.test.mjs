@@ -12,7 +12,7 @@ async function sandbox(fn){
 function reply(data,status=200){return{ok:status===200,status,headers:{get:()=>null},text:async()=>JSON.stringify(data)};}
 test('each provider receives only a synthetic arithmetic prompt, single provider, no fallback',async()=>{
  await sandbox(async()=>{
-  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq','ollama']);
+  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq']);
   for(const provider of SYNTHETIC_PROVIDER_IDS){
    let calls=0;
    const fetchImpl=async(url,options)=>{
@@ -86,76 +86,10 @@ test('a truncated retained model answer is not counted as a correct calculation'
  });
 });
 
-test('Ollama cannot spend any credit without explicit verified-free opt-in',async()=>{
- await sandbox(async()=>{
-  delete process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED;
-  delete process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED;
-  for(const provider of ['ollama'])for(const mode of ['single','financial']){
-   let calls=0;
-   const result=await runSyntheticProviderDiagnostic(provider,{mode,fetchImpl:async()=>{calls++;throw new Error('Unexpected outbound request');}});
-   assert.equal(calls,0,provider);
-   assert.equal(result.status,'FREE_TIER_NOT_VERIFIED',provider);
-   assert.equal(result.correct,false);
-  }
- });
-});
 
 
-test('Ollama alternate is only the owner-verified free-list model; no arbitrary or paid model can be requested',async()=>{
- await sandbox(async()=>{
-  assert.deepEqual(OLLAMA_SYNTHETIC_MODELS,['gemma4:31b','gpt-oss:20b']);
-  let calls=0;
-  const failFetch=async()=>{calls++;throw Error('Invalid model must not hit network');};
-  for(const provider of ['groq']){
-   const bad=await runSyntheticProviderDiagnostic(provider,{mode:'financial',model:'gpt-oss:20b',fetchImpl:failFetch});
-   assert.equal(bad.status,'INVALID_DIAGNOSTIC_MODEL');
-  }
-  for(const model of ['gpt-oss:120b-cloud','gemma4:999b','arbitrary/paid',null,42,{}]){
-   const bad=await runSyntheticProviderDiagnostic('ollama',{mode:'financial',model,fetchImpl:failFetch});
-   assert.equal(bad.status,'INVALID_DIAGNOSTIC_MODEL');
-  }
-  assert.equal(calls,0);
- });
-});
 
-test('Ollama free GPT-OSS alternate uses exactly one fixed synthetic five-case QA call',async()=>{
- await sandbox(async()=>{
-  let calls=0;
-  const result=await runSyntheticProviderDiagnostic('ollama',{
-   mode:'financial',model:'gpt-oss:20b',
-   fetchImpl:async(url,options)=>{
-    calls++;
-    assert.equal(url,'https://ollama.com/api/chat');
-    assert.equal(options.method,'POST');
-    const body=JSON.parse(options.body);
-    assert.equal(body.model,'gpt-oss:20b');
-    assert.equal(body.stream,false);
-    assert.equal(body.format,'json');
-    assert.equal(body.messages.length,1);
-    assert.match(body.messages[0].content,/FIVE INDEPENDENT, SYNTHETIC/);
-    assert.ok(!JSON.stringify(body).includes('customerId'));
-    return reply({model:'gpt-oss:20b',done_reason:'stop',
-      message:{role:'assistant',content:JSON.stringify({D1:214.2,D2:725,D3:220.8,D4:770,D5:100})}});
-   }
-  });
-  assert.equal(calls,1);
-  assert.equal(result.model,'gpt-oss:20b');
-  assert.equal(result.status,'PASSED');
-  assert.equal(result.score,5);
-  assert.equal(result.cases.length,5);
- });
-});
 
-test('Ollama alternate remains blocked when free-account authorization is absent',async()=>{
- await sandbox(async()=>{
-  delete process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED;
-  let calls=0;
-  const result=await runSyntheticProviderDiagnostic('ollama',{mode:'financial',model:'gpt-oss:20b',
-    fetchImpl:async()=>{calls++;throw Error('no inference allowed');}});
-  assert.equal(result.status,'FREE_TIER_NOT_VERIFIED');
-  assert.equal(calls,0);
- });
-});
 
 test('owner model override is validated ahead of per-provider budget and cannot reach live chat',()=>{
  const core=readFileSync(new URL('../api/ai-core.js',import.meta.url),'utf8');

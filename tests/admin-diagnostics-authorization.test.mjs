@@ -74,7 +74,7 @@ test('live API gate accepts only a signed token belonging to the configured owne
    assert.equal(inventory.statusCode,200);
    assert.equal(inventory.headers['Cache-Control'],'no-store');
    assert.deepEqual(inventory.body.providers.map(row=>row.provider),
-     ['groq','ollama']);
+     ['groq']);
    const deniedInventory=await call(makeToken(stranger,'owner'),
      'https://invoice-three-puce.vercel.app','provider-inventory');
    assert.equal(deniedInventory.statusCode,403);

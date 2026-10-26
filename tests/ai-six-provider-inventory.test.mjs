@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source=readFileSync('public/health.js','utf8');
 const start=source.indexOf('async function loadProviderInventory()');
 const end=source.indexOf('void loadProviderInventory();',start);
-const providers=['groq','ollama'];
+const providers=['groq'];
 async function inventory(rows){
  const slots=providers.map(provider=>({textContent:'',getAttribute:()=>provider}));
  const user={uid:'synthetic-owner',getIdToken:async()=>'synthetic-token'};
