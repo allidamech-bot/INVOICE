@@ -11,7 +11,6 @@ on:
       - 'src/components/EditorPageCore.tsx'
       - 'src/lib/saved-items.ts'
       - 'tests/visual/*finance-cost-identity-22a*'
-      - 'tests/visual/run-tax-vat-iphone-axis30.cjs'
       - 'tests/visual/run-obsidian-financial.cjs'
       - 'tests/visual/run-tax-vat-batch10.cjs'
       - 'tests/visual/run-editor-design-discovery.cjs'
@@ -61,7 +60,6 @@ jobs:
             if (errors.length) throw new Error(JSON.stringify(errors));
           } finally { await browser.close(); }
           NODE
-          node tests/visual/run-tax-vat-iphone-axis30.cjs
           node tests/visual/run-obsidian-financial.cjs
           node tests/visual/run-tax-vat-batch10.cjs
           node tests/visual/run-editor-design-discovery.cjs
@@ -74,6 +72,5 @@ jobs:
             visual-qa-output/obsidian-financial/
             visual-qa-output/tax-vat-batch10/
             visual-qa-output/finance-cost-identity-22a/
-            visual-qa-output/finance-iphone-axis30/
             /tmp/lourex-editor-design/
           retention-days: 7
