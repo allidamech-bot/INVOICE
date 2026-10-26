@@ -73,16 +73,34 @@ test('B04: no partially truncated source may create a draft even with user actio
   });
 });
 
-test('B04: explicit action from a complete source produces an approval proposal, not a committed document',async()=>{
+test('B04: complete source without a customer asks for the missing buyer without proposing a save',async()=>{
   const plan={version:1,goal:'draft quotation',calls:[{id:'1',tool:'document.createDraft',args:{kind:'proforma',currency:'USD',items:[{descriptionEn:'B-001 50g',quantity:'10',unitPrice:'1.20'}]},reason:'user requested draft'}]};
   await withFakePlanner(plan,async()=>{
-    const vault=emptyVault();
+    const vault=emptyVault(),before=structuredClone(vault);
     const result=await orchestrateAiToolRequest({message:'Create a quotation from the attached product lines',vault,context:context(source()),language:'en'});
+    assert.ok(result);
+    assert.equal(result.proposal,null);
+    assert.deepEqual(result.results,[]);
+    assert.match(result.answer,/specify the customer/i);
+    assert.deepEqual(vault,before);
+  });
+});
+
+test('B04: explicit action from a complete source produces an approval proposal, not a committed document',async()=>{
+  const plan={version:1,goal:'draft quotation',calls:[{id:'1',tool:'document.createDraft',args:{kind:'proforma',currency:'USD',customerId:'qa-buyer',items:[{descriptionEn:'B-001 50g',quantity:'10',unitPrice:'1.20'}]},reason:'user requested draft'}]};
+  await withFakePlanner(plan,async()=>{
+    const vault=emptyVault();
+    vault.customers=[{id:'qa-buyer',workspaceId:'default',companyNameEn:'QA Buyer',companyNameAr:'',email:''}];
+    const before=structuredClone(vault);
+    const result=await orchestrateAiToolRequest({message:'Create a quotation for QA Buyer from the attached product lines',vault,context:context(source()),language:'en'});
     assert.ok(result);
     assert.equal(result.results[0].class,'execute');
     assert.equal(result.results[0].ok,true);
     assert.equal(result.proposal.capability,'document.createDraft');
-    assert.equal(vault.documents.length,0);
+    assert.equal(result.proposal.customerId,'qa-buyer');
+    assert.equal(result.proposal.items.length,1);
+    assert.equal(result.proposal.items[0].descriptionEn,'B-001 50g');
+    assert.deepEqual(vault,before,'review proposal cannot save a customer, document or financial change');
     assert.equal(result.results[0].source,'approval-gate');
   });
 });

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {explicitQuoteSource,includesExplicitSourceCodes} from '../api/_ai/source-lines.js';
 import {explicitSourceDecimal,normalizeSourceNumber} from '../api/_ai/numbers.js';
-import {routeAiStructured} from '../api/_ai/router.js';
+// Direct routing cases must not inherit adaptive ranking/circuits from API fixtures.
+let routeAiStructured,routerInstance=0;
+test.beforeEach(async()=>{({routeAiStructured}=await import('../api/_ai/router.js?batch5='+ ++routerInstance));});
 import quoteHandler from '../api/quote-source-ai.js';
 import productHandler from '../api/product-source-ai.js';
 import supplierHandler from '../api/supplier-document-ai.js';
@@ -51,9 +53,9 @@ test('real extraction API rejects missing duplicate lines, zero quantity and mal
 });
 test('quantity/product confidence participates in quality fallback; an absent customer is not a paid extra request',async()=>{
  process.env.GROQ_API_KEY='fixture';process.env.CLOUDFLARE_AI_API_TOKEN='fixture';process.env.CLOUDFLARE_ACCOUNT_ID='fixture';
- const schema={type:'OBJECT',properties:{quantityConfidence:{type:'NUMBER'},productConfidence:{type:'NUMBER'},customerConfidence:{type:'NUMBER'},customerName:{type:'STRING'}},required:['quantityConfidence','productConfidence','customerConfidence','customerName']};let calls=0;
+ const schema={type:'OBJECT',properties:{quantityConfidence:{type:'NUMBER'},productConfidence:{type:'NUMBER'},customerConfidence:{type:'NUMBER'},customerName:{type:'STRING'}},required:['quantityConfidence','productConfidence','customerConfidence','customerName']};let calls=0;const attempts=[];
  globalThis.fetch=async url=>{calls++;return{ok:true,headers:new Headers(),text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify({quantityConfidence:String(url).includes('api.groq.com')?.2:1,productConfidence:1,customerConfidence:0,customerName:''})}}]})};};
- const result=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(result.provider,'cloudflare');assert.equal(result.validation.lowConfidence,false);assert.equal(calls,2);
+ const result=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true,onDiagnostic:event=>attempts.push(event.provider)});assert.deepEqual(attempts,['groq','cloudflare']);assert.equal(result.provider,'cloudflare');assert.equal(result.validation.lowConfidence,false);assert.equal(calls,2);
  calls=0;globalThis.fetch=async()=>{calls++;return{ok:true,headers:new Headers(),text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify({quantityConfidence:1,productConfidence:1,customerConfidence:0,customerName:''})}}]})};};
  const noCustomer=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(noCustomer.success,true);assert.ok(['groq','cloudflare'].includes(noCustomer.provider));assert.equal(noCustomer.validation.lowConfidence,false);assert.equal(calls,1);
 });
