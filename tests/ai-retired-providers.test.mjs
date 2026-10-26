@@ -25,3 +25,11 @@ test('production AI adapters contain no retired endpoints or secret lookups',asy
  const s=await readFile(new URL('../'+path,import.meta.url),'utf8');assert.doesNotMatch(s,/generativelanguage\.googleapis|api\.cloudflare\.com|openrouter\.ai|kilo\.ai|GEMINI_API_KEY|CLOUDFLARE_AI_API_TOKEN|OPENROUTER_API_KEY|KILO_API_KEY/);
  }
 });
+
+test('a four-page image source cannot silently lose a page on the retained vision model',async()=>{
+ const oldKey=process.env.GROQ_API_KEY,oldFetch=globalThis.fetch;let calls=0;process.env.GROQ_API_KEY='synthetic';
+ try{globalThis.fetch=async()=>{calls++;throw Error('Oversized image set must not dispatch');};
+ const r=await routeAiStructured({taskType:'business_source_summary',prompt:'All pages',schema:{type:'object'},attachments:Array.from({length:4},()=>({kind:'image',mimeType:'image/png',data:'fake'}))});
+ assert.equal(r.success,false);assert.equal(calls,0);
+ }finally{globalThis.fetch=oldFetch;if(oldKey===undefined)delete process.env.GROQ_API_KEY;else process.env.GROQ_API_KEY=oldKey;}
+});
