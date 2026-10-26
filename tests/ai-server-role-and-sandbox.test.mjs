@@ -60,7 +60,8 @@ test('Server planner trusts signed token identity and ignores client-selected ro
  assert.match(auth,/payload\.lourexAiRole/);
  assert.match(api,/handleToolPlan\(body,response,request\.aiVerifiedRole\)/);
  assert.match(api,/function plannerToolIds\(scope,conversationMode,verifiedRole='viewer'\)/);
- assert.match(api,/cleanToolPlan\(routed\.data,scope,conversationMode,verifiedRole,suppliedOnly\)/);
+ assert.match(api,/const completePlan=value=>\{\s*const plan=cleanToolPlan\(value,scope,conversationMode,verifiedRole,suppliedOnly\)/);
+ assert.match(api,/const plan=completePlan\(routed\.data\)/);
 });
 
 test('Each provider-only QA path uses only isolated credentials, validates synthetic schema and never touches internet in tests',()=>{
