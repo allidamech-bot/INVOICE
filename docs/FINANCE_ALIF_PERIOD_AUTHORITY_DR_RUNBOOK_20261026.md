@@ -107,6 +107,32 @@ company/branch coverage, VAT and inventory movement integrity.
 7. Preserve commands, build SHA, emulator ID, CI URL, pass/fail and scope.
    Do not rerun broad suites whose exact-head results are already green.
 
+### Additional bounded emulator rehearsal (27 October 2026)
+
+The finance DR acceptance test in
+`tests/period-server-publication-acceptance.integration.mjs` creates one
+isolated synthetic owner workspace, enrolls and closes it, captures trusted
+control/receipts/report metadata and report chunks **in test memory only**, then
+simulates deletion in the Firestore **demo emulator**. It proves that commands
+fail closed while the snapshot is incomplete, restores the exact original
+records, compares the financial authority before and after, checks the
+original published report SHA-256 and immutable customer documents, validates
+an idempotent close retry, and rejects a backdated invoice change.
+
+A separate regression deletes only a retained report chunk while the control
+exists: trusted `reopen` must now verify the original published state and
+**reject the request**, leaving the active close boundary intact. After the
+exact chunk is restored, an authenticated owner may reopen with a reason and
+the original report remains retained.
+
+**Acceptance boundary:** These are direct Firestore Emulator tests of
+the existing server service using synthetic snapshots, **not** a supported
+operator restoration procedure, a managed Firestore Backup/PITR integration,
+a certified atomic multi-collection restore, a new server recovery endpoint
+or approval to perform destructive tests on a live project. They do not
+establish a measured RPO/RTO. Even with emulator PASS, section 5 below
+remains an unaccepted independent authorization and recovery design gate.
+
 ## 5. Real authority restoration — design / approval gate, not implemented
 
 Before any real write, a designated incident owner and independently authorized
