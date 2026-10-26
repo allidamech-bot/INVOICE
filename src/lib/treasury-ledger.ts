@@ -125,7 +125,8 @@ export function treasuryAccountDisplayBalance(
     (item.workspaceId||'default')===(account.workspaceId||'default')&&
     (item.branchId||'main')===(account.branchId||'main');
   if(linked.some(entry=>!scoped(entry)||
-    entry.currency.trim().toUpperCase()!==account.currency.trim().toUpperCase()))
+    (entry.currency||'').trim().toUpperCase()!==account.currency.trim().toUpperCase()||
+    !isNonNegativeDecimalInput(entry.amount)))
     return{balance:null,needsReview:true};
   try{
     return{balance:treasuryAccountBalance(account.id,linked),needsReview:false};
