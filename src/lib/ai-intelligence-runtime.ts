@@ -16,7 +16,7 @@ import { orchestrateAiToolRequest, type AiToolOrchestrationResult } from './ai-t
 import type { VaultPayload } from '../types.js';
 import { applyWorkspaceCommand, workspaceDrafting, workspaceDocument, type WorkspaceCommand } from './ai-workspace-model.js';
 import {requestAiJson} from './ai-request.js';
-import {applyWorkingDraftPlan,wantsWorkingDraftPdfRefresh} from './ai-working-draft-plan.js';
+import {applyWorkingDraftPlan,wantsWorkingDraftPdfRefresh,standaloneDocumentCreation} from './ai-working-draft-plan.js';
 import {prepareAiPdfPreview} from './ai-pdf-preview.js';
 import {requestedRecordList,stageScopedRecordList,exactNamedRecordSelection} from './ai-record-selection.js';
 import {requestedSelectedProductRepricing,prepareSelectedProductRepricing} from './ai-selected-products-price.js';
@@ -1040,7 +1040,7 @@ export function installIntelligenceRuntime(host:Host):void{
         ['document.createDraft','document.updateDraft'].includes(visible.capability)&&
         visible.capability===kernel.artifact.proposal.capability&&
         (visible.capability!=='document.updateDraft'||visible.documentId===(kernel.artifact.proposal as any).documentId));
-      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy){
+      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy&&!standaloneDocumentCreation(message)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
         if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);

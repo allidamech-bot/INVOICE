@@ -4,6 +4,17 @@ import {applyWorkspaceCommand,workspaceDocument,workspaceDrafting} from './ai-wo
 import {aiDraftUndoDepth} from './ai-document-limits.js';
 import {normalizeDecimalInput} from './money.js';
 
+/** A standalone creation command belongs to the normal creation pipeline.
+ * Do not ask an edit model first merely because another draft is open.
+ * Current-draft references, negation and mixed edit commands stay conservative. */
+export function standaloneDocumentCreation(message:string):boolean{
+  const text=String(message||'').normalize('NFKC').trim();
+  if(/مسود|هذا\s+العرض|هالعرض|\b(?:this|that|the)\s+(?:draft|document|quotation|quote|invoice)\b/iu.test(text))return false;
+  if(/\b(?:edit|change|update|remove|delete|same|current|existing|previous|not|never|without)\b|(?:عد[ّ]?ل|غي[ّ]?ر|خلي|خلّي|احذف|اضف|أضف|نفس|الحالي|الحالية|السابق|السابقة|بدل|لا\s+(?:ت|تن)|دون\s+إنشاء|دون\s+انشاء)/iu.test(text))return false;
+  return /^(?:(?:طيب|تمام|حسنًا|حسنا)[،,]?\s*)?(?:سوي(?:\s*لي)?|سوّي(?:\s*لي)?|اعمل(?:\s*لي)?|جهز(?:\s*لي)?|جهّز(?:\s*لي)?|أنشئ|انشئ|حضّر|حضر)\s+(?:لي\s+)?(?:عرض\s+(?:ال)?سعر|فاتورة)(?=$|[\s،,.])/u.test(text)||
+    /^(?:create|make|generate|build|draft|prepare)\s+(?:(?:me|a|an|the|new|another)\s+)*(?:quotation|quote|invoice)\b/iu.test(text);
+}
+
 // Accept an explicit single number word, optionally followed by its unit.
 // Compound numbers, fractions, negatives and surrounding instructions need
 // clarification; never take "four" out of "four thousand" as evidence for 4.
