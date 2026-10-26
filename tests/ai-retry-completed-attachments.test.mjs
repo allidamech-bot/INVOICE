@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {startConversationAttachmentBudget} from '../dist/src/lib/ai-conversation-attachments.js';
 const script=readFileSync('scripts/ai-batch3-premium-conversation.mjs','utf8');
 const start=script.indexOf('async function __lourexAnalyzeAttachments('),end=script.indexOf('\\nfunction __lourexInstallPremiumConversation',start);
 assert.ok(start>0&&end>start);
 function fixture(analyze){
- const ctx={AbortController,DOMException,Map,Set,Array,JSON,analyzeConversationAttachment:analyze};
+ const ctx={AbortController,DOMException,Map,Set,Array,JSON,startConversationAttachmentBudget,analyzeConversationAttachment:analyze};
  vm.runInNewContext(script.slice(start,end)+'\nthis.run=__lourexAnalyzeAttachments;',ctx);
  const h={mounted:true,__intelligenceKernel:{mode:'advisor',scope:{scope:'business',accountId:'a',workspaceId:'w',branchId:'b',threadId:'t'}},state:{conversationAttachments:[{id:'one',file:{name:'one.png'},status:'ready'},{id:'two',file:{name:'two.pdf'},status:'ready'}]},setState(change){Object.assign(this.state,typeof change==='function'?change(this.state):change);}};
  return{h,run:ctx.run};
