@@ -1055,7 +1055,7 @@ function guardNewTreasuryReconciliationSourceScope(
     if(!matches)continue; // Preserve legacy/external unresolved-key compatibility.
     if(matches.length!==1)
       throw new Error('Treasury reconciliation movement key is ambiguous across stored financial records.');
-    const source=matches[0];
+    const source=matches[0]!;
     if((row.workspaceId||'default')!==(source.workspaceId||'default')||
        (row.branchId||'main')!==(source.branchId||'main'))
       throw new Error('Treasury reconciliation company or branch differs from its financial movement.');
