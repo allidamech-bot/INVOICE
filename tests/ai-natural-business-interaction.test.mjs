@@ -66,7 +66,7 @@ function explanationHarness(responder,message='ليش هالرقم؟'){
  const scope={accountId:'test-user',scope:'business',workspaceId:'A',branchId:'main',threadId:'one'};
  const result={answer:'Recorded balance: 100.00 USD',proposal:null,plannedBy:'ai',plan:{calls:[]},results:[{id:'r',tool:'finance.getSummary',class:'read',ok:true,source:'recorded',data:{USD:'100.00'}}]};
  const host={mode:'controller',__intelligenceKernel:{scope},state:{messages:[]}};
- const deps={currentConversationMode:h=>h.mode,currentAiExperiencePreferences:()=>({detail:'balanced'}),resolveAiConversationReplyLanguage:()=> 'ar',orchestrateAiToolRequest:async()=>result,resumeVaultSession:async()=>({vault:{}}),scopeFor:()=>host.__intelligenceKernel.scope,kernelScopeKey:s=>JSON.stringify(s),currentAiInterfaceLanguage:()=> 'ar',foundationToolOutcomes:()=>[],intelligenceRequestMessage:()=> 'scoped user facts',requestAiJson:async(...args)=>responder(host,...args)};
+ const deps={recordStageDiagnostic:()=>{},currentConversationMode:h=>h.mode,currentAiExperiencePreferences:()=>({detail:'balanced'}),resolveAiConversationReplyLanguage:()=> 'ar',orchestrateAiToolRequest:async()=>result,resumeVaultSession:async()=>({vault:{}}),scopeFor:()=>host.__intelligenceKernel.scope,kernelScopeKey:s=>JSON.stringify(s),currentAiInterfaceLanguage:()=> 'ar',foundationToolOutcomes:()=>[],intelligenceRequestMessage:()=> 'scoped user facts',requestAiJson:async(...args)=>responder(host,...args)};
  const keys=Object.keys(deps);const run=new Function(...keys,runSource+';return runIntelligenceTools;')(...keys.map(k=>deps[k]));
  return {host,result,run:()=>run(host,{message,language:'ar',context})};
 }

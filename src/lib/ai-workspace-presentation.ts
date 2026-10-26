@@ -69,6 +69,7 @@ const arabic:Record<string,string>={
   customer:'عميل',supplier:'مورد',product:'صنف',document:'مستند',purchase:'شراء',memory:'ذاكرة',
   owner:'مالك',admin:'مدير',manager:'مدير',accountant:'محاسب',sales:'مبيعات',viewer:'مشاهد',
   in:'داخل',out:'خارج',turn:'محادثة',tools:'أدوات',approval:'موافقة',workspace:'مساحة العمل',
+  intake:'استقبال الطلب',planning:'تخطيط الأمر',provider:'المزوّد',proposal:'تجهيز المقترح',result:'النتيجة',persistence:'الحفظ المحلي',
   high:'عالية',medium:'متوسطة',low:'منخفضة',
   'customer-document':'مستند العميل','supplier-purchase':'شراء من المورد','purchase-product':'صنف في عملية شراء','document-payment':'دفعة مرتبطة بالمستند',
   'posted-purchase':'شراء مرحّل','external-unverified':'مصدر خارجي غير متحقق',
