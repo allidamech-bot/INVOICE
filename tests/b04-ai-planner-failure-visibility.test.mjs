@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {aiPlanningUnavailableResult,explicitAiActionRequest,orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
+import {newConversationKernel,reviseKernelDraft,stageKernelArtifact} from '../dist/src/lib/ai-conversation-kernel.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {summarizeDiagnostics,normalizeDiagnostics} from '../dist/src/lib/ai-local-diagnostics.js';
 
@@ -21,13 +22,13 @@ async function withPlannerReply(reply,run){
   finally{globalThis.fetch=existingFetch;globalThis.window=existingWindow;globalThis.firebase=existingFirebase;}
 }
 const request=(message,options={})=>orchestrateAiToolRequest({
-  message,context,vault:emptyVault(),language:options.language??'en',signal:options.signal
+  message,context,vault:options.vault??emptyVault(),language:options.language??'en',signal:options.signal
 });
 const ok=(payload,status=200)=>({ok:status>=200&&status<300,status,json:async()=>payload});
 
 test('B04: invalid planner JSON for an explicit command is reported as failure without staging an action',async()=>{
   await withPlannerReply(ok({plan:{version:1,goal:'update products',calls:[{id:'a',tool:'not-a-tool',args:{},reason:''}]}}),async calls=>{
-    const result=await request('Create a quotation');
+    const result=await request('Show the customer statement');
     assert.equal(result?.planningFailure,'invalid-plan');
     assert.equal(result?.proposal,null);
     assert.equal(result?.plan.calls.length,0);
@@ -46,7 +47,7 @@ test('B04: an empty plan cannot masquerade as a completed command',async()=>{
 });
 test('B04: rate limits are a visible action-planning failure without staging business changes',async()=>{
   await withPlannerReply(ok({code:'AI_RATE_LIMITED',message:'AI Inbox is temporarily rate limited.'},429),async calls=>{
-    const result=await request('Create a quotation');
+    const result=await request('Show the customer statement');
     assert.equal(result?.planningFailure,'rate-limited');
     assert.match(result.answer,/temporarily rate limited/i);
     assert.equal(calls(),1);
@@ -54,7 +55,7 @@ test('B04: rate limits are a visible action-planning failure without staging bus
 });
 test('B04: HTTP 429 public wording cannot authorize or execute an action',async()=>{
   await withPlannerReply(ok({code:'AI_RATE_LIMITED',message:'AI providers are temporarily at capacity. Retry shortly.'},429),async calls=>{
-    const result=await request('Create a new invoice draft',{language:'ar'});
+    const result=await request('اعرض كشف حساب العميل',{language:'ar'});
     assert.equal(result?.planningFailure,'rate-limited');
     assert.equal(result?.proposal,null);
     assert.equal(result?.results.length,0);
@@ -63,7 +64,7 @@ test('B04: HTTP 429 public wording cannot authorize or execute an action',async(
 });
 test('B04: failed network planner does not fall back to dialogue for an explicit command',async()=>{
   await withPlannerReply(async()=>{throw new TypeError('Network failure');},async calls=>{
-    const result=await request('Create a new invoice draft');
+    const result=await request('Show the customer statement');
     assert.equal(result?.planningFailure,'unavailable');
     assert.equal(result?.proposal,null);
     assert.equal(result?.results.length,0);
@@ -72,7 +73,7 @@ test('B04: failed network planner does not fall back to dialogue for an explicit
 });
 test('B04: missing providers cannot cause mutation or a fabricated tool result',async()=>{
   for(const language of ['en','ar'])await withPlannerReply(ok({code:'AI_NOT_CONFIGURED',message:'Unavailable'},503),async calls=>{
-    const result=await request('Create a new invoice draft',{language});
+    const result=await request(language==='ar'?'اعرض كشف حساب العميل':'Show the customer statement',{language});
     assert.equal(result?.planningFailure,'not-configured');
     assert.equal(result?.proposal,null);
     assert.equal(result?.results.length,0);
@@ -95,10 +96,43 @@ test('B04: timed out command planning is a failure and never triggers a second p
     const previous=globalThis.window;
     globalThis.window={setTimeout:callback=>{setImmediate(callback);return 1;},clearTimeout(){}};
     try{
-      const result=await request('Create a quotation');
+      const result=await request('Show the customer statement');
       assert.equal(result?.planningFailure,'timeout');
       assert.equal(result?.proposal,null);assert.equal(result?.results.length,0);assert.ok(calls()<=1);
     }finally{globalThis.window=previous;}
+  });
+});
+
+test('bare Arabic quotation creation starts a local editable draft without waiting for AI',async()=>{
+  await withPlannerReply(async()=>{throw new Error('The provider must not be called for a bare create command.');},async calls=>{
+    let timeoutCount=0;const previousWindow=globalThis.window;
+    globalThis.window={setTimeout(...args){timeoutCount++;return setTimeout(...args);},clearTimeout};
+    try{
+      const vault=emptyVault(),beforeVault=structuredClone(vault);
+      const result=await request('أنشئ مسودة عرض سعر',{language:'ar',vault});
+      assert.equal(calls(),0);assert.equal(timeoutCount,0);
+      assert.equal(result?.plannedBy,'local');assert.equal(result?.planningFailure,undefined);
+      assert.equal(result?.proposal,null);assert.ok(result?.workingDraft);
+      assert.equal(result.workingDraft.capability,'document.createDraft');
+      assert.equal(result.workingDraft.customerId,'');assert.equal(result.workingDraft.items.length,0);
+      assert.match(result.answer,/غير محفوظة/);assert.match(result.answer,/العميل/);assert.match(result.answer,/سعر البيع/);
+      assert.deepEqual(vault,beforeVault,'staging an unsaved draft does not mutate the caller vault');
+
+      const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'local-quote'};
+      const kernel=newConversationKernel(scope);const beforeDocuments=emptyVault().documents.length;
+      stageKernelArtifact(kernel,result.workingDraft);
+      const drafting={activeDocument:null,items:[],customers:[{id:'customer-a',name:'Customer A'}],defaults:{currency:'USD',language:'ar'}};
+      const buyer=reviseKernelDraft(kernel,kernel.artifact.proposal,'عيّن العميل إلى Customer A',drafting,'ar');
+      assert.equal(buyer.changed,true);assert.equal(buyer.proposal.customerId,'customer-a');
+      const item=reviseKernelDraft(kernel,buyer.proposal,'أضف صنف: Valve; الكمية: 3; السعر: 12; الوحدة: PCS',drafting,'ar');
+      assert.equal(item.changed,true);assert.deepEqual(item.proposal.items.map(row=>({description:row.descriptionEn,quantity:row.quantity,unit:row.unit,price:row.unitPrice})),
+        [{description:'Valve',quantity:'3',unit:'PCS',price:'12'}]);
+      assert.equal(emptyVault().documents.length,beforeDocuments,'local drafting never writes or saves a business document');
+
+      const retry=await request('أنشئ مسودة عرض سعر',{language:'ar',vault});
+      assert.equal(calls(),0);assert.ok(retry?.workingDraft);assert.equal(retry?.planningFailure,undefined);
+      assert.deepEqual(vault,beforeVault,'retry does not create a duplicate document or mutate the vault');
+    }finally{globalThis.window=previousWindow;}
   });
 });
 
