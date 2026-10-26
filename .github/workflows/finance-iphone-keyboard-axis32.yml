@@ -1,0 +1,78 @@
+name: Finance iPhone keyboard combined QA (Alif 32)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/visual/obsidian-editor.html'
+      - 'tests/visual/finance-editor-keyboard-axis32.html'
+      - 'tests/visual/run-finance-iphone-keyboard-autosave-axis32.cjs'
+      - 'tests/visual/run-finance-iphone-keyboard-axis32.cjs'
+      - '.github/workflows/finance-iphone-keyboard-axis32.yml'
+      - 'src/components/EditorPage.tsx'
+      - 'src/components/AppShell.tsx'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-iphone-keyboard-axis32-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  financial-keyboard-webkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Reuse pinned container WebKit
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          test -f "$(node -p "require('playwright').webkit.executablePath()")"
+      - name: Verify both iPhone keyboard financial behaviors once
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-axis32-qa.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module <<'NODE'
+          for (const path of [
+            '/tests/visual/obsidian-editor.html',
+            '/tests/visual/finance-editor-keyboard-axis32.html'
+          ]) {
+            let ready=false;
+            for(let i=0;i<50;i++){
+              try {
+                const response=await fetch('http://127.0.0.1:4173'+path);
+                if(response.ok){ready=true;break;}
+              } catch {}
+              await new Promise(resolve=>setTimeout(resolve,100));
+            }
+            if(!ready)throw new Error('Financial keyboard fixture unavailable: '+path);
+          }
+          NODE
+          # PR #1084: keyboard viewport, autosave, totals and touch reachability
+          node tests/visual/run-finance-iphone-keyboard-autosave-axis32.cjs
+          # PR #1085: draft persistence after reload, edits and no duplicate rows
+          node tests/visual/run-finance-iphone-keyboard-axis32.cjs
+      - name: Preserve separate synthetic QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finance-iphone-keyboard-axis32-combined
+          path: visual-qa-output/finance-iphone-keyboard-axis32/
+          retention-days: 7
+          if-no-files-found: warn
