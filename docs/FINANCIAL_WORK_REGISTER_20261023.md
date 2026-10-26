@@ -379,3 +379,72 @@ On 24 October 2026, #1036 merged at `7b069f29818132f0c47322dfc221b2fa620e3252` a
 On 24 October 2026, [#1038](https://github.com/allidamech-bot/INVOICE/pull/1038) merged at `43f4cada73a03cd8e7704bf1c8f4aaf2f8fd7465` after its exact-head focused workflow passed (3/3 synthetic tests plus typecheck/build). It characterizes historical landed-cost receipt snapshots, final-invoice single stock issue, no oversell and currency provenance. No AI or production logic changed; original item 22 remains partial until explicit costing-method/FX/COGS policy is approved. Do not infer an accounting valuation engine from these tests.
 
 On 24 October 2026, [#1039](https://github.com/allidamech-bot/INVOICE/pull/1039) merged at `5c86ebb8d053909dfaba19a000f59a581342b8a5`; exact-head CI passed on `a4c5db03a09f9075f023df07b7528c8e06111f6b`. The test exercises the actual App.requestPrint function in a synthetic saved-final long invoice and purchase order (2 kinds × 2 languages; four Chromium cases and four native A4 PDFs, seven pages each), no lost/duplicate 40 lines, amount 440.00 preserved. An attempted WebKit expansion failed to bootstrap the standalone test fixture following an HTTP 404; this **does not** prove production Safari failure or success. Scope was transparently limited to Chromium. Physical iPhone Safari/PWA, deployed account and additional real App print entry paths remain unaccepted. No AI, accounting core, App production code, data or deployment changed.
+
+## Alif finance reconciliation supplement — 26 October 2026
+
+This appendix records **Alif Plan execution**, not the unrecovered
+literal original forty-item list. Do not manufacture a precise remaining
+count by subtracting PRs or by closing broadly named axes.
+Last verified GitHub main on 2026-10-26:
+`6054a13c8007dec7f5c5234a8460b15d68babcc0`.
+The new change after `7536bece` was AI-only; no financial source or financial
+CI file changed. No finance PR merge or Vercel release is reported.
+
+### PR-head CI evidence — not post-merge acceptance
+
+| Axis | PR | Last checked workflow result | State |
+| --- | --- | --- | --- |
+| 24 FX validation and history | [#1075](https://github.com/allidamech-bot/INVOICE/pull/1075) | PASS | Open, unmerged |
+| 25 Istanbul date/rounding | [#1076](https://github.com/allidamech-bot/INVOICE/pull/1076) | PASS | Open, unmerged |
+| 26/27 VAT and credit note | [#1077](https://github.com/allidamech-bot/INVOICE/pull/1077) | PASS | Open, unmerged |
+| 28 draft ledger neutrality | [#1074](https://github.com/allidamech-bot/INVOICE/pull/1074) | PASS after fixing synthetic postedAt cutoff; a prior run failed two cases | Open, unmerged |
+| 30 WebKit restore / VAT output | [#1079](https://github.com/allidamech-bot/INVOICE/pull/1079) | PASS | Open, unmerged |
+| 31 PDF reopen and share | [#1080](https://github.com/allidamech-bot/INVOICE/pull/1080) | PASS | Open, unmerged |
+| 32 editor keyboard autosave / reload | [#1097](https://github.com/allidamech-bot/INVOICE/pull/1097) | PASS | Draft, unmerged |
+| 33 long PDF RTL/LTR | [#1086](https://github.com/allidamech-bot/INVOICE/pull/1086) | PASS | Open, unmerged |
+| 35-A honest cloud privacy disclosure | [#1073](https://github.com/allidamech-bot/INVOICE/pull/1073) | PASS | Open, unmerged |
+
+Six originally overlapping PRs (#1073/#1074/#1075/#1076/#1077/#1079)
+were changed on their own branches so they no longer modify the common
+`.github/workflows/financial-document-browser-qa.yml`. Their coverage
+is retained in focused workflows; #1079 extends the existing restore
+CI and includes the VAT iPhone simulator without duplicate browser jobs.
+
+Axis 32 original PRs [#1084](https://github.com/allidamech-bot/INVOICE/pull/1084)
+and [#1085](https://github.com/allidamech-bot/INVOICE/pull/1085)
+are CLOSED UNMERGED, superseded by #1097. Verified original test
+runner sources equal the #1097 equivalents except for separate result
+filenames; the persistence fixture is byte-identical. No original tests
+or branches were deleted.
+
+### Still open — important limits
+
+- **Cash/bank acceptance:** voucher generators and ledger write checks
+  were read-reviewed, but a coherent signed-in QA scenario linking receipt,
+  AR balance, supplier payable, payment void and allocated cash/bank entry
+  is not yet proven in an isolated test account.
+- **iPhone acceptance:** Chromium/WebKit CI is simulated and cannot substitute
+  for physical iPhone Safari/PWA, keyboard, print/share, and authenticated
+  cloud persistence checks.
+- **35-B/35-C privacy:** checked-in `firestore.rules` describes owner/UID
+  access restrictions, but the rules actually deployed to Firebase were not
+  retrieved or verified. Cross-UID authenticated denial testing is outstanding.
+  Plain workspace Base64 is not end-to-end encryption.
+- **B/C-22 costing:** cost-of-goods-sold inventory valuation and FX
+  conversion policy require an explicit accounting decision, not an
+  automatic speculative migration.
+- **Deployment provenance:** current Vercel production SHA was not
+  independently obtained through the available API response. Do not
+  claim production/main equality without actual deployment evidence.
+- **Integration gate:** successful PR-head CI does not prove the
+  combined post-merge state. None of the listed finance PRs was merged.
+
+### Proposed controlled acceptance sequence
+
+Read the latest main SHA before each operation. Subject to explicit
+merge/release approval, review and integrate one finance PR at a time;
+re-evaluate mergeability and focused CI on the resulting main, avoiding
+reruns of unchanged passing suites. Keep #1097 Draft until acceptance.
+Do not modify LOUREX AI, production Firestore records, live inventory
+or account balances through this audit. Resolve 35-B/C, cash/bank QA
+and physical-iPhone acceptance separately before production sign-off.
