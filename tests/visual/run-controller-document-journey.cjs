@@ -173,7 +173,7 @@ async function run(engine,name){
      return canvas&&canvas.width>200&&canvas.height>200&&!document.querySelector('.lxw-pdf-screen-loading');},{},{timeout:30000});
    const fitted=await viewer.locator('canvas').evaluate(node=>node.getBoundingClientRect().width);
    const nav=viewer.locator('.lxw-pdf-screen-navigation');
-   assert.match(await nav.innerText(),/^1 \\/ /);
+   assert.match(await nav.locator('span').innerText(),/^1\s*\/\s*[2-9]\d*$/);
    await nav.getByRole('button',{name:'Next page'}).click();
    await page.waitForFunction(()=>document.querySelector('.lxw-pdf-screen-navigation')?.textContent?.includes('2 /'));
    await viewer.getByRole('button',{name:'100%'}).click();
