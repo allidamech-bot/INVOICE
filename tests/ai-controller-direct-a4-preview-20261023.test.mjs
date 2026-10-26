@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../src/components/AiConversationWorkspace.tsx',import.meta.url),'utf8');
 const styles=readFileSync(new URL('../src/styles/ai-conversation-workspace.css',import.meta.url),'utf8');
+const pdfPreview=readFileSync(new URL('../src/lib/ai-pdf-preview.ts',import.meta.url),'utf8');
 const preview=source.slice(source.indexOf('function InlineControllerPdfPreview('),source.indexOf('function ConversationDocumentCard('));
 
 test('Controller uses the exact generated File for preview and download, without a second A4 renderer',()=>{
@@ -11,8 +12,9 @@ test('Controller uses the exact generated File for preview and download, without
   assert.match(source,/viewPdf&&pdfPreviewOpen\?<InlineControllerPdfPreview key=\{pdfIdentity\} file=\{viewPdf\.file\}/);
   assert.match(source,/href=\{viewPdf\.url\} download=\{viewPdf\.name\}/);
   assert.match(preview,/file\.arrayBuffer\(\)/);
-  assert.match(preview,/vendor\/pdf\.mjs/);
-  assert.match(preview,/vendor\/pdf\.worker\.mjs/);
+  assert.match(preview,/loadGeneratedAiPdfRenderer\(\)/);
+  assert.match(pdfPreview,/vendor\/pdf\.mjs/);
+  assert.match(pdfPreview,/vendor\/pdf\.worker\.mjs/);
   assert.match(preview,/pdf\.getPage\(page\)/);
   assert.match(preview,/selected\.render\(\{canvasContext:context,viewport:pixelViewport,canvas:target\}\)/);
   assert.doesNotMatch(preview,/TemplateRenderer|<Renderer|iframe|\.click\(\)/);
