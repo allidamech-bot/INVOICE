@@ -125,7 +125,7 @@ test('new text providers cannot ingest images or native PDFs without supported c
   const image=await routeAiStructured({taskType:'customer_capture',prompt:'image',schema,attachments:[{kind:'image',mimeType:'image/png',data:'YWJj'}]});
   const pdf=await routeAiStructured({taskType:'quote_extract',prompt:'pdf',schema,attachments:[{kind:'native-document',mimeType:'application/pdf',data:'YWJj'}]});
   assert.equal(image.errorCode,'AI_NOT_CONFIGURED');
-  assert.equal(pdf.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(pdf.errorCode,'AI_PRIVATE_DOCUMENT_UNAVAILABLE');
   assert.equal(calls,0);
 });
 

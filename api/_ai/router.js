@@ -255,9 +255,11 @@ function classifyRoute({taskType,reasoningLevel,attachments=[]}){
   return 'general';
 }
 function requiredCapabilities(route){const base=[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT];if(route==='vision')base.push(AI_CAPABILITIES.VISION);if(route==='deep')base.push(AI_CAPABILITIES.DEEP_REASONING);if(route==='native-document')base.push(AI_CAPABILITIES.NATIVE_DOCUMENT);return base;}
-function configuredCandidates(route,attachments=[],allowExternal=false,taskType='',bucket=route){
+function configuredCandidates(route,attachments=[],allowExternal=false,bucket=route){
   const required=requiredCapabilities(route),imageCount=attachments.filter(item=>item?.kind==='image').length;
-  const privateBusiness=['business_copilot','cfo_report','business_source_summary'].includes(taskType);
+  // Private by default, including extraction, inbox and future server tasks.
+  // Only the explicitly classified synthetic-help route may bypass this policy.
+  const privateBusiness=!allowExternal;
   const approvedPrivate=route==='vision'?PRIVATE_VISION_MODELS:PRIVATE_TEXT_MODELS;
   const eligible=AI_MODEL_REGISTRY.filter(model=>model.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true)&&(!privateBusiness||approvedPrivate.has(modelKey(model.provider,model.model)))&&(!imageCount||model.maxImages>=imageCount));
   // Initial text prior uses the already repeatedly sampled GPT-OSS model.
@@ -418,7 +420,7 @@ export async function routeAiStructured(options={}){
   // on the original provider set even if project-wide opt-in is accidentally set.
   const allowExternal=options.externalDataClass==='public-synthetic'&&route==='general'&&taskType==='workspace_help';
   const bucket=`${route}:${options.strictOutput===true?'strict':'standard'}`;
-  const candidates=configuredCandidates(route,attachments,allowExternal,taskType,bucket);
+  const candidates=configuredCandidates(route,attachments,allowExternal,bucket);
   const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
   let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null,attemptCount=0;
   // Internal callers may shorten the fallback chain, never extend its global cap.
@@ -430,7 +432,7 @@ export async function routeAiStructured(options={}){
     console.info('[LOUREX AI route]',{requestId,taskType,route,status:result.success?'ok':'failed',errorCode:result.errorCode,...timing});
     return{...result,...timing};
   }
-  if(!candidates.length)return finish({success:false,errorCode:'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false});
+  if(!candidates.length)return finish({success:false,errorCode:route==='native-document'?'AI_PRIVATE_DOCUMENT_UNAVAILABLE':'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false});
   providerRoute:
   for(let index=0;index<candidates.length;index+=1){
     const model=candidates[index];
@@ -480,6 +482,7 @@ export async function routeAiStructured(options={}){
 export function aiRouterPublicError(result){
   const code=result?.errorCode||'AI_TEMPORARILY_UNAVAILABLE';
   if(code==='AI_UNSUPPORTED_MODALITY')return{status:400,code,message:'This file or input type is not supported by LOUREX AI.'};
+  if(code==='AI_PRIVATE_DOCUMENT_UNAVAILABLE')return{status:503,code,message:'No approved private-data provider is available for native PDF processing. The document was not sent.'};
   if(code==='AI_RATE_LIMITED')return{status:429,code,message:'LOUREX AI is temporarily at capacity. Please try again shortly.'};
   if(code==='AI_TIMEOUT')return{status:504,code,message:'LOUREX AI could not complete this request in time.'};
   if(code==='AI_NOT_CONFIGURED')return{status:503,code,message:'LOUREX AI is not configured yet.'};

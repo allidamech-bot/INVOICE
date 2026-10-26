@@ -135,11 +135,12 @@ test('vision adds data URI input and uses Qwen vision route',async()=>{
   const image=body.messages[0].content.find(part=>part.type==='image_url');assert.equal(image.image_url.url,'data:image/png;base64,YWJj');
 });
 
-test('native PDF route preserves Gemini document handling',async()=>{
-  delete process.env.GROQ_API_KEY;delete process.env.CLOUDFLARE_AI_API_TOKEN;delete process.env.CLOUDFLARE_ACCOUNT_ID;process.env.GEMINI_API_KEY='test-gemini';let seen;
-  globalThis.fetch=async(url,options)=>{seen={url:String(url),body:JSON.parse(options.body)};return response(200,{candidates:[{content:{parts:[{text:'{"value":"pdf"}'}]}}]});};
+test('private native PDF fails closed instead of sending the document to Gemini',async()=>{
+  configureAll();let calls=0;
+  globalThis.fetch=async()=>{calls++;return response(200,{candidates:[{content:{parts:[{text:'{"value":"pdf"}'}]}}]});};
   const result=await routeAiStructured({taskType:'quote_extract',prompt:'read pdf',attachments:[{kind:'native-document',mimeType:'application/pdf',data:'YWJj'}],schema:schema()});
-  assert.equal(result.success,true);assert.equal(result.provider,'gemini');assert.match(seen.url,/generativelanguage\.googleapis\.com/);assert.equal(seen.body.contents[0].parts[1].inlineData.mimeType,'application/pdf');
+  assert.equal(result.success,false);assert.equal(result.errorCode,'AI_PRIVATE_DOCUMENT_UNAVAILABLE');
+  assert.equal(result.route,'native-document');assert.equal(result.attemptCount,0);assert.equal(calls,0);
 });
 
 test('unsupported raw spreadsheet/document modality is rejected before any provider call',async()=>{
