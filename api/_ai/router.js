@@ -1,6 +1,9 @@
 import {randomUUID} from 'node:crypto';
 
 const GROQ_CHAT_URL='https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_BASE_URL='https://generativelanguage.googleapis.com/v1beta/models';
+const CLOUDFLARE_CHAT_PATH='/ai/v1/chat/completions';
+const GEMINI_MODEL='gemini-2.5-flash-lite';
 const DEFAULT_TIMEOUT_MS=18_000;
 // Keep the entire provider fallback chain below the browser's 60-second request timeout.
 const ROUTER_BUDGET_MS=50_000;
@@ -28,18 +31,42 @@ export const AI_CAPABILITIES=Object.freeze({
 export const AI_MODEL_REGISTRY=Object.freeze([
   Object.freeze({provider:'groq',model:'qwen/qwen3.8-27b',enabled:true,freeTierEligible:true,maxImages:3,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
   Object.freeze({provider:'groq',model:'openai/gpt-oss-120b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
-
+  Object.freeze({provider:'cloudflare',model:'@cf/google/gemma-4-26b-a4b-it',enabled:true,freeTierEligible:true,maxImages:3,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
+  Object.freeze({provider:'cloudflare',model:'@cf/nvidia/nemotron-3-120b-a12b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
+  Object.freeze({provider:'cloudflare',model:'@cf/openai/gpt-oss-120b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
+  Object.freeze({provider:'gemini',model:GEMINI_MODEL,enabled:true,freeTierEligible:true,maxImages:8,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.LARGE_CONTEXT,AI_CAPABILITIES.NATIVE_DOCUMENT]}),
+  // OpenRouter is pinned to its free-only router; never allow a paid model ID here.
+  Object.freeze({provider:'openrouter',model:'openrouter/free',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]}),
+  // Ollama Cloud currently does not guarantee structured JSON; validate locally.
+  Object.freeze({provider:'ollama',model:'gemma4:31b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]}),
 ]);
 
-const GENERAL_ROUTE=[['groq','openai/gpt-oss-120b']];
-// Private business dialogue retains only the repeatedly passing provider.
-const BUSINESS_COPILOT_ROUTE=[['groq','openai/gpt-oss-120b']];
-// Read-only OCR/fact extraction needs vision, not the text-only finance model.
-// Preserve the approved private-data boundary.
-const BUSINESS_VISION_SOURCE_ROUTE=[['groq','qwen/qwen3.8-27b']];
-const VISION_ROUTE=[['groq','qwen/qwen3.8-27b']];
-const DEEP_ROUTE=[['groq','openai/gpt-oss-120b']];
-const NATIVE_DOCUMENT_ROUTE=[];
+// One capability pool; privacy approval narrows eligibility, never assigns a provider a job.
+const PRIVATE_TEXT_MODELS=new Set(['groq:openai/gpt-oss-120b','cloudflare:@cf/google/gemma-4-26b-a4b-it']);
+const PRIVATE_VISION_MODELS=new Set(['groq:qwen/qwen3.8-27b','cloudflare:@cf/google/gemma-4-26b-a4b-it']);
+// Bounded, ephemeral observations from actual validated requests in this function instance.
+// Cold starts use a stable prior. This is not a durable global leaderboard.
+const performanceState=new Map();
+const PERFORMANCE_TTL_MS=300_000;
+function observe(model,bucket,valid,latencyMs){
+  const key=`${bucket}:${modelKey(model.provider,model.model)}`,now=Date.now();
+  const old=performanceState.get(key),previous=old&&now-old.updatedAt<PERFORMANCE_TTL_MS?old:{count:0,quality:0.8,latencyMs:3_000};
+  performanceState.set(key,{count:Math.min(20,previous.count+1),quality:previous.quality*0.75+(valid?0.25:0),latencyMs:previous.latencyMs*0.75+Math.min(30_000,Math.max(0,latencyMs))*0.25,updatedAt:now});
+}
+function rankCandidates(models,bucket){
+  const now=Date.now();
+  const score=model=>{
+    const stats=performanceState.get(`${bucket}:${modelKey(model.provider,model.model)}`);
+    // Do not demote/promote a provider from one button press or a single result.
+    if(!stats||stats.count<3||now-stats.updatedAt>=PERFORMANCE_TTL_MS)return 0;
+    return (stats.quality-0.8)*100_000+(3_000-stats.latencyMs);
+  };
+  const ranked=models.map((model,index)=>({model,index,score:score(model)})).sort((a,b)=>b.score-a.score||a.index-b.index);
+  // Try another vendor before a second model sharing the same account/quota.
+  const seen=new Set(),first=[],rest=[];
+  for(const entry of ranked){if(seen.has(entry.model.provider))rest.push(entry.model);else{seen.add(entry.model.provider);first.push(entry.model);}}
+  return [...first,...rest];
+}
 
 const circuitState=new Map();
 // Per-function-instance rate-limit cooldown; provider accounts often share quotas
@@ -49,7 +76,17 @@ const providerRateLimitUntil=new Map();
 function modelKey(provider,model){return `${provider}:${model}`;}
 function findModel(provider,model){return AI_MODEL_REGISTRY.find(entry=>entry.provider===provider&&entry.model===model);}
 function hasCapabilities(model,required){return required.every(capability=>model.capabilities.includes(capability));}
-function environmentReady(provider){return provider==='groq'&&Boolean(process.env.GROQ_API_KEY?.trim());}
+function environmentReady(provider){
+  if(provider==='groq')return Boolean(process.env.GROQ_API_KEY?.trim());
+  if(provider==='cloudflare')return Boolean(process.env.CLOUDFLARE_AI_API_TOKEN?.trim()&&process.env.CLOUDFLARE_ACCOUNT_ID?.trim());
+  if(provider==='gemini')return Boolean(process.env.GEMINI_API_KEY?.trim());
+  // Keys alone never authorize moving sensitive business prompts to new vendors.
+  // Opt-in only after reviewing each provider's privacy terms and free-plan limits.
+  if(process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED!=='true')return false;
+  if(provider==='openrouter')return Boolean(process.env.OPENROUTER_API_KEY?.trim());
+  if(provider==='ollama')return process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED==='true'&&Boolean(process.env.OLLAMA_API_KEY?.trim());
+  return false;
+}
 function circuitAvailable(provider,model){
   const now=Date.now(),quotaUntil=providerRateLimitUntil.get(provider)||0;
   if(quotaUntil>now)return false;
@@ -87,20 +124,35 @@ function telemetry(event,listener){
   console.warn('[LOUREX AI router]',safe);
 }
 function lowerType(value){return typeof value==='string'?value.toLowerCase():value;}
-export function toJsonSchema(schema){
+export function geminiSchemaToJsonSchema(schema){
   if(!schema||typeof schema!=='object')return schema;
-  if(Array.isArray(schema))return schema.map(toJsonSchema);
+  if(Array.isArray(schema))return schema.map(geminiSchemaToJsonSchema);
   const result={};
   for(const [key,value] of Object.entries(schema)){
     if(key==='nullable')continue;
     if(key==='type')result.type=lowerType(value);
-    else if(key==='properties'){result.properties={};for(const [name,child] of Object.entries(value||{}))result.properties[name]=toJsonSchema(child);}
-    else if(key==='items')result.items=toJsonSchema(value);
-    else result[key]=toJsonSchema(value);
+    else if(key==='properties'){result.properties={};for(const [name,child] of Object.entries(value||{}))result.properties[name]=geminiSchemaToJsonSchema(child);}
+    else if(key==='items')result.items=geminiSchemaToJsonSchema(value);
+    else result[key]=geminiSchemaToJsonSchema(value);
   }
   if(schema.nullable===true){const type=lowerType(schema.type);if(type)result.type=[type,'null'];}
   const types=Array.isArray(result.type)?result.type:[result.type].filter(Boolean);
   if(types.includes('object')&&result.additionalProperties===undefined)result.additionalProperties=false;
+  return result;
+}
+function jsonSchemaToGeminiSchema(schema){
+  if(!schema||typeof schema!=='object')return schema;
+  if(Array.isArray(schema))return schema.map(jsonSchemaToGeminiSchema);
+  const result={};
+  for(const [key,value] of Object.entries(schema)){
+    if(key==='additionalProperties'||key==='$schema'||key==='$id'||key==='title')continue;
+    if(key==='type'){
+      if(Array.isArray(value)){const nonNull=value.find(item=>item!=='null');if(nonNull)result.type=String(nonNull).toUpperCase();if(value.includes('null'))result.nullable=true;}
+      else result.type=String(value).toUpperCase();
+    }else if(key==='properties'){result.properties={};for(const [name,child] of Object.entries(value||{}))result.properties[name]=jsonSchemaToGeminiSchema(child);}
+    else if(key==='items')result.items=jsonSchemaToGeminiSchema(value);
+    else result[key]=jsonSchemaToGeminiSchema(value);
+  }
   return result;
 }
 function typeMatches(value,type){
@@ -150,6 +202,7 @@ function parseJsonContent(content){
   }
 }
 function parseOpenAiPayload(payload){const root=payload?.result?.choices?payload.result:payload;return parseJsonContent(root?.choices?.[0]?.message?.content);}
+function parseGeminiPayload(payload){const content=payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text||'').join('')||'';return parseJsonContent(content);}
 function normalizeMessages({messages,prompt,attachments=[]}){
   const base=Array.isArray(messages)&&messages.length?messages.map(message=>({role:message.role||'user',content:message.content})): [{role:'user',content:String(prompt||'')}];
   if(!attachments.length)return base;
@@ -166,6 +219,20 @@ function normalizeMessages({messages,prompt,attachments=[]}){
   base[lastUserIndex]={...target,content};
   return base;
 }
+function geminiContents({messages,prompt,attachments=[]}){
+  const normalized=Array.isArray(messages)&&messages.length?messages:[{role:'user',content:String(prompt||'')}];
+  const contents=[];
+  for(const message of normalized){
+    const parts=[];const content=message.content;
+    if(Array.isArray(content))for(const part of content){if(part?.type==='text'&&part.text)parts.push({text:String(part.text)});}
+    else if(String(content||'').trim())parts.push({text:String(content)});
+    contents.push({role:message.role==='assistant'?'model':'user',parts});
+  }
+  if(!contents.length)contents.push({role:'user',parts:[]});
+  let user=null;for(let index=contents.length-1;index>=0;index-=1){if(contents[index].role==='user'){user=contents[index];break;}}if(!user)user=contents[contents.length-1];
+  for(const attachment of attachments){if(attachment?.data&&attachment?.mimeType)user.parts.push({inlineData:{mimeType:String(attachment.mimeType),data:String(attachment.data)}});}
+  return contents;
+}
 function attachmentValidation(attachments=[]){
   if(!Array.isArray(attachments))return{ok:false,code:'AI_UNSUPPORTED_MODALITY'};
   for(const attachment of attachments){
@@ -173,9 +240,10 @@ function attachmentValidation(attachments=[]){
       if(!String(attachment.mimeType||'').toLowerCase().startsWith('image/')||!String(attachment.data||''))return{ok:false,code:'AI_UNSUPPORTED_MODALITY'};
       continue;
     }
-    // No retained provider supports raw documents. Use the existing rendered-page
-    // extraction path; never silently send PDF bytes to a text/image model.
-    if(attachment?.kind==='native-document')return{ok:false,code:'AI_UNSUPPORTED_MODALITY'};
+    if(attachment?.kind==='native-document'){
+      if(String(attachment.mimeType||'').toLowerCase()!=='application/pdf'||!String(attachment.data||''))return{ok:false,code:'AI_UNSUPPORTED_MODALITY'};
+      continue;
+    }
     return{ok:false,code:'AI_UNSUPPORTED_MODALITY'};
   }
   return{ok:true};
@@ -186,20 +254,20 @@ function classifyRoute({taskType,reasoningLevel,attachments=[]}){
   if(reasoningLevel==='deep'||/cfo|report|profit|supplier_analysis|procurement|collections|anomaly|deep/i.test(String(taskType||'')))return 'deep';
   return 'general';
 }
-function routeEntries(route){if(route==='vision')return VISION_ROUTE;if(route==='deep')return DEEP_ROUTE;if(route==='native-document')return NATIVE_DOCUMENT_ROUTE;return GENERAL_ROUTE;}
 function requiredCapabilities(route){const base=[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT];if(route==='vision')base.push(AI_CAPABILITIES.VISION);if(route==='deep')base.push(AI_CAPABILITIES.DEEP_REASONING);if(route==='native-document')base.push(AI_CAPABILITIES.NATIVE_DOCUMENT);return base;}
-function configuredCandidates(route,attachments=[],allowExternal=false,taskType=''){
+function configuredCandidates(route,attachments=[],allowExternal=false,taskType='',bucket=route){
   const required=requiredCapabilities(route),imageCount=attachments.filter(item=>item?.kind==='image').length;
-  // Fail closed if the retained private provider is unavailable; never widen vendor eligibility.
-  // Reasoning and attachments may narrow capabilities, never widen approval.
-  const businessDialogue=['business_copilot','cfo_report'].includes(taskType);
-  const businessSource=taskType==='business_source_summary';
-  const sequence=businessSource&&route==='vision'?BUSINESS_VISION_SOURCE_ROUTE:businessDialogue||businessSource?BUSINESS_COPILOT_ROUTE:routeEntries(route);
-  return sequence.map(([provider,model])=>findModel(provider,model)).filter(model=>model?.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(model.provider==='groq'||allowExternal===true)&&(!imageCount||model.maxImages>=imageCount));
+  const privateBusiness=['business_copilot','cfo_report','business_source_summary'].includes(taskType);
+  const approvedPrivate=route==='vision'?PRIVATE_VISION_MODELS:PRIVATE_TEXT_MODELS;
+  const eligible=AI_MODEL_REGISTRY.filter(model=>model.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true)&&(!privateBusiness||approvedPrivate.has(modelKey(model.provider,model.model)))&&(!imageCount||model.maxImages>=imageCount));
+  // Initial text prior uses the already repeatedly sampled GPT-OSS model.
+  eligible.sort((a,b)=>Number(b.model==='openai/gpt-oss-120b')-Number(a.model==='openai/gpt-oss-120b'));
+  return rankCandidates(eligible,bucket);
 }
 function providerError(provider,model,status,bodyText){
   if(status===429)return{category:'rate_limit',code:'AI_RATE_LIMITED',retryable:false};
   if(status===408||status===504)return{category:'timeout',code:'AI_TIMEOUT',retryable:true};
+  if((status===401||status===403)&&provider==='cloudflare'&&/paid|upgrade|5035/i.test(bodyText))return{category:'unavailable',code:'AI_FREE_TIER_UNAVAILABLE',retryable:false};
   if(status===401||status===403)return{category:'unavailable',code:'AI_PROVIDER_UNAVAILABLE',retryable:false};
   // Best-effort structured generation can reject the generated content with
   // HTTP 400. This says nothing about whether the model supports the request.
@@ -247,16 +315,72 @@ function groqReasoningOptions(model,reasoningLevel){
 }
 async function callGroq(model,request){
   const apiKey=process.env.GROQ_API_KEY?.trim();if(!apiKey)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
-  const schema=toJsonSchema(request.schema);
+  const schema=geminiSchemaToJsonSchema(request.schema);
   const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:request.strictOutput===true||request.taskType==='supplier_purchase_extract',schema}},...groqReasoningOptions(model,request.reasoningLevel)};
   const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
   if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,rejection:groqRejection(response.status,text),retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
+async function callCloudflare(model,request){
+  const token=process.env.CLOUDFLARE_AI_API_TOKEN?.trim(),accountId=process.env.CLOUDFLARE_ACCOUNT_ID?.trim();if(!token||!accountId)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
+  const schema=geminiSchemaToJsonSchema(request.schema);
+  const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:schema},options:{rejectIfBusy:true}};
+  const url=`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}${CLOUDFLARE_CHAT_PATH}`;
+  const {response,text}=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(body)},request.timeoutMs);
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
+  let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
+  return{data:parseOpenAiPayload(payload),headers:response.headers};
+}
+async function callGemini(model,request){
+  const apiKey=process.env.GEMINI_API_KEY?.trim();if(!apiKey)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
+  const schema=request.schema?.type&&String(request.schema.type)===String(request.schema.type).toUpperCase()?request.schema:jsonSchemaToGeminiSchema(request.schema);
+  const body={contents:geminiContents(request),generationConfig:{temperature:0,responseMimeType:'application/json',responseSchema:schema}};
+  const url=`${GEMINI_BASE_URL}/${encodeURIComponent(model.model)}:generateContent`;
+  const {response,text}=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify(body)},request.timeoutMs);
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
+  let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
+  return{data:parseGeminiPayload(payload),headers:response.headers};
+}
+// These adapters are text-only safety fallbacks; every result is still checked
+// against the caller's server-owned JSON schema before it may be returned.
+// Never send uploads to a fallback that cannot uphold native document semantics.
+function additionalProviderMessages(request){
+  const schema=geminiSchemaToJsonSchema(request.schema);
+  return[{role:'system',content:'Return exactly one valid JSON object. Do not use markdown or explanations. Follow this JSON schema exactly, including field types and required properties: '+JSON.stringify(schema)},...normalizeMessages(request)];
+}
+async function callAdditionalProvider(model,request){
+  const keys={
+    openrouter:process.env.OPENROUTER_API_KEY?.trim(),
+    ollama:process.env.OLLAMA_API_KEY?.trim()
+  };
+  const key=keys[model.provider];
+  if(!key)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
+  const config={
+    openrouter:{url:'https://openrouter.ai/api/v1/chat/completions'},
+    ollama:{url:'https://ollama.com/api/chat'}
+  }[model.provider];
+  if(!config)throw Object.assign(new Error('unknown provider'),{routerCategory:'unsupported',routerCode:'AI_MODEL_UNSUPPORTED',retryable:false});
+  const maxTokens=Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS);
+  const messages=additionalProviderMessages(request);
+  const body=model.provider==='ollama'
+    ?{model:model.model,messages,stream:false,options:{temperature:0,num_predict:maxTokens}}
+    :{model:model.model,messages,temperature:0,max_tokens:maxTokens,
+      provider:{data_collection:'deny'}};
+  const {response,text}=await fetchWithTimeout(config.url,{method:'POST',headers:{
+    'Content-Type':'application/json',
+    Authorization:'Bearer '+key
+  },body:JSON.stringify(body)},request.timeoutMs);
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
+  let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
+  const parsed=model.provider==='ollama'?parseJsonContent(payload?.message?.content):parseOpenAiPayload(payload);
+  return{data:parsed,headers:response.headers};
+}
 async function callProvider(model,request){
   if(model.provider==='groq')return callGroq(model,request);
-  throw Object.assign(new Error('unsupported provider'),{routerCategory:'unsupported',routerCode:'AI_MODEL_UNSUPPORTED',retryable:false});
+  if(model.provider==='cloudflare')return callCloudflare(model,request);
+  if(model.provider==='gemini')return callGemini(model,request);
+  return callAdditionalProvider(model,request);
 }
 function rateLimitSnapshot(headers){if(!headers?.get)return null;const values={remainingRequests:headers.get('x-ratelimit-remaining-requests')||'',remainingTokens:headers.get('x-ratelimit-remaining-tokens')||'',retryAfter:headers.get('retry-after')||''};return Object.values(values).some(Boolean)?values:null;}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
@@ -293,19 +417,20 @@ export async function routeAiStructured(options={}){
   // Existing business endpoints do not set this flag, so private prompts stay
   // on the original provider set even if project-wide opt-in is accidentally set.
   const allowExternal=options.externalDataClass==='public-synthetic'&&route==='general'&&taskType==='workspace_help';
-  const candidates=configuredCandidates(route,attachments,allowExternal,taskType);
-  if(!candidates.length)return{success:false,errorCode:'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false};
-  const schema=options.schema,jsonSchema=toJsonSchema(schema);
+  const bucket=`${route}:${options.strictOutput===true?'strict':'standard'}`;
+  const candidates=configuredCandidates(route,attachments,allowExternal,taskType,bucket);
+  const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
   let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null,attemptCount=0;
   // Internal callers may shorten the fallback chain, never extend its global cap.
   const totalBudgetMs=Number.isFinite(options.totalBudgetMs)?Math.max(0,Math.min(ROUTER_BUDGET_MS,options.totalBudgetMs)):ROUTER_BUDGET_MS;
   const routeStartedAt=Date.now();
   function finish(result){
-    const timing={totalLatencyMs:Date.now()-routeStartedAt,attemptCount};
+    const timing={totalLatencyMs:Date.now()-routeStartedAt,attemptCount,eligibleModelCount:candidates.length,availableModelCount:candidates.filter(model=>circuitAvailable(model.provider,model.model)).length};
     // Metadata only: never log prompts, response content, credentials or business data.
     console.info('[LOUREX AI route]',{requestId,taskType,route,status:result.success?'ok':'failed',errorCode:result.errorCode,...timing});
     return{...result,...timing};
   }
+  if(!candidates.length)return finish({success:false,errorCode:'AI_NOT_CONFIGURED',requestId,route,fallbackUsed:false});
   providerRoute:
   for(let index=0;index<candidates.length;index+=1){
     const model=candidates[index];
@@ -325,20 +450,21 @@ export async function routeAiStructured(options={}){
       try{
         const result=await callProvider(model,{taskType,prompt:options.prompt,messages:options.messages,attachments,schema,reasoningLevel,strictOutput:options.strictOutput===true,timeoutMs:Math.max(PROVIDER_MIN_MS,perAttemptMs),maxOutputTokens:options.maxOutputTokens});
         const schemaValid=validateJsonSchema(result.data,jsonSchema),customValid=schemaValid&&(typeof options.validate!=='function'||options.validate(result.data)!==false);
-        if(!customValid){lastCode='AI_INVALID_RESULT';recordFailure(model.provider,model.model,'invalid');telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category:'schema',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);break;}
+        if(!customValid){observe(model,bucket,false,Date.now()-startedAt);lastCode='AI_INVALID_RESULT';recordFailure(model.provider,model.model,'invalid');telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category:'schema',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);break;}
         const lowConfidence=hasLowConfidence(result.data);
+        observe(model,bucket,!lowConfidence,Date.now()-startedAt);
         recordSuccess(model.provider,model.model);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'ok',category:lowConfidence?'low-confidence':'ok',latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:true},options.onDiagnostic);
         const accepted={success:true,data:result.data,provider:model.provider,model:model.model,latencyMs:Date.now()-startedAt,validation:{schema:true,lowConfidence,needsReview:lowConfidence},confidence:lowConfidence?'low':'validated',fallbackUsed:index>0,requestId,route,rateLimit:rateLimitSnapshot(result.headers)};
         if(lowConfidence&&options.qualityFallback===true&&index+1<candidates.length){lowConfidenceResult=lowConfidenceResult||accepted;break;}
         return finish(accepted);
       }catch(error){
+        observe(model,bucket,false,Date.now()-startedAt);
         const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,rejection:error?.rejection,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
         // A full timeout is already a failed attempt, not a reason to repeat it.
-        // Keep quick transient retries, but let a healthy alternate have its turn
-        // after a slow upstream failure instead of consuming another deadline.
+        // Always give an eligible alternate its turn before repeating a failed vendor.
+        // A lone provider may still use its existing bounded transient retry.
         const alternateAvailable=candidates.slice(index+1).some(candidate=>circuitAvailable(candidate.provider,candidate.model));
-        const slowFailure=Date.now()-startedAt>=perAttemptMs/2;
-        if(category!=='timeout'&&!(alternateAvailable&&slowFailure)&&retryableSameProvider(error,attempt)){
+        if(category!=='timeout'&&!alternateAvailable&&retryableSameProvider(error,attempt)){
           const delay=RETRY_BASE_MS*(attempt+1);
           if(Date.now()-routeStartedAt+delay+PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS>=totalBudgetMs){lastCode='AI_TIMEOUT';break providerRoute;}
           await sleep(delay);continue;
@@ -360,3 +486,5 @@ export function aiRouterPublicError(result){
   if(code==='AI_FREE_ONLY_REQUIRED')return{status:503,code,message:'LOUREX AI free-only routing is unavailable.'};
   return{status:503,code:'AI_TEMPORARILY_UNAVAILABLE',message:'LOUREX AI is temporarily unavailable. Please try again shortly.'};
 }
+
+export const toJsonSchema=geminiSchemaToJsonSchema;

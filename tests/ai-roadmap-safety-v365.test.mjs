@@ -10,9 +10,9 @@ const mobileWorkflowQa=fs.readFileSync(new URL('./visual/run-v364-core-workflows
 
 test('customer AI capture remains server-only, bounded and same-origin guarded',()=>{
   assert.match(customerApi,/routeAiStructured/);
-  assert.doesNotMatch(router,/process\.env\.GEMINI_API_KEY/);
+  assert.match(router,/process\.env\.GEMINI_API_KEY/);
   assert.match(router,/process\.env\.GROQ_API_KEY/);
-  assert.doesNotMatch(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
+  assert.match(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
   assert.doesNotMatch(customerApi,/process\.env\.(?:GEMINI|GROQ|CLOUDFLARE)/);
   assert.match(customerApi,/sameOriginRequest\(request\)/);
   assert.match(customerApi,/x-requested-with/);
@@ -35,7 +35,7 @@ test('customer AI extraction stays proposal-only and treats source contents as u
   assert.match(customerApi,/It does not create, update, merge, or save a customer/);
   assert.match(customerApi,/sourceFile:fileName/);
   assert.match(router,/temperature:0/);
-  assert.match(router,/response_format:\{type:'json_schema'/);
+  assert.match(router,/responseMimeType:'application\/json'/);
 });
 
 test('product browser contracts follow the current primary button and mobile quick-create bridge',()=>{

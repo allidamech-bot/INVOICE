@@ -269,7 +269,7 @@
   const accuracyButtons=[...document.querySelectorAll('[data-provider-accuracy]')];
   const keyButtons=[...document.querySelectorAll('[data-provider-key-check]')];
   const allProbeButtons=[...providerButtons,...accuracyButtons,...keyButtons];
-  const safeProviders=new Set(['groq']);
+  const safeProviders=new Set(['groq','cloudflare','gemini','kilo','openrouter','ollama']);
   let probeRunning=false;
   // The server alone knows which environment gates are configured. This read
   // makes no vendor calls, uses the same owner gate, and never displays keys.
@@ -382,7 +382,7 @@
   // Owner-only metadata checks. No prompts, inference or payment.
   for(const button of keyButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-key-check');
-    if(probeRunning||provider!=='ollama')return;
+    if(probeRunning||!['gemini','ollama'].includes(provider))return;
     probeRunning=true;allProbeButtons.forEach(item=>item.disabled=true);
     const result=document.querySelector('[data-provider-key-result="'+provider+'"]');
     if(result)result.textContent='Checking key only… / جارٍ فحص المفتاح فقط…';
@@ -401,6 +401,8 @@
         else{
           const labels={
             KEY_AUTHENTICATED:'Key authenticated — free allowance NOT verified / المفتاح صالح، مجانية الخطة غير مؤكدة',
+            METADATA_ACCESS_OK:'Gemini model lookup accepted — generation quota NOT checked / مفتاح Gemini مقبول لبيانات النموذج، حصة التوليد غير مفحوصة',
+            ACCESS_DENIED:'Gemini model access denied / الوصول إلى نموذج Gemini مرفوض',
             INVALID_RESPONSE:'Unexpected model metadata / بيانات النموذج غير صالحة',
             KEY_REJECTED:'Key rejected / المفتاح مرفوض',
             NOT_CONFIGURED:'Key missing / المفتاح غير موجود',

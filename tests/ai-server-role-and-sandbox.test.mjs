@@ -68,7 +68,7 @@ test('Each provider-only QA path uses only isolated credentials, validates synth
  const entry=new URL('../scripts/qa-ai-provider-sandbox.mjs',import.meta.url);
  const mock=new URL('./fixtures/qa-ai-provider-mock.mjs',import.meta.url);
  const secret='qa-synthetic-token-0123456789012345';
- for(const provider of ['groq']){
+ for(const provider of ['groq','cloudflare','gemini']){
   const env={...process.env,LOUREX_AI_QA_CONFIRM:'isolated-qa-no-customer-data',
     LOUREX_AI_QA_PROVIDER:provider,
     LOUREX_AI_QA_GROQ_API_KEY:secret,

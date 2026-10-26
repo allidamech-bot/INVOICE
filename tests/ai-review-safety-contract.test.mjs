@@ -9,9 +9,9 @@ test('customer AI capture remains server-keyed, same-origin and proposal-only', 
   const router = read('api/_ai/router.js');
 
   assert.match(api, /routeAiStructured/);
-  assert.doesNotMatch(router,/process\.env\.GEMINI_API_KEY/);
+  assert.match(router, /process\.env\.GEMINI_API_KEY/);
   assert.match(router, /process\.env\.GROQ_API_KEY/);
-  assert.doesNotMatch(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
+  assert.match(router, /process\.env\.CLOUDFLARE_AI_API_TOKEN/);
   assert.doesNotMatch(api, /process\.env\.(?:GEMINI|GROQ|CLOUDFLARE)/);
   assert.match(api, /x-requested-with/);
   assert.match(api, /LOUREX-Invoice/);

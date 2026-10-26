@@ -47,9 +47,30 @@ test('Groq GPT-OSS deep route uses include_reasoning instead of unsupported reas
   assert.equal(body.reasoning_format,undefined);
 });
 
-test('removed fallback cannot receive a request when Groq rejects',async()=>{
- process.env.GROQ_API_KEY='test-groq';process.env.CLOUDFLARE_AI_API_TOKEN='retired';process.env.CLOUDFLARE_ACCOUNT_ID='retired';
- let calls=0;globalThis.fetch=async url=>{calls++;assert.match(String(url),/groq.com/);return response(429,{});};
- const result=await routeAiStructured({taskType:'quote_extract',prompt:'Synthetic',schema:schema()});
- assert.equal(result.success,false);assert.equal(calls,1);
+test('Cloudflare fallback sends Workers AI JSON Schema directly and current completion token field',async()=>{
+  process.env.GROQ_API_KEY='test-groq';
+  process.env.CLOUDFLARE_AI_API_TOKEN='test-cloudflare';
+  process.env.CLOUDFLARE_ACCOUNT_ID='acct';
+  delete process.env.GEMINI_API_KEY;
+  const calls=[];
+  globalThis.fetch=async(url,options)=>{
+    const body=JSON.parse(options.body);
+    calls.push({url:String(url),body});
+    if(String(url).includes('api.groq.com'))return response(429,{error:{message:'rate limited'}});
+    return response(200,{choices:[{message:{content:'{"value":"fallback"}'}}]});
+  };
+
+  const result=await routeAiStructured({taskType:'quote_extract',prompt:'extract',schema:schema(),maxOutputTokens:777});
+
+  assert.equal(result.success,true);
+  assert.equal(result.provider,'cloudflare');
+  assert.equal(result.model,'@cf/google/gemma-4-26b-a4b-it');
+  assert.equal(calls.length,2);
+  const cloudflare=calls[1].body;
+  assert.equal(cloudflare.response_format.type,'json_schema');
+  assert.equal(cloudflare.response_format.json_schema.type,'object');
+  assert.equal(cloudflare.response_format.json_schema.schema,undefined);
+  assert.equal(cloudflare.max_completion_tokens,777);
+  assert.equal(cloudflare.max_tokens,undefined);
+  assert.equal(cloudflare.options.rejectIfBusy,true);
 });

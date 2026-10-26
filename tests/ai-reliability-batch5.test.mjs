@@ -29,11 +29,11 @@ test('duplicate quantity rows must survive extraction while incidental repeated 
 const originalFetch=globalThis.fetch,originalTimeout=globalThis.setTimeout,originalFirebase=globalThis.firebase,originalEnv={...process.env};
 function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimeout;globalThis.firebase=originalFirebase;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];Object.assign(process.env,originalEnv);}
 test.afterEach(restore);
-test('provider timeout includes unfinished body and fails closed without a removed fallback',async()=>{
+test('provider timeout includes an unfinished response body and safely falls back',async()=>{
  process.env.GROQ_API_KEY='fixture';process.env.CLOUDFLARE_AI_API_TOKEN='fixture';process.env.CLOUDFLARE_ACCOUNT_ID='fixture';
  globalThis.setTimeout=(fn,ms,...args)=>originalTimeout(fn,Math.min(ms,5),...args);const calls=[];
  globalThis.fetch=async(url,options)=>{calls.push(String(url));return{ok:true,headers:new Headers(),text:()=>String(url).includes('api.groq.com')?new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('fixture body aborted','AbortError')),{once:true})):Promise.resolve(JSON.stringify({choices:[{message:{content:'{"value":"fallback"}'}}]}))};};
- const result=await routeAiStructured({taskType:'workspace_help',prompt:'bounded fixture',schema:{type:'OBJECT',properties:{value:{type:'STRING'}},required:['value']},timeoutMs:3000});assert.equal(result.success,false);assert.equal(result.errorCode,'AI_TIMEOUT');assert.equal(calls.length,1);
+ const result=await routeAiStructured({taskType:'workspace_help',prompt:'bounded fixture',schema:{type:'OBJECT',properties:{value:{type:'STRING'}},required:['value']},timeoutMs:3000});assert.equal(result.success,true);assert.equal(result.provider,'cloudflare');assert.equal(result.fallbackUsed,true);assert.equal(calls.length,2);
 });
 async function requestQuote(text,ip,handler=quoteHandler){const req=Readable.from([JSON.stringify({kind:'text',text})]);req.method='POST';req.headers={host:'invoice.example.test',origin:'https://invoice.example.test','x-requested-with':'LOUREX-Invoice','x-forwarded-for':ip,authorization:testFirebaseBearer()};const res={setHeader(){},end(body){this.body=JSON.parse(body);}};const previousFetch=globalThis.fetch;globalThis.fetch=withTestFirebaseKeys(previousFetch);try{await handler(req,res);}finally{globalThis.fetch=previousFetch;}return res;}
 test('the real API parses a complete table locally and returns a review-only draft',async()=>{
@@ -49,11 +49,11 @@ test('real extraction API rejects missing duplicate lines, zero quantity and mal
   const res=await requestQuote('SKU A-1: Valve Qty 2 PCS\nSKU A-1: Spare Qty 3 PCS',`batch5-reject-${index++}`);assert.equal(res.statusCode,422);assert.ok(!res.body.draft&&!res.body.saved);
  }
 });
-test('quantity/product low confidence stays review-required without a removed fallback; absent customer adds no request',async()=>{
+test('quantity/product confidence participates in quality fallback; an absent customer is not a paid extra request',async()=>{
  process.env.GROQ_API_KEY='fixture';process.env.CLOUDFLARE_AI_API_TOKEN='fixture';process.env.CLOUDFLARE_ACCOUNT_ID='fixture';
  const schema={type:'OBJECT',properties:{quantityConfidence:{type:'NUMBER'},productConfidence:{type:'NUMBER'},customerConfidence:{type:'NUMBER'},customerName:{type:'STRING'}},required:['quantityConfidence','productConfidence','customerConfidence','customerName']};let calls=0;
  globalThis.fetch=async url=>{calls++;return{ok:true,headers:new Headers(),text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify({quantityConfidence:String(url).includes('api.groq.com')?.2:1,productConfidence:1,customerConfidence:0,customerName:''})}}]})};};
- const result=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(result.provider,'groq');assert.equal(result.validation.lowConfidence,true);assert.equal(result.validation.needsReview,true);assert.equal(calls,1);
+ const result=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(result.provider,'cloudflare');assert.equal(result.validation.lowConfidence,false);assert.equal(calls,2);
  calls=0;globalThis.fetch=async()=>{calls++;return{ok:true,headers:new Headers(),text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify({quantityConfidence:1,productConfidence:1,customerConfidence:0,customerName:''})}}]})};};
  const noCustomer=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(noCustomer.provider,'groq');assert.equal(calls,1);
 });

@@ -160,8 +160,8 @@ test('v264 finance authority boundaries remain enforced inside final AI Core',()
   assert.match(api,/needsDeepReasoning/);
   assert.doesNotMatch(api,/process\.env\.(?:GEMINI|GROQ|CLOUDFLARE)/);
   assert.match(router,/temperature:0/);
-  assert.doesNotMatch(router,/process\.env\.GEMINI_API_KEY/);
+  assert.match(router,/process\.env\.GEMINI_API_KEY/);
   assert.match(router,/process\.env\.GROQ_API_KEY/);
-  assert.doesNotMatch(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
+  assert.match(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
   assert.doesNotMatch(api,/console\.log\([^)]*(finance|business|context|message|prompt)/i);
 });

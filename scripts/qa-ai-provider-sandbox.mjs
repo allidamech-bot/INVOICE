@@ -8,7 +8,9 @@ import {routeAiStructured} from '../api/_ai/router.js';
 const CONFIRM='isolated-qa-no-customer-data';
 const QA_PROVIDER=process.env.LOUREX_AI_QA_PROVIDER||'groq';
 const QA_KEYS={
-  groq:['LOUREX_AI_QA_GROQ_API_KEY']
+  groq:['LOUREX_AI_QA_GROQ_API_KEY'],
+  gemini:['LOUREX_AI_QA_GEMINI_API_KEY'],
+  cloudflare:['LOUREX_AI_QA_CLOUDFLARE_API_TOKEN','LOUREX_AI_QA_CLOUDFLARE_ACCOUNT_ID']
 };
 const selected=Object.prototype.hasOwnProperty.call(QA_KEYS,QA_PROVIDER)?QA_KEYS[QA_PROVIDER]:null;
 const isolatedCredentials=selected?.map(name=>String(process.env[name]||'').trim())||[];
@@ -17,10 +19,10 @@ const isolatedCredentials=selected?.map(name=>String(process.env[name]||'').trim
 const productionCredentials=['GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','OPENROUTER_API_KEY','MISTRAL_API_KEY','OLLAMA_API_KEY']
   .map(name=>String(process.env[name]||'').trim()).filter(Boolean);
 const valid=process.env.LOUREX_AI_QA_CONFIRM===CONFIRM
-  && selected&&isolatedCredentials.every(key=>key.length>=16)
+  && selected&&isolatedCredentials.every((key,index)=>key.length>=(QA_PROVIDER==='cloudflare'&&index===1?4:16))
   && isolatedCredentials.every(key=>!productionCredentials.includes(key));
 if(!valid){
-  console.error('SANDBOX_NOT_CONFIGURED: Select groq; provide dedicated QA credentials and isolated-qa-no-customer-data consent. No provider was contacted.');
+  console.error('SANDBOX_NOT_CONFIGURED: Select groq, gemini or cloudflare; provide dedicated QA credentials and isolated-qa-no-customer-data consent. No provider was contacted.');
   process.exitCode=2;
 }else{
   for(const name of [
@@ -29,6 +31,11 @@ if(!valid){
     ...Object.values(QA_KEYS).flat()
   ])delete process.env[name];
   if(QA_PROVIDER==='groq')process.env.GROQ_API_KEY=isolatedCredentials[0];
+  if(QA_PROVIDER==='gemini')process.env.GEMINI_API_KEY=isolatedCredentials[0];
+  if(QA_PROVIDER==='cloudflare'){
+    process.env.CLOUDFLARE_AI_API_TOKEN=isolatedCredentials[0];
+    process.env.CLOUDFLARE_ACCOUNT_ID=isolatedCredentials[1];
+  }
   const schema={type:'OBJECT',properties:{marker:{type:'STRING',enum:['LOUREX_SANDBOX_OK']}},required:['marker']};
   try{
     const result=await routeAiStructured({
