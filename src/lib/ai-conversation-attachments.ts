@@ -41,6 +41,22 @@ export function conversationAttachmentMime(file:Pick<File,'name'|'type'>):string
 
 export const MAX_CONVERSATION_ATTACHMENTS=10;
 export const MAX_CONVERSATION_ATTACHMENT_TOTAL_BYTES=16_000_000;
+/** File conversion, classification, extraction and any fallback share one
+ * per-turn budget. The tool planner has a separate 15s cap, so a complete
+ * attachment turn remains bounded to 90 seconds. */
+export const CONVERSATION_ATTACHMENT_PROCESSING_BUDGET_MS=75_000;
+export interface ConversationAttachmentBudget {
+  expired():boolean;
+  dispose():void;
+}
+export function startConversationAttachmentBudget(
+  controller:AbortController,
+  budgetMs=CONVERSATION_ATTACHMENT_PROCESSING_BUDGET_MS
+):ConversationAttachmentBudget{
+  let expired=false;
+  const timer=setTimeout(()=>{expired=true;controller.abort();},Math.max(1,budgetMs));
+  return{expired:()=>expired,dispose:()=>clearTimeout(timer)};
+}
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_DOCUMENT_BYTES=12_000_000;
 const MAX_TEXT_CHARS=120_000;
