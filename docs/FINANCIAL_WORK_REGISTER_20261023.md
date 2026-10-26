@@ -534,3 +534,33 @@ feature. A default uncapped metered run was **not** started to avoid
 unbounded wallet use. This is an access/tooling block, not evidence about
 Firebase deployment state.
 
+### 26 October 2026 — exact-project Firestore emulator security gate #1102
+
+- Created **[PR #1102](https://github.com/allidamech-bot/INVOICE/pull/1102)**,
+  Draft, on main `9e02f54f5e381e12a75bceee03071d306ae0cd71`.
+  Exact tested HEAD: `a79501d1af43d3fc7ca556f9bbea5267bb91dc74`.
+- Scope: **one test file only**,
+  `tests/firebase-firestore-rules-emulator.integration.mjs`.
+  Its hard-coded Firestore REST/JWT project previously used
+  `demo-lourex-ai-integration-719`, different from the
+  `--project demo-lourex-pinless` used by the existing GitHub CI.
+  The test now uses `demo-lourex-pinless`, requires
+  `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080`, and checks
+  `GCLOUD_PROJECT` if set. No rules or product runtime were changed.
+- GitHub Actions run
+  **[40372970245](https://github.com/allidamech-bot/INVOICE/actions/runs/40372970245)**
+  completed **SUCCESS** at the exact commit. Existing cloud security gate:
+  TypeScript/build, company/branch/operator access controls, cloud revision
+  and two-device boundaries, financial backup/inventory integrity,
+  real local Firestore rules isolation, and browser Auth/Firestore
+  cross-account read/write denial all passed.
+- This removes a confusing local emulator project-name mismatch and
+  verifies existing defenses against the intended local demo namespace;
+  it does **not** establish a production security vulnerability was
+  previously present. Previous emulator tests had also passed.
+- **35-B is still OPEN:** no copy/version/timestamp of deployed Firebase
+  rules was obtained or diffed with `firestore.rules`.
+  Authenticated cross-UID tests are proven only on local emulators; a
+  controlled, separate real-service QA account test is outstanding.
+  No live project credentials were used, no customer data accessed, no
+  production Firebase or Vercel change and no merge performed.
