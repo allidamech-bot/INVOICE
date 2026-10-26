@@ -1001,6 +1001,17 @@ export function installIntelligenceRuntime(host:Host):void{
               :'Working draft revised only; nothing was saved or issued. Review the changes, then explicitly request saving.'}]}));await flush(host);await persistKernel(host);return;
       }
 
+      // A new-document request is not permission to replace the active artifact.
+      // Match the workspace's existing start-draft boundary before any edit/model call.
+      if(currentConversationMode(host)==='controller'&&kernel.artifact&&standaloneDocumentCreation(message)){
+        host.setState((state:any)=>({input:'',error:'',messages:[...state.messages,
+          {id:crypto.randomUUID(),role:'user',text:message},
+          {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
+            ?'فهمت أنك تريد إنشاء مستند جديد، وليس تعديل المسودة الحالية. أبقيت المسودة الحالية كما هي؛ يلزم إنهاؤها أو إلغاؤها صراحةً من مساحة العمل قبل بدء أخرى. لم أحفظ أو أصدر أو أرسل أي مستند.'
+            :'You requested a new document, not an edit to the current draft. The current draft is unchanged; finish it or explicitly discard it in the workspace before starting another. Nothing was saved, issued or sent.'}]}));
+        await flush(host);await persistKernel(host);return;
+      }
+
       // A prepare-only preview has no actionable proposal. Interpret exact
       // editing follow-ups against the full scoped kernel draft BEFORE asking a
       // general model, which could otherwise omit old lines or trade terms.
@@ -1032,7 +1043,7 @@ export function installIntelligenceRuntime(host:Host):void{
               :'Prepared a draft-save approval for review only. No record has been saved. Review the details and explicitly approve.'}]}));
         await flush(host);await persistKernel(host);return;
       }
-      const exactDraftFollowup=/^(?:(?:في نفس المسودة)[،,]?\s*)?(?:غيّر|غير|عدّل|عدل|اجعل|أضف|اضف|احذف|حذف|امسح|set|change|update|add|remove|delete)\s+(?:سعر|السعر|كمية|الكمية|price|quantity|qty|line|item|الصنف|البند|منتج|شروط|شروط الدفع|payment terms|الإنكوترمز|incoterm|مدة التسليم|delivery time|الصلاحية|validity|الملاحظات|notes|التعبئة|تعبئة|التغليف|تغليف|packing)|^(?:تراجع(?:\s+عن\s+(?:التعديل|آخر\s+تعديل))?|undo)\s*(?:…|\.{2,3}|[،,.;:]|\s+ثم\s+|\s+and\s+)\s*(?:[أا]عد|ارجع|رجع|رجّع|restore|revert)\s+(?:السعر|price)\s+(?:إلى|الى|to)\s*\d+(?:[.,]\d+)?(?:\s+[A-Z]{3})?[.!؟\s]*$|^(?:undo|redo|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل(?: الأخير| الاخير)?|أعد التعديل|اعد التعديل|لا[،,]?\s*اللي قبله|previous one|(?:[أا]رجع|رجع|رجّع)\s+(?:السعر|الكمية)\s+(?:السابق|السابقة))[.!؟\s]*$/iu.test(message);
+      const exactDraftFollowup=/^(?:(?:في نفس المسودة)[،,]?\s*)?(?:غيّر|غير|عدّل|عدل|اجعل|أضف|اضف|احذف|حذف|امسح|set|change|update|edit|add|remove|delete)\s+(?:المسودة(?:\s+الحالية)?|(?:the\s+)?current\s+draft|draft|سعر|السعر|كمية|الكمية|price|quantity|qty|line|item|الصنف|البند|منتج|شروط|شروط الدفع|payment terms|الإنكوترمز|incoterm|مدة التسليم|delivery time|الصلاحية|validity|الملاحظات|notes|التعبئة|تعبئة|التغليف|تغليف|packing)|^(?:تراجع(?:\s+عن\s+(?:التعديل|آخر\s+تعديل))?|undo)\s*(?:…|\.{2,3}|[،,.;:]|\s+ثم\s+|\s+and\s+)\s*(?:[أا]عد|ارجع|رجع|رجّع|restore|revert)\s+(?:السعر|price)\s+(?:إلى|الى|to)\s*\d+(?:[.,]\d+)?(?:\s+[A-Z]{3})?[.!؟\s]*$|^(?:undo|redo|تراجع|تراجع عن آخر تعديل|[أا]رجع التعديل(?: الأخير| الاخير)?|أعد التعديل|اعد التعديل|لا[،,]?\s*اللي قبله|previous one|(?:[أا]رجع|رجع|رجّع)\s+(?:السعر|الكمية)\s+(?:السابق|السابقة))[.!؟\s]*$/iu.test(message);
       // Exact edits must also work while a previous save review is displayed.
       // Changing one value revokes that review; it is never an implicit approval.
       const visible=host.state.proposal;

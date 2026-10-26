@@ -8,7 +8,7 @@ const realFetch=globalThis.fetch;
 test.beforeEach(()=>{for(const key of tracked)delete process.env[key];});
 test.afterEach(()=>{globalThis.fetch=realFetch;for(const [k,v] of saved){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
 const schema={type:'OBJECT',properties:{value:{type:'STRING'}},required:['value']};
-const ask=()=>routeAiStructured({taskType:'workspace_help',schema,prompt:'synthetic fallback inspection',maxOutputTokens:80});
+const ask=(extra={})=>routeAiStructured({taskType:'workspace_help',schema,prompt:'synthetic fallback inspection',maxOutputTokens:80,...extra});
 function respond(status,data,headers={}){return{ok:status>=200&&status<300,status,headers:{get:(key)=>headers[key]??null},text:async()=>JSON.stringify(data)};}
 const good=value=>({choices:[{message:{content:JSON.stringify({value})}}]});
 
@@ -33,7 +33,7 @@ test('AI-FALLBACK-01: Groq quota 429 falls through to configured Cloudflare, not
   assert.ok(calls[1].includes('api.cloudflare.com'));
 });
 
-test('AI-FALLBACK-02: Cloudflare upstream 503 retries within budget then Gemini takes over',async()=>{
+test('AI-FALLBACK-02: synthetic help falls through from Cloudflare 503 to Gemini within budget',async()=>{
   process.env.CLOUDFLARE_AI_API_TOKEN='fake-cf';
   process.env.CLOUDFLARE_ACCOUNT_ID='fake-account';
   process.env.GEMINI_API_KEY='fake-gemini';
@@ -44,7 +44,7 @@ test('AI-FALLBACK-02: Cloudflare upstream 503 retries within budget then Gemini 
       ?respond(503,{error:{message:'synthetic upstream outage'}})
       :respond(200,{candidates:[{content:{parts:[{text:'{"value":"gemini-success"}'}]}}]});
   };
-  const result=await ask();
+  const result=await ask({externalDataClass:'public-synthetic'});
   assert.equal(result.success,true);
   assert.equal(result.provider,'gemini');
   assert.equal(result.data.value,'gemini-success');
@@ -58,9 +58,19 @@ test('AI-FALLBACK-03: invalid Gemini data fails closed; no fabricated successful
   process.env.GEMINI_API_KEY='fake-gemini';
   let calls=0;
   globalThis.fetch=async()=>{calls++;return respond(200,{candidates:[{content:{parts:[{text:'{"value":"x","unapproved":true}'}]}}]});};
-  const result=await ask();
+  const result=await ask({externalDataClass:'public-synthetic'});
   assert.equal(result.success,false);
   assert.equal(result.errorCode,'AI_INVALID_RESULT');
   assert.equal(result.data,undefined);
   assert.equal(calls,1);
+});
+
+test('private help and business extraction cannot use Gemini even with a synthetic tag on business tasks',async()=>{
+  process.env.GEMINI_API_KEY='fake-gemini';let calls=0;
+  globalThis.fetch=async()=>{calls++;return respond(200,{candidates:[{content:{parts:[{text:'{"value":"unapproved"}'}]}}]});};
+  for(const extra of [{},{taskType:'business_copilot',externalDataClass:'public-synthetic'},{taskType:'quote_extract',externalDataClass:'public-synthetic'},{taskType:'quote_extract',externalDataClass:'public-synthetic',attachments:[{kind:'native-document',mimeType:'application/pdf',data:'YWJj'}]}]){
+    const result=await ask(extra);assert.equal(result.success,false);assert.equal(result.attemptCount,0);
+    assert.equal(result.errorCode,extra.attachments?'AI_PRIVATE_DOCUMENT_UNAVAILABLE':'AI_NOT_CONFIGURED');
+  }
+  assert.equal(calls,0,'private requests must never reach the otherwise configured Gemini mock');
 });
