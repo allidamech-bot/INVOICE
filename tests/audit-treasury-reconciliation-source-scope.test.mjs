@@ -81,36 +81,36 @@ test('unchanged historical bank reconciliation scope remains intact on unrelated
   assert.equal(JSON.stringify(saved),before);
 });
 
-function ambiguousHistoricalBankFixture(){
-  const {base,account,deposit,event}=fixture();
-  const regional=createTreasuryAccount({label:'QA Regional Bank',kind:'bank',
-    currency:'USD',workspaceId:'default',branchId:'regional'});
-  const repeated={...deposit,toAccountId:regional.id,branchId:'regional',
-    amount:'75.00',reference:'different-bank-history'};
-  const snapshot={...base,treasuryAccounts:[account,regional],
-    treasuryEntries:[deposit,repeated]};
-  return {snapshot,deposit,repeated,event};
+
+function ambiguousHistoricalExpenseFixture(){
+  const {base,event}=fixture();
+  const expense={...createExpense('USD'),id:'duplicated-legacy-expense-id',
+    date:'2026-10-02',amount:'18.00',description:'Synthetic service',
+    workspaceId:'default',branchId:'main'};
+  const regional={...expense,branchId:'regional',
+    description:'Different regional synthetic service',amount:'35.00'};
+  const snapshot={...base,expenses:[expense,regional]};
+  const scopedEvent=(id,branchId='main',key='expense:duplicated-legacy-expense-id')=>
+    {...event(id,key),branchId};
+  return{snapshot,expense,regional,scopedEvent};
 }
 
-test('new reconciliation of a duplicated historical bank movement is rejected for both branch orders',()=>{
-  const {snapshot,deposit,repeated,event}=ambiguousHistoricalBankFixture();
-  for(const rows of [[deposit,repeated],[repeated,deposit]]){
-    const base={...snapshot,treasuryEntries:rows};
-    const original=JSON.stringify(base);
-    for(const scope of [{workspaceId:'default',branchId:'main'},
-      {workspaceId:'default',branchId:'regional'}]){
-      const incoming={...event(),...scope,id:'fresh-reconciliation-for-ambiguous-bank'};
+test('new reconciliation of repeated historical expense ID is rejected in either branch order',()=>{
+  const {snapshot,expense,regional,scopedEvent}=ambiguousHistoricalExpenseFixture();
+  for(const rows of [[expense,regional],[regional,expense]]){
+    const base={...snapshot,expenses:rows},original=JSON.stringify(base);
+    for(const branch of ['main','regional']){
+      const incoming=scopedEvent('new-expense-event-'+branch,branch);
       assert.throws(()=>mergeVaultIntent(base,{...base,treasuryReconciliations:[incoming]},base),
-        /treasury reconciliation movement key is ambiguous/i,
-        'new event must not attach to either ledger row depending on array order');
-      assert.equal(JSON.stringify(base),original,'rejected event never modifies historic money');
+        /treasury reconciliation movement key is ambiguous/i);
+      assert.equal(JSON.stringify(base),original,'rejection cannot mutate historical expense records');
     }
   }
 });
 
-test('remote ambiguous reconciliation cannot be imported during unrelated local save',()=>{
-  const {snapshot,event}=ambiguousHistoricalBankFixture();
-  const incoming={...event(),id:'remote-ambiguous-bank-reconciliation'};
+test('remote ambiguous expense reconciliation is rejected during an unrelated local save',()=>{
+  const {snapshot,scopedEvent}=ambiguousHistoricalExpenseFixture();
+  const incoming=scopedEvent('remote-ambiguous-expense');
   const before=JSON.stringify(snapshot);
   assert.throws(()=>mergeVaultIntent(snapshot,unrelated(snapshot),
     {...snapshot,treasuryReconciliations:[incoming]}),
@@ -118,20 +118,18 @@ test('remote ambiguous reconciliation cannot be imported during unrelated local 
   assert.equal(JSON.stringify(snapshot),before);
 });
 
-test('grandfathered reconciliation history remains unchanged while unique movement may reconcile',()=>{
-  const {snapshot,deposit,event}=ambiguousHistoricalBankFixture();
-  const old={...event(),id:'grandfathered-ambiguous-reconciliation'};
+test('historical ambiguous reconciliation stays untouched; unique expense reconciliation remains valid',()=>{
+  const {snapshot,expense,scopedEvent}=ambiguousHistoricalExpenseFixture();
+  const old=scopedEvent('historical-ambiguous-expense-event');
   const historical={...snapshot,treasuryReconciliations:[old]};
-  const frozen=JSON.stringify(historical);
+  const original=JSON.stringify(historical);
   const retained=mergeVaultIntent(historical,unrelated(historical),structuredClone(historical));
   assert.equal(retained.treasuryReconciliations[0].id,old.id);
-  assert.equal(JSON.stringify(historical),frozen,'never migrate an old event or its linked rows');
+  assert.equal(JSON.stringify(historical),original);
 
-  // A distinct source ID still supports normal reconcile/Undo operations.
-  const unique={...deposit,id:'unique-bank-reconciliation-movement'};
-  const base={...snapshot,treasuryEntries:[...snapshot.treasuryEntries,unique]};
-  const incoming={...event('valid-unique-bank-event','treasury:'+unique.id)};
-  const merged=mergeVaultIntent(base,{...base,treasuryReconciliations:[incoming]},base);
-  assert.equal(merged.treasuryReconciliations.length,1);
-  assert.equal(merged.treasuryReconciliations[0].movementKey,'treasury:'+unique.id);
+  const unique={...expense,id:'unique-expense-for-reconciliation'};
+  const base={...snapshot,expenses:[...snapshot.expenses,unique]};
+  const incoming=scopedEvent('new-unique-expense-event','main','expense:'+unique.id);
+  const accepted=mergeVaultIntent(base,{...base,treasuryReconciliations:[incoming]},base);
+  assert.deepEqual(accepted.treasuryReconciliations.map(x=>x.id),[incoming.id]);
 });
