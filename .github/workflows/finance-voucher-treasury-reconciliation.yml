@@ -1,0 +1,40 @@
+name: Finance voucher and treasury reconciliation (Alif QA)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-voucher-treasury-reconciliation-alif.test.mjs'
+      - 'src/lib/payment-voucher.ts'
+      - 'src/lib/payments.ts'
+      - 'src/lib/payables.ts'
+      - 'src/lib/receivables.ts'
+      - 'src/lib/treasury-ledger.ts'
+      - 'src/lib/treasury-report.ts'
+      - '.github/workflows/finance-voucher-treasury-reconciliation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-voucher-treasury-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finance-reconciliation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused synthetic AR/AP/voucher/treasury reconciliation
+        run: node --test tests/finance-voucher-treasury-reconciliation-alif.test.mjs
