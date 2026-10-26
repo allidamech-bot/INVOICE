@@ -154,4 +154,30 @@ test('retained immutable report alone blocks reset even if both control and oper
  assert.deepEqual((await f.root.collection('periodReports').doc(closed.reportId).get()).data(),report);
 });
 
+
+test('authoritative generation marker blocks false fresh enrollment when control, receipts and reports are all missing',async()=>{
+ const f=await account();
+ const manifestBefore=(await f.root.collection('workspace').doc('meta').get()).data();
+ assert.equal(manifestBefore.chunkStorage,'period-generations-v1',
+   'server-owned manifest survives a completed enrollment');
+ const originalRevision=manifestBefore.revision;
+ // Deliberate catastrophic loss of control and receipts in a demo UID ONLY.
+ await f.root.collection('accounting').doc('control').delete();
+ const operations=await f.root.collection('periodOperations').get();
+ for(const op of operations.docs)await op.ref.delete();
+ assert.equal((await f.root.collection('periodReports').get()).empty,true);
+ assert.equal((await f.root.collection('periodOperations').get()).empty,true);
+ const before=await authority(f);
+ const inspect={operation:'inspect',opId:id(),expectedRevision:originalRevision,expectedGeneration:1};
+ const reset={operation:'enroll',opId:id(),expectedRevision:originalRevision,expectedGeneration:0};
+ for(const command of [inspect,reset]){
+  await assert.rejects(service.execute(f.identity,command),/PERIOD_AUTHORITY_MISSING/,
+    'a trusted generation marker must never be interpreted as a pristine legacy account');
+  assert.equal(await authority(f),before,'failed reset must preserve every financial snapshot');
+ }
+ const manifestAfter=(await f.root.collection('workspace').doc('meta').get()).data();
+ assert.equal(manifestAfter.revision,originalRevision);
+ assert.equal(manifestAfter.chunkStorage,'period-generations-v1');
+});
+
 test.after(async()=>{await db.terminate();await deleteApp(app);});
