@@ -597,3 +597,35 @@ Firebase deployment state.
 - Main advanced independently to `dea51b63e90f2934a878cae9a8fc5c6c6acf1ee4`
   through AI-only changed paths while this PR's workflows were running.
   That update does not itself prove combined merge acceptance.
+
+### 26 October 2026 — final CI on treasury KPI PR #1103
+
+- Original #1103 head directly narrowed the historical
+  `treasuryTotals` function and **FAILED three old accounting tests**
+  in the automated full Node suite (while passing the new focused tests).
+  Older callers deliberately use `treasuryTotals` to describe
+  **projected** receipt/payment/expense flows, even when unallocated.
+  That behavior must not be silently changed to real bank cash flows.
+- Corrected design preserves `treasuryTotals` **unchanged**, adds
+  `treasuryLedgerTotals` to filter for account-linked movements, and
+  wires **only** the `TreasuryLedgerPage` KPI to the new function.
+  Historical projection-wide callers and statements retain their
+  original semantics. One extra test verifies the actual React page
+  uses the correct function.
+- **[PR #1103](https://github.com/allidamech-bot/INVOICE/pull/1103)**
+  remains **Draft**, current exact-head
+  `97eade396cb4ff4fcc76d9402da59248ccdd9a73`, and is reported
+  mergeable against main `dea51b63e90f2934a878cae9a8fc5c6c6acf1ee4`.
+- All **five** automatically triggered GitHub workflows completed
+  **SUCCESS** at the corrected head:
+  [focused KPI 40374567625](https://github.com/allidamech-bot/INVOICE/actions/runs/40374567625),
+  [accounting settlement parity 40374567777](https://github.com/allidamech-bot/INVOICE/actions/runs/40374567777),
+  [treasury CSV/browser/PDF 40374567560](https://github.com/allidamech-bot/INVOICE/actions/runs/40374567560),
+  [closed-period foundation 40374567642](https://github.com/allidamech-bot/INVOICE/actions/runs/40374567642),
+  and [Vercel trace isolation 40374567532](https://github.com/allidamech-bot/INVOICE/actions/runs/40374567532).
+  Do not rerun the already-green tests without a code change.
+- Source-review boundary: this corrects misleading cash/bank screen
+  presentation, but **does not** verify native iPhone Safari,
+  authenticated cloud acceptance, Firebase deployed-rule parity
+  (35-B), or a Vercel production release. No merge, deploy or actual
+  accounting record changed.
