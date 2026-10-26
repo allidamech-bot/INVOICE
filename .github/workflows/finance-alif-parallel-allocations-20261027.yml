@@ -1,0 +1,33 @@
+name: Finance Alif two-device allocation acceptance (20261027)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-alif-parallel-allocations-20261027.test.mjs'
+      - '.github/workflows/finance-alif-parallel-allocations-20261027.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-alif-parallel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  two-device-finance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Isolated concurrent AR/AP bank-allocation consistency
+        run: node --test tests/finance-alif-parallel-allocations-20261027.test.mjs
