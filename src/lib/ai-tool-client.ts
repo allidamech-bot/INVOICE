@@ -194,6 +194,13 @@ function requestedDocumentKind(message:string):'proforma'|'invoice'|null{
   }
   return null;
 }
+/** Bare create commands need no model interpretation. Start an empty local
+ * working draft so missing buyer and line data can be collected without a
+ * provider call; this artifact is conversation state, never a save proposal. */
+function bareDocumentCreationCommand(message:string):boolean{
+  const text=clean(message,6000).normalize('NFKC').trim();
+  return /^(?:(?:please\s+)?(?:create|make|prepare|draft)\s+(?:(?:a|an|new|draft)\s+)*(?:quotation|quote|invoice)|(?:أنشئ|انشئ|اعمل|جهز|جهّز|حضّر|حضر|سوي|سوّي)(?:\s+لي)?\s+(?:(?:مسودة|جديد|جديدة)\s+)*(?:عرض\s+(?:ال)?سعر|فاتورة))(?:\s+(?:draft|new|جديد|جديدة))?[.!؟\s]*$/iu.test(text);
+}
 /** Negated user instructions override any model-generated createDraft plan.
  * Source text and planner guesses cannot reverse this prohibition. */
 function explicitlyNegatedDocumentCreation(message:string):boolean{
@@ -343,6 +350,26 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
         :'Prepared an unsaved quotation card from your exact input. No document or customer was saved.',
       proposal:null,workingDraft,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'
     };
+  }
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&
+      bareDocumentCreationCommand(input.message)){
+    const kind=requestedDocumentKind(input.message);
+    if(kind){
+      if(!graphKindAllowed(strictAiActor(input.vault).role,'document'))
+        return{answer:input.language==='ar'?'دور الحساب الحالي لا يسمح بإعداد مسودة مستند. لم أغيّر أي بيانات.':'Your current role cannot prepare a document draft. No data was changed.',
+          proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+      const workingDraft=proposalForExecutableTool({id:'local-empty-document',tool:'document.createDraft',
+        args:{kind:kind==='invoice'?'invoice':'proforma',currency:runtime.vault.company.defaultCurrency||'USD',
+          language:input.language==='ar'?'ar':'en',items:[],label:kind==='invoice'?'Invoice draft':'Quotation draft'},
+        reason:'Start an unsaved local draft and request missing user-supplied details.'},runtime);
+      if(!workingDraft)return{answer:input.language==='ar'?'لم أتمكن من بدء بطاقة مسودة آمنة. لم أغيّر أي بيانات.':'I could not safely start a draft card. No data was changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+      const label=kind==='invoice'?(input.language==='ar'?'فاتورة':'invoice'):(input.language==='ar'?'عرض سعر':'quotation');
+      const answer=input.language==='ar'
+        ?'بدأت بطاقة مسودة '+label+' غير محفوظة داخل المحادثة. اختر العميل من الشركة الحالية، ثم أضف كل صنف مع الكمية والوحدة وسعر البيع. العملة الحالية '+workingDraft.currency+'؛ إذا أردت عملة أخرى فحدّدها قبل إدخال الأسعار. لن أخمّن بيانات ناقصة، ولن أحفظ أو أصدر المستند دون مراجعة وموافقة منفصلة.'
+        :'Started an unsaved '+label+' draft card in this conversation. Select a customer from the active company and add each item with its quantity, unit and selling price. The current currency is '+workingDraft.currency+'; choose another currency before entering prices if needed. I will not guess missing data or save or issue the document without separate review and approval.';
+      return{answer,proposal:null,workingDraft,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    }
   }
   // An incomplete named-family quote starts with a real catalog conversation.
   // Never let a generic search.records plan masquerade as a prepared quotation.
