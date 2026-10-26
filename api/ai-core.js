@@ -168,9 +168,9 @@ export default async function handler(request,response){
     if(mode!=='single'&&mode!=='financial'&&mode!=='key-check'){
       sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
     }
-    // Metadata-only checks are allowed for Gemini and the two manually gated vendors.
+    // Metadata-only checks are limited to the retained optional vendor.
     // No generation is performed, no free or paid inference entitlement is assumed.
-    if(mode==='key-check'&&!['gemini','ollama'].includes(provider)){
+    if(mode==='key-check'&&provider!=='ollama'){
       sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
     }
     // Optional model override is only available for the owner's fixed Ollama

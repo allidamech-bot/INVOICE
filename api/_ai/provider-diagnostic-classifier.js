@@ -23,12 +23,6 @@ function safeModel(value){
 }
 export function selectedResponse(root,provider){
   if(provider==='ollama')return{text:textFromPart(root?.message?.content),finish:root?.done_reason||'',tokens:root?.eval_count||0,model:root?.model||''};
-  if(provider==='gemini'){
-    const item=root?.candidates?.[0];
-    return{text:textFromPart(item?.content?.parts?.filter(p=>p?.thought!==true)||[]),
-      finish:item?.finishReason||'',tokens:root?.usageMetadata?.candidatesTokenCount||0,
-      model:root?.modelVersion||''};
-  }
   const parent=root?.result?.choices?root.result:root;
   const choice=parent?.choices?.[0];
   const content=textFromPart(choice?.message?.content);

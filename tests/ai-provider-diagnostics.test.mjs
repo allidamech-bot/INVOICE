@@ -12,7 +12,7 @@ async function sandbox(fn){
 function reply(data,status=200){return{ok:status===200,status,headers:{get:()=>null},text:async()=>JSON.stringify(data)};}
 test('each provider receives only a synthetic arithmetic prompt, single provider, no fallback',async()=>{
  await sandbox(async()=>{
-  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq','cloudflare','gemini','kilo','openrouter','ollama']);
+  assert.deepEqual(SYNTHETIC_PROVIDER_IDS,['groq','ollama']);
   for(const provider of SYNTHETIC_PROVIDER_IDS){
    let calls=0;
    const fetchImpl=async(url,options)=>{
@@ -20,27 +20,11 @@ test('each provider receives only a synthetic arithmetic prompt, single provider
     const body=JSON.parse(options.body),serialized=JSON.stringify(body);
     assert.ok(serialized.includes('8 items')&&serialized.includes('10%')&&serialized.includes('18%'));
     assert.ok(!serialized.includes('invoiceNumber')&&!serialized.includes('customerId'));
-    if(provider==='kilo'){
-     assert.equal(body.model,'google/gemma-4-26b-a4b-it:free');
-     assert.ok(body.model.endsWith(':free'),'Kilo diagnostic may never select a paid model');
-     assert.equal(body.temperature,0,'pin deterministic decoding in the isolated diagnostic');
-     assert.equal(url,'https://ai-gateway.kilo.ai/api/v1/chat/completions');
-    }
     if(provider==='groq')assert.equal(body.model,'openai/gpt-oss-120b');
-    if(provider==='openrouter'){assert.equal(body.model,'openrouter/free');assert.equal(url,'https://openrouter.ai/api/v1/chat/completions');assert.deepEqual(body.provider,{data_collection:'deny'});}
     if(provider==='ollama'){assert.equal(body.model,'gemma4:31b');assert.equal(url,'https://ollama.com/api/chat');assert.equal(body.stream,false);}
 
-    if(provider==='cloudflare'){
-     assert.equal(body.model,'@cf/google/gemma-4-26b-a4b-it');
-     assert.deepEqual(body.chat_template_kwargs,{enable_thinking:false},'avoid spending 256 completion tokens on Gemma reasoning');
-     assert.equal(body.max_completion_tokens,256,'do not raise free-tier output usage for the diagnostics');
-    }
-    if(provider!=='cloudflare')
      assert.equal(body.chat_template_kwargs,undefined,'no other provider should inherit Cloudflare-only options');
-    if(provider==='gemini')assert.ok(url.endsWith('/gemini-2.5-flash-lite:generateContent'));
     return provider==='ollama'?reply({message:{content:'1062'},done_reason:'stop',model:'gemma4:31b'}):
-     provider==='gemini'?reply({candidates:[{content:{parts:[{text:'1062'}]}}]}):
-     provider==='cloudflare'?reply({result:{choices:[{message:{content:'1062'}}]}}):
      reply({choices:[{message:{content:'1062'}}]});
    };
    const result=await runSyntheticProviderDiagnostic(provider,{fetchImpl});
@@ -59,21 +43,21 @@ test('unknown names, wrong answers and payment errors do not initiate fallback',
    assert.equal(result.status,'INVALID_PROVIDER');
   }
   assert.equal(calls,0);
-  const wrong=await runSyntheticProviderDiagnostic('kilo',{fetchImpl:async()=>reply({choices:[{message:{content:'1042'}}]})});
+  const wrong=await runSyntheticProviderDiagnostic('groq',{fetchImpl:async()=>reply({choices:[{message:{content:'1042'}}]})});
   assert.equal(wrong.status,'WRONG_ANSWER');
-  const paid=await runSyntheticProviderDiagnostic('kilo',{fetchImpl:async()=>reply({error:{message:'secret'}},402)});
+  const paid=await runSyntheticProviderDiagnostic('groq',{fetchImpl:async()=>reply({error:{message:'secret'}},402)});
   assert.equal(paid.status,'PAYMENT_REQUIRED');
   assert.ok(!JSON.stringify(paid).includes('secret'));
   const rate=await runSyntheticProviderDiagnostic('groq',{fetchImpl:async()=>reply({},429)});
   assert.equal(rate.status,'RATE_LIMITED');
-  const invalid=await runSyntheticProviderDiagnostic('gemini',{fetchImpl:async()=>reply({candidates:[]})});
+  const invalid=await runSyntheticProviderDiagnostic('groq',{fetchImpl:async()=>reply({candidates:[]})});
   assert.equal(invalid.status,'INVALID_RESPONSE');
  });
 });
 test('missing key and invalid provider never call external services',async()=>{
  await sandbox(async()=>{
-  delete process.env.KILO_API_KEY;
-  const result=await runSyntheticProviderDiagnostic('kilo',{fetchImpl:async()=>{throw Error('unexpected request');}});
+  delete process.env.GROQ_API_KEY;
+  const result=await runSyntheticProviderDiagnostic('groq',{fetchImpl:async()=>{throw Error('unexpected request');}});
   assert.equal(result.status,'NOT_CONFIGURED');
  });
 });
@@ -88,10 +72,10 @@ test('UI requires owner verification, only manual buttons, server-side signed UI
  assert.match(api,/diagnosticsOwnerUidAllowed\(request\.aiVerifiedUid,process\.env\.LOUREX_AI_DIAGNOSTICS_ADMIN_UID\)/);
 });
 
-test('a truncated Cloudflare model answer is not counted as a correct calculation',async()=>{
+test('a truncated retained model answer is not counted as a correct calculation',async()=>{
  await sandbox(async()=>{
   let calls=0;
-  const result=await runSyntheticProviderDiagnostic('cloudflare',{fetchImpl:async()=>{
+  const result=await runSyntheticProviderDiagnostic('groq',{fetchImpl:async()=>{
    calls++;
    return reply({choices:[{finish_reason:'length',message:{content:''}}],usage:{completion_tokens:256}});
   }});
@@ -122,7 +106,7 @@ test('Ollama alternate is only the owner-verified free-list model; no arbitrary 
   assert.deepEqual(OLLAMA_SYNTHETIC_MODELS,['gemma4:31b','gpt-oss:20b']);
   let calls=0;
   const failFetch=async()=>{calls++;throw Error('Invalid model must not hit network');};
-  for(const provider of ['groq','openrouter','kilo']){
+  for(const provider of ['groq']){
    const bad=await runSyntheticProviderDiagnostic(provider,{mode:'financial',model:'gpt-oss:20b',fetchImpl:failFetch});
    assert.equal(bad.status,'INVALID_DIAGNOSTIC_MODEL');
   }
