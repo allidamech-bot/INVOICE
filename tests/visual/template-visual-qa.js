@@ -31,6 +31,15 @@ const items=Array.from({length:count},(_,index)=>({
   packing:index%2===0?'Export crate':'Pallet',
   quantity:String((index%7)+1),unit:index%2===0?'PCS':'SET',unitPrice:String(1175+(index*83)),unitCost:'0'
 }));
+if(params.get('descriptionScenario')==='six-english-only'){
+  const rows=[['Valve 1/2 inch',3,'12'],['PVC Pipe 20mm',10,'8.50'],['Steel Elbow 90 Degree',5,'24'],['Brass Connector 3/4 inch',12,'7'],['Industrial Gasket Set',4,'32.50'],['Packing Tape 48mm',6,'18']];
+  items.splice(0,items.length,...rows.map(([descriptionEn,quantity,unitPrice],index)=>({id:`fallback-${index+1}`,descriptionEn,descriptionAr:'',hsCode:'',origin:'',packing:'',quantity:String(quantity),unit:'PCS',unitPrice,unitCost:'0'})));
+}
+if(params.get('descriptionScenario')==='arabic-only')items.splice(0,items.length,{id:'fallback-arabic',descriptionEn:'',descriptionAr:'صمام صناعي',hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'1',unitCost:'0'});
+if(params.get('descriptionScenario')==='both-languages')items.splice(0,items.length,{id:'fallback-bilingual',descriptionEn:'Brass Connector 3/4 inch',descriptionAr:'وصلة نحاسية ٣/٤ بوصة',hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'1',unitCost:'0'});
+if(params.get('descriptionScenario')==='long-english-only'){
+  items.splice(0,items.length,{id:'fallback-long',descriptionEn:'Industrial valve specification — '.repeat(420),descriptionAr:'',hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'1',unitCost:'0'});
+}
 
 const darkCandidate=['obsidian','noir','midnight','blackivory','carbon'].includes(template);
 const primaryTextColor=unsafeColors?(darkCandidate?'#111111':'#ffffff'):(darkCandidate?'#ffffff':'#17212b');
@@ -64,8 +73,10 @@ if(params.get('profile')==='showcase'){
   Object.assign(documentData.appearance,{showHsCode:false,showOrigin:false,showPacking:false});
   documentData.notes='';
 }
+if(['six-english-only','long-english-only','arabic-only','both-languages'].includes(params.get('descriptionScenario')))documentData.adjustments={discountEnabled:false,discountMode:'percent',discountValue:'0',shippingEnabled:false,shipping:'0',otherChargesEnabled:false,otherCharges:'0',taxEnabled:false,taxPercent:'0'};
 
 try{
+  if(params.has('documentStatus'))documentData.status=params.get('documentStatus');
   if(params.get('bank')==='false')documentData.appearance.showBank=false;
   if(params.get('signing')==='false'){documentData.appearance.showSignature=false;documentData.appearance.showStamp=false;}
   if(params.get('terms')==='false')Object.keys(documentData.terms).forEach(key=>documentData.terms[key]='');

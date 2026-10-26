@@ -8,6 +8,7 @@ import { displayDate } from '../lib/id.js';
 import { paginateItems } from '../lib/documents.js';
 import { resolvedAppearanceTokens, resolvedArabicFont, resolvedDocumentTone, resolvedLatinFont, resolvedTemplateId } from '../lib/appearance.js';
 import { documentCurrency, documentDisplayValue, type DocumentValueKind } from '../lib/document-language.js';
+import { displayItemDescription } from '../lib/document-item-description.js';
 import { normalizeWatermark } from '../lib/document-extras.js';
 import { documentBankAllowed, documentKindTitle, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
@@ -27,7 +28,10 @@ function localized(doc: LourexDocument, en: string, ar: string): any {
 }
 function valuePair(doc: LourexDocument, en: string, ar: string): any {
   if (doc.language === 'en') return englishFragment(documentDisplayValue(en,'en') || '—');
-  if (doc.language === 'ar') return arabicFragment(documentDisplayValue(ar,'ar') || '—');
+  if (doc.language === 'ar') {
+    const value=displayItemDescription({descriptionEn:en,descriptionAr:ar},'ar');
+    return value?.language==='ar'?arabicFragment(value.text):englishFragment(value?.text||'—');
+  }
   return <span className="bi-value">{en ? englishFragment(en) : null}{ar ? arabicFragment(ar) : null}{!en&&!ar?englishFragment('—'):null}</span>;
 }
 function continuationValuePair(doc:LourexDocument,en:string,ar:string):any{
@@ -36,8 +40,8 @@ function continuationValuePair(doc:LourexDocument,en:string,ar:string):any{
     return value?<span>{value}</span>:null;
   }
   if(doc.language==='ar'){
-    const value=documentDisplayValue(ar,'ar');
-    return value?<span dir="rtl">{value}</span>:null;
+    const value=displayItemDescription({descriptionEn:en,descriptionAr:ar},'ar');
+    return value?(value.language==='ar'?<span dir="rtl">{value.text}</span>:englishFragment(value.text)):null;
   }
   const english=en.trim();const arabic=ar.trim();
   if(!english&&!arabic)return null;
@@ -99,8 +103,9 @@ function outputItemFragments(doc:LourexDocument,item:DocumentItem):DocumentItem[
   if(itemWeight(doc,item)<=OUTPUT_FRAGMENT_WEIGHT)return[item];
   const bilingual=doc.language==='bilingual';
   const descriptionLimit=bilingual?88:180;
-  const descriptionEn=doc.language==='ar'?'':doc.language==='en'?documentDisplayValue(item.descriptionEn,'en'):item.descriptionEn.trim();
-  const descriptionAr=doc.language==='en'?'':doc.language==='ar'?documentDisplayValue(item.descriptionAr,'ar'):item.descriptionAr.trim();
+  const selectedDescription=displayItemDescription(item,doc.language);
+  const descriptionEn=doc.language==='ar'?(selectedDescription?.language==='en'?selectedDescription.text:''):doc.language==='en'?documentDisplayValue(item.descriptionEn,'en'):item.descriptionEn.trim();
+  const descriptionAr=doc.language==='en'?'':doc.language==='ar'?(selectedDescription?.language==='ar'?selectedDescription.text:''):item.descriptionAr.trim();
   const enChunks=splitOutputText(descriptionEn,descriptionLimit);
   const arChunks=splitOutputText(descriptionAr,descriptionLimit);
   const hsChunks=doc.appearance.showHsCode?splitOutputText(item.hsCode,50):[item.hsCode];
@@ -276,7 +281,7 @@ function firstPageItemCapacity(doc:LourexDocument):number{
 }
 function docItemText(doc:LourexDocument,item:DocumentItem):string{
   if(doc.language==='en')return item.descriptionEn.trim();
-  if(doc.language==='ar')return item.descriptionAr.trim();
+  if(doc.language==='ar')return displayItemDescription(item,'ar')?.text??'';
   return `${item.descriptionEn} ${item.descriptionAr}`.trim();
 }
 function wrappedCellWeight(value:string,charactersPerLine:number):number{return value.trim()?Math.max(1,Math.ceil(value.trim().length/charactersPerLine)):0;}

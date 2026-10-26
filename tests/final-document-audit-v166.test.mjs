@@ -32,7 +32,7 @@ test('live A4 preview is mounted only where the desktop preview pane is actually
 });
 
 test('single-language legal identity fields honor output language without losing Arabic brand fallback',async()=>{
-  const renderer=await read('src/templates/TemplateRenderer.tsx');
+  const [renderer,itemDescription]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('src/lib/document-item-description.ts')]);
   assert.match(renderer,/function identityPair\(doc: LourexDocument, en: string, ar: string\)/);
   assert.match(renderer,/if\(doc\.language==='en'\)return englishFragment\(documentDisplayValue\(english,'en'\)\|\|'—'\)/);
   assert.match(renderer,/function englishFragment\(value:string\)[\s\S]*lang="en" dir="ltr"/);
@@ -48,7 +48,10 @@ test('single-language legal identity fields honor output language without losing
   assert.match(renderer,/\['Bank Name','اسم البنك',b\.bankName,'neutral'\]/);
   assert.match(renderer,/\['Account Name','اسم الحساب',b\.accountName,'neutral'\]/);
   assert.match(renderer,/if\(doc\.language==='ar'\)return doc\.companySnapshot\.nameAr\.trim\(\)\|\|doc\.companySnapshot\.nameEn\.trim\(\)\|\|'LOUREX'/);
-  assert.match(renderer,/function valuePair[\s\S]*documentDisplayValue\(en,'en'\)[\s\S]*documentDisplayValue\(ar,'ar'\)/);
+  assert.match(renderer,/function valuePair[\s\S]*displayItemDescription\(\{descriptionEn:en,descriptionAr:ar\},'ar'\)/);
+  assert.match(itemDescription,/if\(language==='ar'\)\{[\s\S]*documentDisplayValue\(item\.descriptionAr,'ar'\)[\s\S]*documentDisplayValue\(item\.descriptionEn,'en'\)/);
+  assert.match(itemDescription,/return english\?\{text:english,language:'en'\}:null/);
+  assert.match(renderer,/if\(doc\.language==='ar'\)return displayItemDescription\(item,'ar'\)\?\.text\?\?''/);
 });
 
 test('hidden translations do not create extra A4 item pages in a single-language document',()=>{
