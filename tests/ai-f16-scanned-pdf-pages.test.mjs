@@ -73,10 +73,9 @@ test('F16 extended OCR remains capped by actual free model image support',async(
    readFile(new URL('../api/_ai/router.js',import.meta.url),'utf8'),
    readFile(new URL('../src/lib/pdf-source.ts',import.meta.url),'utf8')
  ]);
- assert.match(router,/maxImages:3/,'retained vision model capacity remains three images');
- assert.doesNotMatch(router,/maxImages:8/,'removed eight-image provider must not remain advertised');
+ assert.match(router,/maxImages:8/,'at least one free vision model must accept eight images');
  assert.match(router,/model\.maxImages>=imageCount/,'never send eight images to a three-image model');
- assert.match(pdf,/if\(pdf\.numPages>8\)return null/,'PDFs above eight pages are never partially rasterized');
+ assert.match(pdf,/if\(pdf\.numPages>8\)return null/,'PDFs above eight pages keep native document routing');
  assert.match(pdf,/if\(blobs\.length!==pdf\.numPages\)throw/,'raster page count must match all source pages');
 });
 

@@ -24,13 +24,138 @@ function response(status,body){
   return{ok:status>=200&&status<300,status,headers:{get:()=>null},text:async()=>JSON.stringify(body)};
 }
 
-test('Groq-only isolation rejects all optional and retired provider credentials',async()=>{
- Object.assign(process.env,{OLLAMA_API_KEY:'fake-key',OPENROUTER_API_KEY:'fake-key',LOUREX_AI_NEW_PROVIDERS_ENABLED:'true',LOUREX_AI_OLLAMA_FREE_VERIFIED:'true'});
- let calls=0;globalThis.fetch=async()=>{calls++;throw Error('No optional provider');};
- const r=await ask();assert.equal(r.success,false);assert.equal(calls,0);
+test('keys cannot enable new external providers without explicit privacy consent',async()=>{
+  process.env.OPENROUTER_API_KEY='fake-key';
+  process.env.MISTRAL_API_KEY='fake-key';
+  process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const result=await ask();
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(calls,0);
 });
-test('failed Groq has no provider fallback even for public synthetic input',async()=>{
- Object.assign(process.env,{GROQ_API_KEY:'fake-key',OLLAMA_API_KEY:'fake-key',LOUREX_AI_NEW_PROVIDERS_ENABLED:'true',LOUREX_AI_OLLAMA_FREE_VERIFIED:'true'});
- const calls=[];globalThis.fetch=async url=>{calls.push(String(url));return response(429,{});};
- const r=await ask();assert.equal(r.success,false);assert.equal(calls.length,1);assert.ok(calls[0].includes('groq.com'));
+
+test('OpenRouter uses only its zero-price model selector and disables data-collecting upstreams',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OPENROUTER_API_KEY='fake-key';
+  let seen={};
+  globalThis.fetch=async(url,options)=>{
+    seen={url:String(url),body:JSON.parse(options.body),headers:options.headers};
+    return response(200,{choices:[{message:{content:'{"value":"openrouter-ok"}'}}]});
+  };
+  const result=await ask();
+  assert.equal(result.success,true);
+  assert.equal(result.provider,'openrouter');
+  assert.equal(result.model,'openrouter/free');
+  assert.match(seen.url,/openrouter\.ai\/api\/v1\/chat\/completions/);
+  assert.equal(seen.body.model,'openrouter/free');
+  assert.deepEqual(seen.body.provider,{data_collection:'deny'});
+  assert.match(seen.body.messages[0].content,/JSON schema/i);
+  assert.equal(seen.headers.Authorization,'Bearer fake-key');
+});
+
+test('Mistral stays removed even if old free-plan flags and key remain',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.MISTRAL_API_KEY='fake-key';
+  process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED='true';
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const result=await ask();assert.equal(result.success,false);assert.equal(calls,0);
+});
+
+test('Ollama Cloud uses direct hosted API, no local device, and validates JSON locally',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+  let body,url;
+  globalThis.fetch=async(u,options)=>{url=String(u);body=JSON.parse(options.body);return response(200,{message:{role:'assistant',content:'{"value":"ollama-ok"}'}});};
+  const result=await ask();
+  assert.equal(result.success,true);
+  assert.equal(result.provider,'ollama');
+  assert.equal(result.data.value,'ollama-ok');
+  assert.equal(url,'https://ollama.com/api/chat');
+  assert.equal(body.stream,false);
+  assert.equal(body.format,undefined,'Ollama Cloud does not currently support schema-constrained output');
+  assert.equal(body.model,'gemma4:31b');
+});
+
+test('OpenRouter exhaustion causes an isolated, bounded fallback to Ollama',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OPENROUTER_API_KEY='fake-key';
+  process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+  const calls=[];
+  globalThis.fetch=async(url)=>{
+    calls.push(String(url));
+    if(String(url).includes('openrouter.ai'))return response(429,{error:{message:'free quota exhausted'}});
+    return response(200,{message:{content:'{"value":"ollama-fallback"}'}});
+  };
+  const result=await ask();
+  assert.equal(result.success,true);
+  assert.equal(result.provider,'ollama');
+  assert.equal(result.fallbackUsed,true);
+  assert.equal(calls.length,2);
+  // Subsequent customer requests must not hit an exhausted provider again
+  // while the account-wide cooldown is active.
+  const second=await ask();
+  assert.equal(second.success,true);
+  assert.equal(second.provider,'ollama');
+  assert.equal(calls.length,3);
+  assert.ok(calls[2].includes('ollama.com'));
+});
+
+test('new provider output violating the financial JSON contract cannot be accepted',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+  globalThis.fetch=async()=>response(200,{message:{content:'{"value":"ok","unapproved":true}'}});
+  const result=await ask();
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_INVALID_RESULT');
+});
+
+test('new text providers cannot ingest images or native PDFs without supported capability',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OPENROUTER_API_KEY='fake-key';
+  process.env.MISTRAL_API_KEY='fake-key';
+  process.env.LOUREX_AI_MISTRAL_FREE_VERIFIED='true';
+  process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const image=await routeAiStructured({taskType:'customer_capture',prompt:'image',schema,attachments:[{kind:'image',mimeType:'image/png',data:'YWJj'}]});
+  const pdf=await routeAiStructured({taskType:'quote_extract',prompt:'pdf',schema,attachments:[{kind:'native-document',mimeType:'application/pdf',data:'YWJj'}]});
+  assert.equal(image.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(pdf.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(calls,0);
+});
+
+test('global opt-in and real keys cannot leak a business prompt without explicit per-request classification',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OPENROUTER_API_KEY='fake-key';
+  process.env.OLLAMA_API_KEY='fake-key';
+  process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED='true';
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const result=await routeAiStructured({
+    taskType:'business_copilot',
+    prompt:'Sensitive supplier invoice and private customer balance',
+    schema
+  });
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(calls,0);
+});
+
+test('sensitive workflow classification remains isolated even with a forged synthetic tag',async()=>{
+  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+  process.env.OPENROUTER_API_KEY='fake-key';
+  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,{});};
+  const result=await routeAiStructured({
+    taskType:'supplier_purchase_extract',
+    prompt:'Sensitive supplier order',
+    schema,
+    externalDataClass:'public-synthetic'
+  });
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(calls,0);
 });

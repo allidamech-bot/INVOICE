@@ -14,7 +14,6 @@ on:
       - 'api/ai-inbox.js'
       - 'api/quote-source-ai.js'
       - 'tests/ai-source-request-deadlines.test.mjs'
-      - 'tests/ai-retired-providers.test.mjs'
       - 'tests/ai-document-goal-completion.test.mjs'
       - 'tests/ai-creation-edit-preflight.test.mjs'
       - 'tests/ai-explicit-carton-unit.test.mjs'
@@ -57,7 +56,6 @@ jobs:
           tests/ai-advisor-exact-text.test.mjs
           tests/ai-advisor-visual-source.test.mjs
           tests/ai-source-request-deadlines.test.mjs
-          tests/ai-retired-providers.test.mjs
           tests/ai-document-goal-completion.test.mjs
           tests/ai-creation-edit-preflight.test.mjs
           tests/ai-explicit-carton-unit.test.mjs
