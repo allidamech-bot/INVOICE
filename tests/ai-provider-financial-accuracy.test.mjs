@@ -17,7 +17,6 @@ async function withSyntheticKeys(fn){
 }
 const fakeBody=(provider,data=expected)=>{
  if(provider==='ollama')return{message:{content:JSON.stringify(data)},done_reason:'stop',model:'gemma4:31b'};
- if(provider==='gemini')return{candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],modelVersion:'gemini-2.5-flash-lite'};
  if(provider==='cloudflare')return{result:{choices:[{finish_reason:'stop',message:{content:JSON.stringify(data)}}]}};
  return{choices:[{finish_reason:'stop',message:{content:JSON.stringify(data)}}]};
 };
@@ -68,16 +67,16 @@ test('partial, wrong and malformed financial results never become full success',
  assert.equal(partial.status,'PARTIAL');
  assert.equal(partial.score,3);
  assert.deepEqual(partial.cases.filter(x=>!x.correct).map(x=>x.id),['D2','D4']);
- const incorrect=classifyFinancialAccuracyResponse(fakeBody('gemini',{D1:1,D2:2,D3:3,D4:4,D5:5}),'gemini');
+ const incorrect=classifyFinancialAccuracyResponse(fakeBody('groq',{D1:1,D2:2,D3:3,D4:4,D5:5}),'groq');
  assert.equal(incorrect.status,'WRONG_ANSWER');
  assert.equal(incorrect.score,0);
  const extra=classifyFinancialAccuracyResponse(fakeBody('groq',{...expected,customerData:3}),'groq');
  assert.equal(extra.status,'ANSWER_FORMAT');
- const strings=classifyFinancialAccuracyResponse(fakeBody('cloudflare',{...expected,D1:'214.2'}),'cloudflare');
+ const strings=classifyFinancialAccuracyResponse(fakeBody('groq',{...expected,D1:'214.2'}),'groq');
  assert.equal(strings.status,'ANSWER_FORMAT');
  const stopped=classifyFinancialAccuracyResponse({choices:[{finish_reason:'length',message:{content:JSON.stringify(expected)}}]},'kilo');
  assert.equal(stopped.status,'OUTPUT_TRUNCATED');
- const blocked=classifyFinancialAccuracyResponse({candidates:[{finishReason:'SAFETY',content:{parts:[]}}]},'gemini');
+ const blocked=classifyFinancialAccuracyResponse({choices:[{finish_reason:'content_filter',message:{content:''}}]},'groq');
  assert.equal(blocked.status,'OUTPUT_BLOCKED');
  const upstream=classifyFinancialAccuracyResponse({error:{message:'never return upstream error body'}},'groq');
  assert.equal(upstream.status,'PROVIDER_ERROR');
@@ -87,7 +86,7 @@ test('partial, wrong and malformed financial results never become full success',
 test('unknown diagnostic modes cannot call any provider',async()=>{
  await withSyntheticKeys(async()=>{
   let hits=0;
-  const out=await runSyntheticProviderDiagnostic('kilo',{mode:'paid',fetchImpl:async()=>{hits++;throw Error('unexpected');}});
+  const out=await runSyntheticProviderDiagnostic('groq',{mode:'paid',fetchImpl:async()=>{hits++;throw Error('unexpected');}});
   assert.equal(out.status,'INVALID_DIAGNOSTIC_MODE');
   assert.equal(hits,0);
  });

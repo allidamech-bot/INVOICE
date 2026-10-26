@@ -36,23 +36,10 @@ test('keys cannot enable new external providers without explicit privacy consent
   assert.equal(calls,0);
 });
 
-test('OpenRouter uses only its zero-price model selector and disables data-collecting upstreams',async()=>{
-  process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
-  process.env.OPENROUTER_API_KEY='fake-key';
-  let seen={};
-  globalThis.fetch=async(url,options)=>{
-    seen={url:String(url),body:JSON.parse(options.body),headers:options.headers};
-    return response(200,{choices:[{message:{content:'{"value":"openrouter-ok"}'}}]});
-  };
-  const result=await ask();
-  assert.equal(result.success,true);
-  assert.equal(result.provider,'openrouter');
-  assert.equal(result.model,'openrouter/free');
-  assert.match(seen.url,/openrouter\.ai\/api\/v1\/chat\/completions/);
-  assert.equal(seen.body.model,'openrouter/free');
-  assert.deepEqual(seen.body.provider,{data_collection:'deny'});
-  assert.match(seen.body.messages[0].content,/JSON schema/i);
-  assert.equal(seen.headers.Authorization,'Bearer fake-key');
+test('retired OpenRouter credentials cannot dispatch',async()=>{
+ process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';process.env.OPENROUTER_API_KEY='fake-key';
+ let calls=0;globalThis.fetch=async()=>{calls++;throw Error('Removed adapter');};
+ const result=await ask();assert.equal(result.success,false);assert.equal(calls,0);
 });
 
 test('Mistral stays removed even if old free-plan flags and key remain',async()=>{
@@ -79,7 +66,7 @@ test('Ollama Cloud uses direct hosted API, no local device, and validates JSON l
   assert.equal(body.model,'gemma4:31b');
 });
 
-test('OpenRouter exhaustion causes an isolated, bounded fallback to Ollama',async()=>{
+test('retired credentials cannot precede the permitted public Ollama route',async()=>{
   process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
   process.env.OPENROUTER_API_KEY='fake-key';
   process.env.OLLAMA_API_KEY='fake-key';
@@ -93,15 +80,15 @@ test('OpenRouter exhaustion causes an isolated, bounded fallback to Ollama',asyn
   const result=await ask();
   assert.equal(result.success,true);
   assert.equal(result.provider,'ollama');
-  assert.equal(result.fallbackUsed,true);
-  assert.equal(calls.length,2);
+  assert.equal(result.fallbackUsed,false);
+  assert.equal(calls.length,1);
   // Subsequent customer requests must not hit an exhausted provider again
   // while the account-wide cooldown is active.
   const second=await ask();
   assert.equal(second.success,true);
   assert.equal(second.provider,'ollama');
-  assert.equal(calls.length,3);
-  assert.ok(calls[2].includes('ollama.com'));
+  assert.equal(calls.length,2);
+  assert.ok(calls[1].includes('ollama.com'));
 });
 
 test('new provider output violating the financial JSON contract cannot be accepted',async()=>{
@@ -125,7 +112,7 @@ test('new text providers cannot ingest images or native PDFs without supported c
   const image=await routeAiStructured({taskType:'customer_capture',prompt:'image',schema,attachments:[{kind:'image',mimeType:'image/png',data:'YWJj'}]});
   const pdf=await routeAiStructured({taskType:'quote_extract',prompt:'pdf',schema,attachments:[{kind:'native-document',mimeType:'application/pdf',data:'YWJj'}]});
   assert.equal(image.errorCode,'AI_NOT_CONFIGURED');
-  assert.equal(pdf.errorCode,'AI_NOT_CONFIGURED');
+  assert.equal(pdf.errorCode,'AI_UNSUPPORTED_MODALITY');
   assert.equal(calls,0);
 });
 

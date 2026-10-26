@@ -8,9 +8,9 @@ const client=fs.readFileSync(new URL('../src/lib/product-import-ai.ts',import.me
 
 test('automatic import endpoint keeps provider keys server-side and limits shared supplier data',()=>{
   assert.match(api,/routeAiStructured/);
-  assert.match(router,/process\.env\.GEMINI_API_KEY/);
+  assert.doesNotMatch(router,/process\.env\.GEMINI_API_KEY/);
   assert.match(router,/process\.env\.GROQ_API_KEY/);
-  assert.match(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
+  assert.doesNotMatch(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
   assert.doesNotMatch(api,/process\.env\.(?:GEMINI|GROQ|CLOUDFLARE)/);
   assert.doesNotMatch(client,/GEMINI_API_KEY|GROQ_API_KEY|CLOUDFLARE_AI_API_TOKEN|generativelanguage\.googleapis\.com|api\.groq\.com|api\.cloudflare\.com/);
   assert.match(api,/MAX_COLUMNS=40/);
@@ -31,7 +31,7 @@ test('automatic import mapping is structured and cannot invent catalog values',(
   assert.match(api,/purchase cost unless the heading explicitly says sale/);
   assert.match(api,/ALLOWED_FIELDS/);
   assert.match(router,/response_format/);
-  assert.match(router,/responseMimeType:'application\/json'/);
+  assert.match(router,/response_format:\{type:'json_schema'/);
   assert.match(router,/temperature:0/);
 });
 

@@ -74,7 +74,7 @@ test('live API gate accepts only a signed token belonging to the configured owne
    assert.equal(inventory.statusCode,200);
    assert.equal(inventory.headers['Cache-Control'],'no-store');
    assert.deepEqual(inventory.body.providers.map(row=>row.provider),
-     ['groq','cloudflare','gemini','kilo','openrouter','ollama']);
+     ['groq','ollama']);
    const deniedInventory=await call(makeToken(stranger,'owner'),
      'https://invoice-three-puce.vercel.app','provider-inventory');
    assert.equal(deniedInventory.statusCode,403);
@@ -83,10 +83,10 @@ test('live API gate accepts only a signed token belonging to the configured owne
    const deniedProbe=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app','provider-probe');
    assert.equal(deniedProbe.statusCode,403,'team owners are not diagnostics administrators');
    const deniedFinance=await call(makeToken(stranger,'owner'),'https://invoice-three-puce.vercel.app',
-     'provider-probe',JSON.stringify({provider:'kilo',mode:'financial'}));
+     'provider-probe',JSON.stringify({provider:'groq',mode:'financial'}));
    assert.equal(deniedFinance.statusCode,403,'employee owners cannot trigger the five-case financial QA suite');
    const invalidMode=await call(makeToken(owner,'viewer'),'https://invoice-three-puce.vercel.app',
-     'provider-probe',JSON.stringify({provider:'kilo',mode:'paid'}));
+     'provider-probe',JSON.stringify({provider:'groq',mode:'paid'}));
    assert.equal(invalidMode.statusCode,400,'the administrator cannot change the fixed financial QA suite');
    assert.equal(invalidMode.body?.code,'INVALID_DIAGNOSTIC_MODE');
    const invalidProvider=await call(makeToken(owner,'viewer'),'https://invoice-three-puce.vercel.app','provider-probe');

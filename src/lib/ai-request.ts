@@ -19,7 +19,7 @@ function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
 export function aiOwnerDiagnosticSummary(value:any):string{
   if(value?.stage!=='draft-plan'||!Array.isArray(value.attempts))return '';
   const attempts=value.attempts.slice(0,8).filter((row:any)=>
-    ['groq','cloudflare'].includes(row?.provider)&&
+    row?.provider==='groq'&&
     ['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)&&
     Number.isFinite(row?.latencyMs)&&row.latencyMs>=0&&row.latencyMs<=60000);
   if(!attempts.length)return '';

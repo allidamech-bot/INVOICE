@@ -10,20 +10,18 @@ const keys={
  MISTRAL_API_KEY:'synthetic-secret-mistral',OLLAMA_API_KEY:'synthetic-secret-ollama'
 };
 const named=rows=>Object.fromEntries(rows.map(row=>[row.provider,row]));
-test('six provider configuration states are secrets-free and Kilo is diagnostics-only',()=>{
+test('retained provider configuration is secrets-free and removed providers are absent',()=>{
  const rows=providerConfigurationSnapshot(keys),map=named(rows);
  assert.deepEqual(rows.map(row=>row.provider),SYNTHETIC_PROVIDER_IDS);
  for(const value of Object.values(keys))assert.ok(!JSON.stringify(rows).includes(value));
- assert.equal(map.kilo.configured,true);
- assert.equal(map.kilo.diagnosticsOnly,true);
- assert.equal(map.kilo.routerEnvironmentEligible,false);
- for(const p of ['groq','cloudflare','gemini'])assert.equal(map[p].routerEnvironmentEligible,true);
- for(const p of ['openrouter','ollama'])assert.equal(map[p].routerEnvironmentEligible,false);
+ for(const p of ['cloudflare','gemini','kilo','openrouter'])assert.equal(map[p],undefined);
+ assert.equal(map.groq.routerEnvironmentEligible,true);
+ assert.equal(map.ollama.routerEnvironmentEligible,false);
  for(const p of ['ollama'])assert.equal(map[p].syntheticProbeAllowed,false);
 });
 test('free-plan verification never substitutes for privacy opt-in, nor for credentials',()=>{
  const opted=named(providerConfigurationSnapshot({...keys,LOUREX_AI_NEW_PROVIDERS_ENABLED:'true'}));
- assert.equal(opted.openrouter.routerEnvironmentEligible,true);
+ assert.equal(opted.openrouter,undefined);
  assert.equal(opted.ollama.routerEnvironmentEligible,false);
  const allowed=named(providerConfigurationSnapshot({...keys,LOUREX_AI_NEW_PROVIDERS_ENABLED:'true',
    LOUREX_AI_MISTRAL_FREE_VERIFIED:'true',LOUREX_AI_OLLAMA_FREE_VERIFIED:'true'}));
@@ -40,8 +38,8 @@ test('free-plan verification never substitutes for privacy opt-in, nor for crede
 });
 test('missing and partial credentials never pass environment readiness',()=>{
  const partial=named(providerConfigurationSnapshot({CLOUDFLARE_AI_API_TOKEN:'synthetic'}));
- assert.equal(partial.cloudflare.configured,false);
- assert.equal(partial.cloudflare.routerEnvironmentEligible,false);
+ assert.equal(partial.cloudflare,undefined);
+ assert.equal(partial.groq.configured,false);
  assert.ok(providerConfigurationSnapshot({}).every(row=>!row.configured&&!row.syntheticProbeAllowed));
 });
 test('owner-only inventory is separate from manual inference and UI is fully wired',()=>{
