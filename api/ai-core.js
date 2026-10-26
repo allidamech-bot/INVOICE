@@ -131,6 +131,10 @@ export default async function handler(request,response){
     const {default:periodHandler}=await import('./_accounting/workspace-handler.js');
     return periodHandler(request,response);
   }
+  // One inference deadline covers structured creation AND its dialogue fallback.
+  // Keep transport/auth headroom below the browser's 60s request deadline.
+  const inferenceDeadline=Date.now()+40_000;
+  const remainingInferenceMs=()=>Math.max(0,inferenceDeadline-Date.now());
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST for LOUREX AI.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'LOUREX AI requests must come from this LOUREX Invoice deployment.'});return;}
   if(!await requireAiFirebaseAuth(request,response))return;
@@ -203,7 +207,7 @@ export default async function handler(request,response){
   // questions pass an executable proposal schema merely to receive an answer.
   // The protected Controller gateway still handles real actions and approvals.
   if(cleaned.context.conversationMode==='advisor'||!draftActionRequested(cleaned.message,cleaned.context)){
-    const dialogue=await naturalLourexDialogue(cleaned,{mode:cleaned.context.conversationMode});
+    const dialogue=await naturalLourexDialogue(cleaned,{mode:cleaned.context.conversationMode,totalBudgetMs:Math.min(26_000,remainingInferenceMs())});
     if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
     sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
       message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});return;
@@ -229,7 +233,7 @@ export default async function handler(request,response){
   const required=creating?['capability','kind','currency','language','items','label','rationale']:['capability','label','rationale'];
   const schema={type:'OBJECT',properties:{answer:{type:'STRING'},proposal:{type:'OBJECT',nullable:true,properties:actionProperties,required}},required:['answer','proposal']};
   const deep=needsDeepReasoning(cleaned);
-  const routed=await routeAiStructured({taskType:deep?'cfo_report':'business_copilot',reasoningLevel:deep?'deep':'standard',prompt,schema,timeoutMs:15_000,validate:value=>Boolean(resultForRequest(value,cleaned))});
+  const routed=await routeAiStructured({taskType:deep?'cfo_report':'business_copilot',reasoningLevel:deep?'deep':'standard',prompt,schema,timeoutMs:12_000,totalBudgetMs:Math.min(26_000,remainingInferenceMs()),validate:value=>Boolean(resultForRequest(value,cleaned))});
   if(!routed.success&&routed.errorCode!=='AI_INVALID_RESULT'){
     const publicError=aiRouterPublicError(routed);
     sendJson(response,publicError.status,{code:publicError.code,message:publicError.message});return;
@@ -239,7 +243,7 @@ export default async function handler(request,response){
   // A model can discuss an incomplete request even when it cannot produce an
   // executable, exactly typed document proposal. No fabricated proposal is
   // ever allowed through this conversational fallback.
-  const dialogue=await naturalLourexDialogue(cleaned,{mode:'controller'});
+  const dialogue=await naturalLourexDialogue(cleaned,{mode:'controller',totalBudgetMs:Math.min(26_000,remainingInferenceMs())});
   if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
   sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
     message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});

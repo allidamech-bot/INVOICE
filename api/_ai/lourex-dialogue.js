@@ -161,7 +161,8 @@ export async function naturalLourexDialogue(cleaned,options={}){
     reasoningLevel:'standard',
     prompt,
     schema:ANSWER_SCHEMA,
-    timeoutMs:20000,
+    timeoutMs:12000,
+    totalBudgetMs:Number.isFinite(options.totalBudgetMs)?Math.max(0,Math.min(26000,options.totalBudgetMs)):26000,
     validate:(value)=>typeof value?.answer==='string'&&value.answer.trim().length>0&&!dialogueClaimsDocumentCreation(value.answer)&&!dialogueRepeatsLastAnswer(value.answer,cleaned?.context,cleaned?.message)
   });
   if(!result.success)return{success:false,errorCode:result.errorCode||'AI_TEMPORARILY_UNAVAILABLE'};

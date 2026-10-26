@@ -38,11 +38,16 @@ export function aiOwnerDiagnosticSummary(value:any):string{
 }
 export async function requestAiJson(endpoint:string,payload:unknown,signal?:AbortSignal,timeoutMs=60_000):Promise<any>{
   const controller=new AbortController();let timedOut=false;
-  const cancel=()=>controller.abort();
+  let rejectStopped:(reason:unknown)=>void=()=>{};
+  const stopped=new Promise<never>((_resolve,reject)=>{rejectStopped=reject;});
+  const cancel=()=>{controller.abort();rejectStopped(new DOMException('Cancelled','AbortError'));};
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   signal?.addEventListener('abort',cancel,{once:true});
-  const timer=window.setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);
+  const timer=window.setTimeout(()=>{timedOut=true;cancel();},timeoutMs);
   try{
+    // Abort is cooperative. Also settle the caller when a transport/body reader
+    // ignores it, so the turn's existing finally path can release loading.
+    const work=(async()=>{
     const token=await currentCloudIdToken(controller.signal);
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice',Authorization:`Bearer ${token}`},body:JSON.stringify(payload),signal:controller.signal});
@@ -52,6 +57,8 @@ export async function requestAiJson(endpoint:string,payload:unknown,signal?:Abor
     if(!response.ok){const code=String(body?.code||'');throw new AiRequestError(aiPublicErrorMessage(code,response.status,String(body?.message||''))+aiOwnerDiagnosticSummary(body?.diagnostic),code,response.status);}
     if(!body||typeof body!=='object'||Array.isArray(body))throw new Error(t('AI returned an unreadable response. Retry the analysis.','وصل رد غير قابل للقراءة من AI. أعد التحليل.'));
     return body;
+    })();
+    return await Promise.race([work,stopped]);
   }catch(error){
     if(timedOut)throw new Error(t('AI analysis timed out. Retry or use a smaller source. Nothing was saved.','انتهت مهلة تحليل AI. أعد المحاولة أو استخدم مصدرًا أصغر. لم يتم حفظ شيء.'));
     throw error;
