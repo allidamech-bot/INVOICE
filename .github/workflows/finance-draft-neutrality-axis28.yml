@@ -1,0 +1,33 @@
+name: Finance draft neutrality QA (Alif 28)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-draft-ledger-neutrality-28.test.mjs'
+      - '.github/workflows/finance-draft-neutrality-axis28.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-alif-1074-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-finance-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused synthetic financial invariants
+        run: node --test tests/finance-draft-ledger-neutrality-28.test.mjs
