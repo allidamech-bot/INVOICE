@@ -59,9 +59,8 @@ test('explicit diagnostic listener receives bounded attempt metadata without req
  configureAll();const events=[];
  globalThis.fetch=async url=>String(url).includes('groq.com')?response(400,{error:{message:'unsupported response_format PRIVATE-UPSTREAM'}}):response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'PRIVATE-PROMPT',schema:schema(),onDiagnostic:event=>events.push(event)});
- assert.equal(result.success,true);assert.equal(events.length,2);
+ assert.equal(result.success,false);assert.equal(events.length,1);
  assert.equal(events[0].provider,'groq');assert.equal(events[0].category,'unsupported');
- assert.equal(events[1].provider,'ollama');assert.equal(events[1].status,'ok');
  assert.doesNotMatch(JSON.stringify(events),/PRIVATE|test-groq|test-cf/);
 });
 
@@ -70,7 +69,6 @@ test('free-only registry contains only the approved provider/model set',()=>{
   assert.deepEqual(AI_MODEL_REGISTRY.map(entry=>`${entry.provider}:${entry.model}`),[
     'groq:qwen/qwen3.8-27b',
     'groq:openai/gpt-oss-120b',
-    'ollama:gemma4:31b',
   ]);
   assert.ok(AI_MODEL_REGISTRY.every(entry=>entry.freeTierEligible===true));
 });
@@ -93,27 +91,8 @@ test('general text requests choose tested Groq GPT-OSS first',async()=>{
   assert.match(seen.url,/api\.groq\.com/);assert.equal(seen.body.model,'openai/gpt-oss-120b');assert.equal(seen.body.include_reasoning,false);assert.equal(seen.body.response_format.json_schema.strict,false);
 });
 
-test('429 falls through immediately from Groq to public-only Ollama without paid substitution or retry storm',async()=>{
-  configureAll();const calls=[];
-  globalThis.fetch=async(url,options)=>{calls.push({url:String(url),body:JSON.parse(options.body)});if(String(url).includes('api.groq.com'))return response(429,{error:{message:'rate limited'}});return response(200,{choices:[{message:{content:'{"value":"fallback"}'}}]});};
-  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'extract',schema:schema()});
-  assert.equal(result.success,true);assert.equal(result.provider,'ollama');assert.equal(result.model,'gemma4:31b');assert.equal(result.fallbackUsed,true);
-  assert.equal(calls.length,2);assert.equal(calls.filter(call=>call.url.includes('api.groq.com')).length,1);assert.equal(calls[1].body.stream,false);
-});
 
-test('transient 5xx gets one bounded retry then falls back',async()=>{
-  configureAll();let calls=0;
-  globalThis.fetch=async(url)=>{calls+=1;if(String(url).includes('api.groq.com'))return response(503,{error:{message:'busy'}});return response(200,{choices:[{message:{content:'{"value":"fallback"}'}}]});};
-  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'help',schema:schema()});
-  assert.equal(result.success,true);assert.equal(result.provider,'ollama');assert.equal(calls,3);
-});
 
-test('provider auth/config rejection does not abort fallback to the next approved free provider',async()=>{
-  configureAll();let calls=0;
-  globalThis.fetch=async(url)=>{calls+=1;if(String(url).includes('api.groq.com'))return response(401,{error:{message:'invalid key'}});return response(200,{choices:[{message:{content:'{"value":"fallback"}'}}]});};
-  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'help',schema:schema()});
-  assert.equal(result.success,true);assert.equal(result.provider,'ollama');assert.equal(calls,2);
-});
 
 test('deep reasoning routes to Groq GPT-OSS 120B',async()=>{
   process.env.GROQ_API_KEY='test-groq';let body;
@@ -142,26 +121,8 @@ test('unsupported raw spreadsheet/document modality is rejected before any provi
   assert.equal(result.success,false);assert.equal(result.errorCode,'AI_UNSUPPORTED_MODALITY');assert.equal(calls,0);
 });
 
-test('malformed JSON output falls through to the next approved provider',async()=>{
-  configureAll();let calls=0;
-  globalThis.fetch=async(url)=>{calls+=1;if(String(url).includes('api.groq.com'))return response(200,{choices:[{message:{content:'not-json'}}]});return response(200,{choices:[{message:{content:'{"value":"verified"}'}}]});};
-  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'map',schema:schema()});
-  assert.equal(result.success,true);assert.equal(result.provider,'ollama');assert.equal(result.fallbackUsed,true);assert.equal(calls,2);
-});
 
-test('schema-invalid or unknown-field output falls through to the next approved provider',async()=>{
-  configureAll();let calls=0;
-  globalThis.fetch=async(url)=>{calls+=1;if(String(url).includes('api.groq.com'))return response(200,{choices:[{message:{content:'{"value":"bad","unexpected":"x"}'}}]});return response(200,{choices:[{message:{content:'{"value":"verified"}'}}]});};
-  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'map',schema:schema()});
-  assert.equal(result.success,true);assert.equal(result.provider,'ollama');assert.equal(calls,2);
-});
 
-test('low-confidence structured extraction can trigger quality fallback',async()=>{
-  configureAll();let calls=0;
-  globalThis.fetch=async(url)=>{calls+=1;if(String(url).includes('api.groq.com'))return response(200,{choices:[{message:{content:'{"value":"uncertain","confidence":"low"}'}}]});return response(200,{choices:[{message:{content:'{"value":"verified","confidence":"high"}'}}]});};
-  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'extract',schema:confidenceSchema(),qualityFallback:true});
-  assert.equal(result.success,true);assert.equal(result.provider,'ollama');assert.equal(result.data.value,'verified');assert.equal(result.fallbackUsed,true);assert.equal(result.validation.needsReview,false);assert.equal(calls,2);
-});
 
 test('low-confidence accepted result is explicitly review-required when no quality fallback is requested',async()=>{
   process.env.GROQ_API_KEY='test-groq';globalThis.fetch=async()=>response(200,{choices:[{message:{content:'{"value":"uncertain","confidence":"low"}'}}]});
@@ -169,12 +130,6 @@ test('low-confidence accepted result is explicitly review-required when no quali
   assert.equal(result.success,true);assert.equal(result.confidence,'low');assert.equal(result.validation.needsReview,true);
 });
 
-test('timeout is bounded and falls through immediately to the next provider',async()=>{
-  configureAll();globalThis.setTimeout=(fn,_ms,...args)=>originalSetTimeout(fn,0,...args);let calls=0;
-  globalThis.fetch=async(url,options)=>{calls+=1;if(String(url).includes('api.groq.com'))return new Promise((resolve,reject)=>{if(options.signal?.aborted){const error=new Error('aborted');error.name='AbortError';reject(error);return;}options.signal?.addEventListener('abort',()=>{const error=new Error('aborted');error.name='AbortError';reject(error);},{once:true});});return response(200,{choices:[{message:{content:'{"value":"fallback"}'}}]});};
-  const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'help',schema:schema(),timeoutMs:3000});
-  assert.equal(result.success,true);assert.equal(result.provider,'ollama');assert.equal(calls,2);
-});
 
 test('AI provider secrets are server-only and absent from browser source',()=>{
   const files=allSourceFiles(new URL('../src/',import.meta.url).pathname);const browserSource=files.map(path=>readFileSync(path,'utf8')).join('\n');
@@ -309,20 +264,6 @@ test('deep private dialogue fails closed if only an unscreened vendor is configu
 });
 
 
-test('HTTP timeout hands off after one deadline instead of repeating the stalled provider',async()=>{
- configureAll();let clock=testClock;Date.now=()=>clock;const calls=[];
- globalThis.fetch=async(url)=>{
-  calls.push({url:String(url),at:clock});
-  if(String(url).includes('groq.com')){clock+=18_000;return response(504,{});}
-  clock+=2_000;return response(200,{choices:[{message:{content:'{"value":"recovered"}'}}]});
- };
- const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'Synthetic timeout',schema:schema(),timeoutMs:18_000});
- assert.equal(result.success,true);
- assert.equal(calls.filter(call=>call.url.includes('groq.com')).length,1);
- assert.equal(calls.find(call=>call.url.includes('ollama.com')).at-testClock,18_000);
- assert.equal(result.totalLatencyMs,20_000);
- assert.equal(result.attemptCount,2);
-});
 
 test('configured providers in quota cooldown report capacity instead of missing configuration',async()=>{
  configureAll();let calls=0;
@@ -335,37 +276,8 @@ test('configured providers in quota cooldown report capacity instead of missing 
  assert.equal(calls,1,'cooldown must suppress all new upstream requests');
 });
 
-test('fallback rechecks quota opened by another in-flight request before dispatch',async()=>{
- configureAll();let releaseFirst;let groqCalls=0,cloudflareCalls=0;
- globalThis.fetch=async(url)=>{
-  if(String(url).includes('groq.com')){
-   groqCalls++;
-   if(groqCalls===1)return new Promise(resolve=>{releaseFirst=()=>resolve(response(401,{}));});
-   return response(429,{});
-  }
-  cloudflareCalls++;return response(429,{});
- };
- const request={externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'Synthetic concurrency',schema:schema()};
- const pending=routeAiStructured(request);
- const competing=await routeAiStructured(request);
- assert.equal(competing.errorCode,'AI_RATE_LIMITED');
- releaseFirst();const resumed=await pending;
- assert.equal(resumed.success,false);
- assert.equal(cloudflareCalls,1,'must not call a provider newly in cooldown');
- assert.equal(resumed.errorCode,'AI_RATE_LIMITED');
-});
 
 
-test('slow 5xx gives the alternate provider its turn while preserving fast transient retries',async()=>{
- configureAll();let clock=testClock;Date.now=()=>clock;let groqCalls=0;
- globalThis.fetch=async(url)=>{
-  if(String(url).includes('groq.com')){groqCalls++;clock+=12_000;return response(503,{});}
-  clock+=1_000;return response(200,{choices:[{message:{content:'{"value":"available"}'}}]});
- };
- const result=await routeAiStructured({externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'Synthetic slow overload',schema:schema(),timeoutMs:18_000});
- assert.equal(result.success,true);assert.equal(groqCalls,1);
- assert.equal(result.totalLatencyMs,13_000);assert.equal(result.attemptCount,2);
-});
 
 test('route timing logs contain only fixed metadata and never user content or credentials',async()=>{
  configureAll();const originalInfo=console.info,originalWarn=console.warn,logs=[];
@@ -393,7 +305,7 @@ test('short tool-planner budget reserves fallback before the browser deadline',a
  assert.equal(result.success,false);
  assert.equal(result.errorCode,'AI_TIMEOUT');
  assert.ok(result.totalLatencyMs<=11_000,JSON.stringify(deadlines));
- assert.equal(deadlines.length,2,'reserve an alternate public-only provider');
+ assert.equal(deadlines.length,1,'Groq-only mode has no alternate provider');
  assert.ok(deadlines.every(ms=>ms>=3_000));
 });
 
@@ -412,8 +324,8 @@ test('definitive provider/model rejections quarantine immediately then allow bou
    return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
   };
   const request={externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'Synthetic rejected model',schema:schema()};
-  assert.equal((await routeAiStructured(request)).provider,'ollama');
-  assert.equal((await routeAiStructured(request)).provider,'ollama');
+  assert.equal((await routeAiStructured(request)).success,false);
+  assert.equal((await routeAiStructured(request)).success,false);
   assert.equal(groqCalls,1,'a definitive rejection must not be retried on the next customer turn');
   testClock+=300_001;recovered=true;
   assert.equal((await routeAiStructured(request)).provider,'groq','quarantine must expire and permit recovery');
@@ -428,7 +340,7 @@ test('request-specific schema rejection does not disable the model for other req
   return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});
  };
  const request={externalDataClass:'public-synthetic',taskType:'workspace_help',prompt:'Synthetic schema',schema:schema()};
- assert.equal((await routeAiStructured(request)).provider,'ollama');
+ assert.equal((await routeAiStructured(request)).success,false);
  assert.equal((await routeAiStructured(request)).provider,'groq');
 });
 

@@ -29,11 +29,9 @@ export const AI_MODEL_REGISTRY=Object.freeze([
   Object.freeze({provider:'groq',model:'qwen/qwen3.8-27b',enabled:true,freeTierEligible:true,maxImages:3,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
   Object.freeze({provider:'groq',model:'openai/gpt-oss-120b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]}),
 
-  // Ollama Cloud currently does not guarantee structured JSON; validate locally.
-  Object.freeze({provider:'ollama',model:'gemma4:31b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]}),
 ]);
 
-const GENERAL_ROUTE=[['groq','openai/gpt-oss-120b'],['ollama','gemma4:31b']];
+const GENERAL_ROUTE=[['groq','openai/gpt-oss-120b']];
 // Private business dialogue retains only the repeatedly passing provider.
 const BUSINESS_COPILOT_ROUTE=[['groq','openai/gpt-oss-120b']];
 // Read-only OCR/fact extraction needs vision, not the text-only finance model.
@@ -51,14 +49,7 @@ const providerRateLimitUntil=new Map();
 function modelKey(provider,model){return `${provider}:${model}`;}
 function findModel(provider,model){return AI_MODEL_REGISTRY.find(entry=>entry.provider===provider&&entry.model===model);}
 function hasCapabilities(model,required){return required.every(capability=>model.capabilities.includes(capability));}
-function environmentReady(provider){
-  if(provider==='groq')return Boolean(process.env.GROQ_API_KEY?.trim());
-  // Keys alone never authorize moving sensitive business prompts to new vendors.
-  // Opt-in only after reviewing each provider's privacy terms and free-plan limits.
-  if(process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED!=='true')return false;
-  if(provider==='ollama')return process.env.LOUREX_AI_OLLAMA_FREE_VERIFIED==='true'&&Boolean(process.env.OLLAMA_API_KEY?.trim());
-  return false;
-}
+function environmentReady(provider){return provider==='groq'&&Boolean(process.env.GROQ_API_KEY?.trim());}
 function circuitAvailable(provider,model){
   const now=Date.now(),quotaUntil=providerRateLimitUntil.get(provider)||0;
   if(quotaUntil>now)return false;
@@ -263,28 +254,8 @@ async function callGroq(model,request){
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
-// The optional public-data adapter is text-only; every result is still checked
-// against the caller's server-owned JSON schema before it may be returned.
-// Never send uploads to a fallback that cannot uphold native document semantics.
-function additionalProviderMessages(request){
-  const schema=toJsonSchema(request.schema);
-  return[{role:'system',content:'Return exactly one valid JSON object. Do not use markdown or explanations. Follow this JSON schema exactly, including field types and required properties: '+JSON.stringify(schema)},...normalizeMessages(request)];
-}
-async function callOllama(model,request){
-  const key=process.env.OLLAMA_API_KEY?.trim();
-  if(!key)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
-  const body={model:model.model,messages:additionalProviderMessages(request),stream:false,
-    options:{temperature:0,num_predict:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS)}};
-  const {response,text}=await fetchWithTimeout('https://ollama.com/api/chat',{method:'POST',headers:{
-    'Content-Type':'application/json',Authorization:'Bearer '+key
-  },body:JSON.stringify(body)},request.timeoutMs);
-  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
-  let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
-  return{data:parseJsonContent(payload?.message?.content),headers:response.headers};
-}
 async function callProvider(model,request){
   if(model.provider==='groq')return callGroq(model,request);
-  if(model.provider==='ollama')return callOllama(model,request);
   throw Object.assign(new Error('unsupported provider'),{routerCategory:'unsupported',routerCode:'AI_MODEL_UNSUPPORTED',retryable:false});
 }
 function rateLimitSnapshot(headers){if(!headers?.get)return null;const values={remainingRequests:headers.get('x-ratelimit-remaining-requests')||'',remainingTokens:headers.get('x-ratelimit-remaining-tokens')||'',retryAfter:headers.get('retry-after')||''};return Object.values(values).some(Boolean)?values:null;}

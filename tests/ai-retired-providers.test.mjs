@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {AI_MODEL_REGISTRY,routeAiStructured} from '../api/_ai/router.js';
 import {SYNTHETIC_PROVIDER_IDS,runSyntheticProviderDiagnostic,providerConfigurationSnapshot,checkProviderCredential} from '../api/_ai/provider-diagnostics.js';
-const retired=['cloudflare','gemini','kilo','openrouter'];
+const retired=['cloudflare','gemini','kilo','openrouter','ollama'];
 test('only retained providers exist in registry, diagnostics and configuration',()=>{
- assert.deepEqual([...new Set(AI_MODEL_REGISTRY.map(m=>m.provider))].sort(),['groq','ollama']);
- assert.deepEqual([...SYNTHETIC_PROVIDER_IDS].sort(),['groq','ollama']);
- assert.deepEqual(providerConfigurationSnapshot({}).map(p=>p.provider).sort(),['groq','ollama']);
+ assert.deepEqual([...new Set(AI_MODEL_REGISTRY.map(m=>m.provider))].sort(),['groq']);
+ assert.deepEqual([...SYNTHETIC_PROVIDER_IDS].sort(),['groq']);
+ assert.deepEqual(providerConfigurationSnapshot({}).map(p=>p.provider).sort(),['groq']);
 });
 test('removed diagnostics cannot generate even if requested directly',async()=>{
  for(const provider of retired){let calls=0;const result=await runSyntheticProviderDiagnostic(provider,{fetchImpl:async()=>{calls++;throw Error('No retired egress');}});assert.equal(result.status,'INVALID_PROVIDER');assert.equal(calls,0);const key=await checkProviderCredential(provider,{fetchImpl:async()=>{calls++;throw Error('No retired metadata');}});assert.equal(key.status,'INVALID_PROVIDER');assert.equal(calls,0);}
@@ -22,7 +22,7 @@ test('retired secrets cannot configure a route, including raw PDF',async()=>{
 });
 test('production AI adapters contain no retired endpoints or secret lookups',async()=>{
  for(const path of ['api/_ai/router.js','api/_ai/provider-diagnostics.js']){
- const s=await readFile(new URL('../'+path,import.meta.url),'utf8');assert.doesNotMatch(s,/generativelanguage\.googleapis|api\.cloudflare\.com|openrouter\.ai|kilo\.ai|GEMINI_API_KEY|CLOUDFLARE_AI_API_TOKEN|OPENROUTER_API_KEY|KILO_API_KEY/);
+ const s=await readFile(new URL('../'+path,import.meta.url),'utf8');assert.doesNotMatch(s,/generativelanguage\.googleapis|api\.cloudflare\.com|openrouter\.ai|kilo\.ai|GEMINI_API_KEY|CLOUDFLARE_AI_API_TOKEN|OPENROUTER_API_KEY|KILO_API_KEY|OLLAMA_API_KEY/);
  }
 });
 
