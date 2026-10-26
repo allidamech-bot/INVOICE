@@ -1,0 +1,69 @@
+name: Finance VAT and credit-note QA (Alif 26/27)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-vat-credit-period-integrity-26-27.test.mjs'
+      - 'tests/visual/finance-vat-credit-26-27.html'
+      - 'tests/visual/run-finance-vat-credit-26-27.cjs'
+      - '.github/workflows/finance-vat-credit-26-27.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-vat-credit-26-27-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vat-credit-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Domain VAT and credit-note accounting tests
+        run: node --test tests/finance-vat-credit-period-integrity-26-27.test.mjs
+      - name: Reuse pinned Chromium and WebKit
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          test -f "$(node -p "require('playwright').chromium.executablePath()")"
+          test -f "$(node -p "require('playwright').webkit.executablePath()")"
+      - name: VAT and credit note period browser parity
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-vat-credit-qa.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          node --input-type=module <<'NODE'
+          let ok=false;
+          for(let i=0;i<50;i++){
+            try{
+              const r=await fetch('http://127.0.0.1:4173/tests/visual/finance-vat-credit-26-27.html');
+              if(r.ok){ok=true;break}
+            }catch{}
+            await new Promise(resolve=>setTimeout(resolve,100));
+          }
+          if(!ok)throw new Error('Synthetic VAT credit fixture missing');
+          NODE
+          node tests/visual/run-finance-vat-credit-26-27.cjs
+      - name: Preserve VAT browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-vat-credit-period-evidence
+          path: visual-qa-output/finance-vat-credit-26-27/
+          retention-days: 7
+          if-no-files-found: warn
