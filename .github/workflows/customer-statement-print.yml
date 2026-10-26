@@ -24,6 +24,11 @@ concurrency:
 jobs:
   browser-pdf:
     runs-on: ubuntu-latest
+    # Match the pinned browser version already used by the trusted period
+    # owner-browser CI. Avoid downloading browser binaries/deps during each PR.
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +43,16 @@ jobs:
       - name: Customer and supplier account regressions
         run: node --test tests/receivables-v133.test.mjs tests/accounts-payable-batch9.test.mjs tests/financial-e2e-v145.test.mjs
       - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
-      - run: npx playwright install --with-deps chromium webkit
+      - name: Verify preinstalled Chromium and WebKit binaries
+        run: |
+          node --input-type=module <<'NODE'
+          import {chromium,webkit} from 'playwright';
+          import {existsSync} from 'node:fs';
+          for (const browser of [chromium,webkit]) {
+            const binary=browser.executablePath();
+            if (!existsSync(binary)) throw new Error('Pinned Playwright image lacks '+binary);
+          }
+          NODE
       - name: Print short and long customer/supplier statements
         shell: bash
         run: |

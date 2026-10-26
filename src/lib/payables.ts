@@ -80,12 +80,17 @@ export function supplierPaymentsForPurchase(purchase:PurchaseRecord,payments:Sup
 function effectiveSupplierPaymentsForPurchase(purchase:PurchaseRecord,payments:SupplierPaymentRecord[],asOf=''):SupplierPaymentRecord[]{
   if(purchase.status!=='posted')return[];
   const workspaceId=purchase.workspaceId||'default',branchId=purchase.branchId||'main';
-  const currency=cleanCurrency(purchase.currency);
+  const currency=cleanCurrency(purchase.currency),supplierId=purchaseSupplierId(purchase);
   return payments.filter(payment=>payment.purchaseId===purchase.id&&
     (payment.workspaceId||'default')===workspaceId&&
     (payment.branchId||'main')===branchId&&
     (asOf?paymentKnownOnOrBefore(payment,asOf):!payment.voidedAt)
   ).map(payment=>{
+    // Old records may lack supplierId, but a recorded *different* supplier
+    // must never silently settle this purchase merely because its ID matches.
+    // Fail closed instead of presenting a reduced debt in AP or statements.
+    if(payment.supplierId?.trim()&&payment.supplierId.trim()!==supplierId)
+      throw new Error('Recorded supplier payment supplier does not match the purchase. Review the payment before reporting.');
     if(cleanCurrency(payment.currency)!==currency)throw new Error('Recorded supplier payment currency does not match the purchase. Review the payment before reporting.');
     return payment;
   });
