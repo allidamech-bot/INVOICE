@@ -798,3 +798,103 @@ new QA Firebase account or LOUREX AI code was touched.
 `main`; this document only records financial-security audit evidence.
 An earlier historical entry claiming that production was at a specific SHA
 remains a time-stamped observation, not the current Vercel state.
+
+
+## 27 October 2026 — Axis 39: verified finance acceptance evidence and explicit remaining gates
+
+**Status: PARTIAL / NO FINAL GO. This dated section supersedes earlier
+point-in-time PR, `main`, production and test-count observations in this
+chronological register.** Owner: financial/accounting lane only; LOUREX AI
+work remains entirely outside this acceptance statement.
+
+**Read-only GitHub verification at this checkpoint:** `main` =
+`410e514dca8fda4ab6604e923db904f0020c7fc1`. Independently queried
+Vercel production deployment = **READY** with source SHA
+`9c730ece0c87760bdaa86401b5a348b363935262`. Thus GitHub and production
+were **not SHA-equal at this checkpoint**. This is a dated observation, not
+a request or authorization to deploy. The owner handles Vercel publishing.
+
+### A. Verified merged work since the earlier 26 October PR register
+
+The following entries were individually checked against GitHub PR metadata:
+each is `merged=true` with the listed squash merge SHA. This is source
+and CI evidence, **not** a statement that every change has been tested
+through an authenticated production finance workflow.
+
+| PR | Alif acceptance axis / exact evidence class | Squash SHA | Confidence limit |
+| --- | --- | --- | --- |
+| [#1106](https://github.com/allidamech-bot/INVOICE/pull/1106) | 39: isolated synthetic purchase → stock → AR/AP → treasury/FX integrated smoke | `09cbbe88456ad4b4053414c022f4589330fe149b` | No live account or production finance QA |
+| [#1109](https://github.com/allidamech-bot/INVOICE/pull/1109) | 35-B: distinguish deployed Rules from editor draft in read-only evidence | `30958a64f914b9b4a740931f886587389ede2669` | Published complete rules source still NOT obtained |
+| [#1110](https://github.com/allidamech-bot/INVOICE/pull/1110) | 37–39: isolated financial Vault backup/recovery of stock, AR/AP, cash/bank | `dc5087976d9ac39b927b2fff024efbbadee9ee35` | Does NOT restore server-owned period control or receipts |
+| [#1112](https://github.com/allidamech-bot/INVOICE/pull/1112) | 38: refuse missing period authority when reports/operation history survive | `6d39f0249a98fa4e03d654c353f51bfa44739b5d` | Preventive fail-closed guard, not live authority recovery |
+| [#1113](https://github.com/allidamech-bot/INVOICE/pull/1113) | 38: deny reset when trusted generation manifest survives even if reports/receipts lost; initial DR runbook | `9026e24be829fcda2dcf0af7b7258d9034841879` | No RPO/RTO or operator recovery approval |
+| [#1114](https://github.com/allidamech-bot/INVOICE/pull/1114) | 38: isolated authority snapshot loss/restore emulator rehearsal and retained-report integrity before reopen | `52d513ab82454ea3d232230479cd7577b3417569` | Emulator-only, no managed Firestore Backup/PITR restoration |
+| [#1115](https://github.com/allidamech-bot/INVOICE/pull/1115) | 1, 9, 39: exclude historical wrong-company/branch receipts and credits from customer AR | `5fb6a83bc94c14c7e3c8fdd99993f3e7d0ef1c54` | Synthetic accounting report validation |
+| [#1116](https://github.com/allidamech-bot/INVOICE/pull/1116) | 2, 10, 39: reject wrong-supplier historical payments in AP reports; repair statement-print CI environment | `409c791537eb85336bb8e0e911fc5ac65e8a5a3c` | Synthetic supplier reports + simulated browser, not paper/device acceptance |
+| [#1118](https://github.com/allidamech-bot/INVOICE/pull/1118) | 8, 39: fail-closed bank/cash account card for incompatible legacy currency/scope/money | `98dad24bfb40edf376b1ddc84002db787e683a58` | Read-only KPI guard; does not edit historical bank ledger |
+| [#1120](https://github.com/allidamech-bot/INVOICE/pull/1120) | 8, 39: block newly synchronized reconciliation of ambiguous historical duplicate expense IDs | `0e562f79e707ca833176488f4150e0f61de87e7d` | Historical rows grandfathered; no live multi-device session |
+| [#1122](https://github.com/allidamech-bot/INVOICE/pull/1122) | 2, 8, 39: four synthetic concurrent supplier-payment/bank-allocation acceptance tests, no runtime change | `410e514dca8fda4ab6604e923db904f0020c7fc1` | One synthetic Node/CI workflow, not a multi-device production test |
+
+**Verifiable CI for the most recent checkpoint:** PR #1120 exact final
+head `950e12737184582b492e7b994e46f76bcfcec831` had six successful
+workflows: [cloud security](https://github.com/allidamech-bot/INVOICE/actions/runs/40417461271),
+[settlement parity](https://github.com/allidamech-bot/INVOICE/actions/runs/40417461340),
+[document contract](https://github.com/allidamech-bot/INVOICE/actions/runs/40417461261),
+[stock safety](https://github.com/allidamech-bot/INVOICE/actions/runs/40417461260),
+[Vercel Node trace](https://github.com/allidamech-bot/INVOICE/actions/runs/40417461370) and
+[credit-note VAT](https://github.com/allidamech-bot/INVOICE/actions/runs/40417461214).
+PR #1122 [exact-head settlement CI](https://github.com/allidamech-bot/INVOICE/actions/runs/40420232158)
+was **SUCCESS**, with **4,206/4,206 Node tests** including four new
+two-device supplier settlement/bank-race cases. These are distinct
+point-in-time evidences; do not add test counts across workflows, treat
+an older failed intermediate PR head as final, or rerun already-passed
+broad tests without a relevant code change.
+
+### B. Axis 39 acceptance ledger — what CI proves vs. what remains unproven
+
+| Alif axis / gate | Supported verification | Required to accept / present status |
+| --- | --- | --- |
+| 1–2, 8–10, 24–29 | Synthetic document, payment, supplier, treasury, statement, FX and VAT tests + merged guards | **Partly evidenced.** No full authenticated *live* finance QA across original UID, multiple companies, invoice/purchase/stock/AR/AP/bank lifecycle yet |
+| 22-B/C | Input validations and some stock-integrity tests available | **POLICY BLOCKED**: authorized FIFO vs weighted-average costing; COGS treatment, returns and FX rules must be approved; no automatic accounting policy choice |
+| 13–21, 38 | Trusted period server/emulator tests, report integrity, fail-closed recovery and synthetic recovery rehearsal | **PARTIAL**: operator-owned authority restore procedure, isolated managed-backup rehearsal, RPO/RTO and sign-offs still absent; `LOUREX_PERIOD_ARCHIVE_V1` is evidence, not restorable authority |
+| 35-B | Repo Rules source; historical partial read-only published-rule observation; emulator two-UID tests | **NOT ACCEPTED** until currently *published* full Rules source, release ID/time and normalized diff vs repo are independently captured read-only |
+| 35-C | Auth/Firestore emulator cross-UID isolation on demo projects | **SIMULATION ONLY**; separate authorization and authenticated real-service two-UID QA required |
+| 30–33 | Playwright/WebKit mobile-mode, bilingual PDF, Share/print, long texts/keyboard tests | **SIMULATION ONLY**; physical iPhone Safari/PWA/Share Sheet/print and real exported financial PDF acceptance pending |
+| 37 | Portable business Vault backup/restore + simulated integrated loss/replay | **PARTIAL**: not proof of restored trusted server period control and reports; operator QA acceptance outstanding |
+| 34 | Historical 1–40 source matrix with known incomplete original wording | **PARTIAL**; do not invent literal checklist text |
+| 39 | Verified PR/CI evidence consolidated here | **PARTIAL / evidence refreshed**; no standalone multi-device production certification |
+| 40 | No full signed release acceptance | **NO-GO for final finance acceptance**; never reinterpret individual green PRs or READY deployment as final GO |
+| 4 | Explicitly deferred | **DEFERRED**; do not implement without a new owner decision |
+
+### C. Minimal next evidence, with ownership and no production mutations
+
+1. **Owner / authorized cloud operator:** obtain *published* Firestore Rules
+   release metadata and full source read-only, compare to checked-in
+   `firestore.rules` (35-B). No Rules publish, new credentials or paid
+   browser retries without explicit approval. This is the next **external**
+   security evidence blocker.
+2. **Owner / finance policy:** approve costing and returns/FX policy (22-B/C);
+   finance engineering must not invent FIFO/weighted average or silently
+   revalue posted accounting records.
+3. **Owner-authorized QA:** perform controlled authenticated multi-UID,
+   two-device finance acceptance on isolated test companies and accounts,
+   verifying source UID/branch, one-time stock issue, AR/AP, linked bank,
+   void and retry; capture browser screenshots/records and actual results.
+   Existing local CI is not a substitute.
+4. **Owner on physical iPhone:** test preview = exported PDF, Save/Share,
+   bilingual RTL, multi-page print, keyboard and PWA on Safari (30–33).
+   Provide pass/fail evidence, not only desktop WebKit results.
+5. **Incident owner + finance approver:** approve the separate period-authority
+   recovery design, RPO/RTO and isolated authorized managed-backup DR rehearsal
+   (37–38), as described in
+   `docs/FINANCE_ALIF_PERIOD_AUTHORITY_DR_RUNBOOK_20261026.md`.
+6. **Finance release owner:** after evidence is collected, recheck the
+   *current* Vercel SHA against merged `main`, make independent final
+   39/40 go/no-go decision, and log release identity. Vercel deployment
+   is controlled by the user; this documentation author does not deploy.
+
+**Boundaries for this update:** source and PR metadata were read-only,
+and only this finance evidence register was edited. No AI branches, real
+Firebase/owner data, hosted configuration, Firestore Rules, security claims
+or application runtime were changed. The original forty-axis scope and
+its deferred axis 4 remain unchanged.
