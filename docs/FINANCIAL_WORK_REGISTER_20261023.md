@@ -692,3 +692,50 @@ automated retest, QA-session acceptance, merge or production release.
   documentation branch. No source/AI tests or runtime files, no production
   Firestore data/rules, no live account, no GitHub PR merge, no deployment.
 
+
+## Alif verified sequential finance PR integration — 26 October 2026
+
+**Owner explicitly authorized merging finished finance work.** After checking
+each existing PR's exact head, relevant CI results, file scope, and individual
+mergeability, the twelve finance PRs from the 26 October handoff were **merged
+sequentially** using SHA-pinned GitHub squash merges. None touched LOUREX AI
+paths, published Firebase rules, created financial QA accounts, ran new test
+suites, or modified any real production financial records.
+
+| Axis | PR | Verified squash merge commit | Change category |
+| --- | --- | --- | --- |
+| 35-A | [#1073](https://github.com/allidamech-bot/INVOICE/pull/1073) | `60e85518b2de9615076af16a12c774fd9d687069` | Truthful profitability cloud privacy disclosure |
+| 24 | [#1075](https://github.com/allidamech-bot/INVOICE/pull/1075) | `48d8e0bacaea917a4400c9882f33c0f260014285` | Invalid FX input/history handling |
+| 28 | [#1074](https://github.com/allidamech-bot/INVOICE/pull/1074) | `15e20eddad7b00a0b860e8279f22a9e7195139e4` | Synthetic draft-neutrality CI |
+| 25 | [#1076](https://github.com/allidamech-bot/INVOICE/pull/1076) | `52f014c6b835117ba17de5954e487d7e3a9f29f8` | Date and rounding tests |
+| 26/27 | [#1077](https://github.com/allidamech-bot/INVOICE/pull/1077) | `c62ca53a983c3bc2b77c60ccc12ce2443bad9615` | VAT and credit-note tests |
+| 30 | [#1079](https://github.com/allidamech-bot/INVOICE/pull/1079) | `a4bbb6a79cecc7dc10f8fd896978c9fab1c849ba` | iPhone-mode WebKit simulation |
+| 31 | [#1080](https://github.com/allidamech-bot/INVOICE/pull/1080) | `5fb4d60092563406b041bb3de1a427373ea3af90` | Simulated financial PDF/Share checks |
+| 33 | [#1086](https://github.com/allidamech-bot/INVOICE/pull/1086) | `b562391fab53ea07ea11958beef5ea0a6f6a5e59` | Long PDF and bilingual direction tests |
+| 32 | [#1097](https://github.com/allidamech-bot/INVOICE/pull/1097) | `8b98aeb59d84daf63c167f60441aff3caa2cd463` | Keyboard, autosave and reload tests |
+| 1/2/8 | [#1099](https://github.com/allidamech-bot/INVOICE/pull/1099) | `903c5fa3570b97260cf75556ea77d93dc5744a1a` | Synthetic voucher/cash/bank parity tests |
+| 35-C | [#1102](https://github.com/allidamech-bot/INVOICE/pull/1102) | `788723f5c1507f0ebae7a3c7244352555415cc0a` | Local Firestore emulator test safety |
+| 8 | [#1103](https://github.com/allidamech-bot/INVOICE/pull/1103) | `a7fd7333d33e5f1920c2e403cf02b70328902f46` | Actual cash/bank movement KPI presentation |
+
+**Current GitHub main after these finance merges (checked):**
+`a7fd7333d33e5f1920c2e403cf02b70328902f46`.
+All twelve finance code/test PRs above are absent from the *open* PR results.
+No new execution of a paid browser suite or broad CI suite was requested;
+original exact-head CI results remain the pre-merge test evidence.
+
+**Production is explicitly NOT at this merged head.** Independently checked
+Vercel production alias `invoice-three-puce.vercel.app` continues to serve
+READY deployment `dpl_8CDfuc9Myp9WR6CnrL3eUL23huGr`, source commit
+`dea51b63e90f2934a878cae9a8fc5c6c6acf1ee4`. GitHub merge is
+**not** proof of a Vercel deployment. Do not publish/promote a new production
+release without independent owner approval and the required release checks.
+
+**Unclosed acceptance gates:** policy decisions for inventory COGS 22-B/C;
+comparison of actually deployed Firestore rules (35-B), separately authorized
+real-service account isolation (35-C), authenticated finance QA,
+physical iPhone Safari/PWA for axes 30–33, DR rehearsal, combined
+post-merge QA, and final GO/NO-GO. Original axis 4 is deferred.
+The legacy original forty-item wording still cannot be reconstructed
+verbatim from incomplete evidence. Earlier point-in-time text saying these
+PRs were open remains in this chronological register as historical evidence,
+but is **superseded by this merger section**.
