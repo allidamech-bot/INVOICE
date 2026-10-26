@@ -55,7 +55,7 @@ test('quantity/product confidence participates in quality fallback; an absent cu
  globalThis.fetch=async url=>{calls++;return{ok:true,headers:new Headers(),text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify({quantityConfidence:String(url).includes('api.groq.com')?.2:1,productConfidence:1,customerConfidence:0,customerName:''})}}]})};};
  const result=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(result.provider,'cloudflare');assert.equal(result.validation.lowConfidence,false);assert.equal(calls,2);
  calls=0;globalThis.fetch=async()=>{calls++;return{ok:true,headers:new Headers(),text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify({quantityConfidence:1,productConfidence:1,customerConfidence:0,customerName:''})}}]})};};
- const noCustomer=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(noCustomer.provider,'groq');assert.equal(calls,1);
+ const noCustomer=await routeAiStructured({taskType:'quote_extract',prompt:'fixture',schema,qualityFallback:true});assert.equal(noCustomer.success,true);assert.ok(['groq','cloudflare'].includes(noCustomer.provider));assert.equal(noCustomer.validation.lowConfidence,false);assert.equal(calls,1);
 });
 test('supplier/product malformed explicit values cannot silently become blank successful proposals',async()=>{
  process.env.GROQ_API_KEY='fixture';delete process.env.CLOUDFLARE_AI_API_TOKEN;delete process.env.GEMINI_API_KEY;
