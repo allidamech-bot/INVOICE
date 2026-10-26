@@ -51,7 +51,9 @@ test('active API gateways share the canonical dialogue, while approval code rema
   }
   assert.match(core,/if\(cleaned\.context\.conversationMode==='advisor'\|\|!draftActionRequested/);
   assert.match(core,/if\(result\)\{sendJson\(response,200/);
-  assert.match(client,/if\(!plan\|\|!plan\.calls\.length\)return null/);
+  assert.match(client,/if\(!plan\|\|!plan\.calls\.length\)\{/);
+  assert.match(client,/if\(runtime\.conversationMode==='controller'&&actionRequested\)/);
+  assert.match(client,/return null; \/\/ ordinary discussion never exposes planner JSON errors/);
   assert.doesNotMatch(gateway,/mutateVaultSafely|saveVault|approveProposal|document\.createDraft/);
   assert.match(gateway,/Return a JSON object with exactly one field: answer/);
 });
