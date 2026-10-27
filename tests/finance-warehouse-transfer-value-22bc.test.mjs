@@ -80,9 +80,9 @@ test('22 transfer: whole position depletion preserves exact residual carrying va
 test('22 transfer: 4dp fractions conserve even sub-cent values without floating-point arithmetic',()=>{
   const rows=[receipt(fromScope,'fraction',1,'0.0003','0.01')];
   const out=preview(rows,[],transfer('0.0001'));
-  assert.equal(out.transferredCarryingValue,'0.000000001000');
-  assert.equal(out.from.carryingValue,'0.000000002000');
-  assert.equal(out.to.carryingValue,'0.000000001000');
+  assert.equal(out.transferredCarryingValue,'0.000001000000');
+  assert.equal(out.from.carryingValue,'0.000002000000');
+  assert.equal(out.to.carryingValue,'0.000001000000');
   assert.equal(out.combinedCarryingValueBefore,out.combinedCarryingValueAfter);
 });
 
