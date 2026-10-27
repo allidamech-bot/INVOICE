@@ -34,6 +34,17 @@ This stage does **not**:
 
 Foreign-currency valuation currently requires an **exactly dated** supported direct rate; future approved alternatives must have a documented rate policy rather than interpolation or automatic use of the latest FX quote.
 
+## Isolated domain-ledger projection gate (27 October, follow-up)
+
+`src/lib/inventory-valuation-evidence.ts::projectPostedValuationEvidence` connects the **actual finance-domain posting shapes** (posted purchase movements and final issued-invoice stock movements) to the pure prospective average engine in a read-only synthetic QA projection. It does **not** activate a valuation method in the live app.
+
+- Callers must provide a **complete, explicitly approved chronology** of all matching in-branch product movements. An array's insertion order is not an auditable timestamp policy; callers carry responsibility for supplying the correct immutable order.
+- Every movement/source must have the expected workspace and branch; missing/unscoped legacy movements are refused. Sales stock proofs are compared with final invoice lines; receipt values must match a uniquely identified posted purchase line.
+- Transfers, purchase reversals, unsupported adjustments, voided invoices and verified physical returns are *not* silently skipped or assigned guessed values. They block this projection until the corresponding accounting rules are implemented.
+- Old manual opening movements lacking their actual supporting cost evidence are refused. FX cannot be sourced from a catalog's latest cost; it must be identified per receipt and tied to its transaction date.
+- The tests use synthetic objects exercised through real `postPurchase` / `postIssuedInvoiceStock` domain functions, and confirm that the old invoice profitability snapshot is **not overwritten**. The projection may calculate a different COGS figure from the current production report; that difference is a documented cutover gap, **not** an automatic accounting adjustment.
+- This projection only checks minimal evidence fields; it does not verify authenticity of attached files, approve expense capitalization, reconcile GL amounts, or validate published Firebase Rules. Independent acceptance remains outstanding.
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
