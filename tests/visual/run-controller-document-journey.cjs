@@ -167,7 +167,7 @@ async function run(engine,name){
    const result=await page.evaluate(async href=>{
     const bytes=new Uint8Array(await(await fetch(href)).arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
     const [{loadGeneratedAiPdfRenderer},{displayDate}]=await Promise.all([import('/dist/src/lib/ai-pdf-preview.js'),import('/dist/src/lib/id.js')]);
-    const renderer=await loadGeneratedAiPdfRenderer();const document=await renderer.getDocument({data:bytes}).promise;
+    const renderer=await loadGeneratedAiPdfRenderer();const document=await renderer.getDocument({data:bytes.slice()}).promise;
     const first=await document.getPage(1);const content=await first.getTextContent();
     const normalize=value=>value.replace(/[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu,'');
     const text=content.items.map(item=>item.str||'').join(' ');
