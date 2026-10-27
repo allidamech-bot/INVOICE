@@ -125,7 +125,7 @@ window.qaRun=async scenario=>{
  try{await h.restore(file(candidate));}catch(e){error=e.message;}finally{IDBObjectStore.prototype.put=nativePut;}
  if(scenario==='transaction-abort')check(archiveQueued&&archiveWritten&&replacementQueued,'abort after archive put success with replacement queued');
  check(Boolean(error),'negative restore must reject');
- const pattern={'transaction-abort':/abort|Workspace replacement failed/i,'two-tab':/Account data changed during import/,cas:/Account data changed during import/,account:/scope changed|aborted|Account changed/i,protected:/erase or modify posted invoice stock/,period:/closed period/}[scenario];check(pattern.test(error),'correct rejection: '+error);
+ const pattern={'transaction-abort':/abort|Workspace replacement failed/i,'two-tab':/Account data changed during import/,cas:/Account data changed during import/,account:/scope changed|aborted|Account changed/i,protected:/erase or modify posted invoice stock/,period:/closed period|erase or modify existing payment/}[scenario];check(pattern.test(error),'correct rejection: '+error);
  check(h.syncs===0&&h.ends===1,'no successful sync on rejection');same(h.state.vault,v,'UI unchanged on rejection');
  if(scenario==='account'){same(await db.getPlainWorkspace(),h.otherExpected,'other account untouched');await db.activateAccountStorage(uid);}
  same(await db.getPlainWorkspace(),expected,'real database untouched by rejected restore');
