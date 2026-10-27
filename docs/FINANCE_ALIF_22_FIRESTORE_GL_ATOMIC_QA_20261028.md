@@ -112,6 +112,47 @@ are **not certified by this test**. The underlying owner fallback for
 legacy single-UID Firebase tokens is existing functionality and remains
 a business-policy decision before activating real GL writes.
 
+## Server-owned session epoch and revocation QA — 28 October
+
+A valid, signed Firebase owner token can remain valid after a privileged
+financial role or user session is withdrawn. The original Firebase
+signature verifier returns a UID and role, but does **not** independently
+prove live revocation or a non-disabled account. A live General Ledger must
+never claim otherwise.
+
+The **test-only verified-owner gateway** now requires an explicitly
+hardened QA Firestore service (`requireCurrentOwnerSession=true`).
+After verifying the JWT signature using the **existing unchanged**
+Firebase verifier, it reads `auth_time` and `iat` from that **already
+verified** JWT payload. These cannot be injected through command or request
+body.
+
+Inside the **same Firestore transaction** used to validate original
+inventory source, period authority and GL revision, the hardened adapter
+reads a **server-owned demo session policy document** at
+`users/{qaUid}/accounting/control/financeGlQaOwnerSessions/{scopeKey}`.
+It requires owner identity, legal-entity scope, active permission,
+structural integrity and an `auth_time` **strictly later** than
+`tokensValidAfterSeconds`. Missing, disabled, corrupt or changed policy,
+and a revoked older session, fail closed **before idempotent replay** and
+before any proposed journal, receipt or ledger CAS write.
+
+The emulator acceptance additionally verifies that the checked-in local
+Firestore Rules deny a client write to the new session-policy namespace.
+A signed but disabled owner cannot replay prior success. A signed but
+revoked owner cannot create even the first journal; re-authentication after
+the cutoff recovers access only to the isolated synthetic account, with
+no duplicate historical booking.
+
+This remains a **simulated revocation epoch** managed entirely in
+test fixtures. It is NOT connected to Firebase Admin Auth `getUser`,
+`verifyIdToken(checkRevoked)`, actual refresh-token revocation, disabled
+real accounts, financial approval records, or production user sessions.
+The helper's original direct `execute` remains available **for other
+isolated QA tests only**, and MUST NEVER be treated as a secure
+production endpoint. No live token revocation, role removal, employee
+membership, policy authorization or disaster recovery is certified.
+
 ## What is not proven
 
 The only caller identity is a **synthetic fixture**, not a verified Firebase

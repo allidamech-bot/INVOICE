@@ -14,14 +14,21 @@ const fail=code=>{throw new Error('ALIF_22_GL_EMULATOR_'+code);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(x);
 const same=(a,b)=>isDeepStrictEqual(a,b);
 
-export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=false}={}){
+export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=false,requireCurrentOwnerSession=false}={}){
   if(!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')
     ||db.projectId!==PROJECT)
     fail('LIVE_DATABASE_FORBIDDEN');
   return {
-    async execute(identity,command){
+    requiresCurrentOwnerSession:requireCurrentOwnerSession,
+    async execute(identity,command,verifiedSession=null){
       // This is only a synthetic QA identity argument, NOT a verified token.
       if(identity?.role!=='owner'||!id(identity.uid))fail('QA_OWNER_REQUIRED');
+      if(requireCurrentOwnerSession&&(!verifiedSession
+        ||!Number.isSafeInteger(verifiedSession.authTimeSeconds)
+        ||!Number.isSafeInteger(verifiedSession.issuedAtSeconds)
+        ||verifiedSession.authTimeSeconds<1
+        ||verifiedSession.issuedAtSeconds<verifiedSession.authTimeSeconds))
+        fail('VERIFIED_SESSION_REQUIRED');
       if(!id(command?.scopeKey)||!id(command?.opId)
         ||!Array.isArray(command.append)||command.append.some(j=>!id(j?.id)))
         fail('INVALID_COMMAND_ID');
@@ -34,13 +41,32 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
       const sourceRef=controlRef.collection('financeGlQaSources').doc(command.scopeKey);
       const ledgerRef=controlRef.collection('financeGlQaLedgers').doc(command.scopeKey);
       const receiptRef=controlRef.collection('financeGlQaReceipts').doc(command.opId);
+      const authRef=controlRef.collection('financeGlQaOwnerSessions').doc(command.scopeKey);
 
       return db.runTransaction(async tx=>{
         // All reads must occur before any transaction writes.
-        const [controlSnap,metaSnap,sourceSnap,ledgerSnap,receiptSnap]=
-          await tx.getAll(controlRef,manifestRef,sourceRef,ledgerRef,receiptRef);
+        const [controlSnap,metaSnap,sourceSnap,ledgerSnap,receiptSnap,authSnap]=
+          await tx.getAll(controlRef,manifestRef,sourceRef,ledgerRef,receiptRef,
+            ...(requireCurrentOwnerSession?[authRef]:[]));
         const control=controlSnap.data(),meta=metaSnap.data(),
           source=sourceSnap.data(),ledger=ledgerSnap.data();
+        if(requireCurrentOwnerSession){
+          const authorization=authSnap.data();
+          // Server-owned demo revocation epoch and owner authority are read
+          // inside the SAME transaction as journals and period generation.
+          // Firestore transaction retry must re-evaluate this snapshot.
+          if(!authSnap.exists||authorization?.format!=='LOUREX_FINANCE_GL_QA_SESSION_V1'
+            ||authorization.ownerUid!==identity.uid
+            ||authorization.workspaceId!==command.workspaceId
+            ||authorization.branchId!==command.branchId
+            ||authorization.role!=='owner'
+            ||authorization.enabled!==true
+            ||!Number.isSafeInteger(authorization.tokensValidAfterSeconds)
+            ||authorization.tokensValidAfterSeconds<0)
+            fail('CURRENT_OWNER_AUTHORITY_REQUIRED');
+          if(verifiedSession.authTimeSeconds<=authorization.tokensValidAfterSeconds)
+            fail('SESSION_REVOKED');
+        }
         if(!controlSnap.exists||control?.format!=='LOUREX_PERIOD_CONTROL_V1'
           ||control.version!==1||control.ownerUid!==identity.uid
           ||!Number.isSafeInteger(control.generation)||control.generation<1
@@ -151,7 +177,9 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
  * remain UNATTESTED. A valid signature is not finance posting approval.
  */
 export function createFinanceGlQaVerifiedOwnerGateway(service){
-  if(!service||typeof service.execute!=='function')fail('QA_SERVICE_REQUIRED');
+  if(!service||typeof service.execute!=='function'
+    ||service.requiresCurrentOwnerSession!==true)
+    fail('FRESH_OWNER_SESSION_SERVICE_REQUIRED');
   const commandKeys=new Set(['scopeKey','opId','workspaceId','branchId',
     'expectedLedgerVersion','expectedPeriodGeneration',
     'expectedSourceSha256','append']);
@@ -172,6 +200,15 @@ export function createFinanceGlQaVerifiedOwnerGateway(service){
     if(!command||typeof command!=='object'||Array.isArray(command)
       ||Object.keys(command).some(k=>!commandKeys.has(k)))
       fail('COMMAND_IDENTITY_INJECTION');
-    return service.execute({uid:verified.uid,role:verified.role},command);
+    // The payload is parsed ONLY AFTER verifying the JWT signature, project,
+    // issuer, expiry and role through the existing Firebase verifier.
+    let claims;
+    try{claims=JSON.parse(Buffer.from(bearer[1].split('.')[1],'base64url').toString('utf8'));}
+    catch{fail('AUTH_INVALID');}
+    if(!Number.isSafeInteger(claims.auth_time)||!Number.isSafeInteger(claims.iat)
+      ||claims.auth_time<1||claims.iat<claims.auth_time)
+      fail('AUTH_INVALID');
+    return service.execute({uid:verified.uid,role:verified.role},command,
+      {authTimeSeconds:claims.auth_time,issuedAtSeconds:claims.iat});
   };
 }
