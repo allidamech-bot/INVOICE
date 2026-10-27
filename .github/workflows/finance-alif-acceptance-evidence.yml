@@ -1,0 +1,30 @@
+name: Alif finance acceptance evidence completeness (offline)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/finance-alif-acceptance-evidence.mjs'
+      - 'tests/finance-alif-acceptance-evidence-20261027.test.mjs'
+      - 'docs/qa/FINANCE_ALIF_39_40_HUMAN_ACCEPTANCE_20261027.md'
+      - '.github/workflows/finance-alif-acceptance-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-acceptance-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check offline acceptance validator syntax
+        run: node --check scripts/finance-alif-acceptance-evidence.mjs
+      - name: Verify incomplete, mismatched and mock dossiers can never authorize GO
+        run: node --test tests/finance-alif-acceptance-evidence-20261027.test.mjs
