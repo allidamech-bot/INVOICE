@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {randomBytes} from 'node:crypto';
+import {randomBytes,generateKeyPairSync,sign} from 'node:crypto';
 import {initializeApp,deleteApp} from 'firebase-admin/app';
 import {getFirestore} from 'firebase-admin/firestore';
 import {emptyVault} from '../dist/src/lib/defaults.js';
@@ -11,7 +11,7 @@ import {defaultWarehouseId} from '../dist/src/lib/warehouses.js';
 import {createPeriodService} from '../api/_accounting/period-store.js';
 import {encodeWorkspace} from '../api/_accounting/period-format.js';
 import {fingerprintSyntheticFinanceSources} from '../api/_accounting/finance-gl-atomic-contract.js';
-import {createFinanceGlQaEmulatorService} from './helpers/finance-gl-qa-firestore-adapter.mjs';
+import {createFinanceGlQaEmulatorService,createFinanceGlQaVerifiedOwnerGateway} from './helpers/finance-gl-qa-firestore-adapter.mjs';
 
 // Run only under firebase-tools emulators:exec on the fixed demo project.
 // Neither Admin credentials nor a production Firebase project may enter.
@@ -281,6 +281,74 @@ test('published repo Firestore Rules refuse owner-client writes under accounting
  assert.equal(untouched.ledger.ledgerVersion,0);
  assert.equal(untouched.journals.length,0);
  assert.equal(untouched.receipts.length,0);
+});
+
+
+test('signed Firebase owner identity alone can request the QA GL, without trusting client UID or role',async()=>{
+ const f=await seed(),gateway=createFinanceGlQaVerifiedOwnerGateway(service);
+ const previousFetch=globalThis.fetch;
+ const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});
+ const kid='gl-qa-test-'+uid();
+ const jwk={...publicKey.export({format:'jwk'}),kid,alg:'RS256',use:'sig'};
+ let mockKeyFetches=0;
+ globalThis.fetch=async url=>{
+  assert.match(String(url),/service_accounts\\/v1\\/jwk\\/securetoken@system\\.gserviceaccount\\.com$/);
+  mockKeyFetches++;
+  return{ok:true,headers:new Headers({'cache-control':'max-age=300'}),
+   json:async()=>({keys:[jwk]})};
+ };
+ function signedToken(patch={},headerPatch={}){
+  const now=Math.floor(Date.now()/1000);
+  const head=Buffer.from(JSON.stringify({alg:'RS256',typ:'JWT',kid,...headerPatch})).toString('base64url');
+  const payload={sub:f.actor.uid,aud:'lourex-invoice',
+   iss:'https://securetoken.google.com/lourex-invoice',
+   iat:now-20,auth_time:now-30,exp:now+3600,
+   firebase:{sign_in_provider:'password'},...patch};
+  const body=Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const bytes=head+'.'+body;
+  return bytes+'.'+sign('RSA-SHA256',Buffer.from(bytes),privateKey).toString('base64url');
+ }
+ const request=(jwt,command=f.command,other={})=>({
+  method:'POST',headers:{authorization:'Bearer '+jwt},
+  command,...other
+ });
+ const deny=(promise,code)=>assert.rejects(promise,new RegExp('ALIF_22_GL_EMULATOR_'+code));
+ try{
+  const jwt=signedToken(),before=await snapshot(f);
+  const accepted=await gateway(request(jwt));
+  assert.equal(accepted.emulatorCommitted,true);
+  assert.equal(accepted.trustedPostingCommitted,false);
+  assert.equal(accepted.productionReady,false);
+  const after=await snapshot(f);
+  assert.equal(after.ledger.ledgerVersion,1);
+  assert.equal(after.journals.length,2);
+  assert.equal(after.receipts.length,1);
+  assert.notDeepEqual(after,before);
+  const retry=await gateway(request(jwt));
+  assert.equal(retry.replayed,true);
+  assert.deepEqual(await snapshot(f),after,'signed retry writes nothing');
+
+  await deny(gateway({method:'POST',headers:{},command:f.command}),'AUTH_REQUIRED');
+  await deny(gateway(request(jwt,f.command,{uid:f.actor.uid,role:'owner'})),'INJECTED_REQUEST_IDENTITY');
+  await deny(gateway(request(jwt,{...f.command,role:'owner'})),'COMMAND_IDENTITY_INJECTION');
+  await deny(gateway(request(jwt,{...f.command,uid:'qa-another-user'})),'COMMAND_IDENTITY_INJECTION');
+  await deny(gateway({...request(jwt),method:'GET'}),'METHOD_NOT_ALLOWED');
+  for(const role of ['finance','admin','sales','purchasing','viewer']){
+   await deny(gateway(request(signedToken({lourexAiRole:role}))), 'QA_OWNER_REQUIRED');
+  }
+  for(const patched of [
+   {aud:'untrusted-project'}, {iss:'https://securetoken.google.com/other'},
+   {exp:1}, {firebase:{sign_in_provider:'anonymous'}},
+   {lourexAiRole:'owner',lourexWorkspaceUid:'another-uid'}
+  ]) await deny(gateway(request(signedToken(patched))),'AUTH_INVALID');
+  const validForOtherUid=signedToken({sub:'qa-other-'+uid(),lourexAiRole:'owner'});
+  await assert.rejects(gateway(request(validForOtherUid)),
+   /ALIF_22_GL_EMULATOR_TRUSTED_PERIOD_AUTHORITY_MISSING/);
+  const tampered=signedToken();
+  await deny(gateway(request(tampered.slice(0,-5)+'AAAAA')),'AUTH_INVALID');
+  assert.equal(mockKeyFetches,1,'test key fetched once; no live Firebase or AI calls');
+  assert.deepEqual(await snapshot(f),after,'all unauthorized requests preserve complete GL');
+ }finally{globalThis.fetch=previousFetch;}
 });
 
 test.after(async()=>{await deleteApp(app);});
