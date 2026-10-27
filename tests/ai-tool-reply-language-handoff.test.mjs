@@ -19,6 +19,9 @@ test('actual tool runtime and final chat formatter honor question/answer prefere
     const context=vm.createContext({host,input:{message,language:site,context:{}},toolResult:result,performance,recordStageDiagnostic:()=>{},
       currentConversationMode:()=> 'controller',currentAiExperiencePreferences:()=>({replyLanguage:preference,interfaceLanguage:'en'}),resolveAiConversationReplyLanguage,
       orchestrateAiToolRequest:async()=>result,resumeVaultSession:async()=>({vault:{}}),scopeFor:()=>scope,kernelScopeKey:s=>JSON.stringify(s),foundationToolOutcomes:()=>[],
+      // The real async-ownership guard is covered by the dedicated 1139 test.
+      captureTurn:h=>({scope:JSON.stringify(h.__intelligenceKernel.scope),controller:new AbortController()}),
+      assertTurn:()=>{},ownsTurn:()=>true,awaitTurn:async(_h,_owner,fn)=>fn(),changedTurn:()=>new Error('Conversation changed'),
       __lourexNaturalizeToolAnswer:(_result,locale)=>locale,
     });
     const uiStart=runtime.indexOf('export function currentAiInterfaceLanguage(');
