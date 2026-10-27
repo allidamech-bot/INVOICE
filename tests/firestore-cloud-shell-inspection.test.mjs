@@ -27,7 +27,7 @@ test('Cloud Shell script GETs live rules only, saves a private backup and report
  const {home,result}=inspectSandbox();
  try{
   assert.equal(result.status,0,result.stderr);
-  assert.match(result.stdout,/READ_ONLY_COMPLETE: no production write or deployment was attempted/);
+  assert.match(result.stdout,/READ_ONLY_COMPLETE: no Firebase write, deployment or Rules publish attempted/);
   assert.match(result.stdout,/SOURCE_DIFFERENT: inspect the private backup/);
   assert.match(result.stdout,/Live rules SHA-256: [a-f0-9]{64}/);
   assert.match(result.stdout,/Checkout rules SHA-256: [a-f0-9]{64}/);
