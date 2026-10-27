@@ -106,6 +106,14 @@ A debit/credit journal can be balanced and still economically wrong: synthetic t
 
 The output always contains `posted=false`, `approved=false`, `productionReady=false`: passing a synthetic double-entry integrity check does **not** create a real, independently authenticated financial ledger, establish authoritative legal entity functional currency, or prove an approved trial balance. Do not activate this as a journal writer, substitute it for bank/AP accounting, backdate closing balances or silently update historical issued invoices.
 
+## Prospective minor-unit rounding and visible residual — no journal acceptance
+
+`src/lib/inventory-minor-unit-rounding-preview.ts::previewCumulativeInventoryMinorUnitRounding` tests one **proposed**, non-authorized `cumulative-rounded-balance-v1` policy. It starts from the verified prospective WAC receipt/issue stream (one company, branch, warehouse, item, currency); rounds the **running inventory balance** to the caller-selected currency minor units (0, 2 or 3 digits); takes successive rounded-balance changes as illustrative inventory asset entries. Purchase receipts increase illustrative inventory cost, and genuine sales issues increase illustrative COGS. The output conserves the **rounded book asset** exactly at each step without mutating the engine's 12-decimal cost or the original invoice cost.
+
+For 4 cartons at USD 6 and 2 at USD 10, three successive sales of one carton each would have proposed book COGS of USD **7.33, 7.34, 7.33** and a remaining candidate book asset of USD 22.00. This demonstrates why naively rounding USD 7.333333... separately on each invoice can lose a cent. Conversely, with stock values only fractions of a cent, the proposed total journal COGS can differ from the rounded 12-decimal modeled COGS; the preview explicitly reports `unresolvedSalesCOGSRoundingDifference` and `hasUnresolvedRoundingDifference`, rather than concealing the discrepancy.
+
+Any movement for which the proposed receipt/issue book value rounds to zero, or has the wrong sign, **fails closed** until a documented memorandum/aggregation policy exists. Opening values, returns, transfer, reversals and physical-count corrections remain outside this narrower preview. The strict illustrative journal checker from PR #1140 is **not loosened**. This preview never posts a journal, authenticates a functional currency, selects GL accounts, approves a rounding policy, adjusts a historic invoice, or proves a trial balance. `journalPosted`, `policyApproved` and `productionReady` are always `false`. Accountant-approved signoff, period authority, NRV, FX and trusted posting remain separate gates.
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
