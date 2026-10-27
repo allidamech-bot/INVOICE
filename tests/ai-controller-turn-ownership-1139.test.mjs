@@ -34,7 +34,7 @@ test('read-only refresh still rejects a genuinely different thread',async()=>{
  block=true;const refreshing=f.runtime.refreshIntelligenceWorkspace(h);await entered.promise;
  h.__intelligenceKernel={...structuredClone(h.__intelligenceKernel),scope:{...h.__intelligenceKernel.scope,threadId:'unrelated-thread'}};
  h.__lourexAssistantThreadId='unrelated-thread';release.resolve();
- await assert.rejects(refreshing,e=>/reopen|changed/i.test(e.message));
+ await assert.rejects(refreshing,e=>/reopen|changed|تغيّر|المحادثة/i.test(e.message));
 });
 
 test('planning discards a result after its kernel was invalidated, without a raw TypeError',async()=>{
