@@ -81,6 +81,37 @@ and accepts only synthetic owner identities. Never infer that real
 Firebase credentials, historical GL records, credit balances, audited
 COA or independent authorizations have been verified.
 
+## Verified-identity boundary rehearsal — 28 October
+
+The period endpoint already authenticates signed Firebase ID tokens and
+restricts the owner role; its existing tests cover JWT project/issuer,
+cryptographic signature, role claims, invalid or anonymous sessions and
+untrusted request identity. No shared AI authentication or existing
+production period-service file was changed here.
+
+The GL QA adapter previously accepted a **caller-supplied** `{uid,role}`
+test argument. A new test-only gateway
+`createFinanceGlQaVerifiedOwnerGateway` now uses the **unchanged**
+`verifyFirebaseIdToken` implementation before calling the same demo
+Firestore transaction service, and obtains the UID/owner role solely
+from the verified token. It rejects client-supplied identity fields,
+unrecognized command fields, employee/admin claims, anonymous or invalid
+tokens, wrong Firebase project/issuer, and JWT signed for a different UID.
+A valid owner token can post once to **its own synthetic emulator UID**;
+its exact replay changes no financial record.
+
+**Critical limits:** The integration test uses an ephemeral locally
+generated RSA test key and substitutes only Google's JWKS fetch **in
+process**. It never supplies an actual Google credential, never opens
+an external Firebase or GL API, and never grants live financial posting.
+A valid signature/owner claim is necessary but not sufficient for
+financial authorization. Token revocation, disabled accounts, fresh
+authoritative team membership, independently signed accounting policy,
+COA/legal-entity currency approval and secondary finance approvals
+are **not certified by this test**. The underlying owner fallback for
+legacy single-UID Firebase tokens is existing functionality and remains
+a business-policy decision before activating real GL writes.
+
 ## What is not proven
 
 The only caller identity is a **synthetic fixture**, not a verified Firebase
