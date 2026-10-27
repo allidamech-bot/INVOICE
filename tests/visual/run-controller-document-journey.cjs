@@ -84,6 +84,28 @@ async function run(engine,name){
   await say('Convert this file to a quotation');
   const card=panel.locator('.lxw-chat-document');await card.waitFor({timeout:45000});
   await card.getByLabel('Draft customer',{exact:true}).selectOption('qa-buyer');
+  // Diagnostic: collect read-only focus and remount evidence if Chromium
+  // cannot activate a disclosure. Do not alter the DOM, click from JavaScript,
+  // or skip the accessibility assertion.
+  await page.evaluate(()=>{
+    const sel='.lxw-chat-document .lxw-document-extra';
+    const observed={added:0,removed:0,focusin:0,keydown:0,click:0,toggle:0,events:[]};
+    const belongs=node=>node instanceof Element&&(node.matches?.(sel)||node.querySelector?.(sel));
+    const watch=(type,fn)=>document.addEventListener(type,event=>{
+      const el=event.target;
+      if(!(el instanceof Element)||!el.closest(sel))return;
+      observed[type]++;observed.events.push(type+':'+el.tagName+':'+String(el.closest(sel)?.open));
+      if(observed.events.length>32)observed.events.shift();
+      fn?.(event);
+    },true);
+    watch('focusin');
+    watch('keydown');
+    watch('click');
+    watch('toggle');
+    new MutationObserver(records=>{for(const record of records){for(const node of record.addedNodes)if(belongs(node))observed.added++;for(const node of record.removedNodes)if(belongs(node))observed.removed++;}})
+      .observe(document.querySelector('#lourex-ai-panel'),{subtree:true,childList:true});
+    window.__qaDisclosureTrace=observed;
+  });
   // React can replace the summary between Playwright's locator resolution
   // and native activation. Retarget focus to the CURRENT node for each real
   // keyboard attempt, verifying disclosure state (no force click/DOM mutation).
@@ -102,7 +124,14 @@ async function run(engine,name){
       }
       await page.waitForTimeout(120);
     }
-    throw new Error('Controller disclosure did not reach '+(expected?'open':'closed')+' after native keyboard interaction');
+    const trace=await page.evaluate(()=>{
+      const details=document.querySelector('#lourex-ai-panel .lxw-chat-document .lxw-document-extra');
+      return {trace:window.__qaDisclosureTrace||null,activeElement:document.activeElement?.tagName,
+        activeClass:document.activeElement?.className,
+        summaryCount:document.querySelectorAll('#lourex-ai-panel .lxw-chat-document .lxw-document-extra>summary').length,
+        detailsOpen:details?.open,visible:details?!!details.getClientRects().length:false};
+    });
+    throw new Error('Controller disclosure did not reach '+(expected?'open':'closed')+' after native keyboard interaction: '+JSON.stringify(trace));
   }
   await setItemDetailsOpen(true);
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
