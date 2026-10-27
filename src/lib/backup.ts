@@ -197,7 +197,7 @@ export function assertFinancialRestoreContinuity(current:VaultPayload,replacemen
   const content=(value:unknown)=>JSON.stringify(value,(_key,item)=>
     item&&typeof item==='object'&&!Array.isArray(item)
       ?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
-  const fail=()=>{throw new Error('This older local copy would erase or modify existing payment, supplier settlement, or bank audit history, final invoice, posted purchase or expense. Existing account data was not replaced.');};
+  const fail=()=>{throw new Error('This older local copy would erase or modify existing payment, supplier settlement, or bank audit history, final invoice, posted purchase, expense or inventory movement. Existing account data was not replaced.');};
   const requireRetained=(prior:readonly {id:string}[],candidate:readonly {id:string}[])=>{
     if(!prior.length)return;
     const incoming=new Map<string,{id:string}>();
@@ -212,7 +212,10 @@ export function assertFinancialRestoreContinuity(current:VaultPayload,replacemen
       if(content(row)!==content(incoming.get(row.id)))fail();
     }
   };
-  for(const key of ['payments','supplierPayments','treasuryEntries','treasuryReconciliations','expenses'] as const)
+  // Manual opening/adjustment, purchase receipt and warehouse-transfer rows are
+  // posted inventory facts even without a linked final invoice stock debit.
+  // A stale local archive must not silently remove or rewrite these movements.
+  for(const key of ['payments','supplierPayments','treasuryEntries','treasuryReconciliations','expenses','inventoryMovements'] as const)
     requireRetained(current[key],replacement[key]);
   // Stock issue protection alone misses service-only invoices, credit notes
   // and posted purchases whose lines are not inventory-tracked. A stale
