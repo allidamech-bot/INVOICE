@@ -292,7 +292,7 @@ test('signed Firebase owner identity alone can request the QA GL, without trusti
  const jwk={...publicKey.export({format:'jwk'}),kid,alg:'RS256',use:'sig'};
  let mockKeyFetches=0;
  globalThis.fetch=async url=>{
-  assert.match(String(url),/service_accounts\\/v1\\/jwk\\/securetoken@system\\.gserviceaccount\\.com$/);
+  assert.ok(String(url).includes('/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'), 'only locally mocked Firebase JWKS is allowed');
   mockKeyFetches++;
   return{ok:true,headers:new Headers({'cache-control':'max-age=300'}),
    json:async()=>({keys:[jwk]})};
