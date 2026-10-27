@@ -8,6 +8,7 @@ import {defaultWarehouseId,createWarehouseTransfer} from '../dist/src/lib/wareho
 import {calculateProfitability} from '../dist/src/lib/profitability.js';
 import {projectPostedValuationEvidence} from '../dist/src/lib/inventory-valuation-evidence.js';
 import {reconcilePostedInvoiceCostsToWac} from '../dist/src/lib/inventory-cost-reconciliation.js';
+import {inspectIllustrativeInventoryJournals} from '../dist/src/lib/inventory-journal-integrity-preview.js';
 
 function fixture(){
  const vault=emptyVault(),supplier={...createSupplier(),id:'qa-supplier-real-cost',nameEn:'Valuation QA'};
@@ -218,4 +219,102 @@ test('22-C: receipt-only source returns stock balance without inventing COGS or 
  assert.deepEqual(result.lineDifferences,[]);
  assert.equal(result.totalRoundedMovingAverageCost,'0.00');
  assert.equal(result.accountingJournalVerified,false);
+});
+
+const ledgerControls={inventoryAccountId:'asset:inventory',salesCogsAccountId:'expense:cogs',currencyMinorDigits:2};
+function illustrativeJournals(state){
+ return state.vault.inventoryMovements.map((m,index)=>{
+  const inbound=m.type==='purchase',amount=inbound?(index===0?'24.00':'20.00'):'22.00';
+  return{id:'test-entry-'+index,sourceMovementId:m.id,date:m.date,
+   workspaceId:m.workspaceId,branchId:m.branchId,currency:'USD',
+   lines:inbound?[
+    {accountId:ledgerControls.inventoryAccountId,direction:'debit',amount},
+    {accountId:'liability:supplier',direction:'credit',amount}
+   ]:[
+    {accountId:ledgerControls.salesCogsAccountId,direction:'debit',amount},
+    {accountId:ledgerControls.inventoryAccountId,direction:'credit',amount}
+   ]};
+ });
+}
+test('22 GL: balanced illustrative journals reproduce purchase assets and WAC COGS without posting',()=>{
+ const s=testedSequence(),before=JSON.stringify(s.vault);
+ const entries=illustrativeJournals(s);
+ const result=inspectIllustrativeInventoryJournals(input(s),entries,ledgerControls);
+ assert.equal(result.checkedEntries,3);
+ assert.equal(result.illustrativeNetInventory,'22.00');
+ assert.equal(result.illustrativeTotalSalesCOGS,'22.00');
+ assert.equal(result.carryingValue,'22.000000000000');
+ assert.equal(result.evidenceMatched,true);
+ assert.equal(result.posted,false);
+ assert.equal(result.approved,false);
+ assert.equal(result.productionReady,false);
+ assert.equal(JSON.stringify(s.vault),before);
+});
+test('22 GL: a balanced journal with WRONG inventory amount still fails WAC proof',()=>{
+ const s=testedSequence(),entries=illustrativeJournals(s);
+ entries[2].lines[0].amount='30.00';
+ entries[2].lines[1].amount='30.00';
+ assert.throws(()=>inspectIllustrativeInventoryJournals(input(s),entries,ledgerControls),
+  /account deltas differ/);
+});
+test('22 GL: unbalanced debits and credits fail even when inventory asset is correct',()=>{
+ const s=testedSequence(),entries=illustrativeJournals(s);
+ entries[0].lines[1].amount='23.00';
+ assert.throws(()=>inspectIllustrativeInventoryJournals(input(s),entries,ledgerControls),
+  /not balanced/);
+});
+test('22 GL: no identical source journal may be counted twice or omitted',()=>{
+ const s=testedSequence(),entries=illustrativeJournals(s);
+ assert.throws(()=>inspectIllustrativeInventoryJournals(input(s),entries.slice(1),ledgerControls),
+  /exactly one illustrative journal/);
+ entries[1].sourceMovementId=entries[0].sourceMovementId;
+ assert.throws(()=>inspectIllustrativeInventoryJournals(input(s),entries,ledgerControls),
+  /Duplicate or missing journal/);
+});
+test('22 GL: isolated company/branch, effective date and original money currency are mandatory',()=>{
+ const s=testedSequence();
+ for(const edited of [{date:'2026-10-18'},{workspaceId:'other'},
+  {branchId:'other'},{currency:'EUR'}]){
+  const entries=illustrativeJournals(s);
+  Object.assign(entries[0],edited);
+  assert.throws(()=>inspectIllustrativeInventoryJournals(input(s),entries,ledgerControls),
+   /disagrees with its verified financial source/);
+ }
+});
+test('22 GL: account identity, money precision and strictly positive lines are mandatory',()=>{
+ const s=testedSequence();
+ for(const controls of [
+  {...ledgerControls,inventoryAccountId:''},
+  {...ledgerControls,salesCogsAccountId:ledgerControls.inventoryAccountId},
+  {...ledgerControls,currencyMinorDigits:5}
+ ]){
+  assert.throws(()=>inspectIllustrativeInventoryJournals(input(s),
+   illustrativeJournals(s),controls),/Two distinct/);
+ }
+ for(const amount of ['-1','0','0.0001','abc']){
+  const entries=illustrativeJournals(s);
+  entries[0].lines[0].amount=amount;
+  assert.throws(()=>inspectIllustrativeInventoryJournals(input(s),entries,ledgerControls),
+   /currency minor units|Zero or negative/);
+ }
+});
+test('22 GL: sub-cent WAC stock issue cannot be silently rounded into an invented GL journal',()=>{
+ const s=testedSequence(),data=structuredClone(input(s)),entries=illustrativeJournals(s);
+ const invoice=data.documents[0];
+ invoice.items[0].quantity='1';
+ const issue=data.movements.find(m=>m.type==='issue');
+ issue.quantity='-1';
+ const prefix='@lourex:invoice-stock:v1:';
+ const original=JSON.parse(issue.note.slice(prefix.length));
+ issue.note=prefix+JSON.stringify({...original,quantity:'1'});
+ entries[2].lines[0].amount='7.33';
+ entries[2].lines[1].amount='7.33';
+ assert.throws(()=>inspectIllustrativeInventoryJournals(data,entries,ledgerControls),
+  /approved rounding journal policy is missing/);
+});
+test('22 GL: missing source inventory history always blocks matching to hypothetical journals',()=>{
+ const s=testedSequence(),e=input(s);
+ assert.throws(()=>inspectIllustrativeInventoryJournals({...e,
+   movements:e.movements.slice(1),orderedMovementIds:e.orderedMovementIds.slice(1)},
+   illustrativeJournals(s),ledgerControls),/Receipt requires|Insufficient valued inventory/);
 });

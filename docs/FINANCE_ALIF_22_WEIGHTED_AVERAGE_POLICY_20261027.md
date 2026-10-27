@@ -98,6 +98,14 @@ The user-visible fields are meant for **an auditor's evidence inventory**, not a
 
 This stage does not create a journal, modify a customer, change any permanent cost or schema, import missing opening values, read real Firestore production, publish security rules, or interact with AI. A claimed approval ID is unauthenticated until independently verified. Historic valuations remain frozen. No final GO for 22/39/40.
 
+## Isolated debit/credit journal integrity preview — no GL activation
+
+`src/lib/inventory-journal-integrity-preview.ts::inspectIllustrativeInventoryJournals` validates **caller-supplied illustrative entries** against the actual synthetic purchase/issued-invoice ledger movements and the independently recomputed WAC cost steps. The caller explicitly supplies Inventory asset and sales COGS account identifiers, counterparty ledger lines and the chosen currency's **minor digits**; the calculator never invents account identifiers or posts any journal. Each financial source requires one unique, correctly dated, company/branch-scoped, same-functional-currency journal with two or more positive lines whose total debits equal credits. Inventory asset changes must match the *entire* WAC value change, sales COGS changes must match its actual issue; the ending illustrative Inventory and COGS controls reconcile to the **modeled** stock balance.
+
+A debit/credit journal can be balanced and still economically wrong: synthetic tests refuse a journal that posts the previous historical invoice cost (e.g. USD 30) where WAC is USD 22. They also reject absent/duplicate entries, wrong company/branch/date/currency, incorrectly mapped accounts, non-minor-unit money and fractional-unit WAC issues that cannot be booked without an **approved rounding/residual policy**. This isolated diagnostic supports receipts and sales issues only. Initial/opening equity postings, supplier cost components, purchase reversals/variance, returns, transfers, manual count, FX and IFRS NRV are excluded pending separate signoff.
+
+The output always contains `posted=false`, `approved=false`, `productionReady=false`: passing a synthetic double-entry integrity check does **not** create a real, independently authenticated financial ledger, establish authoritative legal entity functional currency, or prove an approved trial balance. Do not activate this as a journal writer, substitute it for bank/AP accounting, backdate closing balances or silently update historical issued invoices.
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
