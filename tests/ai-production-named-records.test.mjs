@@ -277,6 +277,8 @@ test('numbered quotation read never takes a positive change or save instruction'
  for(const q of [
   'غير صلاحية عرض السعر QUO-2026-0009 إلى 12 يوم',
   'بدي أغير صلاحية عرض السعر QUO-2026-0009',
+  'بدي تعديل صلاحية عرض السعر QUO-2026-0009',
+  'أريد تغيير تاريخ صلاحية QUO-2026-0009',
   'احفظ عرض السعر QUO-2026-0009',
   'Edit quotation QUO-2026-0009 total to 5000',
   'اعرض سعر QUO-2026-0009 واحذف المستند'
