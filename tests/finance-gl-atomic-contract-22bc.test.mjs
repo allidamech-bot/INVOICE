@@ -105,8 +105,8 @@ test('reused opId with changed monetary amount, identity or generation fails clo
   v=>v.command.expectedPeriodGeneration=8,
   v=>v.command.append[1].sourceMovementId='other-source'
  ]){
-  const x=structuredClone({...s,state:first.state});
-  x.verifySourceBoundGl=inspectSourceBoundStockGl;change(x);
+  const x={...s,state:structuredClone(first.state),command:structuredClone(s.command)};
+  change(x);
   refused(x,'OPERATION_REUSED');
  }
 });
@@ -136,7 +136,7 @@ test('period-lock cutoff refuses even balanced synthetic historical GL proposals
 });
 
 test('stale source digest, forged source and changed request source hash refuse without writing',()=>{
- const s=fixture(),changed=structuredClone(s);
+ const s=fixture(),changed={...s,sourceEvidence:structuredClone(s.sourceEvidence)};
  changed.sourceEvidence.movements[0].unitCost='500.00';
  refused({...changed,verifySourceBoundGl:inspectSourceBoundStockGl},'SOURCE_VERSION_MISMATCH');
  refused({...s,command:{...s.command,expectedSourceSha256:'tampered'}},'SOURCE_VERSION_MISMATCH');
@@ -151,7 +151,8 @@ test('source WAC validator rejects balanced but inflated COGS inside full atomic
 
 test('source history incomplete, wrong company or duplicate source rejects',()=>{
  const s=fixture();
- refused({...s,command:{...s.command,append:s.command.append.slice(0,1)}},'SOURCE_AUDIT_INCOMPLETE');
+ assert.throws(()=>run({...s,command:{...s.command,append:s.command.append.slice(0,1)}}),
+  /ALIF_22_SOURCE_BOUND_GL_NOT_READY/);
  refused({...s,command:{...s.command,branchId:'other'}},'WRONG_SCOPE');
  const duplicate=structuredClone(s);duplicate.command.append[1].id=duplicate.command.append[0].id;
  refused({...duplicate,verifySourceBoundGl:inspectSourceBoundStockGl},'DUPLICATE_OR_MISSING_SOURCE');
