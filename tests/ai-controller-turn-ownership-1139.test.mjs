@@ -62,11 +62,18 @@ for(const deleted of [false,true])test('remote '+(deleted?'deletion':'advance')+
  assert.match(h.state.error,/reopen|changed/i);assert.doesNotMatch(h.state.error,/undefined|TypeError/);
  planning.resolve({...result(),answer:'MUST NOT APPEAR'});await setImmediate();
  assert.ok(!h.state.messages.some(m=>m.id==='stale-reply'));
- // Finish the bounded local encrypted recovery write and reopen the active thread.
- await setImmediate();await runtime.refreshIntelligenceWorkspace(h);await setImmediate();
+ // Observe durable encrypted recovery instead of assuming two event-loop ticks
+ // suffice while the complete CI suite is running concurrently.
+ let state,recovery;
+ for(let attempt=0;attempt<100;attempt++){
+   state=await store.loadAssistantState(session.key);
+   recovery=state.threads.find(t=>t.id.startsWith('ai-recovery-'));
+   if(recovery)break;
+   await setImmediate();
+ }
+ assert.ok(recovery,'remote sync must durably store the unapproved recovery draft');
+ await runtime.refreshIntelligenceWorkspace(h);
  if(deleted)assert.notEqual(h.__lourexAssistantThreadId,'reliability-thread','a tombstoned thread cannot reopen under its old identity');
- const state=await store.loadAssistantState(session.key),recovery=state.threads.find(t=>t.id.startsWith('ai-recovery-'));
- assert.ok(recovery);
  if(!deleted)assert.ok(state.threads.find(t=>t.id==='reliability-thread').kernel.cancelledApprovals.includes('declined-synthetic'));
  assert.deepEqual(recovery.kernel.artifact.lineIds,artifact.lineIds);
  assert.deepEqual(recovery.kernel.artifact.proposal.items,artifact.proposal.items);
