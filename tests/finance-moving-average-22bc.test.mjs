@@ -90,7 +90,7 @@ test('22-B: opening carrying balance is mandatory, never inferred or invented',(
   assert.equal(result.balanceValue,'12.000000000000');
   assert.equal(result.balanceQuantity,'3.0000');
   assert.throws(()=>calculateMovingWeightedAverage(scope,[entry('opening','open',1,'5')]),/Valid three-letter currency/);
-  assert.throws(()=>calculateMovingWeightedAverage(scope,[receipt('r',1,'1','3'),opening('1','4')]),/Opening cost must be the first/);
+  assert.throws(()=>calculateMovingWeightedAverage(scope,[receipt('r',1,'1','3'),{...opening('1','4'),sequence:2}]),/Opening cost must be the first/);
 });
 
 test('22-B: negative stock, same-date duplicate ids and unsorted event sequence reject without side effects',()=>{
