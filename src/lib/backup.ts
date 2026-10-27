@@ -192,18 +192,16 @@ export function assertPostedStockRestoreContinuity(current:VaultPayload,replacem
  * object key order). This is an integrity guard, NOT a recovery/reversal API.
  */
 export function assertFinancialRestoreContinuity(current:VaultPayload,replacement:VaultPayload):void{
-  const collections=['payments','supplierPayments','treasuryEntries','treasuryReconciliations'] as const;
+  // Restore is not an authorized reversal of financial facts. Draft documents
+  // and unposted purchases remain restoreable; issued financial records do not.
   const content=(value:unknown)=>JSON.stringify(value,(_key,item)=>
     item&&typeof item==='object'&&!Array.isArray(item)
       ?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
-  const fail=()=>{throw new Error('This older local copy would erase or modify existing payment, supplier settlement, or bank audit history. Existing account data was not replaced.');};
-  for(const key of collections){
-    const prior=current[key];
-    if(!prior.length)continue;
-    const incoming=new Map<string,unknown>();
-    // A duplicated ID in either version makes history reconciliation ambiguous;
-    // it is never safe to accept whichever duplicate happened to appear last.
-    for(const row of replacement[key]){
+  const fail=()=>{throw new Error('This older local copy would erase or modify existing payment, supplier settlement, or bank audit history, final invoice, posted purchase or expense. Existing account data was not replaced.');};
+  const requireRetained=(prior:readonly {id:string}[],candidate:readonly {id:string}[])=>{
+    if(!prior.length)return;
+    const incoming=new Map<string,{id:string}>();
+    for(const row of candidate){
       if(typeof row.id!=='string'||!row.id||incoming.has(row.id))fail();
       incoming.set(row.id,row);
     }
@@ -213,7 +211,16 @@ export function assertFinancialRestoreContinuity(current:VaultPayload,replacemen
       observed.add(row.id);
       if(content(row)!==content(incoming.get(row.id)))fail();
     }
-  }
+  };
+  for(const key of ['payments','supplierPayments','treasuryEntries','treasuryReconciliations','expenses'] as const)
+    requireRetained(current[key],replacement[key]);
+  // Stock issue protection alone misses service-only invoices, credit notes
+  // and posted purchases whose lines are not inventory-tracked. A stale
+  // backup must not silently remove those AR/AP source documents either.
+  requireRetained(current.documents.filter(doc=>doc.kind==='invoice'&&doc.status==='final'),
+    replacement.documents);
+  requireRetained(current.purchases.filter(p=>p.status==='posted'||p.status==='reversed'),
+    replacement.purchases);
 }
 
 export async function readPlainBackup(file:File):Promise<VaultPayload>{
