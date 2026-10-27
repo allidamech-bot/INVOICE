@@ -51,7 +51,7 @@ export function namedRecordReadPlan(message:string,runtime:AiToolRuntime):AiTool
  // by readRequest(); this extra check covers inflected Arabic edit commands.
  const quoteReadOnly=text.replace(/(?:لا|ولا|دون|بدون)\s+(?:اي\s+)?(?:تعديل|تعدل|تغيير|تغير|حفظ|تحفظ|حذف|تحذف|اصدار|اعتماد)(?![\p{L}])/gu,' ')
   .replace(/\b(?:do not|don't|never|without)\s+(?:modify|change|edit|update|save|delete|mutate)(?:\s+(?:or|and)\s+(?:modify|change|edit|update|save|delete|mutate))*\b/gu,' ');
- const quoteWrite=/(?:\b(?:edit|change|modify|save|issue|delete|update|create|convert|post)\b|(?:^|[\s،,.])(?:اغير|اعير|ازيد|انقص|اعدل|عدّل|بدل|غيّر|غير|حدث|احفظ|اصدر|احذف|انشئ|حول|اعتمد|رحل)(?![\p{L}]))/iu.test(quoteReadOnly);
+ const quoteWrite=/(?:\b(?:edit|editing|change|changing|modify|modifying|save|saving|issue|issuing|delete|deleting|update|updating|create|creating|convert|converting|post|posting)\b|(?:^|[\s،,.])(?:اغير|اعير|ازيد|انقص|اعدل|عدّل|بدل|غيّر|غير|تعديل|تغيير|تحديث|حفظ|حذف|اصدار|اعتماد|تحويل|حدث|احفظ|اصدر|احذف|انشئ|حول|اعتمد|رحل)(?![\p{L}]))/iu.test(quoteReadOnly);
  if(quotationNumbers.length===1&&quoteFacts&&!quoteWrite){
   const quotations=vault.documents.filter(doc=>doc.kind==='proforma'&&mentioned(text,doc.number));
   if(quotations.length>1)return{version:1,goal:message.slice(0,240),calls:[
