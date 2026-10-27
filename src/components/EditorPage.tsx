@@ -183,6 +183,10 @@ export class EditorPage extends React.Component<Props,State>{
 
   private withLatestInternalCosts=(doc:LourexDocument):LourexDocument=>{
     const latest=this.props.document;if(latest.id!==doc.id)return doc;
+    if(latest.currency.trim().toUpperCase()!==doc.currency.trim().toUpperCase()){
+      // An older parent snapshot must not reintroduce costs from a different currency.
+      return {...doc,items:doc.items.map(item=>({...item,unitCost:''})),internalCosts:{shippingCost:'',otherCost:''}};
+    }
     return{...doc,items:preserveLatestUnitCostsForMatchingIdentity(doc.items,latest.items),internalCosts:{shippingCost:latest.internalCosts?.shippingCost??doc.internalCosts?.shippingCost??'0.00',otherCost:latest.internalCosts?.otherCost??doc.internalCosts?.otherCost??'0.00'}};
   };
 
