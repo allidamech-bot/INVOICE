@@ -154,7 +154,8 @@ test('source history incomplete, wrong company or duplicate source rejects',()=>
  assert.throws(()=>run({...s,command:{...s.command,append:s.command.append.slice(0,1)}}),
   /ALIF_22_SOURCE_BOUND_GL_NOT_READY/);
  refused({...s,command:{...s.command,branchId:'other'}},'WRONG_SCOPE');
- const duplicate=structuredClone(s);duplicate.command.append[1].id=duplicate.command.append[0].id;
+ const duplicate={...s,command:structuredClone(s.command)};
+ duplicate.command.append[1].id=duplicate.command.append[0].id;
  refused({...duplicate,verifySourceBoundGl:inspectSourceBoundStockGl},'DUPLICATE_OR_MISSING_SOURCE');
 });
 
