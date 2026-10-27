@@ -7,7 +7,7 @@
  * Never deploys, modifies, merges, or automatically trusts live rules.
  */
 import {spawnSync} from 'node:child_process';
-import {createHash} from 'node:crypto';
+import {inspectPublishedRulesEvidence} from './_firestore-published-rule-evidence.mjs';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {resolve,dirname,join} from 'node:path';
@@ -18,8 +18,6 @@ const BASE='https://firebaserules.googleapis.com/v1/';
 const expectedProject=process.env.LOUREX_FIREBASE_PROJECT_ID||PROJECT;
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const proposed=readFileSync(join(root,'firestore.rules'),'utf8');
-const digest=value=>createHash('sha256').update(value).digest('hex');
-const candidateSha=digest(proposed);
 const backupRoot=resolve(homedir(),'lourex-firestore-rules-backups');
 function fail(message){console.error('LIVE_RULES_INSPECTION_BLOCKED: '+message);process.exitCode=2;}
 function status(message){console.log('LOUREX FIRESTORE READ-ONLY: '+message);}
@@ -51,30 +49,39 @@ async function main(){
  }
  // A project's Firestore default database release is cloud.firestore.
  const release=await get('projects/'+PROJECT+'/releases/cloud.firestore');
+ // Validate release response before issuing a second API request.
  const rulesetName=release?.rulesetName;
- if(typeof rulesetName!=='string'
-    ||!new RegExp('^projects/'+PROJECT+'/rulesets/[A-Za-z0-9_-]+$').test(rulesetName))
-    return fail('Unexpected Firebase ruleset identifier, refusing untrusted URL.');
+ if(release?.name!=='projects/'+PROJECT+'/releases/cloud.firestore'
+    ||typeof rulesetName!=='string'
+    ||!/^projects\/lourex-invoice\/rulesets\/[A-Za-z0-9_-]+$/.test(rulesetName))
+    return fail('Unexpected published Firebase release/ruleset identifier.');
  const ruleset=await get(rulesetName);
- const files=ruleset?.source?.files;
- if(!Array.isArray(files)||files.length!==1||typeof files[0]?.content!=='string'
-     ||files[0].content.length>262144)
-     return fail('Unexpected live rules format; no backup or comparison performed.');
- const current=files[0].content;
- const liveSha=digest(current);
+ const capturedAtUtc=new Date().toISOString();
+ const {content:current,evidence}=inspectPublishedRulesEvidence({
+  project:PROJECT,release,ruleset,checkoutSource:proposed,capturedAtUtc
+ });
  mkdirSync(backupRoot,{recursive:true,mode:0o700});
- const timestamp=new Date().toISOString().replace(/[:.]/g,'-');
- const destination=join(backupRoot,PROJECT+'-'+timestamp+'-'+liveSha.slice(0,12)+'.rules');
- // Exclusive creation prevents silent backup overwrite.
+ const timestamp=capturedAtUtc.replace(/[:.]/g,'-');
+ const stem=PROJECT+'-'+timestamp+'-'+evidence.publishedSourceSha256.slice(0,12);
+ const destination=join(backupRoot,stem+'.rules');
+ const manifest=join(backupRoot,stem+'.evidence.json');
+ // Both files are private and exclusively created; never store a token.
  writeFileSync(destination,current,{mode:0o600,flag:'wx'});
+ writeFileSync(manifest,JSON.stringify(evidence,null,2)+String.fromCharCode(10),{mode:0o600,flag:'wx'});
  status('Project: '+PROJECT);
- status('Current ruleset: '+rulesetName);
- status('Live rules SHA-256: '+liveSha);
- status('Candidate rules SHA-256: '+candidateSha);
- status('Private backup: '+destination);
- status(liveSha===candidateSha
-  ? 'MATCH: live Firebase rules already match this checkout; no change made.'
-  : 'DIFFERENT: live rules do not match this checkout. Compare the backed-up text before any deploy.');
- status('READ_ONLY_COMPLETE: no production write or deployment was attempted.');
+ status('Published Firestore release: '+evidence.releaseName);
+ status('Release last updated: '+(evidence.releaseUpdatedAt||'UNAVAILABLE'));
+ status('Current ruleset: '+evidence.rulesetName);
+ status('Ruleset created: '+(evidence.rulesetCreatedAt||'UNAVAILABLE'));
+ status('Live rules SHA-256: '+evidence.publishedSourceSha256);
+ status('Checkout rules SHA-256: '+evidence.checkedInSourceSha256);
+ status('Private rules backup: '+destination);
+ status('Private provenance evidence: '+manifest);
+ status(evidence.byteExactMatch
+  ? 'SOURCE_MATCH: downloaded published rules equal this checkout byte-for-byte.'
+  : 'SOURCE_DIFFERENT: inspect the private backup and resolve differences; do NOT publish automatically.');
+ if(!evidence.releaseMetadataComplete)status('EVIDENCE_INCOMPLETE: Firebase release time or ruleset creation time missing.');
+ status('REVIEW_REQUIRED: source hash agreement is not cross-UID authorization or final 35-B acceptance.');
+ status('READ_ONLY_COMPLETE: no Firebase write, deployment or Rules publish attempted.');
 }
 main().catch(error=>fail(String(error?.message||'Rules inspection failed.').slice(0,280)));
