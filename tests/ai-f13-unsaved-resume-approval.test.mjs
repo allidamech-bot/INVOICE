@@ -63,7 +63,7 @@ test('F13 cross-thread and cross-branch approvals cannot be resurrected',()=>{
 });
 test('F13 runtime restores approved document only, not every kernel artifact',async()=>{
  const source=await readFile(new URL('../src/lib/ai-intelligence-runtime.ts',import.meta.url),'utf8');
- assert.match(source,/resumableWorkingApproval\(host\.__intelligenceKernel,vault\)/);
+ assert.match(source,/resumableWorkingApproval\(hydrated,vault\)/);
  assert.match(source,/resumableWorkingApproval\(kernel,resumed\.vault\)/);
  assert.doesNotMatch(source,/setState\(\{proposal:kernel\.artifact\.proposal\}\)/);
  assert.match(source,/host\.setState\(\{proposal:null,review:null\}\)/);
