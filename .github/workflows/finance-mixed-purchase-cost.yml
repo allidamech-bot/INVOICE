@@ -9,6 +9,7 @@ on:
       - 'src/lib/inventory-transfer-valuation.ts'
       - 'src/lib/inventory-purchase-reversal-valuation.ts'
       - 'src/lib/inventory-manual-adjustment-valuation.ts'
+      - 'src/lib/inventory-cost-reconciliation.ts'
       - 'tests/finance-manual-stock-adjustment-22bc.test.mjs'
       - 'tests/finance-purchase-reversal-valuation-22bc.test.mjs'
       - 'tests/finance-warehouse-transfer-value-22bc.test.mjs'
