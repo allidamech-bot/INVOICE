@@ -217,6 +217,7 @@ async function run(engine,name){
   assert.ok(Number(await card.getAttribute('data-artifact-revision'))>1,'undo must advance the tracked draft revision');
   await say('redo');assert.match(await card.innerText(),/1,?732\.00/);
   assert.notEqual(await pdf(),firstPdf);
+  await page.clock.setFixedTime(new Date('2026-10-29T12:00:00Z'));
   await say('save this draft');
   await clickVisibleChatAction(panel.getByRole('button',{name:'Decline',exact:true}),'Decline');
   await page.waitForTimeout(300);assert.equal(await count(),0);await card.waitFor();

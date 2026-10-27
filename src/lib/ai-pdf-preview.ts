@@ -1,3 +1,4 @@
+import {isIsoDate} from './id.js';
 import type {LourexDocument, VaultPayload, DocumentItem} from '../types.js';
 import type {ConversationKernel} from './ai-conversation-kernel.js';
 import {workspaceDocument} from './ai-workspace-model.js';
@@ -38,6 +39,7 @@ export function prepareAiPdfPreview(
   }else{
     // PREVIEW is deliberately not a numbered invoice or saved customer.
     document=createBlankDocument(proposal.kind,'UNSAVED-PREVIEW',scoped.company);
+    if(kernel.artifact?.issueDate&&isIsoDate(kernel.artifact.issueDate))document.issueDate=kernel.artifact.issueDate;
     document.currency=proposal.currency;
     document.language=proposal.language;
     const customer=scoped.customers.find(row=>row.id===proposal.customerId);

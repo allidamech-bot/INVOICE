@@ -1054,6 +1054,7 @@ export function installIntelligenceRuntime(host:Host):void{
       if(draftOnly&&saveWorkingDraft){
         const p=structuredClone(kernel.artifact!.proposal) as any;
         delete p.foundationApproval;
+        if(p.capability==='document.createDraft'&&kernel.artifact?.issueDate)p.issueDate=kernel.artifact.issueDate;
         const drafting=workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:'');
         const review=reviewAiDocumentProposal(p,drafting,requestLanguage==='ar'?'ar':'en');
         if(review.blockers.length){

@@ -31,7 +31,9 @@ for(const phrase of phrases)test('Controller interprets validity and optional pr
  assert.equal(requests.length,0);assert.deepEqual(vault,before);released(h);
  await h.ask('undo');assert.equal(h.__intelligenceKernel.artifact.proposal.validity,old.proposal.validity);
  await h.ask('redo');assert.equal(h.__intelligenceKernel.artifact.proposal.validity,'12 days');
- await h.ask('احفظ المسودة');assert.ok(h.state.proposal?.foundationApproval);assert.deepEqual(vault,before);
+ t.mock.timers.setTime(Date.UTC(2026,9,29,12));
+ assert.equal(prepareAiPdfPreview(h.__intelligenceKernel,vault,'en').dueDate,'2026-11-08');
+ await h.ask('احفظ المسودة');assert.ok(h.state.proposal?.foundationApproval);assert.equal(h.state.proposal.issueDate,'2026-10-27');assert.deepEqual(vault,before);
 });
 for(const phrase of ['شو إجمالي العرض؟','١٢٣٤','abcxyz','خلي الصلاحية 12 يوم ثم احفظ العرض','خلي الصلاحية 12 يوم ثم غير السعر','خلي الصلاحية 12 أو 20 يوم','لا تغير الصلاحية إلى 12 يوم'])test('read or clarify safely without changing the active draft: '+phrase,async()=>{
  const {h,vault,before,requests}=await fixture(),old=structuredClone(h.__intelligenceKernel.artifact);
