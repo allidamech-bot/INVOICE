@@ -53,6 +53,16 @@ function assertTurn(host:Host,owner:TurnOwner,vault?:VaultPayload):void{
   if(!ownsTurn(host,owner,vault)){owner.controller.abort();throw changedTurn(host);}
   if(owner.controller.signal.aborted)throw cancelledTurn(host);
 }
+/** Read-only refresh tolerates local draft revisions of the same scoped thread.
+ * Executable requests still use strict object identity in assertTurn. */
+function assertRefreshScope(host:Host,owner:TurnOwner,vault=host.__foundationVault as VaultPayload|undefined):void{
+  const active=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(host.mounted===false||host.__intelligenceNeedsReopen||!active||
+    host.__workspaceLoadGeneration!==owner.generation||
+    currentConversationMode(host)!==owner.mode||
+    kernelScopeKey(active.scope)!==owner.scope||
+    !vault||kernelScopeKey(scopeFor(host,vault))!==owner.scope)throw changedTurn(host);
+}
 function cancelledTurn(host:Host):ConversationTurnError{return new ConversationTurnError(host.props.language==='ar'?'أُلغي الطلب. لم أنفذ إجراءً.':'Request cancelled. No action was executed.');}
 /** Release the caller even if an obsolete provider ignores its abort signal. */
 async function awaitTurn<T>(host:Host,owner:TurnOwner,run:()=>Promise<T>):Promise<T>{
@@ -304,13 +314,13 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   // scope AFTER hydration, otherwise the fresh-session check compares the old
   // empty thread ID with the newly generated ID and the UI never becomes ready.
   const scope=scopeFor(host,resumed.vault);
-  const refreshOwner=captureTurn(host);assertTurn(host,refreshOwner,resumed.vault);
+  const refreshOwner=captureTurn(host);assertRefreshScope(host,refreshOwner,resumed.vault);
   if(generation!==host.__workspaceLoadGeneration)throw new Error('Conversation changed while loading. Retry loading.');
   if(scope.scope==='business'){
     const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
-    assertTurn(host,refreshOwner);
+    assertRefreshScope(host,refreshOwner);
     const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
-    assertTurn(host,refreshOwner,fresh.vault);
+    assertRefreshScope(host,refreshOwner,fresh.vault);
     host.__businessMemories=scopedAssistantMemories(memory,'business',scope.workspaceId,scope.branchId);
     host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,summary:t.summary,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
   }else{host.__businessMemories=[];host.__businessThreads=[];}
@@ -321,7 +331,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   const live=await resumeVaultSession();
   if(!live||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(scope))
     throw new Error('Account, conversation or workspace changed during loading.');
-  assertTurn(host,refreshOwner,live.vault);
+  assertRefreshScope(host,refreshOwner,live.vault);
   const proposal=host.state.proposal;
   if(currentConversationMode(host)==='controller'&&(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')){
     const alreadyApplied=(host.__foundationReceipts||[]).some((receipt:any)=>
@@ -333,7 +343,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     }
   }
   await flush(host);
-  assertTurn(host,refreshOwner);
+  assertRefreshScope(host,refreshOwner);
   // Sync inert thread messages without importing executable approvals or drafts.
   const uid=activeAccountStorageUid();if(uid&&scope.scope!=='temporary')queueHistorySync(host,uid,resumed.key,scope,generation,true);
 }
