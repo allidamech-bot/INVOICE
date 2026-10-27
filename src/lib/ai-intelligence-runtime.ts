@@ -6,7 +6,7 @@ import { commercialDraftCommand, savedDocumentPreviewId, exactSavedDraftLineEdit
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
-import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, reconcileCancelledApprovals, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
+import { interpretDraftMessage, newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, reconcileCancelledApprovals, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
 import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor, foundationActionAllowed } from './ai-foundation-approval.js';
 import { loadAssistantState, saveAssistantState, mutateAssistantState, upsertAssistantThread } from '../storage/assistant-store.js';
 import { resumeVaultSession } from '../storage/vault.js';
@@ -983,8 +983,19 @@ export function installIntelligenceRuntime(host:Host):void{
           }
         }
       }
+      const draftIntent=currentConversationMode(host)==='controller'&&kernel.artifact?interpretDraftMessage(message):{kind:'other' as const};
+      if(draftIntent.kind==='read'||draftIntent.kind==='clarify'){
+        const document=workspaceDocument(kernel,resumed.vault,requestLanguage);
+        const answer=draftIntent.kind==='read'
+          ?draftIntent.field==='subtotal'
+            ?(requestLanguage==='ar'?'إجمالي المسودة: ':'Draft subtotal: ')+(document?.subtotal??'—')+' '+(document?.currency||'')
+            :(requestLanguage==='ar'?'صلاحية المسودة: ':'Draft validity: ')+String((kernel.artifact!.proposal as any).validity||'—')
+          :(requestLanguage==='ar'?'وضّح الحقل والقيمة المطلوبة، مثل: خلي صلاحية العرض 12 يوم. لم أغيّر المسودة.':'Please specify the draft field and value, e.g. set quotation validity to 12 days. The draft is unchanged.');
+        host.setState((state:any)=>({input:'',error:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:answer}]}));
+        await flush(host);await persistKernel(host);return;
+      }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
-      const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
+      const pdfRequested=draftIntent.kind!=='edit'&&/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
         /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|بدي|أريد|اريد|نزّل|نزل|حمّل|حمل|اطبع|إطبع|create|give|generate|show|open|download|preview|send|need|want|print/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
@@ -1043,6 +1054,7 @@ export function installIntelligenceRuntime(host:Host):void{
       if(draftOnly&&saveWorkingDraft){
         const p=structuredClone(kernel.artifact!.proposal) as any;
         delete p.foundationApproval;
+        if(p.capability==='document.createDraft'&&kernel.artifact?.issueDate)p.issueDate=kernel.artifact.issueDate;
         const drafting=workspaceDrafting(resumed.vault,p.capability==='document.updateDraft'?p.documentId:'');
         const review=reviewAiDocumentProposal(p,drafting,requestLanguage==='ar'?'ar':'en');
         if(review.blockers.length){
@@ -1077,7 +1089,7 @@ export function installIntelligenceRuntime(host:Host):void{
       // Whole-message allowlist only: a greeting followed by any instruction
       // still needs the existing draft-edit boundary. The normal dialogue owns the reply.
       const conversationalOnly=/^(?:السلام\s+عليكم|مرحبا|صباح\s+الخير|كيف\s+حالك|hello|how\s+are\s+you)[.!?؟،,\s]*$/iu.test(message.normalize('NFKC'));
-      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy&&!standaloneDocumentCreation(message)&&!conversationalOnly){
+      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy&&!standaloneDocumentCreation(message)&&!conversationalOnly&&draftIntent.kind!=='other'){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
         if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
@@ -1116,7 +1128,7 @@ export function installIntelligenceRuntime(host:Host):void{
           const currentVault=host.__foundationVault||resumed.vault;
           const updatedDocument=workspaceDocument(next,currentVault,requestLanguage);
           const updatedSubtotal=updatedDocument?.subtotal||'';
-          const previewAsked=wantsWorkingDraftPdfRefresh(message);
+          const previewAsked=wantsWorkingDraftPdfRefresh(message)||(draftIntent.kind==='edit'&&draftIntent.preview);
           let previewReady=false;
           if(previewAsked){
             try{prepareAiPdfPreview(next,currentVault,requestLanguage);previewReady=true;}

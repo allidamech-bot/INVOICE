@@ -1,3 +1,4 @@
+import {interpretDraftMessage} from './ai-draft-message.js';
 import type {AiDocumentDraftProposal,AiDocumentUpdateProposal,AiDraftItemInput,AiContextEnvelope} from '../components/AiCopilot.js';
 import {AI_WORKING_QUOTE_MAX_LINES} from './ai-document-limits.js';
 import {requestedSourceMarkup, sellingPriceForMarkup} from './ai-quote-source-draft.js';
@@ -253,6 +254,9 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
  * free-form paragraph as an implicit permission to rewrite the whole quote. */
 export function reviseAiPendingDocumentDraft(proposal:Proposal,message:string,drafting:DraftReference,language:'en'|'ar'):StagedDocumentRevision|null{
   const input=String(message||'').trim();
+  const intent=interpretDraftMessage(input);
+  if(intent.kind==='edit')return reviseSingleAiPendingDocumentDraft(proposal,intent.command,drafting,language);
+  if(intent.kind==='clarify')return rejected(proposal,language==='ar'?'حدّد الحقل والقيمة المطلوبة، مثل: خلي صلاحية العرض 12 يوم. لم أنفذ أي جزء من الطلب.':'Specify the field and replacement value, e.g. set quotation validity to 12 days. No part of the request was applied.',language==='ar');
   // Explicit 'then' / 'and then' / && delimiters only; semicolons are used
   // inside the supported item-add syntax and must not split a product row.
   const parts=input.split(/\s+(?:ثم|and\s+then)\s+|\s*&&\s*/iu).map(part=>part.trim()).filter(Boolean);

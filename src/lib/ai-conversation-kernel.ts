@@ -1,3 +1,5 @@
+import {todayIso} from './id.js';
+export {interpretDraftMessage} from './ai-draft-message.js';
 import type { AssistantScope, AssistantEntityType } from './ai-assistant-foundation.js';
 import type { AiDocumentDraftProposal, AiDocumentUpdateProposal, AiContextEnvelope } from '../components/AiCopilot.js';
 import { recoverMissions, type MissionState, type MissionEvidence } from './ai-mission-runner.js';
@@ -14,7 +16,7 @@ import type {ConversationalPriceIntent} from './ai-conversational-price.js';
 export interface KernelScope { scope:AssistantScope; workspaceId:string; branchId:string; threadId:string; accountId?:string; }
 export interface WorkingSelection { id:string; items:{entityType:AssistantEntityType;entityId:string;label:string}[]; selectedId?:string; selectedIds?:string[]; }
 type Draft=AiDocumentDraftProposal|AiDocumentUpdateProposal;
-export interface WorkingArtifact { id:string; revision:number; proposal:Draft; lineIds:string[]; selectedLineId?:string; lastEdit?:{lineId:string;field:'quantity'|'unitPrice';value:string;before:Draft}; undo:Draft[]; redo:Draft[]; undoLineIds?:string[][]; redoLineIds?:string[][]; }
+export interface WorkingArtifact { issueDate?:string; id:string; revision:number; proposal:Draft; lineIds:string[]; selectedLineId?:string; lastEdit?:{lineId:string;field:'quantity'|'unitPrice';value:string;before:Draft}; undo:Draft[]; redo:Draft[]; undoLineIds?:string[][]; redoLineIds?:string[][]; }
 export interface ConversationKernel { version:1; scope:KernelScope; turn:number; mode?:AiConversationMode; pendingPrice?:ConversationalPriceIntent; focus:'auto'|'operator'|'advisor'|'financial'; selection?:WorkingSelection; entity?:WorkingSelection['items'][number]; artifact?:WorkingArtifact; commercial?:CommercialState; missions?:MissionState[]; cancelledApprovals?:string[]; toolEvidence?:MissionEvidence[]; diagnostics?:DiagnosticSample[]; knowledge?:{selectedNodeId?:string;cash?:CashSimulation;handoff?:HandoffPreview;reviewDate?:string}; }
 export function kernelScopeKey(scope:KernelScope):string{return JSON.stringify([scope.accountId||'',scope.scope,scope.scope==='personal'?'':scope.workspaceId,scope.scope==='personal'?'':scope.branchId,scope.threadId]);}
 export function newConversationKernel(scope:KernelScope):ConversationKernel{return{version:1,scope:{...scope,workspaceId:scope.scope==='personal'?'':scope.workspaceId,branchId:scope.scope==='personal'?'':scope.branchId},turn:0,mode:'controller',focus:'auto'};}
@@ -50,12 +52,12 @@ export function stageKernelArtifact(kernel:ConversationKernel,proposal:Draft):vo
   if(kernel.scope.scope==='personal')throw new Error('Business drafts are unavailable in Personal scope.');
   const old=kernel.artifact;
   const economic=(p:Draft)=>JSON.stringify(p,(key,value)=>key==='foundationApproval'?undefined:value);
-  if(old&&economic(old.proposal)===economic(proposal)){old.proposal=structuredClone(proposal);return;}
+  if(old&&economic(old.proposal)===economic(proposal)){old.issueDate||=todayIso();old.proposal=structuredClone(proposal);return;}
   const id=proposal.capability==='document.updateDraft'?proposal.documentId:old?.proposal.capability==='document.createDraft'?old.id:crypto.randomUUID();
   const count=proposal.capability==='document.createDraft'?proposal.items.length:proposal.addItems.length;
   if(proposal.capability==='document.createDraft'&&count>AI_WORKING_QUOTE_MAX_LINES)throw new Error('Document exceeds the complete working line limit. No rows were omitted.');
   const undoDepth=aiDraftUndoDepth(count);
-  kernel.artifact={id,revision:(old?.id===id?old.revision:0)+1,proposal:structuredClone(proposal),lineIds:Array.from({length:count},(_,i)=>old?.id===id?old.lineIds[i]||crypto.randomUUID():crypto.randomUUID()),undo:old?.id===id?[...old.undo,structuredClone(old.proposal)].slice(-undoDepth):[],redo:[],undoLineIds:old?.id===id?[...(old.undoLineIds||[]),[...old.lineIds]].slice(-undoDepth):[],redoLineIds:[]};
+  kernel.artifact={issueDate:old?.id===id?old.issueDate||todayIso():todayIso(),id,revision:(old?.id===id?old.revision:0)+1,proposal:structuredClone(proposal),lineIds:Array.from({length:count},(_,i)=>old?.id===id?old.lineIds[i]||crypto.randomUUID():crypto.randomUUID()),undo:old?.id===id?[...old.undo,structuredClone(old.proposal)].slice(-undoDepth):[],redo:[],undoLineIds:old?.id===id?[...(old.undoLineIds||[]),[...old.lineIds]].slice(-undoDepth):[],redoLineIds:[]};
 }
 export function composeKernelMemory(kernel:ConversationKernel,messages:{role:string;text:string}[]):string{
   const state={turn:kernel.turn,focus:kernel.focus,pendingPrice:kernel.pendingPrice,commercial:kernel.commercial,knowledge:kernel.knowledge?{selectedNodeId:kernel.knowledge.selectedNodeId,reviewDate:kernel.knowledge.reviewDate}:undefined,toolEvidence:kernel.toolEvidence?.map(e=>({callId:e.callId,toolId:e.toolId,state:e.state,evidenceRefs:e.evidenceRefs,at:e.at})),missions:kernel.missions?.map(m=>({id:m.id,goal:m.goal,steps:m.steps.map(s=>({id:s.id,status:s.status,resultRef:s.resultRef})),interruptedReason:m.interruptedReason})),entity:kernel.entity,selection:kernel.selection,artifact:kernel.artifact?{id:kernel.artifact.id,revision:kernel.artifact.revision,lineIds:kernel.artifact.lineIds,selectedLineId:kernel.artifact.selectedLineId,proposal:JSON.parse(JSON.stringify(kernel.artifact.proposal,(key,value)=>key==='foundationApproval'?undefined:value))}:undefined};

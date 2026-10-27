@@ -6,9 +6,12 @@ async function run(engine,name){
  const browser=await engine.launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844},acceptDownloads:true});
+  await page.clock.setFixedTime(new Date('2026-10-27T12:00:00Z'));
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   await page.addInitScript(()=>{window.firebase={apps:[{}],auth:()=>({currentUser:{uid:'isolated-controller-qa',getIdToken:async()=>'fixture-token'},onAuthStateChanged:()=>()=>{}})};});
+  let apiCalls=0;
   await page.route('**/api/**',async route=>{
+   apiCalls++;
    const body=route.request().postDataJSON();
    if(body?.mode==='working-draft-plan'){
     const row=body.draft.rows[2];
@@ -163,9 +166,16 @@ async function run(engine,name){
    const href=await link.getAttribute('href');
    const result=await page.evaluate(async href=>{
     const bytes=new Uint8Array(await(await fetch(href)).arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
-    return {size:bytes.length,header:binary.slice(0,5),pages:(binary.match(/\/Type\s*\/Page\b/g)||[]).length};
+    const [{loadGeneratedAiPdfRenderer},{displayDate}]=await Promise.all([import('/dist/src/lib/ai-pdf-preview.js'),import('/dist/src/lib/id.js')]);
+    const renderer=await loadGeneratedAiPdfRenderer();const document=await renderer.getDocument({data:bytes.slice()}).promise;
+    const first=await document.getPage(1);const content=await first.getTextContent();
+    const normalize=value=>value.replace(/[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu,'');
+    const text=content.items.map(item=>item.str||'').join(' ');
+    const hasExpiry=normalize(text).includes(normalize(displayDate('2026-11-08','en')));
+    await document.destroy();
+    return {size:bytes.length,header:binary.slice(0,5),pages:(binary.match(/\/Type\s*\/Page\b/g)||[]).length,hasExpiry};
    },href);
-   assert.equal(result.header,'%PDF-');assert.ok(result.size>10000);assert.ok(result.pages>1);
+   assert.equal(result.header,'%PDF-');assert.ok(result.size>10000);assert.ok(result.pages>1);assert.ok(result.hasExpiry,'actual PDF text must contain the November 8 expiry');
    // WebKit/Chromium must display the *actual generated PDF bytes*, not a second A4 DOM.
    const viewer=page.getByRole('dialog',{name:'Actual generated PDF preview'});
    await viewer.waitFor({timeout:30000});
@@ -186,6 +196,19 @@ async function run(engine,name){
    const download=page.waitForEvent('download');await link.click();assert.equal(await(await download).failure(),null);
    return href;
   }
+  const callsBeforeValidity=apiCalls;
+  await say('خلي صلاحية العرض ۱۲ يوم');
+  assert.equal(apiCalls,callsBeforeValidity,'natural validity must not call an AI provider');
+  const naturalValidity=await page.evaluate(async()=>{
+   const [{getAccountAssistantCacheKey},{loadAssistantState},{prepareAiPdfPreview},{resumeVaultSession}]=await Promise.all([
+    import('/dist/src/storage/db.js'),import('/dist/src/storage/assistant-store.js'),import('/dist/src/lib/ai-pdf-preview.js'),import('/dist/src/storage/vault.js')]);
+   const state=await loadAssistantState(await getAccountAssistantCacheKey('isolated-controller-qa'));
+   const thread=state.threads.find(t=>t.id===state.currentBusinessThreadId);
+   const doc=prepareAiPdfPreview(thread.kernel,(await resumeVaultSession()).vault,'en');
+   return{validity:doc.terms.validity,issueDate:doc.issueDate,dueDate:doc.dueDate,lines:doc.items.length};
+  });
+  assert.deepEqual(naturalValidity,{validity:'12 days',issueDate:'2026-10-27',dueDate:'2026-11-08',lines:85});
+  assert.equal(await count(),0,'natural validity edit and preview must not save');
   const firstPdf=await pdf();
   await say('Could you put 26 on the third product please?');
   await page.waitForFunction(()=>document.querySelector('.lxw-chat-document')?.textContent.includes('1732.00')||document.querySelector('.lxw-chat-document')?.textContent.includes('1,732.00'));
@@ -194,6 +217,7 @@ async function run(engine,name){
   assert.ok(Number(await card.getAttribute('data-artifact-revision'))>1,'undo must advance the tracked draft revision');
   await say('redo');assert.match(await card.innerText(),/1,?732\.00/);
   assert.notEqual(await pdf(),firstPdf);
+  await page.clock.setFixedTime(new Date('2026-10-29T12:00:00Z'));
   await say('save this draft');
   await clickVisibleChatAction(panel.getByRole('button',{name:'Decline',exact:true}),'Decline');
   await page.waitForTimeout(300);assert.equal(await count(),0);await card.waitFor();
@@ -219,6 +243,11 @@ async function run(engine,name){
   assert.equal(saved.first[0].id,saved.second[0].id,'saved document identity must remain stable');
   assert.equal(saved.second[0].count,85);
   assert.equal(saved.second[0].price,'26');
+  const savedValidity=await page.evaluate(async()=>{
+   const doc=(await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents[0];
+   return{validity:doc.terms.validity,dueDate:doc.dueDate};
+  });
+  assert.deepEqual(savedValidity,{validity:'12 days',dueDate:'2026-11-08'},'approved save uses the same deterministic expiry as PDF');
   const beforeReloadMeta=await assistantMeta();
   await page.reload({waitUntil:'networkidle'});
   // This isolated fixture manually injects the canonical PDF engine. A browser
