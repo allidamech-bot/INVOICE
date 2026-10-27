@@ -56,7 +56,7 @@ for(const message of ['أنشئ مسودة عرض سعر','أنشئ عرض سع�
 test('bare current-draft edit asks for the missing change without creating or replacing',async()=>{
  const {h,calls,vault,before}=await fixture(),old=structuredClone(h.__intelligenceKernel.artifact);
  await h.ask('عدّل المسودة الحالية');
- assert.deepEqual(calls,['/api/ai-inbox']);assert.deepEqual(h.__intelligenceKernel.artifact,old);
+ assert.deepEqual(calls,[]);assert.match(h.state.messages.at(-1).text,/Specify the line|حدّد السطر/);assert.deepEqual(h.__intelligenceKernel.artifact,old);
  assert.deepEqual(vault,before);assert.equal(h.state.proposal,null);
 });
 test('Advisor creation wording retains normal read-only conversation routing',async()=>{

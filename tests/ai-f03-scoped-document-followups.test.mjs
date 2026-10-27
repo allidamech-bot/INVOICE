@@ -65,7 +65,8 @@ test('F03 price correction restores last exact value without losing the third it
 test('F03 unsupported or ambiguous follow-ups cannot replace complete working quote',()=>{
  const {vault,kernel}=fixture();const before=structuredClone(kernel);
  const attempt=revise(kernel,vault,'غير كمية كل الأصناف بشكل مختلف');
- assert.equal(attempt,null);
+ assert.equal(attempt.changed,false);
+ assert.match(attempt.message,/حدّد السطر/);
  assert.deepEqual(kernel,before);
  assert.equal(revise(kernel,vault,'ارجع السعر السابق').changed,false);
  assert.equal(kernel.artifact.proposal.items.length,3);

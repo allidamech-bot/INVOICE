@@ -1085,7 +1085,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const original=next.artifact!.proposal;
         const drafting=workspaceDrafting(resumed.vault,original.capability==='document.updateDraft'?original.documentId:'');
         let result=reviseKernelDraft(next,original,message,drafting,requestLanguage);
-        if(!result?.changed){
+        if(!result){
           const controller=new AbortController();host.requestController=controller;
           host.setState({busy:true,error:''});await flush(host);
           try{
