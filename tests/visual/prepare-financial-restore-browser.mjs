@@ -9,7 +9,7 @@ const members=cls.members.filter(n=>names.includes(n.name?.getText(parsed)));
 assert.equal(members.length,names.length);
 await mkdir('dist/qa',{recursive:true});
 const imports=`
-import {readPlainBackup,exportPlainBackup,assertPostedStockRestoreContinuity} from '../src/lib/backup.js';
+import {readPlainBackup,exportPlainBackup,assertPostedStockRestoreContinuity,assertFinancialRestoreContinuity} from '../src/lib/backup.js';
 import {synchronizeActiveWorkspaceOnSave} from '../src/storage/vault.js';
 import {assertPlainCloudWorkspaceUploadable} from '../src/cloud/plain-workspace.js';
 import * as db from '../src/storage/db.js';
