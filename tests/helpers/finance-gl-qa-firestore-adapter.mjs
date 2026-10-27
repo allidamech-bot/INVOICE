@@ -1,3 +1,4 @@
+import {isDeepStrictEqual} from 'node:util';
 import {prototypeFinanceGlAtomicAppend,fingerprintSyntheticFinanceSources} from '../../api/_accounting/finance-gl-atomic-contract.js';
 import {inspectSourceBoundStockGl} from '../../dist/src/lib/finance-source-bound-stock-gl-preview.js';
 
@@ -9,7 +10,7 @@ import {inspectSourceBoundStockGl} from '../../dist/src/lib/finance-source-bound
 const PROJECT='demo-lourex-gl-qa';
 const fail=code=>{throw new Error('ALIF_22_GL_EMULATOR_'+code);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(x);
-const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const same=(a,b)=>isDeepStrictEqual(a,b);
 
 export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=false}={}){
   if(!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')
