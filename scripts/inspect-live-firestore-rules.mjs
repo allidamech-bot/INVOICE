@@ -70,7 +70,7 @@ main().catch(error=>fail(String(error?.message||'Rules inspection failed.').slic
  const manifest=join(backupRoot,stem+'.evidence.json');
  // Both files are private and exclusively created; never store a token.
  writeFileSync(destination,current,{mode:0o600,flag:'wx'});
- writeFileSync(manifest,JSON.stringify(evidence,null,2)+'\\n',{mode:0o600,flag:'wx'});
+ writeFileSync(manifest,JSON.stringify(evidence,null,2)+String.fromCharCode(10),{mode:0o600,flag:'wx'});
  status('Project: '+PROJECT);
  status('Published Firestore release: '+evidence.releaseName);
  status('Release last updated: '+(evidence.releaseUpdatedAt||'UNAVAILABLE'));
