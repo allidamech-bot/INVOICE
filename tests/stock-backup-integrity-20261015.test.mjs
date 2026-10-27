@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {createCreditNoteDraft} from '../dist/src/lib/document-lifecycle.js';
-import {createManualInventoryMovement,inventoryBalances} from '../dist/src/lib/operations.js';
+import {createManualInventoryMovement,inventoryBalances,createPurchase,createPurchaseItem,createSupplier,createExpense} from '../dist/src/lib/operations.js';
 import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {postSalesReturn} from '../dist/src/lib/sales-returns.js';
 import {postVoidedInvoiceWithPhysicalReceipt} from '../dist/src/lib/invoice-void-stock.js';
@@ -311,4 +311,87 @@ test('actual App.restore still accepts identical financial ledger with newer unr
  assert.equal(p.get().payload.treasuryEntries.length,3);
  assert.equal(p.get().payload.treasuryReconciliations.length,1);
  assert.deepEqual(p.counts(),{writes:1,syncs:1,ends:1});
+});
+
+
+function postedNonStockFinancialFacts(){
+ const {issued}=setup();
+ const service={...createBlankDocument('invoice','QA-SERVICE-FINAL',issued.company),
+   id:'qa-service-final-no-stock',status:'final',role:'standard',
+   lifecycleStatus:'active',issueDate:date,dueDate:date,
+   customerSnapshot:structuredClone(issued.documents[0].customerSnapshot)};
+ service.items=[{...service.items[0],id:'qa-service-item',descriptionEn:'Synthetic service',
+   quantity:'1',unitPrice:'90.00',stockTreatment:'non-stock',savedItemId:''}];
+ const supplier={...createSupplier(),id:'qa-restore-supplier',nameEn:'Synthetic Supplier'};
+ const purchase=createPurchase([],[supplier],'USD');
+ Object.assign(purchase,{id:'qa-posted-service-purchase',number:'PUR-QA-SERVICE',
+   date,dueDate:date,status:'posted',postedAt:date+'T12:00:00.000Z'});
+ purchase.items=[{...createPurchaseItem(),id:'qa-purchase-service-line',
+   descriptionEn:'QA consulting',savedItemId:'',quantity:'1',unitCost:'120.00'}];
+ const expense={...createExpense('USD'),id:'qa-unallocated-expense',
+   date,category:'Synthetic QA',description:'Unallocated office fee',amount:'12.00'};
+ return{...issued,documents:[...issued.documents,service],purchases:[purchase],expenses:[expense]};
+}
+
+test('stale local copy cannot erase final service invoice, posted purchase or unallocated expense',()=>{
+ const initial=postedNonStockFinancialFacts(),frozen=JSON.stringify(initial);
+ for(const key of ['documents','purchases','expenses']){
+  const older=clone(initial);
+  if(key==='documents')older.documents=older.documents.filter(doc=>doc.id!=='qa-service-final-no-stock');
+  else older[key]=[];
+  assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(initial,older),
+    'invoice-stock guard alone cannot protect the non-stock financial source');
+  assert.throws(()=>assertFinancialRestoreContinuity(initial,older),
+    /erase or modify existing payment, supplier settlement, or bank audit history/,
+    'old backup cannot delete posted financial evidence');
+  assert.equal(JSON.stringify(initial),frozen);
+ }
+});
+
+test('stale restore cannot rewrite issued non-stock invoice or posted purchase amounts and status',()=>{
+ const initial=postedNonStockFinancialFacts();
+ const changed=[
+  v=>{v.documents.find(doc=>doc.id==='qa-service-final-no-stock').items[0].unitPrice='10.00';},
+  v=>{v.documents.find(doc=>doc.id==='qa-service-final-no-stock').status='draft';},
+  v=>{v.purchases[0].items[0].unitCost='1.00';},
+  v=>{v.purchases[0].status='draft';},
+  v=>{v.expenses[0].amount='1.00';},
+  v=>{v.documents.push(clone(v.documents.find(doc=>doc.id==='qa-service-final-no-stock')));}
+ ];
+ for(const mutate of changed){
+  const candidate=clone(initial);mutate(candidate);
+  assert.throws(()=>assertFinancialRestoreContinuity(initial,candidate),
+    /erase or modify existing payment, supplier settlement, or bank audit history/);
+ }
+});
+
+test('draft-only documents and purchases may change during local restore, while posted history remains',()=>{
+ const initial=postedNonStockFinancialFacts();
+ const draft=createBlankDocument('invoice','QA-DRAFT-NONPOSTED',initial.company);
+ const draftPurchase=createPurchase([],[],'USD');
+ initial.documents.push(draft);initial.purchases.push(draftPurchase);
+ const candidate=clone(initial);
+ candidate.documents=candidate.documents.filter(d=>d.id!==draft.id);
+ candidate.purchases=candidate.purchases.filter(p=>p.id!==draftPurchase.id);
+ candidate.customers=[...candidate.customers,{id:'qa-extra-customer'}];
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(initial,reorderKeys(candidate)));
+ assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(initial,candidate));
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(emptyVault(),initial),
+   'fresh device import of a complete archive is valid');
+});
+
+test('actual App.restore refuses loss of a final non-stock invoice, posted purchase or expense before local CAS',async()=>{
+ const initial=postedNonStockFinancialFacts();
+ for(const collection of ['documents','purchases','expenses']){
+  const p=await restoreHarness(initial),old=clone(initial);
+  if(collection==='documents')old.documents=old.documents.filter(d=>d.id!=='qa-service-final-no-stock');
+  else old[collection]=[];
+  const before=JSON.stringify(p.get()),ui=JSON.stringify(p.h.state.vault);
+  await assert.rejects(p.h.restore(serialize(old)),
+    /erase or modify existing payment, supplier settlement, or bank audit history/);
+  assert.equal(JSON.stringify(p.get()),before);
+  assert.equal(JSON.stringify(p.h.state.vault),ui);
+  assert.deepEqual(p.counts(),{writes:0,syncs:0,ends:1},
+    'no persisted changes or cloud sync on rejected financial source loss');
+ }
 });
