@@ -18,7 +18,7 @@ function mentioned(message:string,value:unknown):boolean{
  * exact local READS; it never changes Controller's action/approval parser. */
 function readRequest(message:string):boolean{
  const text=normalized(message)
-  .replace(/\b(?:do not|don't|never|without)\s+(?:modify|change|edit|update|save|delete|mutate|modifying|changing|editing|saving|deleting)\b/gu,' ')
+  .replace(/\b(?:do not|don't|never|without)\s+(?:modify|change|edit|update|save|delete|mutate|modifying|changing|editing|saving|deleting)(?:\s+(?:or|and)\s+(?:modify|change|edit|update|save|delete|mutate|modifying|changing|editing|saving|deleting))*\b/gu,' ')
   .replace(/(?:لا|ولا|دون|بدون)\s+(?:اي\s+)?(?:تعديل|تعدل|تغير|تغيير|حفظ|تحفظ|حذف|تحذف|تحديث|تحدث)(?![\p{L}])/gu,' ');
  // Arabic commands need a word ending: "سجلات" (records), "حدثت" (happened)
  // and "اعتمادًا" (based on) are NOT instructions to record, update or approve.
@@ -49,7 +49,8 @@ export function namedRecordReadPlan(message:string,runtime:AiToolRuntime):AiTool
  // A new draft, save, issue, edit or other positive write request must remain
  // on its existing guarded review path. Negated writes are already stripped
  // by readRequest(); this extra check covers inflected Arabic edit commands.
- const quoteReadOnly=text.replace(/(?:لا|ولا|دون|بدون)\s+(?:اي\s+)?(?:تعديل|تعدل|تغيير|تغير|حفظ|تحفظ|حذف|تحذف|اصدار|اعتماد)(?![\p{L}])/gu,' ');
+ const quoteReadOnly=text.replace(/(?:لا|ولا|دون|بدون)\s+(?:اي\s+)?(?:تعديل|تعدل|تغيير|تغير|حفظ|تحفظ|حذف|تحذف|اصدار|اعتماد)(?![\p{L}])/gu,' ')
+  .replace(/\b(?:do not|don't|never|without)\s+(?:modify|change|edit|update|save|delete|mutate)(?:\s+(?:or|and)\s+(?:modify|change|edit|update|save|delete|mutate))*\b/gu,' ');
  const quoteWrite=/(?:\b(?:edit|change|modify|save|issue|delete|update|create|convert|post)\b|(?:^|[\s،,.])(?:اغير|اعير|ازيد|انقص|اعدل|عدّل|بدل|غيّر|غير|حدث|احفظ|اصدر|احذف|انشئ|حول|اعتمد|رحل)(?![\p{L}]))/iu.test(quoteReadOnly);
  if(quotationNumbers.length===1&&quoteFacts&&!quoteWrite){
   const quotations=vault.documents.filter(doc=>doc.kind==='proforma'&&mentioned(text,doc.number));
