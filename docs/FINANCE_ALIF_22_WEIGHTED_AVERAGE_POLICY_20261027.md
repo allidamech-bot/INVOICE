@@ -88,6 +88,16 @@ Synthetic acceptance scenario: two receipts of 4 cartons at USD 6 landed and 2 a
 
 Future requirements: company-approved functional currency; verified opening value and immutable movement chronology; approved cost cutover; durable two-device-safe atomic stock/COGS posting; signed variance and supplier-return accounting; general ledger accounts, double-entry journal, independent Trial Balance reconciliation, closed-period locks, owner audit and external source verification. Never mark 22-B/C or final 39/40 GO until these are evidenced.
 
+## Complete-source pre-cutover audit (read-only, no production authorization)
+
+`src/lib/inventory-cost-cutover-audit.ts::auditInventoryValuationCutover` checks a single product/warehouse company/branch using the **complete, unchanged source vault** and the existing issued-invoice/WAC evidence projector. The result explicitly separates `evidenceCoverage` (replay of **supported** source events) from `productionReady` (always `false`).
+
+A caller must supply a proposed policy, identified company/branch/product, explicit functional currency, interchangeability/moving weighted-average classification, method reference, proposed cutoff date and **opening-balance evidence**. The app default USD is not an authorization or functional-currency determination. For zero opening, a clearly identified zero balance record is required; for documented opening, its source must lead the original chronological stream and its operator/category/attachment pass the existing structural validator. Missing record, duplicate source, changed cost with unchanged ID, changed invoice/purchase, unsupported transfer, future movement or unrecognized FX prevents evidence-complete reporting. The entire stock movement, purchase and invoice arrays are compared to the read-only source snapshot. The actual source chronology still needs independent off-app authentication; this module cannot establish historical completeness simply from an array.
+
+The user-visible fields are meant for **an auditor's evidence inventory**, not an operational “activate weighted average” button. A supported synthetic history may produce the expected inventory/WAC/COGS invoice difference and `evidenceCoverage=COMPLETE_FOR_SUPPORTED_SCOPED_EVENTS`, while `productionReady=false` and blockers persist for actual owner authentication, published close-period authority, independently posted Inventory/COGS double-entry ledger and Trial Balance, and net realisable value evidence. None of those is supplied, proved or installed by this code. Non-interchangeable stock must use its own specific-identification route.
+
+This stage does not create a journal, modify a customer, change any permanent cost or schema, import missing opening values, read real Firestore production, publish security rules, or interact with AI. A claimed approval ID is unauthenticated until independently verified. Historic valuations remain frozen. No final GO for 22/39/40.
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
