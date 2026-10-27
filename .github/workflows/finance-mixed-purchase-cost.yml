@@ -11,6 +11,7 @@ on:
       - 'src/lib/inventory-manual-adjustment-valuation.ts'
       - 'src/lib/inventory-cost-reconciliation.ts'
       - 'src/lib/inventory-cost-cutover-audit.ts'
+      - 'src/lib/inventory-journal-integrity-preview.ts'
       - 'tests/finance-inventory-cutover-evidence-audit.test.mjs'
       - 'tests/finance-manual-stock-adjustment-22bc.test.mjs'
       - 'tests/finance-purchase-reversal-valuation-22bc.test.mjs'
