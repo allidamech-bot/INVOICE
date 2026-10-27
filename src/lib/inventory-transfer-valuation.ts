@@ -55,7 +55,7 @@ function position(result:MovingAverageResult):{quantity:bigint;value:bigint}{
   if(!/^\d+\.\d{4}$/.test(quantity)||!/^\d+\.\d{12}$/.test(value))
     stop('A valid and fully valued prior warehouse position is required.');
   const q=decimalToScaled(quantity,4),v=decimalToScaled(value,12);
-  if((q===0n)!==(v===0n))stop('Warehouse carrying value does not match stock quantity.');
+  if(q===0n&&v!==0n)stop('Empty warehouse retains an unexplained carrying value.');
   return {quantity:q,value:v};
 }
 function matchingScopes(from:MovingAverageScope,to:MovingAverageScope,row:InventoryMovementRecord):void{
