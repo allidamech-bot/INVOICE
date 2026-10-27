@@ -53,10 +53,7 @@ async function main(){
  const rulesetName=release?.rulesetName;
  if(release?.name!=='projects/'+PROJECT+'/releases/cloud.firestore'
     ||typeof rulesetName!=='string'
-    ||!new RegExp('^projects/'+PROJECT+'/rulesets/[A-Za-z0-9_-]+
-}
-main().catch(error=>fail(String(error?.message||'Rules inspection failed.').slice(0,280)));
-).test(rulesetName))
+    ||!/^projects\/lourex-invoice\/rulesets\/[A-Za-z0-9_-]+$/.test(rulesetName))
     return fail('Unexpected published Firebase release/ruleset identifier.');
  const ruleset=await get(rulesetName);
  const capturedAtUtc=new Date().toISOString();
