@@ -1,3 +1,4 @@
+import {interpretDraftMessage} from './ai-draft-message.js';
 import { diagnosticSample, normalizeDiagnostics, type DiagnosticOperation } from './ai-local-diagnostics.js';
 import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory-graph.js';
 import { financialReviewAllowed } from './ai-reliability-intelligence.js';
@@ -983,10 +984,21 @@ export function installIntelligenceRuntime(host:Host):void{
           }
         }
       }
+      const draftIntent=currentConversationMode(host)==='controller'&&kernel.artifact?interpretDraftMessage(message):{kind:'other' as const};
+      if(draftIntent.kind==='read'||draftIntent.kind==='clarify'){
+        const document=workspaceDocument(kernel,resumed.vault,requestLanguage);
+        const answer=draftIntent.kind==='read'
+          ?draftIntent.field==='subtotal'
+            ?(requestLanguage==='ar'?'إجمالي المسودة: ':'Draft subtotal: ')+(document?.subtotal??'—')+' '+(document?.currency||'')
+            :(requestLanguage==='ar'?'صلاحية المسودة: ':'Draft validity: ')+String((kernel.artifact!.proposal as any).validity||'—')
+          :(requestLanguage==='ar'?'وضّح الحقل والقيمة المطلوبة، مثل: خلي صلاحية العرض 12 يوم. لم أغيّر المسودة.':'Please specify the draft field and value, e.g. set quotation validity to 12 days. The draft is unchanged.');
+        host.setState((state:any)=>({input:'',error:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:answer}]}));
+        await flush(host);await persistKernel(host);return;
+      }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
       const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
         /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|بدي|أريد|اريد|نزّل|نزل|حمّل|حمل|اطبع|إطبع|create|give|generate|show|open|download|preview|send|need|want|print/iu.test(message);
-      if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
+      if(currentConversationMode(host)==='controller'&&pdfRequested&&draftIntent.kind!=='edit'&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)throw new Error('Document scope changed before PDF preparation.');
@@ -1116,7 +1128,7 @@ export function installIntelligenceRuntime(host:Host):void{
           const currentVault=host.__foundationVault||resumed.vault;
           const updatedDocument=workspaceDocument(next,currentVault,requestLanguage);
           const updatedSubtotal=updatedDocument?.subtotal||'';
-          const previewAsked=wantsWorkingDraftPdfRefresh(message);
+          const previewAsked=draftIntent.kind==='edit'?draftIntent.preview:wantsWorkingDraftPdfRefresh(message);
           let previewReady=false;
           if(previewAsked){
             try{prepareAiPdfPreview(next,currentVault,requestLanguage);previewReady=true;}

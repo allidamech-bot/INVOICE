@@ -6,6 +6,7 @@ async function run(engine,name){
  const browser=await engine.launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844},acceptDownloads:true});
+  await page.clock.setFixedTime(new Date('2026-10-27T12:00:00Z'));
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   await page.addInitScript(()=>{window.firebase={apps:[{}],auth:()=>({currentUser:{uid:'isolated-controller-qa',getIdToken:async()=>'fixture-token'},onAuthStateChanged:()=>()=>{}})};});
   await page.route('**/api/**',async route=>{
@@ -186,6 +187,17 @@ async function run(engine,name){
    const download=page.waitForEvent('download');await link.click();assert.equal(await(await download).failure(),null);
    return href;
   }
+  await say('خلي صلاحية العرض ۱۲ يوم');
+  const naturalValidity=await page.evaluate(async()=>{
+   const [{getAccountAssistantCacheKey},{loadAssistantState},{prepareAiPdfPreview},{resumeVaultSession}]=await Promise.all([
+    import('/dist/src/storage/db.js'),import('/dist/src/storage/assistant-store.js'),import('/dist/src/lib/ai-pdf-preview.js'),import('/dist/src/storage/vault.js')]);
+   const state=await loadAssistantState(await getAccountAssistantCacheKey('isolated-controller-qa'));
+   const thread=state.threads.find(t=>t.id===state.currentBusinessThreadId);
+   const doc=prepareAiPdfPreview(thread.kernel,(await resumeVaultSession()).vault,'en');
+   return{validity:doc.terms.validity,issueDate:doc.issueDate,dueDate:doc.dueDate,lines:doc.items.length};
+  });
+  assert.deepEqual(naturalValidity,{validity:'12 days',issueDate:'2026-10-27',dueDate:'2026-11-08',lines:85});
+  assert.equal(await count(),0,'natural validity edit and preview must not save');
   const firstPdf=await pdf();
   await say('Could you put 26 on the third product please?');
   await page.waitForFunction(()=>document.querySelector('.lxw-chat-document')?.textContent.includes('1732.00')||document.querySelector('.lxw-chat-document')?.textContent.includes('1,732.00'));
@@ -219,6 +231,11 @@ async function run(engine,name){
   assert.equal(saved.first[0].id,saved.second[0].id,'saved document identity must remain stable');
   assert.equal(saved.second[0].count,85);
   assert.equal(saved.second[0].price,'26');
+  const savedValidity=await page.evaluate(async()=>{
+   const doc=(await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents[0];
+   return{validity:doc.terms.validity,dueDate:doc.dueDate};
+  });
+  assert.deepEqual(savedValidity,{validity:'12 days',dueDate:'2026-11-08'},'approved save uses the same deterministic expiry as PDF');
   const beforeReloadMeta=await assistantMeta();
   await page.reload({waitUntil:'networkidle'});
   // This isolated fixture manually injects the canonical PDF engine. A browser
