@@ -93,7 +93,7 @@ export function auditInventoryValuationCutover(input:InventoryCostAuditInput):In
   if(vault.workspaces.filter(w=>w.id===scope.workspaceId).length!==1
     ||vault.branches.filter(b=>b.id===scope.branchId&&b.workspaceId===scope.workspaceId).length!==1
     ||vault.savedItems.filter(i=>i.id===scope.itemId
-      &&(!i.workspaceId||i.workspaceId===scope.workspaceId)).length!==1)
+      &&i.workspaceId===scope.workspaceId).length!==1)
     add('SCOPE_NOT_FOUND','Verified unique company, branch and catalog item records are required.');
   const openings=rows.filter(r=>r.type==='opening');
   if(policy){
@@ -112,13 +112,10 @@ export function auditInventoryValuationCutover(input:InventoryCostAuditInput):In
   }
   if(policy&&rows.some(r=>r.date>policy.proposedAsOfDate))
     add('INCOMPLETE_CHRONOLOGY','The scope has movements after the proposed complete-history as-of date.');
-  if(evidence.movements.length!==vault.inventoryMovements.length
-    ||evidence.movements.some((r,i)=>r.id!==vault.inventoryMovements[i]?.id))
+  if(JSON.stringify(evidence.movements)!==JSON.stringify(vault.inventoryMovements))
     add('INCOMPLETE_CHRONOLOGY','Input must reference the complete unchanged vault movement stream.');
-  if(evidence.purchases.length!==vault.purchases.length
-    ||evidence.documents.length!==vault.documents.length
-    ||evidence.purchases.some((r,i)=>r.id!==vault.purchases[i]?.id)
-    ||evidence.documents.some((r,i)=>r.id!==vault.documents[i]?.id))
+  if(JSON.stringify(evidence.purchases)!==JSON.stringify(vault.purchases)
+    ||JSON.stringify(evidence.documents)!==JSON.stringify(vault.documents))
     add('UNVERIFIED_MOVEMENTS','The supplied purchase and document sources do not match the vault.');
   let result:ReturnType<typeof reconcilePostedInvoiceCostsToWac>|undefined;
   if(!blockers.some(b=>b.code==='INCOMPLETE_CHRONOLOGY'||b.code==='UNVERIFIED_MOVEMENTS')){
