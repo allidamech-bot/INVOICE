@@ -20,8 +20,10 @@ function rejected(proposal:Proposal,error:string,ar:boolean):StagedDocumentRevis
   return{proposal,changed:false,message:(ar?'لم يتم تعديل المسودة: ':'Draft unchanged: ')+error+(ar?' يمكنك تصحيح الأمر وإعادة المحاولة.':' Correct the command and retry.')};
 }
 function quantityOrPriceChange(input:string):{index:number;field:'quantity'|'unitPrice';value:string}|null{
+  const ordinals:Record<string,string>={'الأول':'1','الاول':'1','الثاني':'2','الثالث':'3','الرابع':'4','الخامس':'5','السادس':'6'};
+  input=input.replace(/((?:الصنف|السطر|البند)\s+)(الأول|الاول|الثاني|الثالث|الرابع|الخامس|السادس)(?=\s)/u,(_all,prefix:string,ordinal:string)=>prefix+ordinals[ordinal]);
   const field='(?:سعر|السعر|كمية|الكمية|price|quantity|qty)';
-  const row='(?:الصنف|صنف|البند|بند|item|line)';
+  const row='(?:الصنف|صنف|البند|بند|السطر|سطر|item|line)';
   const head='(?:غيّر|غير|عدّل|عدل|اجعل|خلي|خلّي|change|set|update)';
   const a=new RegExp('^'+head+'\\s+('+field+')\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*[A-Z]{3})?)$','iu');
   const b=new RegExp('^'+head+'\\s+(?:ال)?'+row+'\\s*(?:رقم|number|no\\.?)?\\s*([0-9٠-٩۰-۹]{1,3})\\s+('+field+')\\s*(?:إلى|الى|to|=|بسعر)\\s*(\\S+(?:\\s*[A-Z]{3})?)$','iu');
@@ -60,7 +62,7 @@ function parseAddedLine(input:string):{name:string;quantity:string;unitPrice:str
 function sameDraftReference(proposal:AiDocumentUpdateProposal,drafting:DraftReference):boolean{
   return drafting.activeDocument?.id===proposal.documentId&&drafting.activeDocument.status==='draft';
 }
-function setLineValue(proposal:Proposal,drafting:DraftReference,index:number,field:'quantity'|'unitPrice'|'packing',value:string):Proposal{
+function setLineValue(proposal:Proposal,drafting:DraftReference,index:number,field:'quantity'|'unitPrice'|'packing'|'unit',value:string):Proposal{
   if(!Number.isInteger(index)||index<1)throw new Error('Item index must start at 1.');
   if(proposal.capability==='document.createDraft'){
     if(index>proposal.items.length)throw new Error('Selected item index is outside this draft.');
@@ -152,6 +154,19 @@ function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,dra
       return result(setLineValue(proposal,drafting,index,'packing',value),ar);
     }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
   }
+  const unitChange=input.match(/^(?:غيّر|غير|عدّل|عدل|اجعل|set|change|update)\s+(?:وحدة|الوحدة|وحدات|الوحدات|unit|units)\s+(?:الأصناف|الاصناف|الأسطر|الاسطر|السطور|الصنف|صنف|البند|البنود|السطر|سطر|items?|lines?)\s*(?:رقم|number|no\.?)?\s*([0-9٠-٩۰-۹]+(?:\s*(?:و|and|,|،)\s*[0-9٠-٩۰-۹]+)*)\s*(?:إلى|الى|to|=|:)\s*(.{1,80})$/iu);
+  if(unitChange){
+    try{
+      if(proposal.capability!=='document.createDraft')throw new Error('Edit saved-document units in the reviewed document editor.');
+      const value=unitChange[2]!.trim();
+      if(!value||value.length>40||/[\u0000-\u001f\u007f]/u.test(value)||!/^[-\p{L}\p{N} ./()%]+$/u.test(value))throw new Error('Specify one explicit unit (maximum 40 characters).');
+      const indices=unitChange[1]!.split(/\s*(?:و|and|,|،)\s*/iu).map(index=>Number(latinDigits(index)));
+      if(new Set(indices).size!==indices.length)throw new Error('Item indices must be unique.');
+      let next:Proposal=proposal;
+      for(const index of indices)next=setLineValue(next,drafting,index,'unit',value);
+      return result(next,ar);
+    }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
+  }
   const change=quantityOrPriceChange(input);
   if(change){
     try{
@@ -241,7 +256,14 @@ export function reviseAiPendingDocumentDraft(proposal:Proposal,message:string,dr
   // Explicit 'then' / 'and then' / && delimiters only; semicolons are used
   // inside the supported item-add syntax and must not split a product row.
   const parts=input.split(/\s+(?:ثم|and\s+then)\s+|\s*&&\s*/iu).map(part=>part.trim()).filter(Boolean);
-  if(parts.length<=1)return reviseSingleAiPendingDocumentDraft(proposal,message,drafting,language);
+  if(parts.length<=1){
+    const local=reviseSingleAiPendingDocumentDraft(proposal,message,drafting,language);
+    if(local)return local;
+    const explicit=/^(?:في\s+نفس\s+المسودة[،,]?\s*)?(?:غيّر|غير|عدّل|عدل|صحّح|صحح|اجعل|set|change|update|edit|correct)\s+(?:المسودة|الأسعار|الاسعار|السعر|سعر|الكمية|كمية|الكميات|الوحدة|وحدة|الوحدات|وحدات|الصنف|البند|السطر|الأسطر|الاسطر|السطور|(?:the\s+)?(?:current\s+)?draft|prices?|quantity|qty|units?|items?|lines?)(?:\s|$)/iu.test(input);
+    return explicit?rejected(proposal,language==='ar'
+      ?'حدّد السطر والقيمة صراحةً، مثل: غيّر وحدة السطر 1 إلى PCS، أو غيّر سعر الصنف 1 إلى 26 USD. افصل الأوامر بكلمة «ثم». يُحسب الإجمالي من الكميات والأسعار ولا يُعدّل مباشرةً.'
+      :'Specify the line and replacement value, e.g. change unit line 1 to PCS or change price item 1 to 26 USD. Separate commands with "and then". The subtotal is calculated from quantities and prices, not edited directly.',language==='ar'):null;
+  }
   if(parts.length>10)return rejected(proposal,'Maximum of ten exact staged commands per request.',language==='ar');
   let staged:Proposal=proposal;
   for(const part of parts){

@@ -109,6 +109,8 @@ export function resolveKernelSelection(kernel:ConversationKernel,message:string)
   selection.selectedId=row.entityId;kernel.entity={...row};return row;
 }
 export function reviseKernelDraft(kernel:ConversationKernel,proposal:Draft,message:string,drafting:AiContextEnvelope['drafting'],language:'en'|'ar'){
+  const ordinals:Record<string,string>={'الأول':'1','الاول':'1','الثاني':'2','الثالث':'3','الرابع':'4','الخامس':'5','السادس':'6'};
+  message=message.replace(/((?:الصنف|السطر|البند)\s+)(الأول|الاول|الثاني|الثالث|الرابع|الخامس|السادس)(?=\s)/u,(_all,prefix:string,ordinal:string)=>prefix+ordinals[ordinal]);
   stageKernelArtifact(kernel,proposal);const artifact=kernel.artifact!;const text=digits(message.trim());
   const reply=(p:Draft,changed:boolean,message:string)=>({proposal:p,changed,message});
   const reject=(reason:string)=>reply(proposal,false,language==='ar'?'لم أغيّر المسودة: '+reason:'Draft unchanged: '+reason);
