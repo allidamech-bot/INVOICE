@@ -40,10 +40,16 @@ for(const phrase of ['شو إجمالي العرض؟','١٢٣٤','abcxyz','خل�
 });
 test('greeting remains ordinary dialogue; semantic routing remains available for deeper requests',async()=>{
  assert.deepEqual(interpretDraftMessage('مرحبا'),{kind:'other'});
- assert.deepEqual(interpretDraftMessage('Compare these delivery options'),{kind:'other'});
+ assert.deepEqual(interpretDraftMessage('Could you put 26 on the third product please?'),{kind:'semantic'});
+ assert.deepEqual(interpretDraftMessage('How is business in 12 months?'),{kind:'other'});
  const {h,requests,dialogue}=await fixture();await h.ask('مرحبا');assert.equal(dialogue(),1);assert.equal(requests.length,0);
 });
 test('Advisor validity wording never executes a Controller edit',async()=>{
  const {h,vault,before,requests,dialogue}=await fixture();h.__intelligenceKernel.mode='advisor';const old=structuredClone(h.__intelligenceKernel.artifact);
  await h.ask('خلي صلاحية العرض 12 يوم');assert.equal(dialogue(),1);assert.equal(requests.length,0);assert.deepEqual(h.__intelligenceKernel.artifact,old);assert.deepEqual(vault,before);
+});
+
+test('ordinary numerical conversation does not enter draft planning',async()=>{
+ const {h,requests,dialogue}=await fixture();const old=structuredClone(h.__intelligenceKernel.artifact);
+ await h.ask('How is business in 12 months?');assert.equal(dialogue(),1);assert.equal(requests.length,0);assert.deepEqual(h.__intelligenceKernel.artifact,old);
 });

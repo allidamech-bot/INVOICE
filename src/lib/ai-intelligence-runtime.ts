@@ -1,4 +1,3 @@
-import {interpretDraftMessage} from './ai-draft-message.js';
 import { diagnosticSample, normalizeDiagnostics, type DiagnosticOperation } from './ai-local-diagnostics.js';
 import { buildBusinessMemoryGraph, graphKindAllowed } from './ai-business-memory-graph.js';
 import { financialReviewAllowed } from './ai-reliability-intelligence.js';
@@ -7,7 +6,7 @@ import { commercialDraftCommand, savedDocumentPreviewId, exactSavedDraftLineEdit
 import { createMission, missionStep, beginMissionStep, finishMissionStep, pendingMissionProposal, cancelMission, type MissionStep } from './ai-mission-runner.js';
 import { activeAccountStorageUid } from '../storage/db.js';
 import { synchronizeAssistantHistory } from '../cloud/assistant-history.js';
-import { newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, reconcileCancelledApprovals, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
+import { interpretDraftMessage, newConversationKernel, normalizeConversationKernel, kernelScopeKey, composeKernelMemory, resolveKernelSelection, reviseKernelDraft, stageKernelArtifact, reconcileCancelledApprovals, type ConversationKernel, type KernelScope } from './ai-conversation-kernel.js';
 import { prepareFoundationApproval, assertFoundationApproval, canonicalFoundationJson, strictAiActor, foundationActionAllowed } from './ai-foundation-approval.js';
 import { loadAssistantState, saveAssistantState, mutateAssistantState, upsertAssistantThread } from '../storage/assistant-store.js';
 import { resumeVaultSession } from '../storage/vault.js';
@@ -996,9 +995,9 @@ export function installIntelligenceRuntime(host:Host):void{
         await flush(host);await persistKernel(host);return;
       }
       const previewId=currentConversationMode(host)==='controller'?savedDocumentPreviewId(kernel,resumed.vault,message):null;
-      const pdfRequested=/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
+      const pdfRequested=draftIntent.kind!=='edit'&&/\bpdf\b|بي\s*دي\s*[إأا]ف/iu.test(message)&&
         /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|بدي|أريد|اريد|نزّل|نزل|حمّل|حمل|اطبع|إطبع|create|give|generate|show|open|download|preview|send|need|want|print/iu.test(message);
-      if(currentConversationMode(host)==='controller'&&pdfRequested&&draftIntent.kind!=='edit'&&(kernel.artifact||previewId)){
+      if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
         const fresh=await resumeVaultSession();
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)throw new Error('Document scope changed before PDF preparation.');
@@ -1089,7 +1088,7 @@ export function installIntelligenceRuntime(host:Host):void{
       // Whole-message allowlist only: a greeting followed by any instruction
       // still needs the existing draft-edit boundary. The normal dialogue owns the reply.
       const conversationalOnly=/^(?:السلام\s+عليكم|مرحبا|صباح\s+الخير|كيف\s+حالك|hello|how\s+are\s+you)[.!?؟،,\s]*$/iu.test(message.normalize('NFKC'));
-      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy&&!standaloneDocumentCreation(message)&&!conversationalOnly){
+      draftRevision: if((draftOnly||isReviewedDraft)&&message&&!host.state.attachmentBusy&&!standaloneDocumentCreation(message)&&!conversationalOnly&&draftIntent.kind!=='other'){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
         const previousId=String((kernel.artifact!.proposal as any).foundationApproval?.id||'');
         if(previousId)assertFoundationApproval(resumed.vault,kernel.artifact!.proposal);
@@ -1128,7 +1127,7 @@ export function installIntelligenceRuntime(host:Host):void{
           const currentVault=host.__foundationVault||resumed.vault;
           const updatedDocument=workspaceDocument(next,currentVault,requestLanguage);
           const updatedSubtotal=updatedDocument?.subtotal||'';
-          const previewAsked=draftIntent.kind==='edit'?draftIntent.preview:wantsWorkingDraftPdfRefresh(message);
+          const previewAsked=wantsWorkingDraftPdfRefresh(message)||(draftIntent.kind==='edit'&&draftIntent.preview);
           let previewReady=false;
           if(previewAsked){
             try{prepareAiPdfPreview(next,currentVault,requestLanguage);previewReady=true;}

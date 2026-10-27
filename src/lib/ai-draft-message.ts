@@ -3,7 +3,7 @@
 export type DraftMessageIntent =
   | {kind:'edit'; command:string; preview:boolean; days:number}
   | {kind:'read'; field:'subtotal'|'validity'}
-  | {kind:'clarify'} | {kind:'other'};
+  | {kind:'clarify'} | {kind:'semantic'} | {kind:'other'};
 function tokens(message:string):string[]{
   return message.normalize('NFKC').replace(/[\u064b-\u065f\u0670\u0640]/gu,'').replace(/[أإآ]/gu,'ا')
     .replace(/[٠-٩۰-۹]/gu,c=>String('٠١٢٣٤٥٦٧٨٩'.includes(c)?'٠١٢٣٤٥٦٧٨٩'.indexOf(c):'۰۱۲۳۴۵۶۷۸۹'.indexOf(c)))
@@ -24,7 +24,13 @@ export function interpretDraftMessage(message:string):DraftMessageIntent{
   const field=normalized.some(word=>fieldWords.has(word));
   const question=normalized.some(word=>['شو','كم','ما','what','whats'].includes(word));
   if(question&&normalized.some(word=>['اجمالي','الاجمالي','المجموع','total','subtotal'].includes(word))&&normalized.every(word=>contextWords.has(word)||['شو','كم','ما','هو','اجمالي','الاجمالي','المجموع','total','subtotal','what','whats','is'].includes(word)))return{kind:'read',field:'subtotal'};
-  if(!field)return{kind:'other'};
+  if(['لا اللي قبله','previous one','no previous one'].includes(normalized.join(' ')))return{kind:'semantic'};
+  if(!field){
+    // Only an action-bearing turn may enter the semantic draft planner.
+    // Numbers and ordinary questions alone are not edit authorization.
+    const actions=new Set([...verbs,'save','approve','confirm','احفظ','اعتمد','جهز','انشئ','اعمل','prepare','create','generate','edit','correct','put','replace','remove','delete','add','increase','reduce','undo','redo','اضف','ضيف','احذف','امسح','تراجع','ارجع','اعد','صحح','ارفع','زد','بدل','تغير','تضف','ترفع','تصحيح','تعديل']);
+    return normalized.some(word=>actions.has(word))?{kind:'semantic'}:{kind:'other'};
+  }
   if(question&&!normalized.some(word=>verbs.has(word)))return{kind:'read',field:'validity'};
   const segments=message.split(/\s+(?:ثم|و?بعدين|and\s+then|then)\s+|\s*&&\s*/iu);
   if(segments.length>2)return{kind:'clarify'};

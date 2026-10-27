@@ -1,3 +1,4 @@
+export {interpretDraftMessage} from './ai-draft-message.js';
 import type { AssistantScope, AssistantEntityType } from './ai-assistant-foundation.js';
 import type { AiDocumentDraftProposal, AiDocumentUpdateProposal, AiContextEnvelope } from '../components/AiCopilot.js';
 import { recoverMissions, type MissionState, type MissionEvidence } from './ai-mission-runner.js';

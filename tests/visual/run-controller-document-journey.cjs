@@ -9,7 +9,9 @@ async function run(engine,name){
   await page.clock.setFixedTime(new Date('2026-10-27T12:00:00Z'));
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   await page.addInitScript(()=>{window.firebase={apps:[{}],auth:()=>({currentUser:{uid:'isolated-controller-qa',getIdToken:async()=>'fixture-token'},onAuthStateChanged:()=>()=>{}})};});
+  let apiCalls=0;
   await page.route('**/api/**',async route=>{
+   apiCalls++;
    const body=route.request().postDataJSON();
    if(body?.mode==='working-draft-plan'){
     const row=body.draft.rows[2];
@@ -187,7 +189,9 @@ async function run(engine,name){
    const download=page.waitForEvent('download');await link.click();assert.equal(await(await download).failure(),null);
    return href;
   }
+  const callsBeforeValidity=apiCalls;
   await say('خلي صلاحية العرض ۱۲ يوم');
+  assert.equal(apiCalls,callsBeforeValidity,'natural validity must not call an AI provider');
   const naturalValidity=await page.evaluate(async()=>{
    const [{getAccountAssistantCacheKey},{loadAssistantState},{prepareAiPdfPreview},{resumeVaultSession}]=await Promise.all([
     import('/dist/src/storage/db.js'),import('/dist/src/storage/assistant-store.js'),import('/dist/src/lib/ai-pdf-preview.js'),import('/dist/src/storage/vault.js')]);
