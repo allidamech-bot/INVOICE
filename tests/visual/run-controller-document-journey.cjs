@@ -84,16 +84,29 @@ async function run(engine,name){
   await say('Convert this file to a quotation');
   const card=panel.locator('.lxw-chat-document');await card.waitFor({timeout:45000});
   await card.getByLabel('Draft customer',{exact:true}).selectOption('qa-buyer');
-  // Native keyboard activation avoids Chromium's click-stability race when
-  // the chat card rerenders. Verify actual disclosure state, never force-click.
-  await card.locator('summary').press('Enter');
-  await page.waitForFunction(()=>Boolean(document.querySelector('#lourex-ai-panel .lxw-chat-document details[open]')));
+  // React can replace the summary between Playwright's locator resolution
+  // and native activation. Retarget focus to the CURRENT node for each real
+  // keyboard attempt, verifying disclosure state (no force click/DOM mutation).
+  async function setItemDetailsOpen(expected){
+    const selector='#lourex-ai-panel[data-workspace-ready="true"] .lxw-chat-document details';
+    const deadline=Date.now()+15000;
+    while(Date.now()<deadline){
+      const state=await page.evaluate(sel=>{
+        const details=document.querySelector(sel);
+        return details?{open:details.open,summary:!!details.querySelector('summary')}:null;
+      },selector);
+      if(state?.open===expected)return;
+      if(state?.summary){
+        await page.evaluate(sel=>document.querySelector(sel+' summary')?.focus({preventScroll:true}),selector);
+        await page.keyboard.press('Enter');
+      }
+      await page.waitForTimeout(120);
+    }
+    throw new Error('Controller disclosure did not reach '+(expected?'open':'closed')+' after native keyboard interaction');
+  }
+  await setItemDetailsOpen(true);
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
-  // Native keyboard activation keeps the details disclosure accessible
-  // after its 85 lines have been inspected, even if chat autoscroll makes a
-  // touch click on the earlier summary temporarily unreachable.
-  // Do not force-click or mutate the DOM's open attribute.
-  await card.locator('summary').press('Enter');
+  await setItemDetailsOpen(false);
   assert.equal(await card.locator('details').first().getAttribute('open'),null,
     'keyboard activation closes the inspected source list without losing its rows');
   const count=()=>page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length);
