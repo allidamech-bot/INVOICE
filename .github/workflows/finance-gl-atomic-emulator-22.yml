@@ -1,0 +1,45 @@
+name: Finance Alif 22 isolated GL transaction emulator
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/helpers/finance-gl-qa-firestore-adapter.mjs'
+      - 'tests/finance-gl-emulator-atomic-22bc.integration.mjs'
+      - 'api/_accounting/finance-gl-atomic-contract.js'
+      - 'src/lib/finance-source-bound-stock-gl-preview.ts'
+      - '.github/workflows/finance-gl-atomic-emulator-22.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-gl-emulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa-atomic-firestore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Real Firestore transactions on an isolated demo project only
+        run: npx --yes firebase-tools@14.12.1 emulators:exec --only firestore --project demo-lourex-gl-qa --config firebase.ai-ci.json "node --test tests/finance-gl-emulator-atomic-22bc.integration.mjs"
+      - name: Boundaries — not real production accounting
+        run: |
+          echo 'Synthetic finance evidence in a local demo Firestore emulator only.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No customer/production data, owner account, production GL route, Firestore Rules publication or AI changes.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Real authenticated server posting and Plan A 22/39/40 acceptance remain NO-GO.' >> "$GITHUB_STEP_SUMMARY"
