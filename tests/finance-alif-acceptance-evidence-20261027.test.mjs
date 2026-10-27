@@ -64,8 +64,8 @@ test('missing or partial proof is NO-GO and never silently accepted',()=>{
 
 test('even a complete SYNTHETIC dossier never produces automatic production GO',()=>{
  const result=validate(fullHypotheticalEvidence());
+ assert.deepEqual(result.missing,[],'Synthetic complete dossier missing unexpected fields');
  assert.equal(result.status,'READY_FOR_INDEPENDENT_HUMAN_REVIEW_ONLY');
- assert.deepEqual(result.missing,[]);
  assert.doesNotMatch(result.status,/^GO$/);
  assert.match(result.note,/No live verification/);
 });
