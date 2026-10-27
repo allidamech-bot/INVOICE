@@ -7,6 +7,7 @@ import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {defaultWarehouseId,createWarehouseTransfer} from '../dist/src/lib/warehouses.js';
 import {calculateProfitability} from '../dist/src/lib/profitability.js';
 import {projectPostedValuationEvidence} from '../dist/src/lib/inventory-valuation-evidence.js';
+import {reconcilePostedInvoiceCostsToWac} from '../dist/src/lib/inventory-cost-reconciliation.js';
 
 function fixture(){
  const vault=emptyVault(),supplier={...createSupplier(),id:'qa-supplier-real-cost',nameEn:'Valuation QA'};
@@ -140,4 +141,81 @@ test('22-B no valuation output when a posted purchase or final invoice source is
  const state=testedSequence(),x=input(state);
  assert.throws(()=>projectPostedValuationEvidence({...x,purchases:[]}),/Receipt requires an existing posted purchase/);
  assert.throws(()=>projectPostedValuationEvidence({...x,documents:[]}),/Issue requires an active final invoice/);
+});
+
+test('22-C: source-scoped posted invoice cost differences report a precise WAC reconciliation gap',()=>{
+ const state=testedSequence(),evidence=input(state);
+ const before=JSON.stringify(state.vault);
+ const comparison=reconcilePostedInvoiceCostsToWac(evidence);
+ assert.equal(comparison.balanceQuantity,'3.0000');
+ assert.equal(comparison.balanceValue,'22.000000000000');
+ assert.equal(comparison.totalFrozenInvoiceCost,'30.00');
+ assert.equal(comparison.totalRoundedMovingAverageCost,'22.00');
+ assert.equal(comparison.totalInvoiceCostOverValuation,'8.00');
+ assert.equal(comparison.lineDifferences.length,1);
+ assert.equal(comparison.lineDifferences[0].invoiceId,state.doc.id);
+ assert.equal(comparison.lineDifferences[0].quantity,'3.0000');
+ assert.equal(comparison.lineDifferences[0].frozenInvoiceLineCost,'30.00');
+ assert.equal(comparison.lineDifferences[0].roundedMovingAverageCost,'22.00');
+ assert.equal(comparison.acceptance,'BLOCKED_NO_GENERAL_LEDGER_AND_COST_CUTOVER');
+ assert.equal(comparison.accountingJournalVerified,false);
+ assert.equal(comparison.historicalDocumentsChanged,false);
+ assert.equal(calculateProfitability(state.doc).itemCost,'30.00');
+ assert.equal(JSON.stringify(state.vault),before,'source account and invoice remain unchanged');
+});
+
+test('22-C: zero variance cannot pretend to verify an absent financial journal',()=>{
+ const state=testedSequence();
+ const data=structuredClone(input(state));
+ data.documents[0].items[0].unitCost='7.333333333333';
+ const comparison=reconcilePostedInvoiceCostsToWac(data);
+ assert.equal(comparison.totalInvoiceCostOverValuation,'0.00');
+ assert.equal(comparison.acceptance,'BLOCKED_NO_GENERAL_LEDGER_AND_COST_CUTOVER');
+ assert.equal(comparison.accountingJournalVerified,false);
+});
+
+test('22-C: incomplete final invoice unit cost never becomes a valid accountant report',()=>{
+ const state=testedSequence(),data=structuredClone(input(state));
+ data.documents[0].items[0].unitCost='';
+ assert.throws(()=>reconcilePostedInvoiceCostsToWac(data),
+  /Frozen issued invoice line is missing/);
+});
+
+test('22-C: invoice in another currency cannot be compared with functional cost without FX',()=>{
+ const state=testedSequence(),data=structuredClone(input(state));
+ data.documents[0].currency='EUR';
+ assert.throws(()=>reconcilePostedInvoiceCostsToWac(data),
+  /Invoice presentation currency is not the approved functional currency/);
+});
+
+test('22-C: missing or duplicated chronological stock evidence prevents even a comparison',()=>{
+ const state=testedSequence(),data=input(state);
+ assert.throws(()=>reconcilePostedInvoiceCostsToWac(
+  {...data,orderedMovementIds:data.orderedMovementIds.slice(1)}
+ ),/omits or adds inventory movements/);
+ const duplicated=structuredClone(data);
+ duplicated.movements.push({...duplicated.movements[0]});
+ duplicated.orderedMovementIds.push(duplicated.movements[0].id);
+ assert.throws(()=>reconcilePostedInvoiceCostsToWac(duplicated),/Duplicate or empty/);
+});
+
+test('22-C: unsupported transfer or purchase reversal must block company-wide extrapolation',()=>{
+ const state=testedSequence(),data=input(state);
+ const transfer={...createWarehouseTransfer(state.item,state.scope.warehouseId,
+  'warehouse-unvalued','1','2026-10-23'),workspaceId:'default',branchId:'main'};
+ assert.throws(()=>reconcilePostedInvoiceCostsToWac(
+  {...data,movements:[...data.movements,transfer],
+    orderedMovementIds:[...data.orderedMovementIds,transfer.id]}
+ ),/Warehouse transfer or other-location movement/);
+});
+
+test('22-C: receipt-only source returns stock balance without inventing COGS or accepted GL',()=>{
+ const state=purchase(purchase(fixture(),'first','4','5','4'),
+  'second','2','9','2');
+ const result=reconcilePostedInvoiceCostsToWac(input(state));
+ assert.equal(result.balanceQuantity,'6.0000');
+ assert.equal(result.balanceValue,'44.000000000000');
+ assert.deepEqual(result.lineDifferences,[]);
+ assert.equal(result.totalRoundedMovingAverageCost,'0.00');
+ assert.equal(result.accountingJournalVerified,false);
 });
