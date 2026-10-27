@@ -9,6 +9,34 @@ import {compiledReliabilityHarness} from './helpers/ai-reliability-runtime.mjs';
 const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
 const result=()=>({results:[],proposal:null,plan:{version:1,goal:'Synthetic',calls:[]},plannedBy:'local'});
 
+test('read-only refresh preserves a same-thread local revision replacing the kernel object',async()=>{
+ const entered=deferred(),release=deferred();let block=false;
+ const f=await compiledReliabilityHarness(emptyVault(),async()=>result(),{
+  loadAssistantMemory:async()=>{if(block){entered.resolve();await release.promise;}return{version:1,records:[],personalMemoryEnabled:true};}
+ });
+ const h=f.host();await f.runtime.refreshIntelligenceWorkspace(h);
+ const before=h.__intelligenceKernel;block=true;
+ const refreshing=f.runtime.refreshIntelligenceWorkspace(h);await entered.promise;
+ const edited=structuredClone(before);edited.turn++;
+ h.__intelligenceKernel=edited;release.resolve();
+ await refreshing;
+ assert.strictEqual(h.__intelligenceKernel,edited,'read-only refresh must retain the current local draft revision');
+ assert.deepEqual(edited.scope,before.scope);
+ assert.equal(h.state.error,'');
+});
+
+test('read-only refresh still rejects a genuinely different thread',async()=>{
+ const entered=deferred(),release=deferred();let block=false;
+ const f=await compiledReliabilityHarness(emptyVault(),async()=>result(),{
+  loadAssistantMemory:async()=>{if(block){entered.resolve();await release.promise;}return{version:1,records:[],personalMemoryEnabled:true};}
+ });
+ const h=f.host();await f.runtime.refreshIntelligenceWorkspace(h);
+ block=true;const refreshing=f.runtime.refreshIntelligenceWorkspace(h);await entered.promise;
+ h.__intelligenceKernel={...structuredClone(h.__intelligenceKernel),scope:{...h.__intelligenceKernel.scope,threadId:'unrelated-thread'}};
+ h.__lourexAssistantThreadId='unrelated-thread';release.resolve();
+ await assert.rejects(refreshing,e=>/reopen|changed/i.test(e.message));
+});
+
 test('planning discards a result after its kernel was invalidated, without a raw TypeError',async()=>{
  const planned=deferred(),started=deferred();
  const {runtime,host,vault}=await compiledReliabilityHarness(emptyVault(),async()=>{started.resolve();return planned.promise;});
