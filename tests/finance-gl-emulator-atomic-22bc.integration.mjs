@@ -220,4 +220,67 @@ test('no source digest substitution or second account access via claimed scope',
  assert.deepEqual(await snapshot(f),before);
 });
 
+
+test('same matching SHA cannot substitute forged purchase costs for the immutable published Vault',async()=>{
+ const f=await seed(),before=await snapshot(f),source=(await f.srcRef.get()).data();
+ const forged=plain(source);
+ forged.evidence.movements[0].unitCost='900.00';
+ // Synchronize BOTH the supplied source SHA and the stored QA ledger digest:
+ // only direct comparison with the published workspace can reject this forgery.
+ await f.srcRef.set(forged);
+ const forgedHash=fingerprintSyntheticFinanceSources(forged.evidence);
+ await f.ledgerRef.update({sourceSha256:forgedHash});
+ await assert.rejects(service.execute(f.actor,{
+  ...f.command,expectedSourceSha256:forgedHash
+ }),/SOURCE_NOT_IN_PUBLISHED_WORKSPACE/);
+ const after=await snapshot(f);
+ assert.equal(after.ledger.ledgerVersion,0);
+ assert.equal(after.journals.length,0);
+ assert.equal(after.receipts.length,0);
+ assert.equal(before.ledger.ledgerVersion,after.ledger.ledgerVersion);
+});
+
+test('corrupt original immutable period generation refuses any GL even when QA hash matches',async()=>{
+ const f=await seed(),meta=(await f.root.collection('workspace').doc('meta').get()).data();
+ const chunk=f.root.collection('periodGenerations').doc(meta.revision)
+  .collection('chunks').doc('chunk-'+meta.revision+'-00000');
+ const original=(await chunk.get()).data();
+ await chunk.set({...original,data:'e30='});
+ await assert.rejects(service.execute(f.actor,f.command),
+  /PUBLISHED_WORKSPACE_INVALID/);
+ const after=await snapshot(f);
+ assert.equal(after.ledger.ledgerVersion,0);
+ assert.equal(after.journals.length,0);
+ assert.equal(after.receipts.length,0);
+});
+
+function firebaseOwnerQaToken(actorUid){
+ const payload={sub:actorUid,user_id:actorUid,aud:PROJECT,
+  iss:'https://securetoken.google.com/'+PROJECT,
+  iat:1,exp:4102444800,
+  firebase:{identities:{},sign_in_provider:'password'}};
+ return Buffer.from(JSON.stringify({alg:'none',typ:'JWT'})).toString('base64url')+'.'
+  +Buffer.from(JSON.stringify(payload)).toString('base64url')+'.';
+}
+test('published repo Firestore Rules refuse owner-client writes under accounting/control QA paths',async()=>{
+ const f=await seed(),token=firebaseOwnerQaToken(f.actor.uid);
+ for(const path of ['financeGlQaSources/'+scopeKey,
+    'financeGlQaLedgers/'+scopeKey,'financeGlQaJournals/QA-gl-0',
+    'financeGlQaReceipts/'+f.command.opId]){
+  const url='http://'+process.env.FIRESTORE_EMULATOR_HOST
+   +'/v1/projects/'+PROJECT+'/databases/(default)/documents/users/'
+   +f.actor.uid+'/accounting/control/'+path;
+  const response=await fetch(url,{
+   method:'PATCH',
+   headers:{authorization:'Bearer '+token,'content-type':'application/json'},
+   body:JSON.stringify({fields:{format:{stringValue:'FORGED_CLIENT_SOURCE'}}})
+  });
+  assert.equal(response.status,403,path+': rejected by Firestore Rules');
+ }
+ const untouched=await snapshot(f);
+ assert.equal(untouched.ledger.ledgerVersion,0);
+ assert.equal(untouched.journals.length,0);
+ assert.equal(untouched.receipts.length,0);
+});
+
 test.after(async()=>{await deleteApp(app);});
