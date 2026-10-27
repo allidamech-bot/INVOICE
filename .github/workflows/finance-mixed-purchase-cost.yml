@@ -14,6 +14,8 @@ on:
       - 'src/lib/inventory-journal-integrity-preview.ts'
       - 'src/lib/inventory-minor-unit-rounding-preview.ts'
       - 'src/lib/inventory-nrv-preview.ts'
+      - 'src/lib/inventory-nrv-journal-integrity-preview.ts'
+      - 'tests/finance-inventory-nrv-journal-integrity-22bc.test.mjs'
       - 'tests/finance-inventory-nrv-preview-22bc.test.mjs'
       - 'tests/finance-minor-unit-inventory-residual.test.mjs'
       - 'tests/finance-inventory-cutover-evidence-audit.test.mjs'
@@ -44,4 +46,4 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Exact mixed-cost purchase/issue ledger evidence
-        run: node --test tests/finance-mixed-purchase-cost-provenance.test.mjs tests/finance-moving-average-22bc.test.mjs tests/finance-posted-ledger-projection-22bc.test.mjs tests/finance-warehouse-transfer-value-22bc.test.mjs tests/finance-purchase-reversal-valuation-22bc.test.mjs tests/finance-manual-stock-adjustment-22bc.test.mjs tests/finance-inventory-cutover-evidence-audit.test.mjs tests/finance-minor-unit-inventory-residual.test.mjs tests/finance-inventory-nrv-preview-22bc.test.mjs
+        run: node --test tests/finance-mixed-purchase-cost-provenance.test.mjs tests/finance-moving-average-22bc.test.mjs tests/finance-posted-ledger-projection-22bc.test.mjs tests/finance-warehouse-transfer-value-22bc.test.mjs tests/finance-purchase-reversal-valuation-22bc.test.mjs tests/finance-manual-stock-adjustment-22bc.test.mjs tests/finance-inventory-cutover-evidence-audit.test.mjs tests/finance-minor-unit-inventory-residual.test.mjs tests/finance-inventory-nrv-preview-22bc.test.mjs tests/finance-inventory-nrv-journal-integrity-22bc.test.mjs
