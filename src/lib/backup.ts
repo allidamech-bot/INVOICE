@@ -184,6 +184,38 @@ export function assertPostedStockRestoreContinuity(current:VaultPayload,replacem
   for(const id of documentIds)requireSame(existingDocuments.get(id),restoredDocuments.get(id));
 }
 
+/**
+ * A plain local archive is not permission to silently roll back already saved
+ * customer/supplier settlements, cash/bank postings or reconciliation audit.
+ * Unlike restoring onto an empty fresh device, replacing an existing account
+ * must preserve every pre-existing financial row byte-for-byte (ignoring JSON
+ * object key order). This is an integrity guard, NOT a recovery/reversal API.
+ */
+export function assertFinancialRestoreContinuity(current:VaultPayload,replacement:VaultPayload):void{
+  const collections=['payments','supplierPayments','treasuryEntries','treasuryReconciliations'] as const;
+  const content=(value:unknown)=>JSON.stringify(value,(_key,item)=>
+    item&&typeof item==='object'&&!Array.isArray(item)
+      ?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
+  const fail=()=>{throw new Error('This older local copy would erase or modify existing payment, supplier settlement, or bank audit history. Existing account data was not replaced.');};
+  for(const key of collections){
+    const prior=current[key];
+    if(!prior.length)continue;
+    const incoming=new Map<string,unknown>();
+    // A duplicated ID in either version makes history reconciliation ambiguous;
+    // it is never safe to accept whichever duplicate happened to appear last.
+    for(const row of replacement[key]){
+      if(typeof row.id!=='string'||!row.id||incoming.has(row.id))fail();
+      incoming.set(row.id,row);
+    }
+    const observed=new Set<string>();
+    for(const row of prior){
+      if(typeof row.id!=='string'||!row.id||observed.has(row.id))fail();
+      observed.add(row.id);
+      if(content(row)!==content(incoming.get(row.id)))fail();
+    }
+  }
+}
+
 export async function readPlainBackup(file:File):Promise<VaultPayload>{
   if(file.size>50*1024*1024)throw new Error('Local backup is larger than 50 MB.');
   let parsed:any;
