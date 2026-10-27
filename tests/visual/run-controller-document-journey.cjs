@@ -84,13 +84,65 @@ async function run(engine,name){
   await say('Convert this file to a quotation');
   const card=panel.locator('.lxw-chat-document');await card.waitFor({timeout:45000});
   await card.getByLabel('Draft customer',{exact:true}).selectOption('qa-buyer');
-  await card.locator('summary').click();
+  // Diagnostic: collect read-only focus and remount evidence if Chromium
+  // cannot activate a disclosure. Do not alter the DOM, click from JavaScript,
+  // or skip the accessibility assertion.
+  await page.evaluate(()=>{
+    const sel='.lxw-chat-document .lxw-document-extra';
+    const observed={added:0,removed:0,focusin:0,keydown:0,click:0,toggle:0,events:[]};
+    const belongs=node=>node instanceof Element&&(node.matches?.(sel)||node.querySelector?.(sel));
+    const watch=(type,fn)=>document.addEventListener(type,event=>{
+      const el=event.target;
+      if(!(el instanceof Element)||!el.closest(sel))return;
+      observed[type]++;observed.events.push(type+':'+el.tagName+':'+String(el.closest(sel)?.open));
+      if(observed.events.length>32)observed.events.shift();
+      fn?.(event);
+    },true);
+    watch('focusin');
+    watch('keydown');
+    watch('click');
+    watch('toggle');
+    new MutationObserver(records=>{for(const record of records){for(const node of record.addedNodes)if(belongs(node))observed.added++;for(const node of record.removedNodes)if(belongs(node))observed.removed++;}})
+      .observe(document.querySelector('#lourex-ai-panel'),{subtree:true,childList:true});
+    window.__qaDisclosureTrace=observed;
+  });
+  // React can replace the summary between Playwright's locator resolution
+  // and native activation. Retarget focus to the CURRENT node for each real
+  // keyboard attempt, verifying disclosure state (no force click/DOM mutation).
+  async function setItemDetailsOpen(expected){
+    const selector='#lourex-ai-panel[data-workspace-ready="true"] .lxw-chat-document details';
+    const deadline=Date.now()+15000;
+    while(Date.now()<deadline){
+      const state=await page.evaluate(sel=>{
+        const details=document.querySelector(sel);
+        return details?{open:details.open,summary:!!details.querySelector('summary')}:null;
+      },selector);
+      if(state?.open===expected)return;
+      if(state?.summary){
+        await page.evaluate(sel=>document.querySelector(sel+' summary')?.focus({preventScroll:true}),selector);
+        await page.keyboard.press('Enter');
+      }
+      await page.waitForTimeout(120);
+    }
+    const trace=await page.evaluate(()=>{
+      const details=document.querySelector('#lourex-ai-panel .lxw-chat-document .lxw-document-extra');
+      const panel=document.querySelector('#lourex-ai-panel');
+      const status=panel?.querySelector('[role="alert"],[role="status"],.lxw-load-error');
+      const card=panel?.querySelector('.lxw-chat-document');
+      return {trace:window.__qaDisclosureTrace||null,activeElement:document.activeElement?.tagName,
+        activeClass:document.activeElement?.className,panelReady:panel?.getAttribute('data-workspace-ready'),
+        panelMode:panel?.getAttribute('data-workspace-mode'),
+        panelPreview:(panel?.innerText||'').slice(0,1200),
+        visibleStatus:(status?.innerText||'').slice(0,500),cardExists:!!card,
+        cardArtifact:card?.getAttribute('data-artifact-id'),
+        summaryCount:document.querySelectorAll('#lourex-ai-panel .lxw-chat-document .lxw-document-extra>summary').length,
+        detailsOpen:details?.open,visible:details?!!details.getClientRects().length:false};
+    });
+    throw new Error('Controller disclosure did not reach '+(expected?'open':'closed')+' after native keyboard interaction: '+JSON.stringify(trace));
+  }
+  await setItemDetailsOpen(true);
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
-  // Native keyboard activation keeps the details disclosure accessible
-  // after its 85 lines have been inspected, even if chat autoscroll makes a
-  // touch click on the earlier summary temporarily unreachable.
-  // Do not force-click or mutate the DOM's open attribute.
-  await card.locator('summary').press('Enter');
+  await setItemDetailsOpen(false);
   assert.equal(await card.locator('details').first().getAttribute('open'),null,
     'keyboard activation closes the inspected source list without losing its rows');
   const count=()=>page.evaluate(async()=> (await(await import('/dist/src/storage/vault.js')).resumeVaultSession()).vault.documents.length);
@@ -300,4 +352,4 @@ async function run(engine,name){
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
  }finally{await browser.close();}
 }
-(async()=>{await run(webkit,'WebKit');await run(chromium,'Chromium');})().catch(e=>{console.error(e);process.exitCode=1});
+(async()=>{await run(chromium,'Chromium');await run(webkit,'WebKit');})().catch(e=>{console.error(e);process.exitCode=1});

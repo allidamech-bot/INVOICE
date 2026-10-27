@@ -30,6 +30,51 @@ import { conversationModePermitsCapability, normalizeAiConversationMode, type Ai
 
 // Compatibility boundary only. Product logic lives in typed kernel/gateway modules.
 type Host=any;
+/** A result belongs to one installed kernel, not merely a reusable thread ID. */
+type TurnOwner={kernel:ConversationKernel;scope:string;mode:AiConversationMode;generation:unknown;controller:AbortController};
+class ConversationTurnError extends Error {}
+function changedTurn(host:Host):ConversationTurnError{
+  return new ConversationTurnError(host.props.language==='ar'
+    ?'تغيّرت المحادثة أو الحساب أثناء الطلب. أعد فتح المحادثة ثم حاول مجددًا؛ لم أنفذ إجراءً.'
+    :'Conversation or account changed during the request. Reopen the conversation and retry; no action was executed.');
+}
+function captureTurn(host:Host):TurnOwner{
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(!kernel)throw new ConversationTurnError(host.props.language==='ar'?'المحادثة غير جاهزة. أعد فتحها ثم حاول مجددًا.':'Conversation is not ready. Reopen it and retry.');
+  if(host.__intelligenceNeedsReopen)throw changedTurn(host);
+  return {kernel,scope:kernelScopeKey(kernel.scope),mode:currentConversationMode(host),generation:host.__workspaceLoadGeneration,controller:new AbortController()};
+}
+function ownsTurn(host:Host,owner:TurnOwner,vault=host.__foundationVault as VaultPayload|undefined):boolean{
+  return host.mounted!==false&&!host.__intelligenceNeedsReopen&&host.__intelligenceKernel===owner.kernel&&
+    host.__workspaceLoadGeneration===owner.generation&&currentConversationMode(host)===owner.mode&&
+    kernelScopeKey(owner.kernel.scope)===owner.scope&&Boolean(vault&&kernelScopeKey(scopeFor(host,vault))===owner.scope);
+}
+function assertTurn(host:Host,owner:TurnOwner,vault?:VaultPayload):void{
+  if(!ownsTurn(host,owner,vault)){owner.controller.abort();throw changedTurn(host);}
+  if(owner.controller.signal.aborted)throw cancelledTurn(host);
+}
+/** Read-only refresh tolerates local draft revisions of the same scoped thread.
+ * Executable requests still use strict object identity in assertTurn. */
+function assertRefreshScope(host:Host,owner:TurnOwner,vault=host.__foundationVault as VaultPayload|undefined):void{
+  const active=host.__intelligenceKernel as ConversationKernel|undefined;
+  if(host.mounted===false||host.__intelligenceNeedsReopen||!active||
+    host.__workspaceLoadGeneration!==owner.generation||
+    currentConversationMode(host)!==owner.mode||
+    kernelScopeKey(active.scope)!==owner.scope||
+    !vault||kernelScopeKey(scopeFor(host,vault))!==owner.scope)throw changedTurn(host);
+}
+function cancelledTurn(host:Host):ConversationTurnError{return new ConversationTurnError(host.props.language==='ar'?'أُلغي الطلب. لم أنفذ إجراءً.':'Request cancelled. No action was executed.');}
+/** Release the caller even if an obsolete provider ignores its abort signal. */
+async function awaitTurn<T>(host:Host,owner:TurnOwner,run:()=>Promise<T>):Promise<T>{
+  let abort:()=>void=()=>undefined;
+  const cancelled=new Promise<never>((_,reject)=>{abort=()=>reject(ownsTurn(host,owner)?cancelledTurn(host):changedTurn(host));owner.controller.signal.addEventListener('abort',abort,{once:true});});
+  try{assertTurn(host,owner);const result=await Promise.race([run(),cancelled]);assertTurn(host,owner);return result;}
+  finally{owner.controller.signal.removeEventListener('abort',abort);}
+}
+function cancelIntelligenceTurn(host:Host):void{
+  host.__intelligenceTurn?.controller.abort();host.__intelligencePlanningTurn?.controller.abort();
+  host.cancelRequest?.();host.requestController?.abort();host.requestController=null;
+}
 let storeQueue:Promise<unknown>=Promise.resolve();
 // Older conversation owners can supply messages without stable IDs. Retain
 // one fallback ID per live message object to prevent duplicate history on
@@ -70,11 +115,41 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
           // the safe local kernel; simply setting it to undefined would leave
           // workspaceVisible(false) on a permanent "Loading…" screen.
           const active=Boolean(host.state.busy||host.applying||host.__foundationTurnBusy||host.pending);
-          host.__intelligenceKernel=undefined;host.__foundationReceipts=[];
-          host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceOpen:false});
+          host.__intelligenceNeedsReopen=true;
+          cancelIntelligenceTurn(host);
+          // Cloud history carries no executable kernel. Keep a local-only,
+          // explicitly unapproved recovery draft rather than losing its rows or
+          // undo history when the remote thread advances or is deleted.
+          const recovery=kernel?.artifact?structuredClone(kernel):undefined;
+          if(recovery){
+            recovery.scope={...recovery.scope,threadId:'ai-recovery-'+crypto.randomUUID()};
+            for(const mission of recovery.missions||[])cancelMission(mission);
+            const approval=(recovery.artifact!.proposal as any).foundationApproval?.id;
+            if(approval)retireWorkingApproval(recovery,approval);
+            delete (recovery.artifact!.proposal as any).foundationApproval;
+            for(const proposal of [...recovery.artifact!.undo,...recovery.artifact!.redo])delete (proposal as any).foundationApproval;
+            // Retain the snapshot in memory too if encrypted cache storage fails.
+            host.__intelligenceRecovery=recovery;
+          }
+          host.__intelligenceKernel=undefined;host.__foundationReceipts=[];host.__foundationToolOutcomes=[];host.__foundationPreviewStaged=undefined;
+          host.setState({proposal:null,review:null,__workspaceReviewedProposal:null,__workspaceOpen:false,
+            __workspaceLoadError:host.props.language==='ar'
+              ?'تغيّرت المحادثة على جهاز آخر. أعد فتحها؛ المسودة غير المحفوظة محفوظة محليًا للاسترداد.'
+              :'Conversation changed on another device. Reopen it; any unsaved draft is retained locally for recovery.'});
+          await mutateAssistantState(key,current=>{
+            if(activeAccountStorageUid()!==uid)return current;
+            const remote=current.threads.find(row=>row.id===scope.threadId);
+            if(remote?.kernel&&kernel)remote.kernel=reconcileCancelledApprovals(remote.kernel,kernel);
+            if(!recovery)return current;
+            const saved=upsertAssistantThread(current,{threadId:recovery.scope.threadId,scope:'business',workspaceId:scope.workspaceId,branchId:scope.branchId,messages:[]});
+            saved.thread.kernel=recovery;saved.thread.title='Recovered unsaved draft';
+            saved.state.currentBusinessThreadId=current.currentBusinessThreadId;return saved.state;
+          });
+          if(activeAccountStorageUid()!==uid||generation!==host.__workspaceLoadGeneration||host.mounted===false)return;
+          if(host.__intelligenceRecovery===recovery)host.__intelligenceRecovery=undefined;
           if(active){
             needsReopen=true;
-            host.setState({__workspaceLoadError:'Conversation changed on another device. Reopen it before further actions.'});
+            // Keep the localized reopen warning set before cache I/O.
           }else{
             if(wasDeleted){
               host.__lourexAssistantThreadId='';
@@ -107,7 +182,7 @@ function queueHistorySync(host:Host,uid:string,key:CryptoKey,scope?:KernelScope,
   });
 }
 
-const flush=(host:Host)=>new Promise<void>(resolve=>host.setState({},resolve));
+const flush=async(host:Host):Promise<void>=>{await new Promise<void>(resolve=>host.setState({},resolve));if(host.__intelligenceTurn)assertTurn(host,host.__intelligenceTurn);};
 const currentConversationMode=(host:Host):AiConversationMode=>normalizeAiConversationMode(host.__intelligenceKernel?.mode);
 export const currentAiExperiencePreferences=(host:Host):AiConversationExperiencePreferences=>normalizeAiConversationPreferences(host.__aiConversationPreferences||DEFAULT_AI_CONVERSATION_PREFERENCES);
 export function currentAiInterfaceLanguage(host:Host):'ar'|'en'{
@@ -122,15 +197,19 @@ function scopeFor(host:Host,vault:VaultPayload):KernelScope{
 async function persistKernel(host:Host,requireScope=false):Promise<void>{
   if(host.__foundationTurnBusy&&host.state.__workspaceTurnPending&&!host.state.busy&&!host.state.attachmentBusy)host.setState({__workspaceTurnSaving:true});
   if(!host.__intelligenceKernel||host.__intelligenceKernel.scope.scope==='temporary')return;
-  const kernel=structuredClone(host.__intelligenceKernel) as ConversationKernel;
+  if(host.__intelligenceNeedsReopen)return;
+  const installed=host.__intelligenceKernel;
+  const generation=host.__workspaceLoadGeneration,mode=normalizeAiConversationMode(installed.mode);
+  const kernel=structuredClone(installed) as ConversationKernel;
   const receipts=structuredClone(host.__foundationReceipts||[]);
   const messages=(host.state.messages||[]).map((row:any)=>({id:stableHistoryMessageId(row),role:row.role,text:row.text,...(row.financialReadout?{financialReadout:row.financialReadout}:{})}));
   const run=async()=>{const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready to save this conversation. Sign in and retry.');
-    if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope)){
+    if(host.mounted===false||host.__intelligenceNeedsReopen||host.__intelligenceKernel!==installed||normalizeAiConversationMode(installed.mode)!==mode||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope)){
       if(requireScope)throw new Error('Account, company or conversation changed before the declined approval was saved.');
       return;
     }
     await mutateAssistantState(resumed.key,current=>{
+      if(host.mounted===false||host.__intelligenceNeedsReopen||host.__intelligenceKernel!==installed||normalizeAiConversationMode(installed.mode)!==mode||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return current;
       const earlier=current.threads.find(row=>row.id===kernel.scope.threadId&&row.scope===kernel.scope.scope&&row.workspaceId===kernel.scope.workspaceId&&row.branchId===kernel.scope.branchId);
       // Kernel/approval writes can happen before the conversation history UI
       // has hydrated after remount. Preserve already persisted messages rather
@@ -177,21 +256,32 @@ function reconcileSavedConversationDocument(host:Host,kernel:ConversationKernel,
 }
 async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
   if(!host.__lourexAssistantThreadId)host.__lourexAssistantThreadId='ai-thread-'+crypto.randomUUID();
-  const scope=scopeFor(host,vault);
-  if(host.__intelligenceKernel&&kernelScopeKey(host.__intelligenceKernel.scope)===kernelScopeKey(scope))return;
+  let scope=scopeFor(host,vault);
+  if(!host.__intelligenceNeedsReopen&&host.__intelligenceKernel&&kernelScopeKey(host.__intelligenceKernel.scope)===kernelScopeKey(scope))return;
+  const installed=host.__intelligenceKernel;
   const generation=host.__workspaceLoadGeneration;
   const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
+  if(host.mounted===false||host.__intelligenceKernel!==installed||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))throw changedTurn(host);
   const store=scope.scope==='temporary'?null:await loadAssistantState(resumed.key);
   // Superseded loads may finish after the user retries, changes thread or
   // switches account. Never let an old cache read install its scoped kernel.
-  if(generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))
+  if(host.mounted===false||host.__intelligenceKernel!==installed||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))
     throw new Error('Conversation changed while loading. Retry loading.');
+  if(store?.deletedThreads?.[scope.threadId]){
+    // Reopening a remotely deleted conversation starts a new identity. Its
+    // tombstone remains intact; any unsaved artifact is a separate recovery.
+    host.__lourexAssistantThreadId='ai-thread-'+crypto.randomUUID();
+    scope=scopeFor(host,resumed.vault);
+    host.setState({messages:[],proposal:null,review:null,__workspaceReviewedProposal:null});
+  }
   host.__aiConversationPreferences=normalizeAiConversationPreferences(store?.aiPreferences);
   const thread=store?.threads.find(row=>row.id===scope.threadId&&row.scope===scope.scope&&row.workspaceId===scope.workspaceId&&row.branchId===scope.branchId);
   // A truly new thread defaults to Controller. Existing legacy threads without
   // valid mode metadata fail closed to Advisor; never infer elevated permission.
   host.__intelligenceKernel=thread?normalizeConversationKernel(thread.kernel,scope):newConversationKernel(scope);
+  host.__intelligenceNeedsReopen=false;
   host.__foundationReceipts=thread?.foundationReceipts||[];
+  const hydrated=host.__intelligenceKernel as ConversationKernel;
   reconcileSavedConversationDocument(host,host.__intelligenceKernel,vault);
   host.__foundationVault=vault;
   // Read-only Advisor must never surface or re-stage a stored execution proposal.
@@ -199,8 +289,10 @@ async function hydrateKernel(host:Host,vault:VaultPayload):Promise<void>{
     if(host.state.proposal||host.state.review){host.setState({proposal:null,review:null});await flush(host);}
   }else{
     if(!host.__intelligenceKernel.artifact){const pending=[...(host.__intelligenceKernel.missions||[])].reverse().find((m:any)=>m.steps.some((s:any)=>s.status==='needs_approval'));if(pending){host.setState({proposal:pendingMissionProposal(pending),review:null});await flush(host);}}
-    if(host.__intelligenceKernel.artifact){const proposal=resumableWorkingApproval(host.__intelligenceKernel,vault);const review=proposal?reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en'):null;host.setState({proposal,review});await flush(host);}
+    if(host.__intelligenceKernel!==hydrated||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))throw changedTurn(host);
+    if(hydrated.artifact){const proposal=resumableWorkingApproval(hydrated,vault);const review=proposal?reviewAiDocumentProposal(proposal,workspaceDrafting(vault,proposal.capability==='document.updateDraft'?proposal.documentId:''),host.props.language==='ar'?'ar':'en'):null;host.setState({proposal,review});await flush(host);}
   }
+  if(host.__intelligenceKernel!==hydrated||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(scope))throw changedTurn(host);
 }
 /** Refresh when opening/switching workspace, not only when sending a model request. */
 export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
@@ -222,10 +314,13 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   // scope AFTER hydration, otherwise the fresh-session check compares the old
   // empty thread ID with the newly generated ID and the UI never becomes ready.
   const scope=scopeFor(host,resumed.vault);
+  const refreshOwner=captureTurn(host);assertRefreshScope(host,refreshOwner,resumed.vault);
   if(generation!==host.__workspaceLoadGeneration)throw new Error('Conversation changed while loading. Retry loading.');
   if(scope.scope==='business'){
     const [memory,threads]=await Promise.all([loadAssistantMemory(resumed.key),loadAssistantState(resumed.key)]);
+    assertRefreshScope(host,refreshOwner);
     const fresh=await resumeVaultSession();if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==kernelScopeKey(scope))throw new Error('Scope changed while reading business memory.');
+    assertRefreshScope(host,refreshOwner,fresh.vault);
     host.__businessMemories=scopedAssistantMemories(memory,'business',scope.workspaceId,scope.branchId);
     host.__businessThreads=threads.threads.filter(t=>t.scope==='business'&&t.workspaceId===scope.workspaceId&&t.branchId===scope.branchId&&(!t.kernel?.scope.accountId||t.kernel.scope.accountId===scope.accountId)).map(t=>({id:t.id,title:t.title,summary:t.summary,updatedAt:t.updatedAt,hasArtifact:Boolean(t.kernel?.artifact),artifactTitle:t.kernel?.artifact?.proposal.label||'',mode:normalizeAiConversationMode(t.kernel?.mode)}));
   }else{host.__businessMemories=[];host.__businessThreads=[];}
@@ -236,6 +331,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
   const live=await resumeVaultSession();
   if(!live||generation!==host.__workspaceLoadGeneration||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(scope))
     throw new Error('Account, conversation or workspace changed during loading.');
+  assertRefreshScope(host,refreshOwner,live.vault);
   const proposal=host.state.proposal;
   if(currentConversationMode(host)==='controller'&&(proposal?.capability==='document.createDraft'||proposal?.capability==='document.updateDraft')){
     const alreadyApplied=(host.__foundationReceipts||[]).some((receipt:any)=>
@@ -247,6 +343,7 @@ export async function refreshIntelligenceWorkspace(host:Host):Promise<void>{
     }
   }
   await flush(host);
+  assertRefreshScope(host,refreshOwner);
   // Sync inert thread messages without importing executable approvals or drafts.
   const uid=activeAccountStorageUid();if(uid&&scope.scope!=='temporary')queueHistorySync(host,uid,resumed.key,scope,generation,true);
 }
@@ -510,6 +607,12 @@ function recordStageDiagnostic(host:Host,operation:DiagnosticOperation,start:num
   kernel.diagnostics=normalizeDiagnostics([...(kernel.diagnostics||[]),sample]);
 }
 async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){
+  const owner=captureTurn(host);assertTurn(host,owner);
+  const abort=()=>owner.controller.abort();input.signal?.addEventListener('abort',abort,{once:true});
+  if(input.signal?.aborted)abort();
+  host.__intelligencePlanningTurn=owner;
+  try{
+  assertTurn(host,owner);
   const scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope),intakeStarted=performance.now();
   const requestedMode=currentConversationMode(host);
   const preferences=currentAiExperiencePreferences(host);
@@ -518,8 +621,8 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
   recordStageDiagnostic(host,'intake',intakeStarted,scope||'');
   let result:AiToolOrchestrationResult|null;
   try{
-    result=await orchestrateAiToolRequest({...input,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}});
-  }catch(error){recordStageDiagnostic(host,'planning',planningStarted,scope||'','failed');throw error;}
+    result=await awaitTurn(host,owner,()=>orchestrateAiToolRequest({...input,signal:owner.controller.signal,language:responseLanguage,context:{...input.context,conversationMode:requestedMode}}));
+  }catch(error){if(!ownsTurn(host,owner))throw changedTurn(host);recordStageDiagnostic(host,'planning',planningStarted,scope||'','failed');throw error;}
   const planFailed=Boolean(result?.planningFailure);
   const actionFailed=planFailed||Boolean(result?.results.some(row=>!row.ok));
   recordStageDiagnostic(host,'planning',planningStarted,scope||'',planFailed?'failed':'completed');
@@ -529,7 +632,7 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
     recordStageDiagnostic(host,'proposal',performance.now()-result.stageDurations.proposalMs,scope||'',planFailed?'failed':'completed');
   const resultStarted=performance.now();
   if(input.signal?.aborted)return null;
-  const live=await resumeVaultSession();if(!live||kernelScopeKey(scopeFor(host,live.vault))!==kernelScopeKey(host.__intelligenceKernel.scope)||requestedMode!==currentConversationMode(host))throw new Error('Company, branch, account or conversation mode changed during planning. No action prepared.');
+  const live=await awaitTurn(host,owner,()=>resumeVaultSession());if(!live)throw changedTurn(host);assertTurn(host,owner,live.vault);
   if(result){
     // The final legacy formatter must preserve the reply locale already resolved
     // from the user's question and independent AI answer preference.
@@ -593,21 +696,23 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
   ].includes(row.tool))??false;
   if(result&&!result.proposal&&!result.workingDraft&&!(result as any).foundationSelectionText&&
     !hasExactEntityEvidence&&wantsExplanatoryAnalysis&&result.results.length&&result.results.every(row=>row.ok&&['read','calculate'].includes(row.class))){
-    const expectedScope=kernelScopeKey(host.__intelligenceKernel.scope);
+    const expectedScope=owner.scope;
     try{
-      const reply=await requestAiJson('/api/ai-advisor-v2',{
+      const reply=await awaitTurn(host,owner,()=>requestAiJson('/api/ai-advisor-v2',{
         message:input.message,
         context:{...input.context,conversationMode:'advisor',language:responseLanguage,
           aiResponseDetail:preferences.detail,verifiedReadEvidence:result.results,
           conversationWorkingMemory:intelligenceRequestMessage(host,'','')}
-      },input.signal,8_000);
+      },owner.controller.signal,8_000));
+      assertTurn(host,owner);
       if(typeof reply?.answer==='string'&&reply.answer.trim()&&!reply.proposal)
         (result as any).foundationSelectionText=reply.answer.trim().slice(0,7000);
     }catch{
       // Provider failure retains the actual retrieved facts and existing UI.
       // Never erase a valid result or turn explanation failure into an action.
     }
-    const fresh=await resumeVaultSession();
+    const fresh=await awaitTurn(host,owner,()=>resumeVaultSession());
+    if(fresh)assertTurn(host,owner,fresh.vault);
     if(input.signal?.aborted||!fresh||host.mounted===false||requestedMode!==currentConversationMode(host)||
       kernelScopeKey(scopeFor(host,fresh.vault))!==expectedScope)
       throw new Error('Conversation changed while explaining records.');
@@ -616,6 +721,7 @@ async function runIntelligenceTools(host:Host,input:Parameters<typeof orchestrat
   recordStageDiagnostic(host,'result',resultStarted,scope||'',actionFailed?'failed':'completed');
   host.__foundationLastPlanningFailure=planFailed;
   return result;
+  }finally{input.signal?.removeEventListener('abort',abort);if(host.__intelligencePlanningTurn===owner)host.__intelligencePlanningTurn=undefined;}
 }
 function stampProposal(host:Host,proposal:any,vault:VaultPayload):void{
   if(!proposal)return;
@@ -792,15 +898,18 @@ export function installIntelligenceRuntime(host:Host):void{
   const ask=host.ask.bind(host),approve=host.approveProposal.bind(host);
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
-    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.__foundationLastPlanningFailure=false;host.setState({__workspaceTurnPending:true,__workspaceTurnSaving:false});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';
+    if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.__foundationLastPlanningFailure=false;host.setState({__workspaceTurnPending:true,__workspaceTurnSaving:false});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';let owner:TurnOwner|undefined;
+    const initialUid=activeAccountStorageUid(),initialThread=host.__lourexAssistantThreadId,initialGeneration=host.__workspaceLoadGeneration,initialMode=host.__intelligenceKernel?.mode;
+    const checkLoading=()=>{if(activeAccountStorageUid()!==initialUid||host.__lourexAssistantThreadId!==initialThread||host.__workspaceLoadGeneration!==initialGeneration||(host.__intelligenceKernel&&host.__intelligenceKernel.mode!==initialMode)||host.mounted===false)throw changedTurn(host);};
     try{
-      await host.__lourexLoadPromise;const resumed=await resumeVaultSession();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
+      await host.__lourexLoadPromise;checkLoading();const resumed=await resumeVaultSession();checkLoading();if(!resumed)throw new Error('Account workspace is not ready. Sign in and retry.');
       // Existing lifecycle owns history; resolve it before loading structured references.
       const scope=scopeFor(host,resumed.vault);
       if(host.__intelligenceKernel&&host.__intelligenceKernel.scope.accountId!==scope.accountId){host.__intelligenceKernel=undefined;host.__foundationReceipts=[];await host.__lourexSetScope(scope.scope);}
       const expected=scope.scope==='personal'?'personal':scope.scope==='temporary'?'temporary':scope.workspaceId+'|'+scope.branchId;
       if(host.__lourexAssistantWorkspaceKey!==expected)await host.__lourexSetScope(scope.scope);
-      await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
+      checkLoading();await hydrateKernel(host,resumed.vault);host.__foundationVault=resumed.vault;
+      owner=captureTurn(host);assertTurn(host,owner,resumed.vault);host.__intelligenceTurn=owner;
       strictAiActor(resumed.vault);const kernel=host.__intelligenceKernel as ConversationKernel;turnScope=kernelScopeKey(kernel.scope);kernel.turn++;
       if(currentConversationMode(host)==='controller'&&kernel.artifact){
         const approved=resumableWorkingApproval(kernel,resumed.vault);
@@ -822,7 +931,7 @@ export function installIntelligenceRuntime(host:Host):void{
       if(savedLineEdit){
         if(kernel.artifact)throw new Error('An unsaved working draft is already active. Finish or discard it before preparing a different saved-document edit.');
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot edit documents.');
-        const fresh=await resumeVaultSession();
+        const fresh=await awaitTurn(host,owner,()=>resumeVaultSession());if(fresh)assertTurn(host,owner,fresh.vault);
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)
           throw new Error('The document scope changed. Nothing was modified.');
         const rechecked=currentSavedDraftQuantityEdit(kernel,fresh.vault,message,host.props.activeDocument?.id)||exactSavedDraftLineEdit(kernel,fresh.vault,message);
@@ -925,7 +1034,7 @@ export function installIntelligenceRuntime(host:Host):void{
                   {id:crypto.randomUUID(),role:'assistant',text:question}]}));
               await flush(host);await persistKernel(host);return;
             }
-            const fresh=await resumeVaultSession();
+            const fresh=await awaitTurn(host,owner,()=>resumeVaultSession());if(fresh)assertTurn(host,owner,fresh.vault);
             if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||
               host.__intelligenceKernel!==kernel||currentConversationMode(host)!=='controller')
               throw new Error('Company, branch or conversation changed before price review. No data was modified.');
@@ -999,7 +1108,7 @@ export function installIntelligenceRuntime(host:Host):void{
         /أعطني|اعطني|أرسل|ارسل|افتح|أفتح|اعرض|أعرض|اظهر|أظهر|طلع|هات|جهز|جهّز|أنشئ|انشئ|اعمل|اعملي|ورجيني|اصنع|بدي|أريد|اريد|نزّل|نزل|حمّل|حمل|اطبع|إطبع|create|give|generate|show|open|download|preview|send|need|want|print/iu.test(message);
       if(currentConversationMode(host)==='controller'&&pdfRequested&&(kernel.artifact||previewId)){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
-        const fresh=await resumeVaultSession();
+        const fresh=await awaitTurn(host,owner,()=>resumeVaultSession());if(fresh)assertTurn(host,owner,fresh.vault);
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope)throw new Error('Document scope changed before PDF preparation.');
         prepareAiPdfPreview(kernel,fresh.vault,requestLanguage,previewId||'');
         host.__foundationVault=fresh.vault;
@@ -1014,7 +1123,7 @@ export function installIntelligenceRuntime(host:Host):void{
       }
       if(previewId){
         if(!graphKindAllowed(strictAiActor(resumed.vault).role,'document'))throw new Error('This role cannot review documents.');
-        const fresh=await resumeVaultSession();
+        const fresh=await awaitTurn(host,owner,()=>resumeVaultSession());if(fresh)assertTurn(host,owner,fresh.vault);
         if(!fresh||kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||savedDocumentPreviewId(kernel,fresh.vault,message)!==previewId)throw new Error('Document scope changed. Ask for the preview again.');
         host.__foundationVault=fresh.vault;
         host.setState((state:any)=>({input:'',error:'',__workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:previewId,messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'?'فتحت معاينة المستند للقراءة فقط. لم أعدّل أو أحفظ أي سجل.':'Opened a read-only document preview. No record changed or saved.'}]}));
@@ -1027,7 +1136,7 @@ export function installIntelligenceRuntime(host:Host):void{
         const next=structuredClone(kernel);applyWorkspaceCommand(next,resumed.vault,commercialCommand);
         const p=next.artifact!.proposal as any;delete p.foundationApproval;
         if(previousApproval?.id)retireWorkingApproval(next,previousApproval.id);
-        host.__intelligenceKernel=next;host.setState((state:any)=>({input:'',proposal:null,review:null,__workspaceReviewedProposal:null,error:'',
+        assertTurn(host,owner);host.__intelligenceKernel=next;owner.kernel=next;host.setState((state:any)=>({input:'',proposal:null,review:null,__workspaceReviewedProposal:null,error:'',
           __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:'',
           messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},
             {id:crypto.randomUUID(),role:'assistant',text:requestLanguage==='ar'
@@ -1098,12 +1207,12 @@ export function installIntelligenceRuntime(host:Host):void{
         const drafting=workspaceDrafting(resumed.vault,original.capability==='document.updateDraft'?original.documentId:'');
         let result=reviseKernelDraft(next,original,message,drafting,requestLanguage);
         if(!result){
-          const controller=new AbortController();host.requestController=controller;
+          const controller=owner.controller;host.requestController=controller;
           host.setState({busy:true,error:''});await flush(host);
           try{
-            const response=await requestAiJson('/api/ai-inbox',{mode:'working-draft-plan',conversationMode:'controller',
-              scope:'business',message,draft:workspaceDocument(kernel,resumed.vault,requestLanguage),customers:drafting.customers.map(row=>({id:row.id,name:row.name}))},controller.signal,30000);
-            const fresh=await resumeVaultSession();
+            const response=await awaitTurn(host,owner,()=>requestAiJson('/api/ai-inbox',{mode:'working-draft-plan',conversationMode:'controller',
+              scope:'business',message,draft:workspaceDocument(kernel,resumed.vault,requestLanguage),customers:drafting.customers.map(row=>({id:row.id,name:row.name}))},controller.signal,30000));
+            const fresh=await awaitTurn(host,owner,()=>resumeVaultSession());if(fresh)assertTurn(host,owner,fresh.vault);
             if(controller.signal.aborted||!fresh||currentConversationMode(host)!=='controller'||host.__intelligenceKernel!==kernel||
               kernelScopeKey(scopeFor(host,fresh.vault))!==turnScope||
               response.plan?.artifactId!==kernel.artifact?.id||response.plan?.revision!==kernel.artifact?.revision)
@@ -1147,7 +1256,7 @@ export function installIntelligenceRuntime(host:Host):void{
                 :' PDF preview is not yet available because the draft is incomplete.'))
             :(requestLanguage==='ar'?' يمكنك متابعة التعديل أو طلب PDF دون حفظ.'
               :' You can continue revising or request PDF without saving.');
-          host.__intelligenceKernel=next;
+          assertTurn(host,owner);host.__intelligenceKernel=next;owner.kernel=next;
           host.setState((state:any)=>({input:'',error:'',proposal:null,review:null,__workspaceReviewedProposal:null,
             __workspaceOpen:false,__workspacePane:'chat',__workspaceTab:'preview',__workspaceSavedId:'',
             __workspacePdfAutoStart:pdfIdentity,
@@ -1165,11 +1274,11 @@ export function installIntelligenceRuntime(host:Host):void{
       }
 
       if(!kernel.artifact){const selected=resolveKernelSelection(kernel,message);if(selected){const scoped=scopeVault(resumed.vault);const rows=selected.entityType==='customer'?scoped.customers:selected.entityType==='supplier'?scoped.suppliers:selected.entityType==='product'?scoped.savedItems:selected.entityType==='document'?scoped.documents:scoped.purchases;if(!rows.some(row=>row.id===selected.entityId)){kernel.selection=undefined;kernel.entity=undefined;throw new Error('The displayed selection is stale. Search again.');}host.setState((state:any)=>({input:'',messages:[...state.messages,{id:crypto.randomUUID(),role:'user',text:message},{id:crypto.randomUUID(),role:'assistant',text:selected.label}]}));await flush(host);await persistKernel(host);return;}}
-      await ask(raw);await flush(host);
+      await awaitTurn(host,owner,()=>ask(raw));await flush(host);
       // The response owner is done. Keep the durability/duplicate-send guard,
       // but do not describe the remaining history write as model processing.
       host.setState({__workspaceTurnSaving:true});
-      await host.__lourexAssistantPersistQueue;
+      await awaitTurn(host,owner,()=>Promise.resolve(host.__lourexAssistantPersistQueue));
       if(kernelScopeKey(scopeFor(host,resumed.vault))!==kernelScopeKey(kernel.scope))return;
       const previewStaged=host.__foundationPreviewStaged;host.__foundationPreviewStaged=undefined;
       if(previewStaged&&previewStaged.scope===kernelScopeKey(kernel.scope)&&kernel.artifact?.id===previewStaged.artifactId&&kernel.artifact?.revision===previewStaged.revision){
@@ -1183,22 +1292,30 @@ export function installIntelligenceRuntime(host:Host):void{
         if(proposal){host.setState({proposal:null,review:null});await flush(host);}
       }else if(proposal){stampProposal(host,proposal,resumed.vault);stageReviewedMission(kernel,proposal);if(proposal.capability==='document.createDraft'||proposal.capability==='document.updateDraft')stageKernelArtifact(kernel,proposal);}
       await persistKernel(host);
-    }catch(error){host.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
-    finally{host.__foundationTurnBusy=false;host.setState({__workspaceTurnPending:false,__workspaceTurnSaving:false});await recordDiagnostic(host,'turn',started,turnScope);}
+    }catch(error){if(!owner||ownsTurn(host,owner)||host.__intelligenceNeedsReopen)host.setState({busy:false,error:error instanceof ConversationTurnError?error.message:error instanceof Error?error.message:'Request failed. Retry safely.'});}
+    finally{
+      const current=owner&&ownsTurn(host,owner)&&!owner.controller.signal.aborted;
+      if(host.__intelligenceTurn===owner)host.__intelligenceTurn=undefined;
+      if(!current)cancelIntelligenceTurn(host);
+      host.__foundationTurnBusy=false;host.pending=false;host.requestController=null;
+      host.setState({busy:false,__workspaceTurnPending:false,__workspaceTurnSaving:false});
+      if(current)await recordDiagnostic(host,'turn',started,turnScope);
+    }
   };
 }
 
 async function recordDiagnostic(host:Host,operation:DiagnosticOperation,start:number,expectedScope:string,override?:'failed'|'uncertain'):Promise<void>{
-  const k=host.__intelligenceKernel as ConversationKernel|undefined;if(!k||!expectedScope||kernelScopeKey(k.scope)!==expectedScope)return;
+  const k=host.__intelligenceKernel as ConversationKernel|undefined;if(host.__intelligenceNeedsReopen||!k||!expectedScope||kernelScopeKey(k.scope)!==expectedScope||!host.__foundationVault||kernelScopeKey(scopeFor(host,host.__foundationVault))!==expectedScope)return;
   const state=override||(operation==='approval'&&(host.__foundationReceipts||[]).at(-1)?.state==='uncertain'?'uncertain':operation==='turn'&&host.__foundationLastPlanningFailure?'failed':host.state.error?'failed':'completed');
   k.diagnostics=normalizeDiagnostics([...(k.diagnostics||[]),diagnosticSample(operation,start,state)]);
   // Diagnostics are not a prerequisite to an already verified business commit.
+  const diagnosticOwner=captureTurn(host);
   const persistenceStarted=performance.now();let persistenceFailed=false;
   try{await persistKernel(host);}catch{persistenceFailed=true;}
   const latest=host.__intelligenceKernel as ConversationKernel|undefined;
-  if(latest&&kernelScopeKey(latest.scope)===expectedScope)
+  if(latest===k&&ownsTurn(host,diagnosticOwner)&&kernelScopeKey(latest.scope)===expectedScope)
     latest.diagnostics=normalizeDiagnostics([...(latest.diagnostics||[]),diagnosticSample('persistence',persistenceStarted,persistenceFailed?'failed':'completed')]);
 }
 export async function updateIntelligenceWorkspace(host:Host,command:WorkspaceCommand):Promise<void>{if(host.state.busy||host.applying||host.__foundationTurnBusy||host.__workspaceCommandBusy)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);try{await runIntelligenceWorkspace(host,command);}catch(error){host.setState({error:error instanceof Error?error.message:String(error)});}if(command.kind!=='clear-diagnostics')await recordDiagnostic(host,'workspace',start,scope||'');}
 export async function intelligenceApprove(host:Host,proposal:any,apply:()=>Promise<unknown>):Promise<unknown>{if(host.__foundationApprovalBusy||host.__workspaceCommandBusy||!proposal)return;const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);const result=await runIntelligenceApproval(host,proposal,apply);await recordDiagnostic(host,'approval',start,scope||'');return result;}
-export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){const start=performance.now(),scope=host.__intelligenceKernel?.scope&&kernelScopeKey(host.__intelligenceKernel.scope);let state:'failed'|'uncertain'|undefined;try{const result=await runIntelligenceTools(host,input);if(input.signal?.aborted)state='uncertain';else if(result?.planningFailure||result?.results.some(row=>!row.ok))state='failed';return result;}catch(error){state='failed';throw error;}finally{await recordDiagnostic(host,'tools',start,scope||'',state);}}
+export async function intelligenceTools(host:Host,input:Parameters<typeof orchestrateAiToolRequest>[0]){const diagnosticOwner=host.__intelligenceKernel&&!host.__intelligenceNeedsReopen?captureTurn(host):undefined;const start=performance.now(),scope=diagnosticOwner?.scope;let state:'failed'|'uncertain'|undefined;try{const result=await runIntelligenceTools(host,input);if(input.signal?.aborted)state='uncertain';else if(result?.planningFailure||result?.results.some(row=>!row.ok))state='failed';return result;}catch(error){state='failed';throw error;}finally{if(diagnosticOwner&&ownsTurn(host,diagnosticOwner))await recordDiagnostic(host,'tools',start,scope||'',state);}}
