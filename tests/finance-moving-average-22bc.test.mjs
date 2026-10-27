@@ -102,7 +102,7 @@ test('22-B: negative stock, same-date duplicate ids and unsorted event sequence 
     [receipt('r',1,'1','6'),receipt('r',2,'1','8')],
     [receipt('r',1,'1','6'),receipt('x',1,'1','8')],
     [receipt('r',2,'1','6'),receipt('x',1,'1','8')],
-    [receipt('r',1,'1','6',{date:'2026-10-21'}),receipt('x',2,'1','8','USD',{date:'2026-10-20'})],
+    [receipt('r',1,'1','6','USD',{date:'2026-10-21'}),receipt('x',2,'1','8','USD',{date:'2026-10-20'})],
     [receipt('r',1,'1.00001','6')],
     [receipt('r',1,'0','6')],
     [receipt('r',1,'1','-4')],
