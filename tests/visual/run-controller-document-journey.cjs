@@ -84,7 +84,10 @@ async function run(engine,name){
   await say('Convert this file to a quotation');
   const card=panel.locator('.lxw-chat-document');await card.waitFor({timeout:45000});
   await card.getByLabel('Draft customer',{exact:true}).selectOption('qa-buyer');
-  await card.locator('summary').click();
+  // Native keyboard activation avoids Chromium's click-stability race when
+  // the chat card rerenders. Verify actual disclosure state, never force-click.
+  await card.locator('summary').press('Enter');
+  await page.waitForFunction(()=>Boolean(document.querySelector('#lourex-ai-panel .lxw-chat-document details[open]')));
   assert.match(await card.innerText(),/85/);assert.match(await card.innerText(),/1,?700\.00/);
   // Native keyboard activation keeps the details disclosure accessible
   // after its 85 lines have been inspected, even if chat autoscroll makes a
