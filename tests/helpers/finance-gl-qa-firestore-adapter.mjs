@@ -1,6 +1,7 @@
 import {isDeepStrictEqual} from 'node:util';
 import {prototypeFinanceGlAtomicAppend,fingerprintSyntheticFinanceSources} from '../../api/_accounting/finance-gl-atomic-contract.js';
 import {inspectSourceBoundStockGl} from '../../dist/src/lib/finance-source-bound-stock-gl-preview.js';
+import {verifyFirebaseIdToken} from '../../api/_ai/firebase-auth.js';
 import {validateMeta,decodeWorkspace} from '../../api/_accounting/period-format.js';
 
 /**
@@ -135,5 +136,42 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
         return{...result,emulatorCommitted:true,productionReady:false};
       });
     }
+  };
+}
+
+/**
+ * Test-only HTTP-style authentication boundary for the QA Firestore adapter.
+ *
+ * Uses the same SIGNATURE-verifying Firebase ID token parser as the existing
+ * production period handler, but does NOT register any API endpoint or
+ * provision real Google credentials. QA fixture keys are injected through
+ * the test's mock JWKS fetch, not accepted from the request.
+ *
+ * Source documents, financial roles, and production account membership
+ * remain UNATTESTED. A valid signature is not finance posting approval.
+ */
+export function createFinanceGlQaVerifiedOwnerGateway(service){
+  if(!service||typeof service.execute!=='function')fail('QA_SERVICE_REQUIRED');
+  const commandKeys=new Set(['scopeKey','opId','workspaceId','branchId',
+    'expectedLedgerVersion','expectedPeriodGeneration',
+    'expectedSourceSha256','append']);
+  return async function qaAuthenticatedFinanceGlRequest(request){
+    if(request?.method!=='POST')fail('METHOD_NOT_ALLOWED');
+    if(!request||typeof request!=='object'
+      ||Object.keys(request).some(k=>!['method','headers','command'].includes(k)))
+      fail('INJECTED_REQUEST_IDENTITY');
+    const authorization=request.headers?.authorization;
+    const bearer=typeof authorization==='string'
+      ?authorization.match(/^Bearer ([A-Za-z0-9._~-]{100,8192})$/):null;
+    if(!bearer)fail('AUTH_REQUIRED');
+    let verified;
+    try{verified=await verifyFirebaseIdToken(bearer[1]);}
+    catch{fail('AUTH_INVALID');}
+    if(verified.role!=='owner')fail('QA_OWNER_REQUIRED');
+    const command=request.command;
+    if(!command||typeof command!=='object'||Array.isArray(command)
+      ||Object.keys(command).some(k=>!commandKeys.has(k)))
+      fail('COMMAND_IDENTITY_INJECTION');
+    return service.execute({uid:verified.uid,role:verified.role},command);
   };
 }
