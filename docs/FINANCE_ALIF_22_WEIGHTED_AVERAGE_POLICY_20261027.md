@@ -68,6 +68,16 @@ Example: 4 cartons purchased at USD 6, 2 at USD 10, stock USD 44 / 6. Reverse th
 
 No existing stock posting/GL rules, invoice cost snapshots, Firestore data, FX records or written periods are changed. Full cost/return eligibility, supplier credits, discount/cost allocations, real proof of quantity returned and simultaneous-device consistency require separate acceptance. **Alif 22-B/C remains PARTIAL / NO GO for live accounting.**
 
+## Evidence-backed manual stock-count adjustment preview
+
+`src/lib/inventory-manual-adjustment-valuation.ts::previewManualStockAdjustment` is an isolated read-only acceptance calculator. Physical count **shortages** are valued by the currently verified moving-average carrying cost, **not by the catalog's latest unit cost** and never silently booked as sales COGS. A positive count correction requires an explicitly documented, same-currency unit cost. Both paths require the existing manual inventory evidence validator, with attachment, operator, reason category and supporting description. The adjustment affects only the *simulated* carrying amount and quantity, not live or historical records.
+
+The preview explicitly reports `requiresSeparateJournal=true`. It does **not** select a loss, inventory-gain, expense, supplier, transfer, FX, tax or period posting account. No inventory GL journal is created, and it does not authorize posting a physical adjustment. Linked manual corrections and previously issued invoice voids remain unsupported pending an independent rule and audit.
+
+Examples (synthetic): six cartons carried at USD 44 have a USD 7.333333333333/unit average. A documented count shortage of two cartons decreases inventory's modeled book value by USD 14.666666666667, without changing any prior sales COGS. A supported positive count adjustment of two cartons at USD 8 increases modeled inventory value by USD 16, and needs a separate authorized offsetting financial entry.
+
+All modules created in this stage are QA-only. Full stock-book-versus-general-ledger reconciliation, IFRS lower-of-cost/NRV, functional-currency confirmation, dated immutable ordering, published cloud rules evidence, and operator acceptance remain outstanding.
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
