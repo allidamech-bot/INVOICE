@@ -166,9 +166,16 @@ async function run(engine,name){
    const href=await link.getAttribute('href');
    const result=await page.evaluate(async href=>{
     const bytes=new Uint8Array(await(await fetch(href)).arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
-    return {size:bytes.length,header:binary.slice(0,5),pages:(binary.match(/\/Type\s*\/Page\b/g)||[]).length};
+    const [{loadGeneratedAiPdfRenderer},{displayDate}]=await Promise.all([import('/dist/src/lib/ai-pdf-preview.js'),import('/dist/src/lib/id.js')]);
+    const renderer=await loadGeneratedAiPdfRenderer();const document=await renderer.getDocument({data:bytes}).promise;
+    const first=await document.getPage(1);const content=await first.getTextContent();
+    const normalize=value=>value.replace(/[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu,'');
+    const text=content.items.map(item=>item.str||'').join(' ');
+    const hasExpiry=normalize(text).includes(normalize(displayDate('2026-11-08','en')));
+    await document.destroy();
+    return {size:bytes.length,header:binary.slice(0,5),pages:(binary.match(/\/Type\s*\/Page\b/g)||[]).length,hasExpiry};
    },href);
-   assert.equal(result.header,'%PDF-');assert.ok(result.size>10000);assert.ok(result.pages>1);
+   assert.equal(result.header,'%PDF-');assert.ok(result.size>10000);assert.ok(result.pages>1);assert.ok(result.hasExpiry,'actual PDF text must contain the November 8 expiry');
    // WebKit/Chromium must display the *actual generated PDF bytes*, not a second A4 DOM.
    const viewer=page.getByRole('dialog',{name:'Actual generated PDF preview'});
    await viewer.waitFor({timeout:30000});
