@@ -79,7 +79,7 @@ test('22 adjustment: invalid physical evidence, operator or reason always reject
 
 test('22 adjustment: new receiving units require an explicit cost and same currency',()=>{
   for(const cost of ['', '-5','bad','1.1234567890123'])
-    assert.throws(()=>previewManualStockAdjustment(scope,prior,adjustment('1',cost)),
+    assert.throws(()=>previewManualStockAdjustment(scope,prior,adjustment('1','8',{unitCost:cost})),
       /Positive adjustment needs/);
   assert.throws(()=>previewManualStockAdjustment(scope,prior,adjustment('1','8',
     {currency:'EUR'})),/Currency adjustment/);
@@ -95,7 +95,7 @@ test('22 adjustment: scope, chronology, replay, reverse-correction and precision
     adjustment('1','8',change)),/ALIF_22_ADJUSTMENT_NOT_READY/);
   assert.throws(()=>previewManualStockAdjustment(scope,
     [...prior,{...prior[0],id:'qa-count-01',sequence:3}],
-    adjustment('1','8')),/Movement identity/);
+    adjustment('1','8')),/Duplicate or out-of-order/);
 });
 
 test('22 adjustment: negative count uses historical WAC after a sale, but does not post new sales COGS',()=>{
