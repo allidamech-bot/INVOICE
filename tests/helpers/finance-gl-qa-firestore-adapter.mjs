@@ -1,6 +1,7 @@
 import {isDeepStrictEqual} from 'node:util';
 import {prototypeFinanceGlAtomicAppend,fingerprintSyntheticFinanceSources} from '../../api/_accounting/finance-gl-atomic-contract.js';
 import {inspectSourceBoundStockGl} from '../../dist/src/lib/finance-source-bound-stock-gl-preview.js';
+import {validateMeta,decodeWorkspace} from '../../api/_accounting/period-format.js';
 
 /**
  * Test-only adapter. Importable exclusively by Node integration tests.
@@ -26,9 +27,12 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
       const root=db.collection('users').doc(identity.uid);
       const controlRef=root.collection('accounting').doc('control');
       const manifestRef=root.collection('workspace').doc('meta');
-      const sourceRef=root.collection('financeGlQaSources').doc(command.scopeKey);
-      const ledgerRef=root.collection('financeGlQaLedgers').doc(command.scopeKey);
-      const receiptRef=root.collection('financeGlQaReceipts').doc(command.opId);
+      // Must be underneath the server-owned 'accounting' namespace: the
+      // currently checked-in Rules prohibit ALL client writes there. Never
+      // reuse root-level QA namespaces as future live financial accounts.
+      const sourceRef=controlRef.collection('financeGlQaSources').doc(command.scopeKey);
+      const ledgerRef=controlRef.collection('financeGlQaLedgers').doc(command.scopeKey);
+      const receiptRef=controlRef.collection('financeGlQaReceipts').doc(command.opId);
 
       return db.runTransaction(async tx=>{
         // All reads must occur before any transaction writes.
@@ -46,7 +50,30 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
           ||source.ownerUid!==identity.uid||source.sourceRevision!==meta.revision
           ||!source.controls||!source.evidence||!id(source.workspaceId)
           ||!id(source.branchId))fail('ORIGINAL_SOURCE_AUTHORITY_MISSING');
+        // Merely matching the manifest revision is NOT proof that the source
+        // records came from that immutable, server-enrolled workspace.
+        // Read the original immutable generation chunks within this transaction,
+        // validate their canonical SHA and compare COMPLETE source arrays.
+        const checkedMeta=validateMeta(meta);
+        if(checkedMeta.chunkStorage!=='period-generations-v1'
+          ||checkedMeta.chunkCount>24)fail('QA_SOURCE_SIZE_UNSUPPORTED');
+        const chunkRefs=Array.from({length:checkedMeta.chunkCount},(_,i)=>
+          root.collection('periodGenerations').doc(checkedMeta.revision)
+            .collection('chunks')
+            .doc('chunk-'+checkedMeta.revision+'-'+String(i).padStart(5,'0')));
+        const chunkDocs=await tx.getAll(...chunkRefs);
+        let published;
+        try{published=decodeWorkspace(checkedMeta,
+          chunkDocs.map(snap=>snap.exists?snap.data():null));}
+        catch{fail('PUBLISHED_WORKSPACE_INVALID');}
         const controls=source.controls,evidence=source.evidence;
+        if(!same(evidence.purchases,published.purchases)
+          ||!same(evidence.documents,published.documents)
+          ||!same(evidence.movements,published.inventoryMovements)
+          ||!Array.isArray(evidence.orderedMovementIds)
+          ||evidence.orderedMovementIds.length!==published.inventoryMovements.length
+          ||evidence.orderedMovementIds.some((id,i)=>id!==published.inventoryMovements[i]?.id))
+          fail('SOURCE_NOT_IN_PUBLISHED_WORKSPACE');
         if(controls.workspaceId!==source.workspaceId
           ||controls.branchId!==source.branchId
           ||evidence.scope?.workspaceId!==source.workspaceId
@@ -76,7 +103,7 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
           fail('QA_LEDGER_CAPACITY');
         const priorRefs=fullState.journals.map(j=>{
           if(!id(j.id))fail('INVALID_OLD_JOURNAL');
-          return root.collection('financeGlQaJournals').doc(j.id);
+          return controlRef.collection('financeGlQaJournals').doc(j.id);
         });
         if(priorRefs.length){
           const docs=await tx.getAll(...priorRefs);
@@ -93,7 +120,7 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
         }
 
         const appendedRefs=command.append.map(j=>
-          root.collection('financeGlQaJournals').doc(j.id));
+          controlRef.collection('financeGlQaJournals').doc(j.id));
         const exists=await tx.getAll(...appendedRefs);
         if(exists.some(snap=>snap.exists))fail('EXISTING_JOURNAL_COLLISION');
 
