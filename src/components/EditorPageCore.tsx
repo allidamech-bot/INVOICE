@@ -7,7 +7,7 @@ import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument, validateStoredFinalForOutput } from '../lib/documents.js';
 import { getDocumentReadiness } from '../lib/readiness.js';
 import { documentQualityIssues } from '../lib/document-quality.js';
-import { applySavedItemSuggestionToLine, bindCatalogItemToLine, editDocumentItemField, findSavedItemMatch, historySuggestions, mergeSavedItemSelections, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
+import { applySavedItemSuggestionToLine, bindCatalogItemToLine, changeDraftCurrencyCosts, editDocumentItemField, findSavedItemMatch, historySuggestions, mergeSavedItemSelections, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
 import { customerMatchesSearch } from '../lib/customer-search.js';
 import { addDaysIso, daysBetweenIso, displayDate, isIsoDate, normalizeValidityDays } from '../lib/id.js';
 import { applyCustomerCommercialDefaults, applyPaymentTermPreset, bankAccountIdForDetails, bankAccountsForCompany, bankDetailsForId, customerCreditStatus, paymentTermPresetById, pricingSuggestedUnitPrice } from '../lib/commercial-controls.js';
@@ -275,7 +275,7 @@ export class EditorPage extends React.Component<Props,State>{
     }finally{this.revisionPending=false;}
   };
   private convert=()=>{if(this.validateCurrent())void this.props.onConvert(this.state.doc);};
-  private field=(key:keyof LourexDocument,value:any)=>this.mutate(d=>({...d,[key]:value}));
+  private field=(key:keyof LourexDocument,value:any)=>this.mutate(d=>key==='currency'?changeDraftCurrencyCosts(d,String(value)):{...d,[key]:value});
   private issueDate=(value:string)=>this.mutate(d=>{
     let next={...d,issueDate:value};
     if(d.kind==='proforma'||d.kind==='proforma-invoice'){
