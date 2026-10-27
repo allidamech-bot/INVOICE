@@ -265,6 +265,7 @@ function firebaseOwnerQaToken(actorUid){
 test('published repo Firestore Rules refuse owner-client writes under accounting/control QA paths',async()=>{
  const f=await seed(),token=firebaseOwnerQaToken(f.actor.uid);
  for(const path of ['financeGlQaSources/'+scopeKey,
+    'financeGlQaOwnerSessions/'+scopeKey,
     'financeGlQaLedgers/'+scopeKey,'financeGlQaJournals/QA-gl-0',
     'financeGlQaReceipts/'+f.command.opId]){
   const url='http://'+process.env.FIRESTORE_EMULATOR_HOST
@@ -285,7 +286,14 @@ test('published repo Firestore Rules refuse owner-client writes under accounting
 
 
 test('signed Firebase owner identity alone can request the QA GL, without trusting client UID or role',async()=>{
- const f=await seed(),gateway=createFinanceGlQaVerifiedOwnerGateway(service);
+ const f=await seed();
+ const freshService=createFinanceGlQaEmulatorService(db,{requireCurrentOwnerSession:true});
+ const gateway=createFinanceGlQaVerifiedOwnerGateway(freshService);
+ const authRef=f.root.collection('accounting').doc('control')
+  .collection('financeGlQaOwnerSessions').doc(scopeKey);
+ await authRef.create({format:'LOUREX_FINANCE_GL_QA_SESSION_V1',ownerUid:f.actor.uid,
+  workspaceId:'default',branchId:'main',role:'owner',enabled:true,
+  tokensValidAfterSeconds:0});
  const previousFetch=globalThis.fetch;
  const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});
  const kid='gl-qa-test-'+uid();
@@ -328,6 +336,42 @@ test('signed Firebase owner identity alone can request the QA GL, without trusti
   assert.equal(retry.replayed,true);
   assert.deepEqual(await snapshot(f),after,'signed retry writes nothing');
 
+  // A previously successful receipt must NOT bypass current owner authority.
+  await authRef.update({enabled:false});
+  await deny(gateway(request(jwt)),'CURRENT_OWNER_AUTHORITY_REQUIRED');
+  assert.deepEqual(await snapshot(f),after,'disabled owner replay is a hard denial');
+
+  const cutoff=Math.floor(Date.now()/1000)-10;
+  await authRef.update({enabled:true,tokensValidAfterSeconds:cutoff});
+  await deny(gateway(request(jwt)),'SESSION_REVOKED');
+  assert.deepEqual(await snapshot(f),after,'signed but revoked owner replay writes nothing');
+
+  // Only a session authenticated after the server-owned cutoff may replay;
+  // the existing ledger receipt remains unchanged.
+  const renewed=signedToken({auth_time:cutoff+2,iat:cutoff+3});
+  assert.equal((await gateway(request(renewed))).replayed,true);
+  assert.deepEqual(await snapshot(f),after,'renewing authorization never reposts GL');
+
+  const newOwner=await seed();
+  const newAuth=newOwner.root.collection('accounting').doc('control')
+   .collection('financeGlQaOwnerSessions').doc(scopeKey);
+  const newJwt=signedToken({sub:newOwner.actor.uid});
+  const newRequest=token=>request(token,newOwner.command);
+  const newBefore=await snapshot(newOwner);
+  await deny(gateway(newRequest(newJwt)),'CURRENT_OWNER_AUTHORITY_REQUIRED');
+  await newAuth.create({format:'LOUREX_FINANCE_GL_QA_SESSION_V1',
+   ownerUid:newOwner.actor.uid,workspaceId:'default',branchId:'main',
+   role:'owner',enabled:false,tokensValidAfterSeconds:0});
+  await deny(gateway(newRequest(newJwt)),'CURRENT_OWNER_AUTHORITY_REQUIRED');
+  await newAuth.update({enabled:true,tokensValidAfterSeconds:cutoff});
+  await deny(gateway(newRequest(newJwt)),'SESSION_REVOKED');
+  assert.deepEqual(await snapshot(newOwner),newBefore,
+   'disabled, missing and stale owner sessions never write the initial GL');
+  const refreshedJwt=signedToken({sub:newOwner.actor.uid,
+   auth_time:cutoff+2,iat:cutoff+3});
+  assert.equal((await gateway(newRequest(refreshedJwt))).emulatorCommitted,true);
+  assert.equal((await snapshot(newOwner)).ledger.ledgerVersion,1);
+
   await deny(gateway({method:'POST',headers:{},command:f.command}),'AUTH_REQUIRED');
   await deny(gateway(request(jwt,f.command,{uid:f.actor.uid,role:'owner'})),'INJECTED_REQUEST_IDENTITY');
   await deny(gateway(request(jwt,{...f.command,role:'owner'})),'COMMAND_IDENTITY_INJECTION');
@@ -343,7 +387,7 @@ test('signed Firebase owner identity alone can request the QA GL, without trusti
   ]) await deny(gateway(request(signedToken(patched))),'AUTH_INVALID');
   const validForOtherUid=signedToken({sub:'qa-other-'+uid(),lourexAiRole:'owner'});
   await assert.rejects(gateway(request(validForOtherUid)),
-   /ALIF_22_GL_EMULATOR_TRUSTED_PERIOD_AUTHORITY_MISSING/);
+   /ALIF_22_GL_EMULATOR_CURRENT_OWNER_AUTHORITY_REQUIRED/);
   const tampered=signedToken();
   await deny(gateway(request(tampered.slice(0,-5)+'AAAAA')),'AUTH_INVALID');
   assert.equal(mockKeyFetches,1,'test key fetched once; no live Firebase or AI calls');
