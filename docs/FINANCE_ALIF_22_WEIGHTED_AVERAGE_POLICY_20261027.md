@@ -78,6 +78,16 @@ Examples (synthetic): six cartons carried at USD 44 have a USD 7.333333333333/un
 
 All modules created in this stage are QA-only. Full stock-book-versus-general-ledger reconciliation, IFRS lower-of-cost/NRV, functional-currency confirmation, dated immutable ordering, published cloud rules evidence, and operator acceptance remain outstanding.
 
+## Actual document COGS versus prospective inventory WAC reconciliation gate
+
+`src/lib/inventory-cost-reconciliation.ts::reconcilePostedInvoiceCostsToWac` provides a **read-only, per-product/warehouse/branch** comparison. It passes genuine documented purchase/issued-stock movement shapes through the existing complete-chronology evidence projector, obtains actual valuation COGS by issue, identifies the exact frozen invoice line and compares the two figures rounded to the currency's two-decimal reporting precision. This is a diagnostic **difference** only: it never changes the stored final invoice, its `unitCost`, approved period, payments, stock ledger or a financial report.
+
+Synthetic acceptance scenario: two receipts of 4 cartons at USD 6 landed and 2 at USD 10 landed; 3 sold at the historical frozen invoice cost of USD 10 each. Frozen invoice item cost = USD 30, modeled moving-average cost = USD 22, unposted discrepancy = **USD 8**. Remaining physical stock = 3 cartons / USD 22. The existing `calculateProfitability` output stays at its historical frozen USD 30 and is not falsely relabeled as adjusted.
+
+**CRITICAL: this product does not yet have a complete, auditable general ledger with posted Inventory / COGS / AP / variance journal entries.** Source-ledger evidence and reports are not the general ledger. Accordingly, the comparison's acceptance field is always `BLOCKED_NO_GENERAL_LEDGER_AND_COST_CUTOVER`, **even if the observed cost difference is zero**. The module neither constructs missing GL amounts nor certifies multi-currency totals. It refuses an invoice outside the explicitly documented functional currency, missing historical cost, incomplete stock source chain and unsupported transfers/reversals/returns.
+
+Future requirements: company-approved functional currency; verified opening value and immutable movement chronology; approved cost cutover; durable two-device-safe atomic stock/COGS posting; signed variance and supplier-return accounting; general ledger accounts, double-entry journal, independent Trial Balance reconciliation, closed-period locks, owner audit and external source verification. Never mark 22-B/C or final 39/40 GO until these are evidenced.
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
