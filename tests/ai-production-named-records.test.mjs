@@ -228,6 +228,62 @@ test('invoice details fail closed when exact number is absent or duplicated in s
  const duplicate=namedRecordReadPlan('اعرض تفاصيل الفاتورة INV-2026-0003',createAiToolRuntime(v,context()));
  assert.deepEqual(duplicate.calls.map(row=>row.tool),['search.records']);
 });
+function numberedQuotationFixture(){
+ const v=fixture(),buyer=v.customers[0];
+ buyer.companyNameEn='Horizon Office Solutions LLC';
+ const quote=createBlankDocument('proforma','QUO-2026-0009',v.company);
+ quote.id='saved-quotation-qa';quote.workspaceId='default';quote.branchId='main';quote.status='draft';
+ quote.issueDate='2026-10-27';quote.dueDate='2026-11-03';quote.currency='USD';
+ quote.customerSnapshot=customerSnapshotFrom(buyer);
+ quote.items=[{...quote.items[0],descriptionEn:'Printer',quantity:'2',unitPrice:'185'}];
+ v.documents.push(quote);
+ return v;
+}
+const quoteQuestion='مرحبا، بدي تفتحلي عرض السعر رقم QUO-2026-0009 وتحكيلي مين العميل، كم عدد الأصناف، وشو إجمالي العرض بالدولار وتاريخ انتهاء صلاحيته. لا تعدل أي شيء.';
+test('Controller reads exact saved quotation locally in natural Arabic without a provider timeout',async()=>{
+ const v=numberedQuotationFixture(),ctx=context();ctx.conversationMode='controller';
+ const result=await read(v,quoteQuestion,'ar',ctx);
+ assert.deepEqual(result.results.map(r=>r.tool),['document.get']);
+ const doc=result.results[0];
+ assert.ok(doc.ok);
+ assert.equal(doc.data.number,'QUO-2026-0009');
+ assert.equal(doc.data.kind,'proforma');
+ assert.equal(doc.data.customerName,'Horizon Office Solutions LLC');
+ assert.equal(doc.data.itemCount,1);
+ assert.equal(doc.data.totals.grandTotal,'370.00');
+ assert.equal(doc.data.dueDate,'2026-11-03');
+ assert.match(result.answer,/QUO-2026-0009/);
+});
+test('quotation local read is strict about missing numbers, branches and permissions',async()=>{
+ const v=numberedQuotationFixture(),ctx=context();ctx.conversationMode='controller';
+ const english=await read(v,'Show quotation QUO-2026-0009 customer, total, items and valid until date; do not save or edit.','en',ctx);
+ assert.equal(english.results[0].data.id,'saved-quotation-qa');
+ const rt=createAiToolRuntime(v,ctx),missing=namedRecordReadPlan('راجع عرض السعر QUO-2026-9999 وتاريخ صلاحيته',rt);
+ assert.equal(missing.calls[0].tool,'document.get');
+ assert.equal(executeAiToolPlan(rt,missing).results[0].ok,false);
+ const elsewhere=structuredClone(v.documents.at(-1));elsewhere.id='other-branch-quote';elsewhere.branchId='other-branch';elsewhere.items[0].unitPrice='99999';v.documents.push(elsewhere);
+ const local=await read(v,quoteQuestion,'ar',ctx);
+ assert.equal(local.results[0].data.id,'saved-quotation-qa');assert.doesNotMatch(JSON.stringify(local.results),/99999/);
+ const current=createAiToolRuntime(v,ctx);
+ for(const patch of [{scope:'personal'},{scope:'temporary'},{workspaceId:'different'},{branchId:'other-branch'}])
+  assert.equal(namedRecordReadPlan(quoteQuestion,{...current,...patch}),null);
+ v.teamMembers=[{id:'restricted',role:'purchasing',status:'active',displayName:'Restricted'}];
+ v.appSettings.activeTeamMemberId='restricted';
+ const denied=executeAiToolPlan(createAiToolRuntime(v,ctx),namedRecordReadPlan(quoteQuestion,createAiToolRuntime(v,ctx)));
+ assert.equal(denied.results[0].ok,false);assert.equal(denied.results[0].source,'operator-read-guard');
+});
+test('numbered quotation read never takes a positive change or save instruction',()=>{
+ const rt=createAiToolRuntime(numberedQuotationFixture(),{...context(),conversationMode:'controller'});
+ for(const q of [
+  'غير صلاحية عرض السعر QUO-2026-0009 إلى 12 يوم',
+  'بدي أغير صلاحية عرض السعر QUO-2026-0009',
+  'بدي تعديل صلاحية عرض السعر QUO-2026-0009',
+  'أريد تغيير تاريخ صلاحية QUO-2026-0009',
+  'احفظ عرض السعر QUO-2026-0009',
+  'Edit quotation QUO-2026-0009 total to 5000',
+  'اعرض سعر QUO-2026-0009 واحذف المستند'
+ ])assert.equal(namedRecordReadPlan(q,rt),null,q);
+});
 test('numbered invoice details honor workspace, branch and operator read permissions',()=>{
  const v=numberedInvoiceFixture(),rt=createAiToolRuntime(v,context());
  for(const patch of [{scope:'personal'},{scope:'temporary'},{workspaceId:''},{branchId:''},{workspaceId:'other'},{branchId:'other'}])
