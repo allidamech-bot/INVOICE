@@ -73,7 +73,7 @@ export function validateFinanceAcceptanceEvidence(input){
    err(missing,'signoff.'+field+'.reviewedAt',time(signoff[field]?.reviewedAt));
  }
  const proofs=GATES.map(key=>rows[key]?.proofSha256).filter(value=>HASH.test(value||''));
- err(missing,'gates.distinctProofHashes',proofs.length===GATES&&new Set(proofs).size===GATES);
+ err(missing,'gates.distinctProofHashes',proofs.length===GATES.length&&new Set(proofs).size===GATES.length);
  return{
   schema:'LOUREX_ALIF_FINANCE_EVIDENCE_CHECK_V1',
   status:missing.length?'NO_GO_EVIDENCE_INCOMPLETE':'READY_FOR_INDEPENDENT_HUMAN_REVIEW_ONLY',
