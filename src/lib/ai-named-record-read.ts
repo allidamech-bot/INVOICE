@@ -41,6 +41,25 @@ export function namedRecordReadPlan(message:string,runtime:AiToolRuntime):AiTool
     runtime.branchId!==vault.appSettings.activeBranchId)return null;
  const customers=named(vault.customers,text,row=>[row.companyNameEn,row.companyNameAr]);
  const products=named(vault.savedItems.filter(row=>!aiProductArchived(row)),text,row=>[row.sku,row.descriptionEn,row.descriptionAr]);
+ // Exact quotation reads stay local even when the user asks conversationally
+ // to "open it and tell me" customer, line count, total or validity. Never use
+ // the model planner for a document number already present in the scoped vault.
+ const quotationNumbers=[...new Set([...text.matchAll(/\bquo-[a-z0-9]+(?:-[a-z0-9]+)+\b/giu)].map(match=>match[0]))];
+ const quoteFacts=/(?:\b(?:quote|quotation|details?|customer|items?|total|validity|valid\s+until|expires?|read|show|review)\b|عرض\s*(?:ال)?سعر|(?:ال)?عميل|الاصناف|اصناف|عدد|الاجمالي|اجمالي|المجموع|الصلاحي|صلاحيت|انتهائ|انتهاء|التاريخ|تاريخ|قول|حكي|راجع|تفاصيل)/iu.test(text);
+ // A new draft, save, issue, edit or other positive write request must remain
+ // on its existing guarded review path. Negated writes are already stripped
+ // by readRequest(); this extra check covers inflected Arabic edit commands.
+ const quoteReadOnly=text.replace(/(?:لا|ولا|دون|بدون)\s+(?:اي\s+)?(?:تعديل|تعدل|تغيير|تغير|حفظ|تحفظ|حذف|تحذف|اصدار|اعتماد)(?![\p{L}])/gu,' ');
+ const quoteWrite=/(?:\b(?:edit|change|modify|save|issue|delete|update|create|convert|post)\b|(?:^|[\s،,.])(?:اغير|اعير|ازيد|انقص|اعدل|عدّل|بدل|غيّر|غير|حدث|احفظ|اصدر|احذف|انشئ|حول|اعتمد|رحل)(?![\p{L}]))/iu.test(quoteReadOnly);
+ if(quotationNumbers.length===1&&quoteFacts&&!quoteWrite){
+  const quotations=vault.documents.filter(doc=>doc.kind==='proforma'&&mentioned(text,doc.number));
+  if(quotations.length>1)return{version:1,goal:message.slice(0,240),calls:[
+   {id:'quotation-selection',tool:'search.records',args:{query:quotationNumbers[0]},reason:'Several scoped documents have this number; require selection.'}]};
+  return{version:1,goal:message.slice(0,240),calls:[
+   {id:'numbered-quotation-read',tool:'document.get',
+    args:quotations.length===1?{documentId:quotations[0]!.id}:{number:quotationNumbers[0]},
+    reason:'Read the exact saved quotation in the current company and branch; never mutate or infer from chat history.'}]};
+ }
  // Exact numbered invoice + details questions must reach the saved document
  // and its linked customer ledger, rather than the generic document-status reply.
  // Resolve against scoped documents; never trust a model-proposed customer ID.
