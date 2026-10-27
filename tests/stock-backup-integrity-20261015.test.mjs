@@ -395,3 +395,59 @@ test('actual App.restore refuses loss of a final non-stock invoice, posted purch
     'no persisted changes or cloud sync on rejected financial source loss');
  }
 });
+
+/** A manually posted stock opening has no sales-invoice movement ID, but it
+ * still changes available stock and must survive any non-destructive restore. */
+function manualStockOnlyFixture(){
+ const {issued}=setup();
+ return {...issued,documents:[],inventoryMovements:issued.inventoryMovements.filter(row=>row.type==='opening')};
+}
+
+test('financial restore refuses missing, rewritten and duplicated non-invoice inventory movements',()=>{
+ const initial=manualStockOnlyFixture(),before=JSON.stringify(initial);
+ const opening=initial.inventoryMovements[0];
+ assert.ok(opening?.id);assert.equal(quantity(initial),'10');
+ const regressions=[
+  v=>{v.inventoryMovements=[];},
+  v=>{v.inventoryMovements[0].quantity='30';},
+  v=>{v.inventoryMovements[0].note='Forged opening evidence';},
+  v=>{v.inventoryMovements.push(clone(opening));}
+ ];
+ for(const mutate of regressions){
+  const replacement=clone(initial);mutate(replacement);
+  assert.doesNotThrow(()=>assertRestorableBackupVault(replacement),
+   'a structurally valid old archive must still be checked against current stock history');
+  assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(initial,replacement),
+   'invoice-only continuity does not protect standalone stock movements');
+  assert.throws(()=>assertFinancialRestoreContinuity(initial,replacement),
+   /erase or modify.*inventory movement/i);
+  assert.equal(JSON.stringify(initial),before,'refused restore must not mutate existing inventory');
+ }
+});
+
+test('financial restore accepts identical inventory audit with reordered object keys or later movements',()=>{
+ const initial=manualStockOnlyFixture();
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(initial,reorderKeys(initial)));
+ const later=reorderKeys(initial);
+ later.inventoryMovements.push({...clone(initial.inventoryMovements[0]),id:'qa-new-posted-stock-adjustment',note:'Later separate stock event'});
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(initial,later));
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(emptyVault(),initial),
+  'fresh-device recovery has no prior ledger to erase');
+});
+
+test('actual App.restore rejects a stale manual stock opening before CAS and cloud synchronization',async()=>{
+ const initial=manualStockOnlyFixture();
+ for(const mutate of [
+  v=>{v.inventoryMovements=[];},
+  v=>{v.inventoryMovements[0].quantity='25';}
+ ]){
+  const p=await restoreHarness(initial),candidate=clone(initial);mutate(candidate);
+  const before=JSON.stringify(p.get()),ui=JSON.stringify(p.h.state.vault);
+  await assert.rejects(p.h.restore(serialize(candidate)),/inventory movement/i);
+  assert.equal(JSON.stringify(p.get()),before,'no local CAS write after rejection');
+  assert.equal(JSON.stringify(p.h.state.vault),ui,'no partial UI state after rejection');
+  assert.equal(quantity(p.get().payload),'10','the real stock balance is preserved');
+  assert.deepEqual(p.counts(),{writes:0,syncs:0,ends:1},
+   'rejected archive must not trigger any cloud synchronization');
+ }
+});
