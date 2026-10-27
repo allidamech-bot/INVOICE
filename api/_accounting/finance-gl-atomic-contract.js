@@ -12,8 +12,11 @@ import {createHash} from 'node:crypto';
 const fail=code=>{const error=new Error('ALIF_22_GL_CONTRACT_'+code);error.code=code;throw error;};
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const nonempty=x=>typeof x==='string'&&x.length>0&&x===x.trim();
-const validDate=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)
-  &&new Date(x+'T00:00:00Z').toISOString().slice(0,10)===x;
+const validDate=x=>{
+  if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(x))return false;
+  const date=new Date(x+'T00:00:00.000Z');
+  return !Number.isNaN(date.getTime())&&date.toISOString().slice(0,10)===x;
+};
 
 export function fingerprintSyntheticFinanceSources(sources){
   // A digest authenticates neither the snapshot provider nor its completeness.
@@ -32,7 +35,7 @@ export function prototypeFinanceGlAtomicAppend(
     ||!Array.isArray(state.receipts))
     fail('AUTHORITY_MISSING');
   if(identity.role!=='owner'||identity.uid!==state.ownerUid)fail('OWNER_REQUIRED');
-  if(!nonempty(command.opId)||command.opId.length>128
+  if(typeof command.opId!=='string'||! /^[A-Za-z0-9_-]{1,80}$/.test(command.opId)
     ||!Number.isSafeInteger(command.expectedLedgerVersion)
     ||!Number.isSafeInteger(command.expectedPeriodGeneration)
     ||!nonempty(command.expectedSourceSha256)
@@ -45,6 +48,9 @@ export function prototypeFinanceGlAtomicAppend(
   if(state.sourceSha256!==fingerprintSyntheticFinanceSources(sourceEvidence)
     ||command.expectedSourceSha256!==state.sourceSha256)
     fail('SOURCE_VERSION_MISMATCH');
+
+  if(state.closedThrough!==null && state.closedThrough!==undefined
+    &&!validDate(state.closedThrough))fail('PERIOD_CONTROL_INVALID');
 
   // Idempotency is checked against a fingerprint of the *complete* original
   // command. Persist only this digest, never customer source content.
