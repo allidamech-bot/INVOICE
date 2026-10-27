@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'tests/finance-mixed-purchase-cost-provenance.test.mjs'
+      - 'src/lib/inventory-moving-average.ts'
+      - 'tests/finance-moving-average-22bc.test.mjs'
       - '.github/workflows/finance-mixed-purchase-cost.yml'
 permissions:
   contents: read
@@ -26,4 +28,4 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Exact mixed-cost purchase/issue ledger evidence
-        run: node --test tests/finance-mixed-purchase-cost-provenance.test.mjs
+        run: node --test tests/finance-mixed-purchase-cost-provenance.test.mjs tests/finance-moving-average-22bc.test.mjs
