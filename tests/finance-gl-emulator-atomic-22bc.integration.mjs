@@ -83,11 +83,14 @@ function syntheticSources(){
     {accountId:controls.inventoryAssetAccountId,direction:'credit',amount}
    ]};
  });
- return{evidence:plain(evidence),controls,journals};
+ return{vault,evidence:plain(evidence),controls,journals};
 }
 async function seed({closeThrough}={}){
  const actor={uid:'qa-gl-'+uid(),role:'owner'},root=db.collection('users').doc(actor.uid);
- const vault=emptyVault(),revision=uid();
+ const {vault,evidence,controls,journals}=syntheticSources();
+ const revision=uid();
+ // The real period-server generation MUST contain the exact source records.
+ // A disconnected QA source collection is no longer accepted as evidence.
  const encoded=encodeWorkspace(vault,revision);
  await root.collection('workspace').doc('meta').create(encoded.meta);
  for(const ch of encoded.chunks)
@@ -97,15 +100,15 @@ async function seed({closeThrough}={}){
  if(closeThrough)status=await periodService.execute(actor,{operation:'close',opId:uid(),
   expectedRevision:status.revision,expectedGeneration:status.generation,
   workspaceId:'default',through:closeThrough,reason:'synthetic QA close'});
- const {evidence,controls,journals}=syntheticSources();
- const srcRef=root.collection('financeGlQaSources').doc(scopeKey);
+ const authority=root.collection('accounting').doc('control');
+ const srcRef=authority.collection('financeGlQaSources').doc(scopeKey);
  await srcRef.create({format:'LOUREX_FINANCE_GL_QA_SOURCE_V1',
   ownerUid:actor.uid,workspaceId:'default',branchId:'main',
   sourceRevision:status.revision,controls,evidence});
  // Compute from the persisted Firestore representation, not a client object.
  const persisted=(await srcRef.get()).data().evidence;
  const digest=fingerprintSyntheticFinanceSources(persisted);
- const ledgerRef=root.collection('financeGlQaLedgers').doc(scopeKey);
+ const ledgerRef=authority.collection('financeGlQaLedgers').doc(scopeKey);
  await ledgerRef.create({format:'LOUREX_FINANCE_GL_QA_LEDGER_V1',
   authorityPresent:true,ownerUid:actor.uid,workspaceId:'default',branchId:'main',
   ledgerVersion:0,periodGeneration:status.generation,sourceSha256:digest,
@@ -117,8 +120,9 @@ async function seed({closeThrough}={}){
 }
 async function snapshot(f){
  const ledger=(await f.ledgerRef.get()).data();
- const journals=(await f.root.collection('financeGlQaJournals').get()).docs.map(x=>({id:x.id,data:x.data()}));
- const receipts=(await f.root.collection('financeGlQaReceipts').get()).docs.map(x=>({id:x.id,data:x.data()}));
+ const control=f.root.collection('accounting').doc('control');
+ const journals=(await control.collection('financeGlQaJournals').get()).docs.map(x=>({id:x.id,data:x.data()}));
+ const receipts=(await control.collection('financeGlQaReceipts').get()).docs.map(x=>({id:x.id,data:x.data()}));
  return plain({ledger,journals,receipts});
 }
 test('real demo Firestore transaction creates journals, operation receipt and ledger revision atomically',async()=>{
@@ -187,13 +191,13 @@ test('changed server-side source value and corrupted journal records cannot repl
  await assert.rejects(service.execute(a.actor,a.command),/SOURCE_CHANGED/);
  assert.deepEqual(await snapshot(a),old);
  const b=await seed();await service.execute(b.actor,b.command);
- const oldB=await snapshot(b),journalRef=b.root.collection('financeGlQaJournals').doc('QA-gl-0');
+ const oldB=await snapshot(b),journalRef=b.root.collection('accounting').doc('control').collection('financeGlQaJournals').doc('QA-gl-0');
  const corrupted=plain((await journalRef.get()).data());
  corrupted.lines[0].amount='900.00';
  await journalRef.set(corrupted);
  await assert.rejects(service.execute(b.actor,b.command),/JOURNAL_AUTHORITY_MISSING/);
  assert.deepEqual((await b.ledgerRef.get()).data(),oldB.ledger);
- assert.equal((await b.root.collection('financeGlQaReceipts').get()).size,1);
+ assert.equal((await b.root.collection('accounting').doc('control').collection('financeGlQaReceipts').get()).size,1);
 });
 
 test('simulated failure after all buffered writes rolls back every Firestore document',async()=>{
@@ -203,8 +207,8 @@ test('simulated failure after all buffered writes rolls back every Firestore doc
  assert.deepEqual(await snapshot(f),before);
  const result=await service.execute(f.actor,f.command);
  assert.equal(result.emulatorCommitted,true);
- assert.equal((await f.root.collection('financeGlQaJournals').get()).size,2);
- assert.equal((await f.root.collection('financeGlQaReceipts').get()).size,1);
+ assert.equal((await f.root.collection('accounting').doc('control').collection('financeGlQaJournals').get()).size,2);
+ assert.equal((await f.root.collection('accounting').doc('control').collection('financeGlQaReceipts').get()).size,1);
 });
 
 test('no source digest substitution or second account access via claimed scope',async()=>{
