@@ -88,7 +88,8 @@ test('F03 Controller source intercepts exact edits before model and prepares sav
  assert.doesNotMatch(flow,/mutateVaultSafely|saveDocument\(|postInvoice\(/);
  const confirmAt=flow.indexOf('if(draftOnly&&saveWorkingDraft)'),editAt=flow.indexOf('draftRevision: if((draftOnly||isReviewedDraft)');
  assert.ok(confirmAt>=0&&editAt>confirmAt,'explicit save goes through approval preparation; edit is no-save');
- const askAt=source.indexOf('await ask(raw);');
+ const askAt=source.indexOf('await awaitTurn(host,owner,()=>ask(raw));');
+ assert.ok(askAt>0,'generic model delegation remains guarded by turn ownership');
  assert.ok(end<askAt,'follow-up is handled before generic AI planner');
 });
 
