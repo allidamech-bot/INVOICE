@@ -27,16 +27,26 @@ test('Cloud Shell script GETs live rules only, saves a private backup and report
  const {home,result}=inspectSandbox();
  try{
   assert.equal(result.status,0,result.stderr);
-  assert.match(result.stdout,/READ_ONLY_COMPLETE: no production write or deployment was attempted/);
-  assert.match(result.stdout,/DIFFERENT: live rules do not match/);
+  assert.match(result.stdout,/READ_ONLY_COMPLETE: no Firebase write, deployment or Rules publish attempted/);
+  assert.match(result.stdout,/SOURCE_DIFFERENT: inspect the private backup/);
   assert.match(result.stdout,/Live rules SHA-256: [a-f0-9]{64}/);
-  assert.match(result.stdout,/Candidate rules SHA-256: [a-f0-9]{64}/);
+  assert.match(result.stdout,/Checkout rules SHA-256: [a-f0-9]{64}/);
   assert.doesNotMatch(result.stdout+result.stderr,/synthetic-test-access-token/);
   const backups=readdirSync(join(home,'lourex-firestore-rules-backups'));
-  assert.equal(backups.length,1);
-  const path=join(home,'lourex-firestore-rules-backups',backups[0]);
-  const data=readFileSync(path,'utf8');
+  assert.equal(backups.length,2,'published Rules source and private provenance JSON are both preserved');
+  const rulesName=backups.find(name=>name.endsWith('.rules'));
+  const manifestName=backups.find(name=>name.endsWith('.evidence.json'));
+  assert.ok(rulesName&&manifestName);
+  const data=readFileSync(join(home,'lourex-firestore-rules-backups',rulesName),'utf8');
   assert.match(data,/rules_version = '2';/);
+  const evidence=JSON.parse(readFileSync(join(home,'lourex-firestore-rules-backups',manifestName),'utf8'));
+  assert.equal(evidence.releaseName,'projects/lourex-invoice/releases/cloud.firestore');
+  assert.equal(evidence.rulesetName,'projects/lourex-invoice/rulesets/fixture_01');
+  assert.equal(evidence.releaseMetadataComplete,true);
+  assert.equal(evidence.byteExactMatch,false);
+  assert.match(evidence.publishedSourceSha256,/^[0-9a-f]{64}$/);
+  assert.equal(evidence.acceptanceStatus,'PENDING_INDEPENDENT_SECURITY_REVIEW');
+  assert.doesNotMatch(JSON.stringify(evidence),/synthetic-test-access-token/);
  }finally{rmSync(home,{recursive:true,force:true});}
 });
 test('Cloud Shell inspection rejects unexpected project, CLI switches and CI environment before accessing credentials',()=>{
@@ -58,7 +68,7 @@ test('Cloud Shell inspection refuses untrusted cross-project release name; no ba
  const {home,result}=inspectSandbox({TEST_BAD_RELEASE:'yes'});
  try{
   assert.equal(result.status,2);
-  assert.match(result.stderr,/Unexpected Firebase ruleset identifier/);
+  assert.match(result.stderr,/Unexpected published Firebase release\/ruleset identifier/);
   assert.doesNotMatch(result.stdout+result.stderr,/synthetic-test-access-token/);
  }finally{rmSync(home,{recursive:true,force:true});}
 });

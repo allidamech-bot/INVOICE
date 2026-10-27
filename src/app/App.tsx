@@ -33,7 +33,7 @@ import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
 import { approvalGate, decideApprovalRequest, assertGovernancePermission, activeTeamMember } from '../lib/governance.js';
 import { activateBranch, activateWorkspace, applyWorkspaceScope, createBranch, createWorkspace, overlayWorkspaceScope, scopeVault } from '../lib/workspaces.js';
 import { AccountEntryScreen } from '../components/AccountEntryScreen.js';
-import { exportPlainBackup, readPlainBackup, assertPostedStockRestoreContinuity } from '../lib/backup.js';
+import { exportPlainBackup, readPlainBackup, assertPostedStockRestoreContinuity, assertFinancialRestoreContinuity } from '../lib/backup.js';
 import { synchronizeActiveWorkspaceOnSave } from '../storage/vault.js';
 import { getPlainWorkspace, savePlainWorkspace, updatePlainWorkspaceIfUnchanged, replacePlainWorkspaceIfUnchanged } from '../storage/db.js';
 import { assertPlainCloudWorkspaceUploadable, reconcilePlainCloudWorkspace, uploadPlainCloudWorkspace, downloadPlainCloudWorkspace, getPlainCloudMeta, getPeriodReportArchive } from '../cloud/plain-workspace.js';
@@ -857,6 +857,8 @@ export class App extends React.Component<{},State> {
       // A locally imported older snapshot must never discard immutable invoice
       // stock issues, physical receipts or the associated source documents.
       assertPostedStockRestoreContinuity(current.payload,restored);
+      // Do not allow a stale local archive to erase settled AR/AP or bank history.
+      assertFinancialRestoreContinuity(current.payload,restored);
       const replacement:PlainWorkspaceRecord={
         id:'workspace-v2',uid,payload:restored,schemaVersion:restored.schemaVersion,
         localRevision:crypto.randomUUID(),updatedAt:new Date().toISOString(),

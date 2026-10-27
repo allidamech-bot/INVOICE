@@ -13,7 +13,7 @@ import {createManualInventoryMovement,inventoryBalances} from '../dist/src/lib/o
 import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {postSalesReturn} from '../dist/src/lib/sales-returns.js';
 import {postVoidedInvoiceWithPhysicalReceipt} from '../dist/src/lib/invoice-void-stock.js';
-import {readPlainBackup,assertRestorableBackupVault,assertPostedStockRestoreContinuity} from '../dist/src/lib/backup.js';
+import {readPlainBackup,assertRestorableBackupVault,assertPostedStockRestoreContinuity,assertFinancialRestoreContinuity} from '../dist/src/lib/backup.js';
 
 const date=new Date().toISOString().slice(0,10);
 const pdf=Buffer.from('%PDF-1.4\n1 0 obj\nendobj\n');
@@ -167,7 +167,7 @@ test('restore comparison still protects every value, nested evidence and array o
 
 async function restoreHarness(initial,rejectCas=false){
  let stored={id:'workspace-v2',uid:'qa-stock-restore',schemaVersion:initial.schemaVersion,payload:clone(initial),localRevision:'before-restore',baseCloudRevision:'cloud-base',baseCloudSha256:'a'.repeat(64)},writes=0,syncs=0,ends=0;
- const context={exports:{},Error,Promise,Date,crypto:webcrypto,readPlainBackup,synchronizeActiveWorkspaceOnSave,assertPlainCloudWorkspaceUploadable,assertPostedStockRestoreContinuity,t:en=>en,
+ const context={exports:{},Error,Promise,Date,crypto:webcrypto,readPlainBackup,synchronizeActiveWorkspaceOnSave,assertPlainCloudWorkspaceUploadable,assertPostedStockRestoreContinuity,assertFinancialRestoreContinuity,t:en=>en,
   currentCloudUser:()=>({uid:stored.uid}),getPlainWorkspace:async()=>clone(stored),
   replacePlainWorkspaceIfUnchanged:async(uid,revision,replacement,reason)=>{
    assert.equal(uid,stored.uid);assert.equal(revision,stored.localRevision);assert.equal(reason,'replaced-by-backup');
@@ -213,4 +213,102 @@ test('reordered nested physical-return evidence roundtrips without weakening its
  assert.deepEqual(restored,returned);assert.equal(quantity(restored),'10');
  restored.inventoryMovements.find(m=>m.invoiceVoidStock).invoiceVoidStock.invoiceId='changed-source';
  assert.throws(()=>assertPostedStockRestoreContinuity(returned,restored),/erase or modify/);
+});
+
+
+function postedFinanceFixture(){
+ const {issued}=setup();
+ const pay={id:'qa-customer-paid-50',invoiceId:issued.documents[0].id,
+   customerId:'test-buyer',currency:'USD',amount:'50.00',
+   date:'2026-10-11',workspaceId:'default',branchId:'main',
+   voidedAt:'',reference:'QA-AR-50'};
+ const supplier={id:'qa-supplier-paid-30',purchaseId:'qa-supplier-purchase',
+   supplierId:'qa-supplier',currency:'USD',amount:'30.00',
+   date:'2026-10-11',workspaceId:'default',branchId:'main',
+   voidedAt:'',reference:'QA-AP-30'};
+ const ledger=[
+  {id:'qa-opening-bank-100',type:'opening-balance',amount:'100.00',currency:'USD',
+   date:'2026-10-11',toAccountId:'qa-bank',workspaceId:'default',branchId:'main'},
+  {id:'qa-bank-receipt-50',type:'collection',sourceType:'customer-payment',
+   sourceId:pay.id,amount:'50.00',currency:'USD',date:'2026-10-11',
+   toAccountId:'qa-bank',workspaceId:'default',branchId:'main'},
+  {id:'qa-bank-supplier-30',type:'supplier-payment',sourceType:'supplier-payment',
+   sourceId:supplier.id,amount:'30.00',currency:'USD',date:'2026-10-11',
+   fromAccountId:'qa-bank',workspaceId:'default',branchId:'main'}
+ ];
+ const reconciled={id:'qa-reconciliation',movementKey:'treasury:qa-bank-receipt-50',
+   workspaceId:'default',branchId:'main',createdAt:'2026-10-12T00:00:00.000Z'};
+ return {...issued,payments:[pay],supplierPayments:[supplier],
+   treasuryEntries:ledger,treasuryReconciliations:[reconciled]};
+}
+
+test('finance local restore cannot erase paid AR/AP, bank movements or reconciliation audit',()=>{
+ const previous=postedFinanceFixture(),original=JSON.stringify(previous);
+ const kinds=['payments','supplierPayments','treasuryEntries','treasuryReconciliations'];
+ for(const key of kinds){
+  const older=clone(previous);
+  older[key]=older[key].slice(1);
+  assert.doesNotThrow(()=>assertPostedStockRestoreContinuity(previous,older),
+    'stock protection alone cannot notice the missing financial posting');
+  assert.throws(()=>assertFinancialRestoreContinuity(previous,older),
+    /erase or modify existing payment, supplier settlement, or bank audit history/i);
+  assert.equal(JSON.stringify(previous),original,'failed validation cannot mutate account history');
+ }
+});
+
+test('finance local restore rejects rewritten payment amounts, void status and duplicate bank IDs',()=>{
+ const initial=postedFinanceFixture();
+ for(const change of [
+  vault=>{vault.payments[0].amount='5.00';},
+  vault=>{vault.supplierPayments[0].voidedAt='2026-10-12T10:00:00.000Z';},
+  vault=>{vault.treasuryEntries[1].amount='500.00';},
+  vault=>{vault.treasuryReconciliations[0].movementKey='treasury:another-bank-entry';},
+  vault=>{vault.treasuryEntries.push(clone(vault.treasuryEntries[1]));},
+ ]){
+  const edited=clone(initial);change(edited);
+  assert.throws(()=>assertFinancialRestoreContinuity(initial,edited),
+    /erase or modify existing payment, supplier settlement, or bank audit history/);
+ }
+});
+
+test('finance local restore preserves equivalent immutable financial history across key and row ordering',()=>{
+ const initial=postedFinanceFixture(),candidate=reorderKeys(initial);
+ for(const kind of ['payments','supplierPayments','treasuryEntries','treasuryReconciliations'])
+  candidate[kind].reverse();
+ candidate.customers=[...candidate.customers,{id:'synthetic-extra-customer'}];
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(initial,candidate));
+ const added=clone(candidate);
+ added.payments.push({...initial.payments[0],id:'additional-new-receipt'});
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(initial,added));
+ assert.doesNotThrow(()=>assertFinancialRestoreContinuity(emptyVault(),initial),
+  'fresh device recovery may import financial history with no existing posting');
+});
+
+test('actual App.restore rejects stale bank/payment snapshots before CAS or cloud sync',async()=>{
+ const initial=postedFinanceFixture(),before=JSON.stringify(initial);
+ for(const key of ['payments','supplierPayments','treasuryEntries','treasuryReconciliations']){
+  const p=await restoreHarness(initial),older=clone(initial);
+  older[key]=older[key].slice(1);
+  const stored=JSON.stringify(p.get()),ui=JSON.stringify(p.h.state.vault);
+  await assert.rejects(p.h.restore(serialize(older)),
+    /erase or modify existing payment, supplier settlement, or bank audit history/);
+  assert.equal(JSON.stringify(p.get()),stored,'restore must not overwrite prior financial data');
+  assert.equal(JSON.stringify(p.h.state.vault),ui,'UI cannot display a rejected older ledger');
+  assert.deepEqual(p.counts(),{writes:0,syncs:0,ends:1},
+    'refused financial restore must not trigger a cloud push');
+ }
+ assert.equal(JSON.stringify(initial),before);
+});
+
+test('actual App.restore still accepts identical financial ledger with newer unrelated records',async()=>{
+ const initial=postedFinanceFixture(),p=await restoreHarness(initial);
+ const incoming=clone(initial);
+ incoming.customers.push({id:'qa-unrelated-customer'});
+ await p.h.restore(serialize(incoming));
+ assert.equal(p.get().payload.customers.at(-1).id,'qa-unrelated-customer');
+ assert.equal(p.get().payload.payments[0].amount,'50.00');
+ assert.equal(p.get().payload.supplierPayments[0].amount,'30.00');
+ assert.equal(p.get().payload.treasuryEntries.length,3);
+ assert.equal(p.get().payload.treasuryReconciliations.length,1);
+ assert.deepEqual(p.counts(),{writes:1,syncs:1,ends:1});
 });

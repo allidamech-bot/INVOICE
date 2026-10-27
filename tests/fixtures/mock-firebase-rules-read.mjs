@@ -12,11 +12,11 @@ globalThis.fetch=async (url,options={})=>{
   throw new Error('Invalid Cloud Shell read-only token use');
  const u=String(url);
  if(u==='https://firebaserules.googleapis.com/v1/'+release){
-  return {ok:true,json:async()=>({rulesetName:process.env.TEST_BAD_RELEASE==='yes'?'projects/other-project/rulesets/fixture_01':ruleset})};
+  return {ok:true,json:async()=>({name:release,updateTime:'2026-10-26T18:34:00.000Z',rulesetName:process.env.TEST_BAD_RELEASE==='yes'?'projects/other-project/rulesets/fixture_01':ruleset})};
  }
  if(u==='https://firebaserules.googleapis.com/v1/'+ruleset){
   if(calls!==2)throw new Error('Unexpected number of Firebase GET calls');
-  return {ok:true,json:async()=>({source:{files:[{name:'firestore.rules',content:liveText}]}})};
+  return {ok:true,json:async()=>({name:ruleset,createTime:'2026-10-26T18:33:59.000Z',source:{files:[{name:'firestore.rules',content:liveText}]}})};
  }
  throw new Error('Unexpected destination: '+u);
 };
