@@ -1,3 +1,4 @@
+import {interpretDraftMessage} from '../dist/src/lib/ai-draft-message.js';
 /**
  * LOUREX AI release-blocking regression tests, synthetic fixtures only.
  * The tests are deliberately red on production baseline 87381cad.
@@ -111,7 +112,9 @@ test('AI-GATE-08: natural requests use the deterministic PDF route',()=>{
   const begin=src.indexOf('const pdfRequested=');
   const end=src.indexOf("if(currentConversationMode(host)==='controller'&&pdfRequested",begin);
   assert.ok(begin>=0&&end>begin);
-  const recognize=new Function('message',src.slice(begin,end)+';return pdfRequested;');
+  const route=new Function('message','draftIntent',src.slice(begin,end)+';return pdfRequested;');
+  const recognize=message=>route(message,interpretDraftMessage(message));
+  assert.equal(recognize('غير الصلاحية إلى 12 يوم وبعدين افتح معاينة PDF'),false,'compound edit must not preview an old revision');
   for(const phrase of ['بدي ملف PDF','اطبع لي PDF','نزّل لي PDF','I need a PDF','أعطني ملف PDF'])
     assert.equal(recognize(phrase),true,'Spoken PDF route skipped: '+phrase);
 });
