@@ -188,7 +188,9 @@ test('changed server-side source value and corrupted journal records cannot repl
  assert.deepEqual(await snapshot(a),old);
  const b=await seed();await service.execute(b.actor,b.command);
  const oldB=await snapshot(b),journalRef=b.root.collection('financeGlQaJournals').doc('QA-gl-0');
- await journalRef.update({'lines.0.amount':'900.00'});
+ const corrupted=plain((await journalRef.get()).data());
+ corrupted.lines[0].amount='900.00';
+ await journalRef.set(corrupted);
  await assert.rejects(service.execute(b.actor,b.command),/JOURNAL_AUTHORITY_MISSING/);
  assert.deepEqual((await b.ledgerRef.get()).data(),oldB.ledger);
  assert.equal((await b.root.collection('financeGlQaReceipts').get()).size,1);
