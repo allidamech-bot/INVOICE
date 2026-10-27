@@ -7,6 +7,8 @@ on:
       - 'src/lib/inventory-moving-average.ts'
       - 'src/lib/inventory-valuation-evidence.ts'
       - 'src/lib/inventory-transfer-valuation.ts'
+      - 'src/lib/inventory-purchase-reversal-valuation.ts'
+      - 'tests/finance-purchase-reversal-valuation-22bc.test.mjs'
       - 'tests/finance-warehouse-transfer-value-22bc.test.mjs'
       - 'tests/finance-posted-ledger-projection-22bc.test.mjs'
       - 'tests/finance-moving-average-22bc.test.mjs'
@@ -32,4 +34,4 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Exact mixed-cost purchase/issue ledger evidence
-        run: node --test tests/finance-mixed-purchase-cost-provenance.test.mjs tests/finance-moving-average-22bc.test.mjs tests/finance-posted-ledger-projection-22bc.test.mjs tests/finance-warehouse-transfer-value-22bc.test.mjs
+        run: node --test tests/finance-mixed-purchase-cost-provenance.test.mjs tests/finance-moving-average-22bc.test.mjs tests/finance-posted-ledger-projection-22bc.test.mjs tests/finance-warehouse-transfer-value-22bc.test.mjs tests/finance-purchase-reversal-valuation-22bc.test.mjs
