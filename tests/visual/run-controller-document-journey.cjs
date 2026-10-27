@@ -126,8 +126,15 @@ async function run(engine,name){
     }
     const trace=await page.evaluate(()=>{
       const details=document.querySelector('#lourex-ai-panel .lxw-chat-document .lxw-document-extra');
+      const panel=document.querySelector('#lourex-ai-panel');
+      const status=panel?.querySelector('[role="alert"],[role="status"],.lxw-load-error');
+      const card=panel?.querySelector('.lxw-chat-document');
       return {trace:window.__qaDisclosureTrace||null,activeElement:document.activeElement?.tagName,
-        activeClass:document.activeElement?.className,
+        activeClass:document.activeElement?.className,panelReady:panel?.getAttribute('data-workspace-ready'),
+        panelMode:panel?.getAttribute('data-workspace-mode'),
+        panelPreview:(panel?.innerText||'').slice(0,1200),
+        visibleStatus:(status?.innerText||'').slice(0,500),cardExists:!!card,
+        cardArtifact:card?.getAttribute('data-artifact-id'),
         summaryCount:document.querySelectorAll('#lourex-ai-panel .lxw-chat-document .lxw-document-extra>summary').length,
         detailsOpen:details?.open,visible:details?!!details.getClientRects().length:false};
     });
@@ -345,4 +352,4 @@ async function run(engine,name){
   console.log('PASS '+name+': XLSX 85 lines → real multipage PDF/download → model-plan fixture edit → undo/redo → new PDF → refusal/no save → reviewed single save → reload/no duplicate. Live provider NOT tested.');
  }finally{await browser.close();}
 }
-(async()=>{await run(webkit,'WebKit');await run(chromium,'Chromium');})().catch(e=>{console.error(e);process.exitCode=1});
+(async()=>{await run(chromium,'Chromium');await run(webkit,'WebKit');})().catch(e=>{console.error(e);process.exitCode=1});
