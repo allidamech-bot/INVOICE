@@ -590,21 +590,6 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
   const [pdfError,setPdfError]=React.useState('');
   const [pdfQrError,setPdfQrError]=React.useState('');
   const [discardExpanded,setDiscardExpanded]=React.useState(false);
-  // The chat shell may remount this card while syncing an edited draft.
-  // Native <details> loses its open attribute on remount; keep the disclosure
-  // explicitly scoped to the same account/thread/document (not its revision).
-  const detailsIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'');
-  const [detailsExpanded,setDetailsExpanded]=React.useState(
-    ()=>host.__lxwDocumentDisclosure?.identity===detailsIdentity&&host.__lxwDocumentDisclosure?.open===true);
-  React.useEffect(()=>{
-    setDetailsExpanded(host.__lxwDocumentDisclosure?.identity===detailsIdentity&&host.__lxwDocumentDisclosure?.open===true);
-  },[detailsIdentity]);
-  const toggleDetails=(event:any)=>{
-    event.preventDefault(); // React owns this disclosure, not the native toggle.
-    const next=!detailsExpanded;
-    host.__lxwDocumentDisclosure={identity:detailsIdentity,open:next};
-    setDetailsExpanded(next);
-  };
   const dismissal=useInlineDecline(host,host.state.proposal);
   const pdfIdentity=kernelScopeKey(kernel.scope)+'|'+savedId+'|'+String(kernel.artifact?.id||'')+'|'+String(kernel.artifact?.revision||0);
   // A renderer import can resolve after changing conversation, branch or
@@ -765,7 +750,7 @@ function ConversationDocumentCard({host,approval}:{host:Host;approval?:any}):any
       }}>{label(ar,'Reject without saving','رفض دون حفظ')}</button></div>
     </section>:null}
     {doc.status==='draft'?<small className="lxw-document-safety-note">{label(ar,'Save stores this draft only. PDF preview is optional; issuing is a separate action.','الحفظ يسجّل المسودة فقط. معاينة PDF اختيارية، والإصدار إجراء مستقل.')}</small>:null}
-    <details className="lxw-document-extra" open={detailsExpanded}><summary onClick={toggleDetails} aria-expanded={detailsExpanded}>{label(ar,'All items and details','جميع الأصناف والتفاصيل')}</summary><QuotePreviewSummary doc={doc} ar={ar}/></details>
+    <details className="lxw-document-extra"><summary>{label(ar,'All items and details','جميع الأصناف والتفاصيل')}</summary><QuotePreviewSummary doc={doc} ar={ar}/></details>
     {doc.status==='draft'&&kernel.artifact?<div className="lxw-document-revision-tools">
       <span>{label(ar,'Revision','نسخة')} {doc.revision}</span>
       <button type="button" disabled={disabled(host)||!kernel.artifact.undo.length} onClick={()=>dispatch(host,{kind:'undo',artifactId:doc!.id,revision:doc!.revision})}>{label(ar,'Undo','تراجع')}</button>
