@@ -103,6 +103,15 @@ export function editDocumentItemField(item:DocumentItem,key:keyof DocumentItem,v
   return {...item,[key]:value,...(changedIdentity?{savedItemId:'',skuSnapshot:'',stockTreatment:undefined,unitCost:''}:{})};
 }
 
+/** A document currency change requires explicit new cost entries. */
+export function changeDraftCurrencyCosts(doc:LourexDocument,currency:string):LourexDocument{
+  if(doc.status==='final')return doc;
+  if(doc.currency.trim().toUpperCase()===currency.trim().toUpperCase())return {...doc,currency};
+  return {...doc,currency,
+    items:doc.items.map(item=>({...item,unitCost:''})),
+    internalCosts:{shippingCost:'',otherCost:''}};
+}
+
 /** Selecting another catalog item must never carry the previous item's profit cost. */
 export function applySavedItemSuggestionToLine(item:DocumentItem,saved:SavedItem,currency:string):DocumentItem{
   const price=saved.lastCurrency&&saved.lastCurrency!==currency?'':saved.lastUnitPrice;
