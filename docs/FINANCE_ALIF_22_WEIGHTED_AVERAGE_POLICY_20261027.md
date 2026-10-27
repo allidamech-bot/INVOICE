@@ -45,6 +45,19 @@ Foreign-currency valuation currently requires an **exactly dated** supported dir
 - The tests use synthetic objects exercised through real `postPurchase` / `postIssuedInvoiceStock` domain functions, and confirm that the old invoice profitability snapshot is **not overwritten**. The projection may calculate a different COGS figure from the current production report; that difference is a documented cutover gap, **not** an automatic accounting adjustment.
 - This projection only checks minimal evidence fields; it does not verify authenticity of attached files, approve expense capitalization, reconcile GL amounts, or validate published Firebase Rules. Independent acceptance remains outstanding.
 
+## Read-only two-warehouse transfer value conservation (next engineering gate)
+
+`src/lib/inventory-transfer-valuation.ts::previewMovingAverageWarehouseTransfer` is a pure **single-transfer** acceptance calculator. It takes two independent, verified, chronological warehouse-specific streams from the existing moving-average core and one synthetic `createWarehouseTransfer` record. It computes a proportional **carrying-value** debit in the source and the exact same value credit in the destination, with 12dp precision, without booking COGS or changing the originating catalog's last purchase cost. A full-source transfer moves all remaining value, including roundoff residuals. Existing COGS from earlier sales remains untouched.
+
+Examples:
+- East has 4 cartons at 6 USD + 2 at 10 USD => 6 cartons, carrying value USD 44.
+- Transfer 3 cartons East -> West: source 3 / USD 22, destination 3 / USD 22, group total still USD 44, **no sale or profit from transfer**.
+- If West previously held 2 at USD 12 (USD 24), post-transfer West is 5 / USD 46 (average USD 9.20) and total is conserved at USD 68.
+
+The simulator refuses missing stock or source scope, wrong warehouse pair, duplicate known transfer identity, future events dated after transfer, unsupported source costs and foreign FX without evidence. Actual `createWarehouseTransfer` and warehouse delta functions are exercised by synthetic tests.
+
+**Hard boundary:** This is not an end-to-end multiple-transfer posting engine. The pre-transfer streams must be complete, verified and auditable; the calculator does not establish their authenticity. It does not post stock movements, mutate accounts, book inter-warehouse transit/in-transit accounts, handle overhead/cost additions, returns, purchase reversals, stock losses, NRV, intercompany transfers, monetary journal rounding or period authority. The existing read-only posted-ledger projector still rejects transfer movements. Full Alif 22-B/C remains PARTIAL / NO-GO until separate real multi-warehouse accounting acceptance and owner-approved cutover.
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
