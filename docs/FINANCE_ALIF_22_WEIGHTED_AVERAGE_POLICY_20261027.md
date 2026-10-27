@@ -58,6 +58,16 @@ The simulator refuses missing stock or source scope, wrong warehouse pair, dupli
 
 **Hard boundary:** This is not an end-to-end multiple-transfer posting engine. The pre-transfer streams must be complete, verified and auditable; the calculator does not establish their authenticity. It does not post stock movements, mutate accounts, book inter-warehouse transit/in-transit accounts, handle overhead/cost additions, returns, purchase reversals, stock losses, NRV, intercompany transfers, monetary journal rounding or period authority. The existing read-only posted-ledger projector still rejects transfer movements. Full Alif 22-B/C remains PARTIAL / NO-GO until separate real multi-warehouse accounting acceptance and owner-approved cutover.
 
+## Read-only supplier purchase reversal reconciliation gate (27 October)
+
+`src/lib/inventory-purchase-reversal-valuation.ts::previewMovingAveragePurchaseReversal` is a stand-alone **not-booking** cost simulator for a documented full purchase reversal. It accepts one reversed purchase, its original receipt and the newly appended reversal stock movement from the existing LOUREX `reversePurchase` domain function, plus a caller-supplied *complete/approved* preceding chronological WAC stream. Strict receipt-to-source matching, currency, date, warehouse, document identity, reversal reason, landed cost and exact quantity are required; insufficient stock or ambiguously duplicated purchase lines fail closed. Foreign-currency reversal and accounting journal selection remain deliberately unsupported.
+
+The method uses current moving-average carrying value to **preview** the outgoing stock value separately from the original purchase's supplier-side landed amount. Their difference is an **unresolved reconciliation amount**, never a draft/general-ledger journal, sales COGS, AP adjustment or hidden cost correction. The actual financial journal must be defined, approved and independently reconciled before any live activation.
+
+Example: 4 cartons purchased at USD 6, 2 at USD 10, stock USD 44 / 6. Reverse the second purchase quantity of 2: original landed supplier amount USD 20, simulated WAC inventory decrease USD 14.666666666667, remaining carrying value USD 29.333333333333 and **unresolved USD 5.333333333333** for separately approved accounting treatment. If 3 cartons had been sold previously at WAC, that sale's COGS remains unchanged; this purchase return is not recognized as new revenue or sales COGS.
+
+No existing stock posting/GL rules, invoice cost snapshots, Firestore data, FX records or written periods are changed. Full cost/return eligibility, supplier credits, discount/cost allocations, real proof of quantity returned and simultaneous-device consistency require separate acceptance. **Alif 22-B/C remains PARTIAL / NO GO for live accounting.**
+
 ## Mandatory steps before production adoption
 
 1. Authorized operator documents functional currency **per legal company**, stock-item interchangeability classification, opening balances with original supporting documents, and cutover date.
