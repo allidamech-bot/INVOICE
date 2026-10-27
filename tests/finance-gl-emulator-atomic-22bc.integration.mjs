@@ -188,7 +188,7 @@ test('changed server-side source value and corrupted journal records cannot repl
  const old=await snapshot(a),sourced=(await a.srcRef.get()).data();
  const changed=plain(sourced);changed.evidence.movements[0].unitCost='900.00';
  await a.srcRef.set(changed);
- await assert.rejects(service.execute(a.actor,a.command),/SOURCE_CHANGED/);
+ await assert.rejects(service.execute(a.actor,a.command),/SOURCE_NOT_IN_PUBLISHED_WORKSPACE/);
  assert.deepEqual(await snapshot(a),old);
  const b=await seed();await service.execute(b.actor,b.command);
  const oldB=await snapshot(b),journalRef=b.root.collection('accounting').doc('control').collection('financeGlQaJournals').doc('QA-gl-0');
