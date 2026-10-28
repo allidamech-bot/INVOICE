@@ -60,8 +60,9 @@ export function validateFinanceAcceptanceEvidence(input){
  err(missing,'gates.publishedRules.chronology',
    ordered(rules.rulesetCreatedAt,rules.releaseUpdatedAt)
    &&ordered(rules.releaseUpdatedAt,rules.capturedAtUtc)
-   &&ordered(rules.capturedAtUtc,rules.publishedAt)
-   &&ordered(rules.publishedAt,input?.checkpointUtc)
+   &&time(rules.publishedAt)
+   &&Date.parse(rules.publishedAt)===Date.parse(rules.releaseUpdatedAt)
+   &&ordered(rules.capturedAtUtc,input?.checkpointUtc)
    &&ordered(rules.capturedAtUtc,rules.reviewedAt));
  const isolate=rows.crossUid||{};
  for(const field of ['twoAuthenticatedQaUsers','ownerReadAndWrite','crossUidReadDenied','crossUidWriteDenied'])
