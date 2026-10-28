@@ -13,6 +13,7 @@ const ISO=/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/;
 const GATES=['financeCycle','twoDevice','publishedRules','crossUid','physicalIphone','authorityRecovery','costPolicy'];
 const str=value=>typeof value==='string'&&value.trim().length>2&&!/^(todo|pending|unknown|n\/a|tbd)$/i.test(value.trim());
 const time=value=>str(value)&&ISO.test(value)&&Number.isFinite(Date.parse(value));
+const ordered=(earlier,later)=>time(earlier)&&time(later)&&Date.parse(earlier)<=Date.parse(later);
 const err=(a,path,ok)=>{if(!ok)a.push(path);};
 function evidenceRow(missing,rows,name){
  const row=rows?.[name];
@@ -45,6 +46,23 @@ export function validateFinanceAcceptanceEvidence(input){
  err(missing,'gates.publishedRules.sourceMatches',
    HASH.test(rules.publishedSha256||'')&&rules.publishedSha256===rules.repositorySha256);
  err(missing,'gates.publishedRules.publishedAt',time(rules.publishedAt));
+ // Connect the independently captured read-only 35-B manifest with the
+ // exact reviewed production source commit. These are completeness gates,
+ // never authentication of a human-supplied manifest or automatic approval.
+ err(missing,'gates.publishedRules.checkoutCommitSha',
+   COMMIT.test(rules.checkoutCommitSha||'')&&rules.checkoutCommitSha===release.githubMainSha);
+ err(missing,'gates.publishedRules.releaseRecheckMatched',rules.releaseRecheckMatched===true);
+ err(missing,'gates.publishedRules.differenceStatus',
+   rules.differenceStatus==='BYTE_IDENTICAL_SECURITY_REVIEW_REQUIRED');
+ err(missing,'gates.publishedRules.releaseUpdatedAt',time(rules.releaseUpdatedAt));
+ err(missing,'gates.publishedRules.rulesetCreatedAt',time(rules.rulesetCreatedAt));
+ err(missing,'gates.publishedRules.capturedAtUtc',time(rules.capturedAtUtc));
+ err(missing,'gates.publishedRules.chronology',
+   ordered(rules.rulesetCreatedAt,rules.releaseUpdatedAt)
+   &&ordered(rules.releaseUpdatedAt,rules.capturedAtUtc)
+   &&ordered(rules.capturedAtUtc,rules.publishedAt)
+   &&ordered(rules.publishedAt,input?.checkpointUtc)
+   &&ordered(rules.capturedAtUtc,rules.reviewedAt));
  const isolate=rows.crossUid||{};
  for(const field of ['twoAuthenticatedQaUsers','ownerReadAndWrite','crossUidReadDenied','crossUidWriteDenied'])
    err(missing,'gates.crossUid.'+field,isolate[field]===true);
