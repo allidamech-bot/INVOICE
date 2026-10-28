@@ -47,6 +47,11 @@ function purchaseReceipt(row:InventoryMovementRecord,input:PostedValuationEviden
   assertScope(purchase,input.scope);
   if(row.sourceNumber!==purchase.number||row.currency!==purchase.currency)
     refuse('Receipt disagrees with purchase number or original currency.');
+  // The actual posted purchase creates this receipt with purchase.date.
+  // Unlinked dates can move an otherwise identical receipt across WAC issues
+  // and silently alter the prospective COGS chronology.
+  if(row.date!==purchase.date)
+    refuse('Receipt date disagrees with the original posted purchase.');
   const matches=purchase.items.filter(line=>line.savedItemId===row.itemId);
   if(matches.length!==1)refuse('Ambiguous purchase lines: a unique source line ID is required.');
   const line=matches[0]!;
@@ -61,6 +66,10 @@ function invoiceIssue(row:InventoryMovementRecord,input:PostedValuationEvidence)
     ||invoice.status!=='final'||invoice.lifecycleStatus==='voided')
     refuse('Issue requires an active final invoice; corrections need separate rules.');
   assertScope(invoice,input.scope);
+  // Posted invoice-stock issues are dated from the frozen invoice issueDate.
+  // Do not value a backdated/forward-dated stock row as if its source agreed.
+  if(row.date!==invoice.issueDate)
+    refuse('Issued stock movement date disagrees with the final invoice.');
   const matched=invoice.items.filter(line=>
     row.id==='sales-invoice-stock:'+invoice.id+':'+line.id
     &&line.savedItemId===row.itemId&&line.stockTreatment==='tracked');
