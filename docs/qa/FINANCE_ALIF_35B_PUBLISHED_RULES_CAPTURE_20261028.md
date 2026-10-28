@@ -42,3 +42,22 @@ The operator must record a trusted UTC capture time, exact checked-out SHA and F
 The `finance-firestore-rules-evidence.yml` workflow runs pure published-source evidence validation and a **mock-only** Cloud Shell script test. It verifies GET-only behavior, secret avoidance, full private diff generation, and rejection if a release changes during retrieval. No actual Google or Firebase credentials are used. Success proves the inspection mechanism only, not the current live rules.
 
 Scope: Plan Alpha 35-B and future evidence for 39–40; axis 4 deferred and all LOUREX AI work excluded.
+
+## 28 October follow-up — Git checkout provenance
+
+The inspector now verifies a real Git `HEAD` and checks that the local
+`firestore.rules` bytes equal `git show HEAD:firestore.rules` **before**
+requesting a Google Cloud access token. A copied standalone rules file,
+uncommitted rules edit, or unversioned folder fails closed. The private
+`*.evidence.json` records `checkoutCommitSha`; no Git credentials are read.
+The operator must independently verify this exact SHA is the finance release
+candidate later matched to the deployed production SHA. Do not silently move
+the candidate SHA just to satisfy an offline checker.
+
+The 39/40 evidence dossier cannot mark the published-rules gate complete unless
+it identifies the same `checkoutCommitSha` as the reviewed `githubMainSha`,
+the second release-read remained stable, source hashes are identical, the
+original difference status was byte-identical and provenance timestamps are
+chronologically possible. These additions are necessary **but never sufficient**:
+only an independent security reviewer can authenticate the local artifacts,
+evaluate deployed access controls and approve actual 35-B/35-C.
