@@ -22,7 +22,13 @@ function fullHypotheticalEvidence(){
   project:'lourex-invoice',
   releaseName:'projects/lourex-invoice/releases/cloud.firestore',
   rulesetName:'projects/lourex-invoice/rulesets/synthetic123',
-  publishedSha256:sha(9),repositorySha256:sha(9),publishedAt:when
+  publishedSha256:sha(9),repositorySha256:sha(9),
+  publishedAt:'2026-10-27T09:57:00Z',
+  checkoutCommitSha:commit,releaseRecheckMatched:true,
+  differenceStatus:'BYTE_IDENTICAL_SECURITY_REVIEW_REQUIRED',
+  rulesetCreatedAt:'2026-10-27T09:56:00Z',
+  releaseUpdatedAt:'2026-10-27T09:57:00Z',
+  capturedAtUtc:'2026-10-27T09:59:00Z'
  });
  Object.assign(gates.crossUid,{
   twoAuthenticatedQaUsers:true,ownerReadAndWrite:true,
@@ -125,4 +131,44 @@ test('only the approved moving weighted-average default meets cost-policy eviden
   assert.equal(result.status,'NO_GO_EVIDENCE_INCOMPLETE');
   assert.ok(result.missing.includes('gates.costPolicy.method'));
  }
+});
+
+test('35-B provenance must be stable and bound to the exact reviewed checkout',()=>{
+ const unbound=fullHypotheticalEvidence();
+ unbound.gates.publishedRules.checkoutCommitSha='b'.repeat(40);
+ assert.ok(validate(unbound).missing.includes('gates.publishedRules.checkoutCommitSha'));
+
+ const changed=fullHypotheticalEvidence();
+ changed.gates.publishedRules.releaseRecheckMatched=false;
+ assert.ok(validate(changed).missing.includes('gates.publishedRules.releaseRecheckMatched'));
+
+ const mismatch=fullHypotheticalEvidence();
+ mismatch.gates.publishedRules.differenceStatus='SOURCE_DIFFERENT_RISK_NOT_ASSESSED';
+ assert.ok(validate(mismatch).missing.includes('gates.publishedRules.differenceStatus'));
+
+ const outOfOrder=fullHypotheticalEvidence();
+ outOfOrder.gates.publishedRules.capturedAtUtc='2026-10-27T08:00:00Z';
+ assert.ok(validate(outOfOrder).missing.includes('gates.publishedRules.chronology'));
+
+ const reviewerBeforeCapture=fullHypotheticalEvidence();
+ reviewerBeforeCapture.gates.publishedRules.reviewedAt='2026-10-27T08:00:00Z';
+ assert.ok(validate(reviewerBeforeCapture).missing.includes('gates.publishedRules.chronology'));
+
+ const noCapture=fullHypotheticalEvidence();
+ delete noCapture.gates.publishedRules.capturedAtUtc;
+ assert.ok(validate(noCapture).missing.includes('gates.publishedRules.capturedAtUtc'));
+ assert.ok(validate(noCapture).missing.includes('gates.publishedRules.chronology'));
+});
+
+test('complete synthetic provenance still only reaches independent human review',()=>{
+ const example=fullHypotheticalEvidence();
+ assert.equal(validate(example).status,'READY_FOR_INDEPENDENT_HUMAN_REVIEW_ONLY');
+ assert.doesNotMatch(JSON.stringify(validate(example)),/\bGO_APPROVED\b/);
+});
+
+test('publishedAt must be the Firebase release update instant, not the later capture',()=>{
+ const dossier=fullHypotheticalEvidence();
+ dossier.gates.publishedRules.publishedAt=dossier.gates.publishedRules.capturedAtUtc;
+ const result=validate(dossier);
+ assert.ok(result.missing.includes('gates.publishedRules.chronology'));
 });

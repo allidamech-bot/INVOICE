@@ -15,6 +15,12 @@ function inspectSandbox(patch={},args=[]){
  writeFileSync(join(bin,'gcloud'),
    '#!/bin/sh\nif [ "$1" = "auth" ] && [ "$2" = "print-access-token" ]; then\n printf "synthetic-test-access-token\\n"\nelse\n exit 17\nfi\n',
    {mode:0o700});
+ if(patch.TEST_GIT_MISMATCH==='yes'){
+  writeFileSync(join(bin,'git'),
+    '#!/bin/sh\\nif [ "$1" = "rev-parse" ]; then\\n printf "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n"\\nelse\\n printf "UNTRACKED_OR_TAMPERED_RULES\\n"\\nfi\\n'
+     .replaceAll('\\n','\n'),
+    {mode:0o700});
+ }
  const env={...process.env,
   HOME:home,PATH:bin+':'+(process.env.PATH||''),
   CI:'',VERCEL:'',VERCEL_ENV:'',
@@ -46,6 +52,8 @@ test('Cloud Shell script GETs live rules only, saves a private backup and report
   assert.equal(evidence.releaseMetadataComplete,true);
   assert.equal(evidence.byteExactMatch,false);
   assert.equal(evidence.releaseRecheckMatched,true);
+  assert.match(evidence.checkoutCommitSha,/^[a-f0-9]{40}$/);
+  assert.match(result.stdout,/Reviewed Git checkout HEAD: [a-f0-9]{40}/);
   assert.equal(evidence.differenceStatus,'SOURCE_DIFFERENT_RISK_NOT_ASSESSED');
   assert.match(evidence.privateDiffSha256,/^[a-f0-9]{64}$/);
   const privateDiff=readFileSync(join(home,'lourex-firestore-rules-backups',diffName),'utf8');
@@ -88,6 +96,16 @@ test('Cloud Shell rejects a published Rules release changed during retrieval and
  try{
   assert.equal(result.status,2,result.stderr);
   assert.match(result.stderr,/release changed during read/);
+  assert.doesNotMatch(result.stdout+result.stderr,/synthetic-test-access-token/);
+  assert.throws(()=>readdirSync(join(home,'lourex-firestore-rules-backups')));
+ }finally{rmSync(home,{recursive:true,force:true});}
+});
+
+test('Cloud Shell rejects an altered or untracked rules file before requesting Firebase credentials',()=>{
+ const {home,result}=inspectSandbox({TEST_GIT_MISMATCH:'yes'});
+ try{
+  assert.equal(result.status,2,result.stderr);
+  assert.match(result.stderr,/firestore.rules is not identical to the reviewed Git checkout/);
   assert.doesNotMatch(result.stdout+result.stderr,/synthetic-test-access-token/);
   assert.throws(()=>readdirSync(join(home,'lourex-firestore-rules-backups')));
  }finally{rmSync(home,{recursive:true,force:true});}

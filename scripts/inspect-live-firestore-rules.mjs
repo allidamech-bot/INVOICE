@@ -31,6 +31,16 @@ function targetValid(){
 }
 async function main(){
  if(!targetValid())return fail('Requires local operator session and exact Firebase project lourex-invoice.');
+ // A copied or locally edited firestore.rules must never be described as
+ // representing a reviewed GitHub commit. This check runs before any token.
+ const gitOpts={cwd:root,encoding:'utf8',timeout:10000,maxBuffer:524288};
+ const gitHead=spawnSync('git',['rev-parse','--verify','HEAD'],gitOpts);
+ if(gitHead.status!==0||!/^[a-f0-9]{40}$/.test(String(gitHead.stdout).trim()))
+   return fail('A genuine checked-out Git commit is required for published Rules evidence.');
+ const checkoutCommitSha=gitHead.stdout.trim();
+ const trackedRules=spawnSync('git',['show','HEAD:firestore.rules'],gitOpts);
+ if(trackedRules.status!==0||trackedRules.stdout!==proposed)
+   return fail('firestore.rules is not identical to the reviewed Git checkout; restore a clean tracked rules file.');
  // gcloud is authenticated through Cloud Shell interactive Google sign-in.
  const token=spawnSync('gcloud',['auth','print-access-token'],{
   encoding:'utf8',timeout:10000,maxBuffer:32768
@@ -97,6 +107,7 @@ async function main(){
    :'BYTE_IDENTICAL: no textual difference in the two captured files.\n');
  writeFileSync(comparison,reviewText,{mode:0o600,flag:'wx'});
  // The manifest contains fingerprints and review flags, NOT Rules source.
+ evidence.checkoutCommitSha=checkoutCommitSha;
  evidence.releaseRecheckMatched=true;
  evidence.privateDiffSha256=createHash('sha256').update(reviewText).digest('hex');
  evidence.differenceStatus=diff.status===0
@@ -105,6 +116,7 @@ async function main(){
  evidence.riskDisposition='PENDING_INDEPENDENT_SECURITY_REVIEW';
  writeFileSync(manifest,JSON.stringify(evidence,null,2)+String.fromCharCode(10),{mode:0o600,flag:'wx'});
  status('Project: '+PROJECT);
+ status('Reviewed Git checkout HEAD: '+checkoutCommitSha);
  status('Published Firestore release: '+evidence.releaseName);
  status('Release last updated: '+(evidence.releaseUpdatedAt||'UNAVAILABLE'));
  status('Current ruleset: '+evidence.rulesetName);
