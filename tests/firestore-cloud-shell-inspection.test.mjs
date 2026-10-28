@@ -46,6 +46,8 @@ test('Cloud Shell script GETs live rules only, saves a private backup and report
   assert.equal(evidence.releaseMetadataComplete,true);
   assert.equal(evidence.byteExactMatch,false);
   assert.equal(evidence.releaseRecheckMatched,true);
+  assert.match(evidence.checkoutCommitSha,/^[a-f0-9]{40}$/);
+  assert.match(result.stdout,/Reviewed Git checkout HEAD: [a-f0-9]{40}/);
   assert.equal(evidence.differenceStatus,'SOURCE_DIFFERENT_RISK_NOT_ASSESSED');
   assert.match(evidence.privateDiffSha256,/^[a-f0-9]{64}$/);
   const privateDiff=readFileSync(join(home,'lourex-firestore-rules-backups',diffName),'utf8');
