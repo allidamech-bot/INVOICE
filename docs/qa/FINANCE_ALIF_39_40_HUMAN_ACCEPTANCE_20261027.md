@@ -132,3 +132,20 @@ cost evidence; this simple dossier field does not certify that coverage.
 This check tests document-field consistency **only**, not the authenticity of
 approvals, financial policies, postings, real QA or production readiness.
 The separate `returnsAndFxApproved` field must still be independently proven.
+
+## 28 October 2026 — published-Rules evidence binding
+
+For the private 39/40 dossier, the `gates.publishedRules` record must now
+carry the locally captured `checkoutCommitSha`, `releaseRecheckMatched`,
+`differenceStatus`, `rulesetCreatedAt`, `releaseUpdatedAt`, and
+`capturedAtUtc` from the **operator's own read-only 35-B evidence**. The
+checkout commit must match `release.githubMainSha`; the published release
+must have been stable across the GETs; matching live/repository hashes must
+correspond to `BYTE_IDENTICAL_SECURITY_REVIEW_REQUIRED`. The order
+`rulesetCreatedAt <= releaseUpdatedAt <= capturedAtUtc <= publishedAt <=
+checkpointUtc` must hold; the gate reviewer cannot sign before capture.
+
+The checker enforces **field consistency only** and cannot verify a fabricated
+manifest or validate live authentication; keep original artifacts with secure
+access controls and require independent security signoff. Prior mock/CI success
+is not production proof and does not change the 39/40 NO-GO.
