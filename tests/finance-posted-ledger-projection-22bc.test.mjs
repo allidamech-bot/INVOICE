@@ -131,6 +131,41 @@ test('22-B transfers and unscoped legacy receipts must not be silently valued or
  assert.throws(()=>projectPostedValuationEvidence(unscoped),/Unscoped historic movements/);
 });
 
+test('22-B purchase receipt date must equal the original posted purchase date',()=>{
+ const original=testedSequence(),baseline=input(original),before=JSON.stringify(original.vault);
+ assert.equal(projectPostedValuationEvidence(baseline).costOfGoodsSold,'22.000000000000');
+
+ // Both dates below are valid and preserve chronological movement order.
+ // Previously the valuation accepted these mismatches and returned a
+ // seemingly verified COGS balance.
+ const shiftedReceipt=structuredClone(baseline);
+ shiftedReceipt.movements[1].date='2026-10-21';
+ assert.throws(()=>projectPostedValuationEvidence(shiftedReceipt),
+  /Receipt date disagrees with the original posted purchase/);
+
+ const alteredPurchase=structuredClone(baseline);
+ alteredPurchase.purchases[0].date='2026-10-19';
+ assert.throws(()=>projectPostedValuationEvidence(alteredPurchase),
+  /Receipt date disagrees with the original posted purchase/);
+ assert.equal(JSON.stringify(original.vault),before,'no posted source may be mutated');
+});
+
+test('22-B stock issue date must equal the frozen final invoice issue date',()=>{
+ const original=testedSequence(),baseline=input(original),before=JSON.stringify(original.vault);
+ const shiftedIssue=structuredClone(baseline);
+ shiftedIssue.movements[2].date='2026-10-23';
+ assert.throws(()=>projectPostedValuationEvidence(shiftedIssue),
+  /Issued stock movement date disagrees with the final invoice/);
+
+ const alteredInvoice=structuredClone(baseline);
+ alteredInvoice.documents[0].issueDate='2026-10-23';
+ assert.throws(()=>projectPostedValuationEvidence(alteredInvoice),
+  /Issued stock movement date disagrees with the final invoice/);
+
+ assert.equal(projectPostedValuationEvidence(baseline).balanceValue,'22.000000000000');
+ assert.equal(JSON.stringify(original.vault),before,'frozen issued invoice unchanged');
+});
+
 test('22-B source warehouse direction must agree with physical receipt and invoice issue',()=>{
  const baseline=input(testedSequence()),unchanged=JSON.stringify(baseline);
  assert.equal(projectPostedValuationEvidence(baseline).balanceQuantity,'3.0000');
