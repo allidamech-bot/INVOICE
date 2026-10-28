@@ -142,8 +142,10 @@ carry the locally captured `checkoutCommitSha`, `releaseRecheckMatched`,
 checkout commit must match `release.githubMainSha`; the published release
 must have been stable across the GETs; matching live/repository hashes must
 correspond to `BYTE_IDENTICAL_SECURITY_REVIEW_REQUIRED`. The order
-`rulesetCreatedAt <= releaseUpdatedAt <= capturedAtUtc <= publishedAt <=
-checkpointUtc` must hold; the gate reviewer cannot sign before capture.
+`rulesetCreatedAt <= releaseUpdatedAt <= capturedAtUtc <= checkpointUtc`
+must hold; `publishedAt` denotes the **actual release publication time** and
+must equal `releaseUpdatedAt` as an instant (never the later evidence
+capture time). The gate reviewer cannot sign before capture.
 
 The checker enforces **field consistency only** and cannot verify a fabricated
 manifest or validate live authentication; keep original artifacts with secure
