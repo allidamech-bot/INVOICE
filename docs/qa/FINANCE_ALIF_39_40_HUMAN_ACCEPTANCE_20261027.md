@@ -54,9 +54,13 @@ hashes in an access-controlled location, **not this repository**.
 | F08 | Attempt second allocation of the same receipt, a stale change to an allocated payment and an invoice selling 181 additional cartons | All operations rejected with no extra cash, stock or AR/AP movement |
 
 For the cost of goods sold, **do not approve any COGS or profit number from
-this scenario**: axis 22-B/C still needs the explicitly approved FIFO or
-weighted-average costing, FX and returns policy. The $6 purchase unit cost
-here is a controlled fixture, not an accounting valuation policy.
+this scenario**. The owner selected **perpetual moving weighted average** for
+homogeneous, interchangeable inventory on 27 October 2026; non-interchangeable
+or specifically assigned items require separately supported specific cost.
+This choice is settled, but functional currency, opening balances, authoritative
+movement order, FX, returns, journal rounding, independent GL reconciliation,
+and production cutover remain unapproved. The $6 purchase unit cost here is
+a synthetic QA fixture, not approved book COGS.
 
 ## 3. Separation, concurrency, mobile and DR checks
 
@@ -107,7 +111,7 @@ authentic evidence**.
 - **35-B**: current published Firestore Rules source/release proof still missing.
 - **35-C and finance acceptance**: separately authorized live two-UID,
   two-device isolated QA not completed.
-- **22-B/C**: COGS valuation, currency and returns policy undecided.
+- **22-B/C**: moving weighted-average **method selected** for interchangeable stock; functional currency, source chronology, opening value, FX/returns, complete COGS/GL postings and cutover **remain unapproved**.
 - **30–33**: physical iPhone acceptance not completed.
 - **37–38**: managed operational period-authority recovery, approved RPO/RTO,
   and independent incident authorization not completed.
@@ -116,3 +120,15 @@ authentic evidence**.
 
 No action in this document authorizes production mutations, rule publication,
 any new user account, financial data deletion, or Vercel promotion.
+
+## 28 October 2026 — policy-evidence gate clarification
+
+The offline `finance-alif-acceptance-evidence.mjs` completeness checker now
+requires `gates.costPolicy.method = PERPETUAL_WEIGHTED_AVERAGE` for the
+**selected default**. It must reject `FIFO`, `PERIODIC_WEIGHTED_AVERAGE`, or a
+specific-identification exception misrepresented as the universal default.
+Specific-identification stock needs its own item-level independently approved
+cost evidence; this simple dossier field does not certify that coverage.
+This check tests document-field consistency **only**, not the authenticity of
+approvals, financial policies, postings, real QA or production readiness.
+The separate `returnsAndFxApproved` field must still be independently proven.
