@@ -52,7 +52,7 @@ test('Cloud Shell script GETs live rules only, saves a private backup and report
   assert.match(privateDiff,/--- published-firestore-rules/);
   assert.match(privateDiff,/\+\+\+ checked-in-firestore-rules/);
   assert.match(privateDiff,/publicShares/);
-  assert.match(privateDiff,/^[-+]rules_version/m);
+  assert.match(privateDiff,/^[-+]service cloud\.firestore/m);
   assert.doesNotMatch(privateDiff,/synthetic-test-access-token/);
   assert.match(evidence.publishedSourceSha256,/^[0-9a-f]{64}$/);
   assert.equal(evidence.acceptanceStatus,'PENDING_INDEPENDENT_SECURITY_REVIEW');
