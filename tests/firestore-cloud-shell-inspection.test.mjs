@@ -33,10 +33,11 @@ test('Cloud Shell script GETs live rules only, saves a private backup and report
   assert.match(result.stdout,/Checkout rules SHA-256: [a-f0-9]{64}/);
   assert.doesNotMatch(result.stdout+result.stderr,/synthetic-test-access-token/);
   const backups=readdirSync(join(home,'lourex-firestore-rules-backups'));
-  assert.equal(backups.length,2,'published Rules source and private provenance JSON are both preserved');
+  assert.equal(backups.length,3,'published source, private provenance JSON and private comparison are preserved');
   const rulesName=backups.find(name=>name.endsWith('.rules'));
   const manifestName=backups.find(name=>name.endsWith('.evidence.json'));
-  assert.ok(rulesName&&manifestName);
+  const diffName=backups.find(name=>name.endsWith('.review.diff'));
+  assert.ok(rulesName&&manifestName&&diffName);
   const data=readFileSync(join(home,'lourex-firestore-rules-backups',rulesName),'utf8');
   assert.match(data,/rules_version = '2';/);
   const evidence=JSON.parse(readFileSync(join(home,'lourex-firestore-rules-backups',manifestName),'utf8'));
@@ -44,6 +45,15 @@ test('Cloud Shell script GETs live rules only, saves a private backup and report
   assert.equal(evidence.rulesetName,'projects/lourex-invoice/rulesets/fixture_01');
   assert.equal(evidence.releaseMetadataComplete,true);
   assert.equal(evidence.byteExactMatch,false);
+  assert.equal(evidence.releaseRecheckMatched,true);
+  assert.equal(evidence.differenceStatus,'SOURCE_DIFFERENT_RISK_NOT_ASSESSED');
+  assert.match(evidence.privateDiffSha256,/^[a-f0-9]{64}$/);
+  const privateDiff=readFileSync(join(home,'lourex-firestore-rules-backups',diffName),'utf8');
+  assert.match(privateDiff,/--- published-firestore-rules/);
+  assert.match(privateDiff,/\+\+\+ checked-in-firestore-rules/);
+  assert.match(privateDiff,/publicShares/);
+  assert.match(privateDiff,/^[-+]rules_version/m);
+  assert.doesNotMatch(privateDiff,/synthetic-test-access-token/);
   assert.match(evidence.publishedSourceSha256,/^[0-9a-f]{64}$/);
   assert.equal(evidence.acceptanceStatus,'PENDING_INDEPENDENT_SECURITY_REVIEW');
   assert.doesNotMatch(JSON.stringify(evidence),/synthetic-test-access-token/);
@@ -70,5 +80,15 @@ test('Cloud Shell inspection refuses untrusted cross-project release name; no ba
   assert.equal(result.status,2);
   assert.match(result.stderr,/Unexpected published Firebase release\/ruleset identifier/);
   assert.doesNotMatch(result.stdout+result.stderr,/synthetic-test-access-token/);
+ }finally{rmSync(home,{recursive:true,force:true});}
+});
+
+test('Cloud Shell rejects a published Rules release changed during retrieval and saves no falsely current artifact',()=>{
+ const {home,result}=inspectSandbox({TEST_CHANGED_RELEASE:'yes'});
+ try{
+  assert.equal(result.status,2,result.stderr);
+  assert.match(result.stderr,/release changed during read/);
+  assert.doesNotMatch(result.stdout+result.stderr,/synthetic-test-access-token/);
+  assert.throws(()=>readdirSync(join(home,'lourex-firestore-rules-backups')));
  }finally{rmSync(home,{recursive:true,force:true});}
 });
