@@ -72,6 +72,16 @@ No existing stock posting/GL rules, invoice cost snapshots, Firestore data, FX r
 
 `src/lib/inventory-manual-adjustment-valuation.ts::previewManualStockAdjustment` is an isolated read-only acceptance calculator. Physical count **shortages** are valued by the currently verified moving-average carrying cost, **not by the catalog's latest unit cost** and never silently booked as sales COGS. A positive count correction requires an explicitly documented, same-currency unit cost. Both paths require the existing manual inventory evidence validator, with attachment, operator, reason category and supporting description. The adjustment affects only the *simulated* carrying amount and quantity, not live or historical records.
 
+The 29 October focused warehouse-direction correction fails closed when a
+manual positive count adjustment carries a **source** warehouse, or a
+negative count adjustment carries a **destination** warehouse, even if a
+missing direction-specific location would otherwise default to the current
+branch's warehouse. Old manual evidence with **both direction fields absent**
+continues to be scoped only to the explicitly selected default warehouse.
+This is a source-location integrity guard in the read-only preview, not proof
+that historic production adjustments were wrongly posted or permission to
+alter saved inventory.
+
 The preview explicitly reports `requiresSeparateJournal=true`. It does **not** select a loss, inventory-gain, expense, supplier, transfer, FX, tax or period posting account. No inventory GL journal is created, and it does not authorize posting a physical adjustment. Linked manual corrections and previously issued invoice voids remain unsupported pending an independent rule and audit.
 
 Examples (synthetic): six cartons carried at USD 44 have a USD 7.333333333333/unit average. A documented count shortage of two cartons decreases inventory's modeled book value by USD 14.666666666667, without changing any prior sales COGS. A supported positive count adjustment of two cartons at USD 8 increases modeled inventory value by USD 16, and needs a separate authorized offsetting financial entry.
