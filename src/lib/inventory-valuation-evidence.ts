@@ -107,8 +107,11 @@ export function projectPostedValuationEvidence(input:PostedValuationEvidence):Mo
     const row=byId.get(id)!;
     const amount=qty(row.quantity);
     if(amount===0n)refuse('Zero-quantity ledger entry.');
-    if(location(row,scope.branchId)!==scope.warehouseId
-      ||row.fromWarehouseId&&row.toWarehouseId)
+    // A missing correct-direction field may identify the legacy default
+    // warehouse, but an explicit warehouse on the OPPOSITE side invalidates
+    // the source even when the fallback happens to match the valuation scope.
+    const wrongDirectionWarehouse=amount>0n?row.fromWarehouseId:row.toWarehouseId;
+    if(location(row,scope.branchId)!==scope.warehouseId||wrongDirectionWarehouse)
       refuse('Warehouse transfer or other-location movement needs a separate valuation policy.');
     const base={id:row.id,sequence:events.length,date:row.date,
       workspaceId:scope.workspaceId,branchId:scope.branchId,
