@@ -131,6 +131,33 @@ test('22-B transfers and unscoped legacy receipts must not be silently valued or
  assert.throws(()=>projectPostedValuationEvidence(unscoped),/Unscoped historic movements/);
 });
 
+test('22-B source warehouse direction must agree with physical receipt and invoice issue',()=>{
+ const baseline=input(testedSequence()),unchanged=JSON.stringify(baseline);
+ assert.equal(projectPostedValuationEvidence(baseline).balanceQuantity,'3.0000');
+
+ // Historical default-warehouse movements may omit both warehouse fields.
+ // One wrong-side field MUST NOT be accepted by the default fallback.
+ const forgedReceipt=structuredClone(baseline);
+ forgedReceipt.movements[0].toWarehouseId=undefined;
+ forgedReceipt.movements[0].fromWarehouseId='qa-unrelated-source';
+ assert.throws(()=>projectPostedValuationEvidence(forgedReceipt),
+  /Warehouse transfer or other-location movement/);
+
+ const forgedIssue=structuredClone(baseline);
+ forgedIssue.movements[2].fromWarehouseId=undefined;
+ forgedIssue.movements[2].toWarehouseId='qa-unrelated-destination';
+ assert.throws(()=>projectPostedValuationEvidence(forgedIssue),
+  /Warehouse transfer or other-location movement/);
+
+ const legacy=structuredClone(baseline);
+ for(const movement of legacy.movements){
+   movement.fromWarehouseId=undefined;
+   movement.toWarehouseId=undefined;
+ }
+ assert.equal(projectPostedValuationEvidence(legacy).balanceValue,'22.000000000000');
+ assert.equal(JSON.stringify(baseline),unchanged,'source preview must remain immutable');
+});
+
 test('22-B purchases with multiple lines for one product need an explicit source-line identity',()=>{
  const state=testedSequence();
  const snapshot=structuredClone(input(state));
