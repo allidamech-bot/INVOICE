@@ -63,8 +63,10 @@ export function validateFinanceAcceptanceEvidence(input){
  for(const field of ['approvedRpoMinutes','approvedRtoMinutes'])
    err(missing,'gates.authorityRecovery.'+field,Number.isInteger(dr[field])&&dr[field]>=0);
  const policy=rows.costPolicy||{};
+ // The approved default for interchangeable inventory is perpetual moving WAC.
+ // Non-interchangeable items require separately reviewed specific-cost evidence.
  err(missing,'gates.costPolicy.method',
-   ['FIFO','PERPETUAL_WEIGHTED_AVERAGE','PERIODIC_WEIGHTED_AVERAGE'].includes(policy.method));
+   policy.method==='PERPETUAL_WEIGHTED_AVERAGE');
  err(missing,'gates.costPolicy.returnsAndFxApproved',policy.returnsAndFxApproved===true);
  err(missing,'gates.costPolicy.policyVersion',str(policy.policyVersion));
  const signoff=input?.signoff||{};
