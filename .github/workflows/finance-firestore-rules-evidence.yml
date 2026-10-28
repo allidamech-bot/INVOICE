@@ -7,6 +7,8 @@ on:
       - 'scripts/_firestore-published-rule-evidence.mjs'
       - 'scripts/inspect-live-firestore-rules.mjs'
       - 'tests/finance-firestore-published-rules-evidence.test.mjs'
+      - 'tests/firestore-cloud-shell-inspection.test.mjs'
+      - 'tests/fixtures/mock-firebase-rules-read.mjs'
       - '.github/workflows/finance-firestore-rules-evidence.yml'
   workflow_dispatch:
 
@@ -27,4 +29,4 @@ jobs:
       - name: Syntax check read-only operator entrypoint
         run: node --check scripts/inspect-live-firestore-rules.mjs
       - name: Test synthetic published-release evidence, without cloud credentials
-        run: node --test tests/finance-firestore-published-rules-evidence.test.mjs
+        run: node --test tests/finance-firestore-published-rules-evidence.test.mjs tests/firestore-cloud-shell-inspection.test.mjs

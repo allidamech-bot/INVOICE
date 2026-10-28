@@ -7,6 +7,7 @@
  * Never deploys, modifies, merges, or automatically trusts live rules.
  */
 import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {inspectPublishedRulesEvidence} from './_firestore-published-rule-evidence.mjs';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
@@ -56,6 +57,13 @@ async function main(){
     ||!/^projects\/lourex-invoice\/rulesets\/[A-Za-z0-9_-]+$/.test(rulesetName))
     return fail('Unexpected published Firebase release/ruleset identifier.');
  const ruleset=await get(rulesetName);
+ // Read the published release again: a concurrent Rules publication must not
+ // turn a formerly current ruleset into falsely described current evidence.
+ const recheckedRelease=await get('projects/'+PROJECT+'/releases/cloud.firestore');
+ if(recheckedRelease?.name!==release.name
+    ||recheckedRelease?.rulesetName!==release.rulesetName
+    ||recheckedRelease?.updateTime!==release.updateTime)
+   return fail('Published Firestore release changed during read; discard this evidence and retry later.');
  const capturedAtUtc=new Date().toISOString();
  const {content:current,evidence}=inspectPublishedRulesEvidence({
   project:PROJECT,release,ruleset,checkoutSource:proposed,capturedAtUtc
@@ -65,8 +73,36 @@ async function main(){
  const stem=PROJECT+'-'+timestamp+'-'+evidence.publishedSourceSha256.slice(0,12);
  const destination=join(backupRoot,stem+'.rules');
  const manifest=join(backupRoot,stem+'.evidence.json');
- // Both files are private and exclusively created; never store a token.
+ const comparison=join(backupRoot,stem+'.review.diff');
+ // Never print the published source or its diff to stdout or CI. The full
+ // contextual diff is available only as an operator-local mode-0600 file.
  writeFileSync(destination,current,{mode:0o600,flag:'wx'});
+ const diff=spawnSync('diff',[
+   '-u','--label','published-firestore-rules','--label','checked-in-firestore-rules',
+   destination,join(root,'firestore.rules')
+ ],{encoding:'utf8',timeout:10000,maxBuffer:1024*1024});
+ if(diff.error||![0,1].includes(diff.status))
+   return fail('Cannot create a complete private Rules diff; review source backups manually.');
+ const reviewHeader=[
+   '# PRIVATE REVIEW ONLY — 35-B published Firestore Rules',
+   '# - means published rule source; + means this checked-in repository source.',
+   '# Security reviewer must examine complete /users/{userId}, nested',
+   '# collections, and /publicShares/{shareId}, including wildcard/overlap.',
+   '# Identical bytes do not prove owner authorization or cross-UID isolation.',
+   '# Any difference has UNASSESSED access-control risk until manual review.',
+   ''
+ ].join(String.fromCharCode(10));
+ const reviewText=reviewHeader+(diff.status===1
+   ?diff.stdout
+   :'BYTE_IDENTICAL: no textual difference in the two captured files.\n');
+ writeFileSync(comparison,reviewText,{mode:0o600,flag:'wx'});
+ // The manifest contains fingerprints and review flags, NOT Rules source.
+ evidence.releaseRecheckMatched=true;
+ evidence.privateDiffSha256=createHash('sha256').update(reviewText).digest('hex');
+ evidence.differenceStatus=diff.status===0
+   ?'BYTE_IDENTICAL_SECURITY_REVIEW_REQUIRED'
+   :'SOURCE_DIFFERENT_RISK_NOT_ASSESSED';
+ evidence.riskDisposition='PENDING_INDEPENDENT_SECURITY_REVIEW';
  writeFileSync(manifest,JSON.stringify(evidence,null,2)+String.fromCharCode(10),{mode:0o600,flag:'wx'});
  status('Project: '+PROJECT);
  status('Published Firestore release: '+evidence.releaseName);
@@ -77,6 +113,9 @@ async function main(){
  status('Checkout rules SHA-256: '+evidence.checkedInSourceSha256);
  status('Private rules backup: '+destination);
  status('Private provenance evidence: '+manifest);
+ status('Private complete contextual comparison: '+comparison);
+ status('Published release stability recheck: PASSED (two read-only observations).');
+ status('35-B risk classification: '+evidence.differenceStatus+'; manual review mandatory.');
  status(evidence.byteExactMatch
   ? 'SOURCE_MATCH: downloaded published rules equal this checkout byte-for-byte.'
   : 'SOURCE_DIFFERENT: inspect the private backup and resolve differences; do NOT publish automatically.');
