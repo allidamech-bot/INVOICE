@@ -18,10 +18,14 @@ export function previewManualStockAdjustment(scope:MovingAverageScope,
   if(!isExactStockQuantityInput(row.quantity))fail('Invalid precise quantity.');
   const amount=decimalToScaled(row.quantity,4),positive=amount>0n;
   if(!amount)fail('Zero adjustment.');
-  const location=positive?row.toWarehouseId||'warehouse-'+scope.branchId
-    :row.fromWarehouseId||'warehouse-'+scope.branchId;
-  if(location!==scope.warehouseId||(row.toWarehouseId&&row.fromWarehouseId))
-    fail('Wrong warehouse.');
+  // An absent direction-specific field means the legacy default warehouse.
+  // However, an opposite-direction field cannot serve as cost provenance,
+  // even if the fallback location happens to be that same default warehouse.
+  const expectedWarehouse=positive?row.toWarehouseId:row.fromWarehouseId;
+  const wrongDirectionWarehouse=positive?row.fromWarehouseId:row.toWarehouseId;
+  const location=expectedWarehouse||'warehouse-'+scope.branchId;
+  if(location!==scope.warehouseId||wrongDirectionWarehouse)
+    fail('Wrong warehouse or movement direction.');
   try{validateManualMovementEvidence(row);}catch{fail('Evidence, reason or operator missing.');}
   if(history.some(e=>e.id===row.id)||history.length&&history.at(-1)!.date>row.date)
     fail('Duplicate or out-of-order movement.');
