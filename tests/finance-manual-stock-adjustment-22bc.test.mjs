@@ -85,6 +85,32 @@ test('22 adjustment: new receiving units require an explicit cost and same curre
     {currency:'EUR'})),/Currency adjustment/);
 });
 
+test('22 adjustment: wrong-direction warehouse cannot masquerade as default warehouse',()=>{
+  const defaultScope={...scope,warehouseId:'warehouse-'+scope.branchId};
+  const defaultHistory=prior.map(event=>({...event,warehouseId:defaultScope.warehouseId}));
+
+  // Previously the fallback warehouse matched the scope even though the only
+  // explicit warehouse on the movement pointed in the OPPOSITE direction.
+  for(const row of [
+    adjustment('1','8',{toWarehouseId:undefined,fromWarehouseId:'other-warehouse'}),
+    adjustment('-1','8',{fromWarehouseId:undefined,toWarehouseId:'other-warehouse'}),
+  ]){
+    assert.throws(()=>previewManualStockAdjustment(defaultScope,defaultHistory,row),
+      /Wrong warehouse or movement direction/);
+  }
+
+  // Existing legacy movements with no warehouse fields remain supported only
+  // for the actual default warehouse: do not invent an arbitrary location.
+  const legacyIn=adjustment('1','8',{toWarehouseId:undefined});
+  const legacyOut=adjustment('-1','8',{fromWarehouseId:undefined});
+  const before=JSON.stringify({defaultHistory,legacyIn,legacyOut});
+  assert.equal(previewManualStockAdjustment(defaultScope,defaultHistory,legacyIn).direction,'increase');
+  assert.equal(previewManualStockAdjustment(defaultScope,defaultHistory,legacyOut).direction,'decrease');
+  assert.equal(JSON.stringify({defaultHistory,legacyIn,legacyOut}),before);
+  assert.throws(()=>previewManualStockAdjustment(scope,prior,legacyIn),
+    /Wrong warehouse or movement direction/);
+});
+
 test('22 adjustment: scope, chronology, replay, reverse-correction and precision fail closed',()=>{
   for(const change of [
     {workspaceId:'other'},{branchId:'other'},{itemId:'other'},
