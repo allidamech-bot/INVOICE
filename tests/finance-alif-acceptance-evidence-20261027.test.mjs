@@ -165,3 +165,10 @@ test('complete synthetic provenance still only reaches independent human review'
  assert.equal(validate(example).status,'READY_FOR_INDEPENDENT_HUMAN_REVIEW_ONLY');
  assert.doesNotMatch(JSON.stringify(validate(example)),/\bGO_APPROVED\b/);
 });
+
+test('publishedAt must be the Firebase release update instant, not the later capture',()=>{
+ const dossier=fullHypotheticalEvidence();
+ dossier.gates.publishedRules.publishedAt=dossier.gates.publishedRules.capturedAtUtc;
+ const result=validate(dossier);
+ assert.ok(result.missing.includes('gates.publishedRules.chronology'));
+});
