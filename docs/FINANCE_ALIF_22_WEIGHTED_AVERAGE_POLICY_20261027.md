@@ -145,3 +145,24 @@ Synthetic scenario: three units remain at WAC gross USD 22, supported NRV USD 15
 5. Only then authorize prospective cutover. Historical finalized invoices and movements remain immutable; any correction or migration requires separately approved controlled journal/workflow and sign-off.
 
 **Current acceptance: implementation foundation only; Alif 22-B/C remains PARTIAL / NOT READY FOR LIVE ACCOUNTING.** The CI tests are synthetic and cannot establish real owner QA, published security rules, functional currency or production accounting policy sign-off.
+
+## 28 October 2026 — prior impairment allowance stock-continuity safeguard
+
+A **confirmed gap in the isolated NRV preview** was that its prior-allowance check
+compared only final quantity and gross carrying value. A later stock issue
+followed by an equal-valued replacement receipt could restore those **same
+numbers** while the previously impaired stock had partly been sold and replaced.
+The preview could then incorrectly propose a prior-allowance reversal against
+the replacement goods. This is an accounting-continuity problem in the
+prospective diagnostic, **not evidence of an actual posted error**.
+
+The preview now conservatively refuses reuse of a dated prior allowance if
+**any inventory movement occurred on or after the prior assessment date**.
+An event on the same date is also blocked: dated-only records cannot prove
+whether it occurred before or after assessment. In those cases a later
+approved item-specific allowance roll-forward, documented quantity
+attribution, immutable posting order and complete impairment-journal chain
+are required before a valuation can be proposed. The source/approval remains
+independently unauthenticated; no prior journal, book inventory, GL, closed
+period, historical invoice or production record is modified. No posting policy
+has been approved, and Alif 22-B/C remains **PARTIAL / NO-GO**.
