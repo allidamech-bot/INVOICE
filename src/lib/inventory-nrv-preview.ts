@@ -136,6 +136,12 @@ export function previewInventoryNrvAllowance(input:NrvPreviewInput):NrvWriteDown
       ||canonical(prior.currency)!==currency
       ||prior.workspaceId!==scope.workspaceId||prior.branchId!==scope.branchId
       ||prior.warehouseId!==scope.warehouseId||prior.itemId!==scope.itemId
+      // End-of-period quantity and cost can coincide after new stock has
+      // replaced impaired units. A date-only prior allowance lacks an exact
+      // same-day cutoff and item-specific allowance roll-forward. Deny any
+      // movement on/after its assessment date rather than reverse the old
+      // allowance against newly purchased goods.
+      ||history.some(movement=>movement.date>=prior.asOfDate)
       ||amount(prior.grossCostValue,'Prior cost basis')!==gross
       ||prior.quantity!==valued.balanceQuantity)
       fail('Prior NRV allowance does not match unchanged dated cost/quantity/scope.');

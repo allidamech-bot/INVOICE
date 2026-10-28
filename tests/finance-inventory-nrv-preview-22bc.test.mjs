@@ -68,6 +68,32 @@ test('22 NRV: previously assessed 10 allowance can reverse only 3 when new NRV i
  assert.equal(out.proposedWriteDownExpense,'0.000000000000');
  assert.equal(out.treatment,'reversal');
 });
+test('22 NRV: unchanged gross stock does not prove prior impaired units survived intervening turnover',()=>{
+ const data=input();
+ data.priorAllowance=prior();
+ delete data.zeroPriorAllowanceEvidenceId;
+ // After the original allowance: 1 unit sold and exactly 1 replenished at
+ // identical WAC, restoring the SAME end quantity and gross book cost.
+ data.history.push(
+  event('sale-after-prior',3,'2026-10-26','issue','1'),
+  event('replacement-after-prior',4,'2026-10-26','receipt','1','7.333333333333')
+ );
+ // This matched the previous algorithm's end-balance-only test, despite
+ // requiring an allowance consumption/attribution policy for the new stock.
+ assert.throws(()=>previewInventoryNrvAllowance(data),
+  /Prior NRV allowance does not match unchanged dated cost\/quantity\/scope/);
+ const baseline=input();baseline.priorAllowance=prior();
+ delete baseline.zeroPriorAllowanceEvidenceId;
+ assert.equal(previewInventoryNrvAllowance(baseline).treatment,'reversal');
+});
+
+test('22 NRV: same-date movement cannot be ordered around date-only prior allowance',()=>{
+ const data=input();data.priorAllowance={...prior(),asOfDate:'2026-10-21'};
+ delete data.zeroPriorAllowanceEvidenceId;
+ assert.throws(()=>previewInventoryNrvAllowance(data),
+  /Prior NRV allowance does not match unchanged dated cost\/quantity\/scope/);
+});
+
 test('22 NRV: recovered selling price never restores beyond original inventory cost',()=>{
  const data=input();data.priorAllowance=prior('10');delete data.zeroPriorAllowanceEvidenceId;
  data.estimate.expectedSalePricePerUnit='20';
