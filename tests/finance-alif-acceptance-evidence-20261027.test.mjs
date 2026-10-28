@@ -115,3 +115,14 @@ test('validation reports field paths only and never echoes private dossier conte
  assert.doesNotMatch(printed,/private-person|should-never-be-printed|private-finance-person/);
  assert.match(printed,/gates.crossUid.crossUidWriteDenied/);
 });
+
+test('only the approved moving weighted-average default meets cost-policy evidence completeness',()=>{
+ const approvedDefault=fullHypotheticalEvidence();
+ assert.equal(validate(approvedDefault).status,'READY_FOR_INDEPENDENT_HUMAN_REVIEW_ONLY');
+ for(const method of ['FIFO','PERIODIC_WEIGHTED_AVERAGE','SPECIFIC_IDENTIFICATION',null]){
+  const dossier=fullHypotheticalEvidence();dossier.gates.costPolicy.method=method;
+  const result=validate(dossier);
+  assert.equal(result.status,'NO_GO_EVIDENCE_INCOMPLETE');
+  assert.ok(result.missing.includes('gates.costPolicy.method'));
+ }
+});
