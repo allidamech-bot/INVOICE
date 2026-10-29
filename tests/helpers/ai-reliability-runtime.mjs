@@ -1,6 +1,6 @@
 import {readFile} from 'node:fs/promises';
 export async function reliabilityRuntimeModules(database){
- const modules={};for(const name of ['ai-local-diagnostics','ai-business-memory-graph','ai-reliability-intelligence'])Object.assign(modules,await import(`../../dist/src/lib/${name}.js`));
+ const modules={};for(const name of ['ai-composer-input','ai-local-diagnostics','ai-business-memory-graph','ai-reliability-intelligence'])Object.assign(modules,await import(`../../dist/src/lib/${name}.js`));
  const key='__memoryFixture'+crypto.randomUUID().replaceAll('-','');globalThis[key]=database;
  const source=(await readFile(new URL('../../dist/src/storage/assistant-memory-store.js',import.meta.url),'utf8')).replace(/import \{[^}]*\} from '\.\/db.js';/,`const {getRecord,putRecord}=globalThis.${key};`);
  const memory=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64')+'#'+crypto.randomUUID());delete globalThis[key];
