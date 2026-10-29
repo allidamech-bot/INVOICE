@@ -22,6 +22,62 @@ export function fingerprintSyntheticFinanceSources(sources){
   // A digest authenticates neither the snapshot provider nor its completeness.
   return digest(sources);
 }
+/**
+ * Revalidate stored candidate journals AND operation receipts, even on a
+ * read-only idempotent replay. A matching op hash alone is insufficient.
+ * No issuer authentication or production journal authority is implied.
+ */
+function assertHistoricCandidateIntegrity(state,controls){
+  const journalMap=new Map(),sourceIds=new Set(),receiptIds=new Set();
+  for(const journal of state.journals){
+    if(!journal||!nonempty(journal.id)||journalMap.has(journal.id)
+      ||!nonempty(journal.sourceMovementId)||!nonempty(journal.sourceKind)
+      ||!validDate(journal.effectiveDate)
+      ||journal.workspaceId!==state.workspaceId
+      ||journal.branchId!==state.branchId
+      ||journal.currency!==controls.functionalCurrency)
+      fail('HISTORIC_JOURNAL_CORRUPT');
+    if(sourceIds.has(journal.sourceMovementId))
+      fail('HISTORIC_JOURNAL_CORRUPT');
+    sourceIds.add(journal.sourceMovementId);
+    journalMap.set(journal.id,journal);
+  }
+  const claimedIds=new Set(),receiptVersions=new Set();
+  for(const receipt of state.receipts){
+    if(!receipt||!nonempty(receipt.opId)||receiptIds.has(receipt.opId)
+      ||!(/^[a-f0-9]{64}$/.test(receipt.fingerprint||''))
+      ||!Number.isSafeInteger(receipt.ledgerVersion)
+      ||receipt.ledgerVersion<1||receipt.ledgerVersion>state.ledgerVersion
+      ||receiptVersions.has(receipt.ledgerVersion)
+      ||receipt.generation!==state.periodGeneration
+      ||receipt.sourceSha256!==state.sourceSha256
+      ||!Array.isArray(receipt.journalIds)||receipt.journalIds.length===0
+      ||receipt.journalIds.length>100
+      ||!(/^(?:0|[1-9]\d*)\.\d{2}$/.test(receipt.trialDebit||''))
+      ||receipt.trialDebit!==receipt.trialCredit)
+      fail('HISTORIC_RECEIPT_CORRUPT');
+    receiptIds.add(receipt.opId);
+    receiptVersions.add(receipt.ledgerVersion);
+    for(const id of receipt.journalIds){
+      if(!nonempty(id)||!journalMap.has(id)||claimedIds.has(id))
+        fail('HISTORIC_RECEIPT_CORRUPT');
+      claimedIds.add(id);
+    }
+  }
+  if(claimedIds.size!==journalMap.size)
+    fail('HISTORIC_RECEIPT_CORRUPT');
+}
+function verifiedSyntheticHistory(controls,sourceEvidence,history,verifySourceBoundGl){
+  const proof=verifySourceBoundGl(controls,sourceEvidence,history);
+  if(proof?.sourceMatchedWithinSyntheticEvidence!==true
+    ||proof.sourceMovementCount!==history.length
+    ||proof.trialBalance?.sourceJournalCount!==history.length
+    ||proof.trialBalance?.totalDebitBalances!==proof.trialBalance?.totalCreditBalances
+    ||proof.productionReady!==false||proof.trialBalance?.productionReady!==false)
+    fail('SOURCE_AUDIT_INCOMPLETE');
+  return proof;
+}
+
 export function prototypeFinanceGlAtomicAppend(
   {state,identity,command,sourceEvidence,controls,verifySourceBoundGl}
 ){
@@ -52,16 +108,31 @@ export function prototypeFinanceGlAtomicAppend(
   if(state.closedThrough!==null && state.closedThrough!==undefined
     &&!validDate(state.closedThrough))fail('PERIOD_CONTROL_INVALID');
 
-  // Idempotency is checked against a fingerprint of the *complete* original
-  // command. Persist only this digest, never customer source content.
+  // Read-only replay MUST NOT accept a mutated ledger or copied receipt.
+  assertHistoricCandidateIntegrity(state,controls);
   const fingerprint=digest(command);
   const prior=state.receipts.filter(x=>x.opId===command.opId);
   if(prior.length>1)fail('CORRUPT_RECEIPTS');
   if(prior.length===1){
     const receipt=prior[0];
     if(receipt.fingerprint!==fingerprint)fail('OPERATION_REUSED');
-    if(!receipt.journalIds?.every(id=>state.journals.some(x=>x.id===id)))
-      fail('HISTORIC_JOURNAL_MISSING');
+    const ids=command.append.map(x=>x?.id);
+    if(ids.some(id=>!nonempty(id))||ids.length!==receipt.journalIds.length
+      ||ids.some((id,i)=>id!==receipt.journalIds[i]))
+      fail('HISTORIC_RECEIPT_CORRUPT');
+    for(const proposal of command.append){
+      const stored=state.journals.find(x=>x.id===proposal.id);
+      if(!stored||digest(stored)!==digest(proposal))
+        fail('HISTORIC_JOURNAL_CHANGED');
+    }
+    // Even if the ledger and its separate journal documents are BOTH
+    // modified, the complete historic valuation must still match sources.
+    const proof=verifiedSyntheticHistory(
+      controls,sourceEvidence,state.journals,verifySourceBoundGl);
+    if(receipt.ledgerVersion===state.ledgerVersion
+      &&(receipt.trialDebit!==proof.trialBalance.totalDebitBalances
+        ||receipt.trialCredit!==proof.trialBalance.totalCreditBalances))
+      fail('HISTORIC_RECEIPT_CORRUPT');
     return{state,receipt:structuredClone(receipt),replayed:true,
       trustedPostingCommitted:false,productionReady:false};
   }
@@ -73,12 +144,12 @@ export function prototypeFinanceGlAtomicAppend(
   if(state.closedThrough!==null && state.closedThrough!==undefined
     &&!validDate(state.closedThrough))fail('PERIOD_CONTROL_INVALID');
   const seenId=new Set(state.journals.map(j=>j.id));
-  const seenSource=new Set(state.journals.map(j=>j.sourceKind+':'+j.sourceMovementId));
+  const seenSource=new Set(state.journals.map(j=>j.sourceMovementId));
   for(const row of command.append){
     if(!row||!nonempty(row.id)||!nonempty(row.sourceMovementId)
-      ||seenId.has(row.id)||seenSource.has(row.sourceKind+':'+row.sourceMovementId))
+      ||seenId.has(row.id)||seenSource.has(row.sourceMovementId))
       fail('DUPLICATE_OR_MISSING_SOURCE');
-    seenId.add(row.id);seenSource.add(row.sourceKind+':'+row.sourceMovementId);
+    seenId.add(row.id);seenSource.add(row.sourceMovementId);
     if(!validDate(row.effectiveDate)
       ||state.closedThrough&&row.effectiveDate<=state.closedThrough)
       fail('CLOSED_OR_INVALID_PERIOD');
@@ -89,13 +160,7 @@ export function prototypeFinanceGlAtomicAppend(
   const fullHistory=[...state.journals,...command.append];
   // The caller-supplied function is for emulator/simulation only. Production
   // MUST bind this to the real server-owned stored evidence and vetted code.
-  const proof=verifySourceBoundGl(controls,sourceEvidence,fullHistory);
-  if(proof?.sourceMatchedWithinSyntheticEvidence!==true
-    ||proof.sourceMovementCount!==fullHistory.length
-    ||proof.trialBalance?.sourceJournalCount!==fullHistory.length
-    ||proof.trialBalance?.totalDebitBalances!==proof.trialBalance?.totalCreditBalances
-    ||proof.productionReady!==false||proof.trialBalance?.productionReady!==false)
-    fail('SOURCE_AUDIT_INCOMPLETE');
+  const proof=verifiedSyntheticHistory(controls,sourceEvidence,fullHistory,verifySourceBoundGl);
   const nextVersion=state.ledgerVersion+1;
   if(!Number.isSafeInteger(nextVersion))fail('REVISION_OVERFLOW');
   const receipt={

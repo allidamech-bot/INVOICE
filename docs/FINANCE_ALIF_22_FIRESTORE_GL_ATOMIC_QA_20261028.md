@@ -182,3 +182,48 @@ Emulator as the existing period-server acceptance, on a **different**
 `demo-*` project ID. It invokes just the new scoped integration suite.
 Do not run broad financial/AI QA workflows solely for this acceptance; if
 GitHub CI invokes a global build, that is not an authorization to edit AI.
+
+
+## 29 October 2026 — historic candidate-replay integrity and period generation
+
+The synthetic atomic contract previously returned an idempotent operation receipt
+after checking only the command fingerprint and whether its referenced journal
+IDs existed in the in-memory ledger. It did **not** revalidate the stored
+historical journal amounts or source valuation on this read-only replay.
+In the emulator, changing both the Firestore ledger snapshot and corresponding
+journal document could bypass the adapter's document-to-ledger equality check;
+if the receipt and request were likewise jointly modified, the old replay
+short-circuit had no independent WAC comparison.
+
+The **test-only** contract now:
+- Rejects duplicate/missing historic journal IDs or physical source IDs
+  even when the sourceKind changes; enforces stored scope, transaction date
+  and currency on every prior journal.
+- Requires the complete historic receipt-to-journal graph, unique operation
+  receipts, valid version/generation, identical source digest, original journal
+  IDs and an exact already-committed journal payload on same-operation replay.
+- Re-runs the original source-bound stock valuation/COGS and candidate trial
+  balance audit **before returning an idempotent replay**. Even an orchestrated
+  change to BOTH the stored journal bytes and operation receipt no longer
+  qualifies as prior success. The most recent operation receipt's asserted
+  trial amounts must match this recomputed synthetic audit.
+- Keeps exact same-input, unchanged-history idempotency read-only. A current
+  server period generation that differs from the isolated rehearsal ledger
+  generation blocks even a stale replay; closing/reopening does not silently
+  migrate historic candidate receipts or modify old journal records.
+- Has targeted pure contract and **local demo Firestore transaction** regression
+  tests for coordinated forged journal and receipt writes, fingerprint
+  substitution, duplicate physical source aliasing and post-close generation
+  mismatch.
+
+**No evidence of real-book tampering is asserted.** This applies exclusively
+to the synthetic, unconnected atomic trial contract and its local Firebase
+emulator. The ledger and source objects can still be synthetic/caller-seeded,
+the operator role is not finance-verified, and this change does not establish
+authenticated durable business journal posting. A source hash or balanced
+amount never certifies the original issuer's document.
+
+No live Vercel or Firestore deployment, production database, published Rules,
+period authority, AI route or customer record is changed. Alif 22, 35-B/C,
+39/40 remain **NO-GO** for production GL activation and independent release
+acceptance.

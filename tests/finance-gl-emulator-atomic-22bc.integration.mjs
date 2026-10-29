@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {randomBytes,generateKeyPairSync,sign} from 'node:crypto';
+import {randomBytes,generateKeyPairSync,sign,createHash} from 'node:crypto';
 import {initializeApp,deleteApp} from 'firebase-admin/app';
 import {getFirestore} from 'firebase-admin/firestore';
 import {emptyVault} from '../dist/src/lib/defaults.js';
@@ -252,6 +252,72 @@ test('corrupt original immutable period generation refuses any GL even when QA h
  assert.equal(after.ledger.ledgerVersion,0);
  assert.equal(after.journals.length,0);
  assert.equal(after.receipts.length,0);
+});
+
+
+test('simultaneously changed Firestore ledger, journal document, receipt document and replay request cannot certify false COGS',async()=>{
+ const f=await seed();
+ const initial=await service.execute(f.actor,f.command);
+ assert.equal(initial.emulatorCommitted,true);
+ const before=await snapshot(f);
+ const forgedCommand=plain(f.command);
+ forgedCommand.append[1].lines.forEach(line=>line.amount='6.00');
+ const forgedLedger=plain(before.ledger);
+ forgedLedger.journals[1].lines.forEach(line=>line.amount='6.00');
+ const fraudulentReceipt=plain(before.receipts[0].data);
+ fraudulentReceipt.fingerprint=createHash('sha256')
+  .update(JSON.stringify(forgedCommand)).digest('hex');
+ forgedLedger.receipts[0]=plain(fraudulentReceipt);
+ const control=f.root.collection('accounting').doc('control');
+ await f.ledgerRef.set(forgedLedger);
+ await control.collection('financeGlQaJournals').doc('QA-gl-1')
+  .set(plain(forgedLedger.journals[1]));
+ await control.collection('financeGlQaReceipts').doc(f.command.opId)
+  .set(plain(fraudulentReceipt));
+ const damaged=await snapshot(f);
+ // Prior client-visible result would have been replayed despite a 5.00 to
+ // 6.00 change in BOTH proposed DR/CR journal lines, because the old contract
+ // skipped its WAC/source inspection entirely on an opId replay.
+ await assert.rejects(service.execute(f.actor,forgedCommand),
+  /ALIF_22_SOURCE_BOUND_GL_NOT_READY|ALIF_22_JOURNAL_NOT_READY/);
+ assert.deepEqual(await snapshot(f),damaged,
+  'rejected historical tampering cannot commit any further Firestore writes');
+});
+
+test('simultaneously changed Firestore receipt document and ledger metadata cannot spoof a previous trial balance',async()=>{
+ const f=await seed();
+ await service.execute(f.actor,f.command);
+ const saved=await snapshot(f),ledger=plain(saved.ledger);
+ const receipt=plain(ledger.receipts[0]);
+ receipt.trialDebit='22.00';receipt.trialCredit='22.00';
+ ledger.receipts=[receipt];
+ const ref=f.root.collection('accounting').doc('control')
+  .collection('financeGlQaReceipts').doc(f.command.opId);
+ await f.ledgerRef.set(ledger);
+ await ref.set(receipt);
+ const corrupted=await snapshot(f);
+ await assert.rejects(service.execute(f.actor,f.command),
+  /ALIF_22_GL_CONTRACT_HISTORIC_RECEIPT_CORRUPT/);
+ assert.deepEqual(await snapshot(f),corrupted);
+});
+
+test('new server period close generation blocks stale synthetic ledger replay, with no journal or receipt mutation',async()=>{
+ const f=await seed();
+ await service.execute(f.actor,f.command);
+ const before=await snapshot(f);
+ const controlRef=f.root.collection('accounting').doc('control');
+ const meta=(await f.root.collection('workspace').doc('meta').get()).data();
+ const originalControl=(await controlRef.get()).data();
+ await periodService.execute(f.actor,{
+  operation:'close',opId:uid(),expectedRevision:meta.revision,
+  expectedGeneration:originalControl.generation,
+  workspaceId:'default',through:'2026-10-22',
+  reason:'Synthetic close after candidate posting'
+ });
+ await assert.rejects(service.execute(f.actor,f.command),
+  /ALIF_22_GL_EMULATOR_LEDGER_AUTHORITY_MISSING/);
+ assert.deepEqual(await snapshot(f),before,
+  'a changed trusted generation does not silently migrate old ledger receipts');
 });
 
 function firebaseOwnerQaToken(actorUid){
