@@ -78,7 +78,7 @@ test('structured six-carton quotation stages all facts locally without provider,
   ['15','CTN','39.60','24 قطعة في الكرتون'],
   ['25','CTN','36.00','48 قطعة في الكرتون'],
   ['10','CTN','37.20','12 عبوة في الكرتون'],
-  ['12','CTN','62.40','8 كيس في الكرتون']
+  ['12','CTN','62.40','8 أكياس في الكرتون']
  ]);
  assert.match(draft.notes,/4,?328.46 USD/);
  const previousFetch=globalThis.fetch;

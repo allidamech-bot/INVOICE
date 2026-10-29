@@ -100,10 +100,10 @@ export function exactStructuredCartonQuote(message:string):AiDocumentDraftPropos
    const portion=input.slice((block.index||0)+block[0].length,i+1<blocks.length?blocks[i+1]!.index:input.length);
    if(!name||name.length>160||items.some(row=>row.descriptionAr===name))return null;
    const qty=amount(field(portion,'الكمية')),packing=field(portion,'التعبئة');
-   const packMatch=packing?.match(/^([0-9٠-٩۰-۹,.]+)\s+(قطعة|عبوة|كيس)\s+في\s+الكرتون/u);
+   const packMatch=packing?.match(/^([0-9٠-٩۰-۹,.]+)\s+(قطعة|قطع|عبوة|عبوات|كيس|أكياس)\s+في\s+الكرتون/u);
    if(!qty||!packMatch)return null;
    const pack=amount(packMatch[1]!);
-   const insideType=packMatch[2]!;
+   const insideType=packMatch[2]==='قطع'?'قطعة':packMatch[2]==='عبوات'?'عبوة':packMatch[2]==='أكياس'?'كيس':packMatch[2]!;
    const singlePrice=amount(field(portion,insideType==='قطعة'?'سعر القطعة':insideType==='عبوة'?'سعر العبوة':'سعر الكيس'));
    const cartonPrice=amount(field(portion,'سعر الكرتون'));
    const rowTotal=amount(field(portion,'إجمالي الصنف'));
@@ -120,7 +120,7 @@ export function exactStructuredCartonQuote(message:string):AiDocumentDraftPropos
       decimalToScaled(innerTotal,0)!==quantity*per)return null;
    cartons+=quantity;inside+=quantity*per;goods+=line;
    items.push({savedItemId:'',descriptionEn:'',descriptionAr:name,quantity:qty,unit:'CTN',
-     unitPrice:cartonPrice,packing:pack+' '+insideType+' في الكرتون'});
+     unitPrice:cartonPrice,packing:pack+' '+packMatch[2]+' في الكرتون'});
  }
  const check=(key:string,expected:bigint,scale:number)=>{
    const v=field(input,key);return v===null||amount(v)!==null&&decimalToScaled(amount(v)!,scale)===expected;
@@ -144,7 +144,8 @@ export function exactStructuredCartonQuote(message:string):AiDocumentDraftPropos
      shippingCents=decimalToScaled(shipping,2);
    if(discountCents!==decimalToScaled(discount,2)||post!==decimalToScaled(after,2)||
      post+shippingCents!==decimalToScaled(final,2))return null;
-   note='المجموع الفرعي للبضائع: '+(Number(goods)/100).toFixed(2)+' USD؛ الخصم المرجعي: '+
+   const subtotalExact=(goods/100n).toString()+'.'+(goods%100n).toString().padStart(2,'0');
+   note='المجموع الفرعي للبضائع: '+subtotalExact+' USD؛ الخصم المرجعي: '+
      discount+' USD ('+pct+'%)؛ الشحن المرجعي: '+shipping+' USD؛ الإجمالي المرجعي قبل الضرائب: '+final+
      ' USD. الخصم والشحن لم يُطبَّقا في حقول الحساب المحاسبي؛ يجب إدخالهما ومراجعتهما في محرر المستند قبل الاعتماد.';
  }
