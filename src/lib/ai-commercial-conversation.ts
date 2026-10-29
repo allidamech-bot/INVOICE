@@ -56,6 +56,13 @@ export function savedDocumentPreviewId(kernel:ConversationKernel,vault:VaultPayl
   .replace(/[٠-٩۰-۹]/g,ch=>String(ar.includes(ch)?ar.indexOf(ch):fa.indexOf(ch))).trim();
  const text=normalize(String(message||''));
  if(!text||text.length>1200)return null;
+ // A numbered facts question must reach document.get and answer all requested
+ // fields; an early preview otherwise replaces the response with "Opened".
+ // Explicit PDF/preview requests retain this read-only presentation shortcut.
+ const numberedFacts=/\b(?:QUO|INV)-[a-z0-9]+(?:-[a-z0-9]+)+\b/iu.test(text)&&
+  /\b(?:customer|items?|count|total|valid(?:ity|[- ]until)?|expir(?:y|es|ation)|issue\s+date)\b|(?:العميل|عدد\s*الأصناف|الإجمالي|اجمالي|الصلاحية|صلاحيت|تاريخ\s*الإصدار)/iu.test(text);
+ const explicitPreview=/\b(?:pdf|preview|download)\b|معاين[ةه]|بي\s*دي\s*[إأا]ف/iu.test(text);
+ if(numberedFacts&&!explicitPreview)return null;
  const strict=text.match(/^(?:افتح\s+معاينة\s+(?:(?:عرض السعر|الفاتورة|المستند)\s+)?|open\s+(?:a\s+)?(?:read-only\s+)?preview\s+(?:of\s+)?(?:quotation\s+|invoice\s+|document\s+)?)([a-z0-9_-]{1,120})(?:\s+فقط دون تعديل أو حفظ أي سجل|\s+دون تعديل أو حفظ|\s+only without (?:editing or saving|changes)|\s+فقط)?[.!؟]?$/iu);
  const action=/^(?:افتح(?:\s+لي)?|أفتح(?:\s+لي)?|اعرض|أعرض|ارني|أرني|اظهر|أظهر|أعطني|اعطني|أرسل|ارسل|هات|جهز|جهّز|open|show|preview|download|give|send|generate)(?:\s|$)/iu.test(text);
  const subject=/(?:\bpdf\b|بي\s*دي\s*[إأا]ف|معاين[ةه]|(?:ال)?فاتور[ةه]|عرض\s*(?:ال)?سعر|(?:ال)?مستند|(?:أمر|طلب)\s*(?:ال)?شراء|(?:سند|إشعار)\s*(?:ال)?(?:تسليم|استلام)|(?:ال)?وثيق[ةه]|\b(?:invoice|quotation|document|quote|preview|purchase\s*order|delivery\s*note|goods\s*receipt|\bPO\b|\bDN\b|\bGRN\b)\b)/iu.test(text);

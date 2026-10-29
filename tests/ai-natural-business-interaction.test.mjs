@@ -4,6 +4,34 @@ import {orchestrateAiToolRequest,explicitAiActionRequest} from '../dist/src/lib/
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {sanitizeReadEvidence,buildNaturalLourexPrompt} from '../api/_ai/lourex-dialogue.js';
 const context={screen:'home',conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'},finance:{balance:'100.00',currency:'USD'}};
+const syntheticDiscussion='اختبار محادثة اصطناعي فقط، دون استخدام سجلات الشركة أو تنفيذ أي إجراء. مشروع خيالي اسمه نوار يبيع دفاتر زرقاء. اشرح بالعربية في جملتين كيف يختار بين البيع نقداً والبيع بالأجل، واحتفظ باسم المشروع ولون الدفاتر لسؤالي التالي.';
+test('Arabic record nouns do not turn an explanatory discussion into an execution request',async()=>{
+ assert.equal(explicitAiActionRequest(syntheticDiscussion),false);
+ for(const message of ['راجع سجلات الشركة','المستخدم يراجع السجلات','حدثت مشكلة بالمحادثة'])
+  assert.equal(explicitAiActionRequest(message),false,message);
+ for(const message of ['سجل دفعة بقيمة 50','ممكن تجهز عرض سعر؟','احذف الفاتورة INV-2026-0003'])
+  assert.equal(explicitAiActionRequest(message),true,message);
+ await planned('finance.getSummary',async calls=>{
+  assert.equal(await orchestrateAiToolRequest({message:syntheticDiscussion,context,vault:emptyVault(),language:'ar'}),null);
+  assert.equal(calls(),0,'discussion belongs to dialogue, without an unnecessary tool-planning request');
+ });
+});
+test('cash-collection advice remains a discussion in both modes rather than reading the live treasury',async()=>{
+ const message='Continue in English. What were the fictional project name and notebook color? Give one practical cash-collection precaution for that same project, in two short sentences.';
+ for(const conversationMode of ['controller','advisor'])await planned('treasury.getSnapshot',async calls=>{
+  const vault=emptyVault(),before=structuredClone(vault);
+  assert.equal(await orchestrateAiToolRequest({message,context:{...context,conversationMode},vault,language:'en'}),null);
+  assert.equal(calls(),0,'no live-record planning for conceptual advice');
+  assert.deepEqual(vault,before);
+ });
+});
+test('explicit requests for recorded cash and treasury balances keep their deterministic read path',async()=>{
+ for(const message of ['Show treasury and cash status','What is our cash balance?','أعطني رصيد الخزينة'])await planned('finance.getSummary',async calls=>{
+  const result=await orchestrateAiToolRequest({message,context:{...context,conversationMode:'advisor'},vault:emptyVault(),language:'en'});
+  assert.equal(result?.plannedBy,'local');assert.equal(result?.results[0]?.tool,'treasury.getSnapshot');
+  assert.equal(calls(),0);assert.equal(result.proposal,null);
+ });
+});
 async function planned(tool,run){
  const old={fetch:globalThis.fetch,window:globalThis.window,firebase:globalThis.firebase};let calls=0;
  globalThis.window={setTimeout,clearTimeout};

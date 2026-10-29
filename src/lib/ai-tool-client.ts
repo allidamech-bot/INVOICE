@@ -272,7 +272,13 @@ export function aiPlannerSourceFacts(sources:unknown):AiPlannerSourceFact[]{
 }
 export function explicitAiActionRequest(message:string):boolean{
   if(/^(?:how|why|should|explain|كيف|ليش|لماذا|اشرح|هل\s+تنصح|شو\s+رأيك)(?:\s|$)/iu.test(message.trim()))return false;
-  return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to|show|display|view|list|find|search)\b|(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|اعرض|أظهر|اظهر|أرني|ارني|ابحث|هات|احذف|امسح|اعتمد|تجهز|تجهّز|تعمل|تضيف|تعدل|تعدّل|تغيّر)/iu.test(message);
+  return /\b(?:create|make|generate|build|save|add|update|edit|change|remove|archive|restore|record|register|set|prepare|open|navigate|go to|show|display|view|list|find|search)\b|(?<![\p{L}\p{N}_])(?:أنشئ|انشئ|أنشء|سوي|سوّي|اعمل|اصنع|جهز|جهّز|سجل|سجّل|أضف|اضف|عدّل|عدل|غيّر|غير|احفظ|خزّن|خزن|حدّث|حدث|افتح|اذهب|اعرض|أظهر|اظهر|أرني|ارني|ابحث|هات|احذف|امسح|اعتمد|تجهز|تجهّز|تعمل|تضيف|تعدل|تعدّل|تغيّر)(?![\p{L}\p{N}_])/iu.test(message);
+}
+
+/** Conceptual advice belongs to dialogue, not keyword-triggered account reads.
+ * Positive execution requests are checked separately before using this guard. */
+function conceptualAiDiscussion(message:string):boolean{
+  return /\bdiscussion\s+(?:question\s+)?only\b|(?:نقاش|للنقاش)\s*فقط|\b(?:precautions?|differences?|definitions?|advantages|disadvantages|pros and cons)\b|(?:الفرق|تعريف|احتياطات|احتياط)|(?:اشرح|explain).{0,160}(?:كيف|\bhow\b|\bbetween\b|يختار)/iu.test(message);
 }
 
 /** When an explicit user action fails to plan, do not quietly replace the
@@ -320,6 +326,7 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   const safeMode=input.context?.conversationMode==='controller'?'controller':'advisor';
   const scopedVault=scopeVault(input.vault);
   const runtime=createAiToolRuntime(scopedVault,{...(input.context||{}),conversationMode:safeMode});
+  if(!hasSources&&!explicitAiActionRequest(input.message)&&conceptualAiDiscussion(input.message))return null;
   if(!hasSources&&runtime.conversationMode==='advisor'){
     const calculation=explicitAdvisorUnitProfitability(input.message,input.language);
     if(calculation)return{answer:calculation.summary,proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
