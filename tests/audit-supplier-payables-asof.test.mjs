@@ -47,6 +47,50 @@ test('AP source integrity: recorded overpayment cannot be disguised as zero outs
   assert.equal(summary.remaining,'800.00');
 });
 
+test('AP source integrity: duplicate settlement identity cannot be counted twice below liability',()=>{
+  const {supplier,purchase,earlier}=fixture();
+  const repeated={...earlier,amount:'200',id:earlier.id};
+  const payments=[earlier,repeated];
+  assert.throws(()=>purchasePayableSummary(purchase,payments,'2026-10-09'),
+    /Duplicate or missing effective supplier payment ID/);
+  assert.throws(()=>supplierPayablesByCurrency([purchase],payments,'2026-10-09'),
+    /Duplicate effective supplier payment ID/);
+  assert.throws(()=>supplierStatement(supplier.id,[purchase],payments,'2026-10-09'),
+    /Duplicate or missing effective supplier payment ID/);
+  assert.throws(()=>purchasePayableSummary(purchase,[{...earlier,id:''}],'2026-10-09'),
+    /Duplicate or missing effective supplier payment ID/);
+});
+
+test('AP source integrity: shared settlement ID across purchases within one scope is ambiguous',()=>{
+  const {supplier,purchase,earlier}=fixture();
+  const secondPurchase={...purchase,id:'other-purchase',number:'PUR-AUDIT-002'};
+  const paymentForSecond={...earlier,purchaseId:secondPurchase.id,amount:'100'};
+  assert.equal(purchasePayableSummary(purchase,[earlier,paymentForSecond],'2026-10-09').remaining,'800.00');
+  assert.throws(()=>supplierPayablesByCurrency([purchase,secondPurchase],
+    [earlier,paymentForSecond],'2026-10-09'),/Duplicate effective supplier payment ID/);
+  assert.throws(()=>supplierStatement(supplier.id,[purchase,secondPurchase],
+    [earlier,paymentForSecond],'2026-10-09'),/Duplicate effective supplier payment ID/);
+  // Independent legal/workspace ledgers may legitimately reuse a local ID.
+  const otherCompanyPurchase={...secondPurchase,workspaceId:'QA-company-B'};
+  const otherCompanyPayment={...paymentForSecond,workspaceId:'QA-company-B'};
+  const valid=supplierPayablesByCurrency([purchase,otherCompanyPurchase],
+    [earlier,otherCompanyPayment],'2026-10-09');
+  assert.equal(valid[0].purchases,'2000.00');
+  assert.equal(valid[0].paid,'300.00');
+  assert.equal(valid[0].remaining,'1700.00');
+});
+
+test('AP source integrity: duplicate-detection respects as-of date and void history',()=>{
+  const {purchase,earlier}=fixture();
+  const future={...earlier,date:'2026-10-20'};
+  assert.equal(purchasePayableSummary(purchase,[earlier,future],'2026-10-09').remaining,'800.00');
+  assert.equal(supplierPayablesByCurrency([purchase],[earlier,future],'2026-10-09')[0].paid,'200.00');
+  assert.throws(()=>supplierPayablesByCurrency([purchase],[earlier,future],'2026-10-21'),
+    /Duplicate effective supplier payment ID/);
+  const voidedFuture={...future,voidedAt:'2026-10-21T12:00:00.000Z',voidReason:'QA void'};
+  assert.equal(supplierPayablesByCurrency([purchase],[earlier,voidedFuture],'2026-10-21')[0].paid,'200.00');
+});
+
 test('as-of supplier payable excludes future payments while current balances include them',()=>{
   const {supplier,purchase,earlier,later}=fixture(),payments=[earlier,later];
   const past=purchasePayableSummary(purchase,payments,'2026-10-09');
