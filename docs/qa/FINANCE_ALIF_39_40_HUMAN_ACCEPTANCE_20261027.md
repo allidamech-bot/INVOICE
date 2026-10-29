@@ -151,3 +151,17 @@ The checker enforces **field consistency only** and cannot verify a fabricated
 manifest or validate live authentication; keep original artifacts with secure
 access controls and require independent security signoff. Prior mock/CI success
 is not production proof and does not change the 39/40 NO-GO.
+
+
+## 29 October 2026 — Fixed-candidate acceptance status; NO-GO unchanged
+
+The 29 October finite reconciliation is recorded in
+`docs/qa/FINANCE_ALIF_34_39_EVIDENCE_MATRIX_20261028.md`
+under **"29 October 2026 — Consolidated finance acceptance checkpoint"**.
+
+- Finance PRs #1158–#1164 are merged on GitHub through `88146e5c295bc01bf2c4b0436717067fb233cd74`; their passing automated source/GL tests are **not** a posted GL, official opening balance, or signed F01–F13.
+- The production alias was observed as `READY` at `e7de8041e7145f86f684eb7068efda97d89c2175`, **not equal** to current main. A deployment of the fixed candidate belongs exclusively to the owner.
+- The operator-observed 35-B read-only Rules capture reported stable published release and `SOURCE_DIFFERENT_RISK_NOT_ASSESSED` against checkout `358cd40...`. The private Rules diff was not independently reviewed, and 35-C real-QA two-UID evidence is not complete. Do **not** mark `gates.publishedRules` complete or claim production Rules parity.
+- The seven gates remain separate: `financeCycle`, `twoDevice`, `publishedRules`, `crossUid`, `physicalIphone`, `authorityRecovery`, `costPolicy`. A passing evidence JSON schema never substitutes independent finance/security/operations/release signoff.
+
+**Current human release decision: NOT SIGNED / NO-GO.** Future work should gather these exact external proofs once, on one explicitly authorized isolated QA candidate; no additional Cloud Shell instructions to the owner, live finance posting, Firestore Rules change or Vercel publication is authorized by this document. Axis 4 is still deferred.

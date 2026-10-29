@@ -61,3 +61,14 @@ original difference status was byte-identical and provenance timestamps are
 chronologically possible. These additions are necessary **but never sufficient**:
 only an independent security reviewer can authenticate the local artifacts,
 evaluate deployed access controls and approve actual 35-B/35-C.
+
+
+## 29 October 2026 — Owner-observed published Rules capture, still NOT APPROVED
+
+**This addendum supersedes the 28 October "LIVE RULES NOT CAPTURED" status for the owner's observed capture only.** A Cloud Shell terminal screenshot supplied in the finance conversation showed the read-only inspector ended with `READ_ONLY_COMPLETE` and published-release stability recheck `PASSED` (two observations). The inspector identified `SOURCE_DIFFERENT_RISK_NOT_ASSESSED`, not byte-identical rules. The checkout used for this observed comparison was `358cd40cc960eada2583617207d57bb1fc164087`. The instrument reportedly stored private full Rules, contextual diff and provenance evidence in the owner's own session; this documentation author did **not** access or independently verify those private artifacts or the live Firebase API.
+
+A screenshot of the contextual diff indicated **permission-relevant structural differences involving accounting/period namespaces**, not merely file formatting, but the complete overlapping-match semantics, deployed release provenance and effective authorization were **not** independently classified. No conclusion that a different UID accessed financial records, or that any business data was changed, follows from these screenshots. The reported four local emulator tests passing against the captured published Rules are *simulation evidence only* and do not certify effective production client permissions or real two-UID access.
+
+**State: `CAPTURE_OBSERVED / SOURCE_DIFFERENT / PRIVATE_RISK_REVIEW_OUTSTANDING / 35-B NO-GO`.** GitHub main later advanced through finance #1164 to `88146e5c295bc01bf2c4b0436717067fb233cd74`; the 35-B evidence from the **older checkout** must not be relabelled as parity with this newer release. The terminal screenshots do not contain sufficient attested ruleset ID/time and entire reviewed diff to finish the independent reviewer gate.
+
+**Non-interactive handoff:** the user expressly requested **no further Cloud Shell commands or trial-and-error**. Use an authorized security operator/approved connector for a separately approved, read-only full-diff security review. Do not ask the owner to copy the private file into GitHub or chat. If a Rules change is necessary, propose and independently test it on isolated QA with explicit owner publication authorization **later**, not through this task. Keep period authority and real GL posting disabled; keep 35-C and 39/40 blocked.
