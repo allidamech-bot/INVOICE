@@ -50,7 +50,7 @@ test('OpenRouter uses only its zero-price model selector and disables data-colle
   assert.equal(result.model,'openrouter/free');
   assert.match(seen.url,/openrouter\.ai\/api\/v1\/chat\/completions/);
   assert.equal(seen.body.model,'openrouter/free');
-  assert.deepEqual(seen.body.provider,{data_collection:'deny'});
+  assert.deepEqual(seen.body.provider,{data_collection:'deny',max_price:{prompt:0,completion:0}});
   assert.match(seen.body.messages[0].content,/JSON schema/i);
   assert.equal(seen.headers.Authorization,'Bearer fake-key');
 });

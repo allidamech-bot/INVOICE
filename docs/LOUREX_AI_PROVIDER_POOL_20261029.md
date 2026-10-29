@@ -1,0 +1,114 @@
+# LOUREX AI multi-model routing — 2026-10-29
+
+AI track only. Main baseline f31ff06c8143267e65b3e0d6570294cbe344453f. Extends Draft PR #1181; no production configuration, merge or manual deployment.
+
+## Proven failure and change
+
+The supplied iPhone capture records a773cf8e-7f53-4f72-b8be-3e3cb3495872: Groq rate_limit 75ms, Cloudflare timeout 12003ms, total 12078ms. Fallback occurred, but only two private models were eligible. A separate synthetic request succeeded by the 5269ms observation: intermittent, not a universal outage. The capture does not identify which quota was exhausted or prove a broken key.
+
+The router also discarded all but one candidate per vendor and applied every 429 to the whole provider. Multi-model mode now retains alternate models with vendor diversity first. Explicit Groq error wording identifying the requested model permits a model-only cooldown and prioritizes another eligible model of Groq. Unknown/account-wide limits remain provider-wide; no key rotation or quota circumvention. Schema and task-specific result validation remain mandatory.
+
+Natural dialogue fairly divides its existing maximum 26-second budget among usable candidates. Attempt deadlines abort stalled work. At most eight inference attempts per request in multi-model mode; no concurrent fanout. Metadata discovery is included in the request budget. Shorter shared deadlines still win. Existing capability/task filtering and ephemeral validated latency/quality ranking remain; cold starts have a stable prior, not a global fastest-provider guarantee.
+
+## Catalog coverage — do not claim every model is live
+
+- Groq: existing GPT-OSS 120B, Qwen 3.8 27B plus GPT-OSS 20B in multi-model mode. These chat models appear in current published free-tier limits. Guardrail/audio models are not chat answers and are not sent to the chat adapter. Account/project limits still need matching to the production key.
+- Cloudflare: all three existing registered text models become eligible under multi-model private routing, subject to their existing declared capabilities. This is not a claim that the entire current Cloudflare catalog has been reviewed or that a paid Workers account is billing-capped.
+- Gemini: existing 2.5 Flash-Lite plus 2.5 Flash/Pro; published free-tier text/image/PDF capability. Actual account access, including restrictions on older models, is unverified. Other current Gemini models are not silently assumed free.
+- OpenRouter: opt-in metadata-only discovery of ALL returned `:free` chat variants with explicit numeric zero pricing for every supplied price field. Missing, nonnumeric, positive, overridden pricing, funded-only zero-price non-free IDs and non-text output endpoints are rejected. Capabilities come from metadata; unsupported modalities never become upload fallbacks. Retains openrouter/free if discovery fails. Cache 5 minutes after success/30 seconds after failure; 1.5-second discovery bound; fixed HTTPS URL, no credentials/prompts/history/business data sent. Inference additionally sets zero input/output max_price and data_collection deny. This is actual catalog expansion, not one hardcoded OpenRouter model.
+- Ollama: official pricing checked today states pay-per-token for every cloud model. Do not expand or activate it under the user's free-only policy without account-specific evidence. Multi-model mode requires both the old verified-free flag and an explicit current zero-cost model list; only the existing gemma4:31b adapter entry can currently be admitted. The old flag alone is insufficient. No new Ollama models are claimed free.
+
+Thus the request to activate every free model across all five vendors is NOT fully closed. OpenRouter discovery and the proven Groq multi-model defect are implemented; account/free/privacy verification and complete Groq/Gemini/Cloudflare catalog coverage remain open. Do not misrepresent an open Draft PR or configured key as production activation.
+
+## Private-data and free-cost controls
+
+Unset LOUREX_AI_APPROVED_PRIVATE_PROVIDERS preserves prior Groq/Cloudflare policy. Only explicit server-side entries gemini,ollama,openrouter expand private destinations. Client body flags cannot grant approval. Kilo/Mistral are not added.
+
+Prepared activation settings (not applied):
+
+```
+LOUREX_AI_MULTI_MODEL_ENABLED=true
+LOUREX_AI_NEW_PROVIDERS_ENABLED=true
+LOUREX_AI_APPROVED_PRIVATE_PROVIDERS=gemini,openrouter
+```
+
+Only after independently proving a current zero-cost Ollama allowance, add ollama to the privacy list and verify LOUREX_AI_OLLAMA_FREE_VERIFIED=true plus LOUREX_AI_OLLAMA_ZERO_COST_MODELS=gemma4:31b. Do not set these as a substitute for evidence. Published availability of a free allowance does not prove the connected account cannot incur overage; owner must retain free-plan/no-overage billing controls. No paid models, credit purchases or billing upgrades authorized.
+
+Gemini free-tier content may be used for product improvement. Its business-data approval remains explicit. OpenRouter keeps data_collection deny; if no eligible privacy-preserving free endpoint exists, fail closed. Diagnostic output is verified-owner-only and bounded to provider, model ID, category, model/provider quota scope, cooldown, elapsed time and fallback index; no upstream bodies, keys or company content.
+
+## Validation
+
+Regression first failed: a model-specific GPT-OSS 120B quota was routed to Cloudflare instead of another Groq model. Passes after model-level handoff fix.
+
+71 focused tests passed: 64 across approved pool, zero-price catalog, multi-provider routing, private document isolation and owner diagnostics, plus 7 shared gateway deadline/cancellation regressions. Production build passed against final source. No live inference calls or broad browser suites in this implementation.
+
+## Remaining acceptance and action
+
+Review CI and code; resolve explicit privacy and account-free allowances before owner configuration/deployment. Verify SHA/PWA. Use at most one synthetic acceptance request; success does not certify every vendor. Do not repeatedly force failures. Verify iPhone owner diagnostics stay readable, composer releases on failure and retains the prompt. Full multi-device/cancelled-approval acceptance remains distinct from this provider change.
+
+Official sources checked today:
+- https://console.groq.com/docs/rate-limits
+- https://console.groq.com/docs/models
+- https://openrouter.ai/api/v1/models
+- https://openrouter.ai/collections/free-models/
+- https://ai.google.dev/gemini-api/docs/pricing
+- https://developers.cloudflare.com/workers-ai/platform/pricing/
+- https://ollama.com/pricing (pay-per-token cloud catalog; contrary to assuming all cloud models free)
+
+## Review closeout follow-up
+
+GitHub head 8e0a95e had three failed workflows, all tracing to one historical OpenRouter test that deep-compared the old provider settings and rejected the new zero-price max_price guard. Updated the assertion to require both privacy denial and the zero-price guard; did not remove the guard or relax the contract.
+
+Also reproduced a stale-catalog defect: after a successful catalog load expired, a failed refresh returned [] once but retained old cached prices for the next call. Clear cached metadata on failure. A focused regression failed before and passed after the fix.
+
+80 targeted tests passed in the closeout run, including the previously failing CI contract, all routing/catalog/owner tests, server role/sandbox and provider request contracts. No broad local browser/emulator/PDF suites or live provider calls repeated. Automatic GitHub checks remain authoritative for the new pushed SHA. Production activation and full account-specific catalog coverage remain blocked by the verification items above; no claim of all vendors running for free.
+
+## Focused engineering follow-up — 29 October 2026
+
+After the original SHA, the automatic targeted Actions checks completed successfully. The router review revealed a previously untested failure: with many `:free` OpenRouter candidates, both futureReserve and fairBudget were proportional to every candidate. A 26-second dialogue could allocate only 3 seconds to the first vendor, although a known synthetic answer had taken around 5.3 seconds. This is a budgeting defect, not proof of any provider outage. The fix counts up to four practical opportunities (distinct vendors plus one same-vendor alternative), rather than all discovered model IDs. It preserves the same 26-second total cap and eight-attempt ceiling, and adds a mocked 60-model catalog regression. No live inference call.
+
+Official Gemini API pricing currently advertises free-tier standard text inference for 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite. Those four are now opt-in candidates alongside 2.5 Flash/Pro/Lite, but **their actual production-key free-tier access is not verified**. Flash-Lite additions are conservatively classified as text-only for the current adapter until file/image support is verified. Gemini's free-tier use of content for product improvement still requires explicit business-data approval. Paid-tier projects are NOT assumed free. References: https://ai.google.dev/gemini-api/docs/pricing and https://ai.google.dev/gemini-api/docs/models.
+
+Verified public pricing distinctions: Cloudflare Workers Free grants 10,000 Neurons/day and blocks use beyond the free allowance, while Workers Paid can bill for excess; verify the connected account before broad activation (https://developers.cloudflare.com/workers-ai/platform/pricing/). Current Ollama cloud pricing is pay-per-token; a $0 subscription price does not prove $0 inference (https://ollama.com/pricing). Groq's published limits are baseline, not production organization/project usage (https://console.groq.com/docs/rate-limits).
+
+Remaining evidence gaps, not closed by code or mocked tests: identify the precise Groq project connected to production, inspect project model/day/minute utilization and input/output tokens; obtain Cloudflare request traces/status and whether model busy/queue/size contributed to the 12003ms timeout; measure live prompt+memory+business evidence byte/token sizes via authorized diagnostics; verify the billing/no-overage controls and privacy approvals for each private provider. No secret values, actual business data, or production configurations were read/changed in this follow-up. No claim of a completed five-vendor free pool.
+
+## Catalog completeness correction — all eligible FREE chat models, not a small hand-picked subset
+
+The desired pool is **all genuinely free and compatible models**, NOT every marketed model and NOT all models called at once. Free plan access, model discovery and allowed private-data destinations are separate gates.
+
+- **Groq:** the published October 29 free-tier chat list identifies the three active chat candidates already in the pool: GPT-OSS 120B, GPT-OSS 20B and Qwen 3.8 27B. The Groq models API is available, but active model enumeration alone does not make enterprise-only or audio/guard models free chat candidates. Source https://console.groq.com/docs/models and https://console.groq.com/docs/rate-limits .
+- **Cloudflare:** added bounded, cached, account-authenticated metadata discovery via documented `GET /ai/models/search?task=text-generation`. Intersects the actual account listing with **28** LLM IDs from the official October 9 Workers AI priced catalog, excluding paid-billing-required models, safeguards and other non-chat tasks. The additional pool requires `LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED=true`. Workers Free grants 10K Neurons daily without overage; **Workers Paid does not guarantee no overage**. No flag is set. Sources https://developers.cloudflare.com/api/resources/ai/subresources/models/methods/list/ and https://developers.cloudflare.com/workers-ai/platform/pricing/ .
+- **Gemini:** added 3 Flash Preview to the published Standard free tier set. The metadata list `GET /v1beta/models` is read using the configured key only if `LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED=true`. Candidate IDs must appear on BOTH the official free-tier list and the account's `generateContent` API response. Not every free-tier TTS, Live, image generation, transcription or embedding model can answer the controller's text JSON request; they require separate adapters and should not be misadvertised as usable. Source https://ai.google.dev/gemini-api/docs/pricing and https://ai.google.dev/api/models .
+- **OpenRouter:** existing dynamic discovery of every `:free` chat variant with zero price and privacy-deny routing remains unchanged.
+- **Ollama:** the current cloud route is pay-per-token; no currently verified zero-priced cloud inference model. Existing closed gate remains. Running local Ollama on owned hardware is a different backend, not the production cloud URL.
+
+Cloudflare/Gemini catalog reads use **GET metadata only**, 1.2s abort bound each, parallel when eligible, 10-minute successful cache and 30-second empty/failure cache. They contain no prompts, histories or business data, invoke no model inference, and do not turn on production config. Every discovered variant uses conservative text JSON capability classification; the normal schema checks and finite model/timeout caps remain enforced. On discovery error, no new unverified models are admitted.
+
+Unresolved: prove the production Cloudflare account is on Workers Free; prove Gemini API key is assigned to a free-tier project and explicitly approve its product-improvement data policy; verify actual account catalogs without disclosing credentials; Ollama zero-cost evidence absent. No deployment, merge or secret operation authorized.
+
+## Production activation safety fix
+
+In the broad catalog version, the new verified-account flags guarded Gemini/Cloudflare **metadata discovery** but their pre-existing registry entries could still pass `environmentReady()` with only credentials. This was an actual path to unverified paid projects once multi-model and private-data flags were enabled. The opt-in multi-model router now blocks **all** Cloudflare models until `LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED=true`, and **all** Gemini models until `LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED=true`. This does **not** modify the legacy router before multi-model mode is activated. Added a deterministic zero-inference regression with both credentials present but both eligibility flags missing.
+
+Vercel project `invoice` was inspected using read-only environment-variable *metadata*. It contains production keys named GROQ_API_KEY, CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, OPENROUTER_API_KEY and OLLAMA_API_KEY, but the new multi-model and free-project verification flags are not set. Secret values were not read or disclosed. The existence of a key does not prove account free status. Do not enable unverified flags merely to admit more models.
+
+No automatic deployment, merge, production settings or live inference has been performed. Continue with verified plan/billing settings, explicit provider data policy decisions, and only then an owner-authorized rollout.
+
+## Final targeted regression closeout — 30 October 2026
+
+The latest automatic full-suite job on `69b8ac06a` passed 4,498/4,499 tests. The sole test failure was a false positive: the fallback test counted the Cloudflare `GET /ai/models/search` metadata request as a model inference, creating an observed sequence `[cloudflare,groq,cloudflare]` instead of its expected inference-only `[groq,cloudflare]`. The fixture now tracks metadata separately, validates the one GET, and requires exactly the two intended POST inference attempts. No quota/billing safeguard was relaxed.
+
+Review also found a genuine timeout correctness issue in `provider-free-catalog.js`: `AbortController.abort()` after 1.2 seconds did not guarantee that `await fetch()` or `await response.text()` would settle if upstream ignored abort. This could hang the whole route before the 26s inference budget, especially on metadata discovery. The fix races the **complete** metadata fetch + body read against the existing 1.2-second deadline, fails closed to an empty discovery result, and preserves the original TTL. Two mocked tests cover both stalled header and stalled response body ignoring abort. No live provider inference, finance changes, deployment or CI manual rerun.
+
+## Cloudflare JSON capability correction — 30 October 2026
+
+Cloudflare's official JSON Mode documentation lists only certain text models as supporting `response_format.type=json_schema`. Sending that parameter indiscriminately to all 28 free catalog candidates would produce unsupported-parameter failures and consume avoidable fallback attempts. Newly discovered Cloudflare models now carry a conservative `jsonSchemaSupported` flag from the published support list. For those without documented native JSON mode, the router requests JSON through an explicit system instruction and **still enforces the exact local schema validation**. Strict native-schema tasks exclude these fallback-only variants; already registered legacy Cloudflare models retain their previous request format. A mocked integration test verifies the actual POST body and resulting schema-validation path. Reference: https://developers.cloudflare.com/workers-ai/features/json-mode/ .
+
+This change does not infer that every model will reliably respond with valid JSON, and it does not authorize a paid plan. Eligibility continues to be gated by the verified Workers Free plan; no real model calls performed.
+
+## Cloudflare rate-limit classification — 30 October 2026
+
+Workers AI documents two different HTTP 429 cases: `3036` (account's daily free Neurons exhausted) and `3040` (model capacity exceeded / rejectIfBusy). Treating both as provider-wide rate limits incorrectly removed every other free Cloudflare model from fallback. The router now recognizes **only explicitly encoded 3040** in the upstream JSON error and marks that attempt as model-local `upstream` failure; alternative Cloudflare models remain eligible. 3036, unknown errors and other HTTP 429s still apply a provider cooldown (fail-closed). No key rotation or parallel fanout. Two mocked no-inference regressions verify both cases. Source https://developers.cloudflare.com/workers-ai/platform/errors/ .
+
+No production configuration, merge, deployment, provider inference or finance paths modified.
