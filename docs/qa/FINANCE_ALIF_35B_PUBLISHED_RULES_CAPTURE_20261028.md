@@ -1,7 +1,7 @@
 # LOUREX INVOICE — Plan Alpha axis 35-B, published Firestore Rules capture
 
-Date: 2026-10-28
-Status: **TOOL PREPARED; LIVE RULES NOT CAPTURED; NOT SECURITY-APPROVED.**
+Date: 2026-10-28; evidence reconciliation updated 2026-10-29
+Status: **OWNER-OBSERVED READ-ONLY CAPTURE / SOURCE DIFFERENT / INDEPENDENT SECURITY REVIEW REQUIRED / 35-B NO-GO.** The original 28 October no-capture status is superseded by the dated addenda below.
 
 ## Financial/security lane and evidence boundary
 
@@ -106,3 +106,39 @@ paste private rule sources into GitHub/chat, or mistake local simulation for
 independent production security approval. A separately authorized reviewer
 must inspect the complete private published source and overlapping matches,
 then seek explicit owner approval before any future publication.
+
+## 29 October 2026 — Exact GitHub Rules byte continuity proved; deployed source still unreviewed
+
+A read-only GitHub Contents API fetch compared `firestore.rules` from:
+
+- owner-inspected historical checkout `358cd40cc960eada2583617207d57bb1fc164087`;
+- latest reviewed `main` `0ce6dd285048662773ec0540e4ab742326a64b40`.
+
+**The file content is byte-identical**, with the same Git blob SHA
+`4a7d77ffdd0bff0546339e60ad775724e2432feb` and length 6905 characters.
+GitHub compare between the two revisions reported no `firestore.rules`
+changes. Therefore the owner-observed historical `SOURCE_DIFFERENT_RISK_NOT_ASSESSED`
+finding is still relevant to the checked-in Rules in this latest revision;
+the older checkout has *not* introduced a source-version discrepancy.
+
+**What this does NOT prove:** the Firebase release might have changed
+since the owner's earlier read-only capture. Byte continuity within GitHub
+does **not** establish currently deployed release identity, ruleset
+creation/publication times, effective authorization, approved remediation
+or the separate live two-UID 35-C boundary. The complete private published
+source and `review.diff` were not accessible through the available authorized
+tools and must not be uploaded to this repository. 35-B remains
+**SOURCE DIFFERENCE OBSERVED / LIVE CURRENTNESS NOT REVERIFIED /
+RISK NOT INDEPENDENTLY ASSESSED / NO-GO**.
+
+**Next security decision (without further owner Cloud Shell commands):**
+an independently authorized security reviewer reads the operator-held
+private published source/diff and attested release metadata **read-only**,
+explicitly checks broad recursive owner-write overlaps under
+`/users/{uid}/accounting`, `periodOperations`, `periodReports`,
+`periodGenerations`, and enrolled `workspace`/`vault`, then records
+release identity, evaluated allow/deny cases and a signed severity/disposition.
+Any proposed fix must first pass isolated Firestore Emulator positive/negative
+role and UID tests, then obtain explicit owner approval for a later Rules
+publication. No currently published Rules read, edit, deploy or production
+financial action occurred in this continuity check.

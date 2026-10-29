@@ -120,3 +120,17 @@ No new posting API, no Firestore Rules publication, no migration/revaluation, no
 5. **Reconfirm GitHub/Vercel/Rules identity** and proof dates once the candidate is deployed by its owner; independent security, accounting, operations and release reviewers decide 39/40. Default `NO-GO` until all seven gates are real, consistent and reviewed.
 
 **Stop rules:** No real GL posting/period activation, Firestore Rules publication, production data writes, cost cutover, Firebase shell experiments, paid browser retries, LOUREX AI work, or automatic Vercel publication under this documentation update. Axis 4 remains explicitly **DEFERRED**. Do not open another narrow synthetic finance PR without a newly proved defect tied to an existing original requirement. This matrix is a finite acceptance handoff, **not** a signed production release.
+
+### 29 October 2026 — 35-B source continuity refinement
+
+Read-only GitHub file comparison proved `firestore.rules` at captured
+checkout `358cd40cc960eada2583617207d57bb1fc164087` and reviewed
+`main` `0ce6dd285048662773ec0540e4ab742326a64b40` have identical contents and Git blob
+`4a7d77ffdd0bff0546339e60ad775724e2432feb`. Thus no new GitHub source diff is needed to connect
+the *historical* owner-observed `SOURCE_DIFFERENT_RISK_NOT_ASSESSED`
+capture to the repository Rules now under review. **Do not** infer that the
+remote Firebase rules release has remained unchanged since that capture.
+The private complete diff and published release timestamps are not
+independently inspected and 35-B and 35-C remain NO-GO. The owner need not
+repeat Cloud Shell; an authorized security reviewer with existing private
+evidence or a permitted read-only connector must finish remote review.
