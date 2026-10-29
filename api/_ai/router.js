@@ -119,6 +119,7 @@ function safeRequestId(value){const text=String(value||'').trim();return /^[A-Za
 function safeTaskType(value){return String(value||'general').replace(/[^a-zA-Z0-9._-]/g,'').slice(0,80)||'general';}
 function telemetry(event,listener){
   const safe={requestId:event.requestId,taskType:event.taskType,provider:event.provider,model:event.model,status:event.status,category:event.category,latencyMs:event.latencyMs,fallbackIndex:event.fallbackIndex,attempt:event.attempt,schemaValid:event.schemaValid};
+  if(Number.isFinite(event.retryAfterMs)&&event.retryAfterMs>=0&&event.retryAfterMs<=86400000)safe.retryAfterMs=Math.round(event.retryAfterMs);
   if(typeof listener==='function'){try{listener({...safe,...(event.rejection?{rejection:event.rejection}:{})});}catch{}}
   if(event.status==='ok')return;
   console.warn('[LOUREX AI router]',safe);
@@ -260,8 +261,13 @@ function configuredCandidates(route,attachments=[],allowExternal=false,bucket=ro
   // Private by default, including extraction, inbox and future server tasks.
   // Only the explicitly classified synthetic-help route may bypass this policy.
   const privateBusiness=!allowExternal;
-  const approvedPrivate=route==='vision'?PRIVATE_VISION_MODELS:PRIVATE_TEXT_MODELS;
-  const eligible=AI_MODEL_REGISTRY.filter(model=>model.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true)&&(!privateBusiness||approvedPrivate.has(modelKey(model.provider,model.model)))&&(!imageCount||model.maxImages>=imageCount));
+  const approvedPrivate=new Set(route==='vision'?PRIVATE_VISION_MODELS:PRIVATE_TEXT_MODELS);
+  // Deployment-side privacy approval, separate from credentials and free allowance.
+  // Never accept this policy through a request body or task-name inference.
+  const approvals=new Set(String(process.env.LOUREX_AI_APPROVED_PRIVATE_PROVIDERS||'').split(',').map(value=>value.trim()));
+  if(approvals.has('gemini'))approvedPrivate.add(`gemini:${GEMINI_MODEL}`);
+  if(approvals.has('ollama')&&route==='general')approvedPrivate.add('ollama:gemma4:31b');
+  const eligible=AI_MODEL_REGISTRY.filter(model=>model.enabled&&model.freeTierEligible&&hasCapabilities(model,required)&&environmentReady(model.provider)&&(['groq','cloudflare','gemini'].includes(model.provider)||allowExternal===true||approvedPrivate.has(modelKey(model.provider,model.model)))&&(!privateBusiness||approvedPrivate.has(modelKey(model.provider,model.model)))&&(!imageCount||model.maxImages>=imageCount));
   // Initial text prior uses the already repeatedly sampled GPT-OSS model.
   eligible.sort((a,b)=>Number(b.model==='openai/gpt-oss-120b')-Number(a.model==='openai/gpt-oss-120b'));
   return rankCandidates(eligible,bucket);
@@ -446,7 +452,11 @@ export async function routeAiStructured(options={}){
       if(remaining<PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS){lastCode='AI_TIMEOUT';break providerRoute;}
       // Reserve a small window for later free-tier fallback models.
       const futureReserve=Math.min((candidates.length-index-1)*PROVIDER_MIN_MS,Math.max(0,remaining-PROVIDER_MIN_MS-ROUTER_SETTLE_RESERVE_MS));
-      const perAttemptMs=Math.min(30_000,Math.max(PROVIDER_MIN_MS,Number(options.timeoutMs)||DEFAULT_TIMEOUT_MS),remaining-ROUTER_SETTLE_RESERVE_MS-futureReserve);
+      const available=candidates.slice(index).filter(candidate=>circuitAvailable(candidate.provider,candidate.model)).length;
+      // Dialogue distributes its existing budget across usable vendors. A slow
+      // first vendor cannot consume the next vendor's opportunity to answer.
+      const fairWindow=options.fairBudget===true?Math.max(PROVIDER_MIN_MS,Math.floor((remaining-ROUTER_SETTLE_RESERVE_MS)/Math.max(1,available))):30_000;
+      const perAttemptMs=Math.min(fairWindow,30_000,Math.max(PROVIDER_MIN_MS,Number(options.timeoutMs)||DEFAULT_TIMEOUT_MS),remaining-ROUTER_SETTLE_RESERVE_MS-futureReserve);
       const startedAt=Date.now();
       attemptCount+=1;
       try{
@@ -461,7 +471,7 @@ export async function routeAiStructured(options={}){
         return finish(accepted);
       }catch(error){
         observe(model,bucket,false,Date.now()-startedAt);
-        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,rejection:error?.rejection,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
+        const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,retryAfterMs:error?.retryAfterMs,rejection:error?.rejection,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
         // A full timeout is already a failed attempt, not a reason to repeat it.
         // Always give an eligible alternate its turn before repeating a failed vendor.
         // A lone provider may still use its existing bounded transient retry.
