@@ -7,6 +7,8 @@ import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 const MAX_BODY_BYTES=4_000_000;
 const RATE_WINDOW_MS=5*60*1000;
 const RATE_MAX=16;
+const RATE_BUCKET_CAP=2048;
+let rateLastSweep=0;
 const DOCUMENT_TYPES=['commercial_registration','customer_rfq','supplier_quote','supplier_invoice','purchase_invoice','product_catalog','price_list','company_file','unknown'];
 const PARTY_ROLES=['customer','supplier','unknown'];
 const TOOL_IDS=['customer.getSummary','customer.getReceivables','customer.getHistory','supplier.getSummary','product.getSummary','product.getCostHistory','document.get','purchase.get','finance.getSummary','treasury.getSnapshot','reports.getMetrics','inventory.getStatus','search.records','pricing.margin','pricing.markup','pricing.targetPrice','landedCost.calculate','scenario.calculate','fx.convertUsingRecordedRate','receivables.aging','breakEven.calculate','inventory.coverage','quotation.prepare','invoice.prepare','customer.prepare','supplier.prepare','purchase.prepare','reminder.prepare','message.prepare','report.prepare','document.createDraft','document.updateDraft','customer.update','supplier.update','product.updateMetadata','product.bulkUpdate','navigation.open','task.create',];
@@ -48,7 +50,22 @@ const BUILTIN_PUBLIC_APP_HOSTS=['invoice-three-puce.vercel.app'];
 function publicAppHosts(){return [...BUILTIN_PUBLIC_APP_HOSTS,...String(process.env.LOUREX_PUBLIC_APP_HOSTS||'').split(',')].map(value=>String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'')).filter(Boolean);}
 function sameOriginRequest(request){const requestedWith=String(request.headers['x-requested-with']||'').trim();const fetchSite=String(request.headers['sec-fetch-site']||'').trim().toLowerCase();if(requestedWith!=='LOUREX-Invoice')return false;const origin=String(request.headers.origin||'').trim();if(!origin)return fetchSite==='same-origin';try{const parsed=new URL(origin);if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.pathname!=='/'||parsed.search||parsed.hash)return false;const trustedHosts=new Set([String(request.headers.host||'').trim().toLowerCase(),...deploymentHosts(),...publicAppHosts()]);return trustedHosts.has(parsed.host.toLowerCase());}catch{return false;}}
 function requestIp(request){if(request.aiVerifiedUid)return `uid:${request.aiVerifiedUid}`;return String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim()||String(request.socket?.remoteAddress||'unknown');}
-function rateAllowed(request){const now=Date.now(),key=requestIp(request),existing=rateBuckets.get(key);const bucket=!existing||now-existing.startedAt>=RATE_WINDOW_MS?{startedAt:now,count:0}:existing;bucket.count+=1;rateBuckets.set(key,bucket);if(rateBuckets.size>500){for(const [entryKey,value] of rateBuckets){if(now-value.startedAt>=RATE_WINDOW_MS)rateBuckets.delete(entryKey);}}return bucket.count<=RATE_MAX;}
+// Per-instance backpressure only: this is not a distributed quota authority.
+// Never evict an unexpired identity: doing so would reset its exhausted quota.
+function rateAllowed(request){
+  const now=Date.now(),key=requestIp(request);
+  if(now-rateLastSweep>=60_000){
+    for(const [id,bucket] of rateBuckets)if(now-bucket.startedAt>=RATE_WINDOW_MS)rateBuckets.delete(id);
+    rateLastSweep=now;
+  }
+  let bucket=rateBuckets.get(key);
+  if(!bucket||now-bucket.startedAt>=RATE_WINDOW_MS){
+    if(!bucket&&rateBuckets.size>=RATE_BUCKET_CAP)return false;
+    bucket={startedAt:now,count:0};rateBuckets.set(key,bucket);
+  }
+  if(bucket.count>=RATE_MAX)return false;
+  bucket.count+=1;return true;
+}
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 function cleanText(value,max=240){return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function cleanConfidence(value){const number=Number(value);return Number.isFinite(number)?Math.max(0,Math.min(1,number)):0;}
@@ -69,7 +86,11 @@ function cleanToolPlannerSources(raw){
   }).filter(row=>row.fileName);
 }
 async function handleToolPlan(body,response,verifiedRole='viewer'){
-  const message=cleanText(body?.message,6000),scope=body?.scope==='business'?'business':body?.scope==='personal'?'personal':'temporary',screen=cleanText(body?.screen,30),entityType=cleanText(body?.entity?.type,30),entityId=cleanText(body?.entity?.id,120),entityLabel=cleanText(body?.entity?.label,160);
+  // The user's row boundaries and trailing corrections are authoritative.
+  // Reject oversize input rather than planning from a silently truncated order.
+  const rawMessage=typeof body?.message==='string'?body.message:'';
+  if(!rawMessage.trim()||rawMessage.length>6000){sendJson(response,400,{code:'INVALID_TOOL_REQUEST',message:'Use a message of 1–6000 characters. No instructions were omitted or executed.'});return;}
+  const message=rawMessage.normalize('NFKC').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,'').trim(),scope=body?.scope==='business'?'business':body?.scope==='personal'?'personal':'temporary',screen=cleanText(body?.screen,30),entityType=cleanText(body?.entity?.type,30),entityId=cleanText(body?.entity?.id,120),entityLabel=cleanText(body?.entity?.label,160);
   if(String(body?.workingMemory||'').length>36000){sendJson(response,400,{code:'INVALID_CONTEXT',message:'Working context exceeds safe limits. No rows were omitted.'});return;}
   const workingMemory=String(body?.workingMemory||'');
   const sourceFacts=cleanToolPlannerSources(body?.sources);

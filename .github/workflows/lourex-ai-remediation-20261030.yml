@@ -1,0 +1,43 @@
+name: LOUREX AI remediation acceptance
+on:
+  push:
+    branches: [fix/ai-commercial-remediation-20261030]
+  pull_request:
+    paths:
+      - 'src/lib/ai-composer-input.ts'
+      - 'src/styles/ai-conversation-workspace.css'
+      - 'tests/visual/run-ai-composer-remediation-20261030.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ai-remediation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Focused AI acceptance without live inference
+        run: node --test --test-concurrency=2 tests/ai-remediation-boundaries-20261030.test.mjs tests/ai-composer-input-layout.test.mjs tests/ai-structured-carton-quote.test.mjs tests/ai-working-draft-plan.test.mjs tests/ai-document-goal-completion.test.mjs tests/ai-inbox-advisor-server-gateway.test.mjs
+      - name: Existing Playwright API, test-only installation
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.55.0
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Built AI UI, Chromium and WebKit; no production access
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/ai-local-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          node tests/visual/run-ai-composer-remediation-20261030.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-composer-remediation-evidence
+          path: visual-qa-output/ai-composer-remediation-20261030
