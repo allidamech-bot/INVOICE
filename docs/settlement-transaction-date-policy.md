@@ -20,3 +20,27 @@ Historical recomputed supplier-payment and treasury results can change for backd
 The application has no verified fiscal-period lock or immutable published-report snapshot mechanism. Recomputed historical views must not be described as closed reports. Do not apply this release to a workflow requiring frozen published periods until controlled period close/reopen or versioned report retention is implemented and verified. Never silently overwrite a published report.
 
 Regression: settlement-transaction-date-policy.test.mjs; audit-supplier-payables-asof.test.mjs; audit-treasury-void-history.test.mjs. Financial domain and full Node suites, TypeScript and build are required before merging. No production data migration or deployment is included.
+
+## 29 October 2026 — no cash recognition before the linked payment
+
+A newly allocated customer receipt or supplier settlement must have a cash/bank
+movement date **on or after the payment's original transaction date**, and that
+source date must be valid. A bank entry dated earlier would make an as-of cash
+report recognize money that AR/AP reports correctly do not recognize until the
+payment's date. This is an implementation integrity guard under the already
+approved 20 October transaction-date policy, not a new posting date convention.
+
+The same check is performed by `appendTreasuryEntry` for normal saves and
+new active offline/remote merges, and by the save-boundary verifier for newly
+synchronized entries that were both posted **and voided** before sync (which
+still affect historical as-of bank balances). Late entry is **not** prohibited:
+for example a 5 October receipt recorded in the app on 20 October can still
+be allocated with a movement date of 5 October; an allocation on 6 October
+also remains valid. Only cash movement dated **before 5 October** is refused.
+
+Previously stored bank movements (including historical voids) are not rewritten
+or retroactively invalidated. This change does not grant production period-close
+authority, modify existing bank balances, migrate actual money, or certify the
+published finance reports and current user permissions. Existing closed-period
+protection, immutable financial source evidence and same-release live QA remain
+separate Plan A acceptance gates.
