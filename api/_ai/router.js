@@ -93,8 +93,10 @@ function findModel(provider,model){return AI_MODEL_REGISTRY.find(entry=>entry.pr
 function hasCapabilities(model,required){return required.every(capability=>model.capabilities.includes(capability));}
 function environmentReady(provider){
   if(provider==='groq')return Boolean(process.env.GROQ_API_KEY?.trim());
-  if(provider==='cloudflare')return Boolean(process.env.CLOUDFLARE_AI_API_TOKEN?.trim()&&process.env.CLOUDFLARE_ACCOUNT_ID?.trim());
-  if(provider==='gemini')return Boolean(process.env.GEMINI_API_KEY?.trim());
+  // The opt-in all-free pool must fail closed on billing/project eligibility.
+  // Preserve the previously deployed legacy router until the opt-in is enabled.
+  if(provider==='cloudflare')return Boolean(process.env.CLOUDFLARE_AI_API_TOKEN?.trim()&&process.env.CLOUDFLARE_ACCOUNT_ID?.trim())&&(!multiModelEnabled()||process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED==='true');
+  if(provider==='gemini')return Boolean(process.env.GEMINI_API_KEY?.trim())&&(!multiModelEnabled()||process.env.LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED==='true');
   // Keys alone never authorize moving sensitive business prompts to new vendors.
   // Opt-in only after reviewing each provider's privacy terms and free-plan limits.
   if(process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED!=='true')return false;

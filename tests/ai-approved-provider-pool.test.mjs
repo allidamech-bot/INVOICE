@@ -89,3 +89,20 @@ test('large OpenRouter catalog does not starve first attempt of a normal respons
  assert.equal(result.provider,'groq');
  assert.ok(deadlines.some(ms=>ms>=5300&&ms<=12000),'provider deadline must not collapse to 3s when free catalog grows');
 });
+
+test('multi-model mode never routes company data to unverified paid-tier Cloudflare or Gemini projects',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';
+ process.env.LOUREX_AI_APPROVED_PRIVATE_PROVIDERS='gemini,openrouter';
+ delete process.env.LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED;
+ delete process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED;
+ delete process.env.GROQ_API_KEY;
+ delete process.env.OPENROUTER_API_KEY;
+ delete process.env.OLLAMA_API_KEY;
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;throw new Error('unverified model must not receive company data');};
+ const result=await (await router()).routeAiStructured({
+  taskType:'business_copilot',schema,prompt:'synthetic financial note',totalBudgetMs:26000
+ });
+ assert.equal(result.success,false);
+ assert.equal(calls,0);
+});

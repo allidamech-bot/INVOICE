@@ -86,3 +86,11 @@ The desired pool is **all genuinely free and compatible models**, NOT every mark
 Cloudflare/Gemini catalog reads use **GET metadata only**, 1.2s abort bound each, parallel when eligible, 10-minute successful cache and 30-second empty/failure cache. They contain no prompts, histories or business data, invoke no model inference, and do not turn on production config. Every discovered variant uses conservative text JSON capability classification; the normal schema checks and finite model/timeout caps remain enforced. On discovery error, no new unverified models are admitted.
 
 Unresolved: prove the production Cloudflare account is on Workers Free; prove Gemini API key is assigned to a free-tier project and explicitly approve its product-improvement data policy; verify actual account catalogs without disclosing credentials; Ollama zero-cost evidence absent. No deployment, merge or secret operation authorized.
+
+## Production activation safety fix
+
+In the broad catalog version, the new verified-account flags guarded Gemini/Cloudflare **metadata discovery** but their pre-existing registry entries could still pass `environmentReady()` with only credentials. This was an actual path to unverified paid projects once multi-model and private-data flags were enabled. The opt-in multi-model router now blocks **all** Cloudflare models until `LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED=true`, and **all** Gemini models until `LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED=true`. This does **not** modify the legacy router before multi-model mode is activated. Added a deterministic zero-inference regression with both credentials present but both eligibility flags missing.
+
+Vercel project `invoice` was inspected using read-only environment-variable *metadata*. It contains production keys named GROQ_API_KEY, CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, OPENROUTER_API_KEY and OLLAMA_API_KEY, but the new multi-model and free-project verification flags are not set. Secret values were not read or disclosed. The existence of a key does not prove account free status. Do not enable unverified flags merely to admit more models.
+
+No automatic deployment, merge, production settings or live inference has been performed. Continue with verified plan/billing settings, explicit provider data policy decisions, and only then an owner-authorized rollout.
