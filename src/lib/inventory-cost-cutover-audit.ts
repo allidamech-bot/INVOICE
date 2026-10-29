@@ -90,10 +90,16 @@ export function auditInventoryValuationCutover(input:InventoryCostAuditInput):In
   if(policy&&(policy.costingMethod!=='moving-weighted-average'
     ||policy.itemClass!=='interchangeable'))
     add('UNSUPPORTED_ITEM_CLASS','This WAC projection must not be applied to non-interchangeable assets.');
+  // A stock item's ID must identify exactly one catalog record in the
+  // complete vault, and that record must belong to this SAME branch.
+  // Merely matching its parent workspace can let a different branch's
+  // product masquerade as a valued in-branch item.
+  const catalogMatches=vault.savedItems.filter(i=>i.id===scope.itemId);
   if(vault.workspaces.filter(w=>w.id===scope.workspaceId).length!==1
     ||vault.branches.filter(b=>b.id===scope.branchId&&b.workspaceId===scope.workspaceId).length!==1
-    ||vault.savedItems.filter(i=>i.id===scope.itemId
-      &&i.workspaceId===scope.workspaceId).length!==1)
+    ||catalogMatches.length!==1
+    ||catalogMatches[0]?.workspaceId!==scope.workspaceId
+    ||catalogMatches[0]?.branchId!==scope.branchId)
     add('SCOPE_NOT_FOUND','Verified unique company, branch and catalog item records are required.');
   const openings=rows.filter(r=>r.type==='opening');
   if(policy){
@@ -118,7 +124,10 @@ export function auditInventoryValuationCutover(input:InventoryCostAuditInput):In
     ||JSON.stringify(evidence.documents)!==JSON.stringify(vault.documents))
     add('UNVERIFIED_MOVEMENTS','The supplied purchase and document sources do not match the vault.');
   let result:ReturnType<typeof reconcilePostedInvoiceCostsToWac>|undefined;
-  if(!blockers.some(b=>b.code==='INCOMPLETE_CHRONOLOGY'||b.code==='UNVERIFIED_MOVEMENTS')){
+  // Never issue inventory/cost figures against a missing, duplicate, or
+  // wrong-branch catalog identity, even as an unposted diagnostic.
+  if(!blockers.some(b=>b.code==='INCOMPLETE_CHRONOLOGY'
+    ||b.code==='UNVERIFIED_MOVEMENTS'||b.code==='SCOPE_NOT_FOUND')){
     try{result=reconcilePostedInvoiceCostsToWac(evidence);}
     catch(err){
       add('SOURCE_RECONCILIATION_FAILED',
