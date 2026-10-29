@@ -8,3 +8,10 @@ test('all zero-price free chat variants are admitted, paid/unknown/overrides nev
 test('non-text endpoints and malformed catalog never become chat candidates',()=>{
  assert.deepEqual(freeOpenRouterModels({data:[{...row('a/audio:free'),architecture:{input_modalities:['text'],output_modalities:['audio']}}]}),[]);assert.deepEqual(freeOpenRouterModels(null),[]);
 });
+test('failed catalog refresh clears old free-price metadata until a fresh fetch succeeds',async()=>{
+ const fetch=globalThis.fetch,now=Date.now;let clock=100000,calls=0;Date.now=()=>clock;
+ const m=await import('../api/_ai/free-model-catalog.js?refresh-fixture');
+ globalThis.fetch=async()=>{calls++;if(calls===1)return{ok:true,text:async()=>JSON.stringify({data:[row('a/one:free')]})};throw Error('offline');};
+ try{assert.equal((await m.openRouterFreeCatalog()).length,1);clock+=300001;assert.deepEqual(await m.openRouterFreeCatalog(),[]);assert.deepEqual(await m.openRouterFreeCatalog(),[]);assert.equal(calls,2);}
+ finally{globalThis.fetch=fetch;Date.now=now;}
+});

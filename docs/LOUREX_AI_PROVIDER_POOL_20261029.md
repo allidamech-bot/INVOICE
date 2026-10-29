@@ -54,3 +54,11 @@ Official sources checked today:
 - https://ai.google.dev/gemini-api/docs/pricing
 - https://developers.cloudflare.com/workers-ai/platform/pricing/
 - https://ollama.com/pricing (pay-per-token cloud catalog; contrary to assuming all cloud models free)
+
+## Review closeout follow-up
+
+GitHub head 8e0a95e had three failed workflows, all tracing to one historical OpenRouter test that deep-compared the old provider settings and rejected the new zero-price max_price guard. Updated the assertion to require both privacy denial and the zero-price guard; did not remove the guard or relax the contract.
+
+Also reproduced a stale-catalog defect: after a successful catalog load expired, a failed refresh returned [] once but retained old cached prices for the next call. Clear cached metadata on failure. A focused regression failed before and passed after the fix.
+
+80 targeted tests passed in the closeout run, including the previously failing CI contract, all routing/catalog/owner tests, server role/sandbox and provider request contracts. No broad local browser/emulator/PDF suites or live provider calls repeated. Automatic GitHub checks remain authoritative for the new pushed SHA. Production activation and full account-specific catalog coverage remain blocked by the verification items above; no claim of all vendors running for free.

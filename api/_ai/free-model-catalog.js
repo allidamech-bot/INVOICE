@@ -30,7 +30,7 @@ export async function openRouterFreeCatalog(){
       const models=await Promise.race([work,stopped]);
       // Retain successful metadata briefly; no inference depends on discovery succeeding.
       cached=models;expires=Date.now()+300000;return cached;
-    }catch{expires=Date.now()+30000;return[];}
+    }catch{cached=[];expires=Date.now()+30000;return[];}
     finally{clearTimeout(timer);pending=undefined;}
   })();return pending;
 }
