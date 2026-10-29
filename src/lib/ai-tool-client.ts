@@ -29,7 +29,7 @@ import {isAiInvoiceStockEvidenceIntent,aiInvoiceStockEvidence} from './ai-invoic
 import {requestedCatalogQuoteFamily,naturalCatalogQuoteReply} from './ai-catalog-conversation.js';
 import {graphKindAllowed} from './ai-business-memory-graph.js';
 import {strictAiActor} from './ai-foundation-approval.js';
-import {exactTextQuotePreview,exactStructuredCartonQuote} from './ai-text-quote-preview.js';
+import {exactTextQuotePreview,exactStructuredCartonQuote,structuredCartonQuoteRequested} from './ai-text-quote-preview.js';
 import {namedRecordReadPlan} from './ai-named-record-read.js';
 
 export type AiPlanningFailure='timeout'|'rate-limited'|'unavailable'|'not-configured'|'invalid-plan';
@@ -350,17 +350,24 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   // deterministic local staging; AI quota must not block its review card.
   // The card is UNSAVED. Discounts and freight remain clearly labelled
   // informational until the editor applies its accounting adjustments.
-  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'){
+  if(!hasSources&&runtime.scope==='business'&&runtime.conversationMode==='controller'&&
+      structuredCartonQuoteRequested(input.message)){
+    if(!graphKindAllowed(strictAiActor(input.vault).role,'document'))
+      return{answer:input.language==='ar'?'الحساب الحالي غير مخوّل لإعداد مسودة. لم تتغير أي بيانات.':'Your role cannot draft documents. No records changed.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
     const workingDraft=exactStructuredCartonQuote(input.message);
-    if(workingDraft){
-      if(!graphKindAllowed(strictAiActor(input.vault).role,'document'))
-        return{answer:input.language==='ar'?'الحساب الحالي غير مخوّل لإعداد مسودة. لم تتغير أي بيانات.':'Your role cannot draft documents. No records changed.',
-          proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+    if(!workingDraft){
+      // Invalid/missing carton arithmetic is a user-data clarification, NOT a
+      // reason to ask AI for an alternative price or a partial quotation.
       return{answer:input.language==='ar'
-        ?'جهّزت مسودة عرض سعر محلية غير محفوظة من جميع أصناف الكراتين وأسعارها بعد فحص الكميات والمجاميع. إجمالي البضائع في المسودة لا يشمل الخصم أو الشحن؛ أرقام الخصم والشحن والإجمالي النهائي محفوظة كملاحظة مرجعية للمراجعة فقط، وليست إضافات مالية مطبقة. لم أُنشئ عميلًا أو أسجل أي مستند.'
-        :'Prepared an unsaved local quotation with every carton line and verified subtotal. Discount, freight and final total are reference-only notes, not applied accounting adjustments. No customer or document was saved.',
-        proposal:null,workingDraft,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
+        ?'لم أجهّز المسودة لأن بعض كميات الكراتين أو التعبئة أو أسعار القطع والكراتين أو المجاميع غير متطابقة أو غير مكتملة. راجع كل صنف وسعر كرتونه وإجماليه ثم أعد إرسال الطلب كاملًا. لم أستخدم مزوّد AI ولم أحفظ أي مستند.'
+        :'I did not stage the quotation: one or more carton counts, inner packs, prices or declared totals are missing or inconsistent. Review every line and resend the complete order. No AI provider call or document save occurred.',
+        proposal:null,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
     }
+    return{answer:input.language==='ar'
+      ?'جهّزت مسودة عرض سعر محلية غير محفوظة من جميع أصناف الكراتين وأسعارها بعد فحص الكميات والمجاميع. إجمالي البضائع في المسودة لا يشمل الخصم أو الشحن؛ أرقام الخصم والشحن والإجمالي النهائي محفوظة كملاحظة مرجعية للمراجعة فقط، وليست إضافات مالية مطبقة. لم أُنشئ عميلًا أو أسجل أي مستند.'
+      :'Prepared an unsaved local quotation with every carton line and verified subtotal. Discount, freight and final total are reference-only notes, not applied accounting adjustments. No customer or document was saved.',
+      proposal:null,workingDraft,plan:{version:1,goal:clean(input.message,240),calls:[]},results:[],plannedBy:'local'};
   }
   // A fully specified REVIEW-ONLY quote must be usable even if the free AI
   // planner cannot return a valid tool plan. This creates a scoped in-chat

@@ -5,6 +5,7 @@ import {exactStructuredCartonQuote} from '../dist/src/lib/ai-text-quote-preview.
 import {orchestrateAiToolRequest} from '../dist/src/lib/ai-tool-client.js';
 import {newConversationKernel,stageKernelArtifact} from '../dist/src/lib/ai-conversation-kernel.js';
 import {workspaceDocument} from '../dist/src/lib/ai-workspace-model.js';
+import {prepareAiPdfPreview} from '../dist/src/lib/ai-pdf-preview.js';
 
 const fixture=`أنشئ لي **مسودة عرض سعر تجاري احترافية ومتكاملة** باسم LOUREX Trading.
 - العميل: شركة الندى للتجارة والتوزيع — عميل تجريبي.
@@ -112,4 +113,45 @@ test('structured carton quote fails closed on arithmetic, missing lines, conflic
   fixture.replace('- سعر الكيس: 7.80 USD.','- سعر الكيس: 7.80 EUR.')
  ];
  for(const message of bad)assert.equal(exactStructuredCartonQuote(message),null,'Unverified structured draft must not be staged');
+});
+
+test('carton order with mismatched price never falls through to generative planning',async()=>{
+ const vault=emptyVault();
+ const unsafe=[
+   fixture.replace('سعر الكرتون: 37.20 USD.','سعر الكرتون: 62.40 USD.'),
+   fixture.replace('سعر الكرتون: 62.40 USD.','سعر الكرتون: 7.80 USD.'),
+   fixture.replace('- التعبئة: 8 أكياس في الكرتون.','- التعبئة: 8 علب في الكرتون.'),
+   fixture.replace('إجمالي قيمة البضائع: 4,366.80 USD.','إجمالي قيمة البضائع: 3,963.60 USD.')
+ ];
+ const before=JSON.stringify(vault),prior=globalThis.fetch;
+ globalThis.fetch=()=>{throw Error('Financially ambiguous carton input must never invoke provider');};
+ try{
+  for(const message of unsafe){
+    const result=await orchestrateAiToolRequest({message,vault,language:'ar',
+      context:{conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}}});
+    assert.equal(result.plannedBy,'local');
+    assert.equal(result.proposal,null);
+    assert.equal(result.workingDraft,undefined);
+    assert.deepEqual(result.results,[]);
+    assert.match(result.answer,/لم أجهّز المسودة/);
+  }
+  assert.equal(JSON.stringify(vault),before);
+ }finally{globalThis.fetch=prior;}
+});
+test('AI document PDF receives correct complete carton line prices and packing',()=>{
+ const vault=emptyVault();
+ const draft=exactStructuredCartonQuote(fixture);
+ assert.ok(draft);
+ const kernel=newConversationKernel({scope:'business',workspaceId:'default',branchId:'main',threadId:'carton-pdf'});
+ stageKernelArtifact(kernel,draft);
+ const doc=prepareAiPdfPreview(kernel,vault,'ar');
+ assert.equal(doc.items.length,6);
+ assert.deepEqual(doc.items.map(r=>r.unitPrice),['33.60','37.20','39.60','36.00','37.20','62.40']);
+ assert.deepEqual(doc.items.map(r=>r.quantity),['30','20','15','25','10','12']);
+ assert.equal(doc.items[4].packing,'12 عبوة في الكرتون');
+ assert.equal(doc.items[5].packing,'8 أكياس في الكرتون');
+ assert.equal(doc.appearance.showPacking,true);
+ assert.equal(doc.adjustments.discountEnabled,false);
+ assert.equal(doc.adjustments.shippingEnabled,false);
+ assert.equal(doc.number,'UNSAVED-PREVIEW');
 });

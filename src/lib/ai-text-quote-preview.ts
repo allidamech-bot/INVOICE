@@ -160,3 +160,16 @@ export function exactStructuredCartonQuote(message:string):AiDocumentDraftPropos
    label:'Unsaved structured carton quotation',rationale:'Validated explicit cartons, inner pieces, unit prices and declared totals locally; no provider call, saved record or issuance.'};
  }catch{return null;}
 }
+
+/** Recognize a structured carton-order attempt separately from proving its
+ * figures. If validation fails, do NOT pass the full financial specification to
+ * a generative planner that could silently cross-assign line prices. */
+export function structuredCartonQuoteRequested(message:string):boolean{
+ const input=String(message||'').normalize('NFKC').trim();
+ if(!input||input.length>20000)return false;
+ const positive=/(?:^|\n)[^\n]{0,180}(?:أنشئ|انشئ|جهز|جهّز|حضّر|حضر|اعمل|إنشاء|اعد|create|prepare)[^\n]{0,160}(?:عرض\s*(?:ال)?سعر|quotation|quote)/iu.test(input);
+ const headings=[...input.matchAll(/(?:^|\n)\s*\*{0,2}الصنف\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|[0-9]{1,2})\s*[:：]/gmu)].length;
+ const cartonFields=/(?:^|\n)\s*[-*]?\s*التعبئة\s*[:：]\s*[0-9٠-٩۰-۹,.]+\s+(?:قطع?|عبوات?|أكياس|كيس)\s+في\s+الكرتون/mu.test(input)||
+  /(?:^|\n)\s*[-*]?\s*سعر\s+الكرتون\s*[:：]/mu.test(input);
+ return positive&&headings>=2&&cartonFields;
+}
