@@ -183,8 +183,12 @@ source verifier, recomputes issued-invoice AR and supplier AP using the
 existing financial helpers, requires each customer/supplier payment to have
 one exactly matching, scoped bank allocation, and independently reconciles
 the bank's posted source entry balance. Duplicate receipt IDs, excess supplier
-payments, missing bank links, bank amount mismatches, invoice price changes,
-wrong stock cost and cross-currency/scope entries fail closed.
+payments, missing bank links, bank amount mismatches, wrong stock cost and
+cross-currency/scope entries fail closed. A change to the *underlying* invoice
+sale price may still produce a numerically balanced new candidate trial
+balance. Without server-authenticated immutable original invoices, this is
+**not proof** that the original billed revenue has not been altered; the
+regression suite asserts the resulting candidate remains untrusted.
 
 For the **synthetic-only** F01–F08 fixture (200 cartons × USD 6 purchase;
 20 cartons × USD 10 final invoice; USD 50 customer receipt; USD 30 supplier
