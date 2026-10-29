@@ -174,3 +174,54 @@ test('even returning synthetic audit flags cannot create production approval',()
   ['opId','fingerprint','ledgerVersion','generation','sourceSha256',
    'journalIds','trialDebit','trialCredit'].sort());
 });
+
+
+test('idempotent GL replay fails closed if a stored candidate journal changed without changing original source',()=>{
+ const s=fixture(),first=run(s);
+ for(const changedField of [
+  state=>state.journals[1].lines.forEach(line=>line.amount='6.00'),
+  state=>state.journals[1].sourceKind='purchase-receipt',
+  state=>state.journals[0].effectiveDate='2026-10-20'
+ ]){
+  const damaged=structuredClone(first.state);changedField(damaged);
+  refused({...s,state:damaged},'HISTORIC_JOURNAL_CHANGED');
+  assert.equal(JSON.stringify(first.state),JSON.stringify(run(s).state),
+    'bad replay must not alter known-good proposal');
+ }
+});
+
+test('idempotent GL replay verifies receipt source, generation, original append IDs and approval amounts',()=>{
+ const s=fixture(),first=run(s);
+ const modifications=[
+  x=>x.receipts[0].sourceSha256='a'.repeat(64),
+  x=>x.receipts[0].generation=8,
+  x=>x.receipts[0].ledgerVersion=2,
+  x=>x.receipts[0].journalIds=['QA-journal-0','QA-journal-0'],
+  x=>x.receipts[0].journalIds=['QA-journal-1','QA-journal-0'],
+  x=>x.receipts[0].trialDebit='12.00',
+  x=>{x.receipts[0].trialDebit='11.00';x.receipts[0].trialCredit='11.00';},
+  x=>x.receipts=[],
+  x=>x.receipts.push(structuredClone(x.receipts[0]))
+ ];
+ for(const mutate of modifications){
+  const changed=structuredClone(first.state);mutate(changed);
+  refused({...s,state:changed},'HISTORIC_RECEIPT_CORRUPT');
+ }
+ assert.equal(run({...s,state:first.state}).replayed,true);
+});
+
+test('relabelling the same physical source kind cannot book two synthetic journals',()=>{
+ const s=fixture(),changed=structuredClone(s.command);
+ changed.append[1].sourceMovementId=changed.append[0].sourceMovementId;
+ changed.append[1].sourceKind='sales-stock-issue';
+ refused({...s,command:changed},'DUPLICATE_OR_MISSING_SOURCE');
+});
+
+test('replay after period close remains read-only only while historic source and current authority are intact',()=>{
+ const s=fixture(),posted=run(s);
+ const closed={...posted.state,closedThrough:'2026-10-22'};
+ const replay=run({...s,state:closed});
+ assert.equal(replay.replayed,true);
+ assert.equal(replay.state,closed,'closed period is not opened or mutated on replay');
+ refused({...s,state:{...closed,periodGeneration:8}},'HISTORIC_RECEIPT_CORRUPT');
+});
