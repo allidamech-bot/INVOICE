@@ -5,6 +5,7 @@ import {createSupplier,createPurchase,createPurchaseItem,postPurchase} from '../
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {inspectMultiItemSourceBoundStockGl} from '../dist/src/lib/finance-multi-item-source-gl-preview.js';
+import {defaultWarehouseId} from '../dist/src/lib/warehouses.js';
 
 const controls={
   workspaceId:'default',branchId:'main',functionalCurrency:'USD',asOfDate:'2026-10-27',
@@ -74,7 +75,7 @@ function scenario(extraReceipt=false){
     ...row,workspaceId:'default',branchId:'main'
   }));
   const evidence={
-    warehouseId:'warehouse:main',movements,purchases:vault.purchases,
+    warehouseId:defaultWarehouseId('main'),movements,purchases:vault.purchases,
     documents:[invoice],orderedMovementIds:movements.map(row=>row.id)
   };
   // Use the actual default location from the domain, not a QA assumption.
