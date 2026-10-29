@@ -1,0 +1,9 @@
+# LOUREX AI — local six-carton quotation regression
+
+Incident: Controller rendered "تعذر تجهيز الإجراء لأن طلبات AI بلغت الحد المؤقت" and planning provider busy for an explicitly structured Arabic six-item quotation. The previous local quote preview was limited to two English-named rows and a strict two-item syntax; a bare create command could only start an empty draft. This request therefore reached paid-free provider planner and was refused on quota.
+
+The new AI-only deterministic extraction handles fully specified Arabic carton-item blocks with 2–20 lines. It uses CTN as the sales unit, packs exact pieces/bags/jars in the packing metadata, and verifies each product quantity × carton price, inner-unit quantity × packs, price per piece × pack, plus stated totals and explicitly supplied percent discount and freight. A mismatch fails closed to normal planning without staging partial data. It does not call AI for matching valid data; no customer, document, stock or company data are persisted. It stages an in-chat review-only proposal, not an executable save approval.
+
+**Limit:** document.createDraft currently carries subtotal lines but no native freight/discount adjustment fields. The review card shows goods subtotal; it retains discount and freight in an explicit informational note and warns they are not accounted for in actual totals. Never claim the final quoted total is applied, and require separate review in the document editor before issuing or saving. No financial-track code modified.
+
+Tests: exact 6-line screenshot-reproduction fixture (112 cartons, 2,976 inside units, subtotal 4,366.80 USD; 5% discount, freight 180, target final 4,328.46 USD), no-fetch/no-save scope guard, and negative cases for missing lines/tampered amounts and customer. See tests/ai-structured-carton-quote.test.mjs.
