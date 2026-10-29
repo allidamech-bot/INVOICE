@@ -3,17 +3,17 @@ Date: 29 October 2026
 Status: NON-FIREBASE ENGINEERING / POLICY PREPARATION; NO PRODUCTION GL CUTOVER
 
 ## Authority and scope
-- Reviewed baseline GitHub main and owner-published production: \`6c6bacd225340445fa17007810d479f52b52313e\` (\`READY\`). Release identity has been independently matched on 29 October, but is **not** proof of fiscal source data, effective deployed Firestore permissions, or a signed accounting acceptance.
+- Reviewed baseline GitHub main and owner-published production: `6c6bacd225340445fa17007810d479f52b52313e` (`READY`). Release identity has been independently matched on 29 October, but is **not** proof of fiscal source data, effective deployed Firestore permissions, or a signed accounting acceptance.
 - This document is a finite, consolidated handoff for *work that does not require Firebase*. It **does not** reopen previously delivered financial features, alter LOUREX AI, publish code, modify an account, create a real invoice, change prior-period records, or convert candidate journal projections into posted books.
 - Explicitly excluded: Firebase published Rules 35-B, real cross-UID 35-C, trusted server close/restore 37–38, two-device cloud acceptance, source-authenticated GL atomic server posting and all operator-controlled production activation. Those cannot be described as "complete" without their genuine external gates.
 - Axis 4 independent posted-purchase document is owner-deferred, not a new scope.
 
 ## Delivery status: what exists today
-1. **Production-operational, already developed:** sales/quotes and native print/PDF; stock issuance guards; invoice/customer receipts/AR; purchase/supplier payments/AP; cash/bank treasury linking and as-of reconciliation; branch scope and historical-date protections. Previous merged PRs and targeted automated evidence are indexed in \`docs/qa/FINANCE_ALIF_34_39_EVIDENCE_MATRIX_20261028.md\`. Automated test success must not be misrepresented as signed live finance acceptance.
-2. **Valuation method CHOSEN:** perpetual moving weighted average (WAC) for interchangeable inventory, separately justified specific identification for non-interchangeable inventory, per \`docs/FINANCE_ALIF_22_WEIGHTED_AVERAGE_POLICY_20261027.md\`.
-3. **Accounting simulations only:** code already recomputes WAC, NRV candidates, sample inventory/COGS entries, AP/AR/treasury and an illustrative trial balance. That code **does not post a production general ledger**. Its \`productionReady=false\` boundary is intentional.
+1. **Production-operational, already developed:** sales/quotes and native print/PDF; stock issuance guards; invoice/customer receipts/AR; purchase/supplier payments/AP; cash/bank treasury linking and as-of reconciliation; branch scope and historical-date protections. Previous merged PRs and targeted automated evidence are indexed in `docs/qa/FINANCE_ALIF_34_39_EVIDENCE_MATRIX_20261028.md`. Automated test success must not be misrepresented as signed live finance acceptance.
+2. **Valuation method CHOSEN:** perpetual moving weighted average (WAC) for interchangeable inventory, separately justified specific identification for non-interchangeable inventory, per `docs/FINANCE_ALIF_22_WEIGHTED_AVERAGE_POLICY_20261027.md`.
+3. **Accounting simulations only:** code already recomputes WAC, NRV candidates, sample inventory/COGS entries, AP/AR/treasury and an illustrative trial balance. That code **does not post a production general ledger**. Its `productionReady=false` boundary is intentional.
 4. **Physical iPhone:** the owner confirmed *preview equals saved PDF* on the current release. This closes that observed display concern. It is not evidence of every unobserved F11/F12 Safari condition (long Arabic/English multi-page, Share/Print, keyboard/save) and cannot be silently signed as all of 30–33.
-5. **Non-Firebase opening-book preflight NEW:** \`scripts/finance-alif-opening-preflight.mjs\` validates one candidate legal-entity/company/branch/currency private opening file offline: account coverage, unique identifiers, opening debit=credit, required inventory/AR/AP/treasury source-control equality, dated evidence hash shapes, and minor currency units. It makes no network calls, produces only missing *field paths*, has no persistence, and NEVER grants a financial GO.
+5. **Non-Firebase opening-book preflight NEW:** `scripts/finance-alif-opening-preflight.mjs` validates one candidate legal-entity/company/branch/currency private opening file offline: account coverage, unique identifiers, opening debit=credit, required inventory/AR/AP/treasury source-control equality, dated evidence hash shapes, and minor currency units. It makes no network calls, produces only missing *field paths*, has no persistence, and NEVER grants a financial GO.
 
 ## Proposed accounting policy — defaults for review, NOT company-signed facts
 These are implementation-ready recommendations, not historical financial entries or jurisdiction-specific tax advice. The finance owner/accountant must separately approve each unresolved item for the correct legal entity and fiscal period.
@@ -29,7 +29,7 @@ These are implementation-ready recommendations, not historical financial entries
 | NRV under IAS 2 | Lower of cost and net realisable value; impairment via allowance and expense; reversal limited to previous impairment; never silently change original sales | Approved contemporaneous sale/finish/disposal estimates |
 | FX | Source-dated conversion for foreign purchase at initial recognition; historical-cost inventory uses initial appropriate rate, monetary AR/AP/bank are remeasured per IAS 21 at each reporting date with separately approved FX gain/loss | Supported currency, reliable rate source/timestamps, separate realized/unrealized and local statutory/tax rule |
 | Minor-unit rounding | Preserve high-precision cost subledger; book monetary journals at an approved entity/currency precision (e.g. USD 2). Control cumulative-rounding residual explicitly, not a hidden writeoff | Approved specific algorithm, zero-cent movement and variance treatment |
-| Effective dates | Use transaction/event dates for as-of ledgers; \`createdAt\` is audit metadata, never a substitute | Source timestamps and immutable posting chronology |
+| Effective dates | Use transaction/event dates for as-of ledgers; `createdAt` is audit metadata, never a substitute | Source timestamps and immutable posting chronology |
 | VAT/returns/tax | No universal VAT rate or input VAT claim; existing output-VAT report is not a complete jurisdiction-specific tax ledger | Legal jurisdiction, recoverability, tax rates and reporting approvals |
 | General-ledger structure | Double-entry, immutable scoped source/posting references, idempotency, per-account currency control, balanced trial balance and period locks | Source-authenticated server-owned atomic posting/authority; NOT yet provided without Firebase |
 
@@ -56,12 +56,12 @@ A balanced sample journal does NOT authenticate opening equity, the original ban
 ## Non-Firebase opening reconciliation — private operator package
 For **each** legal entity + workspace + branch + functional currency + cutoff:
 1. Independently obtain signed opening cash/bank statements, AR customer aged detail, AP supplier aged detail, original dated physical stock count/landed valuation and GL trial balance. Review proof of currency/FX and unreconciled adjustments. Do not send financial secrets to GitHub.
-2. Prepare a locally held \`LOUREX_ALIF_OPENING_V1\` JSON matching the contract below. Every *chart account* needs exactly one opening balance row, including documented zero accounts when needed; each source-controlled inventory, AR, AP and bank/cash account has a one-to-one source control and amount. For multiple currencies, branches or entities create **separate** candidates; never sum nominal amounts across currencies.
-3. Run locally: \`node scripts/finance-alif-opening-preflight.mjs /private/path/opening.json\`. A nonzero exit or missing paths blocks even structural review. A structural PASS still requires original source authentication, independent accountant signoff, a complete legal ledger design and server controls. Never upload the source dossier or result files to this repo.
+2. Prepare a locally held `LOUREX_ALIF_OPENING_V1` JSON matching the contract below. Every *chart account* needs exactly one opening balance row, including documented zero accounts when needed; each source-controlled inventory, AR, AP and bank/cash account has a one-to-one source control and amount. For multiple currencies, branches or entities create **separate** candidates; never sum nominal amounts across currencies.
+3. Run locally: `node scripts/finance-alif-opening-preflight.mjs /private/path/opening.json`. A nonzero exit or missing paths blocks even structural review. A structural PASS still requires original source authentication, independent accountant signoff, a complete legal ledger design and server controls. Never upload the source dossier or result files to this repo.
 4. Require finance owner to reconcile any difference **before** proposing a source-bound GL cutover. Never invent zero opening balances, adjust the treasury to make a trial balance balance, or rewrite historical invoices.
 
 Contract shape (illustrative; synthetic only):
-\`\`\`json
+```json
 {
   "schema": "LOUREX_ALIF_OPENING_V1",
   "scope": {
@@ -90,7 +90,7 @@ Contract shape (illustrative; synthetic only):
     {"kind":"supplierPayable","accountId":"2000","amount":"1170.00","sourceAsOfDate":"2026-10-28","evidenceSha256":"<64-character-SHA256>"}
   ]
 }
-\`\`\`
+```
 **CAUTION:** This sample has invalid placeholder hashes ON PURPOSE and is not a usable approval dossier. It illustrates structure, not real account values. The checker does not verify whether provided hashes are authentic, accounts are legally correct, the set of source controls is complete in the real organization, cash exists, or invoices are genuine.
 
 ## Final non-Firebase checkpoints
