@@ -22,6 +22,25 @@ export function fingerprintSyntheticFinanceSources(sources){
   // A digest authenticates neither the snapshot provider nor its completeness.
   return digest(sources);
 }
+/** Demo-only canonical identifier: one immutable candidate ledger per exact
+ * company + branch pair. The hash avoids concatenation ambiguities and
+ * prevents clients from selecting a second ledger with a freeform path key.
+ * This does not authenticate company membership.
+ */
+export function syntheticFinanceGlScopeKey(workspaceId,branchId){
+  if(!nonempty(workspaceId)||!nonempty(branchId))
+    fail('INVALID_SCOPE_ID');
+  return 'scope-'+digest([workspaceId,branchId]).slice(0,48);
+}
+/** Pin caller-asserted accounting policy/COA and currency for the entire
+ * synthetic generation, independently of stock document content.
+ * A hash by itself is not approval or evidence from a real issuer.
+ */
+export function fingerprintSyntheticFinanceControls(controls){
+  if(!controls||typeof controls!=='object'||Array.isArray(controls))
+    fail('INVALID_CONTROLS');
+  return digest(controls);
+}
 /**
  * Revalidate stored candidate journals AND operation receipts, even on a
  * read-only idempotent replay. A matching op hash alone is insufficient.
@@ -51,6 +70,7 @@ function assertHistoricCandidateIntegrity(state,controls){
       ||receiptVersions.has(receipt.ledgerVersion)
       ||receipt.generation!==state.periodGeneration
       ||receipt.sourceSha256!==state.sourceSha256
+      ||receipt.controlsSha256!==state.controlsSha256
       ||!Array.isArray(receipt.journalIds)||receipt.journalIds.length===0
       ||receipt.journalIds.length>100
       ||!(/^(?:0|[1-9]\d*)\.\d{2}$/.test(receipt.trialDebit||''))
@@ -87,7 +107,9 @@ export function prototypeFinanceGlAtomicAppend(
     ||!Number.isSafeInteger(state.periodGeneration)||state.periodGeneration<1
     ||!Number.isSafeInteger(state.ledgerVersion)||state.ledgerVersion<0
     ||!nonempty(state.workspaceId)||!nonempty(state.branchId)
-    ||!nonempty(state.sourceSha256)||!Array.isArray(state.journals)
+    ||!nonempty(state.sourceSha256)
+    ||!(/^[a-f0-9]{64}$/.test(state.controlsSha256||''))
+    ||!Array.isArray(state.journals)
     ||!Array.isArray(state.receipts))
     fail('AUTHORITY_MISSING');
   if(identity.role!=='owner'||identity.uid!==state.ownerUid)fail('OWNER_REQUIRED');
@@ -104,6 +126,8 @@ export function prototypeFinanceGlAtomicAppend(
   if(state.sourceSha256!==fingerprintSyntheticFinanceSources(sourceEvidence)
     ||command.expectedSourceSha256!==state.sourceSha256)
     fail('SOURCE_VERSION_MISMATCH');
+  if(state.controlsSha256!==fingerprintSyntheticFinanceControls(controls))
+    fail('CONTROLS_VERSION_MISMATCH');
 
   if(state.closedThrough!==null && state.closedThrough!==undefined
     &&!validDate(state.closedThrough))fail('PERIOD_CONTROL_INVALID');
@@ -166,7 +190,7 @@ export function prototypeFinanceGlAtomicAppend(
   const receipt={
     opId:command.opId,fingerprint,ledgerVersion:nextVersion,
     generation:state.periodGeneration,sourceSha256:state.sourceSha256,
-    journalIds:command.append.map(j=>j.id),
+    controlsSha256:state.controlsSha256,journalIds:command.append.map(j=>j.id),
     trialDebit:proof.trialBalance.totalDebitBalances,
     trialCredit:proof.trialBalance.totalCreditBalances
   };
