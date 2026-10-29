@@ -51,7 +51,7 @@ test('model-specific Groq quota can hand off to another Groq model',async()=>{
  const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema});assert.equal(r.success,true);assert.equal(r.provider,'groq');assert.equal(r.model,'openai/gpt-oss-20b');assert.deepEqual(models,['openai/gpt-oss-120b','openai/gpt-oss-20b']);
 });
 test('unknown account quota skips every model of the vendor, not one key per model',async()=>{
- process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';delete process.env.OPENROUTER_API_KEY;const seen=[];
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED='true';delete process.env.OPENROUTER_API_KEY;const seen=[];
  globalThis.fetch=async(url,options)=>{seen.push(vendor(url));return response(vendor(url)==='groq'?429:200,vendor(url));};
  const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema});assert.equal(r.provider,'cloudflare');assert.deepEqual(seen,['groq','cloudflare']);
 });
