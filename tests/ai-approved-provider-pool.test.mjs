@@ -112,3 +112,35 @@ test('multi-model mode never routes company data to unverified paid-tier Cloudfl
  assert.equal(result.success,false);
  assert.equal(calls,0);
 });
+
+test('Cloudflare model-capacity 3040 falls through to another free model without provider-wide cooldown',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';
+ process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED='true';
+ delete process.env.GROQ_API_KEY;delete process.env.GEMINI_API_KEY;
+ delete process.env.OPENROUTER_API_KEY;delete process.env.OLLAMA_API_KEY;
+ const attempted=[];
+ globalThis.fetch=async(url,options)=>{
+   if(options?.method==='GET')return{ok:true,text:async()=>JSON.stringify({result:[]})};
+   const model=JSON.parse(options.body).model;attempted.push(model);
+   if(attempted.length===1)return{ok:false,status:429,headers:{get:()=>null},
+     text:async()=>JSON.stringify({errors:[{code:3040,message:'Capacity temporarily exceeded'}]})};
+   return response(200,'cloudflare');
+ };
+ const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema,prompt:'fictional'});
+ assert.equal(r.success,true);assert.equal(r.provider,'cloudflare');
+ assert.equal(attempted.length,2);assert.notEqual(attempted[0],attempted[1]);
+});
+test('Cloudflare 3036 daily free allocation stops the whole Cloudflare provider',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';
+ process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED='true';
+ delete process.env.GROQ_API_KEY;delete process.env.GEMINI_API_KEY;
+ delete process.env.OPENROUTER_API_KEY;delete process.env.OLLAMA_API_KEY;
+ let calls=0;
+ globalThis.fetch=async(url,options)=>{
+   if(options?.method==='GET')return{ok:true,text:async()=>JSON.stringify({result:[]})};
+   calls++;return{ok:false,status:429,headers:{get:()=>null},
+     text:async()=>JSON.stringify({errors:[{code:3036,message:'Free allocation exhausted'}]})};
+ };
+ const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema,prompt:'fictional'});
+ assert.equal(r.success,false);assert.equal(calls,1);assert.equal(r.errorCode,'AI_RATE_LIMITED');
+});

@@ -296,6 +296,16 @@ function configuredCandidates(route,attachments=[],allowExternal=false,bucket=ro
 }
 function providerError(provider,model,status,bodyText){
   if(status===429){
+    if(provider==='cloudflare'){
+      // Workers AI 3040 is temporary model capacity (e.g. rejectIfBusy), not
+      // the 3036 daily-neuron account quota. Keep other models eligible.
+      let upstream;
+      try{upstream=JSON.parse(bodyText);}catch{}
+      const codes=[upstream?.error?.code,...(Array.isArray(upstream?.errors)?upstream.errors.slice(0,8).map(item=>item?.code):[])];
+      if(codes.some(code=>String(code)==='3040'))
+        return{category:'upstream',code:'AI_UPSTREAM_ERROR',retryable:false};
+      // 3036 and unrecognized 429s remain provider-wide, fail-safe.
+    }
     let message='';try{message=String(JSON.parse(bodyText)?.error?.message||'').slice(0,4000);}catch{}
     // Only explicit provider wording may narrow quota scope. Unknown stays account-wide.
     const quotaScope=provider==='groq'&&message.includes('for model `'+model+'`')&&!/account-wide|organization-wide/i.test(message)?'model':'provider';
