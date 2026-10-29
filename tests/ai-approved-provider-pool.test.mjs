@@ -71,3 +71,21 @@ test('multi-model mode does not treat the old Ollama free flag as current zero-c
  let calls=0;globalThis.fetch=async()=>{calls++;return response(200,'ollama');};
  const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema});assert.equal(r.success,false);assert.equal(calls,0);
 });
+
+test('large OpenRouter catalog does not starve first attempt of a normal response window',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
+ process.env.LOUREX_AI_APPROVED_PRIVATE_PROVIDERS='openrouter';
+ process.env.OPENROUTER_API_KEY='fixture';delete process.env.OLLAMA_API_KEY;
+ const deadlines=[];
+ globalThis.setTimeout=(fn,ms,...args)=>{deadlines.push(ms);return originalTimer(fn,ms,...args);};
+ globalThis.fetch=async url=>{
+   if(String(url).endsWith('/models'))return {ok:true,text:async()=>JSON.stringify({data:Array.from({length:60},(_,i)=>({id:'fixture/free-'+i+':free',pricing:{prompt:'0',completion:'0'},architecture:{input_modalities:['text'],output_modalities:['text']}}))})};
+   if(vendor(url)==='groq')return response(200,'groq');
+   throw Error('Unexpected provider');
+ };
+ const result=await (await router()).routeAiStructured({taskType:'business_copilot',schema,prompt:'fictional',
+   totalBudgetMs:26000,timeoutMs:12000,fairBudget:true});
+ assert.equal(result.success,true);
+ assert.equal(result.provider,'groq');
+ assert.ok(deadlines.some(ms=>ms>=5300&&ms<=12000),'provider deadline must not collapse to 3s when free catalog grows');
+});

@@ -46,7 +46,10 @@ export const AI_MODEL_REGISTRY=Object.freeze([
 // explicit multi-model switch and private-provider policy below.
 const EXTRA_FREE_MODELS=[
  {provider:'groq',model:'openai/gpt-oss-20b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]},
- ...['gemini-2.5-flash','gemini-2.5-pro'].map(model=>({provider:'gemini',model,enabled:true,freeTierEligible:true,maxImages:8,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.LARGE_CONTEXT,AI_CAPABILITIES.NATIVE_DOCUMENT]})),
+ ...['gemini-2.5-flash','gemini-2.5-pro','gemini-3.8-flash','gemini-3.6-flash'].map(model=>({provider:'gemini',model,enabled:true,freeTierEligible:true,maxImages:8,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.LARGE_CONTEXT,AI_CAPABILITIES.NATIVE_DOCUMENT]})),
+ // The current Gemini Flash-Lite free-tier models are text JSON candidates only
+ // until PDF/image capability is separately verified for this adapter and account.
+ ...['gemini-3.5-flash-lite','gemini-3.1-flash-lite'].map(model=>({provider:'gemini',model,enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]})),
 ];
 function multiModelEnabled(){return process.env.LOUREX_AI_MULTI_MODEL_ENABLED==='true';}
 // One capability pool; privacy approval narrows eligibility, never assigns a provider a job.
@@ -473,12 +476,15 @@ export async function routeAiStructured(options={}){
       if(multiModelEnabled()&&attemptCount>=8)break providerRoute;
       const remaining=totalBudgetMs-(Date.now()-routeStartedAt);
       if(remaining<PROVIDER_MIN_MS+ROUTER_SETTLE_RESERVE_MS){lastCode='AI_TIMEOUT';break providerRoute;}
-      // Reserve a small window for later free-tier fallback models.
-      const futureReserve=Math.min((candidates.length-index-1)*PROVIDER_MIN_MS,Math.max(0,remaining-PROVIDER_MIN_MS-ROUTER_SETTLE_RESERVE_MS));
-      const available=candidates.slice(index).filter(candidate=>circuitAvailable(candidate.provider,candidate.model)).length;
-      // Dialogue distributes its existing budget across usable vendors. A slow
-      // first vendor cannot consume the next vendor's opportunity to answer.
-      const fairWindow=options.fairBudget===true?Math.max(PROVIDER_MIN_MS,Math.floor((remaining-ROUTER_SETTLE_RESERVE_MS)/Math.max(1,available))):30_000;
+      // A large free-model catalog is not a large number of sequential chances:
+      // cap fairness at four real opportunities, preserving vendor diversity and
+      // a model-specific quota fallback without starving a normal 5s response.
+      const futureModels=candidates.slice(index+1).filter(candidate=>circuitAvailable(candidate.provider,candidate.model));
+      const vendorCount=new Set([model.provider,...futureModels.map(candidate=>candidate.provider)]).size;
+      const sameVendorAlternative=futureModels.some(candidate=>candidate.provider===model.provider);
+      const fairSlots=Math.min(4,vendorCount+(sameVendorAlternative?1:0));
+      const futureReserve=Math.min(Math.max(0,fairSlots-1)*PROVIDER_MIN_MS,Math.max(0,remaining-PROVIDER_MIN_MS-ROUTER_SETTLE_RESERVE_MS));
+      const fairWindow=options.fairBudget===true?Math.max(PROVIDER_MIN_MS,Math.floor((remaining-ROUTER_SETTLE_RESERVE_MS)/fairSlots)):30_000;
       const perAttemptMs=Math.min(fairWindow,30_000,Math.max(PROVIDER_MIN_MS,Number(options.timeoutMs)||DEFAULT_TIMEOUT_MS),remaining-ROUTER_SETTLE_RESERVE_MS-futureReserve);
       const startedAt=Date.now();
       attemptCount+=1;
