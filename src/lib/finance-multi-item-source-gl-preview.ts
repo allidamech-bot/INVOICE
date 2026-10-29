@@ -102,6 +102,31 @@ export function inspectMultiItemSourceBoundStockGl(
       fail('Unordered, missing or mismatched stock movement/journal.');
     seen.add(id);previousDate=row.date;
   }
+  // For every supplied final invoice, require all its tracked stock lines
+  // to appear exactly once; a partial invoice cannot claim a complete GL.
+  // All other non-stock invoice components are outside this stock-only bridge.
+  const invoiceIds=new Set<string>();
+  for(const invoice of input.documents){
+    if(!needed(invoice.id)||invoiceIds.has(invoice.id)
+      ||invoice.workspaceId!==controls.workspaceId
+      ||invoice.branchId!==controls.branchId
+      ||invoice.currency!==controls.functionalCurrency)
+      fail('Issued invoice source must be unique and in the same scope and functional currency.');
+    invoiceIds.add(invoice.id);
+    const lines=invoice.items.filter(line=>line.stockTreatment==='tracked');
+    if(!lines.length)fail('Nonstock invoice does not belong in this stock-only source set.');
+    const ids=new Set<string>();
+    for(const line of lines){
+      if(!needed(line.id)||ids.has(line.id)||!needed(line.savedItemId))
+        fail('Tracked invoice stock line identity is missing or duplicated.');
+      ids.add(line.id);
+      const matching=input.movements.filter(row=>
+        row.id==='sales-invoice-stock:'+invoice.id+':'+line.id
+        &&row.sourceId===invoice.id&&row.itemId===line.savedItemId&&row.type==='issue');
+      if(matching.length!==1)
+        fail('Complete final invoice stock issue must be represented exactly once.');
+    }
+  }
   const purchaseMap=new Map<string,(typeof input.purchases)[number]>();
   for(const purchase of input.purchases){
     if(!needed(purchase.id)||purchaseMap.has(purchase.id)||purchase.status!=='posted'
