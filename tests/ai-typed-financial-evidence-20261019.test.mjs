@@ -3,6 +3,39 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {financialReadoutFromToolRows,normalizeFinancialReadout,parseFinancialReadout} from '../dist/src/lib/ai-financial-readout.js';
 import {normalizeAssistantState,upsertAssistantThread} from '../dist/src/storage/assistant-store.js';
+import {formatAiBusinessRecordReply} from '../dist/src/lib/ai-tool-presentation.js';
+
+test('saved quotation readout retains quotation identity and expiry in both answer layers',()=>{
+ const data={results:[{tool:'document.get',ok:true,class:'read',data:{
+  id:'synthetic-quote',kind:'proforma',number:'QUO-2026-0009',status:'draft',
+  customerName:'Synthetic Quote Buyer',issueDate:'2026-10-27',dueDate:'2026-11-03',currency:'USD',
+  itemCount:6,items:Array.from({length:6},(_,i)=>({descriptionEn:'Test item '+(i+1),quantity:'1',unit:'PCS',unitPrice:'374.50'})),
+  totals:{subtotal:'2247.00',grandTotal:'2247.00'}
+ }}]},before=structuredClone(data);
+ for(const [language,title,expiry] of [['ar','عرض سعر QUO-2026-0009','انتهاء الصلاحية'],['en','Quotation QUO-2026-0009','Valid until']]){
+  const typed=financialReadoutFromToolRows(data,language);
+  const legacy=parseFinancialReadout(formatAiBusinessRecordReply(data,language));
+  for(const model of [typed,legacy]){
+   assert.ok(model);
+   assert.equal(model.title,title);
+   assert.ok(model.intro.some(f=>f.label===expiry&&f.value==='2026-11-03'));
+   assert.equal(model.items.length,6);
+   assert.ok(model.sections.flatMap(s=>s.facts).some(f=>f.value==='2247.00 USD'));
+   assert.equal(model.partial,false);
+  }
+ }
+ assert.deepEqual(data,before);
+});
+
+test('invoice and unknown document readouts do not inherit quotation terminology',()=>{
+ for(const [kind,title] of [['invoice','Invoice'],['other','Document']]){
+  const data={results:[{tool:'document.get',ok:true,class:'read',data:{kind,number:'QA-1',dueDate:'2026-11-03',totals:{grandTotal:'10.00'},currency:'USD'}}]};
+  for(const model of [financialReadoutFromToolRows(data,'en'),parseFinancialReadout(formatAiBusinessRecordReply(data,'en'))]){
+   assert.equal(model.title,title+' QA-1');
+   assert.ok(model.intro.some(f=>f.label==='Due date'));
+  }
+ }
+});
 
 const evidence=()=>({results:[
  {tool:'document.get',ok:true,class:'read',data:{id:'private-invoice-id',number:'INV-2026-0003',kind:'invoice',status:'final',
