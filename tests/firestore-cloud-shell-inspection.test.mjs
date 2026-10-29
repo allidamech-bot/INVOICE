@@ -3,13 +3,23 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readdirSync,readFileSync,rmSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const inspect=fileURLToPath(new URL('../scripts/inspect-live-firestore-rules.mjs',import.meta.url));
 const mock=fileURLToPath(new URL('./fixtures/mock-firebase-rules-read.mjs',import.meta.url));
 function inspectSandbox(patch={},args=[]){
  const home=mkdtempSync(join(tmpdir(),'lourex-firebase-inspect-'));
+ // The sandbox substitutes HOME to isolate the private backup directory.
+ // In GitHub's root-owned Playwright container this also hides checkout's
+ // safe.directory config, causing Git to reject the genuine CI worktree
+ // BEFORE the mocked Firebase GETs. Trust only THIS known checkout path for
+ // the test process; keep the inspection script's real Git provenance checks
+ // intact and never enable a wildcard safe.directory.
+ const checkoutRoot=resolve(fileURLToPath(new URL('../',import.meta.url)));
+ writeFileSync(join(home,'.gitconfig'),
+   '[safe]\\n\\tdirectory = '+checkoutRoot+'\\n'.replaceAll('\\n','\n').replaceAll('\\t','\t'),
+   {mode:0o600});
  const bin=join(home,'bin');
  mkdirSync(bin,{mode:0o700});
  writeFileSync(join(bin,'gcloud'),
