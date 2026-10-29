@@ -5,6 +5,25 @@ import {emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {newConversationKernel} from '../dist/src/lib/ai-conversation-kernel.js';
 import {savedDocumentPreviewId} from '../dist/src/lib/ai-commercial-conversation.js';
+import {namedRecordReadPlan} from '../dist/src/lib/ai-named-record-read.js';
+import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
+
+test('numbered quotation facts reach document.get instead of the preview shortcut',()=>{
+ const {vault,kernel}=fixture(),doc=createBlankDocument('proforma','QUO-2026-0009',vault.company);
+ doc.workspaceId='default';doc.branchId='main';doc.dueDate='2026-11-03';doc.currency='USD';
+ doc.customerSnapshot={companyNameEn:'Synthetic Quote Buyer',companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};vault.documents=[doc];
+ const message='Show quotation QUO-2026-0009: customer, item count, total in USD and valid-until date. Read only; do not change any data.';
+ assert.equal(savedDocumentPreviewId(kernel,vault,message),null,'the early preview must not swallow requested facts');
+ const runtime=createAiToolRuntime(vault,{conversationMode:'controller',assistantRuntime:{scope:'business',workspaceId:'default',branchId:'main'}});
+ const plan=namedRecordReadPlan(message,runtime);
+ assert.equal(plan?.calls[0]?.tool,'document.get');
+ const result=executeAiToolPlan(runtime,plan);
+ assert.equal(result.results[0].ok,true);
+ assert.equal(result.results[0].data.customerName,'Synthetic Quote Buyer');
+ assert.equal(result.results[0].data.dueDate,'2026-11-03');
+ assert.equal(result.proposal,null);
+ assert.equal(savedDocumentPreviewId(kernel,vault,'Open preview of quotation QUO-2026-0009'),doc.id);
+});
 
 const scope={scope:'business',workspaceId:'default',branchId:'main',threadId:'f17-saved-reference'};
 function fixture(){
