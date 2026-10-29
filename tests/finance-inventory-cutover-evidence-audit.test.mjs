@@ -99,6 +99,32 @@ test('22 cutover: missing or ambiguous workspace, branch or catalog source block
  }
 });
 
+test('22 cutover: an item must have one global identity in the exact valued branch',()=>{
+ const s=source(),original=JSON.stringify(s);
+ const accepted=audit(s);
+ assert.equal(accepted.evidenceCoverage,'COMPLETE_FOR_SUPPORTED_SCOPED_EVENTS');
+ assert.equal(accepted.calculatedCarryingValue,'22.000000000000');
+
+ const badCases=[
+  vault=>{vault.savedItems[0].branchId='other-branch';},
+  vault=>{delete vault.savedItems[0].branchId;},
+  vault=>{vault.savedItems.push({...vault.savedItems[0],branchId:'other-branch'});},
+  vault=>{vault.savedItems.push({...vault.savedItems[0],workspaceId:'different-company'});}
+ ];
+ for(const change of badCases){
+  const vault=structuredClone(s.vault);change(vault);
+  const result=audit({...s,vault});
+  assert.ok(codes(result).includes('SCOPE_NOT_FOUND'),
+   'wrong branch, missing branch or globally duplicated item ID must block');
+  assert.equal(result.evidenceCoverage,'INCOMPLETE');
+  assert.equal(result.calculatedCarryingValue,undefined,
+   'no monetary value should be represented as supported when item identity is invalid');
+  assert.equal(result.calculatedQuantity,undefined);
+  assert.equal(result.productionReady,false);
+ }
+ assert.equal(JSON.stringify(s),original,'source, policy and vault must remain unchanged');
+});
+
 test('22 cutover: claimed zero opening contradicts an actual opening movement',()=>{
  const s=source(),vault=structuredClone(s.vault);
  vault.inventoryMovements.unshift({...vault.inventoryMovements[0],id:'qa-opening',
