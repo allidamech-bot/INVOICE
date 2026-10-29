@@ -73,6 +73,30 @@ function assertUniquePostedPurchaseSources(purchases:readonly PurchaseRecord[],a
   }
 }
 
+// A payable report must not count an identical settlement ID twice. IDs are
+// scoped to their company/branch; only effective settlements of purchases
+// posted at the requested historical cutoff participate in this check.
+function assertUniqueEffectiveSupplierPaymentSources(
+  purchases:readonly PurchaseRecord[],payments:readonly SupplierPaymentRecord[],asOf:string
+):void{
+  const activePurchaseKeys=new Set(purchases.filter(purchase=>postedOnOrBefore(purchase,asOf))
+    .map(purchase=>JSON.stringify([purchase.workspaceId||'default',purchase.branchId||'main',purchase.id])));
+  const seen=new Set<string>();
+  for(const payment of payments){
+    const scopedPurchase=JSON.stringify([
+      payment.workspaceId||'default',payment.branchId||'main',payment.purchaseId
+    ]);
+    if(!activePurchaseKeys.has(scopedPurchase)
+      ||!(asOf?paymentKnownOnOrBefore(payment,asOf):!payment.voidedAt))continue;
+    if(!payment.id?.trim())
+      throw new Error('Recorded supplier payment ID is missing; AP cannot be reconciled.');
+    const key=JSON.stringify([payment.workspaceId||'default',payment.branchId||'main',payment.id]);
+    if(seen.has(key))
+      throw new Error('Duplicate effective supplier payment ID in the same company/branch; AP cannot be reconciled.');
+    seen.add(key);
+  }
+}
+
 export function supplierDaysOverdue(dueDate:string,today=todayIso()):number{
   if(!isIsoDate(dueDate)||!isIsoDate(today)||dueDate>=today)return 0;
   return Math.max(0,dayNumber(today)-dayNumber(dueDate));
@@ -95,11 +119,15 @@ function effectiveSupplierPaymentsForPurchase(purchase:PurchaseRecord,payments:S
   if(purchase.status!=='posted')return[];
   const workspaceId=purchase.workspaceId||'default',branchId=purchase.branchId||'main';
   const currency=cleanCurrency(purchase.currency),supplierId=purchaseSupplierId(purchase);
+  const seenIds=new Set<string>();
   return payments.filter(payment=>payment.purchaseId===purchase.id&&
     (payment.workspaceId||'default')===workspaceId&&
     (payment.branchId||'main')===branchId&&
     (asOf?paymentKnownOnOrBefore(payment,asOf):!payment.voidedAt)
   ).map(payment=>{
+    if(!payment.id?.trim()||seenIds.has(payment.id))
+      throw new Error('Duplicate or missing effective supplier payment ID; AP cannot be reconciled.');
+    seenIds.add(payment.id);
     // Old records may lack supplierId, but a recorded *different* supplier
     // must never silently settle this purchase merely because its ID matches.
     // Fail closed instead of presenting a reduced debt in AP or statements.
@@ -124,6 +152,7 @@ export function purchasePayableSummary(purchase:PurchaseRecord,payments:Supplier
 
 export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),supplierId=''):CurrencyPayableSummary[]{
   assertUniquePostedPurchaseSources(purchases,today);
+  assertUniqueEffectiveSupplierPaymentSources(purchases,payments,today);
   const map=new Map<string,{purchases:bigint;paid:bigint;remaining:bigint;overdue:bigint;aging:Record<PayablesAgingBucket,bigint>;openPurchases:number;overduePurchases:number}>();
   for(const purchase of purchases){
     if(!postedOnOrBefore(purchase,today))continue;
