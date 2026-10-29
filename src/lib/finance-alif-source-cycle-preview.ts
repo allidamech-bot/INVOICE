@@ -119,8 +119,9 @@ export function previewSourceBoundFinanceCycle(
       ||document.lifecycleStatus==='voided'
       ||document.issueDate>controls.asOfDate
       ||document.adjustments.taxEnabled||document.adjustments.discountEnabled
-      ||document.adjustments.shippingEnabled||document.adjustments.otherChargesEnabled)
-      fail('Only active final same-currency ordinary invoices without additional financial adjustments are supported.');
+      ||document.adjustments.shippingEnabled||document.adjustments.otherChargesEnabled
+      ||document.items.some(line=>line.stockTreatment!=='tracked'))
+      fail('Only active, fully tracked final same-currency invoices without additional financial adjustments are supported.');
     invoices.push(document);
   }
   let invoiced=0n,customerCollected=0n,receivable=0n;
