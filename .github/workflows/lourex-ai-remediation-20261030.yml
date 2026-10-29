@@ -4,6 +4,10 @@ on:
     branches: [fix/ai-commercial-remediation-20261030]
   pull_request:
     paths:
+      - 'api/ai-inbox.js'
+      - 'src/lib/ai-intelligence-runtime.ts'
+      - 'tests/ai-remediation-boundaries-20261030.test.mjs'
+      - '.github/workflows/lourex-ai-remediation-20261030.yml'
       - 'src/lib/ai-composer-input.ts'
       - 'src/styles/ai-conversation-workspace.css'
       - 'tests/visual/run-ai-composer-remediation-20261030.cjs'

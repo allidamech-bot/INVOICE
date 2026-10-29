@@ -29,6 +29,9 @@ const out='visual-qa-output/ai-composer-remediation-20261030';mkdirSync(out,{rec
    await input.fill('رسالة Arabic English');
    // Viewport resize is a simulation; this does not reproduce a physical iOS keyboard.
    await page.setViewportSize({width,height:Math.max(300,Math.round(height*.6))});await page.waitForTimeout(100);
+   const geometry=await panel.evaluate(el=>({viewport:{width:innerWidth,height:innerHeight,visualHeight:visualViewport.height,top:visualViewport.offsetTop},rows:[el,...el.querySelectorAll('.lourex-ai-head,.lxw-mode-tabs,.lxw-mode-description,.lxw-body,.lxw-chat,.lourex-ai-messages,.lourex-ai-compose,.lourex-ai-send')].map(node=>{const r=node.getBoundingClientRect(),c=getComputedStyle(node);return{class:node.className,y:r.y,height:r.height,minHeight:c.minHeight,flex:c.flex,overflow:c.overflow,position:c.position}})}));
+   console.log(JSON.stringify({engine:name,width,height,geometry}));
+   await page.screenshot({path:`${out}/${name}-${width}-${lang}-resized.png`});
    const send=await panel.locator('.lourex-ai-send').boundingBox();assert.ok(send&&send.y>=0&&send.y+send.height<=Math.max(300,Math.round(height*.6))+2,'Send visible after viewport resize');
    await page.setViewportSize({width,height});await input.blur();await page.waitForTimeout(100);
    assert.equal(await input.inputValue(),'رسالة Arabic English');
