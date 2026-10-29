@@ -1,5 +1,6 @@
 import {isDeepStrictEqual} from 'node:util';
-import {prototypeFinanceGlAtomicAppend,fingerprintSyntheticFinanceSources} from '../../api/_accounting/finance-gl-atomic-contract.js';
+import {prototypeFinanceGlAtomicAppend,fingerprintSyntheticFinanceSources,
+  fingerprintSyntheticFinanceControls,syntheticFinanceGlScopeKey} from '../../api/_accounting/finance-gl-atomic-contract.js';
 import {inspectSourceBoundStockGl} from '../../dist/src/lib/finance-source-bound-stock-gl-preview.js';
 import {verifyFirebaseIdToken} from '../../api/_ai/firebase-auth.js';
 import {validateMeta,decodeWorkspace} from '../../api/_accounting/period-format.js';
@@ -32,6 +33,11 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
       if(!id(command?.scopeKey)||!id(command?.opId)
         ||!Array.isArray(command.append)||command.append.some(j=>!id(j?.id)))
         fail('INVALID_COMMAND_ID');
+      // The journal namespace must never be freely selected by a caller:
+      // aliases for the same company/branch create two independent ledgers.
+      if(command.scopeKey!==syntheticFinanceGlScopeKey(
+        command.workspaceId,command.branchId))
+        fail('SCOPE_KEY_MISMATCH');
       const root=db.collection('users').doc(identity.uid);
       const controlRef=root.collection('accounting').doc('control');
       const manifestRef=root.collection('workspace').doc('meta');
@@ -116,6 +122,8 @@ export function createFinanceGlQaEmulatorService(db,{abortAfterStagingWrites=fal
           fail('LEDGER_AUTHORITY_MISSING');
         if(ledger.sourceSha256!==fingerprintSyntheticFinanceSources(evidence))
           fail('SOURCE_CHANGED');
+        if(ledger.controlsSha256!==fingerprintSyntheticFinanceControls(controls))
+          fail('ACCOUNTING_CONTROLS_CHANGED');
         const relevant=control.boundaries.filter(b=>b?.workspaceId===source.workspaceId);
         if(relevant.length>1||relevant.some(b=>typeof b.through!=='string'))
           fail('PERIOD_BOUNDARY_INVALID');
