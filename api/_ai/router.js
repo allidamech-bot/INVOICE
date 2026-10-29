@@ -360,7 +360,15 @@ async function callGroq(model,request){
 async function callCloudflare(model,request){
   const token=process.env.CLOUDFLARE_AI_API_TOKEN?.trim(),accountId=process.env.CLOUDFLARE_ACCOUNT_ID?.trim();if(!token||!accountId)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
   const schema=geminiSchemaToJsonSchema(request.schema);
-  const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:schema},options:{rejectIfBusy:true}};
+  const nativeSchema=model.catalogDiscovered!==true||model.jsonSchemaSupported===true;
+  // Some discovered free text models lack Cloudflare's documented JSON Mode.
+  // Use an explicit JSON instruction and the existing local schema validator
+  // instead of sending a response_format parameter that the model rejects.
+  const body={model:model.model,
+    messages:nativeSchema?normalizeMessages(request):additionalProviderMessages(request),
+    temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),
+    ...(nativeSchema?{response_format:{type:'json_schema',json_schema:schema}}:{}),
+    options:{rejectIfBusy:true}};
   const url=`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}${CLOUDFLARE_CHAT_PATH}`;
   const {response,text}=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(body)},request.timeoutMs);
   if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,quotaScope:info.quotaScope,status:response.status,retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
@@ -465,7 +473,10 @@ export async function routeAiStructured(options={}){
   const allModels=multi?[...AI_MODEL_REGISTRY,...extras,...verified,...openRouter]:AI_MODEL_REGISTRY;
   const modelIds=new Set();
   const models=allModels.filter(model=>{const id=modelKey(model.provider,model.model);if(modelIds.has(id))return false;modelIds.add(id);return true;});
-  const candidates=configuredCandidates(route,attachments,allowExternal,bucket,models);
+  // A strict native-schema task must not use catalog models without documented
+  // JSON Schema support. Non-strict chat remains usable with local validation.
+  const candidates=configuredCandidates(route,attachments,allowExternal,bucket,models)
+    .filter(model=>!(options.strictOutput===true&&model.provider==='cloudflare'&&model.catalogDiscovered===true&&!model.jsonSchemaSupported));
   const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
   let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null,attemptCount=0;
   // Internal callers may shorten the fallback chain, never extend its global cap.

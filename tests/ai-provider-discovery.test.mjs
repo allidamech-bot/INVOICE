@@ -62,3 +62,34 @@ test('stalled catalog response body ignoring abort also expires',async()=>{
    Object.assign(process.env,originalEnv);
  }
 });
+
+test('undocumented Cloudflare JSON-mode model uses local validation instead of unsupported response_format',async()=>{
+ const originalFetch=globalThis.fetch,originalEnv={...process.env};
+ try{
+   process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';
+   process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED='true';
+   process.env.CLOUDFLARE_AI_API_TOKEN='fixture';process.env.CLOUDFLARE_ACCOUNT_ID='fixture';
+   delete process.env.GROQ_API_KEY;delete process.env.GEMINI_API_KEY;
+   delete process.env.OPENROUTER_API_KEY;delete process.env.OLLAMA_API_KEY;
+   const target='@cf/meta/llama-3.2-3b-instruct',requests=[];
+   globalThis.fetch=async(url,options)=>{
+     if(options.method==='GET')return{ok:true,text:async()=>JSON.stringify({result:[{name:target,task:'text-generation'}]})};
+     const body=JSON.parse(options.body);requests.push(body);
+     if(body.model!==target)return{ok:false,status:404,headers:{get:()=>null},text:async()=>JSON.stringify({error:'unavailable'})};
+     assert.equal('response_format' in body,false);
+     assert.equal(body.messages[0].role,'system');
+     assert.match(body.messages[0].content,/JSON schema/i);
+     return{ok:true,status:200,headers:{get:()=>null},text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify({answer:'safe'})}}]})};
+   };
+   const {routeAiStructured}=await import('../api/_ai/router.js?cf-local-structured');
+   const schema={type:'OBJECT',properties:{answer:{type:'STRING'}},required:['answer']};
+   const r=await routeAiStructured({taskType:'business_copilot',schema,prompt:'fictional',totalBudgetMs:26000});
+   assert.equal(r.success,true);
+   assert.equal(r.model,target);
+   assert.ok(requests.length>=2);
+ }finally{
+   globalThis.fetch=originalFetch;
+   for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];
+   Object.assign(process.env,originalEnv);
+ }
+});

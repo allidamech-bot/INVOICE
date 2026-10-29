@@ -38,6 +38,15 @@ const FREE_CF_CHAT = new Set([
 ]);
 const baseCaps=['TEXT','STRUCTURED_OUTPUT'];
 const extendedCaps=['TEXT','STRUCTURED_OUTPUT','DEEP_REASONING','LARGE_CONTEXT'];
+// Cloudflare currently documents JSON Schema mode for only a subset of its
+// text models. Other free text models can return JSON with local validation,
+// but should not be sent an unsupported response_format request.
+const CF_DOCUMENTED_JSON_MODE=new Set([
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/meta/llama-3-8b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct',
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'
+]);
 const safeId = value => typeof value==='string' && value.length<=160 && /^[-@a-zA-Z0-9._/]+$/.test(value);
 const candidate=(provider,model,capabilities=baseCaps)=>({
   provider,model,enabled:true,freeTierEligible:true,maxImages:0,capabilities
@@ -66,7 +75,9 @@ export function eligibleCloudflareFreeModels(payload) {
     // different task even if the model name appears on the pricing page.
     const task=typeof row?.task==='string'?row.task:row?.task?.name;
     if(task && task!=='text-generation')continue;
-    seen.add(id);result.push(candidate('cloudflare',id));
+    seen.add(id);
+    result.push({...candidate('cloudflare',id),catalogDiscovered:true,
+      jsonSchemaSupported:CF_DOCUMENTED_JSON_MODE.has(id)});
   }
   return result;
 }
