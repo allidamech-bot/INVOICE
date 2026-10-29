@@ -133,6 +133,16 @@ test('22 source GL: original invoice stock proof, purchase landed cost and chron
   c.evidence.orderedMovementIds[0],c.evidence.orderedMovementIds[2]];deny(c);
 });
 
+test('22 source GL: a balanced trial balance never authenticates ambiguous purchase or invoice IDs',()=>{
+ const a=scenario();
+ a.evidence.purchases.push(structuredClone(a.evidence.purchases[0]));
+ deny(a);
+
+ const b=scenario();
+ b.evidence.documents.push(structuredClone(b.evidence.documents[0]));
+ deny(b);
+});
+
 test('22 source GL: supplier AP mapping refuses freight or multi-line liability allocation guesses',()=>{
  const s=scenario();s.evidence.purchases[0].freight='1.00';deny(s);
  const t=scenario();t.evidence.purchases[1].items.push({
