@@ -84,16 +84,42 @@ test('22-C real posting: foreign purchase refuses missing FX, accepts dated iden
   {fxByMovementId:{[foreign.id]:{...fx,date:'2026-10-22'}}})),/ALIF_22_COST_EVIDENCE_REQUIRED/);
 });
 
-test('22-B real manual opening: historic unproved carrying values fail closed',()=>{
+test('22-B real manual opening: structural source file, reason and operator evidence are mandatory',()=>{
  const state=fixture(),movement={...createManualInventoryMovement(state.item,'opening','5','2026-10-19','QA opening','4','USD'),
   workspaceId:'default',branchId:'main'};
  state.vault.inventoryMovements=[movement];
  assert.throws(()=>projectPostedValuationEvidence(input(state)),/Opening quantity and documented/);
- movement.evidence={id:'qa-opening-proof',name:'open.pdf',mimeType:'application/pdf',
-  size:8,dataUrl:'data:application/pdf;base64,cGRm',createdAt:'2026-10-19T12:00:00Z'};
+
+ // A PDF header, actual byte count and an identified author/reason are
+ // required. This remains SYNTHETIC and cannot authenticate a real inventory
+ // count, owner approval, file provenance or genuine accounting opening.
+ const pdf=Buffer.from('%PDF-1.4\\n');
+ Object.assign(movement,{
+  createdBy:'qa-opening-operator',reasonCategory:'opening',
+  evidence:{id:'qa-opening-proof',name:'open.pdf',mimeType:'application/pdf',
+   size:pdf.length,dataUrl:'data:application/pdf;base64,'+pdf.toString('base64'),
+   createdAt:'2026-10-19T12:00:00Z'}
+ });
+ const initial=JSON.stringify(state.vault);
  const accepted=projectPostedValuationEvidence(input(state));
  assert.equal(accepted.balanceQuantity,'5.0000');
  assert.equal(accepted.balanceValue,'20.000000000000');
+ assert.equal(JSON.stringify(state.vault),initial,'read-only opening preview must not mutate sources');
+
+ for(const change of [
+  row=>{row.createdBy='';},
+  row=>{row.reasonCategory='';},
+  row=>{row.note='';},
+  row=>{row.evidence.size=pdf.length+1;},
+  row=>{row.evidence.dataUrl='data:application/pdf;base64,'+Buffer.from('invalid!!').toString('base64');},
+  row=>{row.evidence.mimeType='image/jpeg';},
+  row=>{row.evidence.name='../forged.pdf';}
+ ]){
+  const candidate=structuredClone(input(state));
+  change(candidate.movements[0]);
+  assert.throws(()=>projectPostedValuationEvidence(candidate),
+   /Opening requires structurally valid source file, operator and reason evidence/);
+ }
  movement.currency='';
  assert.throws(()=>projectPostedValuationEvidence(input(state)),/ALIF_22_COST_EVIDENCE_REQUIRED/);
 });
