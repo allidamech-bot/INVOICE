@@ -107,6 +107,10 @@ export function previewFinanceInventoryTrialBalance(
   journals:readonly FinanceGlJournal[]
 ):FinanceGlTrialBalancePreview{
   validateControls(controls);
+  // A zero-row ledger has no verified opening source. Returning a balanced
+  // zero trial balance would make missing evidence look like a 0/0 audit.
+  if(journals.length===0)
+    fail('Empty journal history cannot substantiate opening balances.');
   const digits=controls.currencyMinorDigits;
   const mapping=[controls.inventoryAssetAccountId,controls.supplierPayableAccountId,
     controls.salesCogsAccountId,controls.inventoryAllowanceAccountId,
@@ -122,9 +126,12 @@ export function previewFinanceInventoryTrialBalance(
     if(j.workspaceId!==controls.workspaceId||j.branchId!==controls.branchId
       ||j.currency!==controls.functionalCurrency)
       fail('Cross-company, branch or currency journals cannot enter a scoped trial balance.');
-    const sourceKey=j.sourceKind+'\u0000'+j.sourceMovementId;
-    if(ids.has(j.id)||sources.has(sourceKey))fail('Repeated journal or source movement would duplicate a posting.');
-    ids.add(j.id);sources.add(sourceKey);
+    // One physical movement/estimate must never produce two journals by
+    // relabelling its sourceKind. Source IDs are globally unique within this
+    // isolated per-company/branch preview, not merely per account mapping.
+    if(ids.has(j.id)||sources.has(j.sourceMovementId))
+      fail('Repeated journal or source movement would duplicate a posting.');
+    ids.add(j.id);sources.add(j.sourceMovementId);
     const expected=journalMap(controls,j.sourceKind);
     if(j.lines.length!==2)fail('Only one exact debit and one exact credit per supported stock event.');
     let debit:bigint|undefined,credit:bigint|undefined;

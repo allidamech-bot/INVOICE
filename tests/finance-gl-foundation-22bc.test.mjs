@@ -67,6 +67,31 @@ test('no duplicate journal or repeated financial source can enter the rehearsal'
  rejected([...history(),{...row('nrv-reversal','new','3.00'),id:history()[0].id}]);
 });
 
+test('empty illustrative history cannot masquerade as an audited zero opening trial balance',()=>{
+ const empty=[];
+ rejected(empty);
+ assert.equal(empty.length,0,'empty source remains unchanged');
+});
+
+test('source movement identity is unique across supported journal kinds',()=>{
+ // The synthetic purchase creates 10 inventory, so both of these following
+ // balanced entries would otherwise pass the amount and account rules.
+ const receipt=row('purchase-receipt','same-source','10.00','2026-10-19');
+ const counterfeitSale=row('sales-stock-issue','same-source','5.00','2026-10-20');
+ const counterfeitNrv=row('nrv-write-down','same-source','3.00','2026-10-20');
+ for(const extra of [counterfeitSale,counterfeitNrv]){
+  const candidate=[receipt,extra],before=JSON.stringify(candidate);
+  rejected(candidate);
+  assert.equal(JSON.stringify(candidate),before,'source rows must remain immutable');
+ }
+ // A real separate source identifier is still valid for each journal kind.
+ const allowed=run([receipt,row('sales-stock-issue','real-sale','5.00','2026-10-20')]);
+ assert.equal(allowed.grossInventoryAsset,'5.00');
+ assert.equal(allowed.totalDebitBalances,'10.00');
+ assert.equal(allowed.totalCreditBalances,'10.00');
+ assert.equal(allowed.productionReady,false);
+});
+
 test('wrong account, direction, unmatched debit/credit, extra balanced lines fail closed',()=>{
  for(const modify of [
   a=>a.lines[1].accountId=control.inventoryAssetAccountId,

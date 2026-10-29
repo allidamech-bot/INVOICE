@@ -22,8 +22,8 @@ of proposed journals may contain only:
 - NRV write-down: Dr impairment expense / Cr inventory allowance;
 - bounded NRV reversal: Dr allowance / Cr impairment expense.
 
-Each journal requires a unique journal ID, unique source movement ID within
-the source kind, exact two-line debit/credit direction, exact positive
+Each journal requires a unique journal ID, unique source movement ID **across
+all supported journal kinds**, exact two-line debit/credit direction, exact positive
 currency minor units, date at or before the chosen cutoff, and approved *by
 the caller only* distinct accounts. Duplicate journals, unbalanced lines,
 extra artificial entries, wrong date/company/branch/currency, negative gross
@@ -31,6 +31,16 @@ inventory, negative allowance or allowance exceeding gross stock fail closed.
 Unknown source kinds (returns, transfers, opening, FX, physical corrections,
 cash purchases) require separately authorized journal policies and cannot
 enter this rehearsal.
+
+The 29 October 2026 fail-closed acceptance adds two source-integrity checks
+to the **unposted** trial-balance rehearsal: a wholly empty journal stream
+cannot be presented as an evidenced zero opening balance, and one source
+movement/estimate ID cannot be reused by changing journal `sourceKind`
+(e.g. using one ID once as a receipt and again as a sale or impairment).
+A debit-credit-balanced candidate is still unsupported if its source
+identity was reused. Distinct sources still produce the same valid
+illustrative totals. This does not authenticate an opening balance, make a
+new GL account, post journals, authorize an NRV estimate or activate production.
 
 `previewAppendFinanceInventoryJournal` refuses a **proposed** new journal
 on or before a caller-supplied close date. This is an offline diagnostic,
