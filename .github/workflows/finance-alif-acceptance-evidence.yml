@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'scripts/finance-alif-acceptance-evidence.mjs'
+      - 'scripts/finance-alif-opening-preflight.mjs'
+      - 'tests/finance-alif-offline-opening-preflight.test.mjs'
+      - 'docs/FINANCE_ALIF_NON_FIREBASE_CLOSEOUT_20261029.md'
       - 'tests/finance-alif-acceptance-evidence-20261027.test.mjs'
       - 'docs/qa/FINANCE_ALIF_39_40_HUMAN_ACCEPTANCE_20261027.md'
       - '.github/workflows/finance-alif-acceptance-evidence.yml'
@@ -28,3 +31,7 @@ jobs:
         run: node --check scripts/finance-alif-acceptance-evidence.mjs
       - name: Verify incomplete, mismatched and mock dossiers can never authorize GO
         run: node --test tests/finance-alif-acceptance-evidence-20261027.test.mjs
+      - name: Verify private opening ledger preflight does not post or approve
+        run: |
+          node --check scripts/finance-alif-opening-preflight.mjs
+          node --test tests/finance-alif-offline-opening-preflight.test.mjs
