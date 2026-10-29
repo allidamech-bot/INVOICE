@@ -88,7 +88,15 @@ export function appendTreasuryEntry(vault:VaultPayload,entry:TreasuryLedgerRecor
     const source=matches[0];
     if(entry.sourceType==='supplier-payment'&&(source as SupplierPaymentRecord|undefined)?.voidedAt)fail('Voided supplier payments cannot be allocated to cash or bank.','لا يمكن تخصيص دفعة مورد ملغاة للخزينة.');
     if(matches.length!==1||!source||!inScope(source))fail('The linked payment is unavailable. Choose a payment again.','الدفعة المرتبطة غير متاحة. اختر الدفعة من جديد.');
-    if(!positive(source.amount)||source.currency.trim().toUpperCase()!==entry.currency.trim().toUpperCase()||decimalToScaled(source.amount,2)!==decimalToScaled(entry.amount,2))fail('The payment amount or currency changed. Select it again and review before saving.','تغير مبلغ الدفعة أو عملتها. اخترها من جديد وراجعها قبل الحفظ.');
+    // An allocated bank movement may occur on the payment transaction date
+    // or later, but never BEFORE the receipt/settlement exists. Otherwise a
+    // historical bank report would recognize money before AR/AP recognizes
+    // the underlying payment, violating the approved transaction-date policy.
+    // Entry creation time is audit metadata: legitimate late entry of an
+    // earlier transaction is still allowed.
+    if(!isIsoDate(source.date)||entry.date<source.date)
+      fail('Bank allocation date cannot precede its linked payment date.','لا يمكن أن يسبق تاريخ حركة الخزينة تاريخ الدفعة المرتبطة بها.');
+    if(!positive(source.amount)||source.currency.trim().toUpperCase()!==entry.currency.trim().toUpperCase()||decimalToScaled(source.amount,2)!==decimalToScaled(entry.amount,2))fail('The payment amount or currency changed. Select it again and review before saving.','تغير مبلغ الدفعة أو عملتها. اختر الدفعة من جديد وراجعها قبل الحفظ.');
     if(entry.sourceType==='customer-payment'){
       const payment=vault.payments.find(item=>item.id===entry.sourceId)!;
       const invoice=vault.documents.find(item=>item.id===payment.invoiceId);
