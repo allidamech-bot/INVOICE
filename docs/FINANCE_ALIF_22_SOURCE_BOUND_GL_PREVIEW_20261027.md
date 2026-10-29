@@ -109,3 +109,67 @@ currency, real supplier settlement reconciliation, durable GL, period
 authority or production enablement. No migrations, rules edits or writes.
 Axes 22, 35-B/C, 39 and 40 remain NO-GO until separate approvals and
 integrated acceptance. The bridge remains strictly a diagnostic.
+
+
+## 29 October 2026 — Complete multi-item purchase cost / AP source reconciliation
+
+`src/lib/finance-multi-item-source-gl-preview.ts` is a separate **read-only**
+multi-product candidate-audit bridge. It does not relax the prior single-item
+bridge, which remains deliberately single-product and single-purchase-line.
+
+Supported evidence contract, **synthetic and unapproved for actual posting**:
+- One explicit company/branch/warehouse, one caller-asserted functional currency,
+  complete ordered source stock movement IDs, one distinct candidate journal for
+  each supported physical receipt/ordinary final-invoice issue.
+- All posted purchases in the supplied complete source set must consist only
+  of unique, stock-tracked product lines. Each line must have exactly one
+  source receipt. Partial receipts, nonstock expenses/lines, ambiguous repeated
+  item IDs in the same purchase, reversed purchases and other movement types
+  are rejected. VAT or charges payable to separate vendors are not modeled.
+- Recompute the currently implemented purchase landed-cost distribution with
+  `allocateLandedCost(purchase)` using its ORIGINAL base unit costs and
+  freight/duty/other values. Every posted line's `landedUnitCost` must agree,
+  so a compensating reallocation between two lines **does not** pass merely
+  because the original total purchase amount remains unchanged.
+- Compute exact WAC on separate full product histories through
+  `projectPostedValuationEvidence`. Validate each candidate inventory/COGS
+  debit/credit and the final invoice stock identity; enforce original global
+  movement order and all tracked invoice lines. Do not equate a frozen invoice
+  cost estimate to true WAC COGS.
+- Aggregate all receipt value changes at **purchase level**, once, and compare
+  with the independently recomputed full original purchase payable from
+  `purchaseTotals`. Candidate AP account credits may be split across item
+  source journals for this proof, but their sum must equal the purchase's
+  actual original payable **exactly**, and the aggregate illustrative trial
+  balance must reconcile to every item's inventory value and COGS.
+- Do not silently round fractional accounting minor units: the existing
+  isolated exact-money validators still reject any source cost for which the
+  required residual policy has not been signed.
+
+Illustrative source: two distinct items purchased on one posted purchase:
+4 cartons A × USD 6 + 2 cartons B × USD 10 + freight USD 6 + duty USD 3 +
+other USD 2 = original supplier payable **USD 55**. The already implemented
+allocation attributes USD 6 of charges to A and USD 5 to B, making
+receipts A USD 30, B USD 25. After an ordinary final-invoice issue of
+2 units A and 1 unit B, WAC COGS is **USD 27.50** and remaining inventory
+is **USD 27.50**. Combined candidate entries show credit AP USD 55,
+debit inventory USD 27.50 and debit COGS USD 27.50; no payable is counted
+twice. A second receipt on A at a new price exercises independent per-item
+chronology.
+
+**Important:** this is validation of the **existing application allocation
+algorithm**, NOT an accountant's endorsement that every freight/duty/other
+component qualifies for stock capitalization or that those charges are owed
+to the same supplier. Inputs are caller-supplied, not signed/attested; missing
+opening proof, historical source approvals, true company functional-currency
+determination, multiple locations, specific-identification inventory, refunds,
+tax, FX, adjustments, reversal, return, NRV, rounding-residual authorizations,
+actual AP settlement, authenticated durable journals, trusted period control,
+security review and independently reconciled GL/TB all remain outside scope.
+
+There is no new API handler, production GL, Firestore write, finance cutover,
+Rules publication, data migration, customer modification or Vercel deployment.
+Results always report `sourceAuthenticated=false`,
+`allocationPolicyApproved=false`, `postingApproved=false` and
+`productionReady=false`. The seven-gate Plan A remains **NO-GO** for
+full finance acceptance and live GL activation.
