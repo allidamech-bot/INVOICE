@@ -46,6 +46,7 @@ function purchaseReceipt(row:InventoryMovementRecord,input:PostedValuationEviden
   // duplicate purchase could replace the original without changing the
   // first-match result, silently making the source chain ambiguous.
   const purchases=input.purchases.filter(p=>p.id===row.sourceId);
+  if(purchases.length===0)refuse('Receipt requires an existing posted purchase.');
   if(purchases.length!==1)
     refuse('Receipt must reference one uniquely identified posted purchase.');
   const purchase=purchases[0]!;
@@ -68,6 +69,7 @@ function purchaseReceipt(row:InventoryMovementRecord,input:PostedValuationEviden
 }
 function invoiceIssue(row:InventoryMovementRecord,input:PostedValuationEvidence):void{
   const invoices=input.documents.filter(doc=>doc.id===row.sourceId);
+  if(invoices.length===0)refuse('Issue requires an active final invoice; corrections need separate rules.');
   if(invoices.length!==1)
     refuse('Stock issue must reference one uniquely identified final invoice.');
   const invoice=invoices[0]!;
