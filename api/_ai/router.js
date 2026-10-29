@@ -1,4 +1,5 @@
 import {openRouterFreeCatalog} from './free-model-catalog.js';
+import {verifiedAccountFreeCatalog} from './provider-free-catalog.js';
 import {randomUUID} from 'node:crypto';
 
 const GROQ_CHAT_URL='https://api.groq.com/openai/v1/chat/completions';
@@ -46,7 +47,7 @@ export const AI_MODEL_REGISTRY=Object.freeze([
 // explicit multi-model switch and private-provider policy below.
 const EXTRA_FREE_MODELS=[
  {provider:'groq',model:'openai/gpt-oss-20b',enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.TOOL_CALLING,AI_CAPABILITIES.LARGE_CONTEXT]},
- ...['gemini-2.5-flash','gemini-2.5-pro','gemini-3.8-flash','gemini-3.6-flash'].map(model=>({provider:'gemini',model,enabled:true,freeTierEligible:true,maxImages:8,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.LARGE_CONTEXT,AI_CAPABILITIES.NATIVE_DOCUMENT]})),
+ ...['gemini-2.5-flash','gemini-2.5-pro','gemini-3.8-flash','gemini-3.6-flash','gemini-3-flash-preview'].map(model=>({provider:'gemini',model,enabled:true,freeTierEligible:true,maxImages:8,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.VISION,AI_CAPABILITIES.STRUCTURED_OUTPUT,AI_CAPABILITIES.DEEP_REASONING,AI_CAPABILITIES.LARGE_CONTEXT,AI_CAPABILITIES.NATIVE_DOCUMENT]})),
  // The current Gemini Flash-Lite free-tier models are text JSON candidates only
  // until PDF/image capability is separately verified for this adapter and account.
  ...['gemini-3.5-flash-lite','gemini-3.1-flash-lite'].map(model=>({provider:'gemini',model,enabled:true,freeTierEligible:true,maxImages:0,capabilities:[AI_CAPABILITIES.TEXT,AI_CAPABILITIES.STRUCTURED_OUTPUT]})),
@@ -451,7 +452,17 @@ export async function routeAiStructured(options={}){
   // on the original provider set even if project-wide opt-in is accidentally set.
   const allowExternal=options.externalDataClass==='public-synthetic'&&route==='general'&&taskType==='workspace_help';
   const bucket=`${route}:${options.strictOutput===true?'strict':'standard'}`;
-  const models=multiModelEnabled()?[...AI_MODEL_REGISTRY,...EXTRA_FREE_MODELS,...(environmentReady('openrouter')&&(allowExternal||String(process.env.LOUREX_AI_APPROVED_PRIVATE_PROVIDERS||'').split(',').map(value=>value.trim()).includes('openrouter'))?await openRouterFreeCatalog():[])]:AI_MODEL_REGISTRY;
+  const multi=multiModelEnabled();
+  // Catalog queries are metadata-only. A large catalog never fans out inference.
+  const approvedOpenRouter=environmentReady('openrouter')&&(allowExternal||String(process.env.LOUREX_AI_APPROVED_PRIVATE_PROVIDERS||'').split(',').map(value=>value.trim()).includes('openrouter'));
+  const [verified,openRouter]=multi?await Promise.all([
+    verifiedAccountFreeCatalog(),
+    approvedOpenRouter?openRouterFreeCatalog():Promise.resolve([])
+  ]):[[],[]];
+  const extras=EXTRA_FREE_MODELS.filter(model=>model.provider!=='gemini'||process.env.LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED==='true');
+  const allModels=multi?[...AI_MODEL_REGISTRY,...extras,...verified,...openRouter]:AI_MODEL_REGISTRY;
+  const modelIds=new Set();
+  const models=allModels.filter(model=>{const id=modelKey(model.provider,model.model);if(modelIds.has(id))return false;modelIds.add(id);return true;});
   const candidates=configuredCandidates(route,attachments,allowExternal,bucket,models);
   const schema=options.schema,jsonSchema=geminiSchemaToJsonSchema(schema);
   let lastCode='AI_TEMPORARILY_UNAVAILABLE',lowConfidenceResult=null,attemptCount=0;
