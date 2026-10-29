@@ -58,6 +58,20 @@ export function postedOnOrBefore(purchase:PurchaseRecord,asOf:string):boolean{
 function postedPurchaseAt(purchase:PurchaseRecord,asOf:string):PurchaseRecord{
   return purchase.status==='reversed'&&postedOnOrBefore(purchase,asOf)?{...purchase,status:'posted'}:purchase;
 }
+// One active posted source in a company/branch must contribute to AP only once.
+// A duplicated purchase row would otherwise be summed twice, even if its ID,
+// value and original supplier were identical. Historical future/reversed items
+// outside the requested as-of date are excluded consistently with AP reports.
+function assertUniquePostedPurchaseSources(purchases:readonly PurchaseRecord[],asOf:string):void{
+  const seen=new Set<string>();
+  for(const purchase of purchases){
+    if(!postedOnOrBefore(purchase,asOf))continue;
+    if(!purchase.id?.trim())throw new Error('Posted supplier purchase ID is missing; AP cannot be reconciled.');
+    const scopedId=JSON.stringify([purchase.workspaceId||'default',purchase.branchId||'main',purchase.id]);
+    if(seen.has(scopedId))throw new Error('Duplicate posted supplier purchase ID in the same company/branch; AP cannot be reconciled.');
+    seen.add(scopedId);
+  }
+}
 
 export function supplierDaysOverdue(dueDate:string,today=todayIso()):number{
   if(!isIsoDate(dueDate)||!isIsoDate(today)||dueDate>=today)return 0;
@@ -101,6 +115,7 @@ export function purchasePayableSummary(purchase:PurchaseRecord,payments:Supplier
   const total=liabilityCents(effective);
   const linked=effective.status==='posted'?effectiveSupplierPaymentsForPurchase(effective,payments,today):[];
   const paid=linked.reduce((sum,payment)=>sum+paymentCents(payment),0n);
+  if(paid>total)throw new Error('Recorded supplier payments exceed the posted purchase total; AP cannot be reconciled.');
   const remaining=effective.status==='posted'?(total>paid?total-paid:0n):effective.status==='draft'?total:0n;
   const days=effective.status==='posted'&&remaining>0n?supplierDaysOverdue(effective.dueDate,today):0;
   const state:SupplierPayableState=effective.status==='draft'?'draft':effective.status==='reversed'?'reversed':remaining===0n?'paid':days>0?'overdue':paid>0n?'partial':'unpaid';
@@ -108,6 +123,7 @@ export function purchasePayableSummary(purchase:PurchaseRecord,payments:Supplier
 }
 
 export function supplierPayablesByCurrency(purchases:PurchaseRecord[],payments:SupplierPaymentRecord[],today=todayIso(),supplierId=''):CurrencyPayableSummary[]{
+  assertUniquePostedPurchaseSources(purchases,today);
   const map=new Map<string,{purchases:bigint;paid:bigint;remaining:bigint;overdue:bigint;aging:Record<PayablesAgingBucket,bigint>;openPurchases:number;overduePurchases:number}>();
   for(const purchase of purchases){
     if(!postedOnOrBefore(purchase,today))continue;
