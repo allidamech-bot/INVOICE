@@ -19,6 +19,34 @@ function fixture(){
   return{supplier,purchase,earlier,later};
 }
 
+test('AP source integrity: duplicate posted purchase identity fails closed instead of doubling supplier debt',()=>{
+  const {supplier,purchase}=fixture();
+  const duplicate=structuredClone(purchase);
+  assert.throws(()=>supplierPayablesByCurrency([purchase,duplicate],[],'2026-10-09'),
+    /Duplicate posted supplier purchase ID/);
+  assert.throws(()=>supplierStatement(supplier.id,[purchase,duplicate],[],'2026-10-09'),
+    /Duplicate posted supplier purchase ID/);
+  // Different company scopes are not a repeated source within one ledger.
+  const otherCompany={...purchase,workspaceId:'QA-company-B'};
+  assert.equal(supplierPayablesByCurrency([purchase,otherCompany],[],'2026-10-09')[0].purchases,'2000.00');
+  // A later, unposted source must not contaminate the earlier as-of cutoff.
+  const late={...duplicate,postedAt:'2026-10-20T12:00:00.000Z'};
+  assert.equal(supplierPayablesByCurrency([purchase,late],[],'2026-10-09')[0].purchases,'1000.00');
+});
+
+test('AP source integrity: recorded overpayment cannot be disguised as zero outstanding',()=>{
+  const {purchase,earlier}=fixture();
+  const overpayment={...earlier,id:'QA-overpaid',amount:'1200.00'};
+  assert.throws(()=>purchasePayableSummary(purchase,[overpayment],'2026-10-09'),
+    /supplier payments exceed the posted purchase total/);
+  assert.throws(()=>supplierPayablesByCurrency([purchase],[overpayment],'2026-10-09'),
+    /supplier payments exceed the posted purchase total/);
+  const valid={...overpayment,amount:'200.00'};
+  const summary=purchasePayableSummary(purchase,[valid],'2026-10-09');
+  assert.equal(summary.paid,'200.00');
+  assert.equal(summary.remaining,'800.00');
+});
+
 test('as-of supplier payable excludes future payments while current balances include them',()=>{
   const {supplier,purchase,earlier,later}=fixture(),payments=[earlier,later];
   const past=purchasePayableSummary(purchase,payments,'2026-10-09');
