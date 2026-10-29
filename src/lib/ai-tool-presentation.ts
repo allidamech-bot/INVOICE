@@ -149,7 +149,7 @@ export function formatAiBusinessRecordReply(value:unknown,language:'ar'|'en'):st
   if(doc.customerName||doc.supplierName)lines.push((ar?'**الطرف:** ':'**Party:** ')+safe(doc.customerName||doc.supplierName,150));
   lines.push(field(ar?'تاريخ الإصدار':'Issue date',doc.issueDate),
    field(ar?'الحالة':'Status',doc.status==='final'?(ar?'صادرة':'Issued'):doc.status==='draft'?(ar?'مسودة':'Draft'):doc.status),
-   ...(doc.dueDate?[field(ar?'تاريخ الاستحقاق':'Due date',doc.dueDate)]:[]),'');
+   ...(doc.dueDate?[field(doc.kind==='proforma'?(ar?'انتهاء الصلاحية':'Valid until'):(ar?'تاريخ الاستحقاق':'Due date'),doc.dueDate)]:[]),'');
   if(doc.truncated===true)lines.push(ar?'**تنبيه:** بيانات الفاتورة جزئية؛ افتح الأصل للتحقق.':'**Note:** Invoice data is incomplete; verify the original.');
   else{
    const totals=aiCustomerEvidenceRecord(doc.totals);

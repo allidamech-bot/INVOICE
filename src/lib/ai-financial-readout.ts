@@ -129,7 +129,7 @@ export function financialReadoutFromToolRows(value:unknown,language:'ar'|'en'):F
  if(doc){
   fact(intro,l('Issue date','تاريخ الإصدار'),doc.issueDate);
   fact(intro,l('Status','الحالة'),doc.status==='final'?l('Issued','صادرة'):doc.status==='draft'?l('Draft','مسودة'):doc.status);
-  fact(intro,l('Due date','تاريخ الاستحقاق'),doc.dueDate);
+  fact(intro,doc.kind==='proforma'?l('Valid until','انتهاء الصلاحية'):l('Due date','تاريخ الاستحقاق'),doc.dueDate);
   const totals=ro(doc.totals),facts:FinancialFact[]=[];
   if(totals&&doc.truncated!==true){
    const labels:[string,string,string][]=[['subtotal','Subtotal','الإجمالي قبل الرسوم'],['discount','Discount','الخصم'],
@@ -177,7 +177,8 @@ export function financialReadoutFromToolRows(value:unknown,language:'ar'|'en'):F
    ' — '+l('Qty','الكمية')+' '+rd(x.quantity,20)+' · '+l('Unit','الوحدة')+' '+rd(x.unit,20)+
    ' · '+l('Unit price','سعر الوحدة')+' '+money(x.unitPrice,doc?.currency);
  }).filter(Boolean);
- const model:FinancialReadout={title:doc?l('Invoice','فاتورة')+' '+rd(doc.number,100):
+ const documentTitle=doc?.kind==='invoice'?l('Invoice','فاتورة'):doc?.kind==='proforma'?l('Quotation','عرض سعر'):l('Document','مستند');
+ const model:FinancialReadout={title:doc?documentTitle+' '+rd(doc.number,100):
   l('Customer account','حساب العميل')+' · '+rd(customer?.name||history?.name,100),
   party:rd(doc?.customerName||doc?.supplierName),intro,sections,itemsTitle:'',
   items,partial:Boolean(doc?.itemsTruncated||doc?.truncated||count>items.length)};
