@@ -207,9 +207,9 @@ export default async function handler(request,response){
   // questions pass an executable proposal schema merely to receive an answer.
   // The protected Controller gateway still handles real actions and approvals.
   if(cleaned.context.conversationMode==='advisor'||!draftActionRequested(cleaned.message,cleaned.context)){
-    const dialogue=await naturalLourexDialogue(cleaned,{mode:cleaned.context.conversationMode,totalBudgetMs:Math.min(26_000,remainingInferenceMs())});
+    const dialogue=await naturalLourexDialogue(cleaned,{ownerDiagnostics:diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID),mode:cleaned.context.conversationMode,totalBudgetMs:Math.min(26_000,remainingInferenceMs())});
     if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
-    sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
+    sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',requestId:dialogue.requestId,...(dialogue.diagnostic?{diagnostic:dialogue.diagnostic}:{}),
       message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});return;
   }
 
@@ -243,8 +243,8 @@ export default async function handler(request,response){
   // A model can discuss an incomplete request even when it cannot produce an
   // executable, exactly typed document proposal. No fabricated proposal is
   // ever allowed through this conversational fallback.
-  const dialogue=await naturalLourexDialogue(cleaned,{mode:'controller',totalBudgetMs:Math.min(26_000,remainingInferenceMs())});
+  const dialogue=await naturalLourexDialogue(cleaned,{ownerDiagnostics:diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID),mode:'controller',totalBudgetMs:Math.min(26_000,remainingInferenceMs())});
   if(dialogue.success){sendJson(response,200,{model:'lourex-dialogue',answer:dialogue.answer,proposal:null});return;}
-  sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',
+  sendJson(response,503,{code:dialogue.errorCode||'AI_TEMPORARILY_UNAVAILABLE',requestId:dialogue.requestId,...(dialogue.diagnostic?{diagnostic:dialogue.diagnostic}:{}),
     message:'LOUREX conversation is temporarily unavailable. No business record was changed.'});
 }

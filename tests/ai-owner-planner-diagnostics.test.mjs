@@ -42,3 +42,30 @@ test('client diagnostic display accepts fixed categories only, never arbitrary e
  const rejection=ctx.exports.aiOwnerDiagnosticSummary({stage:'draft-plan',attempts:[{provider:'groq',category:'unsupported',latencyMs:950,rejection:{status:400,code:'invalid_request_error',param:'response_format',fields:['json_schema','strict','PRIVATE'],message:'PRIVATE'}}]});
  assert.match(rejection,/HTTP400 invalid_request_error response_format json_schema,strict/);assert.doesNotMatch(rejection,/PRIVATE/);
 });
+
+test('dialogue failure retains bounded metadata only for authorized diagnostics',async()=>{
+ const f=await isolated('api/_ai/lourex-dialogue.js',{
+  routeAiStructured:async options=>{options.onDiagnostic?.({provider:'cloudflare',category:'timeout',latencyMs:12000,fallbackIndex:1,secret:'PRIVATE'});return{success:false,errorCode:'AI_TIMEOUT',requestId:'trace-qa',totalLatencyMs:24000};}
+ });
+ try{
+  const cleaned={message:'PRIVATE',context:{}};
+  assert.equal((await f.module.naturalLourexDialogue(cleaned)).diagnostic,undefined);
+  const result=await f.module.naturalLourexDialogue(cleaned,{ownerDiagnostics:true});
+  assert.equal(result.requestId,'trace-qa');
+  assert.equal(result.diagnostic.attempts[0].provider,'cloudflare');
+  assert.equal(result.diagnostic.attempts[0].fallbackIndex,1);
+  assert.equal(result.diagnostic.totalLatencyMs,24000);
+  assert.doesNotMatch(JSON.stringify(result),/PRIVATE|secret/);
+ }finally{f.clear();}
+});
+
+test('dialogue diagnostic UI renders safe fallback and total duration',()=>{
+ const source=readFileSync('src/lib/ai-request.ts','utf8').replace(/^import .*;$/gm,'');
+ const ctx={exports:{},t:(en,ar)=>ar};vm.runInNewContext(ts.transpile(source,{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}),ctx);
+ const summary=ctx.exports.aiOwnerDiagnosticSummary({stage:'dialogue',totalLatencyMs:24000,attempts:[
+  {provider:'groq',category:'rate_limit',latencyMs:100,fallbackIndex:0},
+  {provider:'cloudflare',category:'timeout',latencyMs:12000,fallbackIndex:1,message:'PRIVATE'},
+  {provider:'PRIVATE',category:'timeout',latencyMs:10}]});
+ assert.match(summary,/groq: rate_limit 100ms #1/);assert.match(summary,/cloudflare: timeout 12000ms #2/);
+ assert.match(summary,/24000ms/);assert.doesNotMatch(summary,/PRIVATE/);
+});
