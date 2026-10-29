@@ -1,3 +1,4 @@
+import type {LourexDocument} from '../types.js';
 import {decimalToScaled} from './money.js';
 import {allocateLandedCost,purchaseTotals} from './operations.js';
 import {
@@ -6,7 +7,7 @@ import {
 import {inspectIllustrativeInventoryJournals} from './inventory-journal-integrity-preview.js';
 import {
   previewFinanceInventoryTrialBalance,
-  type FinanceGlControls,type FinanceGlJournal,type FinanceGlTrialBalancePreview
+  type FinanceGlControls,type FinanceGlJournal,type FinanceGlLine,type FinanceGlTrialBalancePreview
 } from './finance-gl-foundation.js';
 
 /**
@@ -113,7 +114,7 @@ export function inspectMultiItemSourceBoundStockGl(
       ||invoice.currency!==controls.functionalCurrency)
       fail('Issued invoice source must be unique and in the same scope and functional currency.');
     invoiceIds.add(invoice.id);
-    const lines=invoice.items.filter(line=>line.stockTreatment==='tracked');
+    const lines=invoice.items.filter((line:LourexDocument['items'][number])=>line.stockTreatment==='tracked');
     if(!lines.length)fail('Nonstock invoice does not belong in this stock-only source set.');
     const ids=new Set<string>();
     for(const line of lines){
@@ -196,7 +197,7 @@ export function inspectMultiItemSourceBoundStockGl(
       const movement=movements.get(step.id)!;
       const journal=journals.find(entry=>entry.sourceMovementId===step.id)!;
       const amount=step.kind==='receipt'?step.valueChange:step.costOfGoodsSold;
-      if(journal.lines.length!==2||journal.lines.some(line=>
+      if(journal.lines.length!==2||journal.lines.some((line:FinanceGlLine)=>
         !equalMoney(line.amount,amount,controls.currencyMinorDigits)))
         fail('Journal value disagrees with original independently valued movement.');
       if(step.kind==='receipt'){
