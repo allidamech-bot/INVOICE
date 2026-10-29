@@ -218,7 +218,18 @@ test('Alif merged-head business lifecycle: 200→180 stock, AR/AP, bank allocati
   denyCycle(x=>x.treasuryEntries.push({...x.treasuryEntries[1],id:'duplicate-collection'}));
   denyCycle(x=>x.treasuryEntries.splice(2,1));
   denyCycle(x=>x.stock.movements[0].unitCost='7.00');
-  denyCycle(x=>x.stock.documents[0].items[0].unitPrice='11.00');
+  // A changed sale price can still yield a perfectly balanced candidate
+  // trial balance, because the test-supplied invoice has no server-authenticated
+  // immutable original. This MUST NOT be described as verified source truth.
+  const changedInvoice=structuredClone(cycle);
+  changedInvoice.stock.documents[0].items[0].unitPrice='11.00';
+  const internallyBalancedButUnauthenticated=inspect(changedInvoice);
+  assert.equal(internallyBalancedButUnauthenticated.invoiced,'220.00');
+  assert.equal(internallyBalancedButUnauthenticated.receivable,'170.00');
+  assert.equal(internallyBalancedButUnauthenticated.totalDebits,
+    internallyBalancedButUnauthenticated.totalCredits);
+  assert.equal(internallyBalancedButUnauthenticated.sourceAuthenticated,false);
+  assert.equal(internallyBalancedButUnauthenticated.productionReady,false);
   denyCycle(x=>x.treasuryAccounts[0].currency='EUR');
 
 });
