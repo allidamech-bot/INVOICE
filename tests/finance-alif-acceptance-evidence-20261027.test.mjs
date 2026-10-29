@@ -49,7 +49,7 @@ function fullHypotheticalEvidence(){
  return{
   schema:'LOUREX_ALIF_FINANCE_EVIDENCE_V1',checkpointUtc:when,
   release:{githubMainSha:commit,productionSha:commit,productionState:'READY'},
-  gates,signoff:Object.fromEntries(['finance','security','release'].map(role=>[
+  gates,signoff:Object.fromEntries(['finance','security','operations','release'].map(role=>[
     role,{reviewer:'synthetic-'+role+'-reviewer',reviewedAt:when}
   ]))
  };
@@ -171,4 +171,62 @@ test('publishedAt must be the Firebase release update instant, not the later cap
  dossier.gates.publishedRules.publishedAt=dossier.gates.publishedRules.capturedAtUtc;
  const result=validate(dossier);
  assert.ok(result.missing.includes('gates.publishedRules.chronology'));
+});
+
+
+test('operations review is mandatory; another role cannot quietly substitute for DR approval',()=>{
+ const noOperations=fullHypotheticalEvidence();delete noOperations.signoff.operations;
+ const missing=validate(noOperations).missing;
+ assert.ok(missing.includes('signoff.operations.reviewer'));
+ assert.ok(missing.includes('signoff.operations.reviewedAt'));
+ assert.ok(missing.includes('signoff.operations.chronology'));
+ const sameSigner=fullHypotheticalEvidence();
+ sameSigner.signoff.operations.reviewer=sameSigner.signoff.finance.reviewer;
+ assert.ok(validate(sameSigner).missing.includes('signoff.independentReviewers'));
+ const differentCase=fullHypotheticalEvidence();
+ differentCase.signoff.security.reviewer='SYNTHETIC-FINANCE-REVIEWER';
+ assert.ok(validate(differentCase).missing.includes('signoff.independentReviewers'));
+});
+
+test('no final signer may approve before the last gate review or after checkpoint',()=>{
+ const early=fullHypotheticalEvidence();
+ early.checkpointUtc='2026-10-27T10:15:00.000Z';
+ early.gates.authorityRecovery.reviewedAt='2026-10-27T10:05:00.000Z';
+ const bad=validate(early);
+ for(const role of ['finance','security','operations','release'])
+  assert.ok(bad.missing.includes('signoff.'+role+'.chronology'));
+
+ // Review after all evidence is complete and before the dossier checkpoint
+ // is allowed by chronology, but still is only structural completeness.
+ for(const role of ['finance','security','operations','release'])
+  early.signoff[role].reviewedAt='2026-10-27T10:10:00.000Z';
+ assert.equal(validate(early).status,'READY_FOR_INDEPENDENT_HUMAN_REVIEW_ONLY');
+
+ const afterCheckpoint=fullHypotheticalEvidence();
+ afterCheckpoint.signoff.release.reviewedAt='2026-10-27T10:01:00.000Z';
+ assert.ok(validate(afterCheckpoint).missing.includes('signoff.release.chronology'));
+});
+
+test('seven mandatory proof reviews must exist by dossier checkpoint, not in the future',()=>{
+ const future=fullHypotheticalEvidence();
+ future.gates.financeCycle.reviewedAt='2026-10-27T10:01:00.000Z';
+ assert.ok(validate(future).missing.includes('gates.financeCycle.checkpointChronology'));
+ const noReview=fullHypotheticalEvidence();
+ delete noReview.gates.twoDevice.reviewedAt;
+ assert.ok(validate(noReview).missing.includes('gates.twoDevice.checkpointChronology'));
+});
+
+test('impossible calendar dates cannot appear as valid signed evidence or release chronology',()=>{
+ for(const bad of ['2026-02-30T10:00:00Z','2026-04-31T10:00:00Z',
+  '2026-13-01T10:00:00Z','2026-10-27T24:00:00Z']){
+  const invalid=fullHypotheticalEvidence();
+  invalid.signoff.operations.reviewedAt=bad;
+  assert.ok(validate(invalid).missing.includes('signoff.operations.reviewedAt'),bad);
+ }
+});
+
+test('a valid timezone-offset UTC-equivalent review does not falsely invalidate final chronology',()=>{
+ const dossier=fullHypotheticalEvidence();
+ dossier.signoff.operations.reviewedAt='2026-10-27T13:00:00+03:00';
+ assert.equal(validate(dossier).status,'READY_FOR_INDEPENDENT_HUMAN_REVIEW_ONLY');
 });

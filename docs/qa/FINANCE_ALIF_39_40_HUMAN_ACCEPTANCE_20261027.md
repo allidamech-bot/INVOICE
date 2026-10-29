@@ -165,3 +165,44 @@ under **"29 October 2026 — Consolidated finance acceptance checkpoint"**.
 - The seven gates remain separate: `financeCycle`, `twoDevice`, `publishedRules`, `crossUid`, `physicalIphone`, `authorityRecovery`, `costPolicy`. A passing evidence JSON schema never substitutes independent finance/security/operations/release signoff.
 
 **Current human release decision: NOT SIGNED / NO-GO.** Future work should gather these exact external proofs once, on one explicitly authorized isolated QA candidate; no additional Cloud Shell instructions to the owner, live finance posting, Firestore Rules change or Vercel publication is authorized by this document. Axis 4 is still deferred.
+
+
+## 29 October 2026 — Independent final-signoff chronology defect repaired
+
+A previously complete `LOUREX_ALIF_FINANCE_EVIDENCE_V1` could pass the offline
+*completeness* checker even if its finance/security/release signatures were
+dated **before** one of the seven required gate reviews, or if another gate
+was reviewed after the declared dossier checkpoint. The checker also lacked
+an explicit operations signoff, despite the independent RPO/RTO and
+server-authority recovery approval requirement in axes 37–40.
+
+The validator now requires, in addition to the existing fields:
+
+- `signoff.operations.reviewer` and `signoff.operations.reviewedAt` for the
+  operations/incident recovery owner, alongside finance, security and release.
+- Four **distinct**, non-placeholder reviewer identifiers across these four
+  signoff roles. A reviewer repeating the same name under a different casing
+  is not evidence of an independent approval.
+- The seven gate reviews must occur **no later than**
+  `checkpointUtc`; each final signoff must be dated **at or after the last
+  gate review** and **no later than** `checkpointUtc`.
+- Impossible calendar dates fail timestamp validation; valid timezone-offset
+  timestamps describing the same instant remain valid.
+
+These rules apply to the private dossier when genuine approvals are later
+collected; they do not fabricate approvals, read personal evidence, test a
+live site or publish a `GO` decision. Existing **synthetic** examples may
+satisfy the schema but are never a real accounting, security, operations
+or release signoff. Artifacts and reviewer identity remain private.
+
+**Current observed 29 October release identity:** GitHub `main` after
+finance #1177 was `b8eb0af59dff139fb5527d52cb057f4717e49445`;
+the owner-controlled Vercel production deployment was `READY` but still
+sourced from `3e59485b6f758aada523e22c3ce68347976eaae3`.
+The unequal SHAs are a production release-identity blocker, not proof
+of a production accounting defect. No deployment was attempted.
+
+35-B published Rules independent security review, real isolated cross-UID
+finance QA, device acceptance, full accounting policy and trusted authority
+restore approvals are still required. No new Cloud Shell experiments or
+production-period/GL activation are authorized here; **NO-GO** remains.
