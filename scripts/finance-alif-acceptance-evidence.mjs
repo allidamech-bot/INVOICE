@@ -17,7 +17,7 @@ const str=value=>typeof value==='string'&&value.trim().length>2&&!/^(todo|pendin
 const time=value=>{
  if(!str(value)||!ISO.test(value)||!Number.isFinite(Date.parse(value)))return false;
  const [,year,month,day,hour,minute,second]=value.match(
-  /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})/)||[];
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)||[];
  if(!year)return false;
  const y=Number(year),m=Number(month),d=Number(day);
  const calendar=new Date(Date.UTC(y,m-1,d));
