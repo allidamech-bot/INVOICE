@@ -1,6 +1,7 @@
 import type {InventoryMovementRecord,LourexDocument,PurchaseRecord} from '../types.js';
 import {decimalToScaled,isExactStockQuantityInput} from './money.js';
 import {defaultWarehouseId} from './warehouses.js';
+import {validateManualMovementEvidence} from './inventory-evidence.js';
 import {
   calculateMovingWeightedAverage,
   type ExplicitCostFxEvidence,
@@ -145,6 +146,12 @@ export function projectPostedValuationEvidence(input:PostedValuationEvidence):Mo
     }else if(row.type==='opening'){
       if(amount<0n||!row.evidence?.id||!row.evidence.dataUrl)
         refuse('Opening quantity and documented valuation evidence are mandatory.');
+      // The original projector only checked two nonempty evidence strings,
+      // so a fake data URL and an unidentified operator could produce cost.
+      // Reuse the existing local file signature, byte-count, reason/category
+      // and operator checks. These remain structural, NOT issuer attestation.
+      try{validateManualMovementEvidence(row);}
+      catch{refuse('Opening requires structurally valid source file, operator and reason evidence.');}
       events.push({...base,kind:'opening',quantity:row.quantity,
         unitCost:row.unitCost,costCurrency:row.currency,
         ...(input.fxByMovementId?.[id]?{fx:input.fxByMovementId[id]}:{})});
