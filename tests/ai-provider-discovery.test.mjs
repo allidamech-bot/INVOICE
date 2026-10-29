@@ -29,3 +29,36 @@ test('unknown or malformed catalog never authorizes a chat model',()=>{
  assert.deepEqual(eligibleCloudflareFreeModels({result:[{name:'@cf/unknown/paid-model'}]}),[]);
  assert.deepEqual(eligibleCloudflareFreeModels(null),[]);
 });
+
+test('stalled catalog fetch ignoring abort cannot block routing',async()=>{
+ const prevFetch=globalThis.fetch,prevTimer=globalThis.setTimeout;
+ const originalEnv={...process.env};
+ const m=await import('../api/_ai/provider-free-catalog.js?stall-fetch-regression');
+ try{
+   process.env.LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED='true';process.env.GEMINI_API_KEY='fixture';
+   delete process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED;
+   globalThis.setTimeout=(fn,ms,...args)=>prevTimer(fn,0,...args);
+   globalThis.fetch=async()=>new Promise(()=>{});
+   assert.deepEqual(await m.verifiedAccountFreeCatalog(),[]);
+ }finally{
+   globalThis.fetch=prevFetch;globalThis.setTimeout=prevTimer;
+   for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];
+   Object.assign(process.env,originalEnv);
+ }
+});
+test('stalled catalog response body ignoring abort also expires',async()=>{
+ const prevFetch=globalThis.fetch,prevTimer=globalThis.setTimeout;
+ const originalEnv={...process.env};
+ const m=await import('../api/_ai/provider-free-catalog.js?stall-body-regression');
+ try{
+   process.env.LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED='true';process.env.GEMINI_API_KEY='fixture';
+   delete process.env.LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED;
+   globalThis.setTimeout=(fn,ms,...args)=>prevTimer(fn,0,...args);
+   globalThis.fetch=async()=>({ok:true,text:async()=>new Promise(()=>{})});
+   assert.deepEqual(await m.verifiedAccountFreeCatalog(),[]);
+ }finally{
+   globalThis.fetch=prevFetch;globalThis.setTimeout=prevTimer;
+   for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];
+   Object.assign(process.env,originalEnv);
+ }
+});

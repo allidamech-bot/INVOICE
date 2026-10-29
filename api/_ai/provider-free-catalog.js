@@ -79,15 +79,23 @@ async function readCatalog(provider,url,headers){
   if(existing?.pending)return existing.pending;
   const pending=(async()=>{
     const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),1200);
-    try{
+    let timeout;
+    // Abort alone is not a deadline: a stalled fetch or response.text() may
+    // ignore the signal. Race the full metadata exchange, not just the header.
+    const stopped=new Promise((_,reject)=>{
+      timeout=setTimeout(()=>{controller.abort();reject(Error('catalog timeout'));},1200);
+    });
+    const request=(async()=>{
       const response=await fetch(url,{method:'GET',headers,signal:controller.signal,redirect:'error'});
       if(!response.ok)return [];
       const text=await response.text();
-      if(text.length>2_000_000)return [];
+      if(controller.signal.aborted||text.length>2_000_000)return [];
       const parsed=JSON.parse(text);
       return provider==='gemini'?eligibleGeminiFreeModels(parsed):eligibleCloudflareFreeModels(parsed);
-    }catch{return [];}finally{clearTimeout(timeout);}
+    })();
+    try{return await Promise.race([request,stopped]);}
+    catch{return [];}
+    finally{clearTimeout(timeout);}
   })();
   cache.set(provider,{pending,models:[],expires:0});
   const models=await pending;
