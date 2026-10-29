@@ -173,3 +173,53 @@ Results always report `sourceAuthenticated=false`,
 `allocationPolicyApproved=false`, `postingApproved=false` and
 `productionReady=false`. The seven-gate Plan A remains **NO-GO** for
 full finance acceptance and live GL activation.
+
+
+## 29 October 2026 — full-cycle, source-recomputed F01–F08 trial balance rehearsal
+
+`src/lib/finance-alif-source-cycle-preview.ts` is a pure, read-only
+integration diagnostic. It runs the already isolated multi-item stock/WAC
+source verifier, recomputes issued-invoice AR and supplier AP using the
+existing financial helpers, requires each customer/supplier payment to have
+one exactly matching, scoped bank allocation, and independently reconciles
+the bank's posted source entry balance. Duplicate receipt IDs, excess supplier
+payments, missing bank links, bank amount mismatches, wrong stock cost and
+cross-currency/scope entries fail closed. A change to the *underlying* invoice
+sale price may still produce a numerically balanced new candidate trial
+balance. Without server-authenticated immutable original invoices, this is
+**not proof** that the original billed revenue has not been altered; the
+regression suite asserts the resulting candidate remains untrusted.
+
+For the **synthetic-only** F01–F08 fixture (200 cartons × USD 6 purchase;
+20 cartons × USD 10 final invoice; USD 50 customer receipt; USD 30 supplier
+settlement; USD 100 isolated opening bank), the complete candidate
+trial balance is:
+
+| Illustrative account | Debit (USD) | Credit (USD) |
+| --- | ---: | ---: |
+| Inventory | 1,080 | |
+| Cost of goods sold | 120 | |
+| Accounts receivable | 150 | |
+| Bank | 120 | |
+| Accounts payable | | 1,170 |
+| Revenue | | 200 |
+| **Unapproved** opening offset | | 100 |
+| **Total** | **1,470** | **1,470** |
+
+This is arithmetic *from supplied source shapes*, not from posted real GL
+journal records; no GL is written. The USD 100 opening is NOT signed company
+equity or a certified starting balance. The candidate mapping and reporting
+currency are asserted by the test, not approved by the legal entity.
+Eligibility is intentionally limited to a complete same-currency, one-bank,
+positive-opening, posted-purchase, ordinary final-invoice stock sale cycle:
+no credit notes, VAT, discounts, nonstock sale lines, FX, expenses, multiple
+bank accounts, reversals, returns, financial period restoration or owner-
+authenticated journal posting. Account balances and money are exact cents,
+with no inferred residual policy. No live customer/business data is read.
+
+This diagnostic **does not** close Alif axis 22, 35-B, 35-C, 39 or 40.
+No production handler, database, Firestore Rules, AI code or deployment
+changes. Security review of the *published* Rules, signed financial account
+mapping, functional currency, opening balance, independently authenticated
+source/period authority, and integrated live two-UID QA remain mandatory
+before real journal activation and GO.

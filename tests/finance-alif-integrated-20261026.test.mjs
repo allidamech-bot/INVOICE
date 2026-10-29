@@ -10,6 +10,8 @@ import {receivablesByCurrency} from '../dist/src/lib/receivables.js';
 import {createTreasuryAccount,createTreasuryEntry,appendTreasuryEntry,treasuryProjection,treasuryTotals,treasuryLedgerTotals,treasuryAccountBalance} from '../dist/src/lib/treasury-ledger.js';
 import {treasuryPeriodReport} from '../dist/src/lib/treasury-report.js';
 import {fxRateMatchForDate,convertWithFxMatch} from '../dist/src/lib/fx-rates.js';
+import {defaultWarehouseId} from '../dist/src/lib/warehouses.js';
+import {previewSourceBoundFinanceCycle} from '../dist/src/lib/finance-alif-source-cycle-preview.js';
 
 // Alif post-merge integration acceptance: one synthetic business lifecycle.
 // No Firebase client, owner login, live workspace, file writes or AI modules.
@@ -138,6 +140,98 @@ test('Alif merged-head business lifecycle: 200→180 stock, AR/AP, bank allocati
   treasuryLedgerTotals(rows,'USD');
   receivablesByCurrency(settled.documents,settled.payments,asOf);
   assert.equal(JSON.stringify(settled),beforeReads,'financial read paths must be side-effect free');
+
+  // Audit the COMPLETE synthetic finance cycle, rather than concluding that
+  // independent departmental report totals imply a trusted posted GL.
+  // These source-bound inventory journals are proposals, never posted rows.
+  const controls={
+    ...scope,functionalCurrency:'USD',asOfDate:asOf,currencyMinorDigits:2,
+    inventoryAssetAccountId:'asset:inventory',supplierPayableAccountId:'liability:ap',
+    salesCogsAccountId:'expense:cogs',inventoryAllowanceAccountId:'contra:nrv',
+    impairmentExpenseAccountId:'expense:nrv'
+  };
+  const candidateAccounts={
+    bankAsset:'asset:bank',customerReceivable:'asset:ar',
+    salesRevenue:'revenue:sales',openingOffset:'equity:unapproved-opening-offset'
+  };
+  const movements=settled.inventoryMovements.map(m=>({...m,...scope}));
+  const candidateStockJournals=movements.map((movement,i)=>{
+    const receipt=movement.type==='purchase',value=receipt?'1200.00':'120.00';
+    return{
+      id:'cycle-source-journal-'+i,
+      sourceKind:receipt?'purchase-receipt':'sales-stock-issue',
+      sourceMovementId:movement.id,effectiveDate:movement.date,
+      ...scope,currency:'USD',
+      lines:receipt?[
+        {accountId:controls.inventoryAssetAccountId,direction:'debit',amount:value},
+        {accountId:controls.supplierPayableAccountId,direction:'credit',amount:value}
+      ]:[
+        {accountId:controls.salesCogsAccountId,direction:'debit',amount:value},
+        {accountId:controls.inventoryAssetAccountId,direction:'credit',amount:value}
+      ]
+    };
+  });
+  const cycle={
+    stock:{
+      warehouseId:defaultWarehouseId('main'),
+      movements,purchases:settled.purchases.map(p=>({...p,...scope})),
+      documents:settled.documents,
+      orderedMovementIds:movements.map(m=>m.id)
+    },
+    stockJournals:candidateStockJournals,
+    customerPayments:settled.payments,supplierPayments:settled.supplierPayments,
+    treasuryAccounts:settled.treasuryAccounts,treasuryEntries:settled.treasuryEntries
+  };
+  const beforeCycle=JSON.stringify(cycle);
+  const inspect=input=>previewSourceBoundFinanceCycle(controls,candidateAccounts,input);
+  const audit=inspect(cycle);
+  assert.deepEqual([
+    audit.inventory,audit.costOfGoodsSold,audit.invoiced,
+    audit.customerCollected,audit.receivable,
+    audit.supplierPurchased,audit.supplierPaid,audit.supplierPayable,
+    audit.bankOpening,audit.bankBalance
+  ],[
+    '1080.00','120.00','200.00','50.00','150.00',
+    '1200.00','30.00','1170.00','100.00','120.00'
+  ]);
+  assert.equal(audit.totalDebits,'1470.00');
+  assert.equal(audit.totalCredits,'1470.00');
+  const trial=new Map(audit.trialBalance.map(x=>[x.accountId,x]));
+  assert.equal(trial.get(controls.inventoryAssetAccountId).debitBalance,'1080.00');
+  assert.equal(trial.get(controls.supplierPayableAccountId).creditBalance,'1170.00');
+  assert.equal(trial.get(candidateAccounts.customerReceivable).debitBalance,'150.00');
+  assert.equal(trial.get(candidateAccounts.bankAsset).debitBalance,'120.00');
+  for(const flag of ['sourceAuthenticated','openingApproved','completeChartApproved',
+    'actualJournalPosted','periodAuthorityVerified','productionReady'])
+    assert.equal(audit[flag],false);
+  assert.equal(JSON.stringify(cycle),beforeCycle,'cycle audit must leave all evidence untouched');
+
+  const denyCycle=mutate=>{
+    const changed=structuredClone(cycle);
+    mutate(changed);
+    assert.throws(()=>inspect(changed),/ALIF_22_.*NOT_READY|Cannot|Recorded|supplier payments/i);
+    assert.equal(JSON.stringify(cycle),beforeCycle);
+  };
+  denyCycle(x=>x.customerPayments.push(structuredClone(x.customerPayments[0])));
+  denyCycle(x=>x.supplierPayments[0].amount='31.00');
+  denyCycle(x=>x.treasuryEntries[1].amount='51.00');
+  denyCycle(x=>x.treasuryEntries.push({...x.treasuryEntries[1],id:'duplicate-collection'}));
+  denyCycle(x=>x.treasuryEntries.splice(2,1));
+  denyCycle(x=>x.stock.movements[0].unitCost='7.00');
+  // A changed sale price can still yield a perfectly balanced candidate
+  // trial balance, because the test-supplied invoice has no server-authenticated
+  // immutable original. This MUST NOT be described as verified source truth.
+  const changedInvoice=structuredClone(cycle);
+  changedInvoice.stock.documents[0].items[0].unitPrice='11.00';
+  const internallyBalancedButUnauthenticated=inspect(changedInvoice);
+  assert.equal(internallyBalancedButUnauthenticated.invoiced,'220.00');
+  assert.equal(internallyBalancedButUnauthenticated.receivable,'170.00');
+  assert.equal(internallyBalancedButUnauthenticated.totalDebits,
+    internallyBalancedButUnauthenticated.totalCredits);
+  assert.equal(internallyBalancedButUnauthenticated.sourceAuthenticated,false);
+  assert.equal(internallyBalancedButUnauthenticated.productionReady,false);
+  denyCycle(x=>x.treasuryAccounts[0].currency='EUR');
+
 });
 
 test('Alif merged-head: overselling fails closed; FX is explicit and never rewrites historical amounts',()=>{

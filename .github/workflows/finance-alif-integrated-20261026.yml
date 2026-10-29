@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'tests/finance-alif-integrated-20261026.test.mjs'
+      - 'src/lib/finance-alif-source-cycle-preview.ts'
+      - 'src/lib/finance-multi-item-source-gl-preview.ts'
       - '.github/workflows/finance-alif-integrated-20261026.yml'
   workflow_dispatch:
 permissions:
