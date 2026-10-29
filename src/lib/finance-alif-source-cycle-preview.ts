@@ -238,10 +238,10 @@ export function previewSourceBoundFinanceCycle(
   cr(accounts.bankAsset,paidBank);
   if(nets.get(controls.inventoryAssetAccountId)!==cents(stock.calculatedGrossInventory)
     ||nets.get(controls.salesCogsAccountId)!==cents(stock.calculatedSalesCost)
-    ||-nets.get(controls.supplierPayableAccountId)!==supplierPayable
+    ||-(nets.get(controls.supplierPayableAccountId)??0n)!==supplierPayable
     ||nets.get(accounts.customerReceivable)!==receivable
     ||nets.get(accounts.bankAsset)!==bankBalance
-    ||-nets.get(accounts.salesRevenue)!==invoiced)
+    ||-(nets.get(accounts.salesRevenue)??0n)!==invoiced)
     fail('Source-based control accounts differ from purchase, stock, AR, AP or bank.');
   let debit=0n,credit=0n;
   const trialBalance=[...nets].sort(([a],[b])=>a.localeCompare(b)).map(([accountId,value])=>{
