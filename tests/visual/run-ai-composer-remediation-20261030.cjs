@@ -26,13 +26,15 @@ const out='visual-qa-output/ai-composer-remediation-20261030';mkdirSync(out,{rec
    await input.fill(text);await page.waitForTimeout(100);assert.equal(await input.inputValue(),text,'Long paste must remain intact');
    await panel.locator('.lourex-ai-send').click();
    await panel.locator('[role="alert"]').filter({hasText:'6000'}).waitFor();assert.equal(await input.inputValue(),text);assert.equal(requests,0);
-   await input.fill('رسالة Arabic English');
+   // Keep the long input and its error while testing the worst-case footer.
    // Viewport resize is a simulation; this does not reproduce a physical iOS keyboard.
    await page.setViewportSize({width,height:Math.max(300,Math.round(height*.6))});await page.waitForTimeout(100);
    const geometry=await panel.evaluate(el=>({viewport:{width:innerWidth,height:innerHeight,visualHeight:visualViewport.height,top:visualViewport.offsetTop},rows:[el,...el.querySelectorAll('.lourex-ai-head,.lxw-mode-tabs,.lxw-mode-description,.lxw-body,.lxw-chat,.lourex-ai-messages,.lourex-ai-compose,.lourex-ai-send')].map(node=>{const r=node.getBoundingClientRect(),c=getComputedStyle(node);return{class:node.className,y:r.y,height:r.height,minHeight:c.minHeight,flex:c.flex,overflow:c.overflow,position:c.position}})}));
    console.log(JSON.stringify({engine:name,width,height,geometry}));
    await page.screenshot({path:`${out}/${name}-${width}-${lang}-resized.png`});
    const send=await panel.locator('.lourex-ai-send').boundingBox();assert.ok(send&&send.y>=0&&send.y+send.height<=Math.max(300,Math.round(height*.6))+2,'Send visible after viewport resize');
+   await input.fill('رسالة Arabic English');
+   assert.equal(await panel.locator('[role="alert"]').filter({hasText:'6000'}).count(),0,'Correcting the input must clear the obsolete length error');
    await page.setViewportSize({width,height});await input.blur();await page.waitForTimeout(100);
    assert.equal(await input.inputValue(),'رسالة Arabic English');
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No horizontal overflow');

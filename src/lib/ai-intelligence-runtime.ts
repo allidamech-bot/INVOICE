@@ -900,7 +900,8 @@ export function installIntelligenceRuntime(host:Host):void{
   host.approveProposal=()=>intelligenceApprove(host,host.state.proposal,approve);
   host.ask=async(raw?:string)=>{
     const submissionError=composerSubmissionError(String(raw??host.state.input??''),host.props.language==='ar');
-    if(submissionError){host.setState({error:submissionError});return;}
+    if(submissionError){host.setState({error:submissionError,__composerLengthError:true});return;}
+    if(host.state.__composerLengthError)host.setState({error:'',__composerLengthError:false});
     if(host.pending||host.applying||host.state.busy||host.__foundationTurnBusy||host.__workspaceDismissBusy)return;host.__foundationTurnBusy=true;host.__foundationLastPlanningFailure=false;host.setState({__workspaceTurnPending:true,__workspaceTurnSaving:false});host.__foundationPreviewStaged=undefined;const started=performance.now();let turnScope='';let owner:TurnOwner|undefined;
     const initialUid=activeAccountStorageUid(),initialThread=host.__lourexAssistantThreadId,initialGeneration=host.__workspaceLoadGeneration,initialMode=host.__intelligenceKernel?.mode;
     const checkLoading=()=>{if(activeAccountStorageUid()!==initialUid||host.__lourexAssistantThreadId!==initialThread||host.__workspaceLoadGeneration!==initialGeneration||(host.__intelligenceKernel&&host.__intelligenceKernel.mode!==initialMode)||host.mounted===false)throw changedTurn(host);};

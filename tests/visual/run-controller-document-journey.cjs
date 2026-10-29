@@ -74,7 +74,20 @@ async function run(engine,name){
   await panel.locator('input[type=file][multiple]').setInputFiles({name:'controller-85.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(bytes)});
   async function say(text){
    const oldCount=await panel.locator('.lourex-ai-message.user').count();
-   const input=panel.locator('textarea');await input.fill(text);await panel.locator('.lourex-ai-send').click();
+   const input=panel.locator('textarea');await input.fill(text);
+   if(!await panel.locator('.lourex-ai-send').isEnabled()){
+    console.log('COMPOSER-DIAGNOSTIC '+JSON.stringify(await input.evaluate(node=>{
+     const fiberKey=Object.keys(node).find(key=>key.startsWith('__reactFiber'));
+     let fiber=fiberKey&&node[fiberKey],host=null;
+     for(let i=0;fiber&&i<100;i++,fiber=fiber.return)if(fiber.stateNode?.ask&&fiber.stateNode?.state){host=fiber.stateNode;break;}
+     return{nativeLength:node.value.length,connected:node.isConnected,active:document.activeElement===node,
+      focused:document.hasFocus(),visibility:document.visibilityState,
+      stateLength:host?.state?.input?.length,busy:host?.state?.busy,pending:host?.pending,
+      attachmentBusy:host?.state?.attachmentBusy,turnBusy:host?.__foundationTurnBusy,
+      panelAlert:node.closest('#lourex-ai-panel')?.querySelector('[role=alert]')?.textContent};
+    })));
+   }
+   await panel.locator('.lourex-ai-send').click();
    // Local revision commands do not use the model streaming spinner.
    // Wait for the full controller turn and its state update before inspecting the draft.
    await page.waitForFunction(previous=>document.querySelectorAll('#lourex-ai-panel .lourex-ai-message.user').length>previous

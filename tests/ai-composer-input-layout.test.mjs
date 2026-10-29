@@ -24,3 +24,12 @@ test('oversized pasted orders are retained and blocked before planning, never tr
  assert.match(ctx.exports.composerSubmissionError('x'.repeat(6001),false),/6000/);
  assert.match(ctx.exports.composerSubmissionError('x'.repeat(6001),true),/6000/);
 });
+test('correcting a length-rejected message clears only its obsolete composer error',()=>{
+ const source=readFileSync('scripts/ai-batch3-premium-conversation.mjs','utf8');
+ const code=source.slice(source.indexOf("const textarea=React.createElement('textarea'")).match(/onChange:(event=>instance\.setState\([^\n]*?\)),onInput:event=>scheduleComposerResize/)[1];
+ const state={input:'x'.repeat(6001),error:'Message exceeds 6000 characters',__composerLengthError:true};
+ const instance={state,setState:update=>Object.assign(state,typeof update==='function'?update(state):update)};
+ const change=vm.runInNewContext('('+code+')',{instance});change({target:{value:'Short correction'}});
+ assert.equal(state.input,'Short correction');assert.equal(state.error,'');assert.equal(state.__composerLengthError,false);
+ state.error='A provider is unavailable';change({target:{value:'Another edit'}});assert.equal(state.error,'A provider is unavailable');
+});
