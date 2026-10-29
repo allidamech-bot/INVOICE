@@ -156,7 +156,15 @@ export function buildNaturalLourexPrompt(cleaned,options={}){
 }
 export async function naturalLourexDialogue(cleaned,options={}){
   const prompt=buildNaturalLourexPrompt(cleaned,options);
+  const attempts=[];
   const result=await routeAiStructured({
+    onDiagnostic:options.ownerDiagnostics===true?row=>{
+      if(attempts.length>=8||!['groq','cloudflare'].includes(row?.provider)||
+        !['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)||
+        !Number.isFinite(row.latencyMs)||row.latencyMs<0||row.latencyMs>60000)return;
+      attempts.push({provider:row.provider,category:row.category,latencyMs:Math.round(row.latencyMs),
+        ...(Number.isInteger(row.fallbackIndex)&&row.fallbackIndex>=0&&row.fallbackIndex<32?{fallbackIndex:row.fallbackIndex}:{})});
+    }:undefined,
     taskType:'business_copilot',
     reasoningLevel:'standard',
     prompt,
@@ -165,6 +173,11 @@ export async function naturalLourexDialogue(cleaned,options={}){
     totalBudgetMs:Number.isFinite(options.totalBudgetMs)?Math.max(0,Math.min(26000,options.totalBudgetMs)):26000,
     validate:(value)=>typeof value?.answer==='string'&&value.answer.trim().length>0&&!dialogueClaimsDocumentCreation(value.answer)&&!dialogueRepeatsLastAnswer(value.answer,cleaned?.context,cleaned?.message)
   });
-  if(!result.success)return{success:false,errorCode:result.errorCode||'AI_TEMPORARILY_UNAVAILABLE'};
+  if(!result.success){
+    const requestId=typeof result.requestId==='string'&&/^[A-Za-z0-9._:-]{1,120}$/.test(result.requestId)?result.requestId:undefined;
+    const totalLatencyMs=Number.isFinite(result.totalLatencyMs)&&result.totalLatencyMs>=0&&result.totalLatencyMs<=60000?Math.round(result.totalLatencyMs):undefined;
+    return{success:false,errorCode:result.errorCode||'AI_TEMPORARILY_UNAVAILABLE',requestId,
+      ...(options.ownerDiagnostics===true?{diagnostic:{stage:'dialogue',requestId,totalLatencyMs,attempts}}:{})};
+  }
   return{success:true,answer:preserveDialogueIdentifiers(trim(result.data.answer,7000),cleaned),proposal:null};
 }

@@ -37,3 +37,35 @@ for(const message of ['سويلي عرض سعر ب٥٠ كرتون منه','سو�
   assert.equal(response.body.proposal,null);
  }finally{Date.now=originalNow;c.clear();d.clear();}
 });
+
+test('dialogue diagnostics gateway ignores client owner claims and uses verified UID',async()=>{
+ const {diagnosticsOwnerUidAllowed}=await import('../api/_ai/admin-diagnostics-auth.js');
+ const configured=process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID;
+ process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID='a'.repeat(28);
+ try{for(const owner of [false,true]){
+  const routeAiStructured=async options=>{
+   options.onDiagnostic?.({provider:'groq',category:'rate_limit',latencyMs:20,fallbackIndex:0,secret:'PRIVATE'});
+   options.onDiagnostic?.({provider:'cloudflare',category:'timeout',latencyMs:12000,fallbackIndex:1});
+   return{success:false,errorCode:'AI_TIMEOUT',requestId:'trace-gateway',totalLatencyMs:12020};
+  };
+  const d=await isolated('api/_ai/lourex-dialogue.js',{'./router.js':{routeAiStructured}});
+  const c=await isolated('api/ai-core.js',{
+   './_ai/firebase-auth.js':{requireAiFirebaseAuth:async req=>{req.aiVerifiedUid=(owner?'a':'b').repeat(28);return true;}},
+   './_ai/admin-diagnostics-auth.js':{diagnosticsOwnerUidAllowed},
+   './_ai/lourex-dialogue.js':{...dialogueHelpers,naturalLourexDialogue:d.module.naturalLourexDialogue}
+  });
+  try{
+   const vault=emptyVault(),business=buildAiBusinessContext(vault,'2026-10-29');
+   const body={message:'Explain a fictional notebook business',ownerDiagnostics:true,context:{version:5,screen:'home',language:'en',conversationMode:'controller',business,
+    finance:buildAiFinanceContext({documents:[],payments:[],customers:[]},'',business.asOf),
+    pricing:buildProductPricingContext(vault,'',business.asOf),drafting:{defaults:{currency:'USD',language:'en'},items:[],customers:[]}}};
+   const req={method:'POST',headers:{host:'qa.example',origin:'https://qa.example','x-requested-with':'LOUREX-Invoice'},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify(body));}};
+   const res={setHeader(){},end(raw){this.body=JSON.parse(raw);}};
+   await c.module.default(req,res);
+   assert.equal(res.statusCode,503);assert.equal(res.body.requestId,'trace-gateway');
+   assert.equal(Boolean(res.body.diagnostic),owner);
+   if(owner){assert.equal(res.body.diagnostic.attempts.length,2);assert.equal(res.body.diagnostic.totalLatencyMs,12020);}
+   assert.doesNotMatch(JSON.stringify(res.body),/PRIVATE|secret/);
+  }finally{c.clear();d.clear();}
+ }}finally{if(configured===undefined)delete process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID;else process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID=configured;}
+});

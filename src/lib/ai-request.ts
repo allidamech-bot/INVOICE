@@ -17,13 +17,13 @@ function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
 // Server sends this metadata only to its verified diagnostics owner. Never
 // render upstream bodies, prompts, credentials or arbitrary response fields.
 export function aiOwnerDiagnosticSummary(value:any):string{
-  if(value?.stage!=='draft-plan'||!Array.isArray(value.attempts))return '';
+  if(!['draft-plan','dialogue'].includes(value?.stage)||!Array.isArray(value.attempts))return '';
   const attempts=value.attempts.slice(0,8).filter((row:any)=>
-    row?.provider==='groq'&&
+    ['groq','cloudflare'].includes(row?.provider)&&
     ['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)&&
     Number.isFinite(row?.latencyMs)&&row.latencyMs>=0&&row.latencyMs<=60000);
   if(!attempts.length)return '';
-  return '\n'+t('Planning diagnosis: ','تشخيص التخطيط: ')+attempts.map((row:any)=>{
+  return '\n'+(value.stage==='dialogue'?t('Conversation diagnosis: ','تشخيص المحادثة: '):t('Planning diagnosis: ','تشخيص التخطيط: '))+attempts.map((row:any)=>{
     let rejection='';
     if(row.provider==='groq'&&row.rejection?.status===400){
       const names=['response_format','json_schema','strict','include_reasoning','reasoning_effort','reasoning_format','max_completion_tokens','max_tokens','temperature','additionalProperties','required','model','messages'];
@@ -33,8 +33,8 @@ export function aiOwnerDiagnosticSummary(value:any):string{
       const fields=Array.isArray(row.rejection.fields)?names.filter(name=>row.rejection.fields.includes(name)):[];
       rejection=` [HTTP400 ${code} ${param} ${fields.join(',')}]`;
     }
-    return `${row.provider}: ${row.category} ${Math.round(row.latencyMs)}ms${rejection}`;
-  }).join(' · ');
+    return `${row.provider}: ${row.category} ${Math.round(row.latencyMs)}ms${Number.isInteger(row.fallbackIndex)&&row.fallbackIndex>=0&&row.fallbackIndex<32?` #${row.fallbackIndex+1}`:''}${rejection}`;
+  }).join(' · ')+(value.stage==='dialogue'&&Number.isFinite(value.totalLatencyMs)&&value.totalLatencyMs>=0&&value.totalLatencyMs<=60000?' · '+t('total ','الإجمالي ')+Math.round(value.totalLatencyMs)+'ms':'');
 }
 export async function requestAiJson(endpoint:string,payload:unknown,signal?:AbortSignal,timeoutMs=60_000):Promise<any>{
   const controller=new AbortController();let timedOut=false;
@@ -54,7 +54,7 @@ export async function requestAiJson(endpoint:string,payload:unknown,signal?:Abor
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     let body:any=null;try{body=await response.json();}catch{}
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
-    if(!response.ok){const code=String(body?.code||'');throw new AiRequestError(aiPublicErrorMessage(code,response.status,String(body?.message||''))+aiOwnerDiagnosticSummary(body?.diagnostic),code,response.status);}
+    if(!response.ok){const code=String(body?.code||'');throw new AiRequestError(aiPublicErrorMessage(code,response.status,String(body?.message||''))+aiOwnerDiagnosticSummary(body?.diagnostic)+(typeof body?.requestId==='string'&&/^[A-Za-z0-9._:-]{1,120}$/.test(body.requestId)?'\n'+t('Request ID: ','رقم التتبع: ')+body.requestId:''),code,response.status);}
     if(!body||typeof body!=='object'||Array.isArray(body))throw new Error(t('AI returned an unreadable response. Retry the analysis.','وصل رد غير قابل للقراءة من AI. أعد التحليل.'));
     return body;
     })();
