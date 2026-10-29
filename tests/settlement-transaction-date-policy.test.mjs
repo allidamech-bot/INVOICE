@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {defaultCompany} from '../dist/src/lib/defaults.js';
+import {defaultCompany,emptyVault} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
 import {invoicePaymentSummary} from '../dist/src/lib/payments.js';
 import {createSupplier,createPurchase,createPurchaseItem} from '../dist/src/lib/operations.js';
 import {purchasePayableSummary,supplierPayablesByCurrency,supplierStatement} from '../dist/src/lib/payables.js';
-import {createTreasuryEntry,treasuryProjection,treasuryAccountBalance} from '../dist/src/lib/treasury-ledger.js';
+import {createTreasuryEntry,createTreasuryAccount,appendTreasuryEntry,
+  treasuryProjection,treasuryAccountBalance} from '../dist/src/lib/treasury-ledger.js';
+import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 
 const entered='2026-10-20T12:00:00.000Z',cutoff='2026-10-10';
 function fixture(){
@@ -86,3 +88,59 @@ test('later cancellation preserves transaction-date history and removes the paym
   assert.equal(treasuryProjection([],[payment],[],[entry],[],'USD','2026-10-22').length,0);
   assert.equal(treasuryAccountBalance('bank',[entry],'2026-10-22'),'0.00');
 });
+
+
+function allocationVault(){
+ const f=fixture(),bank={...createTreasuryAccount({
+  label:'QA date-policy bank',kind:'bank',currency:'USD',
+  workspaceId:'default',branchId:'main'}),id:'bank'};
+ const vault={...emptyVault(),
+  documents:[{...f.invoice,workspaceId:'default',branchId:'main'}],
+  payments:[{...f.customer,workspaceId:'default',branchId:'main'}],
+  suppliers:[f.supplier],
+  purchases:[{...f.purchase,workspaceId:'default',branchId:'main'}],
+  supplierPayments:[{...f.payment,workspaceId:'default',branchId:'main'}],
+  treasuryAccounts:[bank]};
+ return{f,vault,bank};
+}
+
+test('bank cash cannot precede either customer receipt or supplier payment transaction date',()=>{
+ const {f,vault}=allocationVault(),before=JSON.stringify(vault);
+ const old='2026-10-04';
+ const collection={...f.collection,date:old},payment={...f.outgoing,date:old};
+ // Without a source-date guard, both bank amounts can appear on the 4th,
+ // while receivables and payables do not change until the 5th.
+ assert.equal(treasuryAccountBalance('bank',[collection],old),'200.00');
+ assert.equal(invoicePaymentSummary(f.invoice,[f.customer],old,[f.invoice]).paid,'0.00');
+ assert.equal(purchasePayableSummary(f.purchase,[f.payment],old).paid,'0.00');
+ assert.throws(()=>appendTreasuryEntry(vault,collection),/date cannot precede|تاريخ/);
+ assert.throws(()=>appendTreasuryEntry(vault,payment),/date cannot precede|تاريخ/);
+ assert.equal(JSON.stringify(vault),before,'refused postings must not modify vault');
+
+ // The source's transaction date, NOT its later creation timestamp, is
+ // the lower bound. Legitimate backdated records entered later still pass.
+ const received=appendTreasuryEntry(vault,f.collection);
+ const settled=appendTreasuryEntry(received,f.outgoing);
+ assert.equal(treasuryAccountBalance('bank',settled.treasuryEntries,'2026-10-05'),'0.00');
+ assert.equal(treasuryAccountBalance('bank',settled.treasuryEntries,'2026-10-04'),'0.00');
+ const later=appendTreasuryEntry(vault,{...f.collection,date:'2026-10-06'});
+ assert.equal(treasuryAccountBalance('bank',later.treasuryEntries,'2026-10-05'),'0.00');
+ assert.equal(treasuryAccountBalance('bank',later.treasuryEntries,'2026-10-06'),'200.00');
+});
+
+test('new offline active bank allocations cannot be inserted before the linked settlement on either merge side',()=>{
+ const {f,vault}=allocationVault(),snapshot=JSON.stringify(vault);
+ const ui={...vault,appSettings:{...vault.appSettings,uiLanguage:'ar'}};
+ const forgedCustomer={...f.collection,date:'2026-10-04'};
+ const forgedSupplier={...f.outgoing,date:'2026-10-04'};
+ for(const entry of [forgedCustomer,forgedSupplier]){
+  const remote={...vault,treasuryEntries:[entry]};
+  assert.throws(()=>mergeVaultIntent(vault,ui,remote),/date cannot precede|تاريخ/);
+  assert.throws(()=>mergeVaultIntent(vault,remote,vault),/date cannot precede|تاريخ/);
+  assert.equal(JSON.stringify(vault),snapshot);
+ }
+ const ok=mergeVaultIntent(vault,ui,{...vault,treasuryEntries:[f.collection]});
+ assert.equal(ok.treasuryEntries.length,1);
+ assert.equal(treasuryAccountBalance('bank',ok.treasuryEntries,'2026-10-05'),'200.00');
+});
+

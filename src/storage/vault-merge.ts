@@ -1173,6 +1173,11 @@ function guardNewVoidedTreasuryPaymentSources(
     const sameScope=(row:{workspaceId?:string;branchId?:string})=>
       (row.workspaceId||'default')===entry.workspaceId&&
       (row.branchId||'main')===entry.branchId;
+    // A bank event posted and voided before synchronization still affected
+    // historic as-of balances. It cannot predate the original payment even
+    // though it is no longer active when this device first receives it.
+    if(!isIsoDate(source.date)||entry.date<source.date)
+      throw new Error('Voided treasury allocation date cannot precede its linked payment transaction date.');
     if(!sameScope(source)||!isNonNegativeDecimalInput(source.amount)||
        decimalToScaled(source.amount,2)<=0n||
        text(source.currency).trim().toUpperCase()!==text(entry.currency).trim().toUpperCase()||
