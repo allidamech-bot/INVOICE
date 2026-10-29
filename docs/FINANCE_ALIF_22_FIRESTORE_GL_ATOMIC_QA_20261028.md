@@ -227,3 +227,43 @@ No live Vercel or Firestore deployment, production database, published Rules,
 period authority, AI route or customer record is changed. Alif 22, 35-B/C,
 39/40 remain **NO-GO** for production GL activation and independent release
 acceptance.
+
+
+## 29 October 2026 — candidate COA/currency pinning and deterministic QA ledger scope
+
+The isolated finance GL emulator previously allowed clients to choose
+`scopeKey` freely while the request specified the same company and branch.
+Two different keys could identify two independent candidate ledgers for the
+same financial scope. The emulator now requires the SHA-256-derived,
+unambiguous `syntheticFinanceGlScopeKey(workspaceId,branchId)` (first
+48 hex characters after the `scope-` prefix), recomputed server-side
+before any Firestore transaction or write. Arbitrary aliases and
+company/branch concatenation collisions are rejected.
+
+Earlier `sourceSha256` fingerprints bound the synthetic original stock
+documents, but did not independently bind the candidate chart-of-accounts
+mappings, asserted functional currency or accounting as-of controls. The
+new `controlsSha256` binds the complete `FinanceGlControls` object at
+candidate-ledger enrollment. The transaction checks it against the original
+source controls, and the atomic contract checks it before append **and**
+before idempotent replay. Historical operation receipts also carry the
+control digest, and replay rejects receipt corruption.
+
+Tests exercise:
+- an alternate ledger path (same company/branch) and an apparent
+  concatenation collision;
+- changed AP/Inventory account mappings and asserted functional currency
+  after local demo source enrollment, both before posting and after a
+  successful operation;
+- receipt control-digest corruption while original operation hash remains
+  unchanged.
+
+This is **in-test integrity**, not a signature or independent accounting
+approval. Firestore QA controls and source snapshots remain created by a
+test fixture; a privileged coordinated modification to all of them, including
+its ledger anchor, requires separate authoritative identity and immutable
+source governance. A correct SHA-256 or balanced TB cannot prove ownership,
+source issuer, legal functional currency or approved chart of accounts.
+It adds no real GL writer, production schema migration, Firestore Rules
+publication, live Firebase writes or application deployment. **NO-GO**
+remains in force for Plan Alif 22/35/39/40 cutover.

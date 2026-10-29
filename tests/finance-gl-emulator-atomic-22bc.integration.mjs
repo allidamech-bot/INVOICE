@@ -10,7 +10,9 @@ import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {defaultWarehouseId} from '../dist/src/lib/warehouses.js';
 import {createPeriodService} from '../api/_accounting/period-store.js';
 import {encodeWorkspace} from '../api/_accounting/period-format.js';
-import {fingerprintSyntheticFinanceSources} from '../api/_accounting/finance-gl-atomic-contract.js';
+import {fingerprintSyntheticFinanceSources,
+ fingerprintSyntheticFinanceControls,syntheticFinanceGlScopeKey
+} from '../api/_accounting/finance-gl-atomic-contract.js';
 import {createFinanceGlQaEmulatorService,createFinanceGlQaVerifiedOwnerGateway} from './helpers/finance-gl-qa-firestore-adapter.mjs';
 
 // Run only under firebase-tools emulators:exec on the fixed demo project.
@@ -24,7 +26,7 @@ const periodService=createPeriodService(db);
 const service=createFinanceGlQaEmulatorService(db);
 const uid=()=>randomBytes(16).toString('hex');
 const plain=x=>JSON.parse(JSON.stringify(x));
-const scopeKey='default-main';
+const scopeKey=syntheticFinanceGlScopeKey('default','main');
 
 function syntheticSources(){
  const vault=emptyVault(),supplier={...createSupplier(),id:'QA-vendor',nameEn:'QA vendor'};
@@ -106,12 +108,14 @@ async function seed({closeThrough}={}){
   ownerUid:actor.uid,workspaceId:'default',branchId:'main',
   sourceRevision:status.revision,controls,evidence});
  // Compute from the persisted Firestore representation, not a client object.
- const persisted=(await srcRef.get()).data().evidence;
- const digest=fingerprintSyntheticFinanceSources(persisted);
+ const persisted=(await srcRef.get()).data();
+ const digest=fingerprintSyntheticFinanceSources(persisted.evidence);
+ const controlsDigest=fingerprintSyntheticFinanceControls(persisted.controls);
  const ledgerRef=authority.collection('financeGlQaLedgers').doc(scopeKey);
  await ledgerRef.create({format:'LOUREX_FINANCE_GL_QA_LEDGER_V1',
   authorityPresent:true,ownerUid:actor.uid,workspaceId:'default',branchId:'main',
   ledgerVersion:0,periodGeneration:status.generation,sourceSha256:digest,
+  controlsSha256:controlsDigest,
   closedThrough:null,journals:[],receipts:[]});
  const command={scopeKey,opId:uid(),workspaceId:'default',branchId:'main',
   expectedLedgerVersion:0,expectedPeriodGeneration:status.generation,
@@ -215,8 +219,9 @@ test('no source digest substitution or second account access via claimed scope',
  const f=await seed(),before=await snapshot(f);
  await assert.rejects(service.execute(f.actor,{...f.command,expectedSourceSha256:'f'.repeat(64)}),
   /ALIF_22_GL_CONTRACT_SOURCE_VERSION_MISMATCH/);
+ // Canonical company/branch key denies the renamed company before Firestore reads.
  await assert.rejects(service.execute(f.actor,{...f.command,workspaceId:'other'}),
-  /ALIF_22_GL_CONTRACT_WRONG_SCOPE/);
+  /ALIF_22_GL_EMULATOR_SCOPE_KEY_MISMATCH/);
  assert.deepEqual(await snapshot(f),before);
 });
 
@@ -318,6 +323,41 @@ test('new server period close generation blocks stale synthetic ledger replay, w
   /ALIF_22_GL_EMULATOR_LEDGER_AUTHORITY_MISSING/);
  assert.deepEqual(await snapshot(f),before,
   'a changed trusted generation does not silently migrate old ledger receipts');
+});
+
+
+test('caller cannot select a second candidate ledger path for the same company/branch',async()=>{
+ const f=await seed(),before=await snapshot(f);
+ await assert.rejects(service.execute(f.actor,{...f.command,
+  scopeKey:'alternate-same-company-branch'}),/SCOPE_KEY_MISMATCH/);
+ await assert.rejects(service.execute(f.actor,{...f.command,
+  scopeKey:syntheticFinanceGlScopeKey('default','other-branch')}),/SCOPE_KEY_MISMATCH/);
+ assert.deepEqual(await snapshot(f),before);
+ const rows=await f.root.collection('accounting').doc('control')
+  .collection('financeGlQaLedgers').get();
+ assert.equal(rows.size,1);
+});
+
+test('candidate account mapping and functional currency cannot silently change between source and ledger',async()=>{
+ const f=await seed(),before=await snapshot(f),original=(await f.srcRef.get()).data();
+ const forged=plain(original);
+ forged.controls.supplierPayableAccountId='liability:attacker-AP';
+ await f.srcRef.set(forged);
+ await assert.rejects(service.execute(f.actor,f.command),/ACCOUNTING_CONTROLS_CHANGED/);
+ assert.deepEqual(await snapshot(f),before);
+
+ forged.controls.functionalCurrency='EUR';
+ await f.srcRef.set(forged);
+ await assert.rejects(service.execute(f.actor,f.command),/ACCOUNTING_CONTROLS_CHANGED/);
+ assert.deepEqual(await snapshot(f),before);
+
+ // The original operation cannot be replayed using a later changed map.
+ const g=await seed();await service.execute(g.actor,g.command);
+ const saved=await snapshot(g),changed=plain((await g.srcRef.get()).data());
+ changed.controls.inventoryAssetAccountId='asset:other-stock';
+ await g.srcRef.set(changed);
+ await assert.rejects(service.execute(g.actor,g.command),/ACCOUNTING_CONTROLS_CHANGED/);
+ assert.deepEqual(await snapshot(g),saved);
 });
 
 function firebaseOwnerQaToken(actorUid){
