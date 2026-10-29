@@ -12,7 +12,19 @@ const COMMIT=/^[a-f0-9]{40}$/i;
 const ISO=/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/;
 const GATES=['financeCycle','twoDevice','publishedRules','crossUid','physicalIphone','authorityRecovery','costPolicy'];
 const str=value=>typeof value==='string'&&value.trim().length>2&&!/^(todo|pending|unknown|n\/a|tbd)$/i.test(value.trim());
-const time=value=>str(value)&&ISO.test(value)&&Number.isFinite(Date.parse(value));
+// Date.parse accepts some impossible calendar days via normalization. Signed
+// evidence timestamps must describe real calendar dates, independent of zone.
+const time=value=>{
+ if(!str(value)||!ISO.test(value)||!Number.isFinite(Date.parse(value)))return false;
+ const [,year,month,day,hour,minute,second]=value.match(
+  /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})/)||[];
+ if(!year)return false;
+ const y=Number(year),m=Number(month),d=Number(day);
+ const calendar=new Date(Date.UTC(y,m-1,d));
+ return calendar.getUTCFullYear()===y&&calendar.getUTCMonth()===m-1
+   &&calendar.getUTCDate()===d&&Number(hour)<24
+   &&Number(minute)<60&&Number(second)<60;
+};
 const ordered=(earlier,later)=>time(earlier)&&time(later)&&Date.parse(earlier)<=Date.parse(later);
 const err=(a,path,ok)=>{if(!ok)a.push(path);};
 function evidenceRow(missing,rows,name){
@@ -35,6 +47,11 @@ export function validateFinanceAcceptanceEvidence(input){
  err(missing,'release.productionState',release.productionState==='READY');
  const rows=input?.gates||{};
  for(const name of GATES)evidenceRow(missing,rows,name);
+ // All seven proofs must have been reviewed BY the checkpoint, not after
+ // it. A future-dated proof cannot retroactively validate a release.
+ for(const name of GATES)
+   err(missing,'gates.'+name+'.checkpointChronology',
+     ordered(rows[name]?.reviewedAt,input?.checkpointUtc));
  const rules=rows.publishedRules||{};
  err(missing,'gates.publishedRules.project',rules.project==='lourex-invoice');
  err(missing,'gates.publishedRules.releaseName',
@@ -89,10 +106,23 @@ export function validateFinanceAcceptanceEvidence(input){
  err(missing,'gates.costPolicy.returnsAndFxApproved',policy.returnsAndFxApproved===true);
  err(missing,'gates.costPolicy.policyVersion',str(policy.policyVersion));
  const signoff=input?.signoff||{};
- for(const field of ['finance','security','release']){
-   err(missing,'signoff.'+field+'.reviewer',str(signoff[field]?.reviewer));
-   err(missing,'signoff.'+field+'.reviewedAt',time(signoff[field]?.reviewedAt));
+ // Recovery and RPO/RTO are operationally owned; a generic financial or
+ // release signature cannot substitute for an independent operations review.
+ const roles=['finance','security','operations','release'];
+ for(const role of roles){
+   err(missing,'signoff.'+role+'.reviewer',str(signoff[role]?.reviewer));
+   err(missing,'signoff.'+role+'.reviewedAt',time(signoff[role]?.reviewedAt));
+   // Nobody can sign off the completed release before the last required
+   // independent gate has been reviewed (or after this dossier checkpoint).
+   const signedAt=signoff[role]?.reviewedAt;
+   err(missing,'signoff.'+role+'.chronology',
+     ordered(signedAt,input?.checkpointUtc)
+     &&GATES.every(name=>ordered(rows[name]?.reviewedAt,signedAt)));
  }
+ const identities=roles.map(role=>signoff[role]?.reviewer);
+ err(missing,'signoff.independentReviewers',
+   identities.every(str)
+   &&new Set(identities.map(s=>s.trim().toLocaleLowerCase('en-US'))).size===roles.length);
  const proofs=GATES.map(key=>rows[key]?.proofSha256).filter(value=>HASH.test(value||''));
  err(missing,'gates.distinctProofHashes',proofs.length===GATES.length&&new Set(proofs).size===GATES.length);
  return{
