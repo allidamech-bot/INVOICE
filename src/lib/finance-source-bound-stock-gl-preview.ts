@@ -1,4 +1,5 @@
 import {decimalToScaled} from './money.js';
+import {purchaseTotals} from './operations.js';
 import {projectPostedValuationEvidence,type PostedValuationEvidence} from './inventory-valuation-evidence.js';
 import {inspectIllustrativeInventoryJournals} from './inventory-journal-integrity-preview.js';
 import {
@@ -9,8 +10,9 @@ import {
 
 /**
  * Finance Alif 22 — independent SOURCE-BOUND, read-only GL rehearsal.
- * This is restricted to simple single-line, same-currency, zero-extra-cost
- * receipts and ordinary sales issues. No journal/actual GL/period writes.
+ * This is restricted to complete single-line, same-currency purchase receipts
+ * (including evidenced same-purchase landed extras) and ordinary sales issues.
+ * No journal/actual GL/period writes.
  *
  * IMPORTANT: It cannot authenticate invoices, receipt costs, company
  * functional currency, immutable ledger history or owner approval.
@@ -43,9 +45,10 @@ function matchingMoney(actual:string,expected:string,minorDigits:number):boolean
  * already validated against domain source records. Every proposed GL entry
  * must match its source in the exact immutable movement order.
  *
- * NRV, refunds, returns, transfers, stock counts, allocations and FX
- * are intentionally out of scope. They cannot be represented as ordinary
- * supplier payable / inventory receipts by changing only the GL account.
+ * NRV, refunds, returns, transfers, stock counts, shared/multi-line landed
+ * allocations and FX are intentionally out of scope. A single-line purchase
+ * can be compared with its own posted same-purchase payable total; this does
+ * NOT attest external freight vendors or approve IAS 2 cost capitalization.
  */
 export function inspectSourceBoundStockGl(
   controls:FinanceGlControls,
@@ -74,12 +77,26 @@ export function inspectSourceBoundStockGl(
       deny('Different currency source needs a separately approved AP/FX posting policy.');
     if(step.kind==='receipt'){
       const purchase=purchaseById.get(movement.sourceId);
+      // A purchase is ONE liability. The per-item ledger may only credit its
+      // entire payable for a uniquely identified, tracked SINGLE-line receipt.
+      // Multi-line purchases require a separately reconciled document-level
+      // allocation, never a repeated full AP credit on each product.
       if(!purchase||purchase.items.length!==1
-        ||!['freight','duty','otherCosts'].every(field=>{
-          const value=purchase[field as 'freight'|'duty'|'otherCosts'];
-          try{return decimalToScaled(value,12)===0n;}catch{return false;}
-        }))
-        deny('Receipt AP counterpart requires a single-line, zero-extra-cost source; allocations need separate policy.');
+        ||purchase.items[0]?.savedItemId!==movement.itemId)
+        deny('Receipt AP counterpart needs a complete single-line tracked purchase; multi-line allocation needs separate policy.');
+      let payableCents:bigint;
+      try{payableCents=decimalToScaled(purchaseTotals(purchase).landedTotal,2);}
+      catch{deny('Original posted purchase total and landed expenses are invalid.');}
+      // Cross-check the RECEIPT'S actual 12dp carrying-value delta against
+      // the original purchase sum (item base + freight + duty + other costs),
+      // calculated independently of supplied landedUnitCost and journal lines.
+      // Thus two colluding edits to the stock row and landedUnitCost cannot
+      // inflate inventory/AP while the original source cost remains unchanged.
+      if(decimalToScaled(step.valueChange,12)!==payableCents*10_000_000_000n)
+        deny('Receipt stock value does not equal the complete original posted purchase payable including landed charges.');
+      // The bridge never creates a residual-rounding journal: value must also
+      // be representable exactly in the selected accounting minor units.
+      // Existing matchingMoney below enforces that on each proposed journal.
     }else{
       const invoice=evidence.documents.find(d=>d.id===movement.sourceId);
       if(!invoice||invoice.currency!==controls.functionalCurrency)
