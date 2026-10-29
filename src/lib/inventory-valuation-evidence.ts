@@ -42,8 +42,14 @@ function assertScope(row:{workspaceId?:string;branchId?:string},scope:MovingAver
     refuse('Ledger source scope is missing or does not match the chosen company and branch.');
 }
 function purchaseReceipt(row:InventoryMovementRecord,input:PostedValuationEvidence):void{
-  const purchase=input.purchases.find(p=>p.id===row.sourceId);
-  if(!purchase||purchase.status!=='posted')refuse('Receipt requires an existing posted purchase.');
+  // A matching ID alone does not prove source uniqueness. An otherwise valid
+  // duplicate purchase could replace the original without changing the
+  // first-match result, silently making the source chain ambiguous.
+  const purchases=input.purchases.filter(p=>p.id===row.sourceId);
+  if(purchases.length!==1)
+    refuse('Receipt must reference one uniquely identified posted purchase.');
+  const purchase=purchases[0]!;
+  if(purchase.status!=='posted')refuse('Receipt requires an existing posted purchase.');
   assertScope(purchase,input.scope);
   if(row.sourceNumber!==purchase.number||row.currency!==purchase.currency)
     refuse('Receipt disagrees with purchase number or original currency.');
@@ -61,8 +67,11 @@ function purchaseReceipt(row:InventoryMovementRecord,input:PostedValuationEviden
     refuse('Receipt quantity or landed unit cost differs from posted purchase.');
 }
 function invoiceIssue(row:InventoryMovementRecord,input:PostedValuationEvidence):void{
-  const invoice=input.documents.find(doc=>doc.id===row.sourceId);
-  if(!invoice||invoice.kind!=='invoice'||invoice.role!=='standard'
+  const invoices=input.documents.filter(doc=>doc.id===row.sourceId);
+  if(invoices.length!==1)
+    refuse('Stock issue must reference one uniquely identified final invoice.');
+  const invoice=invoices[0]!;
+  if(invoice.kind!=='invoice'||invoice.role!=='standard'
     ||invoice.status!=='final'||invoice.lifecycleStatus==='voided')
     refuse('Issue requires an active final invoice; corrections need separate rules.');
   assertScope(invoice,input.scope);
