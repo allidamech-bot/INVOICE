@@ -3683,3 +3683,18 @@ html body #root #lourex-ai-panel[data-lourex-workspace='2']{scrollbar-color:var(
   .lxw-pdf-screen-navigation{justify-content:space-around!important;gap:6px!important;}
   .lxw-pdf-screen-scroll{padding:6px!important;}
 }
+
+/* Small visual viewports (keyboard or landscape): reserve the native composer
+   and its 44px actions. Explanatory copy yields space before interactive UI. */
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lxw-compact-viewport='true']{row-gap:0!important;}
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lxw-compact-viewport='true'] .lourex-ai-head{min-height:52px!important;padding-block:4px!important;}
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lxw-compact-viewport='true'] .lxw-mode-tabs{padding-block:0!important;margin-block:0!important;}
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lxw-compact-viewport='true'] .lxw-mode-tabs button{min-height:44px!important;padding-block:6px!important;}
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lxw-compact-viewport='true'] .lxw-mode-description{display:none!important;}
+  html body #root #lourex-ai-panel[data-lourex-workspace='2'][data-lxw-compact-viewport='true'] .lourex-ai-premium-textarea{max-height:min(24dvh,100px)!important;}
+
+/* Errors remain readable by scrolling, without pushing Send below the viewport. */
+html body #root #lourex-ai-panel[data-lourex-workspace='2'] .lourex-ai-compose .lourex-ai-error{
+  box-sizing:border-box!important;max-height:min(18dvh,72px)!important;
+  overflow:auto!important;overscroll-behavior:contain;
+}

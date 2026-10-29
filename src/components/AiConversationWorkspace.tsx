@@ -1404,7 +1404,12 @@ function syncWorkspaceViewport():void {
   const viewport=window.visualViewport,height=viewport?.height||window.innerHeight,top=viewport?.offsetTop||0;
   // Keystrokes re-render the host. Avoid invalidating panel layout when the
   // actual visual viewport has not changed.
-  if(panel.style.getPropertyValue('--lxw-viewport-height')!==height+'px')panel.style.setProperty('--lxw-viewport-height',height+'px');
+  if(panel.style.getPropertyValue('--lxw-viewport-height')!==height+'px'){
+    panel.style.setProperty('--lxw-viewport-height',height+'px');
+    // iOS keyboard changes the visual viewport without changing CSS media-query
+    // height. Compact only this workspace, using the actual available height.
+    panel.dataset.lxwCompactViewport=height<=500?'true':'false';
+  }
   if(panel.style.getPropertyValue('--lxw-viewport-top')!==top+'px')panel.style.setProperty('--lxw-viewport-top',top+'px');
 }
 export function updateConversationWorkspace(host:Host,previous:unknown):void {
