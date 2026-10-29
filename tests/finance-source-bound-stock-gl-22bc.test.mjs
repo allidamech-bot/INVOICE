@@ -203,7 +203,7 @@ test('22 landed AP: fractional minor-unit COGS after legitimate freight stays bl
  deny({evidence,journals,s});
 });
 
-test('22 source GL: supplier AP mapping refuses freight or multi-line liability allocation guesses',()=>{
+test('22 source GL: supplier AP mapping rejects unmatched freight and multi-line liability allocation guesses',()=>{
  const s=scenario();s.evidence.purchases[0].freight='1.00';deny(s);
  const t=scenario();t.evidence.purchases[1].items.push({
   ...t.evidence.purchases[1].items[0],id:'different-line',savedItemId:'other-product'
