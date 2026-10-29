@@ -7,7 +7,8 @@ import {postIssuedInvoiceStock} from '../dist/src/lib/invoice-stock.js';
 import {defaultWarehouseId} from '../dist/src/lib/warehouses.js';
 import {inspectSourceBoundStockGl} from '../dist/src/lib/finance-source-bound-stock-gl-preview.js';
 import {
-  fingerprintSyntheticFinanceSources,prototypeFinanceGlAtomicAppend
+  fingerprintSyntheticFinanceSources,fingerprintSyntheticFinanceControls,
+  syntheticFinanceGlScopeKey,prototypeFinanceGlAtomicAppend
 } from '../api/_accounting/finance-gl-atomic-contract.js';
 
 const controls={workspaceId:'default',branchId:'main',functionalCurrency:'USD',
@@ -65,6 +66,7 @@ function fixture(){
  const state={authorityPresent:true,ownerUid:'qa-owner',
   workspaceId:'default',branchId:'main',periodGeneration:7,ledgerVersion:0,
   closedThrough:null,sourceSha256:fingerprintSyntheticFinanceSources(sourceEvidence),
+  controlsSha256:fingerprintSyntheticFinanceControls(controls),
   journals:[],receipts:[]};
  const command={opId:'qa-op-1',workspaceId:'default',branchId:'main',
   expectedLedgerVersion:0,expectedPeriodGeneration:7,
@@ -172,7 +174,7 @@ test('even returning synthetic audit flags cannot create production approval',()
  assert.equal(x.productionReady,false);
  assert.deepEqual(Object.keys(x.state.receipts[0]).sort(),
   ['opId','fingerprint','ledgerVersion','generation','sourceSha256',
-   'journalIds','trialDebit','trialCredit'].sort());
+   'controlsSha256','journalIds','trialDebit','trialCredit'].sort());
 });
 
 
@@ -224,4 +226,30 @@ test('replay after period close remains read-only only while historic source and
  assert.equal(replay.replayed,true);
  assert.equal(replay.state,closed,'closed period is not opened or mutated on replay');
  refused({...s,state:{...closed,periodGeneration:8}},'HISTORIC_RECEIPT_CORRUPT');
+});
+
+
+test('candidate account mappings and functional currency are pinned before exact replay',()=>{
+ const s=fixture(),first=run(s);
+ assert.match(first.receipt.controlsSha256,/^[a-f0-9]{64}$/);
+ const altered={...s,controls:{...s.controls,
+   supplierPayableAccountId:'liability:some-other-AP'}};
+ refused(altered,'CONTROLS_VERSION_MISMATCH');
+ refused({...altered,state:first.state},'CONTROLS_VERSION_MISMATCH');
+ const currency={...s,controls:{...s.controls,functionalCurrency:'EUR'}};
+ refused(currency,'CONTROLS_VERSION_MISMATCH');
+ const corrupt=structuredClone(first.state);
+ corrupt.receipts[0].controlsSha256='a'.repeat(64);
+ refused({...s,state:corrupt},'HISTORIC_RECEIPT_CORRUPT');
+ assert.equal(run({...s,state:first.state}).replayed,true);
+});
+
+test('canonical scope key uses unambiguous two-component namespace and refuses omitted company or branch',()=>{
+ assert.match(syntheticFinanceGlScopeKey('default','main'),/^scope-[a-f0-9]{48}$/);
+ assert.equal(syntheticFinanceGlScopeKey('default','main'),
+  syntheticFinanceGlScopeKey('default','main'));
+ assert.notEqual(syntheticFinanceGlScopeKey('qa-one','main'),
+  syntheticFinanceGlScopeKey('qa','one-main'));
+ assert.throws(()=>syntheticFinanceGlScopeKey('','main'),/INVALID_SCOPE_ID/);
+ assert.throws(()=>syntheticFinanceGlScopeKey('main',''),/INVALID_SCOPE_ID/);
 });
