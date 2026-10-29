@@ -159,10 +159,12 @@ export async function naturalLourexDialogue(cleaned,options={}){
   const attempts=[];
   const result=await routeAiStructured({
     onDiagnostic:options.ownerDiagnostics===true?row=>{
-      if(attempts.length>=8||!['groq','cloudflare','gemini','ollama'].includes(row?.provider)||
+      if(attempts.length>=8||!['groq','cloudflare','gemini','ollama','openrouter'].includes(row?.provider)||
         !['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)||
         !Number.isFinite(row.latencyMs)||row.latencyMs<0||row.latencyMs>60000)return;
       attempts.push({provider:row.provider,category:row.category,latencyMs:Math.round(row.latencyMs),
+        ...(typeof row.model==='string'&&/^[-@a-zA-Z0-9._/:]{1,160}$/.test(row.model)?{model:row.model}:{}),
+        ...(['model','provider'].includes(row.quotaScope)?{quotaScope:row.quotaScope}:{}),
         ...(Number.isFinite(row.retryAfterMs)&&row.retryAfterMs>=0&&row.retryAfterMs<=86400000?{retryAfterMs:Math.round(row.retryAfterMs)}:{}),
         ...(Number.isInteger(row.fallbackIndex)&&row.fallbackIndex>=0&&row.fallbackIndex<32?{fallbackIndex:row.fallbackIndex}:{})});
     }:undefined,

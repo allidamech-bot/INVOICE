@@ -19,7 +19,7 @@ function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
 export function aiOwnerDiagnosticSummary(value:any):string{
   if(!['draft-plan','dialogue'].includes(value?.stage)||!Array.isArray(value.attempts))return '';
   const attempts=value.attempts.slice(0,8).filter((row:any)=>
-    ['groq','cloudflare','gemini','ollama'].includes(row?.provider)&&
+    ['groq','cloudflare','gemini','ollama','openrouter'].includes(row?.provider)&&
     ['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)&&
     Number.isFinite(row?.latencyMs)&&row.latencyMs>=0&&row.latencyMs<=60000);
   if(!attempts.length)return '';
@@ -33,7 +33,7 @@ export function aiOwnerDiagnosticSummary(value:any):string{
       const fields=Array.isArray(row.rejection.fields)?names.filter(name=>row.rejection.fields.includes(name)):[];
       rejection=` [HTTP400 ${code} ${param} ${fields.join(',')}]`;
     }
-    return `${row.provider}: ${row.category} ${Math.round(row.latencyMs)}ms${row.category==='rate_limit'&&Number.isFinite(row.retryAfterMs)&&row.retryAfterMs>=0&&row.retryAfterMs<=86400000?` (${t('retry after ','بعد ')}${Math.ceil(row.retryAfterMs/1000)}s)`:''}${Number.isInteger(row.fallbackIndex)&&row.fallbackIndex>=0&&row.fallbackIndex<32?` #${row.fallbackIndex+1}`:''}${rejection}`;
+    return `${row.provider}: ${row.category}${['model','provider'].includes(row.quotaScope)?` [${row.quotaScope}]`:''} ${Math.round(row.latencyMs)}ms${row.category==='rate_limit'&&Number.isFinite(row.retryAfterMs)&&row.retryAfterMs>=0&&row.retryAfterMs<=86400000?` (${t('retry after ','بعد ')}${Math.ceil(row.retryAfterMs/1000)}s)`:''}${Number.isInteger(row.fallbackIndex)&&row.fallbackIndex>=0&&row.fallbackIndex<32?` #${row.fallbackIndex+1}`:''}${typeof row.model==='string'&&/^[-@a-zA-Z0-9._/:]{1,160}$/.test(row.model)?` [${row.model}]`:''}${rejection}`;
   }).join(' · ')+(value.stage==='dialogue'&&Number.isFinite(value.totalLatencyMs)&&value.totalLatencyMs>=0&&value.totalLatencyMs<=60000?' · '+t('total ','الإجمالي ')+Math.round(value.totalLatencyMs)+'ms':'');
 }
 export async function requestAiJson(endpoint:string,payload:unknown,signal?:AbortSignal,timeoutMs=60_000):Promise<any>{

@@ -43,3 +43,31 @@ test('approved Gemini accepts native PDF; text-only Ollama is never an upload fa
  const r=await (await router()).routeAiStructured({taskType:'quote_extract',schema,attachments:[{kind:'native-document',mimeType:'application/pdf',data:'fixture'}]});
  assert.equal(r.success,true);assert.equal(r.provider,'gemini');assert.deepEqual(seen,['gemini']);
 });
+test('model-specific Groq quota can hand off to another Groq model',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';delete process.env.OPENROUTER_API_KEY;
+ const models=[];globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);models.push(body.model);
+  if(body.model==='openai/gpt-oss-120b')return{ok:false,status:429,headers:{get:()=>null},text:async()=>JSON.stringify({error:{message:'Rate limit reached for model `openai/gpt-oss-120b` on tokens per minute'}})};
+  return response(200,vendor(url));};
+ const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema});assert.equal(r.success,true);assert.equal(r.provider,'groq');assert.equal(r.model,'openai/gpt-oss-20b');assert.deepEqual(models,['openai/gpt-oss-120b','openai/gpt-oss-20b']);
+});
+test('unknown account quota skips every model of the vendor, not one key per model',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';delete process.env.OPENROUTER_API_KEY;const seen=[];
+ globalThis.fetch=async(url,options)=>{seen.push(vendor(url));return response(vendor(url)==='groq'?429:200,vendor(url));};
+ const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema});assert.equal(r.provider,'cloudflare');assert.deepEqual(seen,['groq','cloudflare']);
+});
+test('OpenRouter discovers all zero-price free text variants and enforces zero price at inference',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';process.env.OPENROUTER_API_KEY='fixture';process.env.LOUREX_AI_APPROVED_PRIVATE_PROVIDERS='openrouter';
+ delete process.env.GROQ_API_KEY;delete process.env.CLOUDFLARE_AI_API_TOKEN;delete process.env.GEMINI_API_KEY;delete process.env.OLLAMA_API_KEY;
+ const seen=[];globalThis.fetch=async(url,options)=>{
+  if(String(url).endsWith('/models'))return{ok:true,text:async()=>JSON.stringify({data:[{id:'fixture/one:free',pricing:{prompt:'0',completion:'0'},architecture:{input_modalities:['text'],output_modalities:['text']}},{id:'fixture/two:free',pricing:{prompt:'0',completion:'0'},architecture:{input_modalities:['text'],output_modalities:['text']}}]})};
+  const body=JSON.parse(options.body);seen.push(body.model);assert.deepEqual(body.provider.max_price,{prompt:0,completion:0});
+  return response(body.model==='fixture/two:free'?200:404,'openrouter');
+ };
+ const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema});assert.equal(r.success,true);assert.equal(r.model,'fixture/two:free');assert.deepEqual(seen,['openrouter/free','fixture/one:free','fixture/two:free']);
+});
+test('multi-model mode does not treat the old Ollama free flag as current zero-cost proof',async()=>{
+ process.env.LOUREX_AI_MULTI_MODEL_ENABLED='true';delete process.env.LOUREX_AI_OLLAMA_ZERO_COST_MODELS;
+ delete process.env.GROQ_API_KEY;delete process.env.CLOUDFLARE_AI_API_TOKEN;delete process.env.GEMINI_API_KEY;delete process.env.OPENROUTER_API_KEY;
+ let calls=0;globalThis.fetch=async()=>{calls++;return response(200,'ollama');};
+ const r=await (await router()).routeAiStructured({taskType:'business_copilot',schema});assert.equal(r.success,false);assert.equal(calls,0);
+});

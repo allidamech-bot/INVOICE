@@ -1,53 +1,56 @@
-# LOUREX AI approved provider pool and bounded handoff
+# LOUREX AI multi-model routing — 2026-10-29
 
-Baseline: f31ff06c8143267e65b3e0d6570294cbe344453f. AI track only.
+AI track only. Main baseline f31ff06c8143267e65b3e0d6570294cbe344453f. Extends Draft PR #1181; no production configuration, merge or manual deployment.
 
-## Production evidence
+## Proven failure and change
 
-The supplied iPhone screenshot records request a773cf8e-7f53-4f72-b8be-3e3cb3495872: Groq rate_limit in 75ms, Cloudflare timeout in 12003ms, total 12078ms. This proves sequential fallback occurred for this request, but both eligible vendors failed. It does not establish which Groq organization quota was exhausted, whether Cloudflare would have answered with more time, or a universal provider outage.
+The supplied iPhone capture records a773cf8e-7f53-4f72-b8be-3e3cb3495872: Groq rate_limit 75ms, Cloudflare timeout 12003ms, total 12078ms. Fallback occurred, but only two private models were eligible. A separate synthetic request succeeded by the 5269ms observation: intermittent, not a universal outage. The capture does not identify which quota was exhausted or prove a broken key.
 
-The original private-data pool admitted only approved Groq/Cloudflare models; Gemini/Ollama keys and general provider enablement did not admit them to business requests. Changing timeout alone would not supply another eligible vendor.
+The router also discarded all but one candidate per vendor and applied every 429 to the whole provider. Multi-model mode now retains alternate models with vendor diversity first. Explicit Groq error wording identifying the requested model permits a model-only cooldown and prioritizes another eligible model of Groq. Unknown/account-wide limits remain provider-wide; no key rotation or quota circumvention. Schema and task-specific result validation remain mandatory.
 
-The diagnostic owner account was verified through the existing protected health page. A separate synthetic Controller request succeeded by the 5269ms observation. Thus the failure is intermittent. No additional live inference requests were used for this patch.
+Natural dialogue fairly divides its existing maximum 26-second budget among usable candidates. Attempt deadlines abort stalled work. At most eight inference attempts per request in multi-model mode; no concurrent fanout. Metadata discovery is included in the request budget. Shorter shared deadlines still win. Existing capability/task filtering and ephemeral validated latency/quality ranking remain; cold starts have a stable prior, not a global fastest-provider guarantee.
 
-## Implementation
+## Catalog coverage — do not claim every model is live
 
-- Add an explicit deployment-side privacy approval list: LOUREX_AI_APPROVED_PRIVATE_PROVIDERS. Only literal gemini and ollama entries expand the existing private model allowlist. Unset/empty keeps the prior Groq/Cloudflare policy. Request-body flags and task labels cannot grant approval. OpenRouter/Kilo are not added to private routing.
-- Gemini, when approved and keyed, can serve text, images and native PDFs using its existing registered model and adapter. Ollama, when approved, keyed, globally enabled and free-allowance verified, joins general text tasks only. It does not receive image/native PDF or deep-only tasks. Existing local schema and task-specific validation remain mandatory even though Ollama Cloud lacks constrained structured output.
-- Natural dialogue divides the existing 26-second maximum inference budget fairly among currently usable vendors, bounded by the caller's 12-second maximum attempt and minimum useful time. Each stalled attempt is aborted before trying the next. No concurrent fanout or hidden same-provider timeout retry is added. Shorter shared deadlines still win; four attempts are not guaranteed on every task.
-- Preserve existing task/capability selection, account cooldown on 429, circuit handling and validated latency/quality ranking. Ranking is ephemeral per warm function instance, with a stable cold-start prior, not a global guarantee of the fastest provider. Existing local greetings/actions and financial calculations stay local.
-- Owner-only dialogue diagnostics now accept Gemini/Ollama and show bounded quota cooldown milliseconds from the router. No raw upstream body or company data is logged. Cooldown is the router's policy (which can include its default/minimum), not proof of the upstream's exact quota-reset time.
+- Groq: existing GPT-OSS 120B, Qwen 3.8 27B plus GPT-OSS 20B in multi-model mode. These chat models appear in current published free-tier limits. Guardrail/audio models are not chat answers and are not sent to the chat adapter. Account/project limits still need matching to the production key.
+- Cloudflare: all three existing registered text models become eligible under multi-model private routing, subject to their existing declared capabilities. This is not a claim that the entire current Cloudflare catalog has been reviewed or that a paid Workers account is billing-capped.
+- Gemini: existing 2.5 Flash-Lite plus 2.5 Flash/Pro; published free-tier text/image/PDF capability. Actual account access, including restrictions on older models, is unverified. Other current Gemini models are not silently assumed free.
+- OpenRouter: opt-in metadata-only discovery of ALL returned `:free` chat variants with explicit numeric zero pricing for every supplied price field. Missing, nonnumeric, positive, overridden pricing, funded-only zero-price non-free IDs and non-text output endpoints are rejected. Capabilities come from metadata; unsupported modalities never become upload fallbacks. Retains openrouter/free if discovery fails. Cache 5 minutes after success/30 seconds after failure; 1.5-second discovery bound; fixed HTTPS URL, no credentials/prompts/history/business data sent. Inference additionally sets zero input/output max_price and data_collection deny. This is actual catalog expansion, not one hardcoded OpenRouter model.
+- Ollama: official pricing checked today states pay-per-token for every cloud model. Do not expand or activate it under the user's free-only policy without account-specific evidence. Multi-model mode requires both the old verified-free flag and an explicit current zero-cost model list; only the existing gemma4:31b adapter entry can currently be admitted. The old flag alone is insufficient. No new Ollama models are claimed free.
+
+Thus the request to activate every free model across all five vendors is NOT fully closed. OpenRouter discovery and the proven Groq multi-model defect are implemented; account/free/privacy verification and complete Groq/Gemini/Cloudflare catalog coverage remain open. Do not misrepresent an open Draft PR or configured key as production activation.
+
+## Private-data and free-cost controls
+
+Unset LOUREX_AI_APPROVED_PRIVATE_PROVIDERS preserves prior Groq/Cloudflare policy. Only explicit server-side entries gemini,ollama,openrouter expand private destinations. Client body flags cannot grant approval. Kilo/Mistral are not added.
+
+Prepared activation settings (not applied):
+
+```
+LOUREX_AI_MULTI_MODEL_ENABLED=true
+LOUREX_AI_NEW_PROVIDERS_ENABLED=true
+LOUREX_AI_APPROVED_PRIVATE_PROVIDERS=gemini,openrouter
+```
+
+Only after independently proving a current zero-cost Ollama allowance, add ollama to the privacy list and verify LOUREX_AI_OLLAMA_FREE_VERIFIED=true plus LOUREX_AI_OLLAMA_ZERO_COST_MODELS=gemma4:31b. Do not set these as a substitute for evidence. Published availability of a free allowance does not prove the connected account cannot incur overage; owner must retain free-plan/no-overage billing controls. No paid models, credit purchases or billing upgrades authorized.
+
+Gemini free-tier content may be used for product improvement. Its business-data approval remains explicit. OpenRouter keeps data_collection deny; if no eligible privacy-preserving free endpoint exists, fail closed. Diagnostic output is verified-owner-only and bounded to provider, model ID, category, model/provider quota scope, cooldown, elapsed time and fallback index; no upstream bodies, keys or company content.
 
 ## Validation
 
-Production build passed. 65 targeted tests passed:
+Regression first failed: a model-specific GPT-OSS 120B quota was routed to Cloudflare instead of another Groq model. Passes after model-level handoff fix.
 
-- ai-approved-provider-pool (6): observed quota-to-timeout-to-Gemini success; Ollama text fallback; native PDF restriction; fail-closed missing approval; free-allowance gate; three stalls leave the fourth vendor a usable window.
-- Existing private document routing, multi-provider router and owner diagnostic suites: together with the new suite, 58 passes.
-- Shared gateway deadline and request cancellation: 7 passes.
+71 focused tests passed: 64 across approved pool, zero-price catalog, multi-provider routing, private document isolation and owner diagnostics, plus 7 shared gateway deadline/cancellation regressions. Production build passed against final source. No live inference calls or broad browser suites in this implementation.
 
-Tests mock providers and accelerated clocks. No live company data, Firebase Rules, finance files, deployment configuration or inference calls changed.
+## Remaining acceptance and action
 
-## Deployment approval and activation
+Review CI and code; resolve explicit privacy and account-free allowances before owner configuration/deployment. Verify SHA/PWA. Use at most one synthetic acceptance request; success does not certify every vendor. Do not repeatedly force failures. Verify iPhone owner diagnostics stay readable, composer releases on failure and retains the prompt. Full multi-device/cancelled-approval acceptance remains distinct from this provider change.
 
-This PR prepares capability; it does not silently authorize new company-data destinations. Before production activation, the project owner must approve the data policy for all affected tenants, verify the account allowance and model access, and set non-secret variables:
-
-```
-LOUREX_AI_APPROVED_PRIVATE_PROVIDERS=gemini,ollama
-LOUREX_AI_NEW_PROVIDERS_ENABLED=true
-LOUREX_AI_OLLAMA_FREE_VERIFIED=true
-```
-
-The final flag is a factual assertion about account allowance, not a switch to bypass billing review. Preserve existing keys; never copy them into reports or client code. The health page's configured-key/QA/env-eligible badges do not prove production inference, free billing or privacy approval. Native PDFs require approved Gemini because existing other models cannot accept native PDFs.
-
-Google's Gemini free-tier pricing states content may be used to improve products; paid-tier handling differs. Enabling business-data routing must account for this, especially in a public multi-company application. No billing upgrade is authorized by this change. Sources checked 2026-10-29:
-- https://ai.google.dev/gemini-api/docs/pricing
-- https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-lite
+Official sources checked today:
 - https://console.groq.com/docs/rate-limits
-- https://github.com/ollama/ollama/blob/main/docs/cloud.mdx
-
-## Remaining acceptance
-
-After review, approved configuration and owner deployment: verify SHA, refresh PWA, perform at most one synthetic dialogue request, observe real fallback metadata if failure occurs. A success does not prove all providers available. Do not force repeated failures or send business files to new vendors as probes. Gemini 2.5 access and all actual account quotas remain to be verified without an unapproved paid upgrade. For iPhone: ensure the error metadata is readable, composer releases after failure, and text remains; full browser suites need not be repeated manually.
-
-Stop at Draft PR. No merge or manual deployment in this task.
+- https://console.groq.com/docs/models
+- https://openrouter.ai/api/v1/models
+- https://openrouter.ai/collections/free-models/
+- https://ai.google.dev/gemini-api/docs/pricing
+- https://developers.cloudflare.com/workers-ai/platform/pricing/
+- https://ollama.com/pricing (pay-per-token cloud catalog; contrary to assuming all cloud models free)
