@@ -40,6 +40,20 @@ async function clientWrite(path,method='PATCH',fields={}){return fetch('http://'
 
 test('trusted enrollment, close, stale rejection, reopen and retained publication use real Firestore transactions',async()=>{
   await seed();
+  // A signed owner cannot fabricate privileged accounting records before
+  // enrollment; a permissive recursive rule would bypass specific blocks.
+  for(const path of [
+    'accounting/control',
+    'accounting/control/financeGlQaLedgers/forged',
+    'accounting/control/financeGlQaJournals/forged',
+    'periodOperations/forged','periodReports/forged',
+    'periodReports/forged/chunks/00000',
+    'periodGenerations/forged/chunks/00000'
+  ]){
+    const result=await clientWrite(path);
+    assert.equal(result.status,403,
+      'pre-enrollment owner must not create privileged finance record '+path+': '+await result.text());
+  }
   const inspectionId=id(),before=await service.execute(actor,{operation:'inspect',opId:inspectionId,expectedRevision:revision,expectedGeneration:0});
   assert.equal(before.enrolled,false);assert.equal(before.generation,0);assert.equal((await root.collection('periodOperations').get()).size,0);assert.equal((await root.collection('accounting').doc('control').get()).exists,false);
   await command('enroll');
@@ -63,10 +77,31 @@ test('trusted enrollment, close, stale rejection, reopen and retained publicatio
   assert.equal((await root.collection('periodReports').doc(closed.result.reportId).get()).exists,true);
 });
 test('rules block stale owner clients, forged controls, history deletion and mutable staged data',async()=>{
-  for(const path of ['workspace/meta','workspace/chunk-'+revision+'-00000','periodGenerations/'+revision+'/chunks/chunk-'+revision+'-00000','accounting/control','periodOperations/forged','workspaceHistory/forged','vault/meta','vaultHistory/forged']){
+  for(const path of [
+    'workspace/meta','workspace/chunk-'+revision+'-00000',
+    'periodGenerations/'+revision+'/chunks/chunk-'+revision+'-00000',
+    'accounting/control',
+    'accounting/control/financeGlQaSources/forged',
+    'accounting/control/financeGlQaLedgers/forged',
+    'accounting/control/financeGlQaJournals/forged',
+    'accounting/control/financeGlQaReceipts/forged',
+    'accounting/control/financeGlQaOwnerSessions/forged',
+    'periodOperations/forged','periodReports/forged',
+    'periodReports/forged/chunks/00000',
+    'workspaceHistory/forged','vault/meta','vaultHistory/forged'
+  ]){
     const result=await clientWrite(path);assert.equal(result.status,403,path+': '+await result.text());
   }
   assert.equal((await clientWrite('accounting/control','DELETE')).status,403);
+  for(const path of [
+    'accounting/control/financeGlQaLedgers/forged',
+    'accounting/control/financeGlQaOwnerSessions/forged',
+    'periodOperations/forged',
+    'periodGenerations/'+revision+'/chunks/chunk-'+revision+'-00000'
+  ]){
+    assert.equal((await clientWrite(path,'DELETE')).status,403,
+      'enrolled owner cannot delete protected finance record '+path);
+  }
   const reportId=(await root.collection('accounting').doc('control').get()).data().boundaries[0].reportId;
   assert.equal((await clientWrite('periodReports/'+reportId,'DELETE')).status,403);
   assert.equal((await clientWrite('periodReports/'+reportId+'/chunks/chunk-'+reportId+'-00000')).status,403);
