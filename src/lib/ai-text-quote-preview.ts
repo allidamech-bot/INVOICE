@@ -61,3 +61,101 @@ export function exactTextQuotePreview(message:string):AiDocumentDraftProposal|nu
     label:'Unsaved exact quotation preview',rationale:'Only literal buyer, quantities, units, prices and currency in this user message. No AI guesses; no save or issue approval.'
   };
 }
+
+
+/** A deterministic local preview for explicitly structured carton quotations.
+ * Never turn stated carton/inner-unit counts into mixed sales units. Cross-check
+ * every line and declared total before staging an UNSAVED controller artifact.
+ * Discounts/freight are informational until the document editor supports them. */
+export function exactStructuredCartonQuote(message:string):AiDocumentDraftProposal|null{
+ const input=String(message||'').normalize('NFKC').trim();
+ if(!input||input.length>14000||
+   !/(?:^|\n)[^\n]{0,160}(?:أنشئ|انشئ|اعمل|جهز|جهّز|حضّر|حضر|إنشاء|اعد|create|prepare)[^\n]{0,160}(?:عرض\s*(?:ال)?سعر|quotation|quote)/iu.test(input)||
+   /(?:لا|بدون|دون)\s+(?:تنشئ|انشاء|إنشاء|تجهز|تجهيز)\s+(?:مسودة\s+)?عرض\s*(?:ال)?سعر/iu.test(input))return null;
+ const header=/(?:^|\n)[ \t]*\*{0,2}الصنف\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|[0-9]{1,2})\s*[:：]\s*([^\n*]{3,160})\*{0,2}[ \t]*(?=\n|$)/gmu;
+ const blocks=[...input.matchAll(header)];
+ if(blocks.length<2||blocks.length>20)return null;
+ const lines=(source:string)=>source.split(/\r?\n/).map(row=>row.replace(/^\s*(?:[-*]|\d+[.)])\s*\*{0,2}/u,'').trim().replace(/\*+$/u,'').trim());
+ const field=(source:string,key:string):string|null=>{
+   const found=lines(source).filter(row=>row.startsWith(key+':')||row.startsWith(key+'：'));
+   return found.length===1?found[0]!.slice(key.length+1).trim():null;
+ };
+ const arDigits='٠١٢٣٤٥٦٧٨٩',faDigits='۰۱۲۳۴۵۶۷۸۹';
+ const amount=(value:string|null):string|null=>{
+   if(!value)return null;
+   const match=value.match(/^([0-9٠-٩۰-۹,.]+)(?=$|[\s%٪])/u);
+   if(!match)return null;
+   let v=[...match[1]!].map(char=>arDigits.includes(char)?String(arDigits.indexOf(char)):faDigits.includes(char)?String(faDigits.indexOf(char)):char).join('');
+   if(v.includes(',')){if(!/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(v))return null;v=v.replace(/,/g,'');}
+   return /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(v)?v:null;
+ };
+ const buyerValue=field(input,'العميل');
+ const buyer=buyerValue?.split(/\s+[—–-]\s+/u)[0]?.replace(/[.،؛]+$/u,'').trim()||'';
+ if(!buyer||buyer.length>100||!/^\p{L}/u.test(buyer))return null;
+ const items:AiDraftItemInput[]=[];
+ let cartons=0n,inside=0n,goods=0n;
+ try{
+ for(let i=0;i<blocks.length;i++){
+   const block=blocks[i]!,name=(block[1]||'').trim();
+   const portion=input.slice((block.index||0)+block[0].length,i+1<blocks.length?blocks[i+1]!.index:input.length);
+   if(!name||name.length>160||items.some(row=>row.descriptionAr===name))return null;
+   const qty=amount(field(portion,'الكمية')),packing=field(portion,'التعبئة');
+   const packMatch=packing?.match(/^([0-9٠-٩۰-۹,.]+)\s+(قطعة|عبوة|كيس)\s+في\s+الكرتون/u);
+   if(!qty||!packMatch)return null;
+   const pack=amount(packMatch[1]!);
+   const insideType=packMatch[2]!;
+   const singlePrice=amount(field(portion,insideType==='قطعة'?'سعر القطعة':insideType==='عبوة'?'سعر العبوة':'سعر الكيس'));
+   const cartonPrice=amount(field(portion,'سعر الكرتون'));
+   const rowTotal=amount(field(portion,'إجمالي الصنف'));
+   const countLabel=insideType==='قطعة'?'إجمالي القطع':insideType==='عبوة'?'إجمالي العبوات':'إجمالي الأكياس';
+   const innerTotal=amount(field(portion,countLabel));
+   if(!pack||!singlePrice||!cartonPrice||!rowTotal||!innerTotal)return null;
+   const moneyFields=[field(portion,insideType==='قطعة'?'سعر القطعة':insideType==='عبوة'?'سعر العبوة':'سعر الكيس'),field(portion,'سعر الكرتون'),field(portion,'إجمالي الصنف')];
+   if(moneyFields.some(v=>!/\bUSD\b/u.test(v||'')||/\b(?:EUR|TRY|SAR|SYP)\b/u.test(v||'')))return null;
+   const quantity=decimalToScaled(qty,0),per=decimalToScaled(pack,0);
+   if(quantity<=0n||per<=0n||decimalToScaled(qty,2)!==quantity*100n||decimalToScaled(pack,2)!==per*100n)return null;
+   const price=decimalToScaled(cartonPrice,2),line=decimalToScaled(rowTotal,2);
+   if(price!==decimalToScaled(lineTotal(singlePrice,pack),2)||
+      line!==decimalToScaled(lineTotal(qty,cartonPrice),2)||
+      decimalToScaled(innerTotal,0)!==quantity*per)return null;
+   cartons+=quantity;inside+=quantity*per;goods+=line;
+   items.push({savedItemId:'',descriptionEn:'',descriptionAr:name,quantity:qty,unit:'CTN',
+     unitPrice:cartonPrice,packing:pack+' '+insideType+' في الكرتون'});
+ }
+ const check=(key:string,expected:bigint,scale:number)=>{
+   const v=field(input,key);return v===null||amount(v)!==null&&decimalToScaled(amount(v)!,scale)===expected;
+ };
+ if(!check('إجمالي عدد الكراتين',cartons,0)||
+   !check('إجمالي عدد الوحدات الداخلية',inside,0)||
+   !check('إجمالي قيمة البضائع',goods,2))return null;
+ const discountRaw=field(input,'الخصم التجاري'),discountValue=field(input,'قيمة الخصم');
+ const shippingRaw=field(input,'تكاليف النقل والشحن'),afterRaw=field(input,'المجموع بعد الخصم');
+ const finalRaw=field(input,'الإجمالي النهائي قبل أي ضرائب');
+ const hasAdjustments=[discountRaw,discountValue,shippingRaw,afterRaw,finalRaw].some(Boolean);
+ let note='';
+ if(hasAdjustments){
+   if([discountRaw,discountValue,shippingRaw,afterRaw,finalRaw].some(v=>v===null))return null;
+   const pct=amount(discountRaw),discount=amount(discountValue),shipping=amount(shippingRaw),
+     after=amount(afterRaw),final=amount(finalRaw);
+   if(!pct||!discount||!shipping||!after||!final||!discountRaw!.includes('%'))return null;
+   const p=decimalToScaled(pct,0);
+   if(p<0n||p>100n||decimalToScaled(pct,2)!==p*100n)return null;
+   const discountCents=(goods*p+50n)/100n,post=goods-discountCents,
+     shippingCents=decimalToScaled(shipping,2);
+   if(discountCents!==decimalToScaled(discount,2)||post!==decimalToScaled(after,2)||
+     post+shippingCents!==decimalToScaled(final,2))return null;
+   note='المجموع الفرعي للبضائع: '+(Number(goods)/100).toFixed(2)+' USD؛ الخصم المرجعي: '+
+     discount+' USD ('+pct+'%)؛ الشحن المرجعي: '+shipping+' USD؛ الإجمالي المرجعي قبل الضرائب: '+final+
+     ' USD. الخصم والشحن لم يُطبَّقا في حقول الحساب المحاسبي؛ يجب إدخالهما ومراجعتهما في محرر المستند قبل الاعتماد.';
+ }
+ const rawTerms=field(input,'طريقة الدفع')||'',delivery=field(input,'مدة تجهيز الطلب')||'',
+   validity=field(input,'مدة الصلاحية')||'',destination=field(input,'مكان التسليم')||'';
+ return{capability:'document.createDraft',kind:'proforma',customerId:'',
+   customerDraft:{companyNameEn:'',companyNameAr:buyer,contactPerson:'',addressEn:'',addressAr:'',
+     city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''},
+   currency:'USD',language:'bilingual',items,incoterm:'',paymentTerms:rawTerms.slice(0,120),
+   deliveryTime:delivery.slice(0,120),validity:validity.slice(0,100),
+   remarks:destination.slice(0,300),notes:note.slice(0,800),
+   label:'Unsaved structured carton quotation',rationale:'Validated explicit cartons, inner pieces, unit prices and declared totals locally; no provider call, saved record or issuance.'};
+ }catch{return null;}
+}
