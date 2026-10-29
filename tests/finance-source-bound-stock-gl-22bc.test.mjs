@@ -23,10 +23,12 @@ function state(){
  vault.savedItems=[item];vault.suppliers=[supplier];
  return {vault,item,supplier};
 }
-function buy(s,id,qty,cost,date){
+function buy(s,id,qty,cost,date,extras={}){
  const p=createPurchase(s.vault.purchases,[s.supplier],'USD');
  Object.assign(p,{id,number:'PUR-'+id,date,dueDate:date,currency:'USD',
-  workspaceId:'default',branchId:'main',freight:'0.00',duty:'0.00',otherCosts:'0.00'});
+  workspaceId:'default',branchId:'main',
+  freight:extras.freight??'0.00',duty:extras.duty??'0.00',
+  otherCosts:extras.otherCosts??'0.00'});
  p.items=[{...createPurchaseItem(s.item),id:'line-'+id,quantity:qty,unitCost:cost}];
  const posted=postPurchase(p,s.vault.savedItems,s.vault.inventoryMovements);
  s.vault.purchases.push({...posted.purchase,workspaceId:'default',branchId:'main'});
@@ -49,14 +51,16 @@ function sell(s,quantity='3'){
  s.vault={...result.vault,documents:[...s.vault.documents,doc]};
  return s;
 }
-function scenario(quantity='3'){
- const s=sell(buy(buy(state(),'b1','4','6','2026-10-19'),
+function scenario(quantity='3',firstPurchaseExtras=null){
+ const s=sell(buy(buy(state(),'b1','4','6','2026-10-19',firstPurchaseExtras??{}),
   'b2','2','10','2026-10-20'),quantity);
  const scope={workspaceId:'default',branchId:'main',
   warehouseId:defaultWarehouseId('main'),itemId:s.item.id,functionalCurrency:'USD'};
  const evidence={scope,orderedMovementIds:s.vault.inventoryMovements.map(m=>m.id),
   movements:s.vault.inventoryMovements,purchases:s.vault.purchases,documents:s.vault.documents};
- const amounts=['24.00','20.00',quantity==='3'?'22.00':'7.33'];
+ const amounts=firstPurchaseExtras
+  ?['32.00','20.00',quantity==='3'?'26.00':'8.67']
+  :['24.00','20.00',quantity==='3'?'22.00':'7.33'];
  const journals=s.vault.inventoryMovements.map((movement,i)=>{
   const receipt=i<2,amount=amounts[i];
   return{id:'GL-'+i,sourceKind:receipt?'purchase-receipt':'sales-stock-issue',
@@ -143,7 +147,63 @@ test('22 source GL: a balanced trial balance never authenticates ambiguous purch
  deny(b);
 });
 
-test('22 source GL: supplier AP mapping refuses freight or multi-line liability allocation guesses',()=>{
+test('22 landed AP: complete single-line freight/duty/other charges reconcile inventory, COGS and supplier payable',()=>{
+ const s=scenario('3',{freight:'4.00',duty:'2.00',otherCosts:'2.00'});
+ const before=JSON.stringify(s);
+ const r=inspect(s);
+ assert.equal(s.evidence.purchases[0].items.length,1);
+ assert.equal(s.evidence.movements[0].unitCost,'8.0000');
+ assert.equal(r.sourceMovementCount,3);
+ assert.equal(r.calculatedSalesCost,'26.00');
+ assert.equal(r.calculatedGrossInventory,'26.00');
+ assert.equal(r.trialBalance.totalDebitBalances,'52.00');
+ assert.equal(r.trialBalance.totalCreditBalances,'52.00');
+ assert.equal(r.trialBalance.trialBalance.find(a=>a.accountId===controls.supplierPayableAccountId).creditBalance,'52.00');
+ assert.equal(r.sourceAuthenticated,false);
+ assert.equal(r.postingApproved,false);
+ assert.equal(r.productionReady,false);
+ assert.equal(JSON.stringify(s),before,'read-only preview must not mutate source documents');
+});
+
+test('22 landed AP: a changed posted freight total is rejected although the stock unit cost and journal still match',()=>{
+ const s=scenario('3',{freight:'4.00',duty:'2.00',otherCosts:'2.00'});
+ s.evidence.purchases[0].freight='5.00';
+ deny(s);
+});
+
+test('22 landed AP: colluding source landedUnitCost and movement/GL amounts cannot invent payable cost',()=>{
+ const s=scenario();
+ s.evidence.purchases[0].items[0].landedUnitCost='8.00';
+ s.evidence.movements[0].unitCost='8.00';
+ s.journals[0].lines.forEach(line=>line.amount='32.00');
+ s.journals[2].lines.forEach(line=>line.amount='26.00');
+ deny(s);
+});
+
+test('22 landed AP: fractional minor-unit COGS after legitimate freight stays blocked without rounding authorization',()=>{
+ const s=sell(buy(buy(state(),'b1','4','6','2026-10-19',{freight:'0.01'}),
+  'b2','2','10','2026-10-20'),'3');
+ const scope={workspaceId:'default',branchId:'main',
+  warehouseId:defaultWarehouseId('main'),itemId:s.item.id,functionalCurrency:'USD'};
+ const evidence={scope,orderedMovementIds:s.vault.inventoryMovements.map(m=>m.id),
+  movements:s.vault.inventoryMovements,purchases:s.vault.purchases,documents:s.vault.documents};
+ const journals=s.vault.inventoryMovements.map((movement,i)=>({
+  id:'GL-fractional-'+i,
+  sourceKind:i<2?'purchase-receipt':'sales-stock-issue',
+  sourceMovementId:movement.id,effectiveDate:movement.date,
+  workspaceId:'default',branchId:'main',currency:'USD',
+  lines:i<2?[
+   {accountId:controls.inventoryAssetAccountId,direction:'debit',amount:i===0?'24.01':'20.00'},
+   {accountId:controls.supplierPayableAccountId,direction:'credit',amount:i===0?'24.01':'20.00'}
+  ]:[
+   {accountId:controls.salesCogsAccountId,direction:'debit',amount:'22.01'},
+   {accountId:controls.inventoryAssetAccountId,direction:'credit',amount:'22.01'}
+  ]
+ }));
+ deny({evidence,journals,s});
+});
+
+test('22 source GL: supplier AP mapping rejects unmatched freight and multi-line liability allocation guesses',()=>{
  const s=scenario();s.evidence.purchases[0].freight='1.00';deny(s);
  const t=scenario();t.evidence.purchases[1].items.push({
   ...t.evidence.purchases[1].items[0],id:'different-line',savedItemId:'other-product'
