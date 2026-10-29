@@ -45,9 +45,9 @@ export interface MultiItemSourceBoundStockAudit {
   generalLedgerVerified:false;
   productionReady:false;
 }
-const fail=(why:string):never=>{
+function fail(why:string):never{
   throw new Error('ALIF_22_MULTI_ITEM_GL_NOT_READY: '+why);
-};
+}
 function equalMoney(a:string,b:string,minor:0|2|3):boolean{
   if(!/^-?\d+\.\d{12}$/.test(b))fail('Invalid canonical source valuation.');
   const scale=10n**BigInt(12-minor);
@@ -62,7 +62,7 @@ function cents(amount:bigint,digits:number):string{
   return (neg?'-':'')+(abs/den).toString()+
     (digits?'.'+(abs%den).toString().padStart(digits,'0'):'');
 }
-function needed(input:string):boolean{
+function needed(input:unknown):input is string{
   return typeof input==='string'&&input.length>0&&input.trim()===input;
 }
 export function inspectMultiItemSourceBoundStockGl(
