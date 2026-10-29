@@ -72,3 +72,37 @@ A screenshot of the contextual diff indicated **permission-relevant structural d
 **State: `CAPTURE_OBSERVED / SOURCE_DIFFERENT / PRIVATE_RISK_REVIEW_OUTSTANDING / 35-B NO-GO`.** GitHub main later advanced through finance #1164 to `88146e5c295bc01bf2c4b0436717067fb233cd74`; the 35-B evidence from the **older checkout** must not be relabelled as parity with this newer release. The terminal screenshots do not contain sufficient attested ruleset ID/time and entire reviewed diff to finish the independent reviewer gate.
 
 **Non-interactive handoff:** the user expressly requested **no further Cloud Shell commands or trial-and-error**. Use an authorized security operator/approved connector for a separately approved, read-only full-diff security review. Do not ask the owner to copy the private file into GitHub or chat. If a Rules change is necessary, propose and independently test it on isolated QA with explicit owner publication authorization **later**, not through this task. Keep period authority and real GL posting disabled; keep 35-C and 39/40 blocked.
+
+## 29 October 2026 — GitHub-only finance owner-write overlap regression
+
+**Read-only repository review:** checked-in `firestore.rules` on main
+`a28797c8167fe721a9d299f08ed653feef40dabf` has a general
+`/users/{userId}/{collectionId}/{document=**}` write rule that excludes
+`accounting`, `periodOperations`, `periodReports`,
+`periodGenerations` and `periodStaging`, with enrollment-based
+workspace/vault restrictions. A separately constrained `periodStaging`
+create path supports the trusted period workflow.
+
+**Critical semantics:** Firestore Security Rules version 2 recursive wildcard
+paths match zero or more levels and overlapping matching `allow` clauses
+are ORed; a permissive general owner-write clause can override the intended
+specific deny. The owner-observed *partial* published Rules diff raises
+this risk, but the complete private published rules and effective permissions
+have not been independently reviewed; no live data access or corruption is
+asserted.
+
+The focused `tests/period-server-emulator.integration.mjs` cases now
+reject simulated owner client creates in privileged finance namespaces
+**before enrollment**, plus direct writes and deletes to nested
+accounting/GL and period namespaces **after enrollment**. GitHub's existing
+pinned local `demo-lourex-period` Firestore Emulator uses only
+**checked-in Rules** and synthetic users, not the privately captured
+published source. Passing CI is regression proof for the repository only,
+**not** 35-B release parity, real deployed authorizations or 35-C.
+
+**Release gate remains NO-GO:** do not publish or alter Firestore Rules,
+enable real GL or period authority, call Cloud Shell on the owner's behalf,
+paste private rule sources into GitHub/chat, or mistake local simulation for
+independent production security approval. A separately authorized reviewer
+must inspect the complete private published source and overlapping matches,
+then seek explicit owner approval before any future publication.
