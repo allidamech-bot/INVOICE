@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault,defaultCompany} from '../dist/src/lib/defaults.js';
 import {createBlankDocument} from '../dist/src/lib/documents.js';
+import {createSupplier,createPurchase,createPurchaseItem} from '../dist/src/lib/operations.js';
 import {createTreasuryAccount,createTreasuryEntry,treasuryAccountBalance,treasuryProjection} from '../dist/src/lib/treasury-ledger.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 
@@ -77,4 +78,56 @@ test('unchanged historical voided cash allocations remain byte-for-byte readable
  const accepted=mergeVaultIntent(historical,unrelated(historical),structuredClone(historical));
  assert.equal(accepted.treasuryEntries[0].amount,'30.00');
  assert.equal(JSON.stringify(historical),snapshot);
+});
+
+
+test('newly voided customer bank event may not predate its receipt even after cancellation and remote sync',()=>{
+ const {base,voided}=fixture(),before=JSON.stringify(base);
+ const changed={...voided,date:'2026-09-01'};
+ assert.throws(()=>mergeVaultIntent(base,{...base,treasuryEntries:[changed]},base),
+  /Voided treasury allocation date cannot precede/);
+ assert.throws(()=>mergeVaultIntent(base,unrelated(base),{...base,treasuryEntries:[changed]}),
+  /Voided treasury allocation date cannot precede/);
+ assert.equal(JSON.stringify(base),before);
+});
+
+test('newly voided supplier bank event may not predate its supplier payment on either sync side',()=>{
+ const {base,bank}=fixture();
+ const supplier={...createSupplier(),id:'supplier-void-date',nameEn:'QA supplier'};
+ const purchase=createPurchase([],[supplier],'USD');
+ Object.assign(purchase,{id:'purchase-void-date',number:'PUR-VOID-DATE',status:'posted',
+  workspaceId:'default',branchId:'main',date:'2026-09-01',dueDate:'2026-09-30',
+  freight:'0.00',duty:'0.00',otherCosts:'0.00'});
+ purchase.items=[{...createPurchaseItem(),id:'void-date-line',
+  quantity:'1',unitCost:'100.00',descriptionEn:'QA'}];
+ const supplierPayment={
+  id:'supplier-payment-void-date',purchaseId:purchase.id,purchaseNumber:purchase.number,
+  supplierId:supplier.id,supplierNameEn:supplier.nameEn,supplierNameAr:'',
+  workspaceId:'default',branchId:'main',currency:'USD',amount:'100.00',
+  date:'2026-09-03',method:'bank-transfer',reference:'QA-VOID',
+  notes:'',createdAt:'2026-09-03T10:00:00.000Z',
+  updatedAt:'2026-09-03T10:00:00.000Z',voidedAt:'',voidReason:''
+ };
+ const sources={...base,suppliers:[supplier],purchases:[purchase],
+  supplierPayments:[supplierPayment]};
+ const entry={...createTreasuryEntry('supplier-payment','USD'),
+  id:'treasury-supplier-void-date',workspaceId:'default',branchId:'main',
+  date:'2026-09-02',amount:'100.00',fromAccountId:bank.id,
+  sourceType:'supplier-payment',sourceId:supplierPayment.id,
+  createdAt:'2026-09-04T10:00:00.000Z',
+  updatedAt:'2026-09-10T10:00:00.000Z',
+  voidedAt:'2026-09-10T10:00:00.000Z',voidReason:'QA correction'
+ };
+ const unchanged=JSON.stringify(sources);
+ assert.throws(()=>mergeVaultIntent(sources,{...sources,treasuryEntries:[entry]},sources),
+  /Voided treasury allocation date cannot precede/);
+ assert.throws(()=>mergeVaultIntent(sources,unrelated(sources),{...sources,treasuryEntries:[entry]}),
+  /Voided treasury allocation date cannot precede/);
+ assert.equal(JSON.stringify(sources),unchanged);
+ // A valid history dated the same day as the original payment is preserved
+ // as an immutable as-of bank event, even after a later cancellation.
+ const allowed={...entry,date:supplierPayment.date};
+ const merged=mergeVaultIntent(sources,unrelated(sources),{...sources,treasuryEntries:[allowed]});
+ assert.equal(treasuryAccountBalance(bank.id,merged.treasuryEntries,'2026-09-05'),'-100.00');
+ assert.equal(treasuryAccountBalance(bank.id,merged.treasuryEntries,'2026-09-11'),'0.00');
 });
