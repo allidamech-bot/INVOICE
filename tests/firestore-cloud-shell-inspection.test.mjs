@@ -18,7 +18,7 @@ function inspectSandbox(patch={},args=[]){
  // intact and never enable a wildcard safe.directory.
  const checkoutRoot=resolve(fileURLToPath(new URL('../',import.meta.url)));
  writeFileSync(join(home,'.gitconfig'),
-   '[safe]\\n\\tdirectory = '+checkoutRoot+'\\n'.replaceAll('\\n','\n').replaceAll('\\t','\t'),
+   ['[safe]','\tdirectory = '+checkoutRoot,''].join('\n'),
    {mode:0o600});
  const bin=join(home,'bin');
  mkdirSync(bin,{mode:0o700});
