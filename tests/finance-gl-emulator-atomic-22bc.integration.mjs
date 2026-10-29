@@ -219,8 +219,9 @@ test('no source digest substitution or second account access via claimed scope',
  const f=await seed(),before=await snapshot(f);
  await assert.rejects(service.execute(f.actor,{...f.command,expectedSourceSha256:'f'.repeat(64)}),
   /ALIF_22_GL_CONTRACT_SOURCE_VERSION_MISMATCH/);
+ // Canonical company/branch key denies the renamed company before Firestore reads.
  await assert.rejects(service.execute(f.actor,{...f.command,workspaceId:'other'}),
-  /ALIF_22_GL_CONTRACT_WRONG_SCOPE/);
+  /ALIF_22_GL_EMULATOR_SCOPE_KEY_MISMATCH/);
  assert.deepEqual(await snapshot(f),before);
 });
 
