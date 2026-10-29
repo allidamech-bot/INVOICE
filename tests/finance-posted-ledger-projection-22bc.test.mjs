@@ -200,6 +200,40 @@ test('22-B purchases with multiple lines for one product need an explicit source
  assert.throws(()=>projectPostedValuationEvidence(snapshot),/Ambiguous purchase lines/);
 });
 
+test('22-B receipt and issued stock sources require globally unique document identities',()=>{
+ const state=testedSequence(),base=input(state),initial=JSON.stringify(state.vault);
+ assert.equal(projectPostedValuationEvidence(base).costOfGoodsSold,'22.000000000000');
+
+ const identicalPurchase=structuredClone(base);
+ identicalPurchase.purchases.push(structuredClone(identicalPurchase.purchases[0]));
+ assert.throws(()=>projectPostedValuationEvidence(identicalPurchase),
+  /one uniquely identified posted purchase/);
+
+ const conflictingPurchase=structuredClone(base);
+ conflictingPurchase.purchases.push({
+  ...conflictingPurchase.purchases[0],
+  number:'FORGED-MATCHING-ID',
+  date:'2026-10-21'
+ });
+ assert.throws(()=>projectPostedValuationEvidence(conflictingPurchase),
+  /one uniquely identified posted purchase/);
+
+ const identicalInvoice=structuredClone(base);
+ identicalInvoice.documents.push(structuredClone(identicalInvoice.documents[0]));
+ assert.throws(()=>projectPostedValuationEvidence(identicalInvoice),
+  /one uniquely identified final invoice/);
+
+ const conflictingInvoice=structuredClone(base);
+ conflictingInvoice.documents.push({
+  ...conflictingInvoice.documents[0],
+  number:'FORGED-INVOICE-NUMBER',
+  issueDate:'2026-10-23'
+ });
+ assert.throws(()=>projectPostedValuationEvidence(conflictingInvoice),
+  /one uniquely identified final invoice/);
+ assert.equal(JSON.stringify(state.vault),initial,'historic posted source was not mutated');
+});
+
 test('22-B no valuation output when a posted purchase or final invoice source is absent',()=>{
  const state=testedSequence(),x=input(state);
  assert.throws(()=>projectPostedValuationEvidence({...x,purchases:[]}),/Receipt requires an existing posted purchase/);
