@@ -26,7 +26,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07J indexed O(1)-read event append | Merged #1212, 36d9a815 | 48/48 R03/R07G/R07J synthetic; 3/3 official Firestore Emulator; TypeScript/isolation PASS | No | Emulator only, no live store | Open | No | No |
 | R07K local Controller/Advisor indexed compatibility | Merged #1214, 5494df9f | 33/33 coordinator/R07J/bridge synthetic + 2/2 local Firestore Emulator; TS and isolation PASS | No | Local emulator only | Open | No | No |
 | R07L transactional latest-turn operational materialization | Merged #1216, 44c2c836 | 54/54 R03/R07G/R07J/R07L synthetic, 3/3 local Firebase Admin/Firestore, separate-process seed/restore 1/1 each; TS/trace/isolation PASS | No | Local emulator only | Open | No | No |
-| R07M fast local Controller/Advisor with sealed turn-request index | PR pending | 320-history bounded reads, old replay, Firebase Admin emulator pending | No | Offline/emulator only | Open | No | No |
+| R07M fast local Controller/Advisor with sealed turn-request index | Merged #1218, 83aefd2c | 48/48 synthetic R07B/R07J/R07K/R07M; 3/3 official local Firestore Emulator; 7 final-SHA CI checks PASS | No | Local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -162,3 +162,10 @@ A bounded read-only current-turn/task/last-reply view is atomically sealed along
 ## R07M fast coordinator candidate
 
 R07M adds a disabled server-authorized local coordinator using R07L current-turn materialization and a separate indexed request-key store. Ordinary local turn steps no longer perform R03 history projection. Historical idempotency replay deliberately performs full audited replay and refuses collisions. Only deterministic greetings/unsaved review quotation; no provider or finance writes, HTTP route, migration, actual Firebase or iPhone acceptance. See R07M_FAST_COORDINATOR_EVIDENCE_20261031.md. All CI results pending.
+
+## R07M fast local Controller verification — October 31, 2026
+
+- **PR #1218** merged at 83aefd2c755be1683219e20a27e2fb41a434fa87. All seven final-head GitHub Actions checks passed: fast-controller, indexed-append, materialized-state, indexed-coordinator, offline-coordinator, sandbox-cas and Vercel trace.
+- R07M targeted tests 48/48 synthetic and 3/3 official local Firestore Emulator. Test includes a normal new turn after 320 older synthetic message events, proving bounded mock Firestore reads, old-key collision/replay, concurrent identical requests, separate Admin SDK clients, denied branch and revoked membership, deterministic greeting and UNSAVED review-only quote with failure/recovery.
+- A NEW isolated `aiNextFastEventThreadsV1` collection persists request-key indexes atomically with event/head/R07L materialized state. R07M normal task steps use only bounded operational view. **Historical idempotency replay intentionally triggers complete R03 replay audit**; the implementation does not silently discard any historical event.
+- **Still disabled, not production deployed:** `R07M_FAST_COORDINATOR_ACTIVATED=false` and `R07M_FAST_JOURNAL_ACTIVATED=false`. Only deterministic local commands were proven, not arbitrary natural language, provider selection, full document operations, real financial approvals, production Cloud Firestore ACL/IAM/rules, UI integration, physical Safari or T22–T24. Model SHA-256 is not authorization against malicious privileged database writers. Local emulator results are not real multi-device/cloud performance acceptance.
