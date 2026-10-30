@@ -61,7 +61,7 @@ const one=(fixture,options={})=>{
   return {planner,counters,scoped};
 };
 const plan=(h,msg,changes={})=>h.planner.plan(
-  'synthetic-bearer',request(msg,changes));
+  'synthetic-r07p-bearer-token-over-thirty-characters',request(msg,changes));
 
 test('R07P explicitly remains off and has no production integration',()=>{
   assert.equal(R07P_SEMANTIC_PRODUCTION_ACTIVE,false);
