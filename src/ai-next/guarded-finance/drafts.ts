@@ -2,7 +2,7 @@
  * R04 isolated quotation review editor. No financial persistence, no providers.
  * Original source row positions are evidence; never price a line from cost.
  */
-import type {AuthenticatedScope, ReviewDraft, Coverage} from '../domain/contracts.js';
+import type {AuthenticatedScope, ReviewDraft, Coverage, DocumentEvidence} from '../domain/contracts.js';
 import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 
@@ -169,6 +169,8 @@ export class SyntheticDraftEditor {
     expectedRevision:number;actorId:string;now:string;
     checkedLineIds:string[];currentSourceCoverages:Coverage[];
     businessRevision:string;businessValidationPassed:boolean;
+    trustedSourceManifestHash:string;
+    trustedEvidence:ReadonlyArray<DocumentEvidence>;
   }):Promise<ReviewDraft>{
     const p=this.current;ensureTime(p.updatedAt,input.now);
     if(p.draftRevision!==input.expectedRevision||input.actorId!==p.scope.actorId)
@@ -183,6 +185,10 @@ export class SyntheticDraftEditor {
       throw new R04ReviewError('NOT_ALL_LINE_ITEMS_REVIEWED');
     const blockersNow=blockers(p);
     if(blockersNow.length)throw new R04ReviewError('INCOMPLETE_DRAFT:'+blockersNow.join(','));
+    // Hash comes from independently resolved authoritative manifests; the
+    // client or LLM must not invent a matching review-time source hash.
+    if(input.trustedSourceManifestHash!==p.sourceManifestHash)
+      throw new R04ReviewError('SOURCE_MANIFEST_CHANGED');
     if(input.currentSourceCoverages.length!==p.sourceIds.length||
       new Set(input.currentSourceCoverages.map(x=>x.documentId)).size!==p.sourceIds.length)
       throw new R04ReviewError('SOURCE_COVERAGE_MISMATCH');
@@ -193,6 +199,31 @@ export class SyntheticDraftEditor {
         cov.blockers.length||cov.unprocessedSegments.length||
         cov.perSegment.some(s=>!s.validated||s.status!=='complete'))
         throw new R04ReviewError('SOURCE_NOT_FULLY_VERIFIED');
+    }
+    if(input.trustedEvidence.length>10_000 ||
+      new Set(input.trustedEvidence.map(e=>e.evidenceId)).size!==input.trustedEvidence.length)
+      throw new R04ReviewError('INVALID_EVIDENCE_INDEX');
+    const evidenceById=new Map(input.trustedEvidence.map(e=>[e.evidenceId,e]));
+    for(const line of p.lineItems){
+      if(!p.sourceIds.length && line.evidenceRefs.length)
+        throw new R04ReviewError('EVIDENCE_NOT_ASSOCIATED_WITH_SOURCE');
+      if(p.sourceIds.length && !line.evidenceRefs.length)
+        throw new R04ReviewError('LINE_SOURCE_EVIDENCE_REQUIRED');
+      for(const ref of line.evidenceRefs){
+        const evidence=evidenceById.get(ref);
+        if(!evidence || exactScopeKey(evidence.scope)!==exactScopeKey(p.scope) ||
+          !p.sourceIds.includes(evidence.documentId) ||
+          evidence.provenanceStatus!=='verified' ||
+          evidence.verifiedBy!==p.scope.actorId)
+          throw new R04ReviewError('LINE_EVIDENCE_NOT_VERIFIED');
+      }
+      if(p.sourceIds.length && !line.evidenceRefs.some(ref=>{
+        const proof=evidenceById.get(ref);
+        return proof?.fieldName==='selling_unit_price' &&
+          proof.normalizedValue===line.sellingUnitPrice &&
+          proof.normalizedUnit===line.unit && proof.currency===line.currency;
+      }))
+        throw new R04ReviewError('SELLING_PRICE_PROVENANCE_REQUIRED');
     }
     const next=copy(p);next.status='ready_for_approval';
     next.businessValidation={valid:true,blockers:[]};
