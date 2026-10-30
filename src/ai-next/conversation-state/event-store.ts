@@ -143,12 +143,12 @@ export function projectEvents(scope:AuthenticatedScope,events:readonly Conversat
       snapshot.turns.push(clone(event.body.turn));
       snapshot.tasks.push(clone(event.body.task));
     } else if(event.body.kind==='task_updated'){
-      const prior=snapshot.tasks.find(t=>t.taskId===event.body.task.taskId);
-      if(!prior || prior.turnId!==event.body.task.turnId ||
-        prior.stateVersion+1!==event.body.task.stateVersion ||
-        prior.revision+1!==event.body.task.revision)
-        throw new Error('AI_NEXT_STALE_TASK_EVENT');
       const next=event.body.task;
+      const prior=snapshot.tasks.find(t=>t.taskId===next.taskId);
+      if(!prior || prior.turnId!==next.turnId ||
+        prior.stateVersion+1!==next.stateVersion ||
+        prior.revision+1!==next.revision)
+        throw new Error('AI_NEXT_STALE_TASK_EVENT');
       if(next.state==='executing' || !canTransition(prior.state,next.state) ||
         next.taskId!==prior.taskId || next.taskType!==prior.taskType ||
         next.startedAt!==prior.startedAt || next.threadId!==prior.threadId ||
@@ -166,11 +166,13 @@ export function projectEvents(scope:AuthenticatedScope,events:readonly Conversat
       messages.add(event.body.messageId);
       snapshot.messages.push(clone(event.body));
     } else if(event.body.kind==='checkpoint'){
-      if(!snapshot.tasks.some(t=>t.taskId===event.body.taskId))
+      const {taskId}=event.body;
+      if(!snapshot.tasks.some(t=>t.taskId===taskId))
         throw new Error('AI_NEXT_CHECKPOINT_TASK_MISMATCH');
       snapshot.checkpointRefs.push(clone(event.body));
     } else if(event.body.kind==='uncertain_execution'){
-      if(!snapshot.tasks.some(t=>t.taskId===event.body.taskId))
+      const {taskId}=event.body;
+      if(!snapshot.tasks.some(t=>t.taskId===taskId))
         throw new Error('AI_NEXT_OPERATION_TASK_MISMATCH');
       snapshot.uncertainOperations.push(clone(event.body));
     }
@@ -245,7 +247,7 @@ export class ScopedConversationLedger {
       !safeId(eventId)||!safeId(idempotencyKey)||!isIso(now))
       throw new Error('AI_NEXT_INVALID_APPEND_REQUEST');
     verifyBody(scope,body);
-    return this.backend.transact(key,async record=>{
+    return this.backend.transact<{event:ConversationEvent;snapshot:ConversationSnapshot;replayed:boolean}>(key,async record=>{
       if(record.revision!==record.events.length)throw new Error('AI_NEXT_INVALID_STORE_REVISION');
       await verifyEventHashes(record.events);
       const before=projectEvents(scope,record.events);
