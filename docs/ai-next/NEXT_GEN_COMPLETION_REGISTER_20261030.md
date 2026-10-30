@@ -13,7 +13,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R05B trusted model catalog bridge | Merged #1195, 6c2bfd07774c | 134/134 offline checks; build safety passed | No | No | Open | No | No |
 | R06A isolated new UI/view-model | Merged #1196, 23aa0dcf | 11/11 view-model checks; TS/Web build isolation passed | No | No | Open | No | No |
 | R07A isolated Firestore CAS adapter | Merged #1197, 3f8bd285 | 118/118 scoped CAS regression; Vercel isolation passed | No | No | Open | No | No |
-| R07B1 principal and membership boundary | PR pending | Offline authorization tests pending | No | No | Open | No | No |
+| R07B1 principal and membership boundary | Merged #1198, c548a469 | 57/57 auth regression, Vercel isolation passed | No | No | Open | No | No |
+| R07B2 read-only local coordinator | PR pending | Synthetic end-to-end local tests pending | No | No | Open | No | No |
 
 ## Evidence boundary
 
@@ -38,3 +39,7 @@ R07A provides an injected Firestore-compatible event CAS adapter capped to 300 e
 ## R07B1 authority gate
 
 R07B1 extends existing signed Firebase identity verification into the R03 principal contract and requires independent server-only company and branch membership verification on every request. No live membership resolver is connected. The code is behind a disabled API flag and cannot be considered production authentication acceptance. See R07B_IDENTITY_MEMBERSHIP_EVIDENCE_20261030.md.
+
+## R07B2 safe local-turn coordinator
+
+R07B2 binds R07B1 authoritative scope construction to R03 event CAS and R05 deterministic local greetings and R04 unsaved draft creation. Only claims draft existence after injected server-only store confirms its exact revision hash. No API endpoint or production UI is connected; missing company membership and durable repositories remain deployment blockers. See R07B_LOCAL_COORDINATOR_EVIDENCE_20261030.md.
