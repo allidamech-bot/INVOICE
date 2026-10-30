@@ -32,7 +32,8 @@ async function review(editor,change={}){
   return editor.review({expectedRevision:d.draftRevision,actorId:d.scope.actorId,
     now:at(2),checkedLineIds:d.lineItems.map(l=>l.lineId),
     currentSourceCoverages:[],businessRevision:'vault-r1',
-    businessValidationPassed:true,...change});
+    businessValidationPassed:true,
+    trustedSourceManifestHash:d.sourceManifestHash,trustedEvidence:[],...change});
 }
 async function gateFor(editor,opts={}){
   const key=await syntheticApprovalKey();
@@ -41,7 +42,11 @@ async function gateFor(editor,opts={}){
   let business='vault-r1';
   let enabled=true;
   const trusted={
-    async loadReviewDraft(){return structuredClone(current);},
+    async loadReviewDraft(){return {
+      draft:structuredClone(current),reviewedBusinessRevision:'vault-r1',
+      reviewedSourceManifestHash:current.sourceManifestHash,
+      reviewedByActorId:current.scope.actorId,
+    };},
     async currentBusinessRevision(){return business;},
     async canCreateQuoteDraft(){return enabled;},
   };
@@ -155,6 +160,36 @@ test('R02 unverified/missing/partial coverage blocks review and source evidence 
     scope:scope({companyId:'foreign'}),
   }]}),/SOURCE_NOT_FULLY_VERIFIED/);
 });
+test('manifest revision mismatch blocks otherwise complete synthetic source review',async()=>{
+  const editor=await make();
+  await assert.rejects(review(editor,{
+    trustedSourceManifestHash:'b'.repeat(64),
+  }),/SOURCE_MANIFEST_CHANGED/);
+});
+test('document-derived quote cannot be ready until each selling price has explicit verified evidence',async()=>{
+  const editor=await make({sourceIds:['uploaded-file-1']});
+  const d=editor.view();
+  const coverage={
+    schemaVersion:1,scope:d.scope,coverageId:'cov',documentId:'uploaded-file-1',
+    extractionRunId:'run1',sourceSha256:H,expectedPageCount:1,observedPageCount:1,
+    expectedSheets:[],observedSheets:[],expectedTableRows:[],observedTableRows:[],
+    perSegment:[{segmentId:'page:1',expected:true,read:true,parsed:true,
+      validated:true,missingLocatorIds:[],duplicateLocatorIds:[],
+      status:'complete',failureCode:null}],
+    status:'complete',unprocessedSegments:[],unresolvedRows:[],
+    blockers:[],methodSummary:'synthetic human checked',verifiedAt:NOW,
+  };
+  await assert.rejects(review(editor,{
+    currentSourceCoverages:[coverage],
+  }),/LINE_SOURCE_EVIDENCE_REQUIRED/);
+});
+test('same approval ID with altered UI interaction is collision not duplicate acknowledgement',async()=>{
+  const editor=await make();const d=await review(editor),{gate}=await gateFor(editor);
+  const initial=approveInput(d);
+  await gate.issue(initial);
+  const modified={...initial,approval:{...initial.approval,interactionId:'button-2'}};
+  await assert.rejects(gate.issue(modified),/APPROVAL_OPERATION_COLLISION/);
+});
 test('approved review rotates revision and integrity hash; undo and redo do not resurrect approval',async()=>{
   const editor=await make();
   const ready=await review(editor);
@@ -243,8 +278,7 @@ test('rejected and revoked approvals leave durable-in-process tombstones',async(
   await assert.rejects(gate.invalidate({scope:d.scope,approvalId:'approval1',
     actorId:d.scope.actorId,action:'revoked',now:at(7)}),
     /APPROVAL_TERMINAL_TOMBSTONE/);
-  const retry=await gate.issue(approveInput(d));
-  assert.equal(retry.approvalAction,'revoked');
+  await assert.rejects(gate.issue(approveInput(d)),/APPROVAL_TERMINAL_TOMBSTONE/);
 });
 test('expiry and changed role/branch/company/actor reject receipt reuse',async()=>{
   const editor=await make();const d=await review(editor);
