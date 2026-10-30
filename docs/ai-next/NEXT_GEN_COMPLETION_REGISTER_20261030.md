@@ -250,3 +250,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - The original R05 deterministic path remains intact. Semantic tasks persist user message and planning-only assistant acknowledgement; identical requests are recovered without duplicate turns or repeated synthetic interpretation after assistant acknowledgement. A crash before assistant event may re-run the synthetic fixture, but never apply financial or draft mutations.
 - The response explicitly reports financialSaved=false, businessReadPerformed=false, draftEdited=false. An R07P context fixture is **not** a trusted journal-derived historical context; real document reads and R07R draft editing have not been connected.
 - Exact-head CI and coverage documented in docs/ai-next/R07M_SEMANTIC_DURABLE_TURNS_EVIDENCE_20261031.md. T22/T23/T24, real provider authorization, QA Cloud IAM, mobile Safari and production activation OPEN.
+
+
+## R07P audited history context and local fast-path — October 31, 2026
+
+- The disabled R07PTrustedHistoryContext reads the existing full authenticated-scope R07J audit and then the independently scope-checked R07D saved review drafts. It derives the current verified revision and line IDs, but refuses to silently choose between two unsaved quotations.
+- Audit failure, foreign account scope, unbounded history, absent completed-turn draft and corrupt draft data fail closed. It exposes no new financial document reader or approval authority.
+- Deterministic local greeting / blank quotation starts now bypass full expensive history reads entirely **after server authentication**. Nonlocal semantic interpretation retains verified context and strict authorization requirements.
+- See docs/ai-next/R07P_TRUSTED_HISTORY_CONTEXT_EVIDENCE_20261031.md and final-head GitHub Actions. This does not close cloud history performance, source evidence, T22/T23/T24, real Arabic model understanding or production release gates.
