@@ -160,6 +160,7 @@ test('invalid structured result is rejected and falls back without rewriting pay
 test('provider-level 429 skips all models from same account provider',async()=>{
   const called=[];
   const out=await routeR05(eligibleRun({
+    needs:needs({taskType:'financial_analysis'}),
     models:[
       model({modelId:'first',qualityTier:'advanced'}),
       model({modelId:'second',qualityTier:'capable'}),
@@ -176,6 +177,7 @@ test('provider-level 429 skips all models from same account provider',async()=>{
 test('model-level quota retains eligible other model',async()=>{
   const called=[];
   const out=await routeR05(eligibleRun({
+    needs:needs({taskType:'financial_analysis'}),
     models:[model({modelId:'A',qualityTier:'advanced'}),model({modelId:'B',qualityTier:'capable'})],
     transport:{invoke:async({model:m})=>{
       called.push(m.modelId);
