@@ -390,7 +390,12 @@ export class R07JExperimentalIndexedJournal{
   /** Auditable expensive recovery; validates ALL event hashes and R03 rules. */
   async auditFullHistory(scope:AuthenticatedScope):Promise<ConversationSnapshot>{
     const refs=await this.documents(scope),first=parseHead(await refs.head.get(),refs.key);
-    if(!first)return projectEvents(scope,[]);
+    if(!first){
+      // An absent head with an orphan materialization is corruption, not
+      // proof that all history was legitimately empty.
+      await this.readOperationalState(scope);
+      return projectEvents(scope,[]);
+    }
     const events:ConversationEvent[]=[];
     for(let start=1;start<=first.revision;start+=32){
       const indices=Array.from({length:Math.min(32,first.revision-start+1)},
