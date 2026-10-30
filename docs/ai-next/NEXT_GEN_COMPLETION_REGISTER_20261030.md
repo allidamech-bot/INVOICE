@@ -22,7 +22,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07F explicit-consent memory CAS | Merged #1205, 1816f26b | 37/37 R03/consent regression; Vercel isolation passed | No | No live backend | Open | No | No |
 | R07G bounded sharded conversation event storage | Merged #1207, 7cda1f0d | 44/44 R03/R07A/R07G tests; 325 events; CI/isolation PASS | No | Mocked Firestore only | Open | No | No |
 | R07H actual Firestore Emulator transaction verification | Merged #1208, 71896d2b | 4/4 official Firestore Emulator + Firebase Admin acceptance PASS | No | Local emulator only, no live service | Open | No | No |
-| R07I recent non-authoritative window + emulator restart recovery | PR pending | Tail-read and separate-process export/import CI pending | No | Local emulator only | Open | No | No |
+| R07I recent non-authoritative window + emulator restart recovery | Merged #1210, d8bf5f1d | 49/49 R03/R07G/R07I synthetic + 2 separate emulator phases PASS; Vercel isolation PASS | No | Local emulator export/import only | Open | No | No |
 
 ## Evidence boundary
 
@@ -117,3 +117,9 @@ R07H performs the R07G sharded CAS path against official Firebase Admin + Firest
 ## R07I limited recent read and recovery candidate
 
 R07I introduces read-only presentation tail retrieval of at most 128 events without claiming full replay security, plus local emulator process restart/export/import recovery. Neither changes authoritative R03 full-history writes or enables a live route. CI evidence pending; see R07I_RECENT_WINDOW_RECOVERY_EVIDENCE_20261031.md. T22/T24 and full append performance remain OPEN.
+
+## R07I code/emulator closure — October 31, 2026
+
+- **R07I PR #1210** merged at d8bf5f1d4291094e4dc1e5cbd1d573949363bad3. All five final-sha GitHub check jobs passed. The targeted full regression had 49/49 passing synthetic tests; real Firestore Emulator seed/export and restarted-import/verify phases passed 1/1 each.
+- Important discovered/fixed defect: R07G's original insertion-order JSON chunk checksum falsely reported corruption after Firestore export/import, because nested map ordering changed. Replaced with deterministic recursive canonical JSON checksum (inactive backend, no production migration). Full R03 event chain validation remained mandatory.
+- The 128-event recent window is strictly **non-authoritative display-only**; partial earlier history is not validated, and no mutation/approval/controller decision may use this view. Full R03 appends still re-read/replay the complete history and require R07J performance design and multi-process/service acceptance. Do not imply physical iPhone, live cloud IAM/rules, backup retention or production readiness.
