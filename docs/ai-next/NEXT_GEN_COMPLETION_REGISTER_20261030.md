@@ -22,6 +22,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07F explicit-consent memory CAS | Merged #1205, 1816f26b | 37/37 R03/consent regression; Vercel isolation passed | No | No live backend | Open | No | No |
 | R07G bounded sharded conversation event storage | Merged #1207, 7cda1f0d | 44/44 R03/R07A/R07G tests; 325 events; CI/isolation PASS | No | Mocked Firestore only | Open | No | No |
 | R07H actual Firestore Emulator transaction verification | Merged #1208, 71896d2b | 4/4 official Firestore Emulator + Firebase Admin acceptance PASS | No | Local emulator only, no live service | Open | No | No |
+| R07I recent non-authoritative window + emulator restart recovery | PR pending | Tail-read and separate-process export/import CI pending | No | Local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -112,3 +113,7 @@ R07H performs the R07G sharded CAS path against official Firebase Admin + Firest
 - **R07H PR #1208** merged at 71896d2b74bd4cc5a7563e76ece6b4a7a52339ff after 4/4 **official local Firestore Emulator** tests passed: 99 events across two Admin SDK clients, CAS conflict, isolated scope and corruption failure. The Firestore Emulator workflow passed with test project `demo-ai-next-r07h`, with no live access.
 
 **Not accepted for production.** R03 still projects and verifies full history for every append; no proven latency/cost budget for large histories, no actual cross-process/physical-device test, Firestore rules/IAM verification, live membership provisioning, approved retention/backup and recovery, real provider eligibility, released UI or full T22/T24 acceptance. All flags remain OFF. Finance track untouched.
+
+## R07I limited recent read and recovery candidate
+
+R07I introduces read-only presentation tail retrieval of at most 128 events without claiming full replay security, plus local emulator process restart/export/import recovery. Neither changes authoritative R03 full-history writes or enables a live route. CI evidence pending; see R07I_RECENT_WINDOW_RECOVERY_EVIDENCE_20261031.md. T22/T24 and full append performance remain OPEN.
