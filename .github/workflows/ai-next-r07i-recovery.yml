@@ -37,6 +37,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Assert emulator-only demo project, never production
+        run: |
+          test "$GCLOUD_PROJECT" = "demo-ai-next-r07h"
+          test "$GOOGLE_CLOUD_PROJECT" = "demo-ai-next-r07h"
       - run: npm ci --no-audit --no-fund
       - name: Strict compile and isolated R03/R07G/R07I tests
         run: |
