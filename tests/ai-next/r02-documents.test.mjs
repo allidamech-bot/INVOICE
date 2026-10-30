@@ -326,3 +326,13 @@ test('a modifying injected parser cannot masquerade changed file as hashed origi
   await assert.rejects(ingestDocument(input(s,adapter)),/SOURCE_MUTATED_DURING_EXTRACTION/);
   assert.equal(new TextDecoder().decode(s.bytes),'original genuine content');
 });
+
+test('cancelled resume cannot replay cached segments as a falsely completed task',async()=>{
+  const s=source('resume-cancel','text','Some synthetic content');
+  const store=new SyntheticSourceRepository(),adapter=new TextSourceAdapter();
+  const initial=await ingestDocument(input(s,adapter,store));
+  const abort=new AbortController();abort.abort();
+  await assert.rejects(ingestDocument(input(s,adapter,store,{
+    checkpoint:initial.checkpoint,signal:abort.signal
+  })),/PROCESSING_CANCELLED/);
+});
