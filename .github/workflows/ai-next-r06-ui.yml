@@ -1,0 +1,35 @@
+name: LOUREX AI Next R06 Standalone UI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/ui/**'
+      - 'tests/ai-next/r06-ui-model.test.mjs'
+      - '.github/workflows/ai-next-r06-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r06-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript check and compile R06 TSX
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Offline R06 scoped presentation contract
+        run: node --test tests/ai-next/r06-ui-model.test.mjs
