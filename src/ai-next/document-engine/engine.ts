@@ -369,21 +369,43 @@ export async function ingestDocument(input: ProcessingInput): Promise<DocumentRu
     financialDraftEligible:false,
   };
 }
+export interface BatchDocumentResult {
+  documentId: string;
+  result: DocumentRun | null;
+  status: 'complete' | 'partial' | 'needs_review' | 'blocked';
+  errorCode: string | null;
+}
+/**
+ * One malformed file may not hide completed evidence from the other nine.
+ * Always return an explicit entry in original source order for every file.
+ */
 export async function ingestBatch(input: {
   files: readonly SourceFile[];
   scope: AuthenticatedScope;
   adapterFor: (format: SourceFormat) => DocumentSourceAdapter;
   repository: SourceObjectRepository;
   runId: string; now: string; signal?: AbortSignal;
-}): Promise<DocumentRun[]> {
+}): Promise<BatchDocumentResult[]> {
   verifyAttachmentBatch(input.files);
-  const result: DocumentRun[] = [];
+  const result: BatchDocumentResult[] = [];
   for (const file of input.files) {
-    result.push(await ingestDocument({
-      source:file,scope:input.scope,adapter:input.adapterFor(file.format),
-      repository:input.repository,runId:input.runId+':'+file.documentId,
-      now:input.now,signal:input.signal,
-    }));
+    if (input.signal?.aborted) {
+      result.push({documentId:file.documentId,result:null,status:'blocked',
+        errorCode:'PROCESSING_CANCELLED'});
+      continue;
+    }
+    try {
+      const extracted=await ingestDocument({
+        source:file,scope:input.scope,adapter:input.adapterFor(file.format),
+        repository:input.repository,runId:input.runId+':'+file.documentId,
+        now:input.now,signal:input.signal,
+      });
+      result.push({documentId:file.documentId,result:extracted,
+        status:extracted.coverage.status,errorCode:null});
+    } catch(error) {
+      result.push({documentId:file.documentId,result:null,status:'blocked',
+        errorCode:errorCode(error)});
+    }
   }
   return result;
 }
