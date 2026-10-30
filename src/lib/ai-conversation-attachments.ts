@@ -2,6 +2,7 @@ import { requestAiJson } from './ai-request.js';
 import { readablePdfText, rasterScannedPdfPages } from './pdf-source.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from './spreadsheet-reader.js';
 import {exactSpreadsheetQuote} from './ai-spreadsheet-quote.js';
+import {exactPdfTextQuote} from './ai-pdf-offline-quote.js';
 import {isIphoneHeicPhoto,jpegFromIphonePhoto} from './ai-iphone-photo.js';
 
 export type ConversationAttachmentRoute='customer'|'supplier'|'supplier_purchase'|'quote_request'|'product_list'|'unknown';
@@ -75,6 +76,12 @@ export function completeSourceJson(value:unknown,max=MAX_EXTRACT_CHARS):string{
   try{json=JSON.stringify(value);}catch{throw new Error('Source extraction could not be serialized. No document was prepared.');}
   if(!json||json.length>max)throw new Error('SOURCE_INCOMPLETE: Extracted source is larger than the complete review limit. Split the file into smaller complete sections; no document was prepared.');
   return json;
+}
+function originalTextForReview(payload:AiPayload):string{
+  const text=payload.kind==='text'?String(payload.text||''):'';
+  if(!text.trim()||text.length>MAX_EXTRACT_CHARS)
+    throw new Error('SOURCE_INCOMPLETE: Original source text exceeds the complete local review limit. Split the source; no data was changed.');
+  return text; // read-only source evidence; never a structured document approval
 }
 function mustKeepStructuredExtraction(error:unknown):boolean{
   return error instanceof Error&&error.message.startsWith('SOURCE_INCOMPLETE:');
@@ -156,6 +163,17 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   let payload=await conversationAttachmentPayload(file,signal);
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  if(options.mode!=='advisor'&&payload.kind==='text'&&/\.pdf$/iu.test(file.name)){
+    const exact=exactPdfTextQuote(payload.text||'');
+    if(exact){
+      const evidence=completeSourceJson(exact,MAX_PRODUCT_LIST_EXTRACT_CHARS);
+      onProgress?.('complete');
+      return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:'application/pdf',size:file.size,
+        route:'quote_request',documentType:'exact-pdf-columns',confidence:1,
+        reason:'Original PDF named-column rows read locally; no provider call, inferred price or save.',
+        extracted:evidence,quoteSheetCandidate:evidence}};
+    }
+  }
   // Advisor needs complete evidence, not an import proposal. Small readable
   // sources already contain that evidence: avoid two lossy remote calls before
   // the actual question. Keep unknown route so raw text cannot authorize import.
@@ -206,11 +224,12 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('classifying');
   let classification:ConversationAttachmentClassification={route:'unknown',documentType:'unknown',confidence:0,reason:'LOUREX Inbox could not classify this source reliably; general read-only extraction was used.'};
+  let classificationUnavailable=false;
   try{
     const classificationBody=await requestAiJson('/api/ai-inbox',{fileName:file.name,...payload},signal,30_000);
     const raw=classificationBody?.classification??{};const route=(['customer','supplier','supplier_purchase','quote_request','product_list','unknown'].includes(String(raw.route))?String(raw.route):'unknown') as ConversationAttachmentRoute;
     classification={route,documentType:boundedText(raw.documentType,80)||'unknown',confidence:Math.max(0,Math.min(1,Number(raw.confidence)||0)),reason:boundedText(raw.reason,300)};
-  }catch(error){if(signal?.aborted)throw error;}
+  }catch(error){if(signal?.aborted)throw error;classificationUnavailable=true;}
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('extracting');
   // Exact named columns in a customer RFQ need no generative extraction: a
@@ -227,7 +246,12 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
   if(!endpoint){
     // Generic classification unavailable: preserve complete exact source as
     // reviewable DATA, rather than erroring out on a second AI request.
-    extracted=quoteSheetCandidate||await genericExtraction(file.name,payload,signal);
+    if(quoteSheetCandidate)extracted=quoteSheetCandidate;
+    else if(classificationUnavailable&&payload.kind==='text'){
+      extracted=originalTextForReview(payload);
+      classification={route:'unknown',documentType:'original-text',confidence:0,
+        reason:'AI classification unavailable. Original local text preserved for read-only review; no structured quote created.'};
+    }else extracted=await genericExtraction(file.name,payload,signal);
   }else{
     try{
       const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
@@ -246,8 +270,16 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
       }else{
         if(mustKeepStructuredExtraction(error))throw error;
         onProgress?.('fallback');
-        extracted=await genericExtraction(file.name,payload,signal);
-        classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+        try{
+          extracted=await genericExtraction(file.name,payload,signal);
+          classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+        }catch(fallbackError){
+          if(signal?.aborted)throw fallbackError;
+          if(payload.kind!=='text')throw fallbackError;
+          extracted=originalTextForReview(payload);
+          classification={route:'unknown',documentType:'original-text',confidence:0,
+            reason:'AI extraction unavailable. Complete local text preserved for review only; no structured quote, catalog change or save.'};
+        }
       }
     }
   }
