@@ -127,6 +127,8 @@ const isConflict=(error:unknown):boolean=>
   error instanceof Error && [
     'AI_NEXT_STALE_EVENT_REVISION','AI_NEXT_CONCURRENT_TURN',
     'AI_NEXT_IDEMPOTENCY_COLLISION','AI_NEXT_DUPLICATE_EVENT_ID',
+    'R07J_CONCURRENT_HEAD_CONFLICT','R07J_STALE_REVISION',
+    'R07J_DUPLICATE_EVENT_ID','R07J_IDEMPOTENCY_COLLISION',
   ].includes(error.message);
 export class R07LocalCoordinator {
   constructor(private readonly deps:{
