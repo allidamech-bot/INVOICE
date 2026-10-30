@@ -235,3 +235,10 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - R07P may consume authenticated routed interpretations only with explicit server-owned enabling and independent private-business-data consent. The R07Q adapter verifies per-model/account zero-cost, private-provider eligibility, strict output contracts, bounded fallback and opaque per-turn document handles; R05 deterministic commands remain provider-free.
 - Existing R07Q candidate-validator API, synthetic transport checks and privacy-denied fail-fast semantics are preserved. Actual model inference has NOT been performed or production-enabled, so language quality and account-specific zero cost remain unproven. R07R draft bridge stays synthetic-only; T22–T24 and R07M durable semantic task integration OPEN.
 - See docs/ai-next/R07PQ_ROUTED_SEMANTIC_OFFLINE_EVIDENCE_20261031.md and exact-head CI for the supplementary adapter.
+
+## R07S scoped source evidence candidate — October 31, 2026
+
+- An inactive read-only R02/R07P source bridge verifies complete original object bytes, scope and immutable source checksums before producing bounded, provenance-carrying extraction previews. It rejects cross-thread/tenant sources, partial OCR claims, changed checkpoint revisions, duplicate evidence IDs and unselected attachments.
+- This is **not** complete source-to-draft, provider reasoning or financial evidence acceptance; extracted numbers remain uncertain, and the bridge provides no financial execution authority. Full prompt context and original source completeness are distinct.
+- Focused synthetic R07S tests and existing R02/R07E regressions are required on the exact PR SHA; see docs/ai-next/R07S_SCOPED_SOURCE_EVIDENCE_20261031.md. No cloud service, production flag, accounting code or real customer source was changed.
+- R07S secure real-file workflow, cross-document semantics, reviewed financial mapping, QA IAM, T22/T23/T24 and actual iPhone Safari acceptance remain OPEN.
