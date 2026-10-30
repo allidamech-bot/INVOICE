@@ -21,6 +21,19 @@ export const R07G_CHUNK_EVENTS=96;
 export const R07G_CHUNK_BYTES=650_000;
 export const R07G_MAX_CHUNKS=1024;
 export const R07G_HEAD_BYTES=250_000;
+/** R07I presentation-only window, never an R03 projection or approval input. */
+export const R07I_MAX_RECENT_EVENTS=128;
+export interface R07IReadOnlyWindow {
+  schemaVersion:1;
+  scopeKey:string;
+  revision:number;
+  firstSequence:number;
+  lastHash:string;
+  previousHash:string;
+  events:ConversationEvent[];
+  completeHistory:boolean;
+  authoritativeForMutation:false;
+}
 const HASH=/^[a-f0-9]{64}$/;
 const ZERO='0'.repeat(64);
 const clone=<T>(x:T):T=>structuredClone(x);
@@ -199,6 +212,51 @@ export class R07GExperimentalShardedEventBackend implements AtomicEventBackend{
       return {record:{revision:head.revision,events},head,tail:lastTail};
     }
     throw new R07GStorageError('R07G_UNSTABLE_CONCURRENT_READ');
+  }
+  /**
+   * R07I read-only tail for presentation, not an authoritative R03 snapshot.
+   * Old shards are intentionally NOT read or verified when completeHistory=false.
+   * No authorization/mutation/approval may consume this view. A fresh server
+   * principal and authoritative ledger replay are still mandatory for actions.
+   */
+  async readRecentWindow(key:string,requestedEvents:number):Promise<R07IReadOnlyWindow>{
+    if(!Number.isSafeInteger(requestedEvents)||requestedEvents<1||
+      requestedEvents>R07I_MAX_RECENT_EVENTS)
+      throw new R07GStorageError('R07I_INVALID_WINDOW_LIMIT');
+    const ref=await refs(this.db,key);
+    for(let attempt=0;attempt<3;attempt++){
+      const head=parseHead(await ref.head.get(),key);
+      if(!head){
+        // Guard the first-write race: do not return an accidental empty view.
+        if(parseHead(await ref.head.get(),key))continue;
+        return {schemaVersion:1,scopeKey:key,revision:0,firstSequence:0,
+          lastHash:ZERO,previousHash:ZERO,events:[],completeHistory:true,
+          authoritativeForMutation:false};
+      }
+      const first=Math.max(1,head.revision-requestedEvents+1);
+      const needed=head.chunks.filter(d=>d.end>=first);
+      const all:ConversationEvent[]=[];
+      for(let offset=0;offset<needed.length;offset+=8){
+        const chunkSlice=needed.slice(offset,offset+8);
+        const snapshots=await Promise.all(chunkSlice.map(d=>ref.chunk(d.index).get()));
+        for(let i=0;i<chunkSlice.length;i++){
+          const d=chunkSlice[i]!,snapshot=snapshots[i]!;
+          all.push(...await checkChunk(snapshot,key,d));
+        }
+      }
+      const current=parseHead(await ref.head.get(),key);
+      if(!equal(head,current))continue;
+      const events=all.filter(event=>event.sequence>=first);
+      if(events.length!==head.revision-first+1||
+        events[0]?.sequence!==first||
+        events.at(-1)?.hash!==head.lastHash)
+        throw new R07GStorageError('R07I_INCOMPLETE_WINDOW');
+      return clone({schemaVersion:1 as const,scopeKey:key,
+        revision:head.revision,firstSequence:first,lastHash:head.lastHash,
+        previousHash:events[0]!.previousHash,events,
+        completeHistory:first===1,authoritativeForMutation:false as const});
+    }
+    throw new R07GStorageError('R07I_UNSTABLE_CONCURRENT_READ');
   }
   async read(key:string):Promise<JournalRecord>{
     return (await this.stableRead(key)).record;
