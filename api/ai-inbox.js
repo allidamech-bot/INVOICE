@@ -7,7 +7,10 @@ import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=4_000_000;
 const RATE_WINDOW_MS=5*60*1000;
-const RATE_MAX=16;
+// A single 10-file turn can classify plus summarize each source (20 calls),
+// followed by a bounded planning step. Retain the five-minute cap and
+// bounded per-instance identity map; avoid rejecting valid multi-file turns.
+const RATE_MAX=32;
 const RATE_BUCKET_CAP=2048;
 let rateLastSweep=0;
 const DOCUMENT_TYPES=['commercial_registration','customer_rfq','supplier_quote','supplier_invoice','purchase_invoice','product_catalog','price_list','company_file','unknown'];
@@ -126,7 +129,7 @@ export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'AI Inbox requests must come from this LOUREX deployment.'});return;}
   if(!await requireAiFirebaseAuth(request,response))return;
-  if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'AI Inbox is temporarily rate limited.'});return;}
+  if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_INBOX_RATE_LIMITED',message:'AI Inbox request quota reached for this account. The provider pool was not attempted.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid AI request.'});return;}
   if(body?.mode==='tool-plan'){await handleToolPlan(body,response,request.aiVerifiedRole);return;}
   if(body?.mode==='working-draft-plan'){const result=await planWorkingDraft(body,{ownerDiagnostics:diagnosticsOwnerUidAllowed(request.aiVerifiedUid,process.env.LOUREX_AI_DIAGNOSTICS_ADMIN_UID)});sendJson(response,result.status,result.body);return;}
