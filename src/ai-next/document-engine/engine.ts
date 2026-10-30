@@ -287,14 +287,14 @@ export async function ingestDocument(input: ProcessingInput): Promise<DocumentRu
   for (let i=0;i<manifest.parts.length;i++) {
     const part = manifest.parts[i]!;
     const cached = previous[i];
+    if (signal?.aborted) {
+      records.push({part,result:null,failureCode:'PROCESSING_CANCELLED'});processed++;
+      continue;
+    }
     if (cached?.result && !cached.failureCode) {
       // Recheck cached payload; never import invalid checkpoint results.
       checkResult(cached.result);
       records.push(clone(cached));processed++;
-      continue;
-    }
-    if (signal?.aborted) {
-      records.push({part,result:null,failureCode:'PROCESSING_CANCELLED'});processed++;
       continue;
     }
     try {
