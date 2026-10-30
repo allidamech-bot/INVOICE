@@ -234,3 +234,47 @@ test('known latency/health evidence can outweigh initial tier selection safely',
   assert.ok(Number.isFinite(rankFast)&&Number.isFinite(rankFlaky));
   assert.ok(rankFast>rankFlaky);
 });
+
+
+test('authentication failure is isolated to failing provider and classified',async()=>{
+  const seen=[];
+  const out=await routeR07QOffline(request({
+    models:[model({modelId:'auth',qualityTier:'basic'}),
+      model({modelId:'same-provider',qualityTier:'capable'}),
+      model({modelId:'backup',providerId:'backup',qualityTier:'advanced'})],
+    transport:offline(async({model:m})=>{
+      seen.push(m.modelId);
+      if(m.providerId!=='backup')
+        throw new R05ProviderFailure('authentication');
+      return good;
+    }),
+  }));
+  assert.equal(out.ok,true);
+  assert.deepEqual(seen,['auth','backup']);
+  assert.equal(out.observations[0].category,'authentication');
+  const only=await routeR07QOffline(request({
+    transport:offline(async()=>{throw new R05ProviderFailure('authentication');}),
+  }));
+  assert.equal(only.code,'R05_AUTHENTICATION');
+});
+test('quota exhaustion is different from a transient rate limit',async()=>{
+  const out=await routeR07QOffline(request({
+    transport:offline(async()=>{throw new R05ProviderFailure('quota_exhausted');}),
+  }));
+  assert.equal(out.ok,false);
+  assert.equal(out.code,'R05_QUOTA_EXHAUSTED');
+  assert.equal(out.observations[0].category,'quota_exhausted');
+});
+test('runtime privacy denial aborts without fallback to any other provider',async()=>{
+  let calls=0;
+  const out=await routeR07QOffline(request({
+    models:[model({modelId:'basic',qualityTier:'basic'}),
+      model({modelId:'backup',qualityTier:'capable',providerId:'backup'})],
+    transport:offline(async()=>{calls++;
+      throw new R05ProviderFailure('privacy_denied');}),
+  }));
+  assert.equal(out.ok,false);
+  assert.equal(out.code,'R05_PRIVACY_DENIED');
+  assert.equal(calls,1);
+  assert.equal(out.observations[0].category,'privacy_denied');
+});
