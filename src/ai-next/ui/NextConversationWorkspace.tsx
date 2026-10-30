@@ -259,6 +259,32 @@ class R06DraftReview extends React.Component<{
   }
 }
 
+class R06AttachmentPicker extends React.Component<{
+  onSelectFiles:R06WorkspaceProps['onSelectFiles'];
+},{busy:boolean;error:string|null}>{
+  state={busy:false,error:null as string|null};
+  private mounted=true;
+  componentWillUnmount():void{this.mounted=false;}
+  render():any{return <div>
+    <input type="file" multiple accept=".pdf,.xlsx,.xls,.csv,image/*"
+      aria-label="إضافة ملفات" disabled={this.state.busy} onChange={async(e:any)=>{
+        const files=Array.from(e.currentTarget.files??[]) as File[];
+        e.currentTarget.value='';
+        if(files.length>R06_MAX_ATTACHMENTS_PER_SELECTION){
+          this.setState({error:'الحد الأعلى عشرة ملفات في كل اختيار.'});return;
+        }
+        if(!files.length)return;
+        this.setState({busy:true,error:null});
+        try{await this.props.onSelectFiles(files);}
+        catch{if(this.mounted)this.setState({error:'لم يُؤكد رفع الملفات. تحقق من الحالة قبل إعادة المحاولة.'});}
+        finally{if(this.mounted)this.setState({busy:false});}
+      }}/>
+    {this.state.busy&&<small role="status">جاري إرسال الملفات إلى معالج الرفع...</small>}
+    {this.state.error&&<p role="alert" style={{color:'#a22d2d'}}>
+      {this.state.error}</p>}
+  </div>;}
+}
+
 export function NextConversationWorkspace(props:R06WorkspaceProps):any{
   // Static safety gate: not a product setting and never activated by request params.
   if(!R06_NEXT_CONVERSATION_ENABLED)return null;
@@ -299,13 +325,7 @@ export function NextConversationWorkspace(props:R06WorkspaceProps):any{
     </section>}
     <section aria-label="مرفقات المحادثة" style={{padding:12}}>
       <h3 style={title}>الملفات والمصادر ({view.attachments.length})</h3>
-      <input type="file" multiple accept=".pdf,.xlsx,.xls,.csv,image/*"
-        aria-label="إضافة ملفات" onChange={(e:any)=>{
-          const files=Array.from(e.currentTarget.files??[]) as File[];
-          if(files.length>0&&files.length<=R06_MAX_ATTACHMENTS_PER_SELECTION)
-            void props.onSelectFiles(files);
-          e.currentTarget.value='';
-        }}/>
+      <R06AttachmentPicker onSelectFiles={props.onSelectFiles}/>
       <p style={secondary}>يمكن اختيار حتى 10 ملفات في المرة. رفع الملف لا يعني
         أن البيانات قد فُهمت أو أصبحت جاهزة للعرض.</p>
       {view.attachments.map(a=><div key={a.sourceId} style={{...surface,padding:8,marginTop:6}}>
