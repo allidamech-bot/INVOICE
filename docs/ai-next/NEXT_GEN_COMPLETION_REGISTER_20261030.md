@@ -21,6 +21,7 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 
 | R07E private original source-byte adapter | Merged #1204, 4ec65003 | 40/40 R02 cloud-object synthetic tests; Vercel isolation passed | No | No live bucket | Open | No | No |
 | R07F explicit-consent memory CAS | Merged #1205, 1816f26b | 37/37 R03/consent regression; Vercel isolation passed | No | No live backend | Open | No | No |
+| R07G bounded sharded conversation event storage | PR pending | >300 real R03 events against mock Firestore pending CI | No | No real Firestore | Open | No | No |
 
 ## Evidence boundary
 
@@ -96,3 +97,7 @@ An inactive server-only Firestore-compatible memory backend reuses R03's explici
 - **R07F PR #1205**: code merged at 1816f26b2189fef75f4288ee910e1782e708c382, 37/37 offline tests, TypeScript and isolation PASS. Explicit-consent memory CAS and revoked-content tombstones; no live consent or retention approval.
 
 **R07 remains OPEN.** No new HTTP endpoint, enabled flag, deployed feature, approved server-only ACL, production Firebase/GCS data operation, real user file or live financial write was authorized or performed. No live data ever flows into the above synthetic suites. Tests do not close T22, T23 or T24. The known 300-event / 700 KB proof-of-concept limit of R07A still blocks long-conversation acceptance. A release needs verified deployed Firestore rules, independently provisioned server ACL, privileged IAM, approved retention/privacy/cost, actual cross-instance GCS/Firestore tests, source-to-review end-to-end, real provider policies, browser UI integration and physical iPhone Safari acceptance. No production deployment is authorized by merging code.
+
+## R07G bounded long-thread storage candidate
+
+R07G adds an inactive Firestore-compatible per-thread head plus contiguous event-shard adapter. It no longer uses R07A's 300-event single-document cap, while preserving R03's 20,000-event ceiling and explicit per-shard/head limits. Tests are mock-backed only; full R03 projection of prior history on every append is still a scaling/latency blocker. No live migration or Firebase read/write was authorized. See R07G_SHARDED_HISTORY_EVIDENCE_20261030.md.
