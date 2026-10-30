@@ -1,0 +1,37 @@
+name: LOUREX AI Next R07B Local Coordinator
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/coordinator/**'
+      - 'tests/ai-next/r07b-local-coordinator.test.mjs'
+      - '.github/workflows/ai-next-r07b-coordinator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07b-coordinator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-coordinator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript
+        run: npm run typecheck
+      - name: Compile AI Next TypeScript
+        run: ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R07B local coordinator + R01/R03/R04/R05/R07B auth regression
+        run: node --test tests/ai-next/r01-core.test.mjs tests/ai-next/r03-conversation-state.test.mjs tests/ai-next/r04-guarded-finance.test.mjs tests/ai-next/r05-router.test.mjs tests/ai-next/r07b-authority.test.mjs tests/ai-next/r07b-local-coordinator.test.mjs
