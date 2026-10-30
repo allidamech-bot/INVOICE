@@ -242,7 +242,8 @@ export class ScopedApprovalGate {
         executionResultRef:null,
       });
       const entries=[...s.entries];entries[index]={receipt:updated,
-        status:input.action,revision:old.revision+1};
+        status:input.action,revision:old.revision+1,
+        requestFingerprint:old.requestFingerprint};
       return {next:{revision:s.revision+1,entries},result:updated};
     });
   }
