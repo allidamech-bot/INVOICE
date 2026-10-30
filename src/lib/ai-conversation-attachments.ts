@@ -1,4 +1,4 @@
-import { requestAiJson, AiRequestError } from './ai-request.js';
+import { requestAiJson } from './ai-request.js';
 import { readablePdfText, rasterScannedPdfPages } from './pdf-source.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from './spreadsheet-reader.js';
 import {exactSpreadsheetQuote} from './ai-spreadsheet-quote.js';
@@ -80,11 +80,12 @@ export function completeSourceJson(value:unknown,max=MAX_EXTRACT_CHARS):string{
 function isProviderOutage(error:unknown):boolean{
   // An invalid/missing structured response, rejected business content or
   // source integrity error is NOT a provider outage and must still fail closed.
-  return error instanceof AiRequestError&&(
-    ['AI_TEMPORARILY_UNAVAILABLE','AI_RATE_LIMITED','AI_TIMEOUT','AI_NOT_CONFIGURED',
-      'AI_PRIVATE_DOCUMENT_UNAVAILABLE','AI_PROVIDER_UNAVAILABLE',
-      'AI_FREE_TIER_UNAVAILABLE','AI_MODEL_UNAVAILABLE'].includes(error.code)
-    ||[429,503,504].includes(error.status));
+  if(!error||typeof error!=='object')return false;
+  const problem=error as {code?:unknown;status?:unknown};
+  return ['AI_TEMPORARILY_UNAVAILABLE','AI_RATE_LIMITED','AI_TIMEOUT','AI_NOT_CONFIGURED',
+    'AI_PRIVATE_DOCUMENT_UNAVAILABLE','AI_PROVIDER_UNAVAILABLE',
+    'AI_FREE_TIER_UNAVAILABLE','AI_MODEL_UNAVAILABLE'].includes(String(problem.code||''))
+    &&[429,503,504].includes(Number(problem.status));
 }
 function originalTextForReview(payload:AiPayload):string{
   const text=payload.kind==='text'?String(payload.text||''):'';
