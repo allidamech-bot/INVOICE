@@ -272,3 +272,63 @@ test('R07L corrupted anchor blocks reads and writes across instances',async()=>{
   const b=await journal(db).readOperationalState(scope);
   assert.deepEqual(a.view,b.view);
 });
+
+
+test('R07L orphan materialization never turns into an empty full audit',async()=>{
+  const db=new SharedDB(),a=journal(db);
+  await a.append(begin());
+  const key=[...db.docs.keys()].find(k=>k.endsWith(':head'));
+  assert.ok(key);
+  db.docs.delete(key);
+  await assert.rejects(a.readOperationalState(scope),/R07L_ORPHAN_STATE/);
+  await assert.rejects(a.auditFullHistory(scope),/R07L_ORPHAN_STATE/);
+});
+
+test('R07L new terminal-to-created turn resets only current-turn materialization',async()=>{
+  const db=new SharedDB(),a=journal(db);
+  const started=begin();await a.append(started);
+  let task=started.body.task;
+  for(const state of ['understanding','processing','completed']){
+    const next=transitionTask(task,state,{expectedStateVersion:task.stateVersion,
+      now:stamp});
+    const version=(await a.readOperationalState(scope)).view.revision;
+    await a.append({scope,expectedRevision:version,eventId:'transition-'+state,
+      idempotencyKey:'transition-'+state,
+      body:{kind:'task_updated',task:next},now:stamp});
+    task=next;
+  }
+  await a.append(message(4));
+  const draft=begin();
+  draft.eventId='second-turn';
+  draft.idempotencyKey='second-turn';
+  draft.expectedRevision=5;
+  draft.body.turn.turnId='second';
+  draft.body.turn.taskId='second-task';
+  draft.body.turn.sequenceNumber=2;
+  draft.body.turn.parentTurnId='turn-one';
+  draft.body.turn.idempotencyKey='second-request';
+  draft.body.turn.requestId='second-request';
+  draft.body.turn.userMessageId='second-user';
+  draft.body.task.taskId='second-task';
+  draft.body.task.turnId='second';
+  await a.append(draft);
+  const view=(await a.readOperationalState(scope)).view;
+  assert.equal(view.revision,6);
+  assert.equal(view.turn.turnId,'second');
+  assert.equal(view.task.state,'created');
+  assert.equal(view.userMessageSeen,false);
+  assert.equal(view.assistantReply,null);
+  // Older turn messages remain immutable history without changing new turn's
+  // user/assistant presentation state.
+  await a.append({scope,expectedRevision:6,eventId:'late-old-turn',
+    idempotencyKey:'late-old-turn',body:{kind:'message',
+      messageId:'late-old',turnId:'turn-one',role:'assistant',
+      text:'old turn late message',sourceIds:[]},now:stamp});
+  const latest=(await a.readOperationalState(scope)).view;
+  assert.equal(latest.revision,7);
+  assert.equal(latest.assistantReply,null);
+  const full=await a.auditFullHistory(scope);
+  assert.equal(full.revision,7);
+  assert.equal(full.turns.length,2);
+  assert.equal(full.messages.length,2);
+});
