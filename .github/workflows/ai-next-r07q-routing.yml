@@ -1,0 +1,45 @@
+name: LOUREX AI Next R07Q Task-Aware Free Routing
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/router/gateway.ts'
+      - 'src/ai-next/router/semantic-planner.ts'
+      - 'src/ai-next/router/task-aware-model-router.ts'
+      - 'tests/ai-next/r07q-model-router.test.mjs'
+      - '.github/workflows/ai-next-r07q-routing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07q-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  task-aware-routing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck and compile
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R07Q structured routing and failure-classification tests
+        run: node --test tests/ai-next/r07q-model-router.test.mjs
+      - name: R05, R07P and R07M targeted regression
+        run: >-
+          node --test
+          tests/ai-next/r05-router.test.mjs
+          tests/ai-next/r07p-semantic-planner.test.mjs
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+      - name: Verify no production bundle contamination
+        run: node scripts/verify-deployment-isolation.mjs
