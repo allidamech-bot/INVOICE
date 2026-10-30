@@ -48,15 +48,26 @@ export interface R07PSyntheticInterpreter{
   interpret(input:{message:string;language:'ar'|'en'|'mixed'|'unknown';
     mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[]}):Promise<unknown>;
 }
+/** The R07Q adapter remains unmounted; a trusted server provides the scope. */
+export interface R07PRoutedInterpreter{
+  interpret(input:{scope:AuthenticatedScope;
+    message:string;language:'ar'|'en'|'mixed'|'unknown';
+    mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[]}):
+    Promise<
+      | {ok:true;candidate:unknown;calls:number}
+      | {ok:false;code:string;calls:number}
+    >;
+}
 export type R07PStatus='local_reply'|'proposed'|'needs_clarification'|
   'approval_required'|'unsupported';
 export interface R07PPlan{
   status:R07PStatus;
-  interpretation:'deterministic'|'synthetic_model'|'unavailable';
+  interpretation:'deterministic'|'synthetic_model'|'routed_model'|'unavailable';
   language:'ar'|'en'|'mixed'|'unknown';
   intent:GroundedIntent;
   risk:'read_only'|'preparation'|'approval'|'blocked';
-  providerCalls:0|1;
+  /** Live attempts, or one synthetic invocation in test-only mode. */
+  providerCalls:number;
   /** No review draft, real document or financial record is ever persisted. */
   financialSaved:false;
   assistantReply:string|null;
@@ -83,7 +94,7 @@ const languageOf=(message:string):R07PPlan['language']=>{
   const en=/[a-z]/iu.test(message);
   return ar&&en?'mixed':ar?'ar':en?'en':'unknown';
 };
-function candidateFromUnknown(raw:unknown):R07PSemanticCandidate{
+export function parseR07PSemanticCandidate(raw:unknown):R07PSemanticCandidate{
   if(!record(raw)||!keys(raw,[
     'action','subject','reference','facts','sourceIds','missingFields',
   ])||!actions.includes(raw.action as Action)||
@@ -162,6 +173,9 @@ export class R07PSemanticPlanner{
     /** Explicitly test-only. Real providers belong to R07Q. */
     syntheticInterpreter?:R07PSyntheticInterpreter;
     allowSyntheticInference?:boolean;
+    /** Server-only R07Q model routing, never enabled by request flags. */
+    routedInterpreter?:R07PRoutedInterpreter;
+    allowRoutedInference?:boolean;
     clock?:()=>Date;
   }){}
   async plan(token:string,raw:unknown):Promise<R07PPlan>{
@@ -195,18 +209,46 @@ export class R07PSemanticPlanner{
           local.kind==='greeting'?local.reply:null,
       };
     }
-    // No real inference is enabled or wired by this package.
-    if(!this.deps.allowSyntheticInference||!this.deps.syntheticInterpreter){
+    const routed=Boolean(this.deps.allowRoutedInference&&this.deps.routedInterpreter);
+    const synthetic=Boolean(this.deps.allowSyntheticInference&&
+      this.deps.syntheticInterpreter);
+    if(routed&&synthetic)throw new Error('R07P_CONFLICTING_INFERENCE_CONFIG');
+    if(!routed&&!synthetic){
       return {status:'unsupported',interpretation:'unavailable',language,
         intent:build(scope,turnId,'clarify',null,[],[],['semantic_provider_unavailable'],[]),
         risk:'blocked',providerCalls:0,financialSaved:false,
         assistantReply:'يتطلب هذا الطلب فهمًا دلاليًا لم يتم تفعيله بعد.'};
     }
-    const rawCandidate=await this.deps.syntheticInterpreter.interpret({
-      message:input.message,language,mode:input.mode,
-      knownReferences:context.references.map(r=>({kind:r.kind,id:r.id})),
-    });
-    const c=candidateFromUnknown(rawCandidate);
+    const references=context.references.map(r=>({kind:r.kind,id:r.id}));
+    let rawCandidate:unknown,providerCalls:number,
+      interpretation:'synthetic_model'|'routed_model';
+    if(routed){
+      const outcome=await this.deps.routedInterpreter!.interpret({
+        scope,message:input.message,language,mode:input.mode,
+        knownReferences:references,
+      });
+      if(!outcome||!Number.isSafeInteger(outcome.calls)||
+        outcome.calls<0||outcome.calls>3)
+        throw new Error('R07P_INVALID_ROUTED_RECEIPT');
+      providerCalls=outcome.calls;
+      if(!outcome.ok){
+        return {status:'unsupported',interpretation:'unavailable',language,
+          intent:build(scope,turnId,'clarify',null,[],[],
+            ['semantic_provider_unavailable'],[]),
+          risk:'blocked',providerCalls,financialSaved:false,
+          assistantReply:'تعذر تحليل الطلب الآن. لم يتم إجراء أي تغيير.'};
+      }
+      rawCandidate=outcome.candidate;
+      interpretation='routed_model';
+    }else{
+      rawCandidate=await this.deps.syntheticInterpreter!.interpret({
+        message:input.message,language,mode:input.mode,
+        knownReferences:references,
+      });
+      providerCalls=1;
+      interpretation='synthetic_model';
+    }
+    const c=parseR07PSemanticCandidate(rawCandidate);
     const missing=[...c.missingFields];
     const unresolved:GroundedIntent['unresolvedReferences']=[];
     let subject:GroundedIntent['subjectRef']=null;
@@ -280,8 +322,8 @@ export class R07PSemanticPlanner{
     return {
       status:['execute_approved','request_approval'].includes(c.action)?
         'approval_required':needsHelp?'needs_clarification':'proposed',
-      interpretation:'synthetic_model',language,intent,
-      risk:needsHelp?'blocked':policy(c.action),providerCalls:1,
+      interpretation,language,intent,
+      risk:needsHelp?'blocked':policy(c.action),providerCalls,
       financialSaved:false,
       assistantReply:needsHelp?
         'يلزم توضيح المرجع أو الصلاحية قبل متابعة هذا الطلب.':null,
