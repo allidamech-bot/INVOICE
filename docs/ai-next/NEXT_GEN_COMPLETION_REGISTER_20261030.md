@@ -24,6 +24,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07H actual Firestore Emulator transaction verification | Merged #1208, 71896d2b | 4/4 official Firestore Emulator + Firebase Admin acceptance PASS | No | Local emulator only, no live service | Open | No | No |
 | R07I recent non-authoritative window + emulator restart recovery | Merged #1210, d8bf5f1d | 49/49 R03/R07G/R07I synthetic + 2 separate emulator phases PASS; Vercel isolation PASS | No | Local emulator export/import only | Open | No | No |
 | R07J indexed O(1)-read event append | Merged #1212, 36d9a815 | 48/48 R03/R07G/R07J synthetic; 3/3 official Firestore Emulator; TypeScript/isolation PASS | No | Emulator only, no live store | Open | No | No |
+| R07K local Controller/Advisor indexed compatibility | PR pending | Synthetic and Firestore Emulator pending | No | Emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -134,3 +135,7 @@ Standalone disabled indexed journal returns a narrow receipt instead of R03's fu
 - **PR #1212** merged at 36d9a815c9c76f1d60ebdfe7b6a0db8b8b2a4b87 after 48/48 targeted R03/R07G/R07J synthetic tests and 3/3 official local Firestore Emulator tests; four SHA-bound GitHub check jobs passed.
 - Bounded-read test ran **320 sequential synthetic messages** and verified no more than ten mock document reads per append; full R03 replay audit reconstructed all 321 events. Distinct Firebase Admin app clients proved transactional indexed CAS, replay, head scope isolation and event corruption rejection on the emulator.
 - **Implementation NOT activated:** completely separate root collection, no legacy migrations or real Firebase/finance writes. `R07J_INDEXED_APPEND_ACTIVE=false`. The optimized method returns a narrow durable receipt, **not** the full R03 snapshot; coordinator/view-model integration and complete operational-read recovery remain OPEN. IAM/ACL, event-index repair, real cloud costs/latency, retention/backup and iPhone tests are also open. No production deployment permitted.
+
+## R07K compatibility bridge pending
+
+R07K binds the existing R07B2 local coordinator to the R07J indexed journal through a full-history-auditing compatibility bridge; preserves R03 semantics at a significant full-replay performance cost. It is not a live route or a production speed claim. Unsaved quotation storage stays isolated. See R07K_INDEXED_COORDINATOR_COMPAT_EVIDENCE_20261031.md.
