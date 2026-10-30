@@ -8,6 +8,7 @@ export class AiRequestError extends Error {
 }
 function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
   if(code==='AI_NOT_CONFIGURED')return t('AI providers are not configured for this deployment. No data was changed.','مزوّدو AI غير مهيّئين لهذه النسخة من الموقع. لم تتغير أي بيانات.');
+  if(code==='AI_INBOX_RATE_LIMITED')return t('LOUREX file/conversation request limit reached. Try again after the request window resets; no provider was contacted and no data was changed.','وصلت إلى حد طلبات المحادثة والملفات في LOUREX. أعد المحاولة بعد انتهاء فترة الحد؛ لم يتم الاتصال بمزوّد AI ولم تتغير أي بيانات.');
   if(code==='AI_RATE_LIMITED'||status===429)return t('AI providers are temporarily at capacity. Retry shortly. No data was changed.','مزوّدو الذكاء الاصطناعي مشغولون مؤقتًا. أعد المحاولة بعد قليل. لم تتغير أي بيانات.');
   if(code==='AI_TIMEOUT'||status===504)return t('AI took too long to respond. Retry with a shorter message or fewer files. No data was changed.','استغرق رد الذكاء الاصطناعي وقتًا أطول من المسموح. حاول برسالة أقصر أو ملفات أقل. لم تتغير أي بيانات.');
   if(status===401)return t('Your Firebase account session needs to be refreshed. Sign in again and retry.','تحتاج جلسة حساب Firebase إلى التحديث. سجّل الدخول مجددًا وأعد المحاولة.');
