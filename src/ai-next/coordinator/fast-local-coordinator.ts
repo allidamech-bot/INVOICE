@@ -6,6 +6,7 @@
  */
 import type {AuthenticatedScope,ConversationTurn,ReviewDraft,TaskState}
   from '../domain/contracts.js';
+import type {R07PPlan} from '../router/semantic-planner.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {assertCoreContract} from '../domain/validation.js';
 import {transitionTask} from '../domain/state-machine.js';
@@ -26,7 +27,15 @@ const isConflict=(error:unknown):boolean=>error instanceof Error&&[
   'R07J_DUPLICATE_EVENT_ID','R07J_IDEMPOTENCY_COLLISION',
   'R07J_INVALID_TURN_SEQUENCE',
 ].includes(error.message);
-type Completion={reply:string;draft:ReviewDraft|null;revision:number};
+type Completion={reply:string;draft:ReviewDraft|null;revision:number;
+  syntheticInvocations?:number};
+export interface R07MSemanticTurnResult{
+  status:'completed';turnId:string;threadId:string;taskId:string;
+  replayed:boolean;reply:string;conversationRevision:number;
+  syntheticInvocations:number;
+  semanticOutcome:'proposal_only';financialSaved:false;
+  businessReadPerformed:false;draftEdited:false;
+}
 const envelope=(request:R07LocalTurnInput):R07RequestEnvelope=>({
   schemaVersion:1,accountId:request.accountId,companyId:request.companyId,
   branchId:request.branchId,threadId:request.threadId,
@@ -35,6 +44,52 @@ const envelope=(request:R07LocalTurnInput):R07RequestEnvelope=>({
 const eventId=(id:string,step:string)=>'r07-'+id+'-'+step;
 const eventKey=(id:string,step:string)=>'r07step-'+id+'-'+step;
 
+/**
+ * R07M semantic turns use the SAME R07J request index/event/task state;
+ * no separate journal, coordinator, or source-of-truth is introduced.
+ * The task's completion is only a user-visible PLANNING response.
+ */
+function newOfflineSemanticTurn(scope:AuthenticatedScope,
+  input:R07LocalTurnInput,now:string):{turn:ConversationTurn;task:TaskState}{
+  const turnId=crypto.randomUUID(),taskId=crypto.randomUUID();
+  const turn:ConversationTurn={
+    schemaVersion:1,scope:structuredClone(scope),turnId,threadId:scope.threadId,
+    userMessageId:input.userMessageId,requestId:input.requestId,
+    idempotencyKey:input.idempotencyKey,sequenceNumber:1,parentTurnId:null,
+    userMessage:{text:input.message,languageHint:'unknown',attachedSourceIds:[]},
+    mode:input.mode,receivedAt:now,stateVersion:0,selectedSourceIds:[],
+    taskId,lifecycle:'received',outputResultId:null,
+  };
+  const task:TaskState={
+    schemaVersion:1,scope:structuredClone(scope),taskId,threadId:scope.threadId,
+    turnId,taskType:'semantic_proposal_only',state:'created',
+    revision:0,stateVersion:0,startedAt:now,updatedAt:now,
+    completedAt:null,stageIndex:0,
+    progress:{completedUnits:0,totalUnits:null,unitType:'unknown',observedAt:now},
+    currentCheckpointId:null,sourceIds:[],draftId:null,approvalId:null,
+    lastError:null,cancellable:true,retryPolicy:'safe_only',executionOperationId:null,
+  };
+  assertCoreContract('ConversationTurn',turn);
+  assertCoreContract('TaskState',task);
+  return {turn,task};
+}
+function safeSemanticReply(plan:R07PPlan):string{
+  if(plan.status==='unsupported')
+    return 'تعذر تحليل الطلب بأمان. لم أقرأ أو أغيّر أي بيانات مالية.';
+  if(plan.status==='needs_clarification')
+    return 'يحتاج الطلب إلى توضيح مرجع أو معلومة قبل المتابعة. لم يحدث أي تعديل.';
+  if(plan.status==='approval_required')
+    return 'قد يتطلب الطلب موافقة مستقلة. لم تُنشأ موافقة ولم يُحفظ مستند مالي.';
+  switch(plan.intent.action){
+    case 'edit_draft':case 'prepare_quote':
+      return 'فهمت طلب تجهيز المسودة، لكن لم أطبّق أي تعديل أو أحفظ مستندًا ماليًا.';
+    case 'read_business':case 'read_file':case 'preview_draft':case 'analyze':
+      return 'تم تصنيف طلب القراءة أو التحليل، لكن لم أقرأ بيانات الأعمال أو المستندات بعد.';
+    default:
+      return 'فهمت الطلب مبدئيًا. لم أنفّذ أي عملية على البيانات أو المستندات.';
+  }
+}
+
 export class R07MFastLocalCoordinator{
   constructor(private readonly deps:{
     journal:R07JExperimentalIndexedJournal;
@@ -42,6 +97,10 @@ export class R07MFastLocalCoordinator{
     principal:R07AuthenticatedPrincipalVerifier;
     membership:R07ServerMembershipStore;
     clock?:()=>Date;
+    /** Test-only injection. No live provider or production endpoint permitted. */
+    offlineSemanticPlanner?:Pick<import('../router/semantic-planner.js').R07PSemanticPlanner,'plan'>;
+    /** Server-owned safety switch, NOT a request/browser flag. */
+    allowOfflineSemanticFixtures?:boolean;
   }){}
   private now():Date{return(this.deps.clock??(()=>new Date()))();}
   private async auth(token:string,raw:R07RequestEnvelope):
@@ -77,7 +136,10 @@ export class R07MFastLocalCoordinator{
   private async verifiedDraft(scope:AuthenticatedScope,turn:ConversationTurn,
     task:TaskState):Promise<ReviewDraft|null>{
     const recognized=recognizeR05LocalIntent(turn.userMessage.text,0);
-    if(!recognized)throw new R07LocalError('R07_RESTORED_INTENT_UNSUPPORTED');
+    if(!recognized){
+      if(task.taskType==='semantic_proposal_only')return null;
+      throw new R07LocalError('R07_RESTORED_INTENT_UNSUPPORTED');
+    }
     if(recognized.kind!=='new_quote_draft')return null;
     const saved=await this.deps.draftStore.read(scope,turn.turnId);
     if(!saved||saved.draftId!=='draft-'+turn.turnId||
@@ -106,8 +168,10 @@ export class R07MFastLocalCoordinator{
     return {reply:reply.text,draft:await this.verifiedDraft(scope,turn,task),
       revision:history.revision};
   }
-  private async accepted(scope:AuthenticatedScope,input:R07LocalTurnInput):
+  private async accepted(scope:AuthenticatedScope,input:R07LocalTurnInput,
+    semantic=false):
     Promise<{turn:ConversationTurn;replayed:boolean;historical:boolean}>{
+
     for(let attempt=0;attempt<8;attempt++){
       // Durable request index prevents an older key from creating a duplicate
       // turn after several subsequent turns; indexes are atomically written
@@ -125,8 +189,9 @@ export class R07MFastLocalCoordinator{
       if(current.task&&!['completed','failed','cancelled'].includes(
         current.task.state))
         throw new R07LocalError('R07_ANOTHER_TURN_ACTIVE');
-      const {turn,task}=makeTurn(scope,input,serverTime(()=>this.now(),
-        current.lastEventAt));
+      const startedAt=serverTime(()=>this.now(),current.lastEventAt);
+      const {turn,task}=semantic?
+        newOfflineSemanticTurn(scope,input,startedAt):makeTurn(scope,input,startedAt);
       turn.sequenceNumber=(current.turn?.sequenceNumber??0)+1;
       turn.parentTurnId=current.turn?.turnId??null;
       try{
@@ -137,10 +202,13 @@ export class R07MFastLocalCoordinator{
     }
     throw new R07LocalError('R07_CONCURRENT_TURN_RETRY_LIMIT');
   }
-  private async complete(scope:AuthenticatedScope,turn:ConversationTurn):
-    Promise<Completion>{
+  private async complete(scope:AuthenticatedScope,turn:ConversationTurn,
+    token?:string):Promise<Completion>{
     const recognized=recognizeR05LocalIntent(turn.userMessage.text,0);
-    if(!recognized)throw new R07LocalError('R07_RESTORED_INTENT_UNSUPPORTED');
+    if(!recognized&&(!token||!this.deps.allowOfflineSemanticFixtures||
+      !this.deps.offlineSemanticPlanner))
+      throw new R07LocalError('R07_RESTORED_INTENT_UNSUPPORTED');
+    let syntheticInvocations=0;
     const assistantId='assistant-'+turn.turnId;
     const draftId='draft-'+turn.turnId;
     for(let attempt=0;attempt<30;attempt++){
@@ -156,7 +224,8 @@ export class R07MFastLocalCoordinator{
       if(task.state==='completed'){
         if(!visible)throw new R07LocalError('R07_COMPLETED_WITHOUT_REPLY');
         const draft=await this.verifiedDraft(scope,turn,task);
-        return {reply:visible.text,draft,revision:view.revision};
+        return {reply:visible.text,draft,revision:view.revision,
+          syntheticInvocations};
       }
       let step:string,body:ConversationEventBody;
       if(!view.userMessageSeen){
@@ -171,6 +240,50 @@ export class R07MFastLocalCoordinator{
           now:serverTime(()=>this.now(),task.updatedAt),
         })};
       }else if(task.state==='processing'){
+        if(task.taskType==='semantic_proposal_only'){
+          if(recognized||!token||!this.deps.allowOfflineSemanticFixtures||
+            !this.deps.offlineSemanticPlanner)
+            throw new R07LocalError('R07M_UNAUTHORIZED_SEMANTIC_PROCESSING');
+          if(!visible){
+            // The original immutable turn was journaled BEFORE parsing.
+            // A restart after an acknowledged assistant event skips inference.
+            // Before that acknowledgement, replay may re-interpret a fixture,
+            // but never performs a financial or business mutation.
+            const recordedInput:R07LocalTurnInput={
+              ...envelope({
+                schemaVersion:1,accountId:scope.accountId,
+                companyId:scope.companyId,branchId:scope.branchId,
+                threadId:scope.threadId,scopeType:scope.scopeType,
+                requestId:turn.requestId,idempotencyKey:turn.idempotencyKey,
+                userMessageId:turn.userMessageId,
+                message:turn.userMessage.text,mode:turn.mode,
+              }),
+              requestId:turn.requestId,idempotencyKey:turn.idempotencyKey,
+              userMessageId:turn.userMessageId,
+              message:turn.userMessage.text,mode:turn.mode,
+            };
+            const planned=await this.deps.offlineSemanticPlanner.plan(
+              token,recordedInput);
+            syntheticInvocations++;
+            if(planned.interpretation!=='synthetic_model'||
+              planned.providerCalls!==1||planned.financialSaved!==false||
+              planned.intent.executable!==false||
+              planned.intent.scope.threadId!==scope.threadId||
+              exactScopeKey(planned.intent.scope)!==exactScopeKey(scope)||
+              planned.intent.referencedSourceIds.length>0&&
+                planned.intent.sourcePolicy!=='uploaded_only')
+              throw new R07LocalError('R07M_UNTRUSTED_SEMANTIC_PLAN');
+            step='assistant-message';
+            body={kind:'message',messageId:assistantId,turnId:turn.turnId,
+              role:'assistant',text:safeSemanticReply(planned),sourceIds:[]};
+          }else{
+            step='state-completed';
+            body={kind:'task_updated',task:transitionTask(task,'completed',{
+              expectedStateVersion:task.stateVersion,
+              now:serverTime(()=>this.now(),task.updatedAt),
+            })};
+          }
+        }else{
         const locally=await runR05Local({
           text:turn.userMessage.text,attachedSourceIds:[],scope,draftId,
           now:turn.receivedAt,
@@ -200,6 +313,7 @@ export class R07MFastLocalCoordinator{
           }};
           assertCoreContract('TaskState',body.task);
         }
+        }
       }else{
         throw new R07LocalError('R07_UNEXPECTED_LOCAL_TASK_STATE');
       }
@@ -225,6 +339,35 @@ export class R07MFastLocalCoordinator{
       threadId:scope.threadId,taskId:accepted.turn.taskId!,
       replayed:accepted.replayed,reply:result.reply,draft:result.draft,
       financialSaved:false,providerCalls:0,conversationRevision:result.revision};
+  }
+  /**
+   * Disabled offline semantic turn acceptance. This journals a real R07M
+   * authenticated request and one planning-only assistant message, never
+   * reads business records or edits review drafts.
+   */
+  async acceptOfflineSemantic(token:string,raw:unknown):
+    Promise<R07MSemanticTurnResult>{
+    validateRequest(raw);
+    const request=raw as R07LocalTurnInput;
+    if(recognizeR05LocalIntent(request.message,0))
+      throw new R07LocalError('R07M_USE_DETERMINISTIC_ACCEPT');
+    if(!this.deps.allowOfflineSemanticFixtures||
+      !this.deps.offlineSemanticPlanner)
+      throw new R07LocalError('R07M_OFFLINE_SEMANTIC_DISABLED');
+    const scope=await this.auth(token,envelope(request));
+    const accepted=await this.accepted(scope,request,true);
+    const result=accepted.historical?
+      await this.historical(scope,accepted.turn):
+      await this.complete(scope,accepted.turn,token);
+    if(result.draft!==null)
+      throw new R07LocalError('R07M_SEMANTIC_FINANCIAL_DRAFT_FORBIDDEN');
+    return {status:'completed',turnId:accepted.turn.turnId,
+      threadId:scope.threadId,taskId:accepted.turn.taskId!,
+      replayed:accepted.replayed,reply:result.reply,
+      conversationRevision:result.revision,
+      syntheticInvocations:result.syntheticInvocations??0,
+      semanticOutcome:'proposal_only',financialSaved:false,
+      businessReadPerformed:false,draftEdited:false};
   }
   async current(token:string,raw:unknown){
     const scope=await this.auth(token,raw as R07RequestEnvelope);

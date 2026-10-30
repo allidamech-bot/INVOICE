@@ -242,3 +242,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - This is **not** complete source-to-draft, provider reasoning or financial evidence acceptance; extracted numbers remain uncertain, and the bridge provides no financial execution authority. Full prompt context and original source completeness are distinct.
 - Focused synthetic R07S tests and existing R02/R07E regressions are required on the exact PR SHA; see docs/ai-next/R07S_SCOPED_SOURCE_EVIDENCE_20261031.md. No cloud service, production flag, accounting code or real customer source was changed.
 - R07S secure real-file workflow, cross-document semantics, reviewed financial mapping, QA IAM, T22/T23/T24 and actual iPhone Safari acceptance remain OPEN.
+
+
+## R07M semantic planning-only journal extension — October 31, 2026
+
+- PR #1232 extends the existing **disabled R07M coordinator** with server-opt-in synthetic semantic planning turns. Each request uses the same R07J authenticated turn/task event stream, sealed request index, latest-turn materialization and audited history. No new journal or external endpoint.
+- The original R05 deterministic path remains intact. Semantic tasks persist user message and planning-only assistant acknowledgement; identical requests are recovered without duplicate turns or repeated synthetic interpretation after assistant acknowledgement. A crash before assistant event may re-run the synthetic fixture, but never apply financial or draft mutations.
+- The response explicitly reports financialSaved=false, businessReadPerformed=false, draftEdited=false. An R07P context fixture is **not** a trusted journal-derived historical context; real document reads and R07R draft editing have not been connected.
+- Exact-head CI and coverage documented in docs/ai-next/R07M_SEMANTIC_DURABLE_TURNS_EVIDENCE_20261031.md. T22/T23/T24, real provider authorization, QA Cloud IAM, mobile Safari and production activation OPEN.
