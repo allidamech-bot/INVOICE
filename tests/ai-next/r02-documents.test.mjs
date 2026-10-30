@@ -95,6 +95,22 @@ test('35-page searchable PDF preserves all original page numbers and page eviden
     Array.from({length:35},(_,i)=>i+1));
   assert.ok(run.evidence[34].rawValue.includes('Page 35'));
 });
+test('24,000+ characters from an injected PDF page survive all evidence chunks',async()=>{
+  const text='Document begins '+('Bilingual product row 125.00 USD بند رقم ١٢٣\n').repeat(800);
+  assert.ok(text.length>24000);
+  const runtime={getDocument:()=>({promise:Promise.resolve({
+    numPages:1,
+    async getPage(){return {async getTextContent(){return {items:[{str:text}]};},
+      async getOperatorList(){return {fnArray:[]};},cleanup(){} };},
+  })})};
+  const run=await ingestDocument(input(pdfFile('pdf-long-24k'),new PdfSourceAdapter(runtime)));
+  assert.equal(run.coverage.status,'complete');
+  assert.equal(run.coverage.expectedPageCount,1);
+  assert.equal(run.evidence.map(e=>e.rawValue).join(''),text+' ');
+  assert.ok(run.evidence.length>1);
+  assert.ok(run.evidence.every(e=>e.locator.pageNumber===1));
+  assert.equal(run.financialDraftEligible,false);
+});
 test('8 scanned pages require review even when authorized OCR adapter returns text',async()=>{
   const calls=[],f=fakePdf(8,{scanned:[1,2,3,4,5,6,7,8]});
   const ocr=async({pageNumber})=>{
