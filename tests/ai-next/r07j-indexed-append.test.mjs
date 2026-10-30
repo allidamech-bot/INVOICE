@@ -138,7 +138,7 @@ test('R07J concurrent writers yield one success and one safe conflict',async()=>
     journal(db).append(message(1)),
     journal(db).append(message(1,{
       eventId:'e-different',idempotencyKey:'id-different',
-      body:{...message(1).body,messageId:'m-different'}}),
+      body:{...message(1).body,messageId:'m-different'}})),
   ]);
   assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
   assert.equal(results.filter(x=>x.status==='rejected').length,1);
