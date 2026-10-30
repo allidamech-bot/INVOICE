@@ -227,3 +227,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - CI must verify final SHA TypeScript, R07Q offline semantic fixtures, R05/R07P/R07M regressions, and unchanged production bundle before merge. Exact CI evidence is in the PR.
 - **Still OPEN:** real authenticated semantic Controller integration, actual Arabic/English model accuracy, real zero-cost provider entitlements, private inference permission, durable history, T22–T24, production IAM/rules, physical iPhone and deployment approval. No real financial or production changes.
 - Evidence: docs/ai-next/R07Q_SEMANTIC_OFFLINE_BRIDGE_EVIDENCE_20261031.md.
+
+
+## R07P/R07Q supplementary private semantic proposal adapter — October 31, 2026
+
+- Preserves the independent, fixture-only R07Q offline route introduced by PR #1227, while adding a **separate disabled server-only future private-inference adapter to the SAME R05 router**. No competing coordinator or financial writer.
+- R07P may consume authenticated routed interpretations only with explicit server-owned enabling and independent private-business-data consent. The R07Q adapter verifies per-model/account zero-cost, private-provider eligibility, strict output contracts, bounded fallback and opaque per-turn document handles; R05 deterministic commands remain provider-free.
+- Existing R07Q candidate-validator API, synthetic transport checks and privacy-denied fail-fast semantics are preserved. Actual model inference has NOT been performed or production-enabled, so language quality and account-specific zero cost remain unproven. R07R draft bridge stays synthetic-only; T22–T24 and R07M durable semantic task integration OPEN.
+- See docs/ai-next/R07PQ_ROUTED_SEMANTIC_OFFLINE_EVIDENCE_20261031.md and exact-head CI for the supplementary adapter.
