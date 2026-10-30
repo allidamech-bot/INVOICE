@@ -11,8 +11,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R04 drafts and approvals | Merged #1193 (execution disabled) | Previous focused tests passed | No | No | Synthetic only | No | No |
 | R05A eligibility/local intents/gateway/proposal guard | Merged #1194, 237a39c9 | 125/125 mocked regression; Vercel isolation passed | No | No | Mock boundary only | No | No |
 | R05B trusted model catalog bridge | Merged #1195, 6c2bfd07774c | 134/134 offline checks; build safety passed | No | No | Open | No | No |
-| R06A isolated new UI/view-model | feature/ai-next-r06-standalone-conversation-ui (pending CI) | Pending scoped UI tests | No | No | Open | No | No |
-| R07 coordinator/storage/integration | Not started | No | No | No | Open | No | No |
+| R06A isolated new UI/view-model | Merged #1196, 23aa0dcf | 11/11 view-model checks; TS/Web build isolation passed | No | No | Open | No | No |
+| R07A isolated Firestore CAS adapter | feature/ai-next-r07-event-cas-adapter (pending CI) | Offline transactional mock pending | No | No | Open | No | No |
 
 ## Evidence boundary
 
@@ -29,3 +29,7 @@ R05B reads existing catalog helper results without inference, exposing only serv
 ## R06A browser and authority boundary
 
 A standalone Arabic-first presentation component exists, with independent composer state, a capped message window, multiple file selection, status/coverage distinctions, draft line ID edits, undo/redo callbacks, memory controls, cancellation/retry and source-selection callbacks. It is deliberately not imported into the legacy app and its feature flag remains false. It cannot claim actual upload, save, authorized approval, persistent draft recovery, mobile Safari acceptance, or working provider integration without R07 authenticated endpoints and a browser/device test. No actual financial mutation methods are called by this component.
+
+## R07A not-yet-accepted data durability
+
+R07A provides an injected Firestore-compatible event CAS adapter capped to 300 events and 700,000 JSON bytes, with strict thread-scope key and compare-and-swap checks. It has not been run against live Firestore, backed up, shared across real devices, or authorized for production. Document-backed source objects, memory persistence, server membership authority, actual end-to-end coordinator and financial exactly-once mutation semantics remain blocked. See R07A_CAS_STORAGE_EVIDENCE_20261030.md.
