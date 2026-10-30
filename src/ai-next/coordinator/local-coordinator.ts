@@ -72,7 +72,7 @@ const envelope=(request:R07LocalTurnInput):R07RequestEnvelope=>({
   branchId:request.branchId,threadId:request.threadId,
   scopeType:request.scopeType,
 });
-function validateRequest(raw:unknown):asserts raw is R07LocalTurnInput{
+export function validateRequest(raw:unknown):asserts raw is R07LocalTurnInput{
   if(!strictKeys(raw,requestKeys))throw new R07LocalError('R07_INVALID_TURN_INPUT');
   const input=raw as R07LocalTurnInput;
   if(input.schemaVersion!==1||!safeId(input.requestId)||
@@ -81,19 +81,19 @@ function validateRequest(raw:unknown):asserts raw is R07LocalTurnInput{
     input.message.length>6000||!['advisor','controller'].includes(input.mode))
     throw new R07LocalError('R07_INVALID_TURN_INPUT');
 }
-function exactRequest(turn:ConversationTurn,input:R07LocalTurnInput):boolean{
+export function exactRequest(turn:ConversationTurn,input:R07LocalTurnInput):boolean{
   return turn.requestId===input.requestId&&
     turn.userMessageId===input.userMessageId&&
     turn.idempotencyKey===input.idempotencyKey&&turn.mode===input.mode&&
     turn.userMessage.text===input.message&&
     turn.userMessage.attachedSourceIds.length===0;
 }
-function serverTime(clock:()=>Date,minimum?:string|null):string{
+export function serverTime(clock:()=>Date,minimum?:string|null):string{
   const tick=clock().getTime();
   if(!Number.isFinite(tick))throw new R07LocalError('R07_SERVER_CLOCK_INVALID');
   return new Date(Math.max(tick,minimum?Date.parse(minimum):0)).toISOString();
 }
-function makeTurn(scope:AuthenticatedScope,input:R07LocalTurnInput,now:string):
+export function makeTurn(scope:AuthenticatedScope,input:R07LocalTurnInput,now:string):
   {turn:ConversationTurn;task:TaskState}{
   const turnId=crypto.randomUUID(),taskId=crypto.randomUUID();
   const local=recognizeR05LocalIntent(input.message,0);
