@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 test('source-summary handler uses private visual task and a deadline inside the browser timeout',async()=>{
  const key='__sourceQa'+crypto.randomUUID().replaceAll('-','');let captured;
  const facts={summary:'Synthetic correction',facts:['QA-A quantity 10'],missing:['QA-B price'],warnings:[]};
- globalThis[key]={requireAiFirebaseAuth:async()=>true,routeAiStructured:async options=>{captured=options;return{success:true,data:facts};},aiRouterPublicError:()=>({status:503}),cleanVisionPageAttachments:()=>null,planWorkingDraft:()=>null};
+ globalThis[key]={requireAiFirebaseAuth:async()=>true,routeAiStructured:async options=>{captured=options;return{success:true,data:facts};},aiRouterPublicError:()=>({status:503}),cleanVisionPageAttachments:()=>null,planWorkingDraft:()=>null,intakeDiagnostics:()=>({onDiagnostic:undefined,failure:()=>({})})};
  const source=(await readFile('api/ai-inbox.js','utf8')).replace(/import \{([^}]+)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.${key};`);
  const {default:handler}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
  try{
