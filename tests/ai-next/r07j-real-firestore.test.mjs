@@ -52,7 +52,14 @@ test('real Firestore transactions preserve 35 events and constant indexed receip
     assert.equal(item.revision,i+1);
     assert.equal(item.authoritativeFullSnapshot,false);
   }
+  const operational=await a.readOperationalState(scope);
+  assert.equal(operational.view.revision,35);
+  assert.equal(operational.view.assistantReply.messageId,'r07j-msg-34');
+  assert.equal(operational.view.task.state,'created');
+  assert.equal(operational.completeHistory,false);
+  assert.equal(operational.authoritativeForFinancialExecution,false);
   const audit=await b.auditFullHistory(scope);
+  assert.equal(operational.view.lastHash,audit.lastHash);
   assert.equal(audit.revision,35);
   assert.equal(audit.messages.length,34);
   assert.equal(audit.messages.at(-1).messageId,'r07j-msg-34');
@@ -74,7 +81,11 @@ test('real Firestore transaction CAS admits one competing client',async()=>{
   ]);
   assert.equal([x,y].filter(r=>r.status==='fulfilled').length,1);
   assert.equal([x,y].filter(r=>r.status==='rejected').length,1);
-  assert.equal((await a.auditFullHistory(scope)).revision,36);
+  const view=await b.readOperationalState(scope);
+  assert.equal(view.view.revision,36);
+  const full=await a.auditFullHistory(scope);
+  assert.equal(view.view.lastHash,full.lastHash);
+  assert.equal(full.revision,36);
 });
 test('real Firestore scope isolation and checksum audit failure',async()=>{
   assert.equal((await b.auditFullHistory({...scope,authorizationVersion:2})).revision,0);
@@ -86,4 +97,8 @@ test('real Firestore scope isolation and checksum audit failure',async()=>{
   const changed=target.data();changed.body.text='corrupted message';
   await target.ref.set(changed);
   await assert.rejects(b.auditFullHistory(scope),/AI_NEXT_DAMAGED_EVENT_HASH/);
+  // A fast operational view does NOT certify the integrity of distant events.
+  const fast=await a.readOperationalState(scope);
+  assert.equal(fast.completeHistory,false);
+  assert.equal(fast.view.revision,36);
 });

@@ -188,3 +188,147 @@ test('R07J replay rejects missing indexed authoritative original event',async()=
   db.docs.delete(key);
   await assert.rejects(a.append(message(1)),/R07J_RECEIPT_EVENT_DIVERGENCE/);
 });
+
+
+test('R07L latest-turn state reads bounded head+materialization independent of history',async()=>{
+  const db=new SharedDB(),a=journal(db);
+  const empty=await a.readOperationalState(scope);
+  assert.equal(empty.view.revision,0);
+  assert.equal(empty.view.turn,null);
+  assert.equal(empty.completeHistory,false);
+  assert.equal(empty.authoritativeForFinancialExecution,false);
+  await a.append(begin());
+  let beforeReads=db.reads;
+  let model=await a.readOperationalState(scope);
+  assert.equal(db.reads-beforeReads,2);
+  assert.equal(model.view.revision,1);
+  assert.equal(model.view.turn.turnId,'turn-one');
+  assert.equal(model.view.task.state,'created');
+  assert.equal(model.view.userMessageSeen,false);
+  for(let r=1;r<=320;r++)await a.append(message(r));
+  beforeReads=db.reads;
+  model=await a.readOperationalState(scope);
+  assert.equal(db.reads-beforeReads,2);
+  assert.equal(model.view.revision,321);
+  assert.equal(model.view.assistantReply.messageId,'m-320');
+  assert.equal(model.view.assistantReply.text,'Synthetic message 320');
+  assert.equal(model.view.task.taskId,'task-one');
+  const audit=await a.auditFullHistory(scope);
+  assert.equal(model.view.revision,audit.revision);
+  assert.equal(model.view.lastHash,audit.lastHash);
+  assert.equal(model.view.task.state,audit.tasks.at(-1).state);
+  assert.equal(model.completeHistory,false);
+});
+
+test('R07L mirrors authorized task transitions, user-message flag and latest reply',async()=>{
+  const db=new SharedDB(),a=journal(db),start=begin();
+  await a.append(start);
+  await a.append(message(1,{eventId:'u1',idempotencyKey:'u1',
+    body:{kind:'message',messageId:'u-one',turnId:'turn-one',
+      role:'user',text:'مرحبا',sourceIds:[]}}));
+  let view=(await a.readOperationalState(scope)).view;
+  assert.equal(view.userMessageSeen,true);
+  assert.equal(view.assistantReply,null);
+  const task=transitionTask(start.body.task,'understanding',{
+    expectedStateVersion:0,now:stamp,
+  });
+  await a.append({scope,expectedRevision:2,eventId:'updated',
+    idempotencyKey:'updated',body:{kind:'task_updated',task},now:stamp});
+  view=(await a.readOperationalState(scope)).view;
+  assert.equal(view.task.state,'understanding');
+  assert.equal(view.task.stateVersion,1);
+  const snapshot=await a.auditFullHistory(scope);
+  assert.deepEqual(view.task,snapshot.tasks[0]);
+  assert.equal(view.lastHash,snapshot.lastHash);
+});
+
+test('R07L missing or altered materialization fails closed without silent fallback',async()=>{
+  const db=new SharedDB(),a=journal(db);
+  await a.append(begin());
+  const key=[...db.docs.keys()].find(k=>k.endsWith(':operational'));
+  assert.ok(key);
+  const original=structuredClone(db.docs.get(key));
+  db.docs.delete(key);
+  await assert.rejects(a.readOperationalState(scope),/R07L_MISSING_MATERIALIZATION/);
+  await assert.rejects(a.append(message(1)),/R07L_MISSING_MATERIALIZATION/);
+  db.docs.set(key,original);
+  db.docs.set(key,{...original,task:{...original.task,state:'completed'}});
+  await assert.rejects(a.readOperationalState(scope),/R07L_STATE_HASH_MISMATCH/);
+  await assert.rejects(a.append(message(1)),/R07L_STATE_HASH_MISMATCH/);
+  db.docs.set(key,original);
+  assert.equal((await a.readOperationalState(scope)).view.task.state,'created');
+  assert.equal((await a.auditFullHistory(scope)).revision,1);
+});
+
+test('R07L corrupted anchor blocks reads and writes across instances',async()=>{
+  const db=new SharedDB();await journal(db).append(begin());
+  const key=[...db.docs.keys()].find(k=>k.endsWith(':operational'));
+  const original=structuredClone(db.docs.get(key));
+  db.docs.set(key,{...original,revision:99});
+  await assert.rejects(journal(db).readOperationalState(scope),/R07L_INVALID_STATE/);
+  await assert.rejects(journal(db).append(message(1)),/R07L_INVALID_STATE/);
+  db.docs.set(key,original);
+  const a=await journal(db).readOperationalState(scope);
+  const b=await journal(db).readOperationalState(scope);
+  assert.deepEqual(a.view,b.view);
+});
+
+
+test('R07L orphan materialization never turns into an empty full audit',async()=>{
+  const db=new SharedDB(),a=journal(db);
+  await a.append(begin());
+  const key=[...db.docs.keys()].find(k=>k.endsWith(':head'));
+  assert.ok(key);
+  db.docs.delete(key);
+  await assert.rejects(a.readOperationalState(scope),/R07L_ORPHAN_STATE/);
+  await assert.rejects(a.auditFullHistory(scope),/R07L_ORPHAN_STATE/);
+});
+
+test('R07L new terminal-to-created turn resets only current-turn materialization',async()=>{
+  const db=new SharedDB(),a=journal(db);
+  const started=begin();await a.append(started);
+  let task=started.body.task;
+  for(const state of ['understanding','processing','completed']){
+    const next=transitionTask(task,state,{expectedStateVersion:task.stateVersion,
+      now:stamp});
+    const version=(await a.readOperationalState(scope)).view.revision;
+    await a.append({scope,expectedRevision:version,eventId:'transition-'+state,
+      idempotencyKey:'transition-'+state,
+      body:{kind:'task_updated',task:next},now:stamp});
+    task=next;
+  }
+  await a.append(message(4));
+  const draft=begin();
+  draft.eventId='second-turn';
+  draft.idempotencyKey='second-turn';
+  draft.expectedRevision=5;
+  draft.body.turn.turnId='second';
+  draft.body.turn.taskId='second-task';
+  draft.body.turn.sequenceNumber=2;
+  draft.body.turn.parentTurnId='turn-one';
+  draft.body.turn.idempotencyKey='second-request';
+  draft.body.turn.requestId='second-request';
+  draft.body.turn.userMessageId='second-user';
+  draft.body.task.taskId='second-task';
+  draft.body.task.turnId='second';
+  await a.append(draft);
+  const view=(await a.readOperationalState(scope)).view;
+  assert.equal(view.revision,6);
+  assert.equal(view.turn.turnId,'second');
+  assert.equal(view.task.state,'created');
+  assert.equal(view.userMessageSeen,false);
+  assert.equal(view.assistantReply,null);
+  // Older turn messages remain immutable history without changing new turn's
+  // user/assistant presentation state.
+  await a.append({scope,expectedRevision:6,eventId:'late-old-turn',
+    idempotencyKey:'late-old-turn',body:{kind:'message',
+      messageId:'late-old',turnId:'turn-one',role:'assistant',
+      text:'old turn late message',sourceIds:[]},now:stamp});
+  const latest=(await a.readOperationalState(scope)).view;
+  assert.equal(latest.revision,7);
+  assert.equal(latest.assistantReply,null);
+  const full=await a.auditFullHistory(scope);
+  assert.equal(full.revision,7);
+  assert.equal(full.turns.length,2);
+  assert.equal(full.messages.length,2);
+});
