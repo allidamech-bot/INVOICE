@@ -84,7 +84,6 @@ export function r07nCurrentToR06(scope:AuthenticatedScope,response:Awaited<
     (!v.turn&&(v.userMessageSeen||v.assistantReply||draft))||
     (v.assistantReply&&v.assistantReply.messageId!=='assistant-'+v.turn?.turnId)||
     (v.task?.state==='completed'&&(!v.userMessageSeen||!v.assistantReply))||
-    (!!v.task?.draftId!==!!draft)||
     (draft&&v.task?.draftId!==draft.draftId))
     throw new R07NPreviewError('R07N_INCONSISTENT_CURRENT');
   const view=emptyView(scope);
@@ -212,7 +211,9 @@ export class R07NPreviewSession{
         v.turn?.userMessageId!==request.userMessageId||
         v.turn?.userMessage.text!==request.message||
         v.turn?.mode!==request.mode||
-        v.task.state!=='completed'||v.revision<response.conversationRevision||
+        v.task.state!=='completed'||
+        (!!v.task.draftId!==!!response.draft)||
+        v.revision<response.conversationRevision||
         v.assistantReply?.text!==response.reply)
         throw new R07NPreviewError('R07N_UNVERIFIED_TURN_COMPLETION');
       const safe=r07nCurrentToR06(this.scope,current,response.draft);
