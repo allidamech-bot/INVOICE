@@ -19,7 +19,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R07C actual PDF/XLSX/XLS adapter browser fixtures | Merged #1201, d6e2871e | 26/26 R02 regression + real binary Chromium/WebKit PASS | Representative WebKit passed (not iPhone) | No | Open | No | No |
 | R07D inactive Firestore review-draft CAS | Merged #1203, b6a96e8a | 84/84 scoped synthetic tests; Vercel isolation passed | No | No live backend | Open | No | No |
 
-| R07E private original source-byte adapter | PR pending | Cloud object mock regression pending | No | No live bucket | Open | No | No |
+| R07E private original source-byte adapter | Merged #1204, 4ec65003 | 40/40 R02 cloud-object synthetic tests; Vercel isolation passed | No | No live bucket | Open | No | No |
+| R07F explicit-consent memory CAS | PR pending | R03 memory regression pending | No | No live backend | Open | No | No |
 
 ## Evidence boundary
 
@@ -83,3 +84,7 @@ R07D introduces an inactive Firestore Admin-compatible, transaction-backed repos
 ## R07E private source bytes
 
 R07E adds an inactive backend-compatible Google Cloud Storage object adapter to preserve original R02 uploaded bytes under a scope-bound hashed name. Its create-only generation preconditions prevent replacement on retry and read verifies full downloaded checksum. No live bucket, credentials, IAM, privacy policy or customer-data upload is authorized. See R07E_PRIVATE_SOURCE_OBJECTS_EVIDENCE_20261030.md.
+
+## R07F explicit-consent memory
+
+An inactive server-only Firestore-compatible memory backend reuses R03's explicit-consent APIs, scoped cross-thread access, expiration and revocation tombstones. Its strict CAS prevents reordering, rewriting approved memory and resurrecting revoked records; no live storage, rules, security policy or retention deletion procedure is approved. See R07F_CONSENTED_MEMORY_EVIDENCE_20261030.md.
