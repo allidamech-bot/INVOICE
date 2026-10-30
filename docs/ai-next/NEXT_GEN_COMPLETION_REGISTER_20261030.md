@@ -24,7 +24,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07H actual Firestore Emulator transaction verification | Merged #1208, 71896d2b | 4/4 official Firestore Emulator + Firebase Admin acceptance PASS | No | Local emulator only, no live service | Open | No | No |
 | R07I recent non-authoritative window + emulator restart recovery | Merged #1210, d8bf5f1d | 49/49 R03/R07G/R07I synthetic + 2 separate emulator phases PASS; Vercel isolation PASS | No | Local emulator export/import only | Open | No | No |
 | R07J indexed O(1)-read event append | Merged #1212, 36d9a815 | 48/48 R03/R07G/R07J synthetic; 3/3 official Firestore Emulator; TypeScript/isolation PASS | No | Emulator only, no live store | Open | No | No |
-| R07K local Controller/Advisor indexed compatibility | PR pending | Synthetic and Firestore Emulator pending | No | Emulator only | Open | No | No |
+| R07K local Controller/Advisor indexed compatibility | Merged #1214, 5494df9f | 33/33 coordinator/R07J/bridge synthetic + 2/2 local Firestore Emulator; TS and isolation PASS | No | Local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -139,3 +139,9 @@ Standalone disabled indexed journal returns a narrow receipt instead of R03's fu
 ## R07K compatibility bridge pending
 
 R07K binds the existing R07B2 local coordinator to the R07J indexed journal through a full-history-auditing compatibility bridge; preserves R03 semantics at a significant full-replay performance cost. It is not a live route or a production speed claim. Unsaved quotation storage stays isolated. See R07K_INDEXED_COORDINATOR_COMPAT_EVIDENCE_20261031.md.
+
+## R07K indexed coordinator compatibility verification — October 31, 2026
+
+- **PR #1214** merged at 5494df9fd93f1dfa608db6f4a9cf458799557727. The SHA-bound GitHub Actions jobs offline-coordinator, indexed-coordinator and Vercel trace all passed.
+- Synthetic 33/33 checks and 2/2 official local Firestore Emulator checks prove deterministic greeting, unissued/unsaved review-only quotation, R07J CAS, independent app client replay, domain event reconstruction and membership revocation safeguards. No financial document was saved and no provider was called.
+- **The compatibility bridge still replays and verifies the entire indexed history on each turn step.** This is deliberately NOT evidence of fast operational coordinator history, actual cloud account/IAM security or real mobile UI readiness. Activation flags remain OFF and no production deployment is approved. Next engineering gate: R07L trusted materialized operational read model with bounded reads and integrity/recovery acceptance, then real secured deployment gating.
