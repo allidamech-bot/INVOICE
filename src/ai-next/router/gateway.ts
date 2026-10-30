@@ -9,7 +9,8 @@ import {
 } from './eligibility.js';
 
 export type R05FailureKind='timeout'|'cancelled'|'rate_limit'|'network'|
-  'upstream'|'invalid_result'|'unsupported'|'unavailable';
+  'upstream'|'invalid_result'|'unsupported'|'unavailable'|
+  'authentication'|'quota_exhausted'|'privacy_denied';
 export class R05ProviderFailure extends Error {
   constructor(
     readonly kind:R05FailureKind,
@@ -32,7 +33,8 @@ export type R05Outcome<T> =
   | {ok:true;data:T;providerId:string;modelId:string;attempts:number;fallbackUsed:boolean;
       observations:R05Diagnostic[]}
   | {ok:false;code:'R05_NO_ELIGIBLE_MODELS'|'R05_CANCELLED'|'R05_DEADLINE'|
-      'R05_PROVIDER_UNAVAILABLE'|'R05_INVALID_RESULT';
+      'R05_PROVIDER_UNAVAILABLE'|'R05_INVALID_RESULT'|'R05_AUTHENTICATION'|
+      'R05_QUOTA_EXHAUSTED'|'R05_PRIVACY_DENIED';
       attempts:number;observations:R05Diagnostic[]};
 
 type Sample={time:number;valid:boolean;latencyMs:number};
@@ -84,10 +86,17 @@ export class R05HealthBook {
     if(s.samples.length>20)s.samples.shift();
     if(valid)s.openUntil=0;
     else if(s.failures>=2||s.openUntil>0)s.openUntil=now+CIRCUIT_MS;
-    if(error?.kind==='rate_limit'){
-      const duration=Math.max(30_000,Math.min(86_400_000,error.retryAfterMs??60_000));
-      const map=error.quotaScope==='provider'?this.providerQuota:this.modelQuota;
-      const quotaKey=error.quotaScope==='provider'?model.providerId:k;
+    if(error?.kind==='rate_limit'||error?.kind==='quota_exhausted'||
+      error?.kind==='authentication'||error?.kind==='privacy_denied'){
+      const duration=Math.max(30_000,Math.min(86_400_000,
+        error.kind==='authentication'?300_000:
+        error.kind==='quota_exhausted'?900_000:
+        error.kind==='privacy_denied'?300_000:error.retryAfterMs??60_000));
+      const providerWide=error.kind==='authentication'||
+        error.kind==='quota_exhausted'||error.kind==='privacy_denied'||
+        error.quotaScope==='provider';
+      const map=providerWide?this.providerQuota:this.modelQuota;
+      const quotaKey=providerWide?model.providerId:k;
       map.set(quotaKey,now+duration);
     }
     this.states.delete(k);this.states.set(k,s);this.prune();
@@ -139,7 +148,7 @@ export async function routeR05<T>(input:{
   const observations:R05Diagnostic[]=[];
   if(!candidates.length)
     return {ok:false,code:'R05_NO_ELIGIBLE_MODELS',attempts:0,observations};
-  let invalid=false,attempts=0;
+  let invalid=false,authentication=false,quotaExhausted=false,attempts=0;
   for(const item of candidates){
     if(attempts>=MAX_ATTEMPTS)break;
     if(input.signal?.aborted)
@@ -182,6 +191,10 @@ export async function routeR05<T>(input:{
       observations.push({providerId:item.record.providerId,modelId:item.record.modelId,
         category:failure.kind,latencyMs:now()-started});
       if(failure.kind==='invalid_result')invalid=true;
+      if(failure.kind==='authentication')authentication=true;
+      if(failure.kind==='quota_exhausted')quotaExhausted=true;
+      if(failure.kind==='privacy_denied')
+        return {ok:false,code:'R05_PRIVACY_DENIED',attempts,observations};
       if(failure.kind==='cancelled'||input.signal?.aborted)
         return {ok:false,code:'R05_CANCELLED',attempts,observations};
     }finally{
@@ -191,5 +204,7 @@ export async function routeR05<T>(input:{
     }
   }
   return {ok:false,code:deadline-(now()-start)<1000?'R05_DEADLINE':
-    invalid?'R05_INVALID_RESULT':'R05_PROVIDER_UNAVAILABLE',attempts,observations};
+    invalid?'R05_INVALID_RESULT':authentication?'R05_AUTHENTICATION':
+    quotaExhausted?'R05_QUOTA_EXHAUSTED':'R05_PROVIDER_UNAVAILABLE',
+    attempts,observations};
 }
