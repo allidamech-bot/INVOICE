@@ -1,6 +1,6 @@
 import {cleanVisionPageAttachments} from './_ai/source-page-images.js';
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
-import {includesExplicitSourceCodes,explicitQuoteSource} from './_ai/source-lines.js';
+import {includesExplicitSourceCodes,explicitQuoteSource,validateExplicitQuoteTextEvidence} from './_ai/source-lines.js';
 import {normalizeSourceNumber,explicitSourceDecimal} from './_ai/numbers.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
@@ -52,7 +52,7 @@ export default async function handler(request,response){
   const attachments=kind==='file'?[{kind:mimeType==='application/pdf'?'native-document':'image',mimeType,data,fileName}]:kind==='pages'?pageAttachments:[];
   // The conversation source reader waits 45s. Finish the full provider chain
   // inside that window rather than leaving an orphan request after UI timeout.
-  const result=await routeAiStructured({taskType:'quote_extract',prompt,attachments,schema,qualityFallback:true,timeoutMs:22_000,totalBudgetMs:40_000,validate:value=>{const draft=cleanResult(value);if(!draft)return false;return includesExplicitSourceCodes(text,draft.items);}});
+  const result=await routeAiStructured({taskType:'quote_extract',prompt,attachments,schema,qualityFallback:true,timeoutMs:22_000,totalBudgetMs:40_000,validate:value=>{const draft=cleanResult(value);if(!draft)return false;return includesExplicitSourceCodes(text,draft.items)&&validateExplicitQuoteTextEvidence(text,draft.items,draft.currency);}});
   if(!result.success){
     if(result.errorCode==='AI_INVALID_RESULT'){sendJson(response,422,{code:'NO_QUOTE_DATA',message:'The quotation extraction is incomplete or uncertain. Review the source, split large files, and retry; no document was saved.'});return;}
     const publicError=aiRouterPublicError(result);sendJson(response,publicError.status,{code:publicError.code,message:'LOUREX could not analyze this quotation source.'});return;
