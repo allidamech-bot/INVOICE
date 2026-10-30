@@ -203,9 +203,11 @@ test('ten attachments stay source-isolated with independent hashes, no substitut
   const runs=await ingestBatch({files,scope:scope(),adapterFor:()=>new TextSourceAdapter(),
     repository:new SyntheticSourceRepository(),runId:'batch',now});
   assert.equal(runs.length,10);
-  assert.equal(new Set(runs.map(x=>x.sourceSha256)).size,10);
-  assert.equal(new Set(runs.flatMap(x=>x.evidence.map(e=>e.documentId))).size,10);
-  assert.ok(runs.every(run=>run.coverage.status==='complete'&&!run.financialDraftEligible));
+  assert.equal(new Set(runs.map(x=>x.documentId)).size,10);
+  assert.ok(runs.every(x=>x.status==='complete' && x.errorCode===null && x.result));
+  assert.equal(new Set(runs.map(x=>x.result.sourceSha256)).size,10);
+  assert.equal(new Set(runs.flatMap(x=>x.result.evidence.map(e=>e.documentId))).size,10);
+  assert.ok(runs.every(x=>x.result.coverage.status==='complete'&&!x.result.financialDraftEligible));
   assert.throws(()=>verifyAttachmentBatch([...files,source('eleven','text','X')]),/INVALID_ATTACHMENT_COUNT/);
   assert.throws(()=>verifyAttachmentBatch([files[0],files[0]]),/DUPLICATE_DOCUMENT_ID/);
 });
@@ -277,4 +279,50 @@ test('image OCR is explicitly blocked unless injected; no hidden provider call',
   assert.equal(review.coverage.status,'needs_review');
   assert.equal(review.evidence.length,1);
   assert.equal(review.financialDraftEligible,false);
+});
+
+test('one corrupt input in ten files cannot silently erase other nine file results',async()=>{
+  const files=Array.from({length:10},(_,i)=>source('batch'+i,
+    i===4?'image':'text',i===4?'corrupt-image-data':'Valid source '+i));
+  const results=await ingestBatch({files,scope:scope(),
+    adapterFor:format=>format==='image'?new ImageSourceAdapter():new TextSourceAdapter(),
+    repository:new SyntheticSourceRepository(),runId:'ten',now});
+  assert.equal(results.length,10);
+  assert.equal(results.filter(x=>x.status==='complete').length,9);
+  assert.equal(results[4].status,'blocked');
+  assert.equal(results[4].errorCode,'INVALID_IMAGE_SIGNATURE');
+  assert.deepEqual(results.map(x=>x.documentId),files.map(x=>x.documentId));
+});
+test('OCR service outage is classified per-page, with recovery not a fabricated complete result',async()=>{
+  const f=fakePdf(3,{scanned:[2]});
+  const run=await ingestDocument(input(pdfFile('provider-down'),new PdfSourceAdapter(
+    f.runtime,async()=>{throw new Error('PROVIDER_OUTAGE');}
+  )));
+  assert.equal(run.coverage.status,'partial');
+  assert.deepEqual(run.coverage.unprocessedSegments,['page:2']);
+  assert.ok(run.coverage.blockers[0].includes('PROVIDER_OUTAGE'));
+  assert.equal(run.financialDraftEligible,false);
+});
+test('plain-text chunks expose ordered segment IDs, not invented PDF page numbers',async()=>{
+  const text='text '.repeat(7000);
+  const run=await ingestDocument(input(source('segment-only','text',text),new TextSourceAdapter()));
+  assert.equal(run.coverage.expectedPageCount,null);
+  assert.equal(run.coverage.observedPageCount,null);
+  assert.ok(run.coverage.perSegment.length>1);
+  assert.ok(run.evidence.every(x=>x.locator.pageNumber===null));
+  assert.deepEqual(run.evidence.map(x=>x.locator.segmentIndex),
+    Array.from({length:run.evidence.length},(_,i)=>i));
+  assert.equal(run.evidence.map(x=>x.rawValue).join(''),text);
+});
+test('a modifying injected parser cannot masquerade changed file as hashed original',async()=>{
+  const s=source('malicious','text','original genuine content');
+  const adapter={
+    format:'text',
+    async discover(){return {sourceFormat:'text',parts:[{segmentId:'chunk:1',
+      pageNumber:null,sheetName:null,rowNumber:null,tableId:null}],
+      expectedPageCount:null,expectedSheets:[],expectedTableRows:[]};},
+    async read(file){file.bytes.fill(32);return {text:'fake',extractionMethod:'selectable_text'};}
+  };
+  await assert.rejects(ingestDocument(input(s,adapter)),/SOURCE_MUTATED_DURING_EXTRACTION/);
+  assert.equal(new TextDecoder().decode(s.bytes),'original genuine content');
 });
