@@ -114,7 +114,8 @@ export function sourceScopeKey(s: AuthenticatedScope): string {
   return scopeKey(s);
 }
 export async function sha256(bytes: Uint8Array): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', asBytes(bytes));
+  const owned = asBytes(bytes);
+  const hash = await crypto.subtle.digest('SHA-256', owned);
   return Array.from(new Uint8Array(hash), c => c.toString(16).padStart(2,'0')).join('');
 }
 export class SyntheticSourceRepository implements SourceObjectRepository {
@@ -203,6 +204,7 @@ function evidenceFor(
       samples.push({field:'source_text',raw:result.text.slice(i,i+R02_LIMITS.evidenceTextChunk),col:null,index:i/R02_LIMITS.evidenceTextChunk});
     if (!result.text.length) samples.push({field:'source_text',raw:'',col:null,index:0});
   }
+  if (result.cells && result.cells.length === 0) samples.push({field:'empty_row',raw:'',col:null,index:0});
   if (result.cells) for (const c of result.cells) {
     if (c.rawValue.length > R02_LIMITS.maxCellChars) throw new DocumentProcessingError('CELL_TOO_LARGE');
     samples.push({field:'cell_text',raw:c.rawValue,col:c.columnNumber,index:0});
@@ -246,7 +248,8 @@ function checkResult(result: SegmentRead): void {
 }
 const segmentIdentity = (s: SegmentDescriptor): string => JSON.stringify(s);
 export async function ingestDocument(input: ProcessingInput): Promise<DocumentRun> {
-  const {source,scope,adapter,repository,runId,now,signal} = input;
+  const {scope,adapter,repository,runId,now,signal} = input;
+  const source:SourceFile = {...input.source,bytes:asBytes(input.source.bytes)};
   verifyAttachmentBatch([source]);
   if (!runId || runId.length > 120 || !Number.isFinite(Date.parse(now)) ||
     !now.endsWith('Z') || adapter.format !== source.format)
