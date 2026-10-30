@@ -1,0 +1,71 @@
+name: LOUREX AI Next R07I Recovery and Recent History
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/storage/firestore-sharded-events.ts'
+      - 'tests/ai-next/r07g-sharded-events.test.mjs'
+      - 'tests/ai-next/r07i-emulator-restart.test.mjs'
+      - '.github/workflows/ai-next-r07i-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07i-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-emulator-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GCLOUD_PROJECT: demo-ai-next-r07h
+      GOOGLE_CLOUD_PROJECT: demo-ai-next-r07h
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - name: Strict compile and isolated R03/R07G/R07I tests
+        run: |
+          npm run typecheck
+          ./node_modules/.bin/tsc -p tsconfig.json
+          node --test tests/ai-next/r03-conversation-state.test.mjs tests/ai-next/r07-firestore-cas.test.mjs tests/ai-next/r07g-sharded-events.test.mjs
+      - name: Start emulator A and EXPORT synthetic history
+        env:
+          R07I_PHASE: seed
+        run: >-
+          npx --yes --package firebase-tools@14.16.0 firebase
+          emulators:exec
+          --only firestore
+          --project demo-ai-next-r07h
+          --config tests/ai-next/r07h-firebase-emulator.json
+          --export-on-exit=/tmp/r07i-export
+          --non-interactive
+          "node --test tests/ai-next/r07i-emulator-restart.test.mjs"
+      - name: Ensure exported emulator state is present
+        run: test -f /tmp/r07i-export/firebase-export-metadata.json
+      - name: Start fresh emulator B and IMPORT previously exported history
+        env:
+          R07I_PHASE: verify
+        run: >-
+          npx --yes --package firebase-tools@14.16.0 firebase
+          emulators:exec
+          --only firestore
+          --project demo-ai-next-r07h
+          --config tests/ai-next/r07h-firebase-emulator.json
+          --import=/tmp/r07i-export
+          --non-interactive
+          "node --test tests/ai-next/r07i-emulator-restart.test.mjs"
