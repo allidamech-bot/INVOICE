@@ -126,6 +126,20 @@ export class SyntheticDraftEditor {
       throw new R04ReviewError('INVALID_DRAFT_INITIAL_STATE');
     return new SyntheticDraftEditor(initial);
   }
+  /**
+   * R07R: reopen a verified UNSAVED review revision for one scoped CAS edit.
+   * Unlike create(), this admits a later revision. Undo/redo stacks are
+   * intentionally NOT reconstructed from edit-event summaries: doing so
+   * without prior immutable snapshots could invent history.
+   */
+  static async resume(initial:ReviewDraft):Promise<SyntheticDraftEditor>{
+    assertCoreContract('ReviewDraft',initial);
+    if(initial.kind!=='quotation'||initial.status!=='needs_review'||
+      initial.approvalReceiptId!==null||
+      initial.immutableRevisionHash!==await reviewHash(hashable(initial)))
+      throw new R04ReviewError('INVALID_RESUMED_DRAFT');
+    return new SyntheticDraftEditor(initial);
+  }
   view():ReviewDraft{return copy(this.current);}
   private async revise(previous:ReviewDraft,changed:ReviewDraft,kind:string,
       lineId:string|null,now:string):Promise<ReviewDraft>{
