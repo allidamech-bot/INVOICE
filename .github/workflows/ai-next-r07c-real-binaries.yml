@@ -1,0 +1,47 @@
+name: LOUREX AI Next R07C Real Binary Documents
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/visual/ai-next-r07-real-binaries.html'
+      - 'tests/visual/run-ai-next-r07-real-documents.cjs'
+      - '.github/workflows/ai-next-r07c-real-binaries.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07c-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-binary-adapters:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck and compile isolated document adapters
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Existing synthetic R02 safety regression
+        run: node --test tests/ai-next/r02-documents.test.mjs
+      - name: Install browser driver only (existing container provides browsers)
+        run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - name: Real binary document parsing in Chromium and WebKit
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-r07c-static.log 2>&1 &
+          qa_pid=$!
+          trap 'kill "$qa_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ok=false;for(let i=0;i<60;i++){try{const r=await fetch("http://127.0.0.1:4173/tests/visual/ai-next-r07-real-binaries.html");if(r.ok){ok=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ok)throw Error("R07C static fixture unavailable");'
+          node tests/visual/run-ai-next-r07-real-documents.cjs
