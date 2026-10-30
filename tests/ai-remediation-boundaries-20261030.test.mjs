@@ -53,3 +53,11 @@ test('gateway quota and upstream provider quota use different error codes and bi
  assert.match(source,/لم يتم الاتصال بمزوّد AI/);
  assert.match(source,/if\(code==='AI_RATE_LIMITED'\|\|status===429\)/);
 });
+
+test('native document eligibility and free-only failures have specific bilingual error guidance',()=>{
+ const client=readFileSync('src/lib/ai-request.ts','utf8');
+ for(const code of ['AI_PRIVATE_DOCUMENT_UNAVAILABLE','AI_UNSUPPORTED_MODALITY','AI_FREE_ONLY_REQUIRED'])
+   assert.match(client,new RegExp("if\\(code==='"+code+"'\\)"));
+ assert.match(client,/لا يوجد حاليًا موديل مجاني معتمد ومؤهل لقراءة ملف PDF الأصلي/);
+ assert.match(client,/لم يُرسل الملف إلى مزوّد غير معتمد/);
+});
