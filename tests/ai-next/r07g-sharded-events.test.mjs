@@ -299,3 +299,26 @@ test('R07I read-only tail fails closed on tampered included chunk',async()=>{
     backend(db).readRecentWindow(exactScopeKey(scope),4),
     /R07G_CHUNK_HASH_MISMATCH/);
 });
+
+
+test('R07I canonical hashes survive Firestore export/import nested map key reorder',async()=>{
+  const db=new SerialFirestoreMock(),a=ledger(db);
+  await a.append(start());
+  for(let r=1;r<=104;r++)await a.append(message(r));
+  const before=await a.snapshot(scope);
+  function reorder(value){
+    if(Array.isArray(value))return value.map(reorder);
+    if(value!==null&&typeof value==='object')
+      return Object.fromEntries(Object.entries(value).reverse()
+        .map(([key,data])=>[key,reorder(data)]));
+    return value;
+  }
+  for(const [id,doc] of db.data)
+    db.data.set(id,reorder(doc));
+  const full=await ledger(db).snapshot(scope);
+  const tail=await backend(db).readRecentWindow(exactScopeKey(scope),8);
+  assert.equal(full.revision,105);
+  assert.equal(full.lastHash,before.lastHash);
+  assert.equal(tail.events.length,8);
+  assert.equal(tail.lastHash,before.lastHash);
+});
