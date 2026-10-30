@@ -7,8 +7,12 @@ import {intakeDiagnostics} from './_ai/intake-diagnostics.js';
 
 const MAX_BODY_BYTES=4_000_000;
 const RATE_WINDOW_MS=5*60*1000;
-const RATE_MAX=10;
+// Ten attachments may need ten independent quotations plus a handful of
+// bounded retries. Do not double-count retries as provider quota failures.
+const RATE_MAX=16;
+const RATE_BUCKET_CAP=2048;
 const rateBuckets=new Map();
+let rateLastSweep=0;
 
 function sendJson(response,status,payload){response.statusCode=status;response.setHeader('Content-Type','application/json; charset=utf-8');response.setHeader('Cache-Control','no-store');response.setHeader('X-Content-Type-Options','nosniff');response.setHeader('Referrer-Policy','no-referrer');response.end(JSON.stringify(payload));}
 function requestHosts(request){return [request.headers.host,request.headers['x-forwarded-host'],request.headers['x-original-host']].flatMap(value=>String(value||'').split(',')).map(value=>value.trim().toLowerCase()).filter(Boolean);}
@@ -17,7 +21,21 @@ const BUILTIN_PUBLIC_APP_HOSTS=['invoice-three-puce.vercel.app'];
 function publicAppHosts(){return [...BUILTIN_PUBLIC_APP_HOSTS,...String(process.env.LOUREX_PUBLIC_APP_HOSTS||'').split(',')].map(value=>String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'')).filter(Boolean);}
 function sameOriginRequest(request){const requestedWith=String(request.headers['x-requested-with']||'').trim();const fetchSite=String(request.headers['sec-fetch-site']||'').trim().toLowerCase();if(requestedWith!=='LOUREX-Invoice')return false;const origin=String(request.headers.origin||'').trim();if(!origin)return fetchSite==='same-origin';try{const parsed=new URL(origin);if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.pathname!=='/'||parsed.search||parsed.hash)return false;const trustedHosts=new Set([String(request.headers.host||'').trim().toLowerCase(),...deploymentHosts(),...publicAppHosts()]);return trustedHosts.has(parsed.host.toLowerCase());}catch{return false;}}
 function requestIp(request){if(request.aiVerifiedUid)return `uid:${request.aiVerifiedUid}`;return String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim()||String(request.socket?.remoteAddress||'unknown');}
-function rateAllowed(request){const now=Date.now(),key=requestIp(request),existing=rateBuckets.get(key);const bucket=!existing||now-existing.startedAt>=RATE_WINDOW_MS?{startedAt:now,count:0}:existing;bucket.count+=1;rateBuckets.set(key,bucket);if(rateBuckets.size>500){for(const [entryKey,value] of rateBuckets){if(now-value.startedAt>=RATE_WINDOW_MS)rateBuckets.delete(entryKey);}}return bucket.count<=RATE_MAX;}
+function rateAllowed(request){
+ const now=Date.now(),key=requestIp(request);
+ if(now-rateLastSweep>=60_000){
+   for(const [id,bucket] of rateBuckets)if(now-bucket.startedAt>=RATE_WINDOW_MS)rateBuckets.delete(id);
+   rateLastSweep=now;
+ }
+ let bucket=rateBuckets.get(key);
+ if(!bucket||now-bucket.startedAt>=RATE_WINDOW_MS){
+   if(!bucket&&rateBuckets.size>=RATE_BUCKET_CAP)return false;
+   bucket={startedAt:now,count:0};rateBuckets.set(key,bucket);
+ }
+ if(bucket.count>=RATE_MAX)return false;
+ bucket.count+=1;
+ return true;
+}
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 function cleanText(value,max=500){return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function cleanCurrency(value){const text=cleanText(value,8).toUpperCase();return /^[A-Z]{3}$/.test(text)?text:'';}
@@ -39,7 +57,7 @@ export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Quote source analysis must come from this LOUREX deployment.'});return;}
   if(!await requireAiFirebaseAuth(request,response))return;
-  if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'Quote Builder AI is temporarily rate limited.'});return;}
+  if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_QUOTE_RATE_LIMITED',message:'LOUREX quotation source request quota reached. The provider pool was not attempted.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid quote source request.'});return;}
   const kind=body?.kind==='text'?'text':body?.kind==='file'?'file':body?.kind==='pages'?'pages':'';const mimeType=cleanText(body?.mimeType,100);const fileName=cleanText(body?.fileName,180)||'Pasted text';const text=kind==='text'?String(body?.text||''):'';const data=kind==='file'?String(body?.data||''):'';
   const pageAttachments=cleanVisionPageAttachments(body);
