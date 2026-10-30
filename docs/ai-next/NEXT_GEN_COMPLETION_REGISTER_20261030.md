@@ -1,6 +1,6 @@
 # LOUREX AI Next — Continuous Completion Register
 
-As of 2026-10-30. This is a code/evidence register, not an authorization to activate live AI or finance writes.
+As of 2026-10-31. This is a code/evidence register, not an authorization to activate live AI or finance writes.
 
 | Work package | Implementation | Synthetic tests | Browser/WebKit | Trusted persistence | Security acceptance | Production authorization | Active in production |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -21,7 +21,7 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R07E private original source-byte adapter | Merged #1204, 4ec65003 | 40/40 R02 cloud-object synthetic tests; Vercel isolation passed | No | No live bucket | Open | No | No |
 | R07F explicit-consent memory CAS | Merged #1205, 1816f26b | 37/37 R03/consent regression; Vercel isolation passed | No | No live backend | Open | No | No |
 | R07G bounded sharded conversation event storage | Merged #1207, 7cda1f0d | 44/44 R03/R07A/R07G tests; 325 events; CI/isolation PASS | No | Mocked Firestore only | Open | No | No |
-| R07H actual Firestore Emulator transaction verification | PR pending | Real emulator acceptance pending | No | Local emulator, no live service | Open | No | No |
+| R07H actual Firestore Emulator transaction verification | Merged #1208, 71896d2b | 4/4 official Firestore Emulator + Firebase Admin acceptance PASS | No | Local emulator only, no live service | Open | No | No |
 
 ## Evidence boundary
 
@@ -105,3 +105,10 @@ R07G adds an inactive Firestore-compatible per-thread head plus contiguous event
 ## R07H real local Firestore Emulator gate
 
 R07H performs the R07G sharded CAS path against official Firebase Admin + Firestore Emulator with strictly local `demo-` project guard. Real Cloud Firestore IAM, deployed security rules, retention, backup/recovery, multi-process deployment and live latency remain untested. See R07H_FIRESTORE_EMULATOR_EVIDENCE_20261031.md.
+
+## R07G–R07H verified integration closure — October 31, 2026
+
+- **R07G PR #1207** merged at 7cda1f0dbcba580f40e47936de19af7cdb41dad4 after 44/44 targeted R03/R07A/R07G synthetic checks, strict TypeScript and Vercel trace isolation succeeded. Tested 325 event append/replay across four bounded shard documents.
+- **R07H PR #1208** merged at 71896d2b74bd4cc5a7563e76ece6b4a7a52339ff after 4/4 **official local Firestore Emulator** tests passed: 99 events across two Admin SDK clients, CAS conflict, isolated scope and corruption failure. The Firestore Emulator workflow passed with test project `demo-ai-next-r07h`, with no live access.
+
+**Not accepted for production.** R03 still projects and verifies full history for every append; no proven latency/cost budget for large histories, no actual cross-process/physical-device test, Firestore rules/IAM verification, live membership provisioning, approved retention/backup and recovery, real provider eligibility, released UI or full T22/T24 acceptance. All flags remain OFF. Finance track untouched.
