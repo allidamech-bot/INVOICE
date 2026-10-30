@@ -14,7 +14,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R06A isolated new UI/view-model | Merged #1196, 23aa0dcf | 11/11 view-model checks; TS/Web build isolation passed | No | No | Open | No | No |
 | R07A isolated Firestore CAS adapter | Merged #1197, 3f8bd285 | 118/118 scoped CAS regression; Vercel isolation passed | No | No | Open | No | No |
 | R07B1 principal and membership boundary | Merged #1198, c548a469 | 57/57 auth regression, Vercel isolation passed | No | No | Open | No | No |
-| R07B2 read-only local coordinator | PR pending | Synthetic end-to-end local tests pending | No | No | Open | No | No |
+| R07B2 read-only local coordinator | Merged #1199, 66ad16b0 | 133/133 synthetic local regression, Vercel isolation passed | No | No | Open | No | No |
+| R07B3 root server-only ACL reader | Pending CI | Mock Firestore root-ACL verification pending | No | No | Open | No | No |
 
 ## Evidence boundary
 
@@ -43,3 +44,7 @@ R07B1 extends existing signed Firebase identity verification into the R03 princi
 ## R07B2 safe local-turn coordinator
 
 R07B2 binds R07B1 authoritative scope construction to R03 event CAS and R05 deterministic local greetings and R04 unsaved draft creation. Only claims draft existence after injected server-only store confirms its exact revision hash. No API endpoint or production UI is connected; missing company membership and durable repositories remain deployment blockers. See R07B_LOCAL_COORDINATOR_EVIDENCE_20261030.md.
+
+## R07B3 root ACL service
+
+An inactive, read-only Firestore Admin-compatible membership adapter uses a new root collection outside the client-writable /users tree; its current production records, deployed rules and privileged IAM remain unverified. No client-side workspace directory is trusted to grant AI permissions, and no membership records are automatically provisioned. See R07B_ADMIN_ACL_SOURCE_EVIDENCE_20261030.md.
