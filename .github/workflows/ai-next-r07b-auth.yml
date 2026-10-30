@@ -1,0 +1,38 @@
+name: LOUREX AI Next R07B Authenticated Scope Boundary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/_ai-next/firebase-principal.js'
+      - 'src/ai-next/security/**'
+      - 'tests/ai-next/r07b-authority.test.mjs'
+      - '.github/workflows/ai-next-r07b-auth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07b-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-auth-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run typecheck
+      - name: Compile existing domain and security contracts
+        run: ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Verified JWT principal and ACL rejection suites
+        run: node --test tests/ai-next/r01-core.test.mjs tests/ai-next/r03-conversation-state.test.mjs tests/ai-next/r07b-authority.test.mjs
