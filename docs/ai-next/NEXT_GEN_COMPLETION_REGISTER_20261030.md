@@ -23,6 +23,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07G bounded sharded conversation event storage | Merged #1207, 7cda1f0d | 44/44 R03/R07A/R07G tests; 325 events; CI/isolation PASS | No | Mocked Firestore only | Open | No | No |
 | R07H actual Firestore Emulator transaction verification | Merged #1208, 71896d2b | 4/4 official Firestore Emulator + Firebase Admin acceptance PASS | No | Local emulator only, no live service | Open | No | No |
 | R07I recent non-authoritative window + emulator restart recovery | Merged #1210, d8bf5f1d | 49/49 R03/R07G/R07I synthetic + 2 separate emulator phases PASS; Vercel isolation PASS | No | Local emulator export/import only | Open | No | No |
+| R07J indexed O(1)-read event append | PR pending | 320-event mock + real Firestore Emulator acceptance pending | No | Local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -123,3 +124,7 @@ R07I introduces read-only presentation tail retrieval of at most 128 events with
 - **R07I PR #1210** merged at d8bf5f1d4291094e4dc1e5cbd1d573949363bad3. All five final-sha GitHub check jobs passed. The targeted full regression had 49/49 passing synthetic tests; real Firestore Emulator seed/export and restarted-import/verify phases passed 1/1 each.
 - Important discovered/fixed defect: R07G's original insertion-order JSON chunk checksum falsely reported corruption after Firestore export/import, because nested map ordering changed. Replaced with deterministic recursive canonical JSON checksum (inactive backend, no production migration). Full R03 event chain validation remained mandatory.
 - The 128-event recent window is strictly **non-authoritative display-only**; partial earlier history is not validated, and no mutation/approval/controller decision may use this view. Full R03 appends still re-read/replay the complete history and require R07J performance design and multi-process/service acceptance. Do not imply physical iPhone, live cloud IAM/rules, backup retention or production readiness.
+
+## R07J indexed event append candidate
+
+Standalone disabled indexed journal returns a narrow receipt instead of R03's full projection and avoids reading all previous events for every append. Persistent per-event and uniqueness index writes trade Firestore write volume for fewer reads. No API or coordinator integration, no migration, no live IAM/security/cost acceptance. Tests pending; see R07J_INDEXED_APPEND_EVIDENCE_20261031.md.
