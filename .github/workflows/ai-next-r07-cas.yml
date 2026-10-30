@@ -1,0 +1,37 @@
+name: LOUREX AI Next R07 Event CAS Feasibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/storage/**'
+      - 'tests/ai-next/r07-firestore-cas.test.mjs'
+      - '.github/workflows/ai-next-r07-cas.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sandbox-cas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript
+        run: npm run typecheck
+      - name: Compile isolated source
+        run: ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Event CAS tests and R01-R05 compatibility
+        run: node --test tests/ai-next/r01-core.test.mjs tests/ai-next/r03-conversation-state.test.mjs tests/ai-next/r04-guarded-finance.test.mjs tests/ai-next/r05-router.test.mjs tests/ai-next/r05-trusted-registry.test.mjs tests/ai-next/r07-firestore-cas.test.mjs
