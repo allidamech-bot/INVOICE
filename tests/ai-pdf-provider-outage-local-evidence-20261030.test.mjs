@@ -91,3 +91,16 @@ test('oversized original text never becomes a misleading truncated review or dra
     await assert.rejects(analyzeConversationAttachment(file(original),undefined,undefined,{mode:'controller'}),/SOURCE_INCOMPLETE/);
   });
 });
+
+test('inbox-local 429 preserves complete readable file source without inventing a draft',async()=>{
+ const localQuota=()=>({ok:false,status:429,json:async()=>({code:'AI_INBOX_RATE_LIMITED'})});
+ await withNetwork(()=>localQuota(),async calls=>{
+   const result=await analyzeConversationAttachment(file(),undefined,undefined,{mode:'controller'});
+   assert.equal(result.source.documentType,'original-text');
+   assert.equal(result.source.route,'unknown');
+   assert.equal(result.source.confidence,0);
+   assert.equal(result.source.extracted,'SKU CT-1 quantity 6 CTN, prices not supplied');
+   assert.equal(result.source.quoteSheetCandidate,undefined);
+   assert.equal(calls.length,1,'No additional model call after gateway throttling');
+ });
+});
