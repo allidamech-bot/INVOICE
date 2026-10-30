@@ -17,7 +17,6 @@ test('server registry defaults to zero authorized inference candidates',()=>{
   assert.ok(r.models.length>0);
   assert.ok(r.models.every(x=>!x.credentialsPresent||!x.accountFreeVerified||
     !x.modelZeroCostVerified||!x.privacyApproved||!x.quotaAvailable));
-  assert.ok(r.models.every(x=>!/mistral/i.test(x.modelId)));
 });
 test('requires explicit account, per-model zero price, quota and privacy evidence',()=>{
   const r=buildR05TrustedRegistry({env:groqEnv()});
@@ -70,15 +69,27 @@ test('dynamic Gemini metadata adds candidates without authorizing pricing',()=>{
   assert.ok(record(r,'gemini','gemini-2.5-pro'));
   assert.equal(record(r,'gemini','gemini-2.5-pro').modelZeroCostVerified,false);
 });
-test('disallowed Mistral excluded from Groq catalog injection',()=>{
-  const r=buildR05TrustedRegistry({
-    env:{},catalogResponses:{groq:{models:[
-      {model:'mistral-synthetic',capabilities:['TEXT']},
-      {model:'synthetic-allowed',capabilities:['TEXT']},
-    ]}},
-  });
-  assert.ok(record(r,'groq','synthetic-allowed'));
-  assert.equal(record(r,'groq','mistral-synthetic'),undefined);
+test('R07Q name alone neither bans nor authorizes a model',()=>{
+  const catalogResponses={groq:{models:[
+    {model:'mistral-synthetic',capabilities:['TEXT']},
+    {model:'synthetic-allowed',capabilities:['TEXT']},
+  ]}};
+  const unverified=buildR05TrustedRegistry({env:{},catalogResponses});
+  assert.ok(record(unverified,'groq','mistral-synthetic'));
+  assert.equal(record(unverified,'groq','mistral-synthetic').modelZeroCostVerified,false);
+  const env={...groqEnv(),
+    LOUREX_AI_GROQ_ZERO_COST_MODELS:'mistral-synthetic'};
+  const approved=buildR05TrustedRegistry({env,catalogResponses});
+  assert.equal(record(approved,'groq','mistral-synthetic').modelZeroCostVerified,true);
+  assert.equal(record(approved,'groq','mistral-synthetic').privacyApproved,true);
+  assert.equal(record(approved,'groq','synthetic-allowed').modelZeroCostVerified,false);
+});
+test('R07Q oversized catalog fails closed rather than hiding late free models',()=>{
+  const catalogResponses={groq:{models:Array.from({length:200},(_,i)=>({
+    model:'model-'+i,capabilities:['TEXT'],
+  }))}};
+  const r=buildR05TrustedRegistry({env:{},catalogResponses});
+  assert.ok(r.models.length>=200);
 });
 test('secret content is never returned in candidate metadata',()=>{
   const env=groqEnv();
