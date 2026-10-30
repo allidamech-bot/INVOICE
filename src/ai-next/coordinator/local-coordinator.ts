@@ -14,8 +14,10 @@ import type {
 import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {transitionTask} from '../domain/state-machine.js';
-import {ScopedConversationLedger,type ConversationSnapshot,
-  type ConversationEventBody} from '../conversation-state/event-store.js';
+import type {ScopedConversationLedger,ConversationSnapshot,
+  ConversationEventBody} from '../conversation-state/event-store.js';
+/** Coordinator consumes only the R03 semantic surface, not its storage class. */
+export type R07CoordinatorEventLedger=Pick<ScopedConversationLedger,'snapshot'|'append'>;
 import {authorizeR07ScopedRequest,
   type R07AuthenticatedPrincipalVerifier,
   type R07ServerMembershipStore,
@@ -128,7 +130,7 @@ const isConflict=(error:unknown):boolean=>
   ].includes(error.message);
 export class R07LocalCoordinator {
   constructor(private readonly deps:{
-    ledger:ScopedConversationLedger;
+    ledger:R07CoordinatorEventLedger;
     draftStore:TrustedDraftRepository;
     principal:R07AuthenticatedPrincipalVerifier;
     membership:R07ServerMembershipStore;
