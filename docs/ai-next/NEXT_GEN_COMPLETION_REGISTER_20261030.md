@@ -202,3 +202,12 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - The planner is **proposal-only**: GroundedIntent.executable=false and financialSaved=false. When no explicitly test-injected semantic interpreter is supplied, nonlocal requests remain unsupported, not silently executed.
 - R07Q still must connect verified-zero-cost/private model routing; R07R must connect trusted history, durable request/task journal and review-draft edits. T22, T23, T24, production IAM, real NLU quality and physical Safari acceptance remain OPEN.
 - See docs/ai-next/R07P_SEMANTIC_PLANNING_EVIDENCE_20261031.md for scope and CI constraints. PR check results are the evidence for the final tested head, not this register's existence. All activation flags remain OFF.
+
+
+## R07Q provider routing offline package — October 31, 2026
+
+- **PR #1225** introduces task-aware candidate ranking and explicit provider authentication/quota/privacy failures within the already existing R05 gateway, plus a strict R07P structured-output gate for synthetic transport. No second coordinator, no paid inference, no provider configuration changes, no live customer data.
+- Eligible zero-cost model records are evaluated individually under R05's trusted server registry and account-specific permission policy. Dynamic catalog completeness and actual provider availability have NOT been verified; there is no claim that any present account can run all catalog-listed models.
+- R07Q offline transport is constrained to public synthetic fixtures and is explicitly disabled. CI covers lightweight vs complex model preference, scoped structured output, circuit/fallback, provider health cooldown, quota exhaustion, runtime privacy denial and regression tests. Consult the exact final-head checks rather than assuming success.
+- **OPEN:** production-safe provider adapters, entitled live zero-cost checks and approval, customer-data privacy, shared cross-instance health, real language-model inference accuracy, durable R07P→R07M integration, T22–T24, deployed cloud IAM/rules, production rollout, physical iPhone Safari acceptance.
+- Full evidence scope: docs/ai-next/R07Q_TASK_AWARE_MODEL_ROUTING_EVIDENCE_20261031.md. Finance unchanged; production and AI Next activation flags remain OFF.
