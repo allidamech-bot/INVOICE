@@ -12,7 +12,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R05A eligibility/local intents/gateway/proposal guard | Merged #1194, 237a39c9 | 125/125 mocked regression; Vercel isolation passed | No | No | Mock boundary only | No | No |
 | R05B trusted model catalog bridge | Merged #1195, 6c2bfd07774c | 134/134 offline checks; build safety passed | No | No | Open | No | No |
 | R06A isolated new UI/view-model | Merged #1196, 23aa0dcf | 11/11 view-model checks; TS/Web build isolation passed | No | No | Open | No | No |
-| R07A isolated Firestore CAS adapter | feature/ai-next-r07-event-cas-adapter (pending CI) | Offline transactional mock pending | No | No | Open | No | No |
+| R07A isolated Firestore CAS adapter | Merged #1197, 3f8bd285 | 118/118 scoped CAS regression; Vercel isolation passed | No | No | Open | No | No |
+| R07B1 principal and membership boundary | PR pending | Offline authorization tests pending | No | No | Open | No | No |
 
 ## Evidence boundary
 
@@ -33,3 +34,7 @@ A standalone Arabic-first presentation component exists, with independent compos
 ## R07A not-yet-accepted data durability
 
 R07A provides an injected Firestore-compatible event CAS adapter capped to 300 events and 700,000 JSON bytes, with strict thread-scope key and compare-and-swap checks. It has not been run against live Firestore, backed up, shared across real devices, or authorized for production. Document-backed source objects, memory persistence, server membership authority, actual end-to-end coordinator and financial exactly-once mutation semantics remain blocked. See R07A_CAS_STORAGE_EVIDENCE_20261030.md.
+
+## R07B1 authority gate
+
+R07B1 extends existing signed Firebase identity verification into the R03 principal contract and requires independent server-only company and branch membership verification on every request. No live membership resolver is connected. The code is behind a disabled API flag and cannot be considered production authentication acceptance. See R07B_IDENTITY_MEMBERSHIP_EVIDENCE_20261030.md.
