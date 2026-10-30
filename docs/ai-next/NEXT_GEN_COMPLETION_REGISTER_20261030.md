@@ -10,8 +10,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R03 state and memory | Merged #1192 (single-process) | Previous focused tests passed | No | No | Synthetic only | No | No |
 | R04 drafts and approvals | Merged #1193 (execution disabled) | Previous focused tests passed | No | No | Synthetic only | No | No |
 | R05A eligibility/local intents/gateway/proposal guard | Merged #1194, 237a39c9 | 125/125 mocked regression; Vercel isolation passed | No | No | Mock boundary only | No | No |
-| R05B trusted model catalog bridge | feature/ai-next-r05-trusted-model-discovery (pending CI) | Pending offline catalog checks | No | No | Open | No | No |
-| R06 new UI | Not started | No | No | No | Open | No | No |
+| R05B trusted model catalog bridge | Merged #1195, 6c2bfd07774c | 134/134 offline checks; build safety passed | No | No | Open | No | No |
+| R06A isolated new UI/view-model | feature/ai-next-r06-standalone-conversation-ui (pending CI) | Pending scoped UI tests | No | No | Open | No | No |
 | R07 coordinator/storage/integration | Not started | No | No | No | Open | No | No |
 
 ## Evidence boundary
@@ -25,3 +25,7 @@ Deployment and provider configuration must remain unchanged. Check final PR SHA 
 ## R05B additional privacy and billing boundary
 
 R05B reads existing catalog helper results without inference, exposing only server-owned model metadata. It requires separate new-server provider privacy approval, account free verification, per-model verified zero-cost eligibility, and quota evidence. Existing production environment settings are not modified. Unknown authorization remains false. Actual server coordinator and tested provider invocation remain blocked.
+
+## R06A browser and authority boundary
+
+A standalone Arabic-first presentation component exists, with independent composer state, a capped message window, multiple file selection, status/coverage distinctions, draft line ID edits, undo/redo callbacks, memory controls, cancellation/retry and source-selection callbacks. It is deliberately not imported into the legacy app and its feature flag remains false. It cannot claim actual upload, save, authorized approval, persistent draft recovery, mobile Safari acceptance, or working provider integration without R07 authenticated endpoints and a browser/device test. No actual financial mutation methods are called by this component.
