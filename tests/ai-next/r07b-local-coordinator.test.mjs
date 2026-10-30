@@ -60,13 +60,13 @@ test('no R07 local public API activation or financial writer',()=>{
 });
 test('local greeting commits authoritative turn, user, assistant and terminal task',async()=>{
   const {coordinator}=harness();
-  const result=await coordinator.accept('synthetic-token',env());
+  const result=await coordinator.accept('synthetic-bearer-token-1234567890',env());
   assert.equal(result.status,'completed');
   assert.equal(result.financialSaved,false);
   assert.equal(result.providerCalls,0);
   assert.equal(result.draft,null);
   assert.match(result.reply,/وعليكم السلام/);
-  const snapshot=await coordinator.history('synthetic-token',{
+  const snapshot=await coordinator.history('synthetic-bearer-token-1234567890',{
     schemaVersion:1,accountId:'account1',companyId:'company1',
     branchId:'branch1',threadId:'thread1',scopeType:'business',
   });
@@ -77,7 +77,7 @@ test('local greeting commits authoritative turn, user, assistant and terminal ta
 });
 test('unsaved empty quote is committed only after trusted draft store confirms',async()=>{
   const {coordinator,draftStore}=harness();
-  const result=await coordinator.accept('synthetic-token',env({
+  const result=await coordinator.accept('synthetic-bearer-token-1234567890',env({
     mode:'controller',message:'أنشئ مسودة عرض سعر',
   }));
   assert.equal(result.status,'completed');
@@ -89,7 +89,7 @@ test('unsaved empty quote is committed only after trusted draft store confirms',
   assert.equal(result.draft.lineItems.length,0);
   assert.equal(result.draft.approvalReceiptId,null);
   assert.equal(draftStore.writes,1);
-  const s=await coordinator.history('synthetic-token',{
+  const s=await coordinator.history('synthetic-bearer-token-1234567890',{
     schemaVersion:1,accountId:'account1',companyId:'company1',
     branchId:'branch1',threadId:'thread1',scopeType:'business',
   });
@@ -99,8 +99,8 @@ test('unsaved empty quote is committed only after trusted draft store confirms',
 test('idempotent replay returns same turn and no second draft or message',async()=>{
   const {coordinator,draftStore}=harness();
   const r=env({mode:'controller',message:'أنشئ مسودة عرض سعر'});
-  const first=await coordinator.accept('synthetic-token',r);
-  const second=await coordinator.accept('synthetic-token',r);
+  const first=await coordinator.accept('synthetic-bearer-token-1234567890',r);
+  const second=await coordinator.accept('synthetic-bearer-token-1234567890',r);
   assert.equal(second.turnId,first.turnId);
   assert.equal(second.replayed,true);
   assert.equal(second.draft.immutableRevisionHash,first.draft.immutableRevisionHash);
@@ -110,32 +110,32 @@ test('idempotent replay returns same turn and no second draft or message',async(
 test('new coordinator with same shared repositories restores committed draft',async()=>{
   const h=harness();
   const request=env({mode:'controller',message:'أنشئ مسودة عرض سعر'});
-  const first=await h.coordinator.accept('synthetic-token',request);
+  const first=await h.coordinator.accept('synthetic-bearer-token-1234567890',request);
   const second=new R07LocalCoordinator(h.deps);
-  const repeated=await second.accept('synthetic-token',request);
+  const repeated=await second.accept('synthetic-bearer-token-1234567890',request);
   assert.equal(repeated.draft.draftId,first.draft.draftId);
   assert.equal(repeated.replayed,true);
 });
 test('same idempotency key with changed task or client identity is rejected',async()=>{
-  const {coordinator}=harness();await coordinator.accept('synthetic-token',env());
+  const {coordinator}=harness();await coordinator.accept('synthetic-bearer-token-1234567890',env());
   for(const override of [
     {message:'مرحبا'},{mode:'controller'},{requestId:'other-request'},
     {userMessageId:'other-message'},
-  ])await assert.rejects(coordinator.accept('synthetic-token',env(override)),
+  ])await assert.rejects(coordinator.accept('synthetic-bearer-token-1234567890',env(override)),
     /R07_TURN_IDEMPOTENCY_COLLISION/);
 });
 test('unsupported and attached requests never silently invoke a provider',async()=>{
   const {coordinator}=harness();
-  await assert.rejects(coordinator.accept('synthetic-token',env({
+  await assert.rejects(coordinator.accept('synthetic-bearer-token-1234567890',env({
     message:'استخرج أسعار المنتجات من الملف',
   })),/R07_LOCAL_INTENT_NOT_SUPPORTED/);
-  await assert.rejects(coordinator.accept('synthetic-token',{
+  await assert.rejects(coordinator.accept('synthetic-bearer-token-1234567890',{
     ...env(),attachedSourceIds:['doc1'],
   }),/R07_INVALID_TURN_INPUT/);
 });
 test('missing server ACL refuses the request before any event',async()=>{
   const h=harness({membership:{readForActor:async()=>null}});
-  await assert.rejects(h.coordinator.accept('synthetic-token',env()),
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',env()),
     /AUTH_MEMBERSHIP_DENIED/);
   // Ledger has never accepted a turn.
   const scope={
@@ -147,50 +147,50 @@ test('missing server ACL refuses the request before any event',async()=>{
 });
 test('viewer can greet, but cannot prepare any quote draft',async()=>{
   const h=harness({principal:principal('viewer'),membership:memberships('viewer')});
-  const greeting=await h.coordinator.accept('synthetic-token',env());
+  const greeting=await h.coordinator.accept('synthetic-bearer-token-1234567890',env());
   assert.equal(greeting.status,'completed');
-  await assert.rejects(h.coordinator.accept('synthetic-token',env({
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',env({
     mode:'controller',message:'أنشئ مسودة عرض سعر',idempotencyKey:'new',
     requestId:'new',userMessageId:'new',
   })),/R07_DRAFT_PREPARATION_DENIED/);
 });
 test('wrong company and branch are rejected despite valid signed user',async()=>{
   const h=harness();
-  await assert.rejects(h.coordinator.accept('synthetic-token',env({companyId:'company2'})),
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',env({companyId:'company2'})),
     /AUTH_MEMBERSHIP_DENIED/);
-  await assert.rejects(h.coordinator.accept('synthetic-token',env({branchId:'branch2'})),
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',env({branchId:'branch2'})),
     /AUTH_MEMBERSHIP_DENIED/);
 });
 test('draft storage outage cannot be reported as successful creation',async()=>{
   const h=harness(),request=env({mode:'controller',message:'أنشئ مسودة عرض سعر'});
   h.draftStore.fail=true;
-  await assert.rejects(h.coordinator.accept('synthetic-token',request),/synthetic storage down/);
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',request),/synthetic storage down/);
   h.draftStore.fail=false;
-  const resumed=await h.coordinator.accept('synthetic-token',request);
+  const resumed=await h.coordinator.accept('synthetic-bearer-token-1234567890',request);
   assert.equal(resumed.replayed,true);
   assert.equal(resumed.draft.status,'needs_review');
   assert.equal(h.draftStore.writes,1);
 });
 test('missing draft after event completion is detected, never reported as saved',async()=>{
   const h=harness(),request=env({mode:'controller',message:'أنشئ مسودة عرض سعر'});
-  await h.coordinator.accept('synthetic-token',request);
+  await h.coordinator.accept('synthetic-bearer-token-1234567890',request);
   h.draftStore.data.clear();
-  await assert.rejects(h.coordinator.accept('synthetic-token',request),
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',request),
     /R07_MISSING_VERIFIED_DRAFT/);
 });
 test('different request while first is processing is blocked',async()=>{
   const h=harness(),request=env({mode:'controller',message:'أنشئ مسودة عرض سعر'});
   h.draftStore.fail=true;
-  await assert.rejects(h.coordinator.accept('synthetic-token',request));
-  await assert.rejects(h.coordinator.accept('synthetic-token',env({
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',request));
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',env({
     idempotencyKey:'new2',requestId:'new2',userMessageId:'new2',message:'مرحبا',
   })),/R07_ANOTHER_TURN_ACTIVE/);
 });
 test('two concurrent identical commands converge without duplicate draft',async()=>{
   const h=harness(),request=env({mode:'controller',message:'أنشئ مسودة عرض سعر'});
   const results=await Promise.allSettled([
-    h.coordinator.accept('synthetic-token',request),
-    h.coordinator.accept('synthetic-token',request),
+    h.coordinator.accept('synthetic-bearer-token-1234567890',request),
+    h.coordinator.accept('synthetic-bearer-token-1234567890',request),
   ]);
   // Even if one CAS retry fails closed, no second financial/draft object may exist.
   assert.equal(results.filter(x=>x.status==='fulfilled').length>=1,true);
@@ -201,11 +201,11 @@ test('revocation is rechecked before replay; history does not bypass ACL',async(
   const h=harness({membership:{readForActor:async()=>{calls++;
     return permitted?memberships().readForActor({}):null;
   }}});
-  await h.coordinator.accept('synthetic-token',env());
+  await h.coordinator.accept('synthetic-bearer-token-1234567890',env());
   permitted=false;
-  await assert.rejects(h.coordinator.accept('synthetic-token',env()),
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',env()),
     /AUTH_MEMBERSHIP_DENIED/);
-  await assert.rejects(h.coordinator.history('synthetic-token',{
+  await assert.rejects(h.coordinator.history('synthetic-bearer-token-1234567890',{
     schemaVersion:1,accountId:'account1',companyId:'company1',
     branchId:'branch1',threadId:'thread1',scopeType:'business',
   }),/AUTH_MEMBERSHIP_DENIED/);
@@ -213,7 +213,7 @@ test('revocation is rechecked before replay; history does not bypass ACL',async(
 });
 test('no forged actor or company override fields accepted',async()=>{
   const h=harness();
-  await assert.rejects(h.coordinator.accept('synthetic-token',{
+  await assert.rejects(h.coordinator.accept('synthetic-bearer-token-1234567890',{
     ...env(),role:'owner',approval:true,
   }),/R07_INVALID_TURN_INPUT/);
 });
