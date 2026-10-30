@@ -1,0 +1,37 @@
+name: LOUREX AI Next R07D Draft CAS Storage
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/storage/firestore-review-drafts.ts'
+      - 'tests/ai-next/r07d-firestore-drafts.test.mjs'
+      - '.github/workflows/ai-next-r07d-draft-cas.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07d-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  draft-cas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript
+        run: npm run typecheck
+      - name: Compile AI Next TS source for Node verification
+        run: ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R07D draft CAS plus R03/R04/R07 coordinator regression
+        run: node --test tests/ai-next/r03-conversation-state.test.mjs tests/ai-next/r04-guarded-finance.test.mjs tests/ai-next/r07-firestore-cas.test.mjs tests/ai-next/r07b-local-coordinator.test.mjs tests/ai-next/r07d-firestore-drafts.test.mjs
