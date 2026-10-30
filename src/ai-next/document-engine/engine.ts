@@ -114,7 +114,8 @@ export function sourceScopeKey(s: AuthenticatedScope): string {
   return scopeKey(s);
 }
 export async function sha256(bytes: Uint8Array): Promise<string> {
-  const owned = asBytes(bytes);
+  const owned = new Uint8Array(new ArrayBuffer(bytes.length));
+  owned.set(bytes);
   const hash = await crypto.subtle.digest('SHA-256', owned);
   return Array.from(new Uint8Array(hash), c => c.toString(16).padStart(2,'0')).join('');
 }
