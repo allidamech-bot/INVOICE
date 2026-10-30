@@ -114,6 +114,8 @@ export async function routeR05<T>(input:{
   signal?:AbortSignal;
   now?:()=>number;
   health?:R05HealthBook;
+  /** Trusted server task-aware preference; eligibility remains authoritative. */
+  rankModel?:(model:TrustedModelRecord,health:R05HealthBook)=>number;
 }):Promise<R05Outcome<T>>{
   const now=input.now??(()=>Date.now()),start=now();
   const deadline=Math.min(MAX_DEADLINE_MS,Math.max(0,Math.floor(input.needs.deadlineMs)));
@@ -127,8 +129,13 @@ export async function routeR05<T>(input:{
     scope:input.scope,now:new Date().toISOString(),models:input.models,
     needs:{...input.needs,deadlineMs:deadline},
   });
+  const rank=(model:TrustedModelRecord):number=>{
+    const value=input.rankModel?input.rankModel(model,health):health.score(model);
+    if(!Number.isFinite(value))throw Error('R05_INVALID_TRUSTED_RANK');
+    return value;
+  };
   const candidates=assessed.filter(x=>x.assessment.eligible)
-    .sort((a,b)=>health.score(b.record)-health.score(a.record));
+    .sort((a,b)=>rank(b.record)-rank(a.record));
   const observations:R05Diagnostic[]=[];
   if(!candidates.length)
     return {ok:false,code:'R05_NO_ELIGIBLE_MODELS',attempts:0,observations};
