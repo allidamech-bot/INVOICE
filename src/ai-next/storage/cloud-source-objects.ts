@@ -117,20 +117,26 @@ async function checkRead(
 export class R07EExperimentalPrivateSourceRepository implements SourceObjectRepository{
   constructor(private readonly bucket:R07ECloudBucket){}
   async store(source:SourceObject):Promise<void>{
-    validateHeader(source);
+    // Snapshot both header and bytes before the first await. Caller-owned
+    // Uint8Array must not mutate after hashing but before cloud persistence.
+    const header:Omit<SourceObject,'bytes'>={
+      scopeKey:source.scopeKey,documentId:source.documentId,
+      sha256:source.sha256,format:source.format,fileName:source.fileName,
+    };
+    validateHeader(header);
     validateBytes(source.bytes);
-    if(await sha256(source.bytes)!==source.sha256)
-      throw new R07ESourceStorageError('R07E_UPLOAD_DIGEST_MISMATCH');
-    const {filePath,scopeHash}=await target(source.scopeKey,source.documentId);
-    const file=this.bucket.file(filePath);
     const copyBytes=new Uint8Array(source.bytes);
+    if(await sha256(copyBytes)!==header.sha256)
+      throw new R07ESourceStorageError('R07E_UPLOAD_DIGEST_MISMATCH');
+    const {filePath,scopeHash}=await target(header.scopeKey,header.documentId);
+    const file=this.bucket.file(filePath);
     try{
       // GCS/Firebase Admin supports create-only generation preconditions.
       // A duplicate must never overwrite the previously stored original.
       await file.save(copyBytes,{
         resumable:false,
         preconditionOpts:{ifGenerationMatch:0},
-        metadata:{metadata:metadata(source,scopeHash)},
+        metadata:{metadata:metadata(header,scopeHash)},
       });
       return;
     }catch(error){
@@ -138,10 +144,10 @@ export class R07EExperimentalPrivateSourceRepository implements SourceObjectRepo
       // Only a verified identical object may be accepted on a replay.
       // Never retry with overwriting permissions or trust just metadata.
       const existing=await checkRead(file,{
-        scopeKey:source.scopeKey,documentId:source.documentId,scopeHash,
+        scopeKey:header.scopeKey,documentId:header.documentId,scopeHash,
       });
-      if(!same(existing.sha256,source.sha256)||existing.format!==source.format||
-        existing.fileName!==source.fileName)
+      if(!same(existing.sha256,header.sha256)||existing.format!==header.format||
+        existing.fileName!==header.fileName)
         throw new R07ESourceStorageError('R07E_SOURCE_ID_COLLISION');
     }
   }
