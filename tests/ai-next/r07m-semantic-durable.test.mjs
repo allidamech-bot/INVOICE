@@ -4,6 +4,10 @@ import {R07MFastLocalCoordinator,R07M_FAST_COORDINATOR_ACTIVATED}
   from '../../dist/src/ai-next/coordinator/fast-local-coordinator.js';
 import {R07PSemanticPlanner}
   from '../../dist/src/ai-next/router/semantic-planner.js';
+import {R07PTrustedHistoryContext,R07P_TRUSTED_HISTORY_CONTEXT_ACTIVATED}
+  from '../../dist/src/ai-next/conversation-state/trusted-history-context.js';
+import {SyntheticDraftEditor}
+  from '../../dist/src/ai-next/guarded-finance/drafts.js';
 import {R07JExperimentalIndexedJournal,R07M_FAST_COLLECTION}
   from '../../dist/src/ai-next/storage/firestore-indexed-append.js';
 import {R07DExperimentalFirestoreDraftStore,R07D_DRAFT_COLLECTION}
@@ -257,4 +261,164 @@ test('synthetic planner remains required even when R07M switch is enabled',async
   await assert.rejects(h.coordinator.acceptOfflineSemantic(TOKEN,REQUEST()),
     /R07M_OFFLINE_SEMANTIC_DISABLED/);
   assert.equal(h.database.writes,0);
+});
+
+
+test('trusted history context remains disabled for production',()=>{
+  assert.equal(R07P_TRUSTED_HISTORY_CONTEXT_ACTIVATED,false);
+});
+test('R07P history reader resolves one authenticated R07M-created unsaved draft',async()=>{
+  const db=new TxDatabase(),h=harness(db);
+  const created=await h.coordinator.accept(TOKEN,
+    REQUEST('أنشئ مسودة عرض سعر',{
+      requestId:'new-quote-1',idempotencyKey:'new-quote-1',
+      userMessageId:'new-quote-msg-1',
+    }));
+  assert.equal(created.draft.status,'needs_review');
+  const reader=new R07PTrustedHistoryContext(h.journal,h.draftStore);
+  const ctx=await reader.load(scope);
+  assert.equal(ctx.historyComplete,true);
+  assert.equal(ctx.scopeKey,exactScopeKey(scope));
+  assert.equal(ctx.activeDraft.id,created.draft.draftId);
+  assert.equal(ctx.activeDraft.revision,1);
+  assert.deepEqual(ctx.activeDraft.lineIds,[]);
+  assert.equal(ctx.references.length,1);
+  assert.equal(ctx.references[0].kind,'draft');
+  const independent=harness(db);
+  const reloaded=await new R07PTrustedHistoryContext(
+    independent.journal,independent.draftStore).load(scope);
+  assert.deepEqual(reloaded,ctx);
+});
+test('two unsaved quotations are ambiguous and cannot be silently chosen',async()=>{
+  const h=harness();
+  for(let i=0;i<2;i++)
+    await h.coordinator.accept(TOKEN,REQUEST('أنشئ مسودة عرض سعر',{
+      requestId:'quote-'+i,idempotencyKey:'quote-'+i,
+      userMessageId:'quote-msg-'+i,
+    }));
+  const reader=new R07PTrustedHistoryContext(h.journal,h.draftStore);
+  const ctx=await reader.load(scope);
+  assert.equal(ctx.historyComplete,true);
+  assert.equal(ctx.activeDraft,null);
+  assert.equal(ctx.references.length,2);
+  const planner=new R07PSemanticPlanner({
+    principal:{verify:async()=>({
+      uid:'semantic-owner',role:'owner',anonymous:false,
+      tokenIssuedAt:epoch-100,tokenExpiresAt:epoch+3600,
+      authenticatedAt:epoch-200,
+    })},
+    membership:{readForActor:async()=>({
+      ownerUid:'semantic-owner',actorUid:'semantic-owner',
+      accountId:scope.accountId,companyId:scope.companyId,
+      branchId:scope.branchId,active:true,authorizationVersion:1,
+      permittedRoles:['owner'],
+    })},
+    context:reader,
+    syntheticInterpreter:{interpret:async()=>candidate()},
+    allowSyntheticInference:true,clock:()=>new Date(NOW),
+  });
+  const p=await planner.plan(TOKEN,REQUEST('لا خلي الكمية 12',{
+    idempotencyKey:'amend-key',requestId:'amend-request',
+    userMessageId:'amend-message'}));
+  assert.equal(p.status,'needs_clarification');
+  assert.equal(p.intent.subjectRef,null);
+  assert.equal(p.intent.unresolvedReferences[0].reason,'ambiguous_active_draft');
+  assert.equal(p.intent.unresolvedReferences[0].candidateIds.length,2);
+  assert.equal(p.intent.executable,false);
+});
+test('latest R07D revision is read after independent CAS edit, not cached R07L turn',async()=>{
+  const h=harness();
+  const created=await h.coordinator.accept(TOKEN,
+    REQUEST('أنشئ مسودة عرض سعر',{idempotencyKey:'quote-a',
+      requestId:'quote-a',userMessageId:'quote-message-a'}));
+  const editor=await SyntheticDraftEditor.resume(created.draft);
+  const revised=await editor.edit({
+    expectedRevision:1,
+    change:{kind:'append_line',line:{
+      lineId:'item-1',description:'Synthetic sample',quantity:'10',
+      unit:'PCS',sellingUnitPrice:'15',currency:'USD',
+      evidenceRefs:[],
+    }},
+    now:NOW.toISOString(),
+  });
+  await h.draftStore.replaceReviewRevision({
+    scope,turnId:created.turnId,expectedRevision:1,
+    expectedHash:created.draft.immutableRevisionHash,next:revised,
+  });
+  const ctx=await new R07PTrustedHistoryContext(
+    h.journal,h.draftStore).load(scope);
+  assert.equal(ctx.activeDraft.revision,2);
+  assert.deepEqual(ctx.activeDraft.lineIds,['item-1']);
+});
+test('reader does not return a different tenant draft from an exact scope key',async()=>{
+  const h=harness();
+  await h.coordinator.accept(TOKEN,
+    REQUEST('أنشئ مسودة عرض سعر',{idempotencyKey:'only-scope',
+      requestId:'only-scope',userMessageId:'only-scope-message'}));
+  const reader=new R07PTrustedHistoryContext(h.journal,h.draftStore);
+  const foreign=await reader.load({...scope,companyId:'other-company'});
+  assert.equal(foreign.activeDraft,null);
+  assert.deepEqual(foreign.references,[]);
+  assert.equal(foreign.scopeKey,exactScopeKey({...scope,companyId:'other-company'}));
+});
+test('missing or corrupted R07D draft after a completed journal turn is fatal',async()=>{
+  for(const kind of ['missing','corrupt']){
+    const h=harness();
+    await h.coordinator.accept(TOKEN,
+      REQUEST('أنشئ مسودة عرض سعر',{
+        idempotencyKey:'quote-damage',requestId:'quote-damage',
+        userMessageId:'quote-damage-msg',
+      }));
+    const key=[...h.database.docs.keys()].find(k=>
+      k.startsWith(R07D_DRAFT_COLLECTION+':'));
+    assert.ok(key);
+    if(kind==='missing')h.database.docs.delete(key);
+    else{
+      const d=clone(h.database.docs.get(key));
+      d.draft.draftRevision=300;
+      h.database.docs.set(key,d);
+    }
+    const reader=new R07PTrustedHistoryContext(h.journal,h.draftStore);
+    await assert.rejects(reader.load(scope));
+  }
+});
+test('integrity errors in audit cannot be silently treated as complete context',async()=>{
+  const reader=new R07PTrustedHistoryContext({
+    auditFullHistory:async()=>({
+      schemaVersion:1,scopeKey:'foreign-key',revision:0,
+      turns:[],tasks:[],messages:[],checkpointRefs:[],
+      uncertainOperations:[],
+    }),
+  },{read:async()=>null});
+  await assert.rejects(reader.load(scope),
+    /R07P_CONTEXT_INCOMPLETE_OR_UNBOUNDED_HISTORY/);
+});
+test('server-authenticated local greeting and blank quote bypass full history cost',async()=>{
+  let historyReads=0,modelCalls=0;
+  const planner=new R07PSemanticPlanner({
+    principal:{verify:async()=>({
+      uid:'semantic-owner',role:'owner',anonymous:false,
+      tokenIssuedAt:epoch-100,tokenExpiresAt:epoch+3600,
+      authenticatedAt:epoch-200,
+    })},
+    membership:{readForActor:async()=>({
+      ownerUid:'semantic-owner',actorUid:'semantic-owner',
+      accountId:scope.accountId,companyId:scope.companyId,
+      branchId:scope.branchId,active:true,authorizationVersion:1,
+      permittedRoles:['owner'],
+    })},
+    context:{load:async()=>{historyReads++;throw Error('AUDIT_UNAVAILABLE');}},
+    syntheticInterpreter:{interpret:async()=>{modelCalls++;return candidate();}},
+    allowSyntheticInference:true,clock:()=>new Date(NOW),
+  });
+  const hi=await planner.plan(TOKEN,REQUEST('السلام عليكم'));
+  assert.equal(hi.status,'local_reply');
+  const draft=await planner.plan(TOKEN,REQUEST('أنشئ مسودة عرض سعر'));
+  assert.equal(draft.status,'proposed');
+  assert.equal(historyReads,0);
+  assert.equal(modelCalls,0);
+  await assert.rejects(planner.plan(TOKEN,REQUEST('لا خلي الكمية 12')),
+    /AUDIT_UNAVAILABLE/);
+  assert.equal(historyReads,1);
+  assert.equal(modelCalls,0);
 });
