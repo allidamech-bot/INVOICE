@@ -65,15 +65,14 @@ export function parseCsvRows(text:string):string[][] {
 }
 export class CsvSourceAdapter implements DocumentSourceAdapter {
   readonly format='csv' as const;
-  private cache=new Map<string,{rows:string[][];signature:string}>();
+  private cache=new WeakMap<Uint8Array,string[][]>();
   private rows(file:SourceFile):string[][] {
     // Cached parser instances are scoped to this input's complete byte content.
     // R02 objects are synthetic; do not use this cache as cross-request authority.
-    const signature=Array.from(file.bytes).join(',');
-    const cached=this.cache.get(file.documentId);
-    if (cached?.signature===signature) return cached.rows;
+    const cached=this.cache.get(file.bytes);
+    if (cached) return cached;
     const rows=parseCsvRows(decode(file.bytes));
-    this.cache.set(file.documentId,{rows,signature});
+    this.cache.set(file.bytes,rows);
     return rows;
   }
   async discover(file:SourceFile,signal?:AbortSignal):Promise<SourceManifest>{
@@ -113,14 +112,13 @@ export interface SpreadsheetRuntime {
  */
 export class SpreadsheetSourceAdapter implements DocumentSourceAdapter {
   readonly format: 'xlsx'|'xls';
-  private cache = new Map<string,{signature:string;sheets:WorkbookSheet[]}>();
+  private cache = new WeakMap<Uint8Array,WorkbookSheet[]>();
   constructor(private readonly xlsx:SpreadsheetRuntime,format:'xlsx'|'xls'='xlsx'){
     this.format=format;
   }
   private sheets(file:SourceFile):WorkbookSheet[]{
-    const signature=Array.from(file.bytes).join(',');
-    const cached=this.cache.get(file.documentId);
-    if(cached?.signature===signature)return cached.sheets;
+    const cached=this.cache.get(file.bytes);
+    if(cached)return cached;
     if(this.format==='xlsx' &&
       !(file.bytes[0]===0x50&&file.bytes[1]===0x4b))
       throw new DocumentProcessingError('INVALID_XLSX_SIGNATURE');
@@ -164,7 +162,7 @@ export class SpreadsheetSourceAdapter implements DocumentSourceAdapter {
       }
       sheets.push({sheetName,range:{startRow,endRow,startCol,endCol},cells});
     }
-    this.cache.set(file.documentId,{signature,sheets});
+    this.cache.set(file.bytes,sheets);
     return sheets;
   }
   async discover(file:SourceFile,signal?:AbortSignal):Promise<SourceManifest>{
@@ -223,21 +221,20 @@ export type PageOcr = (input:{
 })=>Promise<{text:string;confidence?:number}>;
 export class PdfSourceAdapter implements DocumentSourceAdapter {
   readonly format='pdf' as const;
-  private cache=new Map<string,{signature:string;pdf:PdfDocument}>();
+  private cache=new WeakMap<Uint8Array,PdfDocument>();
   constructor(private readonly runtime:PdfRuntime,private readonly ocr?:PageOcr){}
   private async document(file:SourceFile):Promise<PdfDocument>{
     const b=file.bytes;
     if(b.length<5||String.fromCharCode(...b.slice(0,5))!=='%PDF-')
       throw new DocumentProcessingError('INVALID_PDF_SIGNATURE');
-    const signature=Array.from(b).join(',');
-    const cached=this.cache.get(file.documentId);
-    if(cached?.signature===signature)return cached.pdf;
+    const cached=this.cache.get(b);
+    if(cached)return cached;
     const task=this.runtime.getDocument({data:new Uint8Array(b),isEvalSupported:false});
     const pdf=await task.promise;
     if(!Number.isSafeInteger(pdf.numPages)||pdf.numPages<1||
       pdf.numPages>R02_LIMITS.maxSegments)
       throw new DocumentProcessingError('INVALID_PDF_PAGE_COUNT');
-    this.cache.set(file.documentId,{signature,pdf});
+    this.cache.set(b,pdf);
     return pdf;
   }
   async discover(file:SourceFile,signal?:AbortSignal):Promise<SourceManifest>{
