@@ -100,7 +100,8 @@ function validHead(data:unknown,key:string):ShardHead|null{
     const d=data.chunks[i];
     if(!isPlain(d)||!exactKeys(d,[
       'index','start','end','previousHash','lastHash','contentHash',
-    ])||d.index!==i||d.start!==end+1||
+    ])||d.index!==i||typeof d.start!=='number'||
+      typeof d.end!=='number'||d.start!==end+1||
       !Number.isSafeInteger(d.end)||d.end<d.start||
       d.end-d.start+1>R07G_CHUNK_EVENTS||
       d.previousHash!==hash||
