@@ -41,6 +41,12 @@ export function validateR05ModelProposal(input:{
     (refs.length>0&&!['uploaded_only','explicit_combination'].includes(input.sourcePolicy))||
     (raw.action==='read_file'&&refs.length===0))
     throw new R05UntrustedProposal('R05_UNAUTHORIZED_SOURCE');
+  // The LLM may not silently switch data authorities when an intended source is missing.
+  if((raw.action==='read_business'&&!['company_only','explicit_combination'].includes(input.sourcePolicy))||
+    (raw.action==='read_file'&&!['uploaded_only','explicit_combination'].includes(input.sourcePolicy))||
+    (input.sourcePolicy==='uploaded_only'&&input.selectedSourceIds.length>0&&
+      raw.action==='prepare_quote'&&refs.length===0))
+    throw new R05UntrustedProposal('R05_SOURCE_POLICY_CONFLICT');
   let subjectRef:GroundedIntent['subjectRef']=null;
   if(raw.subjectRef!==null){
     if(!record(raw.subjectRef)||Object.keys(raw.subjectRef).sort().join(',')!=='id,kind'||
@@ -52,6 +58,10 @@ export function validateR05ModelProposal(input:{
       subjectRef={kind:'draft',id:raw.subjectRef.id};
     else throw new R05UntrustedProposal('R05_UNAUTHORIZED_SUBJECT');
   }
+  if(subjectRef?.kind==='document'&&!refs.includes(subjectRef.id))
+    throw new R05UntrustedProposal('R05_UNREFERENCED_DOCUMENT');
+  if(['edit_draft','preview_draft'].includes(raw.action)&&subjectRef?.kind!=='draft')
+    throw new R05UntrustedProposal('R05_DRAFT_REQUIRED');
   if(!Array.isArray(raw.argumentFacts)||raw.argumentFacts.length>100)
     throw new R05UntrustedProposal('R05_INVALID_FACTS');
   const allowedEvidence=new Set(input.authorizedEvidenceIds);
