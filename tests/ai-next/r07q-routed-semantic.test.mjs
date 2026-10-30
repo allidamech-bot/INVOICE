@@ -161,7 +161,7 @@ test('unknown reference, forged source, model-execution field fail validation',a
 test('invalid model result falls back only to independent verified free model',async()=>{
   const c=config({
     models:[model({modelId:'advanced',qualityTier:'advanced'}),
-      model({providerId:'gemini',modelId:'free-backup',qualityTier:'basic'})],
+      model({providerId:'gemini',modelId:'free-backup',qualityTier:'advanced'})],
     result:m=>m.modelId==='advanced'?
       candidate({sourceIds:['ref-not-found']}):candidate(),
   });
