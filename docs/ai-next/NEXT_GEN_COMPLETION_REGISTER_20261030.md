@@ -23,7 +23,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07G bounded sharded conversation event storage | Merged #1207, 7cda1f0d | 44/44 R03/R07A/R07G tests; 325 events; CI/isolation PASS | No | Mocked Firestore only | Open | No | No |
 | R07H actual Firestore Emulator transaction verification | Merged #1208, 71896d2b | 4/4 official Firestore Emulator + Firebase Admin acceptance PASS | No | Local emulator only, no live service | Open | No | No |
 | R07I recent non-authoritative window + emulator restart recovery | Merged #1210, d8bf5f1d | 49/49 R03/R07G/R07I synthetic + 2 separate emulator phases PASS; Vercel isolation PASS | No | Local emulator export/import only | Open | No | No |
-| R07J indexed O(1)-read event append | PR pending | 320-event mock + real Firestore Emulator acceptance pending | No | Local emulator only | Open | No | No |
+| R07J indexed O(1)-read event append | Merged #1212, 36d9a815 | 48/48 R03/R07G/R07J synthetic; 3/3 official Firestore Emulator; TypeScript/isolation PASS | No | Emulator only, no live store | Open | No | No |
 
 ## Evidence boundary
 
@@ -128,3 +128,9 @@ R07I introduces read-only presentation tail retrieval of at most 128 events with
 ## R07J indexed event append candidate
 
 Standalone disabled indexed journal returns a narrow receipt instead of R03's full projection and avoids reading all previous events for every append. Persistent per-event and uniqueness index writes trade Firestore write volume for fewer reads. No API or coordinator integration, no migration, no live IAM/security/cost acceptance. Tests pending; see R07J_INDEXED_APPEND_EVIDENCE_20261031.md.
+
+## R07J indexed append code-only closure — October 31, 2026
+
+- **PR #1212** merged at 36d9a815c9c76f1d60ebdfe7b6a0db8b8b2a4b87 after 48/48 targeted R03/R07G/R07J synthetic tests and 3/3 official local Firestore Emulator tests; four SHA-bound GitHub check jobs passed.
+- Bounded-read test ran **320 sequential synthetic messages** and verified no more than ten mock document reads per append; full R03 replay audit reconstructed all 321 events. Distinct Firebase Admin app clients proved transactional indexed CAS, replay, head scope isolation and event corruption rejection on the emulator.
+- **Implementation NOT activated:** completely separate root collection, no legacy migrations or real Firebase/finance writes. `R07J_INDEXED_APPEND_ACTIVE=false`. The optimized method returns a narrow durable receipt, **not** the full R03 snapshot; coordinator/view-model integration and complete operational-read recovery remain OPEN. IAM/ACL, event-index repair, real cloud costs/latency, retention/backup and iPhone tests are also open. No production deployment permitted.
