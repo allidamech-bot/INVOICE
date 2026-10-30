@@ -254,6 +254,9 @@ for(const [name,bad] of [
   ['source substitution',proposal({referencedSourceIds:['other-company-src']})],
   ['entity spoof',proposal({subjectRef:{kind:'entity',id:'customer-x'}})],
   ['nonexistent evidence',proposal({argumentFacts:[{name:'price',value:'2',evidenceRefs:['fake']}]})],
+  ['file-to-company switch',proposal({action:'read_business'})],
+  ['unbound draft edit',proposal({action:'edit_draft'})],
+  ['unreferenced document subject',proposal({subjectRef:{kind:'document',id:'src-1'},referencedSourceIds:[]})],
 ]){
   test('rejects model '+name,()=>{
     assert.throws(()=>validate(bad),/R05_/);
