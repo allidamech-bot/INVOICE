@@ -1,0 +1,42 @@
+name: LOUREX AI Next R07S Scoped Source Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/document-engine/grounded-source-bridge.ts'
+      - 'tests/ai-next/r07s-grounded-source.test.mjs'
+      - '.github/workflows/ai-next-r07s-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07s-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R07S source integrity/coverage and review-only tests
+        run: node --test tests/ai-next/r07s-grounded-source.test.mjs
+      - name: R02 source extraction and R07E object storage regressions
+        run: >-
+          node --test
+          tests/ai-next/r02-documents.test.mjs
+          tests/ai-next/r07e-source-objects.test.mjs
+      - name: Production route isolation
+        run: node scripts/verify-deployment-isolation.mjs
