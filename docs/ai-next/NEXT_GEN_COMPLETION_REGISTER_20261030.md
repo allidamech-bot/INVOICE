@@ -20,7 +20,7 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R07D inactive Firestore review-draft CAS | Merged #1203, b6a96e8a | 84/84 scoped synthetic tests; Vercel isolation passed | No | No live backend | Open | No | No |
 
 | R07E private original source-byte adapter | Merged #1204, 4ec65003 | 40/40 R02 cloud-object synthetic tests; Vercel isolation passed | No | No live bucket | Open | No | No |
-| R07F explicit-consent memory CAS | PR pending | R03 memory regression pending | No | No live backend | Open | No | No |
+| R07F explicit-consent memory CAS | Merged #1205, 1816f26b | 37/37 R03/consent regression; Vercel isolation passed | No | No live backend | Open | No | No |
 
 ## Evidence boundary
 
@@ -88,3 +88,11 @@ R07E adds an inactive backend-compatible Google Cloud Storage object adapter to 
 ## R07F explicit-consent memory
 
 An inactive server-only Firestore-compatible memory backend reuses R03's explicit-consent APIs, scoped cross-thread access, expiration and revocation tombstones. Its strict CAS prevents reordering, rewriting approved memory and resurrecting revoked records; no live storage, rules, security policy or retention deletion procedure is approved. See R07F_CONSENTED_MEMORY_EVIDENCE_20261030.md.
+
+## R07D–R07F verified code-only closure — October 30, 2026
+
+- **R07D PR #1203**: code merged at b6a96e8a8f15533ac7fd5e2b12563d6ffdb07765, 84/84 offline tests, TypeScript and Vercel isolation PASS. Strict review-only draft create/replay and CAS edit; no live data store.
+- **R07E PR #1204**: code merged at 4ec65003ecad5bb75d17ef3cfe18b20baba4dcac, 40/40 offline tests, TypeScript and isolation PASS. Immutable scope-keyed original-byte storage adapter with mocked GCS operations; no live bucket or privacy approval.
+- **R07F PR #1205**: code merged at 1816f26b2189fef75f4288ee910e1782e708c382, 37/37 offline tests, TypeScript and isolation PASS. Explicit-consent memory CAS and revoked-content tombstones; no live consent or retention approval.
+
+**R07 remains OPEN.** No new HTTP endpoint, enabled flag, deployed feature, approved server-only ACL, production Firebase/GCS data operation, real user file or live financial write was authorized or performed. No live data ever flows into the above synthetic suites. Tests do not close T22, T23 or T24. The known 300-event / 700 KB proof-of-concept limit of R07A still blocks long-conversation acceptance. A release needs verified deployed Firestore rules, independently provisioned server ACL, privileged IAM, approved retention/privacy/cost, actual cross-instance GCS/Firestore tests, source-to-review end-to-end, real provider policies, browser UI integration and physical iPhone Safari acceptance. No production deployment is authorized by merging code.
