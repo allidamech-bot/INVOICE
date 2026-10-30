@@ -18,10 +18,10 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R07B3 root server-only ACL reader | Merged #1200, 729b80ab | 44/44 scoped mock ACL tests; Vercel isolation passed | No | No | Open | No | No |
 | R07C actual PDF/XLSX/XLS adapter browser fixtures | Merged #1201, d6e2871e | 26/26 R02 regression + real binary Chromium/WebKit PASS | Representative WebKit passed (not iPhone) | No | Open | No | No |
 | R07D inactive Firestore review-draft CAS | Merged #1203, b6a96e8a | 84/84 scoped synthetic tests; Vercel isolation passed | No | No live backend | Open | No | No |
-
 | R07E private original source-byte adapter | Merged #1204, 4ec65003 | 40/40 R02 cloud-object synthetic tests; Vercel isolation passed | No | No live bucket | Open | No | No |
 | R07F explicit-consent memory CAS | Merged #1205, 1816f26b | 37/37 R03/consent regression; Vercel isolation passed | No | No live backend | Open | No | No |
-| R07G bounded sharded conversation event storage | PR pending | >300 real R03 events against mock Firestore pending CI | No | No real Firestore | Open | No | No |
+| R07G bounded sharded conversation event storage | Merged #1207, 7cda1f0d | 44/44 R03/R07A/R07G tests; 325 events; CI/isolation PASS | No | Mocked Firestore only | Open | No | No |
+| R07H actual Firestore Emulator transaction verification | PR pending | Real emulator acceptance pending | No | Local emulator, no live service | Open | No | No |
 
 ## Evidence boundary
 
@@ -96,8 +96,12 @@ An inactive server-only Firestore-compatible memory backend reuses R03's explici
 - **R07E PR #1204**: code merged at 4ec65003ecad5bb75d17ef3cfe18b20baba4dcac, 40/40 offline tests, TypeScript and isolation PASS. Immutable scope-keyed original-byte storage adapter with mocked GCS operations; no live bucket or privacy approval.
 - **R07F PR #1205**: code merged at 1816f26b2189fef75f4288ee910e1782e708c382, 37/37 offline tests, TypeScript and isolation PASS. Explicit-consent memory CAS and revoked-content tombstones; no live consent or retention approval.
 
-**R07 remains OPEN.** No new HTTP endpoint, enabled flag, deployed feature, approved server-only ACL, production Firebase/GCS data operation, real user file or live financial write was authorized or performed. No live data ever flows into the above synthetic suites. Tests do not close T22, T23 or T24. The known 300-event / 700 KB proof-of-concept limit of R07A still blocks long-conversation acceptance. A release needs verified deployed Firestore rules, independently provisioned server ACL, privileged IAM, approved retention/privacy/cost, actual cross-instance GCS/Firestore tests, source-to-review end-to-end, real provider policies, browser UI integration and physical iPhone Safari acceptance. No production deployment is authorized by merging code.
+**R07 remains OPEN.** No new HTTP endpoint, enabled flag, deployed feature, approved server-only ACL, production Firebase/GCS data operation, real user file or live financial write was authorized or performed. No live data ever flows into the above synthetic suites. Tests do not close T22, T23 or T24. R07A retains the known 300-event / 700 KB proof-of-concept limit; inactive R07G bypasses that particular limit under synthetic tests, but is not approved for production long-conversation acceptance. A release needs verified deployed Firestore rules, independently provisioned server ACL, privileged IAM, approved retention/privacy/cost, actual cross-instance GCS/Firestore tests, source-to-review end-to-end, real provider policies, browser UI integration and physical iPhone Safari acceptance. No production deployment is authorized by merging code.
 
 ## R07G bounded long-thread storage candidate
 
 R07G adds an inactive Firestore-compatible per-thread head plus contiguous event-shard adapter. It no longer uses R07A's 300-event single-document cap, while preserving R03's 20,000-event ceiling and explicit per-shard/head limits. Tests are mock-backed only; full R03 projection of prior history on every append is still a scaling/latency blocker. No live migration or Firebase read/write was authorized. See R07G_SHARDED_HISTORY_EVIDENCE_20261030.md.
+
+## R07H real local Firestore Emulator gate
+
+R07H performs the R07G sharded CAS path against official Firebase Admin + Firestore Emulator with strictly local `demo-` project guard. Real Cloud Firestore IAM, deployed security rules, retention, backup/recovery, multi-process deployment and live latency remain untested. See R07H_FIRESTORE_EMULATOR_EVIDENCE_20261031.md.
