@@ -24,6 +24,7 @@ export function fileProgressLabel(
  const prefix=rows.length>1?(ar?'الملف '+index+'/'+rows.length+' · ':'File '+index+'/'+rows.length+' · '):'';
  if(row.status==='error')return prefix+(ar?'تعذر استخراج هذا الملف':'This file needs review');
  if(row.status==='done'){
+   if(row.source?.documentType==='original-text')return prefix+(ar?'قُرئ النص محليًا · تعذّر تحليل AI · راجع المصدر':'Local text retained · AI analysis unavailable · review source');
    const count=fileCount(row);
    if(count!==null)return prefix+(ar?'اكتمل استخراج '+count+' صنفًا · راجع البيانات':'Extracted '+count+' complete source rows · review');
    return prefix+(ar?'تم التحليل · راجع البيانات قبل الحفظ':'Analysis complete · review before saving');
