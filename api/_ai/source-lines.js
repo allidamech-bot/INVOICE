@@ -102,8 +102,11 @@ export function validateExplicitQuoteTextEvidence(text,items,currency){
   const rowFacts=[],corrections=[],currencies=new Set();
   for(const line of original.split(/\r?\n/)){
     const keys=[...line.matchAll(skuPattern)].map(match=>match[1].toUpperCase());
-    const correction=/^\s*(?:Correction|Corrected|Update|تصحيح|تعديل)(?:\s|[:：-]|$)/iu.test(line);
+    const correction=/(?:^|[\s:،,;؛-])(?:Correction|Corrected|Updated|Update|Revise|تصحيح|تعديل|المصحح|التصحيح)(?=$|[\s:،,;؛-])/iu.test(line);
     const qtyMatch=qtyPattern.exec(line),priceMatch=pricePattern.exec(line);
+    // Competing labeled amounts in one segment are ambiguous, not a choice.
+    if([...line.matchAll(new RegExp(qtyPattern.source,'giu'))].length>1||
+       [...line.matchAll(new RegExp(pricePattern.source,'giu'))].length>1)return false;
     const qty=qtyMatch?normalize(qtyMatch[1]):null,price=priceMatch?normalize(priceMatch[1]):null;
     if((qtyMatch&&!qty)||(priceMatch&&!price))return false;
     const explicitCurrency=/(?:\bCurrency\b|العملة)\s*[:=]?\s*([A-Z]{3})\b/iu.exec(line);
