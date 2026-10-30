@@ -94,6 +94,7 @@ async function decode(snapshot:R07DDraftSnapshot,scope:AuthenticatedScope,
     data.schemaVersion!==1||data.scopeKey!==exactScopeKey(scope)||
     data.turnId!==turnId||data.draftId!=='draft-'+turnId||
     !HASH.test(String(data.contentHash))||
+    typeof data.draftRevision!=='number'||
     !Number.isSafeInteger(data.draftRevision)||
     data.draftRevision<1||!isPlain(data.draft))
     throw new R07DDraftStorageError('R07D_CORRUPT_DOCUMENT');
