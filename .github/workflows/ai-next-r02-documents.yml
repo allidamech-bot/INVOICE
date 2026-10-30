@@ -1,0 +1,41 @@
+name: LOUREX AI Next R02 Document Evidence
+
+on:
+  pull_request:
+    branches:
+      - main
+      - feature/ai-next-r01-core-contracts
+    paths:
+      - 'src/ai-next/document-engine/**'
+      - 'src/ai-next/domain/**'
+      - 'tests/ai-next/r02-documents.test.mjs'
+      - 'tests/ai-next/r01-core.test.mjs'
+      - '.github/workflows/ai-next-r02-documents.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r02-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-document-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript typecheck
+        run: npm run typecheck
+      - name: Compile isolated source for runnable Node tests
+        run: ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Validate R01 and R02 isolated synthetic tests
+        run: node --test tests/ai-next/r01-core.test.mjs tests/ai-next/r02-documents.test.mjs
