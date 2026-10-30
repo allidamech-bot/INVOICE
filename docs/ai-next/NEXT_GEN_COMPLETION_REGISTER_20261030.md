@@ -27,7 +27,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07K local Controller/Advisor indexed compatibility | Merged #1214, 5494df9f | 33/33 coordinator/R07J/bridge synthetic + 2/2 local Firestore Emulator; TS and isolation PASS | No | Local emulator only | Open | No | No |
 | R07L transactional latest-turn operational materialization | Merged #1216, 44c2c836 | 54/54 R03/R07G/R07J/R07L synthetic, 3/3 local Firebase Admin/Firestore, separate-process seed/restore 1/1 each; TS/trace/isolation PASS | No | Local emulator only | Open | No | No |
 | R07M fast local Controller/Advisor with sealed turn-request index | Merged #1218, 83aefd2c | 48/48 synthetic R07B/R07J/R07K/R07M; 3/3 official local Firestore Emulator; 7 final-SHA CI checks PASS | No | Local emulator only | Open | No | No |
-| R07N unmounted R06 UI preview wiring + interrupted Controller recovery | PR pending | UI callback/identity tests + two-process emulator export/import pending | No | Synthetic and local emulator only | Open | No | No |
+| R07N unmounted R06 UI preview wiring + interrupted Controller recovery | Merged #1220, 84a8b02b | 31/31 R06/R07M/R07N synthetic; 1/1 emulator seed/export + 3/3 independent emulator restore; all 3 SHA-bound checks PASS | No | Synthetic/local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -174,3 +174,10 @@ R07M adds a disabled server-authorized local coordinator using R07L current-turn
 ## R07N unmounted preview and recoverability candidate
 
 R07N implements a fully disabled presentation adapter from the server-authorized R07M fast coordinator to R06, including an unmounted workspace wiring, fail-closed response/scope checks, fixed identity on ambiguous send, and explicit complete-history read. Separate-process official Firestore Emulator export/import aims to prove recovery of an interrupted unsaved draft. No production API/HTTP, Firebase IAM, finance/provider, physical Safari or UI mount. See R07N_OFFLINE_PREVIEW_SECURITY_RECOVERY_EVIDENCE_20261031.md. CI acceptance pending.
+
+## R07N offline preview and interrupted-task recovery verification — October 31, 2026
+
+- PR #1220 merged at `84a8b02b923803b2412ae88728f615a6f8148359`. The three final-SHA GitHub checks `offline-preview-recovery`, `isolated-ui` and `trace` passed.
+- Targeted tests: **31/31** synthetic R06/R07M/R07N UI and state tests, **1/1** local official Firestore Emulator interrupted quote seed/export and **3/3** tests in an independent emulator process importing that export. Recovery confirmed the exact prior request, unsaved quotation, full event parity, ACL revocation and fail-closed tampered request index.
+- A separate OFF UI adapter translates only authenticated current-turn information to R06 and supplies safe `onSend`/`onLoadOlder` callbacks. Network-ambiguous sends preserve immutable request identity for explicit retry. Automatic retries/persistent browser storage are not enabled. The wrapper remains unmounted and underlying R06 workspace remains OFF.
+- This is **not** a production API, public UI or Cloud Firestore backup approval. No deployed IAM/rules or membership provisioning, provider/AI NLU, file processing, finance writes or live web/mobile acceptance were performed. T01–T24, actual production security controls and owner-approved deployment remain OPEN. The old history can be loaded only with an explicit full-audit call, not fabricated from R07L current state.
