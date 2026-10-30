@@ -76,3 +76,98 @@ export function explicitQuoteSource(text,normalizeNumber){
   draft.currency=[...currencies][0]||'';
   return draft;
 }
+
+
+/**
+ * Fail closed when a text RFQ explicitly labels SKU + quantity/price facts.
+ * A model may not swap prices between rows, collapse two products in one
+ * segment or apply a later correction without identifying exactly one SKU.
+ * This is evidence validation only; it never creates or saves documents.
+ * For images and unlabeled prose, use the existing review/confidence path.
+ */
+export function validateExplicitQuoteTextEvidence(text,items,currency){
+  const original=String(text??'').normalize('NFKC');
+  if(!Array.isArray(items))return false;
+  const skuPattern=/\bSKU(?:\s*[:#]\s*|\s+)([A-Z0-9][A-Z0-9._/-]{0,59})/gi;
+  const qtyPattern=/(?:\b(?:qty|quantity)\b|الكمية)\s*[:=]?\s*([0-9٠-٩۰-۹.,٫٬]+)/iu;
+  const pricePattern=/(?:\b(?:unit\s+price|price)\b|سعر\s*الوحدة)\s*[:=]?\s*([0-9٠-٩۰-۹.,٫٬]+)(?:\s+([A-Z]{3})\b)?/iu;
+  const normalize=value=>{
+    const parsed=explicitSourceDecimal(value,18);
+    if(!parsed)return '';
+    const [integer,fraction='']=parsed.split('.');
+    const whole=integer.replace(/^0+(?=\d)/,'');
+    const tail=fraction.replace(/0+$/,'');
+    return whole+(tail?'.'+tail:'');
+  };
+  const canonicalUnit=value=>{
+    const raw=String(value??'').normalize('NFKC').trim().toLowerCase().replace(/[.]/g,'');
+    const groups=[
+      ['CTN','ctn','carton','cartons','كرتون','كرتونة','كراتين'],
+      ['PCS','pc','pcs','piece','pieces','قطعة','قطع'],
+      ['BOX','box','boxes','علبة','علب'],
+      ['KG','kg','kilogram','kilograms','كيلو','كيلوغرام','كغ'],
+      ['UNIT','unit','units','وحدة','وحدات']
+    ];
+    return groups.find(group=>group.slice(1).includes(raw))?.[0]||raw;
+  };
+  const sourceUnit=(line,match)=>{
+    if(!match)return null;
+    const tail=line.slice(match.index+match[0].length);
+    const named=/^\s*[|;,،؛]?\s*(?:Unit|الوحدة)\s*[:=]\s*([\p{L}]{1,40})/iu.exec(tail);
+    const inline=/^\s+([\p{L}]{1,40})(?=\s|$|[|;,،؛])/u.exec(tail);
+    const token=named?.[1]||inline?.[1]||'';
+    if(!token||/^(?:price|cost|amount|each|per|سعر|التكلفة|المبلغ)$/iu.test(token)||/^[A-Z]{3}$/i.test(token)&&/^(?:USD|EUR|SAR|GBP|AED|TRY)$/i.test(token))return null;
+    return canonicalUnit(token);
+  };
+  const rowFacts=[],corrections=[],currencies=new Set();
+  for(const line of original.split(/\r?\n/)){
+    const keys=[...line.matchAll(skuPattern)].map(match=>match[1].toUpperCase());
+    const correction=/(?:^|[\s:،,;؛-])(?:Correction|Corrected|Updated|Update|Revise|تصحيح|تعديل|المصحح|التصحيح)(?=$|[\s:،,;؛-])/iu.test(line);
+    const qtyMatch=qtyPattern.exec(line),priceMatch=pricePattern.exec(line);
+    // Competing labeled amounts in one segment are ambiguous, not a choice.
+    if([...line.matchAll(new RegExp(qtyPattern.source,'giu'))].length>1||
+       [...line.matchAll(new RegExp(pricePattern.source,'giu'))].length>1)return false;
+    const qty=qtyMatch?normalize(qtyMatch[1]):null,price=priceMatch?normalize(priceMatch[1]):null;
+    const unit=sourceUnit(line,qtyMatch);
+    if((qtyMatch&&!qty)||(priceMatch&&!price))return false;
+    const explicitCurrency=/(?:\bCurrency\b|العملة)\s*[:=]?\s*([A-Z]{3})\b/iu.exec(line);
+    if(explicitCurrency)currencies.add(explicitCurrency[1].toUpperCase());
+    if(priceMatch?.[2])currencies.add(priceMatch[2].toUpperCase());
+    if(correction){
+      if(keys.length!==1||(qty===null&&price===null))return false;
+      corrections.push({sku:keys[0],quantity:qty,unitPrice:price,unit});
+      continue;
+    }
+    if(qtyMatch){
+      // A line containing multiple SKU identities is not one safe source row.
+      if(keys.length!==1)return false;
+      rowFacts.push({sku:keys[0],quantity:qty,unitPrice:price,unit});
+      if(rowFacts.length>120)return false;
+    }
+  }
+  if(currencies.size>1)return false;
+  const sourceCurrency=[...currencies][0]||'';
+  if(sourceCurrency&&sourceCurrency!==String(currency??'').trim().toUpperCase())return false;
+  if(!rowFacts.length)return corrections.length===0;
+  if(rowFacts.length!==items.length)return false;
+  const occurrences=new Map();
+  for(const row of rowFacts)occurrences.set(row.sku,(occurrences.get(row.sku)||0)+1);
+  for(const correction of corrections){
+    if(occurrences.get(correction.sku)!==1)return false;
+    const target=rowFacts.find(row=>row.sku===correction.sku);
+    if(!target)return false;
+    if(correction.unit!==null&&correction.unit!==target.unit)return false;
+    if(correction.quantity!==null)target.quantity=correction.quantity;
+    if(correction.unitPrice!==null)target.unitPrice=correction.unitPrice;
+  }
+  if(rowFacts.some(row=>row.unitPrice!==null)&&!sourceCurrency)return false;
+  return rowFacts.every((row,index)=>{
+    const actual=items[index];
+    if(!actual||String(actual.sku??'').trim().toUpperCase()!==row.sku)return false;
+    const quantity=normalize(String(actual.quantity??''));
+    if(!quantity||quantity!==row.quantity)return false;
+    if(canonicalUnit(actual.unit??'')!==(row.unit??''))return false;
+    const unitPrice=String(actual.unitPrice??'').trim();
+    return row.unitPrice===null?!unitPrice:normalize(unitPrice)===row.unitPrice;
+  });
+}
