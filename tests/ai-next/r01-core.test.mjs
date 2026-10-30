@@ -291,6 +291,11 @@ test('malformed nested JSON payloads and price assumptions fail contract validat
     lineItems:[{...makeDraft().lineItems[0],sellingUnitPrice:'1e6'}]}).ok,false);
   assert.equal(validateCoreContract('ReviewDraft',{...makeDraft(),
     lineItems:[{...makeDraft().lineItems[0],currency:'SYP',sellingUnitPrice:'25'}],
+    fieldStatus:[{field:'selling_price',status:'verified'}],
+    status:'ready_for_approval',businessValidation:{valid:true,blockers:[]}}).ok,false);
+  assert.equal(validateCoreContract('ReviewDraft',{...makeDraft(),
+    lineItems:[{...makeDraft().lineItems[0],currency:'USD',sellingUnitPrice:'25'}],
+    fieldStatus:[{field:'selling_price',status:'verified'}],
     status:'ready_for_approval',businessValidation:{valid:true,blockers:[]}}).ok,true);
-  // Currency normalization itself is later evidence-bound: validators NEVER auto-convert.
+  // No implicit currency conversion: a line must already match the draft currency.
 });
