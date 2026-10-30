@@ -1,4 +1,4 @@
-import { requestAiJson } from './ai-request.js';
+import { requestAiJson, AiRequestError } from './ai-request.js';
 import { readablePdfText, rasterScannedPdfPages } from './pdf-source.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from './spreadsheet-reader.js';
 import {exactSpreadsheetQuote} from './ai-spreadsheet-quote.js';
@@ -76,6 +76,15 @@ export function completeSourceJson(value:unknown,max=MAX_EXTRACT_CHARS):string{
   try{json=JSON.stringify(value);}catch{throw new Error('Source extraction could not be serialized. No document was prepared.');}
   if(!json||json.length>max)throw new Error('SOURCE_INCOMPLETE: Extracted source is larger than the complete review limit. Split the file into smaller complete sections; no document was prepared.');
   return json;
+}
+function isProviderOutage(error:unknown):boolean{
+  // An invalid/missing structured response, rejected business content or
+  // source integrity error is NOT a provider outage and must still fail closed.
+  return error instanceof AiRequestError&&(
+    ['AI_TEMPORARILY_UNAVAILABLE','AI_RATE_LIMITED','AI_TIMEOUT','AI_NOT_CONFIGURED',
+      'AI_PRIVATE_DOCUMENT_UNAVAILABLE','AI_PROVIDER_UNAVAILABLE',
+      'AI_FREE_TIER_UNAVAILABLE','AI_MODEL_UNAVAILABLE'].includes(error.code)
+    ||[429,503,504].includes(error.status));
 }
 function originalTextForReview(payload:AiPayload):string{
   const text=payload.kind==='text'?String(payload.text||''):'';
@@ -229,7 +238,7 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
     const classificationBody=await requestAiJson('/api/ai-inbox',{fileName:file.name,...payload},signal,30_000);
     const raw=classificationBody?.classification??{};const route=(['customer','supplier','supplier_purchase','quote_request','product_list','unknown'].includes(String(raw.route))?String(raw.route):'unknown') as ConversationAttachmentRoute;
     classification={route,documentType:boundedText(raw.documentType,80)||'unknown',confidence:Math.max(0,Math.min(1,Number(raw.confidence)||0)),reason:boundedText(raw.reason,300)};
-  }catch(error){if(signal?.aborted)throw error;classificationUnavailable=true;}
+  }catch(error){if(signal?.aborted)throw error;classificationUnavailable=isProviderOutage(error);}
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   onProgress?.('extracting');
   // Exact named columns in a customer RFQ need no generative extraction: a
@@ -254,7 +263,7 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
     }else{
       try{extracted=await genericExtraction(file.name,payload,signal);}
       catch(error){
-        if(signal?.aborted||payload.kind!=='text')throw error;
+        if(signal?.aborted||payload.kind!=='text'||!isProviderOutage(error))throw error;
         extracted=originalTextForReview(payload);
         classification={route:'unknown',documentType:'original-text',confidence:0,
           reason:'AI source summary unavailable. Complete original text retained for read-only review; no draft prepared.'};
@@ -282,8 +291,7 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
           extracted=await genericExtraction(file.name,payload,signal);
           classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
         }catch(fallbackError){
-          if(signal?.aborted)throw fallbackError;
-          if(payload.kind!=='text')throw fallbackError;
+          if(signal?.aborted||payload.kind!=='text'||!isProviderOutage(fallbackError))throw fallbackError;
           extracted=originalTextForReview(payload);
           classification={route:'unknown',documentType:'original-text',confidence:0,
             reason:'AI extraction unavailable. Complete local text preserved for review only; no structured quote, catalog change or save.'};
