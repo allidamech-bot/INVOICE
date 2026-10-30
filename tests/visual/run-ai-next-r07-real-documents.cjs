@@ -79,7 +79,7 @@ async function check(engine,name){
     await page.route('**/api/**',route=>{apiCalls++;return route.abort();});
     await page.goto('http://127.0.0.1:4173/tests/visual/ai-next-r07-real-binaries.html',
       {waitUntil:'domcontentloaded'});
-    await page.addScriptTag({url:'/vendor/xlsx.full.min.js'});
+    await page.addScriptTag({url:'/dist/vendor/xlsx.full.min.js'});
     const report=await page.evaluate(async({longB64,scanB64})=>{
       const [{
         ingestDocument,SyntheticSourceRepository,sha256,sourceScopeKey,
@@ -89,8 +89,8 @@ async function check(engine,name){
         import('/dist/src/ai-next/document-engine/engine.js'),
         import('/dist/src/ai-next/document-engine/adapters.js'),
       ]);
-      const pdfjs=await import('/vendor/pdf.mjs');
-      pdfjs.GlobalWorkerOptions.workerSrc='/vendor/pdf.worker.mjs';
+      const pdfjs=await import('/dist/vendor/pdf.mjs');
+      pdfjs.GlobalWorkerOptions.workerSrc='/dist/vendor/pdf.worker.mjs';
       const workbookRuntime=window.XLSX;
       if(!workbookRuntime?.read||!workbookRuntime?.write)
         throw Error('VENDORED_XLSX_RUNTIME_NOT_READY');
