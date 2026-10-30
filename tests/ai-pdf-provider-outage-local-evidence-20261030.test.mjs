@@ -104,3 +104,19 @@ test('inbox-local 429 preserves complete readable file source without inventing 
    assert.equal(calls.length,1,'No additional model call after gateway throttling');
  });
 });
+
+test('quotation source local throttle preserves text after failed specific extraction',async()=>{
+ await withNetwork((url,body)=>{
+   if(url==='/api/ai-inbox'&&body.mode!=='source-summary')
+     return{ok:true,status:200,json:async()=>({classification:{route:'quote_request',documentType:'customer_rfq',confidence:0.9,reason:'RFQ'}})};
+   if(url==='/api/quote-source-ai')
+     return{ok:false,status:429,json:async()=>({code:'AI_QUOTE_RATE_LIMITED'})};
+   return{ok:false,status:503,json:async()=>({code:'AI_TEMPORARILY_UNAVAILABLE'})};
+ },async calls=>{
+   const result=await analyzeConversationAttachment(file(),undefined,undefined,{mode:'controller'});
+   assert.equal(result.source.route,'unknown');
+   assert.equal(result.source.documentType,'original-text');
+   assert.equal(result.source.quoteSheetCandidate,undefined);
+   assert.equal(calls.length,3);
+ });
+});
