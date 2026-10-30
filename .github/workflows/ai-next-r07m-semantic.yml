@@ -1,0 +1,43 @@
+name: LOUREX AI Next R07M Durable Semantic Proposals
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/coordinator/fast-local-coordinator.ts'
+      - 'tests/ai-next/r07m-semantic-durable.test.mjs'
+      - '.github/workflows/ai-next-r07m-semantic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07m-semantic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-semantic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript and isolated compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Durable semantic turn, recovery and security tests
+        run: node --test tests/ai-next/r07m-semantic-durable.test.mjs
+      - name: R07M R07P R07R regression
+        run: >-
+          node --test
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+          tests/ai-next/r07p-semantic-planner.test.mjs
+          tests/ai-next/r07r-draft-preparation.test.mjs
+      - name: Financial/production isolation
+        run: node scripts/verify-deployment-isolation.mjs
