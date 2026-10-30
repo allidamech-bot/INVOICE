@@ -7,7 +7,7 @@
  * Every event and uniqueness receipt is atomically committed with the head.
  * Full event replay remains available for recovery/audit and may be expensive.
  */
-import type {AuthenticatedScope,TaskState} from '../domain/contracts.js';
+import type {AuthenticatedScope,TaskState,ConversationTurn} from '../domain/contracts.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {assertCoreContract} from '../domain/validation.js';
 import {canTransition} from '../domain/state-machine.js';
@@ -20,6 +20,9 @@ export const R07J_INDEXED_APPEND_ACTIVE=false as const;
 export const R07J_COLLECTION='aiNextIndexedEventThreadsV1';
 export const R07J_MAX_HEAD_BYTES=12_000;
 export const R07J_MAX_EVENT_BYTES=220_000;
+/** R07L is disabled and restricted to the isolated R07J collection. */
+export const R07L_MATERIALIZED_STATE_ACTIVATED=false as const;
+export const R07L_MAX_STATE_BYTES=350_000;
 const ZERO='0'.repeat(64);
 const HASH=/^[0-9a-f]{64}$/;
 const clone=<T>(v:T):T=>structuredClone(v);
@@ -44,6 +47,13 @@ async function sha256(input:string):Promise<string>{
 export class R07JStorageError extends Error{
   constructor(readonly code:string){super(code);}
 }
+/** Only current turn/task and last assistant output, never full conversation history. */
+export interface R07LOperationalView {
+  schemaVersion:1;scopeKey:string;revision:number;lastHash:string;
+  lastEventAt:string|null;turn:ConversationTurn|null;task:TaskState|null;
+  userMessageSeen:boolean;assistantReply:{messageId:string;text:string}|null;
+  integrityHash:string;
+}
 interface Head{
   schemaVersion:1;scopeKey:string;revision:number;lastHash:string;
   lastEventAt:string|null;turnCount:number;lastTurnId:string|null;
@@ -54,7 +64,7 @@ interface TaskRef{schemaVersion:1;scopeKey:string;task:TaskState}
 interface IdRef{schemaVersion:1;scopeKey:string;eventId:string;sequence:number}
 interface MessageRef{schemaVersion:1;scopeKey:string;messageId:string;sequence:number}
 interface Receipt{schemaVersion:1;scopeKey:string;event:ConversationEvent}
-type Document=Head|TurnRef|TaskRef|IdRef|MessageRef|Receipt|ConversationEvent;
+type Document=Head|TurnRef|TaskRef|IdRef|MessageRef|Receipt|ConversationEvent|R07LOperationalView;
 export interface R07JDocumentSnapshot{exists:boolean;data():unknown}
 export interface R07JDocumentRef{get():Promise<R07JDocumentSnapshot>}
 export interface R07JTransaction{
@@ -88,6 +98,61 @@ function blank(key:string):Head{return{
   schemaVersion:1,scopeKey:key,revision:0,lastHash:ZERO,lastEventAt:null,
   turnCount:0,lastTurnId:null,lastTaskId:null,lastTaskState:null,
 };}
+async function sealOperational(value:Omit<R07LOperationalView,'integrityHash'>):
+  Promise<R07LOperationalView>{
+  const result={...value,integrityHash:await sha256(canonical(value))};
+  if(size(result)>R07L_MAX_STATE_BYTES)
+    throw new R07JStorageError('R07L_STATE_BYTE_CAP');
+  return result;
+}
+async function validateOperational(value:unknown,key:string,head:Head):
+  Promise<R07LOperationalView>{
+  if(!plain(value)||Object.keys(value).sort().join('|')!==[
+    'schemaVersion','scopeKey','revision','lastHash','lastEventAt',
+    'turn','task','userMessageSeen','assistantReply','integrityHash',
+  ].sort().join('|')||value.schemaVersion!==1||value.scopeKey!==key||
+    value.revision!==head.revision||value.lastHash!==head.lastHash||
+    value.lastEventAt!==head.lastEventAt||
+    typeof value.userMessageSeen!=='boolean'||
+    typeof value.integrityHash!=='string'||
+    !HASH.test(value.integrityHash)||
+    size(value)>R07L_MAX_STATE_BYTES)
+    throw new R07JStorageError('R07L_INVALID_STATE');
+  const {integrityHash,...payload}=value;
+  if(await sha256(canonical(payload))!==integrityHash)
+    throw new R07JStorageError('R07L_STATE_HASH_MISMATCH');
+  if(head.revision===0){
+    if(value.turn!==null||value.task!==null||
+      value.userMessageSeen!==false||value.assistantReply!==null)
+      throw new R07JStorageError('R07L_INVALID_EMPTY_STATE');
+  }else{
+    if(!plain(value.turn)||!plain(value.task)||
+      !plain(value.turn.scope)||!plain(value.task.scope)||
+      value.turn.turnId!==head.lastTurnId||
+      value.turn.taskId!==head.lastTaskId||
+      value.task.taskId!==head.lastTaskId||
+      value.task.turnId!==head.lastTurnId||
+      value.task.state!==head.lastTaskState||
+      exactScopeKey(value.turn.scope as unknown as AuthenticatedScope)!==key||
+      exactScopeKey(value.task.scope as unknown as AuthenticatedScope)!==key)
+      throw new R07JStorageError('R07L_STATE_HEAD_DIVERGENCE');
+    try{
+      assertCoreContract('ConversationTurn',value.turn);
+      assertCoreContract('TaskState',value.task);
+    }catch{throw new R07JStorageError('R07L_INVALID_DOMAIN_STATE');}
+    if(value.assistantReply!==null&&
+      (!plain(value.assistantReply)||
+        typeof value.assistantReply.messageId!=='string'||
+        typeof value.assistantReply.text!=='string'))
+      throw new R07JStorageError('R07L_INVALID_ASSISTANT_REPLY');
+  }
+  return clone(value as unknown as R07LOperationalView);
+}
+function emptyOperational(key:string):R07LOperationalView{
+  return {schemaVersion:1,scopeKey:key,revision:0,lastHash:ZERO,
+    lastEventAt:null,turn:null,task:null,userMessageSeen:false,
+    assistantReply:null,integrityHash:''};
+}
 function identity(input:unknown,key:string,field:string):void{
   if(!plain(input)||input.schemaVersion!==1||input.scopeKey!==key||
     typeof input[field]!=='string')
@@ -124,6 +189,7 @@ export class R07JExperimentalIndexedJournal{
     const key=exactScopeKey(scope),prefix=await sha256(key),
       col=this.db.collection(R07J_COLLECTION);
     return {key,head:col.doc(prefix+':head'),
+      operational:col.doc(prefix+':operational'),
       bySequence:(n:number)=>col.doc(prefix+':event:'+String(n).padStart(6,'0')),
       byIdempotency:async(id:string)=>col.doc(prefix+':idem:'+await sha256(id)),
       byEventId:async(id:string)=>col.doc(prefix+':eventid:'+await sha256(id)),
@@ -132,13 +198,36 @@ export class R07JExperimentalIndexedJournal{
       byTask:async(id:string)=>col.doc(prefix+':task:'+await sha256(id)),
     };
   }
+  /**
+   * R07L bounded head + current-turn operational read. The Admin SDK
+   * transaction gives an atomic pair, not a cache or unsafe client mirror.
+   * Empty thread uses no materialized document. Missing state for an old
+   * indexed stream FAILS CLOSED; no implicit migration/backfill.
+   */
+  async readOperationalState(scope:AuthenticatedScope):Promise<{
+    view:R07LOperationalView;completeHistory:false;
+    authoritativeForFinancialExecution:false;
+  }>{
+    const ref=await this.documents(scope);
+    const value=await this.db.runTransaction(async tx=>{
+      const head=parseHead(await tx.get(ref.head),ref.key)??blank(ref.key);
+      const op=await tx.get(ref.operational);
+      if(head.revision===0){
+        if(op.exists)throw new R07JStorageError('R07L_ORPHAN_STATE');
+        return emptyOperational(ref.key);
+      }
+      if(!op.exists)throw new R07JStorageError('R07L_MISSING_MATERIALIZATION');
+      return validateOperational(op.data(),ref.key,head);
+    });
+    return {view:clone(value),completeHistory:false,
+      authoritativeForFinancialExecution:false};
+  }
   /** Deliberately returns ONLY a narrow durable receipt, not a R03 snapshot. */
   async append(input:AppendInput):Promise<FastResult>{
     const refs=await this.documents(input.scope),key=refs.key;
     if(!Number.isSafeInteger(input.expectedRevision)||input.expectedRevision<0)
       throw new R07JStorageError('R07J_INVALID_EXPECTED_REVISION');
     // Validate body/IDs even on replay. Scope must be server-verified.
-    const seed=await sealConversationEvent({...input,sequence:1,previousHash:ZERO});
     const baseline=parseHead(await refs.head.get(),key)??blank(key);
     const event=await sealConversationEvent({...input,
       sequence:baseline.revision+1,previousHash:baseline.lastHash});
@@ -158,6 +247,18 @@ export class R07JExperimentalIndexedJournal{
       // All document reads must precede ANY writes in Firestore transactions.
       const current=parseHead(await tx.get(refs.head),key)??blank(key);
       const idemDoc=await tx.get(idem);
+      const operationalDoc=await tx.get(refs.operational);
+      let currentOperational:R07LOperationalView;
+      if(current.revision===0){
+        if(operationalDoc.exists)
+          throw new R07JStorageError('R07L_ORPHAN_STATE');
+        currentOperational=emptyOperational(key);
+      }else{
+        if(!operationalDoc.exists)
+          throw new R07JStorageError('R07L_MISSING_MATERIALIZATION');
+        currentOperational=await validateOperational(
+          operationalDoc.data(),key,current);
+      }
       if(idemDoc.exists){
         const receipt=idemDoc.data();
         if(!plain(receipt)||receipt.schemaVersion!==1||
@@ -229,6 +330,34 @@ export class R07JExperimentalIndexedJournal{
           value.task.taskId!==input.body.taskId)
           throw new R07JStorageError('R07J_DAMAGED_TASK_INDEX');
       }
+      const viewBase:Omit<R07LOperationalView,'integrityHash'>={
+        schemaVersion:1,scopeKey:key,revision:next.revision,
+        lastHash:next.lastHash,lastEventAt:next.lastEventAt,
+        turn:currentOperational.turn,task:currentOperational.task,
+        userMessageSeen:currentOperational.userMessageSeen,
+        assistantReply:currentOperational.assistantReply,
+      };
+      if(kind==='turn_started'){
+        viewBase.turn=clone(input.body.turn);
+        viewBase.task=clone(input.body.task);
+        viewBase.userMessageSeen=false;
+        viewBase.assistantReply=null;
+      }else if(kind==='task_updated'&&
+        input.body.task.taskId===next.lastTaskId){
+        viewBase.task=clone(input.body.task);
+      }else if(kind==='message'&&
+        input.body.turnId===next.lastTurnId){
+        if(input.body.role==='user'&&
+          input.body.messageId===viewBase.turn?.userMessageId)
+          viewBase.userMessageSeen=true;
+        else if(input.body.role==='assistant')
+          viewBase.assistantReply={messageId:input.body.messageId,
+            text:input.body.text};
+      }
+      const operational=await sealOperational(viewBase);
+      // This cannot be a replacement for the event-chain full audit: the
+      // index is a transactional, latest-turn-only materialized view.
+      await validateOperational(operational,key,next);
       if(size(next)>R07J_MAX_HEAD_BYTES)
         throw new R07JStorageError('R07J_HEAD_BYTE_CAP');
       tx.create(refs.bySequence(event.sequence),event);
@@ -246,8 +375,13 @@ export class R07JExperimentalIndexedJournal{
         tx.create(mid!,{schemaVersion:1,scopeKey:key,
           messageId:input.body.messageId,sequence:event.sequence});
       }
-      if(current.revision===0)tx.create(refs.head,next);
-      else tx.set(refs.head,next);
+      if(current.revision===0){
+        tx.create(refs.head,next);
+        tx.create(refs.operational,operational);
+      }else{
+        tx.set(refs.head,next);
+        tx.set(refs.operational,operational);
+      }
       return {event,revision:next.revision,lastHash:next.lastHash,
         replayed:false,authoritativeFullSnapshot:false as const};
     });
