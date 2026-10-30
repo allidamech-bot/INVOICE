@@ -76,3 +76,72 @@ export function explicitQuoteSource(text,normalizeNumber){
   draft.currency=[...currencies][0]||'';
   return draft;
 }
+
+
+/**
+ * Fail closed when a text RFQ explicitly labels SKU + quantity/price facts.
+ * A model may not swap prices between rows, collapse two products in one
+ * segment or apply a later correction without identifying exactly one SKU.
+ * This is evidence validation only; it never creates or saves documents.
+ * For images and unlabeled prose, use the existing review/confidence path.
+ */
+export function validateExplicitQuoteTextEvidence(text,items,currency){
+  const original=String(text??'').normalize('NFKC');
+  if(!Array.isArray(items))return false;
+  const skuPattern=/\bSKU(?:\s*[:#]\s*|\s+)([A-Z0-9][A-Z0-9._/-]{0,59})/gi;
+  const qtyPattern=/(?:\b(?:qty|quantity)\b|الكمية)\s*[:=]?\s*([0-9٠-٩۰-۹.,٫٬]+)/iu;
+  const pricePattern=/(?:\b(?:unit\s+price|price)\b|سعر\s*الوحدة)\s*[:=]?\s*([0-9٠-٩۰-۹.,٫٬]+)(?:\s+([A-Z]{3})\b)?/iu;
+  const normalize=value=>{
+    const parsed=explicitSourceDecimal(value,18);
+    if(!parsed)return '';
+    const [integer,fraction='']=parsed.split('.');
+    const whole=integer.replace(/^0+(?=\d)/,'');
+    const tail=fraction.replace(/0+$/,'');
+    return whole+(tail?'.'+tail:'');
+  };
+  const rowFacts=[],corrections=[],currencies=new Set();
+  for(const line of original.split(/\r?\n/)){
+    const keys=[...line.matchAll(skuPattern)].map(match=>match[1].toUpperCase());
+    const correction=/^\s*(?:Correction|Corrected|Update|تصحيح|تعديل)(?:\s|[:：-]|$)/iu.test(line);
+    const qtyMatch=qtyPattern.exec(line),priceMatch=pricePattern.exec(line);
+    const qty=qtyMatch?normalize(qtyMatch[1]):null,price=priceMatch?normalize(priceMatch[1]):null;
+    if((qtyMatch&&!qty)||(priceMatch&&!price))return false;
+    const explicitCurrency=/(?:\bCurrency\b|العملة)\s*[:=]?\s*([A-Z]{3})\b/iu.exec(line);
+    if(explicitCurrency)currencies.add(explicitCurrency[1].toUpperCase());
+    if(priceMatch?.[2])currencies.add(priceMatch[2].toUpperCase());
+    if(correction){
+      if(keys.length!==1||(qty===null&&price===null))return false;
+      corrections.push({sku:keys[0],quantity:qty,unitPrice:price});
+      continue;
+    }
+    if(qtyMatch){
+      // A line containing multiple SKU identities is not one safe source row.
+      if(keys.length!==1)return false;
+      rowFacts.push({sku:keys[0],quantity:qty,unitPrice:price});
+      if(rowFacts.length>120)return false;
+    }
+  }
+  if(currencies.size>1)return false;
+  const sourceCurrency=[...currencies][0]||'';
+  if(sourceCurrency&&sourceCurrency!==String(currency??'').trim().toUpperCase())return false;
+  if(!rowFacts.length)return corrections.length===0;
+  if(rowFacts.length!==items.length)return false;
+  const occurrences=new Map();
+  for(const row of rowFacts)occurrences.set(row.sku,(occurrences.get(row.sku)||0)+1);
+  for(const correction of corrections){
+    if(occurrences.get(correction.sku)!==1)return false;
+    const target=rowFacts.find(row=>row.sku===correction.sku);
+    if(!target)return false;
+    if(correction.quantity!==null)target.quantity=correction.quantity;
+    if(correction.unitPrice!==null)target.unitPrice=correction.unitPrice;
+  }
+  if(rowFacts.some(row=>row.unitPrice!==null)&&!sourceCurrency)return false;
+  return rowFacts.every((row,index)=>{
+    const actual=items[index];
+    if(!actual||String(actual.sku??'').trim().toUpperCase()!==row.sku)return false;
+    const quantity=normalize(String(actual.quantity??''));
+    if(!quantity||quantity!==row.quantity)return false;
+    const unitPrice=String(actual.unitPrice??'').trim();
+    return row.unitPrice===null?!unitPrice:normalize(unitPrice)===row.unitPrice;
+  });
+}
