@@ -191,8 +191,8 @@ export class R07PSemanticPlanner{
       membership:this.deps.membership,
       serverNowEpochSeconds:Math.floor((this.deps.clock?.()??new Date()).getTime()/1000),
     });
-    const context=await this.deps.context.load(scope);
-    verifyContext(scope,context);
+    // Fast-path local greetings and draft-start BEFORE loading the full
+    // audited history. Authorization still runs first.
     const local=recognizeR05LocalIntent(input.message,0);
     const language=languageOf(input.message);
     const turnId='proposal-'+input.userMessageId;
@@ -224,6 +224,8 @@ export class R07PSemanticPlanner{
         risk:'blocked',providerCalls:0,financialSaved:false,
         assistantReply:'يتطلب هذا الطلب فهمًا دلاليًا لم يتم تفعيله بعد.'};
     }
+    const context=await this.deps.context.load(scope);
+    verifyContext(scope,context);
     const references=context.references.map(r=>({kind:r.kind,id:r.id}));
     let rawCandidate:unknown,providerCalls:number,
       interpretation:'synthetic_model'|'routed_model';
@@ -278,7 +280,10 @@ export class R07PSemanticPlanner{
       }else if(context.activeDraft){
         subject={kind:'draft',id:context.activeDraft.id};
       }else{
-        addUnknown('active_draft','no_verified_active_draft');
+        const drafts=context.references.filter(r=>r.kind==='draft');
+        addUnknown('active_draft',
+          drafts.length>1?'ambiguous_active_draft':'no_verified_active_draft',
+          drafts.map(r=>r.id));
       }
     }else if(c.reference==='last_quotation'||c.reference==='last_document'){
       if(!context.historyComplete){
