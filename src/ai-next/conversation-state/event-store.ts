@@ -152,6 +152,8 @@ export function projectEvents(scope:AuthenticatedScope,events:readonly Conversat
       if(next.state==='executing' || !canTransition(prior.state,next.state) ||
         next.taskId!==prior.taskId || next.taskType!==prior.taskType ||
         next.startedAt!==prior.startedAt || next.threadId!==prior.threadId ||
+        next.approvalId!==prior.approvalId ||
+        next.executionOperationId!==prior.executionOperationId ||
         JSON.stringify(next.sourceIds)!==JSON.stringify(prior.sourceIds) ||
         Date.parse(next.updatedAt)<Date.parse(prior.updatedAt) ||
         (next.state==='completed' && !!next.sourceIds.length) ||
@@ -279,8 +281,24 @@ export class ScopedConversationLedger {
     expectedRevision:number;nextState:TaskState['state'];eventId:string;
     idempotencyKey:string;now:string;options?:Omit<TransitionOptions,'now'|'expectedStateVersion'>;
   }):Promise<{snapshot:ConversationSnapshot;replayed:boolean}>{
-    // Read+append race is safe: the append's expectedRevision is still CAS
-    // checked inside the atomic backend transaction.
+    // Safe HTTP replay: retry the same event without recomputing a transition
+    // against the now-advanced task revision. Never return a changed operation.
+    const key=exactScopeKey(input.scope),stored=await this.backend.read(key);
+    if(stored.revision!==stored.events.length)
+      throw new Error('AI_NEXT_INVALID_STORE_REVISION');
+    await verifyEventHashes(stored.events);
+    const replay=stored.events.find(e=>e.idempotencyKey===input.idempotencyKey);
+    if(replay){
+      if(replay.eventId!==input.eventId || replay.body.kind!=='task_updated' ||
+        replay.body.task.taskId!==input.taskId ||
+        replay.body.task.state!==input.nextState ||
+        replay.body.task.stateVersion!==input.expectedStateVersion+1 ||
+        replay.eventAt!==input.now)
+        throw new Error('AI_NEXT_IDEMPOTENCY_COLLISION');
+      return {snapshot:projectEvents(input.scope,stored.events),replayed:true};
+    }
+    // Read+append race is safe: append's expectedRevision is CAS-checked
+    // inside the atomic backend transaction.
     const snapshot=await this.snapshot(input.scope);
     const task=snapshot.tasks.find(t=>t.taskId===input.taskId);
     if(!task)throw new Error('AI_NEXT_TASK_NOT_FOUND_OR_FORBIDDEN');
