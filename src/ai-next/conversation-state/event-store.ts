@@ -8,7 +8,7 @@
 import type { AuthenticatedScope, TaskState, ConversationTurn } from '../domain/contracts.js';
 import { assertCoreContract, validateAuthenticatedScope } from '../domain/validation.js';
 import { exactScopeKey } from '../domain/turn-journal.js';
-import { transitionTask, type TransitionOptions } from '../domain/state-machine.js';
+import { canTransition, transitionTask, type TransitionOptions } from '../domain/state-machine.js';
 
 export type ConversationEventBody =
   | {kind:'turn_started'; turn:ConversationTurn; task:TaskState}
@@ -148,7 +148,18 @@ export function projectEvents(scope:AuthenticatedScope,events:readonly Conversat
         prior.stateVersion+1!==event.body.task.stateVersion ||
         prior.revision+1!==event.body.task.revision)
         throw new Error('AI_NEXT_STALE_TASK_EVENT');
-      snapshot.tasks[snapshot.tasks.indexOf(prior)]=clone(event.body.task);
+      const next=event.body.task;
+      if(next.state==='executing' || !canTransition(prior.state,next.state) ||
+        next.taskId!==prior.taskId || next.taskType!==prior.taskType ||
+        next.startedAt!==prior.startedAt || next.threadId!==prior.threadId ||
+        JSON.stringify(next.sourceIds)!==JSON.stringify(prior.sourceIds) ||
+        Date.parse(next.updatedAt)<Date.parse(prior.updatedAt) ||
+        (next.state==='completed' && !!next.sourceIds.length) ||
+        (next.state==='completed' && !next.completedAt) ||
+        (next.state==='needs_reconciliation' && !next.executionOperationId &&
+          prior.state!=='executing'))
+        throw new Error('AI_NEXT_UNAUTHORIZED_TASK_TRANSITION');
+      snapshot.tasks[snapshot.tasks.indexOf(prior)]=clone(next);
     } else if(event.body.kind==='message'){
       if(messages.has(event.body.messageId) || !turns.has(event.body.turnId))
         throw new Error('AI_NEXT_MESSAGE_TURN_MISMATCH');
@@ -238,6 +249,8 @@ export class ScopedConversationLedger {
       if(record.revision!==record.events.length)throw new Error('AI_NEXT_INVALID_STORE_REVISION');
       await verifyEventHashes(record.events);
       const before=projectEvents(scope,record.events);
+      if(record.events.some(e=>e.eventId===eventId && e.idempotencyKey!==idempotencyKey))
+        throw new Error('AI_NEXT_DUPLICATE_EVENT_ID');
       const existing=record.events.find(e=>e.idempotencyKey===idempotencyKey);
       if(existing){
         if(canonical(existing.body)!==canonical(body) ||
