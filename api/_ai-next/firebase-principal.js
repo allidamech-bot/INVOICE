@@ -53,7 +53,8 @@ export async function verifyR07FirebasePrincipal(token,serverNowEpochSeconds,
     payload.iat<1||payload.auth_time<1||payload.iat>serverNowEpochSeconds+60||
     payload.auth_time>serverNowEpochSeconds+60||
     payload.exp<=serverNowEpochSeconds||
-    payload.firebase?.sign_in_provider==='anonymous')
+    typeof payload.firebase?.sign_in_provider!=='string'||
+    payload.firebase.sign_in_provider==='anonymous')
     throw new R07BIdentityError('R07_INVALID_SIGNED_TOKEN_CLAIMS');
   return Object.freeze({
     uid:signed.uid,
