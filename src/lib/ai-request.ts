@@ -8,6 +8,9 @@ export class AiRequestError extends Error {
 }
 function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
   if(code==='AI_NOT_CONFIGURED')return t('AI providers are not configured for this deployment. No data was changed.','مزوّدو AI غير مهيّئين لهذه النسخة من الموقع. لم تتغير أي بيانات.');
+  if(code==='AI_PRIVATE_DOCUMENT_UNAVAILABLE')return t('No approved free model is currently eligible to read this native PDF. The file was not sent to an unapproved provider; no data changed.','لا يوجد حاليًا موديل مجاني معتمد ومؤهل لقراءة ملف PDF الأصلي. لم يُرسل الملف إلى مزوّد غير معتمد ولم تتغير أي بيانات.');
+  if(code==='AI_UNSUPPORTED_MODALITY')return t('This model route cannot process this file format. No data changed.','مسار الموديل لا يدعم قراءة هذا النوع من الملفات. لم تتغير أي بيانات.');
+  if(code==='AI_FREE_ONLY_REQUIRED')return t('The free-only AI routing requirement is not satisfied. No paid model was called and no data changed.','متطلبات تشغيل الموديلات المجانية فقط غير مستوفاة. لم يُستدعَ أي موديل مدفوع ولم تتغير أي بيانات.');
   if(code==='AI_INBOX_RATE_LIMITED')return t('LOUREX file/conversation request limit reached. Try again after the request window resets; no provider was contacted and no data was changed.','وصلت إلى حد طلبات المحادثة والملفات في LOUREX. أعد المحاولة بعد انتهاء فترة الحد؛ لم يتم الاتصال بمزوّد AI ولم تتغير أي بيانات.');
   if(code==='AI_RATE_LIMITED'||status===429)return t('AI providers are temporarily at capacity. Retry shortly. No data was changed.','مزوّدو الذكاء الاصطناعي مشغولون مؤقتًا. أعد المحاولة بعد قليل. لم تتغير أي بيانات.');
   if(code==='AI_TIMEOUT'||status===504)return t('AI took too long to respond. Retry with a shorter message or fewer files. No data was changed.','استغرق رد الذكاء الاصطناعي وقتًا أطول من المسموح. حاول برسالة أقصر أو ملفات أقل. لم تتغير أي بيانات.');
