@@ -232,3 +232,70 @@ test('bad full scope keys are rejected before reading any database documents',as
   }
   assert.equal(db.reads,0);
 });
+
+
+test('R07I display window reads only recent shards, no full history or writes',async()=>{
+  const db=new SerialFirestoreMock(),a=ledger(db);
+  await a.append(start());
+  for(let r=1;r<=220;r++)await a.append(message(r));
+  const b=backend(db),key=exactScopeKey(scope),before=db.writes;
+  const beforeReads=db.reads;
+  const recent=await b.readRecentWindow(key,25);
+  const windowReads=db.reads-beforeReads;
+  const fullReadsBefore=db.reads;
+  const full=await b.read(key);
+  const fullReads=db.reads-fullReadsBefore;
+  assert.equal(recent.revision,221);
+  assert.equal(recent.events.length,25);
+  assert.equal(recent.firstSequence,197);
+  assert.equal(recent.events[0].sequence,197);
+  assert.equal(recent.events.at(-1).sequence,221);
+  assert.equal(recent.lastHash,full.events.at(-1).hash);
+  assert.equal(recent.previousHash,full.events[195].hash);
+  assert.equal(recent.completeHistory,false);
+  assert.equal(recent.authoritativeForMutation,false);
+  assert.equal(recent.events.every((e,i)=>e.sequence===197+i),true);
+  assert.ok(windowReads<fullReads,
+    'a bounded recent window must read fewer Firestore documents');
+  assert.equal(db.writes,before);
+});
+test('R07I short thread provides complete read-only window and enforces limits',async()=>{
+  const db=new SerialFirestoreMock(),b=backend(db),key=exactScopeKey(scope);
+  const empty=await b.readRecentWindow(key,10);
+  assert.deepEqual([empty.revision,empty.firstSequence,empty.completeHistory,
+    empty.authoritativeForMutation],[0,0,true,false]);
+  await ledger(db).append(start());
+  const one=await b.readRecentWindow(key,128);
+  assert.equal(one.completeHistory,true);
+  assert.equal(one.firstSequence,1);
+  assert.equal(one.events.length,1);
+  for(const bad of [0,129,-1,1.25,NaN,Infinity,'12',null]){
+    await assert.rejects(b.readRecentWindow(key,bad),
+      /R07I_INVALID_WINDOW_LIMIT/);
+  }
+});
+test('R07I missing old shards cannot masquerade as authoritative full replay',async()=>{
+  const db=new SerialFirestoreMock(),a=ledger(db);
+  await a.append(start());
+  for(let r=1;r<=104;r++)await a.append(message(r));
+  const firstShard=db.chunks().find(([id])=>id.endsWith(':00000'))[0];
+  db.data.delete(firstShard);
+  const tail=await backend(db).readRecentWindow(exactScopeKey(scope),5);
+  assert.equal(tail.revision,105);
+  assert.equal(tail.events.length,5);
+  assert.equal(tail.completeHistory,false);
+  assert.equal(tail.authoritativeForMutation,false);
+  await assert.rejects(a.snapshot(scope),/R07G_MISSING_OR_CORRUPT_CHUNK/);
+});
+test('R07I read-only tail fails closed on tampered included chunk',async()=>{
+  const db=new SerialFirestoreMock(),a=ledger(db);
+  await a.append(start());
+  for(let r=1;r<=104;r++)await a.append(message(r));
+  const [id,document]=db.chunks().find(([key])=>key.endsWith(':00001'));
+  const changed=clone(document);
+  changed.events.at(-1).body.text='secretly overwritten';
+  db.data.set(id,changed);
+  await assert.rejects(
+    backend(db).readRecentWindow(exactScopeKey(scope),4),
+    /R07G_CHUNK_HASH_MISMATCH/);
+});
