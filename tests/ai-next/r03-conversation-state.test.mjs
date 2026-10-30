@@ -194,10 +194,7 @@ test('context window never discards authoritative history, and reports every omi
   for(let i=0;i<100;i++){
     await append(l,scope(),{kind:'message',messageId:'m'+i,turnId:'turn1',
       role:i%2?'assistant':'user',text:'Synthetic '+i+' '+('x'.repeat(45)),
-      sourceIds:[]},'e'+i,'k'+i,at(i%50),rev).catch(async e=>{
-        // Never accept out-of-order wall time, explicit fail instead.
-        throw e;
-      });
+      sourceIds:[]},'e'+i,'k'+i,new Date(Date.parse(T)+i*1000).toISOString(),rev);
     rev++;
   }
   const snapshot=await l.snapshot(scope());
