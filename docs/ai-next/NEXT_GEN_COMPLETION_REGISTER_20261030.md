@@ -219,3 +219,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Synthetic R07R transaction tests cover customer, line item/currency, stale retries, concurrent CAS, malicious/unresolved model output and cross-tenant/role denial. Exact final-head CI evidence, not this register entry, is authoritative for pass claims.
 - **Not completed integration:** R07M durable authenticated turn/task journal is NOT yet wired to this bridge; only synthetic interpreted output is injected. Real provider understanding, multi-turn durable semantic idempotency, full undo/redo, real cloud IAM and T22–T24 remain OPEN. No production activation.
 - See docs/ai-next/R07R_REVIEW_DRAFT_PREPARATION_EVIDENCE_20261031.md.
+
+
+## R07P/R07Q offline routed semantic integration — October 31, 2026
+
+- A disabled, server-only R07QTrustedSemanticGateway now connects eligible **mocked** R05 model transports to strict R07P typed nonexecutable semantic plans. R05 deterministic greeting and empty quotation draft recognition remain provider-free.
+- The gateway requires independently approved private-business-data inference, per-model zero-cost/account entitlements, structured-output compatibility, bounded fallback and redacted per-turn opaque reference handles. Unknown model references, extra fields and financial execution suggestions fail safely. Neither this package nor R07R is mounted as a production conversation route.
+- The tests use synthetic model records/transport outputs. They cannot measure real natural Arabic interpretation accuracy, model latency p95, live provider price eligibility, actual security IAM or end-to-end durable task consistency.
+- See docs/ai-next/R07PQ_ROUTED_SEMANTIC_OFFLINE_EVIDENCE_20261031.md and the final-SHA GitHub Actions. Open: R07M semantic task journal integration, real trusted history adapter, secure source/attachment reasoning, real QA provisioning, T22–T24 and a separately approved rollout.
