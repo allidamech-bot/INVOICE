@@ -25,7 +25,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07I recent non-authoritative window + emulator restart recovery | Merged #1210, d8bf5f1d | 49/49 R03/R07G/R07I synthetic + 2 separate emulator phases PASS; Vercel isolation PASS | No | Local emulator export/import only | Open | No | No |
 | R07J indexed O(1)-read event append | Merged #1212, 36d9a815 | 48/48 R03/R07G/R07J synthetic; 3/3 official Firestore Emulator; TypeScript/isolation PASS | No | Emulator only, no live store | Open | No | No |
 | R07K local Controller/Advisor indexed compatibility | Merged #1214, 5494df9f | 33/33 coordinator/R07J/bridge synthetic + 2/2 local Firestore Emulator; TS and isolation PASS | No | Local emulator only | Open | No | No |
-| R07L transactional latest-turn operational materialization | PR pending | 320-event model parity and two-process emulator restore CI pending | No | Local emulator only | Open | No | No |
+| R07L transactional latest-turn operational materialization | Merged #1216, 44c2c836 | 54/54 R03/R07G/R07J/R07L synthetic, 3/3 local Firebase Admin/Firestore, separate-process seed/restore 1/1 each; TS/trace/isolation PASS | No | Local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -150,3 +150,10 @@ R07K binds the existing R07B2 local coordinator to the R07J indexed journal thro
 ## R07L materialized current-turn candidate
 
 A bounded read-only current-turn/task/last-reply view is atomically sealed alongside R07J event/head CAS, with canonical checksum and fail-closed corruption. Complete R03 replay remains a separate audit path; R07K remains a full-replay compatibility bridge until a separately tested optimized coordinator. No migration/production API/UI/IAM or finance writes. Pending R07L Firestore Emulator and targeted CI. See R07L_MATERIALIZED_STATE_EVIDENCE_20261031.md.
+
+## R07L transactional operational model verification — October 31, 2026
+
+- **PR #1216** merged at 44c2c836797afec2014588bc0e3688fdb45a19a0. Four final-SHA CI checks passed (indexed-append, materialized-state, Vercel trace, sandbox CAS).
+- Bounded current-turn view requires only two Firestore document reads per transaction independent of message count in the tested synthetic case, and is atomically materialized with each R07J event/head CAS. It stores latest turn/task, user-message-seen and assistant reply. The sealed view has full-head revision/hash linkage and canonical integrity check.
+- Official Firestore Emulator tests passed seed/export 110 events, full stop/restart/import, idempotent replay, safe append, and full replay audit parity. Synthetic tests also reject missing or tampered model, orphan record without head, concurrent CAS conflicts and stale preceding-turn presentation.
+- **Materialized view is not the entire event record.** Full R03 audit remains required for history/evidence and is expensive; R07K's actual coordinator still uses full replay per step. R07L introduces no production API or optimized controller integration. R07L_MATERIALIZED_STATE_ACTIVATED remains false. No live Firestore IAM/rules, ACL provisioning, financial write, provider, deployed frontend or physical iPhone acceptance. Future optimized coordinator integration and operational recovery/retention/security gates remain OPEN.
