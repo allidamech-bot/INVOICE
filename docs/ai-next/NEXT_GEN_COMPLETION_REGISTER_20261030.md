@@ -210,3 +210,12 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Free account and individual model cost proof, current quota, provider privacy permission, capability, modality and deadline checks remain mandatory. No real provider/account configuration, inference, financial code or production feature flag was altered.
 - Mocked transport and catalog regression evidence is in the PR's exact-head CI. No live zero-cost eligibility, current provider model reachability, privacy approval or p95 assertion is established.
 - See docs/ai-next/R07Q_FREE_ROUTING_EVIDENCE_20261031.md. R07P→R05 trusted inference integration, R07R durable task orchestration, R07S sources, T22–T24 and QA/production gates remain OPEN.
+
+
+## R07R guarded draft preparation candidate — October 31, 2026
+
+- R07R adds a disabled authenticated **proposal-to-R04-to-R07D** draft preparation bridge. It permits validated unsaved review-only quotation edits after real R07B membership authorization, independent scoped customer-ID verification and exact R07D revision/hash CAS. It never writes, approves or issues financial documents.
+- R04 may safely resume verified later draft revisions without manufacturing undo history. The R07P planner's new-line reference semantics were corrected to distinguish a new item from editing an existing line.
+- Synthetic R07R transaction tests cover customer, line item/currency, stale retries, concurrent CAS, malicious/unresolved model output and cross-tenant/role denial. Exact final-head CI evidence, not this register entry, is authoritative for pass claims.
+- **Not completed integration:** R07M durable authenticated turn/task journal is NOT yet wired to this bridge; only synthetic interpreted output is injected. Real provider understanding, multi-turn durable semantic idempotency, full undo/redo, real cloud IAM and T22–T24 remain OPEN. No production activation.
+- See docs/ai-next/R07R_REVIEW_DRAFT_PREPARATION_EVIDENCE_20261031.md.

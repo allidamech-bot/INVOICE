@@ -1,0 +1,46 @@
+name: LOUREX AI Next R07R Guarded Review Draft Preparation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/coordinator/r07r-draft-preparation.ts'
+      - 'src/ai-next/guarded-finance/drafts.ts'
+      - 'src/ai-next/router/semantic-planner.ts'
+      - 'tests/ai-next/r07r-draft-preparation.test.mjs'
+      - '.github/workflows/ai-next-r07r-draft-preparation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07r-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guarded-preparation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and isolated compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R07R draft CAS and security-negative tests
+        run: node --test tests/ai-next/r07r-draft-preparation.test.mjs
+      - name: Regression R04 R07D R07P R07M
+        run: >-
+          node --test
+          tests/ai-next/r04-guarded-finance.test.mjs
+          tests/ai-next/r07d-firestore-drafts.test.mjs
+          tests/ai-next/r07p-semantic-planner.test.mjs
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+      - name: Production isolation
+        run: node scripts/verify-deployment-isolation.mjs
