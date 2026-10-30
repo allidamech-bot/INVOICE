@@ -24,7 +24,10 @@ if(project!=='demo-ai-next-r07h'||!process.env.FIRESTORE_EMULATOR_HOST?.match(
   /^(127\.0\.0\.1|localhost):[0-9]{2,5}$/))
   throw Error('R07O_FIRESTORE_EMULATOR_REQUIRED');
 const app=initializeApp({projectId:project},'r07o-integration');
-after(async()=>{await deleteApp(app);});
+after(async()=>{
+  if(server)await new Promise(resolve=>server.close(resolve));
+  await deleteApp(app);
+});
 const db=getFirestore(app);
 const at=new Date('2026-10-31T16:00:00.000Z');
 const now=Math.floor(at.getTime()/1000),uid='r07o-owner';
@@ -131,7 +134,6 @@ test('start an isolated loopback-only Node HTTP listener backed by Firestore Emu
     }catch{res.writeHead(500);res.end('local-test-transport-error');}
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  after(()=>new Promise(resolve=>server.close(resolve)));
   endpoint='http://127.0.0.1:'+server.address().port;
   handler=new R07OLocalPreviewHandler({
     allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
