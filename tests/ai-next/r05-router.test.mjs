@@ -7,7 +7,7 @@ import {
   recognizeR05LocalIntent,classifyR05Task,runR05Local,
 } from '../../dist/src/ai-next/router/local-intents.js';
 import {
-  R05HealthBook,R05ProviderFailure,routeR05,
+  R05HealthBook,R05ProviderFailure,R05TaskPreference,routeR05,
 } from '../../dist/src/ai-next/router/gateway.js';
 import {validateR05ModelProposal} from '../../dist/src/ai-next/router/proposal-guard.js';
 
@@ -57,7 +57,6 @@ for(const [label,fields,reason] of [
   ['no quota',{quotaAvailable:false},'account_quota_exhausted'],
   ['privacy denied',{privacyApproved:false},'privacy_denied'],
   ['unhealthy model',{healthAvailable:false},'unhealthy'],
-  ['disallowed Mistral',{modelId:'mistral-synthetic'},'model_disallowed'],
 ]){
   test('rejects '+label,()=>{
     const a=assess(model(fields));
@@ -265,4 +264,107 @@ for(const [name,bad] of [
 test('no finance mutation APIs are in R05 router module',()=>{
   assert.equal(typeof routeR05,'function');
   assert.equal(typeof recognizeR05LocalIntent,'function');
+});
+
+
+test('R07Q no model-name denylist: only verified free/account/privacy gates authorize',()=>{
+  const candidate=model({modelId:'mistral-synthetic'});
+  assert.equal(assess(candidate).eligible,true);
+  assert.equal(assess({...candidate,modelZeroCostVerified:false}).eligible,false);
+  assert.equal(assess({...candidate,privacyApproved:false}).eligible,false);
+});
+test('R07Q task class affects rank without overriding free/privacy eligibility',async()=>{
+  const choices=[
+    model({modelId:'advanced',qualityTier:'advanced'}),
+    model({modelId:'basic',qualityTier:'basic'}),
+    model({modelId:'capable',qualityTier:'capable'}),
+  ];
+  assert.ok(R05TaskPreference(needs({taskType:'general_conversation'}),choices[1])>
+    R05TaskPreference(needs({taskType:'general_conversation'}),choices[0]));
+  const quick=await routeR05(eligibleRun({
+    models:choices,transport:{invoke:async({model:m})=>({answer:m.modelId})},
+    validate:()=>true,
+  }));
+  assert.equal(quick.ok,true);
+  assert.equal(quick.modelId,'capable');
+  const deep=await routeR05(eligibleRun({
+    needs:needs({taskType:'financial_analysis'}),
+    models:choices,transport:{invoke:async({model:m})=>({answer:m.modelId})},
+    validate:()=>true,
+  }));
+  assert.equal(deep.ok,true);
+  assert.equal(deep.modelId,'advanced');
+});
+test('R07Q authentication failure blocks same provider before independent fallback',async()=>{
+  const called=[];
+  const models=[
+    model({modelId:'bad-auth',qualityTier:'advanced'}),
+    model({modelId:'same-provider',qualityTier:'capable'}),
+    model({providerId:'gemini',modelId:'independent',qualityTier:'basic'}),
+  ];
+  const result=await routeR05(eligibleRun({
+    needs:needs({taskType:'financial_analysis'}),models,
+    transport:{invoke:async({model:m})=>{
+      called.push(m.modelId);
+      if(m.providerId==='groq')throw new R05ProviderFailure('authentication');
+      return {answer:'ok'};
+    }},
+  }));
+  assert.equal(result.ok,true);
+  assert.deepEqual(called,['bad-auth','independent']);
+  assert.equal(result.observations[0].category,'authentication');
+});
+test('R07Q unsupported model cools only that model; another verified model remains',async()=>{
+  let clock=1000;
+  const health=new R05HealthBook(()=>clock);
+  const called=[];
+  const models=[
+    model({modelId:'unsupported',qualityTier:'advanced'}),
+    model({modelId:'other',qualityTier:'capable'}),
+  ];
+  const send=()=>routeR05(eligibleRun({
+    needs:needs({taskType:'financial_analysis'}),models,health,now:()=>clock,
+    transport:{invoke:async({model:m})=>{
+      called.push(m.modelId);
+      if(m.modelId==='unsupported')throw new R05ProviderFailure('unsupported','model');
+      return {answer:'ok'};
+    }},
+  }));
+  assert.equal((await send()).ok,true);
+  assert.deepEqual(called,['unsupported','other']);
+  called.length=0;
+  assert.equal((await send()).ok,true);
+  assert.deepEqual(called,['other']);
+});
+test('R07Q quota exhaustion blocks matching provider and permits a separate provider',async()=>{
+  const called=[];
+  const outcome=await routeR05(eligibleRun({
+    needs:needs({taskType:'financial_analysis'}),
+    models:[
+      model({modelId:'exhausted',qualityTier:'advanced'}),
+      model({modelId:'same-quota',qualityTier:'capable'}),
+      model({providerId:'gemini',modelId:'available',qualityTier:'basic'}),
+    ],
+    transport:{invoke:async({model:m})=>{
+      called.push(m.modelId);
+      if(m.providerId==='groq')
+        throw new R05ProviderFailure('quota_exhausted','provider',600_000);
+      return {answer:'ok'};
+    }},
+  }));
+  assert.equal(outcome.ok,true);
+  assert.deepEqual(called,['exhausted','available']);
+  assert.equal(outcome.observations[0].category,'quota_exhausted');
+});
+test('R07Q evaluates entire bounded trusted set rather than first 300',()=>{
+  const models=Array.from({length:350},(_,i)=>
+    model({modelId:'synthetic-'+i,modelZeroCostVerified:i===349}));
+  const pool=eligibleR05Pool({scope,now:NOW,needs:needs(),models});
+  assert.equal(pool.length,350);
+  assert.equal(pool.filter(x=>x.assessment.eligible).length,1);
+  assert.equal(pool.at(-1).record.modelId,'synthetic-349');
+  assert.throws(()=>eligibleR05Pool({
+    scope,now:NOW,needs:needs(),
+    models:Array.from({length:1001},(_,i)=>model({modelId:'x-'+i})),
+  }),/R05_TRUSTED_MODEL_CATALOG_LIMIT/);
 });
