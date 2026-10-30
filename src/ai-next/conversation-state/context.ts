@@ -133,12 +133,15 @@ export function classifyResume(snapshot:ConversationSnapshot):Array<{
   resume:'terminal'|'read_only_rehydrate'|'requires_confirmation'|'reconcile_first';
   stateVersion:number;
 }>{
-  return snapshot.tasks.map(task=>({
-    taskId:task.taskId,lastState:task.state,stateVersion:task.stateVersion,
-    resume:task.state==='needs_reconciliation'||task.state==='executing'||
-      task.executionOperationId!==null?'reconcile_first'
-      :['completed','cancelled','failed'].includes(task.state)?'terminal'
-      :task.state==='awaiting_approval'?'requires_confirmation'
-      :'read_only_rehydrate',
-  }));
+  return snapshot.tasks.map(task=>{
+    const hasUncertainOperation=snapshot.uncertainOperations.some(op=>op.taskId===task.taskId);
+    return {
+      taskId:task.taskId,lastState:task.state,stateVersion:task.stateVersion,
+      resume:hasUncertainOperation||task.state==='needs_reconciliation'||
+        task.state==='executing'||task.executionOperationId!==null?'reconcile_first'
+        :['completed','cancelled','failed'].includes(task.state)?'terminal'
+        :task.state==='awaiting_approval'?'requires_confirmation'
+        :'read_only_rehydrate',
+    };
+  });
 }
