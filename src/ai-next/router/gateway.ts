@@ -10,7 +10,7 @@ import {
 
 export type R05FailureKind='timeout'|'cancelled'|'rate_limit'|'network'|
   'upstream'|'invalid_result'|'unsupported'|'unavailable'|
-  'authentication'|'quota_exhausted'|'region_denied';
+  'authentication'|'quota_exhausted'|'region_denied'|'privacy_denied';
 export class R05ProviderFailure extends Error {
   constructor(
     readonly kind:R05FailureKind,
@@ -33,7 +33,7 @@ export type R05Outcome<T> =
   | {ok:true;data:T;providerId:string;modelId:string;attempts:number;fallbackUsed:boolean;
       observations:R05Diagnostic[]}
   | {ok:false;code:'R05_NO_ELIGIBLE_MODELS'|'R05_CANCELLED'|'R05_DEADLINE'|
-      'R05_PROVIDER_UNAVAILABLE'|'R05_INVALID_RESULT';
+      'R05_PROVIDER_UNAVAILABLE'|'R05_INVALID_RESULT'|'R05_PRIVACY_DENIED';
       attempts:number;observations:R05Diagnostic[]};
 
 type Sample={time:number;valid:boolean;latencyMs:number};
@@ -92,7 +92,8 @@ export class R05HealthBook {
       const quotaKey=error.quotaScope==='provider'?model.providerId:k;
       map.set(quotaKey,now+duration);
     }
-    if(error?.kind==='authentication'||error?.kind==='region_denied')
+    if(error?.kind==='authentication'||error?.kind==='region_denied'||
+      error?.kind==='privacy_denied')
       this.providerQuota.set(model.providerId,now+300_000);
     if(error?.kind==='unsupported')this.modelQuota.set(k,now+300_000);
     this.states.delete(k);this.states.set(k,s);this.prune();
@@ -197,6 +198,9 @@ export async function routeR05<T>(input:{
       observations.push({providerId:item.record.providerId,modelId:item.record.modelId,
         category:failure.kind,latencyMs:now()-started});
       if(failure.kind==='invalid_result')invalid=true;
+      // Revoked runtime consent is global: never fall back to another provider.
+      if(failure.kind==='privacy_denied')
+        return {ok:false,code:'R05_PRIVACY_DENIED',attempts,observations};
       if(failure.kind==='cancelled'||input.signal?.aborted)
         return {ok:false,code:'R05_CANCELLED',attempts,observations};
     }finally{
