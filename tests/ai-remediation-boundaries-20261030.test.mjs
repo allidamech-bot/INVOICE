@@ -61,3 +61,17 @@ test('native document eligibility and free-only failures have specific bilingual
  assert.match(client,/لا يوجد حاليًا موديل مجاني معتمد ومؤهل لقراءة ملف PDF الأصلي/);
  assert.match(client,/لم يُرسل الملف إلى مزوّد غير معتمد/);
 });
+
+test('quotation source retries are bounded and active authenticated quotas cannot be evicted',()=>{
+ const file=readFileSync('api/quote-source-ai.js','utf8');
+ const isolated=file.slice(0,file.indexOf('export default async function handler(')).replace(/^import .+;\s*$/gm,'');
+ const limit=vm.runInNewContext(isolated+'\n({rateAllowed,rateBuckets})',{Date,Map});
+ for(let i=0;i<16;i++)assert.equal(limit.rateAllowed({aiVerifiedUid:'quote-owner'}),true);
+ assert.equal(limit.rateAllowed({aiVerifiedUid:'quote-owner'}),false);
+ for(let i=0;i<3000;i++)limit.rateAllowed({aiVerifiedUid:'other'+i});
+ assert.ok(limit.rateBuckets.size<=2048);
+ assert.equal(limit.rateAllowed({aiVerifiedUid:'quote-owner'}),false);
+ assert.match(file,/code:'AI_QUOTE_RATE_LIMITED'/);
+ const client=readFileSync('src/lib/ai-request.ts','utf8');
+ assert.match(client,/AI_QUOTE_RATE_LIMITED/);
+});
