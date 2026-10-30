@@ -39,7 +39,7 @@ const taskPreference=(task:R05RequestNeeds['taskType'])=>{
     'business_read'].includes(task))
     return {basic:70,capable:45,advanced:20};
   if(['financial_analysis','document_comparison','long_context_reasoning'].includes(task))
-    return {basic:0,capable:35,advanced:75};
+    return {basic:0,capable:40,advanced:65};
   return {basic:20,capable:65,advanced:45};
 };
 
