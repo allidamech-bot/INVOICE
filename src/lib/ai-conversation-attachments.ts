@@ -251,7 +251,15 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
       extracted=originalTextForReview(payload);
       classification={route:'unknown',documentType:'original-text',confidence:0,
         reason:'AI classification unavailable. Original local text preserved for read-only review; no structured quote created.'};
-    }else extracted=await genericExtraction(file.name,payload,signal);
+    }else{
+      try{extracted=await genericExtraction(file.name,payload,signal);}
+      catch(error){
+        if(signal?.aborted||payload.kind!=='text')throw error;
+        extracted=originalTextForReview(payload);
+        classification={route:'unknown',documentType:'original-text',confidence:0,
+          reason:'AI source summary unavailable. Complete original text retained for read-only review; no draft prepared.'};
+      }
+    }
   }else{
     try{
       const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
