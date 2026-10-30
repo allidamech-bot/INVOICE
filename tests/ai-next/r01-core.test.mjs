@@ -252,6 +252,25 @@ test('synthetic journal: same thread enforces one active owner, other tenants is
   assert.equal(j.transition({scope:input.scope,idempotencyKey:'i1',taskId:a.task.taskId,
     next:'understanding',options:{expectedStateVersion:0,now:later(1)}}).state,'understanding');
 });
+test('sequential turns preserve parent identity and increasing sequence without duplication',()=>{
+  const journal=new SyntheticTurnJournal();
+  const input={scope:scope(),requestId:'r1',idempotencyKey:'k1',
+    userMessageId:'m1',message:'مرحبا',languageHint:'ar',mode:'advisor'};
+  const first=journal.begin(input,TS);
+  let state=journal.transition({scope:input.scope,idempotencyKey:'k1',taskId:first.task.taskId,
+    next:'understanding',options:{expectedStateVersion:0,now:later(1)}});
+  state=journal.transition({scope:input.scope,idempotencyKey:'k1',taskId:first.task.taskId,
+    next:'processing',options:{expectedStateVersion:1,now:later(2)}});
+  state=journal.transition({scope:input.scope,idempotencyKey:'k1',taskId:first.task.taskId,
+    next:'completed',options:{expectedStateVersion:2,now:later(3)}});
+  const second=journal.begin({...input,requestId:'r2',idempotencyKey:'k2',
+    userMessageId:'m2',message:'تابع',languageHint:'ar'},later(4));
+  assert.equal(second.turn.parentTurnId,first.turn.turnId);
+  assert.equal(second.turn.sequenceNumber,2);
+  assert.equal(journal.sizeForTests(),2);
+  assert.equal(journal.begin({...input,requestId:'r2',idempotencyKey:'k2',
+    userMessageId:'m2',message:'تابع',languageHint:'ar'},later(4)).turn.turnId,second.turn.turnId);
+});
 test('file follow-ups never silently substitute company records',()=>{
   const s=[{sourceId:'file1',fileName:'doc.pdf',complete:true,
     scopeKey:'scoped'},{sourceId:'file2',fileName:'doc2.pdf',complete:true,scopeKey:'scoped'}];
