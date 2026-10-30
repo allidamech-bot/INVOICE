@@ -16,7 +16,7 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R07B1 principal and membership boundary | Merged #1198, c548a469 | 57/57 auth regression, Vercel isolation passed | No | No | Open | No | No |
 | R07B2 read-only local coordinator | Merged #1199, 66ad16b0 | 133/133 synthetic local regression, Vercel isolation passed | No | No | Open | No | No |
 | R07B3 root server-only ACL reader | Merged #1200, 729b80ab | 44/44 scoped mock ACL tests; Vercel isolation passed | No | No | Open | No | No |
-| R07C actual PDF/XLSX/XLS adapter browser fixtures | PR pending | Real binary browser CI pending | Pending representative WebKit | No | Open | No | No |
+| R07C actual PDF/XLSX/XLS adapter browser fixtures | Merged #1201, d6e2871e | 26/26 R02 regression + real binary Chromium/WebKit PASS | Representative WebKit passed (not iPhone) | No | Open | No | No |
 
 ## Evidence boundary
 
@@ -53,3 +53,22 @@ An inactive, read-only Firestore Admin-compatible membership adapter uses a new 
 ## R07C binary parsing evidence
 
 Targeted real PDF.js and SheetJS browser fixtures use actual binary PDF/XLSX/XLS files with synthetic content. They test page and worksheet provenance in Chromium/WebKit without AI calls or customer data. OCR remains injected/uncertain and no financial drafts are eligible. See R07C_REAL_BINARY_ACCEPTANCE_20261030.md. Browser acceptance is not equivalent to iPhone device acceptance.
+
+## R07 acceptance snapshot — verified October 30, 2026
+
+Evidence: [R07C browser CI](https://github.com/allidamech-bot/INVOICE/actions/runs/41085645912) passed on tested branch SHA 3e713ca70aec6f81d27c140d1bddd9c7d158f412. The squash merge is d6e2871e954d7c25c4110ca90c6dcad9fa8754a4. No code changes were made after the successful tested SHA in that PR.
+
+- T01: local greeting and no-provider response tested through isolated coordinator only. Production acceptance OPEN.
+- T07: generated *real binary* PDF.js 35/35-page extraction and exact page indices in Chromium + WebKit PASS for the fixture; broad production document acceptance OPEN.
+- T08: generated real binary PDF extracted more than 24,000 characters without truncation PASS for the fixture.
+- T09: 8-page actual image-XObject PDF, OCR disabled or injected with one failed page, correctly blocked or marked incomplete in Chromium + WebKit. Real OCR quality and authorization BLOCKED.
+- T10: actual XLSX and BIFF8 XLS with two sheets, repeated descriptions, physical blank rows, Arabic/Persian numeral source text and absent sales price; CSV quoted multiline and blank-row coverage passed in both browsers. Business-field mapping/review still OPEN.
+- T22: authoritative encrypted cross-device persistent storage, revocation after restart and real two-device sessions BLOCKED.
+- T23: WebKit R02 parsing fixture only, not full R06 interface or a physical iPhone. Full iPhone acceptance BLOCKED.
+- T24: authenticated persistent server coordinator, sources, reviewed draft, approval and verified financial outcome end-to-end BLOCKED.
+
+The root ACL reader R07B3 is only code with mocked Firestore. There are no approved or observed live membership records or deployed root-deny rule verification. R07A's single Firestore event-document adapter is not approved production storage. R07B2's injected draft store is synthetic. The full 24-test acceptance matrix is not complete, and all production feature flags remain OFF.
+
+## Next critical engineering gate
+
+Do not connect production HTTP or enable a live UI before proving: server-only ACL records with deployed rules/IAM, approved durable encrypted storage and retention/cost policy, secure source object storage, actual server coordinator with proper idempotent transactions, approved private inference providers, source completeness and reviewed draft persistence. An isolated pre-release browser acceptance is not permission to change financial data or financial rules. Finance writes remain disabled.
