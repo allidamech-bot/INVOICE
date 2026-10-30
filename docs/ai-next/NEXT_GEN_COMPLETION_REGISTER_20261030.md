@@ -25,6 +25,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07I recent non-authoritative window + emulator restart recovery | Merged #1210, d8bf5f1d | 49/49 R03/R07G/R07I synthetic + 2 separate emulator phases PASS; Vercel isolation PASS | No | Local emulator export/import only | Open | No | No |
 | R07J indexed O(1)-read event append | Merged #1212, 36d9a815 | 48/48 R03/R07G/R07J synthetic; 3/3 official Firestore Emulator; TypeScript/isolation PASS | No | Emulator only, no live store | Open | No | No |
 | R07K local Controller/Advisor indexed compatibility | Merged #1214, 5494df9f | 33/33 coordinator/R07J/bridge synthetic + 2/2 local Firestore Emulator; TS and isolation PASS | No | Local emulator only | Open | No | No |
+| R07L transactional latest-turn operational materialization | PR pending | 320-event model parity and two-process emulator restore CI pending | No | Local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -145,3 +146,7 @@ R07K binds the existing R07B2 local coordinator to the R07J indexed journal thro
 - **PR #1214** merged at 5494df9fd93f1dfa608db6f4a9cf458799557727. The SHA-bound GitHub Actions jobs offline-coordinator, indexed-coordinator and Vercel trace all passed.
 - Synthetic 33/33 checks and 2/2 official local Firestore Emulator checks prove deterministic greeting, unissued/unsaved review-only quotation, R07J CAS, independent app client replay, domain event reconstruction and membership revocation safeguards. No financial document was saved and no provider was called.
 - **The compatibility bridge still replays and verifies the entire indexed history on each turn step.** This is deliberately NOT evidence of fast operational coordinator history, actual cloud account/IAM security or real mobile UI readiness. Activation flags remain OFF and no production deployment is approved. Next engineering gate: R07L trusted materialized operational read model with bounded reads and integrity/recovery acceptance, then real secured deployment gating.
+
+## R07L materialized current-turn candidate
+
+A bounded read-only current-turn/task/last-reply view is atomically sealed alongside R07J event/head CAS, with canonical checksum and fail-closed corruption. Complete R03 replay remains a separate audit path; R07K remains a full-replay compatibility bridge until a separately tested optimized coordinator. No migration/production API/UI/IAM or finance writes. Pending R07L Firestore Emulator and targeted CI. See R07L_MATERIALIZED_STATE_EVIDENCE_20261031.md.
