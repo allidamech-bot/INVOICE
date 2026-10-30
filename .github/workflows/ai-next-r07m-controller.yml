@@ -1,0 +1,60 @@
+name: LOUREX AI Next R07M Fast Controller
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/storage/firestore-indexed-append.ts'
+      - 'src/ai-next/coordinator/local-coordinator.ts'
+      - 'src/ai-next/coordinator/fast-local-coordinator.ts'
+      - 'tests/ai-next/r07m-fast-coordinator.test.mjs'
+      - 'tests/ai-next/r07m-firestore-emulator.test.mjs'
+      - '.github/workflows/ai-next-r07m-controller.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07m-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-controller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GCLOUD_PROJECT: demo-ai-next-r07h
+      GOOGLE_CLOUD_PROJECT: demo-ai-next-r07h
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and compile
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Existing R03 R07J R07K and fast R07M coordinator regression
+        run: >-
+          node --test
+          tests/ai-next/r07b-local-coordinator.test.mjs
+          tests/ai-next/r07j-indexed-append.test.mjs
+          tests/ai-next/r07k-coordinator-indexed-bridge.test.mjs
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+      - name: Official Firestore Emulator cross-client identity and multi-turn proof
+        run: >-
+          npx --yes --package firebase-tools@14.16.0 firebase
+          emulators:exec
+          --only firestore
+          --project demo-ai-next-r07h
+          --config tests/ai-next/r07h-firebase-emulator.json
+          --non-interactive
+          "node --test tests/ai-next/r07m-firestore-emulator.test.mjs"

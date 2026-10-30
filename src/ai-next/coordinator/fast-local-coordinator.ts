@@ -1,0 +1,237 @@
+/**
+ * R07M — unmounted, disabled local Controller/Advisor using R07L current
+ * state + R07M indexed immutable request receipts. No live HTTP route.
+ * Only deterministic R05 local greeting and UNSAVED review draft permitted.
+ * Never use the operational model as financial execution evidence.
+ */
+import type {AuthenticatedScope,ConversationTurn,ReviewDraft,TaskState}
+  from '../domain/contracts.js';
+import {exactScopeKey} from '../domain/turn-journal.js';
+import {assertCoreContract} from '../domain/validation.js';
+import {transitionTask} from '../domain/state-machine.js';
+import {recognizeR05LocalIntent,runR05Local} from '../router/local-intents.js';
+import {R07JExperimentalIndexedJournal,
+  type R07LOperationalView} from '../storage/firestore-indexed-append.js';
+import type {ConversationEventBody} from '../conversation-state/event-store.js';
+import {authorizeR07ScopedRequest,
+  type R07AuthenticatedPrincipalVerifier,type R07ServerMembershipStore,
+  type R07RequestEnvelope} from '../security/server-membership.js';
+import {validateRequest,exactRequest,serverTime,makeTurn,
+  R07LocalError,type R07LocalTurnInput,type R07LocalResult,
+  type TrustedDraftRepository} from './local-coordinator.js';
+
+export const R07M_FAST_COORDINATOR_ACTIVATED=false as const;
+const isConflict=(error:unknown):boolean=>error instanceof Error&&[
+  'R07J_CONCURRENT_HEAD_CONFLICT','R07J_STALE_REVISION',
+  'R07J_DUPLICATE_EVENT_ID','R07J_IDEMPOTENCY_COLLISION',
+  'R07J_INVALID_TURN_SEQUENCE',
+].includes(error.message);
+type Completion={reply:string;draft:ReviewDraft|null;revision:number};
+const envelope=(request:R07LocalTurnInput):R07RequestEnvelope=>({
+  schemaVersion:1,accountId:request.accountId,companyId:request.companyId,
+  branchId:request.branchId,threadId:request.threadId,
+  scopeType:request.scopeType,
+});
+const eventId=(id:string,step:string)=>'r07-'+id+'-'+step;
+const eventKey=(id:string,step:string)=>'r07step-'+id+'-'+step;
+
+export class R07MFastLocalCoordinator{
+  constructor(private readonly deps:{
+    journal:R07JExperimentalIndexedJournal;
+    draftStore:TrustedDraftRepository;
+    principal:R07AuthenticatedPrincipalVerifier;
+    membership:R07ServerMembershipStore;
+    clock?:()=>Date;
+  }){}
+  private now():Date{return(this.deps.clock??(()=>new Date()))();}
+  private async auth(token:string,raw:R07RequestEnvelope):
+    Promise<AuthenticatedScope>{
+    return authorizeR07ScopedRequest({
+      bearerToken:token,body:raw,principal:this.deps.principal,
+      membership:this.deps.membership,
+      serverNowEpochSeconds:Math.floor(this.now().getTime()/1000),
+    });
+  }
+  private async read(scope:AuthenticatedScope):Promise<R07LOperationalView>{
+    const result=await this.deps.journal.readOperationalState(scope);
+    if(result.completeHistory!==false||
+      result.authoritativeForFinancialExecution!==false||
+      result.view.scopeKey!==exactScopeKey(scope))
+      throw new R07LocalError('R07M_INVALID_OPERATIONAL_BOUNDARY');
+    return result.view;
+  }
+  private async append(scope:AuthenticatedScope,view:R07LOperationalView,
+    turnId:string,step:string,body:ConversationEventBody):Promise<void>{
+    const receipt=await this.deps.journal.append({
+      scope,expectedRevision:view.revision,eventId:eventId(turnId,step),
+      idempotencyKey:eventKey(turnId,step),body,
+      now:serverTime(()=>this.now(),view.lastEventAt),
+    });
+    if(receipt.authoritativeFullSnapshot!==false||
+      receipt.event.scopeKey!==view.scopeKey||
+      receipt.event.eventId!==eventId(turnId,step)||
+      receipt.event.idempotencyKey!==eventKey(turnId,step)||
+      receipt.revision<view.revision+Number(!receipt.replayed))
+      throw new R07LocalError('R07M_INVALID_COMMIT_RECEIPT');
+  }
+  private async verifiedDraft(scope:AuthenticatedScope,turn:ConversationTurn,
+    task:TaskState):Promise<ReviewDraft|null>{
+    const recognized=recognizeR05LocalIntent(turn.userMessage.text,0);
+    if(!recognized)throw new R07LocalError('R07_RESTORED_INTENT_UNSUPPORTED');
+    if(recognized.kind!=='new_quote_draft')return null;
+    const saved=await this.deps.draftStore.read(scope,turn.turnId);
+    if(!saved||saved.draftId!=='draft-'+turn.turnId||
+      task.draftId!==saved.draftId||
+      saved.kind!=='quotation'||saved.status!=='needs_review'||
+      saved.approvalReceiptId!==null||
+      exactScopeKey(saved.scope)!==exactScopeKey(scope))
+      throw new R07LocalError('R07_MISSING_VERIFIED_DRAFT');
+    return saved;
+  }
+  private async historical(scope:AuthenticatedScope,turn:ConversationTurn):
+    Promise<Completion>{
+    // Rare old-key replay falls back to FULL R03-audited history. New and
+    // latest operations never hit this path. No permission to truncate.
+    const history=await this.deps.journal.auditFullHistory(scope);
+    const original=history.turns.find(x=>x.turnId===turn.turnId&&
+      x.idempotencyKey===turn.idempotencyKey);
+    if(!original)
+      throw new R07LocalError('R07M_HISTORICAL_TURN_NOT_VERIFIED');
+    const task=history.tasks.find(t=>t.taskId===turn.taskId);
+    if(!task||task.state!=='completed')
+      throw new R07LocalError('R07M_HISTORICAL_TASK_UNRESOLVED');
+    const reply=history.messages.find(m=>m.messageId==='assistant-'+turn.turnId&&
+      m.turnId===turn.turnId&&m.role==='assistant');
+    if(!reply)throw new R07LocalError('R07_COMPLETED_WITHOUT_REPLY');
+    return {reply:reply.text,draft:await this.verifiedDraft(scope,turn,task),
+      revision:history.revision};
+  }
+  private async accepted(scope:AuthenticatedScope,input:R07LocalTurnInput):
+    Promise<{turn:ConversationTurn;replayed:boolean;historical:boolean}>{
+    for(let attempt=0;attempt<8;attempt++){
+      // Durable request index prevents an older key from creating a duplicate
+      // turn after several subsequent turns; indexes are atomically written
+      // with the first event and verified against that sealed event.
+      const existing=await this.deps.journal.readTurnByRequest(
+        scope,input.idempotencyKey);
+      if(existing){
+        if(!exactRequest(existing,input))
+          throw new R07LocalError('R07_TURN_IDEMPOTENCY_COLLISION');
+        const latest=await this.read(scope);
+        return {turn:existing,replayed:true,
+          historical:latest.turn?.turnId!==existing.turnId};
+      }
+      const current=await this.read(scope);
+      if(current.task&&!['completed','failed','cancelled'].includes(
+        current.task.state))
+        throw new R07LocalError('R07_ANOTHER_TURN_ACTIVE');
+      const {turn,task}=makeTurn(scope,input,serverTime(()=>this.now(),
+        current.lastEventAt));
+      turn.sequenceNumber=(current.turn?.sequenceNumber??0)+1;
+      turn.parentTurnId=current.turn?.turnId??null;
+      try{
+        await this.append(scope,current,turn.turnId,'start',{
+          kind:'turn_started',turn,task});
+        return {turn,replayed:false,historical:false};
+      }catch(error){if(!isConflict(error))throw error;}
+    }
+    throw new R07LocalError('R07_CONCURRENT_TURN_RETRY_LIMIT');
+  }
+  private async complete(scope:AuthenticatedScope,turn:ConversationTurn):
+    Promise<Completion>{
+    const recognized=recognizeR05LocalIntent(turn.userMessage.text,0);
+    if(!recognized)throw new R07LocalError('R07_RESTORED_INTENT_UNSUPPORTED');
+    const assistantId='assistant-'+turn.turnId;
+    const draftId='draft-'+turn.turnId;
+    for(let attempt=0;attempt<30;attempt++){
+      const view=await this.read(scope);
+      if(view.turn?.turnId!==turn.turnId||view.task?.taskId!==turn.taskId)
+        throw new R07LocalError('R07M_TURN_CHANGED');
+      const task=view.task;
+      if(task.state==='failed'||task.state==='cancelled'||
+        task.state==='needs_reconciliation')
+        throw new R07LocalError('R07_TASK_NOT_REPLAYABLE');
+      const visible=view.assistantReply?.messageId===assistantId?
+        view.assistantReply:null;
+      if(task.state==='completed'){
+        if(!visible)throw new R07LocalError('R07_COMPLETED_WITHOUT_REPLY');
+        const draft=await this.verifiedDraft(scope,turn,task);
+        return {reply:visible.text,draft,revision:view.revision};
+      }
+      let step:string,body:ConversationEventBody;
+      if(!view.userMessageSeen){
+        step='user-message';
+        body={kind:'message',messageId:turn.userMessageId,turnId:turn.turnId,
+          role:'user',text:turn.userMessage.text,sourceIds:[]};
+      }else if(task.state==='created'||task.state==='understanding'){
+        const to=task.state==='created'?'understanding':'processing';
+        step='state-'+to;
+        body={kind:'task_updated',task:transitionTask(task,to,{
+          expectedStateVersion:task.stateVersion,
+          now:serverTime(()=>this.now(),task.updatedAt),
+        })};
+      }else if(task.state==='processing'){
+        const locally=await runR05Local({
+          text:turn.userMessage.text,attachedSourceIds:[],scope,draftId,
+          now:turn.receivedAt,
+        });
+        if(!locally)throw new R07LocalError('R07_LOCAL_INTENT_NOT_SUPPORTED');
+        if(locally.kind==='draft'){
+          const draft=await this.deps.draftStore.createIfAbsent(
+            scope,turn.turnId,locally.draft);
+          if(!draft||draft.draftId!==locally.draft.draftId||
+            draft.immutableRevisionHash!==locally.draft.immutableRevisionHash||
+            draft.draftRevision!==1||draft.kind!=='quotation'||
+            draft.status!=='needs_review'||
+            exactScopeKey(draft.scope)!==exactScopeKey(scope))
+            throw new R07LocalError('R07_DRAFT_STORE_COLLISION');
+        }
+        if(!visible){
+          step='assistant-message';
+          body={kind:'message',messageId:assistantId,turnId:turn.turnId,
+            role:'assistant',text:locally.reply,sourceIds:[]};
+        }else{
+          step='state-completed';
+          body={kind:'task_updated',task:{
+            ...transitionTask(task,'completed',{
+              expectedStateVersion:task.stateVersion,
+              now:serverTime(()=>this.now(),task.updatedAt),
+            }),draftId:locally.kind==='draft'?draftId:null,
+          }};
+          assertCoreContract('TaskState',body.task);
+        }
+      }else{
+        throw new R07LocalError('R07_UNEXPECTED_LOCAL_TASK_STATE');
+      }
+      try{await this.append(scope,view,turn.turnId,step,body);}
+      catch(error){if(!isConflict(error))throw error;}
+    }
+    throw new R07LocalError('R07_LOCAL_TASK_RETRY_LIMIT');
+  }
+  async accept(token:string,raw:unknown):Promise<R07LocalResult>{
+    validateRequest(raw);
+    const request=raw as R07LocalTurnInput;
+    const local=recognizeR05LocalIntent(request.message,0);
+    if(!local)throw new R07LocalError('R07_LOCAL_INTENT_NOT_SUPPORTED');
+    const scope=await this.auth(token,envelope(request));
+    if(local.kind==='new_quote_draft'&&
+      (scope.scopeType!=='business'||scope.role==='viewer'))
+      throw new R07LocalError('R07_DRAFT_PREPARATION_DENIED');
+    const accepted=await this.accepted(scope,request);
+    const result=accepted.historical?
+      await this.historical(scope,accepted.turn):
+      await this.complete(scope,accepted.turn);
+    return {status:'completed',turnId:accepted.turn.turnId,
+      threadId:scope.threadId,taskId:accepted.turn.taskId!,
+      replayed:accepted.replayed,reply:result.reply,draft:result.draft,
+      financialSaved:false,providerCalls:0,conversationRevision:result.revision};
+  }
+  async current(token:string,raw:unknown){
+    const scope=await this.auth(token,raw as R07RequestEnvelope);
+    return this.deps.journal.readOperationalState(scope);
+  }
+  async history(token:string,raw:unknown){
+    const scope=await this.auth(token,raw as R07RequestEnvelope);
+    return this.deps.journal.auditFullHistory(scope);
+  }
+}

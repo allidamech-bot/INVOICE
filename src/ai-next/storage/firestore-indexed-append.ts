@@ -18,6 +18,9 @@ import {
 
 export const R07J_INDEXED_APPEND_ACTIVE=false as const;
 export const R07J_COLLECTION='aiNextIndexedEventThreadsV1';
+/** R07M opt-in separate new root. No legacy stream migration is permitted. */
+export const R07M_FAST_COLLECTION='aiNextFastEventThreadsV1';
+export const R07M_FAST_JOURNAL_ACTIVATED=false as const;
 export const R07J_MAX_HEAD_BYTES=12_000;
 export const R07J_MAX_EVENT_BYTES=220_000;
 /** R07L is disabled and restricted to the isolated R07J collection. */
@@ -60,11 +63,13 @@ interface Head{
   lastTaskId:string|null;lastTaskState:TaskState['state']|null;
 }
 interface TurnRef{schemaVersion:1;scopeKey:string;turnId:string;taskId:string;sequenceNumber:number}
+interface RequestRef{schemaVersion:1;scopeKey:string;requestKey:string;
+  turnId:string;eventSequence:number;eventHash:string}
 interface TaskRef{schemaVersion:1;scopeKey:string;task:TaskState}
 interface IdRef{schemaVersion:1;scopeKey:string;eventId:string;sequence:number}
 interface MessageRef{schemaVersion:1;scopeKey:string;messageId:string;sequence:number}
 interface Receipt{schemaVersion:1;scopeKey:string;event:ConversationEvent}
-type Document=Head|TurnRef|TaskRef|IdRef|MessageRef|Receipt|ConversationEvent|R07LOperationalView;
+type Document=Head|TurnRef|TaskRef|IdRef|MessageRef|Receipt|ConversationEvent|R07LOperationalView|RequestRef;
 export interface R07JDocumentSnapshot{exists:boolean;data():unknown}
 export interface R07JDocumentRef{get():Promise<R07JDocumentSnapshot>}
 export interface R07JTransaction{
@@ -184,10 +189,11 @@ type AppendInput={
 type FastResult={event:ConversationEvent;revision:number;lastHash:string;replayed:boolean;
   authoritativeFullSnapshot:false};
 export class R07JExperimentalIndexedJournal{
-  constructor(private readonly db:R07JFirestoreClient){}
+  constructor(private readonly db:R07JFirestoreClient,
+    private readonly fastMode=false){}
   private async documents(scope:AuthenticatedScope){
     const key=exactScopeKey(scope),prefix=await sha256(key),
-      col=this.db.collection(R07J_COLLECTION);
+      col=this.db.collection(this.fastMode?R07M_FAST_COLLECTION:R07J_COLLECTION);
     return {key,head:col.doc(prefix+':head'),
       operational:col.doc(prefix+':operational'),
       bySequence:(n:number)=>col.doc(prefix+':event:'+String(n).padStart(6,'0')),
@@ -196,6 +202,7 @@ export class R07JExperimentalIndexedJournal{
       byMessage:async(id:string)=>col.doc(prefix+':message:'+await sha256(id)),
       byTurn:async(id:string)=>col.doc(prefix+':turn:'+await sha256(id)),
       byTask:async(id:string)=>col.doc(prefix+':task:'+await sha256(id)),
+      byRequest:async(id:string)=>col.doc(prefix+':request:'+await sha256(id)),
     };
   }
   /**
@@ -222,6 +229,51 @@ export class R07JExperimentalIndexedJournal{
     return {view:clone(value),completeHistory:false,
       authoritativeForFinancialExecution:false};
   }
+  /**
+   * R07M request identity lookup: bounded transactional head/index/event.
+   * Requests are scoped under verified nine-field authority, not client UID.
+   * R07M uses a NEW empty collection; no legacy unindexed turns are imported.
+   */
+  async readTurnByRequest(scope:AuthenticatedScope,requestKey:string):
+    Promise<ConversationTurn|null>{
+    if(!this.fastMode)throw new R07JStorageError('R07M_FAST_MODE_REQUIRED');
+    if(typeof requestKey!=='string'||!requestKey||requestKey.length>160)
+      throw new R07JStorageError('R07M_INVALID_REQUEST_KEY');
+    const refs=await this.documents(scope),req=await refs.byRequest(requestKey);
+    return this.db.runTransaction(async tx=>{
+      const head=parseHead(await tx.get(refs.head),refs.key)??blank(refs.key);
+      const saved=await tx.get(req);
+      if(!saved.exists)return null;
+      const value=saved.data();
+      if(!plain(value)||Object.keys(value).sort().join('|')!==[
+        'schemaVersion','scopeKey','requestKey','turnId',
+        'eventSequence','eventHash',
+      ].sort().join('|')||value.schemaVersion!==1||
+        value.scopeKey!==refs.key||value.requestKey!==requestKey||
+        typeof value.turnId!=='string'||
+        !Number.isSafeInteger(value.eventSequence)||
+        (value.eventSequence as number)<1||
+        (value.eventSequence as number)>head.revision||
+        typeof value.eventHash!=='string'||!HASH.test(value.eventHash))
+        throw new R07JStorageError('R07M_INVALID_REQUEST_INDEX');
+      const original=await tx.get(refs.bySequence(value.eventSequence as number));
+      if(!original.exists)
+        throw new R07JStorageError('R07M_MISSING_REQUEST_EVENT');
+      const record=original.data();
+      if(!plain(record)||record.schemaVersion!==1||
+        record.scopeKey!==refs.key||
+        record.sequence!==value.eventSequence||
+        record.hash!==value.eventHash||
+        !plain(record.body)||record.body.kind!=='turn_started'||
+        !plain(record.body.turn)||record.body.turn.turnId!==value.turnId||
+        record.body.turn.idempotencyKey!==requestKey)
+        throw new R07JStorageError('R07M_REQUEST_EVENT_MISMATCH');
+      await verifySealedEvent(record as unknown as ConversationEvent);
+      if(head.revision===value.eventSequence&&head.lastHash!==record.hash)
+        throw new R07JStorageError('R07M_REQUEST_HEAD_MISMATCH');
+      return clone(record.body.turn as unknown as ConversationTurn);
+    });
+  }
   /** Deliberately returns ONLY a narrow durable receipt, not a R03 snapshot. */
   async append(input:AppendInput):Promise<FastResult>{
     const refs=await this.documents(input.scope),key=refs.key;
@@ -239,6 +291,8 @@ export class R07JExperimentalIndexedJournal{
     const mid=kind==='message'?await refs.byMessage(input.body.messageId):null;
     const turn=kind==='turn_started'?await refs.byTurn(input.body.turn.turnId):
       kind==='message'?await refs.byTurn(input.body.turnId):null;
+    const request=kind==='turn_started'&&this.fastMode?
+      await refs.byRequest(input.body.turn.idempotencyKey):null;
     const task=kind==='turn_started'?await refs.byTask(input.body.task.taskId):
       kind==='task_updated'?await refs.byTask(input.body.task.taskId):
       kind==='checkpoint'||kind==='uncertain_execution'?
@@ -289,6 +343,7 @@ export class R07JExperimentalIndexedJournal{
       const midDoc=mid?await tx.get(mid):null;
       const turnDoc=turn?await tx.get(turn):null;
       const taskDoc=task?await tx.get(task):null;
+      const requestDoc=request?await tx.get(request):null;
       if(eventDoc.exists||eidDoc.exists)
         throw new R07JStorageError('R07J_DUPLICATE_EVENT_ID');
       if(midDoc?.exists)
@@ -296,7 +351,7 @@ export class R07JExperimentalIndexedJournal{
       const next:Head={...current,revision:event.sequence,
         lastHash:event.hash,lastEventAt:event.eventAt};
       if(kind==='turn_started'){
-        if(turnDoc?.exists||taskDoc?.exists||
+        if(turnDoc?.exists||taskDoc?.exists||requestDoc?.exists||
           input.body.turn.sequenceNumber!==current.turnCount+1||
           input.body.turn.parentTurnId!==current.lastTurnId||
           input.body.task.state!=='created'||
@@ -365,6 +420,12 @@ export class R07JExperimentalIndexedJournal{
       tx.create(eid,{schemaVersion:1,scopeKey:key,eventId:event.eventId,
         sequence:event.sequence});
       if(kind==='turn_started'){
+        if(request){
+          tx.create(request,{schemaVersion:1,scopeKey:key,
+            requestKey:input.body.turn.idempotencyKey,
+            turnId:input.body.turn.turnId,eventSequence:event.sequence,
+            eventHash:event.hash});
+        }
         tx.create(turn!,{schemaVersion:1,scopeKey:key,
           turnId:input.body.turn.turnId,taskId:input.body.task.taskId,
           sequenceNumber:input.body.turn.sequenceNumber});

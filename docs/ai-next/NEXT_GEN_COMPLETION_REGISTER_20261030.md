@@ -26,6 +26,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07J indexed O(1)-read event append | Merged #1212, 36d9a815 | 48/48 R03/R07G/R07J synthetic; 3/3 official Firestore Emulator; TypeScript/isolation PASS | No | Emulator only, no live store | Open | No | No |
 | R07K local Controller/Advisor indexed compatibility | Merged #1214, 5494df9f | 33/33 coordinator/R07J/bridge synthetic + 2/2 local Firestore Emulator; TS and isolation PASS | No | Local emulator only | Open | No | No |
 | R07L transactional latest-turn operational materialization | Merged #1216, 44c2c836 | 54/54 R03/R07G/R07J/R07L synthetic, 3/3 local Firebase Admin/Firestore, separate-process seed/restore 1/1 each; TS/trace/isolation PASS | No | Local emulator only | Open | No | No |
+| R07M fast local Controller/Advisor with sealed turn-request index | PR pending | 320-history bounded reads, old replay, Firebase Admin emulator pending | No | Offline/emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -157,3 +158,7 @@ A bounded read-only current-turn/task/last-reply view is atomically sealed along
 - Bounded current-turn view requires only two Firestore document reads per transaction independent of message count in the tested synthetic case, and is atomically materialized with each R07J event/head CAS. It stores latest turn/task, user-message-seen and assistant reply. The sealed view has full-head revision/hash linkage and canonical integrity check.
 - Official Firestore Emulator tests passed seed/export 110 events, full stop/restart/import, idempotent replay, safe append, and full replay audit parity. Synthetic tests also reject missing or tampered model, orphan record without head, concurrent CAS conflicts and stale preceding-turn presentation.
 - **Materialized view is not the entire event record.** Full R03 audit remains required for history/evidence and is expensive; R07K's actual coordinator still uses full replay per step. R07L introduces no production API or optimized controller integration. R07L_MATERIALIZED_STATE_ACTIVATED remains false. No live Firestore IAM/rules, ACL provisioning, financial write, provider, deployed frontend or physical iPhone acceptance. Future optimized coordinator integration and operational recovery/retention/security gates remain OPEN.
+
+## R07M fast coordinator candidate
+
+R07M adds a disabled server-authorized local coordinator using R07L current-turn materialization and a separate indexed request-key store. Ordinary local turn steps no longer perform R03 history projection. Historical idempotency replay deliberately performs full audited replay and refuses collisions. Only deterministic greetings/unsaved review quotation; no provider or finance writes, HTTP route, migration, actual Firebase or iPhone acceptance. See R07M_FAST_COORDINATOR_EVIDENCE_20261031.md. All CI results pending.
