@@ -10,6 +10,7 @@ import type { KnowledgeRecord } from './knowledge.js';
 import { knowledgeScopeKey } from './knowledge.js';
 
 export interface SourcePointer {
+  scopeKey:string;
   documentId:string;
   sourceSha256:string;
   coverageStatus:CompletenessStatus;
@@ -51,10 +52,13 @@ export function prepareContext(input:{
   sources:readonly SourcePointer[];
   maxCharacters:number;
   maxMessages:number;
+  now:string;
 }):ContextPlan{
   const {scope,snapshot}=input;
   const key=exactScopeKey(scope);
-  if(snapshot.scopeKey!==key || !safeNum(input.maxCharacters,120_000) ||
+  if(snapshot.scopeKey!==key ||
+    !Number.isFinite(Date.parse(input.now)) || !input.now.endsWith('Z') ||
+    !safeNum(input.maxCharacters,120_000) ||
     input.maxCharacters<500 || !safeNum(input.maxMessages,200) ||
     input.maxMessages<1)
     throw new Error('AI_NEXT_CONTEXT_INVALID_SCOPE_OR_LIMIT');
@@ -66,14 +70,16 @@ export function prepareContext(input:{
       throw new Error('AI_NEXT_CONTEXT_DUPLICATE_OR_INVALID_SOURCE');
     selected.add(id);
     const found=input.sources.filter(s=>s.documentId===id);
-    if(found.length!==1 || !/^[a-f0-9]{64}$/.test(found[0]!.sourceSha256) ||
+    if(found.length!==1 || found[0]!.scopeKey!==key ||
+      !/^[a-f0-9]{64}$/.test(found[0]!.sourceSha256) ||
       !found[0]!.manifestRef)
       missing.push(id);
     else pointers.push(structuredClone(found[0]!));
   }
   const memoryScope=knowledgeScopeKey(scope);
   const validMemories=input.memories.filter(m=>
-    m.ownerKey===memoryScope && m.revokedAt===null && m.content!==null);
+    m.ownerKey===memoryScope && m.revokedAt===null && m.content!==null &&
+    Date.parse(m.expiresAt)>Date.parse(input.now));
   if(validMemories.length!==input.memories.length)
     throw new Error('AI_NEXT_CONTEXT_FOREIGN_OR_REVOKED_MEMORY');
   const context:ContextItem[]=[],excludedMessageIds:string[]=[],excludedMemoryIds:string[]=[];
