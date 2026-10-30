@@ -216,7 +216,8 @@ function evidenceFor(
       rowId:part.rowNumber === null ? null : part.segmentId,
       columnId:col===null?null:columnRef(col),
       cellReference:col===null||part.rowNumber===null?null:columnRef(col)+part.rowNumber,
-      segmentIndex:col===null?index:null,
+      segmentIndex:col===null ? (part.segmentId.startsWith('chunk:')
+        ? Number(part.segmentId.slice(6))-1+index : index) : null,
       boundingBox:null,
     };
     const evidence: DocumentEvidence = {
@@ -308,6 +309,9 @@ export async function ingestDocument(input: ProcessingInput): Promise<DocumentRu
       processedSegments:processed,totalSegments:manifest.parts.length,
       status:records[i]!.failureCode?'partial':records[i]!.result?.requiresReview?'needs_review':'complete'});
   }
+  // An injected parser may not modify the immutable input it was given.
+  if (await sha256(source.bytes) !== sha)
+    throw new DocumentProcessingError('SOURCE_MUTATED_DURING_EXTRACTION');
   const evidence: DocumentEvidence[] = [];
   for (const record of records) {
     if (record.result) {
