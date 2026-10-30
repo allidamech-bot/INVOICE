@@ -9,7 +9,7 @@
 import type {AuthenticatedScope, ApprovalReceipt, ReviewDraft} from '../domain/contracts.js';
 import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
-import {assertDraftIntegrity, R04ReviewError, R04_LIVE_WRITES_ENABLED} from './drafts.js';
+import {assertDraftIntegrity, reviewHash, R04ReviewError, R04_LIVE_WRITES_ENABLED} from './drafts.js';
 
 export const R04_APPROVED_TOOL='document.createDraft' as const;
 export type ApprovalStatus='approved'|'rejected'|'revoked'|'needs_reconciliation'|'verified';
@@ -17,6 +17,7 @@ export interface ApprovalEntry {
   receipt:ApprovalReceipt;
   status:ApprovalStatus;
   revision:number;
+  requestFingerprint:string;
 }
 export interface ApprovalCollection {revision:number;entries:ApprovalEntry[];}
 export interface AtomicApprovalStore {
@@ -80,9 +81,15 @@ export class SyntheticApprovalStore implements AtomicApprovalStore {
     return clone(this.state.get(k)??{revision:0,entries:[]});
   }
 }
+export interface TrustedReviewedDraft {
+  draft:ReviewDraft;
+  reviewedBusinessRevision:string;
+  reviewedSourceManifestHash:string;
+  reviewedByActorId:string;
+}
 export interface TrustedFinanceReadBoundary {
-  /** Not a request-body draft: server selects the actual current revision. */
-  loadReviewDraft(scope:AuthenticatedScope,draftId:string):Promise<ReviewDraft|null>;
+  /** Authoritative server review record, NOT a client-owned draft object. */
+  loadReviewDraft(scope:AuthenticatedScope,draftId:string):Promise<TrustedReviewedDraft|null>;
   /** Server fetches the authoritative company/vault baseline. */
   currentBusinessRevision(scope:AuthenticatedScope):Promise<string>;
   /** Independent finance ACL, not just the user's AI mode or role string. */
@@ -112,8 +119,13 @@ export class ScopedApprovalGate {
     if(scope.scopeType!=='business'||!['owner','admin','sales','finance'].includes(scope.role)||
       !await this.trusted.canCreateQuoteDraft(scope))
       throw new R04ReviewError('FINANCIAL_ROLE_OR_SCOPE_DENIED');
-    const draft=await this.trusted.loadReviewDraft(scope,draftId);
-    if(!draft||exactScopeKey(draft.scope)!==exactScopeKey(scope)||
+    const trustedRecord=await this.trusted.loadReviewDraft(scope,draftId);
+    const draft=trustedRecord?.draft;
+    if(!draft||!trustedRecord ||
+      trustedRecord.reviewedByActorId!==scope.actorId ||
+      trustedRecord.reviewedBusinessRevision!==businessRevision ||
+      trustedRecord.reviewedSourceManifestHash!==draft.sourceManifestHash ||
+      exactScopeKey(draft.scope)!==exactScopeKey(scope)||
       draft.draftId!==draftId||draft.kind!=='quotation'||
       draft.status!=='ready_for_approval'||!draft.businessValidation.valid||
       draft.businessValidation.blockers.length||
@@ -146,12 +158,18 @@ export class ScopedApprovalGate {
     if(draft.draftRevision!==approval.reviewedDraftRevision||
       draft.immutableRevisionHash!==approval.reviewedDraftHash)
       throw new R04ReviewError('REVIEWED_DRAFT_CHANGED');
+    const requestFingerprint=await reviewHash({scope,taskId:input.taskId,
+      approvalId:input.approvalId,operationId:input.operationId,
+      durationSeconds:input.durationSeconds,issuedAt:input.issuedAt,approval});
     return this.store.transaction(key,async state=>{
       const collision=state.entries.find(x=>x.receipt.approvalReceiptId===input.approvalId ||
         x.receipt.operationId===input.operationId);
       if(collision){
         const r=collision.receipt;
-        if(r.approvalReceiptId!==input.approvalId||r.operationId!==input.operationId||
+        if(collision.status!=='approved')
+          throw new R04ReviewError('APPROVAL_TERMINAL_TOMBSTONE');
+        if(collision.requestFingerprint!==requestFingerprint ||
+          r.approvalReceiptId!==input.approvalId||r.operationId!==input.operationId||
           r.taskId!==input.taskId||r.draftId!==draft.draftId||
           r.draftRevision!==draft.draftRevision||
           r.immutableRevisionHash!==draft.immutableRevisionHash||
@@ -172,7 +190,7 @@ export class ScopedApprovalGate {
         revokedAt:null,approvalAction:'accepted',serverIntegrityTag:'pending',
         consumedAt:null,executionResultRef:null,
       });
-      const entry:ApprovalEntry={receipt,status:'approved',revision:1};
+      const entry:ApprovalEntry={receipt,status:'approved',revision:1,requestFingerprint};
       return {next:{revision:state.revision+1,entries:[...state.entries,entry]},result:receipt};
     });
   }
