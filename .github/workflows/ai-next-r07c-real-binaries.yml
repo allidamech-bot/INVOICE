@@ -31,8 +31,8 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci --no-audit --no-fund
-      - name: Typecheck and compile isolated document adapters
-        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Typecheck and build existing vendored browser runtimes (no deployment)
+        run: npm run typecheck && npm run build
       - name: Existing synthetic R02 safety regression
         run: node --test tests/ai-next/r02-documents.test.mjs
       - name: Install browser driver only (existing container provides browsers)
