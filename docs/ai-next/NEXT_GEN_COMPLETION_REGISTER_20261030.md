@@ -17,6 +17,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R07B2 read-only local coordinator | Merged #1199, 66ad16b0 | 133/133 synthetic local regression, Vercel isolation passed | No | No | Open | No | No |
 | R07B3 root server-only ACL reader | Merged #1200, 729b80ab | 44/44 scoped mock ACL tests; Vercel isolation passed | No | No | Open | No | No |
 | R07C actual PDF/XLSX/XLS adapter browser fixtures | Merged #1201, d6e2871e | 26/26 R02 regression + real binary Chromium/WebKit PASS | Representative WebKit passed (not iPhone) | No | Open | No | No |
+| R07D inactive Firestore review-draft CAS | PR pending | Scoped transaction regression pending | No | No live backend | Open | No | No |
+
 
 ## Evidence boundary
 
@@ -72,3 +74,7 @@ The root ACL reader R07B3 is only code with mocked Firestore. There are no appro
 ## Next critical engineering gate
 
 Do not connect production HTTP or enable a live UI before proving: server-only ACL records with deployed rules/IAM, approved durable encrypted storage and retention/cost policy, secure source object storage, actual server coordinator with proper idempotent transactions, approved private inference providers, source completeness and reviewed draft persistence. An isolated pre-release browser acceptance is not permission to change financial data or financial rules. Finance writes remain disabled.
+
+## R07D review-only draft storage
+
+R07D introduces an inactive Firestore Admin-compatible, transaction-backed repository for unsaved quotation review drafts and guarded revision updates, with strict scope/turn identity and content integrity checks. Synthetic cross-instance tests do not prove real Firestore persistence; ACL, retention and IAM verification remain unclosed. See R07D_DRAFT_STORAGE_EVIDENCE_20261030.md.
