@@ -248,7 +248,10 @@ export class R07PSemanticPlanner{
     }
     if(c.action==='edit_draft'){
       if(subject?.kind!=='draft')missing.push('verified_draft');
-      if(c.facts.some(f=>['quantity','unit','selling_unit_price'].includes(f.name))){
+      // Adding a NEW line must not be interpreted as editing one of the
+      // existing lines. R07R still requires complete validated line data.
+      if(c.facts.find(f=>f.name==='operation')?.value!=='append_line'&&
+        c.facts.some(f=>['quantity','unit','selling_unit_price'].includes(f.name))){
         const line=c.facts.find(f=>f.name==='line_id')?.value;
         const lines=context.activeDraft?.lineIds??[];
         if(!line&&lines.length!==1)
