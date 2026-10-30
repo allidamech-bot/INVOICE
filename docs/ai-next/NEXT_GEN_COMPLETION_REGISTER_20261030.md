@@ -28,7 +28,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07L transactional latest-turn operational materialization | Merged #1216, 44c2c836 | 54/54 R03/R07G/R07J/R07L synthetic, 3/3 local Firebase Admin/Firestore, separate-process seed/restore 1/1 each; TS/trace/isolation PASS | No | Local emulator only | Open | No | No |
 | R07M fast local Controller/Advisor with sealed turn-request index | Merged #1218, 83aefd2c | 48/48 synthetic R07B/R07J/R07K/R07M; 3/3 official local Firestore Emulator; 7 final-SHA CI checks PASS | No | Local emulator only | Open | No | No |
 | R07N unmounted R06 UI preview wiring + interrupted Controller recovery | Merged #1220, 84a8b02b | 31/31 R06/R07M/R07N synthetic; 1/1 emulator seed/export + 3/3 independent emulator restore; all 3 SHA-bound checks PASS | No | Synthetic/local emulator only | Open | No | No |
-| R07O secure local-only HTTP preview transport | PR pending | Firebase Admin ACL real emulator + R07B/R07M/R07N regression CI pending | No | Local loopback emulator only | Open | No | No |
+| R07O secure local-only HTTP preview transport | Merged #1222, 45b6827c | 48/48 R07B/R07M/R07N synthetic, 9/9 actual loopback HTTP + Firestore Emulator, all 3 final-SHA checks PASS | No | Local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -186,3 +186,10 @@ R07N implements a fully disabled presentation adapter from the server-authorized
 ## R07O secure local transport candidate
 
 The R07O preview handler is **not an API route**, is denied in Vercel/production, requires demo project + actual local Firestore Emulator, and only accepts same-origin POST JSON Bearer calls. It feeds R07M trusted auth and server-side membership, never a finance writer or provider. R07N client keeps ambiguous send identity. Real browser/iPhone and live Firebase IAM security not yet accepted. See R07O_LOCAL_SECURE_HTTP_PREVIEW_EVIDENCE_20261031.md; CI pending.
+
+## R07O local-only HTTP preview verification — October 31, 2026
+
+- PR #1222 merged at `45b6827c1cf7fd6cd8bb2c942f3bece9b71831c6`. All three final-SHA checks passed: `secure-loopback-preview`, `offline-auth-boundary`, `trace`.
+- **48/48** existing auth/local coordinator/UI synthetic tests and **9/9** actual loopback HTTP + official local Firestore Admin Emulator tests passed. Tests cover strict request Origin/Fetch Metadata, Bearer token, no-CORS/no-cache/no-cookie, byte limit, server ACL revocation and exact company/branch checks, R07N preview with review-only unsaved quote and historic key collision.
+- Initial run failure was solely an early teardown of Node test listener, corrected in test harness before final-SHA green CI. No product behavior was changed by that repair.
+- **Still unmounted and NOT an endpoint**: `R07O_PUBLIC_ENDPOINT_ENABLED=false`. No public Vercel route was added, no browser/mobile was deployed, no production or live QA Firebase was contacted, and no accounting/finance/provider API was touched. The JWT verifier's cryptographic result in local emulator tests was injected as a deterministic test signer; *not* real Firebase token signature validation. Deployed root-deny IAM/rules, real safe QA project, physical Safari and iPhone acceptance, rate limits, broader natural language and T01–T24 are OPEN. R07O is an isolated integration proof, not a production launch approval.
