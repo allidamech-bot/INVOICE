@@ -113,6 +113,34 @@ function verifyBody(scope:AuthenticatedScope,body:ConversationEventBody):void{
     default: throw new Error('AI_NEXT_UNKNOWN_EVENT_KIND');
   }
 }
+/**
+ * R07J single-event primitive. This does not assert membership/turn/task
+ * continuity: a trusted durable backend MUST verify those in its CAS.
+ */
+export {verifyBody as validateConversationEventBody};
+export async function sealConversationEvent(input:{
+  scope:AuthenticatedScope;eventId:string;idempotencyKey:string;
+  sequence:number;previousHash:string;now:string;body:ConversationEventBody;
+}):Promise<ConversationEvent>{
+  const key=exactScopeKey(input.scope);
+  if(!safeId(input.eventId)||!safeId(input.idempotencyKey)||
+    !Number.isSafeInteger(input.sequence)||input.sequence<1||
+    !/^[a-f0-9]{64}$/.test(input.previousHash)||!isIso(input.now))
+    throw new Error('AI_NEXT_INVALID_APPEND_REQUEST');
+  verifyBody(input.scope,input.body);
+  const unsigned={
+    schemaVersion:1 as const,eventId:input.eventId,sequence:input.sequence,
+    scopeKey:key,eventAt:input.now,idempotencyKey:input.idempotencyKey,
+    previousHash:input.previousHash,body:clone(input.body),
+  };
+  return {...unsigned,hash:await digest(canonical(unsigned))};
+}
+export async function verifySealedEvent(event:ConversationEvent):Promise<void>{
+  const {hash,...unsigned}=event;
+  if(!/^[a-f0-9]{64}$/.test(hash)||
+    await digest(canonical(unsigned))!==hash)
+    throw new Error('AI_NEXT_DAMAGED_EVENT_HASH');
+}
 function baseSnapshot(key:string):ConversationSnapshot{return {
   schemaVersion:1,scopeKey:key,revision:0,lastHash:EMPTY_HASH,lastEventAt:null,
   turns:[],tasks:[],messages:[],checkpointRefs:[],uncertainOperations:[],
