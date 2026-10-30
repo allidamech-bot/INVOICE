@@ -417,6 +417,23 @@ export class R07JExperimentalIndexedJournal{
       projected.tasks.at(-1)?.taskId!==first.lastTaskId||
       projected.tasks.at(-1)?.state!==first.lastTaskState)
       throw new R07JStorageError('R07J_HEAD_AUDIT_MISMATCH');
+    // Heavy audit also cross-checks the fast current-turn projection.
+    // Never repair or overwrite mismatched state automatically.
+    const fast=(await this.readOperationalState(scope)).view;
+    const latestTurn=projected.turns.at(-1)??null;
+    const latestTask=projected.tasks.at(-1)??null;
+    const lastReply=latestTurn?
+      projected.messages.filter(m=>m.turnId===latestTurn.turnId&&
+        m.role==='assistant').at(-1)??null:null;
+    if(fast.revision!==projected.revision||
+      fast.lastHash!==projected.lastHash||
+      !equal(fast.turn,latestTurn)||!equal(fast.task,latestTask)||
+      fast.userMessageSeen!==!!(latestTurn&&
+        projected.messages.some(m=>m.turnId===latestTurn.turnId&&
+          m.role==='user'&&m.messageId===latestTurn.userMessageId))||
+      !equal(fast.assistantReply,lastReply?{
+        messageId:lastReply.messageId,text:lastReply.text}:null))
+      throw new R07JStorageError('R07L_AUDIT_PROJECTION_DIVERGENCE');
     return projected;
   }
 }
