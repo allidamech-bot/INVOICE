@@ -27,6 +27,7 @@ As of 2026-10-31. This is a code/evidence register, not an authorization to acti
 | R07K local Controller/Advisor indexed compatibility | Merged #1214, 5494df9f | 33/33 coordinator/R07J/bridge synthetic + 2/2 local Firestore Emulator; TS and isolation PASS | No | Local emulator only | Open | No | No |
 | R07L transactional latest-turn operational materialization | Merged #1216, 44c2c836 | 54/54 R03/R07G/R07J/R07L synthetic, 3/3 local Firebase Admin/Firestore, separate-process seed/restore 1/1 each; TS/trace/isolation PASS | No | Local emulator only | Open | No | No |
 | R07M fast local Controller/Advisor with sealed turn-request index | Merged #1218, 83aefd2c | 48/48 synthetic R07B/R07J/R07K/R07M; 3/3 official local Firestore Emulator; 7 final-SHA CI checks PASS | No | Local emulator only | Open | No | No |
+| R07N unmounted R06 UI preview wiring + interrupted Controller recovery | PR pending | UI callback/identity tests + two-process emulator export/import pending | No | Synthetic and local emulator only | Open | No | No |
 
 ## Evidence boundary
 
@@ -169,3 +170,7 @@ R07M adds a disabled server-authorized local coordinator using R07L current-turn
 - R07M targeted tests 48/48 synthetic and 3/3 official local Firestore Emulator. Test includes a normal new turn after 320 older synthetic message events, proving bounded mock Firestore reads, old-key collision/replay, concurrent identical requests, separate Admin SDK clients, denied branch and revoked membership, deterministic greeting and UNSAVED review-only quote with failure/recovery.
 - A NEW isolated `aiNextFastEventThreadsV1` collection persists request-key indexes atomically with event/head/R07L materialized state. R07M normal task steps use only bounded operational view. **Historical idempotency replay intentionally triggers complete R03 replay audit**; the implementation does not silently discard any historical event.
 - **Still disabled, not production deployed:** `R07M_FAST_COORDINATOR_ACTIVATED=false` and `R07M_FAST_JOURNAL_ACTIVATED=false`. Only deterministic local commands were proven, not arbitrary natural language, provider selection, full document operations, real financial approvals, production Cloud Firestore ACL/IAM/rules, UI integration, physical Safari or T22–T24. Model SHA-256 is not authorization against malicious privileged database writers. Local emulator results are not real multi-device/cloud performance acceptance.
+
+## R07N unmounted preview and recoverability candidate
+
+R07N implements a fully disabled presentation adapter from the server-authorized R07M fast coordinator to R06, including an unmounted workspace wiring, fail-closed response/scope checks, fixed identity on ambiguous send, and explicit complete-history read. Separate-process official Firestore Emulator export/import aims to prove recovery of an interrupted unsaved draft. No production API/HTTP, Firebase IAM, finance/provider, physical Safari or UI mount. See R07N_OFFLINE_PREVIEW_SECURITY_RECOVERY_EVIDENCE_20261031.md. CI acceptance pending.

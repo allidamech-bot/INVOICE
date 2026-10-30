@@ -1,0 +1,75 @@
+name: LOUREX AI Next R07N Offline Preview and Disaster Recovery
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/ui/r07n-preview-session.ts'
+      - 'src/ai-next/ui/R07NOfflinePreviewWorkspace.tsx'
+      - 'tests/ai-next/r07n-preview-session.test.mjs'
+      - 'tests/ai-next/r07n-emulator-recovery.test.mjs'
+      - '.github/workflows/ai-next-r07n-preview-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07n-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-preview-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GCLOUD_PROJECT: demo-ai-next-r07h
+      GOOGLE_CLOUD_PROJECT: demo-ai-next-r07h
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript with UI interface and coordinator isolation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R06 view R07M fast and R07N offline callback contract tests
+        run: >-
+          node --test
+          tests/ai-next/r06-ui-model.test.mjs
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+          tests/ai-next/r07n-preview-session.test.mjs
+      - name: Seed interrupted quote in official Firestore Emulator and export
+        env:
+          R07N_PHASE: seed
+        run: >-
+          npx --yes --package firebase-tools@14.16.0 firebase
+          emulators:exec
+          --only firestore
+          --project demo-ai-next-r07h
+          --config tests/ai-next/r07h-firebase-emulator.json
+          --export-on-exit=/tmp/r07n-emulator-export
+          --non-interactive
+          "node --test tests/ai-next/r07n-emulator-recovery.test.mjs"
+      - name: Assert real emulator export exists
+        run: test -f /tmp/r07n-emulator-export/firebase-export-metadata.json
+      - name: Restart independent emulator process and recover interrupted Controller
+        env:
+          R07N_PHASE: restore
+        run: >-
+          npx --yes --package firebase-tools@14.16.0 firebase
+          emulators:exec
+          --only firestore
+          --project demo-ai-next-r07h
+          --config tests/ai-next/r07h-firebase-emulator.json
+          --import=/tmp/r07n-emulator-export
+          --non-interactive
+          "node --test tests/ai-next/r07n-emulator-recovery.test.mjs"
