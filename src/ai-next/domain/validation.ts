@@ -320,8 +320,11 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
     if (!unique(d.lineItems.map(l => l.lineId))) errors.push('duplicate_draft_line_id');
     if (d.status === 'ready_for_approval' && (!d.businessValidation.valid ||
       d.businessValidation.blockers.length || !d.currency ||
-      (d.kind !== 'analysis' && (!d.explicitCustomerId || d.lineItems.some(l =>
-        l.sellingUnitPrice === null || l.quantity === null || l.unit === null)))))
+      d.fieldStatus.some(field => field.status !== 'verified' &&
+        field.status !== 'not_applicable') ||
+      (d.kind !== 'analysis' && (!d.explicitCustomerId || !d.lineItems.length ||
+        d.lineItems.some(l => l.sellingUnitPrice === null || l.quantity === null ||
+          l.unit === null || l.currency !== d.currency)))))
       errors.push('draft_missing_required_fields');
     if (d.status === 'approved_for_execution' || d.status === 'saved')
       errors.push('r01_draft_execution_disabled');
