@@ -219,3 +219,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Synthetic R07R transaction tests cover customer, line item/currency, stale retries, concurrent CAS, malicious/unresolved model output and cross-tenant/role denial. Exact final-head CI evidence, not this register entry, is authoritative for pass claims.
 - **Not completed integration:** R07M durable authenticated turn/task journal is NOT yet wired to this bridge; only synthetic interpreted output is injected. Real provider understanding, multi-turn durable semantic idempotency, full undo/redo, real cloud IAM and T22–T24 remain OPEN. No production activation.
 - See docs/ai-next/R07R_REVIEW_DRAFT_PREPARATION_EVIDENCE_20261031.md.
+
+## R07Q complementary offline semantic output boundary — October 31, 2026
+
+- The existing R07Q trusted free-model catalog and task-fitting routing from merged PR #1225 are preserved unchanged. **PR #1227** binds strict R07P semantic candidate validation to the same R05 routing gateway in a disabled, synthetic-only test seam; it does not introduce a competing router.
+- Adds fail-closed runtime privacy-denied classification and immediate stop of further provider fallback. This is tested with mocked transports and does not claim authorization to run live inference.
+- CI must verify final SHA TypeScript, R07Q offline semantic fixtures, R05/R07P/R07M regressions, and unchanged production bundle before merge. Exact CI evidence is in the PR.
+- **Still OPEN:** real authenticated semantic Controller integration, actual Arabic/English model accuracy, real zero-cost provider entitlements, private inference permission, durable history, T22–T24, production IAM/rules, physical iPhone and deployment approval. No real financial or production changes.
+- Evidence: docs/ai-next/R07Q_SEMANTIC_OFFLINE_BRIDGE_EVIDENCE_20261031.md.
