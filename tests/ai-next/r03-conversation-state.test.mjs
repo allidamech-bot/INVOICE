@@ -125,6 +125,28 @@ test('valid task transitions retain checkpoints and never auto retry writes',asy
     now:at(3),eventId:'e4',idempotencyKey:'k4'}),/STALE_STATE_VERSION/);
   assert.equal((await l.snapshot(scope())).revision,3);
 });
+test('repeated task transition with the same event ID is an idempotent response, not stale-state failure',async()=>{
+  const ledger=new ScopedConversationLedger(new SyntheticAtomicEventBackend());await begin(ledger);
+  const args={scope:scope(),taskId:'task1',expectedStateVersion:0,
+    expectedRevision:1,nextState:'understanding',now:at(1),
+    eventId:'move1',idempotencyKey:'transition-idem'};
+  const a=await ledger.transitionTask(args);
+  const b=await ledger.transitionTask(args);
+  assert.equal(a.replayed,false);
+  assert.equal(b.replayed,true);
+  assert.equal(b.snapshot.revision,2);
+  await assert.rejects(ledger.transitionTask({...args,nextState:'processing'}),
+    /IDEMPOTENCY_COLLISION/);
+  assert.equal((await ledger.snapshot(scope())).tasks[0].state,'understanding');
+});
+test('uncertain operation event overrides read-only recovery classification',async()=>{
+  const ledger=new ScopedConversationLedger(new SyntheticAtomicEventBackend());await begin(ledger);
+  const result=await append(ledger,scope(),{
+    kind:'uncertain_execution',taskId:'task1',operationId:'finance-op-1',
+    reasonCode:'OUTCOME_UNKNOWN'},'uncertain1','uncertainIdem',at(1),1);
+  assert.equal(result.snapshot.uncertainOperations.length,1);
+  assert.equal(classifyResume(result.snapshot)[0].resume,'reconcile_first');
+});
 test('uncertain operation cannot be transformed into success or cancelled guarantee',async()=>{
   const l=new ScopedConversationLedger(new SyntheticAtomicEventBackend());await begin(l);
   const uncertain=makeTask(scope(),{state:'completed',revision:1,stateVersion:1,
