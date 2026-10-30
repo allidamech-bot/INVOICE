@@ -1,0 +1,37 @@
+name: LOUREX AI Next R07E Original Source Objects
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/storage/cloud-source-objects.ts'
+      - 'tests/ai-next/r07e-source-objects.test.mjs'
+      - '.github/workflows/ai-next-r07e-source-objects.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  immutable-source-objects:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Compile R02 and source storage
+        run: ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R02 pipeline and R07E immutable object regression
+        run: node --test tests/ai-next/r02-documents.test.mjs tests/ai-next/r07e-source-objects.test.mjs
