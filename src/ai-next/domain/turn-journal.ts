@@ -64,9 +64,10 @@ export class SyntheticTurnJournal {
       return {replayed:true,turn:copy(existing.turn),task:copy(existing.task)};
     }
     const active = this.activeByThread.get(threadKey);
-    if (active && this.records.get(active)?.task.state &&
-      !['completed','failed','cancelled'].includes(this.records.get(active)!.task.state))
+    const previousRecord = active ? this.records.get(active) : undefined;
+    if (previousRecord && !['completed','failed','cancelled'].includes(previousRecord.task.state))
       throw new Error('AI_NEXT_CONCURRENT_TURN');
+    const parentTurnId = previousRecord?.turn.turnId ?? null;
     const sequenceNumber = (this.sequences.get(threadKey) ?? 0) + 1;
     const receivedAt = clock;
     const turnId = crypto.randomUUID();
@@ -74,7 +75,7 @@ export class SyntheticTurnJournal {
     const turn: ConversationTurn = {
       schemaVersion:1,scope:copy(input.scope),turnId,threadId:input.scope.threadId,
       userMessageId:input.userMessageId,requestId:input.requestId,
-      idempotencyKey:input.idempotencyKey,sequenceNumber,parentTurnId:null,
+      idempotencyKey:input.idempotencyKey,sequenceNumber,parentTurnId,
       userMessage:{text:input.message,languageHint:input.languageHint,
         attachedSourceIds:attachmentIds},
       mode:input.mode,receivedAt,stateVersion:0,selectedSourceIds:[],
