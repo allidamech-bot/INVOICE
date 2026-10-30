@@ -21,7 +21,7 @@ test('planner preserves line breaks between authored product rows and their pric
  await g.run(message);assert.ok(g.prompt.includes(message),'Do not flatten item boundaries before interpretation');
 });
 test('active-user rate limiter has bounded memory and does not evict live buckets to reset quota',()=>{
- const g=gateway();for(let i=0;i<16;i++)assert.equal(g.rateAllowed({aiVerifiedUid:'first'}),true);
+ const g=gateway();for(let i=0;i<32;i++)assert.equal(g.rateAllowed({aiVerifiedUid:'first'}),true);
  for(let i=0;i<10000;i++)g.rateAllowed({aiVerifiedUid:'user'+i});
  assert.ok(g.rateBuckets.size<=2048,'Per-process memory must have a fixed cap');
  assert.equal(g.rateAllowed({aiVerifiedUid:'first'}),false,'New identities cannot evict and reset existing quota');
@@ -31,4 +31,47 @@ test('every canonical composer font rule is at least 16 CSS pixels, including th
  const rules=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([,selector])=>selector.trim().endsWith('.lourex-ai-premium-textarea'));
  const fonts=rules.flatMap(([,selector,body])=>[...body.matchAll(/font-size:\s*([0-9.]+)px/g)].map(m=>({selector,size:Number(m[1])})));
  assert.ok(fonts.length);for(const font of fonts)assert.ok(font.size>=16,JSON.stringify(font));
+});
+
+test('a signed-in ten-file conversation fits the bounded classify+summarize request budget',()=>{
+ const g=gateway();
+ for(let i=0;i<10;i++){
+  assert.equal(g.rateAllowed({aiVerifiedUid:'legitimate-user'}),true,'classify file '+(i+1));
+  assert.equal(g.rateAllowed({aiVerifiedUid:'legitimate-user'}),true,'summarize file '+(i+1));
+ }
+ assert.equal(g.rateAllowed({aiVerifiedUid:'legitimate-user'}),true,'one action-planning request remains possible');
+ for(let i=21;i<32;i++)assert.equal(g.rateAllowed({aiVerifiedUid:'legitimate-user'}),true);
+ assert.equal(g.rateAllowed({aiVerifiedUid:'legitimate-user'}),false,'finite 5-minute per-account ceiling remains in force');
+ assert.ok(g.rateBuckets.size<=2048);
+});
+
+test('gateway quota and upstream provider quota use different error codes and bilingual guidance',()=>{
+ assert.match(api,/code:'AI_INBOX_RATE_LIMITED'/);
+ assert.match(api,/RATE_MAX=32;/);
+ const source=readFileSync('src/lib/ai-request.ts','utf8');
+ assert.match(source,/if\(code==='AI_INBOX_RATE_LIMITED'\)/);
+ assert.match(source,/لم يتم الاتصال بمزوّد AI/);
+ assert.match(source,/if\(code==='AI_RATE_LIMITED'\|\|status===429\)/);
+});
+
+test('native document eligibility and free-only failures have specific bilingual error guidance',()=>{
+ const client=readFileSync('src/lib/ai-request.ts','utf8');
+ for(const code of ['AI_PRIVATE_DOCUMENT_UNAVAILABLE','AI_UNSUPPORTED_MODALITY','AI_FREE_ONLY_REQUIRED'])
+   assert.match(client,new RegExp("if\\(code==='"+code+"'\\)"));
+ assert.match(client,/لا يوجد حاليًا موديل مجاني معتمد ومؤهل لقراءة ملف PDF الأصلي/);
+ assert.match(client,/لم يُرسل الملف إلى مزوّد غير معتمد/);
+});
+
+test('quotation source retries are bounded and active authenticated quotas cannot be evicted',()=>{
+ const file=readFileSync('api/quote-source-ai.js','utf8');
+ const isolated=file.slice(0,file.indexOf('export default async function handler(')).replace(/^import .+;\s*$/gm,'');
+ const limit=vm.runInNewContext(isolated+'\n({rateAllowed,rateBuckets})',{Date,Map});
+ for(let i=0;i<16;i++)assert.equal(limit.rateAllowed({aiVerifiedUid:'quote-owner'}),true);
+ assert.equal(limit.rateAllowed({aiVerifiedUid:'quote-owner'}),false);
+ for(let i=0;i<3000;i++)limit.rateAllowed({aiVerifiedUid:'other'+i});
+ assert.ok(limit.rateBuckets.size<=2048);
+ assert.equal(limit.rateAllowed({aiVerifiedUid:'quote-owner'}),false);
+ assert.match(file,/code:'AI_QUOTE_RATE_LIMITED'/);
+ const client=readFileSync('src/lib/ai-request.ts','utf8');
+ assert.match(client,/AI_QUOTE_RATE_LIMITED/);
 });
