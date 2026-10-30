@@ -1,0 +1,44 @@
+name: LOUREX AI Next R07P Semantic Planning
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/router/semantic-planner.ts'
+      - 'tests/ai-next/r07p-semantic-planner.test.mjs'
+      - 'src/ai-next/coordinator/fast-local-coordinator.ts'
+      - 'src/ai-next/router/local-intents.ts'
+      - '.github/workflows/ai-next-r07p-semantic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07p-semantic-ci
+  cancel-in-progress: true
+
+jobs:
+  semantic-planning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and isolated compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R07P synthetic semantic benchmark and security-negative cases
+        run: node --test tests/ai-next/r07p-semantic-planner.test.mjs
+      - name: Deterministic R05 and R07M regression
+        run: >-
+          node --test
+          tests/ai-next/r05-router.test.mjs
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+      - name: Production/finance isolation assertion
+        run: node scripts/verify-deployment-isolation.mjs
