@@ -85,8 +85,25 @@ async function digest(value:string):Promise<string>{
   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
   return Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
 }
+/**
+ * Firestore export/import can reorder nested map keys. Hash a canonical,
+ * recursively key-sorted JSON representation; insertion-order hashes make
+ * intact stored events look corrupt after restore. Do not normalize values.
+ */
+function canonicalJson(value:unknown):string{
+  if(value===null||typeof value==='string'||typeof value==='boolean')
+    return JSON.stringify(value);
+  if(typeof value==='number'&&Number.isFinite(value))
+    return JSON.stringify(value);
+  if(Array.isArray(value))
+    return '['+value.map(canonicalJson).join(',')+']';
+  if(isPlain(value))
+    return '{'+Object.keys(value).sort().map(k=>
+      JSON.stringify(k)+':'+canonicalJson(value[k])).join(',')+'}';
+  throw new R07GStorageError('R07G_NON_CANONICAL_JSON');
+}
 async function hashEvents(events:ConversationEvent[]):Promise<string>{
-  return digest(JSON.stringify(events));
+  return digest(canonicalJson(events));
 }
 async function refs(db:R07GFirestoreClient,key:string){
   validateScopeKey(key);
@@ -164,7 +181,7 @@ async function descriptor(index:number,start:number,events:ConversationEvent[],
   return {index,start,end:start+events.length-1,previousHash,
     lastHash:events.at(-1)!.hash,contentHash:await hashEvents(events)};
 }
-function equal(a:unknown,b:unknown):boolean{return JSON.stringify(a)===JSON.stringify(b);}
+function equal(a:unknown,b:unknown):boolean{return canonicalJson(a)===canonicalJson(b);}
 function validateTransition(before:JournalRecord,next:JournalRecord){
   if(!next||!Array.isArray(next.events)||
     !Number.isSafeInteger(next.revision)||
