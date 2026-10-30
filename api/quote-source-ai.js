@@ -3,6 +3,7 @@ import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {includesExplicitSourceCodes,explicitQuoteSource,validateExplicitQuoteTextEvidence} from './_ai/source-lines.js';
 import {normalizeSourceNumber,explicitSourceDecimal} from './_ai/numbers.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
+import {intakeDiagnostics} from './_ai/intake-diagnostics.js';
 
 const MAX_BODY_BYTES=4_000_000;
 const RATE_WINDOW_MS=5*60*1000;
@@ -52,10 +53,12 @@ export default async function handler(request,response){
   const attachments=kind==='file'?[{kind:mimeType==='application/pdf'?'native-document':'image',mimeType,data,fileName}]:kind==='pages'?pageAttachments:[];
   // The conversation source reader waits 45s. Finish the full provider chain
   // inside that window rather than leaving an orphan request after UI timeout.
-  const result=await routeAiStructured({taskType:'quote_extract',prompt,attachments,schema,qualityFallback:true,timeoutMs:22_000,totalBudgetMs:40_000,validate:value=>{const draft=cleanResult(value);if(!draft)return false;return includesExplicitSourceCodes(text,draft.items)&&validateExplicitQuoteTextEvidence(text,draft.items,draft.currency);}});
+  const diagnostic=intakeDiagnostics(request.aiVerifiedUid,'quote-extraction');
+  const result=await routeAiStructured({onDiagnostic:diagnostic.onDiagnostic,taskType:'quote_extract',prompt,attachments,schema,qualityFallback:true,timeoutMs:22_000,totalBudgetMs:40_000,validate:value=>{const draft=cleanResult(value);if(!draft)return false;return includesExplicitSourceCodes(text,draft.items)&&validateExplicitQuoteTextEvidence(text,draft.items,draft.currency);}});
   if(!result.success){
-    if(result.errorCode==='AI_INVALID_RESULT'){sendJson(response,422,{code:'NO_QUOTE_DATA',message:'The quotation extraction is incomplete or uncertain. Review the source, split large files, and retry; no document was saved.'});return;}
-    const publicError=aiRouterPublicError(result);sendJson(response,publicError.status,{code:publicError.code,message:'LOUREX could not analyze this quotation source.'});return;
+    const trace=diagnostic.failure(result);
+    if(result.errorCode==='AI_INVALID_RESULT'){sendJson(response,422,{code:'NO_QUOTE_DATA',message:'The quotation extraction is incomplete or uncertain. Review the source, split large files, and retry; no document was saved.',...trace});return;}
+    const publicError=aiRouterPublicError(result);sendJson(response,publicError.status,{code:publicError.code,message:'LOUREX could not analyze this quotation source.',...trace});return;
   }
   const draft=cleanResult(result.data);if(!draft){sendJson(response,422,{code:'NO_QUOTE_DATA',message:'No reliable quotation lines with quantities were found.'});return;}
   sendJson(response,200,{draft});

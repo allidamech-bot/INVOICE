@@ -22,7 +22,7 @@ test('working draft planning leaves time for failover and settles before its bro
 
 async function invoke(path,fixture){
  const key='__deadlineQa'+crypto.randomUUID().replaceAll('-','');let captured;
- globalThis[key]={requireAiFirebaseAuth:async()=>true,routeAiStructured:async options=>{captured=options;return{success:true,data:fixture};},aiRouterPublicError:()=>({status:503}),cleanVisionPageAttachments:()=>null,planWorkingDraft:()=>null,includesExplicitSourceCodes:()=>true,explicitQuoteSource:()=>null,normalizeSourceNumber:v=>v,explicitSourceDecimal:v=>v};
+ globalThis[key]={requireAiFirebaseAuth:async()=>true,routeAiStructured:async options=>{captured=options;return{success:true,data:fixture};},aiRouterPublicError:()=>({status:503}),cleanVisionPageAttachments:()=>null,planWorkingDraft:()=>null,intakeDiagnostics:()=>({onDiagnostic:undefined,failure:()=>({})}),includesExplicitSourceCodes:()=>true,explicitQuoteSource:()=>null,normalizeSourceNumber:v=>v,explicitSourceDecimal:v=>v};
  const source=(await readFile(path,'utf8')).replace(/import \{([^}]+)\} from '[^']+';/g,(_all,names)=>`const {${names}}=globalThis.${key};`);
  try{
   const {default:handler}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
