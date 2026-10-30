@@ -1,0 +1,57 @@
+name: LOUREX AI Next R07O Local Secure HTTP Preview
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/security/r07o-local-http.ts'
+      - 'tests/ai-next/r07o-local-http-emulator.test.mjs'
+      - '.github/workflows/ai-next-r07o-secure-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07o-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secure-loopback-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GCLOUD_PROJECT: demo-ai-next-r07h
+      GOOGLE_CLOUD_PROJECT: demo-ai-next-r07h
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript check and independent AI Next compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Preserve R07B authentication and R07M/R07N offline state regressions
+        run: >-
+          node --test
+          tests/ai-next/r07b-authority.test.mjs
+          tests/ai-next/r07b-admin-acl.test.mjs
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+          tests/ai-next/r07n-preview-session.test.mjs
+      - name: Real local HTTP transport with signed-identity test verifier and official Firestore Emulator
+        run: >-
+          npx --yes --package firebase-tools@14.16.0 firebase
+          emulators:exec
+          --only firestore
+          --project demo-ai-next-r07h
+          --config tests/ai-next/r07h-firebase-emulator.json
+          --non-interactive
+          "node --test tests/ai-next/r07o-local-http-emulator.test.mjs"
