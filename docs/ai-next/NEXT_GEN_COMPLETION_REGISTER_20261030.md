@@ -15,7 +15,8 @@ As of 2026-10-30. This is a code/evidence register, not an authorization to acti
 | R07A isolated Firestore CAS adapter | Merged #1197, 3f8bd285 | 118/118 scoped CAS regression; Vercel isolation passed | No | No | Open | No | No |
 | R07B1 principal and membership boundary | Merged #1198, c548a469 | 57/57 auth regression, Vercel isolation passed | No | No | Open | No | No |
 | R07B2 read-only local coordinator | Merged #1199, 66ad16b0 | 133/133 synthetic local regression, Vercel isolation passed | No | No | Open | No | No |
-| R07B3 root server-only ACL reader | Pending CI | Mock Firestore root-ACL verification pending | No | No | Open | No | No |
+| R07B3 root server-only ACL reader | Merged #1200, 729b80ab | 44/44 scoped mock ACL tests; Vercel isolation passed | No | No | Open | No | No |
+| R07C actual PDF/XLSX/XLS adapter browser fixtures | PR pending | Real binary browser CI pending | Pending representative WebKit | No | Open | No | No |
 
 ## Evidence boundary
 
@@ -48,3 +49,7 @@ R07B2 binds R07B1 authoritative scope construction to R03 event CAS and R05 dete
 ## R07B3 root ACL service
 
 An inactive, read-only Firestore Admin-compatible membership adapter uses a new root collection outside the client-writable /users tree; its current production records, deployed rules and privileged IAM remain unverified. No client-side workspace directory is trusted to grant AI permissions, and no membership records are automatically provisioned. See R07B_ADMIN_ACL_SOURCE_EVIDENCE_20261030.md.
+
+## R07C binary parsing evidence
+
+Targeted real PDF.js and SheetJS browser fixtures use actual binary PDF/XLSX/XLS files with synthetic content. They test page and worksheet provenance in Chromium/WebKit without AI calls or customer data. OCR remains injected/uncertain and no financial drafts are eligible. See R07C_REAL_BINARY_ACCEPTANCE_20261030.md. Browser acceptance is not equivalent to iPhone device acceptance.
