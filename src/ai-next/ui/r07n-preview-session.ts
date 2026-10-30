@@ -83,7 +83,9 @@ export function r07nCurrentToR06(scope:AuthenticatedScope,response:Awaited<
       v.task.turnId!==v.turn?.turnId))||
     (!v.turn&&(v.userMessageSeen||v.assistantReply||draft))||
     (v.assistantReply&&v.assistantReply.messageId!=='assistant-'+v.turn?.turnId)||
-    (v.task?.state==='completed'&&(!v.userMessageSeen||!v.assistantReply)))
+    (v.task?.state==='completed'&&(!v.userMessageSeen||!v.assistantReply))||
+    (!!v.task?.draftId!==!!draft)||
+    (draft&&v.task?.draftId!==draft.draftId))
     throw new R07NPreviewError('R07N_INCONSISTENT_CURRENT');
   const view=emptyView(scope);
   if(v.turn){
@@ -205,6 +207,11 @@ export class R07NPreviewSession{
         response.providerCalls!==0||
         response.turnId!==v.turn?.turnId||
         response.taskId!==v.task?.taskId||
+        v.turn?.idempotencyKey!==request.idempotencyKey||
+        v.turn?.requestId!==request.requestId||
+        v.turn?.userMessageId!==request.userMessageId||
+        v.turn?.userMessage.text!==request.message||
+        v.turn?.mode!==request.mode||
         v.task.state!=='completed'||v.revision<response.conversationRevision||
         v.assistantReply?.text!==response.reply)
         throw new R07NPreviewError('R07N_UNVERIFIED_TURN_COMPLETION');
