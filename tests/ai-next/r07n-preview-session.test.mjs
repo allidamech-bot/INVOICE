@@ -244,3 +244,49 @@ test('R07N refuses suspicious recovery metadata or changed envelope',()=>{
   assert.throws(()=>new R07NPreviewSession(scope,{...env,
     branchId:'another'},port(h.coordinator)),/R07N_SCOPE_ENVELOPE_MISMATCH/);
 });
+
+
+test('R07N quote confirmation cannot pass missing draft or mismatched draft reference',async()=>{
+  const h=harness();
+  const requestIdentity='quote-proof';
+  const noDraft=session(h,requestIdentity,{
+    accept:async req=>{
+      const accepted=await h.coordinator.accept(TOKEN,req);
+      return {...accepted,draft:null};
+    },
+  });
+  const result=await send(noDraft,'أنشئ مسودة عرض سعر','controller');
+  assert.equal(result.accepted,false);
+  assert.equal(noDraft.getView().draft,null);
+  assert.ok(noDraft.unresolvedForManualRecovery());
+  const fromServer=await h.coordinator.current(TOKEN,env);
+  const original=await h.coordinator.accept(TOKEN,{
+    ...env,...identity(requestIdentity)(),message:'أنشئ مسودة عرض سعر',
+    mode:'controller',
+  });
+  assert.throws(()=>r07nCurrentToR06(scope,fromServer,{
+    ...original.draft,draftId:'draft-of-some-other-turn',
+  }),/R07N_INCONSISTENT_CURRENT/);
+  // A passive refresh can safely show task status but no unaudited draft;
+  // retrying the exact request recovers its verified server draft.
+  const after=await noDraft.refreshCurrent();
+  assert.equal(after.currentTask.state,'completed');
+  assert.equal(after.draft,null);
+  const restored=session(h,'fresh');
+  restored.restoreUnresolved(noDraft.unresolvedForManualRecovery());
+  assert.deepEqual(await send(restored,'أنشئ مسودة عرض سعر','controller'),
+    {accepted:true});
+  assert.equal(restored.getView().draft.draftId,original.draft.draftId);
+});
+test('R07N rejects a forged completed reply from a different request identity',async()=>{
+  const h=harness();
+  const sessionWithLie=session(h,'server-lie',{
+    accept:async req=>{
+      const response=await h.coordinator.accept(TOKEN,req);
+      return {...response,turnId:'different-turn'};
+    },
+  });
+  assert.deepEqual(await send(sessionWithLie),{accepted:false});
+  assert.ok(sessionWithLie.unresolvedForManualRecovery());
+  assert.equal(sessionWithLie.getView().messages.length,0);
+});
