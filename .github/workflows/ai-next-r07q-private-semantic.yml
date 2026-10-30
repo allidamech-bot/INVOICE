@@ -1,0 +1,45 @@
+name: LOUREX AI Next Private Semantic R05 Adapter (Offline)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/router/semantic-planner.ts'
+      - 'src/ai-next/router/trusted-semantic-gateway.ts'
+      - 'tests/ai-next/r07q-routed-semantic.test.mjs'
+      - '.github/workflows/ai-next-r07q-private-semantic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07q-private-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  routed-private:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict typecheck and isolated compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Private semantic adapter offline model/identity/privacy checks
+        run: node --test tests/ai-next/r07q-routed-semantic.test.mjs
+      - name: Existing synthetic routing and draft regression
+        run: >-
+          node --test
+          tests/ai-next/r07q-semantic-offline.test.mjs
+          tests/ai-next/r05-router.test.mjs
+          tests/ai-next/r07p-semantic-planner.test.mjs
+          tests/ai-next/r07r-draft-preparation.test.mjs
+      - name: Production/finance isolation
+        run: node scripts/verify-deployment-isolation.mjs
