@@ -109,7 +109,7 @@ export function buildR05TrustedRegistry({
       contextWindow:limit.contextWindow,maxImages:limit.maxImages,
       maxPages:limit.maxPages,providerEnabled:candidate.enabled!==false,
       credentialsPresent,accountFreeVerified,modelZeroCostVerified,
-      quotaAvailable:true, // unknown runtime quota is checked by the gateway health layer
+      quotaAvailable:flag(env,'LOUREX_AI_'+providerId.toUpperCase()+'_QUOTA_AVAILABLE_VERIFIED'),
       privacyApproved,healthAvailable:true,qualityTier:'basic',
       quotaGroupId:providerId+'-account',
     });
