@@ -17,13 +17,22 @@ function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
 // Server sends this metadata only to its verified diagnostics owner. Never
 // render upstream bodies, prompts, credentials or arbitrary response fields.
 export function aiOwnerDiagnosticSummary(value:any):string{
-  if(!['draft-plan','dialogue'].includes(value?.stage)||!Array.isArray(value.attempts))return '';
+  if(!['draft-plan','dialogue','source-classification','source-summary','quote-extraction'].includes(value?.stage)||!Array.isArray(value.attempts))return '';
   const attempts=value.attempts.slice(0,8).filter((row:any)=>
     ['groq','cloudflare','gemini','ollama','openrouter'].includes(row?.provider)&&
     ['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)&&
     Number.isFinite(row?.latencyMs)&&row.latencyMs>=0&&row.latencyMs<=60000);
-  if(!attempts.length)return '';
-  return '\n'+(value.stage==='dialogue'?t('Conversation diagnosis: ','تشخيص المحادثة: '):t('Planning diagnosis: ','تشخيص التخطيط: '))+attempts.map((row:any)=>{
+  const count=(n:unknown):number|null=>Number.isInteger(n)&&Number(n)>=0&&Number(n)<=500?Number(n):null;
+  const eligible=count(value.eligibleModelCount),available=count(value.availableModelCount);
+  if(!attempts.length&&eligible===null)return '';
+  const headline=value.stage==='dialogue'?t('Conversation diagnosis: ','تشخيص المحادثة: '):
+    value.stage==='source-classification'?t('File classification diagnosis: ','تشخيص تصنيف الملف: '):
+    value.stage==='source-summary'?t('File reading diagnosis: ','تشخيص قراءة الملف: '):
+    value.stage==='quote-extraction'?t('Quotation extraction diagnosis: ','تشخيص استخراج عرض السعر: '):
+    t('Planning diagnosis: ','تشخيص التخطيط: ');
+  const info=eligible===null?'':t('eligible models ','الموديلات المؤهلة ')+eligible+
+    (available===null?'':' · '+t('available ','المتاحة ')+available);
+  return '\n'+headline+(info?info+(attempts.length?' · ':''):'')+attempts.map((row:any)=>{
     let rejection='';
     if(row.provider==='groq'&&row.rejection?.status===400){
       const names=['response_format','json_schema','strict','include_reasoning','reasoning_effort','reasoning_format','max_completion_tokens','max_tokens','temperature','additionalProperties','required','model','messages'];
@@ -34,7 +43,7 @@ export function aiOwnerDiagnosticSummary(value:any):string{
       rejection=` [HTTP400 ${code} ${param} ${fields.join(',')}]`;
     }
     return `${row.provider}: ${row.category}${['model','provider'].includes(row.quotaScope)?` [${row.quotaScope}]`:''} ${Math.round(row.latencyMs)}ms${row.category==='rate_limit'&&Number.isFinite(row.retryAfterMs)&&row.retryAfterMs>=0&&row.retryAfterMs<=86400000?` (${t('retry after ','بعد ')}${Math.ceil(row.retryAfterMs/1000)}s)`:''}${Number.isInteger(row.fallbackIndex)&&row.fallbackIndex>=0&&row.fallbackIndex<32?` #${row.fallbackIndex+1}`:''}${typeof row.model==='string'&&/^[-@a-zA-Z0-9._/:]{1,160}$/.test(row.model)?` [${row.model}]`:''}${rejection}`;
-  }).join(' · ')+(value.stage==='dialogue'&&Number.isFinite(value.totalLatencyMs)&&value.totalLatencyMs>=0&&value.totalLatencyMs<=60000?' · '+t('total ','الإجمالي ')+Math.round(value.totalLatencyMs)+'ms':'');
+  }).join(' · ')+(Number.isFinite(value.totalLatencyMs)&&value.totalLatencyMs>=0&&value.totalLatencyMs<=60000?' · '+t('total ','الإجمالي ')+Math.round(value.totalLatencyMs)+'ms':'');
 }
 export async function requestAiJson(endpoint:string,payload:unknown,signal?:AbortSignal,timeoutMs=60_000):Promise<any>{
   const controller=new AbortController();let timedOut=false;
