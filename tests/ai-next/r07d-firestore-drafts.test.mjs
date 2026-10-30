@@ -248,8 +248,9 @@ test('same injected Firestore mock supports R03 ledger + R04 draft across coordi
     draftStore:store(db),
     principal:{verify:async()=>({
       uid:'r07d-owner',role:'owner',
-      tokenIssuedAt:1783000000,tokenExpiresAt:1790000000,
-      authenticatedAt:1783000000,anonymous:false,
+      tokenIssuedAt:Math.floor(new Date(NOW).getTime()/1000)-60,
+      tokenExpiresAt:Math.floor(new Date(NOW).getTime()/1000)+3600,
+      authenticatedAt:Math.floor(new Date(NOW).getTime()/1000)-120,anonymous:false,
     })},
     membership:{readForActor:async()=>({
       ownerUid:'r07d-owner',actorUid:'r07d-owner',
@@ -280,5 +281,5 @@ test('same injected Firestore mock supports R03 ledger + R04 draft across coordi
   assert.equal(replay.turnId,first.turnId);
   assert.equal(replay.draft.immutableRevisionHash,first.draft.immutableRevisionHash);
   assert.equal(db.records.size,2);
-  assert.equal(db.writes,6); // one draft, one turn, four downstream R03 events
+  assert.equal(db.writes,7); // one draft, six R03 events
 });
