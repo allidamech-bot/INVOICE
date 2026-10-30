@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'src/ai-next/router/**'
+      - 'api/_ai-next/**'
       - 'tests/ai-next/r05-router.test.mjs'
+      - 'tests/ai-next/r05-trusted-registry.test.mjs'
       - '.github/workflows/ai-next-r05-router.yml'
   workflow_dispatch:
 
@@ -34,4 +36,4 @@ jobs:
       - name: Compile isolated AI-next modules
         run: ./node_modules/.bin/tsc -p tsconfig.json
       - name: Offline synthetic R01-R05 regression
-        run: node --test tests/ai-next/r01-core.test.mjs tests/ai-next/r02-documents.test.mjs tests/ai-next/r03-conversation-state.test.mjs tests/ai-next/r04-guarded-finance.test.mjs tests/ai-next/r05-router.test.mjs
+        run: node --test tests/ai-next/r01-core.test.mjs tests/ai-next/r02-documents.test.mjs tests/ai-next/r03-conversation-state.test.mjs tests/ai-next/r04-guarded-finance.test.mjs tests/ai-next/r05-router.test.mjs tests/ai-next/r05-trusted-registry.test.mjs
