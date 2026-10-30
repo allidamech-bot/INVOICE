@@ -47,7 +47,6 @@ export interface AssessedModel {
   record:TrustedModelRecord;
   assessment:ModelEligibility;
 }
-const banned = /mistral/i;
 const finiteInt=(v:number)=>Number.isSafeInteger(v)&&v>=0;
 const id=(v:string)=>typeof v==='string'&&v.length>0&&v.length<=160&&
   !/[\u0000-\u001f\u007f]/u.test(v);
@@ -95,7 +94,6 @@ export function assessR05Model(input:{
   if(accountEligibility!=='free_verified')reasons.push('account_'+accountEligibility);
   if(priceEligibility!=='verified_zero')reasons.push('price_not_verified_zero');
   if(privacyEligibility!=='approved')reasons.push('privacy_denied');
-  if(banned.test(model.modelId)||banned.test(model.providerId))reasons.push('model_disallowed');
   const required=requiredR05Capabilities(needs);
   if(required.some(cap=>!model.capabilities.includes(cap)))reasons.push('missing_capability');
   if(needs.inputModalities.some(mod=>!model.inputModalities.includes(mod))||
@@ -108,7 +106,7 @@ export function assessR05Model(input:{
   if(!model.healthAvailable)reasons.push('unhealthy');
   if(needs.deadlineMs<1000)reasons.push('deadline_exhausted');
   const capabilityEligible=!reasons.some(reason=>[
-    'model_disallowed','missing_capability','unsupported_modality_or_limits',
+    'missing_capability','unsupported_modality_or_limits',
     'unknown_context_limit','context_exceeded'].includes(reason));
   const eligible=reasons.length===0;
   const assessment:ModelEligibility={
@@ -140,8 +138,11 @@ export function eligibleR05Pool(input:{
   models:readonly TrustedModelRecord[];
   needs:R05RequestNeeds;
 }):AssessedModel[]{
+  // Reject oversized catalogs explicitly. Silently slicing the first 300
+  // could hide eligible free models and skew provider selection.
+  if(input.models.length>1000)throw Error('R05_TRUSTED_MODEL_CATALOG_LIMIT');
   const seen=new Set<string>(),result:AssessedModel[]=[];
-  for(const model of input.models.slice(0,300)){
+  for(const model of input.models){
     const key=model.providerId+':'+model.modelId;
     if(seen.has(key))continue;
     seen.add(key);

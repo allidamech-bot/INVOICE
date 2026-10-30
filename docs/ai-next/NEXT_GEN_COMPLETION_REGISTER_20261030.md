@@ -202,3 +202,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - The planner is **proposal-only**: GroundedIntent.executable=false and financialSaved=false. When no explicitly test-injected semantic interpreter is supplied, nonlocal requests remain unsupported, not silently executed.
 - R07Q still must connect verified-zero-cost/private model routing; R07R must connect trusted history, durable request/task journal and review-draft edits. T22, T23, T24, production IAM, real NLU quality and physical Safari acceptance remain OPEN.
 - See docs/ai-next/R07P_SEMANTIC_PLANNING_EVIDENCE_20261031.md for scope and CI constraints. PR check results are the evidence for the final tested head, not this register's existence. All activation flags remain OFF.
+
+
+## R07Q offline routing hardening candidate — October 31, 2026
+
+- R07Q updates the **disabled** R05 trusted model registry/eligibility/gateway. Removes an obsolete name-based rejection that could defeat a server-verified free model, processes all candidates up to the explicit trusted cap rather than silently discarding those beyond 300, ranks already eligible models by task priors/health, and adds bounded auth/quota/regional/unsupported failure cooldown.
+- Free account and individual model cost proof, current quota, provider privacy permission, capability, modality and deadline checks remain mandatory. No real provider/account configuration, inference, financial code or production feature flag was altered.
+- Mocked transport and catalog regression evidence is in the PR's exact-head CI. No live zero-cost eligibility, current provider model reachability, privacy approval or p95 assertion is established.
+- See docs/ai-next/R07Q_FREE_ROUTING_EVIDENCE_20261031.md. R07P→R05 trusted inference integration, R07R durable task orchestration, R07S sources, T22–T24 and QA/production gates remain OPEN.

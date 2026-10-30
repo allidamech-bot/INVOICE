@@ -9,7 +9,8 @@ import {
 } from './eligibility.js';
 
 export type R05FailureKind='timeout'|'cancelled'|'rate_limit'|'network'|
-  'upstream'|'invalid_result'|'unsupported'|'unavailable';
+  'upstream'|'invalid_result'|'unsupported'|'unavailable'|
+  'authentication'|'quota_exhausted'|'region_denied';
 export class R05ProviderFailure extends Error {
   constructor(
     readonly kind:R05FailureKind,
@@ -84,12 +85,16 @@ export class R05HealthBook {
     if(s.samples.length>20)s.samples.shift();
     if(valid)s.openUntil=0;
     else if(s.failures>=2||s.openUntil>0)s.openUntil=now+CIRCUIT_MS;
-    if(error?.kind==='rate_limit'){
-      const duration=Math.max(30_000,Math.min(86_400_000,error.retryAfterMs??60_000));
+    if(error?.kind==='rate_limit'||error?.kind==='quota_exhausted'){
+      const defaultMs=error.kind==='quota_exhausted'?1_800_000:60_000;
+      const duration=Math.max(30_000,Math.min(86_400_000,error.retryAfterMs??defaultMs));
       const map=error.quotaScope==='provider'?this.providerQuota:this.modelQuota;
       const quotaKey=error.quotaScope==='provider'?model.providerId:k;
       map.set(quotaKey,now+duration);
     }
+    if(error?.kind==='authentication'||error?.kind==='region_denied')
+      this.providerQuota.set(model.providerId,now+300_000);
+    if(error?.kind==='unsupported')this.modelQuota.set(k,now+300_000);
     this.states.delete(k);this.states.set(k,s);this.prune();
   }
   score(model:TrustedModelRecord):number{
@@ -103,6 +108,22 @@ export class R05HealthBook {
     const p95=latencies[Math.max(0,Math.ceil(latencies.length*0.95)-1)]??MAX_DEADLINE_MS;
     return prior+validity*30-Math.min(20,p95/1500);
   }
+}
+/**
+ * Non-authoritative task fit: only changes ordering among independently
+ * verified eligible zero-price candidates. Never grants model eligibility.
+ * Fast/simple requests prefer capable low-latency candidates; complex
+ * reasoning prefers verified strong capability priors.
+ */
+export function R05TaskPreference(needs:R05RequestNeeds,
+  model:TrustedModelRecord):number{
+  const tier=model.qualityTier;
+  if(['clarification','general_conversation','business_read'].includes(needs.taskType))
+    return {basic:32,capable:26,advanced:3}[tier];
+  if(['financial_analysis','long_context_reasoning','document_comparison',
+    'structured_extraction'].includes(needs.taskType))
+    return {basic:0,capable:18,advanced:34}[tier];
+  return {basic:10,capable:18,advanced:19}[tier];
 }
 export async function routeR05<T>(input:{
   scope:AuthenticatedScope;
@@ -128,7 +149,8 @@ export async function routeR05<T>(input:{
     needs:{...input.needs,deadlineMs:deadline},
   });
   const candidates=assessed.filter(x=>x.assessment.eligible)
-    .sort((a,b)=>health.score(b.record)-health.score(a.record));
+    .sort((a,b)=>(health.score(b.record)+R05TaskPreference(input.needs,b.record))-
+      (health.score(a.record)+R05TaskPreference(input.needs,a.record)));
   const observations:R05Diagnostic[]=[];
   if(!candidates.length)
     return {ok:false,code:'R05_NO_ELIGIBLE_MODELS',attempts:0,observations};

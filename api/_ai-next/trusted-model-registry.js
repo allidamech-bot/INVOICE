@@ -13,7 +13,6 @@ const id=x=>typeof x==='string'&&x.length>0&&x.length<=160&&
   /^[-a-zA-Z0-9._/@:]+$/.test(x);
 const flag=(env,key)=>env[key]==='true';
 const words=(env,key)=>new Set(String(env[key]||'').split(',').map(s=>s.trim()).filter(Boolean));
-const noMistral=x=>!/mistral/i.test(x);
 const numeric=(x)=>Number.isSafeInteger(x)&&x>0?x:null;
 const capacity=(m,defaults)=>({
   contextWindow:numeric(m.contextWindow)??numeric(m.context_length)??null,
@@ -82,11 +81,15 @@ export function buildR05TrustedRegistry({
       rows.push({...item,provider,enabled:true});
     }
   }
+  // The user-configured provider allowlist, per-model zero-price proof and
+  // privacy approval are the authority; name-based bans go stale. Do not
+  // silently truncate the beginning of a long discovered model catalog.
+  if(rows.length>1000)throw Error('R05_TRUSTED_REGISTRY_LIMIT');
   const models=[],seen=new Set();
-  for(const candidate of rows.slice(0,1000)){
+  for(const candidate of rows){
     const providerId=candidate.provider,modelId=candidate.model;
-    if(!ALLOWED_PROVIDERS.has(providerId)||!id(modelId)||!noMistral(modelId)||
-      !noMistral(providerId)||modelId==='openrouter/free')continue;
+    if(!ALLOWED_PROVIDERS.has(providerId)||!id(modelId)||
+      modelId==='openrouter/free')continue;
     const k=providerId+':'+modelId;
     if(seen.has(k))continue;
     seen.add(k);
