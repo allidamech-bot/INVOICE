@@ -101,7 +101,7 @@ test('v585 long quotation prompts survive every visible assistant entry point',a
     read('src/components/AiCopilot.tsx'),read('scripts/ai-batch3-premium-conversation.mjs'),read('scripts/ai-batch1-unified-assistant.mjs'),read('src/components/LourexAdvisorCard.tsx')
   ]);
   assert.match(copilot,/MAX_MESSAGE_CHARS=6000/);
-  assert.match(premium,/event\.target\.value\.slice\(0,6000\)/);
+  assert.match(premium,/input:event\.target\.value,/);
   assert.match(premium,/message\+'\\\\n📎 '\+names\)\.slice\(0,6000\)/);
   assert.match(unified,/detail\.question\.trim\(\)\.slice\(0,6000\)/);
   assert.match(home,/MAX_MESSAGE_CHARS=6000/);
