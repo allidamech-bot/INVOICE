@@ -103,6 +103,11 @@ function candidateFromUnknown(raw:unknown):R07PSemanticCandidate{
     throw new Error('R07P_INVALID_STRUCTURED_CANDIDATE');
   return copy(raw) as unknown as R07PSemanticCandidate;
 }
+/** Validate an untrusted structured model result without granting any authority. */
+export function isR07PSemanticCandidate(value:unknown):value is R07PSemanticCandidate{
+  try{candidateFromUnknown(value);return true;}
+  catch{return false;}
+}
 function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void{
   const key=exactScopeKey(scope);
   if(!record(context)||!keys(context,[
