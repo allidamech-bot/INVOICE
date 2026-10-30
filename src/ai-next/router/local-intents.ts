@@ -21,8 +21,8 @@ const greetings=new Map<string,string>([
   ['hello','Hello. How can I help?'],
   ['شكرا','على الرحب والسعة.'],
   ['شكراً','على الرحب والسعة.'],
-  ['thanks','You're welcome.'],
-  ['thank you','You're welcome.'],
+  ['thanks',"You're welcome."],
+  ['thank you',"You're welcome."],
 ]);
 const blankQuote=/^(?:أنشئ|انشئ|أنشأ|ابدأ|ابدا|افتح|سوي|اعمل|create|start|open)\s+(?:(?:لي|من فضلك)\s+)?(?:مسودة\s+)?(?:عرض\s+سعر|quotation(?:\s+draft)?|quote(?:\s+draft)?)\s*(?:جديد(?:ة|ا)?|new|فارغ(?:ة|ا)?)?$/iu;
 const blankQuoteAlt=/^(?:new|empty)\s+(?:quote|quotation)\s+draft$/iu;
