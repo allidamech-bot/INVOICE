@@ -309,14 +309,17 @@ export class TextSourceAdapter implements DocumentSourceAdapter {
     const count=Math.ceil(text.length / R02_LIMITS.evidenceTextChunk);
     if(count>R02_LIMITS.maxSegments)throw new DocumentProcessingError('TEXT_SEGMENT_LIMIT');
     return {sourceFormat:'text',
-      parts:Array.from({length:count},(_,i)=>toSegment('chunk:'+(i+1),i+1,null,null,null)),
-      expectedPageCount:count,expectedSheets:[],expectedTableRows:[]};
+      // Text chunks are NOT real PDF pages. Count them as ordered segments only.
+      parts:Array.from({length:count},(_,i)=>toSegment('chunk:'+(i+1),null,null,null,null)),
+      expectedPageCount:null,expectedSheets:[],expectedTableRows:[]};
   }
   async read(file:SourceFile,part:SegmentDescriptor,signal?:AbortSignal):Promise<SegmentRead>{
     abortIf(signal);
-    if(!part.pageNumber||part.segmentId!=='chunk:'+part.pageNumber)
+    const match=/^chunk:([1-9]\d*)$/.exec(part.segmentId);
+    const index=match?Number(match[1]):NaN;
+    if(part.pageNumber!==null||!Number.isSafeInteger(index))
       throw new DocumentProcessingError('INVALID_TEXT_SEGMENT');
-    const text=decode(file.bytes),i=part.pageNumber-1;
+    const text=decode(file.bytes),i=index-1;
     const chunk=text.slice(i*R02_LIMITS.evidenceTextChunk,(i+1)*R02_LIMITS.evidenceTextChunk);
     if(!chunk)throw new DocumentProcessingError('MISSING_TEXT_CHUNK');
     return {text:chunk,extractionMethod:'selectable_text',requiresReview:false};
