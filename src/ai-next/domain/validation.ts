@@ -3,7 +3,11 @@
  * Unknown keys (including in nested typed objects) are rejected.
  * Validation is structure + local invariants only: never an authorization grant.
  */
-import type { CoreContract, CoreContractName, AuthenticatedScope } from './contracts.js';
+import type {
+  CoreContract, CoreContractName, AuthenticatedScope, ConversationTurn, GroundedIntent,
+  DocumentEvidence, Coverage, TaskState, ModelEligibility, ToolCall, ReviewDraft,
+  ApprovalReceipt, TurnResult,
+} from './contracts.js';
 import { CORE_CONTRACT_NAMES } from './contracts.js';
 type Check = (v: unknown) => boolean;
 const rec = (v: unknown): v is Record<string, unknown> =>
@@ -239,14 +243,14 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
   const errors: string[] = [];
   if ('threadId' in v && v.threadId !== v.scope.threadId) errors.push('thread_scope_mismatch');
   if (name === 'ConversationTurn') {
-    const t = v as Extract<CoreContract, { turnId: string; userMessageId: string }>;
+    const t = v as ConversationTurn;
     if (t.selectedSourceIds.some(s => !t.userMessage.attachedSourceIds.includes(s))) {
       // Valid selection may legitimately refer to an earlier attached document; require explicit
       // server resolution in R03, not a guessed forced membership here.
     }
   }
   if (name === 'GroundedIntent') {
-    const i = v as Extract<CoreContract, { intentId: string }>;
+    const i = v as GroundedIntent;
     if ((i.sourcePolicy === 'none' || i.sourcePolicy === 'company_only') &&
       i.referencedSourceIds.length) errors.push('unexpected_uploaded_sources');
     if (i.sourcePolicy === 'uploaded_only' && !i.referencedSourceIds.length) errors.push('missing_uploaded_source');
@@ -257,7 +261,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
       errors.push('r01_execution_disabled');
   }
   if (name === 'DocumentEvidence') {
-    const e = v as Extract<CoreContract, { evidenceId: string }>;
+    const e = v as DocumentEvidence;
     const loc = e.locator;
     if ([loc.pageNumber,loc.sheetName,loc.tableId,loc.rowId,loc.cellReference,loc.segmentIndex]
       .every(s => s === null)) errors.push('missing_source_locator');
@@ -267,7 +271,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
       errors.push('unverified_with_authority');
   }
   if (name === 'Coverage') {
-    const c = v as Extract<CoreContract, { coverageId: string }>;
+    const c = v as Coverage;
     if (c.status === 'complete') {
       if (!c.perSegment.length || c.perSegment.some(s => s.status !== 'complete' ||
         !s.read || !s.parsed || !s.validated || s.missingLocatorIds.length ||
@@ -284,7 +288,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
     }
   }
   if (name === 'TaskState') {
-    const t = v as Extract<CoreContract, { taskId: string }>;
+    const t = v as TaskState;
     if (t.progress.totalUnits !== null && t.progress.completedUnits > t.progress.totalUnits)
       errors.push('progress_out_of_range');
     if (t.state === 'completed' && !t.completedAt) errors.push('missing_completion_time');
@@ -294,7 +298,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
       errors.push('cancelled_inflight_execution');
   }
   if (name === 'ModelEligibility') {
-    const m = v as Extract<CoreContract, { assessmentId: string }>;
+    const m = v as ModelEligibility;
     if (m.eligible && (!m.capabilityEligible || !m.healthEligible ||
       m.privacyEligibility !== 'approved' ||
       !['free_verified','configured'].includes(m.accountEligibility) ||
@@ -304,7 +308,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
       m.priceEligibility !== 'approved_paid') errors.push('free_not_account_verified');
   }
   if (name === 'ToolCall') {
-    const t = v as Extract<CoreContract, { toolCallId: string }>;
+    const t = v as ToolCall;
     if (t.operationType === 'execute' &&
       (!t.approvalReceiptId || !t.expectedBusinessRevision))
       errors.push('execution_without_approval_or_revision');
@@ -316,7 +320,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
       errors.push('incomplete_source_prepare');
   }
   if (name === 'ReviewDraft') {
-    const d = v as Extract<CoreContract, { draftId: string }>;
+    const d = v as ReviewDraft;
     if (!unique(d.lineItems.map(l => l.lineId))) errors.push('duplicate_draft_line_id');
     if (d.status === 'ready_for_approval' && (!d.businessValidation.valid ||
       d.businessValidation.blockers.length || !d.currency ||
@@ -330,7 +334,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
       errors.push('r01_draft_execution_disabled');
   }
   if (name === 'ApprovalReceipt') {
-    const a = v as Extract<CoreContract, { approvalReceiptId: string }>;
+    const a = v as ApprovalReceipt;
     if (a.actorId !== a.scope.actorId || a.verifiedRole !== a.scope.role ||
       a.authPolicyVersion !== a.scope.authorizationVersion)
       errors.push('approval_actor_scope_mismatch');
@@ -339,7 +343,7 @@ function invariantErrors(name: CoreContractName, v: CoreContract): string[] {
     // Contract may be parsed for audit/history, but NEVER authorizes writes in R01.
   }
   if (name === 'TurnResult') {
-    const r = v as Extract<CoreContract, { resultId: string }>;
+    const r = v as TurnResult;
     if (r.verifiedActions.length && (!r.businessResultRef || r.status !== 'completed'))
       errors.push('unverified_persisted_result');
     if (r.status === 'completed' && r.missingFacts.length)
