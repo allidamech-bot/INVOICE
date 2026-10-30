@@ -83,7 +83,7 @@ function isProviderOutage(error:unknown):boolean{
   if(!error||typeof error!=='object')return false;
   const problem=error as {code?:unknown;status?:unknown};
   return ['AI_TEMPORARILY_UNAVAILABLE','AI_RATE_LIMITED','AI_TIMEOUT','AI_NOT_CONFIGURED',
-    'AI_PRIVATE_DOCUMENT_UNAVAILABLE','AI_PROVIDER_UNAVAILABLE',
+    'AI_PRIVATE_DOCUMENT_UNAVAILABLE','AI_PROVIDER_UNAVAILABLE','AI_INBOX_RATE_LIMITED',
     'AI_FREE_TIER_UNAVAILABLE','AI_MODEL_UNAVAILABLE'].includes(String(problem.code||''))
     &&[429,503,504].includes(Number(problem.status));
 }
