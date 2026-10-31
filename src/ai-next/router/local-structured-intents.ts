@@ -162,7 +162,8 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
   const safeName=(name:string):boolean=>
     name.length>=2&&name.length<=130&&
     /^[\p{L}\p{M}\p{N} ._'-]+$/u.test(name)&&
-    !/(?:^| )(?:احفظ|اصدر|نفذ|اعتمد|وافق|غير|عدل|خلي|save|issue|approve|post|delete|execute)(?: |$)/u.test(name);
+    !/(?:^| )(?:احفظ|اصدر|نفذ|اعتمد|وافق|غير|عدل|خلي|وسعرها|والكمية|سعرها|الكمية|and|to|quantity|price|save|issue|approve|post|delete|execute)(?: |$)/u.test(name)&&
+    !/(?:^| )[+-]\\d+(?:\\.\\d+)?(?: |$)/u.test(name);
   let named=value.match(
     /^(?:خلي|غير|عدل) كمية (.+?) (\d{1,12}(?:\.\d{1,6})?) وسعرها (\d{1,12}(?:\.\d{1,6})?)$/u
   )||value.match(
