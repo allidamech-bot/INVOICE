@@ -319,3 +319,10 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Targeted CI checks the evaluation contract with intentionally correct and incorrect fixture predictions; **these are evaluator tests, not measured model understanding or acceptance of any provider.** External model calls, actual provider entitlements, privacy consent and real Arabic accuracy remain unverified and OPEN.
 - AI Next only; no financial code, production feature flags, credentials, IAM/rules, paid model or real data access touched.
 - Evidence: docs/ai-next/R07P_MULTILINGUAL_EVALUATION_CONTRACT_20261031.md. Exact-head CI and merge verification are required to mark the PR tested/merged; T22/T23/T24 and iPhone Safari remain OPEN.
+
+## R07O local-only unified unsaved review-edit preview — October 31, 2026
+
+- Adds an explicitly disabled `review_edit` operation behind the **unmounted local demo-emulator R07O preview handler**, delegating to the existing R07M unified Controller task. No competing ledger, public endpoint, active production route, automatic HTTP retry, real provider or financial writer was introduced.
+- Includes a local HTTP/Firestore Emulator test for default-deny, explicit server opt-in, guarded quotation update, identical-key receipt replay, exact conversation transcript, branch spoofing, idempotency collision and revoked membership.
+- GitHub exact-head CI must pass to mark TESTED; merge to `main` must be independently verified before MERGED. R07N rendered revision updates, real AI understanding, deployed Firebase IAM/rules, physical iPhone, T22/T23/T24 and production activation stay OPEN.
+- Evidence: docs/ai-next/R07O_UNIFIED_REVIEW_LOOPBACK_EVIDENCE_20261031.md. Finance and production unchanged.

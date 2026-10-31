@@ -4,7 +4,10 @@
  * public URL is created. Requires local demo Firestore Emulator; never prod.
  * Authentication and membership are re-checked by R07M for EVERY request.
  */
-import type {R07MFastLocalCoordinator} from '../coordinator/fast-local-coordinator.js';
+import type {R07MFastLocalCoordinator,R07MUnifiedReviewEditResult}
+  from '../coordinator/fast-local-coordinator.js';
+import type {R07RReceiptPrepareInput}
+  from '../coordinator/r07r-draft-preparation.js';
 import type {R07NAuthenticatedPreviewPort,R07NEnvelope}
   from '../ui/r07n-preview-session.js';
 import type {R07LocalTurnInput} from '../coordinator/local-coordinator.js';
@@ -77,13 +80,14 @@ async function boundedBody(request:Request):Promise<unknown>{
   try{parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}
   catch{throw Error('R07O_INVALID_JSON');}
   if(!own(parsed)||!keys(parsed,['operation','payload'])||
-    !['accept','current','history'].includes(String(parsed.operation))||
+    !['accept','current','history','review_edit'].includes(String(parsed.operation))||
     !own(parsed.payload))
     throw Error('R07O_INVALID_REQUEST_SHAPE');
   return parsed;
 }
-type Operations='accept'|'current'|'history';
-type Coordinator=Pick<R07MFastLocalCoordinator,Operations>;
+type Operations='accept'|'current'|'history'|'review_edit';
+type Coordinator=Pick<R07MFastLocalCoordinator,
+  'accept'|'current'|'history'|'acceptOfflineUnifiedReviewEdit'>;
 /**
  * Instantiable only when the actual Node process is running against
  * the *official local demo emulator*. Supplying a forged config is not enough.
@@ -94,6 +98,8 @@ export class R07OLocalPreviewHandler{
   constructor(private readonly options:{
     allowedOrigin:string;projectId:'demo-ai-next-r07h';
     emulatorHost:string;coordinator:Coordinator;
+    /** Explicit local-only review flag, independent of normal preview. */
+    allowOfflineReviewEditPreview?:true;
   }){
     this.origin=origin(options.allowedOrigin).origin;
     if(options.projectId!=='demo-ai-next-r07h'||
@@ -131,11 +137,16 @@ export class R07OLocalPreviewHandler{
     catch(e){return report(e instanceof Error&&e.message==='R07O_BODY_LIMIT'?
       'R07O_BODY_LIMIT':'R07O_INVALID_BODY',400);}
     const verb=command.operation as Operations;
+    if(verb==='review_edit'&&this.options.allowOfflineReviewEditPreview!==true)
+      return report('R07O_REVIEW_EDIT_DISABLED',403);
     try{
       const token=auth.slice(7);
       const result=verb==='accept'?
         await this.options.coordinator.accept(token,
           command.payload as R07LocalTurnInput):
+        verb==='review_edit'?
+          await this.options.coordinator.acceptOfflineUnifiedReviewEdit(
+            token,command.payload):
         verb==='current'?
           await this.options.coordinator.current(token,
             command.payload as R07NEnvelope):
@@ -201,4 +212,31 @@ export class R07OLocalHttpPreviewPort implements R07NAuthenticatedPreviewPort{
   accept(request:R07LocalTurnInput){return this.call('accept',request);}
   current(envelope:R07NEnvelope){return this.call('current',envelope);}
   history(envelope:R07NEnvelope){return this.call('history',envelope);}
+  /**
+   * No automatic retry. Preserve the identical request key, origin turn,
+   * draft revision and hash on manual replay after a lost acknowledgement.
+   */
+  async reviewEdit(input:R07RReceiptPrepareInput):
+    Promise<R07MUnifiedReviewEditResult>{
+    const result:unknown=await this.call('review_edit',input);
+    if(!own(result)||!['applied_unsaved_review','needs_clarification']
+      .includes(String(result.status))||
+      result.financialSaved!==false||result.providerCalls!==0||
+      typeof result.turnId!=='string'||
+      typeof result.taskId!=='string'||
+      result.threadId!==input.turn.threadId||
+      typeof result.reply!=='string'||
+      typeof result.replayed!=='boolean'||
+      !Number.isSafeInteger(result.conversationRevision)||
+      (result.conversationRevision as number)<1||
+      (result.status==='applied_unsaved_review'&&(
+        !Number.isSafeInteger(result.appliedDraftRevision)||
+        typeof result.appliedDraftHash!=='string'||
+        !/^[a-f0-9]{64}$/.test(result.appliedDraftHash)))||
+      (result.status==='needs_clarification'&&(
+        result.appliedDraftRevision!==null||
+        result.appliedDraftHash!==null)))
+      throw new R07OHttpPreviewError('R07O_UNVERIFIED_REVIEW_RESPONSE');
+    return result as unknown as R07MUnifiedReviewEditResult;
+  }
 }
