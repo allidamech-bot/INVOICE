@@ -92,13 +92,26 @@ function validate(cases:readonly R07TDialogue[]):R07PEvaluationGold[]{
       !Array.isArray(scenario.turns)||scenario.turns.length<2||
       scenario.turns.length>10)return err('R07T_INVALID_GOLD');
     scenarios.add(scenario.scenarioId);
-    for(const turn of scenario.turns){
+    for(let index=0;index<scenario.turns.length;index++){
+      const turn=scenario.turns[index]!;
       if(!record(turn)||!keys(turn,['turnId','message','history','expected'])||
         !id(turn.turnId)||!text(turn.message)||
         !Array.isArray(turn.history)||turn.history.length>16||
         !turn.history.every(m=>record(m)&&keys(m,['role','text'])&&
           ['user','assistant'].includes(m.role as string)&&text(m.text))||
         !record(turn.expected))return err('R07T_INVALID_GOLD');
+      // Synthetic transcript must be a true prefix of the same scenario,
+      // not an arbitrarily fabricated memory hint or label-bearing future.
+      if(turn.history.length!==2*index)return err('R07T_INVALID_GOLD');
+      for(let j=0;j<turn.history.length;j++){
+        const item=turn.history[j]!;
+        if(item.role!==(j%2?'assistant':'user')||
+          (j%2===0&&item.text!==
+            scenario.turns[Math.floor(j/2)]!.message)||
+          (index>0&&j<2*(index-1)&&
+            item.text!==scenario.turns[index-1]!.history[j]!.text))
+          return err('R07T_INVALID_GOLD');
+      }
       const pair=scenario.scenarioId+':'+turn.turnId;
       if(turns.has(pair))return err('R07T_INVALID_GOLD');
       turns.add(pair);
@@ -152,7 +165,7 @@ export function scoreR07TDialogueCapture(cases:readonly R07TDialogue[],
   for(const o of raw.observations){
     if(!record(o)||!id(o.scenarioId)||!id(o.turnId)||
       !statuses.includes(o.outcome as Status)||
-      !Number.isSafeInteger(o.latencyMs)||o.latencyMs<0||
+      typeof o.latencyMs!=='number'||!Number.isSafeInteger(o.latencyMs)||o.latencyMs<0||
       o.latencyMs>50_000||!keys(o,o.outcome==='ok'?
         ['scenarioId','turnId','outcome','latencyMs','candidate']:
         ['scenarioId','turnId','outcome','latencyMs']))
