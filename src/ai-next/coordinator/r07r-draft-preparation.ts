@@ -43,12 +43,24 @@ export interface R07RPrepareInput{
   expectedDraftRevision:number;
   expectedDraftHash:string;
 }
+export interface R07RReceiptPrepareInput extends R07RPrepareInput{
+  /** Trusted origin must match the verified draft in the R07P plan. */
+  originTurnId:string;
+}
+export interface R07RReceiptedEdit extends R07RPreparedEdit{
+  replayed:boolean;
+  appliedRevision:number;
+  appliedHash:string;
+  /** The latest read can be newer than the original applied revision. */
+  currentRevision:number;
+  state:'unsaved_review_revision'|'already_applied';
+}
 export interface R07RTrustedCustomerResolver{
   /** Returns an exact server-verified single customer ID, never invents one. */
   resolveUnique(scope:AuthenticatedScope,requestedName:string):Promise<string|null>;
 }
 export interface R07RPreparedEdit{
-  state:'unsaved_review_revision';
+  state:'unsaved_review_revision'|'already_applied';
   draft:ReviewDraft;
   reviewRequired:true;
   financialSaved:false;
@@ -163,11 +175,92 @@ export class R07RReviewDraftPreparationBridge{
     membership:R07ServerMembershipStore;
     planner:R07PSemanticPlanner;
     draftStore:Pick<R07DExperimentalFirestoreDraftStore,
-      'read'|'replaceReviewRevision'>;
+      'read'|'replaceReviewRevision'> &
+      Partial<Pick<R07DExperimentalFirestoreDraftStore,
+        'readEditReceipt'|'replaceReviewRevisionWithReceipt'>>;
     customers:R07RTrustedCustomerResolver;
+    /** Explicit server construction flag, never request body input. */
+    offlineReceiptMode?:true;
     clock?:()=>Date;
   }){}
   async prepare(token:string,raw:unknown):Promise<R07RPreparedEdit>{
+    return this.prepareScoped(token,raw,null);
+  }
+  async prepareWithReceipt(token:string,raw:unknown):
+    Promise<R07RReceiptedEdit>{
+    if(this.deps.offlineReceiptMode!==true||
+      !this.deps.draftStore.readEditReceipt||
+      !this.deps.draftStore.replaceReviewRevisionWithReceipt)
+      throw new R07RPreparationError('R07R_RECEIPTS_DISABLED');
+    if(!ownKeys(raw,['turn','originTurnId','expectedDraftRevision',
+      'expectedDraftHash']))
+      throw new R07RPreparationError('R07R_INVALID_RECEIPT_INPUT');
+    const input=raw as unknown as R07RReceiptPrepareInput;
+    validateRequest(input.turn);
+    if(!safeId(input.originTurnId)||
+      !Number.isSafeInteger(input.expectedDraftRevision)||
+      input.expectedDraftRevision<1||!HASH.test(input.expectedDraftHash))
+      throw new R07RPreparationError('R07R_INVALID_RECEIPT_INPUT');
+    const hashData=JSON.stringify([
+      input.originTurnId,input.expectedDraftRevision,
+      input.expectedDraftHash,input.turn,
+    ]);
+    const bytes=await crypto.subtle.digest(
+      'SHA-256',new TextEncoder().encode(hashData));
+    const fingerprint=Array.from(new Uint8Array(bytes),
+      x=>x.toString(16).padStart(2,'0')).join('');
+    const receipt={
+      originTurnId:input.originTurnId,
+      requestKey:input.turn.idempotencyKey,
+      fingerprint,
+    };
+    const minimal={
+      turn:input.turn,
+      expectedDraftRevision:input.expectedDraftRevision,
+      expectedDraftHash:input.expectedDraftHash,
+    };
+    try{
+      return await this.prepareScoped(token,minimal,receipt) as R07RReceiptedEdit;
+    }catch(error){
+      // A parallel same-key request may commit between our initial receipt
+      // lookup and stale-draft read. Reauthorize BEFORE checking the receipt.
+      if(!(error instanceof Error)||![
+        'R07R_STALE_DRAFT','R07D_STALE_DRAFT_REVISION',
+      ].includes(error.message))throw error;
+      const scope=await authorizeR07ScopedRequest({
+        bearerToken:token,body:envelope(input.turn),principal:this.deps.principal,
+        membership:this.deps.membership,
+        serverNowEpochSeconds:Math.floor((this.deps.clock?.()??new Date()).getTime()/1000),
+      });
+      if(input.turn.mode!=='controller'||scope.scopeType!=='business'||
+        scope.role==='viewer')
+        throw new R07RPreparationError('R07R_PREPARATION_DENIED');
+      const saved=await this.deps.draftStore.readEditReceipt!({
+        scope,turnId:receipt.originTurnId,requestKey:receipt.requestKey,
+        requestFingerprint:receipt.fingerprint,
+        expectedRevision:input.expectedDraftRevision,
+        expectedHash:input.expectedDraftHash,
+      });
+      if(!saved)throw error;
+      return this.receiptReply(saved,input.turn.requestId);
+    }
+  }
+  private receiptReply(result:Awaited<ReturnType<
+    R07DExperimentalFirestoreDraftStore['readEditReceipt']>>,
+    requestId:string):R07RReceiptedEdit{
+    if(!result)throw new R07RPreparationError('R07R_MISSING_RECEIPT');
+    return {
+      state:'already_applied',draft:clone(result.draft),
+      reviewRequired:true,financialSaved:false,liveProviderCalls:0,
+      requestId,replayed:true,
+      appliedRevision:result.receipt.appliedRevision,
+      appliedHash:result.receipt.appliedHash,
+      currentRevision:result.draft.draftRevision,
+    };
+  }
+  private async prepareScoped(token:string,raw:unknown,
+    receipt:{originTurnId:string;requestKey:string;fingerprint:string}|null):
+    Promise<R07RPreparedEdit>{
     if(!ownKeys(raw,['turn','expectedDraftRevision','expectedDraftHash']))
       throw new R07RPreparationError('R07R_INVALID_INPUT');
     validateRequest(raw.turn);
@@ -186,6 +279,15 @@ export class R07RReviewDraftPreparationBridge{
     });
     if(turn.mode!=='controller'||scope.scopeType!=='business'||scope.role==='viewer')
       throw new R07RPreparationError('R07R_PREPARATION_DENIED');
+    if(receipt){
+      const existing=await this.deps.draftStore.readEditReceipt!({
+        scope,turnId:receipt.originTurnId,requestKey:receipt.requestKey,
+        requestFingerprint:receipt.fingerprint,
+        expectedRevision:input.expectedDraftRevision,
+        expectedHash:input.expectedDraftHash,
+      });
+      if(existing)return this.receiptReply(existing,turn.requestId);
+    }
     const proposed=await this.deps.planner.plan(token,turn);
     if(proposed.status!=='proposed'||proposed.risk!=='preparation'||
       proposed.interpretation!=='synthetic_model'||
@@ -203,6 +305,8 @@ export class R07RReviewDraftPreparationBridge{
       !safeId(draftId.slice('draft-'.length)))
       throw new R07RPreparationError('R07R_INVALID_DRAFT_REFERENCE');
     const originTurnId=draftId.slice('draft-'.length);
+    if(receipt&&receipt.originTurnId!==originTurnId)
+      throw new R07RPreparationError('R07R_RECEIPT_DRAFT_REFERENCE_MISMATCH');
     const draft=await this.deps.draftStore.read(scope,originTurnId);
     if(!draft||draft.draftId!==draftId||
       draft.threadId!==scope.threadId||
@@ -225,6 +329,30 @@ export class R07RReviewDraftPreparationBridge{
     });
     // Only R07D owns the compare-and-swap write. A network ambiguity causes
     // a stale revision on retry, never a duplicate application.
+    if(receipt){
+      const outcome=await this.deps.draftStore.replaceReviewRevisionWithReceipt!({
+        scope,turnId:originTurnId,requestKey:receipt.requestKey,
+        requestFingerprint:receipt.fingerprint,
+        expectedRevision:input.expectedDraftRevision,
+        expectedHash:input.expectedDraftHash,next,
+      });
+      if(outcome.replayed)return this.receiptReply(outcome,turn.requestId);
+      const persisted=outcome.draft;
+      if(persisted.draftRevision!==input.expectedDraftRevision+1||
+        persisted.draftId!==draftId||
+        persisted.immutableRevisionHash!==next.immutableRevisionHash||
+        persisted.status!=='needs_review'||persisted.approvalReceiptId!==null||
+        outcome.receipt.appliedHash!==next.immutableRevisionHash)
+        throw new R07RPreparationError('R07R_UNVERIFIED_EDIT_RECEIPT');
+      return {
+        state:'unsaved_review_revision',draft:clone(persisted),
+        reviewRequired:true,financialSaved:false,liveProviderCalls:0,
+        requestId:turn.requestId,replayed:false,
+        appliedRevision:outcome.receipt.appliedRevision,
+        appliedHash:outcome.receipt.appliedHash,
+        currentRevision:persisted.draftRevision,
+      };
+    }
     const persisted=await this.deps.draftStore.replaceReviewRevision({
       scope,turnId:originTurnId,expectedRevision:input.expectedDraftRevision,
       expectedHash:input.expectedDraftHash,next,
