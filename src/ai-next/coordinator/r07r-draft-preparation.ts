@@ -260,7 +260,7 @@ export class R07RReviewDraftPreparationBridge{
   }
   private async prepareScoped(token:string,raw:unknown,
     receipt:{originTurnId:string;requestKey:string;fingerprint:string}|null):
-    Promise<R07RPreparedEdit>{
+    Promise<R07RPreparedEdit|R07RReceiptedEdit>{
     if(!ownKeys(raw,['turn','expectedDraftRevision','expectedDraftHash']))
       throw new R07RPreparationError('R07R_INVALID_INPUT');
     validateRequest(raw.turn);
