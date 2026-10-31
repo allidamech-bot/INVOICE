@@ -77,6 +77,13 @@ function makeClient(db,flags={}){
     offlineReviewReceiptStore:drafts,
     allowOfflineReviewReceiptAudit:flags.auditEnabled!==false,
     allowOfflineVerifiedReviewReply:flags.replyEnabled!==false,
+    offlineReviewBridge:flags.lostAck?{
+      prepareWithReceipt:async(token,raw)=>{
+        await session.bridge.prepareWithReceipt(token,raw);
+        throw Error('UNIFIED_LOST_ACK_AFTER_EDIT');
+      },
+    }:session.bridge,
+    allowOfflineUnifiedReviewEdit:flags.unifiedEnabled!==false,
     clock:()=>new Date(DATE),
   });
   return {coordinator,session,journal,drafts,interpretations:()=>interpretations};
@@ -224,4 +231,55 @@ test('official Firestore: concurrently publishing verified confirmations is idem
   assert.equal(history.checkpointRefs.length,1);
   assert.equal(history.messages.filter(m=>m.messageId===both[0].replyMessageId)
     .length,1);
+});
+
+test('official Firestore: unified review task is one recoverable turn across Admin clients',async()=>{
+  const s=scope('unified-once'),a=makeClient(dbA),b=makeClient(dbB);
+  const initial=await a.coordinator.accept(TOKEN,
+    input(s,'أنشئ مسودة عرض سعر','unified-origin'));
+  const request={
+    turn:input(s,'خلي العميل شركة النور','unified-edit'),
+    originTurnId:initial.turnId,
+    expectedDraftRevision:initial.draft.draftRevision,
+    expectedDraftHash:initial.draft.immutableRevisionHash,
+  };
+  const first=await a.coordinator.acceptOfflineUnifiedReviewEdit(TOKEN,request);
+  assert.equal(first.status,'applied_unsaved_review');
+  assert.equal(first.appliedDraftRevision,2);
+  const replay=await b.coordinator.acceptOfflineUnifiedReviewEdit(TOKEN,request);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftHash,first.appliedDraftHash);
+  assert.equal(b.interpretations(),0);
+  const audit=await b.coordinator.history(TOKEN,historyInput(s));
+  assert.equal(audit.tasks.at(-1).taskType,'unsaved_review_edit');
+  assert.equal(audit.tasks.at(-1).state,'completed');
+  assert.equal(audit.messages.filter(m=>m.turnId===first.turnId&&
+    m.role==='assistant').length,1);
+  assert.equal(audit.checkpointRefs.filter(c=>c.taskId===first.taskId).length,2);
+  assert.equal((await b.drafts.read({
+    ...s,
+  },initial.turnId)).draftRevision,2);
+});
+test('official Firestore: unified task recovers lost edit ACK on second client',async()=>{
+  const s=scope('unified-recovery'),a=makeClient(dbA,{lostAck:true}),
+    b=makeClient(dbB);
+  const initial=await a.coordinator.accept(TOKEN,
+    input(s,'أنشئ مسودة عرض سعر','unified-recovery-origin'));
+  const request={
+    turn:input(s,'خلي العميل شركة النور','unified-recovery-edit'),
+    originTurnId:initial.turnId,
+    expectedDraftRevision:1,
+    expectedDraftHash:initial.draft.immutableRevisionHash,
+  };
+  await assert.rejects(a.coordinator.acceptOfflineUnifiedReviewEdit(
+    TOKEN,request),/UNIFIED_LOST_ACK_AFTER_EDIT/);
+  const recovered=await b.coordinator.acceptOfflineUnifiedReviewEdit(
+    TOKEN,request);
+  assert.equal(recovered.status,'applied_unsaved_review');
+  assert.equal(recovered.appliedDraftRevision,2);
+  assert.equal(b.interpretations(),0);
+  const audit=await b.coordinator.history(TOKEN,historyInput(s));
+  assert.equal(audit.messages.filter(m=>m.turnId===recovered.turnId&&
+    m.role==='assistant').length,1);
+  assert.equal(audit.checkpointRefs.filter(c=>c.taskId===recovered.taskId).length,2);
 });
