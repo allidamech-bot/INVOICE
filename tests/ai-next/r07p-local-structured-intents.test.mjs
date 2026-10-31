@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
   recognizeR07PLocalStructuredIntent,
+  hasR07PExplicitNoWriteConstraint,recognizeR07PAcknowledgementOnly,
   R07P_LOCAL_STRUCTURED_INTENTS_ACTIVE,
 } from '../../dist/src/ai-next/router/local-structured-intents.js';
 import {parseR07PStandaloneLineReply,parseR07PNamedLineReply,
@@ -211,4 +212,29 @@ test('exact verified matching permits one line and rejects duplicates or fuzzy n
     {lineId:'two',description:'عُلَب عطر'}]),null);
   assert.equal(resolveR07PNamedLineId('علب عطر 100',[
     {lineId:'one',description:'علب عطر'}]),null);
+});
+
+test('R07W exact acknowledgement is narrow, negation-aware and no-write',()=>{
+  const yes=[
+    'هذه بيانات صناعية: عبوات عطر 10 بسعر 15 دولار وعلب عطر 7 بسعر 8. لا تعدل شيئاً الآن. فقط أكد أنك فهمت البيانات.',
+    'Do not change anything. Just confirm that you understand the information.',
+    'لا تحفظ العرض هلق، بس خبرني انك فهمت الكلام',
+  ];
+  for(const msg of yes){
+    assert.equal(hasR07PExplicitNoWriteConstraint(msg),true,msg);
+    assert.equal(recognizeR07PAcknowledgementOnly(msg),true,msg);
+  }
+  for(const msg of [
+    'لا، خلي الكمية 12 بدل 10',
+    'لا قصدي العميل شركة النور',
+    'عدل كمية عبوات عطر 20',
+    'Do not change anything. Just confirm that you understand the data and then post it.',
+    'لا تعدل شيئا فقط اكد انك فهمت البيانات وبعدها احفظ',
+    'فقط اكد انك فهمت البيانات',
+    'لا تعدل شيئا',
+  ])assert.equal(recognizeR07PAcknowledgementOnly(msg),false,msg);
+  assert.equal(hasR07PExplicitNoWriteConstraint('لا، خلي الكمية 12'),false);
+  assert.equal(hasR07PExplicitNoWriteConstraint('لا تعدل أي شيء'),true);
+  assert.equal(hasR07PExplicitNoWriteConstraint('Do not issue an invoice'),true);
+  assert.equal(recognizeR07PAcknowledgementOnly('\u0000لا تعدل شيئا فقط اكد انك فهمت البيانات'),false);
 });
