@@ -13,14 +13,15 @@ type Fact=R07PSemanticCandidate['facts'][number];
 
 const marks=/[\u064b-\u065f\u0670\u0640]/gu;
 const eastern=/[\u0660-\u0669\u06f0-\u06f9]/gu;
-function normalize(raw:string):string{
-  return raw.normalize('NFKC').replace(marks,'')
+function normalize(raw:string,lower=true):string{
+  const normalized=raw.normalize('NFKC').replace(marks,'')
     .replace(eastern,c=>String(c.charCodeAt(0)-
       (c.charCodeAt(0)<=0x0669?0x0660:0x06f0)))
     .replace(/[أإآ]/gu,'ا')
     .replace(/[،,؛;]+/gu,' ')
     .replace(/[.!؟?]+$/gu,'')
-    .trim().replace(/\s+/gu,' ').toLowerCase();
+    .trim().replace(/\s+/gu,' ');
+  return lower?normalized.toLowerCase():normalized;
 }
 const make=(action:R07PSemanticCandidate['action'],
   reference:R07PSemanticCandidate['reference'],
@@ -47,7 +48,10 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
   if(typeof raw!=='string'||raw.length>300||
     /[\u0000-\u001f\u007f]/u.test(raw))return null;
   const value=normalize(raw);
-  if(!value||unsafeCompound.test(value))return null;
+  if(!value)return null;
+  if(['احفظ العرض واصدره','approve and post this invoice'].includes(value))
+    return make('request_approval','none');
+  if(unsafeCompound.test(value))return null;
 
   // Exact no-write/read-only controls.
   if(['لا تحفظ العرض هلق',"don't issue it yet"].includes(value))
@@ -62,18 +66,18 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
     'اقرا الـ pdf اللي ارسلته'].includes(value))
     return make('read_file','none',[],['verified_source']);
 
-  // Approval request is only classified; R07P always returns
-  // approval_required, executable=false, financialSaved=false.
-  if(['احفظ العرض واصدره','approve and post this invoice'].includes(value))
-    return make('request_approval','none');
-
+  // An explicit approval phrase above is proposal-only and cannot execute.
   // Customer aliases remain untrusted until the existing server-side
   // unique-customer resolver identifies a scoped customer.
   let match=value.match(/^(?:خلي|حط|غير|عدل) العميل (.+)$/u)||
     value.match(/^لا قصدي العميل (.+)$/u)||
     value.match(/^change the customer to (.+)$/u);
   if(match){
-    const alias=match[1]!.trim();
+    const original=normalize(raw,false);
+    const originalMatch=original.match(/^(?:خلي|حط|غير|عدل) العميل (.+)$/iu)||
+      original.match(/^لا قصدي العميل (.+)$/iu)||
+      original.match(/^change the customer to (.+)$/iu);
+    const alias=originalMatch?.[1]?.trim()??'';
     if(!clientName.test(alias))return null;
     return edit('customer_name',alias);
   }
