@@ -1,0 +1,214 @@
+/**
+ * R07M unified review task: full offline conversation acceptance (synthetic).
+ * No paid models, production Firebase, finance writes or live customer data.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {R07MFastLocalCoordinator}
+  from '../../dist/src/ai-next/coordinator/fast-local-coordinator.js';
+import {createR07RTrustedOfflineReviewSession}
+  from '../../dist/src/ai-next/coordinator/r07r-trusted-review-session.js';
+import {R07JExperimentalIndexedJournal,R07M_FAST_COLLECTION}
+  from '../../dist/src/ai-next/storage/firestore-indexed-append.js';
+import {R07DExperimentalFirestoreDraftStore,
+  R07D_DRAFT_COLLECTION,R07D_EDIT_RECEIPT_COLLECTION}
+  from '../../dist/src/ai-next/storage/firestore-review-drafts.js';
+const DATE=new Date('2026-10-31T22:00:00.000Z');
+const epoch=Math.floor(DATE.getTime()/1000);
+const TOKEN='r07m-unified-multiturn-offline-token';
+const scope={
+  ownerUid:'owner-multiturn',actorId:'owner-multiturn',
+  accountId:'multi-account',companyId:'multi-company',
+  branchId:'multi-branch',threadId:'multi-thread',
+  role:'owner',scopeType:'business',authorizationVersion:1,
+};
+const request=(message,key)=>({
+  schemaVersion:1,accountId:scope.accountId,companyId:scope.companyId,
+  branchId:scope.branchId,threadId:scope.threadId,scopeType:'business',
+  requestId:key,idempotencyKey:key,userMessageId:'user-'+key,
+  message,mode:'controller',
+});
+const clone=x=>structuredClone(x);
+class DB{
+  docs=new Map();writes=0;lock=Promise.resolve();
+  collection(name){
+    if(![R07M_FAST_COLLECTION,R07D_DRAFT_COLLECTION,
+      R07D_EDIT_RECEIPT_COLLECTION].includes(name))
+      throw Error('UNEXPECTED_ROOT');
+    return {doc:id=>({id:name+':'+id,get:async()=>this.get(name+':'+id)})};
+  }
+  get(key){
+    const found=this.docs.get(key);
+    return {exists:found!==undefined,
+      data:()=>found===undefined?undefined:clone(found)};
+  }
+  async runTransaction(fn){
+    const previous=this.lock;let release;
+    this.lock=previous.then(()=>new Promise(ok=>{release=ok;}));
+    await previous;
+    try{
+      const staged=new Map();
+      const tx={
+        get:async ref=>this.get(ref.id),
+        create:(ref,value)=>{
+          if(this.docs.has(ref.id)||staged.has(ref.id))
+            throw Error('ALREADY_EXISTS');
+          staged.set(ref.id,clone(value));
+        },
+        set:(ref,value)=>staged.set(ref.id,clone(value)),
+      };
+      const result=await fn(tx);
+      for(const [key,value] of staged){
+        this.docs.set(key,value);this.writes++;
+      }
+      return result;
+    }finally{release();}
+  }
+}
+const candidate=message=>{
+  let facts=[];
+  if(message.includes('العميل')){
+    facts=[{name:'customer_name',value:message.includes('مجهولة')?
+      'شركة مجهولة':'شركة النور'}];
+  }else if(message.includes('العملة')){
+    facts=[{name:'currency',value:'USD'}];
+  }else if(message.includes('أضف')){
+    facts=[{name:'operation',value:'append_line'},
+      {name:'description',value:message.includes('الثاني')?
+        'Second synthetic item':'First synthetic item'},
+      {name:'quantity',value:'10'},{name:'unit',value:'PCS'},
+      {name:'selling_unit_price',value:'15'},{name:'currency',value:'USD'}];
+  }else if(message.includes('الكمية')){
+    facts=[{name:'quantity',value:message.includes('20')?'20':'12'}];
+  }
+  return {action:'edit_draft',subject:null,reference:'active_draft',
+    facts,sourceIds:[],missingFields:[]};
+};
+function setup(db=new DB(),options={}){
+  let interpretations=0;
+  const principal={verify:async()=>({
+    uid:'owner-multiturn',role:'owner',anonymous:false,
+    tokenIssuedAt:epoch-120,tokenExpiresAt:epoch+3600,
+    authenticatedAt:epoch-240,
+  })};
+  const membership={readForActor:async()=>options.revoked?null:{
+    ownerUid:'owner-multiturn',actorUid:'owner-multiturn',
+    accountId:scope.accountId,companyId:scope.companyId,
+    branchId:scope.branchId,active:true,authorizationVersion:1,
+    permittedRoles:['owner'],
+  }};
+  const journal=new R07JExperimentalIndexedJournal(db,true);
+  const drafts=new R07DExperimentalFirestoreDraftStore(db);
+  const session=createR07RTrustedOfflineReviewSession({
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    principal,membership,journal,draftStore:drafts,
+    customers:{resolveUnique:async(_scope,name)=>
+      name==='شركة النور'?'verified-customer-noor':null},
+    syntheticInterpreter:{interpret:async turn=>{
+      interpretations++;
+      return options.candidate??candidate(turn.message);
+    }},
+    clock:()=>new Date(DATE),
+  });
+  const coordinator=new R07MFastLocalCoordinator({
+    principal,membership,journal,draftStore:drafts,
+    offlineReviewBridge:session.bridge,
+    offlineReviewReceiptStore:drafts,
+    allowOfflineUnifiedReviewEdit:true,
+    clock:()=>new Date(DATE),
+  });
+  const create=(key='initial-quote')=>coordinator.accept(
+    TOKEN,request('أنشئ مسودة عرض سعر',key));
+  const edit=async(message,key,origin,expected)=>{
+    const current=expected??await drafts.read(scope,origin);
+    return coordinator.acceptOfflineUnifiedReviewEdit(TOKEN,{
+      turn:request(message,key),originTurnId:origin,
+      expectedDraftRevision:current.draftRevision,
+      expectedDraftHash:current.immutableRevisionHash,
+    });
+  };
+  const history=()=>coordinator.history(TOKEN,{
+    schemaVersion:1,accountId:scope.accountId,companyId:scope.companyId,
+    branchId:scope.branchId,threadId:scope.threadId,scopeType:'business',
+  });
+  return {db,drafts,coordinator,journal,session,create,edit,history,
+    interpretations:()=>interpretations};
+}
+test('unified conversation creates customer, line, quantity revisions across reopens',async()=>{
+  const h=setup(),created=await h.create(),origin=created.turnId;
+  assert.equal(created.draft.draftRevision,1);
+  const customer=await h.edit('خلي العميل شركة النور','set-customer',origin);
+  assert.equal(customer.appliedDraftRevision,2);
+  const currency=await h.edit('خلي العملة USD','set-currency',origin);
+  assert.equal(currency.appliedDraftRevision,3);
+  const line=await h.edit('أضف 10 قطع بسعر 15 دولار','add-first',origin);
+  assert.equal(line.appliedDraftRevision,4);
+  const correction=await h.edit('لا خلي الكمية 12','correct-quantity',origin);
+  assert.equal(correction.appliedDraftRevision,5);
+  assert.equal(correction.financialSaved,false);
+  const reloaded=setup(h.db);
+  const saved=await reloaded.drafts.read(scope,origin);
+  assert.equal(saved.draftRevision,5);
+  assert.equal(saved.explicitCustomerId,'verified-customer-noor');
+  assert.equal(saved.lineItems.length,1);
+  assert.equal(saved.lineItems[0].quantity,'12');
+  assert.equal(saved.lineItems[0].sellingUnitPrice,'15');
+  assert.equal(saved.status,'needs_review');
+  assert.equal(saved.approvalReceiptId,null);
+  const history=await reloaded.history();
+  assert.equal(history.turns.length,5);
+  assert.equal(history.tasks.filter(t=>t.taskType==='unsaved_review_edit').length,4);
+  for(const t of history.tasks.filter(t=>t.taskType==='unsaved_review_edit')){
+    assert.equal(t.state,'completed');
+    assert.equal(history.messages.filter(m=>m.turnId===t.turnId&&
+      m.role==='assistant').length,1);
+    assert.equal(history.checkpointRefs.filter(c=>c.taskId===t.taskId).length,2);
+  }
+  assert.equal(reloaded.interpretations(),0);
+  const old=await h.journal.auditFullHistory(scope);
+  assert.equal(old.messages.filter(m=>m.role==='assistant').length,5);
+  assert.equal(reloaded.interpretations(),0);
+});
+test('two lines require exact item selection; ambiguous correction cannot mutate',async()=>{
+  const h=setup(),created=await h.create(),origin=created.turnId;
+  await h.edit('أضف أول منتج','add-first',origin);
+  await h.edit('أضف المنتج الثاني','add-second',origin);
+  const before=await h.drafts.read(scope,origin);
+  assert.equal(before.lineItems.length,2);
+  const uncertain=await h.edit('لا خلي الكمية 20','ambiguous-line',origin);
+  assert.equal(uncertain.status,'needs_clarification');
+  assert.equal(uncertain.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,before.draftRevision);
+  const audit=await h.history();
+  assert.equal(audit.checkpointRefs.filter(c=>c.taskId===uncertain.taskId).length,1);
+});
+test('two active quotations force clarification, never guess last quotation',async()=>{
+  const h=setup();const first=await h.create('first-draft');
+  await h.create('second-draft');
+  const before=h.db.writes;
+  const out=await h.edit('خلي العميل شركة النور','ambiguous-draft',
+    first.turnId);
+  assert.equal(out.status,'needs_clarification');
+  assert.equal(out.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,first.turnId)).draftRevision,1);
+  assert.equal((await h.drafts.read(scope,
+    (await h.history()).turns[1].turnId)).draftRevision,1);
+  assert.ok(h.db.writes>before,'only journal clarification may be written');
+});
+test('unverified customer cannot become invented verified ID',async()=>{
+  const h=setup(),created=await h.create();
+  const out=await h.edit('العميل شركة مجهولة','missing-customer',
+    created.turnId);
+  assert.equal(out.status,'needs_clarification');
+  assert.equal(out.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,created.turnId)).explicitCustomerId,
+    null);
+});
+test('revoked membership blocks historical replay before any draft retrieval',async()=>{
+  const h=setup(),created=await h.create();
+  await h.edit('خلي العميل شركة النور','edit-once',created.turnId);
+  const revoked=setup(h.db,{revoked:true}),writes=h.db.writes;
+  await assert.rejects(revoked.edit('خلي العميل شركة النور',
+    'edit-once',created.turnId,created.draft),/AUTH_MEMBERSHIP_DENIED/);
+  assert.equal(h.db.writes,writes);
+});
