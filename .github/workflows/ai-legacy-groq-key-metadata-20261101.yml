@@ -1,0 +1,43 @@
+name: LOUREX Groq owner key check — offline and no inference
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/_ai/provider-diagnostics.js'
+      - 'api/ai-core.js'
+      - 'public/health.html'
+      - 'public/health.js'
+      - 'tests/ai-groq-key-only-metadata-20261101.test.mjs'
+      - 'tests/ai-provider-credential-preflight.test.mjs'
+      - 'tests/ai-gemini-key-only-metadata-20261022.test.mjs'
+      - '.github/workflows/ai-legacy-groq-key-metadata-20261101.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-metadata-no-inference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict type check and production build (no deployment)
+        run: npm run typecheck && npm run build
+      - name: Synthetic offline Groq, Gemini and Ollama credential regressions
+        run: >-
+          node --test --test-concurrency=1
+          tests/ai-groq-key-only-metadata-20261101.test.mjs
+          tests/ai-gemini-key-only-metadata-20261022.test.mjs
+          tests/ai-provider-credential-preflight.test.mjs
+          tests/ai-provider-diagnostics.test.mjs
+      - name: Deployment/finance isolation assertion
+        run: node scripts/verify-deployment-isolation.mjs
