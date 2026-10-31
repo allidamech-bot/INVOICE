@@ -8,6 +8,7 @@ import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {recognizeR05LocalIntent} from './local-intents.js';
 import {recognizeR07PLocalStructuredIntent,
+  hasR07PExplicitNoWriteConstraint,recognizeR07PAcknowledgementOnly,
   requiresR07PCompoundClarification,parseR07PStandalonePriceReply,
   parseR07PStandaloneLineReply,parseR07PNamedLineReply,
   resolveR07PNamedLineId}
@@ -303,6 +304,17 @@ export class R07PSemanticPlanner{
           local.kind==='greeting'?local.reply:null,
       };
     }
+    // R07W: the witnessed production failure involved an explicitly
+    // NEGATED modification and a request to acknowledge synthetic details.
+    // Recognize only the narrow, explicit acknowledgement-only ending;
+    // auth already passed. No context read, model call or business write.
+    if(recognizeR07PAcknowledgementOnly(input.message)){
+      return {status:'local_reply',interpretation:'deterministic',language,
+        intent:build(scope,turnId,'discuss',null,[],[],[],[]),
+        risk:'read_only',providerCalls:0,financialSaved:false,
+        assistantReply:'وصلتني المعلومات. فهمت أنك تريد تأكيد الاستلام فقط '+
+          'دون تعديل أو حفظ أو إصدار. لم تُنفَّذ أي عملية مالية.'};
+    }
     // Never let an injected/real model silently discard a second command
     // (such as "change quantity AND issue invoice"). Only an exact bounded
     // one-line patch is locally supported; multi-target edits are blocked.
@@ -428,6 +440,18 @@ export class R07PSemanticPlanner{
       interpretation='synthetic_model';
     }
     const c=parseR07PSemanticCandidate(rawCandidate);
+    // Untrusted semantic output cannot override the user's prohibition.
+    // Do not confuse an affirmative correction ("لا، خلي الكمية 12")
+    // with a negated action ("لا تعدل شيئًا"). This blocks even a
+    // hallucinated request_approval or execute_approved proposal.
+    if(hasR07PExplicitNoWriteConstraint(input.message)&&writeLike(c.action)){
+      return {status:'needs_clarification',interpretation,language,
+        intent:build(scope,turnId,'clarify',null,[],[],
+          ['explicit_no_write_constraint'],[]),
+        risk:'blocked',providerCalls,financialSaved:false,
+        assistantReply:'طلبت عدم تنفيذ تعديل أو حفظ. لن أتعامل مع '+
+          'هذا الكلام كأمر مالي؛ وضّح إذا أردت مناقشة المعلومات فقط.'};
+    }
     const missing=[...c.missingFields];
     // A name from text is only a *hint*. Only a locally parsed explicit
     // command may use the server-verified current R07D draft line list.
