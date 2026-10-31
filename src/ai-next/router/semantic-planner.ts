@@ -9,7 +9,8 @@ import {exactScopeKey} from '../domain/turn-journal.js';
 import {recognizeR05LocalIntent} from './local-intents.js';
 import {recognizeR07PLocalStructuredIntent,
   requiresR07PCompoundClarification,parseR07PStandalonePriceReply,
-  parseR07PStandaloneLineReply,parseR07PNamedLineReply}
+  parseR07PStandaloneLineReply,parseR07PNamedLineReply,
+  resolveR07PNamedLineId}
   from './local-structured-intents.js';
 import {authorizeR07ScopedRequest,type R07AuthenticatedPrincipalVerifier,
   type R07ServerMembershipStore,type R07RequestEnvelope}
@@ -31,7 +32,10 @@ export interface R07PTrustedContext{
   scopeKey:string;
   /** False when the required history has not been audited or loaded. */
   historyComplete:boolean;
-  activeDraft:{id:string;kind:'quotation';revision:number;lineIds:string[]}|null;
+  activeDraft:{id:string;kind:'quotation';revision:number;lineIds:string[];
+    /** Exactly ordered server-authenticated R07D draft line descriptions. */
+    namedLines?:{lineId:string;description:string}[];
+  }|null;
   references:R07PTrustedReference[];
   /** Derived from the full audited prior turn; not a client-provided flag. */
   pendingPriceFollowup?:R07PVerifiedPriceFollowup;
@@ -165,11 +169,22 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
   const draft=context.activeDraft;
   if(draft!==null&&(!record(draft)||!keys(draft,[
     'id','kind','revision','lineIds',
+    ...(draft.namedLines===undefined?[]:['namedLines']),
   ])||!identifier(draft.id)||draft.kind!=='quotation'||
     !Number.isSafeInteger(draft.revision)||draft.revision<1||
     !Array.isArray(draft.lineIds)||draft.lineIds.length>120||
     !draft.lineIds.every(identifier)||!unique(draft.lineIds)))
     throw new Error('R07P_UNTRUSTED_DRAFT_CONTEXT');
+  if(draft&&draft.namedLines!==undefined&&
+    (!Array.isArray(draft.namedLines)||
+      draft.namedLines.length!==draft.lineIds.length||
+      !draft.namedLines.every((line,i)=>record(line)&&
+        keys(line,['lineId','description'])&&
+        line.lineId===draft.lineIds[i]&&
+        typeof line.description==='string'&&
+        line.description.length>0&&line.description.length<=3000&&
+        !/[\\u0000-\\u001f\\u007f]/u.test(line.description))))
+    throw new Error('R07P_UNTRUSTED_NAMED_DRAFT_LINES');
   const pending=context.pendingPriceFollowup;
   if(pending!==undefined&&(!record(pending)||!keys(pending,[
     'currentUserMessageId','currentIdempotencyKey',
@@ -400,6 +415,23 @@ export class R07PSemanticPlanner{
     }
     const c=parseR07PSemanticCandidate(rawCandidate);
     const missing=[...c.missingFields];
+    // A name from text is only a *hint*. Only a locally parsed explicit
+    // command may use the server-verified current R07D draft line list.
+    // Never pass the unverified name as an editor fact or let the model
+    // synthesize a database line ID from it.
+    const lineNames=c.facts.filter(x=>x.name==='line_name');
+    const resolvedFacts=c.facts.filter(x=>x.name!=='line_name');
+    if(lineNames.length){
+      const eligible=interpretation==='deterministic'&&
+        c.action==='edit_draft'&&lineNames.length===1&&
+        !c.facts.some(x=>x.name==='line_id')&&
+        c.facts.some(x=>['quantity','selling_unit_price'].includes(x.name));
+      const id=eligible&&context.activeDraft?.namedLines?
+        resolveR07PNamedLineId(lineNames[0]!.value,
+          context.activeDraft.namedLines):null;
+      if(!id)missing.push('unique_verified_line_name');
+      else resolvedFacts.push({name:'line_id',value:id});
+    }
     const unresolved:GroundedIntent['unresolvedReferences']=[];
     let subject:GroundedIntent['subjectRef']=null;
     const addUnknown=(expression:string,reason:string,candidateIds:string[]=[])=>{
@@ -445,9 +477,9 @@ export class R07PSemanticPlanner{
       if(subject?.kind!=='draft')missing.push('verified_draft');
       // Adding a NEW line must not be interpreted as editing one of the
       // existing lines. R07R still requires complete validated line data.
-      if(c.facts.find(f=>f.name==='operation')?.value!=='append_line'&&
-        c.facts.some(f=>['quantity','unit','selling_unit_price'].includes(f.name))){
-        const line=c.facts.find(f=>f.name==='line_id')?.value;
+      if(resolvedFacts.find(f=>f.name==='operation')?.value!=='append_line'&&
+        resolvedFacts.some(f=>['quantity','unit','selling_unit_price'].includes(f.name))){
+        const line=resolvedFacts.find(f=>f.name==='line_id')?.value;
         const lines=context.activeDraft?.lineIds??[];
         if(!line&&lines.length!==1)
           addUnknown('line_item','ambiguous_or_missing_line',lines);
@@ -470,7 +502,7 @@ export class R07PSemanticPlanner{
       c.action==='clarify'||c.action==='execute_approved'||
       c.action==='request_approval';
     const action:Action=needsHelp?'clarify':c.action;
-    const intent=build(scope,turnId,action,subject,c.facts,sources,
+    const intent=build(scope,turnId,action,subject,resolvedFacts,sources,
       missing,unresolved);
     return {
       status:['execute_approved','request_approval'].includes(c.action)?
