@@ -9,6 +9,7 @@ on:
       - 'tests/ai-multi-provider-router.test.mjs'
       - 'tests/ai-reliability-batch5.test.mjs'
       - 'tests/ai-groq-structured-preflight-20261101.test.mjs'
+      - 'tests/ai-groq-completion-integrity-20261101.test.mjs'
       - '.github/workflows/ai-legacy-groq-structured-preflight-20261101.yml'
   workflow_dispatch:
 
@@ -34,6 +35,7 @@ jobs:
         run: >-
           node --test --test-concurrency=1
           tests/ai-groq-structured-preflight-20261101.test.mjs
+          tests/ai-groq-completion-integrity-20261101.test.mjs
           tests/ai-groq-error-classification-20261101.test.mjs
           tests/ai-multi-provider-router.test.mjs
           tests/ai-provider-contract-v448.test.mjs
