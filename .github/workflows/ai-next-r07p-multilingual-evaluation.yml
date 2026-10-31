@@ -1,0 +1,38 @@
+name: LOUREX AI Next R07P Multilingual Evaluation Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/router/semantic-evaluation.ts'
+      - 'tests/ai-next/r07p-semantic-evaluation.test.mjs'
+      - 'tests/ai-next/r07p-semantic-evaluation-gold.json'
+      - '.github/workflows/ai-next-r07p-multilingual-evaluation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07p-multilingual-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evaluator-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and isolated compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Score independent offline predictions, never call model providers
+        run: node --test tests/ai-next/r07p-semantic-evaluation.test.mjs
+      - name: Preserve finance and production isolation
+        run: node scripts/verify-deployment-isolation.mjs
