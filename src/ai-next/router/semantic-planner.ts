@@ -40,6 +40,8 @@ export interface R07PTrustedContext{
   /** Derived from the full audited prior turn; not a client-provided flag. */
   pendingPriceFollowup?:R07PVerifiedPriceFollowup;
   pendingLineFollowup?:R07PVerifiedLineFollowup;
+  /** Verified full-audit prior messages only, never a browser-supplied chat. */
+  dialogueHistory?:{role:'user'|'assistant';text:string}[];
 }
 export interface R07PVerifiedPriceFollowup{
   currentUserMessageId:string;
@@ -84,7 +86,8 @@ export interface R07PSyntheticInterpreter{
 export interface R07PRoutedInterpreter{
   interpret(input:{scope:AuthenticatedScope;
     message:string;language:'ar'|'en'|'mixed'|'unknown';
-    mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[]}):
+    mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[];
+    history?:{role:'user'|'assistant';text:string}[]}):
     Promise<
       | {ok:true;candidate:unknown;calls:number}
       | {ok:false;code:string;calls:number}
@@ -157,6 +160,7 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
     'scopeKey','historyComplete','activeDraft','references',
     ...(context.pendingPriceFollowup===undefined?[]:['pendingPriceFollowup']),
     ...(context.pendingLineFollowup===undefined?[]:['pendingLineFollowup']),
+    ...(context.dialogueHistory===undefined?[]:['dialogueHistory']),
   ])||context.scopeKey!==key||typeof context.historyComplete!=='boolean'||
     !Array.isArray(context.references)||context.references.length>200||
     !context.references.every(ref=>record(ref)&&keys(ref,[
@@ -185,6 +189,15 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
         line.description.length>0&&line.description.length<=3000&&
         !/[\u0000-\u001f\u007f]/u.test(line.description))))
     throw new Error('R07P_UNTRUSTED_NAMED_DRAFT_LINES');
+  if(context.dialogueHistory!==undefined&&
+    (!context.historyComplete||!Array.isArray(context.dialogueHistory)||
+      context.dialogueHistory.length>8||
+      context.dialogueHistory.length%2!==0||
+      !context.dialogueHistory.every((m,i)=>record(m)&&
+        keys(m,['role','text'])&&
+        m.role===(i%2?'assistant':'user')&&
+        text(m.text,320))))
+    throw new Error('R07P_UNTRUSTED_DIALOGUE_HISTORY');
   const pending=context.pendingPriceFollowup;
   if(pending!==undefined&&(!record(pending)||!keys(pending,[
     'currentUserMessageId','currentIdempotencyKey',
@@ -328,7 +341,7 @@ export class R07PSemanticPlanner{
         assistantReply:'يتطلب هذا الطلب فهمًا دلاليًا لم يتم تفعيله بعد.'};
     }
     const context=await this.deps.context.load(scope,
-      standalonePrice!==null||hasLineSelection?{
+      standalonePrice!==null||hasLineSelection||routed?{
         userMessageId:input.userMessageId,
         idempotencyKey:input.idempotencyKey,message:input.message,
       }:undefined);
@@ -391,6 +404,7 @@ export class R07PSemanticPlanner{
       const outcome=await this.deps.routedInterpreter!.interpret({
         scope,message:input.message,language,mode:input.mode,
         knownReferences:references,
+        history:context.dialogueHistory??[],
       });
       if(!outcome||!Number.isSafeInteger(outcome.calls)||
         outcome.calls<0||outcome.calls>3)
