@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'src/ai-next/router/semantic-planner.ts'
+      - 'src/ai-next/conversation-state/trusted-history-context.ts'
+      - 'tests/ai-next/r07m-unified-multiturn.test.mjs'
       - 'src/ai-next/router/local-structured-intents.ts'
       - 'src/ai-next/coordinator/r07r-trusted-review-session.ts'
       - 'src/ai-next/coordinator/r07r-draft-preparation.ts'

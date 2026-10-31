@@ -343,3 +343,70 @@ test('unknown or compound text cannot bypass the disabled model route',async()=>
   assert.equal(h.counters.loads,0,
     'unrecognized text never guesses a draft with no provider configured');
 });
+
+test('standalone price only proposes with strictly bound trusted context',async()=>{
+  const h=one(proposal('execute_approved'),{
+    enabled:false,deterministic:true,
+    context:{
+      ...context(),
+      pendingPriceFollowup:{
+        currentUserMessageId:'message-r07p',currentIdempotencyKey:'key-r07p',
+        previousTurnId:'trusted-prior-clarification',
+        draftId:'draft-verified',draftRevision:4,
+        field:'selling_unit_price',
+      },
+    },
+  });
+  const p=await plan(h,'١٧');
+  assert.equal(p.status,'proposed');
+  assert.equal(p.interpretation,'deterministic');
+  assert.equal(p.providerCalls,0);
+  assert.equal(p.financialSaved,false);
+  assert.equal(p.intent.subjectRef?.id,'draft-verified');
+  assert.deepEqual(p.intent.argumentFacts.map(x=>[x.name,x.value]),
+    [['selling_unit_price','17']]);
+  assert.equal(h.counters.calls,0);
+  assert.equal(h.counters.loads,1);
+});
+test('orphan or wrong-current-turn price response never invokes even a fixture',async()=>{
+  const orphan=one(proposal('edit_draft'),{
+    enabled:false,deterministic:true,
+  });
+  const p=await plan(orphan,'17');
+  assert.equal(p.status,'needs_clarification');
+  assert.deepEqual(p.intent.missingFields,['verified_previous_price_request']);
+  assert.equal(orphan.counters.calls,0);
+  const unbound=one(proposal('edit_draft'),{
+    enabled:false,deterministic:true,
+    context:{
+      ...context(),
+      pendingPriceFollowup:{
+        currentUserMessageId:'another-request',
+        currentIdempotencyKey:'key-r07p',
+        previousTurnId:'previous-turn',
+        draftId:'draft-verified',draftRevision:4,
+        field:'selling_unit_price',
+      },
+    },
+  });
+  const wrong=await plan(unbound,'17');
+  assert.equal(wrong.status,'needs_clarification');
+  assert.equal(wrong.providerCalls,0);
+  assert.equal(unbound.counters.calls,0);
+});
+test('forged pending draft revision fails closed before any edit or model',async()=>{
+  const h=one(proposal('edit_draft'),{
+    enabled:false,deterministic:true,
+    context:{
+      ...context(),
+      pendingPriceFollowup:{
+        currentUserMessageId:'message-r07p',currentIdempotencyKey:'key-r07p',
+        previousTurnId:'previous-turn',
+        draftId:'draft-verified',draftRevision:999,
+        field:'selling_unit_price',
+      },
+    },
+  });
+  await assert.rejects(plan(h,'17'),/R07P_UNTRUSTED_PRICE_FOLLOWUP/);
+  assert.equal(h.counters.calls,0);
+});

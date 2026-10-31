@@ -353,3 +353,92 @@ test('compound edit plus financial issue or independent customer target is denie
     assert.deepEqual(current.lineItems,before.lineItems);
   }
 });
+
+test('price clarification resumes only on next audited user turn and seals one R07D revision',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('price-followup-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','price-followup-currency',origin);
+  await h.edit('أضف أول منتج','price-followup-item',origin);
+  const before=await h.drafts.read(scope,origin);
+  assert.equal(before.lineItems.length,1);
+  assert.equal(before.lineItems[0].sellingUnitPrice,'15');
+  const initial=await h.edit('عدل السعر','price-followup-question',origin,before);
+  assert.equal(initial.status,'needs_clarification');
+  assert.equal(initial.appliedDraftRevision,null);
+  assert.equal(initial.financialSaved,false);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,before.draftRevision);
+  const priorSynthetic=h.interpretations();
+  const restarted=setup(h.db,{deterministic:true});
+  const result=await restarted.edit('١٧','price-followup-answer',origin,before);
+  assert.equal(result.status,'applied_unsaved_review');
+  assert.equal(result.providerCalls,0);
+  assert.equal(result.financialSaved,false);
+  assert.equal(result.appliedDraftRevision,before.draftRevision+1);
+  assert.equal(restarted.interpretations(),0,
+    'the resumed follow-up must not request an AI/model answer');
+  const persisted=await restarted.drafts.read(scope,origin);
+  assert.equal(persisted.lineItems[0].sellingUnitPrice,'17');
+  assert.equal(persisted.lineItems[0].quantity,'10');
+  assert.equal(persisted.status,'needs_review');
+  assert.equal(persisted.approvalReceiptId,null);
+  const again=setup(h.db,{deterministic:true});
+  const replay=await again.edit('١٧','price-followup-answer',origin,before);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftRevision,before.draftRevision+1);
+  assert.equal(again.interpretations(),0);
+  assert.equal((await again.drafts.read(scope,origin)).draftRevision,
+    before.draftRevision+1);
+  const history=await again.history();
+  assert.equal(history.turns.length,5);
+  const replies=history.messages.filter(x=>
+    x.turnId===result.turnId&&x.role==='assistant');
+  assert.equal(replies.length,1);
+  assert.equal(history.checkpointRefs.filter(c=>
+    c.taskId===result.taskId).length,2);
+  assert.equal(priorSynthetic>=0,true);
+});
+
+test('standalone number cannot edit without immediately preceding verified clarification',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('orphan-price-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','orphan-price-currency',origin);
+  await h.edit('أضف أول منتج','orphan-price-line',origin);
+  const before=await h.drafts.read(scope,origin),calls=h.interpretations();
+  const orphan=await h.edit('١٧','orphan-price-17',origin,before);
+  assert.equal(orphan.status,'needs_clarification');
+  assert.equal(orphan.appliedDraftRevision,null);
+  assert.equal(h.interpretations(),calls);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,
+    before.draftRevision);
+  const p=await h.edit('عدل السعر','orphan-price-prompt',origin,before);
+  assert.equal(p.status,'needs_clarification');
+  const intervening=await h.edit('خلي الكمية ١٢','orphan-intervening-change',
+    origin,before);
+  assert.equal(intervening.status,'applied_unsaved_review');
+  const afterIntervening=await h.drafts.read(scope,origin);
+  const later=await h.edit('١٨','orphan-later-18',origin,afterIntervening);
+  assert.equal(later.status,'needs_clarification');
+  assert.equal(later.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,origin)).lineItems[0].sellingUnitPrice,
+    '15');
+});
+
+test('two-line price clarification stays unresolved, no guessed line or price update',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('ambiguous-price-followup'),origin=created.turnId;
+  await h.edit('خلي العملة USD','ambiguous-price-currency',origin);
+  await h.edit('أضف أول منتج','ambiguous-price-first',origin);
+  await h.edit('أضف المنتج الثاني','ambiguous-price-second',origin);
+  const before=await h.drafts.read(scope,origin);
+  assert.equal(before.lineItems.length,2);
+  assert.equal((await h.edit('عدل السعر','ambiguous-price-request',
+    origin,before)).status,'needs_clarification');
+  const calls=h.interpretations();
+  const reply=await h.edit('١٧','ambiguous-price-reply',origin,before);
+  assert.equal(reply.status,'needs_clarification');
+  assert.equal(reply.appliedDraftRevision,null);
+  assert.equal(h.interpretations(),calls);
+  const current=await h.drafts.read(scope,origin);
+  assert.equal(current.draftRevision,before.draftRevision);
+  assert.deepEqual(current.lineItems,before.lineItems);
+});
