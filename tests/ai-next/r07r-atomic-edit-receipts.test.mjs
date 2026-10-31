@@ -503,3 +503,183 @@ test('revoked membership and corrupted R07D edit receipt never publish',async()=
   assert.equal((await c.history(TOKEN,auditHistoryInput)).messages.filter(
     m=>m.messageId.startsWith('review-confirmation-')).length,0);
 });
+
+
+function unified(h,options={}){
+  return new R07MFastLocalCoordinator({
+    journal:h.journal,draftStore:h.draftStore,
+    principal:h.principal,membership:h.membership,
+    clock:()=>new Date(NOW),
+    offlineReviewBridge:options.bridge??h.session.bridge,
+    offlineReviewReceiptStore:h.draftStore,
+    allowOfflineUnifiedReviewEdit:options.enabled!==false,
+  });
+}
+const unifiedHistoryInput={
+  schemaVersion:1,accountId:scope.accountId,companyId:scope.companyId,
+  branchId:scope.branchId,threadId:scope.threadId,scopeType:'business',
+};
+test('unified review edit is disabled unless explicitly server-constructed',async()=>{
+  const h=setup();
+  const before=h.db.reads;
+  await assert.rejects(unified(h,{enabled:false})
+    .acceptOfflineUnifiedReviewEdit(TOKEN,{bad:true}),
+  /R07M_UNIFIED_REVIEW_DISABLED/);
+  assert.equal(h.db.reads,before);
+});
+test('one R07M task, one final grounded reply, no provisional semantic message',async()=>{
+  const h=setup(),created=await h.create();
+  const result=await unified(h).acceptOfflineUnifiedReviewEdit(
+    TOKEN,auditInput(created));
+  assert.equal(result.status,'applied_unsaved_review');
+  assert.equal(result.appliedDraftRevision,2);
+  assert.equal(result.financialSaved,false);
+  assert.equal(result.providerCalls,0);
+  const history=await unified(h).history(TOKEN,unifiedHistoryInput);
+  assert.equal(history.tasks.length,2);
+  assert.equal(history.tasks[1].taskType,'unsaved_review_edit');
+  assert.equal(history.tasks[1].state,'completed');
+  assert.equal(history.messages.filter(m=>m.turnId===result.turnId&&
+    m.role==='assistant').length,1);
+  assert.equal(history.checkpointRefs.filter(c=>c.taskId===result.taskId).length,2);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,2);
+  const writes=h.db.writes,restarted=setup(h.db);
+  const prior=await unified(restarted).acceptOfflineUnifiedReviewEdit(
+    TOKEN,auditInput(created));
+  assert.equal(prior.replayed,true);
+  assert.equal(prior.appliedDraftRevision,2);
+  assert.equal(prior.reply,result.reply);
+  assert.equal(restarted.calls(),0,'replay must not interpret');
+  assert.equal(h.db.writes,writes);
+});
+test('lost acknowledgement after R07D commit recovers same edit on new process',async()=>{
+  const h=setup(),created=await h.create(),request=auditInput(created);
+  const broken=unified(h,{bridge:{
+    prepareWithReceipt:async(token,raw)=>{
+      await h.session.bridge.prepareWithReceipt(token,raw);
+      throw Error('NETWORK_LOST_AFTER_R07D_COMMIT');
+    },
+  }});
+  await assert.rejects(broken.acceptOfflineUnifiedReviewEdit(TOKEN,request),
+    /NETWORK_LOST_AFTER_R07D_COMMIT/);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,2);
+  const other=setup(h.db);
+  const recovered=await unified(other).acceptOfflineUnifiedReviewEdit(
+    TOKEN,request);
+  assert.equal(recovered.status,'applied_unsaved_review');
+  assert.equal(recovered.appliedDraftRevision,2);
+  assert.equal(other.calls(),0,'committed receipt bypasses interpretation');
+  const history=await other.journal.auditFullHistory(scope);
+  assert.equal(history.messages.filter(m=>m.turnId===recovered.turnId&&
+    m.role==='assistant').length,1);
+});
+test('lost ACK after R07M receipt checkpoint and after reply are recoverable',async()=>{
+  for(const stage of ['checkpoint','reply']){
+    const h=setup(),created=await h.create();
+    const original=h.journal.append.bind(h.journal);
+    let failed=false;
+    h.journal.append=async request=>{
+      const out=await original(request);
+      if(!failed&&(
+        stage==='checkpoint'&&request.body.kind==='checkpoint'&&
+          request.body.stage==='r07r_unsaved_review_edit_receipt_v1'||
+        stage==='reply'&&request.body.kind==='message'&&
+          request.body.role==='assistant'&&
+          request.body.text.startsWith('تم إثبات تعديل')
+      )){
+        failed=true;throw Error('NETWORK_LOST_AFTER_R07M_'+stage);
+      }
+      return out;
+    };
+    await assert.rejects(unified(h).acceptOfflineUnifiedReviewEdit(
+      TOKEN,auditInput(created)),/NETWORK_LOST_AFTER_R07M_/);
+    assert.equal(failed,true);
+    const other=setup(h.db);
+    const out=await unified(other).acceptOfflineUnifiedReviewEdit(
+      TOKEN,auditInput(created));
+    assert.equal(out.appliedDraftRevision,2);
+    assert.equal(out.status,'applied_unsaved_review');
+    assert.equal(other.calls(),0);
+    assert.equal((await other.draftStore.read(scope,created.turnId)).draftRevision,2);
+    const hist=await other.journal.auditFullHistory(scope);
+    assert.equal(hist.messages.filter(m=>m.turnId===out.turnId&&
+      m.role==='assistant').length,1);
+  }
+});
+test('two processes with the same request commit one edit and final reply',async()=>{
+  const h=setup(),created=await h.create(),a=setup(h.db),b=setup(h.db);
+  const outcomes=await Promise.allSettled([
+    unified(a).acceptOfflineUnifiedReviewEdit(TOKEN,auditInput(created)),
+    unified(b).acceptOfflineUnifiedReviewEdit(TOKEN,auditInput(created)),
+  ]);
+  assert.equal(outcomes.filter(x=>x.status==='rejected').length,0,
+    JSON.stringify(outcomes.filter(x=>x.status==='rejected')
+      .map(x=>String(x.reason))));
+  const ids=outcomes.map(x=>x.value.turnId);
+  assert.equal(new Set(ids).size,1);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,2);
+  const hist=await h.journal.auditFullHistory(scope);
+  assert.equal(hist.messages.filter(m=>m.turnId===ids[0]&&
+    m.role==='assistant').length,1);
+});
+test('same request cannot change body or draft origin after binding',async()=>{
+  const h=setup(),created=await h.create(),c=unified(h);
+  await c.acceptOfflineUnifiedReviewEdit(TOKEN,auditInput(created));
+  const writes=h.db.writes;
+  await assert.rejects(c.acceptOfflineUnifiedReviewEdit(TOKEN,
+    auditInput(created,input('غير العميل إلى شركة أخرى'))),
+  /R07_TURN_IDEMPOTENCY_COLLISION/);
+  await assert.rejects(c.acceptOfflineUnifiedReviewEdit(TOKEN,{
+    ...auditInput(created),originTurnId:'different-origin',
+  }),/R07M_UNIFIED_REQUEST_COLLISION/);
+  assert.equal(h.db.writes,writes);
+});
+test('old proposal-only turn cannot be silently reclassified as an edit',async()=>{
+  const h=setup(),created=await h.create(),planning=auditCoordinator(h);
+  await planning.acceptOfflineSemantic(TOKEN,input());
+  const writes=h.db.writes;
+  await assert.rejects(unified(h).acceptOfflineUnifiedReviewEdit(
+    TOKEN,auditInput(created)),
+  /R07M_UNIFIED_TASK_TYPE_COLLISION/);
+  assert.equal(h.db.writes,writes);
+});
+test('ambiguous or missing trusted customer becomes verified no-edit clarification',async()=>{
+  const h=setup(),created=await h.create();
+  const other=setup(h.db,{overrideCandidate:{
+    action:'edit_draft',subject:null,reference:'active_draft',
+    sourceIds:[],missingFields:[],
+    facts:[{name:'customer_name',value:'شركة غير موجودة'}],
+  }});
+  const result=await unified(other).acceptOfflineUnifiedReviewEdit(
+    TOKEN,auditInput(created));
+  assert.equal(result.status,'needs_clarification');
+  assert.equal(result.appliedDraftRevision,null);
+  assert.match(result.reply,/لم يحدث أي تعديل/);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,1);
+  assert.equal(receiptKeys(h.db).length,0);
+  const again=await unified(setup(h.db)).acceptOfflineUnifiedReviewEdit(
+    TOKEN,auditInput(created));
+  assert.equal(again.replayed,true);
+  assert.equal(again.status,'needs_clarification');
+});
+test('revoked identity denied even on completed request; foreign branch denied',async()=>{
+  const h=setup(),created=await h.create();
+  await unified(h).acceptOfflineUnifiedReviewEdit(TOKEN,auditInput(created));
+  const invalid=setup(h.db,{revoked:true}),reads=h.db.reads;
+  await assert.rejects(unified(invalid).acceptOfflineUnifiedReviewEdit(
+    TOKEN,auditInput(created)),/AUTH_MEMBERSHIP_DENIED/);
+  assert.equal(h.db.reads,reads);
+  await assert.rejects(unified(setup(h.db)).acceptOfflineUnifiedReviewEdit(
+    TOKEN,auditInput(created,input(undefined,'same-request',{
+      branchId:'foreign-branch',
+    }))),/AUTH_MEMBERSHIP_DENIED/);
+});
+test('stale draft edit reports no change rather than mutating again',async()=>{
+  const h=setup(),created=await h.create();
+  await unified(h).acceptOfflineUnifiedReviewEdit(TOKEN,auditInput(created));
+  const newer=await unified(h).acceptOfflineUnifiedReviewEdit(TOKEN,
+    auditInput(created,input('خلي العميل شركة النور','next-request')));
+  assert.equal(newer.status,'needs_clarification');
+  assert.equal(newer.appliedDraftRevision,null);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,2);
+});
