@@ -88,7 +88,8 @@ async function boundedBody(request:Request):Promise<unknown>{
   return parsed;
 }
 type Operations='accept'|'current'|'history'|'review_edit';
-type Coordinator=Pick<R07MFastLocalCoordinator,Operations>;
+type Coordinator=Pick<R07MFastLocalCoordinator,
+  'accept'|'current'|'history'|'acceptOfflineUnifiedReviewEdit'>;
 /**
  * Instantiable only when the actual Node process is running against
  * the *official local demo emulator*. Supplying a forged config is not enough.
