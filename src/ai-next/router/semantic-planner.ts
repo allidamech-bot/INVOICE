@@ -7,7 +7,8 @@ import type {AuthenticatedScope,ConversationMode,GroundedIntent} from '../domain
 import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {recognizeR05LocalIntent} from './local-intents.js';
-import {recognizeR07PLocalStructuredIntent} from './local-structured-intents.js';
+import {recognizeR07PLocalStructuredIntent,
+  requiresR07PCompoundClarification} from './local-structured-intents.js';
 import {authorizeR07ScopedRequest,type R07AuthenticatedPrincipalVerifier,
   type R07ServerMembershipStore,type R07RequestEnvelope}
   from '../security/server-membership.js';
@@ -216,6 +217,21 @@ export class R07PSemanticPlanner{
           'إنشاء المسودة يتطلب صلاحية إعداد مسودات معتمدة من الخادم.':
           local.kind==='greeting'?local.reply:null,
       };
+    }
+    // Never let an injected/real model silently discard a second command
+    // (such as "change quantity AND issue invoice"). Only an exact bounded
+    // one-line patch is locally supported; multi-target edits are blocked.
+    // Authentication already succeeded above. No financial provider, context
+    // or draft write is used to reject an unsupported compound.
+    if(this.deps.allowDeterministicStructuredIntents===true&&
+      requiresR07PCompoundClarification(input.message)){
+      return {status:'needs_clarification',interpretation:'deterministic',
+        language,
+        intent:build(scope,turnId,'clarify',null,[],[],
+          ['unsupported_compound_request'],[]),
+        risk:'blocked',providerCalls:0,financialSaved:false,
+        assistantReply:'الطلب يتضمن خطوات أو حقولاً متعددة تحتاج مراجعة. '+
+          'حدد عملية واحدة آمنة في كل مرة؛ لم يُنفّذ أي تعديل.'};
     }
     const routed=Boolean(this.deps.allowRoutedInference&&this.deps.routedInterpreter);
     const synthetic=Boolean(this.deps.allowSyntheticInference&&
