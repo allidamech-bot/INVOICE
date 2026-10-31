@@ -312,3 +312,10 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Targeted synthetic and local real Firestore Emulator tests were added for idempotency, interrupted acknowledgement, authorization and replay. **Do not mark TESTED/MERGED until exact-head GitHub CI and merge verification succeed.**
 - No production path or live model was enabled; financial track, Firebase IAM/rules and deployment remain untouched. Cross-root atomicity, real-language quality, cloud security, T22/T23/T24 and physical iPhone Safari remain OPEN.
 - Detail: docs/ai-next/R07M_UNIFIED_REVIEW_EDIT_TASK_EVIDENCE_20261031.md.
+
+## R07P multilingual quality evaluation contract — October 31, 2026
+
+- Adds a pure, production-inactive evaluator and 43 independently authored synthetic Arabic/Levantine, English, and mixed-language gold prompts. Reports action/reference/slot/missing-field exact matches, raw coverage, schema validity and unexpected financial execution intents. Missing model predictions remain in the denominator.
+- Targeted CI checks the evaluation contract with intentionally correct and incorrect fixture predictions; **these are evaluator tests, not measured model understanding or acceptance of any provider.** External model calls, actual provider entitlements, privacy consent and real Arabic accuracy remain unverified and OPEN.
+- AI Next only; no financial code, production feature flags, credentials, IAM/rules, paid model or real data access touched.
+- Evidence: docs/ai-next/R07P_MULTILINGUAL_EVALUATION_CONTRACT_20261031.md. Exact-head CI and merge verification are required to mark the PR tested/merged; T22/T23/T24 and iPhone Safari remain OPEN.
