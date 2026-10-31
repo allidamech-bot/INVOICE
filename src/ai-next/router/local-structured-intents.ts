@@ -17,11 +17,10 @@ function normalize(raw:string,lower=true):string{
   const normalized=raw.normalize('NFKC').replace(marks,'')
     .replace(eastern,c=>String(c.charCodeAt(0)-
       (c.charCodeAt(0)<=0x0669?0x0660:0x06f0)))
-    .replace(/[أإآ]/gu,'ا')
     .replace(/[،,؛;]+/gu,' ')
     .replace(/[.!؟?]+$/gu,'')
     .trim().replace(/\s+/gu,' ');
-  return lower?normalized.toLowerCase():normalized;
+  return lower?normalized.replace(/[أإآ]/gu,'ا').toLowerCase():normalized;
 }
 const make=(action:R07PSemanticCandidate['action'],
   reference:R07PSemanticCandidate['reference'],
@@ -117,7 +116,8 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
     const n=number(match[1]!);
     return n?edit('selling_unit_price',n):null;
   }
-  if(['خلي العملة دولار امريكي','خلي currency usd'].includes(value))
+  if(['خلي العملة دولار امريكي','خلي العملة usd',
+    'خلي currency usd'].includes(value))
     return edit('currency','USD');
   if(['غير الوحدة لكرتون','change the unit to cartons'].includes(value))
     return edit('unit','carton');
