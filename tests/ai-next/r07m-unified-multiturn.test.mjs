@@ -264,3 +264,92 @@ test('local deterministic text with two lines requires clarification, never edit
   assert.equal((await h.drafts.read(scope,origin)).draftRevision,
     prior.draftRevision);
 });
+
+test('one Arabic multi-field request commits ONE revision/receipt and survives reopen/replay',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('paired-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','paired-currency',origin);
+  await h.edit('أضف أول منتج','paired-line-setup',origin);
+  const before=await h.drafts.read(scope,origin);
+  assert.equal(before.draftRevision,3);
+  assert.equal(before.lineItems[0].quantity,'10');
+  assert.equal(before.lineItems[0].sellingUnitPrice,'15');
+  const synthetics=h.interpretations();
+  const result=await h.edit('خلي الكمية ١٢ والسعر ١٧','paired-edit',origin,before);
+  assert.equal(result.status,'applied_unsaved_review');
+  assert.equal(result.appliedDraftRevision,4);
+  assert.equal(result.providerCalls,0);
+  assert.equal(result.financialSaved,false);
+  assert.equal(h.interpretations(),synthetics,
+    'local multi-field command must not invoke semantic provider/fixture');
+  const persisted=await h.drafts.read(scope,origin);
+  assert.equal(persisted.draftRevision,before.draftRevision+1,
+    'quantity and price MUST be one atomic revision, not two writes');
+  assert.equal(persisted.lineItems[0].quantity,'12');
+  assert.equal(persisted.lineItems[0].sellingUnitPrice,'17');
+  assert.equal(persisted.status,'needs_review');
+  assert.equal(persisted.approvalReceiptId,null);
+  const restored=setup(h.db,{deterministic:true});
+  const reopened=await restored.drafts.read(scope,origin);
+  assert.equal(reopened.draftRevision,4);
+  assert.equal(reopened.immutableRevisionHash,persisted.immutableRevisionHash);
+  assert.equal(reopened.lineItems[0].quantity,'12');
+  assert.equal(reopened.lineItems[0].sellingUnitPrice,'17');
+  const replay=await restored.edit('خلي الكمية ١٢ والسعر ١٧',
+    'paired-edit',origin,before);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftRevision,4);
+  assert.equal(restored.interpretations(),0);
+  const after=await restored.drafts.read(scope,origin);
+  assert.equal(after.draftRevision,4);
+  const history=await restored.history();
+  const pairTask=history.tasks.find(x=>x.taskId===result.taskId);
+  assert.equal(pairTask?.state,'completed');
+  assert.equal(history.messages.filter(m=>m.turnId===result.turnId&&
+    m.role==='assistant').length,1);
+  assert.equal(history.checkpointRefs.filter(c=>c.taskId===result.taskId).length,2);
+  await assert.rejects(restored.edit('خلي الكمية ١٣ والسعر ١٧',
+    'paired-edit',origin,before),/R07_TURN_IDEMPOTENCY_COLLISION/);
+  assert.equal((await restored.drafts.read(scope,origin)).draftRevision,4);
+});
+
+test('paired quantity/price request with two lines never chooses one or changes either',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('paired-ambiguous-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','paired-ambiguous-currency',origin);
+  await h.edit('أضف أول منتج','paired-ambiguous-first',origin);
+  await h.edit('أضف المنتج الثاني','paired-ambiguous-second',origin);
+  const before=await h.drafts.read(scope,origin),synthetics=h.interpretations();
+  const result=await h.edit('Set quantity to 12 and unit price to 17',
+    'paired-ambiguous-edit',origin,before);
+  assert.equal(result.status,'needs_clarification');
+  assert.equal(result.providerCalls,0);
+  assert.equal(result.appliedDraftRevision,null);
+  assert.equal(h.interpretations(),synthetics);
+  const after=await h.drafts.read(scope,origin);
+  assert.equal(after.draftRevision,before.draftRevision);
+  assert.deepEqual(after.lineItems,before.lineItems);
+});
+
+test('compound edit plus financial issue or independent customer target is denied before fixture',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('paired-unsafe-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','paired-unsafe-currency',origin);
+  await h.edit('أضف أول منتج','paired-unsafe-line',origin);
+  const before=await h.drafts.read(scope,origin),synthetics=h.interpretations();
+  for(const [message,key] of [
+    ['خلي الكمية 12 والسعر 17 واحفظ','paired-unsafe-approve'],
+    ['خلي العميل شركة النور والسعر 17','paired-unsafe-customer'],
+    ['Set quantity to 12 and unit price to 17 and then issue the invoice',
+      'paired-unsafe-issue'],
+  ]){
+    const result=await h.edit(message,key,origin,before);
+    assert.equal(result.status,'needs_clarification',message);
+    assert.equal(result.appliedDraftRevision,null,message);
+    assert.equal(result.providerCalls,0);
+    assert.equal(h.interpretations(),synthetics);
+    const current=await h.drafts.read(scope,origin);
+    assert.equal(current.draftRevision,before.draftRevision);
+    assert.deepEqual(current.lineItems,before.lineItems);
+  }
+});

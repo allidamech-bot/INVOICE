@@ -9,6 +9,7 @@ on:
       - 'src/ai-next/coordinator/r07r-trusted-review-session.ts'
       - 'src/ai-next/coordinator/r07r-draft-preparation.ts'
       - 'tests/ai-next/r07p-local-structured-intents.test.mjs'
+      - 'tests/ai-next/r07p-atomic-multifield.test.mjs'
       - 'tests/ai-next/r07p-semantic-planner.test.mjs'
       - 'src/ai-next/coordinator/fast-local-coordinator.ts'
       - 'src/ai-next/router/local-intents.ts'
@@ -42,6 +43,7 @@ jobs:
           node --test
           tests/ai-next/r07p-semantic-planner.test.mjs
           tests/ai-next/r07p-local-structured-intents.test.mjs
+          tests/ai-next/r07p-atomic-multifield.test.mjs
           tests/ai-next/r07m-unified-multiturn.test.mjs
       - name: Deterministic R05 and R07M regression
         run: >-

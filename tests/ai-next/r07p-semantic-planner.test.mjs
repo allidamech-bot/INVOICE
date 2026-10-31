@@ -325,15 +325,18 @@ test('deterministic proposals respect viewer, Advisor, revoke and multi-line amb
 });
 test('unknown or compound text cannot bypass the disabled model route',async()=>{
   const h=one(proposal('edit_draft'),{enabled:false,deterministic:true});
-  for(const message of [
-    'خلي العميل شركة النور ووافق',
-    'خلي الكمية 12 واحفظ الفاتورة',
-    'لا تغيّر السعر',
-    'بدل الكمية 12 خليها 20 واصدر الفاتورة',
-    'افتح القيد وارسله',
+  for(const [message,expectedStatus] of [
+    ['خلي العميل شركة النور ووافق','needs_clarification'],
+    ['خلي الكمية 12 واحفظ الفاتورة','needs_clarification'],
+    ['لا تغيّر السعر','unsupported'],
+    ['بدل الكمية 12 خليها 20 واصدر الفاتورة','needs_clarification'],
+    ['افتح القيد وارسله','unsupported'],
   ]){
     const p=await plan(h,message);
-    assert.equal(p.status,'unsupported',message);
+    assert.equal(p.status,expectedStatus,message);
+    if(expectedStatus==='needs_clarification')
+      assert.deepEqual(p.intent.missingFields,['unsupported_compound_request']);
+    assert.equal(p.intent.executable,false);
     assert.equal(p.providerCalls,0);
     assert.equal(p.financialSaved,false);
   }

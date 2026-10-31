@@ -39,6 +39,30 @@ const unsafeCompound=/(?:^| )(?:و?(?:احفظ|اصدر|وافق|اعتمد|نف
 const clientName=/^[\p{L}\p{M}\p{N} .'-]{2,100}$/u;
 
 /**
+ * With the local, opt-in Controller enabled, never allow a downstream model
+ * to reinterpret just ONE part of an unsafe or unsupported compound command.
+ * This rejects unsupported multiple targets until a real, receipt-aware
+ * batch-authorization protocol exists. It does not mutate any draft.
+ */
+export function requiresR07PCompoundClarification(raw:string):boolean{
+  if(typeof raw!=='string'||raw.length>6000)return false;
+  const value=normalize(raw);
+  if(['احفظ العرض واصدره','approve and post this invoice'].includes(value))
+    return false; // Already approval-only in R07P, NEVER an execution.
+  if(unsafeCompound.test(value))return true;
+  const targets=[
+    /(?:العميل|customer)/u,
+    /(?:العملة|currency)/u,
+    /(?:الكمية|quantity)/u,
+    /(?:السعر|price)/u,
+  ];
+  const mentions=targets.filter(r=>r.test(value)).length;
+  // Only full-utterance recognized patches may combine fields.
+  return mentions>=2 && /(?: و[\p{L}]| and )/u.test(value) &&
+    recognizeR07PLocalStructuredIntent(raw)===null;
+}
+
+/**
  * Returns only syntactic candidates; no account, draft, line, price or
  * customer is ever verified here. No automatic finance execution intent.
  */
@@ -53,6 +77,39 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
   if(value==='approve and post this invoice')
     return make('request_approval','none');
   if(unsafeCompound.test(value))return null;
+
+  // A single, fully scoped line patch can safely contain BOTH fields.
+  // This is NOT a general multi-action executor: the existing R07P
+  // audited context must verify exactly one line, and R07R applies one
+  // transactional review-draft revision with one R07D receipt.
+  // Match the entire sentence; extra instructions, currency or approval
+  // words must not be silently dropped.
+  let paired=value.match(
+    /^(?:خلي|غير|عدل) الكمية (\d{1,12}(?:\.\d{1,6})?) و(?:السعر|سعر القطعة) (\d{1,12}(?:\.\d{1,6})?)$/u
+  )||value.match(
+    /^set (?:the )?quantity to (\d{1,12}(?:\.\d{1,6})?) and (?:the )?unit price to (\d{1,12}(?:\.\d{1,6})?)$/u
+  );
+  if(paired){
+    const quantity=number(paired[1]!),price=number(paired[2]!);
+    return quantity&&quantity!=='0'&&price?
+      make('edit_draft','active_draft',[
+        {name:'quantity',value:quantity},
+        {name:'selling_unit_price',value:price},
+      ]):null;
+  }
+  paired=value.match(
+    /^(?:خلي|غير|عدل) (?:السعر|سعر القطعة) (\d{1,12}(?:\.\d{1,6})?) والكمية (\d{1,12}(?:\.\d{1,6})?)$/u
+  )||value.match(
+    /^set (?:the )?unit price to (\d{1,12}(?:\.\d{1,6})?) and (?:the )?quantity to (\d{1,12}(?:\.\d{1,6})?)$/u
+  );
+  if(paired){
+    const price=number(paired[1]!),quantity=number(paired[2]!);
+    return quantity&&quantity!=='0'&&price?
+      make('edit_draft','active_draft',[
+        {name:'quantity',value:quantity},
+        {name:'selling_unit_price',value:price},
+      ]):null;
+  }
 
   // Exact no-write/read-only controls.
   if(['لا تحفظ العرض هلق',"don't issue it yet"].includes(value))
@@ -74,6 +131,10 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
     value.match(/^لا قصدي العميل (.+)$/u)||
     value.match(/^change the customer to (.+)$/u);
   if(match){
+    // A customer alias must not swallow another instruction as part of
+    // the name; e.g. "خلي العميل شركة النور والسعر 15" is TWO targets.
+    if(/(?: و(?:السعر|العملة|الكمية)(?: |$)| and (?:price|currency|quantity|unit price)(?: |$))/u.test(value))
+      return null;
     const original=normalize(raw,false);
     const originalMatch=original.match(/^(?:خلي|حط|غير|عدل) العميل (.+)$/iu)||
       original.match(/^لا قصدي العميل (.+)$/iu)||
