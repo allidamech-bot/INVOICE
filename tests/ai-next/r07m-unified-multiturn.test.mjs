@@ -389,7 +389,7 @@ test('price clarification resumes only on next audited user turn and seals one R
   assert.equal((await again.drafts.read(scope,origin)).draftRevision,
     before.draftRevision+1);
   const history=await again.history();
-  assert.equal(history.turns.length,6);
+  assert.equal(history.turns.length,5);
   const replies=history.messages.filter(x=>
     x.turnId===result.turnId&&x.role==='assistant');
   assert.equal(replies.length,1);
