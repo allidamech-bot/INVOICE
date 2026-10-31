@@ -66,8 +66,8 @@ test('language breakdown and confusion distinguish exact, unsafe and schema-inva
   assert.equal(report.byLanguage.ar.provided,1);
   assert.equal(report.byLanguage.en.provided,1);
   assert.equal(report.byLanguage.mixed.provided,1);
-  assert.equal(report.byLanguage.ar.fullExactMatch,100/
-    report.byLanguage.ar.total);
+  assert.equal(report.byLanguage.ar.fullExactMatch,
+    Math.round(10000/report.byLanguage.ar.total)/100);
   assert.equal(report.byLanguage.en.unexpectedFinancialExecutionIntents,1);
   assert.ok(report.actionConfusion.some(x=>x.expected==='preview_draft'&&
     x.predicted==='execute_approved'&&x.count===1));
