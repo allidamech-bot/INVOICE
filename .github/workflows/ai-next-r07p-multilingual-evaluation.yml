@@ -6,6 +6,9 @@ on:
     paths:
       - 'src/ai-next/router/semantic-evaluation.ts'
       - 'scripts/ai-next-semantic-report.mjs'
+      - 'scripts/ai-next-semantic-benchmark.mjs'
+      - 'src/ai-next/router/semantic-benchmark.ts'
+      - 'tests/ai-next/r07p-blind-benchmark.test.mjs'
       - 'tests/ai-next/r07p-multilingual-report.test.mjs'
       - 'tests/ai-next/r07p-semantic-evaluation.test.mjs'
       - 'tests/ai-next/r07p-semantic-evaluation-gold.json'
@@ -39,5 +42,6 @@ jobs:
           node --test
           tests/ai-next/r07p-semantic-evaluation.test.mjs
           tests/ai-next/r07p-multilingual-report.test.mjs
+          tests/ai-next/r07p-blind-benchmark.test.mjs
       - name: Preserve finance and production isolation
         run: node scripts/verify-deployment-isolation.mjs
