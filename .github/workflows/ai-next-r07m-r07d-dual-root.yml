@@ -1,0 +1,55 @@
+name: LOUREX AI Next Dual-Root R07M R07D Firestore Recovery
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/ai-next/r07m-r07d-real-emulator-reconciliation.test.mjs'
+      - '.github/workflows/ai-next-r07m-r07d-dual-root.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07m-r07d-dual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dual-root-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GCLOUD_PROJECT: demo-ai-next-r07h
+      GOOGLE_CLOUD_PROJECT: demo-ai-next-r07h
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and isolated compiler
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Official local Firestore Emulator two Admin clients dual-root test
+        env:
+          FIREBASE_CLI_EXPERIMENTS: ''
+        run: >-
+          npx --yes --package firebase-tools@14.16.0 firebase
+          emulators:exec
+          --only firestore
+          --project demo-ai-next-r07h
+          --config tests/ai-next/r07h-firebase-emulator.json
+          --non-interactive
+          "node --test tests/ai-next/r07m-r07d-real-emulator-reconciliation.test.mjs"
+      - name: Offline receipt and finance-isolation regression
+        run: >-
+          node --test tests/ai-next/r07r-atomic-edit-receipts.test.mjs
+          && node scripts/verify-deployment-isolation.mjs
