@@ -9,7 +9,7 @@ import {exactScopeKey} from '../domain/turn-journal.js';
 import {recognizeR05LocalIntent} from './local-intents.js';
 import {recognizeR07PLocalStructuredIntent,
   requiresR07PCompoundClarification,parseR07PStandalonePriceReply,
-  parseR07PStandaloneLineReply}
+  parseR07PStandaloneLineReply,parseR07PNamedLineReply}
   from './local-structured-intents.js';
 import {authorizeR07ScopedRequest,type R07AuthenticatedPrincipalVerifier,
   type R07ServerMembershipStore,type R07RequestEnvelope}
@@ -197,7 +197,7 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
     Number(linePending.value)<=0||!draft||
     draft.id!==linePending.draftId||
     draft.revision!==linePending.draftRevision||
-    draft.lineIds.length!==2||!draft.lineIds.includes(linePending.lineId)))
+    draft.lineIds.length<2||!draft.lineIds.includes(linePending.lineId)))
     throw new Error('R07P_UNTRUSTED_LINE_FOLLOWUP');
 }
 function build(scope:AuthenticatedScope,turnId:string,action:Action,
@@ -301,15 +301,19 @@ export class R07PSemanticPlanner{
       parseR07PStandalonePriceReply(input.message):null;
     const standaloneLine=localStructured&&!deterministic&&
       standalonePrice===null?parseR07PStandaloneLineReply(input.message):null;
+    const standaloneName=localStructured&&!deterministic&&
+      standalonePrice===null&&standaloneLine===null?
+      parseR07PNamedLineReply(input.message):null;
+    const hasLineSelection=standaloneLine!==null||standaloneName!==null;
     if(!routed&&!synthetic&&!deterministic&&standalonePrice===null&&
-      standaloneLine===null){
+      !hasLineSelection){
       return {status:'unsupported',interpretation:'unavailable',language,
         intent:build(scope,turnId,'clarify',null,[],[],['semantic_provider_unavailable'],[]),
         risk:'blocked',providerCalls:0,financialSaved:false,
         assistantReply:'يتطلب هذا الطلب فهمًا دلاليًا لم يتم تفعيله بعد.'};
     }
     const context=await this.deps.context.load(scope,
-      standalonePrice!==null||standaloneLine!==null?{
+      standalonePrice!==null||hasLineSelection?{
         userMessageId:input.userMessageId,
         idempotencyKey:input.idempotencyKey,message:input.message,
       }:undefined);
@@ -331,16 +335,19 @@ export class R07PSemanticPlanner{
         assistantReply:'لا يوجد طلب سعر معلّق وموثوق يمكن إكماله. اكتب طلب التعديل كاملاً.'};
     }
     const linePending=context.pendingLineFollowup;
-    const verifiedLine=standaloneLine!==null&&linePending!==undefined&&
+    const verifiedLine=hasLineSelection&&linePending!==undefined&&
       linePending.currentUserMessageId===input.userMessageId&&
       linePending.currentIdempotencyKey===input.idempotencyKey&&
       context.activeDraft?.id===linePending.draftId&&
       context.activeDraft.revision===linePending.draftRevision&&
-      context.activeDraft.lineIds.length===2&&
-      context.activeDraft.lineIds[standaloneLine]===linePending.lineId;
+      context.activeDraft.lineIds.length>=2&&
+      (standaloneLine!==null?
+        context.activeDraft.lineIds.length===2&&
+          context.activeDraft.lineIds[standaloneLine]===linePending.lineId:
+        context.activeDraft.lineIds.includes(linePending.lineId));
     // No trusted preceding question: an ordinal is not an operation.
     // Never give a model the opportunity to invent a line identifier.
-    if(standaloneLine!==null&&!verifiedLine){
+    if(hasLineSelection&&!verifiedLine){
       return {status:'needs_clarification',interpretation:'deterministic',language,
         intent:build(scope,turnId,'clarify',null,[],[],
           ['verified_previous_line_request'],[]),
