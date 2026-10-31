@@ -8,7 +8,8 @@ import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {recognizeR05LocalIntent} from './local-intents.js';
 import {recognizeR07PLocalStructuredIntent,
-  requiresR07PCompoundClarification,parseR07PStandalonePriceReply}
+  requiresR07PCompoundClarification,parseR07PStandalonePriceReply,
+  parseR07PStandaloneLineReply}
   from './local-structured-intents.js';
 import {authorizeR07ScopedRequest,type R07AuthenticatedPrincipalVerifier,
   type R07ServerMembershipStore,type R07RequestEnvelope}
@@ -34,6 +35,7 @@ export interface R07PTrustedContext{
   references:R07PTrustedReference[];
   /** Derived from the full audited prior turn; not a client-provided flag. */
   pendingPriceFollowup?:R07PVerifiedPriceFollowup;
+  pendingLineFollowup?:R07PVerifiedLineFollowup;
 }
 export interface R07PVerifiedPriceFollowup{
   currentUserMessageId:string;
@@ -42,6 +44,17 @@ export interface R07PVerifiedPriceFollowup{
   draftId:string;
   draftRevision:number;
   field:'selling_unit_price';
+}
+/** Single already-clarified quantity + server-verified draft line identity. */
+export interface R07PVerifiedLineFollowup{
+  currentUserMessageId:string;
+  currentIdempotencyKey:string;
+  previousTurnId:string;
+  draftId:string;
+  draftRevision:number;
+  field:'quantity';
+  value:string;
+  lineId:string;
 }
 export interface R07PContextReader{
   /** Must read only server-verified scoped records; never model-derived data. */
@@ -139,6 +152,7 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
   if(!record(context)||!keys(context,[
     'scopeKey','historyComplete','activeDraft','references',
     ...(context.pendingPriceFollowup===undefined?[]:['pendingPriceFollowup']),
+    ...(context.pendingLineFollowup===undefined?[]:['pendingLineFollowup']),
   ])||context.scopeKey!==key||typeof context.historyComplete!=='boolean'||
     !Array.isArray(context.references)||context.references.length>200||
     !context.references.every(ref=>record(ref)&&keys(ref,[
@@ -168,6 +182,23 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
     !draft||draft.id!==pending.draftId||
     draft.revision!==pending.draftRevision||draft.lineIds.length!==1))
     throw new Error('R07P_UNTRUSTED_PRICE_FOLLOWUP');
+  const linePending=context.pendingLineFollowup;
+  if(linePending!==undefined&&(!record(linePending)||!keys(linePending,[
+    'currentUserMessageId','currentIdempotencyKey',
+    'previousTurnId','draftId','draftRevision','field','value','lineId',
+  ])||!identifier(linePending.currentUserMessageId)||
+    !identifier(linePending.currentIdempotencyKey)||
+    !identifier(linePending.previousTurnId)||
+    !identifier(linePending.draftId)||!identifier(linePending.lineId)||
+    !Number.isSafeInteger(linePending.draftRevision)||
+    linePending.draftRevision<1||linePending.field!=='quantity'||
+    typeof linePending.value!=='string'||
+    !/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,6})?$/u.test(linePending.value)||
+    Number(linePending.value)<=0||!draft||
+    draft.id!==linePending.draftId||
+    draft.revision!==linePending.draftRevision||
+    draft.lineIds.length!==2||!draft.lineIds.includes(linePending.lineId)))
+    throw new Error('R07P_UNTRUSTED_LINE_FOLLOWUP');
 }
 function build(scope:AuthenticatedScope,turnId:string,action:Action,
   subject:GroundedIntent['subjectRef'],facts:Fact[],sources:string[],
@@ -268,14 +299,17 @@ export class R07PSemanticPlanner{
       recognizeR07PLocalStructuredIntent(input.message):null;
     const standalonePrice=localStructured&&!deterministic?
       parseR07PStandalonePriceReply(input.message):null;
-    if(!routed&&!synthetic&&!deterministic&&standalonePrice===null){
+    const standaloneLine=localStructured&&!deterministic&&
+      standalonePrice===null?parseR07PStandaloneLineReply(input.message):null;
+    if(!routed&&!synthetic&&!deterministic&&standalonePrice===null&&
+      standaloneLine===null){
       return {status:'unsupported',interpretation:'unavailable',language,
         intent:build(scope,turnId,'clarify',null,[],[],['semantic_provider_unavailable'],[]),
         risk:'blocked',providerCalls:0,financialSaved:false,
         assistantReply:'يتطلب هذا الطلب فهمًا دلاليًا لم يتم تفعيله بعد.'};
     }
     const context=await this.deps.context.load(scope,
-      standalonePrice!==null?{
+      standalonePrice!==null||standaloneLine!==null?{
         userMessageId:input.userMessageId,
         idempotencyKey:input.idempotencyKey,message:input.message,
       }:undefined);
@@ -296,16 +330,39 @@ export class R07PSemanticPlanner{
         risk:'blocked',providerCalls:0,financialSaved:false,
         assistantReply:'لا يوجد طلب سعر معلّق وموثوق يمكن إكماله. اكتب طلب التعديل كاملاً.'};
     }
+    const linePending=context.pendingLineFollowup;
+    const verifiedLine=standaloneLine!==null&&linePending!==undefined&&
+      linePending.currentUserMessageId===input.userMessageId&&
+      linePending.currentIdempotencyKey===input.idempotencyKey&&
+      context.activeDraft?.id===linePending.draftId&&
+      context.activeDraft.revision===linePending.draftRevision&&
+      context.activeDraft.lineIds.length===2&&
+      context.activeDraft.lineIds[standaloneLine]===linePending.lineId;
+    // No trusted preceding question: an ordinal is not an operation.
+    // Never give a model the opportunity to invent a line identifier.
+    if(standaloneLine!==null&&!verifiedLine){
+      return {status:'needs_clarification',interpretation:'deterministic',language,
+        intent:build(scope,turnId,'clarify',null,[],[],
+          ['verified_previous_line_request'],[]),
+        risk:'blocked',providerCalls:0,financialSaved:false,
+        assistantReply:'لا يوجد طلب تعديل صنف معلّق وموثوق. اذكر التعديل والصنف صراحة.'};
+    }
     const resumed=verifiedFollowup?{
       action:'edit_draft' as const,subject:null,reference:'active_draft' as const,
       facts:[{name:'selling_unit_price',value:standalonePrice!}],
       sourceIds:[],missingFields:[],
     }:null;
+    const lineResumed=verifiedLine?{
+      action:'edit_draft' as const,subject:null,reference:'active_draft' as const,
+      facts:[{name:'quantity',value:linePending!.value},
+        {name:'line_id',value:linePending!.lineId}],
+      sourceIds:[],missingFields:[],
+    }:null;
     const references=context.references.map(r=>({kind:r.kind,id:r.id}));
     let rawCandidate:unknown,providerCalls:number,
       interpretation:'deterministic'|'synthetic_model'|'routed_model';
-    if(deterministic||resumed){
-      rawCandidate=deterministic??resumed;
+    if(deterministic||resumed||lineResumed){
+      rawCandidate=deterministic??resumed??lineResumed;
       providerCalls=0;
       interpretation='deterministic';
     }else if(routed){
