@@ -9,6 +9,8 @@ import {R07B3AdminMembershipStore,R07B3_COLLECTION}
   from '../../dist/src/ai-next/security/admin-membership-store.js';
 import {R07MFastLocalCoordinator}
   from '../../dist/src/ai-next/coordinator/fast-local-coordinator.js';
+import {createR07RTrustedOfflineReviewSession}
+  from '../../dist/src/ai-next/coordinator/r07r-trusted-review-session.js';
 import {R07JExperimentalIndexedJournal,R07M_FAST_COLLECTION}
   from '../../dist/src/ai-next/storage/firestore-indexed-append.js';
 import {R07DExperimentalFirestoreDraftStore,R07D_DRAFT_COLLECTION}
@@ -16,7 +18,8 @@ import {R07DExperimentalFirestoreDraftStore,R07D_DRAFT_COLLECTION}
 import {R07NPreviewSession}
   from '../../dist/src/ai-next/ui/r07n-preview-session.js';
 import {R07OLocalPreviewHandler,R07OLocalHttpPreviewPort,
-  R07O_PUBLIC_ENDPOINT_ENABLED,R07O_LOCAL_ROUTE,R07O_MAX_REQUEST_BYTES}
+  R07O_PUBLIC_ENDPOINT_ENABLED,R07O_UNIFIED_REVIEW_PUBLICLY_ENABLED,
+  R07O_LOCAL_ROUTE,R07O_MAX_REQUEST_BYTES}
   from '../../dist/src/ai-next/security/r07o-local-http.js';
 
 const project=process.env.GCLOUD_PROJECT??process.env.GOOGLE_CLOUD_PROJECT;
@@ -49,10 +52,26 @@ const principal={verify:(value,timestamp)=>verifyR07FirebasePrincipal(
   }),
 };
 const membership=new R07B3AdminMembershipStore(db);
+const journal=new R07JExperimentalIndexedJournal(db,true);
+const draftStore=new R07DExperimentalFirestoreDraftStore(db);
+let syntheticInterpretations=0;
+const offlineSession=createR07RTrustedOfflineReviewSession({
+  offlineFixtureMode:true,offlineReceiptMode:true,
+  principal,membership,journal,draftStore,
+  customers:{resolveUnique:async(_scope,name)=>
+    name==='شركة النور'?'r07o-verified-synthetic-customer':null},
+  syntheticInterpreter:{interpret:async()=>{syntheticInterpretations++;
+    return {action:'edit_draft',subject:null,reference:'active_draft',
+      sourceIds:[],missingFields:[],
+      facts:[{name:'customer_name',value:'شركة النور'}]};
+  }},
+  clock:()=>new Date(at),
+});
 const coordinator=new R07MFastLocalCoordinator({
-  journal:new R07JExperimentalIndexedJournal(db,true),
-  draftStore:new R07DExperimentalFirestoreDraftStore(db),
-  principal,membership,clock:()=>new Date(at),
+  journal,draftStore,principal,membership,clock:()=>new Date(at),
+  offlineReviewBridge:offlineSession.bridge,
+  offlineReviewReceiptStore:draftStore,
+  allowOfflineUnifiedReviewEdit:true,
 });
 let server,endpoint,handler,port;
 const getUrl=()=>endpoint+R07O_LOCAL_ROUTE;
@@ -86,6 +105,7 @@ const createSession=id=>new R07NPreviewSession(scope,env,port,identity(id));
 
 test('R07O local endpoint remains disabled and no production public route is touched',()=>{
   assert.equal(R07O_PUBLIC_ENDPOINT_ENABLED,false);
+  assert.equal(R07O_UNIFIED_REVIEW_PUBLICLY_ENABLED,false);
   assert.equal(R07O_LOCAL_ROUTE,'/__ai_next_r07o_local_preview__');
   assert.notEqual(R07M_FAST_COLLECTION,R07D_DRAFT_COLLECTION);
 });
@@ -138,6 +158,7 @@ test('start an isolated loopback-only Node HTTP listener backed by Firestore Emu
   handler=new R07OLocalPreviewHandler({
     allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
     emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,coordinator,
+    allowOfflineUnifiedReviewEdit:true,
   });
   port=new R07OLocalHttpPreviewPort({
     allowedOrigin:endpoint,token:async()=>token,transport,
@@ -173,6 +194,159 @@ test('R07O preview adapter round-trip over actual loopback HTTP creates ONLY uns
   const reread=await s.loadVerifiedHistory();
   assert.equal(reread.messages.length,4);
 });
+
+test('server-owned switch denies review_edit even with an authenticated browser request',async()=>{
+  const disabledHandler=new R07OLocalPreviewHandler({
+    allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+    emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,coordinator,
+  });
+  const draft=await port.history(env);
+  const origin=draft.turns.find(t=>t.taskId&&
+    draft.tasks.some(x=>x.taskId===t.taskId&&x.taskType==='local_draft_start'));
+  assert.ok(origin);
+  const current=await draftStore.read(scope,origin.turnId);
+  const requestBody={
+    operation:'review_edit',
+    payload:{
+      originTurnId:origin.turnId,
+      turn:{...quote,requestId:'r07o-disabled-edit',
+        idempotencyKey:'r07o-disabled-edit',
+        userMessageId:'r07o-disabled-edit-user',
+        message:'خلي العميل شركة النور'},
+      expectedDraftRevision:current.draftRevision,
+      expectedDraftHash:current.immutableRevisionHash,
+    },
+  };
+  const request=new Request(getUrl(),{method:'POST',
+    headers:{Origin:endpoint,'Sec-Fetch-Site':'same-origin',
+      Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify(requestBody),
+  });
+  const result=await disabledHandler.handle(request);
+  assert.equal(result.status,403);
+  assert.deepEqual(await result.json(),{error:'R07O_REVIEW_DISABLED'});
+  assert.equal((await draftStore.read(scope,origin.turnId)).draftRevision,1);
+});
+test('real loopback HTTP single-turn review edit persists one verified reply/receipt',async()=>{
+  const audit=await port.history(env);
+  const origin=audit.turns.find(t=>audit.tasks.some(x=>
+    x.taskId===t.taskId&&x.taskType==='local_draft_start'));
+  assert.ok(origin);
+  const before=await draftStore.read(scope,origin.turnId);
+  assert.equal(before.draftRevision,1);
+  const editTurn={...quote,requestId:'r07o-http-edit-once',
+    idempotencyKey:'r07o-http-edit-once',
+    userMessageId:'r07o-http-edit-once-user',
+    message:'خلي العميل شركة النور'};
+  const editInput={turn:editTurn,originTurnId:origin.turnId,
+    expectedDraftRevision:before.draftRevision,
+    expectedDraftHash:before.immutableRevisionHash};
+  const result=await port.reviewEdit(editInput);
+  assert.equal(result.status,'applied_unsaved_review');
+  assert.equal(result.appliedDraftRevision,2);
+  assert.equal(result.providerCalls,0);
+  assert.equal(result.financialSaved,false);
+  assert.equal(result.replayed,false);
+  const persisted=await draftStore.read(scope,origin.turnId);
+  assert.equal(persisted.draftRevision,2);
+  assert.equal(persisted.explicitCustomerId,'r07o-verified-synthetic-customer');
+  assert.equal(persisted.status,'needs_review');
+  assert.equal(persisted.approvalReceiptId,null);
+  const replay=await port.reviewEdit(editInput);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftHash,result.appliedDraftHash);
+  assert.equal(syntheticInterpretations,1);
+  const history=await port.history(env);
+  assert.equal(history.tasks.at(-1).taskType,'unsaved_review_edit');
+  assert.equal(history.messages.filter(x=>x.turnId===result.turnId&&
+    x.role==='assistant').length,1);
+  assert.equal(history.checkpointRefs.filter(x=>x.taskId===result.taskId).length,2);
+  assert.equal((await draftStore.read(scope,origin.turnId)).draftRevision,2);
+});
+test('lost HTTP ACK after R07D edit is recovered using unchanged key with zero new inference',async()=>{
+  const history=await port.history(env);
+  const origin=history.turns.find(t=>history.tasks.some(x=>
+    x.taskId===t.taskId&&x.taskType==='local_draft_start'));
+  const before=await draftStore.read(scope,origin.turnId);
+  const editInput={
+    turn:{...quote,requestId:'r07o-lost-http-ack',
+      idempotencyKey:'r07o-lost-http-ack',
+      userMessageId:'r07o-lost-http-ack-user',
+      message:'خلي العميل شركة النور'},
+    originTurnId:origin.turnId,
+    expectedDraftRevision:before.draftRevision,
+    expectedDraftHash:before.immutableRevisionHash,
+  };
+  const drop=new R07OLocalHttpPreviewPort({
+    allowedOrigin:endpoint,token:async()=>token,
+    transport:async request=>{
+      const sent=await transport(request);
+      assert.equal(sent.status,200);
+      throw Error('SYNTHETIC_RESPONSE_LOST');
+    },
+  });
+  const callsBefore=syntheticInterpretations;
+  await assert.rejects(drop.reviewEdit(editInput),/SYNTHETIC_RESPONSE_LOST/);
+  assert.equal((await draftStore.read(scope,origin.turnId)).draftRevision,
+    before.draftRevision+1);
+  const recovered=await port.reviewEdit(editInput);
+  assert.equal(recovered.replayed,true);
+  assert.equal(recovered.appliedDraftRevision,before.draftRevision+1);
+  assert.equal(syntheticInterpretations,callsBefore+1);
+  const resultHistory=await port.history(env);
+  assert.equal(resultHistory.messages.filter(x=>x.turnId===recovered.turnId&&
+    x.role==='assistant').length,1);
+});
+test('HTTP review edit rejects changed payload/key collision and forged scope',async()=>{
+  const history=await port.history(env);
+  const origin=history.turns.find(t=>history.tasks.some(x=>
+    x.taskId===t.taskId&&x.taskType==='local_draft_start'));
+  const before=await draftStore.read(scope,origin.turnId);
+  const input={turn:{...quote,requestId:'r07o-identity-conflict',
+    idempotencyKey:'r07o-identity-conflict',
+    userMessageId:'r07o-identity-conflict-user',
+    message:'خلي العميل شركة النور'},originTurnId:origin.turnId,
+    expectedDraftRevision:before.draftRevision,
+    expectedDraftHash:before.immutableRevisionHash};
+  const saved=await direct('review_edit',input);
+  assert.equal(saved.status,200);
+  assert.equal((await saved.json()).status,'applied_unsaved_review');
+  const conflict=await direct('review_edit',{
+    ...input,turn:{...input.turn,message:'خلي العميل شركة أخرى'},
+  });
+  assert.equal(conflict.status,409);
+  const forged=await direct('review_edit',{
+    ...input,turn:{...input.turn,branchId:'other-branch'},
+  });
+  assert.equal(forged.status,403);
+  assert.equal((await draftStore.read(scope,origin.turnId)).draftRevision,
+    before.draftRevision+1);
+});
+test('revoked membership denies review-edit replay even after verified receipt',async()=>{
+  const history=await port.history(env);
+  const origin=history.turns.find(t=>history.tasks.some(x=>
+    x.taskId===t.taskId&&x.taskType==='local_draft_start'));
+  const before=await draftStore.read(scope,origin.turnId);
+  const input={turn:{...quote,requestId:'r07o-revocation-edit',
+    idempotencyKey:'r07o-revocation-edit',
+    userMessageId:'r07o-revocation-edit-user',
+    message:'خلي العميل شركة النور'},originTurnId:origin.turnId,
+    expectedDraftRevision:before.draftRevision,
+    expectedDraftHash:before.immutableRevisionHash};
+  const successful=await direct('review_edit',input);
+  assert.equal(successful.status,200);
+  const oldAcl=(await acl.get()).data();
+  await acl.set({...oldAcl,active:false});
+  try{
+    const revoked=await direct('review_edit',input);
+    assert.equal(revoked.status,403);
+    const serialized=await revoked.text();
+    assert.equal(serialized.includes(uid),false);
+    assert.equal(serialized.includes(env.companyId),false);
+    assert.equal(serialized.includes(token),false);
+  }finally{await acl.set(oldAcl);}
+});
+
 test('strict HTTP: reject cross-site requests, GET, cookies, missing auth, bad payload',async()=>{
   const prior=(await db.collection(R07M_FAST_COLLECTION).get()).size;
   for(const [name,request,status] of [
