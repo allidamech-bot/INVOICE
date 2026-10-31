@@ -191,6 +191,12 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
       activeDraft:active?{
         id:active.draftId,kind:'quotation' as const,
         revision:active.draftRevision,lineIds:active.lineItems.map(l=>l.lineId),
+        // Exact R07D descriptions are server-owned and remain private to
+        // planning: only verified handles pass downstream. Never trust a
+        // browser/model-supplied line name as an authoritative identifier.
+        namedLines:active.lineItems.map(l=>({
+          lineId:l.lineId,description:l.description,
+        })),
       }:null,
       references:refs,
       ...(pendingPriceFollowup?{pendingPriceFollowup}:{}),
