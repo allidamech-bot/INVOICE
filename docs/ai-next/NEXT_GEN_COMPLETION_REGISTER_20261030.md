@@ -305,3 +305,10 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Offline tests and official two-Admin-client Firestore Emulator check lost acknowledgement, duplicate reply dedup, concurrent requests, stale-later revisions, denied roles, corrupt receipts and chronological transcript protection. Final exact-head CI is release gate.
 - **Not a unified review-edit Controller turn.** The original provisional reply still exists; financial issuance, live provider inference, live Firebase IAM/rules, T22/T23/T24 and iPhone Safari remain OPEN. No production flag enabled or financial files touched.
 - See docs/ai-next/R07M_VERIFIED_REVIEW_REPLY_20261031.md.
+
+## R07M single-turn unsaved review-edit candidate — October 31, 2026
+
+- PR #1240 adds an OFF-BY-DEFAULT `unsaved_review_edit` task to the existing R07M coordinator, sealing request-origin/revision/hash before any R07D mutation. The review receipt, journal checkpoint, final assistant message and terminal task each have separate recoverable boundaries. This replaces a separate provisional semantic reply only for NEW explicitly opted-in unified requests; completed older `semantic_proposal_only` tasks are never reinterpreted.
+- Targeted synthetic and local real Firestore Emulator tests were added for idempotency, interrupted acknowledgement, authorization and replay. **Do not mark TESTED/MERGED until exact-head GitHub CI and merge verification succeed.**
+- No production path or live model was enabled; financial track, Firebase IAM/rules and deployment remain untouched. Cross-root atomicity, real-language quality, cloud security, T22/T23/T24 and physical iPhone Safari remain OPEN.
+- Detail: docs/ai-next/R07M_UNIFIED_REVIEW_EDIT_TASK_EVIDENCE_20261031.md.

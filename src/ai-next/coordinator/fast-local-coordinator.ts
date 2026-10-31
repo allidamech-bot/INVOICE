@@ -8,7 +8,8 @@ import type {AuthenticatedScope,ConversationTurn,ReviewDraft,TaskState}
   from '../domain/contracts.js';
 import type {R07PPlan} from '../router/semantic-planner.js';
 import {fingerprintR07RReviewRequest,
-  type R07RReceiptPrepareInput} from './r07r-draft-preparation.js';
+  type R07RReceiptPrepareInput,type R07RReviewDraftPreparationBridge}
+  from './r07r-draft-preparation.js';
 import type {R07DExperimentalFirestoreDraftStore}
   from '../storage/firestore-review-drafts.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
@@ -48,6 +49,13 @@ export interface R07MVerifiedReviewReplyResult{
   appliedDraftHash:string;financialSaved:false;
   draftEditPerformed:false;providerCalls:0;
 }
+export interface R07MUnifiedReviewEditResult {
+  status:'applied_unsaved_review'|'needs_clarification';
+  turnId:string;taskId:string;threadId:string;reply:string;
+  replayed:boolean;conversationRevision:number;
+  appliedDraftRevision:number|null;appliedDraftHash:string|null;
+  financialSaved:false;providerCalls:0;
+}
 export interface R07MSemanticTurnResult{
   status:'completed';turnId:string;threadId:string;taskId:string;
   replayed:boolean;reply:string;conversationRevision:number;
@@ -69,7 +77,9 @@ const eventKey=(id:string,step:string)=>'r07step-'+id+'-'+step;
  * The task's completion is only a user-visible PLANNING response.
  */
 function newOfflineSemanticTurn(scope:AuthenticatedScope,
-  input:R07LocalTurnInput,now:string):{turn:ConversationTurn;task:TaskState}{
+  input:R07LocalTurnInput,now:string,
+  taskType:'semantic_proposal_only'|'unsaved_review_edit'='semantic_proposal_only'):
+  {turn:ConversationTurn;task:TaskState}{
   const turnId=crypto.randomUUID(),taskId=crypto.randomUUID();
   const turn:ConversationTurn={
     schemaVersion:1,scope:structuredClone(scope),turnId,threadId:scope.threadId,
@@ -81,7 +91,7 @@ function newOfflineSemanticTurn(scope:AuthenticatedScope,
   };
   const task:TaskState={
     schemaVersion:1,scope:structuredClone(scope),taskId,threadId:scope.threadId,
-    turnId,taskType:'semantic_proposal_only',state:'created',
+    turnId,taskType,state:'created',
     revision:0,stateVersion:0,startedAt:now,updatedAt:now,
     completedAt:null,stageIndex:0,
     progress:{completedUnits:0,totalUnits:null,unitType:'unknown',observedAt:now},
@@ -127,6 +137,9 @@ export class R07MFastLocalCoordinator{
     allowOfflineReviewReceiptAudit?:boolean;
     /** Independent server-only opt-in; unavailable from production routes. */
     allowOfflineVerifiedReviewReply?:boolean;
+    /** Existing R07R/R07D guarded receipt editor; OFF by default. */
+    offlineReviewBridge?:Pick<R07RReviewDraftPreparationBridge,'prepareWithReceipt'>;
+    allowOfflineUnifiedReviewEdit?:boolean;
   }){}
   private now():Date{return(this.deps.clock??(()=>new Date()))();}
   private async auth(token:string,raw:R07RequestEnvelope):
@@ -195,7 +208,7 @@ export class R07MFastLocalCoordinator{
       revision:history.revision};
   }
   private async accepted(scope:AuthenticatedScope,input:R07LocalTurnInput,
-    semantic=false):
+    semantic:boolean|'review_edit'=false):
     Promise<{turn:ConversationTurn;replayed:boolean;historical:boolean}>{
 
     for(let attempt=0;attempt<8;attempt++){
@@ -217,7 +230,9 @@ export class R07MFastLocalCoordinator{
         throw new R07LocalError('R07_ANOTHER_TURN_ACTIVE');
       const startedAt=serverTime(()=>this.now(),current.lastEventAt);
       const {turn,task}=semantic?
-        newOfflineSemanticTurn(scope,input,startedAt):makeTurn(scope,input,startedAt);
+        newOfflineSemanticTurn(scope,input,startedAt,
+          semantic==='review_edit'?'unsaved_review_edit':
+            'semantic_proposal_only'):makeTurn(scope,input,startedAt);
       turn.sequenceNumber=(current.turn?.sequenceNumber??0)+1;
       turn.parentTurnId=current.turn?.turnId??null;
       try{
@@ -400,6 +415,210 @@ export class R07MFastLocalCoordinator{
       syntheticInvocations:result.syntheticInvocations??0,
       semanticOutcome:'proposal_only',financialSaved:false,
       businessReadPerformed:false,draftEdited:false};
+  }
+
+
+  /**
+   * OFFLINE ONLY: one authoritative R07M task for one R07R/R07D unsaved edit.
+   * Historical proposal-only tasks retain their old meaning and cannot be
+   * upgraded. The original request fingerprint is sealed BEFORE mutation.
+   * R07D receipt and R07M journal are separate roots, so every interruption
+   * is reconciled from verified stored evidence, not an assumed outcome.
+   */
+  async acceptOfflineUnifiedReviewEdit(token:string,raw:unknown):
+    Promise<R07MUnifiedReviewEditResult>{
+    if(!this.deps.allowOfflineUnifiedReviewEdit||
+      !this.deps.offlineReviewBridge||
+      !this.deps.offlineReviewReceiptStore)
+      throw new R07LocalError('R07M_UNIFIED_REVIEW_DISABLED');
+    if(!raw||typeof raw!=='object'||Array.isArray(raw)||
+      Object.getPrototypeOf(raw)!==Object.prototype||
+      Object.keys(raw).sort().join('|')!==[
+        'turn','originTurnId','expectedDraftRevision','expectedDraftHash',
+      ].sort().join('|'))
+      throw new R07LocalError('R07M_INVALID_UNIFIED_REVIEW_INPUT');
+    const input=raw as R07RReceiptPrepareInput;
+    validateRequest(input.turn);
+    if(recognizeR05LocalIntent(input.turn.message,0))
+      throw new R07LocalError('R07M_USE_DETERMINISTIC_ACCEPT');
+    const fingerprint=await fingerprintR07RReviewRequest(input);
+    const scope=await this.auth(token,envelope(input.turn));
+    if(scope.scopeType!=='business'||scope.role==='viewer'||
+      input.turn.mode!=='controller')
+      throw new R07LocalError('R07M_UNIFIED_REVIEW_DENIED');
+    const request=await this.accepted(scope,input.turn,'review_edit');
+    const turn=request.turn,taskId=turn.taskId!;
+    const bindId='review-request-'+turn.turnId;
+    const receiptId='review-receipt-'+turn.turnId;
+    const assistantId='assistant-'+turn.turnId;
+    const clarification=
+      'الطلب غير محدد بشكل كافٍ لتعديل المسودة. حدد المسودة والبند أو القيمة المطلوبة. لم أؤكد تنفيذ أي تعديل.';
+    const verifiedReceipt=()=>this.deps.offlineReviewReceiptStore!.readEditReceipt({
+      scope,turnId:input.originTurnId,
+      requestKey:input.turn.idempotencyKey,
+      requestFingerprint:fingerprint,
+      expectedRevision:input.expectedDraftRevision,
+      expectedHash:input.expectedDraftHash,
+    });
+    // Read the whole AUDITED chain, never the mutable latest-message cache,
+    // when validating request binding, receipt proof or old-key replay.
+    const inspect=async()=>{
+      const h=await this.deps.journal.auditFullHistory(scope);
+      const t=h.tasks.find(x=>x.taskId===taskId);
+      if(h.scopeKey!==exactScopeKey(scope)||!t||
+        t.turnId!==turn.turnId||t.taskType!=='unsaved_review_edit'||
+        exactScopeKey(t.scope)!==exactScopeKey(scope))
+        throw new R07LocalError('R07M_UNIFIED_TASK_TYPE_COLLISION');
+      const binds=h.checkpointRefs.filter(x=>x.checkpointId===bindId);
+      if(binds.length>1||binds.length===1&&
+        (binds[0]?.taskId!==taskId||
+          binds[0]?.stage!=='r07m_unsaved_review_request_v1'||
+          binds[0]?.referenceHash!==fingerprint))
+        throw new R07LocalError('R07M_UNIFIED_REQUEST_COLLISION');
+      const receipts=h.checkpointRefs.filter(x=>x.checkpointId===receiptId);
+      if(receipts.length>1||receipts.length===1&&
+        (receipts[0]?.taskId!==taskId||
+          receipts[0]?.stage!=='r07r_unsaved_review_edit_receipt_v1'))
+        throw new R07LocalError('R07M_UNIFIED_CHECKPOINT_COLLISION');
+      const replies=h.messages.filter(x=>x.messageId===assistantId);
+      if(replies.length>1||replies.length===1&&
+        (replies[0]?.turnId!==turn.turnId||replies[0]?.role!=='assistant'))
+        throw new R07LocalError('R07M_UNIFIED_REPLY_COLLISION');
+      return {h,t,bind:binds[0],receipt:receipts[0],reply:replies[0]};
+    };
+    const finalize=async(replayed:boolean):Promise<R07MUnifiedReviewEditResult>=>{
+      const state=await inspect();
+      if(state.t.state!=='completed'||!state.bind||!state.reply)
+        throw new R07LocalError('R07M_UNIFIED_RESULT_UNRESOLVED');
+      const saved=await verifiedReceipt();
+      let status:R07MUnifiedReviewEditResult['status'];
+      let appliedDraftRevision:number|null=null,appliedDraftHash:string|null=null;
+      if(saved){
+        if(!state.receipt||
+          state.receipt.referenceHash!==saved.receipt.appliedHash||
+          saved.receipt.appliedRevision!==input.expectedDraftRevision+1||
+          saved.draft.draftRevision<saved.receipt.appliedRevision)
+          throw new R07LocalError('R07M_UNIFIED_UNVERIFIED_RESULT');
+        appliedDraftRevision=saved.receipt.appliedRevision;
+        appliedDraftHash=saved.receipt.appliedHash;
+        status='applied_unsaved_review';
+        const expected='تم إثبات تعديل مسودة عرض السعر في المراجعة رقم '+
+          String(appliedDraftRevision)+
+          '. المسودة ما زالت غير صادرة، ولم تُحفظ معاملة مالية.';
+        if(state.reply.text!==expected)
+          throw new R07LocalError('R07M_UNIFIED_REPLY_MISMATCH');
+      }else{
+        if(state.receipt||state.reply.text!==clarification)
+          throw new R07LocalError('R07M_UNIFIED_UNVERIFIED_CLARIFICATION');
+        status='needs_clarification';
+      }
+      return {status,turnId:turn.turnId,taskId,
+        threadId:scope.threadId,reply:state.reply.text,
+        replayed,conversationRevision:state.h.revision,
+        appliedDraftRevision,appliedDraftHash,
+        financialSaved:false,providerCalls:0};
+    };
+    // A completed historical request must never be re-interpreted or mutated.
+    for(let attempt=0;attempt<40;attempt++){
+      const view=await this.read(scope);
+      if(view.turn?.turnId!==turn.turnId){
+        if(!request.replayed)
+          throw new R07LocalError('R07M_UNIFIED_TURN_CHANGED');
+        return finalize(true);
+      }
+      const state=await inspect();
+      if(state.t.state==='completed')return finalize(request.replayed);
+      if(state.t.state==='failed'||state.t.state==='cancelled')
+        throw new R07LocalError('R07M_UNIFIED_TASK_TERMINAL');
+      if(state.t.state!=='created'&&state.t.state!=='understanding'&&
+        state.t.state!=='processing')
+        throw new R07LocalError('R07M_UNIFIED_TASK_UNRESOLVED');
+      let step:string,body:ConversationEventBody;
+      if(!view.userMessageSeen){
+        step='user-message';
+        body={kind:'message',messageId:turn.userMessageId,
+          turnId:turn.turnId,role:'user',text:turn.userMessage.text,
+          sourceIds:[]};
+      }else if(!state.bind){
+        step='review-request';
+        body={kind:'checkpoint',taskId,checkpointId:bindId,
+          sourceIds:[],referenceHash:fingerprint,
+          stage:'r07m_unsaved_review_request_v1'};
+      }else if(state.t.state==='created'||state.t.state==='understanding'){
+        const to=state.t.state==='created'?'understanding':'processing';
+        step='state-'+to;
+        body={kind:'task_updated',task:transitionTask(state.t,to,{
+          expectedStateVersion:state.t.stateVersion,
+          now:serverTime(()=>this.now(),state.t.updatedAt),
+        })};
+      }else{
+        // Re-authorization precedes all continued mutations. A revoked
+        // membership cannot use a previously started request as a bypass.
+        await this.auth(token,envelope(input.turn));
+        const saved=await verifiedReceipt();
+        if(state.reply){
+          // No terminal acknowledgement before receipt and checkpoint agree.
+          if(saved){
+            if(!state.receipt||
+              state.receipt.referenceHash!==saved.receipt.appliedHash)
+              throw new R07LocalError('R07M_UNIFIED_REPLY_WITHOUT_RECEIPT');
+          }else if(state.receipt||state.reply.text!==clarification){
+            throw new R07LocalError('R07M_UNIFIED_REPLY_WITHOUT_PROOF');
+          }
+          step='state-completed';
+          body={kind:'task_updated',task:transitionTask(state.t,'completed',{
+            expectedStateVersion:state.t.stateVersion,
+            now:serverTime(()=>this.now(),state.t.updatedAt),
+          })};
+        }else if(!saved){
+          if(state.receipt)
+            throw new R07LocalError('R07M_UNIFIED_RECEIPT_MISSING');
+          // R07D checks the same request receipt BEFORE semantic inference.
+          // If commit wins but HTTP acknowledgement is lost, the next loop
+          // observes the receipt and never repeats the edit.
+          try{
+            await this.deps.offlineReviewBridge.prepareWithReceipt(token,input);
+          }catch(error){
+            if(!(error instanceof Error)||![
+              'R07R_UNSAFE_OR_UNRESOLVED_PLAN','R07R_AMBIGUOUS_LINE',
+              'R07R_CUSTOMER_NOT_UNIQUELY_VERIFIED',
+              'R07R_NO_VERIFIED_REVIEW_DRAFT','R07R_STALE_DRAFT',
+              'R07R_NO_SUPPORTED_EDIT',
+            ].includes(error.message))throw error;
+            // Re-read after failure: an independent worker may have committed.
+            if(await verifiedReceipt())continue;
+            step='assistant-message';
+            body={kind:'message',messageId:assistantId,turnId:turn.turnId,
+              role:'assistant',text:clarification,sourceIds:[]};
+            // Revalidate identity before sealing the no-mutation outcome.
+            await this.auth(token,envelope(input.turn));
+            try{await this.append(scope,view,turn.turnId,step,body);}
+            catch(err){if(!isConflict(err))throw err;}
+          }
+          continue;
+        }else if(!state.receipt){
+          if(saved.receipt.appliedRevision!==input.expectedDraftRevision+1)
+            throw new R07LocalError('R07M_UNIFIED_RECEIPT_REVISION');
+          step='review-receipt';
+          body={kind:'checkpoint',taskId,checkpointId:receiptId,
+            sourceIds:[],referenceHash:saved.receipt.appliedHash,
+            stage:'r07r_unsaved_review_edit_receipt_v1'};
+        }else{
+          if(state.receipt.referenceHash!==saved.receipt.appliedHash)
+            throw new R07LocalError('R07M_UNIFIED_RECEIPT_CONFLICT');
+          step='assistant-message';
+          body={kind:'message',messageId:assistantId,turnId:turn.turnId,
+            role:'assistant',
+            text:'تم إثبات تعديل مسودة عرض السعر في المراجعة رقم '+
+              String(saved.receipt.appliedRevision)+
+              '. المسودة ما زالت غير صادرة، ولم تُحفظ معاملة مالية.',
+            sourceIds:[]};
+        }
+      }
+      try{await this.append(scope,view,turn.turnId,step,body);}
+      catch(error){if(!isConflict(error))throw error;}
+    }
+    throw new R07LocalError('R07M_UNIFIED_RETRY_LIMIT');
   }
 
   /**
