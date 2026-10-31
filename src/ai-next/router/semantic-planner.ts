@@ -183,7 +183,7 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
         line.lineId===draft.lineIds[i]&&
         typeof line.description==='string'&&
         line.description.length>0&&line.description.length<=3000&&
-        !/[\\u0000-\\u001f\\u007f]/u.test(line.description))))
+        !/[\u0000-\u001f\u007f]/u.test(line.description))))
     throw new Error('R07P_UNTRUSTED_NAMED_DRAFT_LINES');
   const pending=context.pendingPriceFollowup;
   if(pending!==undefined&&(!record(pending)||!keys(pending,[
