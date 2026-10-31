@@ -54,6 +54,39 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
     return make('request_approval','none');
   if(unsafeCompound.test(value))return null;
 
+  // A single, fully scoped line patch can safely contain BOTH fields.
+  // This is NOT a general multi-action executor: the existing R07P
+  // audited context must verify exactly one line, and R07R applies one
+  // transactional review-draft revision with one R07D receipt.
+  // Match the entire sentence; extra instructions, currency or approval
+  // words must not be silently dropped.
+  let paired=value.match(
+    /^(?:خلي|غير|عدل) الكمية (\d{1,12}(?:\.\d{1,6})?) و(?:السعر|سعر القطعة) (\d{1,12}(?:\.\d{1,6})?)$/u
+  )||value.match(
+    /^set (?:the )?quantity to (\d{1,12}(?:\.\d{1,6})?) and (?:the )?unit price to (\d{1,12}(?:\.\d{1,6})?)$/u
+  );
+  if(paired){
+    const quantity=number(paired[1]!),price=number(paired[2]!);
+    return quantity&&quantity!=='0'&&price?
+      make('edit_draft','active_draft',[
+        {name:'quantity',value:quantity},
+        {name:'selling_unit_price',value:price},
+      ]):null;
+  }
+  paired=value.match(
+    /^(?:خلي|غير|عدل) (?:السعر|سعر القطعة) (\d{1,12}(?:\.\d{1,6})?) والكمية (\d{1,12}(?:\.\d{1,6})?)$/u
+  )||value.match(
+    /^set (?:the )?unit price to (\d{1,12}(?:\.\d{1,6})?) and (?:the )?quantity to (\d{1,12}(?:\.\d{1,6})?)$/u
+  );
+  if(paired){
+    const price=number(paired[1]!),quantity=number(paired[2]!);
+    return quantity&&quantity!=='0'&&price?
+      make('edit_draft','active_draft',[
+        {name:'quantity',value:quantity},
+        {name:'selling_unit_price',value:price},
+      ]):null;
+  }
+
   // Exact no-write/read-only controls.
   if(['لا تحفظ العرض هلق',"don't issue it yet"].includes(value))
     return make('discuss','active_draft');
