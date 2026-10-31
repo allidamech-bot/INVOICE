@@ -55,3 +55,6 @@ jobs:
           --config tests/ai-next/r07h-firebase-emulator.json
           --non-interactive
           "node --test tests/ai-next/r07o-local-http-emulator.test.mjs"
+
+      - name: Verify disabled production feature isolation
+        run: node scripts/verify-deployment-isolation.mjs
