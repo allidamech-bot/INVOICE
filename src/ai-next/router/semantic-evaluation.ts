@@ -174,3 +174,61 @@ export function scoreR07PSemanticCandidates(
     details,
   };
 }
+
+
+/**
+ * Language-specific diagnostics for supplied predictions only.
+ *
+ * This is not a live model benchmark: a caller can submit any candidate,
+ * including a hand-written fixture. Nothing here can attest which provider
+ * produced it or authorize a production release.
+ */
+export interface R07PActionConfusion {
+  expected:CandidateAction;
+  predicted:CandidateAction|'missing_prediction'|'invalid_candidate';
+  count:number;
+}
+export interface R07PMultilingualReport {
+  overall:R07PEvaluationScore;
+  byLanguage:Record<'ar'|'en'|'mixed',R07PEvaluationScore>;
+  actionConfusion:R07PActionConfusion[];
+  evaluationOnly:true;
+  modelOriginVerified:false;
+  productionAcceptance:'not_assessed';
+}
+
+/** Validate every case and prediction globally BEFORE splitting languages. */
+export function scoreR07PMultilingualReport(
+  cases:readonly R07PEvaluationGold[],
+  predictions:readonly R07PEvaluationPrediction[],
+):R07PMultilingualReport{
+  const overall=scoreR07PSemanticCandidates(cases,predictions);
+  const byLanguage={} as R07PMultilingualReport['byLanguage'];
+  for(const language of ['ar','en','mixed'] as const){
+    const group=cases.filter(c=>c.language===language);
+    // An empty language group has no score; the corpus contract for the
+    // multilingual benchmark requires at least one independently labelled case.
+    if(group.length===0)throw Error('R07P_EVAL_MISSING_LANGUAGE');
+    const ids=new Set(group.map(c=>c.id));
+    byLanguage[language]=scoreR07PSemanticCandidates(group,
+      predictions.filter(p=>ids.has(p.caseId)));
+  }
+  const byCase=new Map(predictions.map(p=>[p.caseId,p]));
+  const counts=new Map<string,R07PActionConfusion>();
+  for(const c of cases){
+    const prediction=byCase.get(c.id);
+    let predicted:R07PActionConfusion['predicted']='missing_prediction';
+    if(prediction){
+      try{predicted=parseR07PSemanticCandidate(prediction.candidate).action;}
+      catch{predicted='invalid_candidate';}
+    }
+    const key=JSON.stringify([c.expected.action,predicted]);
+    const existing=counts.get(key);
+    if(existing)existing.count++;
+    else counts.set(key,{expected:c.expected.action,predicted,count:1});
+  }
+  const actionConfusion=[...counts.values()].sort((a,b)=>
+    a.expected.localeCompare(b.expected)||a.predicted.localeCompare(b.predicted));
+  return {overall,byLanguage,actionConfusion,evaluationOnly:true,
+    modelOriginVerified:false,productionAcceptance:'not_assessed'};
+}
