@@ -302,7 +302,7 @@ export class R07RReviewDraftPreparationBridge{
     }
     const proposed=await this.deps.planner.plan(token,turn);
     if(proposed.status!=='proposed'||proposed.risk!=='preparation'||
-      proposed.interpretation!=='synthetic_model'||
+      !['synthetic_model','deterministic'].includes(proposed.interpretation)||
       proposed.intent.action!=='edit_draft'||
       proposed.intent.executable!==false||
       proposed.intent.subjectRef?.kind!=='draft'||

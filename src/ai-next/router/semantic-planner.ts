@@ -7,6 +7,7 @@ import type {AuthenticatedScope,ConversationMode,GroundedIntent} from '../domain
 import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {recognizeR05LocalIntent} from './local-intents.js';
+import {recognizeR07PLocalStructuredIntent} from './local-structured-intents.js';
 import {authorizeR07ScopedRequest,type R07AuthenticatedPrincipalVerifier,
   type R07ServerMembershipStore,type R07RequestEnvelope}
   from '../security/server-membership.js';
@@ -178,6 +179,8 @@ export class R07PSemanticPlanner{
     /** Explicitly test-only. Real providers belong to R07Q. */
     syntheticInterpreter?:R07PSyntheticInterpreter;
     allowSyntheticInference?:boolean;
+    /** Explicit server-only opt-in, no browser flags or production activation. */
+    allowDeterministicStructuredIntents?:boolean;
     /** Server-only R07Q model routing, never enabled by request flags. */
     routedInterpreter?:R07PRoutedInterpreter;
     allowRoutedInference?:boolean;
@@ -218,7 +221,9 @@ export class R07PSemanticPlanner{
     const synthetic=Boolean(this.deps.allowSyntheticInference&&
       this.deps.syntheticInterpreter);
     if(routed&&synthetic)throw new Error('R07P_CONFLICTING_INFERENCE_CONFIG');
-    if(!routed&&!synthetic){
+    const deterministic=this.deps.allowDeterministicStructuredIntents===true?
+      recognizeR07PLocalStructuredIntent(input.message):null;
+    if(!routed&&!synthetic&&!deterministic){
       return {status:'unsupported',interpretation:'unavailable',language,
         intent:build(scope,turnId,'clarify',null,[],[],['semantic_provider_unavailable'],[]),
         risk:'blocked',providerCalls:0,financialSaved:false,
@@ -228,8 +233,12 @@ export class R07PSemanticPlanner{
     verifyContext(scope,context);
     const references=context.references.map(r=>({kind:r.kind,id:r.id}));
     let rawCandidate:unknown,providerCalls:number,
-      interpretation:'synthetic_model'|'routed_model';
-    if(routed){
+      interpretation:'deterministic'|'synthetic_model'|'routed_model';
+    if(deterministic){
+      rawCandidate=deterministic;
+      providerCalls=0;
+      interpretation='deterministic';
+    }else if(routed){
       const outcome=await this.deps.routedInterpreter!.interpret({
         scope,message:input.message,language,mode:input.mode,
         knownReferences:references,

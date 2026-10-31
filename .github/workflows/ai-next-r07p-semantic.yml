@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'src/ai-next/router/semantic-planner.ts'
+      - 'src/ai-next/router/local-structured-intents.ts'
+      - 'src/ai-next/coordinator/r07r-trusted-review-session.ts'
+      - 'src/ai-next/coordinator/r07r-draft-preparation.ts'
+      - 'tests/ai-next/r07p-local-structured-intents.test.mjs'
       - 'tests/ai-next/r07p-semantic-planner.test.mjs'
       - 'src/ai-next/coordinator/fast-local-coordinator.ts'
       - 'src/ai-next/router/local-intents.ts'
@@ -34,7 +38,11 @@ jobs:
       - name: Strict TypeScript and isolated compilation
         run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
       - name: R07P synthetic semantic benchmark and security-negative cases
-        run: node --test tests/ai-next/r07p-semantic-planner.test.mjs
+        run: >-
+          node --test
+          tests/ai-next/r07p-semantic-planner.test.mjs
+          tests/ai-next/r07p-local-structured-intents.test.mjs
+          tests/ai-next/r07m-unified-multiturn.test.mjs
       - name: Deterministic R05 and R07M regression
         run: >-
           node --test
