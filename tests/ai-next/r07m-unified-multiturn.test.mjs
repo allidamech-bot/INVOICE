@@ -101,6 +101,7 @@ function setup(db=new DB(),options={}){
   const drafts=new R07DExperimentalFirestoreDraftStore(db);
   const session=createR07RTrustedOfflineReviewSession({
     offlineFixtureMode:true,offlineReceiptMode:true,
+    offlineDeterministicStructuredIntents:options.deterministic===true?true:undefined,
     principal,membership,journal,draftStore:drafts,
     customers:{resolveUnique:async(_scope,name)=>
       name==='شركة النور'?'verified-customer-noor':null},
@@ -212,4 +213,53 @@ test('revoked membership blocks historical replay before any draft retrieval',as
   await assert.rejects(revoked.edit('خلي العميل شركة النور',
     'edit-once',created.turnId,created.draft),/AUTH_MEMBERSHIP_DENIED/);
   assert.equal(h.db.writes,writes);
+});
+
+test('real local parsing edits an audited unsaved quotation without synthetic model interpretation',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('local-syntax-origin');
+  const origin=created.turnId;
+  const customer=await h.edit('خلي العميل شركة النور','local-customer',origin);
+  assert.equal(customer.status,'applied_unsaved_review');
+  assert.equal(customer.providerCalls,0);
+  const currency=await h.edit('خلي العملة USD','local-currency',origin);
+  assert.equal(currency.appliedDraftRevision,3);
+  // Item addition remains delegated to the existing disabled synthetic
+  // fixture. The new parser does not invent description or line identity.
+  await h.edit('أضف أول منتج','fixture-line-setup',origin);
+  const before=h.interpretations();
+  const correction=await h.edit('لا خلي الكمية ١٢','local-quantity',origin);
+  assert.equal(correction.status,'applied_unsaved_review');
+  assert.equal(correction.providerCalls,0);
+  assert.equal(h.interpretations(),before,
+    'the zero-cost local edit did not ask a fixture/model');
+  const draft=await h.drafts.read(scope,origin);
+  assert.equal(draft.draftRevision,5);
+  assert.equal(draft.explicitCustomerId,'verified-customer-noor');
+  assert.equal(draft.currency,'USD');
+  assert.equal(draft.lineItems[0].quantity,'12');
+  assert.equal(draft.status,'needs_review');
+  assert.equal(draft.approvalReceiptId,null);
+  const replay=await h.edit('لا خلي الكمية ١٢','local-quantity',origin,
+    await h.drafts.read(scope,origin));
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftRevision,5);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,5);
+});
+
+test('local deterministic text with two lines requires clarification, never edits',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('local-ambiguity-origin');
+  const origin=created.turnId;
+  await h.edit('خلي العملة USD','local-ambiguity-currency',origin);
+  await h.edit('أضف أول منتج','local-ambiguity-first',origin);
+  await h.edit('أضف المنتج الثاني','local-ambiguity-second',origin);
+  const prior=await h.drafts.read(scope,origin),calls=h.interpretations();
+  const result=await h.edit('لا خلي الكمية ١٢','local-ambiguous-quantity',origin);
+  assert.equal(result.status,'needs_clarification');
+  assert.equal(result.providerCalls,0);
+  assert.equal(h.interpretations(),calls);
+  assert.equal(result.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,
+    prior.draftRevision);
 });
