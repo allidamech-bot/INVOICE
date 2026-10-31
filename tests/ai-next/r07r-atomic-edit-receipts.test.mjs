@@ -654,7 +654,7 @@ test('ambiguous or missing trusted customer becomes verified no-edit clarificati
     TOKEN,auditInput(created));
   assert.equal(result.status,'needs_clarification');
   assert.equal(result.appliedDraftRevision,null);
-  assert.match(result.reply,/لم يحدث أي تعديل/);
+  assert.match(result.reply,/لم أؤكد تنفيذ أي تعديل/);
   assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,1);
   assert.equal(receiptKeys(h.db).length,0);
   const again=await unified(setup(h.db)).acceptOfflineUnifiedReviewEdit(
