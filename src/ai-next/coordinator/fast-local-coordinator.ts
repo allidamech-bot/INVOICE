@@ -7,6 +7,10 @@
 import type {AuthenticatedScope,ConversationTurn,ReviewDraft,TaskState}
   from '../domain/contracts.js';
 import type {R07PPlan} from '../router/semantic-planner.js';
+import {fingerprintR07RReviewRequest,
+  type R07RReceiptPrepareInput} from './r07r-draft-preparation.js';
+import type {R07DExperimentalFirestoreDraftStore}
+  from '../storage/firestore-review-drafts.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {assertCoreContract} from '../domain/validation.js';
 import {transitionTask} from '../domain/state-machine.js';
@@ -29,6 +33,13 @@ const isConflict=(error:unknown):boolean=>error instanceof Error&&[
 ].includes(error.message);
 type Completion={reply:string;draft:ReviewDraft|null;revision:number;
   syntheticInvocations?:number};
+export interface R07MReviewReceiptAuditResult{
+  status:'review_receipt_checkpointed';turnId:string;taskId:string;
+  replayed:boolean;conversationRevision:number;
+  appliedDraftRevision:number;currentDraftRevision:number;
+  appliedDraftHash:string;financialSaved:false;
+  draftEditPerformed:false;providerCalls:0;
+}
 export interface R07MSemanticTurnResult{
   status:'completed';turnId:string;threadId:string;taskId:string;
   replayed:boolean;reply:string;conversationRevision:number;
@@ -101,6 +112,11 @@ export class R07MFastLocalCoordinator{
     offlineSemanticPlanner?:Pick<import('../router/semantic-planner.js').R07PSemanticPlanner,'plan'>;
     /** Server-owned safety switch, NOT a request/browser flag. */
     allowOfflineSemanticFixtures?:boolean;
+    /** Optional existing R07D receipt reader, not a new storage writer. */
+    offlineReviewReceiptStore?:Pick<R07DExperimentalFirestoreDraftStore,
+      'readEditReceipt'>;
+    /** Injected only for isolated offline verification, never browser flags. */
+    allowOfflineReviewReceiptAudit?:boolean;
   }){}
   private now():Date{return(this.deps.clock??(()=>new Date()))();}
   private async auth(token:string,raw:R07RequestEnvelope):
@@ -368,6 +384,107 @@ export class R07MFastLocalCoordinator{
       syntheticInvocations:result.syntheticInvocations??0,
       semanticOutcome:'proposal_only',financialSaved:false,
       businessReadPerformed:false,draftEdited:false};
+  }
+
+  /**
+   * Audits a PREVIOUSLY COMMITTED R07D review edit in R07M's SAME journal.
+   * This does not mutate a draft. The two Firestore roots are NOT one
+   * transaction: the R07D receipt remains authoritative and can be linked
+   * after a crash without repeating the edit or invoking any model.
+   *
+   * This is deliberately only a checkpoint on an existing COMPLETED
+   * semantic-proposal turn, not a fabricated R07M financial operation.
+   */
+  async linkOfflineReviewReceipt(token:string,raw:unknown):
+    Promise<R07MReviewReceiptAuditResult>{
+    if(!this.deps.allowOfflineReviewReceiptAudit||
+      !this.deps.offlineReviewReceiptStore)
+      throw new R07LocalError('R07M_REVIEW_RECEIPT_AUDIT_DISABLED');
+    if(!raw||typeof raw!=='object'||Array.isArray(raw)||
+      Object.getPrototypeOf(raw)!==Object.prototype||
+      Object.keys(raw).sort().join('|')!==[
+        'turn','originTurnId','expectedDraftRevision','expectedDraftHash',
+      ].sort().join('|'))
+      throw new R07LocalError('R07M_INVALID_REVIEW_AUDIT_INPUT');
+    const input=raw as R07RReceiptPrepareInput;
+    validateRequest(input.turn);
+    const fingerprint=await fingerprintR07RReviewRequest(input);
+    const scope=await this.auth(token,envelope(input.turn));
+    if(scope.scopeType!=='business'||scope.role==='viewer'||
+      input.turn.mode!=='controller')
+      throw new R07LocalError('R07M_REVIEW_AUDIT_DENIED');
+    const turn=await this.deps.journal.readTurnByRequest(
+      scope,input.turn.idempotencyKey);
+    if(!turn||!exactRequest(turn,input.turn)||
+      turn.mode!=='controller')
+      throw new R07LocalError('R07M_REVIEW_TURN_NOT_VERIFIED');
+    const current=await this.read(scope);
+    let state:TaskState|undefined;
+    if(current.turn?.turnId===turn.turnId){
+      state=current.task??undefined;
+    }else{
+      // Full history is exceptional for an older request. Never treat an
+      // incomplete materialized latest turn as a verified historical task.
+      const history=await this.deps.journal.auditFullHistory(scope);
+      state=history.tasks.find(x=>x.taskId===turn.taskId);
+    }
+    if(!state||state.taskId!==turn.taskId||
+      state.turnId!==turn.turnId||
+      state.taskType!=='semantic_proposal_only'||
+      state.state!=='completed'||
+      exactScopeKey(state.scope)!==exactScopeKey(scope))
+      throw new R07LocalError('R07M_REVIEW_TASK_NOT_COMPLETED');
+    const saved=await this.deps.offlineReviewReceiptStore.readEditReceipt({
+      scope,turnId:input.originTurnId,requestKey:input.turn.idempotencyKey,
+      requestFingerprint:fingerprint,
+      expectedRevision:input.expectedDraftRevision,
+      expectedHash:input.expectedDraftHash,
+    });
+    if(!saved||!saved.replayed||
+      saved.receipt.appliedRevision!==input.expectedDraftRevision+1||
+      saved.receipt.appliedHash.length!==64||
+      saved.draft.draftId!=='draft-'+input.originTurnId||
+      saved.draft.status!=='needs_review'||
+      saved.draft.approvalReceiptId!==null||
+      saved.draft.draftRevision<saved.receipt.appliedRevision||
+      exactScopeKey(saved.draft.scope)!==exactScopeKey(scope))
+      throw new R07LocalError('R07M_REVIEW_RECEIPT_NOT_VERIFIED');
+    const id='review-receipt-'+turn.turnId;
+    const body:ConversationEventBody={
+      kind:'checkpoint',taskId:state.taskId,checkpointId:id,
+      sourceIds:[],referenceHash:saved.receipt.appliedHash,
+      stage:'r07r_unsaved_review_edit_receipt_v1',
+    };
+    for(let attempts=0;attempts<8;attempts++){
+      const view=await this.read(scope);
+      try{
+        const committed=await this.deps.journal.append({
+          scope,expectedRevision:view.revision,
+          eventId:eventId(turn.turnId,'review-receipt'),
+          idempotencyKey:eventKey(turn.turnId,'review-receipt'),
+          body,now:serverTime(()=>this.now(),view.lastEventAt),
+        });
+        if(committed.authoritativeFullSnapshot!==false||
+          committed.event.scopeKey!==exactScopeKey(scope)||
+          committed.event.eventId!==eventId(turn.turnId,'review-receipt')||
+          committed.event.body.kind!=='checkpoint'||
+          committed.event.body.referenceHash!==saved.receipt.appliedHash||
+          committed.event.body.taskId!==state.taskId)
+          throw new R07LocalError('R07M_INVALID_REVIEW_CHECKPOINT');
+        return {
+          status:'review_receipt_checkpointed',turnId:turn.turnId,
+          taskId:state.taskId,replayed:committed.replayed,
+          conversationRevision:committed.revision,
+          appliedDraftRevision:saved.receipt.appliedRevision,
+          currentDraftRevision:saved.draft.draftRevision,
+          appliedDraftHash:saved.receipt.appliedHash,
+          financialSaved:false,draftEditPerformed:false,providerCalls:0,
+        };
+      }catch(error){
+        if(!isConflict(error))throw error;
+      }
+    }
+    throw new R07LocalError('R07M_REVIEW_CHECKPOINT_RETRY_LIMIT');
   }
   async current(token:string,raw:unknown){
     const scope=await this.auth(token,raw as R07RequestEnvelope);

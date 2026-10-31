@@ -1,0 +1,45 @@
+name: LOUREX AI Next R07M Review Receipt Audit Link
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/coordinator/fast-local-coordinator.ts'
+      - 'src/ai-next/coordinator/r07r-draft-preparation.ts'
+      - 'tests/ai-next/r07r-atomic-edit-receipts.test.mjs'
+      - '.github/workflows/ai-next-r07m-review-receipt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07m-review-receipt-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  receipt-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and source compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Two-store crash recovery and audit checkpoint tests
+        run: node --test tests/ai-next/r07r-atomic-edit-receipts.test.mjs
+      - name: Existing R07M R07R and replay regression
+        run: >-
+          node --test
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+          tests/ai-next/r07m-semantic-durable.test.mjs
+          tests/ai-next/r07r-draft-preparation.test.mjs
+          tests/ai-next/r07r-trusted-review-session.test.mjs
+      - name: Financial and production isolation
+        run: node scripts/verify-deployment-isolation.mjs

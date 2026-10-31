@@ -47,6 +47,25 @@ export interface R07RReceiptPrepareInput extends R07RPrepareInput{
   /** Trusted origin must match the verified draft in the R07P plan. */
   originTurnId:string;
 }
+
+/** Shared immutable request fingerprint for R07D receipt and R07M audit link. */
+export async function fingerprintR07RReviewRequest(
+  input:R07RReceiptPrepareInput):Promise<string>{
+  if(!safeId(input.originTurnId)||
+    !Number.isSafeInteger(input.expectedDraftRevision)||
+    input.expectedDraftRevision<1||
+    !HASH.test(input.expectedDraftHash))
+    throw new R07RPreparationError('R07R_INVALID_RECEIPT_INPUT');
+  validateRequest(input.turn);
+  const hashData=JSON.stringify([
+    input.originTurnId,input.expectedDraftRevision,
+    input.expectedDraftHash,input.turn,
+  ]);
+  const bytes=await crypto.subtle.digest('SHA-256',
+    new TextEncoder().encode(hashData));
+  return Array.from(new Uint8Array(bytes),
+    x=>x.toString(16).padStart(2,'0')).join('');
+}
 export interface R07RReceiptedEdit extends R07RPreparedEdit{
   replayed:boolean;
   appliedRevision:number;
@@ -201,14 +220,7 @@ export class R07RReviewDraftPreparationBridge{
       !Number.isSafeInteger(input.expectedDraftRevision)||
       input.expectedDraftRevision<1||!HASH.test(input.expectedDraftHash))
       throw new R07RPreparationError('R07R_INVALID_RECEIPT_INPUT');
-    const hashData=JSON.stringify([
-      input.originTurnId,input.expectedDraftRevision,
-      input.expectedDraftHash,input.turn,
-    ]);
-    const bytes=await crypto.subtle.digest(
-      'SHA-256',new TextEncoder().encode(hashData));
-    const fingerprint=Array.from(new Uint8Array(bytes),
-      x=>x.toString(16).padStart(2,'0')).join('');
+    const fingerprint=await fingerprintR07RReviewRequest(input);
     const receipt={
       originTurnId:input.originTurnId,
       requestKey:input.turn.idempotencyKey,
