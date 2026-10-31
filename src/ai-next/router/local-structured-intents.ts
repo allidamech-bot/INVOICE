@@ -48,7 +48,9 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
     /[\u0000-\u001f\u007f]/u.test(raw))return null;
   const value=normalize(raw);
   if(!value)return null;
-  if(['احفظ العرض واصدره','approve and post this invoice'].includes(value))
+  if(value==='احفظ العرض واصدره')
+    return make('request_approval','active_draft');
+  if(value==='approve and post this invoice')
     return make('request_approval','none');
   if(unsafeCompound.test(value))return null;
 
