@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'src/ai-next/router/semantic-evaluation.ts'
+      - 'scripts/ai-next-semantic-report.mjs'
+      - 'tests/ai-next/r07p-multilingual-report.test.mjs'
       - 'tests/ai-next/r07p-semantic-evaluation.test.mjs'
       - 'tests/ai-next/r07p-semantic-evaluation-gold.json'
       - '.github/workflows/ai-next-r07p-multilingual-evaluation.yml'
@@ -33,6 +35,9 @@ jobs:
       - name: Strict TypeScript and isolated compilation
         run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
       - name: Score independent offline predictions, never call model providers
-        run: node --test tests/ai-next/r07p-semantic-evaluation.test.mjs
+        run: >-
+          node --test
+          tests/ai-next/r07p-semantic-evaluation.test.mjs
+          tests/ai-next/r07p-multilingual-report.test.mjs
       - name: Preserve finance and production isolation
         run: node scripts/verify-deployment-isolation.mjs
