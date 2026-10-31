@@ -22,6 +22,8 @@ import type {R07DExperimentalFirestoreDraftStore}
 
 export const R07R_TRUSTED_OFFLINE_REVIEW_SESSION_ACTIVE=false as const;
 export interface R07RTrustedSessionDependencies{
+  /** A server-owned, explicit offline-fixture-only construction grant. */
+  offlineFixtureMode?:true;
   principal:R07AuthenticatedPrincipalVerifier;
   membership:R07ServerMembershipStore;
   journal:R07PHistoryAuthority;
@@ -39,6 +41,8 @@ export function createR07RTrustedOfflineReviewSession(
   planner:R07PSemanticPlanner;
   bridge:R07RReviewDraftPreparationBridge;
 }{
+  if(deps.offlineFixtureMode!==true)
+    throw Error('R07R_OFFLINE_FIXTURE_CONSENT_REQUIRED');
   const context=new R07PTrustedHistoryContext(deps.journal,deps.draftStore);
   const planner=new R07PSemanticPlanner({
     principal:deps.principal,membership:deps.membership,context,
