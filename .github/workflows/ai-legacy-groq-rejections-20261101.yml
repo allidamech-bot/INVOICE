@@ -1,0 +1,37 @@
+name: LOUREX legacy AI Groq rejection classification (offline)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/_ai/router.js'
+      - 'tests/ai-groq-error-classification-20261101.test.mjs'
+      - '.github/workflows/ai-legacy-groq-rejections-20261101.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  groq-safe-failure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict type validation
+        run: npm run typecheck
+      - name: AI router and safe-error offline regressions
+        run: >-
+          node --test --test-concurrency=1
+          tests/ai-groq-error-classification-20261101.test.mjs
+          tests/ai-multi-provider-router.test.mjs
+          tests/ai-provider-contract-v448.test.mjs
+      - name: Production and financial isolation assertion
+        run: node scripts/verify-deployment-isolation.mjs
