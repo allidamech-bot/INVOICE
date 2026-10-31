@@ -18,7 +18,10 @@ test('Hosted verification is limited to free feature-branch pushes and cannot pu
     assert.match(yaml,/runs-on:\s*ubuntu-latest/,name);
     assert.match(yaml,/permissions:\s*\n\s*contents:\s*read/,name);
     assert.doesNotMatch(yaml,/^\s*(?:pull_request_target|deployment|release|schedule):/m,name);
-    assert.doesNotMatch(yaml,/^\s+-\s+main\s*$/m,name);
+    // PRs targeting main run read-only verification and are not production
+    // pushes. Only a main *push* can automatically deploy via Git integration;
+    // preserve the existing push-block feature-branch restriction above.
+    if(pushBlock)assert.doesNotMatch(pushBlock,/^\s+-\s+main\s*$/m,name);
     assert.doesNotMatch(yaml,/\b(?:vercel\s+(?:deploy|promote|--prod)|gh\s+pr\s+merge|git\s+push\s+origin\s+main)\b/i,name);
   }
 });
