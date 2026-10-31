@@ -452,7 +452,7 @@ export class R07MFastLocalCoordinator{
     const receiptId='review-receipt-'+turn.turnId;
     const assistantId='assistant-'+turn.turnId;
     const clarification=
-      'الطلب غير محدد بشكل كافٍ لتعديل مسودة عرض السعر. حدد المسودة والبند أو القيمة المطلوبة. لم يحدث أي تعديل.';
+      'الطلب غير محدد بشكل كافٍ لتعديل المسودة. حدد المسودة والبند أو القيمة المطلوبة. لم أؤكد تنفيذ أي تعديل.';
     const verifiedReceipt=()=>this.deps.offlineReviewReceiptStore!.readEditReceipt({
       scope,turnId:input.originTurnId,
       requestKey:input.turn.idempotencyKey,
