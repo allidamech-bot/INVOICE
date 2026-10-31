@@ -1,0 +1,43 @@
+name: LOUREX AI Next R07V Groq No-Network Readiness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/router/groq-synthetic-readiness.ts'
+      - 'scripts/ai-next-groq-readiness.mjs'
+      - 'tests/ai-next/r07v-groq-synthetic-readiness.test.mjs'
+      - '.github/workflows/ai-next-r07v-groq-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07v-groq-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  groq-readiness-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and isolated compile
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: No-network eligibility security gate and existing benchmarks
+        run: >-
+          node --test
+          tests/ai-next/r07v-groq-synthetic-readiness.test.mjs
+          tests/ai-next/r07t-dialogue-benchmark.test.mjs
+          tests/ai-next/r07p-blind-benchmark.test.mjs
+          tests/ai-next/r07q-routed-semantic.test.mjs
+      - name: Prevent finance and production coupling
+        run: node scripts/verify-deployment-isolation.mjs
