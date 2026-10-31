@@ -74,7 +74,9 @@ const candidate=message=>{
     facts=[{name:'currency',value:'USD'}];
   }else if(message.includes('أضف')){
     facts=[{name:'operation',value:'append_line'},
-      {name:'description',value:message.includes('الثاني')?
+      {name:'description',value:message.includes('علب عطر')?
+        'علب عطر':message.includes('عبوات عطر')?'عبوات عطر':
+        message.includes('الثاني')?
         'Second synthetic item':'First synthetic item'},
       {name:'quantity',value:'10'},{name:'unit',value:'PCS'},
       {name:'selling_unit_price',value:'15'},{name:'currency',value:'USD'}];
@@ -547,6 +549,114 @@ test('multi-field ambiguity and foreign/malformed ordinals cannot hijack line co
     origin,before);
   assert.equal(other.status,'needs_clarification');
   assert.equal(other.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,
+    before.draftRevision);
+});
+
+test('name-based clarification selects authoritative Arabic line after restart with one receipt',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('named-ar-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','named-ar-currency',origin);
+  await h.edit('أضف علب عطر','named-ar-first',origin);
+  await h.edit('أضف عبوات عطر','named-ar-second',origin);
+  const prior=await h.drafts.read(scope,origin);
+  assert.deepEqual(prior.lineItems.map(l=>l.description),
+    ['علب عطر','عبوات عطر']);
+  const ask=await h.edit('لا خلي الكمية ١٢','named-ar-ask',origin,prior);
+  assert.equal(ask.status,'needs_clarification');
+  assert.equal(ask.appliedDraftRevision,null);
+  const resumed=setup(h.db,{deterministic:true});
+  const answer=await resumed.edit('الصنف عبوات عطر',
+    'named-ar-answer',origin,prior);
+  assert.equal(answer.status,'applied_unsaved_review');
+  assert.equal(answer.providerCalls,0);
+  assert.equal(answer.financialSaved,false);
+  assert.equal(answer.appliedDraftRevision,prior.draftRevision+1);
+  assert.equal(resumed.interpretations(),0);
+  const draft=await resumed.drafts.read(scope,origin);
+  assert.equal(draft.lineItems[0].quantity,'10');
+  assert.equal(draft.lineItems[1].quantity,'12');
+  assert.equal(draft.lineItems[1].lineId,prior.lineItems[1].lineId);
+  assert.equal(draft.status,'needs_review');
+  assert.equal(draft.approvalReceiptId,null);
+  const restored=setup(h.db,{deterministic:true});
+  const replay=await restored.edit('الصنف عبوات عطر',
+    'named-ar-answer',origin,prior);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftRevision,prior.draftRevision+1);
+  assert.equal(restored.interpretations(),0);
+  assert.equal((await restored.drafts.read(scope,origin)).draftRevision,
+    prior.draftRevision+1);
+  await assert.rejects(restored.edit('الصنف علب عطر',
+    'named-ar-answer',origin,prior),/R07_TURN_IDEMPOTENCY_COLLISION/);
+  const history=await restored.history();
+  assert.equal(history.messages.filter(m=>m.turnId===answer.turnId&&
+    m.role==='assistant').length,1);
+  assert.equal(history.checkpointRefs.filter(x=>x.taskId===answer.taskId).length,2);
+});
+
+test('named line matching works across three verified lines, preserving other quantities',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('named-three-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','named-three-currency',origin);
+  await h.edit('أضف أول منتج','named-three-first',origin);
+  await h.edit('أضف علب عطر','named-three-second',origin);
+  await h.edit('أضف عبوات عطر','named-three-third',origin);
+  const prior=await h.drafts.read(scope,origin);
+  assert.equal(prior.lineItems.length,3);
+  assert.equal((await h.edit('لا خلي الكمية ٢٠',
+    'named-three-question',origin,prior)).status,'needs_clarification');
+  const result=await h.edit('البند علب عطر','named-three-answer',
+    origin,prior);
+  assert.equal(result.status,'applied_unsaved_review');
+  assert.equal(result.providerCalls,0);
+  const after=await h.drafts.read(scope,origin);
+  assert.deepEqual(after.lineItems.map(x=>x.quantity),['10','20','10']);
+});
+
+test('duplicate normalized line names cannot choose arbitrarily or call model',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('named-duplicate-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','named-duplicate-currency',origin);
+  await h.edit('أضف علب عطر','named-duplicate-first',origin);
+  await h.edit('أضف علب عطر','named-duplicate-second',origin);
+  const prior=await h.drafts.read(scope,origin);
+  assert.equal(prior.lineItems.length,2);
+  const ask=await h.edit('لا خلي الكمية ١٢',
+    'named-duplicate-question',origin,prior);
+  assert.equal(ask.status,'needs_clarification');
+  const calls=h.interpretations();
+  const out=await h.edit('الصنف علب عطر',
+    'named-duplicate-answer',origin,prior);
+  assert.equal(out.status,'needs_clarification');
+  assert.equal(out.appliedDraftRevision,null);
+  assert.equal(h.interpretations(),calls);
+  const after=await h.drafts.read(scope,origin);
+  assert.equal(after.draftRevision,prior.draftRevision);
+  assert.deepEqual(after.lineItems,prior.lineItems);
+});
+
+test('orphan, interrupted and hostile name answers cannot resurrect earlier edit',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('named-blocked-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','named-blocked-currency',origin);
+  await h.edit('أضف علب عطر','named-blocked-first',origin);
+  await h.edit('أضف عبوات عطر','named-blocked-second',origin);
+  const before=await h.drafts.read(scope,origin);
+  const calls=h.interpretations();
+  const orphan=await h.edit('الصنف عبوات عطر','named-orphan',origin,before);
+  assert.equal(orphan.status,'needs_clarification');
+  assert.equal(orphan.appliedDraftRevision,null);
+  assert.equal(h.interpretations(),calls);
+  assert.equal((await h.edit('لا خلي الكمية 12',
+    'named-pending-ask',origin,before)).status,'needs_clarification');
+  const interrupt=await h.edit('الصنف علب عطر واحفظ',
+    'named-unsafe-interrupt',origin,before);
+  assert.equal(interrupt.status,'needs_clarification');
+  assert.equal(interrupt.appliedDraftRevision,null);
+  const delayed=await h.edit('الصنف عبوات عطر','named-delayed',origin,before);
+  assert.equal(delayed.status,'needs_clarification');
+  assert.equal(delayed.appliedDraftRevision,null);
   assert.equal((await h.drafts.read(scope,origin)).draftRevision,
     before.draftRevision);
 });
