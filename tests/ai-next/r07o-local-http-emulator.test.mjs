@@ -329,3 +329,111 @@ test('unified edit HTTP extension is disabled by default, then receipt-verified 
     assert.equal((await drafts.read(sameScope,created.turnId)).draftRevision,2);
   }finally{handler=original;}
 });
+
+
+test('real HTTP lost ACK after R07D receipt: unchanged key recovers without second inference',async()=>{
+  const reviewEnv={...env,threadId:'r07o-loopback-lost-ack-review'};
+  const originalCreate=await direct('accept',{
+    ...reviewEnv,requestId:'lost-ack-origin-request',
+    idempotencyKey:'lost-ack-origin-key',
+    userMessageId:'lost-ack-origin-user',
+    message:'أنشئ مسودة عرض سعر',mode:'controller',
+  });
+  assert.equal(originalCreate.status,200);
+  const created=await originalCreate.json();
+  assert.equal(created.draft.draftRevision,1);
+  const journal=new R07JExperimentalIndexedJournal(db,true);
+  const drafts=new R07DExperimentalFirestoreDraftStore(db);
+  let interpretations=0;
+  const session=createR07RTrustedOfflineReviewSession({
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    principal,membership,journal,draftStore:drafts,
+    customers:{resolveUnique:async(_scope,name)=>
+      name==='شركة النور'?'r07o-lost-ack-customer':null},
+    syntheticInterpreter:{interpret:async()=>{
+      interpretations++;
+      return {action:'edit_draft',subject:null,reference:'active_draft',
+        facts:[{name:'customer_name',value:'شركة النور'}],
+        sourceIds:[],missingFields:[]};
+    }},
+    clock:()=>new Date(at),
+  });
+  const reviewCoordinator=new R07MFastLocalCoordinator({
+    journal,draftStore:drafts,principal,membership,
+    offlineReviewBridge:session.bridge,
+    offlineReviewReceiptStore:drafts,
+    allowOfflineUnifiedReviewEdit:true,
+    clock:()=>new Date(at),
+  });
+  const reviewInput={
+    turn:{...reviewEnv,requestId:'lost-ack-edit-request',
+      idempotencyKey:'lost-ack-edit-key',
+      userMessageId:'lost-ack-edit-user',
+      message:'خلي العميل شركة النور',mode:'controller'},
+    originTurnId:created.turnId,
+    expectedDraftRevision:created.draft.draftRevision,
+    expectedDraftHash:created.draft.immutableRevisionHash,
+  };
+  const before=(await db.collection(R07D_EDIT_RECEIPT_COLLECTION).get()).size;
+  const originalHandler=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:reviewCoordinator,allowOfflineReviewEditPreview:true,
+    });
+    const dropped=new R07OLocalHttpPreviewPort({
+      allowedOrigin:endpoint,token:async()=>token,
+      transport:async request=>{
+        const response=await transport(request);
+        assert.equal(response.status,200,'server must finish edit first');
+        throw Error('TEST_LOST_HTTP_ACK_AFTER_COMMIT');
+      },
+    });
+    await assert.rejects(dropped.reviewEdit(reviewInput),
+      /TEST_LOST_HTTP_ACK_AFTER_COMMIT/);
+    const scoped={...scope,threadId:reviewEnv.threadId};
+    assert.equal((await drafts.read(scoped,created.turnId)).draftRevision,2);
+    assert.equal(interpretations,1);
+    assert.equal((await db.collection(R07D_EDIT_RECEIPT_COLLECTION).get()).size,
+      before+1,'one atomic edit receipt');
+    const restored=new R07OLocalHttpPreviewPort({
+      allowedOrigin:endpoint,token:async()=>token,transport,
+    });
+    const result=await restored.reviewEdit(reviewInput);
+    assert.equal(result.status,'applied_unsaved_review');
+    assert.equal(result.replayed,true);
+    assert.equal(result.appliedDraftRevision,2);
+    assert.equal(result.financialSaved,false);
+    assert.equal(result.providerCalls,0);
+    assert.equal(interpretations,1,'manual retry must never re-interpret');
+    const audit=await restored.history(reviewEnv);
+    assert.equal(audit.tasks.at(-1).taskType,'unsaved_review_edit');
+    assert.equal(audit.tasks.at(-1).state,'completed');
+    assert.equal(audit.checkpointRefs.filter(c=>c.taskId===result.taskId).length,2);
+    assert.equal(audit.messages.filter(m=>m.turnId===result.turnId&&
+      m.role==='assistant').length,1);
+    assert.equal((await drafts.read(scoped,created.turnId)).draftRevision,2);
+  }finally{handler=originalHandler;}
+});
+test('R07O client rejects fabricated success payload without receipt or revision',async()=>{
+  const invalid=new R07OLocalHttpPreviewPort({
+    allowedOrigin:'http://127.0.0.1:43122',
+    token:async()=>token,
+    transport:async()=>new Response(JSON.stringify({
+      status:'applied_unsaved_review',financialSaved:false,
+      providerCalls:0,turnId:'fake-turn',taskId:'fake-task',
+      threadId:env.threadId,reply:'تم التعديل',replayed:false,
+      conversationRevision:3,appliedDraftRevision:null,
+      appliedDraftHash:null,
+    }),{status:200,headers:{'Content-Type':'application/json'}}),
+  });
+  await assert.rejects(invalid.reviewEdit({
+    turn:{...quote,requestId:'forged-response-request',
+      idempotencyKey:'forged-response-key',
+      userMessageId:'forged-response-user',
+      message:'خلي العميل شركة النور'},
+    originTurnId:'fixture-origin',expectedDraftRevision:1,
+    expectedDraftHash:'a'.repeat(64),
+  }),/R07O_UNVERIFIED_REVIEW_RESPONSE/);
+});
