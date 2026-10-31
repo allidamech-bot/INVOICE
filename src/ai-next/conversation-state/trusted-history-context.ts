@@ -12,7 +12,8 @@ import {exactScopeKey} from '../domain/turn-journal.js';
 import type {ConversationSnapshot} from '../conversation-state/event-store.js';
 import type {R07PTrustedContext,R07PContextReader}
   from '../router/semantic-planner.js';
-import {parseR07PStandaloneLineReply,recognizeR07PLocalStructuredIntent}
+import {parseR07PStandaloneLineReply,parseR07PNamedLineReply,
+  resolveR07PNamedLineId,recognizeR07PLocalStructuredIntent}
   from '../router/local-structured-intents.js';
 
 export const R07P_TRUSTED_HISTORY_CONTEXT_ACTIVATED=false as const;
@@ -129,12 +130,19 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
     // comes from canonical R07D saved lineItems in their recorded order.
     let pendingLineFollowup:R07PTrustedContext['pendingLineFollowup'];
     const ordinal=current?parseR07PStandaloneLineReply(current.message):null;
+    const named=current&&ordinal===null?
+      parseR07PNamedLineReply(current.message):null;
+    const selectedLineId=active?
+      ordinal!==null&&active.lineItems.length===2?
+        active.lineItems[ordinal]?.lineId??null:
+        named!==null?resolveR07PNamedLineId(named,active.lineItems):null:
+      null;
     const previousCandidate=previous?
       recognizeR07PLocalStructuredIntent(previous.userMessage.text):null;
     const previousQuantity=previousCandidate?.facts.length===1&&
       previousCandidate.facts[0]?.name==='quantity'?
       previousCandidate.facts[0].value:null;
-    if(ordinal!==null&&previousQuantity&&
+    if(selectedLineId&&previousQuantity&&
       /^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/u.test(previousQuantity)&&
       Number(previousQuantity)>0&&
       previousCandidate?.action==='edit_draft'&&
@@ -142,9 +150,9 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
       previousCandidate.subject===null&&
       previousCandidate.missingFields.length===0&&
       previousCandidate.sourceIds.length===0&&
-      current&&active&&active.lineItems.length===2&&
+      current&&active&&active.lineItems.length>=2&&
       active.lineItems.every(line=>typeof line.lineId==='string'&&line.lineId.length>0)&&
-      active.lineItems[0]!.lineId!==active.lineItems[1]!.lineId&&
+      new Set(active.lineItems.map(line=>line.lineId)).size===active.lineItems.length&&
       last&&previous&&lastTask&&previousTask&&
       last.userMessageId===current.userMessageId&&
       last.idempotencyKey===current.idempotencyKey&&
@@ -171,7 +179,7 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
         draftRevision:active.draftRevision,
         field:'quantity',
         value:previousQuantity,
-        lineId:active.lineItems[ordinal]!.lineId,
+        lineId:selectedLineId,
       };
     }
     const refs=candidates.map(d=>({

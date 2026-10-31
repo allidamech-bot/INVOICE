@@ -9,7 +9,8 @@ import {
   recognizeR07PLocalStructuredIntent,
   R07P_LOCAL_STRUCTURED_INTENTS_ACTIVE,
 } from '../../dist/src/ai-next/router/local-structured-intents.js';
-import {parseR07PStandaloneLineReply}
+import {parseR07PStandaloneLineReply,parseR07PNamedLineReply,
+  resolveR07PNamedLineId}
   from '../../dist/src/ai-next/router/local-structured-intents.js';
 import {scoreR07PMultilingualReport}
   from '../../dist/src/ai-next/router/semantic-evaluation.js';
@@ -115,4 +116,46 @@ test('ordinal-only replies are not executable standalone intents',()=>{
     'الثاني\nsave','the second item '.repeat(20)]){
     assert.equal(parseR07PStandaloneLineReply(text),null,text);
   }
+});
+
+test('named line replies require explicit prefixes and full normalized exact description',()=>{
+  const lines=[
+    {lineId:'verified-1',description:'علب عطر'},
+    {lineId:'verified-2',description:'عبوات عطر'},
+    {lineId:'verified-3',description:'Premium  Bottle'},
+  ];
+  for(const [input,id] of [
+    ['الصنف علب عطر','verified-1'],
+    ['البند عُبوات عطر','verified-2'],
+    ['item: premium bottle','verified-3'],
+    ['the item Premium Bottle','verified-3'],
+    ['الصنف عَلَب عِطر','verified-1'],
+  ]){
+    const name=parseR07PNamedLineReply(input);
+    assert.ok(name,input);
+    assert.equal(resolveR07PNamedLineId(name,lines),id,input);
+    assert.equal(recognize(input),null);
+  }
+  for(const untrusted of [
+    'علب عطر','الصنف','item:','item: <script>',
+    'الصنف عبوات عطر واحفظ',
+    'the item premium bottle and post',
+    'الصنف عبوات عطر\nنفذ',
+    'الصنف علب عطر وغير السعر 10',
+    'x'.repeat(200),
+  ])assert.equal(parseR07PNamedLineReply(untrusted),null,untrusted);
+});
+
+test('duplicate and approximate product descriptions fail closed without any partial match',()=>{
+  const lines=[
+    {lineId:'a',description:'علب عطر'},
+    {lineId:'b',description:'عُلب  عطر'},
+    {lineId:'c',description:'علب عطور'},
+  ];
+  assert.equal(resolveR07PNamedLineId('علب عطر',lines),null,
+    'two normalized names are ambiguous');
+  assert.equal(resolveR07PNamedLineId('علب',lines),null);
+  assert.equal(resolveR07PNamedLineId('علب عطر 100 مل',lines),null);
+  assert.equal(resolveR07PNamedLineId('علب عطور',lines),'c');
+  assert.equal(resolveR07PNamedLineId('عبوات عطر',lines),null);
 });
