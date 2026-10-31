@@ -1,0 +1,750 @@
+{
+  "schemaVersion": 1,
+  "description": "Independent synthetic gold labels, not provider/model results or accuracy claims",
+  "cases": [
+    {
+      "id": "ar-draft-01",
+      "language": "ar",
+      "utterance": "سوي مسودة عرض سعر جديدة",
+      "expected": {
+        "action": "prepare_quote",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-customer-01",
+      "language": "ar",
+      "utterance": "خلي العميل شركة النور",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "customer_name",
+            "value": "شركة النور"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-customer-02",
+      "language": "ar",
+      "utterance": "لا، قصدي العميل شركة الأمل",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "customer_name",
+            "value": "شركة الأمل"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-quantity-01",
+      "language": "ar",
+      "utterance": "لا خلي الكمية ١٢",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "quantity",
+            "value": "12"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-quantity-02",
+      "language": "ar",
+      "utterance": "بدّل عدد القطع إلى عشرين",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "quantity",
+            "value": "20"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-price-01",
+      "language": "ar",
+      "utterance": "خلي سعر القطعة ١٥ دولار",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "selling_unit_price",
+            "value": "15"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-price-02",
+      "language": "ar",
+      "utterance": "السعر مو ١٨، هو ١٥",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "selling_unit_price",
+            "value": "15"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-currency-01",
+      "language": "ar",
+      "utterance": "خلي العملة دولار أمريكي",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "currency",
+            "value": "USD"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-unit-01",
+      "language": "ar",
+      "utterance": "غيّر الوحدة لكرتون",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "unit",
+            "value": "carton"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-remove-01",
+      "language": "ar",
+      "utterance": "شيل البند الثاني",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "operation",
+            "value": "remove_line"
+          },
+          {
+            "name": "line_id",
+            "value": "line-2"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-remove-ambiguous-01",
+      "language": "ar",
+      "utterance": "احذف اللي قبل",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "operation",
+            "value": "remove_line"
+          }
+        ],
+        "missingFields": [
+          "line_id"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-line-01",
+      "language": "ar",
+      "utterance": "أضف 10 علب عطر بسعر 15 دولار للعلبة",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "operation",
+            "value": "append_line"
+          },
+          {
+            "name": "description",
+            "value": "علب عطر"
+          },
+          {
+            "name": "quantity",
+            "value": "10"
+          },
+          {
+            "name": "unit",
+            "value": "box"
+          },
+          {
+            "name": "selling_unit_price",
+            "value": "15"
+          },
+          {
+            "name": "currency",
+            "value": "USD"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-line-incomplete-01",
+      "language": "ar",
+      "utterance": "ضيف عشرة من هاد الصنف",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "quantity",
+            "value": "10"
+          }
+        ],
+        "missingFields": [
+          "product_reference"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-preview-01",
+      "language": "ar",
+      "utterance": "فرجيني مسودة العرض",
+      "expected": {
+        "action": "preview_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-last-01",
+      "language": "ar",
+      "utterance": "شو غيرنا بالمحادثة قبل شوي؟",
+      "expected": {
+        "action": "analyze",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-read-01",
+      "language": "ar",
+      "utterance": "اقرأ آخر عرض سعر عملناه",
+      "expected": {
+        "action": "read_business",
+        "reference": "last_quotation",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-file-01",
+      "language": "ar",
+      "utterance": "اقرأ الملف المرفق وحضّر معلوماته",
+      "expected": {
+        "action": "read_file",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [
+          "verified_source"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-dontsave-01",
+      "language": "ar",
+      "utterance": "لا تحفظ العرض هلق",
+      "expected": {
+        "action": "discuss",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-approval-01",
+      "language": "ar",
+      "utterance": "احفظ العرض واصدره",
+      "expected": {
+        "action": "request_approval",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-execute-01",
+      "language": "ar",
+      "utterance": "رحّل القيد مباشرة",
+      "expected": {
+        "action": "execute_approved",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-clarify-01",
+      "language": "ar",
+      "utterance": "عدّل السعر",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [
+          "selling_unit_price"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-clarify-02",
+      "language": "ar",
+      "utterance": "المنتج اللي قلتلك عنه، غيره",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [
+          "product_reference"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-context-01",
+      "language": "ar",
+      "utterance": "خلي نفس السعر للصنف الأول",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [
+          "selling_unit_price",
+          "line_id"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "ar-mixednumber-01",
+      "language": "ar",
+      "utterance": "بدل الكمية 20 خليها 30",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "quantity",
+            "value": "30"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-draft-01",
+      "language": "en",
+      "utterance": "Start a quotation draft",
+      "expected": {
+        "action": "prepare_quote",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-customer-01",
+      "language": "en",
+      "utterance": "Change the customer to Noor Trading",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "customer_name",
+            "value": "Noor Trading"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-customer-02",
+      "language": "en",
+      "utterance": "No, use Amal Company instead",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "customer_name",
+            "value": "Amal Company"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-quantity-01",
+      "language": "en",
+      "utterance": "Set the quantity to twelve",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "quantity",
+            "value": "12"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-price-01",
+      "language": "en",
+      "utterance": "I meant a unit price of 15 dollars",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "selling_unit_price",
+            "value": "15"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-unit-01",
+      "language": "en",
+      "utterance": "Change the unit to cartons",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "unit",
+            "value": "carton"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-add-01",
+      "language": "en",
+      "utterance": "Add 6 sample bottles at USD 9 each",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "operation",
+            "value": "append_line"
+          },
+          {
+            "name": "description",
+            "value": "sample bottles"
+          },
+          {
+            "name": "quantity",
+            "value": "6"
+          },
+          {
+            "name": "unit",
+            "value": "PCS"
+          },
+          {
+            "name": "selling_unit_price",
+            "value": "9"
+          },
+          {
+            "name": "currency",
+            "value": "USD"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-ambiguous-01",
+      "language": "en",
+      "utterance": "Change that one",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [
+          "target_field",
+          "line_id"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-preview-01",
+      "language": "en",
+      "utterance": "Show the current quote draft",
+      "expected": {
+        "action": "preview_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-read-01",
+      "language": "en",
+      "utterance": "Read the last quotation",
+      "expected": {
+        "action": "read_business",
+        "reference": "last_quotation",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-no-save-01",
+      "language": "en",
+      "utterance": "Don't issue it yet",
+      "expected": {
+        "action": "discuss",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-approval-01",
+      "language": "en",
+      "utterance": "Approve and post this invoice",
+      "expected": {
+        "action": "request_approval",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "en-file-01",
+      "language": "en",
+      "utterance": "Read the attached spreadsheet and extract line items",
+      "expected": {
+        "action": "read_file",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [
+          "verified_source"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "mix-quantity-01",
+      "language": "mixed",
+      "utterance": "خلي quantity 12 PCS",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "quantity",
+            "value": "12"
+          },
+          {
+            "name": "unit",
+            "value": "PCS"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "mix-price-01",
+      "language": "mixed",
+      "utterance": "عدل price إلى 15 USD",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "selling_unit_price",
+            "value": "15"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "mix-currency-01",
+      "language": "mixed",
+      "utterance": "خلي currency USD",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "currency",
+            "value": "USD"
+          }
+        ],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "mix-preview-01",
+      "language": "mixed",
+      "utterance": "اعمل preview للمسودة",
+      "expected": {
+        "action": "preview_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [],
+        "missingFields": [],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "mix-file-01",
+      "language": "mixed",
+      "utterance": "اقرأ الـ PDF اللي أرسلته",
+      "expected": {
+        "action": "read_file",
+        "reference": "none",
+        "subject": null,
+        "facts": [],
+        "missingFields": [
+          "verified_source"
+        ],
+        "sourceIds": []
+      }
+    },
+    {
+      "id": "mix-context-01",
+      "language": "mixed",
+      "utterance": "بالنسبة للـ second item خلي الكمية 20",
+      "expected": {
+        "action": "edit_draft",
+        "reference": "active_draft",
+        "subject": null,
+        "facts": [
+          {
+            "name": "quantity",
+            "value": "20"
+          }
+        ],
+        "missingFields": [
+          "line_id"
+        ],
+        "sourceIds": []
+      }
+    }
+  ]
+}
