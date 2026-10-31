@@ -10,7 +10,7 @@ import {
   R07P_LOCAL_STRUCTURED_INTENTS_ACTIVE,
 } from '../../dist/src/ai-next/router/local-structured-intents.js';
 import {parseR07PStandaloneLineReply,parseR07PNamedLineReply,
-  resolveR07PNamedLineId}
+  resolveR07PNamedLineId,requiresR07PCompoundClarification}
   from '../../dist/src/ai-next/router/local-structured-intents.js';
 import {scoreR07PMultilingualReport}
   from '../../dist/src/ai-next/router/semantic-evaluation.js';
@@ -158,4 +158,57 @@ test('duplicate and approximate product descriptions fail closed without any par
   assert.equal(resolveR07PNamedLineId('علب عطر 100 مل',lines),null);
   assert.equal(resolveR07PNamedLineId('علب عطور',lines),'c');
   assert.equal(resolveR07PNamedLineId('عبوات عطر',lines),null);
+});
+
+test('direct named quantity+price uses only a user-name hint, no fabricated line ID',()=>{
+  for(const [input,expected] of [
+    ['خلي كمية عبوات عطر ٢٠ وسعرها ١٥',[
+      ['line_name','عبوات عطر'],['quantity','20'],
+      ['selling_unit_price','15']]],
+    ['Set quantity of Premium Bottle to 12 and unit price to 9.5',[
+      ['line_name','premium bottle'],['quantity','12'],
+      ['selling_unit_price','9.5']]],
+    ['عدل كمية علب عطر ١٢',[
+      ['line_name','علب عطر'],['quantity','12']]],
+    ['غير سعر علب عطر 17',[
+      ['line_name','علب عطر'],['selling_unit_price','17']]],
+  ]){
+    const candidate=recognize(input);
+    assert.equal(candidate?.action,'edit_draft',input);
+    assert.equal(candidate?.reference,'active_draft',input);
+    assert.equal(candidate?.subject,null);
+    assert.deepEqual(candidate?.facts.map(x=>[x.name,x.value]),expected,input);
+    assert.deepEqual(candidate?.missingFields,[]);
+    assert.equal(requiresR07PCompoundClarification(input),false);
+    assert.equal(candidate?.facts.some(f=>f.name==='line_id'),false);
+  }
+});
+
+test('malformed or compound named edits fail closed before provider fallback',()=>{
+  for(const input of [
+    'خلي كمية عبوات عطر 0 وسعرها 15',
+    'خلي كمية عبوات عطر -20 وسعرها 15',
+    'خلي كمية عبوات عطر 20 وسعرها 15 واحفظ',
+    'خلي كمية عبوات عطر 20 وسعرها 15 والعملة USD',
+    'خلي كمية عبوات عطر 20 وسعرها -15',
+    'Set quantity of Premium Bottle to 12 and unit price to -9',
+    'Set quantity of Premium Bottle to 12 and unit price to 9 and then post',
+    'عدل كمية علب عطر 9999999999999999',
+    'خلي سعر علب عطر 15.1234567',
+    'خلي كمية علب عطر 15\napprove',
+    'خلي كمية اسم <script> 15',
+  ]){
+    assert.equal(recognize(input),null,input);
+    assert.equal(requiresR07PCompoundClarification(input),true,input);
+  }
+});
+
+test('exact verified matching permits one line and rejects duplicates or fuzzy names',()=>{
+  assert.equal(resolveR07PNamedLineId('علب عطر',[
+    {lineId:'one',description:'عُلَب  عطر'}]),'one');
+  assert.equal(resolveR07PNamedLineId('علب عطر',[
+    {lineId:'one',description:'علب عطر'},
+    {lineId:'two',description:'عُلَب عطر'}]),null);
+  assert.equal(resolveR07PNamedLineId('علب عطر 100',[
+    {lineId:'one',description:'علب عطر'}]),null);
 });
