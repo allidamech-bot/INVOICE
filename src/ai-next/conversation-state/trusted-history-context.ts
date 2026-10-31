@@ -182,6 +182,46 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
         lineId:selectedLineId,
       };
     }
+
+    // R07U: small, coherent conversational context derived ONLY from a
+    // verified R07J full audit. It is never browser-provided memory and
+    // never substitutes for the authoritative draft/source readers.
+    // If the planner is not running within the exactly recorded current
+    // turn, it receives no prior messages at all.
+    const dialogueHistory:R07PTrustedContext['dialogueHistory']=[];
+    if(current){
+      const here=audit.turns.at(-1);
+      if(here&&here.userMessageId===current.userMessageId&&
+        here.idempotencyKey===current.idempotencyKey&&
+        here.userMessage.text===current.message&&
+        exactScopeKey(here.scope)===key&&
+        here.scope.actorId===scope.actorId&&here.scope.role===scope.role){
+        const prior=audit.turns.slice(0,-1);
+        const complete:NonNullable<R07PTrustedContext['dialogueHistory']>=[];
+        // Keep only a contiguous, already sealed tail. Do not splice
+        // earlier context across a failed turn or a different role.
+        for(let i=prior.length-1;i>=0&&complete.length<8;i--){
+          const t=prior[i]!;
+          const task=audit.tasks.find(task=>task.turnId===t.turnId);
+          const replies=audit.messages.filter(m=>m.turnId===t.turnId&&
+            m.role==='assistant');
+          if(exactScopeKey(t.scope)!==key||t.scope.actorId!==scope.actorId||
+            t.scope.role!==scope.role||t.mode!==here.mode||
+            task?.state!=='completed'||replies.length!==1||
+            t.userMessage.attachedSourceIds.length!==0||
+            replies[0]!.sourceIds.length!==0||
+            !t.userMessage.text||t.userMessage.text.length>320||
+            !replies[0]!.text||replies[0]!.text.length>320||
+            /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/u.test(
+              t.userMessage.text+replies[0]!.text))break;
+          complete.unshift(
+            {role:'user',text:t.userMessage.text},
+            {role:'assistant',text:replies[0]!.text},
+          );
+        }
+        dialogueHistory.push(...complete);
+      }
+    }
     const refs=candidates.map(d=>({
       kind:'draft' as const,id:d.draftId,
       documentKind:'quotation' as const,scopeKey:key,
@@ -201,6 +241,7 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
       references:refs,
       ...(pendingPriceFollowup?{pendingPriceFollowup}:{}),
       ...(pendingLineFollowup?{pendingLineFollowup}:{}),
+      ...(dialogueHistory.length?{dialogueHistory}:{}),
     });
   }
 }
