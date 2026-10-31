@@ -121,9 +121,13 @@ test('Groq content_filter blocks the whole request and cannot be bypassed by ano
     assert.match(String(url),/api\.groq\.com/u,'no external fallback after a block');
     return response('A partial but valid-looking JSON','content_filter');
   };
-  const result=await (await route())(request);
+  const events=[];
+  const result=await (await route())({...request,onDiagnostic:e=>events.push(e)});
   assert.equal(result.success,false);
   assert.equal(result.errorCode,'AI_OUTPUT_BLOCKED');
+  assert.equal(events.length,1);
+  assert.equal(events[0].category,'blocked');
+  assert.doesNotMatch(JSON.stringify(events),/offline-synthetic|partial but valid-looking/i);
   assert.equal(result.attemptCount,1);
   assert.equal(calls,1);
   const {aiRouterPublicError}=await import('../api/_ai/router.js');
