@@ -4,12 +4,17 @@
  * public URL is created. Requires local demo Firestore Emulator; never prod.
  * Authentication and membership are re-checked by R07M for EVERY request.
  */
-import type {R07MFastLocalCoordinator} from '../coordinator/fast-local-coordinator.js';
+import type {R07MFastLocalCoordinator,R07MUnifiedReviewEditResult}
+  from '../coordinator/fast-local-coordinator.js';
+import type {R07RReceiptPrepareInput}
+  from '../coordinator/r07r-draft-preparation.js';
 import type {R07NAuthenticatedPreviewPort,R07NEnvelope}
   from '../ui/r07n-preview-session.js';
 import type {R07LocalTurnInput} from '../coordinator/local-coordinator.js';
 
 export const R07O_PUBLIC_ENDPOINT_ENABLED=false as const;
+/** Unmounted server-only opt-in, separate from existing preview operations. */
+export const R07O_UNIFIED_REVIEW_PUBLICLY_ENABLED=false as const;
 export const R07O_LOCAL_ROUTE='/__ai_next_r07o_local_preview__';
 export const R07O_MAX_REQUEST_BYTES=32_768;
 export const R07O_MAX_RESPONSE_BYTES=750_000;
@@ -77,12 +82,12 @@ async function boundedBody(request:Request):Promise<unknown>{
   try{parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}
   catch{throw Error('R07O_INVALID_JSON');}
   if(!own(parsed)||!keys(parsed,['operation','payload'])||
-    !['accept','current','history'].includes(String(parsed.operation))||
+    !['accept','current','history','review_edit'].includes(String(parsed.operation))||
     !own(parsed.payload))
     throw Error('R07O_INVALID_REQUEST_SHAPE');
   return parsed;
 }
-type Operations='accept'|'current'|'history';
+type Operations='accept'|'current'|'history'|'review_edit';
 type Coordinator=Pick<R07MFastLocalCoordinator,Operations>;
 /**
  * Instantiable only when the actual Node process is running against
@@ -94,6 +99,8 @@ export class R07OLocalPreviewHandler{
   constructor(private readonly options:{
     allowedOrigin:string;projectId:'demo-ai-next-r07h';
     emulatorHost:string;coordinator:Coordinator;
+    /** Only local demo/emulator integration can opt into the review writer. */
+    allowOfflineUnifiedReviewEdit?:true;
   }){
     this.origin=origin(options.allowedOrigin).origin;
     if(options.projectId!=='demo-ai-next-r07h'||
@@ -131,6 +138,11 @@ export class R07OLocalPreviewHandler{
     catch(e){return report(e instanceof Error&&e.message==='R07O_BODY_LIMIT'?
       'R07O_BODY_LIMIT':'R07O_INVALID_BODY',400);}
     const verb=command.operation as Operations;
+    // Before ever reaching R07M, enforce the SERVER construction grant.
+    // A browser request parameter can never enable a local review writer.
+    if(verb==='review_edit'&&
+      this.options.allowOfflineUnifiedReviewEdit!==true)
+      return report('R07O_REVIEW_DISABLED',403);
     try{
       const token=auth.slice(7);
       const result=verb==='accept'?
@@ -139,8 +151,11 @@ export class R07OLocalPreviewHandler{
         verb==='current'?
           await this.options.coordinator.current(token,
             command.payload as R07NEnvelope):
+        verb==='history'?
           await this.options.coordinator.history(token,
-            command.payload as R07NEnvelope);
+            command.payload as R07NEnvelope):
+          await this.options.coordinator.acceptOfflineUnifiedReviewEdit(token,
+            command.payload as R07RReceiptPrepareInput);
       return jsonResponse(result);
     }catch(error){
       // Authenticated request failures never disclose ACL records, tokens,
@@ -201,4 +216,8 @@ export class R07OLocalHttpPreviewPort implements R07NAuthenticatedPreviewPort{
   accept(request:R07LocalTurnInput){return this.call('accept',request);}
   current(envelope:R07NEnvelope){return this.call('current',envelope);}
   history(envelope:R07NEnvelope){return this.call('history',envelope);}
+  /** Explicit user action only: never silently retries a business mutation. */
+  reviewEdit(input:R07RReceiptPrepareInput):Promise<R07MUnifiedReviewEditResult>{
+    return this.call('review_edit',input);
+  }
 }
