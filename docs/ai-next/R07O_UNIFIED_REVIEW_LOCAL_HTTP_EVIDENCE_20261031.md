@@ -2,7 +2,7 @@
 
 Date: 2026-10-31
 Scope: LOUREX AI Next Generation only
-PR: #1243 (candidate; confirm actual PR when opened)
+PR: #1244 (candidate; CI/merge acceptance pending)
 Release/production: NOT AUTHORIZED. No live endpoint.
 
 ## Implemented boundary
