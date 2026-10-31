@@ -193,7 +193,7 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
     !Number.isSafeInteger(linePending.draftRevision)||
     linePending.draftRevision<1||linePending.field!=='quantity'||
     typeof linePending.value!=='string'||
-    !/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,6})?$/u.test(linePending.value)||
+    !/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/u.test(linePending.value)||
     Number(linePending.value)<=0||!draft||
     draft.id!==linePending.draftId||
     draft.revision!==linePending.draftRevision||
