@@ -103,7 +103,7 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
   }
   // Never resolve "second item" from a model-proposed ordinal. Explicitly
   // request an authoritative line ID, even when one line exists.
-  match=value.match(/^بالنسبة للـ second item خلي الكمية (\d{1,12})$/u);
+  match=value.match(/^بالنسبة لل second item خلي الكمية (\d{1,12})$/u);
   if(match){
     const n=number(match[1]!);
     return n?make('edit_draft','active_draft',
