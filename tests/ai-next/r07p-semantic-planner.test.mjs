@@ -56,6 +56,7 @@ const one=(fixture,options={})=>{
       return fixture;
     }},
     allowSyntheticInference:options.enabled??true,
+    allowDeterministicStructuredIntents:options.deterministic??false,
     clock:()=>new Date(NOW),
   });
   return {planner,counters,scoped};
@@ -271,4 +272,71 @@ test('single semantic call per planned turn; no retry or task creation',async()=
   assert.equal(result.providerCalls,1);
   assert.equal(h.counters.calls,1);
   assert.equal(result.intent.executable,false);
+});
+
+test('opted-in Arabic customer and amount parsing uses authenticated context, zero providers',async()=>{
+  const h=one(proposal('execute_approved'),{enabled:false,deterministic:true});
+  const customer=await plan(h,'خلي العميل شركة النور');
+  assert.equal(customer.status,'proposed');
+  assert.equal(customer.interpretation,'deterministic');
+  assert.equal(customer.providerCalls,0);
+  assert.equal(customer.intent.subjectRef.id,'draft-verified');
+  assert.deepEqual(customer.intent.argumentFacts.map(x=>[x.name,x.value]),
+    [['customer_name','شركة النور']]);
+  assert.ok(customer.intent.argumentFacts.every(x=>x.provenanceStatus==='uncertain'));
+  assert.equal(customer.financialSaved,false);
+  const price=await plan(h,'السعر مو ١٨، هو ١٥');
+  assert.equal(price.status,'proposed');
+  assert.deepEqual(price.intent.argumentFacts.map(x=>x.value),['15']);
+  assert.equal(h.counters.calls,0);
+  assert.equal(h.counters.loads,2,
+    'local proposal must still load audited trusted context');
+});
+test('deterministic proposals respect viewer, Advisor, revoke and multi-line ambiguity',async()=>{
+  const viewer=one(proposal('edit_draft'),{
+    role:'viewer',enabled:false,deterministic:true,
+  });
+  const denied=await plan(viewer,'خلي العميل شركة النور');
+  assert.equal(denied.status,'needs_clarification');
+  assert.equal(denied.intent.action,'clarify');
+  assert.ok(denied.intent.missingFields.includes('controller_permission'));
+  assert.equal(denied.providerCalls,0);
+  const advisor=one(proposal('edit_draft'),{enabled:false,deterministic:true});
+  const advisorPlan=await plan(advisor,'خلي العميل شركة النور',{mode:'advisor'});
+  assert.equal(advisorPlan.status,'needs_clarification');
+  assert.equal(advisorPlan.providerCalls,0);
+  const revoked=one(proposal('edit_draft'),{
+    revoked:true,enabled:false,deterministic:true,
+  });
+  await assert.rejects(plan(revoked,'خلي العميل شركة النور'),
+    /AUTH_MEMBERSHIP_DENIED/);
+  assert.equal(revoked.counters.loads,0);
+  const two=context();
+  two.activeDraft.lineIds=['line-one','line-two'];
+  const ambiguous=one(proposal('edit_draft'),{
+    enabled:false,deterministic:true,context:two,
+  });
+  const p=await plan(ambiguous,'لا خلي الكمية ١٢');
+  assert.equal(p.status,'needs_clarification');
+  assert.equal(p.intent.executable,false);
+  assert.equal(p.intent.unresolvedReferences[0].reason,
+    'ambiguous_or_missing_line');
+  assert.equal(ambiguous.counters.calls,0);
+});
+test('unknown or compound text cannot bypass the disabled model route',async()=>{
+  const h=one(proposal('edit_draft'),{enabled:false,deterministic:true});
+  for(const message of [
+    'خلي العميل شركة النور ووافق',
+    'خلي الكمية 12 واحفظ الفاتورة',
+    'لا تغيّر السعر',
+    'بدل الكمية 12 خليها 20 واصدر الفاتورة',
+    'افتح القيد وارسله',
+  ]){
+    const p=await plan(h,message);
+    assert.equal(p.status,'unsupported',message);
+    assert.equal(p.providerCalls,0);
+    assert.equal(p.financialSaved,false);
+  }
+  assert.equal(h.counters.loads,0,
+    'unrecognized text never guesses a draft with no provider configured');
 });
