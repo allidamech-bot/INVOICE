@@ -433,6 +433,15 @@ async function callGroq(model,request){
   const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
   if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,quotaScope:info.quotaScope,status:response.status,rejection:groqRejection(response.status,text),retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
+  // Valid JSON is not proof that Groq finished. A length-capped answer may
+  // parse cleanly but silently omit key details. Never accept a phantom tool
+  // call, an incomplete answer or content-filtered output as a success.
+  const choice=payload?.choices?.[0]||payload?.result?.choices?.[0];
+  const finish=choice?.finish_reason;
+  if(['length','max_tokens','tool_calls','content_filter'].includes(finish)||
+    (Array.isArray(choice?.message?.tool_calls)&&choice.message.tool_calls.length>0))
+    throw Object.assign(new Error('incomplete Groq completion'),{
+      routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
 async function callCloudflare(model,request){
