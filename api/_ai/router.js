@@ -438,7 +438,12 @@ async function callGroq(model,request){
   // call, an incomplete answer or content-filtered output as a success.
   const choice=payload?.choices?.[0]||payload?.result?.choices?.[0];
   const finish=choice?.finish_reason;
-  if(['length','max_tokens','tool_calls','content_filter'].includes(finish)||
+  // A provider-side moderation stop must NOT be bypassed by retrying the
+  // same prompt on a different vendor. Fail closed with no fallback.
+  if(finish==='content_filter')
+    throw Object.assign(new Error('Groq response blocked'),{
+      routerCategory:'blocked',routerCode:'AI_OUTPUT_BLOCKED',retryable:false});
+  if(['length','max_tokens','tool_calls'].includes(finish)||
     (Array.isArray(choice?.message?.tool_calls)&&choice.message.tool_calls.length>0))
     throw Object.assign(new Error('incomplete Groq completion'),{
       routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});
@@ -628,6 +633,7 @@ export async function routeAiStructured(options={}){
       }catch(error){
         observe(model,bucket,false,Date.now()-startedAt);
         const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status,error?.quotaScope);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,quotaScope:error?.quotaScope,retryAfterMs:error?.retryAfterMs,rejection:error?.rejection,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
+        if(category==='blocked')break providerRoute;
         if(multiModelEnabled()&&category==='rate_limit'&&error?.quotaScope==='model'){
           const next=candidates.findIndex((candidate,i)=>i>index&&candidate.provider===model.provider&&circuitAvailable(candidate.provider,candidate.model));
           if(next>index+1)candidates.splice(index+1,0,candidates.splice(next,1)[0]);
@@ -655,6 +661,7 @@ export function aiRouterPublicError(result){
   if(code==='AI_PRIVATE_DOCUMENT_UNAVAILABLE')return{status:503,code,message:'No approved private-data provider is available for native PDF processing. The document was not sent.'};
   if(code==='AI_RATE_LIMITED')return{status:429,code,message:'LOUREX AI is temporarily at capacity. Please try again shortly.'};
   if(code==='AI_REQUEST_TOO_LARGE')return{status:413,code,message:'This request exceeds the current AI provider size or token allowance. Reduce the request size or split the task; nothing was changed.'};
+  if(code==='AI_OUTPUT_BLOCKED')return{status:422,code,message:'The AI response was blocked by the provider. No operation was executed.'};
   if(code==='AI_TOOL_GENERATION_FAILED')return{status:502,code,message:'The AI provider could not produce a valid structured action. No action was executed. Please reformulate the request.'};
   if(code==='AI_TIMEOUT')return{status:504,code,message:'LOUREX AI could not complete this request in time.'};
   if(code==='AI_NOT_CONFIGURED')return{status:503,code,message:'LOUREX AI is not configured yet.'};
