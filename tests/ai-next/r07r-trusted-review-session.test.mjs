@@ -98,7 +98,7 @@ function setup(db=new ScopedFirestoreMock(),options={}){
   });
   let calls=0;
   const session=createR07RTrustedOfflineReviewSession({
-    principal,membership,journal,draftStore,
+    offlineFixtureMode:true,principal,membership,journal,draftStore,
     customers:{resolveUnique:async(_scope,name)=>
       name==='شركة النور'?'known-customer-noor':null},
     syntheticInterpreter:{interpret:async input=>{
@@ -218,4 +218,9 @@ test('corrupted draft bytes fail R07D integrity; no partial overwrite',async()=>
   await assert.rejects(h.attempt('خلي العميل شركة النور',created.turnId),
     /R07D_/);
   assert.equal(h.db.writes,before);
+});
+
+test('construction without explicit trusted offline fixture mode fails closed',()=>{
+  assert.throws(()=>createR07RTrustedOfflineReviewSession({}),
+    /R07R_OFFLINE_FIXTURE_CONSENT_REQUIRED/);
 });
