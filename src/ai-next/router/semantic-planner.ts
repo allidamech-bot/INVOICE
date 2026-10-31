@@ -309,10 +309,6 @@ export class R07PSemanticPlanner{
       providerCalls=0;
       interpretation='deterministic';
     }else if(routed){
-      rawCandidate=deterministic;
-      providerCalls=0;
-      interpretation='deterministic';
-    }else if(routed){
       const outcome=await this.deps.routedInterpreter!.interpret({
         scope,message:input.message,language,mode:input.mode,
         knownReferences:references,
