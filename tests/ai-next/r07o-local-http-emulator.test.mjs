@@ -15,6 +15,8 @@ import {R07DExperimentalFirestoreDraftStore,R07D_DRAFT_COLLECTION}
   from '../../dist/src/ai-next/storage/firestore-review-drafts.js';
 import {R07NPreviewSession}
   from '../../dist/src/ai-next/ui/r07n-preview-session.js';
+import {createR07RTrustedOfflineReviewSession}
+  from '../../dist/src/ai-next/coordinator/r07r-trusted-review-session.js';
 import {R07OLocalPreviewHandler,R07OLocalHttpPreviewPort,
   R07O_PUBLIC_ENDPOINT_ENABLED,R07O_LOCAL_ROUTE,R07O_MAX_REQUEST_BYTES}
   from '../../dist/src/ai-next/security/r07o-local-http.js';
@@ -227,4 +229,103 @@ test('API rejects changed idempotency key replay without creating duplicate turn
   assert.equal(changed.status,409);
   const full=await port.history(env);
   assert.equal(full.turns.length,2);
+});
+
+test('unified edit HTTP extension is disabled by default, then receipt-verified via loopback',async()=>{
+  const reviewEnv={...env,threadId:'r07o-loopback-unified-review'};
+  const createdResponse=await direct('accept',{
+    ...reviewEnv,requestId:'unified-origin-request',
+    idempotencyKey:'unified-origin-key',
+    userMessageId:'unified-origin-user',
+    message:'أنشئ مسودة عرض سعر',mode:'controller',
+  });
+  assert.equal(createdResponse.status,200);
+  const created=await createdResponse.json();
+  assert.equal(created.draft.draftRevision,1);
+  const journal=new R07JExperimentalIndexedJournal(db,true);
+  const drafts=new R07DExperimentalFirestoreDraftStore(db);
+  let calls=0;
+  const session=createR07RTrustedOfflineReviewSession({
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    principal,membership,journal,draftStore:drafts,
+    customers:{resolveUnique:async(_scope,name)=>
+      name==='شركة النور'?'r07o-verified-customer':null},
+    syntheticInterpreter:{interpret:async()=>{calls++;return{
+      action:'edit_draft',subject:null,reference:'active_draft',
+      facts:[{name:'customer_name',value:'شركة النور'}],
+      sourceIds:[],missingFields:[],
+    };}},
+    clock:()=>new Date(at),
+  });
+  const reviewCoordinator=new R07MFastLocalCoordinator({
+    journal,draftStore:drafts,principal,membership,
+    offlineReviewBridge:session.bridge,
+    offlineReviewReceiptStore:drafts,
+    allowOfflineUnifiedReviewEdit:true,
+    clock:()=>new Date(at),
+  });
+  const input={
+    turn:{...reviewEnv,requestId:'unified-edit-request',
+      idempotencyKey:'unified-edit-key',
+      userMessageId:'unified-edit-user',
+      message:'خلي العميل شركة النور',mode:'controller'},
+    originTurnId:created.turnId,
+    expectedDraftRevision:created.draft.draftRevision,
+    expectedDraftHash:created.draft.immutableRevisionHash,
+  };
+  const before=await drafts.read(scope,created.turnId);
+  assert.equal(before,null,'thread-isolated draft cannot be read from another scope');
+  const original=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:reviewCoordinator,
+    });
+    assert.equal((await direct('review_edit',input)).status,403);
+    const sameScope={...scope,threadId:reviewEnv.threadId};
+    assert.equal((await drafts.read(sameScope,created.turnId)).draftRevision,1);
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:reviewCoordinator,allowOfflineReviewEditPreview:true,
+    });
+    const first=await direct('review_edit',input);
+    assert.equal(first.status,200);
+    assert.equal(first.headers.get('cache-control'),'no-store, max-age=0');
+    const applied=await first.json();
+    assert.equal(applied.status,'applied_unsaved_review');
+    assert.equal(applied.appliedDraftRevision,2);
+    assert.equal(applied.financialSaved,false);
+    assert.equal(applied.providerCalls,0);
+    assert.equal(calls,1);
+    const client=new R07OLocalHttpPreviewPort({
+      allowedOrigin:endpoint,token:async()=>token,transport,
+    });
+    const replay=await client.reviewEdit(input);
+    assert.equal(replay.replayed,true);
+    assert.equal(replay.appliedDraftHash,applied.appliedDraftHash);
+    assert.equal(calls,1,'duplicate HTTP request must not interpret twice');
+    const exact=await drafts.read(sameScope,created.turnId);
+    assert.equal(exact.draftRevision,2);
+    assert.equal(exact.explicitCustomerId,'r07o-verified-customer');
+    assert.equal(exact.approvalReceiptId,null);
+    const history=await client.history(reviewEnv);
+    assert.equal(history.turns.length,2);
+    assert.equal(history.tasks.at(-1).taskType,'unsaved_review_edit');
+    assert.equal(history.messages.filter(m=>m.turnId===applied.turnId&&
+      m.role==='assistant').length,1);
+    assert.equal(history.checkpointRefs.filter(c=>c.taskId===applied.taskId).length,2);
+    assert.equal((await direct('review_edit',{...input,
+      turn:{...input.turn,message:'غير العميل لشركة أخرى'}})).status,409);
+    assert.equal((await direct('review_edit',{...input,
+      turn:{...input.turn,branchId:'foreign-branch'}})).status,403);
+    const aclBefore=(await acl.get()).data();
+    try{
+      await acl.set({...aclBefore,active:false});
+      assert.equal((await direct('review_edit',input)).status,403);
+    }finally{await acl.set(aclBefore);}
+    assert.equal(calls,1);
+    assert.equal((await drafts.read(sameScope,created.turnId)).draftRevision,2);
+  }finally{handler=original;}
 });
