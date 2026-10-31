@@ -1,0 +1,36 @@
+name: LOUREX AI Next R07M Unified Multi-Turn Acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/ai-next/r07m-unified-multiturn.test.mjs'
+      - '.github/workflows/ai-next-r07m-unified-multiturn.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07m-unified-multiturn-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-multiturn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Compile isolated TypeScript
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Actual multi-turn tests (no providers or cloud)
+        run: node --test tests/ai-next/r07m-unified-multiturn.test.mjs
+      - name: Verify live application isolation
+        run: node scripts/verify-deployment-isolation.mjs
