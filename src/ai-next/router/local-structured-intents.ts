@@ -59,6 +59,45 @@ export function parseR07PStandaloneLineReply(raw:string):0|1|null{
   return null;
 }
 
+/**
+ * User explicitly names a line in reply to a pending clarification.
+ * A name is syntax only: it is NEVER a trusted line ID, and is NEVER
+ * actionable without a unique match inside the currently audited R07D
+ * draft. Prefix is required to avoid treating every free-text message
+ * as a follow-up and suppressing its normal semantic handling.
+ */
+export function parseR07PNamedLineReply(raw:string):string|null{
+  if(typeof raw!=='string'||raw.length>180||
+    /[\u0000-\u001f\u007f]/u.test(raw))return null;
+  const value=normalize(raw);
+  if(unsafeCompound.test(value))return null;
+  const named=value.match(/^(?:الصنف|البند) (.+)$/u)||
+    value.match(/^item: (.+)$/u)||
+    value.match(/^the item (.+)$/u);
+  const name=named?.[1]?.trim()??'';
+  if(name.length<2||name.length>130||
+    !/^[\p{L}\p{M}\p{N} ._'-]+$/u.test(name)||
+    /(?: و(?:احفظ|اصدر|نفذ|اعتمد|وافق)(?: |$)| and (?:issue|save|approve|post)(?: |$))/u.test(name))
+    return null;
+  return name;
+}
+
+/**
+ * Match the ENTIRE normalized persisted line description and require
+ * exactly one match. No substring, fuzzy semantic search, user-supplied
+ * database ID, language translation or model-driven selection.
+ */
+export function resolveR07PNamedLineId(name:string,
+  lines:readonly {lineId:string;description:string}[]):string|null{
+  if(typeof name!=='string'||name.length<2||name.length>130||
+    !Array.isArray(lines)||lines.length<2||lines.length>120)return null;
+  const matches=lines.filter(line=>
+    typeof line.description==='string'&&
+    typeof line.lineId==='string'&&line.lineId.length>0&&
+    line.description.length<=3000&&normalize(line.description)===name);
+  return matches.length===1?matches[0]!.lineId:null;
+}
+
 export function parseR07PStandalonePriceReply(raw:string):string|null{
   if(typeof raw!=='string'||raw.length>32||
     /[\u0000-\u001f\u007f]/u.test(raw))return null;
