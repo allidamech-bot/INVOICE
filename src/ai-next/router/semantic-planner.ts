@@ -8,7 +8,8 @@ import {assertCoreContract} from '../domain/validation.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
 import {recognizeR05LocalIntent} from './local-intents.js';
 import {recognizeR07PLocalStructuredIntent,
-  requiresR07PCompoundClarification} from './local-structured-intents.js';
+  requiresR07PCompoundClarification,parseR07PStandalonePriceReply}
+  from './local-structured-intents.js';
 import {authorizeR07ScopedRequest,type R07AuthenticatedPrincipalVerifier,
   type R07ServerMembershipStore,type R07RequestEnvelope}
   from '../security/server-membership.js';
@@ -31,10 +32,22 @@ export interface R07PTrustedContext{
   historyComplete:boolean;
   activeDraft:{id:string;kind:'quotation';revision:number;lineIds:string[]}|null;
   references:R07PTrustedReference[];
+  /** Derived from the full audited prior turn; not a client-provided flag. */
+  pendingPriceFollowup?:R07PVerifiedPriceFollowup;
+}
+export interface R07PVerifiedPriceFollowup{
+  currentUserMessageId:string;
+  currentIdempotencyKey:string;
+  previousTurnId:string;
+  draftId:string;
+  draftRevision:number;
+  field:'selling_unit_price';
 }
 export interface R07PContextReader{
   /** Must read only server-verified scoped records; never model-derived data. */
-  load(scope:AuthenticatedScope):Promise<R07PTrustedContext>;
+  load(scope:AuthenticatedScope,current?:{
+    userMessageId:string;idempotencyKey:string;message:string;
+  }):Promise<R07PTrustedContext>;
 }
 export interface R07PSemanticCandidate{
   action:Action;
@@ -125,6 +138,7 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
   const key=exactScopeKey(scope);
   if(!record(context)||!keys(context,[
     'scopeKey','historyComplete','activeDraft','references',
+    ...(context.pendingPriceFollowup===undefined?[]:['pendingPriceFollowup']),
   ])||context.scopeKey!==key||typeof context.historyComplete!=='boolean'||
     !Array.isArray(context.references)||context.references.length>200||
     !context.references.every(ref=>record(ref)&&keys(ref,[
@@ -142,6 +156,18 @@ function verifyContext(scope:AuthenticatedScope,context:R07PTrustedContext):void
     !Array.isArray(draft.lineIds)||draft.lineIds.length>120||
     !draft.lineIds.every(identifier)||!unique(draft.lineIds)))
     throw new Error('R07P_UNTRUSTED_DRAFT_CONTEXT');
+  const pending=context.pendingPriceFollowup;
+  if(pending!==undefined&&(!record(pending)||!keys(pending,[
+    'currentUserMessageId','currentIdempotencyKey',
+    'previousTurnId','draftId','draftRevision','field',
+  ])||!identifier(pending.currentUserMessageId)||
+    !identifier(pending.currentIdempotencyKey)||
+    !identifier(pending.previousTurnId)||!identifier(pending.draftId)||
+    !Number.isSafeInteger(pending.draftRevision)||pending.draftRevision<1||
+    pending.field!=='selling_unit_price'||
+    !draft||draft.id!==pending.draftId||
+    draft.revision!==pending.draftRevision||draft.lineIds.length!==1))
+    throw new Error('R07P_UNTRUSTED_PRICE_FOLLOWUP');
 }
 function build(scope:AuthenticatedScope,turnId:string,action:Action,
   subject:GroundedIntent['subjectRef'],facts:Fact[],sources:string[],
@@ -237,20 +263,52 @@ export class R07PSemanticPlanner{
     const synthetic=Boolean(this.deps.allowSyntheticInference&&
       this.deps.syntheticInterpreter);
     if(routed&&synthetic)throw new Error('R07P_CONFLICTING_INFERENCE_CONFIG');
-    const deterministic=this.deps.allowDeterministicStructuredIntents===true?
+    const localStructured=this.deps.allowDeterministicStructuredIntents===true;
+    const deterministic=localStructured?
       recognizeR07PLocalStructuredIntent(input.message):null;
-    if(!routed&&!synthetic&&!deterministic){
+    const standalonePrice=localStructured&&!deterministic?
+      parseR07PStandalonePriceReply(input.message):null;
+    if(!routed&&!synthetic&&!deterministic&&standalonePrice===null){
       return {status:'unsupported',interpretation:'unavailable',language,
         intent:build(scope,turnId,'clarify',null,[],[],['semantic_provider_unavailable'],[]),
         risk:'blocked',providerCalls:0,financialSaved:false,
         assistantReply:'يتطلب هذا الطلب فهمًا دلاليًا لم يتم تفعيله بعد.'};
     }
-    const context=await this.deps.context.load(scope);
+    const context=await this.deps.context.load(scope,
+      standalonePrice!==null?{
+        userMessageId:input.userMessageId,
+        idempotencyKey:input.idempotencyKey,message:input.message,
+      }:undefined);
     verifyContext(scope,context);
+    const pending=context.pendingPriceFollowup;
+    const verifiedFollowup=standalonePrice!==null&&pending!==undefined&&
+      pending.currentUserMessageId===input.userMessageId&&
+      pending.currentIdempotencyKey===input.idempotencyKey&&
+      context.activeDraft?.id===pending.draftId&&
+      context.activeDraft.revision===pending.draftRevision&&
+      context.activeDraft.lineIds.length===1;
+    // Standalone numbers must NEVER be interpreted as actions by a model,
+    // even when no trusted prior request is available.
+    if(standalonePrice!==null&&!verifiedFollowup){
+      return {status:'needs_clarification',interpretation:'deterministic',language,
+        intent:build(scope,turnId,'clarify',null,[],[],
+          ['verified_previous_price_request'],[]),
+        risk:'blocked',providerCalls:0,financialSaved:false,
+        assistantReply:'لا يوجد طلب سعر معلّق وموثوق يمكن إكماله. اكتب طلب التعديل كاملاً.'};
+    }
+    const resumed=verifiedFollowup?{
+      action:'edit_draft' as const,subject:null,reference:'active_draft' as const,
+      facts:[{name:'selling_unit_price',value:standalonePrice!}],
+      sourceIds:[],missingFields:[],
+    }:null;
     const references=context.references.map(r=>({kind:r.kind,id:r.id}));
     let rawCandidate:unknown,providerCalls:number,
       interpretation:'deterministic'|'synthetic_model'|'routed_model';
-    if(deterministic){
+    if(deterministic||resumed){
+      rawCandidate=deterministic??resumed;
+      providerCalls=0;
+      interpretation='deterministic';
+    }else if(routed){
       rawCandidate=deterministic;
       providerCalls=0;
       interpretation='deterministic';
