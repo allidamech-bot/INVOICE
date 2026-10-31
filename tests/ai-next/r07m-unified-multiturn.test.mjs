@@ -171,6 +171,7 @@ test('unified conversation creates customer, line, quantity revisions across reo
 });
 test('two lines require exact item selection; ambiguous correction cannot mutate',async()=>{
   const h=setup(),created=await h.create(),origin=created.turnId;
+  await h.edit('العملة USD','set-currency-for-two-lines',origin);
   await h.edit('أضف أول منتج','add-first',origin);
   await h.edit('أضف المنتج الثاني','add-second',origin);
   const before=await h.drafts.read(scope,origin);
