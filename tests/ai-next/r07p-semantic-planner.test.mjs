@@ -482,3 +482,56 @@ test('forged ordinal line IDs, revisions and quantities fail context validation'
     assert.equal(h.counters.calls,0);
   }
 });
+
+test('named line continuation uses only exact verified line ID, not a provider guess',async()=>{
+  const ctx=context();
+  ctx.activeDraft.lineIds=['line-1','line-2','line-3'];
+  ctx.pendingLineFollowup={
+    currentUserMessageId:'message-r07p',currentIdempotencyKey:'key-r07p',
+    previousTurnId:'verified-previous',draftId:'draft-verified',
+    draftRevision:4,field:'quantity',value:'12',lineId:'line-3',
+  };
+  const h=one(proposal('execute_approved'),{
+    enabled:false,deterministic:true,context:ctx,
+  });
+  const p=await plan(h,'الصنف عبوات عطر');
+  assert.equal(p.status,'proposed');
+  assert.equal(p.interpretation,'deterministic');
+  assert.equal(p.providerCalls,0);
+  assert.equal(p.financialSaved,false);
+  assert.equal(p.intent.subjectRef?.id,'draft-verified');
+  assert.deepEqual(p.intent.argumentFacts.map(f=>[f.name,f.value]),
+    [['quantity','12'],['line_id','line-3']]);
+  assert.equal(h.counters.calls,0);
+});
+
+test('unbound named line reply never falls through to a synthetic/model route',async()=>{
+  const h=one(proposal('execute_approved'),{
+    enabled:true,deterministic:true,
+  });
+  const p=await plan(h,'الصنف علب عطر');
+  assert.equal(p.status,'needs_clarification');
+  assert.deepEqual(p.intent.missingFields,['verified_previous_line_request']);
+  assert.equal(p.providerCalls,0);
+  assert.equal(p.financialSaved,false);
+  assert.equal(h.counters.calls,0);
+});
+
+test('named line pending context fails on forged line ID or outdated draft revision',async()=>{
+  for(const alter of [{lineId:'foreign'},{draftRevision:999},
+    {field:'selling_unit_price'},{value:'12;approve'}]){
+    const ctx=context();
+    ctx.activeDraft.lineIds=['line-1','line-2','line-3'];
+    ctx.pendingLineFollowup={
+      currentUserMessageId:'message-r07p',currentIdempotencyKey:'key-r07p',
+      previousTurnId:'verified-prior',draftId:'draft-verified',
+      draftRevision:4,field:'quantity',value:'12',lineId:'line-3',...alter,
+    };
+    const h=one(proposal('execute_approved'),{
+      enabled:false,deterministic:true,context:ctx,
+    });
+    await assert.rejects(plan(h,'الصنف عبوات عطر'),
+      /R07P_UNTRUSTED_LINE_FOLLOWUP/);
+    assert.equal(h.counters.calls,0);
+  }
+});
