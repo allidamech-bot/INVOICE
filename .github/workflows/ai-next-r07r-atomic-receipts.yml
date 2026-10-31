@@ -1,0 +1,46 @@
+name: LOUREX AI Next R07R Atomic Review Edit Receipts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/storage/firestore-review-drafts.ts'
+      - 'src/ai-next/coordinator/r07r-draft-preparation.ts'
+      - 'src/ai-next/coordinator/r07r-trusted-review-session.ts'
+      - 'tests/ai-next/r07r-atomic-edit-receipts.test.mjs'
+      - '.github/workflows/ai-next-r07r-atomic-receipts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-next-r07r-atomic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  edit-receipts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript strict compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Atomic edit receipt regression and safety tests
+        run: node --test tests/ai-next/r07r-atomic-edit-receipts.test.mjs
+      - name: Existing R07D and R07R regression tests
+        run: >-
+          node --test
+          tests/ai-next/r07d-firestore-drafts.test.mjs
+          tests/ai-next/r07r-draft-preparation.test.mjs
+          tests/ai-next/r07r-trusted-review-session.test.mjs
+          tests/ai-next/r07m-fast-coordinator.test.mjs
+      - name: Production isolation
+        run: node scripts/verify-deployment-isolation.mjs
