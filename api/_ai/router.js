@@ -295,6 +295,11 @@ function configuredCandidates(route,attachments=[],allowExternal=false,bucket=ro
   return rankCandidates(eligible,bucket);
 }
 function providerError(provider,model,status,bodyText){
+  // Groq may reject ONE oversized request against its free-plan TPM
+  // ceiling with HTTP 413 + rate_limit_exceeded. Waiting or repeating an
+  // identical request cannot make it fit; never classify it as a 429.
+  if(status===413&&provider==='groq')
+    return{category:'oversize',code:'AI_REQUEST_TOO_LARGE',retryable:false};
   if(status===429){
     if(provider==='cloudflare'){
       // Workers AI 3040 is temporary model capacity (e.g. rejectIfBusy), not
@@ -318,6 +323,8 @@ function providerError(provider,model,status,bodyText){
   // HTTP 400. This says nothing about whether the model supports the request.
   if(status===400&&provider==='groq'){
     let code;try{code=JSON.parse(bodyText)?.error?.code;}catch{}
+    if(code==='tool_use_failed')
+      return{category:'invalid',code:'AI_TOOL_GENERATION_FAILED',retryable:false};
     if(code==='json_validate_failed'||/Generated JSON does not match the expected schema/i.test(bodyText))return{category:'schema',code:'AI_INVALID_RESULT',retryable:false};
   }
   if(status===400&&/model|schema|response_format|unsupported/i.test(bodyText))return{category:'unsupported',code:'AI_MODEL_UNSUPPORTED',retryable:false};
@@ -330,7 +337,7 @@ function providerError(provider,model,status,bodyText){
 function groqRejection(status,text){
   if(status!==400)return undefined;
   let error;try{error=JSON.parse(text)?.error;}catch{}
-  const codes=['invalid_request_error','json_validate_failed','invalid_json_schema','model_not_found','model_not_supported','unsupported_parameter','context_length_exceeded'];
+  const codes=['invalid_request_error','json_validate_failed','tool_use_failed','invalid_json_schema','model_not_found','model_not_supported','unsupported_parameter','context_length_exceeded'];
   const names=['response_format','json_schema','strict','include_reasoning','reasoning_effort','reasoning_format','max_completion_tokens','max_tokens','temperature','additionalProperties','required','model','messages'];
   const code=codes.includes(error?.code)?error.code:'unknown';
   const params=[...names,'response_format.json_schema','response_format.json_schema.schema','response_format.json_schema.strict'];
@@ -561,6 +568,8 @@ export function aiRouterPublicError(result){
   if(code==='AI_UNSUPPORTED_MODALITY')return{status:400,code,message:'This file or input type is not supported by LOUREX AI.'};
   if(code==='AI_PRIVATE_DOCUMENT_UNAVAILABLE')return{status:503,code,message:'No approved private-data provider is available for native PDF processing. The document was not sent.'};
   if(code==='AI_RATE_LIMITED')return{status:429,code,message:'LOUREX AI is temporarily at capacity. Please try again shortly.'};
+  if(code==='AI_REQUEST_TOO_LARGE')return{status:413,code,message:'This request exceeds the current AI provider size or token allowance. Reduce the request size or split the task; nothing was changed.'};
+  if(code==='AI_TOOL_GENERATION_FAILED')return{status:502,code,message:'The AI provider could not produce a valid structured action. No action was executed. Please reformulate the request.'};
   if(code==='AI_TIMEOUT')return{status:504,code,message:'LOUREX AI could not complete this request in time.'};
   if(code==='AI_NOT_CONFIGURED')return{status:503,code,message:'LOUREX AI is not configured yet.'};
   if(code==='AI_FREE_ONLY_REQUIRED')return{status:503,code,message:'LOUREX AI free-only routing is unavailable.'};
