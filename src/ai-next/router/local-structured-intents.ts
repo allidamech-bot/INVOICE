@@ -77,7 +77,7 @@ export function parseR07PNamedLineReply(raw:string):string|null{
   const name=named?.[1]?.trim()??'';
   if(name.length<2||name.length>130||
     !/^[\p{L}\p{M}\p{N} ._'-]+$/u.test(name)||
-    /(?: و(?:احفظ|اصدر|نفذ|اعتمد|وافق)(?: |$)| and (?:issue|save|approve|post)(?: |$))/u.test(name))
+    /(?: و(?:احفظ|اصدر|نفذ|اعتمد|وافق|غير|عدل|خلي|السعر|الكمية|العملة)(?: |$)| and (?:issue|save|approve|post|change|set|edit)(?: |$))/u.test(name))
     return null;
   return name;
 }
