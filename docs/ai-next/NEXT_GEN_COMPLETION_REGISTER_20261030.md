@@ -274,3 +274,10 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Request collision, corrupt receipt, revoked membership, wrong branch, draft revision conflict and concurrent same-key/different-key edits fail closed. The existing R07R direct preparation path stays intact; receipt-based preparation requires explicitly injected offlineReceiptMode.
 - No financial document issue/save/approval, real-provider invocation, production flag, Firebase live rule or IAM change. This is not an R07M durable task journal event or proof of end-to-end conversation idempotency, live cross-device Firebase or production release readiness.
 - See docs/ai-next/R07R_ATOMIC_EDIT_RECEIPTS_EVIDENCE_20261031.md and final-head GitHub CI for exact tested results. T22/T23/T24, real encrypted cloud QA and physical iPhone Safari remain OPEN.
+
+
+## R07R official Firestore Emulator review-receipt acceptance — October 31, 2026
+
+- The new R07D atomic edit receipt is exercised through two real Firebase Admin SDK clients sharing a **local Firestore Emulator/demo-only project**, covering lost-ACK replay, same-key and different-key concurrent CAS, earlier receipt vs later revision, foreign scope and tampered receipt rejection.
+- This is stronger than synthetic Firestore mocks, but **not** QA/production Cloud Firestore rules/IAM/security or verified real devices. No customer data or financial documents are used. Exact-head CI results determine whether this acceptance is marked tested; no production feature flag or finance source was modified.
+- See docs/ai-next/R07R_REAL_FIRESTORE_RECEIPTS_EVIDENCE_20261031.md. Multi-device signed session, real provider authorization, integrated R07M semantic edit event receipts, T22/T23/T24 and Safari physical device acceptance remain OPEN.
