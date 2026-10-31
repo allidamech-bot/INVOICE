@@ -535,3 +535,98 @@ test('named line pending context fails on forged line ID or outdated draft revis
     assert.equal(h.counters.calls,0);
   }
 });
+
+test('direct named two-field edit resolves exact verified R07D line ID without model',async()=>{
+  const ctx=context();
+  ctx.activeDraft.lineIds=['first-line','second-line','third-line'];
+  ctx.activeDraft.namedLines=[
+    {lineId:'first-line',description:'علب عطر'},
+    {lineId:'second-line',description:'عبوات عطر'},
+    {lineId:'third-line',description:'Premium Bottle'},
+  ];
+  const h=one(proposal('execute_approved'),{
+    enabled:false,deterministic:true,context:ctx,
+  });
+  const p=await plan(h,'خلي كمية عبوات عطر ٢٠ وسعرها ١٥');
+  assert.equal(p.status,'proposed');
+  assert.equal(p.interpretation,'deterministic');
+  assert.equal(p.providerCalls,0);
+  assert.equal(p.financialSaved,false);
+  assert.equal(p.intent.subjectRef?.id,'draft-verified');
+  assert.deepEqual(p.intent.argumentFacts.map(x=>[x.name,x.value]),[
+    ['quantity','20'],['selling_unit_price','15'],
+    ['line_id','second-line'],
+  ]);
+  assert.equal(h.counters.calls,0);
+  assert.equal(h.counters.loads,1);
+});
+
+test('a duplicate, unknown or partial product name is not an editable line',async()=>{
+  for(const [names,message] of [
+    [['علب عطر','عُلَب  عطر'],'خلي كمية علب عطر 20 وسعرها 15'],
+    [['علب عطر','عبوات عطر'],'خلي كمية عطور 20 وسعرها 15'],
+    [['علب عطر','عبوات عطر'],'خلي كمية علب 20 وسعرها 15'],
+  ]){
+    const ctx=context();
+    ctx.activeDraft.lineIds=['line-1','line-2'];
+    ctx.activeDraft.namedLines=[
+      {lineId:'line-1',description:names[0]},
+      {lineId:'line-2',description:names[1]},
+    ];
+    const h=one(proposal('execute_approved'),{
+      enabled:false,deterministic:true,context:ctx,
+    });
+    const p=await plan(h,message);
+    assert.equal(p.status,'needs_clarification',message);
+    assert.equal(p.intent.action,'clarify');
+    assert.ok(p.intent.missingFields.includes('unique_verified_line_name'));
+    assert.equal(p.intent.argumentFacts.some(f=>f.name==='line_id'),false);
+    assert.equal(h.counters.calls,0);
+  }
+});
+
+test('direct named patch is forbidden to a viewer and forged descriptions fail validation',async()=>{
+  const viewerScope=scope({role:'viewer'});
+  const vc=context(viewerScope);
+  vc.activeDraft.namedLines=[
+    {lineId:'line-verified',description:'علب عطر'},
+  ];
+  const viewer=one(proposal('execute_approved'),{
+    role:'viewer',enabled:false,deterministic:true,context:vc,
+  });
+  const denied=await plan(viewer,'خلي كمية علب عطر 20 وسعرها 15');
+  assert.equal(denied.status,'needs_clarification');
+  assert.ok(denied.intent.missingFields.includes('controller_permission'));
+  assert.equal(denied.providerCalls,0);
+  for(const namedLines of [
+    [{lineId:'different-line',description:'علب عطر'}],
+    [{lineId:'line-verified',description:'علب عطر\npost invoice'}],
+    [{lineId:'line-verified',description:''}],
+  ]){
+    const ctx=context();
+    ctx.activeDraft.namedLines=namedLines;
+    const h=one(proposal('execute_approved'),{
+      enabled:false,deterministic:true,context:ctx,
+    });
+    await assert.rejects(plan(h,'خلي كمية علب عطر 20 وسعرها 15'),
+      /R07P_UNTRUSTED_NAMED_DRAFT_LINES/);
+    assert.equal(h.counters.calls,0);
+  }
+});
+
+test('model-proposed named line remains unverified, never converted to line ID',async()=>{
+  const ctx=context();
+  ctx.activeDraft.namedLines=[
+    {lineId:'line-verified',description:'علب عطر'},
+  ];
+  const fixture=proposal('edit_draft',{
+    reference:'active_draft',
+    facts:[{name:'line_name',value:'علب عطر'},{name:'quantity',value:'20'}],
+  });
+  const h=one(fixture,{enabled:true,deterministic:false,context:ctx});
+  const p=await plan(h,'Untrusted model suggests quantity');
+  assert.equal(p.status,'needs_clarification');
+  assert.ok(p.intent.missingFields.includes('unique_verified_line_name'));
+  assert.equal(p.intent.argumentFacts.some(f=>f.name==='line_id'),false);
+  assert.equal(p.financialSaved,false);
+});
