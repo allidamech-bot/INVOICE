@@ -361,9 +361,9 @@ async function fetchWithTimeout(url,options,timeoutMs){
   })();
   try{return await Promise.race([request,timedOut]);}finally{clearTimeout(timeout);}
 }
-// R07X legacy Groq-only protection. Free-tier GPT-OSS/Qwen accounts have
-// a published 8K combined TPM ceiling. This is a conservative preflight
-// estimate for TEXT requests, not a tokenizer or a cross-instance quota grant.
+// R07X Groq legacy chat protection. Free-tier GPT-OSS/Qwen accounts have
+// a published 8K combined TPM ceiling. This conservative preflight only
+// covers text chat, not nested extraction/vision tokenization or shared quotas.
 // Never truncate user/customer context or silently switch to a paid model.
 const GROQ_TEXT_TPM_CEILING=8_000;
 const GROQ_PREFLIGHT_RESERVE=512;
@@ -591,10 +591,16 @@ export async function routeAiStructured(options={}){
       // Free-tier preflight before any inference attempt. Preserve exact
       // user context; if oversized, try only an already authorized alternate.
       // This is deliberately conservative (UTF-8 bytes >= usual text tokens).
-      if(model.provider==='groq'&&!groqTextBudgetFits({
-        messages:options.messages,prompt:options.prompt,
-        attachments,schema:options.schema,maxOutputTokens:options.maxOutputTokens,
-      })){
+      // This budget is currently limited to text chat: extraction tasks
+      // have much larger nested schemas and separate source validation.
+      // Do not break established quote/supplier/product extraction on a
+      // conservative byte-based estimate; those still handle upstream 413.
+      if(model.provider==='groq'&&
+        ['business_copilot','workspace_help'].includes(taskType)&&
+        !groqTextBudgetFits({
+          messages:options.messages,prompt:options.prompt,
+          attachments,schema:options.schema,maxOutputTokens:options.maxOutputTokens,
+        })){
         lastCode='AI_REQUEST_TOO_LARGE';
         break;
       }
