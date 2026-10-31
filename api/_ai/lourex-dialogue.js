@@ -160,7 +160,7 @@ export async function naturalLourexDialogue(cleaned,options={}){
   const result=await routeAiStructured({
     onDiagnostic:options.ownerDiagnostics===true?row=>{
       if(attempts.length>=8||!['groq','cloudflare','gemini','ollama','openrouter'].includes(row?.provider)||
-        !['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid'].includes(row?.category)||
+        !['ok','low-confidence','schema','unsupported','unavailable','rate_limit','timeout','network','upstream','invalid','blocked'].includes(row?.category)||
         !Number.isFinite(row.latencyMs)||row.latencyMs<0||row.latencyMs>60000)return;
       attempts.push({provider:row.provider,category:row.category,latencyMs:Math.round(row.latencyMs),
         ...(typeof row.model==='string'&&/^[-@a-zA-Z0-9._/:]{1,160}$/.test(row.model)?{model:row.model}:{}),
