@@ -24,11 +24,15 @@ export const R07R_TRUSTED_OFFLINE_REVIEW_SESSION_ACTIVE=false as const;
 export interface R07RTrustedSessionDependencies{
   /** A server-owned, explicit offline-fixture-only construction grant. */
   offlineFixtureMode?:true;
+  /** Separately require receipt adapter/transaction approval for offline QA. */
+  offlineReceiptMode?:true;
   principal:R07AuthenticatedPrincipalVerifier;
   membership:R07ServerMembershipStore;
   journal:R07PHistoryAuthority;
   draftStore:Pick<R07DExperimentalFirestoreDraftStore,
-    'read'|'replaceReviewRevision'>;
+    'read'|'replaceReviewRevision'> &
+    Partial<Pick<R07DExperimentalFirestoreDraftStore,
+      'readEditReceipt'|'replaceReviewRevisionWithReceipt'>>;
   customers:R07RTrustedCustomerResolver;
   /** Synthetic fixture for controlled offline tests only. */
   syntheticInterpreter:R07PSyntheticInterpreter;
@@ -53,6 +57,7 @@ export function createR07RTrustedOfflineReviewSession(
   const bridge=new R07RReviewDraftPreparationBridge({
     principal:deps.principal,membership:deps.membership,
     planner,draftStore:deps.draftStore,customers:deps.customers,
+    offlineReceiptMode:deps.offlineReceiptMode,
     clock:deps.clock,
   });
   return {context,planner,bridge};

@@ -266,3 +266,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - End-to-end offline fixtures cover one owner creating an UNSAVED quotation, setting the verified customer, selecting currency, appending a fully specified line and changing quantity across canonical revisions. Cross-instance re-read, replay rejection, multiple-draft ambiguity, revoked/foreign identity and bad-model-action negative cases are included.
 - Existing financial document issuance and approval remain unreachable; the session does not yet persist the semantic edit turn to the R07M journal or provide a per-edit ambiguity recovery receipt. Real provider inference and full cross-device production QA remain prohibited and OPEN.
 - See docs/ai-next/R07R_TRUSTED_REVIEW_SESSION_EVIDENCE_20261031.md and exact-head GitHub Actions. T22/T23/T24 and all production gates remain OPEN.
+
+
+## R07R atomic unsaved edit request receipts — October 31, 2026
+
+- An AI-only, offline-optionally-enabled R07D receipt store now atomically records exact request identity and approved **unsaved review-draft revision** in one Firestore-compatible transaction. This closes duplicate-CAS ambiguity for an AI review edit after lost network acknowledgement; a same-key replay returns the recorded applied revision and the latest verified draft without rerunning the synthetic interpreter.
+- Request collision, corrupt receipt, revoked membership, wrong branch, draft revision conflict and concurrent same-key/different-key edits fail closed. The existing R07R direct preparation path stays intact; receipt-based preparation requires explicitly injected offlineReceiptMode.
+- No financial document issue/save/approval, real-provider invocation, production flag, Firebase live rule or IAM change. This is not an R07M durable task journal event or proof of end-to-end conversation idempotency, live cross-device Firebase or production release readiness.
+- See docs/ai-next/R07R_ATOMIC_EDIT_RECEIPTS_EVIDENCE_20261031.md and final-head GitHub CI for exact tested results. T22/T23/T24, real encrypted cloud QA and physical iPhone Safari remain OPEN.
