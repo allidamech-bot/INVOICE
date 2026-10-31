@@ -76,6 +76,7 @@ function makeClient(db,flags={}){
     allowOfflineSemanticFixtures:true,
     offlineReviewReceiptStore:drafts,
     allowOfflineReviewReceiptAudit:flags.auditEnabled!==false,
+    allowOfflineVerifiedReviewReply:flags.replyEnabled!==false,
     clock:()=>new Date(DATE),
   });
   return {coordinator,session,journal,drafts,interpretations:()=>interpretations};
@@ -179,4 +180,48 @@ test('corrupt saved R07D receipt cannot be adopted by R07M as evidence',async()=
     .checkpointRefs.length,0);
   assert.ok((await dbB.collection(R07M_FAST_COLLECTION).get()).size>0);
   assert.ok((await dbB.collection(R07D_DRAFT_COLLECTION).get()).size>0);
+});
+
+test('official Firestore: independent client publishes receipt-verified chat reply after lost ACK',async()=>{
+  const h=await createScenario('reply-recovery');
+  const edited=await h.a.session.bridge.prepareWithReceipt(TOKEN,h.editInput);
+  await h.a.coordinator.linkOfflineReviewReceipt(TOKEN,h.editInput);
+  // The confirmation message did not commit. Recover on the other Admin app.
+  const out=await h.b.coordinator.publishOfflineVerifiedReviewReply(
+    TOKEN,h.editInput);
+  assert.equal(out.replayed,false);
+  assert.equal(out.appliedDraftHash,edited.appliedHash);
+  assert.equal(out.appliedDraftRevision,2);
+  assert.equal(out.financialSaved,false);
+  assert.match(out.reply,/لم يتم إصدار عرض السعر/);
+  const history=await h.a.coordinator.history(TOKEN,historyInput(h.s));
+  const forTurn=history.messages.filter(m=>m.turnId===h.semantic.turnId&&
+    m.role==='assistant');
+  assert.equal(forTurn.length,2);
+  assert.match(forTurn[0].text,/لم أطبّق أي تعديل/);
+  assert.equal(forTurn[1].text,out.reply);
+  const planned=await h.a.coordinator.acceptOfflineSemantic(TOKEN,
+    h.editInput.turn);
+  assert.equal(planned.semanticOutcome,'proposal_only');
+  assert.equal(planned.draftEdited,false);
+  assert.equal(planned.reply,forTurn[0].text);
+  const repeat=await h.a.coordinator.publishOfflineVerifiedReviewReply(
+    TOKEN,h.editInput);
+  assert.equal(repeat.replayed,true);
+  assert.equal(repeat.reply,out.reply);
+  assert.equal((await h.b.coordinator.history(TOKEN,historyInput(h.s)))
+    .messages.filter(m=>m.messageId===out.replyMessageId).length,1);
+});
+test('official Firestore: concurrently publishing verified confirmations is idempotent',async()=>{
+  const h=await createScenario('reply-concurrent');
+  await h.a.session.bridge.prepareWithReceipt(TOKEN,h.editInput);
+  const both=await Promise.all([
+    h.a.coordinator.publishOfflineVerifiedReviewReply(TOKEN,h.editInput),
+    h.b.coordinator.publishOfflineVerifiedReviewReply(TOKEN,h.editInput),
+  ]);
+  assert.deepEqual(both.map(x=>x.replayed).sort(),[false,true]);
+  const history=await h.b.coordinator.history(TOKEN,historyInput(h.s));
+  assert.equal(history.checkpointRefs.length,1);
+  assert.equal(history.messages.filter(m=>m.messageId===both[0].replyMessageId)
+    .length,1);
 });

@@ -296,3 +296,12 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - An official local Firestore Emulator test now checks the *combined* R07M semantic request journal and R07D review receipt across two Firebase Admin SDK clients. It simulates interruption after the R07D edit commit and before R07M checkpoint, then validates exact replay/recovery and concurrent checkpoint idempotency; changes only test, CI and evidence docs.
 - This is an emulator-integrated synthetic Controller contract, not cloud IAM/deployed rules, physical two-device acceptance, paid model inference or finished user-facing edit task. The two roots are not one transaction. No production flag is enabled.
 - See docs/ai-next/R07M_R07D_DUAL_ROOT_EMULATOR_20261031.md for CI-bound evidence and remaining T22/T23/T24 release gates.
+
+
+## R07M verified unsaved review reply — October 31, 2026
+
+- Added an OFF-BY-DEFAULT server-only R07M acknowledgement method, which verifies the R07D unsaved review edit receipt, the R07M task/checkpoint and fully audited R07J history before appending a second idempotent assistant message for the review revision. No model call or financial mutation.
+- Restored the distinct original planning-only response for offline semantic replay after an edit-confirmation message is appended; the semantic proposal API still truthfully reports draftEdited:false.
+- Offline tests and official two-Admin-client Firestore Emulator check lost acknowledgement, duplicate reply dedup, concurrent requests, stale-later revisions, denied roles, corrupt receipts and chronological transcript protection. Final exact-head CI is release gate.
+- **Not a unified review-edit Controller turn.** The original provisional reply still exists; financial issuance, live provider inference, live Firebase IAM/rules, T22/T23/T24 and iPhone Safari remain OPEN. No production flag enabled or financial files touched.
+- See docs/ai-next/R07M_VERIFIED_REVIEW_REPLY_20261031.md.

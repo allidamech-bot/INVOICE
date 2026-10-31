@@ -40,6 +40,14 @@ export interface R07MReviewReceiptAuditResult{
   appliedDraftHash:string;financialSaved:false;
   draftEditPerformed:false;providerCalls:0;
 }
+/** Published chat acknowledgement of an ALREADY verified unsaved R07D edit. */
+export interface R07MVerifiedReviewReplyResult{
+  status:'verified_review_reply_published';turnId:string;taskId:string;
+  replyMessageId:string;reply:string;replayed:boolean;
+  conversationRevision:number;appliedDraftRevision:number;
+  appliedDraftHash:string;financialSaved:false;
+  draftEditPerformed:false;providerCalls:0;
+}
 export interface R07MSemanticTurnResult{
   status:'completed';turnId:string;threadId:string;taskId:string;
   replayed:boolean;reply:string;conversationRevision:number;
@@ -117,6 +125,8 @@ export class R07MFastLocalCoordinator{
       'readEditReceipt'>;
     /** Injected only for isolated offline verification, never browser flags. */
     allowOfflineReviewReceiptAudit?:boolean;
+    /** Independent server-only opt-in; unavailable from production routes. */
+    allowOfflineVerifiedReviewReply?:boolean;
   }){}
   private now():Date{return(this.deps.clock??(()=>new Date()))();}
   private async auth(token:string,raw:R07RequestEnvelope):
@@ -238,6 +248,12 @@ export class R07MFastLocalCoordinator{
       const visible=view.assistantReply?.messageId===assistantId?
         view.assistantReply:null;
       if(task.state==='completed'){
+        if(!visible&&task.taskType==='semantic_proposal_only'){
+          // A later R07D-verified confirmation is a SECOND assistant event.
+          // Do not confuse that later event with the original planning-only
+          // reply, or misreport an edit as semantic proposal execution.
+          return this.historical(scope,turn);
+        }
         if(!visible)throw new R07LocalError('R07_COMPLETED_WITHOUT_REPLY');
         const draft=await this.verifiedDraft(scope,turn,task);
         return {reply:visible.text,draft,revision:view.revision,
@@ -485,6 +501,104 @@ export class R07MFastLocalCoordinator{
       }
     }
     throw new R07LocalError('R07M_REVIEW_CHECKPOINT_RETRY_LIMIT');
+  }
+
+  /**
+   * Server-only offline publication of a SECOND immutable assistant message
+   * AFTER R07D verified receipt + R07M immutable checkpoint both exist.
+   * Not a replacement of the earlier planning-only reply or a new edit.
+   *
+   * R07D and R07M are two separate transaction roots. A crash is recovered
+   * by the same request; an older unacknowledged turn is never inserted out
+   * of order after another user turn. No live Controller path invokes this.
+   */
+  async publishOfflineVerifiedReviewReply(token:string,raw:unknown):
+    Promise<R07MVerifiedReviewReplyResult>{
+    if(!this.deps.allowOfflineVerifiedReviewReply)
+      throw new R07LocalError('R07M_VERIFIED_REVIEW_REPLY_DISABLED');
+    const linked=await this.linkOfflineReviewReceipt(token,raw);
+    const input=raw as R07RReceiptPrepareInput;
+    // Re-authorize independently before the user-visible journal write.
+    const scope=await this.auth(token,envelope(input.turn));
+    const threadKey=exactScopeKey(scope);
+    const replyMessageId='review-confirmation-'+linked.turnId;
+    const reply='تم إثبات تطبيق تعديل مسودة عرض السعر في المراجعة رقم '+
+      String(linked.appliedDraftRevision)+
+      '. قد تكون هناك مراجعات أحدث؛ راجع المسودة الحالية. '+
+      'لم يتم إصدار عرض السعر أو حفظ معاملة مالية.';
+    const body:ConversationEventBody={
+      kind:'message',messageId:replyMessageId,
+      turnId:linked.turnId,role:'assistant',text:reply,sourceIds:[],
+    };
+    let publishedReplay=false;
+    let publishedRevision=0;
+    for(let attempt=0;attempt<8;attempt++){
+      const history=await this.deps.journal.auditFullHistory(scope);
+      if(history.scopeKey!==threadKey||
+        !history.turns.some(t=>t.turnId===linked.turnId&&
+          t.taskId===linked.taskId)||
+        !history.tasks.some(t=>t.taskId===linked.taskId&&
+          t.state==='completed'&&t.taskType==='semantic_proposal_only')||
+        !history.checkpointRefs.some(c=>
+          c.taskId===linked.taskId&&
+          c.checkpointId==='review-receipt-'+linked.turnId&&
+          c.stage==='r07r_unsaved_review_edit_receipt_v1'&&
+          c.referenceHash===linked.appliedDraftHash))
+        throw new R07LocalError('R07M_UNVERIFIED_REVIEW_REPLY_EVIDENCE');
+      const prior=history.messages.filter(m=>m.messageId===replyMessageId);
+      if(prior.length>1||prior.length===1&&
+        (prior[0]?.turnId!==linked.turnId||
+          prior[0]?.role!=='assistant'||
+          prior[0]?.text!==reply||
+          prior[0]?.sourceIds.length!==0))
+        throw new R07LocalError('R07M_REVIEW_REPLY_COLLISION');
+      if(prior.length===1){
+        publishedReplay=true;publishedRevision=history.revision;break;
+      }
+      // Late confirmation for an older turn would reorder the displayed
+      // transcript. Keep the receipt checkpoint and require reconciliation.
+      if(history.turns.at(-1)?.turnId!==linked.turnId)
+        throw new R07LocalError('R07M_REVIEW_REPLY_OUT_OF_ORDER');
+      try{
+        const committed=await this.deps.journal.append({
+          scope,expectedRevision:history.revision,
+          eventId:eventId(linked.turnId,'verified-review-reply'),
+          idempotencyKey:eventKey(linked.turnId,'verified-review-reply'),
+          body,now:serverTime(()=>this.now(),history.lastEventAt),
+        });
+        if(committed.authoritativeFullSnapshot!==false||
+          committed.event.scopeKey!==threadKey||
+          committed.event.eventId!==
+            eventId(linked.turnId,'verified-review-reply')||
+          committed.event.body.kind!=='message'||
+          committed.event.body.messageId!==replyMessageId||
+          committed.event.body.text!==reply)
+          throw new R07LocalError('R07M_INVALID_VERIFIED_REPLY_COMMIT');
+        publishedReplay=committed.replayed;
+        publishedRevision=committed.revision;
+        break;
+      }catch(error){if(!isConflict(error))throw error;}
+    }
+    if(!publishedRevision)
+      throw new R07LocalError('R07M_VERIFIED_REPLY_RETRY_LIMIT');
+    // Strong read-after-write; do not claim a visible result from an
+    // unverified receipt, incomplete event chain or ambiguous transcript.
+    const verified=await this.deps.journal.auditFullHistory(scope);
+    const message=verified.messages.filter(m=>m.messageId===replyMessageId);
+    if(message.length!==1||message[0]?.text!==reply||
+      message[0].turnId!==linked.turnId||
+      !verified.checkpointRefs.some(c=>
+        c.checkpointId==='review-receipt-'+linked.turnId&&
+        c.referenceHash===linked.appliedDraftHash))
+      throw new R07LocalError('R07M_VERIFIED_REPLY_MISSING');
+    return {
+      status:'verified_review_reply_published',turnId:linked.turnId,
+      taskId:linked.taskId,replyMessageId,reply,replayed:publishedReplay,
+      conversationRevision:verified.revision,
+      appliedDraftRevision:linked.appliedDraftRevision,
+      appliedDraftHash:linked.appliedDraftHash,
+      financialSaved:false,draftEditPerformed:false,providerCalls:0,
+    };
   }
   async current(token:string,raw:unknown){
     const scope=await this.auth(token,raw as R07RequestEnvelope);
