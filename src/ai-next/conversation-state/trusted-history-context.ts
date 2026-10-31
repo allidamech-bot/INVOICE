@@ -26,7 +26,9 @@ export interface R07PDraftAuthority{
 export class R07PTrustedHistoryContext implements R07PContextReader{
   constructor(private readonly journal:R07PHistoryAuthority,
     private readonly drafts:R07PDraftAuthority){}
-  async load(scope:AuthenticatedScope):Promise<R07PTrustedContext>{
+  async load(scope:AuthenticatedScope,current?:{
+    userMessageId:string;idempotencyKey:string;message:string;
+  }):Promise<R07PTrustedContext>{
     if(!validateAuthenticatedScope(scope))throw Error('R07P_CONTEXT_INVALID_SCOPE');
     const key=exactScopeKey(scope);
     // Never substitute the current-turn R07L materialization for history.
@@ -74,6 +76,50 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
     // If two drafts coexist, "it / last draft" is ambiguous; neither
     // earlier creation order nor most recently edited means user intent.
     const active=candidates.length===1?candidates[0]!:null;
+    // Derive an OPTIONAL single-field clarification from immutable audited
+    // R07J history. No new pending database, mutable chat cache or inferred
+    // provider intent. The current processing turn must IMMEDIATELY follow
+    // a completed, no-receipt clarification from the SAME authenticated actor.
+    // Only the literal "عدل السعر" request is eligible in this first gate.
+    let pendingPriceFollowup:R07PTrustedContext['pendingPriceFollowup'];
+    const last=audit.turns.at(-1),previous=audit.turns.at(-2);
+    const lastTask=last&&audit.tasks.find(x=>x.turnId===last.turnId);
+    const previousTask=previous&&audit.tasks.find(x=>x.turnId===previous.turnId);
+    const previousReplies=previous?audit.messages.filter(m=>
+      m.turnId===previous.turnId&&m.role==='assistant'):[];
+    const previousCheckpoints=previousTask?audit.checkpointRefs.filter(x=>
+      x.taskId===previousTask.taskId):[];
+    const clarification='الطلب غير محدد بشكل كافٍ لتعديل المسودة. '+
+      'حدد المسودة والبند أو القيمة المطلوبة. لم أؤكد تنفيذ أي تعديل.';
+    if(current&&active&&active.lineItems.length===1&&
+      last&&previous&&lastTask&&previousTask&&
+      last.userMessageId===current.userMessageId&&
+      last.idempotencyKey===current.idempotencyKey&&
+      last.userMessage.text===current.message&&
+      last.parentTurnId===previous.turnId&&
+      last.scope.actorId===scope.actorId&&
+      previous.scope.actorId===scope.actorId&&
+      last.scope.role===scope.role&&previous.scope.role===scope.role&&
+      exactScopeKey(last.scope)===key&&exactScopeKey(previous.scope)===key&&
+      last.mode==='controller'&&previous.mode==='controller'&&
+      lastTask.taskType==='unsaved_review_edit'&&
+      lastTask.state==='processing'&&
+      previousTask.taskType==='unsaved_review_edit'&&
+      previousTask.state==='completed'&&
+      previous.userMessage.text==='عدل السعر'&&
+      previousReplies.length===1&&
+      previousReplies[0]?.text===clarification&&
+      previousCheckpoints.length===1&&
+      previousCheckpoints[0]?.stage==='r07m_unsaved_review_request_v1'){
+      pendingPriceFollowup={
+        currentUserMessageId:current.userMessageId,
+        currentIdempotencyKey:current.idempotencyKey,
+        previousTurnId:previous.turnId,
+        draftId:active.draftId,
+        draftRevision:active.draftRevision,
+        field:'selling_unit_price',
+      };
+    }
     const refs=candidates.map(d=>({
       kind:'draft' as const,id:d.draftId,
       documentKind:'quotation' as const,scopeKey:key,
@@ -85,6 +131,7 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
         revision:active.draftRevision,lineIds:active.lineItems.map(l=>l.lineId),
       }:null,
       references:refs,
+      ...(pendingPriceFollowup?{pendingPriceFollowup}:{}),
     });
   }
 }
