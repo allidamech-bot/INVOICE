@@ -13,6 +13,8 @@ import type {TrustedDraftRepository} from '../coordinator/local-coordinator.js';
 
 export const R07D_PRODUCTION_DRAFT_STORAGE_ACTIVATED=false as const;
 export const R07D_DRAFT_COLLECTION='aiNextReviewDraftsV1';
+/** AI-only review edit receipt root; no financial execution or issue token. */
+export const R07D_EDIT_RECEIPT_COLLECTION='aiNextReviewEditReceiptsV1';
 export const R07D_MAX_DOCUMENT_BYTES=350_000;
 const HASH=/^[0-9a-f]{64}$/u;
 const safeId=(x:unknown):x is string=>typeof x==='string'&&
@@ -22,6 +24,14 @@ const isPlain=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==='object'&
   !Array.isArray(x)&&Object.getPrototypeOf(x)===Object.prototype;
 export class R07DDraftStorageError extends Error{
   constructor(readonly code:string){super(code);}
+}
+export interface R07DReviewEditReceipt {
+  schemaVersion:1;scopeKey:string;turnId:string;requestKey:string;
+  requestFingerprint:string;expectedRevision:number;expectedHash:string;
+  appliedRevision:number;appliedHash:string;
+}
+export interface R07DReviewEditOutcome {
+  draft:ReviewDraft;receipt:R07DReviewEditReceipt;replayed:boolean;
 }
 interface StoredDraft {
   schemaVersion:1;scopeKey:string;turnId:string;
@@ -37,7 +47,7 @@ export interface R07DDraftReference{
 }
 export interface R07DDraftTransaction{
   get(ref:R07DDraftReference):Promise<R07DDraftSnapshot>;
-  create(ref:R07DDraftReference,value:StoredDraft):void;
+  create(ref:R07DDraftReference,value:StoredDraft|R07DReviewEditReceipt):void;
   set(ref:R07DDraftReference,value:StoredDraft):void;
 }
 export interface R07DDraftFirestore{
@@ -115,10 +125,66 @@ async function identifier(scope:AuthenticatedScope,turnId:string):Promise<string
   const value=await crypto.subtle.digest('SHA-256',bytes);
   return Array.from(new Uint8Array(value),x=>x.toString(16).padStart(2,'0')).join('');
 }
+function assertReceiptInput(input:{
+  scope:AuthenticatedScope;turnId:string;requestKey:string;
+  requestFingerprint:string;expectedRevision:number;expectedHash:string;
+}):void{
+  if(!safeId(input.turnId)||!safeId(input.requestKey)||
+    !HASH.test(input.requestFingerprint)||!HASH.test(input.expectedHash)||
+    !Number.isSafeInteger(input.expectedRevision)||input.expectedRevision<1)
+    throw new R07DDraftStorageError('R07D_INVALID_EDIT_REQUEST');
+}
+function verifyReceipt(value:unknown,input:{
+  scope:AuthenticatedScope;turnId:string;requestKey:string;
+  requestFingerprint:string;expectedRevision:number;expectedHash:string;
+}):R07DReviewEditReceipt{
+  if(!isPlain(value)||Object.keys(value).sort().join(',')!==
+    ['schemaVersion','scopeKey','turnId','requestKey','requestFingerprint',
+      'expectedRevision','expectedHash','appliedRevision','appliedHash'].sort().join(',')||
+    value.schemaVersion!==1||value.scopeKey!==exactScopeKey(input.scope)||
+    value.turnId!==input.turnId||value.requestKey!==input.requestKey||
+    !HASH.test(String(value.requestFingerprint))||
+    !HASH.test(String(value.expectedHash))||
+    !HASH.test(String(value.appliedHash))||
+    !Number.isSafeInteger(value.expectedRevision)||
+    !Number.isSafeInteger(value.appliedRevision)||
+    value.appliedRevision!==Number(value.expectedRevision)+1)
+    throw new R07DDraftStorageError('R07D_CORRUPT_EDIT_RECEIPT');
+  if(value.requestFingerprint!==input.requestFingerprint||
+    value.expectedRevision!==input.expectedRevision||
+    value.expectedHash!==input.expectedHash)
+    throw new R07DDraftStorageError('R07D_EDIT_REQUEST_COLLISION');
+  return clone(value as unknown as R07DReviewEditReceipt);
+}
+function guardRevision(prior:StoredDraft,next:ReviewDraft,
+  expectedRevision:number,expectedHash:string):void{
+  if(prior.draftRevision!==expectedRevision||
+    prior.draft.immutableRevisionHash!==expectedHash)
+    throw new R07DDraftStorageError('R07D_STALE_DRAFT_REVISION');
+  if(prior.draft.status!=='needs_review'||prior.draft.approvalReceiptId!==null||
+    next.createdAt!==prior.draft.createdAt||
+    Date.parse(next.updatedAt)<Date.parse(prior.draft.updatedAt)||
+    next.undoBaseRevision!==prior.draftRevision||
+    next.editEvents.length!==prior.draft.editEvents.length+1||
+    JSON.stringify(next.editEvents.slice(0,-1))!==
+      JSON.stringify(prior.draft.editEvents)||
+    next.editEvents.at(-1)?.revision!==next.draftRevision||
+    JSON.stringify(next.sourceIds)!==JSON.stringify(prior.draft.sourceIds)||
+    next.sourceManifestHash!==prior.draft.sourceManifestHash||
+    next.draftId!==prior.draftId)
+    throw new R07DDraftStorageError('R07D_FORBIDDEN_DRAFT_REWRITE');
+}
 export class R07DExperimentalFirestoreDraftStore implements TrustedDraftRepository{
   constructor(private readonly database:R07DDraftFirestore){}
   private async ref(scope:AuthenticatedScope,turnId:string):Promise<R07DDraftReference>{
     return this.database.collection(R07D_DRAFT_COLLECTION).doc(await identifier(scope,turnId));
+  }
+  private async receiptRef(scope:AuthenticatedScope,turnId:string,
+    requestKey:string):Promise<R07DDraftReference>{
+    const base=await identifier(scope,turnId),key=await crypto.subtle.digest(
+      'SHA-256',new TextEncoder().encode(JSON.stringify([base,requestKey])));
+    const id=Array.from(new Uint8Array(key),x=>x.toString(16).padStart(2,'0')).join('');
+    return this.database.collection(R07D_EDIT_RECEIPT_COLLECTION).doc(id);
   }
   async read(scope:AuthenticatedScope,turnId:string):Promise<ReviewDraft|null>{
     const ref=await this.ref(scope,turnId);
@@ -160,23 +226,82 @@ export class R07DExperimentalFirestoreDraftStore implements TrustedDraftReposito
     const ref=await this.ref(scope,turnId);
     return this.database.runTransaction(async tx=>{
       const prior=await decode(await tx.get(ref),scope,turnId);
-      if(!prior||prior.draftRevision!==expectedRevision||
-        prior.draft.immutableRevisionHash!==expectedHash)
-        throw new R07DDraftStorageError('R07D_STALE_DRAFT_REVISION');
-      if(prior.draft.status!=='needs_review'||prior.draft.approvalReceiptId!==null||
-        next.createdAt!==prior.draft.createdAt||
-        Date.parse(next.updatedAt)<Date.parse(prior.draft.updatedAt)||
-        next.undoBaseRevision!==prior.draftRevision||
-        next.editEvents.length!==prior.draft.editEvents.length+1||
-        JSON.stringify(next.editEvents.slice(0,-1))!==
-          JSON.stringify(prior.draft.editEvents)||
-        next.editEvents.at(-1)?.revision!==next.draftRevision||
-        JSON.stringify(next.sourceIds)!==JSON.stringify(prior.draft.sourceIds)||
-        next.sourceManifestHash!==prior.draft.sourceManifestHash||
-        next.draftId!==prior.draftId)
-        throw new R07DDraftStorageError('R07D_FORBIDDEN_DRAFT_REWRITE');
+      if(!prior)throw new R07DDraftStorageError('R07D_STALE_DRAFT_REVISION');
+      guardRevision(prior,next,expectedRevision,expectedHash);
       tx.set(ref,prepared);
       return clone(next);
     });
   }
+  /**
+   * Bounded atomic R07R receipt + R07D draft CAS in the SAME Firestore
+   * transaction. Replays return current draft plus immutable applied revision,
+   * never a stale historical draft snapshot. This is not an R07M turn receipt.
+   */
+  async readEditReceipt(input:{
+    scope:AuthenticatedScope;turnId:string;requestKey:string;
+    requestFingerprint:string;expectedRevision:number;expectedHash:string;
+  }):Promise<R07DReviewEditOutcome|null>{
+    assertReceiptInput(input);
+    const draftRef=await this.ref(input.scope,input.turnId);
+    const receiptRef=await this.receiptRef(
+      input.scope,input.turnId,input.requestKey);
+    return this.database.runTransaction(async tx=>{
+      const [receiptSnap,draftSnap]=await Promise.all([
+        tx.get(receiptRef),tx.get(draftRef),
+      ]);
+      if(!receiptSnap.exists)return null;
+      const receipt=verifyReceipt(receiptSnap.data(),input);
+      const saved=await decode(draftSnap,input.scope,input.turnId);
+      if(!saved||saved.draftRevision<receipt.appliedRevision||
+        (saved.draftRevision===receipt.appliedRevision&&
+          saved.draft.immutableRevisionHash!==receipt.appliedHash))
+        throw new R07DDraftStorageError('R07D_EDIT_RECEIPT_DRAFT_DIVERGED');
+      return {draft:clone(saved.draft),receipt,replayed:true};
+    });
+  }
+  async replaceReviewRevisionWithReceipt(input:{
+    scope:AuthenticatedScope;turnId:string;requestKey:string;
+    requestFingerprint:string;expectedRevision:number;expectedHash:string;
+    next:ReviewDraft;
+  }):Promise<R07DReviewEditOutcome>{
+    assertReceiptInput(input);
+    await validateDraft(input.scope,input.turnId,input.next,false);
+    if(input.next.draftRevision!==input.expectedRevision+1)
+      throw new R07DDraftStorageError('R07D_SKIPPED_DRAFT_REVISION');
+    const prepared=await document(input.scope,input.turnId,input.next);
+    const draftRef=await this.ref(input.scope,input.turnId);
+    const receiptRef=await this.receiptRef(
+      input.scope,input.turnId,input.requestKey);
+    return this.database.runTransaction(async tx=>{
+      // Firestore requires every read before the first write.
+      const [receiptSnap,draftSnap]=await Promise.all([
+        tx.get(receiptRef),tx.get(draftRef),
+      ]);
+      const prior=await decode(draftSnap,input.scope,input.turnId);
+      if(receiptSnap.exists){
+        const receipt=verifyReceipt(receiptSnap.data(),input);
+        if(!prior||prior.draftRevision<receipt.appliedRevision||
+          (prior.draftRevision===receipt.appliedRevision&&
+            prior.draft.immutableRevisionHash!==receipt.appliedHash))
+          throw new R07DDraftStorageError('R07D_EDIT_RECEIPT_DRAFT_DIVERGED');
+        return {draft:clone(prior.draft),receipt,replayed:true};
+      }
+      if(!prior)
+        throw new R07DDraftStorageError('R07D_STALE_DRAFT_REVISION');
+      guardRevision(prior,input.next,input.expectedRevision,input.expectedHash);
+      const receipt:R07DReviewEditReceipt={
+        schemaVersion:1,scopeKey:exactScopeKey(input.scope),
+        turnId:input.turnId,requestKey:input.requestKey,
+        requestFingerprint:input.requestFingerprint,
+        expectedRevision:input.expectedRevision,
+        expectedHash:input.expectedHash,
+        appliedRevision:input.next.draftRevision,
+        appliedHash:input.next.immutableRevisionHash,
+      };
+      tx.set(draftRef,prepared);
+      tx.create(receiptRef,receipt);
+      return {draft:clone(input.next),receipt:clone(receipt),replayed:false};
+    });
+  }
+
 }
