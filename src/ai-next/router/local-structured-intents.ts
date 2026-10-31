@@ -22,6 +22,33 @@ function normalize(raw:string,lower=true):string{
     .trim().replace(/\s+/gu,' ');
   return lower?normalized.replace(/[أإآ]/gu,'ا').toLowerCase():normalized;
 }
+/**
+ * R07W: guard the user's EXPLICIT prohibition of financial writes, even if
+ * a future routed model misreads a negated verb as an instruction to act.
+ * "لا، خلي الكمية 12" is an affirmative correction, NOT a prohibition.
+ * This is a safety ceiling, not general natural-language understanding.
+ */
+export function hasR07PExplicitNoWriteConstraint(raw:string):boolean{
+  if(typeof raw!=='string'||raw.length>6000||
+    /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/u.test(raw))return false;
+  const value=normalize(raw).replace(/[.!؟?،,؛;]+/gu,' ')
+    .replace(/\s+/gu,' ').trim();
+  return /(?:^|\s)(?:لا\s+(?:تعدل|تغير|تحفظ|تصدر|تنفذ|تسجل)(?:\s+(?:شيئا|شيء|شي|اي\s+شيء|البيانات|المعلومات|العرض|الفاتورة))?|(?:do\s+not|don't)\s+(?:modify|change|edit|save|issue|post|execute|update|write)\b)/iu.test(value);
+}
+
+/**
+ * Very narrow, whole-ending, read-only acknowledgement. Earlier text may
+ * supply hypothetical data; ONLY the explicit final instruction controls
+ * this case. Never infer, persist or validate any amounts from that text.
+ * Ambiguous messages remain with the existing semantic/clarification path.
+ */
+export function recognizeR07PAcknowledgementOnly(raw:string):boolean{
+  if(!hasR07PExplicitNoWriteConstraint(raw))return false;
+  const value=normalize(raw).replace(/[.!؟?،,؛;]+/gu,' ')
+    .replace(/\s+/gu,' ').trim();
+  return /(?:(?:فقط|بس)\s+(?:اكد(?:لي)?|قل\s+لي|خبرني)\s+(?:انك\s+(?:فهمت|استوعبت))(?:\s+(?:البيانات|المعلومات|التفاصيل|الطلب|الوصف|الكلام|المحتوى))?|(?:only|just)\s+(?:confirm\s+(?:that\s+)?you\s+(?:understand|understood)(?:\s+(?:the\s+)?(?:data|information|details|request|description|message))?|acknowledge\s+(?:the\s+)?(?:data|information|details|message)))$/iu.test(value);
+}
+
 const make=(action:R07PSemanticCandidate['action'],
   reference:R07PSemanticCandidate['reference'],
   facts:Fact[]=[],missingFields:string[]=[]):R07PSemanticCandidate=>({

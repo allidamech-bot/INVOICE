@@ -630,3 +630,56 @@ test('model-proposed named line remains unverified, never converted to line ID',
   assert.equal(p.intent.argumentFacts.some(f=>f.name==='line_id'),false);
   assert.equal(p.financialSaved,false);
 });
+
+
+test('R07W: exact witnessed synthetic quote acknowledgement bypasses action planner',async()=>{
+  const utterances=[
+    'بيانات افتراضية: عبوات عطر 10 بسعر 15 دولار وعلب عطر 7 بسعر 8 دولار. لا تعدل شيئاً الآن. فقط أكد أنك فهمت البيانات.',
+    'Synthetic quote: perfume bottles 10 at $15 and boxes 7 at $8. Do not modify anything now. Only confirm that you understood the data.',
+  ];
+  for(const message of utterances){
+    const h=one(proposal('execute_approved'),{deterministic:true});
+    const p=await plan(h,message);
+    assert.equal(p.status,'local_reply',message);
+    assert.equal(p.intent.action,'discuss');
+    assert.equal(p.risk,'read_only');
+    assert.equal(p.intent.executable,false);
+    assert.equal(p.providerCalls,0);
+    assert.equal(p.financialSaved,false);
+    assert.equal(h.counters.calls,0,'no model or synthetic interpreter call');
+    assert.equal(h.counters.loads,0,'no business context access');
+    assert.equal(h.counters.auth,1,'the caller must still authenticate');
+    assert.equal(h.counters.membership,1,'membership is never bypassed');
+    assert.match(p.assistantReply,/لم تُنفَّذ أي عملية مالية/);
+  }
+});
+
+test('R07W: model-proposed edits cannot override an explicit no-write instruction',async()=>{
+  for(const candidate of [
+    proposal('edit_draft',{reference:'active_draft',
+      facts:[{name:'quantity',value:'12'}]}),
+    proposal('execute_approved'),
+    proposal('request_approval',{reference:'active_draft'}),
+  ]){
+    const h=one(candidate,{deterministic:true});
+    const p=await plan(h,
+      'لا تعدل أي شيء. أريد فقط مناقشة هذه الأسعار، من دون حفظ');
+    assert.equal(p.status,'needs_clarification');
+    assert.equal(p.intent.action,'clarify');
+    assert.equal(p.risk,'blocked');
+    assert.equal(p.intent.executable,false);
+    assert.equal(p.financialSaved,false);
+    assert.equal(p.providerCalls,1,'only an injected offline fake interpreter');
+    assert.ok(p.intent.missingFields.includes('explicit_no_write_constraint'));
+  }
+});
+
+test('R07W: negated write is NOT the same as an affirmative Arabic correction',async()=>{
+  const h=one(proposal('edit_draft',{reference:'active_draft',
+    facts:[{name:'quantity',value:'12'}]}),{deterministic:true});
+  const p=await plan(h,'لا، خلي الكمية 12 بدل 10');
+  assert.equal(p.status,'proposed');
+  assert.equal(p.intent.action,'edit_draft');
+  assert.equal(p.intent.executable,false);
+  assert.equal(p.financialSaved,false);
+});
