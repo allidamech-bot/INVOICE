@@ -80,14 +80,14 @@ export interface R07PSemanticCandidate{
 export interface R07PSyntheticInterpreter{
   /** Only synthetic test payloads may be sent through this R07P interface. */
   interpret(input:{message:string;language:'ar'|'en'|'mixed'|'unknown';
-    mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[];
-    history?:{role:'user'|'assistant';text:string}[]}):Promise<unknown>;
+    mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[]}):Promise<unknown>;
 }
 /** The R07Q adapter remains unmounted; a trusted server provides the scope. */
 export interface R07PRoutedInterpreter{
   interpret(input:{scope:AuthenticatedScope;
     message:string;language:'ar'|'en'|'mixed'|'unknown';
-    mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[]}):
+    mode:ConversationMode;knownReferences:{kind:RefKind;id:string}[];
+    history?:{role:'user'|'assistant';text:string}[]}):
     Promise<
       | {ok:true;candidate:unknown;calls:number}
       | {ok:false;code:string;calls:number}
