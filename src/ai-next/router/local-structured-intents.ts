@@ -119,6 +119,14 @@ export function requiresR07PCompoundClarification(raw:string):boolean{
   if(['احفظ العرض واصدره','approve and post this invoice'].includes(value))
     return false; // Already approval-only in R07P, NEVER an execution.
   if(unsafeCompound.test(value))return true;
+  // Named draft edits with invalid/partial syntax must not fall through
+  // to a model that can silently drop fields, negative values or a second
+  // instruction. Only a completely parsed explicit local edit is eligible.
+  const attemptedNamedEdit=
+    /^(?:خلي|غير|عدل) (?:كمية|سعر) /u.test(value)||
+    /^set (?:the )?(?:quantity|unit price) of /u.test(value);
+  if(attemptedNamedEdit&&recognizeR07PLocalStructuredIntent(raw)===null)
+    return true;
   const targets=[
     /(?:العميل|customer)/u,
     /(?:العملة|currency)/u,
