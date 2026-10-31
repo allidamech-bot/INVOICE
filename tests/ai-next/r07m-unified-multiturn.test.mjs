@@ -228,6 +228,7 @@ test('real local parsing edits an audited unsaved quotation without synthetic mo
   // fixture. The new parser does not invent description or line identity.
   await h.edit('أضف أول منتج','fixture-line-setup',origin);
   const before=h.interpretations();
+  const previousRevision=await h.drafts.read(scope,origin);
   const correction=await h.edit('لا خلي الكمية ١٢','local-quantity',origin);
   assert.equal(correction.status,'applied_unsaved_review');
   assert.equal(correction.providerCalls,0);
@@ -241,7 +242,7 @@ test('real local parsing edits an audited unsaved quotation without synthetic mo
   assert.equal(draft.status,'needs_review');
   assert.equal(draft.approvalReceiptId,null);
   const replay=await h.edit('لا خلي الكمية ١٢','local-quantity',origin,
-    await h.drafts.read(scope,origin));
+    previousRevision);
   assert.equal(replay.replayed,true);
   assert.equal(replay.appliedDraftRevision,5);
   assert.equal((await h.drafts.read(scope,origin)).draftRevision,5);
