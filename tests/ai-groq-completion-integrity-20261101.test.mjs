@@ -44,7 +44,7 @@ const route=async()=>(
 ).routeAiStructured;
 
 test('Groq explicit truncation/filter/tool finish is never a successful conversation',async()=>{
-  for(const finish of ['length','max_tokens','tool_calls','content_filter']){
+  for(const finish of ['length','max_tokens','tool_calls']){
     onlyGroq();let calls=0;
     globalThis.fetch=async(url,options)=>{
       calls++;
@@ -109,4 +109,26 @@ test('Rejected truncated Groq JSON falls back only to an existing approved provi
   assert.equal(result.fallbackUsed,true);
   assert.equal(result.attemptCount,2);
   assert.equal(urls.length,2);
+});
+
+test('Groq content_filter blocks the whole request and cannot be bypassed by another vendor',async()=>{
+  onlyGroq();
+  process.env.CLOUDFLARE_ACCOUNT_ID='offline-account';
+  process.env.CLOUDFLARE_AI_API_TOKEN='offline-cloudflare-key';
+  let calls=0;
+  globalThis.fetch=async url=>{
+    calls++;
+    assert.match(String(url),/api\.groq\.com/u,'no external fallback after a block');
+    return response('A partial but valid-looking JSON','content_filter');
+  };
+  const result=await (await route())(request);
+  assert.equal(result.success,false);
+  assert.equal(result.errorCode,'AI_OUTPUT_BLOCKED');
+  assert.equal(result.attemptCount,1);
+  assert.equal(calls,1);
+  const {aiRouterPublicError}=await import('../api/_ai/router.js');
+  const publicError=aiRouterPublicError(result);
+  assert.equal(publicError.status,422);
+  assert.equal(publicError.code,'AI_OUTPUT_BLOCKED');
+  assert.match(publicError.message,/No operation was executed/u);
 });
