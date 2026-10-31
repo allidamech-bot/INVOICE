@@ -258,3 +258,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Audit failure, foreign account scope, unbounded history, absent completed-turn draft and corrupt draft data fail closed. It exposes no new financial document reader or approval authority.
 - Deterministic local greeting / blank quotation starts now bypass full expensive history reads entirely **after server authentication**. Nonlocal semantic interpretation retains verified context and strict authorization requirements.
 - See docs/ai-next/R07P_TRUSTED_HISTORY_CONTEXT_EVIDENCE_20261031.md and final-head GitHub Actions. This does not close cloud history performance, source evidence, T22/T23/T24, real Arabic model understanding or production release gates.
+
+
+## R07R trusted offline quotation lifecycle — October 31, 2026
+
+- A disabled, explicitly synthetic-only composition connects existing R07M quotation creation, R07P full authenticated audited context, R07R guarded field editing and R07D draft revision CAS. No new coordinator or financial writer is created.
+- End-to-end offline fixtures cover one owner creating an UNSAVED quotation, setting the verified customer, selecting currency, appending a fully specified line and changing quantity across canonical revisions. Cross-instance re-read, replay rejection, multiple-draft ambiguity, revoked/foreign identity and bad-model-action negative cases are included.
+- Existing financial document issuance and approval remain unreachable; the session does not yet persist the semantic edit turn to the R07M journal or provide a per-edit ambiguity recovery receipt. Real provider inference and full cross-device production QA remain prohibited and OPEN.
+- See docs/ai-next/R07R_TRUSTED_REVIEW_SESSION_EVIDENCE_20261031.md and exact-head GitHub Actions. T22/T23/T24 and all production gates remain OPEN.
