@@ -26,6 +26,8 @@ export interface R07RTrustedSessionDependencies{
   offlineFixtureMode?:true;
   /** Separately require receipt adapter/transaction approval for offline QA. */
   offlineReceiptMode?:true;
+  /** New deterministic NLU is also OFF unless explicitly opted-in for offline QA. */
+  offlineDeterministicStructuredIntents?:true;
   principal:R07AuthenticatedPrincipalVerifier;
   membership:R07ServerMembershipStore;
   journal:R07PHistoryAuthority;
@@ -52,6 +54,8 @@ export function createR07RTrustedOfflineReviewSession(
     principal:deps.principal,membership:deps.membership,context,
     syntheticInterpreter:deps.syntheticInterpreter,
     allowSyntheticInference:true,
+    allowDeterministicStructuredIntents:
+      deps.offlineDeterministicStructuredIntents===true,
     clock:deps.clock,
   });
   const bridge=new R07RReviewDraftPreparationBridge({
