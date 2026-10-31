@@ -90,7 +90,7 @@ export function parseR07PNamedLineReply(raw:string):string|null{
 export function resolveR07PNamedLineId(name:string,
   lines:readonly {lineId:string;description:string}[]):string|null{
   if(typeof name!=='string'||name.length<2||name.length>130||
-    !Array.isArray(lines)||lines.length<2||lines.length>120)return null;
+    !Array.isArray(lines)||lines.length<1||lines.length>120)return null;
   const matches=lines.filter(line=>
     typeof line.description==='string'&&
     typeof line.lineId==='string'&&line.lineId.length>0&&
@@ -146,6 +146,49 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
   if(value==='approve and post this invoice')
     return make('request_approval','none');
   if(unsafeCompound.test(value))return null;
+
+  // A direct named-line edit is a *syntax candidate*, not a trusted line ID.
+  // Resolve the ENTIRE exact name from the audited R07D draft in R07P.
+  // The already-existing R07R line_patch commits both values in ONE CAS
+  // revision with an R07D receipt, never two separate field updates.
+  const namedValue=/\\d{1,12}(?:\\.\\d{1,6})?/u;
+  void namedValue; // bounded values are also checked by number() below.
+  const safeName=(name:string):boolean=>
+    name.length>=2&&name.length<=130&&
+    /^[\\p{L}\\p{M}\\p{N} ._'-]+$/u.test(name)&&
+    !/(?:^| )(?:احفظ|اصدر|نفذ|اعتمد|وافق|غير|عدل|خلي|save|issue|approve|post|delete|execute)(?: |$)/u.test(name);
+  let named=value.match(
+    /^(?:خلي|غير|عدل) كمية (.+?) (\\d{1,12}(?:\\.\\d{1,6})?) وسعرها (\\d{1,12}(?:\\.\\d{1,6})?)$/u
+  )||value.match(
+    /^set (?:the )?quantity of (.+?) to (\\d{1,12}(?:\\.\\d{1,6})?) and (?:the )?unit price to (\\d{1,12}(?:\\.\\d{1,6})?)$/u
+  );
+  if(named){
+    const name=named[1]!.trim(),quantity=number(named[2]!),
+      price=number(named[3]!);
+    return safeName(name)&&quantity&&quantity!=='0'&&price?
+      make('edit_draft','active_draft',[
+        {name:'line_name',value:name},{name:'quantity',value:quantity},
+        {name:'selling_unit_price',value:price},
+      ]):null;
+  }
+  named=value.match(/^(?:خلي|غير|عدل) كمية (.+?) (\\d{1,12}(?:\\.\\d{1,6})?)$/u)||
+    value.match(/^set (?:the )?quantity of (.+?) to (\\d{1,12}(?:\\.\\d{1,6})?)$/u);
+  if(named){
+    const name=named[1]!.trim(),quantity=number(named[2]!);
+    return safeName(name)&&quantity&&quantity!=='0'?
+      make('edit_draft','active_draft',[
+        {name:'line_name',value:name},{name:'quantity',value:quantity},
+      ]):null;
+  }
+  named=value.match(/^(?:خلي|غير|عدل) سعر (.+?) (\\d{1,12}(?:\\.\\d{1,6})?)$/u)||
+    value.match(/^set (?:the )?unit price of (.+?) to (\\d{1,12}(?:\\.\\d{1,6})?)$/u);
+  if(named){
+    const name=named[1]!.trim(),price=number(named[2]!);
+    return safeName(name)&&price?
+      make('edit_draft','active_draft',[
+        {name:'line_name',value:name},{name:'selling_unit_price',value:price},
+      ]):null;
+  }
 
   // A single, fully scoped line patch can safely contain BOTH fields.
   // This is NOT a general multi-action executor: the existing R07P
