@@ -281,3 +281,11 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - The new R07D atomic edit receipt is exercised through two real Firebase Admin SDK clients sharing a **local Firestore Emulator/demo-only project**, covering lost-ACK replay, same-key and different-key concurrent CAS, earlier receipt vs later revision, foreign scope and tampered receipt rejection.
 - This is stronger than synthetic Firestore mocks, but **not** QA/production Cloud Firestore rules/IAM/security or verified real devices. No customer data or financial documents are used. Exact-head CI results determine whether this acceptance is marked tested; no production feature flag or finance source was modified.
 - See docs/ai-next/R07R_REAL_FIRESTORE_RECEIPTS_EVIDENCE_20261031.md. Multi-device signed session, real provider authorization, integrated R07M semantic edit event receipts, T22/T23/T24 and Safari physical device acceptance remain OPEN.
+
+
+## R07M↔R07D verified review receipt checkpoint — October 31, 2026
+
+- A disabled, server-only method on the **existing R07M coordinator** verifies a previously completed semantic proposal turn through the sealed request index and exact authenticated scope, verifies the already committed R07D unsaved review edit receipt by the same R07R request fingerprint, and appends an immutable idempotent checkpoint to that R07M task.
+- A lost network acknowledgement between R07D edit and R07M checkpoint can be reconciled without repeating the edit or spending a provider call. Two independent stores are NOT one atomic transaction; this is a retryable audit link, **not** a fully integrated natural-language turn outcome.
+- Exact-head GitHub CI includes two-root crash/replay/concurrent/tamper/role tests and existing R07M/R07R regression. T22/T23/T24, live provider authorization, production cloud IAM/rules, actual financial posting and iPhone acceptance remain OPEN. Flags remain disabled, finance and production untouched.
+- Detail: docs/ai-next/R07M_REVIEW_RECEIPT_AUDIT_EVIDENCE_20261031.md.
