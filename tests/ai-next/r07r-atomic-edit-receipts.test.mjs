@@ -101,7 +101,7 @@ function setup(db=new DB(),options={}){
   const edit=(draft,turn=input(),originTurnId='')=>session.bridge.prepareWithReceipt(
     TOKEN,{turn,originTurnId,expectedDraftRevision:draft.draftRevision,
       expectedDraftHash:draft.immutableRevisionHash});
-  return {db,journal,draftStore,session,coordinator,create,edit,
+  return {db,journal,draftStore,session,coordinator,principal,membership,create,edit,
     calls:()=>calls,authChecks:()=>authChecks};
 }
 const receiptKeys=db=>[...db.records.keys()].filter(k=>
@@ -226,4 +226,133 @@ test('origin turn mismatch cannot attach an edit receipt to another draft',async
   await assert.rejects(h.edit(created.draft,input(),'foreign-origin'),
     /R07R_RECEIPT_DRAFT_REFERENCE_MISMATCH/);
   assert.equal(receiptKeys(h.db).length,0);
+});
+
+
+function auditCoordinator(h,options={}){
+  return new R07MFastLocalCoordinator({
+    journal:h.journal,draftStore:h.draftStore,
+    principal:h.principal,membership:h.membership,
+    clock:()=>new Date(NOW),
+    offlineSemanticPlanner:h.session.planner,
+    allowOfflineSemanticFixtures:true,
+    offlineReviewReceiptStore:h.draftStore,
+    allowOfflineReviewReceiptAudit:options.enabled!==false,
+  });
+}
+const auditInput=(created,turn=input())=>({
+  turn,originTurnId:created.turnId,
+  expectedDraftRevision:created.draft.draftRevision,
+  expectedDraftHash:created.draft.immutableRevisionHash,
+});
+test('R07M only checkpoints an already committed R07D receipt; never edits a draft itself',async()=>{
+  const h=setup(),created=await h.create();
+  const c=auditCoordinator(h);
+  const operation=input();
+  const semantic=await c.acceptOfflineSemantic(TOKEN,operation);
+  assert.equal(semantic.financialSaved,false);
+  const args=auditInput(created,operation);
+  const before=h.db.writes;
+  await assert.rejects(c.linkOfflineReviewReceipt(TOKEN,args),
+    /R07M_REVIEW_RECEIPT_NOT_VERIFIED/);
+  assert.equal(h.db.writes,before);
+  assert.equal((await c.history(TOKEN,{schemaVersion:1,
+    accountId:scope.accountId,companyId:scope.companyId,
+    branchId:scope.branchId,threadId:scope.threadId,scopeType:'business'}))
+    .checkpointRefs.length,0);
+  const edited=await h.edit(created.draft,operation,created.turnId);
+  const beforeLink=h.db.writes;
+  const linked=await c.linkOfflineReviewReceipt(TOKEN,args);
+  assert.equal(linked.status,'review_receipt_checkpointed');
+  assert.equal(linked.appliedDraftRevision,2);
+  assert.equal(linked.currentDraftRevision,2);
+  assert.equal(linked.appliedDraftHash,edited.appliedHash);
+  assert.equal(linked.financialSaved,false);
+  assert.equal(linked.draftEditPerformed,false);
+  assert.equal(linked.providerCalls,0);
+  assert.equal(h.db.writes-beforeLink>0,true);
+  const history=await c.history(TOKEN,{schemaVersion:1,
+    accountId:scope.accountId,companyId:scope.companyId,
+    branchId:scope.branchId,threadId:scope.threadId,scopeType:'business'});
+  assert.equal(history.turns.length,2);
+  assert.equal(history.tasks.length,2);
+  assert.equal(history.tasks.at(-1).state,'completed');
+  assert.equal(history.checkpointRefs.length,1);
+  assert.equal(history.checkpointRefs[0].taskId,semantic.taskId);
+  assert.equal(history.checkpointRefs[0].referenceHash,edited.appliedHash);
+  assert.equal(history.checkpointRefs[0].sourceIds.length,0);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,2);
+});
+test('crash between R07D edit receipt and R07M checkpoint is reconciled by a new instance',async()=>{
+  const h=setup(),created=await h.create();
+  const first=auditCoordinator(h),turn=input();
+  await first.acceptOfflineSemantic(TOKEN,turn);
+  const edited=await h.edit(created.draft,turn,created.turnId);
+  const next=setup(h.db),independent=auditCoordinator(next);
+  const firstLink=await independent.linkOfflineReviewReceipt(
+    TOKEN,auditInput(created,turn));
+  assert.equal(firstLink.replayed,false);
+  const writes=h.db.writes;
+  const repeat=await auditCoordinator(setup(h.db)).linkOfflineReviewReceipt(
+    TOKEN,auditInput(created,turn));
+  assert.equal(repeat.replayed,true);
+  assert.equal(repeat.appliedDraftHash,edited.appliedHash);
+  assert.equal(repeat.currentDraftRevision,2);
+  assert.equal(h.db.writes,writes);
+  assert.equal(next.calls(),0,'receipt reconciliation must not invoke a provider');
+});
+test('parallel checkpoint retry on the same semantic task writes exactly one R07M event',async()=>{
+  const h=setup(),created=await h.create();
+  const turn=input();await auditCoordinator(h).acceptOfflineSemantic(TOKEN,turn);
+  await h.edit(created.draft,turn,created.turnId);
+  const left=auditCoordinator(setup(h.db)),right=auditCoordinator(setup(h.db));
+  const [a,b]=await Promise.all([
+    left.linkOfflineReviewReceipt(TOKEN,auditInput(created,turn)),
+    right.linkOfflineReviewReceipt(TOKEN,auditInput(created,turn)),
+  ]);
+  assert.equal([a.replayed,b.replayed].filter(Boolean).length,1);
+  assert.equal((await h.journal.auditFullHistory(scope)).checkpointRefs.length,1);
+});
+test('changed request or receipt fingerprint does not forge an R07M checkpoint',async()=>{
+  const h=setup(),created=await h.create();
+  const turn=input();
+  await auditCoordinator(h).acceptOfflineSemantic(TOKEN,turn);
+  await h.edit(created.draft,turn,created.turnId);
+  const before=h.db.writes;
+  await assert.rejects(auditCoordinator(h).linkOfflineReviewReceipt(TOKEN,
+    auditInput(created,input('غير العميل',turn.requestId))),
+    /R07M_REVIEW_TURN_NOT_VERIFIED/);
+  const altered=auditInput(created,turn);
+  altered.expectedDraftHash='f'.repeat(64);
+  await assert.rejects(auditCoordinator(h).linkOfflineReviewReceipt(TOKEN,altered),
+    /R07D_EDIT_REQUEST_COLLISION/);
+  assert.equal(h.db.writes,before);
+});
+test('offline receipt checkpoint feature is server-disabled by default',async()=>{
+  const h=setup(),created=await h.create();
+  await assert.rejects(auditCoordinator(h,{enabled:false})
+    .linkOfflineReviewReceipt(TOKEN,auditInput(created)),
+    /R07M_REVIEW_RECEIPT_AUDIT_DISABLED/);
+});
+test('review receipt checkpoint rejects revoked membership before any receipt read',async()=>{
+  const h=setup(),created=await h.create();const turn=input();
+  await auditCoordinator(h).acceptOfflineSemantic(TOKEN,turn);
+  await h.edit(created.draft,turn,created.turnId);
+  const revoked=setup(h.db,{revoked:true}),reader=auditCoordinator(revoked);
+  const before=h.db.reads,writes=h.db.writes;
+  await assert.rejects(reader.linkOfflineReviewReceipt(
+    TOKEN,auditInput(created,turn)),/AUTH_MEMBERSHIP_DENIED/);
+  assert.equal(h.db.reads,before);
+  assert.equal(h.db.writes,writes);
+});
+test('cannot attach R07R receipt to a deterministic greeting or uncompleted task',async()=>{
+  const h=setup(),created=await h.create();
+  await h.coordinator.accept(TOKEN,input('السلام عليكم','greeting-only',{
+    mode:'advisor',
+  }));
+  const d=auditInput(created,input('السلام عليكم','greeting-only',{
+    mode:'advisor',
+  }));
+  await assert.rejects(auditCoordinator(h).linkOfflineReviewReceipt(TOKEN,d),
+    /R07M_REVIEW_AUDIT_DENIED/);
 });
