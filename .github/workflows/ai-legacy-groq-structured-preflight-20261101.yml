@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'api/_ai/router.js'
+      - 'scripts/verify-deployment-isolation.mjs'
+      - 'tests/ai-staging-isolation-gates-20261017.test.mjs'
       - 'api/_ai/lourex-dialogue.js'
       - 'tests/ai-multi-provider-router.test.mjs'
       - 'tests/ai-reliability-batch5.test.mjs'
@@ -41,5 +43,6 @@ jobs:
           tests/ai-provider-contract-v448.test.mjs
           tests/ai-dialogue-negated-completion.test.mjs
           tests/ai-reliability-batch5.test.mjs
+          tests/ai-staging-isolation-gates-20261017.test.mjs
       - name: Production and finance isolation assertion
         run: node scripts/verify-deployment-isolation.mjs
