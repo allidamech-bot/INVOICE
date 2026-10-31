@@ -88,7 +88,7 @@ function validate(cases:readonly R07TDialogue[]):R07PEvaluationGold[]{
   for(const scenario of cases){
     if(!record(scenario)||!keys(scenario,['scenarioId','language','turns'])||
       !id(scenario.scenarioId)||scenarios.has(scenario.scenarioId)||
-      !['ar','en','mixed'].includes(scenario.language)||
+      !['ar','en','mixed'].includes(scenario.language as string)||
       !Array.isArray(scenario.turns)||scenario.turns.length<2||
       scenario.turns.length>10)return err('R07T_INVALID_GOLD');
     scenarios.add(scenario.scenarioId);
@@ -116,7 +116,8 @@ function validate(cases:readonly R07TDialogue[]):R07PEvaluationGold[]{
       if(turns.has(pair))return err('R07T_INVALID_GOLD');
       turns.add(pair);
       flattened.push({
-        id:pair,language:scenario.language,utterance:turn.message,
+        id:pair,language:scenario.language as R07PEvaluationGold['language'],
+        utterance:turn.message,
         expected:turn.expected as R07PEvaluationGold['expected'],
       });
     }
