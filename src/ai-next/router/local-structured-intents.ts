@@ -39,6 +39,20 @@ const unsafeCompound=/(?:^| )(?:و?(?:احفظ|اصدر|وافق|اعتمد|نف
 const clientName=/^[\p{L}\p{M}\p{N} .'-]{2,100}$/u;
 
 /**
+ * Strict value-only reply parser. A bare number is NEVER an edit by itself.
+ * Only the R07P planner may bind it to the immediately preceding, verified
+ * pending price clarification from the full R07J audit.
+ */
+export function parseR07PStandalonePriceReply(raw:string):string|null{
+  if(typeof raw!=='string'||raw.length>32||
+    /[\u0000-\u001f\u007f]/u.test(raw))return null;
+  const value=normalize(raw);
+  if(!/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/u.test(value))
+    return null;
+  return value;
+}
+
+/**
  * With the local, opt-in Controller enabled, never allow a downstream model
  * to reinterpret just ONE part of an unsafe or unsupported compound command.
  * This rejects unsupported multiple targets until a real, receipt-aware
