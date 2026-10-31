@@ -319,3 +319,10 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - Targeted CI checks the evaluation contract with intentionally correct and incorrect fixture predictions; **these are evaluator tests, not measured model understanding or acceptance of any provider.** External model calls, actual provider entitlements, privacy consent and real Arabic accuracy remain unverified and OPEN.
 - AI Next only; no financial code, production feature flags, credentials, IAM/rules, paid model or real data access touched.
 - Evidence: docs/ai-next/R07P_MULTILINGUAL_EVALUATION_CONTRACT_20261031.md. Exact-head CI and merge verification are required to mark the PR tested/merged; T22/T23/T24 and iPhone Safari remain OPEN.
+
+## R07O guarded unified review-edit local HTTP integration — October 31, 2026
+
+- The existing LOCAL-ONLY R07O HTTP preview is extended with an opt-in `review_edit` operation that invokes the already-merged R07M unified unsaved review task; no new coordinator or financial writer. The server-only `allowOfflineUnifiedReviewEdit:true` option must be enabled explicitly in a demo Firestore Emulator process, and browser payload cannot enable it. All existing loopback origin, Bearer, membership, request size, no-CORS and no-cache rules remain.
+- Official local Firestore Emulator tests extend R07O to check the complete HTTP edit/replay, lost response acknowledgement, sealed request collision, revoked membership, read-after-write proof, and denial without server opt-in; previous greeting and secure preview tests remain. **Do not claim TESTED or MERGED until exact-head CI and GitHub merge verification.**
+- This milestone is NOT cloud IAM acceptance, real model intelligence, real two-device operation or a deployed UI; public R07O and production feature flags remain false. T22/T23/T24 and physical iPhone Safari OPEN.
+- Evidence: `docs/ai-next/R07O_UNIFIED_REVIEW_LOCAL_HTTP_EVIDENCE_20261031.md`.
