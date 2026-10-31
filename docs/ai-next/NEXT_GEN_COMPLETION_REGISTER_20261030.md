@@ -289,3 +289,10 @@ The R07O preview handler is **not an API route**, is denied in Vercel/production
 - A lost network acknowledgement between R07D edit and R07M checkpoint can be reconciled without repeating the edit or spending a provider call. Two independent stores are NOT one atomic transaction; this is a retryable audit link, **not** a fully integrated natural-language turn outcome.
 - Exact-head GitHub CI includes two-root crash/replay/concurrent/tamper/role tests and existing R07M/R07R regression. T22/T23/T24, live provider authorization, production cloud IAM/rules, actual financial posting and iPhone acceptance remain OPEN. Flags remain disabled, finance and production untouched.
 - Detail: docs/ai-next/R07M_REVIEW_RECEIPT_AUDIT_EVIDENCE_20261031.md.
+
+
+## R07M/R07D dual-root actual Firestore Emulator reconciliation — October 31, 2026
+
+- An official local Firestore Emulator test now checks the *combined* R07M semantic request journal and R07D review receipt across two Firebase Admin SDK clients. It simulates interruption after the R07D edit commit and before R07M checkpoint, then validates exact replay/recovery and concurrent checkpoint idempotency; changes only test, CI and evidence docs.
+- This is an emulator-integrated synthetic Controller contract, not cloud IAM/deployed rules, physical two-device acceptance, paid model inference or finished user-facing edit task. The two roots are not one transaction. No production flag is enabled.
+- See docs/ai-next/R07M_R07D_DUAL_ROOT_EMULATOR_20261031.md for CI-bound evidence and remaining T22/T23/T24 release gates.
