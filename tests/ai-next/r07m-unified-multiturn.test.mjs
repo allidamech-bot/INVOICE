@@ -660,3 +660,108 @@ test('orphan, interrupted and hostile name answers cannot resurrect earlier edit
   assert.equal((await h.drafts.read(scope,origin)).draftRevision,
     before.draftRevision);
 });
+
+test('direct Arabic named quantity+price commits one verified revision and replays after reopen',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const origin=(await h.create('direct-name-origin')).turnId;
+  await h.edit('خلي العملة USD','direct-name-currency',origin);
+  await h.edit('أضف أول منتج','direct-name-first',origin);
+  await h.edit('أضف عبوات عطر','direct-name-middle',origin);
+  await h.edit('أضف المنتج الثاني','direct-name-last',origin);
+  const before=await h.drafts.read(scope,origin);
+  assert.deepEqual(before.lineItems.map(l=>l.description),[
+    'First synthetic item','عبوات عطر','Second synthetic item']);
+  const synthetic=h.interpretations();
+  const answer=await h.edit('خلي كمية عبوات عطر ٢٠ وسعرها ١٧',
+    'direct-name-atomic',origin,before);
+  assert.equal(answer.status,'applied_unsaved_review');
+  assert.equal(answer.appliedDraftRevision,before.draftRevision+1);
+  assert.equal(answer.providerCalls,0);
+  assert.equal(answer.financialSaved,false);
+  assert.equal(h.interpretations(),synthetic);
+  const current=await h.drafts.read(scope,origin);
+  assert.equal(current.draftRevision,before.draftRevision+1);
+  assert.deepEqual(current.lineItems.map(l=>l.quantity),['10','20','10']);
+  assert.deepEqual(current.lineItems.map(l=>l.sellingUnitPrice),['15','17','15']);
+  assert.equal(current.lineItems[1].lineId,before.lineItems[1].lineId);
+  assert.equal(current.status,'needs_review');
+  assert.equal(current.approvalReceiptId,null);
+  const recovered=setup(h.db,{deterministic:true});
+  const replay=await recovered.edit('خلي كمية عبوات عطر ٢٠ وسعرها ١٧',
+    'direct-name-atomic',origin,before);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftRevision,before.draftRevision+1);
+  assert.equal(recovered.interpretations(),0);
+  assert.equal((await recovered.drafts.read(scope,origin)).draftRevision,
+    before.draftRevision+1);
+  await assert.rejects(recovered.edit('خلي كمية عبوات عطر ٢١ وسعرها ١٧',
+    'direct-name-atomic',origin,before),/R07_TURN_IDEMPOTENCY_COLLISION/);
+  const history=await recovered.history();
+  assert.equal(history.messages.filter(m=>m.turnId===answer.turnId&&
+    m.role==='assistant').length,1);
+  assert.equal(history.checkpointRefs.filter(x=>
+    x.taskId===answer.taskId).length,2);
+});
+
+test('named single-field edits reuse one-line CAS and never change another line',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const origin=(await h.create('direct-single-origin')).turnId;
+  await h.edit('خلي العملة USD','direct-single-currency',origin);
+  await h.edit('أضف علب عطر','direct-single-first',origin);
+  await h.edit('أضف عبوات عطر','direct-single-second',origin);
+  const quantity=await h.edit('عدل كمية علب عطر ١٢',
+    'direct-single-quantity',origin);
+  assert.equal(quantity.status,'applied_unsaved_review');
+  const price=await h.edit('غير سعر عبوات عطر ١٧',
+    'direct-single-price',origin);
+  assert.equal(price.status,'applied_unsaved_review');
+  const draft=await h.drafts.read(scope,origin);
+  assert.deepEqual(draft.lineItems.map(l=>l.quantity),['12','10']);
+  assert.deepEqual(draft.lineItems.map(l=>l.sellingUnitPrice),['15','17']);
+});
+
+test('duplicate or unknown item names fail closed and preserve all draft lines',async()=>{
+  for(const variant of ['duplicate','unknown']){
+    const h=setup(undefined,{deterministic:true});
+    const origin=(await h.create('direct-reject-'+variant)).turnId;
+    await h.edit('خلي العملة USD','direct-currency-'+variant,origin);
+    await h.edit('أضف علب عطر','direct-first-'+variant,origin);
+    await h.edit(variant==='duplicate'?'أضف علب عطر':'أضف عبوات عطر',
+      'direct-second-'+variant,origin);
+    const prior=await h.drafts.read(scope,origin),calls=h.interpretations();
+    const out=await h.edit(variant==='duplicate'?
+      'خلي كمية علب عطر 20 وسعرها 17':
+      'خلي كمية علب عطور 20 وسعرها 17',
+      'direct-no-match-'+variant,origin,prior);
+    assert.equal(out.status,'needs_clarification');
+    assert.equal(out.appliedDraftRevision,null);
+    assert.equal(out.providerCalls,0);
+    assert.equal(h.interpretations(),calls);
+    const after=await h.drafts.read(scope,origin);
+    assert.equal(after.draftRevision,prior.draftRevision);
+    assert.deepEqual(after.lineItems,prior.lineItems);
+  }
+});
+
+test('invalid named extra financial action is denied without provider or R07D edit',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const origin=(await h.create('direct-malformed-origin')).turnId;
+  await h.edit('خلي العملة USD','direct-malformed-currency',origin);
+  await h.edit('أضف علب عطر','direct-malformed-line',origin);
+  const before=await h.drafts.read(scope,origin),synthetic=h.interpretations();
+  for(const [text,key] of [
+    ['خلي كمية علب عطر 20 وسعرها 17 واحفظ','direct-compound-save'],
+    ['خلي كمية علب عطر -20 وسعرها 17','direct-negative-quantity'],
+    ['خلي كمية علب عطر 0 وسعرها 17','direct-zero-quantity'],
+    ['Set quantity of Premium Bottle to 20 and unit price to 17 and then post',
+      'direct-compound-post'],
+  ]){
+    const out=await h.edit(text,key,origin,before);
+    assert.equal(out.status,'needs_clarification',text);
+    assert.equal(out.appliedDraftRevision,null,text);
+    assert.equal(out.providerCalls,0);
+    assert.equal(h.interpretations(),synthetic);
+    assert.equal((await h.drafts.read(scope,origin)).draftRevision,
+      before.draftRevision);
+  }
+});
