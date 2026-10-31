@@ -131,6 +131,10 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
     value.match(/^لا قصدي العميل (.+)$/u)||
     value.match(/^change the customer to (.+)$/u);
   if(match){
+    // A customer alias must not swallow another instruction as part of
+    // the name; e.g. "خلي العميل شركة النور والسعر 15" is TWO targets.
+    if(/(?: و(?:السعر|العملة|الكمية)(?: |$)| and (?:price|currency|quantity|unit price)(?: |$))/u.test(value))
+      return null;
     const original=normalize(raw,false);
     const originalMatch=original.match(/^(?:خلي|حط|غير|عدل) العميل (.+)$/iu)||
       original.match(/^لا قصدي العميل (.+)$/iu)||
