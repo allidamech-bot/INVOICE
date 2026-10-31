@@ -43,6 +43,22 @@ const clientName=/^[\p{L}\p{M}\p{N} .'-]{2,100}$/u;
  * Only the R07P planner may bind it to the immediately preceding, verified
  * pending price clarification from the full R07J audit.
  */
+/**
+ * A bare ordinal is NEVER a command by itself. The audited R07P context
+ * must bind it to a preceding no-receipt, ambiguous line correction and
+ * the current exact scoped revision. No model-proposed line identifier.
+ */
+export function parseR07PStandaloneLineReply(raw:string):0|1|null{
+  if(typeof raw!=='string'||raw.length>48||
+    /[\u0000-\u001f\u007f]/u.test(raw))return null;
+  const value=normalize(raw);
+  if(['الاول','الصنف الاول','البند الاول','first','first item',
+    'the first item'].includes(value))return 0;
+  if(['الثاني','الصنف الثاني','البند الثاني','second','second item',
+    'the second item'].includes(value))return 1;
+  return null;
+}
+
 export function parseR07PStandalonePriceReply(raw:string):string|null{
   if(typeof raw!=='string'||raw.length>32||
     /[\u0000-\u001f\u007f]/u.test(raw))return null;

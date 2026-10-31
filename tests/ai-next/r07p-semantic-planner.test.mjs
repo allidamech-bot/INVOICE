@@ -410,3 +410,75 @@ test('forged pending draft revision fails closed before any edit or model',async
   await assert.rejects(plan(h,'17'),/R07P_UNTRUSTED_PRICE_FOLLOWUP/);
   assert.equal(h.counters.calls,0);
 });
+
+test('exact ordinal answer uses bound verified line ID and prior quantity without inference',async()=>{
+  const c=context();
+  c.activeDraft.lineIds=['verified-first','verified-second'];
+  c.pendingLineFollowup={
+    currentUserMessageId:'message-r07p',
+    currentIdempotencyKey:'key-r07p',
+    previousTurnId:'verified-prior-turn',
+    draftId:'draft-verified',draftRevision:4,
+    field:'quantity',value:'12',lineId:'verified-second',
+  };
+  const h=one(proposal('execute_approved'),{
+    enabled:false,deterministic:true,context:c,
+  });
+  const p=await plan(h,'الصنف الثاني');
+  assert.equal(p.status,'proposed');
+  assert.equal(p.interpretation,'deterministic');
+  assert.equal(p.providerCalls,0);
+  assert.equal(p.financialSaved,false);
+  assert.equal(p.intent.subjectRef?.id,'draft-verified');
+  assert.deepEqual(p.intent.argumentFacts.map(f=>[f.name,f.value]),
+    [['quantity','12'],['line_id','verified-second']]);
+  assert.equal(h.counters.calls,0);
+  assert.equal(h.counters.loads,1);
+});
+test('orphan or mismatched ordinal refuses a provider-created line and financial change',async()=>{
+  const h=one(proposal('edit_draft'),{enabled:false,deterministic:true});
+  const missing=await plan(h,'الثاني');
+  assert.equal(missing.status,'needs_clarification');
+  assert.deepEqual(missing.intent.missingFields,
+    ['verified_previous_line_request']);
+  assert.equal(missing.providerCalls,0);
+  assert.equal(h.counters.calls,0);
+  const c=context();
+  c.activeDraft.lineIds=['verified-first','verified-second'];
+  c.pendingLineFollowup={
+    currentUserMessageId:'different-turn',
+    currentIdempotencyKey:'key-r07p',
+    previousTurnId:'some-previous-turn',
+    draftId:'draft-verified',draftRevision:4,
+    field:'quantity',value:'12',lineId:'verified-second',
+  };
+  const wrong=one(proposal('edit_draft'),{
+    enabled:false,deterministic:true,context:c,
+  });
+  assert.equal((await plan(wrong,'الثاني')).status,'needs_clarification');
+  assert.equal(wrong.counters.calls,0);
+});
+test('forged ordinal line IDs, revisions and quantities fail context validation',async()=>{
+  const baseline=context();
+  baseline.activeDraft.lineIds=['verified-first','verified-second'];
+  for(const change of [
+    {lineId:'foreign-line'},
+    {draftRevision:99},
+    {value:'12;issue invoice'},
+    {field:'selling_unit_price'},
+  ]){
+    const c=structuredClone(baseline);
+    c.pendingLineFollowup={
+      currentUserMessageId:'message-r07p',
+      currentIdempotencyKey:'key-r07p',
+      previousTurnId:'verified-prior-turn',
+      draftId:'draft-verified',draftRevision:4,
+      field:'quantity',value:'12',lineId:'verified-second',...change,
+    };
+    const h=one(proposal('edit_draft'),{
+      enabled:false,deterministic:true,context:c,
+    });
+    await assert.rejects(plan(h,'الثاني'),/R07P_UNTRUSTED_LINE_FOLLOWUP/);
+    assert.equal(h.counters.calls,0);
+  }
+});

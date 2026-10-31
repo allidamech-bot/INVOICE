@@ -442,3 +442,111 @@ test('two-line price clarification stays unresolved, no guessed line or price up
   assert.equal(current.draftRevision,before.draftRevision);
   assert.deepEqual(current.lineItems,before.lineItems);
 });
+
+test('immediate second-line answer completes prior quantity after restart and replays only once',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('line-followup-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','line-followup-currency',origin);
+  await h.edit('أضف أول منتج','line-followup-first',origin);
+  await h.edit('أضف المنتج الثاني','line-followup-second',origin);
+  const before=await h.drafts.read(scope,origin);
+  assert.equal(before.lineItems.length,2);
+  assert.equal(before.lineItems[0].quantity,'10');
+  assert.equal(before.lineItems[1].quantity,'10');
+  const question=await h.edit('لا خلي الكمية ١٢',
+    'line-followup-question',origin,before);
+  assert.equal(question.status,'needs_clarification');
+  assert.equal(question.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,before.draftRevision);
+  const restored=setup(h.db,{deterministic:true});
+  const answer=await restored.edit('الصنف الثاني',
+    'line-followup-answer',origin,before);
+  assert.equal(answer.status,'applied_unsaved_review');
+  assert.equal(answer.appliedDraftRevision,before.draftRevision+1);
+  assert.equal(answer.financialSaved,false);
+  assert.equal(answer.providerCalls,0);
+  assert.equal(restored.interpretations(),0);
+  const committed=await restored.drafts.read(scope,origin);
+  assert.equal(committed.draftRevision,before.draftRevision+1);
+  assert.equal(committed.lineItems.length,2);
+  assert.equal(committed.lineItems[0].lineId,before.lineItems[0].lineId);
+  assert.equal(committed.lineItems[1].lineId,before.lineItems[1].lineId);
+  assert.equal(committed.lineItems[0].quantity,'10');
+  assert.equal(committed.lineItems[1].quantity,'12');
+  assert.equal(committed.status,'needs_review');
+  assert.equal(committed.approvalReceiptId,null);
+  const reopened=setup(h.db,{deterministic:true});
+  const replay=await reopened.edit('الصنف الثاني',
+    'line-followup-answer',origin,before);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftRevision,before.draftRevision+1);
+  assert.equal(reopened.interpretations(),0);
+  assert.equal((await reopened.drafts.read(scope,origin)).draftRevision,
+    before.draftRevision+1);
+  await assert.rejects(reopened.edit('الصنف الأول','line-followup-answer',
+    origin,before),/R07_TURN_IDEMPOTENCY_COLLISION/);
+  const history=await reopened.history();
+  assert.equal(history.messages.filter(m=>m.turnId===answer.turnId&&
+    m.role==='assistant').length,1);
+  assert.equal(history.checkpointRefs.filter(c=>
+    c.taskId===answer.taskId).length,2);
+});
+test('first ordinal is resolved against verified first line, not a model-generated ID',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('first-ordinal-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','first-ordinal-currency',origin);
+  await h.edit('أضف أول منتج','first-ordinal-first',origin);
+  await h.edit('أضف المنتج الثاني','first-ordinal-second',origin);
+  const before=await h.drafts.read(scope,origin);
+  assert.equal((await h.edit('لا خلي الكمية ٢٠',
+    'first-ordinal-question',origin,before)).status,'needs_clarification');
+  const answer=await h.edit('الأول','first-ordinal-answer',origin,before);
+  assert.equal(answer.status,'applied_unsaved_review');
+  assert.equal(answer.providerCalls,0);
+  const after=await h.drafts.read(scope,origin);
+  assert.equal(after.lineItems[0].quantity,'20');
+  assert.equal(after.lineItems[1].quantity,'10');
+});
+test('orphan and interrupted ordinal answers cannot silently edit a draft',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('orphan-line-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','orphan-line-currency',origin);
+  await h.edit('أضف أول منتج','orphan-line-first',origin);
+  await h.edit('أضف المنتج الثاني','orphan-line-second',origin);
+  const before=await h.drafts.read(scope,origin),calls=h.interpretations();
+  const orphan=await h.edit('الثاني','orphan-line-answer',origin,before);
+  assert.equal(orphan.status,'needs_clarification');
+  assert.equal(orphan.appliedDraftRevision,null);
+  assert.equal(h.interpretations(),calls);
+  const question=await h.edit('لا خلي الكمية ١٢',
+    'orphan-line-question',origin,before);
+  assert.equal(question.status,'needs_clarification');
+  const intervening=await h.edit('مرحبا هل في شيء جديد؟',
+    'orphan-line-intervening',origin,before);
+  assert.equal(intervening.status,'needs_clarification');
+  const after=await h.edit('الثاني','orphan-line-later',origin,before);
+  assert.equal(after.status,'needs_clarification');
+  assert.equal(after.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,
+    before.draftRevision);
+});
+test('multi-field ambiguity and foreign/malformed ordinals cannot hijack line continuation',async()=>{
+  const h=setup(undefined,{deterministic:true});
+  const created=await h.create('compound-ordinal-origin'),origin=created.turnId;
+  await h.edit('خلي العملة USD','compound-ordinal-currency',origin);
+  await h.edit('أضف أول منتج','compound-ordinal-first',origin);
+  await h.edit('أضف المنتج الثاني','compound-ordinal-second',origin);
+  const before=await h.drafts.read(scope,origin);
+  const question=await h.edit('خلي الكمية 12 والسعر 17',
+    'compound-ordinal-question',origin,before);
+  assert.equal(question.status,'needs_clarification');
+  const answer=await h.edit('الثاني','compound-ordinal-answer',origin,before);
+  assert.equal(answer.status,'needs_clarification');
+  assert.equal(answer.appliedDraftRevision,null);
+  const other=await h.edit('الثاني واحفظ','compound-ordinal-unsafe',
+    origin,before);
+  assert.equal(other.status,'needs_clarification');
+  assert.equal(other.appliedDraftRevision,null);
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,
+    before.draftRevision);
+});

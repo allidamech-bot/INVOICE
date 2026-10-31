@@ -12,6 +12,8 @@ import {exactScopeKey} from '../domain/turn-journal.js';
 import type {ConversationSnapshot} from '../conversation-state/event-store.js';
 import type {R07PTrustedContext,R07PContextReader}
   from '../router/semantic-planner.js';
+import {parseR07PStandaloneLineReply,recognizeR07PLocalStructuredIntent}
+  from '../router/local-structured-intents.js';
 
 export const R07P_TRUSTED_HISTORY_CONTEXT_ACTIVATED=false as const;
 const MAX_AUDITED_EVENTS=3000;
@@ -120,6 +122,58 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
         field:'selling_unit_price',
       };
     }
+    // The only eligible line continuation is an immediate ordinal answer
+    // to a PREVIOUS completed, receipt-free, ambiguity clarification.
+    // Its quantity comes from the user's literal previous command, not
+    // a model, session cache or a newly invented line reference. The line ID
+    // comes from canonical R07D saved lineItems in their recorded order.
+    let pendingLineFollowup:R07PTrustedContext['pendingLineFollowup'];
+    const ordinal=current?parseR07PStandaloneLineReply(current.message):null;
+    const previousCandidate=previous?
+      recognizeR07PLocalStructuredIntent(previous.userMessage.text):null;
+    const previousQuantity=previousCandidate?.facts.length===1&&
+      previousCandidate.facts[0]?.name==='quantity'?
+      previousCandidate.facts[0].value:null;
+    if(ordinal!==null&&previousQuantity&&
+      /^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/u.test(previousQuantity)&&
+      Number(previousQuantity)>0&&
+      previousCandidate?.action==='edit_draft'&&
+      previousCandidate.reference==='active_draft'&&
+      previousCandidate.subject===null&&
+      previousCandidate.missingFields.length===0&&
+      previousCandidate.sourceIds.length===0&&
+      current&&active&&active.lineItems.length===2&&
+      active.lineItems.every(line=>typeof line.lineId==='string'&&line.lineId.length>0)&&
+      active.lineItems[0]!.lineId!==active.lineItems[1]!.lineId&&
+      last&&previous&&lastTask&&previousTask&&
+      last.userMessageId===current.userMessageId&&
+      last.idempotencyKey===current.idempotencyKey&&
+      last.userMessage.text===current.message&&
+      last.parentTurnId===previous.turnId&&
+      last.scope.actorId===scope.actorId&&
+      previous.scope.actorId===scope.actorId&&
+      last.scope.role===scope.role&&previous.scope.role===scope.role&&
+      exactScopeKey(last.scope)===key&&exactScopeKey(previous.scope)===key&&
+      last.mode==='controller'&&previous.mode==='controller'&&
+      lastTask.taskType==='unsaved_review_edit'&&
+      lastTask.state==='processing'&&
+      previousTask.taskType==='unsaved_review_edit'&&
+      previousTask.state==='completed'&&
+      previousReplies.length===1&&
+      previousReplies[0]?.text===clarification&&
+      previousCheckpoints.length===1&&
+      previousCheckpoints[0]?.stage==='r07m_unsaved_review_request_v1'){
+      pendingLineFollowup={
+        currentUserMessageId:current.userMessageId,
+        currentIdempotencyKey:current.idempotencyKey,
+        previousTurnId:previous.turnId,
+        draftId:active.draftId,
+        draftRevision:active.draftRevision,
+        field:'quantity',
+        value:previousQuantity,
+        lineId:active.lineItems[ordinal]!.lineId,
+      };
+    }
     const refs=candidates.map(d=>({
       kind:'draft' as const,id:d.draftId,
       documentKind:'quotation' as const,scopeKey:key,
@@ -132,6 +186,7 @@ export class R07PTrustedHistoryContext implements R07PContextReader{
       }:null,
       references:refs,
       ...(pendingPriceFollowup?{pendingPriceFollowup}:{}),
+      ...(pendingLineFollowup?{pendingLineFollowup}:{}),
     });
   }
 }

@@ -9,6 +9,8 @@ import {
   recognizeR07PLocalStructuredIntent,
   R07P_LOCAL_STRUCTURED_INTENTS_ACTIVE,
 } from '../../dist/src/ai-next/router/local-structured-intents.js';
+import {parseR07PStandaloneLineReply}
+  from '../../dist/src/ai-next/router/local-structured-intents.js';
 import {scoreR07PMultilingualReport}
   from '../../dist/src/ai-next/router/semantic-evaluation.js';
 
@@ -95,4 +97,22 @@ test('no provider, identity, source or approved financial write are manufactured
   assert.deepEqual(c.sourceIds,[]);
   assert.deepEqual(c.facts,[]);
   assert.ok(!JSON.stringify(c).includes('executed'));
+});
+
+test('ordinal-only replies are not executable standalone intents',()=>{
+  for(const [text,expected] of [
+    ['الأول',0],['الصنف الأول',0],['البند الاول',0],['first',0],
+    ['the first item',0],['الثاني',1],['الصنف الثاني',1],
+    ['البند الثاني',1],['second',1],['the second item',1],
+  ]){
+    assert.equal(parseR07PStandaloneLineReply(text),expected);
+    assert.equal(recognize(text),null,
+      'ordinal must not become a standalone unsaved edit');
+  }
+  for(const text of ['third','الثالث','٢','2','الثاني واحفظ',
+    'الثاني، وعدل الكمية 20','the second item and post invoice',
+    'some previous item','<script>second</script>',
+    'الثاني\nsave','the second item '.repeat(20)]){
+    assert.equal(parseR07PStandaloneLineReply(text),null,text);
+  }
 });
