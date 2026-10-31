@@ -356,3 +356,150 @@ test('cannot attach R07R receipt to a deterministic greeting or uncompleted task
   await assert.rejects(auditCoordinator(h).linkOfflineReviewReceipt(TOKEN,d),
     /R07M_REVIEW_AUDIT_DENIED/);
 });
+
+
+const confirmedCoordinator=(h,options={})=>new R07MFastLocalCoordinator({
+  journal:h.journal,draftStore:h.draftStore,
+  principal:h.principal,membership:h.membership,
+  clock:()=>new Date(NOW),
+  offlineSemanticPlanner:h.session.planner,
+  allowOfflineSemanticFixtures:true,
+  offlineReviewReceiptStore:h.draftStore,
+  allowOfflineReviewReceiptAudit:true,
+  allowOfflineVerifiedReviewReply:options.enabled!==false,
+});
+const requestFor=(created,turn=input())=>({
+  turn,originTurnId:created.turnId,
+  expectedDraftRevision:created.draft.draftRevision,
+  expectedDraftHash:created.draft.immutableRevisionHash,
+});
+const auditHistoryInput={
+  schemaVersion:1,accountId:scope.accountId,companyId:scope.companyId,
+  branchId:scope.branchId,threadId:scope.threadId,scopeType:'business',
+};
+test('disabled verified review acknowledgement does not inspect or mutate storage',async()=>{
+  const h=setup(),created=await h.create();
+  const before=h.db.reads;
+  await assert.rejects(confirmedCoordinator(h,{enabled:false})
+    .publishOfflineVerifiedReviewReply(TOKEN,requestFor(created)),
+    /R07M_VERIFIED_REVIEW_REPLY_DISABLED/);
+  assert.equal(h.db.reads,before);
+});
+test('never says applied without R07D receipt; keeps original proposal message unchanged',async()=>{
+  const h=setup(),created=await h.create(),turn=input();
+  const c=confirmedCoordinator(h);
+  const original=await c.acceptOfflineSemantic(TOKEN,turn);
+  assert.match(original.reply,/لم أطبّق أي تعديل/);
+  const before=h.db.writes;
+  await assert.rejects(c.publishOfflineVerifiedReviewReply(TOKEN,
+    requestFor(created,turn)),/R07M_REVIEW_RECEIPT_NOT_VERIFIED/);
+  assert.equal(h.db.writes,before);
+  const history=await c.history(TOKEN,auditHistoryInput);
+  assert.equal(history.messages.filter(x=>x.role==='assistant').length,2);
+  assert.equal(history.checkpointRefs.length,0);
+});
+test('receipt-verified second reply is durable, preserves original proposal and never issues finance',async()=>{
+  const h=setup(),created=await h.create(),turn=input(),c=confirmedCoordinator(h);
+  const planning=await c.acceptOfflineSemantic(TOKEN,turn);
+  const edited=await h.edit(created.draft,turn,created.turnId);
+  const confirmed=await c.publishOfflineVerifiedReviewReply(
+    TOKEN,requestFor(created,turn));
+  assert.equal(confirmed.status,'verified_review_reply_published');
+  assert.equal(confirmed.appliedDraftRevision,2);
+  assert.equal(confirmed.appliedDraftHash,edited.appliedHash);
+  assert.equal(confirmed.financialSaved,false);
+  assert.equal(confirmed.draftEditPerformed,false);
+  assert.equal(confirmed.providerCalls,0);
+  assert.match(confirmed.reply,/تم إثبات تطبيق تعديل/);
+  assert.match(confirmed.reply,/لم يتم إصدار عرض السعر/);
+  const history=await c.history(TOKEN,auditHistoryInput);
+  const transcript=history.messages.filter(x=>x.role==='assistant');
+  assert.equal(transcript.length,3);
+  assert.equal(transcript[1].text,planning.reply);
+  assert.equal(transcript[2].text,confirmed.reply);
+  assert.equal(transcript[2].messageId,confirmed.replyMessageId);
+  assert.equal(history.checkpointRefs.length,1);
+  assert.equal(history.tasks.at(-1).state,'completed');
+  const prior=await c.acceptOfflineSemantic(TOKEN,turn);
+  assert.equal(prior.reply,planning.reply,'proposal-only API must not pretend it executed edit');
+  assert.equal(prior.semanticOutcome,'proposal_only');
+  assert.equal(prior.draftEdited,false);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,2);
+});
+test('restart after checkpoint but before reply: second server publishes one confirmation',async()=>{
+  const h=setup(),created=await h.create(),turn=input();
+  await confirmedCoordinator(h).acceptOfflineSemantic(TOKEN,turn);
+  await h.edit(created.draft,turn,created.turnId);
+  await confirmedCoordinator(h).linkOfflineReviewReceipt(
+    TOKEN,requestFor(created,turn));
+  const after=confirmedCoordinator(setup(h.db));
+  const confirmed=await after.publishOfflineVerifiedReviewReply(TOKEN,
+    requestFor(created,turn));
+  assert.equal(confirmed.replayed,false);
+  const count=(await after.history(TOKEN,auditHistoryInput))
+    .messages.filter(m=>m.messageId===confirmed.replyMessageId).length;
+  assert.equal(count,1);
+  const writes=h.db.writes;
+  const replay=await confirmedCoordinator(setup(h.db))
+    .publishOfflineVerifiedReviewReply(TOKEN,requestFor(created,turn));
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.reply,confirmed.reply);
+  assert.equal(h.db.writes,writes);
+});
+test('two simultaneous confirmations produce only one assistant message',async()=>{
+  const h=setup(),created=await h.create(),turn=input();
+  await confirmedCoordinator(h).acceptOfflineSemantic(TOKEN,turn);
+  await h.edit(created.draft,turn,created.turnId);
+  const [left,right]=await Promise.all([
+    confirmedCoordinator(setup(h.db)).publishOfflineVerifiedReviewReply(
+      TOKEN,requestFor(created,turn)),
+    confirmedCoordinator(setup(h.db)).publishOfflineVerifiedReviewReply(
+      TOKEN,requestFor(created,turn)),
+  ]);
+  assert.deepEqual([left.replayed,right.replayed].sort(),[false,true]);
+  const history=await h.journal.auditFullHistory(scope);
+  assert.equal(history.checkpointRefs.length,1);
+  assert.equal(history.messages.filter(m=>m.messageId===left.replyMessageId).length,1);
+});
+test('earlier receipt acknowledgement never claims later draft revision as its own',async()=>{
+  const h=setup(),created=await h.create(),turn=input();
+  const c=confirmedCoordinator(h);await c.acceptOfflineSemantic(TOKEN,turn);
+  const first=await h.edit(created.draft,turn,created.turnId);
+  const second=await h.edit(first.draft,
+    input('العميل شركة النور','next-revision'),created.turnId);
+  assert.equal(second.appliedRevision,3);
+  const out=await c.publishOfflineVerifiedReviewReply(
+    TOKEN,requestFor(created,turn));
+  assert.equal(out.appliedDraftRevision,2);
+  assert.match(out.reply,/المراجعة رقم 2/);
+  assert.match(out.reply,/قد تكون هناك مراجعات أحدث/);
+  assert.equal((await h.draftStore.read(scope,created.turnId)).draftRevision,3);
+});
+test('cannot append an older unseen confirmation after a later user turn',async()=>{
+  const h=setup(),created=await h.create(),turn=input();
+  const c=confirmedCoordinator(h);await c.acceptOfflineSemantic(TOKEN,turn);
+  await h.edit(created.draft,turn,created.turnId);
+  await c.accept(TOKEN,input('السلام عليكم','greeting-after-review'));
+  await assert.rejects(c.publishOfflineVerifiedReviewReply(TOKEN,
+    requestFor(created,turn)),/R07M_REVIEW_REPLY_OUT_OF_ORDER/);
+  const history=await c.history(TOKEN,auditHistoryInput);
+  assert.equal(history.messages.filter(m=>m.messageId.startsWith(
+    'review-confirmation-')).length,0);
+});
+test('revoked membership and corrupted R07D edit receipt never publish',async()=>{
+  const h=setup(),created=await h.create(),turn=input();
+  const c=confirmedCoordinator(h);await c.acceptOfflineSemantic(TOKEN,turn);
+  await h.edit(created.draft,turn,created.turnId);
+  const revoked=confirmedCoordinator(setup(h.db,{revoked:true}));
+  const before=h.db.reads;
+  await assert.rejects(revoked.publishOfflineVerifiedReviewReply(TOKEN,
+    requestFor(created,turn)),/AUTH_MEMBERSHIP_DENIED/);
+  assert.equal(h.db.reads,before);
+  const key=receiptKeys(h.db)[0],corrupted=clone(h.db.records.get(key));
+  corrupted.appliedHash='f'.repeat(64);h.db.records.set(key,corrupted);
+  await assert.rejects(confirmedCoordinator(setup(h.db))
+    .publishOfflineVerifiedReviewReply(TOKEN,requestFor(created,turn)),
+    /R07D_EDIT_RECEIPT_DRAFT_DIVERGED/);
+  assert.equal((await c.history(TOKEN,auditHistoryInput)).messages.filter(
+    m=>m.messageId.startsWith('review-confirmation-')).length,0);
+});
