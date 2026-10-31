@@ -39,6 +39,30 @@ const unsafeCompound=/(?:^| )(?:و?(?:احفظ|اصدر|وافق|اعتمد|نف
 const clientName=/^[\p{L}\p{M}\p{N} .'-]{2,100}$/u;
 
 /**
+ * With the local, opt-in Controller enabled, never allow a downstream model
+ * to reinterpret just ONE part of an unsafe or unsupported compound command.
+ * This rejects unsupported multiple targets until a real, receipt-aware
+ * batch-authorization protocol exists. It does not mutate any draft.
+ */
+export function requiresR07PCompoundClarification(raw:string):boolean{
+  if(typeof raw!=='string'||raw.length>6000)return false;
+  const value=normalize(raw);
+  if(['احفظ العرض واصدره','approve and post this invoice'].includes(value))
+    return false; // Already approval-only in R07P, NEVER an execution.
+  if(unsafeCompound.test(value))return true;
+  const targets=[
+    /(?:العميل|customer)/u,
+    /(?:العملة|currency)/u,
+    /(?:الكمية|quantity)/u,
+    /(?:السعر|price)/u,
+  ];
+  const mentions=targets.filter(r=>r.test(value)).length;
+  // Only full-utterance recognized patches may combine fields.
+  return mentions>=2 && /(?: و[\p{L}]| and )/u.test(value) &&
+    recognizeR07PLocalStructuredIntent(raw)===null;
+}
+
+/**
  * Returns only syntactic candidates; no account, draft, line, price or
  * customer is ever verified here. No automatic finance execution intent.
  */
