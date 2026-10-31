@@ -11,7 +11,8 @@ import {R07MFastLocalCoordinator}
   from '../../dist/src/ai-next/coordinator/fast-local-coordinator.js';
 import {R07JExperimentalIndexedJournal,R07M_FAST_COLLECTION}
   from '../../dist/src/ai-next/storage/firestore-indexed-append.js';
-import {R07DExperimentalFirestoreDraftStore,R07D_DRAFT_COLLECTION}
+import {R07DExperimentalFirestoreDraftStore,R07D_DRAFT_COLLECTION,
+  R07D_EDIT_RECEIPT_COLLECTION}
   from '../../dist/src/ai-next/storage/firestore-review-drafts.js';
 import {R07NPreviewSession}
   from '../../dist/src/ai-next/ui/r07n-preview-session.js';
