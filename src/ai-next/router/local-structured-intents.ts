@@ -151,16 +151,14 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
   // Resolve the ENTIRE exact name from the audited R07D draft in R07P.
   // The already-existing R07R line_patch commits both values in ONE CAS
   // revision with an R07D receipt, never two separate field updates.
-  const namedValue=/\\d{1,12}(?:\\.\\d{1,6})?/u;
-  void namedValue; // bounded values are also checked by number() below.
   const safeName=(name:string):boolean=>
     name.length>=2&&name.length<=130&&
-    /^[\\p{L}\\p{M}\\p{N} ._'-]+$/u.test(name)&&
+    /^[\p{L}\p{M}\p{N} ._'-]+$/u.test(name)&&
     !/(?:^| )(?:احفظ|اصدر|نفذ|اعتمد|وافق|غير|عدل|خلي|save|issue|approve|post|delete|execute)(?: |$)/u.test(name);
   let named=value.match(
-    /^(?:خلي|غير|عدل) كمية (.+?) (\\d{1,12}(?:\\.\\d{1,6})?) وسعرها (\\d{1,12}(?:\\.\\d{1,6})?)$/u
+    /^(?:خلي|غير|عدل) كمية (.+?) (\d{1,12}(?:\.\d{1,6})?) وسعرها (\d{1,12}(?:\.\d{1,6})?)$/u
   )||value.match(
-    /^set (?:the )?quantity of (.+?) to (\\d{1,12}(?:\\.\\d{1,6})?) and (?:the )?unit price to (\\d{1,12}(?:\\.\\d{1,6})?)$/u
+    /^set (?:the )?quantity of (.+?) to (\d{1,12}(?:\.\d{1,6})?) and (?:the )?unit price to (\d{1,12}(?:\.\d{1,6})?)$/u
   );
   if(named){
     const name=named[1]!.trim(),quantity=number(named[2]!),
@@ -171,8 +169,8 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
         {name:'selling_unit_price',value:price},
       ]):null;
   }
-  named=value.match(/^(?:خلي|غير|عدل) كمية (.+?) (\\d{1,12}(?:\\.\\d{1,6})?)$/u)||
-    value.match(/^set (?:the )?quantity of (.+?) to (\\d{1,12}(?:\\.\\d{1,6})?)$/u);
+  named=value.match(/^(?:خلي|غير|عدل) كمية (.+?) (\d{1,12}(?:\.\d{1,6})?)$/u)||
+    value.match(/^set (?:the )?quantity of (.+?) to (\d{1,12}(?:\.\d{1,6})?)$/u);
   if(named){
     const name=named[1]!.trim(),quantity=number(named[2]!);
     return safeName(name)&&quantity&&quantity!=='0'?
@@ -180,8 +178,8 @@ export function recognizeR07PLocalStructuredIntent(raw:string):
         {name:'line_name',value:name},{name:'quantity',value:quantity},
       ]):null;
   }
-  named=value.match(/^(?:خلي|غير|عدل) سعر (.+?) (\\d{1,12}(?:\\.\\d{1,6})?)$/u)||
-    value.match(/^set (?:the )?unit price of (.+?) to (\\d{1,12}(?:\\.\\d{1,6})?)$/u);
+  named=value.match(/^(?:خلي|غير|عدل) سعر (.+?) (\d{1,12}(?:\.\d{1,6})?)$/u)||
+    value.match(/^set (?:the )?unit price of (.+?) to (\d{1,12}(?:\.\d{1,6})?)$/u);
   if(named){
     const name=named[1]!.trim(),price=number(named[2]!);
     return safeName(name)&&price?
