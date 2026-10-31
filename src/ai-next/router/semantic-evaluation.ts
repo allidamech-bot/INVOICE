@@ -90,7 +90,7 @@ function validateGold(cases:readonly R07PEvaluationGold[]):void{
       !Array.isArray(c.expected.facts)||
       !Array.isArray(c.expected.missingFields)||
       !Array.isArray(c.expected.sourceIds)||
-      !unique(c.expected.facts.map(f=>f.name))||
+      !unique(c.expected.facts.map((f:Fact)=>f.name))||
       !unique(c.expected.missingFields)||!unique(c.expected.sourceIds)){
       throw Error('R07P_EVAL_INVALID_GOLD_CORPUS');
     }
