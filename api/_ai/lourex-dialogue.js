@@ -172,6 +172,11 @@ export async function naturalLourexDialogue(cleaned,options={}){
     reasoningLevel:'standard',
     prompt,
     schema:ANSWER_SCHEMA,
+    // A 4,096-token default completion would reserve half Groq Free's
+    // published 8K TPM allowance before the conversation prompt is counted.
+    // Keep normal chat responsive; long prompts instead fail closed or use
+    // an already-approved free alternate. No conversation history is dropped.
+    maxOutputTokens:1536,
     timeoutMs:12000,
     fairBudget:true,
     totalBudgetMs:Number.isFinite(options.totalBudgetMs)?Math.max(0,Math.min(26000,options.totalBudgetMs)):26000,
