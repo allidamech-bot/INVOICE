@@ -1,3 +1,4 @@
+import {withHistoricalFixtureClock} from './helpers/historical-finance-fixture-clock.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
@@ -158,7 +159,7 @@ test('Alif treasury: duplicate links, currency/amount and cross-branch inputs ar
     'rejected entries do not mutate stored records');
 });
 
-test('Alif treasury: cancellation restores unallocated movement, not AR/AP amounts',()=>{
+test('Alif treasury: cancellation restores unallocated movement, not AR/AP amounts',()=>withHistoricalFixtureClock(()=>{
   const f=fixture();
   const paid=appendTreasuryEntry(f.vault,
     movement('supplier-payment',f.bank,f.supplierPayment.id,'30.00','qa-paid'));
@@ -169,9 +170,9 @@ test('Alif treasury: cancellation restores unallocated movement, not AR/AP amoun
   assert.equal(available(changed).filter(r=>r.id===f.supplierPayment.id).length,1);
   assert.equal(purchasePayableSummary(f.purchase,changed.supplierPayments,asOf).remaining,'90.00');
   assert.equal(supplierPaymentVoucher(f.purchase,f.supplierPayment.id,changed.supplierPayments,f.vault.company).amount,'30.00');
-});
+}));
 
-test('Alif supplier: payment void is separate from voiding treasury allocation',()=>{
+test('Alif supplier: payment void is separate from voiding treasury allocation',()=>withHistoricalFixtureClock(()=>{
   const f=fixture();
   const paid=appendTreasuryEntry(f.vault,
     movement('supplier-payment',f.bank,f.supplierPayment.id,'30.00','qa-supp-linked'));
@@ -188,4 +189,4 @@ test('Alif supplier: payment void is separate from voiding treasury allocation',
   assert.throws(()=>appendTreasuryEntry(updated,movement('supplier-payment',f.bank,cancelled.id,'30.00','qa-voided-repost')),
     /Voided supplier payments|ملغاة/);
   assert.equal(treasuryAccountBalance(f.bank.id,updated.treasuryEntries),'100.00');
-});
+}));
