@@ -168,9 +168,9 @@ export default async function handler(request,response){
     if(mode!=='single'&&mode!=='financial'&&mode!=='key-check'){
       sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
     }
-    // Metadata-only checks are allowed for restored Gemini and Ollama diagnostics.
-    // No generation is performed, no free or paid inference entitlement is assumed.
-    if(mode==='key-check'&&!['gemini','ollama'].includes(provider)){
+    // Metadata-only checks are available for Groq, Gemini and Ollama.
+    // No generation is performed and no free/paid entitlement is implied.
+    if(mode==='key-check'&&!['groq','gemini','ollama'].includes(provider)){
       sendJson(response,400,{code:'INVALID_DIAGNOSTIC_MODE'});return;
     }
     // Optional model override is only available for the owner's fixed Ollama

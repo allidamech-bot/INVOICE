@@ -1,0 +1,42 @@
+name: LOUREX isolated follow-redirects security patch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package-lock.json'
+      - 'tests/security-follow-redirects-20261101.test.mjs'
+      - '.github/workflows/security-follow-redirects-20261101.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transitive-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install exactly the committed lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Reject high and critical vulnerabilities, without suppression
+        run: npm audit --audit-level=high
+      - name: Verify installed package and pinned integrity
+        run: |
+          node --test tests/security-follow-redirects-20261101.test.mjs
+          node -e "const x=require('./node_modules/follow-redirects/package.json');if(x.version!=='1.16.2')process.exit(1)"
+      - name: Verify build and critical security contracts without deployment
+        run: |
+          npm run typecheck
+          npm run build
+          node --test --test-concurrency=1 \
+            tests/deployment-isolation-v180.test.mjs \
+            tests/ai-staging-isolation-gates-20261017.test.mjs \
+            tests/ai-groq-error-classification-20261101.test.mjs

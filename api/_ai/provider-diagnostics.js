@@ -92,15 +92,20 @@ export async function runSyntheticProviderDiagnostic(provider,{fetchImpl=fetch,m
  
 // Read-only account authentication check. No chat/completion requests, prompts,
 // customer data, model inference, or consumption of model-output tokens.
-// Gemini reads ONE fixed model's metadata; Ollama retains its existing
+// Groq reads only its fixed model-list endpoint, Gemini reads ONE fixed
+// model's metadata; Ollama retains its existing
 // catalog checks. Credential lookup cannot certify inference quota or pricing.
 export async function checkProviderCredential(provider,{fetchImpl=fetch}={}){
-  if(!['gemini','ollama'].includes(provider))return{status:'INVALID_PROVIDER'};
+  if(!['groq','gemini','ollama'].includes(provider))return{status:'INVALID_PROVIDER'};
   const model=MODEL[provider],cfg=settingsFor(provider);
   if(!cfg?.key)return{provider,model,status:'NOT_CONFIGURED',inference:false,latencyMs:0};
-  const gemini=provider==='gemini';
-  const url=gemini?'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite':
-    'https://ollama.com/api/tags';
+  const gemini=provider==='gemini',groq=provider==='groq';
+  // Groq's documented model-list endpoint authenticates the configured
+  // server key without creating a chat completion or consuming output tokens.
+  // HTTP 200 does NOT establish billing entitlement, zero cost or quota.
+  const url=groq?'https://api.groq.com/openai/v1/models':
+    gemini?'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite':
+      'https://ollama.com/api/tags';
   const started=Date.now(),controller=new AbortController();
   let timer;
   const deadline=new Promise((_,reject)=>{
@@ -126,7 +131,7 @@ export async function checkProviderCredential(provider,{fetchImpl=fetch}={}){
       }
       // Never inspect or return potentially sensitive upstream account metadata.
       if(response.body?.cancel)await Promise.race([response.body.cancel().catch(()=>{}),Promise.resolve()]);
-      return{status:response.ok?'KEY_AUTHENTICATED':gemini&&response.status===403?'ACCESS_DENIED':safeCategory(response.status)};
+      return{status:response.ok?'KEY_AUTHENTICATED':(gemini||groq)&&response.status===403?'ACCESS_DENIED':safeCategory(response.status)};
     })();
     const result=await Promise.race([request,deadline]);
     return{provider,model,...result,inference:false,latencyMs:Date.now()-started};
