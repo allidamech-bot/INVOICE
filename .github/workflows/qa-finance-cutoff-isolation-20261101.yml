@@ -1,0 +1,51 @@
+name: LOUREX synthetic historical finance test date boundary (QA only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/qa-finance-cutoff-isolation-20261101.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-cutoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Compile accepted financial source unchanged (no deployment)
+        run: npm run typecheck && npm run build
+      - name: Check fixed 2026-10-31 synthetic as-of fixture in isolated Node process
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/qa-frozen-clock.cjs" <<'JS'
+          'use strict';
+          // TEST PROCESS ONLY; do not import into application or production.
+          const NativeDate = Date;
+          const fixed = NativeDate.parse('2026-10-31T12:00:00.000Z');
+          class QAClock extends NativeDate {
+            constructor(...args) {
+              if (args.length) super(...args);
+              else super(fixed);
+            }
+            static now() { return fixed; }
+          }
+          globalThis.Date = QAClock;
+          JS
+          NODE_OPTIONS="--require=$RUNNER_TEMP/qa-frozen-clock.cjs" \
+            node --test --test-concurrency=1 \
+              tests/finance-alif-integrated-20261026.test.mjs \
+              tests/finance-voucher-treasury-reconciliation-alif.test.mjs
+      - name: Ensure production code and lockfile were never altered by test
+        run: git diff --exit-code
