@@ -284,6 +284,7 @@ test('unified edit HTTP extension is disabled by default, then receipt-verified 
       coordinator:reviewCoordinator,
     });
     assert.equal((await direct('review_edit',input)).status,403);
+    assert.equal((await direct('review_draft',input)).status,403);
     const sameScope={...scope,threadId:reviewEnv.threadId};
     assert.equal((await drafts.read(sameScope,created.turnId)).draftRevision,1);
     handler=new R07OLocalPreviewHandler({
@@ -465,7 +466,7 @@ test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTT
     clock:()=>new Date(at),
   });
   const originalHandler=handler;
-  let drop=true,lie=true;
+  let drop=true,lie=true,forgeDraft=true;
   try{
     const live=new R07OLocalHttpPreviewPort({
       allowedOrigin:endpoint,token:async()=>token,transport,
@@ -474,6 +475,15 @@ test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTT
       accept:request=>live.accept(request),
       current:request=>live.current(request),
       history:request=>live.history(request),
+      reviewDraft:async request=>{
+        const result=await live.reviewDraft(request);
+        if(forgeDraft){
+          forgeDraft=false;
+          return {...result,draft:{...result.draft,
+            scope:{...result.draft.scope,companyId:'forged-company'}}};
+        }
+        return result;
+      },
       reviewEdit:async request=>{
         const response=await live.reviewEdit(request);
         if(drop){drop=false;throw Error('LOST_HTTP_REPLY_AFTER_RECEIPT');}
@@ -514,18 +524,29 @@ test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTT
     assert.deepEqual(await localUi.reviewEdit(edit),{accepted:false});
     assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
     assert.equal(interpretations,1);
+    // Valid HTTP acknowledgement with forged draft scope still fails.
+    assert.deepEqual(await localUi.reviewEdit(edit),{accepted:false});
+    assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
+    assert.equal(interpretations,1);
     const result=await localUi.reviewEdit(edit);
     assert.deepEqual(result,{accepted:true});
     assert.equal(localUi.unresolvedReviewForManualRecovery(),null);
     const view=localUi.getView();
-    assert.equal(view.draft,null,'R07N must not invent a new R07D draft view');
+    assert.equal(view.draft?.draftRevision,2,
+      'R07N must render the receipt-verified revision only');
+    assert.equal(view.draft?.explicitCustomerId,'r07n-preview-verified-customer');
+    assert.equal(view.draft?.approvalReceiptId,null);
     assert.equal(view.messages.filter(x=>x.role==='assistant').length,2);
     assert.equal(view.currentTask.taskType,'unsaved_review_edit');
     assert.equal(view.currentTask.state,'completed');
-    assert.equal(interpretations,1,'three HTTP outcomes must still create one revision');
+    assert.equal(interpretations,1,'retries and forged outputs must still create one revision');
     assert.equal((await drafts.read(reviewScope,originTurnId)).draftRevision,2);
-    // A new edit requires independently reviewed server draft evidence;
-    // a mere acknowledgement must never elevate the client draft state.
+    const originalAcl=(await acl.get()).data();
+    try{
+      await acl.set({...originalAcl,active:false});
+      await assert.rejects(live.reviewDraft(edit),/R07O_SECURE_CALL_FAILED/);
+    }finally{await acl.set(originalAcl);}
+    // An old revision is never valid again, even after verified UI refresh.
     await assert.rejects(localUi.reviewEdit({...edit,turn:{
       ...edit.turn,requestId:'fresh-review-request',
       idempotencyKey:'fresh-review-key',userMessageId:'fresh-review-user',
