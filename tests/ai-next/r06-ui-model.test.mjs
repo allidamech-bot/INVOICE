@@ -87,3 +87,20 @@ test('draft with over 120 items explicitly blocks review rather than truncating'
     lineItems:Array.from({length:121},(_,i)=>({lineId:'line-'+i}))};
   assert.deepEqual(r06DraftBlockers(draft),['EDITOR_120_LINES_LIMIT']);
 });
+
+test('AI Next must reuse the original LOUREX chat UI: one launcher, one panel, no parallel read-only chat',async()=>{
+  const {readFileSync,existsSync,readdirSync}=await import('node:fs');
+  const copilot=readFileSync(new URL('../../src/components/AiCopilot.tsx',import.meta.url),'utf8');
+  const server=readFileSync(new URL('../../api/ai-conversation-v3.js',import.meta.url),'utf8');
+  assert.match(copilot,/className=\{\x60lourex-ai-launcher/);
+  assert.match(copilot,/id="lourex-ai-panel"/);
+  assert.doesNotMatch(copilot,/AiNextLiveReadOnlyLauncher|lourex-next-live-launcher|lourex-next-live-panel/);
+  assert.doesNotMatch(server,/nextLiveReadOnlyHandler|nextLive['"]?\)===['"]1/);
+  for(const p of [
+    '../../src/ai-next/ui/AiNextLiveReadOnlyLauncher.tsx',
+    '../../src/ai-next/ui/AiNextLiveReadOnlyChat.tsx',
+    '../../api/_ai/next-live.js',
+  ])assert.equal(existsSync(new URL(p,import.meta.url)),false,p+' must not create a competing UI');
+  assert.equal(readdirSync(new URL('../../api/',import.meta.url))
+    .filter(name=>name.endsWith('.js')).length,12,'Stay inside free Vercel function budget');
+});
