@@ -370,3 +370,58 @@ test('R07Q evaluates entire bounded trusted set rather than first 300',()=>{
     models:Array.from({length:1001},(_,i)=>model({modelId:'x-'+i})),
   }),/R05_TRUSTED_MODEL_CATALOG_LIMIT/);
 });
+
+test('R05 five-provider free pool: all verified models remain eligible, fallback crosses providers',async()=>{
+  // Five per provider is an arbitrary fixture size, NOT an implementation cap.
+  const providers=['groq','cloudflare','gemini','openrouter','ollama'];
+  const models=providers.flatMap(provider=>Array.from({length:5},(_,index)=>
+    model({providerId:provider,modelId:provider+'-model-'+index,
+      qualityTier:index===0?'capable':'basic',
+      quotaGroupId:provider+'-free-account'})));
+  const assessed=eligibleR05Pool({scope,now:NOW,models,needs:needs()});
+  assert.equal(assessed.length,25);
+  assert.equal(assessed.filter(x=>x.assessment.eligible).length,25);
+  const seen=[],payload=Object.freeze({syntheticOnly:true});
+  const result=await routeR05(eligibleRun({
+    models,payload,transport:{invoke:async({model:chosen,payload:actual})=>{
+      assert.equal(actual,payload);
+      seen.push(chosen.providerId+':'+chosen.modelId);
+      if(seen.length<3)throw new R05ProviderFailure('network');
+      return {answer:'ok'};
+    }},
+  }));
+  assert.equal(result.ok,true);
+  assert.equal(result.attempts,3);
+  assert.equal(result.fallbackUsed,true);
+  assert.deepEqual(seen,[
+    'groq:groq-model-0',
+    'cloudflare:cloudflare-model-0',
+    'gemini:gemini-model-0',
+  ]);
+  assert.equal(result.providerId,'gemini');
+  assert.equal(result.observations.length,3);
+});
+test('R05 independent provider fallback remains fail-closed for paid and private models',async()=>{
+  const called=[];
+  const models=[
+    model({providerId:'groq',modelId:'first',qualityTier:'capable'}),
+    model({providerId:'groq',modelId:'same-vendor',qualityTier:'basic'}),
+    model({providerId:'cloudflare',modelId:'not-free',
+      qualityTier:'capable',modelZeroCostVerified:false}),
+    model({providerId:'gemini',modelId:'no-consent',
+      qualityTier:'capable',privacyApproved:false}),
+    model({providerId:'openrouter',modelId:'not-approved',
+      qualityTier:'capable',accountFreeVerified:false}),
+    model({providerId:'ollama',modelId:'safe-backup',qualityTier:'basic'}),
+  ];
+  const result=await routeR05(eligibleRun({
+    models,transport:{invoke:async({model:chosen})=>{
+      called.push(chosen.providerId+':'+chosen.modelId);
+      if(chosen.providerId==='groq')throw new R05ProviderFailure('network');
+      return {answer:'ok'};
+    }},
+  }));
+  assert.equal(result.ok,true);
+  assert.equal(result.providerId,'ollama');
+  assert.deepEqual(called,['groq:first','ollama:safe-backup']);
+});
