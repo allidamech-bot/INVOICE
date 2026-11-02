@@ -149,9 +149,24 @@ export async function routeR05<T>(input:{
     scope:input.scope,now:new Date().toISOString(),models:input.models,
     needs:{...input.needs,deadlineMs:deadline},
   });
-  const candidates=assessed.filter(x=>x.assessment.eligible)
+  // First choose the strongest fit overall, then give other independently
+  // authorized providers their best model before revisiting a provider's
+  // remaining models. The latter are retained for model-specific failures
+  // and when only one provider is eligible; no catalog entry is discarded.
+  // Every candidate has already passed the ZERO-price/account/privacy gates.
+  const ranked=assessed.filter(x=>x.assessment.eligible)
     .sort((a,b)=>(health.score(b.record)+R05TaskPreference(input.needs,b.record))-
       (health.score(a.record)+R05TaskPreference(input.needs,a.record)));
+  const first:typeof ranked=[],remaining:typeof ranked=[];
+  const providers=new Set<string>();
+  for(const candidate of ranked){
+    if(providers.has(candidate.record.providerId))remaining.push(candidate);
+    else{
+      providers.add(candidate.record.providerId);
+      first.push(candidate);
+    }
+  }
+  const candidates=[...first,...remaining];
   const observations:R05Diagnostic[]=[];
   if(!candidates.length)
     return {ok:false,code:'R05_NO_ELIGIBLE_MODELS',attempts:0,observations};
