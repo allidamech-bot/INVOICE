@@ -33,6 +33,10 @@ export interface R07NAuthenticatedPreviewPort{
   /** Optional local-loopback receipt transport, never a production route. */
   reviewEdit?(request:R07RReceiptPrepareInput):
     Promise<R07MUnifiedReviewEditResult>;
+  reviewDraft?(request:R07RReceiptPrepareInput):Promise<{
+    draft:ReviewDraft;appliedDraftRevision:number;
+    appliedDraftHash:string;financialSaved:false;
+  }>;
   current(envelope:R07NEnvelope):Promise<{
     view:R07LOperationalView;
     completeHistory:false;
@@ -211,8 +215,8 @@ export class R07NPreviewSession{
   /**
    * One already-guarded R07M/R07D review edit. The R07N view cannot infer a
    * new draft revision from a response alone: it presents only the verified
-   * R07J transcript. The real draft stays hidden until a separately
-   * authenticated R07D read becomes available. No automatic re-inference.
+   * R07J transcript. The latest R07D draft is shown only after an
+   * independent scoped receipt-backed server read. No automatic re-inference.
    */
   async reviewEdit(input:R07RReceiptPrepareInput,signal?:AbortSignal):
     Promise<{accepted:boolean}>{
@@ -285,8 +289,33 @@ export class R07NPreviewSession{
           response.appliedDraftHash!==null
         )))
         throw new R07NPreviewError('R07N_UNVERIFIED_REVIEW_COMPLETION');
+      // The receipt-backed state is verified independently by R07D through
+      // an authenticated R07O local read, not trusted browser revision data.
+      let verifiedDraft:ReviewDraft|null=null;
+      if(applied){
+        if(!this.port.reviewDraft)
+          throw new R07NPreviewError('R07N_REVIEW_READ_DISABLED');
+        const latest=await this.port.reviewDraft(structuredClone(request));
+        const draft=latest.draft;
+        if(!draft||!plain(draft)||latest.financialSaved!==false||
+          latest.appliedDraftRevision!==response.appliedDraftRevision||
+          latest.appliedDraftHash!==response.appliedDraftHash||
+          !same(draft.scope,this.scope)||
+          draft.threadId!==this.scope.threadId||
+          draft.draftId!=='draft-'+request.originTurnId||
+          draft.kind!=='quotation'||draft.status!=='needs_review'||
+          draft.approvalReceiptId!==null||
+          !Number.isSafeInteger(draft.draftRevision)||
+          draft.draftRevision<latest.appliedDraftRevision||
+          !/^[a-f0-9]{64}$/.test(draft.immutableRevisionHash)||
+          (draft.draftRevision===latest.appliedDraftRevision&&
+            draft.immutableRevisionHash!==latest.appliedDraftHash))
+          throw new R07NPreviewError('R07N_UNVERIFIED_LATEST_REVIEW');
+        verifiedDraft=structuredClone(draft);
+      }
       if(signal?.aborted)return {accepted:false};
-      this.view={...safe,draft:null};
+      this.view={...safe,draft:verifiedDraft};
+      assertR06Scope(this.view,this.scope);
       this.pendingReview=null;
       return {accepted:true};
     }catch{
