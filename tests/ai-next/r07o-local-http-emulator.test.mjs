@@ -491,8 +491,10 @@ test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTT
         return response;
       },
     };
+    let nextKey=0;
     const localUi=new R07NPreviewSession(
-      reviewScope,reviewEnv,uiPort,identity('r07n-preview-create'));
+      reviewScope,reviewEnv,uiPort,
+      ()=>identity('r07n-preview-'+(++nextKey))());
     assert.deepEqual(await localUi.send({
       text:'أنشئ مسودة عرض سعر',mode:'controller',sourceIds:[],
     }),{accepted:true});
@@ -500,9 +502,7 @@ test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTT
     assert.equal(draft?.draftRevision,1);
     const originTurnId=localUi.getView().currentTask.turnId;
     const edit={
-      turn:{...reviewEnv,requestId:'r07n-ui-review-request',
-        idempotencyKey:'r07n-ui-review-key',
-        userMessageId:'r07n-ui-review-user',
+      turn:{...reviewEnv,...identity('r07n-preview-2')(),
         message:'خلي العميل شركة النور',mode:'controller'},
       originTurnId,expectedDraftRevision:1,
       expectedDraftHash:draft.immutableRevisionHash,
@@ -512,23 +512,22 @@ test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTT
       emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
       coordinator:reviewCoordinator,allowOfflineReviewEditPreview:true,
     });
-    assert.deepEqual(await localUi.reviewEdit(edit),{accepted:false});
+    assert.deepEqual(await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]}),{accepted:false});
     assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
     assert.equal(localUi.getView().draft.draftRevision,1);
     assert.equal(interpretations,1);
     assert.equal((await drafts.read(reviewScope,originTurnId)).draftRevision,2);
-    await assert.rejects(localUi.reviewEdit({...edit,turn:{
-      ...edit.turn,message:'خلي العميل شخص آخر',
-    }}),/R07N_PENDING_REVIEW_MISMATCH/);
+    await assert.rejects(localUi.send({text:'خلي العميل شخص آخر',
+      mode:'controller',sourceIds:[]}),/R07N_PENDING_REVIEW_MISMATCH/);
     // A shaped but forged R07O success must NOT clear pending review.
-    assert.deepEqual(await localUi.reviewEdit(edit),{accepted:false});
+    assert.deepEqual(await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]}),{accepted:false});
     assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
     assert.equal(interpretations,1);
     // Valid HTTP acknowledgement with forged draft scope still fails.
-    assert.deepEqual(await localUi.reviewEdit(edit),{accepted:false});
+    assert.deepEqual(await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]}),{accepted:false});
     assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
     assert.equal(interpretations,1);
-    const result=await localUi.reviewEdit(edit);
+    const result=await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]});
     assert.deepEqual(result,{accepted:true});
     assert.equal(localUi.unresolvedReviewForManualRecovery(),null);
     const view=localUi.getView();
@@ -536,6 +535,7 @@ test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTT
       'R07N must render the receipt-verified revision only');
     assert.equal(view.draft?.explicitCustomerId,'r07n-preview-verified-customer');
     assert.equal(view.draft?.approvalReceiptId,null);
+    assert.equal(nextKey,2,'retry and forged replies cannot create new IDs');
     assert.equal(view.messages.filter(x=>x.role==='assistant').length,2);
     assert.equal(view.currentTask.taskType,'unsaved_review_edit');
     assert.equal(view.currentTask.state,'completed');
