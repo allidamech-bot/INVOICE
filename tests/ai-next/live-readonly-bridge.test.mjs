@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler,{nextReadOnlySameOrigin,parseNextReadOnlyRequest}
-  from '../../api/ai-next-live.js';
+  from '../../api/_ai/next-live.js';
 
 const headers={origin:'https://invoice-three-puce.vercel.app',
   'x-requested-with':'LOUREX-Invoice','sec-fetch-site':'same-origin'};
@@ -56,9 +56,21 @@ test('live API rejects GET, cross-origin and no Firebase bearer before any model
 });
 test('AI Next live bridge imports no finance mutation, Firebase Admin or local emulator',async()=>{
   const fs=await import('node:fs');
-  const content=fs.readFileSync(new URL('../../api/ai-next-live.js',import.meta.url),'utf8');
+  const content=fs.readFileSync(new URL('../../api/_ai/next-live.js',import.meta.url),'utf8');
   assert.doesNotMatch(content,/firebase-admin|mutateVaultSafely|postInvoice|\.collection\(|FIRESTORE_EMULATOR_HOST|financialSaved:true/);
   assert.match(content,/requireAiFirebaseAuth/);
   assert.match(content,/routeAiStructured/);
   assert.doesNotMatch(content,/externalDataClass\s*:\s*['"]public-synthetic/);
+});
+
+test('the existing production AI endpoint delegates only explicit nextLive=1',async()=>{
+  const fs=await import('node:fs');
+  const existing=fs.readFileSync(new URL('../../api/ai-conversation-v3.js',import.meta.url),'utf8');
+  assert.match(existing,/nextLiveReadOnlyHandler/);
+  assert.match(existing,/searchParams.get\('nextLive'\)==='1'/);
+  assert.match(existing,/requireAiFirebaseAuth\(request,response\)/);
+  // No additional top-level api/ function and no protected legacy API removal.
+  const api=fs.readdirSync(new URL('../../api/',import.meta.url))
+    .filter(file=>file.endsWith('.js'));
+  assert.equal(api.length,12);
 });
