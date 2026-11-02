@@ -819,6 +819,90 @@ export class R07MFastLocalCoordinator{
       financialSaved:false,draftEditPerformed:false,providerCalls:0,
     };
   }
+  /**
+   * R07N read-only completion: return the R07D authoritative unsaved draft
+   * only after independently verifying the original R07M task and receipt.
+   * This method does not interpret language, mutate a draft or write finance.
+   * Same disabled-by-default local review gate as acceptOfflineUnifiedReviewEdit.
+   */
+  async verifiedReviewDraft(token:string,raw:unknown):Promise<{
+    draft:ReviewDraft;appliedDraftRevision:number;
+    appliedDraftHash:string;financialSaved:false;
+  }>{
+    if(!this.deps.allowOfflineUnifiedReviewEdit||
+      !this.deps.offlineReviewReceiptStore)
+      throw new R07LocalError('R07M_UNIFIED_REVIEW_DISABLED');
+    if(!raw||typeof raw!=='object'||Array.isArray(raw)||
+      Object.getPrototypeOf(raw)!==Object.prototype||
+      Object.keys(raw).sort().join('|')!==[
+        'turn','originTurnId','expectedDraftRevision','expectedDraftHash',
+      ].sort().join('|'))
+      throw new R07LocalError('R07M_INVALID_UNIFIED_REVIEW_INPUT');
+    const input=raw as R07RReceiptPrepareInput;
+    validateRequest(input.turn);
+    const fingerprint=await fingerprintR07RReviewRequest(input);
+    const scope=await this.auth(token,envelope(input.turn));
+    if(scope.scopeType!=='business'||scope.role==='viewer'||
+      input.turn.mode!=='controller')
+      throw new R07LocalError('R07M_UNIFIED_REVIEW_DENIED');
+    const turn=await this.deps.journal.readTurnByRequest(
+      scope,input.turn.idempotencyKey);
+    if(!turn||!exactRequest(turn,input.turn)||
+      turn.mode!=='controller')
+      throw new R07LocalError('R07M_UNVERIFIED_REVIEW_REQUEST');
+    const h=await this.deps.journal.auditFullHistory(scope);
+    const task=h.tasks.find(x=>x.taskId===turn.taskId);
+    const bind=h.checkpointRefs.filter(x=>
+      x.checkpointId==='review-request-'+turn.turnId);
+    const receipt=h.checkpointRefs.filter(x=>
+      x.checkpointId==='review-receipt-'+turn.turnId);
+    const reply=h.messages.filter(x=>
+      x.messageId==='assistant-'+turn.turnId);
+    const user=h.messages.filter(x=>
+      x.messageId===input.turn.userMessageId);
+    if(h.scopeKey!==exactScopeKey(scope)||!task||
+      task.turnId!==turn.turnId||
+      task.taskType!=='unsaved_review_edit'||
+      task.state!=='completed'||
+      exactScopeKey(task.scope)!==exactScopeKey(scope)||
+      bind.length!==1||bind[0]?.taskId!==task.taskId||
+      bind[0]?.stage!=='r07m_unsaved_review_request_v1'||
+      bind[0]?.referenceHash!==fingerprint||
+      receipt.length!==1||receipt[0]?.taskId!==task.taskId||
+      receipt[0]?.stage!=='r07r_unsaved_review_edit_receipt_v1'||
+      reply.length!==1||reply[0]?.turnId!==turn.turnId||
+      reply[0]?.role!=='assistant'||user.length!==1||
+      user[0]?.turnId!==turn.turnId||user[0]?.role!=='user'||
+      user[0]?.text!==input.turn.message)
+      throw new R07LocalError('R07M_UNVERIFIED_REVIEW_HISTORY');
+    const saved=await this.deps.offlineReviewReceiptStore.readEditReceipt({
+      scope,turnId:input.originTurnId,
+      requestKey:input.turn.idempotencyKey,requestFingerprint:fingerprint,
+      expectedRevision:input.expectedDraftRevision,
+      expectedHash:input.expectedDraftHash,
+    });
+    if(!saved||saved.receipt.appliedRevision!==
+      input.expectedDraftRevision+1||
+      receipt[0]?.referenceHash!==saved.receipt.appliedHash||
+      saved.draft.draftId!=='draft-'+input.originTurnId||
+      saved.draft.threadId!==scope.threadId||
+      exactScopeKey(saved.draft.scope)!==exactScopeKey(scope)||
+      saved.draft.status!=='needs_review'||
+      saved.draft.approvalReceiptId!==null||
+      saved.draft.draftRevision<saved.receipt.appliedRevision||
+      (saved.draft.draftRevision===saved.receipt.appliedRevision&&
+        saved.draft.immutableRevisionHash!==saved.receipt.appliedHash)||
+      reply[0]?.text!=='تم إثبات تعديل مسودة عرض السعر في المراجعة رقم '+
+        String(saved.receipt.appliedRevision)+
+        '. المسودة ما زالت غير صادرة، ولم تُحفظ معاملة مالية.')
+      throw new R07LocalError('R07M_UNVERIFIED_REVIEW_DRAFT');
+    // Recheck membership at the output boundary so a revoked actor cannot
+    // receive the draft following a concurrent ACL change.
+    await this.auth(token,envelope(input.turn));
+    return {draft:structuredClone(saved.draft),
+      appliedDraftRevision:saved.receipt.appliedRevision,
+      appliedDraftHash:saved.receipt.appliedHash,financialSaved:false};
+  }
   async current(token:string,raw:unknown){
     const scope=await this.auth(token,raw as R07RequestEnvelope);
     return this.deps.journal.readOperationalState(scope);

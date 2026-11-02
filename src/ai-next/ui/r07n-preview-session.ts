@@ -12,6 +12,10 @@ import type {R07LocalResult,R07LocalTurnInput} from '../coordinator/local-coordi
 import type {ConversationSnapshot} from '../conversation-state/event-store.js';
 import type {R07LOperationalView} from '../storage/firestore-indexed-append.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
+import {recognizeR05LocalIntent} from '../router/local-intents.js';
+import type {R07MUnifiedReviewEditResult} from '../coordinator/fast-local-coordinator.js';
+import {fingerprintR07RReviewRequest,type R07RReceiptPrepareInput}
+  from '../coordinator/r07r-draft-preparation.js';
 import {assertR06Scope,type R06ConversationView,type R06Message}
   from './view-model.js';
 
@@ -27,6 +31,13 @@ export type R07NPreviewPending=R07LocalTurnInput;
 /** Local UI callbacks never receive a Firebase Admin instance or bearer token. */
 export interface R07NAuthenticatedPreviewPort{
   accept(request:R07LocalTurnInput):Promise<R07LocalResult>;
+  /** Optional local-loopback receipt transport, never a production route. */
+  reviewEdit?(request:R07RReceiptPrepareInput):
+    Promise<R07MUnifiedReviewEditResult>;
+  reviewDraft?(request:R07RReceiptPrepareInput):Promise<{
+    draft:ReviewDraft;appliedDraftRevision:number;
+    appliedDraftHash:string;financialSaved:false;
+  }>;
   current(envelope:R07NEnvelope):Promise<{
     view:R07LOperationalView;
     completeHistory:false;
@@ -54,6 +65,24 @@ const checkPending=(v:unknown,envelope:R07NEnvelope):R07LocalTurnInput=>{
     throw new R07NPreviewError('R07N_INVALID_PENDING_REQUEST');
   return structuredClone(v as unknown as R07LocalTurnInput);
 };
+const matchReview=(a:R07RReceiptPrepareInput,b:R07RReceiptPrepareInput)=>
+  JSON.stringify(a)===JSON.stringify(b);
+function checkReviewRequest(input:unknown,envelope:R07NEnvelope):
+  R07RReceiptPrepareInput{
+  if(!plain(input)||Object.keys(input).sort().join('|')!==[
+    'turn','originTurnId','expectedDraftRevision','expectedDraftHash',
+  ].sort().join('|'))
+    throw new R07NPreviewError('R07N_INVALID_REVIEW_REQUEST');
+  const turn=checkPending(input.turn,envelope);
+  if(turn.mode!=='controller'||typeof input.originTurnId!=='string'||
+    !input.originTurnId.trim()||input.originTurnId.length>160||
+    !Number.isSafeInteger(input.expectedDraftRevision)||
+    (input.expectedDraftRevision as number)<1||
+    typeof input.expectedDraftHash!=='string'||
+    !/^[a-f0-9]{64}$/.test(input.expectedDraftHash))
+    throw new R07NPreviewError('R07N_INVALID_REVIEW_REQUEST');
+  return structuredClone(input as unknown as R07RReceiptPrepareInput);
+}
 const emptyView=(scope:AuthenticatedScope):R06ConversationView=>({
   scope:structuredClone(scope),threadId:scope.threadId,
   messages:[],attachments:[],memories:[],currentTask:null,draft:null,
@@ -139,6 +168,7 @@ export function r07nHistoryToR06(scope:AuthenticatedScope,
  */
 export class R07NPreviewSession{
   private pending:R07LocalTurnInput|null=null;
+  private pendingReview:R07RReceiptPrepareInput|null=null;
   private busy=false;
   private view:R06ConversationView;
   constructor(private readonly scope:AuthenticatedScope,
@@ -161,7 +191,7 @@ export class R07NPreviewSession{
     return this.pending?structuredClone(this.pending):null;
   }
   restoreUnresolved(input:R07NPreviewPending):void{
-    if(this.busy||this.pending)
+    if(this.busy||this.pending||this.pendingReview)
       throw new R07NPreviewError('R07N_RECOVERY_PENDING_CONFLICT');
     this.pending=checkPending(input,this.envelope);
   }
@@ -175,16 +205,166 @@ export class R07NPreviewSession{
     this.view=r07nHistoryToR06(this.scope,history);
     return this.getView();
   }
+  unresolvedReviewForManualRecovery():R07RReceiptPrepareInput|null{
+    return this.pendingReview?structuredClone(this.pendingReview):null;
+  }
+  restoreUnresolvedReview(input:R07RReceiptPrepareInput):void{
+    if(this.busy||this.pending||this.pendingReview)
+      throw new R07NPreviewError('R07N_RECOVERY_PENDING_CONFLICT');
+    this.pendingReview=checkReviewRequest(input,this.envelope);
+  }
+  /**
+   * One already-guarded R07M/R07D review edit. The R07N view cannot infer a
+   * new draft revision from a response alone: it presents only the verified
+   * R07J transcript. The latest R07D draft is shown only after an
+   * independent scoped receipt-backed server read. No automatic re-inference.
+   */
+  async reviewEdit(input:R07RReceiptPrepareInput,signal?:AbortSignal):
+    Promise<{accepted:boolean}>{
+    if(this.busy||this.pending)
+      throw new R07NPreviewError('R07N_REVIEW_ALREADY_IN_FLIGHT');
+    const checked=checkReviewRequest(input,this.envelope);
+    if(this.pendingReview&&!matchReview(this.pendingReview,checked))
+      throw new R07NPreviewError('R07N_PENDING_REVIEW_MISMATCH');
+    if(!this.port.reviewEdit)
+      throw new R07NPreviewError('R07N_REVIEW_TRANSPORT_DISABLED');
+    if(!this.pendingReview){
+      const draft=this.view.draft;
+      if(!draft||draft.draftId!=='draft-'+checked.originTurnId||
+        draft.draftRevision!==checked.expectedDraftRevision||
+        draft.immutableRevisionHash!==checked.expectedDraftHash||
+        !same(draft.scope,this.scope)||draft.status!=='needs_review'||
+        draft.approvalReceiptId!==null)
+        throw new R07NPreviewError('R07N_REVIEW_ORIGIN_NOT_VERIFIED');
+    }
+    if(signal?.aborted)return {accepted:false};
+    this.pendingReview??=checked;
+    this.busy=true;
+    try{
+      const response=await this.port.reviewEdit(structuredClone(this.pendingReview));
+      // A successful HTTP response is insufficient: R07J must independently
+      // confirm task completion, request binding, receipt and final reply.
+      const history=await this.port.history(this.envelope);
+      const safe=r07nHistoryToR06(this.scope,history);
+      const request=this.pendingReview;
+      const turn=history.turns.find(x=>x.turnId===response.turnId);
+      const task=history.tasks.find(x=>x.taskId===response.taskId);
+      const fingerprint=await fingerprintR07RReviewRequest(request);
+      const bound=history.checkpointRefs.filter(x=>
+        x.checkpointId==='review-request-'+response.turnId);
+      const receipts=history.checkpointRefs.filter(x=>
+        x.checkpointId==='review-receipt-'+response.turnId);
+      const replies=history.messages.filter(x=>
+        x.messageId==='assistant-'+response.turnId);
+      const users=history.messages.filter(x=>
+        x.messageId===request.turn.userMessageId);
+      const applied=response.status==='applied_unsaved_review';
+      if(response.financialSaved!==false||response.providerCalls!==0||
+        !['applied_unsaved_review','needs_clarification'].includes(response.status)||
+        response.threadId!==this.scope.threadId||
+        !Number.isSafeInteger(response.conversationRevision)||
+        response.conversationRevision>history.revision||
+        !turn||!same(turn.scope,this.scope)||turn.mode!=='controller'||
+        turn.threadId!==request.turn.threadId||
+        turn.requestId!==request.turn.requestId||
+        turn.idempotencyKey!==request.turn.idempotencyKey||
+        turn.userMessageId!==request.turn.userMessageId||
+        turn.userMessage.text!==request.turn.message||
+        !task||task.turnId!==turn.turnId||task.state!=='completed'||
+        task.taskType!=='unsaved_review_edit'||!same(task.scope,this.scope)||
+        bound.length!==1||bound[0]?.taskId!==task.taskId||
+        bound[0]?.stage!=='r07m_unsaved_review_request_v1'||
+        bound[0]?.referenceHash!==fingerprint||
+        replies.length!==1||replies[0]?.role!=='assistant'||
+        replies[0]?.turnId!==turn.turnId||replies[0]?.text!==response.reply||
+        users.length!==1||users[0]?.role!=='user'||
+        users[0]?.turnId!==turn.turnId||
+        (applied?(
+          receipts.length!==1||receipts[0]?.taskId!==task.taskId||
+          receipts[0]?.stage!=='r07r_unsaved_review_edit_receipt_v1'||
+          receipts[0]?.referenceHash!==response.appliedDraftHash||
+          response.appliedDraftRevision!==request.expectedDraftRevision+1||
+          !/^[a-f0-9]{64}$/.test(response.appliedDraftHash??'')
+        ):(
+          receipts.length!==0||response.appliedDraftRevision!==null||
+          response.appliedDraftHash!==null
+        )))
+        throw new R07NPreviewError('R07N_UNVERIFIED_REVIEW_COMPLETION');
+      // The receipt-backed state is verified independently by R07D through
+      // an authenticated R07O local read, not trusted browser revision data.
+      let verifiedDraft:ReviewDraft|null=null;
+      if(applied){
+        if(!this.port.reviewDraft)
+          throw new R07NPreviewError('R07N_REVIEW_READ_DISABLED');
+        const latest=await this.port.reviewDraft(structuredClone(request));
+        const draft=latest.draft;
+        if(!draft||!plain(draft)||latest.financialSaved!==false||
+          latest.appliedDraftRevision!==response.appliedDraftRevision||
+          latest.appliedDraftHash!==response.appliedDraftHash||
+          !same(draft.scope,this.scope)||
+          draft.threadId!==this.scope.threadId||
+          draft.draftId!=='draft-'+request.originTurnId||
+          draft.kind!=='quotation'||draft.status!=='needs_review'||
+          draft.approvalReceiptId!==null||
+          !Number.isSafeInteger(draft.draftRevision)||
+          draft.draftRevision<latest.appliedDraftRevision||
+          !/^[a-f0-9]{64}$/.test(draft.immutableRevisionHash)||
+          (draft.draftRevision===latest.appliedDraftRevision&&
+            draft.immutableRevisionHash!==latest.appliedDraftHash))
+          throw new R07NPreviewError('R07N_UNVERIFIED_LATEST_REVIEW');
+        verifiedDraft=structuredClone(draft);
+      }
+      if(signal?.aborted)return {accepted:false};
+      this.view={...safe,draft:verifiedDraft};
+      assertR06Scope(this.view,this.scope);
+      this.pendingReview=null;
+      return {accepted:true};
+    }catch{
+      return {accepted:false};
+    }finally{this.busy=false;}
+  }
   async send(input:{
     text:string;mode:'advisor'|'controller';sourceIds:readonly string[];
     signal?:AbortSignal;
   }):Promise<{accepted:boolean}>{
-    if(this.busy)throw new R07NPreviewError('R07N_SEND_ALREADY_IN_FLIGHT');
+    if(this.busy)
+      throw new R07NPreviewError('R07N_SEND_ALREADY_IN_FLIGHT');
     if(input.sourceIds.length>0)
       throw new R07NPreviewError('R07N_LOCAL_FILES_NOT_SUPPORTED');
     if(!input.text.trim()||input.text.length>6000)
       throw new R07NPreviewError('R07N_INVALID_LOCAL_INPUT');
     if(input.signal?.aborted)return {accepted:false};
+    // No new request key after a lost review acknowledgement. The composer
+    // retries ONLY the identical sealed request; mode/message cannot change.
+    if(this.pendingReview){
+      if(input.mode!=='controller'||
+        input.text!==this.pendingReview.turn.message)
+        throw new R07NPreviewError('R07N_PENDING_REVIEW_MISMATCH');
+      return this.reviewEdit(this.pendingReview,input.signal);
+    }
+    // R05 deterministic greetings and blank quotation starts take the
+    // original no-model path. A nonlocal Controller utterance may edit ONLY
+    // an already server-verified unsaved review draft via R07M/R07D.
+    // This never permits posting, issuing, saving or provider inference.
+    const draft=this.view.draft;
+    if(!this.pending&&input.mode==='controller'&&draft&&
+      !recognizeR05LocalIntent(input.text,0)&&this.port.reviewEdit&&
+      this.port.reviewDraft){
+      const prefix='draft-';
+      if(draft.draftId.startsWith(prefix)&&
+        draft.draftId.length>prefix.length&&
+        draft.status==='needs_review'&&draft.approvalReceiptId===null&&
+        same(draft.scope,this.scope)){
+        const ids=this.newIdentity();
+        const turn=checkPending({...this.envelope,...ids,
+          message:input.text,mode:'controller'},this.envelope);
+        return this.reviewEdit({
+          turn,originTurnId:draft.draftId.slice(prefix.length),
+          expectedDraftRevision:draft.draftRevision,
+          expectedDraftHash:draft.immutableRevisionHash,
+        },input.signal);
+      }
+    }
     if(this.pending){
       if(this.pending.message!==input.text||this.pending.mode!==input.mode)
         throw new R07NPreviewError('R07N_PENDING_REQUEST_MISMATCH');

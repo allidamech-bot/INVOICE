@@ -18,6 +18,8 @@ import {R07NPreviewSession}
   from '../../dist/src/ai-next/ui/r07n-preview-session.js';
 import {createR07RTrustedOfflineReviewSession}
   from '../../dist/src/ai-next/coordinator/r07r-trusted-review-session.js';
+import {R07QTrustedSemanticGateway}
+  from '../../dist/src/ai-next/router/trusted-semantic-gateway.js';
 import {R07OLocalPreviewHandler,R07OLocalHttpPreviewPort,
   R07O_PUBLIC_ENDPOINT_ENABLED,R07O_LOCAL_ROUTE,R07O_MAX_REQUEST_BYTES}
   from '../../dist/src/ai-next/security/r07o-local-http.js';
@@ -284,6 +286,7 @@ test('unified edit HTTP extension is disabled by default, then receipt-verified 
       coordinator:reviewCoordinator,
     });
     assert.equal((await direct('review_edit',input)).status,403);
+    assert.equal((await direct('review_draft',input)).status,403);
     const sameScope={...scope,threadId:reviewEnv.threadId};
     assert.equal((await drafts.read(sameScope,created.turnId)).draftRevision,1);
     handler=new R07OLocalPreviewHandler({
@@ -437,4 +440,351 @@ test('R07O client rejects fabricated success payload without receipt or revision
     originTurnId:'fixture-origin',expectedDraftRevision:1,
     expectedDraftHash:'a'.repeat(64),
   }),/R07O_UNVERIFIED_REVIEW_RESPONSE/);
+});
+
+test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTTP reply',async()=>{
+  const reviewEnv={...env,threadId:'r07n-receipt-preview-ui'};
+  const reviewScope={...scope,threadId:reviewEnv.threadId};
+  const journal=new R07JExperimentalIndexedJournal(db,true);
+  const drafts=new R07DExperimentalFirestoreDraftStore(db);
+  let interpretations=0;
+  const sessionBridge=createR07RTrustedOfflineReviewSession({
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    principal,membership,journal,draftStore:drafts,
+    customers:{resolveUnique:async(_scope,name)=>
+      name==='شركة النور'?'r07n-preview-verified-customer':null},
+    syntheticInterpreter:{interpret:async()=>{
+      interpretations++;
+      return {action:'edit_draft',subject:null,reference:'active_draft',
+        facts:[{name:'customer_name',value:'شركة النور'}],
+        sourceIds:[],missingFields:[]};
+    }},
+    clock:()=>new Date(at),
+  });
+  const reviewCoordinator=new R07MFastLocalCoordinator({
+    journal,draftStore:drafts,principal,membership,
+    offlineReviewBridge:sessionBridge.bridge,
+    offlineReviewReceiptStore:drafts,allowOfflineUnifiedReviewEdit:true,
+    clock:()=>new Date(at),
+  });
+  const originalHandler=handler;
+  let drop=true,lie=true,forgeDraft=true;
+  try{
+    const live=new R07OLocalHttpPreviewPort({
+      allowedOrigin:endpoint,token:async()=>token,transport,
+    });
+    const uiPort={
+      accept:request=>live.accept(request),
+      current:request=>live.current(request),
+      history:request=>live.history(request),
+      reviewDraft:async request=>{
+        const result=await live.reviewDraft(request);
+        if(forgeDraft){
+          forgeDraft=false;
+          return {...result,draft:{...result.draft,
+            scope:{...result.draft.scope,companyId:'forged-company'}}};
+        }
+        return result;
+      },
+      reviewEdit:async request=>{
+        const response=await live.reviewEdit(request);
+        if(drop){drop=false;throw Error('LOST_HTTP_REPLY_AFTER_RECEIPT');}
+        if(lie){lie=false;return {...response,appliedDraftHash:'0'.repeat(64)};}
+        return response;
+      },
+    };
+    let nextKey=0;
+    const localUi=new R07NPreviewSession(
+      reviewScope,reviewEnv,uiPort,
+      ()=>identity('r07n-preview-'+(++nextKey))());
+    assert.deepEqual(await localUi.send({
+      text:'أنشئ مسودة عرض سعر',mode:'controller',sourceIds:[],
+    }),{accepted:true});
+    const draft=localUi.getView().draft;
+    assert.equal(draft?.draftRevision,1);
+    const originTurnId=localUi.getView().currentTask.turnId;
+    const edit={
+      turn:{...reviewEnv,...identity('r07n-preview-2')(),
+        message:'خلي العميل شركة النور',mode:'controller'},
+      originTurnId,expectedDraftRevision:1,
+      expectedDraftHash:draft.immutableRevisionHash,
+    };
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:reviewCoordinator,allowOfflineReviewEditPreview:true,
+    });
+    assert.deepEqual(await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]}),{accepted:false});
+    assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
+    assert.equal(localUi.getView().draft.draftRevision,1);
+    assert.equal(interpretations,1);
+    assert.equal((await drafts.read(reviewScope,originTurnId)).draftRevision,2);
+    await assert.rejects(localUi.send({text:'خلي العميل شخص آخر',
+      mode:'controller',sourceIds:[]}),/R07N_PENDING_REVIEW_MISMATCH/);
+    // A shaped but forged R07O success must NOT clear pending review.
+    assert.deepEqual(await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]}),{accepted:false});
+    assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
+    assert.equal(interpretations,1);
+    // Valid HTTP acknowledgement with forged draft scope still fails.
+    assert.deepEqual(await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]}),{accepted:false});
+    assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
+    assert.equal(interpretations,1);
+    const result=await localUi.send({text:'خلي العميل شركة النور',mode:'controller',sourceIds:[]});
+    assert.deepEqual(result,{accepted:true});
+    assert.equal(localUi.unresolvedReviewForManualRecovery(),null);
+    const view=localUi.getView();
+    assert.equal(view.draft?.draftRevision,2,
+      'R07N must render the receipt-verified revision only');
+    assert.equal(view.draft?.explicitCustomerId,'r07n-preview-verified-customer');
+    assert.equal(view.draft?.approvalReceiptId,null);
+    assert.equal(nextKey,2,'retry and forged replies cannot create new IDs');
+    assert.equal(view.messages.filter(x=>x.role==='assistant').length,2);
+    assert.equal(view.currentTask.taskType,'unsaved_review_edit');
+    assert.equal(view.currentTask.state,'completed');
+    assert.equal(interpretations,1,'retries and forged outputs must still create one revision');
+    assert.equal((await drafts.read(reviewScope,originTurnId)).draftRevision,2);
+    const originalAcl=(await acl.get()).data();
+    try{
+      await acl.set({...originalAcl,active:false});
+      await assert.rejects(live.reviewDraft(edit),/R07O_SECURE_CALL_FAILED/);
+    }finally{await acl.set(originalAcl);}
+    // An old revision is never valid again, even after verified UI refresh.
+    await assert.rejects(localUi.reviewEdit({...edit,turn:{
+      ...edit.turn,requestId:'fresh-review-request',
+      idempotencyKey:'fresh-review-key',userMessageId:'fresh-review-user',
+    }}),/R07N_REVIEW_ORIGIN_NOT_VERIFIED/);
+  }finally{handler=originalHandler;}
+});
+
+/**
+ * The R07P/R07Q -> R07R -> R07M/R07D chain must be tested through the
+ * SAME existing loopback-only Controller. NO live provider is reachable:
+ * the transport is a synthetic in-memory function and the registry contains
+ * only synthetic entitlement fixtures, never actual account verification.
+ */
+const offlineModel=()=>({
+  providerId:'groq',modelId:'fixture-only-zero-price-not-a-real-entitlement',
+  registryVersion:'offline-fixture',capabilities:['TEXT','STRUCTURED_OUTPUT'],
+  inputModalities:['text'],contextWindow:32000,maxImages:0,maxPages:null,
+  providerEnabled:true,credentialsPresent:true,accountFreeVerified:true,
+  modelZeroCostVerified:true,quotaAvailable:true,privacyApproved:true,
+  healthAvailable:true,qualityTier:'capable',quotaGroupId:'offline-fixture',
+});
+const routedHarness=(suffix,{privateAllowed=true,modelAction='edit_draft',
+  accountFreeVerified=true,modelSubject=null}={})=>{
+  const reviewEnv={...env,threadId:'r07pq-review-'+suffix};
+  const state={calls:0,discovery:0,privacy:0};
+  const gateway=Object.assign(new R07QTrustedSemanticGateway({
+    models:async()=>{state.discovery++;return [{...offlineModel(),accountFreeVerified}];},
+    transport:{invoke:async ({payload})=>{
+      state.calls++;
+      assert.equal(payload.instruction.task,'semantic_interpretation_only');
+      assert.equal(payload.utterance,'خلي العميل شركة النور');
+      return {action:modelAction,subject:modelSubject,reference:'active_draft',
+        facts:modelAction==='edit_draft'?
+          [{name:'customer_name',value:'شركة النور'}]:[],
+        sourceIds:[],missingFields:[]};
+    }},
+    approveBusinessData:async()=>{state.privacy++;return privateAllowed;},
+    enableRoutedInference:true,
+  }),{transportKind:'offline_synthetic_fixture'});
+  const store=new R07DExperimentalFirestoreDraftStore(db);
+  const audit=new R07JExperimentalIndexedJournal(db,true);
+  const session=createR07RTrustedOfflineReviewSession({
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    offlineRoutedReviewFixtures:true,routedInterpreter:gateway,
+    principal,membership,journal:audit,draftStore:store,
+    customers:{resolveUnique:async(_scope,name)=>
+      name==='شركة النور'?'r07pq-verified-customer':null},
+    clock:()=>new Date(at),
+  });
+  const coordinator=new R07MFastLocalCoordinator({
+    journal:audit,draftStore:store,principal,membership,
+    offlineReviewBridge:session.bridge,offlineReviewReceiptStore:store,
+    allowOfflineUnifiedReviewEdit:true,clock:()=>new Date(at),
+  });
+  return {reviewEnv,state,coordinator,store};
+};
+const startRoutedQuotation=async reviewEnv=>{
+  const request={...reviewEnv,requestId:'quote-origin-'+reviewEnv.threadId,
+    idempotencyKey:'quote-key-'+reviewEnv.threadId,
+    userMessageId:'quote-user-'+reviewEnv.threadId,
+    message:'أنشئ مسودة عرض سعر',mode:'controller'};
+  const result=await direct('accept',request);
+  assert.equal(result.status,200);
+  const draft=await result.json();
+  assert.equal(draft.draft.draftRevision,1);
+  return draft;
+};
+const routedInput=(reviewEnv,created)=>({
+  turn:{...reviewEnv,requestId:'edit-request-'+reviewEnv.threadId,
+    idempotencyKey:'edit-key-'+reviewEnv.threadId,
+    userMessageId:'edit-user-'+reviewEnv.threadId,
+    message:'خلي العميل شركة النور',mode:'controller'},
+  originTurnId:created.turnId,expectedDraftRevision:1,
+  expectedDraftHash:created.draft.immutableRevisionHash,
+});
+test('offline R07Q route -> one R07M task + R07D receipt + R07N current draft, no live calls',async()=>{
+  const h=routedHarness('approved');
+  const created=await startRoutedQuotation(h.reviewEnv);
+  const original=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:h.coordinator,allowOfflineReviewEditPreview:true,
+    });
+    const port=new R07OLocalHttpPreviewPort({
+      allowedOrigin:endpoint,token:async()=>token,transport,
+    });
+    const ui=new R07NPreviewSession(
+      {...scope,threadId:h.reviewEnv.threadId},
+      h.reviewEnv,port,identity('fixture-routed-r07n'));
+    // Explicit pending from the already verified R07D origin. The UI's
+    // create-draft fast path and resume protections were independently tested.
+    const input=routedInput(h.reviewEnv,created);
+    ui.restoreUnresolvedReview(input);
+    const first=await ui.reviewEdit(input);
+    assert.deepEqual(first,{accepted:true});
+    const view=ui.getView();
+    assert.equal(view.currentTask.taskType,'unsaved_review_edit');
+    assert.equal(view.currentTask.state,'completed');
+    assert.equal(view.draft?.draftRevision,2);
+    assert.equal(view.draft?.explicitCustomerId,'r07pq-verified-customer');
+    assert.equal(view.draft?.approvalReceiptId,null);
+    assert.equal(h.state.calls,1,'single synthetic routed attempt');
+    assert.equal(h.state.discovery,1);
+    assert.equal(h.state.privacy,1);
+    const replay=await port.reviewEdit(input);
+    assert.equal(replay.replayed,true);
+    assert.equal(replay.financialSaved,false);
+    // These are external LIVE provider calls, not the synthetic transport.
+    assert.equal(replay.providerCalls,0);
+    assert.equal(h.state.calls,1,'durable replay must NOT route a second time');
+    const history=await port.history(h.reviewEnv);
+    assert.equal(history.turns.length,2);
+    assert.equal(history.messages.filter(m=>
+      m.turnId===replay.turnId&&m.role==='assistant').length,1);
+    assert.equal(history.checkpointRefs.filter(c=>
+      c.taskId===replay.taskId).length,2);
+  }finally{handler=original;}
+});
+test('R07Q private consent denied -> zero model discovery, zero draft edit, R07M clarification',async()=>{
+  const h=routedHarness('private-denied',{privateAllowed:false});
+  const created=await startRoutedQuotation(h.reviewEnv);
+  const original=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:h.coordinator,allowOfflineReviewEditPreview:true,
+    });
+    const input=routedInput(h.reviewEnv,created);
+    const response=await direct('review_edit',input);
+    assert.equal(response.status,200);
+    const out=await response.json();
+    assert.equal(out.status,'needs_clarification');
+    assert.equal(out.appliedDraftRevision,null);
+    assert.equal(out.financialSaved,false);
+    assert.equal(h.state.calls,0);
+    assert.equal(h.state.discovery,0);
+    assert.equal(h.state.privacy,1);
+    const sameScope={...scope,threadId:h.reviewEnv.threadId};
+    assert.equal((await h.store.read(sameScope,created.turnId)).draftRevision,1);
+    const replay=await direct('review_edit',input);
+    assert.equal(replay.status,200);
+    assert.equal((await replay.json()).replayed,true);
+    assert.equal(h.state.privacy,1,'no repeat consent check on completed task');
+  }finally{handler=original;}
+});
+test('R07Q model attempts financial issuance: refuse without an R07D edit receipt',async()=>{
+  const h=routedHarness('unsafe-output',{modelAction:'execute_approved'});
+  const created=await startRoutedQuotation(h.reviewEnv);
+  const original=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:h.coordinator,allowOfflineReviewEditPreview:true,
+    });
+    const input=routedInput(h.reviewEnv,created);
+    const response=await direct('review_edit',input);
+    assert.equal(response.status,200);
+    const outcome=await response.json();
+    assert.equal(outcome.status,'needs_clarification');
+    assert.equal(outcome.financialSaved,false);
+    assert.equal(outcome.appliedDraftRevision,null);
+    assert.equal(h.state.calls,1);
+    const sameScope={...scope,threadId:h.reviewEnv.threadId};
+    assert.equal((await h.store.read(sameScope,created.turnId)).draftRevision,1);
+    const hst=await h.coordinator.history(token,h.reviewEnv);
+    assert.equal(hst.checkpointRefs.filter(c=>
+      c.stage==='r07r_unsaved_review_edit_receipt_v1').length,0);
+  }finally{handler=original;}
+});
+
+test('R07Q missing verified free entitlement fails closed before model transport',async()=>{
+  const h=routedHarness('free-unverified',{accountFreeVerified:false});
+  const created=await startRoutedQuotation(h.reviewEnv),old=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:h.coordinator,allowOfflineReviewEditPreview:true,
+    });
+    const res=await direct('review_edit',routedInput(h.reviewEnv,created));
+    assert.equal(res.status,200);
+    const output=await res.json();
+    assert.equal(output.status,'needs_clarification');
+    assert.equal(output.financialSaved,false);
+    assert.equal(output.appliedDraftRevision,null);
+    assert.equal(h.state.calls,0);
+    assert.equal((await h.store.read({...scope,threadId:h.reviewEnv.threadId},
+      created.turnId)).draftRevision,1);
+    const history=await h.coordinator.history(token,h.reviewEnv);
+    assert.equal(history.checkpointRefs.filter(c=>
+      c.stage==='r07r_unsaved_review_edit_receipt_v1').length,0);
+  }finally{handler=old;}
+});
+test('R07Q forged draft reference cannot modify another draft',async()=>{
+  const h=routedHarness('forged-ref',{modelSubject:{
+    kind:'draft',id:'other-company-draft',
+  }});
+  const created=await startRoutedQuotation(h.reviewEnv),old=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:h.coordinator,allowOfflineReviewEditPreview:true,
+    });
+    const res=await direct('review_edit',routedInput(h.reviewEnv,created));
+    assert.equal(res.status,200);
+    const output=await res.json();
+    assert.equal(output.status,'needs_clarification');
+    assert.equal(output.financialSaved,false);
+    assert.equal(output.appliedDraftRevision,null);
+    assert.equal(h.state.calls,1);
+    assert.equal((await h.store.read({...scope,threadId:h.reviewEnv.threadId},
+      created.turnId)).draftRevision,1);
+    const history=await h.coordinator.history(token,h.reviewEnv);
+    assert.equal(history.checkpointRefs.filter(c=>
+      c.stage==='r07r_unsaved_review_edit_receipt_v1').length,0);
+  }finally{handler=old;}
+});
+test('R07Q offline fixtures reject missing server grant and incorrect marker',()=>{
+  const deps={
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    principal,membership,journal:new R07JExperimentalIndexedJournal(db,true),
+    draftStore:new R07DExperimentalFirestoreDraftStore(db),
+    customers:{resolveUnique:async()=>null},
+    routedInterpreter:{transportKind:'offline_synthetic_fixture',
+      interpret:async()=>({ok:false,code:'OFFLINE_ONLY',calls:0})},
+    clock:()=>new Date(at),
+  };
+  assert.throws(()=>createR07RTrustedOfflineReviewSession(deps),
+    /R07R_UNSAFE_OFFLINE_INFERENCE_CONFIGURATION/);
+  assert.throws(()=>createR07RTrustedOfflineReviewSession({
+    ...deps,offlineRoutedReviewFixtures:true,
+    routedInterpreter:{...deps.routedInterpreter,transportKind:'live'},
+  }),/R07R_UNSAFE_OFFLINE_INFERENCE_CONFIGURATION/);
 });

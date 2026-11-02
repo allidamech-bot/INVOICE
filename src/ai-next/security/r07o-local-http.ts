@@ -80,14 +80,15 @@ async function boundedBody(request:Request):Promise<unknown>{
   try{parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}
   catch{throw Error('R07O_INVALID_JSON');}
   if(!own(parsed)||!keys(parsed,['operation','payload'])||
-    !['accept','current','history','review_edit'].includes(String(parsed.operation))||
+    !['accept','current','history','review_edit','review_draft'].includes(String(parsed.operation))||
     !own(parsed.payload))
     throw Error('R07O_INVALID_REQUEST_SHAPE');
   return parsed;
 }
-type Operations='accept'|'current'|'history'|'review_edit';
+type Operations='accept'|'current'|'history'|'review_edit'|'review_draft';
 type Coordinator=Pick<R07MFastLocalCoordinator,
-  'accept'|'current'|'history'|'acceptOfflineUnifiedReviewEdit'>;
+  'accept'|'current'|'history'|'acceptOfflineUnifiedReviewEdit'|
+  'verifiedReviewDraft'>;
 /**
  * Instantiable only when the actual Node process is running against
  * the *official local demo emulator*. Supplying a forged config is not enough.
@@ -137,7 +138,8 @@ export class R07OLocalPreviewHandler{
     catch(e){return report(e instanceof Error&&e.message==='R07O_BODY_LIMIT'?
       'R07O_BODY_LIMIT':'R07O_INVALID_BODY',400);}
     const verb=command.operation as Operations;
-    if(verb==='review_edit'&&this.options.allowOfflineReviewEditPreview!==true)
+    if((verb==='review_edit'||verb==='review_draft')&&
+      this.options.allowOfflineReviewEditPreview!==true)
       return report('R07O_REVIEW_EDIT_DISABLED',403);
     try{
       const token=auth.slice(7);
@@ -146,6 +148,9 @@ export class R07OLocalPreviewHandler{
           command.payload as R07LocalTurnInput):
         verb==='review_edit'?
           await this.options.coordinator.acceptOfflineUnifiedReviewEdit(
+            token,command.payload):
+        verb==='review_draft'?
+          await this.options.coordinator.verifiedReviewDraft(
             token,command.payload):
         verb==='current'?
           await this.options.coordinator.current(token,
@@ -216,6 +221,25 @@ export class R07OLocalHttpPreviewPort implements R07NAuthenticatedPreviewPort{
    * No automatic retry. Preserve the identical request key, origin turn,
    * draft revision and hash on manual replay after a lost acknowledgement.
    */
+  /** Server-authorized R07D read; only in the opt-in local emulator. */
+  async reviewDraft(input:R07RReceiptPrepareInput):Promise<{
+    draft:import('../domain/contracts.js').ReviewDraft;
+    appliedDraftRevision:number;appliedDraftHash:string;financialSaved:false;
+  }>{
+    const result:unknown=await this.call('review_draft',input);
+    if(!own(result)||Object.keys(result).sort().join('|')!==[
+      'draft','appliedDraftRevision','appliedDraftHash','financialSaved',
+    ].sort().join('|')||!own(result.draft)||result.financialSaved!==false||
+      !Number.isSafeInteger(result.appliedDraftRevision)||
+      (result.appliedDraftRevision as number)<input.expectedDraftRevision+1||
+      typeof result.appliedDraftHash!=='string'||
+      !/^[a-f0-9]{64}$/.test(result.appliedDraftHash))
+      throw new R07OHttpPreviewError('R07O_UNVERIFIED_REVIEW_DRAFT');
+    return result as unknown as {
+      draft:import('../domain/contracts.js').ReviewDraft;
+      appliedDraftRevision:number;appliedDraftHash:string;financialSaved:false;
+    };
+  }
   async reviewEdit(input:R07RReceiptPrepareInput):
     Promise<R07MUnifiedReviewEditResult>{
     const result:unknown=await this.call('review_edit',input);
