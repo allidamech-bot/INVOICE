@@ -1,0 +1,37 @@
+name: LOUREX AI Next Combined Final Linguistic and Privacy QA (Offline)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/ai-next-final-integrated-linguistic-qa.yml'
+permissions:
+  contents: read
+jobs:
+  combined-offline-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and isolated AI Next compilation
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: R07P 43-case and R07T 27-turn blind benchmark scorer, routed privacy and grounded source regressions
+        run: >-
+          node --test
+          tests/ai-next/r07p-semantic-evaluation.test.mjs
+          tests/ai-next/r07p-multilingual-report.test.mjs
+          tests/ai-next/r07p-blind-benchmark.test.mjs
+          tests/ai-next/r07t-dialogue-benchmark.test.mjs
+          tests/ai-next/r07v-groq-synthetic-readiness.test.mjs
+          tests/ai-next/r07u-audited-dialogue-context.test.mjs
+          tests/ai-next/r07s-grounded-source.test.mjs
+          tests/ai-next/r07p-local-structured-intents.test.mjs
+          tests/ai-next/r07q-routed-semantic.test.mjs
+      - name: Enforce finance and production isolation
+        run: node scripts/verify-deployment-isolation.mjs
