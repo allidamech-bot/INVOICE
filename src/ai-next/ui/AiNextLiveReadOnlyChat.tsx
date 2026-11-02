@@ -23,7 +23,7 @@ export function AiNextLiveReadOnlyChat():any{
   const [busy,setBusy]=React.useState(false);
   const [error,setError]=React.useState('');
   const [diagnostics,setDiagnostics]=React.useState('');
-  const active=React.useRef<AbortController|null>(null);
+  const active=React.useState<{current:AbortController|null}>({current:null})[0];
   React.useEffect(()=>()=>{active.current?.abort();},[]);
   const submit=async()=>{
     const text=input.trim();
@@ -41,8 +41,8 @@ export function AiNextLiveReadOnlyChat():any{
         response.saved!==false||typeof response.answer!=='string'||
         !response.answer.trim()||response.answer.length>4000)
         throw Error('نتيجة الخادم لم تستوفِ شروط المحادثة الحقيقية للقراءة فقط.');
-      setMessages(old=>[...old,{role:'user',text},
-        {role:'assistant',text:response.answer}].slice(-30));
+      setMessages(old=>[...old,{role:'user' as Role,text},
+        {role:'assistant' as Role,text:response.answer}].slice(-30));
       setDiagnostics(
         'موجّه حقيقي · '+(typeof response.provider==='string'?response.provider:'مزوّد غير معروض')+
         (typeof response.model==='string'?' / '+response.model:'')+
@@ -108,10 +108,10 @@ export function AiNextLiveReadOnlyChat():any{
     <div style={{borderTop:'1px solid #c6d8d4',padding:12}}>
       {error?<div role="alert" style={{padding:9,color:'#a22d2d',
         background:'#fff0ed',borderRadius:8,fontSize:12}}>{error}</div>:null}
-      <form onSubmit={e=>{e.preventDefault();void submit();}}
+      <form onSubmit={(e:any)=>{e.preventDefault();void submit();}}
         style={{display:'flex',gap:8,alignItems:'flex-end'}}>
         <textarea value={input} maxLength={2400} rows={2}
-          disabled={busy} onChange={e=>setInput(e.currentTarget.value)}
+          disabled={busy} onChange={(e:any)=>setInput(e.currentTarget.value)}
           placeholder="اكتب طلبك بالعربي أو English..."
           aria-label="رسالة حقيقية إلى LOUREX AI Next" dir="auto"
           style={{fontFamily:'inherit',fontSize:16,flex:1,minWidth:0,
