@@ -99,7 +99,8 @@ class R06Composer extends React.Component<ComposerProps,ComposerState>{
           placeholder="اكتب طلبك بالعربية أو الإنجليزية..."
           dir="auto"
           style={{...control,width:'100%',boxSizing:'border-box',
-            minHeight:64,maxHeight:160,resize:'vertical',
+            // iPhone Safari must never focus-zoom text smaller than 16px.
+            fontSize:16,minHeight:64,maxHeight:160,resize:'vertical',
             textAlign:'start',unicodeBidi:'plaintext',
             ...(this.state.focused?focusRing:{outline:'none'})}}/>
       </label>
