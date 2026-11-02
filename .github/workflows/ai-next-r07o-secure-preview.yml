@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'src/ai-next/security/r07o-local-http.ts'
+      - 'src/ai-next/coordinator/fast-local-coordinator.ts'
       - 'src/ai-next/ui/r07n-preview-session.ts'
       - 'tests/ai-next/r07o-local-http-emulator.test.mjs'
       - '.github/workflows/ai-next-r07o-secure-preview.yml'
