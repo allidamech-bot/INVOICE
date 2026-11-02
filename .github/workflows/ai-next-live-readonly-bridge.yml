@@ -6,6 +6,7 @@ on:
       - 'api/_ai/next-live.js'
       - 'api/ai-conversation-v3.js'
       - 'src/ai-next/ui/AiNextLiveReadOnlyChat.tsx'
+      - 'src/ai-next/ui/AiNextLiveReadOnlyLauncher.tsx'
       - 'src/components/AiCopilot.tsx'
       - 'tests/ai-next/live-readonly-bridge.test.mjs'
       - '.github/workflows/ai-next-live-readonly-bridge.yml'
