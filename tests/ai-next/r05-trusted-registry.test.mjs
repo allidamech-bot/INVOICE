@@ -96,3 +96,69 @@ test('secret content is never returned in candidate metadata',()=>{
   const r=buildR05TrustedRegistry({env});
   assert.equal(JSON.stringify(r).includes(env.GROQ_API_KEY),false);
 });
+
+test('five-provider dynamic catalog retains every individually verified zero-cost model',()=>{
+  // 25 is a fixture size, not a model count cap or any real account attestation.
+  const groq=Array.from({length:5},(_,i)=>'synthetic-groq/model-'+i);
+  const cloudflare=[
+    '@cf/meta/llama-3.2-1b-instruct',
+    '@cf/meta/llama-3.2-3b-instruct',
+    '@cf/meta/llama-3.1-8b-instruct-fp8-fast',
+    '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+    '@cf/google/gemma-3-12b-it',
+  ];
+  const gemini=['gemini-2.5-flash','gemini-2.5-pro','gemini-3.8-flash',
+    'gemini-3.6-flash','gemini-3.5-flash-lite'];
+  const openrouter=Array.from({length:5},(_,i)=>'synthetic/openrouter-'+i+':free');
+  const ollama=Array.from({length:5},(_,i)=>'synthetic-ollama:'+i);
+  const sets={groq,cloudflare,gemini,openrouter,ollama};
+  const env={
+    GROQ_API_KEY:'test-only',GEMINI_API_KEY:'test-only',
+    CLOUDFLARE_AI_API_TOKEN:'test-only',CLOUDFLARE_ACCOUNT_ID:'test-only',
+    OPENROUTER_API_KEY:'test-only',OLLAMA_API_KEY:'test-only',
+    LOUREX_AI_NEW_PROVIDERS_ENABLED:'true',
+    LOUREX_AI_GROQ_FREE_ACCOUNT_VERIFIED:'true',
+    LOUREX_AI_CLOUDFLARE_FREE_PLAN_VERIFIED:'true',
+    LOUREX_AI_GEMINI_FREE_PROJECT_VERIFIED:'true',
+    LOUREX_AI_OPENROUTER_NO_OVERAGE_VERIFIED:'true',
+    LOUREX_AI_OLLAMA_FREE_VERIFIED:'true',
+    LOUREX_AI_NEXT_APPROVED_PROVIDERS:Object.keys(sets).join(','),
+    LOUREX_AI_APPROVED_PRIVATE_PROVIDERS:Object.keys(sets).join(','),
+  };
+  for(const [provider,ids] of Object.entries(sets)){
+    env['LOUREX_AI_'+provider.toUpperCase()+'_ZERO_COST_MODELS']=ids.join(',');
+    env['LOUREX_AI_'+provider.toUpperCase()+'_QUOTA_AVAILABLE_VERIFIED']='true';
+  }
+  const catalogResponses={
+    groq:{models:groq.map(model=>({model,capabilities:['TEXT','STRUCTURED_OUTPUT']}))},
+    cloudflare:{result:cloudflare.map(name=>({name,task:'text-generation'}))},
+    gemini:{models:gemini.map(name=>({name:'models/'+name,
+      supportedGenerationMethods:['generateContent']}))},
+    openrouter:{data:openrouter.map(id=>({
+      id,pricing:{prompt:'0',completion:'0'},
+      architecture:{input_modalities:['text'],output_modalities:['text']},
+    }))},
+    ollama:{models:ollama.map(model=>({model,capabilities:['TEXT','STRUCTURED_OUTPUT']}))},
+  };
+  const r=buildR05TrustedRegistry({env,catalogResponses});
+  for(const [provider,ids] of Object.entries(sets)){
+    for(const id of ids){
+      const m=record(r,provider,id);
+      assert.ok(m,provider+':'+id+' missing');
+      assert.equal(m.credentialsPresent,true);
+      assert.equal(m.accountFreeVerified,true);
+      assert.equal(m.modelZeroCostVerified,true);
+      assert.equal(m.quotaAvailable,true);
+      assert.equal(m.privacyApproved,true);
+    }
+  }
+  assert.equal(Object.values(sets).flat().length,25);
+  // If just one model loses cost proof, only that model becomes ineligible.
+  delete env.LOUREX_AI_GEMINI_ZERO_COST_MODELS;
+  const blocked=buildR05TrustedRegistry({env,catalogResponses});
+  for(const id of gemini){
+    assert.equal(record(blocked,'gemini',id).modelZeroCostVerified,false);
+  }
+  assert.equal(record(blocked,'groq',groq[0]).modelZeroCostVerified,true);
+  assert.ok(!JSON.stringify(r).includes('test-only'));
+});
