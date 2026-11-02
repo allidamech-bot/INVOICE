@@ -1,0 +1,80 @@
+name: LOUREX QA-only browser baseline versus integrated branch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/qa-release-browser-baseline-20261102.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-visual-comparison:
+    name: Visual baseline diagnostic - ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: unchanged-main
+            source: 2d4e3e739d1544529d9b04f53b96802f65af7658
+          - label: Groq-security-finance-QA
+            source: feba18aaee481ffa8a0f1197b9506fb24cbea675
+    steps:
+      - name: Checkout EXACT audited source SHA (read-only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.source }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies (diagnostic; no npm audit suppression in release)
+        run: npm ci --no-audit --no-fund
+      - name: Install exact browser test dependencies, no lock updates
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Build local static QA fixtures, no publishing
+        run: npm run build
+      - name: Run identical eight previously failing visual QA suites against this SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 >/tmp/lourex-baseline-qa-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:4173/tests/visual/template-visual-qa.html >/dev/null; then break; fi
+            sleep 1
+          done
+          suites=(
+            tests/visual/run-v337-shell-navigation.cjs
+            tests/visual/run-v339-shell-overlay-release.cjs
+            tests/visual/run-search-keyboard-batch1.cjs
+            tests/visual/run-all-template-auto-contrast-v591.cjs
+            tests/visual/run-document-design-final-deep.cjs
+            tests/visual/run-functional-payments.cjs
+            tests/visual/run-v337-create-center.cjs
+            tests/visual/run-v337-shell-navigation.cjs
+          )
+          failures=0
+          for i in "${!suites[@]}"; do
+            suite="${suites[$i]}"
+            echo "::group::VISUAL_DIAGNOSTIC ${{ matrix.label }} $suite run=$i"
+            if timeout 210s node "$suite"; then
+              echo "VISUAL_DIAGNOSTIC_PASS ${{ matrix.label }} $suite run=$i"
+            else
+              code=$?
+              echo "VISUAL_DIAGNOSTIC_FAIL ${{ matrix.label }} $suite run=$i exit=$code"
+              failures=$((failures+1))
+            fi
+            echo "::endgroup::"
+          done
+          echo "VISUAL_DIAGNOSTIC_RESULT label=${{ matrix.label }} failed=$failures total=${#suites[@]}"
+          # Diagnostic must report a nonzero exit for failures; it does not waive
+          # or replace the separate, unchanged mandatory release-gate CI.
+          test "$failures" -eq 0
