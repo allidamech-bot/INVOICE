@@ -1,0 +1,52 @@
+name: LOUREX AI Next R06 Mobile WebKit (Isolated T23 Preflight)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ai-next/ui/NextConversationWorkspace.tsx'
+      - 'tests/visual/build-ai-next-r06-mobile-qa.mjs'
+      - 'tests/visual/run-ai-next-r06-mobile-webkit.cjs'
+      - '.github/workflows/ai-next-r06-webkit-mobile-qa.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-webkit:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: Record protected-source checksums before QA tooling
+        run: |
+          sha256sum \
+            src/ai-next/ui/view-model.ts \
+            src/ai-next/ui/R07NOfflinePreviewWorkspace.tsx \
+            src/ai-next/ui/NextConversationWorkspace.tsx \
+            package.json package-lock.json vercel.json \
+            > /tmp/lourex-r06-protected.sha256
+      - name: Typecheck the unchanged disabled preview
+        run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Verify static disabled gates and existing R06 contracts
+        run: node --test tests/ai-next/r06-ui-model.test.mjs
+      - name: Install QA-only browser runtime without changing dependencies
+        run: npm install --no-save --no-package-lock --no-audit --no-fund react@19.2.0 react-dom@19.2.0 esbuild@0.25.12 playwright@1.56.1
+      - name: Build test-only component with the production feature gate unchanged
+        run: node tests/visual/build-ai-next-r06-mobile-qa.mjs
+      - name: Exercise mobile WebKit touch/RTL/composer/recovery/scroll/attachments
+        shell: bash
+        run: |
+          node node_modules/http-server/bin/http-server . -p 4173 -c-1 > /tmp/lourex-r06-mobile-http.log 2>&1 &
+          qa_pid=$!
+          trap 'kill "$qa_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ok=false;for(let i=0;i<80;i++){try{const r=await fetch("http://127.0.0.1:4173/.tmp/ai-next-r06-mobile/index.html");if(r.ok){ok=true;break;}}catch{}await new Promise(r=>setTimeout(r,150));}if(!ok)throw Error("R06 mobile fixture unavailable");'
+          node tests/visual/run-ai-next-r06-mobile-webkit.cjs
+      - name: Verify no modifications to protected source or package manifest
+        run: sha256sum -c /tmp/lourex-r06-protected.sha256
