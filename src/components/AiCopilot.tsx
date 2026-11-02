@@ -32,7 +32,7 @@ import { explicitlyNamedQuotationCustomer } from '../lib/ai-explicit-quote-custo
 import { SupplierDocumentImport } from './SupplierDocumentImport.js';
 import { isSupplierDocumentKind } from '../lib/document-kinds.js';
 import { Icon } from './UI.js';
-import {AiNextLiveReadOnlyChat} from '../ai-next/ui/AiNextLiveReadOnlyChat.js';
+import {AiNextLiveReadOnlyLauncher} from '../ai-next/ui/AiNextLiveReadOnlyLauncher.js';
 
 export type AiWorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 export type AiNavTarget=Exclude<AiWorkspaceScreen,'editor'>;
@@ -74,7 +74,7 @@ interface AiDocumentArtifact {document:LourexDocument;customerCreated:boolean;}
 interface AiMessage {id:string;role:'user'|'assistant';text:string;artifact?:AiDocumentArtifact;financialReadout?:FinancialReadout;}
 interface AiAuditEntry {id:string;at:string;capability:AiCapabilityId;outcome:'requested'|'answered'|'approved'|'dismissed'|'failed';screen:AiWorkspaceScreen;}
 interface Props {screen:AiWorkspaceScreen;language:UiLanguage;activeDocument?:LourexDocument|null;onNavigate:(screen:AiNavTarget,reportPeriod?:AiReportPeriod)=>void;}
-interface State {open:boolean;nextMode:boolean;busy:boolean;input:string;error:string;messages:AiMessage[];proposal:AiProposal|null;audit:AiAuditEntry[];auditOpen:boolean;review:AiDocumentReview|null;}
+interface State {open:boolean;busy:boolean;input:string;error:string;messages:AiMessage[];proposal:AiProposal|null;audit:AiAuditEntry[];auditOpen:boolean;review:AiDocumentReview|null;}
 
 const NAV_TARGETS=new Set<AiNavTarget>(['home','documents','customers','receivables','reports','items','operations']);
 const MAX_MESSAGE_CHARS=6000;
@@ -212,7 +212,7 @@ const AI_CORE_CSS=`
 `;
 
 export class AiCopilot extends React.Component<Props,State>{
-  state:State={open:false,nextMode:false,busy:false,input:'',error:'',messages:[],proposal:null,audit:[],auditOpen:false,review:null};
+  state:State={open:false,busy:false,input:'',error:'',messages:[],proposal:null,audit:[],auditOpen:false,review:null};
   private mounted=false;
   private pending=false;
   private applying=false;
@@ -312,31 +312,14 @@ export class AiCopilot extends React.Component<Props,State>{
 
   render():any{const prompts=starterPrompts(this.props.screen);const preview=this.state.proposal?this.proposalPreview(this.state.proposal):'';return <>
     <style data-lourex-ai-core="v267-pricing">{AI_CORE_CSS}</style>
+    <AiNextLiveReadOnlyLauncher/>
     <button type="button" className={`lourex-ai-launcher screen-${this.props.screen}`} dir={this.props.language==='ar'?'rtl':'ltr'} aria-label={t('Open LOUREX AI','فتح LOUREX AI')} aria-expanded={this.state.open} aria-controls="lourex-ai-panel" onClick={this.toggle}><span className="lxw-launcher-art" aria-hidden="true"><AiIdentityMark compact/></span></button>
     {this.state.open?<><button type="button" className="lourex-ai-backdrop" aria-label={t('Close LOUREX Advisor','إغلاق مستشار LOUREX')} onClick={this.toggle}/><aside id="lourex-ai-panel" tabIndex={-1} className="lourex-ai-panel" role="dialog" aria-modal="true" aria-label={t('LOUREX AI','ذكاء LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
       <header className="lourex-ai-head"><div className="lourex-ai-title"><span className="lourex-ai-mark"><AiIdentityMark compact/></span><div><strong>{t('LOUREX AI','ذكاء LOUREX')}</strong><small>{t('Financial & business advisor · deterministic numbers','مستشار مالي وتجاري · أرقام من المحركات المحلية')}</small></div></div><button type="button" className="lourex-ai-close" aria-label={t('Close','إغلاق')} onClick={this.toggle}><Icon name="x"/></button></header>
-      <div style={{display:'flex',gap:7,padding:'8px 12px',borderBottom:'1px solid #d6e4e0'}}>
-        <button type="button" aria-pressed={!this.state.nextMode}
-          onClick={()=>this.setState({nextMode:false})}
-          style={{borderRadius:9,border:'1px solid #bad0c9',padding:'6px 10px',fontSize:12,
-            background:!this.state.nextMode?'#d9ece7':'white'}}>
-          LOUREX الحالي
-        </button>
-        <button type="button" aria-pressed={this.state.nextMode}
-          onClick={()=>{
-            this.cancelRequest();
-            this.setState({nextMode:true,busy:false});
-          }}
-          style={{borderRadius:9,border:'1px solid #bad0c9',padding:'6px 10px',fontSize:12,
-            background:this.state.nextMode?'#d9ece7':'white'}}>
-          AI Next · Live
-        </button>
-      </div>
-      {this.state.nextMode?<AiNextLiveReadOnlyChat/>:<>
       <div className="lourex-ai-context">{t('Current context','السياق الحالي')}: {screenLabel(this.props.screen)}</div>
       <div className="lourex-ai-messages" aria-live="polite">{!this.state.messages.length?<div className="lourex-ai-empty"><strong>{t('Ask about the business or prepare a safe action','اسأل عن الأعمال أو جهّز إجراءً آمنًا')}</strong><p>{t('LOUREX calculates accounting, pricing and business intelligence locally. AI explains results and may prepare safe previews; every record change requires your approval.','LOUREX يحسب المحاسبة والتسعير ومؤشرات الأعمال محليًا. الذكاء يشرح النتائج وقد يجهز معاينات آمنة؛ كل تغيير على السجلات يحتاج موافقتك.')}</p><div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div></div>:null}{this.state.messages.map(message=><React.Fragment key={message.id}><div className={`lourex-ai-message ${message.role}`}>{message.text}</div>{message.artifact?<div className="lourex-ai-created-artifact" aria-label={t('Created LOUREX document','مستند LOUREX تم إنشاؤه')}><strong><bdi>{message.artifact.document.number}</bdi></strong><small>{message.artifact.document.customerSnapshot?.companyNameEn||message.artifact.document.customerSnapshot?.companyNameAr||t('No customer','بدون عميل')} · {message.artifact.document.currency} · {message.artifact.document.items.length} {t('items','أصناف')}</small><div><button type="button" className="primary" onClick={()=>window.dispatchEvent(new CustomEvent('lourex-global-search-open',{detail:{query:message.artifact!.document.number,autoOpenUnique:true}}))}>{message.artifact.document.kind==='invoice'?t('Open invoice','فتح الفاتورة'):t('Open quotation','فتح عرض السعر')}</button><button type="button" onClick={()=>this.props.onNavigate('documents')}>{t('Documents','المستندات')}</button></div></div>:null}</React.Fragment>)}{this.state.busy?<div className="lourex-ai-busy">{t('LOUREX Advisor is reviewing…','مستشار LOUREX يراجع…')}</div>:null}</div>
       {this.state.proposal?<section className="lourex-ai-proposal" aria-label={t('Proposed action','إجراء مقترح')}><small>{t('Preview · approval required','معاينة · يتطلب موافقتك')}</small><strong>{this.state.proposal.label}</strong><p>{this.state.proposal.rationale}</p>{preview?<div className="lourex-ai-preview">{preview}</div>:null}<div className="lourex-ai-proposal-actions"><button type="button" disabled={this.state.busy} onClick={this.dismissProposal}>{t('Dismiss','تجاهل')}</button><button type="button" disabled={this.state.busy||Boolean(this.state.review?.blockers.length)} className="primary" onClick={()=>void this.approveProposal()}>{t('Approve & apply','موافقة وتطبيق')}</button></div></section>:null}
-      <footer className="lourex-ai-compose">{this.state.error?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}{this.props.screen==='operations'?<div className="lourex-ai-tools"><SupplierDocumentImport language={this.props.language}/></div>:null}<form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}><input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX…','اسأل LOUREX…')} aria-label={t('Message LOUREX Advisor','رسالة إلى مستشار LOUREX')}/><button type="submit" className="lourex-ai-send" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}><Icon name="arrowLeft"/></button></form><div className="lourex-ai-meta"><span>{t('Deterministic analysis · actions require approval','تحليل حتمي · الإجراءات تتطلب موافقة')}</span><button type="button" onClick={()=>this.setState(state=>({auditOpen:!state.auditOpen}))}>{t('AI activity','نشاط AI')} · {this.state.audit.length}</button></div>{this.state.auditOpen?<div className="lourex-ai-audit">{this.state.audit.length?this.state.audit.map(entry=><div key={entry.id}><span>{entry.capability}</span><span>{entry.outcome}</span></div>):<div>{t('No AI activity yet','لا يوجد نشاط AI بعد')}</div>}</div>:null}</footer></>}
+      <footer className="lourex-ai-compose">{this.state.error?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}{this.props.screen==='operations'?<div className="lourex-ai-tools"><SupplierDocumentImport language={this.props.language}/></div>:null}<form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}><input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX…','اسأل LOUREX…')} aria-label={t('Message LOUREX Advisor','رسالة إلى مستشار LOUREX')}/><button type="submit" className="lourex-ai-send" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}><Icon name="arrowLeft"/></button></form><div className="lourex-ai-meta"><span>{t('Deterministic analysis · actions require approval','تحليل حتمي · الإجراءات تتطلب موافقة')}</span><button type="button" onClick={()=>this.setState(state=>({auditOpen:!state.auditOpen}))}>{t('AI activity','نشاط AI')} · {this.state.audit.length}</button></div>{this.state.auditOpen?<div className="lourex-ai-audit">{this.state.audit.length?this.state.audit.map(entry=><div key={entry.id}><span>{entry.capability}</span><span>{entry.outcome}</span></div>):<div>{t('No AI activity yet','لا يوجد نشاط AI بعد')}</div>}</div>:null}</footer>
     </aside></>:null}
   </>;}
 }
