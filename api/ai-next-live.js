@@ -90,6 +90,9 @@ export default async function handler(req,res){
   }
   if(!LIVE_ROUTE_ENABLED||!nextReadOnlySameOrigin(req.headers))
     return responseJson(res,403,{code:'AI_NEXT_ORIGIN_DENIED'});
+  // The shared Firebase verifier returns its own 401/503 response.
+  // Apply the security response header even on that early-auth path.
+  res.setHeader('X-Content-Type-Options','nosniff');
   if(!await requireAiFirebaseAuth(req,res))return;
   if(!limited(req.aiVerifiedUid||'unknown')){
     res.setHeader('Retry-After','300');
