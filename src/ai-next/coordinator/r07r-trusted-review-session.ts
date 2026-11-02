@@ -5,6 +5,8 @@
  * accept a turn, create an event journal, expose HTTP, read financial records,
  * or execute/post a document. It joins R07J-audited context, R07P synthetic
  * interpretation and the guarded R07R/R07D CAS draft preparation seam.
+ * A separately opted-in offline-only R07Q fixture is accepted for testing
+ * the previously missing routed semantic -> durable edit contract.
  *
  * An authorized deployment still requires explicit R07M event/operation
  * idempotency receipts and QA acceptance before using this on real accounts.
@@ -14,7 +16,8 @@ import type {R07AuthenticatedPrincipalVerifier,
 import {R07PTrustedHistoryContext,
   type R07PHistoryAuthority} from '../conversation-state/trusted-history-context.js';
 import {R07PSemanticPlanner,
-  type R07PSyntheticInterpreter} from '../router/semantic-planner.js';
+  type R07PSyntheticInterpreter,type R07PRoutedInterpreter}
+  from '../router/semantic-planner.js';
 import {R07RReviewDraftPreparationBridge,
   type R07RTrustedCustomerResolver} from './r07r-draft-preparation.js';
 import type {R07DExperimentalFirestoreDraftStore}
@@ -28,6 +31,8 @@ export interface R07RTrustedSessionDependencies{
   offlineReceiptMode?:true;
   /** New deterministic NLU is also OFF unless explicitly opted-in for offline QA. */
   offlineDeterministicStructuredIntents?:true;
+  /** Test-only composition of the existing R07Q with R07M receipt editing. */
+  offlineRoutedReviewFixtures?:true;
   principal:R07AuthenticatedPrincipalVerifier;
   membership:R07ServerMembershipStore;
   journal:R07PHistoryAuthority;
@@ -37,7 +42,11 @@ export interface R07RTrustedSessionDependencies{
       'readEditReceipt'|'replaceReviewRevisionWithReceipt'>>;
   customers:R07RTrustedCustomerResolver;
   /** Synthetic fixture for controlled offline tests only. */
-  syntheticInterpreter:R07PSyntheticInterpreter;
+  syntheticInterpreter?:R07PSyntheticInterpreter;
+  /** A server-injected, explicitly labelled synthetic transport, never live. */
+  routedInterpreter?:R07PRoutedInterpreter & {
+    readonly transportKind:'offline_synthetic_fixture';
+  };
   clock?:()=>Date;
 }
 export function createR07RTrustedOfflineReviewSession(
@@ -49,11 +58,25 @@ export function createR07RTrustedOfflineReviewSession(
 }{
   if(deps.offlineFixtureMode!==true)
     throw Error('R07R_OFFLINE_FIXTURE_CONSENT_REQUIRED');
+  const routed=deps.offlineRoutedReviewFixtures===true;
+  // This composition is intentionally not a live-model activation. The
+  // R07Q fixture and synthetic interpreter can NEVER be active together.
+  if(routed?(
+      !deps.routedInterpreter||
+      deps.routedInterpreter.transportKind!=='offline_synthetic_fixture'||
+      deps.syntheticInterpreter!==undefined||
+      process.env.VERCEL_ENV!==undefined||process.env.NODE_ENV==='production'
+    ):(
+      !deps.syntheticInterpreter||deps.routedInterpreter!==undefined
+    ))
+    throw Error('R07R_UNSAFE_OFFLINE_INFERENCE_CONFIGURATION');
   const context=new R07PTrustedHistoryContext(deps.journal,deps.draftStore);
   const planner=new R07PSemanticPlanner({
     principal:deps.principal,membership:deps.membership,context,
-    syntheticInterpreter:deps.syntheticInterpreter,
-    allowSyntheticInference:true,
+    syntheticInterpreter:routed?undefined:deps.syntheticInterpreter,
+    allowSyntheticInference:!routed,
+    routedInterpreter:routed?deps.routedInterpreter:undefined,
+    allowRoutedInference:routed,
     allowDeterministicStructuredIntents:
       deps.offlineDeterministicStructuredIntents===true,
     clock:deps.clock,
@@ -62,6 +85,7 @@ export function createR07RTrustedOfflineReviewSession(
     principal:deps.principal,membership:deps.membership,
     planner,draftStore:deps.draftStore,customers:deps.customers,
     offlineReceiptMode:deps.offlineReceiptMode,
+    allowOfflineRoutedReviewFixtures:routed,
     clock:deps.clock,
   });
   return {context,planner,bridge};
