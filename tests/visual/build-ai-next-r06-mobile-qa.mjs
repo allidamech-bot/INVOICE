@@ -24,11 +24,13 @@ const entry=`
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {NextConversationWorkspace} from './src/ai-next/ui/NextConversationWorkspace.tsx';
+import {R06_NEXT_CONVERSATION_ENABLED} from './src/ai-next/ui/view-model.ts';
 globalThis.React=React;
 const scope={ownerUid:'test-owner',actorId:'test-owner',accountId:'test-account',
  companyId:'test-company',branchId:'test-branch',threadId:'test-thread',
  scopeType:'business',role:'owner',authorizationVersion:1};
-globalThis.__qa={sent:[],failNext:false,uploadAttempts:0,seedMessages:null};
+globalThis.__qa={sent:[],failNext:false,uploadAttempts:0,seedMessages:null,
+  gateValue:R06_NEXT_CONVERSATION_ENABLED};
 function Harness(){
   const [mode,setMode]=React.useState('controller');
   const [messages,setMessages]=React.useState([]);
