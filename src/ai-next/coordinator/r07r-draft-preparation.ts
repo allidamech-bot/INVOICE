@@ -200,8 +200,14 @@ export class R07RReviewDraftPreparationBridge{
     customers:R07RTrustedCustomerResolver;
     /** Explicit server construction flag, never request body input. */
     offlineReceiptMode?:true;
+    /** Offline mocked R07Q proposals only; never an active provider grant. */
+    allowOfflineRoutedFixturePlans?:boolean;
     clock?:()=>Date;
-  }){}
+  }){
+    if(this.deps.allowOfflineRoutedFixturePlans&&
+      (process.env.NODE_ENV==='production'||process.env.VERCEL_ENV!==undefined))
+      throw new R07RPreparationError('R07R_ROUTED_FIXTURE_NOT_AUTHORIZED');
+  }
   async prepare(token:string,raw:unknown):Promise<R07RPreparedEdit>{
     return this.prepareScoped(token,raw,null);
   }
@@ -302,7 +308,10 @@ export class R07RReviewDraftPreparationBridge{
     }
     const proposed=await this.deps.planner.plan(token,turn);
     if(proposed.status!=='proposed'||proposed.risk!=='preparation'||
-      !['synthetic_model','deterministic'].includes(proposed.interpretation)||
+      !(['synthetic_model','deterministic'].includes(proposed.interpretation)||
+        (this.deps.allowOfflineRoutedFixturePlans===true&&
+          proposed.interpretation==='routed_model'&&
+          proposed.providerCalls>=1&&proposed.providerCalls<=3))||
       proposed.intent.action!=='edit_draft'||
       proposed.intent.executable!==false||
       proposed.intent.subjectRef?.kind!=='draft'||
