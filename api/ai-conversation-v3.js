@@ -1,6 +1,7 @@
 import {requireAiFirebaseAuth} from './_ai/firebase-auth.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 import {naturalLourexDialogue,sanitizeDialogueCatalog} from './_ai/lourex-dialogue.js';
+import nextLiveReadOnlyHandler from './_ai/next-live.js';
 
 const MAX_BODY_BYTES=420000;
 const MAX_MESSAGE_CHARS=6000;
@@ -40,6 +41,13 @@ function cleanResult(value){if(!value||typeof value!=='object')return null;const
 function deep(message){const text=message.toLowerCase();return['compare','risk','recommend','strategy','why','health','margin','قارن','مخاطر','توصية','استراتيجية','لماذا','صحة'].some(token=>text.includes(token));}
 
 export default async function handler(request,response){
+  // Separate AI Next READ-ONLY lane within the existing protected Vercel
+  // function. No 13th Hobby function, no finance API and no R07M activation.
+  // The delegated handler enforces its own origin, Firebase JWT and quota.
+  if(new URL(request.url||'/api/ai-conversation-v3',
+      'https://invoice-three-puce.vercel.app')
+      .searchParams.get('nextLive')==='1')
+    return nextLiveReadOnlyHandler(request,response);
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'POST required.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'AI_ORIGIN_REJECTED',message:'LOUREX conversation source request origin was rejected.'});return;}
   if(!await requireAiFirebaseAuth(request,response))return;
