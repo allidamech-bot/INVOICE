@@ -33,7 +33,7 @@ export function AiNextLiveReadOnlyChat():any{
     setBusy(true);setError('');setPending(text);
     // Preserve the composer until the server confirms a valid response.
     try{
-      const response=await requestAiJson('/api/ai-next-live',{
+      const response=await requestAiJson('/api/ai-conversation-v3?nextLive=1',{
         message:text,history:context,mode,
       },controller.signal,48_000);
       if(controller.signal.aborted)return;
