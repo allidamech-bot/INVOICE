@@ -438,3 +438,97 @@ test('R07O client rejects fabricated success payload without receipt or revision
     expectedDraftHash:'a'.repeat(64),
   }),/R07O_UNVERIFIED_REVIEW_RESPONSE/);
 });
+
+test('R07N receipt-aware preview requires audited R07M/R07D proof after lost HTTP reply',async()=>{
+  const reviewEnv={...env,threadId:'r07n-receipt-preview-ui'};
+  const reviewScope={...scope,threadId:reviewEnv.threadId};
+  const journal=new R07JExperimentalIndexedJournal(db,true);
+  const drafts=new R07DExperimentalFirestoreDraftStore(db);
+  let interpretations=0;
+  const sessionBridge=createR07RTrustedOfflineReviewSession({
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    principal,membership,journal,draftStore:drafts,
+    customers:{resolveUnique:async(_scope,name)=>
+      name==='شركة النور'?'r07n-preview-verified-customer':null},
+    syntheticInterpreter:{interpret:async()=>{
+      interpretations++;
+      return {action:'edit_draft',subject:null,reference:'active_draft',
+        facts:[{name:'customer_name',value:'شركة النور'}],
+        sourceIds:[],missingFields:[]};
+    }},
+    clock:()=>new Date(at),
+  });
+  const reviewCoordinator=new R07MFastLocalCoordinator({
+    journal,draftStore:drafts,principal,membership,
+    offlineReviewBridge:sessionBridge.bridge,
+    offlineReviewReceiptStore:drafts,allowOfflineUnifiedReviewEdit:true,
+    clock:()=>new Date(at),
+  });
+  const originalHandler=handler;
+  let drop=true,lie=true;
+  try{
+    const live=new R07OLocalHttpPreviewPort({
+      allowedOrigin:endpoint,token:async()=>token,transport,
+    });
+    const uiPort={
+      accept:request=>live.accept(request),
+      current:request=>live.current(request),
+      history:request=>live.history(request),
+      reviewEdit:async request=>{
+        const response=await live.reviewEdit(request);
+        if(drop){drop=false;throw Error('LOST_HTTP_REPLY_AFTER_RECEIPT');}
+        if(lie){lie=false;return {...response,appliedDraftHash:'0'.repeat(64)};}
+        return response;
+      },
+    };
+    const localUi=new R07NPreviewSession(
+      reviewScope,reviewEnv,uiPort,identity('r07n-preview-create'));
+    assert.deepEqual(await localUi.send({
+      text:'أنشئ مسودة عرض سعر',mode:'controller',sourceIds:[],
+    }),{accepted:true});
+    const draft=localUi.getView().draft;
+    assert.equal(draft?.draftRevision,1);
+    const originTurnId=localUi.getView().currentTask.turnId;
+    const edit={
+      turn:{...reviewEnv,requestId:'r07n-ui-review-request',
+        idempotencyKey:'r07n-ui-review-key',
+        userMessageId:'r07n-ui-review-user',
+        message:'خلي العميل شركة النور',mode:'controller'},
+      originTurnId,expectedDraftRevision:1,
+      expectedDraftHash:draft.immutableRevisionHash,
+    };
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:reviewCoordinator,allowOfflineReviewEditPreview:true,
+    });
+    assert.deepEqual(await localUi.reviewEdit(edit),{accepted:false});
+    assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
+    assert.equal(localUi.getView().draft.draftRevision,1);
+    assert.equal(interpretations,1);
+    assert.equal((await drafts.read(reviewScope,originTurnId)).draftRevision,2);
+    await assert.rejects(localUi.reviewEdit({...edit,turn:{
+      ...edit.turn,message:'خلي العميل شخص آخر',
+    }}),/R07N_PENDING_REVIEW_MISMATCH/);
+    // A shaped but forged R07O success must NOT clear pending review.
+    assert.deepEqual(await localUi.reviewEdit(edit),{accepted:false});
+    assert.deepEqual(localUi.unresolvedReviewForManualRecovery(),edit);
+    assert.equal(interpretations,1);
+    const result=await localUi.reviewEdit(edit);
+    assert.deepEqual(result,{accepted:true});
+    assert.equal(localUi.unresolvedReviewForManualRecovery(),null);
+    const view=localUi.getView();
+    assert.equal(view.draft,null,'R07N must not invent a new R07D draft view');
+    assert.equal(view.messages.filter(x=>x.role==='assistant').length,2);
+    assert.equal(view.currentTask.taskType,'unsaved_review_edit');
+    assert.equal(view.currentTask.state,'completed');
+    assert.equal(interpretations,1,'three HTTP outcomes must still create one revision');
+    assert.equal((await drafts.read(reviewScope,originTurnId)).draftRevision,2);
+    // A new edit requires independently reviewed server draft evidence;
+    // a mere acknowledgement must never elevate the client draft state.
+    await assert.rejects(localUi.reviewEdit({...edit,turn:{
+      ...edit.turn,requestId:'fresh-review-request',
+      idempotencyKey:'fresh-review-key',userMessageId:'fresh-review-user',
+    }}),/R07N_REVIEW_ORIGIN_NOT_VERIFIED/);
+  }finally{handler=originalHandler;}
+});
