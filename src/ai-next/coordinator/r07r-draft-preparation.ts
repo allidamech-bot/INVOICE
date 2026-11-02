@@ -4,7 +4,8 @@
  * This is NOT a second turn coordinator. It requires the existing R07B
  * membership authority, a planner-produced R01 GroundedIntent, R04's
  * canonical review editor, and R07D's transactional compare-and-swap.
- * All examples use an explicitly injected synthetic semantic interpreter.
+ * Review edits only consume server-validated nonexecuting proposals. Offline
+ * routed fixtures require a separate server-only opt-in; live AI is not active.
  * Real model inference, approval, financial document saving and issuance are
  * absent. Caller must separately journal durable turns before future release.
  */
@@ -200,6 +201,8 @@ export class R07RReviewDraftPreparationBridge{
     customers:R07RTrustedCustomerResolver;
     /** Explicit server construction flag, never request body input. */
     offlineReceiptMode?:true;
+    /** Inactive synthetic R07Q test bridge; not a live provider permission. */
+    allowOfflineRoutedReviewFixtures?:boolean;
     clock?:()=>Date;
   }){}
   async prepare(token:string,raw:unknown):Promise<R07RPreparedEdit>{
@@ -302,7 +305,11 @@ export class R07RReviewDraftPreparationBridge{
     }
     const proposed=await this.deps.planner.plan(token,turn);
     if(proposed.status!=='proposed'||proposed.risk!=='preparation'||
-      !['synthetic_model','deterministic'].includes(proposed.interpretation)||
+      !(['synthetic_model','deterministic'].includes(proposed.interpretation)||
+        this.deps.allowOfflineRoutedReviewFixtures===true&&
+        proposed.interpretation==='routed_model'&&
+        Number.isSafeInteger(proposed.providerCalls)&&
+        proposed.providerCalls>=1&&proposed.providerCalls<=3)||
       proposed.intent.action!=='edit_draft'||
       proposed.intent.executable!==false||
       proposed.intent.subjectRef?.kind!=='draft'||
