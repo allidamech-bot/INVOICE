@@ -12,6 +12,7 @@ import type {R07LocalResult,R07LocalTurnInput} from '../coordinator/local-coordi
 import type {ConversationSnapshot} from '../conversation-state/event-store.js';
 import type {R07LOperationalView} from '../storage/firestore-indexed-append.js';
 import {exactScopeKey} from '../domain/turn-journal.js';
+import {recognizeR05LocalIntent} from '../router/local-intents.js';
 import type {R07MUnifiedReviewEditResult} from '../coordinator/fast-local-coordinator.js';
 import {fingerprintR07RReviewRequest,type R07RReceiptPrepareInput}
   from '../coordinator/r07r-draft-preparation.js';
@@ -326,13 +327,44 @@ export class R07NPreviewSession{
     text:string;mode:'advisor'|'controller';sourceIds:readonly string[];
     signal?:AbortSignal;
   }):Promise<{accepted:boolean}>{
-    if(this.busy||this.pendingReview)
+    if(this.busy)
       throw new R07NPreviewError('R07N_SEND_ALREADY_IN_FLIGHT');
     if(input.sourceIds.length>0)
       throw new R07NPreviewError('R07N_LOCAL_FILES_NOT_SUPPORTED');
     if(!input.text.trim()||input.text.length>6000)
       throw new R07NPreviewError('R07N_INVALID_LOCAL_INPUT');
     if(input.signal?.aborted)return {accepted:false};
+    // No new request key after a lost review acknowledgement. The composer
+    // retries ONLY the identical sealed request; mode/message cannot change.
+    if(this.pendingReview){
+      if(input.mode!=='controller'||
+        input.text!==this.pendingReview.turn.message)
+        throw new R07NPreviewError('R07N_PENDING_REVIEW_MISMATCH');
+      return this.reviewEdit(this.pendingReview,input.signal);
+    }
+    // R05 deterministic greetings and blank quotation starts take the
+    // original no-model path. A nonlocal Controller utterance may edit ONLY
+    // an already server-verified unsaved review draft via R07M/R07D.
+    // This never permits posting, issuing, saving or provider inference.
+    const draft=this.view.draft;
+    if(!this.pending&&input.mode==='controller'&&draft&&
+      !recognizeR05LocalIntent(input.text,0)&&this.port.reviewEdit&&
+      this.port.reviewDraft){
+      const prefix='draft-';
+      if(draft.draftId.startsWith(prefix)&&
+        draft.draftId.length>prefix.length&&
+        draft.status==='needs_review'&&draft.approvalReceiptId===null&&
+        same(draft.scope,this.scope)){
+        const ids=this.newIdentity();
+        const turn=checkPending({...this.envelope,...ids,
+          message:input.text,mode:'controller'},this.envelope);
+        return this.reviewEdit({
+          turn,originTurnId:draft.draftId.slice(prefix.length),
+          expectedDraftRevision:draft.draftRevision,
+          expectedDraftHash:draft.immutableRevisionHash,
+        },input.signal);
+      }
+    }
     if(this.pending){
       if(this.pending.message!==input.text||this.pending.mode!==input.mode)
         throw new R07NPreviewError('R07N_PENDING_REQUEST_MISMATCH');
