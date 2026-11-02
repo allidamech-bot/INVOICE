@@ -13,7 +13,9 @@ const arabic='خلي العميل شركة النور، وبدي عرض سعر 1
       const context=await browser.newContext({viewport:{width,height:844},
         isMobile:true,hasTouch:true,deviceScaleFactor:3,locale:'ar-SA'});
       const page=await context.newPage();
-      const remote=[];
+      const remote=[],pageErrors=[];
+      page.on('pageerror',error=>pageErrors.push(String(error)));
+      page.on('console',msg=>{if(msg.type()==='error')pageErrors.push(msg.text());});
       page.on('request',request=>{
         if(!request.url().startsWith(origin+'/'))remote.push(request.url());
       });
@@ -21,7 +23,16 @@ const arabic='خلي العميل شركة النور، وبدي عرض سعر 1
         await page.goto(origin+'/.tmp/ai-next-r06-mobile/index.html',
           {waitUntil:'networkidle'});
         const app=page.getByRole('main',{name:'LOUREX AI Next Generation'});
-        await app.waitFor({state:'visible'});
+        try{await app.waitFor({state:'visible',timeout:4000});}
+        catch{
+          const diagnostics=await page.evaluate(()=>({
+            qa:globalThis.__qa??null,root:document.querySelector('#root')?.innerHTML.slice(0,1000),
+            script:document.querySelector('script')?.src,
+          }));
+          throw Error('R06_WEBKIT_MOUNT_FAILURE '+JSON.stringify({
+            diagnostics,pageErrors,remote,
+          }));
+        }
         assert.equal(await page.getByRole('heading',{name:'LOUREX AI'}).count(),1);
         const composer=page.getByRole('textbox',{name:'رسالتك إلى LOUREX AI'});
         const metrics=await composer.evaluate(el=>({
