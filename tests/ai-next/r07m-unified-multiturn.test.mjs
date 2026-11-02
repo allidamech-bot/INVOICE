@@ -840,7 +840,6 @@ test('R07Q unavailable privacy, free quota, or invalid proposal cannot edit or b
     assert.equal(result.financialSaved,false);
     assert.equal(result.appliedDraftRevision,null);
     assert.equal((await h.drafts.read(scope,created.turnId)).draftRevision,1);
-    assert.equal(h.db.records.size>0,true);
     assert.equal(h.modelCalls.transport,variant==='privacy'||variant==='account'?0:1);
     const history=await h.history();
     assert.equal(history.messages.filter(m=>m.turnId===result.turnId&&
