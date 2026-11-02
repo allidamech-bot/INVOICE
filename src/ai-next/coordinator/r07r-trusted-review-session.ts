@@ -14,7 +14,8 @@ import type {R07AuthenticatedPrincipalVerifier,
 import {R07PTrustedHistoryContext,
   type R07PHistoryAuthority} from '../conversation-state/trusted-history-context.js';
 import {R07PSemanticPlanner,
-  type R07PSyntheticInterpreter} from '../router/semantic-planner.js';
+  type R07PSyntheticInterpreter,type R07PRoutedInterpreter}
+  from '../router/semantic-planner.js';
 import {R07RReviewDraftPreparationBridge,
   type R07RTrustedCustomerResolver} from './r07r-draft-preparation.js';
 import type {R07DExperimentalFirestoreDraftStore}
@@ -37,7 +38,13 @@ export interface R07RTrustedSessionDependencies{
       'readEditReceipt'|'replaceReviewRevisionWithReceipt'>>;
   customers:R07RTrustedCustomerResolver;
   /** Synthetic fixture for controlled offline tests only. */
-  syntheticInterpreter:R07PSyntheticInterpreter;
+  syntheticInterpreter?:R07PSyntheticInterpreter;
+  /**
+   * Offline mocked R07Q transport only. A genuine provider must NOT use
+   * this composition or bypass account/consent/zero-cost release gates.
+   */
+  routedInterpreter?:R07PRoutedInterpreter;
+  offlineRoutedFixtureMode?:true;
   clock?:()=>Date;
 }
 export function createR07RTrustedOfflineReviewSession(
@@ -49,11 +56,20 @@ export function createR07RTrustedOfflineReviewSession(
 }{
   if(deps.offlineFixtureMode!==true)
     throw Error('R07R_OFFLINE_FIXTURE_CONSENT_REQUIRED');
+  const routed=deps.routedInterpreter!==undefined;
+  const synthetic=deps.syntheticInterpreter!==undefined;
+  if(routed===synthetic)
+    throw Error('R07R_EXACTLY_ONE_OFFLINE_INTERPRETER_REQUIRED');
+  if(routed&&(deps.offlineRoutedFixtureMode!==true||
+    process.env.NODE_ENV==='production'||process.env.VERCEL_ENV!==undefined))
+    throw Error('R07R_ROUTED_FIXTURE_NOT_AUTHORIZED');
   const context=new R07PTrustedHistoryContext(deps.journal,deps.draftStore);
   const planner=new R07PSemanticPlanner({
     principal:deps.principal,membership:deps.membership,context,
     syntheticInterpreter:deps.syntheticInterpreter,
-    allowSyntheticInference:true,
+    allowSyntheticInference:synthetic,
+    routedInterpreter:deps.routedInterpreter,
+    allowRoutedInference:routed,
     allowDeterministicStructuredIntents:
       deps.offlineDeterministicStructuredIntents===true,
     clock:deps.clock,
@@ -62,6 +78,7 @@ export function createR07RTrustedOfflineReviewSession(
     principal:deps.principal,membership:deps.membership,
     planner,draftStore:deps.draftStore,customers:deps.customers,
     offlineReceiptMode:deps.offlineReceiptMode,
+    allowOfflineRoutedFixturePlans:routed,
     clock:deps.clock,
   });
   return {context,planner,bridge};
