@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'tests/ai-next/r07m-unified-multiturn.test.mjs'
+      - 'src/ai-next/coordinator/r07r-trusted-review-session.ts'
+      - 'src/ai-next/coordinator/r07r-draft-preparation.ts'
       - '.github/workflows/ai-next-r07m-unified-multiturn.yml'
   workflow_dispatch:
 
@@ -32,5 +34,11 @@ jobs:
         run: npm run typecheck && ./node_modules/.bin/tsc -p tsconfig.json
       - name: Actual multi-turn tests (no providers or cloud)
         run: node --test tests/ai-next/r07m-unified-multiturn.test.mjs
+      - name: Existing R07Q model gate and R07R receipt regressions
+        run: >-
+          node --test
+          tests/ai-next/r07q-routed-semantic.test.mjs
+          tests/ai-next/r07r-atomic-edit-receipts.test.mjs
+          tests/ai-next/r07r-trusted-review-session.test.mjs
       - name: Verify live application isolation
         run: node scripts/verify-deployment-isolation.mjs
