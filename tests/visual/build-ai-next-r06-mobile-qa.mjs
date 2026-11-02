@@ -73,6 +73,11 @@ await build({stdin:{contents:entry,resolveDir:root,sourcefile:'r06-qa-entry.ts',
   jsx:'transform',jsxFactory:'React.createElement',
   outfile:resolve(out,'bundle.js'),logLevel:'warning',
   plugins:[{name:'test-only-r06-gate',setup(bundle){
+    // In the real app React is provided by the host. The QA bundle must
+    // import it BEFORE the preview's React.Component classes initialize.
+    bundle.onLoad({filter:/[\\/]ai-next[\\/]ui[\\/]NextConversationWorkspace\.tsx$/},
+      ({path:filename})=>({contents:"import * as React from 'react';\\n"+
+        readFileSync(filename,'utf8'),loader:'tsx'}));
     bundle.onLoad({filter:/[\\/]ai-next[\\/]ui[\\/]view-model\.ts$/},
       ({path:filename})=>({contents:readFileSync(filename,'utf8')
         .replace(gate,'export const R06_NEXT_CONVERSATION_ENABLED=true as boolean;'),
