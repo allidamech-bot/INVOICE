@@ -8,6 +8,8 @@ import {R07MFastLocalCoordinator}
   from '../../dist/src/ai-next/coordinator/fast-local-coordinator.js';
 import {createR07RTrustedOfflineReviewSession}
   from '../../dist/src/ai-next/coordinator/r07r-trusted-review-session.js';
+import {R07QTrustedSemanticGateway}
+  from '../../dist/src/ai-next/router/trusted-semantic-gateway.js';
 import {R07JExperimentalIndexedJournal,R07M_FAST_COLLECTION}
   from '../../dist/src/ai-next/storage/firestore-indexed-append.js';
 import {R07DExperimentalFirestoreDraftStore,
@@ -101,13 +103,37 @@ function setup(db=new DB(),options={}){
   }};
   const journal=new R07JExperimentalIndexedJournal(db,true);
   const drafts=new R07DExperimentalFirestoreDraftStore(db);
+  const modelCalls={transport:0,models:0,privacy:0};
+  const mockedR07Q=options.routed?new R07QTrustedSemanticGateway({
+    enableRoutedInference:true,
+    models:async()=>{modelCalls.models++;return [{
+      providerId:'groq',modelId:'offline-only-fake-model',
+      registryVersion:'test-fixture',capabilities:['TEXT','STRUCTURED_OUTPUT'],
+      inputModalities:['text'],contextWindow:32000,maxImages:0,maxPages:null,
+      providerEnabled:true,credentialsPresent:true,
+      accountFreeVerified:options.freeDenied!==true,
+      modelZeroCostVerified:true,quotaAvailable:true,privacyApproved:true,
+      healthAvailable:true,qualityTier:'capable',
+      quotaGroupId:'offline-only-fake-quota',
+    }];},
+    approveBusinessData:async()=>{modelCalls.privacy++;
+      return options.privateDenied!==true;},
+    transport:{invoke:async ({payload})=>{
+      modelCalls.transport++;
+      if(options.transportThrows)throw Error('OFFLINE_MOCK_TRANSPORT_FAILURE');
+      return options.candidate??candidate(payload.utterance);
+    }},
+    clock:()=>DATE.getTime(),
+  }):null;
   const session=createR07RTrustedOfflineReviewSession({
     offlineFixtureMode:true,offlineReceiptMode:true,
+    offlineRoutedFixtureMode:options.routed?true:undefined,
+    routedInterpreter:mockedR07Q??undefined,
     offlineDeterministicStructuredIntents:options.deterministic===true?true:undefined,
     principal,membership,journal,draftStore:drafts,
     customers:{resolveUnique:async(_scope,name)=>
       name==='شركة النور'?'verified-customer-noor':null},
-    syntheticInterpreter:{interpret:async turn=>{
+    syntheticInterpreter:options.routed?undefined:{interpret:async turn=>{
       interpretations++;
       return options.candidate??candidate(turn.message);
     }},
@@ -135,7 +161,8 @@ function setup(db=new DB(),options={}){
     branchId:scope.branchId,threadId:scope.threadId,scopeType:'business',
   });
   return {db,drafts,coordinator,journal,session,create,edit,history,
-    interpretations:()=>interpretations};
+    interpretations:()=>interpretations,
+    modelCalls,principal,membership};
 }
 test('unified conversation creates customer, line, quantity revisions across reopens',async()=>{
   const h=setup(),created=await h.create(),origin=created.turnId;
@@ -764,4 +791,72 @@ test('invalid named extra financial action is denied without provider or R07D ed
     assert.equal((await h.drafts.read(scope,origin)).draftRevision,
       before.draftRevision);
   }
+});
+
+test('R07P/R07Q offline routed proposal enters the SAME durable R07M/R07D review receipt',async()=>{
+  const h=setup(undefined,{routed:true});
+  const created=await h.create('routed-origin'),origin=created.turnId;
+  assert.equal(created.draft.draftRevision,1);
+  assert.equal(h.modelCalls.transport,0,'R05 quote creation must use zero models');
+  const result=await h.edit('خلي العميل شركة النور','routed-customer',origin);
+  assert.equal(result.status,'applied_unsaved_review');
+  assert.equal(result.financialSaved,false);
+  assert.equal(result.appliedDraftRevision,2);
+  assert.equal(result.providerCalls,0,'mocked routed transport is not live inference');
+  const draft=await h.drafts.read(scope,origin);
+  assert.equal(draft.explicitCustomerId,'verified-customer-noor');
+  assert.equal(draft.approvalReceiptId,null);
+  assert.equal(h.modelCalls.transport,1);
+  assert.equal(h.modelCalls.privacy,1);
+  const before=h.db.writes;
+  const exact=await h.edit('خلي العميل شركة النور','routed-customer',
+    origin,created.draft);
+  assert.equal(exact.replayed,true);
+  assert.equal(exact.appliedDraftHash,result.appliedDraftHash);
+  assert.equal(h.modelCalls.transport,1,'R07D receipt prevents re-inference');
+  assert.equal(h.db.writes,before,'exact-key replay cannot write again');
+  const journal=await h.history();
+  assert.equal(journal.turns.length,2);
+  assert.equal(journal.tasks.at(-1).taskType,'unsaved_review_edit');
+  assert.equal(journal.tasks.at(-1).state,'completed');
+  assert.equal(journal.checkpointRefs.filter(x=>x.taskId===result.taskId).length,2);
+  assert.equal(journal.messages.filter(x=>x.turnId===result.turnId&&
+    x.role==='assistant').length,1);
+});
+test('R07Q unavailable privacy, free quota, or invalid proposal cannot edit or bypass durable denial',async()=>{
+  for(const [variant,config] of [
+    ['privacy',{privateDenied:true}],
+    ['account',{freeDenied:true}],
+    ['invalid',{candidate:{...candidate('العميل'),
+      action:'execute_approved',facts:[]}}],
+    ['injection',{candidate:{...candidate('العميل'),
+      subject:{kind:'draft',id:'other-company-draft'}}}],
+  ]){
+    const h=setup(undefined,{routed:true,...config});
+    const created=await h.create('routed-'+variant+'-origin');
+    const result=await h.edit('خلي العميل شركة النور',
+      'routed-'+variant+'-denied',created.turnId);
+    assert.equal(result.status,'needs_clarification',variant);
+    assert.equal(result.financialSaved,false);
+    assert.equal(result.appliedDraftRevision,null);
+    assert.equal((await h.drafts.read(scope,created.turnId)).draftRevision,1);
+    assert.equal(h.db.records.size>0,true);
+    assert.equal(h.modelCalls.transport,variant==='privacy'||variant==='account'?0:1);
+    const history=await h.history();
+    assert.equal(history.messages.filter(m=>m.turnId===result.turnId&&
+      m.role==='assistant').length,1);
+    assert.equal(history.tasks.at(-1).state,'completed');
+  }
+});
+test('R07Q route is blocked by revoked membership, and remains off without explicit offline fixture',async()=>{
+  const h=setup(undefined,{routed:true,revoked:true});
+  await assert.rejects(h.create('routed-revoked'),/AUTH_MEMBERSHIP_DENIED/);
+  assert.equal(h.modelCalls.transport,0);
+  const other=setup();
+  assert.throws(()=>createR07RTrustedOfflineReviewSession({
+    offlineFixtureMode:true,principal:other.principal,
+    membership:other.membership,journal:other.journal,draftStore:other.drafts,
+    customers:{resolveUnique:async()=>null},
+    routedInterpreter:{interpret:async()=>({ok:false,code:'offline',calls:0})},
+  }),/R07R_ROUTED_FIXTURE_NOT_AUTHORIZED/);
 });
