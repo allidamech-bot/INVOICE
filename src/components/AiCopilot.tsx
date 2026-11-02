@@ -32,6 +32,7 @@ import { explicitlyNamedQuotationCustomer } from '../lib/ai-explicit-quote-custo
 import { SupplierDocumentImport } from './SupplierDocumentImport.js';
 import { isSupplierDocumentKind } from '../lib/document-kinds.js';
 import { Icon } from './UI.js';
+import {AiNextLiveReadOnlyLauncher} from '../ai-next/ui/AiNextLiveReadOnlyLauncher.js';
 
 export type AiWorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 export type AiNavTarget=Exclude<AiWorkspaceScreen,'editor'>;
@@ -311,6 +312,7 @@ export class AiCopilot extends React.Component<Props,State>{
 
   render():any{const prompts=starterPrompts(this.props.screen);const preview=this.state.proposal?this.proposalPreview(this.state.proposal):'';return <>
     <style data-lourex-ai-core="v267-pricing">{AI_CORE_CSS}</style>
+    <AiNextLiveReadOnlyLauncher/>
     <button type="button" className={`lourex-ai-launcher screen-${this.props.screen}`} dir={this.props.language==='ar'?'rtl':'ltr'} aria-label={t('Open LOUREX AI','فتح LOUREX AI')} aria-expanded={this.state.open} aria-controls="lourex-ai-panel" onClick={this.toggle}><span className="lxw-launcher-art" aria-hidden="true"><AiIdentityMark compact/></span></button>
     {this.state.open?<><button type="button" className="lourex-ai-backdrop" aria-label={t('Close LOUREX Advisor','إغلاق مستشار LOUREX')} onClick={this.toggle}/><aside id="lourex-ai-panel" tabIndex={-1} className="lourex-ai-panel" role="dialog" aria-modal="true" aria-label={t('LOUREX AI','ذكاء LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
       <header className="lourex-ai-head"><div className="lourex-ai-title"><span className="lourex-ai-mark"><AiIdentityMark compact/></span><div><strong>{t('LOUREX AI','ذكاء LOUREX')}</strong><small>{t('Financial & business advisor · deterministic numbers','مستشار مالي وتجاري · أرقام من المحركات المحلية')}</small></div></div><button type="button" className="lourex-ai-close" aria-label={t('Close','إغلاق')} onClick={this.toggle}><Icon name="x"/></button></header>
