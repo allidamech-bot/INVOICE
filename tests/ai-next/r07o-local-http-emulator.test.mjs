@@ -570,16 +570,17 @@ const offlineModel=()=>({
   modelZeroCostVerified:true,quotaAvailable:true,privacyApproved:true,
   healthAvailable:true,qualityTier:'capable',quotaGroupId:'offline-fixture',
 });
-const routedHarness=(suffix,{privateAllowed=true,modelAction='edit_draft'}={})=>{
+const routedHarness=(suffix,{privateAllowed=true,modelAction='edit_draft',
+  accountFreeVerified=true,modelSubject=null}={})=>{
   const reviewEnv={...env,threadId:'r07pq-review-'+suffix};
   const state={calls:0,discovery:0,privacy:0};
   const gateway=Object.assign(new R07QTrustedSemanticGateway({
-    models:async()=>{state.discovery++;return [offlineModel()];},
+    models:async()=>{state.discovery++;return [{...offlineModel(),accountFreeVerified}];},
     transport:{invoke:async ({payload})=>{
       state.calls++;
       assert.equal(payload.instruction.task,'semantic_interpretation_only');
       assert.equal(payload.utterance,'خلي العميل شركة النور');
-      return {action:modelAction,subject:null,reference:'active_draft',
+      return {action:modelAction,subject:modelSubject,reference:'active_draft',
         facts:modelAction==='edit_draft'?
           [{name:'customer_name',value:'شركة النور'}]:[],
         sourceIds:[],missingFields:[]};
@@ -720,4 +721,70 @@ test('R07Q model attempts financial issuance: refuse without an R07D edit receip
     assert.equal(hst.checkpointRefs.filter(c=>
       c.stage==='r07r_unsaved_review_edit_receipt_v1').length,0);
   }finally{handler=original;}
+});
+
+test('R07Q missing verified free entitlement fails closed before model transport',async()=>{
+  const h=routedHarness('free-unverified',{accountFreeVerified:false});
+  const created=await startRoutedQuotation(h.reviewEnv),old=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:h.coordinator,allowOfflineReviewEditPreview:true,
+    });
+    const res=await direct('review_edit',routedInput(h.reviewEnv,created));
+    assert.equal(res.status,200);
+    const output=await res.json();
+    assert.equal(output.status,'needs_clarification');
+    assert.equal(output.financialSaved,false);
+    assert.equal(output.appliedDraftRevision,null);
+    assert.equal(h.state.calls,0);
+    assert.equal((await h.store.read({...scope,threadId:h.reviewEnv.threadId},
+      created.turnId)).draftRevision,1);
+    const history=await h.coordinator.history(token,h.reviewEnv);
+    assert.equal(history.checkpointRefs.filter(c=>
+      c.stage==='r07r_unsaved_review_edit_receipt_v1').length,0);
+  }finally{handler=old;}
+});
+test('R07Q forged draft reference cannot modify another draft',async()=>{
+  const h=routedHarness('forged-ref',{modelSubject:{
+    kind:'draft',id:'other-company-draft',
+  }});
+  const created=await startRoutedQuotation(h.reviewEnv),old=handler;
+  try{
+    handler=new R07OLocalPreviewHandler({
+      allowedOrigin:endpoint,projectId:'demo-ai-next-r07h',
+      emulatorHost:process.env.FIRESTORE_EMULATOR_HOST,
+      coordinator:h.coordinator,allowOfflineReviewEditPreview:true,
+    });
+    const res=await direct('review_edit',routedInput(h.reviewEnv,created));
+    assert.equal(res.status,200);
+    const output=await res.json();
+    assert.equal(output.status,'needs_clarification');
+    assert.equal(output.financialSaved,false);
+    assert.equal(output.appliedDraftRevision,null);
+    assert.equal(h.state.calls,1);
+    assert.equal((await h.store.read({...scope,threadId:h.reviewEnv.threadId},
+      created.turnId)).draftRevision,1);
+    const history=await h.coordinator.history(token,h.reviewEnv);
+    assert.equal(history.checkpointRefs.filter(c=>
+      c.stage==='r07r_unsaved_review_edit_receipt_v1').length,0);
+  }finally{handler=old;}
+});
+test('R07Q offline fixtures reject missing server grant and incorrect marker',()=>{
+  const deps={
+    offlineFixtureMode:true,offlineReceiptMode:true,
+    principal,membership,journal:new R07JExperimentalIndexedJournal(db,true),
+    draftStore:new R07DExperimentalFirestoreDraftStore(db),
+    customers:{resolveUnique:async()=>null},
+    routedInterpreter:{transportKind:'offline_synthetic_fixture',
+      interpret:async()=>({ok:false,code:'OFFLINE_ONLY',calls:0})},
+    clock:()=>new Date(at),
+  };
+  assert.throws(()=>createR07RTrustedOfflineReviewSession(deps),
+    /R07R_UNSAFE_OFFLINE_INFERENCE_CONFIGURATION/);
+  assert.throws(()=>createR07RTrustedOfflineReviewSession({
+    ...deps,offlineRoutedReviewFixtures:true,
+    routedInterpreter:{...deps.routedInterpreter,transportKind:'live'},
+  }),/R07R_UNSAFE_OFFLINE_INFERENCE_CONFIGURATION/);
 });
