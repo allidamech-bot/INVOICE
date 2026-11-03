@@ -765,3 +765,35 @@ test('invalid named extra financial action is denied without provider or R07D ed
       before.draftRevision);
   }
 });
+
+
+test('verified replay is denied when ACL is revoked during R07D receipt read, without another write',async()=>{
+  const h=setup(),created=await h.create(),origin=created.turnId;
+  const first=await h.edit('خلي العميل شركة النور','revoke-after-receipt',origin,created.draft);
+  assert.equal(first.status,'applied_unsaved_review');
+  const before=h.db.writes,flags={revoked:false};
+  const restarted=setup(h.db,flags);
+  const originalRead=restarted.drafts.readEditReceipt.bind(restarted.drafts);
+  let receiptReads=0;
+  restarted.drafts.readEditReceipt=async(...args)=>{
+    const receipt=await originalRead(...args);
+    receiptReads++;
+    if(receipt)flags.revoked=true;
+    return receipt;
+  };
+  await assert.rejects(
+    restarted.edit('خلي العميل شركة النور','revoke-after-receipt',origin,created.draft),
+    /AUTH_MEMBERSHIP_DENIED/,
+    'A completed task must not disclose a success reply after mid-read revocation',
+  );
+  assert.ok(receiptReads>=1);
+  assert.equal(h.db.writes,before,'rejected historical replay must be read-only');
+  assert.equal((await h.drafts.read(scope,origin)).draftRevision,2,
+    'original receipt remains intact and the edit is never repeated');
+  const authorized=setup(h.db);
+  const replay=await authorized.edit(
+    'خلي العميل شركة النور','revoke-after-receipt',origin,created.draft);
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.appliedDraftRevision,2);
+  assert.equal(h.db.writes,before);
+});

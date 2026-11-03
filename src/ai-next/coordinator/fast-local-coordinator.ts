@@ -150,6 +150,14 @@ export class R07MFastLocalCoordinator{
       serverNowEpochSeconds:Math.floor(this.now().getTime()/1000),
     });
   }
+  private async ensureScopeUnchanged(token:string,raw:R07RequestEnvelope,
+    expected:AuthenticatedScope):Promise<void>{
+    const current=await this.auth(token,raw);
+    // Revoked users fail in auth(); role/branch/authorization-epoch changes
+    // must also deny replay of data from a previously authorized scope.
+    if(exactScopeKey(current)!==exactScopeKey(expected))
+      throw new R07LocalError('R07M_SCOPE_AUTHORIZATION_CHANGED');
+  }
   private async read(scope:AuthenticatedScope):Promise<R07LOperationalView>{
     const result=await this.deps.journal.readOperationalState(scope);
     if(result.completeHistory!==false||
@@ -382,6 +390,9 @@ export class R07MFastLocalCoordinator{
     const result=accepted.historical?
       await this.historical(scope,accepted.turn):
       await this.complete(scope,accepted.turn);
+    // A revoked role must not obtain a draft or assistant replay after the
+    // coordinator's asynchronous journal and R07D storage reads finish.
+    await this.ensureScopeUnchanged(token,envelope(request),scope);
     return {status:'completed',turnId:accepted.turn.turnId,
       threadId:scope.threadId,taskId:accepted.turn.taskId!,
       replayed:accepted.replayed,reply:result.reply,draft:result.draft,
@@ -408,6 +419,8 @@ export class R07MFastLocalCoordinator{
       await this.complete(scope,accepted.turn,token);
     if(result.draft!==null)
       throw new R07LocalError('R07M_SEMANTIC_FINANCIAL_DRAFT_FORBIDDEN');
+    // The semantic proposal may take time even when it is read-only.
+    await this.ensureScopeUnchanged(token,envelope(request),scope);
     return {status:'completed',turnId:accepted.turn.turnId,
       threadId:scope.threadId,taskId:accepted.turn.taskId!,
       replayed:accepted.replayed,reply:result.reply,
@@ -512,6 +525,10 @@ export class R07MFastLocalCoordinator{
           throw new R07LocalError('R07M_UNIFIED_UNVERIFIED_CLARIFICATION');
         status='needs_clarification';
       }
+      // The receipt and journal are separate roots. A membership can be
+      // revoked during these awaited reads; never return a verified result
+      // to an actor without a fresh final authorization.
+      await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
       return {status,turnId:turn.turnId,taskId,
         threadId:scope.threadId,reply:state.reply.text,
         replayed,conversationRevision:state.h.revision,
@@ -554,7 +571,7 @@ export class R07MFastLocalCoordinator{
       }else{
         // Re-authorization precedes all continued mutations. A revoked
         // membership cannot use a previously started request as a bypass.
-        await this.auth(token,envelope(input.turn));
+        await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
         const saved=await verifiedReceipt();
         if(state.reply){
           // No terminal acknowledgement before receipt and checkpoint agree.
@@ -591,7 +608,7 @@ export class R07MFastLocalCoordinator{
             body={kind:'message',messageId:assistantId,turnId:turn.turnId,
               role:'assistant',text:clarification,sourceIds:[]};
             // Revalidate identity before sealing the no-mutation outcome.
-            await this.auth(token,envelope(input.turn));
+            await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
             try{await this.append(scope,view,turn.turnId,step,body);}
             catch(err){if(!isConflict(err))throw err;}
           }
@@ -615,6 +632,9 @@ export class R07MFastLocalCoordinator{
             sourceIds:[]};
         }
       }
+      // Every write must re-check the signed identity and current membership,
+      // including pre-processing user-message/checkpoint steps and recovery.
+      await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
       try{await this.append(scope,view,turn.turnId,step,body);}
       catch(error){if(!isConflict(error))throw error;}
     }
@@ -898,17 +918,24 @@ export class R07MFastLocalCoordinator{
       throw new R07LocalError('R07M_UNVERIFIED_REVIEW_DRAFT');
     // Recheck membership at the output boundary so a revoked actor cannot
     // receive the draft following a concurrent ACL change.
-    await this.auth(token,envelope(input.turn));
+    await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
     return {draft:structuredClone(saved.draft),
       appliedDraftRevision:saved.receipt.appliedRevision,
       appliedDraftHash:saved.receipt.appliedHash,financialSaved:false};
   }
   async current(token:string,raw:unknown){
-    const scope=await this.auth(token,raw as R07RequestEnvelope);
-    return this.deps.journal.readOperationalState(scope);
+    const envelope=raw as R07RequestEnvelope;
+    const scope=await this.auth(token,envelope);
+    const view=await this.deps.journal.readOperationalState(scope);
+    // A revocation during an awaited Firestore read must deny the result.
+    await this.ensureScopeUnchanged(token,envelope,scope);
+    return view;
   }
   async history(token:string,raw:unknown){
-    const scope=await this.auth(token,raw as R07RequestEnvelope);
-    return this.deps.journal.auditFullHistory(scope);
+    const envelope=raw as R07RequestEnvelope;
+    const scope=await this.auth(token,envelope);
+    const audit=await this.deps.journal.auditFullHistory(scope);
+    await this.ensureScopeUnchanged(token,envelope,scope);
+    return audit;
   }
 }

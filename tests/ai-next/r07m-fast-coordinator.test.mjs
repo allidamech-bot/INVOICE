@@ -220,3 +220,92 @@ test('R07M denies unauthorized branch and viewer quote before indexed writes',as
   })),/R07_DRAFT_PREPARATION_DENIED/);
   assert.equal(viewer.db.writes,0);
 });
+
+
+test('R07M denies current and history when server membership is revoked DURING awaited reads',async()=>{
+  let active=true;
+  const acl={readForActor:async()=>active?membership().readForActor({}):null};
+  const h=harness(undefined,{membership:acl});
+  await h.coordinator.accept(TOKEN,envelope());
+  const before=h.db.writes;
+  const originalCurrent=h.journal.readOperationalState.bind(h.journal);
+  h.journal.readOperationalState=async(...args)=>{
+    const state=await originalCurrent(...args);
+    active=false;
+    return state;
+  };
+  await assert.rejects(
+    h.coordinator.current(TOKEN,historyRequest()),
+    /AUTH_MEMBERSHIP_DENIED/,
+    'A revoked owner must not receive operational data read while authorized',
+  );
+  active=true;
+  const originalHistory=h.journal.auditFullHistory.bind(h.journal);
+  h.journal.auditFullHistory=async(...args)=>{
+    const audit=await originalHistory(...args);
+    active=false;
+    return audit;
+  };
+  await assert.rejects(
+    h.coordinator.history(TOKEN,historyRequest()),
+    /AUTH_MEMBERSHIP_DENIED/,
+    'A revoked owner must not receive the completed audited history',
+  );
+  assert.equal(h.db.writes,before,'revoked reads may never change the journal');
+});
+
+
+test('R07M historical deterministic reply cannot escape a mid-audit ACL revocation',async()=>{
+  let active=true;
+  const acl={readForActor:async()=>active?membership().readForActor({}):null};
+  const h=harness(undefined,{membership:acl});
+  const first=await h.coordinator.accept(TOKEN,envelope());
+  // An OLD idempotency key forces R07J's full audited-history replay path.
+  await h.coordinator.accept(TOKEN,envelope({
+    requestId:'newer-greeting-request',idempotencyKey:'newer-greeting-key',
+    userMessageId:'newer-greeting-message',message:'مرحبا',
+  }));
+  const before=h.db.writes;
+  const read=h.journal.auditFullHistory.bind(h.journal);
+  h.journal.auditFullHistory=async(...args)=>{
+    const result=await read(...args);
+    active=false;
+    return result;
+  };
+  await assert.rejects(
+    h.coordinator.accept(TOKEN,envelope()),
+    /AUTH_MEMBERSHIP_DENIED/,
+    'A completed and receipt-verified reply must not be returned after ACL revocation',
+  );
+  assert.equal(h.db.writes,before);
+  active=true;
+  h.journal.auditFullHistory=read;
+  const replay=await h.coordinator.accept(TOKEN,envelope());
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.turnId,first.turnId);
+  assert.equal(h.db.writes,before);
+});
+
+
+test('R07M rejects a changed authorization epoch even when the owner remains active',async()=>{
+  let authorizationVersion=1;
+  const acl={readForActor:async()=>{
+    const allowed=await membership().readForActor({});
+    return {...allowed,authorizationVersion};
+  }};
+  const h=harness(undefined,{membership:acl});
+  await h.coordinator.accept(TOKEN,envelope());
+  const writes=h.db.writes;
+  const original=h.journal.readOperationalState.bind(h.journal);
+  h.journal.readOperationalState=async(...args)=>{
+    const read=await original(...args);
+    authorizationVersion=2;
+    return read;
+  };
+  await assert.rejects(
+    h.coordinator.current(TOKEN,historyRequest()),
+    /R07M_SCOPE_AUTHORIZATION_CHANGED/,
+    'Existing credentials do not authorize replay from a previous membership version',
+  );
+  assert.equal(h.db.writes,writes);
+});
