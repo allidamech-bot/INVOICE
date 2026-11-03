@@ -382,6 +382,9 @@ export class R07MFastLocalCoordinator{
     const result=accepted.historical?
       await this.historical(scope,accepted.turn):
       await this.complete(scope,accepted.turn);
+    // A revoked role must not obtain a draft or assistant replay after the
+    // coordinator's asynchronous journal and R07D storage reads finish.
+    await this.auth(token,envelope(request));
     return {status:'completed',turnId:accepted.turn.turnId,
       threadId:scope.threadId,taskId:accepted.turn.taskId!,
       replayed:accepted.replayed,reply:result.reply,draft:result.draft,
@@ -408,6 +411,8 @@ export class R07MFastLocalCoordinator{
       await this.complete(scope,accepted.turn,token);
     if(result.draft!==null)
       throw new R07LocalError('R07M_SEMANTIC_FINANCIAL_DRAFT_FORBIDDEN');
+    // The semantic proposal may take time even when it is read-only.
+    await this.auth(token,envelope(request));
     return {status:'completed',turnId:accepted.turn.turnId,
       threadId:scope.threadId,taskId:accepted.turn.taskId!,
       replayed:accepted.replayed,reply:result.reply,
