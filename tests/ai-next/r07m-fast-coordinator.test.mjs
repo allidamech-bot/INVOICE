@@ -260,6 +260,11 @@ test('R07M historical deterministic reply cannot escape a mid-audit ACL revocati
   const acl={readForActor:async()=>active?membership().readForActor({}):null};
   const h=harness(undefined,{membership:acl});
   const first=await h.coordinator.accept(TOKEN,envelope());
+  // An OLD idempotency key forces R07J's full audited-history replay path.
+  await h.coordinator.accept(TOKEN,envelope({
+    requestId:'newer-greeting-request',idempotencyKey:'newer-greeting-key',
+    userMessageId:'newer-greeting-message',message:'مرحبا',
+  }));
   const before=h.db.writes;
   const read=h.journal.auditFullHistory.bind(h.journal);
   h.journal.auditFullHistory=async(...args)=>{
