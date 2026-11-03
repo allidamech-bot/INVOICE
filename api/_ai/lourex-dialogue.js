@@ -154,8 +154,29 @@ export function buildNaturalLourexPrompt(cleaned,options={}){
   ].join('\n\n');
   return prompt;
 }
+/**
+ * R05/R07 language route for the ONE existing LOUREX conversation.
+ * This only chooses the quality/capability bucket for already approved
+ * free/private models; it never chooses a vendor, authorizes an action, or
+ * reads business data. Classify the latest user message only, not historical
+ * attachments or untrusted model replies.
+ *
+ * Fast everyday language uses general-chat routing. Explicit multi-factor
+ * financial analysis uses the bounded deep pool; if no approved free/private
+ * deep-capable model is available, the existing router fails closed.
+ */
+export function selectCanonicalDialogueRoute(message){
+  const text=String(message||'').normalize('NFKC').trim().slice(0,6000);
+  const finance=/(?:ربح|ربحية|هامش|مبيعات|تحصيل|ذمم|مصروف|تكلف|سيولة|مخزون|مورد|مديونية|خزينة|تدفق نقدي|profit|margin|sales|revenue|receivable|payable|cash.?flow|inventory|supplier|expenses|costs|liquidity)/iu.test(text);
+  const analysis=/(?:قارن|مقارنة|حلّل|حلل|تحليل|قيّم|قيم|تقييم|مخاطر|توقعات|تنبؤ|استراتيجية|ليش\s+(?:انخفض|ارتفع|تراجع)|لماذا\s+(?:انخفض|ارتفع|تراجع)|compare|comparison|analy[sz]e|analysis|evaluate|assessment|forecast|strateg(?:y|ic)|risk|trend)/iu.test(text);
+  const explicitDeep=analysis&&finance;
+  return explicitDeep
+    ? {taskType:'cfo_report',reasoningLevel:'deep'}
+    : {taskType:'business_copilot',reasoningLevel:'standard'};
+}
 export async function naturalLourexDialogue(cleaned,options={}){
   const prompt=buildNaturalLourexPrompt(cleaned,options);
+  const routing=selectCanonicalDialogueRoute(cleaned?.message);
   const attempts=[];
   const result=await routeAiStructured({
     onDiagnostic:options.ownerDiagnostics===true?row=>{
@@ -168,8 +189,8 @@ export async function naturalLourexDialogue(cleaned,options={}){
         ...(Number.isFinite(row.retryAfterMs)&&row.retryAfterMs>=0&&row.retryAfterMs<=86400000?{retryAfterMs:Math.round(row.retryAfterMs)}:{}),
         ...(Number.isInteger(row.fallbackIndex)&&row.fallbackIndex>=0&&row.fallbackIndex<32?{fallbackIndex:row.fallbackIndex}:{})});
     }:undefined,
-    taskType:'business_copilot',
-    reasoningLevel:'standard',
+    taskType:routing.taskType,
+    reasoningLevel:routing.reasoningLevel,
     prompt,
     schema:ANSWER_SCHEMA,
     timeoutMs:12000,
