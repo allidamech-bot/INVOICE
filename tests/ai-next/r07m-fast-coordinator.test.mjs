@@ -220,3 +220,36 @@ test('R07M denies unauthorized branch and viewer quote before indexed writes',as
   })),/R07_DRAFT_PREPARATION_DENIED/);
   assert.equal(viewer.db.writes,0);
 });
+
+
+test('R07M denies current and history when server membership is revoked DURING awaited reads',async()=>{
+  let active=true;
+  const acl={readForActor:async()=>active?membership().readForActor({}):null};
+  const h=harness(undefined,{membership:acl});
+  await h.coordinator.accept(TOKEN,envelope());
+  const before=h.db.writes;
+  const originalCurrent=h.journal.readOperationalState.bind(h.journal);
+  h.journal.readOperationalState=async(...args)=>{
+    const state=await originalCurrent(...args);
+    active=false;
+    return state;
+  };
+  await assert.rejects(
+    h.coordinator.current(TOKEN,historyRequest()),
+    /AUTH_MEMBERSHIP_DENIED/,
+    'A revoked owner must not receive operational data read while authorized',
+  );
+  active=true;
+  const originalHistory=h.journal.auditFullHistory.bind(h.journal);
+  h.journal.auditFullHistory=async(...args)=>{
+    const audit=await originalHistory(...args);
+    active=false;
+    return audit;
+  };
+  await assert.rejects(
+    h.coordinator.history(TOKEN,historyRequest()),
+    /AUTH_MEMBERSHIP_DENIED/,
+    'A revoked owner must not receive the completed audited history',
+  );
+  assert.equal(h.db.writes,before,'revoked reads may never change the journal');
+});
