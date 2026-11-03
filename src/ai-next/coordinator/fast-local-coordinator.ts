@@ -382,7 +382,7 @@ export class R07MFastLocalCoordinator{
     const request=raw as R07LocalTurnInput;
     const local=recognizeR05LocalIntent(request.message,0);
     if(!local)throw new R07LocalError('R07_LOCAL_INTENT_NOT_SUPPORTED');
-    const scope=await this.ensureScopeUnchanged(token,envelope(request),scope);
+    const scope=await this.auth(token,envelope(request));
     if(local.kind==='new_quote_draft'&&
       (scope.scopeType!=='business'||scope.role==='viewer'))
       throw new R07LocalError('R07_DRAFT_PREPARATION_DENIED');
@@ -412,7 +412,7 @@ export class R07MFastLocalCoordinator{
     if(!this.deps.allowOfflineSemanticFixtures||
       !this.deps.offlineSemanticPlanner)
       throw new R07LocalError('R07M_OFFLINE_SEMANTIC_DISABLED');
-    const scope=await this.ensureScopeUnchanged(token,envelope(request),scope);
+    const scope=await this.auth(token,envelope(request));
     const accepted=await this.accepted(scope,request,true);
     const result=accepted.historical?
       await this.historical(scope,accepted.turn):
@@ -455,7 +455,7 @@ export class R07MFastLocalCoordinator{
     if(recognizeR05LocalIntent(input.turn.message,0))
       throw new R07LocalError('R07M_USE_DETERMINISTIC_ACCEPT');
     const fingerprint=await fingerprintR07RReviewRequest(input);
-    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
+    const scope=await this.auth(token,envelope(input.turn));
     if(scope.scopeType!=='business'||scope.role==='viewer'||
       input.turn.mode!=='controller')
       throw new R07LocalError('R07M_UNIFIED_REVIEW_DENIED');
@@ -664,7 +664,7 @@ export class R07MFastLocalCoordinator{
     const input=raw as R07RReceiptPrepareInput;
     validateRequest(input.turn);
     const fingerprint=await fingerprintR07RReviewRequest(input);
-    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
+    const scope=await this.auth(token,envelope(input.turn));
     if(scope.scopeType!=='business'||scope.role==='viewer'||
       input.turn.mode!=='controller')
       throw new R07LocalError('R07M_REVIEW_AUDIT_DENIED');
@@ -758,7 +758,7 @@ export class R07MFastLocalCoordinator{
     const linked=await this.linkOfflineReviewReceipt(token,raw);
     const input=raw as R07RReceiptPrepareInput;
     // Re-authorize independently before the user-visible journal write.
-    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
+    const scope=await this.auth(token,envelope(input.turn));
     const threadKey=exactScopeKey(scope);
     const replyMessageId='review-confirmation-'+linked.turnId;
     const reply='تم إثبات تطبيق تعديل مسودة عرض السعر في المراجعة رقم '+
@@ -861,7 +861,7 @@ export class R07MFastLocalCoordinator{
     const input=raw as R07RReceiptPrepareInput;
     validateRequest(input.turn);
     const fingerprint=await fingerprintR07RReviewRequest(input);
-    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
+    const scope=await this.auth(token,envelope(input.turn));
     if(scope.scopeType!=='business'||scope.role==='viewer'||
       input.turn.mode!=='controller')
       throw new R07LocalError('R07M_UNIFIED_REVIEW_DENIED');
@@ -925,7 +925,7 @@ export class R07MFastLocalCoordinator{
   }
   async current(token:string,raw:unknown){
     const envelope=raw as R07RequestEnvelope;
-    const scope=await this.ensureScopeUnchanged(token,envelope,scope);
+    const scope=await this.auth(token,envelope);
     const view=await this.deps.journal.readOperationalState(scope);
     // A revocation during an awaited Firestore read must deny the result.
     await this.ensureScopeUnchanged(token,envelope,scope);
@@ -933,7 +933,7 @@ export class R07MFastLocalCoordinator{
   }
   async history(token:string,raw:unknown){
     const envelope=raw as R07RequestEnvelope;
-    const scope=await this.ensureScopeUnchanged(token,envelope,scope);
+    const scope=await this.auth(token,envelope);
     const audit=await this.deps.journal.auditFullHistory(scope);
     await this.ensureScopeUnchanged(token,envelope,scope);
     return audit;
