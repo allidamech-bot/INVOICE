@@ -285,3 +285,27 @@ test('R07M historical deterministic reply cannot escape a mid-audit ACL revocati
   assert.equal(replay.turnId,first.turnId);
   assert.equal(h.db.writes,before);
 });
+
+
+test('R07M rejects a changed authorization epoch even when the owner remains active',async()=>{
+  let authorizationVersion=1;
+  const acl={readForActor:async()=>{
+    const allowed=await membership().readForActor({});
+    return {...allowed,authorizationVersion};
+  }};
+  const h=harness(undefined,{membership:acl});
+  await h.coordinator.accept(TOKEN,envelope());
+  const writes=h.db.writes;
+  const original=h.journal.readOperationalState.bind(h.journal);
+  h.journal.readOperationalState=async(...args)=>{
+    const read=await original(...args);
+    authorizationVersion=2;
+    return read;
+  };
+  await assert.rejects(
+    h.coordinator.current(TOKEN,historyRequest()),
+    /R07M_SCOPE_AUTHORIZATION_CHANGED/,
+    'Existing credentials do not authorize replay from a previous membership version',
+  );
+  assert.equal(h.db.writes,writes);
+});
