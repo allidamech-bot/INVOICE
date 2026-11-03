@@ -512,6 +512,10 @@ export class R07MFastLocalCoordinator{
           throw new R07LocalError('R07M_UNIFIED_UNVERIFIED_CLARIFICATION');
         status='needs_clarification';
       }
+      // The receipt and journal are separate roots. A membership can be
+      // revoked during these awaited reads; never return a verified result
+      // to an actor without a fresh final authorization.
+      await this.auth(token,envelope(input.turn));
       return {status,turnId:turn.turnId,taskId,
         threadId:scope.threadId,reply:state.reply.text,
         replayed,conversationRevision:state.h.revision,
@@ -615,6 +619,9 @@ export class R07MFastLocalCoordinator{
             sourceIds:[]};
         }
       }
+      // Every write must re-check the signed identity and current membership,
+      // including pre-processing user-message/checkpoint steps and recovery.
+      await this.auth(token,envelope(input.turn));
       try{await this.append(scope,view,turn.turnId,step,body);}
       catch(error){if(!isConflict(error))throw error;}
     }
@@ -904,11 +911,18 @@ export class R07MFastLocalCoordinator{
       appliedDraftHash:saved.receipt.appliedHash,financialSaved:false};
   }
   async current(token:string,raw:unknown){
-    const scope=await this.auth(token,raw as R07RequestEnvelope);
-    return this.deps.journal.readOperationalState(scope);
+    const envelope=raw as R07RequestEnvelope;
+    const scope=await this.auth(token,envelope);
+    const view=await this.deps.journal.readOperationalState(scope);
+    // A revocation during an awaited Firestore read must deny the result.
+    await this.auth(token,envelope);
+    return view;
   }
   async history(token:string,raw:unknown){
-    const scope=await this.auth(token,raw as R07RequestEnvelope);
-    return this.deps.journal.auditFullHistory(scope);
+    const envelope=raw as R07RequestEnvelope;
+    const scope=await this.auth(token,envelope);
+    const audit=await this.deps.journal.auditFullHistory(scope);
+    await this.auth(token,envelope);
+    return audit;
   }
 }
