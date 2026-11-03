@@ -187,7 +187,9 @@
       overlay.remove();
       observer.disconnect();
     });
-    observer.observe(document.getElementById('root'),{childList:true,subtree:true});
+    // React may reuse the loading node and only change its class to app/auth.
+    // Release the overlay on that transition too; never cover a ready app.
+    observer.observe(document.getElementById('root'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
   }
 
   function recoverIfNeeded(){
