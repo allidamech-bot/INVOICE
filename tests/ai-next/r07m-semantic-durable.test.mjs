@@ -427,6 +427,12 @@ test('server-authenticated local greeting and blank quote bypass full history co
 test('R07M semantic proposal-only replay cannot disclose a reply after mid-audit membership revocation',async()=>{
   const flags={revoked:false},h=harness(undefined,flags);
   const first=await h.coordinator.acceptOfflineSemantic(TOKEN,REQUEST());
+  // Place a newer authenticated turn after the semantic result. Only replay
+  // of the OLD key takes the audited full-history path in R07M.
+  await h.coordinator.accept(TOKEN,REQUEST('السلام عليكم',{
+    requestId:'later-local-request',idempotencyKey:'later-local-key',
+    userMessageId:'later-local-message',
+  }));
   const before=h.database.writes;
   const read=h.journal.auditFullHistory.bind(h.journal);
   h.journal.auditFullHistory=async(...args)=>{
