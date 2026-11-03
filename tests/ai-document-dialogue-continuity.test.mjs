@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {explicitNoWriteRequested} from '../api/_ai/no-write-guard.js';
 import {readFileSync} from 'node:fs';
 import {sanitizeDocumentConversation,dialogueClaimsDocumentCreation,dialogueRepeatsLastAnswer,buildNaturalLourexPrompt} from '../api/_ai/lourex-dialogue.js';
 const compiled=readFileSync('dist/src/lib/ai-intelligence-runtime.js','utf8');
@@ -44,7 +45,7 @@ test('bounded context retains the initiating request through repeated clarificat
 test('Core routes a short Controller follow-up through the structured review gateway',()=>{
  const source=readFileSync('api/ai-core.js','utf8');
  const line=source.split('\n').find(line=>line.startsWith('function draftActionRequested('));
- const route=new Function('previewOnlyDocumentRequested',line+';return draftActionRequested;')(text=>/preview only|لا تحفظ/i.test(text));
+ const route=new Function('previewOnlyDocumentRequested','explicitNoWriteRequested',line+';return draftActionRequested;')(text=>/preview only|لا تحفظ/i.test(text),explicitNoWriteRequested);
  const context={conversationMode:'controller',documentConversation:pending(turns,'controller',false)};
  assert.equal(route('لا',context),true);
  assert.equal(route('10 كراتين',context),true);
@@ -52,6 +53,8 @@ test('Core routes a short Controller follow-up through the structured review gat
  assert.equal(route('لا',{...context,conversationMode:'advisor'}),false);
  assert.equal(route('ألغي الطلب',context),false);
  assert.equal(route('لا تحفظ',context),false);
+ assert.equal(route('لا تعدّل ولا تنشئ أي شيء',context),false);
+ assert.equal(route('لا، خلي الكمية 12',context),true);
 });
 test('text-only dialogue rejects fabricated draft-completion claims and prompt respects current answers',()=>{
  assert.equal(dialogueClaimsDocumentCreation('تمام، تم إعداد مسودة عرض السعر. هل لديك تفاصيل أخرى؟'),true);

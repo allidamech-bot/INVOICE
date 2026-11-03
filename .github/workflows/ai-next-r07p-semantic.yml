@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'src/ai-next/router/semantic-planner.ts'
+      - 'api/ai-core.js'
+      - 'api/_ai/no-write-guard.js'
+      - 'tests/ai-next/r07-controller-no-write-production.test.mjs'
       - 'src/ai-next/conversation-state/trusted-history-context.ts'
       - 'tests/ai-next/r07m-unified-multiturn.test.mjs'
       - 'src/ai-next/router/local-structured-intents.ts'
@@ -47,6 +50,7 @@ jobs:
           tests/ai-next/r07p-local-structured-intents.test.mjs
           tests/ai-next/r07p-atomic-multifield.test.mjs
           tests/ai-next/r07m-unified-multiturn.test.mjs
+          tests/ai-next/r07-controller-no-write-production.test.mjs
       - name: Deterministic R05 and R07M regression
         run: >-
           node --test
