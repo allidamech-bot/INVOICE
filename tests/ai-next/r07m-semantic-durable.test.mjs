@@ -422,3 +422,30 @@ test('server-authenticated local greeting and blank quote bypass full history co
   assert.equal(historyReads,1);
   assert.equal(modelCalls,0);
 });
+
+
+test('R07M semantic proposal-only replay cannot disclose a reply after mid-audit membership revocation',async()=>{
+  const flags={revoked:false},h=harness(undefined,flags);
+  const first=await h.coordinator.acceptOfflineSemantic(TOKEN,REQUEST());
+  const before=h.database.writes;
+  const read=h.journal.auditFullHistory.bind(h.journal);
+  h.journal.auditFullHistory=async(...args)=>{
+    const result=await read(...args);
+    flags.revoked=true;
+    return result;
+  };
+  await assert.rejects(
+    h.coordinator.acceptOfflineSemantic(TOKEN,REQUEST()),
+    /AUTH_MEMBERSHIP_DENIED/,
+    'A signed-in actor who loses membership while reading the audit cannot receive the proposal',
+  );
+  assert.equal(h.database.writes,before);
+  assert.equal(h.metrics.interpretations,1,'do not repeat model inference on replay');
+  flags.revoked=false;
+  h.journal.auditFullHistory=read;
+  const replay=await h.coordinator.acceptOfflineSemantic(TOKEN,REQUEST());
+  assert.equal(replay.replayed,true);
+  assert.equal(replay.turnId,first.turnId);
+  assert.equal(h.metrics.interpretations,1);
+  assert.equal(h.database.writes,before);
+});
