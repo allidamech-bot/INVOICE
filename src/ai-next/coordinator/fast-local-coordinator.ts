@@ -150,6 +150,14 @@ export class R07MFastLocalCoordinator{
       serverNowEpochSeconds:Math.floor(this.now().getTime()/1000),
     });
   }
+  private async ensureScopeUnchanged(token:string,raw:R07RequestEnvelope,
+    expected:AuthenticatedScope):Promise<void>{
+    const current=await this.auth(token,raw);
+    // Revoked users fail in auth(); role/branch/authorization-epoch changes
+    // must also deny replay of data from a previously authorized scope.
+    if(exactScopeKey(current)!==exactScopeKey(expected))
+      throw new R07LocalError('R07M_SCOPE_AUTHORIZATION_CHANGED');
+  }
   private async read(scope:AuthenticatedScope):Promise<R07LOperationalView>{
     const result=await this.deps.journal.readOperationalState(scope);
     if(result.completeHistory!==false||
@@ -374,7 +382,7 @@ export class R07MFastLocalCoordinator{
     const request=raw as R07LocalTurnInput;
     const local=recognizeR05LocalIntent(request.message,0);
     if(!local)throw new R07LocalError('R07_LOCAL_INTENT_NOT_SUPPORTED');
-    const scope=await this.auth(token,envelope(request));
+    const scope=await this.ensureScopeUnchanged(token,envelope(request),scope);
     if(local.kind==='new_quote_draft'&&
       (scope.scopeType!=='business'||scope.role==='viewer'))
       throw new R07LocalError('R07_DRAFT_PREPARATION_DENIED');
@@ -384,7 +392,7 @@ export class R07MFastLocalCoordinator{
       await this.complete(scope,accepted.turn);
     // A revoked role must not obtain a draft or assistant replay after the
     // coordinator's asynchronous journal and R07D storage reads finish.
-    await this.auth(token,envelope(request));
+    await this.ensureScopeUnchanged(token,envelope(request),scope);
     return {status:'completed',turnId:accepted.turn.turnId,
       threadId:scope.threadId,taskId:accepted.turn.taskId!,
       replayed:accepted.replayed,reply:result.reply,draft:result.draft,
@@ -404,7 +412,7 @@ export class R07MFastLocalCoordinator{
     if(!this.deps.allowOfflineSemanticFixtures||
       !this.deps.offlineSemanticPlanner)
       throw new R07LocalError('R07M_OFFLINE_SEMANTIC_DISABLED');
-    const scope=await this.auth(token,envelope(request));
+    const scope=await this.ensureScopeUnchanged(token,envelope(request),scope);
     const accepted=await this.accepted(scope,request,true);
     const result=accepted.historical?
       await this.historical(scope,accepted.turn):
@@ -412,7 +420,7 @@ export class R07MFastLocalCoordinator{
     if(result.draft!==null)
       throw new R07LocalError('R07M_SEMANTIC_FINANCIAL_DRAFT_FORBIDDEN');
     // The semantic proposal may take time even when it is read-only.
-    await this.auth(token,envelope(request));
+    await this.ensureScopeUnchanged(token,envelope(request),scope);
     return {status:'completed',turnId:accepted.turn.turnId,
       threadId:scope.threadId,taskId:accepted.turn.taskId!,
       replayed:accepted.replayed,reply:result.reply,
@@ -447,7 +455,7 @@ export class R07MFastLocalCoordinator{
     if(recognizeR05LocalIntent(input.turn.message,0))
       throw new R07LocalError('R07M_USE_DETERMINISTIC_ACCEPT');
     const fingerprint=await fingerprintR07RReviewRequest(input);
-    const scope=await this.auth(token,envelope(input.turn));
+    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
     if(scope.scopeType!=='business'||scope.role==='viewer'||
       input.turn.mode!=='controller')
       throw new R07LocalError('R07M_UNIFIED_REVIEW_DENIED');
@@ -520,7 +528,7 @@ export class R07MFastLocalCoordinator{
       // The receipt and journal are separate roots. A membership can be
       // revoked during these awaited reads; never return a verified result
       // to an actor without a fresh final authorization.
-      await this.auth(token,envelope(input.turn));
+      await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
       return {status,turnId:turn.turnId,taskId,
         threadId:scope.threadId,reply:state.reply.text,
         replayed,conversationRevision:state.h.revision,
@@ -563,7 +571,7 @@ export class R07MFastLocalCoordinator{
       }else{
         // Re-authorization precedes all continued mutations. A revoked
         // membership cannot use a previously started request as a bypass.
-        await this.auth(token,envelope(input.turn));
+        await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
         const saved=await verifiedReceipt();
         if(state.reply){
           // No terminal acknowledgement before receipt and checkpoint agree.
@@ -600,7 +608,7 @@ export class R07MFastLocalCoordinator{
             body={kind:'message',messageId:assistantId,turnId:turn.turnId,
               role:'assistant',text:clarification,sourceIds:[]};
             // Revalidate identity before sealing the no-mutation outcome.
-            await this.auth(token,envelope(input.turn));
+            await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
             try{await this.append(scope,view,turn.turnId,step,body);}
             catch(err){if(!isConflict(err))throw err;}
           }
@@ -626,7 +634,7 @@ export class R07MFastLocalCoordinator{
       }
       // Every write must re-check the signed identity and current membership,
       // including pre-processing user-message/checkpoint steps and recovery.
-      await this.auth(token,envelope(input.turn));
+      await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
       try{await this.append(scope,view,turn.turnId,step,body);}
       catch(error){if(!isConflict(error))throw error;}
     }
@@ -656,7 +664,7 @@ export class R07MFastLocalCoordinator{
     const input=raw as R07RReceiptPrepareInput;
     validateRequest(input.turn);
     const fingerprint=await fingerprintR07RReviewRequest(input);
-    const scope=await this.auth(token,envelope(input.turn));
+    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
     if(scope.scopeType!=='business'||scope.role==='viewer'||
       input.turn.mode!=='controller')
       throw new R07LocalError('R07M_REVIEW_AUDIT_DENIED');
@@ -750,7 +758,7 @@ export class R07MFastLocalCoordinator{
     const linked=await this.linkOfflineReviewReceipt(token,raw);
     const input=raw as R07RReceiptPrepareInput;
     // Re-authorize independently before the user-visible journal write.
-    const scope=await this.auth(token,envelope(input.turn));
+    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
     const threadKey=exactScopeKey(scope);
     const replyMessageId='review-confirmation-'+linked.turnId;
     const reply='تم إثبات تطبيق تعديل مسودة عرض السعر في المراجعة رقم '+
@@ -853,7 +861,7 @@ export class R07MFastLocalCoordinator{
     const input=raw as R07RReceiptPrepareInput;
     validateRequest(input.turn);
     const fingerprint=await fingerprintR07RReviewRequest(input);
-    const scope=await this.auth(token,envelope(input.turn));
+    const scope=await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
     if(scope.scopeType!=='business'||scope.role==='viewer'||
       input.turn.mode!=='controller')
       throw new R07LocalError('R07M_UNIFIED_REVIEW_DENIED');
@@ -910,24 +918,24 @@ export class R07MFastLocalCoordinator{
       throw new R07LocalError('R07M_UNVERIFIED_REVIEW_DRAFT');
     // Recheck membership at the output boundary so a revoked actor cannot
     // receive the draft following a concurrent ACL change.
-    await this.auth(token,envelope(input.turn));
+    await this.ensureScopeUnchanged(token,envelope(input.turn),scope);
     return {draft:structuredClone(saved.draft),
       appliedDraftRevision:saved.receipt.appliedRevision,
       appliedDraftHash:saved.receipt.appliedHash,financialSaved:false};
   }
   async current(token:string,raw:unknown){
     const envelope=raw as R07RequestEnvelope;
-    const scope=await this.auth(token,envelope);
+    const scope=await this.ensureScopeUnchanged(token,envelope,scope);
     const view=await this.deps.journal.readOperationalState(scope);
     // A revocation during an awaited Firestore read must deny the result.
-    await this.auth(token,envelope);
+    await this.ensureScopeUnchanged(token,envelope,scope);
     return view;
   }
   async history(token:string,raw:unknown){
     const envelope=raw as R07RequestEnvelope;
-    const scope=await this.auth(token,envelope);
+    const scope=await this.ensureScopeUnchanged(token,envelope,scope);
     const audit=await this.deps.journal.auditFullHistory(scope);
-    await this.auth(token,envelope);
+    await this.ensureScopeUnchanged(token,envelope,scope);
     return audit;
   }
 }
