@@ -24,19 +24,19 @@
     html[data-lourex-booting="true"]{overflow:hidden!important;background:var(--boot-bg,#0a1826)!important}
     html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;overflow:hidden!important;background:var(--boot-bg,#0a1826)!important;overscroll-behavior:none!important}
     #root > .lourex-launch.loading-screen {
-      --launch-surface:#142c43;--launch-edge:#b5a17b;--launch-metal:#ddbd83;--launch-muted:#c3cfdf;
+      --launch-base:#0b0e13;--launch-surface:#1c252d;--launch-edge:#b5a17b;--launch-metal:#ddbd83;--launch-muted:#cbd0d4;
       --launch-background:radial-gradient(ellipse at 50% 28%,var(--launch-surface),transparent 62%);
       position:fixed;inset:0;z-index:2147483000;display:grid!important;place-items:center;
       box-sizing:border-box;padding:24px;overflow:hidden;isolation:isolate;
       color:var(--boot-text,#f7fbff);
-      background:var(--launch-background),var(--boot-bg,#0a1826)!important;
+      background:var(--launch-background),var(--launch-base,#0b0e13)!important;
     }
     html[data-ui-theme="light"] #root > .lourex-launch {
-      --launch-surface:#fff;--launch-edge:#9f7941;--launch-metal:#805b2d;--launch-muted:#4c6076;
+      --launch-base:#f6f2ea;--launch-surface:#fffdf8;--launch-edge:#9f7941;--launch-metal:#805b2d;--launch-muted:#595b60;
     }
     html[data-ui-theme] body #root > .lourex-launch.loading-screen {
       display:grid!important;padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left))!important;
-      background:var(--launch-background),var(--boot-bg,#0a1826)!important;
+      background:var(--launch-background),var(--launch-base,#0b0e13)!important;
       color:var(--boot-text,#f7fbff)!important;
     }
     .lourex-launch .launch-frame {
