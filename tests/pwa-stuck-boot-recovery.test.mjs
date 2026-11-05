@@ -12,7 +12,7 @@ test('startup telemetry remains data-safe with no customer recovery UI or automa
   ]);
   assert.match(build,/await writeFile\('dist\/runtime-config\.js'/);
   assert.match(build,/window\.__LOUREX_RUNTIME__/);
-  assert.match(html,/src="\.\/startup-watchdog-v321\.js\?v=348"/);
+  assert.match(html,/src="\.\/startup-watchdog-v321\.js\?v=349"/);
   assert.match(watchdog,/function bootStillVisible\(\)/);
   assert.match(watchdog,/window\.setTimeout\(recoverIfNeeded,CHECK_MS\)/);
   assert.doesNotMatch(watchdog,/showRecovery|lourex-startup-recovery|createElement|location\.replace|serviceWorker\.getRegistrations|caches\.delete|indexedDB\.deleteDatabase/);
