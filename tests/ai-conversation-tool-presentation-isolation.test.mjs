@@ -24,7 +24,11 @@ test('switching context clears transient tool data without deleting persisted th
 test('all conversation lifecycle transitions and account/workspace changes clear transient presentation first',()=>{
   assert.match(compiled,/for \(const name of \['__lourexSetScope', '__lourexOpenThread', '__lourexNewConversation', '__lourexDeleteThread'\]\)/);
   assert.match(compiled,/clearConversationToolPresentation\(host\);[\s\S]*?await old\(\.\.\.args\)/);
-  assert.match(compiled,/if \(previous !== host.props\) \{\s*clearConversationToolPresentation\(host\)/);
+  // Only genuine authority/scope changes may cancel a valid in-flight AI
+  // turn. A new parent onNavigate callback must NOT clear its presentation.
+  assert.match(compiled,/if \(propsChanged \|\| accountChanged \|\| companyChanged\) \{\s*clearConversationToolPresentation\(host\)/);
+  assert.match(compiled,/host\.__workspaceObservedProps === previous/);
+  assert.doesNotMatch(compiled,/if \(previous !== host.props\) \{\s*clearConversationToolPresentation\(host\)/);
 });
 
 test('successful and failed mode switches render the final unlocked controls after releasing the guard',async()=>{
