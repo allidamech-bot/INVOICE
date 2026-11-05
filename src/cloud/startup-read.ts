@@ -12,7 +12,7 @@ export type CloudRead = (<T>(read:()=>Promise<T>)=>Promise<T>) & {
 
 // Bound every server read before its caller can act on the result. Firestore
 // may still receive a late response, but reconciliation cannot consume it.
-export function startupCloudRead(budgetMs:number,onLargeWorkspace?:()=>void):CloudRead{
+export function startupCloudRead(budgetMs:number):CloudRead{
   const startedAt=Date.now();
   let deadline=startedAt+budgetMs;
   let extended=false;
@@ -32,10 +32,9 @@ export function startupCloudRead(budgetMs:number,onLargeWorkspace?:()=>void):Clo
   boundedRead.extendForLargeWorkspace=(chunkCount:number)=>{
     if(extended||!Number.isSafeInteger(chunkCount)||chunkCount<32||Date.now()>=deadline)return;
     extended=true;
-    // A large, *validated* manifest gets at most 50s after discovery and a
-    // hard upper bound of 70s from startup. This never authorizes stale data.
-    deadline=Math.min(startedAt+70_000,Math.max(deadline,Date.now()+50_000));
-    onLargeWorkspace?.();
+    // A verified large transfer may use up to 28s total (ordinary reads
+    // retain 20s). React's existing 30s recovery still bounds the UI.
+    deadline=Math.min(startedAt+28_000,Math.max(deadline,Date.now()+25_000));
   };
   return boundedRead;
 }
