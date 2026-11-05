@@ -47,3 +47,43 @@ test('report archive paginates past the first hundred audit operations',async()=
 test('oversized report archive is rejected before downloading large snapshot chunks',async()=>{const f=await fixture({control:{format:'LOUREX_PERIOD_CONTROL_V1',version:1,ownerUid:uid,generation:1,boundaries:[]}}),reportId='f'.repeat(32);f.docs.set(`users/${uid}/periodReports/${reportId}`,{reportId,bytes:50*1024*1024+1});await assert.rejects(f.api.getPeriodReportArchive(uid),/50 MB/);assert.equal(f.reads.filter(r=>r.path.includes('/periodReports/')).length,0);});
 test('owner command uses verified bearer and sends only canonical authority-free fields',async()=>{const f=await fixture({respond:({options})=>({ok:true,status:200,json:async()=>({revision:'b'.repeat(32),generation:3,boundaries:[]})})});assert.equal(typeof f.api.requestOwnerPeriodCommand,'function');const result=await f.api.requestOwnerPeriodCommand(uid,{operation:'reopen',opId:'c'.repeat(32),expectedRevision:revision,expectedGeneration:2,workspaceId:'default',reason:' QA correction '});assert.equal(result.generation,3);assert.equal(f.requests[0].options.headers.Authorization,'Bearer verified-token');const body=JSON.parse(f.requests[0].options.body);assert.equal(body.reason,'QA correction');assert.equal(body.uid,undefined);assert.equal(body.role,undefined);assert.equal(f.writes.length,0);});
 test('lost owner-command response reconciles only its matching immutable receipt',async()=>{const f=await fixture({respond:({options,docs})=>{const command=JSON.parse(options.body);docs.set(`users/${uid}/periodOperations/${command.opId}`,{actorUid:uid,fingerprint:createHash('sha256').update(JSON.stringify(command)).digest('hex'),result:{revision:'b'.repeat(32),generation:3,boundaries:[]}});throw Error('Lost response');}});assert.equal(typeof f.api.requestOwnerPeriodCommand,'function');assert.equal((await f.api.requestOwnerPeriodCommand(uid,{operation:'reopen',opId:'c'.repeat(32),expectedRevision:revision,expectedGeneration:2,workspaceId:'default',reason:'QA'})).generation,3);});
+
+test('independent signed closed-period reports verify concurrently with preserved control order',async()=>{
+  const f=await fixture(),through='2026-10-31';
+  const boundaries=[{workspaceId:'north',through,reportId:'c'.repeat(32)},{workspaceId:'south',through,reportId:'d'.repeat(32)}];
+  f.docs.set(`users/${uid}/accounting/control`,{format:'LOUREX_PERIOD_CONTROL_V1',version:1,ownerUid:uid,generation:3,boundaries});
+  for(const boundary of boundaries){
+    const state={version:1,workspaceId:boundary.workspaceId,through,sources:{},branches:[]};
+    const record=encoded(state,boundary.reportId);
+    f.docs.set(`users/${uid}/periodReports/${boundary.reportId}`,{...record.meta,format:'LOUREX_PERIOD_REPORT_V1',version:1,reportId:boundary.reportId,workspaceId:boundary.workspaceId,through});
+    for(const chunk of record.chunks)f.docs.set(`users/${uid}/periodReports/${boundary.reportId}/chunks/chunk-${boundary.reportId}-${String(chunk.index).padStart(5,'0')}`,chunk);
+  }
+  let calls=0,releaseFirst;
+  const read=fn=>{
+    calls++;
+    if(calls===2)return new Promise(resolve=>{releaseFirst=()=>resolve(fn());});
+    if(calls===3)releaseFirst?.();
+    return fn();
+  };
+  const outcome=await Promise.race([
+    f.api.getPeriodCloudControl(uid,read),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Period report requests were serialized')),700))
+  ]);
+  assert.deepEqual(Array.from(outcome.reports,item=>item.workspaceId),['north','south']);
+  assert.ok(calls>=6,'must re-read server control after verifying reports');
+  assert.equal(f.state.protection.generation,3);
+});
+
+test('a corrupt report never installs partial protected authority even with concurrent downloads',async()=>{
+  const f=await fixture(),through='2026-10-31',boundaries=[{workspaceId:'north',through,reportId:'e'.repeat(32)},{workspaceId:'south',through,reportId:'f'.repeat(32)}];
+  f.docs.set(`users/${uid}/accounting/control`,{format:'LOUREX_PERIOD_CONTROL_V1',version:1,ownerUid:uid,generation:3,boundaries});
+  for(const boundary of boundaries){
+    const state={version:1,workspaceId:boundary.workspaceId,through,sources:{},branches:[]};
+    const record=encoded(state,boundary.reportId);
+    f.docs.set(`users/${uid}/periodReports/${boundary.reportId}`,{...record.meta,format:'LOUREX_PERIOD_REPORT_V1',version:1,reportId:boundary.reportId,workspaceId:boundary.workspaceId,through,sha256:boundary.workspaceId==='south'?'0'.repeat(64):record.meta.sha256});
+    for(const chunk of record.chunks)f.docs.set(`users/${uid}/periodReports/${boundary.reportId}/chunks/chunk-${boundary.reportId}-${String(chunk.index).padStart(5,'0')}`,chunk);
+  }
+  await assert.rejects(f.api.getPeriodCloudControl(uid),/integrity|hash|verification/i);
+  assert.equal(f.state.protection,undefined,'never cache a partially verified period report');
+  assert.equal(f.writes.length,0,'startup verification must not publish any cloud data');
+});
