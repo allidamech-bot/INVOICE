@@ -15,12 +15,12 @@ test('one matte black startup presentation replaces retired ledger pulse and rem
  ]);
  assert.match(retired,/v351 compatibility stub/);
  assert.equal(html.includes('ledger-pulse-loading-v250.css'),false,'retired pulse cannot animate over the final startup owner');
- assert.match(html,/id="lourex-boot" class="loading-screen"/);
+ assert.match(html,/id=\"lourex-boot\" class=\"loading-screen lourex-launch\"/);
  assert.match(html,/prefers-reduced-motion:reduce/);
  assert.match(boot,/@media screen/);
  assert.match(boot,/\.loading-screen/);
  assert.match(boot,/background:var\(--boot-bg/);
- assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
+ assert.match(app,/if\(this\.state\.loading\)return <div className=\"loading-screen lourex-launch\"/);
  assert.match(theme,/dark='#0a1826',light='#f3f7fc'/);
  assert.equal(JSON.parse(manifest).background_color,'#0a1826');
 });

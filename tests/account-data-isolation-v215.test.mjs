@@ -19,7 +19,7 @@ test('v215 uses a physically distinct local IndexedDB database for every account
   assert.match(db,/function accountDbName\(uid:string\):string\{return `\$\{ACCOUNT_DB_PREFIX\}\$\{encodeURIComponent\(uid\)\}`;\}/);
   assert.match(db,/function scopedDbName\(\):string\{return activeStorageUid\?accountDbName\(activeStorageUid\):PUBLIC_DB_NAME;\}/);
   assert.match(db,/export async function activateAccountStorage\(uid:string\|null\)/);
-  assert.match(db,/indexedDB\.open\(name, DB_VERSION\)/);
+  assert.match(db,/indexedDB\.open\(name,\s*DB_VERSION\)/);
 });
 
 test('v215 legacy migration adopts data only when the durable cloud-account owner matches the same UID',async()=>{
@@ -65,7 +65,7 @@ test('v215 selects the UID storage boundary before any account session or cloud 
   assert.match(resolve,/await activateAccountStorage\(user\.uid\);[\s\S]*await suspendSession\(\);/);
   assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
   const app=await read('src/app/App.tsx');
-  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
 });
 
 test('v215 direct UID replacement goes through a guarded account transition before exposing new data',async()=>{

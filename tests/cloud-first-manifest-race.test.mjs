@@ -32,7 +32,7 @@ test('a completed manifest keeps its chunks even when auth changes after commit'
     })
   };
   const ctx={
-    exports,Uint8Array,Date,Promise,
+    exports,Uint8Array,Date,Promise,directRead:fn=>fn(),
     navigator:{onLine:true},
     requireUid:()=>{if(committed)throw new Error('Session changed');},
     encodePayload:()=>new Uint8Array([1,2]),
@@ -62,7 +62,8 @@ test('same cloud SHA with a newer local generation retries rather than claiming 
   const snapshot={uid:'uid',localRevision:'local-a',baseCloudRevision:'remote-old',
     baseCloudSha256:'1'.repeat(64),payload:{schemaVersion:1}};
   vm.runInNewContext(compiled,{
-    exports,Promise,requireUid:()=>{},
+    exports,Promise,directRead:fn=>fn(),requireUid:()=>{},
+
     getPeriodCloudControl:async()=>null,
     getPlainWorkspace:async()=>snapshot,
     getPlainCloudMeta:async()=>({revision:'remote-new',sha256:'2'.repeat(64)}),
@@ -80,7 +81,7 @@ test('cloud pull losing an IndexedDB generation race retries without overwriting
     baseCloudSha256:'1'.repeat(64),payload:{schemaVersion:1}};
   let attempts=0;
   vm.runInNewContext(compiled,{
-    exports,Promise,crypto:{randomUUID:()=> 'replacement-b'},requireUid:()=>{},
+    exports,Promise,directRead:fn=>fn(),crypto:{randomUUID:()=> 'replacement-b'},requireUid:()=>{},
     getPeriodCloudControl:async()=>null,
     getPlainWorkspace:async()=>local,
     getPlainCloudMeta:async()=>({revision:'cloud-b',sha256:'2'.repeat(64)}),

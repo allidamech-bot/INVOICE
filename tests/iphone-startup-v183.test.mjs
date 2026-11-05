@@ -20,7 +20,7 @@ test('v351 iPhone startup keeps one static boot owner and one canonical palette 
   const manifest=JSON.parse(manifestText);
   const boot=html.indexOf('id="lourex-boot"');
   const react=html.indexOf('react.production.min.js');
-  const themeBootstrap=html.indexOf('src="./theme-bootstrap-v347.js?v=361"');
+  const themeBootstrap=html.indexOf('src="./theme-bootstrap-v347.js?v=362"');
 
   assert.ok(boot>=0&&react>boot,'boot shell must be present before runtime scripts');
   assert.ok(themeBootstrap>=0&&themeBootstrap<boot,'external source bootstrap must resolve the preference before the boot shell paints');
@@ -28,22 +28,22 @@ test('v351 iPhone startup keeps one static boot owner and one canonical palette 
   assert.match(html,/<meta name="theme-color" content="#0a1826" \/>/);
   assert.match(html,/html\[data-ui-theme="light"\]\{--boot-bg:#f3f7fc/);
   assert.match(html,/html\[data-ui-theme="dark"\]\{--boot-bg:#0a1826/);
-  assert.match(html,/id="lourex-boot" class="loading-screen"/);
-  assert.match(html,/class="brand official-brand"/);
-  assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-header-logo\.jpeg" alt="LOUREX"/);
-  assert.match(html,/class="loading-line"/);
+  assert.match(html,/id="lourex-boot" class="loading-screen lourex-launch"/);
+  assert.match(html,/class="launch-lockup"/);
+  assert.match(html,/<img src="\.\/brand\/lourex-startup-mark\.webp" alt=""/);
+  assert.match(html,/class="launch-progress"/);
   assert.match(bootstrap,/dark='#0a1826',light='#f3f7fc'/);
   assert.match(theme,/THEME_COLORS:Record<ResolvedUiTheme,string>=\{light:'#f3f7fc',dark:'#0a1826'\}/);
   assert.doesNotMatch(theme,/#080808|#061820|#f2f7f8/);
   assert.match(startupCss,/background:var\(--boot-bg,var\(--ft-canvas,#0a1826\)\)!important/);
   assert.equal(manifest.background_color,'#0a1826');
   assert.equal(manifest.theme_color,'#0a1826');
-  assert.match(finalizer,/theme-bootstrap-v347\.js\?v=361/);
+  assert.match(finalizer,/theme-bootstrap-v347\.js\?v=362/);
   assert.match(finalizer,/canonicalLightBoot/);
   assert.match(finalizer,/canonicalDarkBoot/);
   assert.match(finalizer,/document-entry-v302\.js\?v=361/);
   assert.match(finalizer,/storage-cleanup-v347\.js\?v=351/);
-  assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
+  assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen lourex-launch"/);
 });
 
 test('cloud bootstrap uses an already-restored Firebase user before the slower auth wait',async()=>{
@@ -66,6 +66,6 @@ test('V2 account startup never performs an automatic watchdog reload or revives 
   assert.match(watchdog,/customerOverlay=no/);
   assert.doesNotMatch(watchdog,/startup-recovery-user-retry|showRecovery/);
   assert.doesNotMatch(watchdog,/setTimeout\(\(\)=>window\.location\.reload\(\)/);
-  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.doesNotMatch(app,/<AuthScreenSelector|unlockVault\(/);
 });

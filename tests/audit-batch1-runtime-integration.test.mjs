@@ -22,12 +22,13 @@ function startupFixture({editor=false,ready=false}={}){
     querySelector:selector=>selector==='.app-ui,.auth-page,.ta-auth-page,.app-recovery,.app-recovery-screen'&&ready?{}:null
   };
   const window={
+    addEventListener(){},
     setTimeout:fn=>timers.push(fn),
     location:{href:'https://example.test/',replace:url=>navigation.push(url)},
     __LOUREX_DIAGNOSTICS__:{mark:(kind,detail)=>events.push({kind,detail})}
   };
   vm.runInNewContext(watchdog,{window,document,HTMLElement:Element,navigator:{onLine:true}});
-  assert.equal(timers.length,1,'watchdog installs one non-disruptive timeout');
+  assert.equal(timers.length,2,'watchdog installs telemetry and a static retry fallback');
   timers[0]();
   return {navigation,events,bodyChildren};
 }

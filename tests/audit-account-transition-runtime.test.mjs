@@ -90,7 +90,7 @@ test('account transition masks UI immediately while old account cloud writes fin
   assert.equal(f.app.state.loading,true,'account data must be hidden before any asynchronous drain');
   assert.equal(f.app.state.unlocked,true,'queued in-memory writes can finish while the loading boundary masks UI');
   assert.ok(!f.log.includes('uid:account-B'),'cannot change IndexedDB scope while old writes are pending');
-  assert.match(source,/if\(this\.state\.loading\)return <div className="loading-screen"/,
+  assert.match(source,/if\(this\.state\.loading\)return <div className=\"loading-screen lourex-launch\"/,
     'loading state must mask business data during Firebase scope transition');
   f.releaseDrain();
   await f.completed;

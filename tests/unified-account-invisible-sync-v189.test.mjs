@@ -67,7 +67,7 @@ test('V2 never authorizes an account from an old PIN session key without Firebas
   assert.match(signedOut,/await activateAccountStorage\(null\)/);
   assert.doesNotMatch(gate,/resumeAccountSession\(|getSessionKey\(/);
   assert.match(app,/const user=await waitForCloudUser\(\)/);
-  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(cloud,/currentCloudUser\(\)\?\.uid!==uid\|\|activeAccountStorageUid\(\)!==uid/);
   assert.match(session,/export async function suspendSession\(\):Promise<void>/);
 });

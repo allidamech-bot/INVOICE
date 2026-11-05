@@ -57,6 +57,6 @@ test('v351 final reliability layer keeps touch targets and recovery surfaces the
   assert.match(reliability,/\.template-favorite-button\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important\}/);
   assert.match(reliability,/\.lourex-advisor-compose form>button\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important\}/);
   assert.match(pull,/background:var\(--ft-surface/);
-  assert.match(finalizer,/theme-bootstrap-v347\.js\?v=361/);
+  assert.match(finalizer,/theme-bootstrap-v347\.js\?v=362/);
   assert.match(finalizer,/home-final-closeout-v286\.js\?v=361/);
 });

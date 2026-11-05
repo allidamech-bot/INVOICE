@@ -14,7 +14,7 @@ test('a slow signed-in account records only the pending startup phase after twel
     'local-workspace-wait','cloud-reconcile-start','first-account-bootstrap-wait',
     'account-metadata-wait'
   ])assert.ok(init.includes("startupPhase('"+phase+"')"),'missing pending stage '+phase);
-  const pending=init.slice(init.indexOf('const startupPendingTimer=window.setTimeout('),init.indexOf('    try{\n      startupPhase(\'preferences-wait\');'));
+  const pending=init.slice(init.indexOf('const startupPendingTimer=window.setTimeout('),init.indexOf('const recoveryTimer='));
   assert.match(pending,/if\(!this\.state\.loading\)return/);
   assert.match(pending,/'startup-await-timeout'/);
   assert.match(pending,/'phase='\+pendingPhase/);
@@ -27,9 +27,9 @@ test('a slow signed-in account records only the pending startup phase after twel
 test('startup timeout is observation-only: no cloud bypass, race, or data mutation',async()=>{
   const app=await source();
   const init=app.slice(app.indexOf('  private initialize=async()=>'),app.indexOf('  private activity='));
-  assert.ok(init.indexOf("startupPhase('cloud-reconcile-start')") < init.indexOf('const result=await reconcilePlainCloudWorkspace(user.uid)'));
-  assert.ok(init.indexOf('const result=await reconcilePlainCloudWorkspace(user.uid)') < init.indexOf('this.setState({loading:false,firstRun:false,unlocked:true,vault'));
-  const pending=init.slice(init.indexOf('const startupPendingTimer=window.setTimeout('),init.indexOf('    try{\n      startupPhase(\'preferences-wait\');'));
+  assert.ok(init.indexOf("startupPhase('cloud-reconcile-start')") < init.indexOf('const result=await reconcilePlainCloudWorkspace(user.uid,read)'));
+  assert.ok(init.indexOf('const result=await reconcilePlainCloudWorkspace(user.uid,read)') < init.indexOf('this.setState({loading:false,firstRun:false,unlocked:true,vault'));
+  const pending=init.slice(init.indexOf('const startupPendingTimer=window.setTimeout('),init.indexOf('const recoveryTimer='));
   assert.doesNotMatch(pending,/Promise\.race|reconcilePlainCloudWorkspace\(|savePlainWorkspace\(|setState\(|\.reload\(|\.replace\(/);
   assert.match(init,/await putCloudAccount\(user.uid,user.email\)/);
 });

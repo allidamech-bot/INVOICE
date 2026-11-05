@@ -19,7 +19,7 @@ test('external font stylesheet is non-render-blocking but retains the original f
 });
 
 test('initial loading still shows the approved LOUREX logo without layout shift',()=>{
-  assert.match(html,/<img src="\.\/brand\/lourex-header-logo\.jpeg" alt="LOUREX" decoding="async" width="108" height="108" \/>/);
+  assert.match(html,/<img src=\"\.\/brand\/lourex-startup-mark\.webp\" alt=\"\" width=\"96\" height=\"116\" decoding=\"async\" \/>/);
   assert.match(html,/id="lourex-boot"/);
   assert.match(html,/src="\.\/src\/app\/index\.js"/);
 });

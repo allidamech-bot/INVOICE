@@ -25,7 +25,7 @@ function fixture(){
   };
   vm.runInNewContext(source,{
     document,HTMLElement:Element,navigator:{onLine:true},
-    window:{setTimeout:fn=>{timeout=fn;},__LOUREX_DIAGNOSTICS__:{mark:(kind,detail)=>events.push({kind,detail})}}
+    window:{addEventListener(){},setTimeout:(fn,ms)=>{if(ms===12000)timeout=fn;},__LOUREX_DIAGNOSTICS__:{mark:(kind,detail)=>events.push({kind,detail})}}
   });
   return {
     root,screen,reactLogo,body,events,

@@ -1,3 +1,4 @@
+import { startupCloudRead, StartupReadTimeout } from '../cloud/startup-read.js';
 import { CreditNoteTreatmentDialog } from '../components/CreditNoteTreatmentDialog.js';
 import type { CreditNoteTreatment } from '../lib/document-lifecycle.js';
 import { automaticElectronicDocument } from '../lib/secure-share.js';
@@ -51,7 +52,7 @@ import { AppShell } from '../components/AppShell.js';
 import { WorkspaceHome } from '../components/WorkspaceHome.js';
 import { GlobalSearch } from '../components/GlobalSearch.js';
 import { RecurringWorkflowsManager } from '../components/RecurringWorkflowsManager.js';
-import { Brand, Button, ConfirmDialog, Modal, Select, Toast } from '../components/UI.js';
+import { Button, ConfirmDialog, Modal, Select, Toast } from '../components/UI.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { DraftDocumentRenderer } from '../components/DraftDocumentRenderer.js';
 import { isLetterDocument } from '../lib/document-extras.js';
@@ -112,6 +113,7 @@ export class App extends React.Component<{},State> {
   private accountTransitionRunning=false;
   /** Invalidates in-flight business actions across Firebase sessions, without a CryptoKey or PIN. */
   private accountEpoch=0;
+  private startupRecoveryTimer:number|undefined;
   private recurringProcessRunning=false;
 
   componentDidMount():void{
@@ -138,6 +140,8 @@ export class App extends React.Component<{},State> {
     window.setTimeout(()=>void this.cloudSyncNow().catch(error=>this.retryCloudSync(error)),0);
   }
   componentWillUnmount():void{
+    this.accountEpoch++;
+    window.clearTimeout(this.startupRecoveryTimer);
     if(this.deferredRemoteTimer){window.clearTimeout(this.deferredRemoteTimer);this.deferredRemoteTimer=undefined;}
     ['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));
     document.removeEventListener('visibilitychange',this.handleVisibilityChange);
@@ -157,7 +161,9 @@ export class App extends React.Component<{},State> {
    * remain stored but are neither unlocked nor installed into the clean account.
    */
   private initialize=async()=>{
-    this.accountEpoch++;
+    const epoch=++this.accountEpoch;
+    const transitioning=this.accountTransitionRunning;
+    const isCurrent=()=>epoch===this.accountEpoch&&transitioning===this.accountTransitionRunning;
     // Phase-only timing: no UID, account contents, PIN, token, document or
     // amount is logged. Distinguish slow Firebase reconciliation from local
     // IndexedDB hydration and React first paint on real iPhone Safari.
@@ -187,9 +193,18 @@ export class App extends React.Component<{},State> {
         );
       }catch{}
     },12_000);
+    // Writes may already be in flight and cannot be safely raced. Give the
+    // customer a recovery action without allowing a second initializer in this page.
+    const recoveryTimer=window.setTimeout(()=>{
+      if(!isCurrent()||!this.state.loading)return;
+      this.setState({loading:false,firstRun:false,unlocked:false,vault:null,cloudLinked:false,
+        cloudSyncState:'error',cloudSyncMessage:t('Opening your workspace is taking longer than expected. Check your connection and retry.','يستغرق فتح مساحة العمل وقتًا أطول من المتوقع. تحقق من الاتصال وأعد المحاولة.')});
+    },30_000);
+    this.startupRecoveryTimer=recoveryTimer;
     try{
       startupPhase('preferences-wait');
       const preferences=await getPublicPreferences();
+      if(!isCurrent())return;
       startupPhase('preferences-ready');
       let uiLanguage=preferences?.uiLanguage??'en';
       const publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';
@@ -197,6 +212,7 @@ export class App extends React.Component<{},State> {
       startupPhase('firebase-auth-wait');
       const user=await waitForCloudUser();
       startupPhase('firebase-auth-ready');
+      if(!isCurrent())return;
       if(!user){
         this.setState({loading:false,firstRun:true,unlocked:false,vault:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});
         return;
@@ -208,14 +224,16 @@ export class App extends React.Component<{},State> {
       }
       startupPhase('local-workspace-wait');
       let local=await getPlainWorkspace();
+      if(!isCurrent())return;
       startupPhase('local-workspace-read');
       let syncState:CloudSyncState='local';
       let syncMessage='';
       const online=typeof navigator==='undefined'||navigator.onLine;
+      const read=startupCloudRead(20_000);
       if(online){
         try{
           startupPhase('cloud-reconcile-start');
-          const result=await reconcilePlainCloudWorkspace(user.uid);
+          const result=await reconcilePlainCloudWorkspace(user.uid,read);
           startupPhase('cloud-reconcile-finished');
           if(result==='retry'){
             syncState='queued';
@@ -233,7 +251,7 @@ export class App extends React.Component<{},State> {
           local=await getPlainWorkspace();
         }catch(error){
           startupPhase('cloud-reconcile-error');
-          if(!local)throw error;
+          if(!local||error instanceof StartupReadTimeout)throw error;
           syncState='error';
           syncMessage=error instanceof Error?error.message:String(error);
         }
@@ -243,13 +261,14 @@ export class App extends React.Component<{},State> {
         syncState='offline';
         syncMessage=t('Offline. Changes are saved on this device until your account reconnects.','غير متصل. تُحفظ التعديلات على هذا الجهاز حتى يعود الاتصال بالحساب.');
       }
+      if(!isCurrent())return;
       if(!local){
         startupPhase('first-account-bootstrap-wait');
         // Cloud-first bootstrap: do NOT create an authoritative local blank
         // until the server has committed it. A simultaneous second device
         // must never strand this browser with a divergent empty local record.
         if(!online)throw new Error('Internet connection is required to start a new account.');
-        const existing=await getPlainCloudMeta(user.uid);
+        const existing=await getPlainCloudMeta(user.uid,read);
         if(existing)throw new Error('Cloud workspace appeared during initialization. Retry to restore it.');
         const blank=emptyVault();
         blank.appSettings={...blank.appSettings,autoLockMinutes:0};
@@ -258,16 +277,16 @@ export class App extends React.Component<{},State> {
           updatedAt:new Date().toISOString(),localRevision:crypto.randomUUID(),
           baseCloudRevision:null,baseCloudSha256:null
         };
-        const outcome=await uploadPlainCloudWorkspace(user.uid,proposal);
+        const outcome=await uploadPlainCloudWorkspace(user.uid,proposal,false,read);
         if(outcome==='remote-changed'){
           // Two fresh devices may bootstrap the same Firebase UID at once.
           // The losing device must hydrate the verified winning revision,
           // not turn a safe CAS race into an account-blocking reload prompt.
-          const winner=await reconcilePlainCloudWorkspace(user.uid);
+          const winner=await reconcilePlainCloudWorkspace(user.uid,read);
           if(winner!=='pulled'&&winner!=='same')
             throw new Error('Another device is preparing your account. Retry in a moment.');
         }else{
-          const committed=await getPlainCloudMeta(user.uid);
+          const committed=await getPlainCloudMeta(user.uid,read);
           if(!committed)throw new Error('Cloud workspace could not be verified after setup.');
           const accepted=await replacePlainWorkspaceIfUnchanged(user.uid,null,{
             ...proposal,baseCloudRevision:committed.revision,baseCloudSha256:committed.sha256
@@ -279,15 +298,19 @@ export class App extends React.Component<{},State> {
         local=await getPlainWorkspace();
       }
       if(!local)throw new Error('The account workspace is unavailable.');
+      if(!isCurrent())return;
       if(currentCloudUser()?.uid!==user.uid||activeAccountStorageUid()!==user.uid)
         throw new Error('Account identity changed while opening the workspace.');
       const vault=this.normalizedVault(local.payload);
       startupPhase('vault-normalized');
       uiLanguage=vault.appSettings.uiLanguage??uiLanguage;
       setUiLanguage(uiLanguage);
-      this.vaultWriteTail=Promise.resolve(vault);
       startupPhase('account-metadata-wait');
       await putCloudAccount(user.uid,user.email);
+      if(!isCurrent())return;
+      if(currentCloudUser()?.uid!==user.uid||activeAccountStorageUid()!==user.uid)
+        throw new Error('Account identity changed while opening the workspace.');
+      this.vaultWriteTail=Promise.resolve(vault);
       this.setState({loading:false,firstRun:false,unlocked:true,vault,
         uiLanguage,publicLogo:vault.company.logoDataUrl||publicLogo,cloudUser:user,cloudLinked:true,
         cloudSyncState:syncState,cloudSyncMessage:syncMessage,screen:'home',editorDoc:null},
@@ -300,12 +323,15 @@ export class App extends React.Component<{},State> {
           void this.processDueRecurringWorkflows(true);
         });
     }catch(error){
+      if(!isCurrent())return;
       startupPhase('boot-error');
       this.setState({loading:false,firstRun:false,unlocked:false,vault:null,
         cloudUser:currentCloudUser(),cloudLinked:false,cloudSyncState:'error',
         cloudSyncMessage:error instanceof Error?error.message:String(error)});
     }finally{
       window.clearTimeout(startupPendingTimer);
+      window.clearTimeout(recoveryTimer);
+      if(this.startupRecoveryTimer===recoveryTimer)this.startupRecoveryTimer=undefined;
     }
   };
 
@@ -922,12 +948,19 @@ export class App extends React.Component<{},State> {
 
   render():any{
     const activeLanguage=this.state.vault?.appSettings.uiLanguage??this.state.uiLanguage;setUiLanguage(activeLanguage);
-    if(this.state.loading)return <div className="loading-screen"><Brand logoDataUrl={this.state.publicLogo} language={activeLanguage}/><span className="loading-line"/></div>;
+    if(this.state.loading)return <div className="loading-screen lourex-launch" role="status" aria-label={t('Loading LOUREX Invoice','جارٍ تحميل لوركس')}>
+      <span className="launch-frame" aria-hidden="true"/>
+      <div className="launch-lockup" aria-hidden="true">
+        <img src="./brand/lourex-startup-mark.webp" alt="" width="96" height="116"/>
+        <strong>LOUREX</strong><span>INVOICE</span>
+        <i className="launch-progress"/>
+      </div>
+    </div>;
     if(this.state.firstRun)return <AccountEntryScreen language={activeLanguage} onLanguageChange={this.changePublicLanguage}/>;
     if(!this.state.unlocked)return <main className="auth-recovery-state" role="alert">
       <strong>{t('Account workspace unavailable','تعذر فتح مساحة الحساب')}</strong>
       <p>{this.state.cloudSyncMessage||t('Connect to Firebase and retry.','اتصل بـ Firebase ثم حاول مجددًا.')}</p>
-      <button type="button" className="button primary" onClick={()=>this.setState({loading:true},()=>void this.initialize())}>{t('Retry','إعادة المحاولة')}</button>
+      <button type="button" className="button primary" onClick={()=>{if(this.startupRecoveryTimer!==undefined){window.location.reload();return;}this.setState({loading:true},()=>void this.initialize());}}>{t('Retry','إعادة المحاولة')}</button>
       <button type="button" className="button" onClick={()=>void signOutCloudUser().then(()=>window.location.reload())}>{t('Sign out','تسجيل الخروج')}</button>
     </main>;
     const vault=this.requireVault();

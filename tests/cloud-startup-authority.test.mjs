@@ -5,12 +5,12 @@ const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('V2 opens through Firebase Auth and hydrates the authoritative cloud workspace without any PIN prompt',async()=>{
   const [entry,app]=await Promise.all([read('src/app/index.tsx'),read('src/app/App.tsx')]);
-  assert.match(entry,/const accountReady=await resolveRequiredAccountSession\(\)/);
+  assert.match(entry,/await resolveRequiredAccountSession\(\)/);
   assert.match(entry,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
   assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
   const initialize=app.slice(app.indexOf('private initialize=async'),app.indexOf('private activity='));
   assert.match(initialize,/const user=await waitForCloudUser\(\)/);
-  assert.match(initialize,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(initialize,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(initialize,/await getPlainWorkspace\(\)/);
   assert.match(initialize,/unlocked:true,vault/);
   assert.doesNotMatch(initialize,/unlockVault\(|verifyPin\(|setupVault\(/);

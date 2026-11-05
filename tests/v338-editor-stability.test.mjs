@@ -50,6 +50,7 @@ test('startup watchdog remains silent during startup and never navigates over an
  assert.match(watchdog,/\.editor-screen/);
  assert.match(watchdog,/if\(editingWorkspaceOpen\(\)\|\|!bootStillVisible\(\)\)return/);
  assert.match(watchdog,/markDiagnostic\('startup-watchdog-timeout','automaticReload=no customerOverlay=no'\)/);
- assert.doesNotMatch(watchdog,/showRecovery|Retry safely|window\.location\.replace|window\.location\.reload/);
+ assert.doesNotMatch(watchdog,/showRecovery|Retry safely|window\.location\.replace/);
+ assert.match(watchdog,/retry\.addEventListener\('click',function\(\)\{window\.location\.reload\(\);\},\{once:true\}\)/);
  assert.doesNotMatch(watchdog,/setTimeout\([^;]*location\.replace/);
 });

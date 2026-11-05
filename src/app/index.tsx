@@ -326,7 +326,7 @@ async function start():Promise<void>{
     }catch{}
   };
   startupStage('entry-begin');
-  const accountReady=await resolveRequiredAccountSession();
+  await resolveRequiredAccountSession();
   startupStage('account-storage-scoped');
   // V1 encrypted cloud is deliberately NOT hydrated for fresh V2 accounts.
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
@@ -340,7 +340,10 @@ async function start():Promise<void>{
   startPlainWorkspaceWatcher();
   startAccountSignOutWatcher();
 }
-void start();
+void start().catch(()=>{
+  try{(window as any).__LOUREX_DIAGNOSTICS__?.mark?.('startup-entry-failed','phase=entry');}catch{}
+  window.dispatchEvent(new Event('lourex-startup-entry-failed'));
+});
 
 function isDocumentEditorOpen():boolean{
   return document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
