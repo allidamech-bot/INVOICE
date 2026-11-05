@@ -10,13 +10,13 @@ test('startup telemetry remains data-safe with no customer recovery UI or automa
     read('scripts/build.mjs'),read('public/startup-watchdog-v321.js'),
     read('public/sw.js'),read('vercel.json'),read('index.html')
   ]);
-  assert.match(build,/await writeFile\('dist\\/runtime-config\\.js'/);
-  assert.match(build,/window\\.__LOUREX_RUNTIME__/);
-  assert.match(html,/src="\\.\\/startup-watchdog-v321\\.js\\?v=348"/);
-  assert.match(watchdog,/function bootStillVisible\\(\\)/);
-  assert.match(watchdog,/window\\.setTimeout\\(recoverIfNeeded,CHECK_MS\\)/);
-  assert.doesNotMatch(watchdog,/showRecovery|lourex-startup-recovery|createElement|location\\.replace|serviceWorker\\.getRegistrations|caches\\.delete|indexedDB\\.deleteDatabase/);
-  assert.match(sw,/async function networkFirst\\(request\\)/);
+  assert.match(build,/await writeFile\('dist\/runtime-config\.js'/);
+  assert.match(build,/window\.__LOUREX_RUNTIME__/);
+  assert.match(html,/src="\.\/startup-watchdog-v321\.js\?v=348"/);
+  assert.match(watchdog,/function bootStillVisible\(\)/);
+  assert.match(watchdog,/window\.setTimeout\(recoverIfNeeded,CHECK_MS\)/);
+  assert.doesNotMatch(watchdog,/showRecovery|lourex-startup-recovery|createElement|location\.replace|serviceWorker\.getRegistrations|caches\.delete|indexedDB\.deleteDatabase/);
+  assert.match(sw,/async function networkFirst\(request\)/);
   const config=JSON.parse(vercel);
   const header=config.headers.find(x=>x.source==='/runtime-config.js');
   assert.equal(header?.headers?.find(x=>x.key==='Cache-Control')?.value,'no-cache, no-store, must-revalidate');
