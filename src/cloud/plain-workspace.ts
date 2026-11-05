@@ -118,13 +118,19 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
   const meta=expected??await getPlainCloudMeta(uid,read);
   if(!meta)return null;
   if(!validMeta(meta))throw new Error('The cloud workspace manifest format is invalid.');
+  // Large owner workspaces may contain >100 immutable Firestore chunks.
+  // Do not mistake a long but progressing authenticated restore for a
+  // missing cloud workspace. No extension for small or invalid manifests.
+  read.extendForLargeWorkspace?.(meta.chunkCount);
+  traceStartupCloudRead(read,'workspace-chunks-start');
   const bytes=new Uint8Array(meta.bytes);
   let written=0;
-  for(let offset=0;offset<meta.chunkCount;offset+=8){
-    const indices=Array.from({length:Math.min(8,meta.chunkCount-offset)},(_,i)=>offset+i);
-    const chunks=meta.chunkStorage==='period-generations-v1'
-      ?firebase.firestore().collection('users').doc(uid).collection('periodGenerations').doc(meta.revision).collection('chunks')
-      :collection(uid);
+  const batchSize=16;
+  const chunks=meta.chunkStorage==='period-generations-v1'
+    ?firebase.firestore().collection('users').doc(uid).collection('periodGenerations').doc(meta.revision).collection('chunks')
+    :collection(uid);
+  for(let offset=0;offset<meta.chunkCount;offset+=batchSize){
+    const indices=Array.from({length:Math.min(batchSize,meta.chunkCount-offset)},(_,i)=>offset+i);
     const snapshots=await read(()=>Promise.all(indices.map(i=>chunks.doc(chunkId(meta.revision,i)).get())));
     requireUid(uid);
     for(let i=0;i<snapshots.length;i++){
@@ -137,14 +143,21 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
         throw new Error('An account workspace chunk has an invalid length.');
       bytes.set(chunk,written);written+=chunk.length;
     }
+    // Only fixed phases: no UID, revision, counts, amounts or customer data.
+    if((offset/batchSize)%4===3||offset+batchSize>=meta.chunkCount)
+      traceStartupCloudRead(read,'workspace-chunks-progress');
   }
+  traceStartupCloudRead(read,'workspace-chunks-complete');
   if(written!==meta.bytes||(await sha256(bytes))!==meta.sha256)
     throw new Error('The cloud workspace failed its integrity check.');
+  traceStartupCloudRead(read,'workspace-hash-verified');
   const latest=await getPlainCloudMeta(uid,read);
   if(!latest||latest.revision!==meta.revision||latest.sha256!==meta.sha256||latest.chunkStorage!==meta.chunkStorage)
     throw new Error('The cloud workspace changed during download. Retry.');
+  traceStartupCloudRead(read,'workspace-manifest-rechecked');
   const payload=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)) as VaultPayload;
   assertRestorableBackupVault(payload);
+  traceStartupCloudRead(read,'workspace-payload-verified');
   if(payload.schemaVersion!==meta.schemaVersion)
     throw new Error('The downloaded workspace schema does not match the verified manifest.');
   requireUid(uid);

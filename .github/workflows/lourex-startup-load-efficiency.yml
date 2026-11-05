@@ -8,6 +8,9 @@ on:
       - 'public/theme-bootstrap-v347.js'
       - 'public/sw.js'
       - 'tests/startup-load-efficiency-20261018.test.mjs'
+      - 'src/cloud/plain-workspace.ts'
+      - 'src/cloud/startup-read.ts'
+      - 'tests/startup-workspace-chunks.test.mjs'
       - '.github/workflows/lourex-startup-load-efficiency.yml'
 
 permissions:
@@ -34,7 +37,7 @@ jobs:
       - name: TypeScript safety
         run: npm run typecheck
       - name: Test source startup and service worker contract
-        run: node --test tests/startup-load-efficiency-20261018.test.mjs tests/pwa-safety.test.mjs tests/iphone-startup-v183.test.mjs tests/pwa-stuck-boot-recovery.test.mjs
+        run: node --test tests/startup-load-efficiency-20261018.test.mjs tests/pwa-safety.test.mjs tests/iphone-startup-v183.test.mjs tests/pwa-stuck-boot-recovery.test.mjs tests/startup-workspace-chunks.test.mjs tests/startup-reliability.test.mjs
       - name: Build production runtime without deployment
         run: npm run build
       - name: Verify output bundle and cache migration contracts
