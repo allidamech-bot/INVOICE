@@ -1296,7 +1296,7 @@ export function installConversationWorkspace(host:Host):void {
   // directly within this mounted UI without decrypting its entire history.
   // Every mode keeps its own kernel and message snapshot; no permissions cross.
   const readyModeCache=new Map<AiConversationMode,{
-    kernel:ConversationKernel;vault:VaultPayload;messages:any[];
+    kernel:ConversationKernel;messages:any[];
     threadId:string;summary:string;receipts:any[];scopeKey:string;
   }>();
   host.__workspaceReadyModeCache=readyModeCache;
@@ -1311,7 +1311,7 @@ export function installConversationWorkspace(host:Host):void {
        host.state.busy||host.applying||host.__foundationTurnBusy)return null;
     try{strictAiActor(vault);}catch{return null;}
     const mode=normalizeAiConversationMode(kernel.mode);
-    return {kernel,vault,messages:[...(host.state.messages||[])],
+    return {kernel,messages:[...(host.state.messages||[])],
       threadId:kernel.scope.threadId,summary:host.__lourexAssistantSummary||'',
       receipts:[...(host.__foundationReceipts||[])],scopeKey:kernelScopeKey(kernel.scope),mode};
   };
@@ -1342,7 +1342,7 @@ export function installConversationWorkspace(host:Host):void {
          cached.kernel.scope.workspaceId===previous.scope.workspaceId&&
          cached.kernel.scope.branchId===previous.scope.branchId&&
          cached.kernel.scope.accountId===activeAccountStorageUid()&&
-         cached.vault===verified.vault&&host.__workspaceObservedProps===host.props&&
+         host.__workspaceObservedProps===host.props&&
          !cached.kernel.artifact&&!host.__intelligenceNeedsReopen&&
          !(cached.kernel.missions||[]).some((mission:any)=>mission.steps?.some((step:any)=>step.status==='needs_approval'))){
         // Keep the two existing kernels separate; invalidate pending async
@@ -1352,7 +1352,7 @@ export function installConversationWorkspace(host:Host):void {
         host.__workspaceLoadTimer=0;
         clearConversationToolPresentation(host);
         host.__intelligenceKernel=cached.kernel;
-        host.__foundationVault=cached.vault;
+        host.__foundationVault=verified.vault;
         host.__foundationReceipts=[...cached.receipts];
         host.__lourexAssistantThreadId=cached.threadId;
         host.__lourexAssistantSummary=cached.summary;
