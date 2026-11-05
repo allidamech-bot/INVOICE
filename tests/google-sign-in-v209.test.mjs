@@ -42,9 +42,9 @@ test('Google account link requires verified existing password and preserves UID-
   assert.match(google,/signInWithEmailAndPassword\(email\.trim\(\),password\)/);
   assert.match(google,/existingUser\.linkWithCredential\(pendingGoogleCredential\)/);
   assert.match(google,/user\.uid!==originalUid/);
-  assert.match(enter,/setActiveAccountUid\(user\.uid\)/);
-  assert.match(enter,/await activateAccountStorage\(user\.uid\)/);
-  assert.ok(enter.indexOf('window.location.replace')>enter.indexOf('await activateAccountStorage(user.uid)'));
+  assert.match(enter,/lourex-account-transition-request/);
+  assert.match(enter,/detail:\{uid:user\.uid\}/);
+  assert.doesNotMatch(enter,/setActiveAccountUid|activateAccountStorage|location\.replace/);
   assert.match(account,/\[LOUREX Google Auth\]/);
 });
 

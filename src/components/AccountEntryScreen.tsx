@@ -5,8 +5,6 @@ import { accountPasswordIssue, MAX_ACCOUNT_PASSWORD_LENGTH, MIN_ACCOUNT_PASSWORD
 import { createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser } from '../cloud/firebase.js';
 import type { CloudUser } from '../cloud/firebase.js';
 import { clearPendingGoogleLink, consumeGoogleRedirectResult, googleRedirectPending, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, prepareGooglePopupAuth, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
-import { activateAccountStorage } from '../storage/db.js';
-import { setActiveAccountUid } from '../storage/session.js';
 import { ThemeControl } from './ThemeControl.js';
 
 interface Props {language:UiLanguage;onLanguageChange:(language:UiLanguage)=>Promise<void>;}
@@ -24,9 +22,13 @@ export class AccountEntryScreen extends React.Component<Props,State>{
 
   private enterAuthenticatedAccount=async(user:CloudUser):Promise<void>=>{
     try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}
-    setActiveAccountUid(user.uid);
-    await activateAccountStorage(user.uid);
-    window.location.replace(window.location.href);
+    // React has already mounted the account-transition listener. Never
+    // change the storage scope in the public gateway or reload after sign-in:
+    // that races the in-app transition, causing a successful home mount to be
+    // discarded and a second expensive cloud bootstrap on iPhone Safari.
+    // App.handleAccountTransitionRequest drains writes, revokes the outgoing
+    // session, switches UID scope, and initializes the verified account.
+    window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:user.uid}}));
   };
 
   private prepareGoogle=async():Promise<void>=>{
