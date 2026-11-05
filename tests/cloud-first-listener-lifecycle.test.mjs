@@ -49,12 +49,14 @@ async function harness(){
     snapshot:()=>({subscriptions,unsubscribes,watched:[...changeListeners.keys()],events:[...events]})
   };
 }
-test('late Firebase login attaches realtime observer only AFTER IndexedDB UID activation',async()=>{
+test('late Firebase login attaches realtime observer only AFTER verified workspace hydration',async()=>{
   const app=await harness();
   app.setAuth('A');
   assert.deepEqual(app.snapshot().watched,[],'auth may precede local UID activation');
   app.activate('A');
   app.transitionDone();
+  assert.deepEqual(app.snapshot().watched,[],'do not compete with initial Firebase control/report reads');
+  app.hydrated();
   assert.deepEqual(app.snapshot().watched,['A']);
   app.remote('A');
   assert.equal(app.snapshot().events.filter(x=>x==='lourex-cloud-remote-newer').length,1);
@@ -68,6 +70,8 @@ test('sign-out clears old UID listener; next login sees only current user update
   assert.deepEqual(app.snapshot().watched,[]);
   app.activate(null);
   app.setAuth('B');app.activate('B');app.transitionDone();
+  assert.deepEqual(app.snapshot().watched,[],'new UID must finish hydrating before subscribing');
+  app.hydrated();
   assert.deepEqual(app.snapshot().watched,['B']);
   app.remote('A');
   assert.equal(app.snapshot().events.filter(x=>x==='lourex-cloud-remote-newer').length,0);
@@ -77,7 +81,7 @@ test('sign-out clears old UID listener; next login sees only current user update
 });
 test('same Firebase UID can reconnect after signout without leaking duplicate subscriptions',async()=>{
   const app=await harness();
-  app.setAuth('A');app.activate('A');app.transitionDone();
+  app.setAuth('A');app.activate('A');app.transitionDone();app.hydrated();
   app.setAuth(null);app.activate(null);
   app.setAuth('A');app.activate('A');app.hydrated();
   assert.deepEqual(app.snapshot().watched,['A']);
