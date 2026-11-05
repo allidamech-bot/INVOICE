@@ -1481,6 +1481,33 @@ function syncWorkspaceViewport():void {
 }
 export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
-  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceComposerDrafts?.clear();host.__workspaceReadyModeCache?.clear();host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
+  const before=previous as {screen?:unknown;language?:unknown;activeDocument?:{id?:unknown}|null}|undefined;
+  const after=host.props as {screen?:unknown;language?:unknown;activeDocument?:{id?:unknown}|null};
+  const kernel=host.__intelligenceKernel as ConversationKernel|undefined;
+  const vault=host.__foundationVault as {appSettings?:{activeWorkspaceId?:string;activeBranchId?:string}}|undefined;
+  // AppShell supplies a new inline onNavigate callback on ordinary renders.
+  // Reference inequality alone is NOT a scope change. Invalidating the AI
+  // generation on those renders cancels otherwise valid replies mid-request.
+  const propsChanged=before?.screen!==after.screen||
+    before?.language!==after.language||
+    before?.activeDocument?.id!==after.activeDocument?.id;
+  const accountChanged=Boolean(kernel&&kernel.scope.accountId!==activeAccountStorageUid());
+  const companyChanged=Boolean(kernel?.scope.scope==='business'&&vault&&(
+    kernel.scope.workspaceId!==(vault.appSettings?.activeWorkspaceId||'default')||
+    kernel.scope.branchId!==(vault.appSettings?.activeBranchId||'main')));
+  if(propsChanged||accountChanged||companyChanged){
+    clearConversationToolPresentation(host);
+    host.__workspaceComposerDrafts?.clear();
+    host.__workspaceReadyModeCache?.clear();
+    host.__workspaceObservedProps=undefined;
+    host.__foundationVault=undefined;
+    host.__businessMemories=[];
+    host.__businessThreads=[];
+    host.__workspaceRefresh?.();
+    return;
+  }
+  // Keep a completed hydration valid across harmless parent callback/prop
+  // object recreation. Do not manufacture readiness while still loading.
+  if(host.__workspaceObservedProps===previous)host.__workspaceObservedProps=host.props;
 }
 export function unmountConversationWorkspace(host:Host):void {host.__workspaceReadyModeCache?.clear();host.__workspaceComposerDrafts?.clear();if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
