@@ -115,6 +115,14 @@
     box-shadow:none!important;
   }
 
+
+  /* Launch-only premium graphite/ivory surface. Do not recolor the app. */
+  html[data-ui-theme] body #root > #lourex-boot.lourex-launch.loading-screen,
+  html[data-ui-theme] body #root > .lourex-launch.loading-screen {
+    background-color:var(--launch-base,#0b0e13)!important;
+    background-image:var(--launch-background,none)!important;
+  }
+
   /* Account recovery is content inside the auth gateway, never another fixed
      loading overlay. */
   .app-ui .auth-recovery-state,
