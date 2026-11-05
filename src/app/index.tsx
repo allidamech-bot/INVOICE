@@ -289,16 +289,23 @@ function startAccountSignOutWatcher():void{
 function startPlainWorkspaceWatcher():void{
   let stop:()=>void=()=>{};
   let watchedUid:string|null=null;
-  const reconcileListener=()=>{
+  let hydratedUid:string|null=null;
+  const reconcileListener=(signal?:unknown)=>{
     const user=currentCloudUser();
     const uid=user?.uid??null;
     const scopedUid=activeAccountStorageUid();
-    if(uid&&uid===scopedUid&&watchedUid===uid)return;
+    // Do not open competing realtime Firestore channels while initial admin
+    // cloud authority and closed-period reports are being verified. This
+    // observer is for *changes after hydration*, never for initial bootstrap.
+    if(!uid)hydratedUid=null;
+    if(signal&&typeof signal==='object'&&'type' in signal&&
+       signal.type==='lourex-cloud-account-ready')hydratedUid=uid;
+    if(uid&&uid===scopedUid&&watchedUid===uid&&hydratedUid===uid)return;
     // A Firebase sign-in can arrive BEFORE its UID-scoped IndexedDB activation.
     // Subscribe again on account-transition-complete; otherwise this device
     // never receives live invoice/customer changes from another device.
     stop();stop=()=>{};watchedUid=null;
-    if(!uid||scopedUid!==uid)return;
+    if(!uid||scopedUid!==uid||hydratedUid!==uid)return;
     try{
       stop=subscribePlainCloudChanges(uid,()=>{
         if(currentCloudUser()?.uid!==uid||activeAccountStorageUid()!==uid)return;
