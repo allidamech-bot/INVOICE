@@ -41,7 +41,7 @@ test('User-triggered backup remains optional and PIN-free',async()=>{
 
 test('simultaneous first login from two devices hydrates the winning cloud snapshot instead of demanding a PIN or reload',async()=>{
   const app=await read('src/app/App.tsx');
-  const from=app.indexOf('const outcome=await uploadPlainCloudWorkspace(user.uid,proposal)');
+  const from=app.indexOf('const outcome=await uploadPlainCloudWorkspace(user.uid,proposal,false,read)');
   const to=app.indexOf("syncState='synced';",from);
   assert.ok(from>=0&&to>from,'bootstrap publish and winner reconciliation are required');
   const block=app.slice(from,to);
