@@ -15,6 +15,7 @@ on:
       - 'tests/ai-chat-ipad-conversation-20261014.test.mjs'
       - 'tests/ai-f01-real-pdf-preview.test.mjs'
       - 'tests/ai-conversation-workspace.test.mjs'
+      - 'tests/ai-conversation-tool-presentation-isolation.test.mjs'
       - 'tests/ai-premium-conversation-batch3.test.mjs'
       - '.github/workflows/ai-chat-ipad-20261014.yml'
 permissions:
@@ -46,6 +47,8 @@ jobs:
           tests/ai-f01-real-pdf-preview.test.mjs
           tests/ai-conversation-workspace.test.mjs
           tests/ai-living-workspace-mode-integration.test.mjs
+          tests/ai-conversation-tool-presentation-isolation.test.mjs
+          tests/ai-new-conversation-mode.test.mjs
           tests/ai-advisor-controller-handoff.test.mjs
           tests/ai-001-controller-advisor-routing.test.mjs
           tests/ai-premium-conversation-batch3.test.mjs
