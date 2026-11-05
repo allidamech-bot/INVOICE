@@ -2,7 +2,6 @@
   'use strict';
 
   var CHECK_MS=12000;
-  var CACHE_PREFIX='lourex-invoice-';
   var DIAG_LOG_KEY='lourex-runtime-diagnostics-v340';
   var DIAG_META_KEY='lourex-runtime-diagnostics-meta-v340';
   var DIAG_MAX_EVENTS=250;
@@ -88,112 +87,12 @@
     }catch(_error){return false;}
   }
 
-  async function refreshStaticRuntime(){
-    try{
-      if('serviceWorker' in navigator){
-        var registrations=await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(function(registration){
-          try{return registration.unregister();}catch(_error){return false;}
-        }));
-      }
-    }catch(_error){}
-    try{
-      if('caches' in window){
-        var names=await caches.keys();
-        await Promise.all(names.filter(function(name){return name.indexOf(CACHE_PREFIX)===0;}).map(function(name){return caches.delete(name);}));
-      }
-    }catch(_error){}
-  }
-
-  function retryUrl(){
-    try{
-      var url=new URL(window.location.href);
-      url.searchParams.set('lourex-recover',String(Date.now()));
-      return url.toString();
-    }catch(_error){return window.location.href;}
-  }
-
-  function buildButton(label,handler,secondary){
-    var button=document.createElement('button');
-    button.type='button';button.textContent=label;
-    button.style.minHeight='44px';button.style.padding='0 16px';button.style.borderRadius='10px';
-    button.style.border=secondary?'1px solid rgba(152,162,179,.45)':'1px solid #129da1';
-    button.style.background=secondary?'transparent':'#129da1';button.style.color=secondary?'inherit':'#fff';
-    button.style.font='700 14px Outfit,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    button.addEventListener('click',handler);
-    return button;
-  }
-
-  function showRecovery(){
-    if(!bootStillVisible()||editingWorkspaceOpen())return;
-    var screen=startupSurface();if(!screen)return;
-    if(document.getElementById('lourex-startup-recovery'))return;
-
-    var card=document.createElement('section');
-    card.style.width='min(100%,460px)';card.style.padding='22px';card.style.boxSizing='border-box';
-    card.style.border='1px solid rgba(152,162,179,.28)';card.style.borderRadius='16px';
-    card.style.background=document.documentElement.dataset.uiTheme==='light'?'#ffffff':'#0f1c2d';
-    card.style.color=document.documentElement.dataset.uiTheme==='light'?'#102235':'#f7fbff';
-    card.style.boxShadow='0 18px 46px rgba(6,14,25,.18)';
-
-    var title=document.createElement('h1');
-    title.textContent='LOUREX needs your action / يحتاج LOUREX إلى إجراء منك';
-    title.style.margin='0 0 8px';title.style.fontSize='19px';title.style.lineHeight='1.4';
-
-    var message=document.createElement('p');
-    message.textContent='Startup is taking longer than expected. LOUREX will not reload itself. You can retry safely or open diagnostics. / استغرق التشغيل وقتًا أطول من المتوقع. لن يعيد LOUREX تحميل نفسه تلقائيًا. يمكنك إعادة المحاولة بأمان أو فتح التشخيص.';
-    message.style.margin='0 0 18px';message.style.fontSize='14px';message.style.lineHeight='1.7';message.style.opacity='.82';
-
-    var actions=document.createElement('div');actions.style.display='flex';actions.style.flexWrap='wrap';actions.style.gap='10px';
-    var retry=buildButton('Retry safely / إعادة المحاولة بأمان',function(){
-      if(editingWorkspaceOpen()||retry.disabled)return;
-      retry.disabled=true;
-      markDiagnostic('startup-recovery-user-retry','manual=yes');
-      void refreshStaticRuntime().finally(function(){
-        // A document or data-entry editor may open while cache cleanup is pending.
-        // Re-evaluate the workspace immediately before explicit navigation.
-        if(editingWorkspaceOpen()||!bootStillVisible()){
-          retry.disabled=false;
-          markDiagnostic('startup-recovery-retry-deferred','editableWorkspace=yes navigation=no');
-          return;
-        }
-        markNavigation('startup-recovery-user-retry','mode=replace source=startup-watchdog-v347');
-        window.location.replace(retryUrl());
-      });
-    },false);
-    actions.appendChild(retry);
-
-    var diagnostics=document.createElement('a');
-    diagnostics.href='./health.html';diagnostics.textContent='Diagnostics / التشخيص';
-    diagnostics.style.minHeight='44px';diagnostics.style.display='inline-flex';diagnostics.style.alignItems='center';diagnostics.style.justifyContent='center';
-    diagnostics.style.padding='0 16px';diagnostics.style.border='1px solid rgba(152,162,179,.45)';diagnostics.style.borderRadius='10px';
-    diagnostics.style.color='inherit';diagnostics.style.textDecoration='none';diagnostics.style.fontWeight='700';
-    diagnostics.addEventListener('click',function(){markNavigation('startup-recovery-health-open','mode=href');});
-    actions.appendChild(diagnostics);
-
-    card.append(title,message,actions);
-    // React owns the loading screen and its children. A slow Firebase restore
-    // may finish after this timeout: replacing those children makes React's
-    // eventual removal fail with NotFoundError. Keep recovery outside #root.
-    var overlay=document.createElement('div');
-    overlay.id='lourex-startup-recovery';
-    overlay.setAttribute('role','alert');
-    overlay.setAttribute('aria-live','assertive');
-    overlay.style.cssText='position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow:auto;background:var(--boot-bg,#0a1826)';
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-    var observer=new MutationObserver(function(){
-      if(bootStillVisible()&&!editingWorkspaceOpen())return;
-      overlay.remove();
-      observer.disconnect();
-    });
-    observer.observe(document.getElementById('root'),{childList:true,subtree:true});
-  }
-
+  // Customer-facing startup recovery is deliberately disabled. A delayed
+  // auth/cloud restore may still complete; never cover React or navigate away.
+  // Keep metadata-only timeout diagnostics for the owner without displaying UI.
   function recoverIfNeeded(){
     if(editingWorkspaceOpen()||!bootStillVisible())return;
-    markDiagnostic('startup-watchdog-timeout','automaticReload=no');
-    showRecovery();
+    markDiagnostic('startup-watchdog-timeout','automaticReload=no customerOverlay=no');
   }
 
   window.setTimeout(recoverIfNeeded,CHECK_MS);
