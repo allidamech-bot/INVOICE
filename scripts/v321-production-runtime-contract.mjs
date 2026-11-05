@@ -18,7 +18,7 @@ for(const runtime of [
   './vendor/firebase-firestore-compat.js'
 ])if(!html.includes(runtime))throw new Error(`v351 production contract: missing local runtime reference ${runtime}.`);
 
-const startupWatchdog='./startup-watchdog-v321.js?v=347';
+const startupWatchdog='./startup-watchdog-v321.js?v=348';
 const themeBootstrap='./theme-bootstrap-v347.js?v=361';
 const storageCleanup='./storage-cleanup-v347.js?v=351';
 const presentationGuard='./home-final-closeout-v286.js?v=361';
