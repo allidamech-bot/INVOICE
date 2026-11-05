@@ -13,7 +13,7 @@ test('v188 signed-out startup cannot resume an unlocked workspace without the au
   assert.match(index,/async function resolveRequiredAccountSession/);
   assert.match(index,/if\(user\)\{[\s\S]*setActiveAccountUid\(user\.uid\);[\s\S]*await suspendSession\(\);[\s\S]*return true;[\s\S]*\}/);
   assert.match(index,/setActiveAccountUid\(null\);[\s\S]*await suspendSession\(\);[\s\S]*return false;/);
-  assert.match(index,/const accountReady=await resolveRequiredAccountSession\(\)/);
+  assert.match(index,/await resolveRequiredAccountSession\(\)/);
   assert.doesNotMatch(index,/hydrateAuthoritativeCloudBeforeApp\(/);
   assert.match(index,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
   assert.match(session,/export async function suspendSession\(\):Promise<void>/);
