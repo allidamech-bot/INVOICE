@@ -72,7 +72,7 @@ test('F15 thread switch and mode switch erase old source identity and transient 
  const source=await readFile(new URL('../src/components/AiConversationWorkspace.tsx',import.meta.url),'utf8');
  assert.match(source,/host\.__lourexLastConversationSourceScope=''/);
  assert.match(source,/globalThis as any\)\.__lourexConversationSourcesV3=\[\]/);
- assert.equal(source.match(/host\.__lourexLastConversationSourceScope=''/g)?.length,2);
+ assert.equal(source.match(/host\.__lourexLastConversationSourceScope=''/g)?.length,3,'thread navigation, refresh and instant mode restore must all clear stale attachment sources');
 });
 test('F15 non-file followups never inherit untrusted attachment data on the next request',async()=>{
  const source=await readFile(new URL('../scripts/ai-batch3-conversation-lifecycle-fix.mjs',import.meta.url),'utf8');
