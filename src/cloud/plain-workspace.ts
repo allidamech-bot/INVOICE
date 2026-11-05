@@ -225,8 +225,11 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
 /** Reads remote revisions without overwriting concurrent local work. */
 export async function reconcilePlainCloudWorkspace(uid:string,read=directRead):Promise<PlainCloudSyncResult>{
   requireUid(uid);
+  traceStartupCloudRead(read,'reconcile-control-start');
   await getPeriodCloudControl(uid,read);
+  traceStartupCloudRead(read,'reconcile-control-verified');
   const [local,remote]=await Promise.all([getPlainWorkspace(),getPlainCloudMeta(uid,read)]);
+  traceStartupCloudRead(read,'reconcile-manifest-received');
   requireUid(uid);
   if(!local&&!remote)return 'empty';
   if(!local&&remote){
@@ -285,10 +288,18 @@ export function subscribePlainCloudChanges(uid:string,onChange:()=>void):()=>voi
 }
 
 /** Always consult the authenticated server: cached absence cannot downgrade an enrolled account. */
+/** Metadata-only startup phases: never record UIDs, reports, bytes or financial contents. */
+function traceStartupCloudRead(read:CloudRead,phase:string):void{
+  if(read===directRead||typeof window==='undefined')return;
+  try{(window as any).__LOUREX_DIAGNOSTICS__?.mark?.('startup-cloud-stage','phase='+phase);}catch{}
+}
+
 export async function getPeriodCloudControl(uid:string,read=directRead):Promise<LocalPeriodProtection|null>{
   requireUid(uid);
+  traceStartupCloudRead(read,'period-control-request');
   const snapshot=await read<CloudSnapshot>(()=>firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'}));
   requireUid(uid);
+  traceStartupCloudRead(read,'period-control-received');
   if(!snapshot.exists)return null;
   const value=snapshot.data();
   if(value?.format!=='LOUREX_PERIOD_CONTROL_V1'||value.version!==1||value.ownerUid!==uid
@@ -298,12 +309,25 @@ export async function getPeriodCloudControl(uid:string,read=directRead):Promise<
       ||typeof b.reportId!=='string'||!/^[a-f0-9]{32}$/.test(b.reportId))
     ||new Set(value.boundaries.map((b:any)=>b.workspaceId)).size!==value.boundaries.length)
     throw new Error('Invalid trusted period control. Account data was not published.');
-  const reports:LocalPeriodProtection['reports']=[];
-  for(const boundary of value.boundaries){
-    const {state}=await readPeriodReport(uid,boundary,read);
-    reports.push({...boundary,state});
-  }
+  // Fetch independent immutable closed-period reports with bounded concurrency.
+  // Each report still verifies the exact server metadata, chunk indices/bytes
+  // and SHA-256. Nothing is cached until *all* reports and the final server
+  // control recheck succeed. Preserve the original boundary ordering.
+  const reports:LocalPeriodProtection['reports']=new Array(value.boundaries.length);
+  const workerCount=Math.min(3,value.boundaries.length);
+  traceStartupCloudRead(read,'period-reports-start');
+  await Promise.all(Array.from({length:workerCount},async(_,worker)=>{
+    for(let index=worker;index<value.boundaries.length;index+=workerCount){
+      const boundary=value.boundaries[index];
+      const {state}=await readPeriodReport(uid,boundary,read);
+      requireUid(uid);
+      reports[index]={...boundary,state};
+    }
+  }));
+  requireUid(uid);
+  traceStartupCloudRead(read,'period-reports-verified');
   const latest=await read<CloudSnapshot>(()=>firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'}));requireUid(uid);
+  traceStartupCloudRead(read,'period-control-rechecked');
   if(!latest.exists||JSON.stringify(latest.data())!==JSON.stringify(value))throw new Error('Trusted period control changed during verification. Retry.');
   const protection:LocalPeriodProtection={version:1,uid,generation:value.generation,reports};
   await cachePlainPeriodProtection(uid,protection);requireUid(uid);
