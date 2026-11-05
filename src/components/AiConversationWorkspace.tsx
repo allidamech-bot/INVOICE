@@ -1301,7 +1301,7 @@ export function installConversationWorkspace(host:Host):void {
   }>();
   host.__workspaceReadyModeCache=readyModeCache;
   const safeModeSnapshot=(kernel:ConversationKernel|undefined)=>{
-    const vault=host.__foundationVault as VaultPayload|undefined;
+    const vault=host.__foundationVault as any;
     if(!kernel||!vault||kernel.scope.scope!=='business'||host.__intelligenceNeedsReopen||
        host.__workspaceObservedProps!==host.props||
        kernel.scope.accountId!==activeAccountStorageUid()||
@@ -1352,7 +1352,7 @@ export function installConversationWorkspace(host:Host):void {
         host.__workspaceLoadTimer=0;
         clearConversationToolPresentation(host);
         host.__intelligenceKernel=cached.kernel;
-        host.__foundationVault=verified.vault;
+        // Reuse the currently authenticated and scoped vault, never a cached copy.
         host.__foundationReceipts=[...cached.receipts];
         host.__lourexAssistantThreadId=cached.threadId;
         host.__lourexAssistantSummary=cached.summary;
