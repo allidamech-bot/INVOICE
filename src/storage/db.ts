@@ -93,12 +93,33 @@ function rememberVaultMeta(vault:EncryptedVaultRecord):void{
 function openNamedDb(name:string):Promise<IDBDatabase>{
   return new Promise((resolve,reject)=>{
     const request=indexedDB.open(name,DB_VERSION);
+    let expired=false;
+    const fail=(message:string)=>{
+      expired=true;
+      clearTimeout(timer);
+      reject(new Error(message));
+    };
+    const timer=setTimeout(()=>fail('Opening local storage took too long. Close other LOUREX tabs and retry.'),8000);
+    request.onblocked=()=>{
+      diag('indexeddb-open-blocked',`kind=${scopeKind()}`);
+      fail('Local storage is blocked by another LOUREX tab. Close it and retry.');
+    };
     request.onupgradeneeded=()=>{
+      if(expired){request.transaction?.abort();return;}
       const db=request.result;
       if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'});
     };
-    request.onsuccess=()=>resolve(request.result);
-    request.onerror=()=>reject(request.error??new Error('Unable to open IndexedDB.'));
+    request.onsuccess=()=>{
+      clearTimeout(timer);
+      const db=request.result;
+      if(expired){db.close();return;}
+      db.onversionchange=()=>db.close();
+      resolve(db);
+    };
+    request.onerror=()=>{
+      clearTimeout(timer);
+      reject(request.error??new Error('Unable to open IndexedDB.'));
+    };
   });
 }
 
@@ -226,28 +247,20 @@ function openDb(): Promise<IDBDatabase> {
   const name=scopedDbName();
   if(dbPromise&&openDbName===name)return dbPromise;
   const started=nowTick();
-  dbPromise=new Promise((resolve, reject) => {
-    const request = indexedDB.open(name, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db=request.result;
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
-    };
-    request.onsuccess = () => {
-      const db=request.result;
-      openDbName=name;
-      db.onversionchange=()=>{diag('indexeddb-versionchange',`kind=${scopeKind()}`);db.close();dbPromise=null;openDbName='';};
-      db.onclose=()=>{diag('indexeddb-close',`kind=${scopeKind()}`);dbPromise=null;openDbName='';};
-      diag('indexeddb-open-success',`kind=${scopeKind()} durationMs=${elapsedMs(started)}`);
-      resolve(db);
-    };
-    request.onerror = () => {
-      const error=request.error??new Error('Unable to open IndexedDB.');
-      diag('indexeddb-open-error',`kind=${scopeKind()} name=${errorName(error)} durationMs=${elapsedMs(started)}`);
-      dbPromise=null;openDbName='';reject(error);
-    };
-    request.onblocked=()=>diag('indexeddb-open-blocked',`kind=${scopeKind()} durationMs=${elapsedMs(started)}`);
+  const reset=()=>{if(dbPromise===opening){dbPromise=null;openDbName='';}};
+  const opening=openNamedDb(name).then(db=>{
+    db.onversionchange=()=>{diag('indexeddb-versionchange',`kind=${scopeKind()}`);db.close();reset();};
+    db.onclose=()=>{diag('indexeddb-close',`kind=${scopeKind()}`);reset();};
+    diag('indexeddb-open-success',`kind=${scopeKind()} durationMs=${elapsedMs(started)}`);
+    return db;
+  }).catch(error=>{
+    reset();
+    diag('indexeddb-open-error',`kind=${scopeKind()} name=${errorName(error)} durationMs=${elapsedMs(started)}`);
+    throw error;
   });
-  return dbPromise;
+  openDbName=name;
+  dbPromise=opening;
+  return opening;
 }
 
 export async function getRecord<T extends DbRecord>(id: T['id'],assistantKey?:CryptoKey): Promise<T | null> {

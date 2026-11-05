@@ -65,7 +65,7 @@ test('v215 selects the UID storage boundary before any account session or cloud 
   assert.match(resolve,/await activateAccountStorage\(user\.uid\);[\s\S]*await suspendSession\(\);/);
   assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
   const app=await read('src/app/App.tsx');
-  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
 });
 
 test('v215 direct UID replacement goes through a guarded account transition before exposing new data',async()=>{

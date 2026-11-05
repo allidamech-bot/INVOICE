@@ -58,7 +58,7 @@ test('Firebase UID bootstrap and explicit PWA updates preserve safe ordering wit
   assert.match(entry,/await activateAccountStorage\(user\.uid\)/);
   assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
   assert.match(app,/waitForCloudUser\(\)/);
-  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(app,/auth-cloud-launcher/);
   assert.match(sw,/^const CACHE = 'lourex-invoice-v315';$/m);
   assert.match(sw,/SKIP_WAITING/);

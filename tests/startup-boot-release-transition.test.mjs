@@ -16,7 +16,7 @@ function createFixture(){
     }
   };
   const meta={setAttribute:(name,value)=>props.set('meta-'+name,value)};
-  const mount={querySelector:selector=>selector===':scope > .loading-screen'?(childClass==='loading-screen'?{}:null):(selector.includes('.'+childClass)?{}:null)};
+  const mount={querySelector:selector=>selector===':scope > .loading-screen'?(childClass==='loading-screen'?{}:null):(selector.split(', ').some(part=>part===`:scope > .${childClass}`)?{}:null)};
   const document={
     documentElement:root,
     querySelector:selector=>selector==='meta[name="theme-color"]'?meta:null,
@@ -62,6 +62,13 @@ test('unrelated class mutations must not release boot while the real loader rema
   assert.equal(f.root.dataset.lourexBooting,'true');
   assert.equal(f.disconnected(),false);
   f.changeClass('auth-page');
+  assert.equal(f.root.dataset.lourexBooting,undefined);
+  assert.equal(f.disconnected(),true);
+});
+
+test('the authenticated app wrapper releases the startup overflow lock',()=>{
+  const f=createFixture();
+  f.changeClass('app-root > .app-ui');
   assert.equal(f.root.dataset.lourexBooting,undefined);
   assert.equal(f.disconnected(),true);
 });

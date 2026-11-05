@@ -7,7 +7,7 @@ const entryPath='dist/document-entry-v302.js';
 const swPath='dist/sw.js';
 
 let html=await readFile(htmlPath,'utf8');
-const themeBootstrap='./theme-bootstrap-v347.js?v=361';
+const themeBootstrap='./theme-bootstrap-v347.js?v=362';
 const inlineTheme=/<script id="lourex-theme-bootstrap">[\s\S]*?<\/script>/;
 if(inlineTheme.test(html))html=html.replace(inlineTheme,`<script src="${themeBootstrap}"></script>`);
 if(!html.includes(themeBootstrap))throw new Error('v351: canonical external theme bootstrap is missing from production HTML.');
@@ -29,7 +29,7 @@ html=html
 if(!html.includes(canonicalLightBoot)||!html.includes(canonicalDarkBoot))throw new Error('v351: canonical source boot palette is missing.');
 
 const oldWatchdog='./startup-watchdog-v321.js?v=321';
-const newWatchdog='./startup-watchdog-v321.js?v=348';
+const newWatchdog='./startup-watchdog-v321.js?v=349';
 html=html.replaceAll(oldWatchdog,newWatchdog);
 if(!html.includes(newWatchdog))throw new Error('v351: startup watchdog reference is missing.');
 
@@ -111,9 +111,11 @@ sw=sw.replaceAll(oldWatchdog,newWatchdog);
 sw=sw.replaceAll(oldPresentationGuard,newPresentationGuard);
 sw=sw.replaceAll(oldDocumentEntry,newDocumentEntry);
 sw=sw.replaceAll('./storage-cleanup-v347.js?v=347',storageCleanup);
+const launchMark='./brand/lourex-startup-mark.webp';
+if(!html.includes(launchMark))throw new Error('Startup emblem is missing from production HTML.');
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
 if(!sw.includes(cacheMarker))throw new Error('v351: service-worker cache insertion marker is missing.');
-for(const asset of [themeBootstrap,runtimeNoAutoReload,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime,v482MobileRepair]){
+for(const asset of [launchMark,themeBootstrap,runtimeNoAutoReload,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime,v482MobileRepair]){
   if(!sw.includes(`LOCAL_CORE.push('${asset}');`))sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${asset}');\n${cacheMarker}`);
 }
 await writeFile(swPath,sw);
@@ -140,7 +142,7 @@ if((finalCss.match(/\/\* --- v346-template-color-visual-closeout\.css --- \*\//g
 if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v351: late v346 runtime @import remains in the production bundle.');
 if(finalEntry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas survived finalization.');
 for(const retiredRuntimeStyle of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])if(finalEntry.includes(retiredRuntimeStyle))throw new Error(`v351: retired empty runtime stylesheet request survived finalization: ${retiredRuntimeStyle}.`);
-for(const asset of [newWatchdog,themeBootstrap,runtimeNoAutoReload,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime,v482MobileRepair])if(!finalSw.includes(asset))throw new Error(`v482: service worker is missing ${asset}.`);
+for(const asset of [newWatchdog,launchMark,themeBootstrap,runtimeNoAutoReload,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime,v482MobileRepair])if(!finalSw.includes(asset))throw new Error(`v482: service worker is missing ${asset}.`);
 if(finalSw.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: stale storage cleanup cache key remains in service worker.');
 
 console.log('LOUREX v482 startup finalization verified: no automatic late-auth hard reload, final standalone mobile UX owner after v332, canonical source/production palette, one loading owner, conservative storage cleanup and final PWA precache aligned.');

@@ -9,7 +9,7 @@ test('Firebase-only entry and PIN-free settings are the active runtime',async()=
     read('src/app/App.tsx'),read('src/app/index.tsx'),read('src/components/SettingsModal.tsx')
   ]);
   assert.doesNotMatch(app,/<AuthScreenSelector|unlockVault\(|setupVault\(|saveVault\(/);
-  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(app,/updatePlainWorkspaceIfUnchanged\(uid,local\.localRevision,next\)/);
   assert.doesNotMatch(index,/hydrateAuthoritativeCloudBeforeApp\(/);
   assert.match(index,/subscribePlainCloudChanges\(/);
@@ -46,7 +46,7 @@ test('simultaneous first login from two devices hydrates the winning cloud snaps
   assert.ok(from>=0&&to>from,'bootstrap publish and winner reconciliation are required');
   const block=app.slice(from,to);
   assert.match(block,/if\(outcome==='remote-changed'\)/);
-  assert.match(block,/await reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(block,/await reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(block,/winner!=='pulled'&&winner!=='same'/);
   assert.match(block,/replacePlainWorkspaceIfUnchanged\(user\.uid,null/);
   assert.doesNotMatch(block,/unlockVault\(|setupVault\(|window\.location\.reload/);

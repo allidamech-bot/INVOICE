@@ -52,7 +52,7 @@
       if(startupSurface()||!mount.querySelector(
         ':scope > .workspace-shell, :scope > .ta-shell, :scope > .ta-auth-page, '+
         ':scope > .auth-page, :scope > .auth-recovery-state, :scope > .app-recovery, '+
-        ':scope > .app-recovery-screen, :scope > .app-ui'
+        ':scope > .app-recovery-screen, :scope > .app-ui, :scope > .app-root > .app-ui'
       ))return;
       delete root.dataset.lourexBooting;
       root.style.removeProperty('--boot-bg');

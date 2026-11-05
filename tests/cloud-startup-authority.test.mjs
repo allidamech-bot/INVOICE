@@ -10,7 +10,7 @@ test('V2 opens through Firebase Auth and hydrates the authoritative cloud worksp
   assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
   const initialize=app.slice(app.indexOf('private initialize=async'),app.indexOf('private activity='));
   assert.match(initialize,/const user=await waitForCloudUser\(\)/);
-  assert.match(initialize,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(initialize,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(initialize,/await getPlainWorkspace\(\)/);
   assert.match(initialize,/unlocked:true,vault/);
   assert.doesNotMatch(initialize,/unlockVault\(|verifyPin\(|setupVault\(/);

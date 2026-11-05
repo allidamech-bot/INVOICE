@@ -1,3 +1,4 @@
+import type { CloudRead } from './startup-read.js';
 import type {PeriodArchive,ArchivedPeriodReport,ArchivedPeriodOperation} from '../lib/period-archive.js';
 import type { PlainWorkspaceRecord, VaultPayload } from '../types.js';
 import type {LocalPeriodProtection} from '../lib/period-local.js';
@@ -97,9 +98,12 @@ function chunkId(revision:string,index:number):string {
   return 'chunk-'+revision+'-'+String(index).padStart(5,'0');
 }
 
-export async function getPlainCloudMeta(uid:string):Promise<PlainCloudMeta|null>{
+type CloudSnapshot={exists:boolean;data():any};
+const directRead:CloudRead=read=>read();
+
+export async function getPlainCloudMeta(uid:string,read=directRead):Promise<PlainCloudMeta|null>{
   requireUid(uid);
-  const snapshot=await metaRef(uid).get({source:'server'});
+  const snapshot=await read<CloudSnapshot>(()=>metaRef(uid).get({source:'server'}));
   requireUid(uid);
   if(!snapshot.exists)return null;
   const value=snapshot.data();
@@ -107,11 +111,11 @@ export async function getPlainCloudMeta(uid:string):Promise<PlainCloudMeta|null>
   return value;
 }
 
-export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainCloudMeta):Promise<{payload:VaultPayload;meta:PlainCloudMeta;protection:LocalPeriodProtection|null}|null>{
+export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainCloudMeta,read=directRead):Promise<{payload:VaultPayload;meta:PlainCloudMeta;protection:LocalPeriodProtection|null}|null>{
   requireUid(uid);
   if(expected&&!validMeta(expected))throw new Error('The cloud workspace manifest format is invalid.');
-  const protection=await getPeriodCloudControl(uid);
-  const meta=expected??await getPlainCloudMeta(uid);
+  const protection=await getPeriodCloudControl(uid,read);
+  const meta=expected??await getPlainCloudMeta(uid,read);
   if(!meta)return null;
   if(!validMeta(meta))throw new Error('The cloud workspace manifest format is invalid.');
   const bytes=new Uint8Array(meta.bytes);
@@ -121,7 +125,7 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
     const chunks=meta.chunkStorage==='period-generations-v1'
       ?firebase.firestore().collection('users').doc(uid).collection('periodGenerations').doc(meta.revision).collection('chunks')
       :collection(uid);
-    const snapshots=await Promise.all(indices.map(i=>chunks.doc(chunkId(meta.revision,i)).get()));
+    const snapshots=await read(()=>Promise.all(indices.map(i=>chunks.doc(chunkId(meta.revision,i)).get())));
     requireUid(uid);
     for(let i=0;i<snapshots.length;i++){
       const data=snapshots[i]?.data();
@@ -136,7 +140,7 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
   }
   if(written!==meta.bytes||(await sha256(bytes))!==meta.sha256)
     throw new Error('The cloud workspace failed its integrity check.');
-  const latest=await getPlainCloudMeta(uid);
+  const latest=await getPlainCloudMeta(uid,read);
   if(!latest||latest.revision!==meta.revision||latest.sha256!==meta.sha256||latest.chunkStorage!==meta.chunkStorage)
     throw new Error('The cloud workspace changed during download. Retry.');
   const payload=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)) as VaultPayload;
@@ -150,14 +154,14 @@ export async function downloadPlainCloudWorkspace(uid:string,expected?:PlainClou
 // Orphan chunks are intentionally left untouched after an ambiguous network
 // failure. No unverified cleanup may delete a revision referenced by a
 // committed manifest. Garbage collection requires a separate audited job.
-export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceRecord,replaceRemote=false):Promise<'same'|'pushed'|'remote-changed'>{
+export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceRecord,replaceRemote=false,read=directRead):Promise<'same'|'pushed'|'remote-changed'>{
   requireUid(uid);
   if(local.uid!==uid||local.schemaVersion!==local.payload?.schemaVersion)throw new Error('Invalid local workspace identity.');
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Offline: cloud upload will retry when connected.');
   const bytes=encodePayload(local.payload),hash=await sha256(bytes);
-  const previous=await getPlainCloudMeta(uid);
+  const previous=await getPlainCloudMeta(uid,read);
   requireUid(uid);
-  const control=await getPeriodCloudControl(uid);
+  const control=await getPeriodCloudControl(uid,read);
   if(previous?.chunkStorage==='period-generations-v1'&&!control)throw new Error('Trusted period control enrollment is unavailable.');
   if(previous&&previous.sha256===hash){
     await acknowledgeIdenticalPlainWorkspace(uid,local.localRevision,previous.revision,hash);
@@ -219,14 +223,14 @@ export async function uploadPlainCloudWorkspace(uid:string,local:PlainWorkspaceR
 }
 
 /** Reads remote revisions without overwriting concurrent local work. */
-export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainCloudSyncResult>{
+export async function reconcilePlainCloudWorkspace(uid:string,read=directRead):Promise<PlainCloudSyncResult>{
   requireUid(uid);
-  await getPeriodCloudControl(uid);
-  const [local,remote]=await Promise.all([getPlainWorkspace(),getPlainCloudMeta(uid)]);
+  await getPeriodCloudControl(uid,read);
+  const [local,remote]=await Promise.all([getPlainWorkspace(),getPlainCloudMeta(uid,read)]);
   requireUid(uid);
   if(!local&&!remote)return 'empty';
   if(!local&&remote){
-    const result=await downloadPlainCloudWorkspace(uid,remote);
+    const result=await downloadPlainCloudWorkspace(uid,remote,read);
     if(!result)return 'empty';
     const replacement:PlainWorkspaceRecord={
       id:'workspace-v2',uid,payload:result.payload,schemaVersion:result.payload.schemaVersion,
@@ -239,7 +243,7 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
   if(!local)return 'empty';
   if(!remote){
     if(local.baseCloudRevision)return 'diverged';
-    const published=await uploadPlainCloudWorkspace(uid,local);
+    const published=await uploadPlainCloudWorkspace(uid,local,false,read);
     return published==='remote-changed'?'diverged':published;
   }
   const hash=await sha256(encodePayload(local.payload));
@@ -248,12 +252,12 @@ export async function reconcilePlainCloudWorkspace(uid:string):Promise<PlainClou
     return acknowledged?'same':'retry';
   }
   if(local.baseCloudRevision===remote.revision){
-    const published=await uploadPlainCloudWorkspace(uid,local);
+    const published=await uploadPlainCloudWorkspace(uid,local,false,read);
     return published==='remote-changed'?'diverged':published;
   }
   const localClean=Boolean(local.baseCloudSha256)&&hash===local.baseCloudSha256;
   if(!localClean)return 'diverged';
-  const result=await downloadPlainCloudWorkspace(uid,remote);
+  const result=await downloadPlainCloudWorkspace(uid,remote,read);
   if(!result)return 'diverged';
   const replacement:PlainWorkspaceRecord={
     id:'workspace-v2',uid,payload:result.payload,schemaVersion:result.payload.schemaVersion,
@@ -281,9 +285,9 @@ export function subscribePlainCloudChanges(uid:string,onChange:()=>void):()=>voi
 }
 
 /** Always consult the authenticated server: cached absence cannot downgrade an enrolled account. */
-export async function getPeriodCloudControl(uid:string):Promise<LocalPeriodProtection|null>{
+export async function getPeriodCloudControl(uid:string,read=directRead):Promise<LocalPeriodProtection|null>{
   requireUid(uid);
-  const snapshot=await firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'});
+  const snapshot=await read<CloudSnapshot>(()=>firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'}));
   requireUid(uid);
   if(!snapshot.exists)return null;
   const value=snapshot.data();
@@ -296,26 +300,26 @@ export async function getPeriodCloudControl(uid:string):Promise<LocalPeriodProte
     throw new Error('Invalid trusted period control. Account data was not published.');
   const reports:LocalPeriodProtection['reports']=[];
   for(const boundary of value.boundaries){
-    const {state}=await readPeriodReport(uid,boundary);
+    const {state}=await readPeriodReport(uid,boundary,read);
     reports.push({...boundary,state});
   }
-  const latest=await firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'});requireUid(uid);
+  const latest=await read<CloudSnapshot>(()=>firebase.firestore().collection('users').doc(uid).collection('accounting').doc('control').get({source:'server'}));requireUid(uid);
   if(!latest.exists||JSON.stringify(latest.data())!==JSON.stringify(value))throw new Error('Trusted period control changed during verification. Retry.');
   const protection:LocalPeriodProtection={version:1,uid,generation:value.generation,reports};
   await cachePlainPeriodProtection(uid,protection);requireUid(uid);
   return protection;
 }
 
-async function readPeriodReport(uid:string,boundary:{reportId:string;workspaceId:string;through:string}):Promise<{meta:any;state:any}>{
+async function readPeriodReport(uid:string,boundary:{reportId:string;workspaceId:string;through:string},read=directRead):Promise<{meta:any;state:any}>{
     const ref=firebase.firestore().collection('users').doc(uid).collection('periodReports').doc(boundary.reportId);
-    const snapshot=await ref.get({source:'server'});requireUid(uid);const report=snapshot.data();
+    const snapshot=await read<CloudSnapshot>(()=>ref.get({source:'server'}));requireUid(uid);const report=snapshot.data();
     if(!snapshot.exists||report?.format!=='LOUREX_PERIOD_REPORT_V1'||report.version!==1||report.reportId!==boundary.reportId
       ||report.workspaceId!==boundary.workspaceId||report.through!==boundary.through||!Number.isSafeInteger(report.bytes)||report.bytes<1||report.bytes>135_000_000
       ||report.chunkCount!==Math.ceil(report.bytes/CHUNK_BYTES)||typeof report.sha256!=='string'||!/^[a-f0-9]{64}$/.test(report.sha256))
       throw new Error('Invalid trusted closed period report. Reconnect before saving.');
     const bytes=new Uint8Array(report.bytes);
     for(let start=0;start<report.chunkCount;start+=8){
-      const snapshots=await Promise.all(Array.from({length:Math.min(8,report.chunkCount-start)},(_,i)=>ref.collection('chunks').doc(chunkId(boundary.reportId,start+i)).get({source:'server'})));
+      const snapshots=await read(()=>Promise.all(Array.from({length:Math.min(8,report.chunkCount-start)},(_,i)=>ref.collection('chunks').doc(chunkId(boundary.reportId,start+i)).get({source:'server'}))));
       requireUid(uid);
       for(let offset=0;offset<snapshots.length;offset++){
         const index=start+offset,doc=snapshots[offset],chunk=doc.data();

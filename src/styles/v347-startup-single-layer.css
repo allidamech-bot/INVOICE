@@ -58,7 +58,7 @@
     border:0!important;
     border-radius:0!important;
     background:var(--boot-bg,var(--ft-canvas,#0a1826))!important;
-    background-image:none!important;
+    background-image:var(--launch-background,none)!important;
     color:var(--boot-text,var(--ft-text-strong,#f7fbff))!important;
     box-shadow:none!important;
     filter:none!important;

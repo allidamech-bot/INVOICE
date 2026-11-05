@@ -45,7 +45,7 @@ test('account revisions never use wall clock time to choose a winner',async()=>{
   const [cloud,app]=await Promise.all([read('src/cloud/plain-workspace.ts'),read('src/app/App.tsx')]);
   assert.doesNotMatch(cloud,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
   assert.doesNotMatch(app,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
-  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(cloud,/if\(\(existing\?\.revision\?\?null\)!==\(previous\?\.revision\?\?null\)\)return false/);
   assert.match(cloud,/tx\.set\(ref,meta\)/);
   assert.match(cloud,/sha256\(bytes\)/);

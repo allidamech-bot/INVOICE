@@ -87,13 +87,29 @@
     }catch(_error){return false;}
   }
 
-  // Customer-facing startup recovery is deliberately disabled. A delayed
-  // auth/cloud restore may still complete; never cover React or navigate away.
-  // Keep metadata-only timeout diagnostics for the owner without displaying UI.
+  // Keep diagnostics private. If React never takes ownership, the static
+  // splash itself offers a single explicit retry without touching storage.
   function recoverIfNeeded(){
     if(editingWorkspaceOpen()||!bootStillVisible())return;
     markDiagnostic('startup-watchdog-timeout','automaticReload=no customerOverlay=no');
   }
 
+  function showStaticRetry(){
+    var boot=document.getElementById('lourex-boot');
+    if(!boot||editingWorkspaceOpen()||!bootStillVisible())return;
+    var recovery=boot.querySelector('.launch-recovery');
+    if(!recovery||!recovery.hidden)return;
+    var retry=recovery.querySelector('button');
+    retry.addEventListener('click',function(){window.location.reload();},{once:true});
+    boot.removeAttribute('aria-label');
+    boot.removeAttribute('role');
+    boot.setAttribute('data-launch-recovery','');
+    recovery.setAttribute('role','group');
+    recovery.firstElementChild.setAttribute('role','alert');
+    recovery.hidden=false;
+  }
+
+  window.addEventListener('lourex-startup-entry-failed',showStaticRetry);
   window.setTimeout(recoverIfNeeded,CHECK_MS);
+  window.setTimeout(showStaticRetry,30000);
 })();

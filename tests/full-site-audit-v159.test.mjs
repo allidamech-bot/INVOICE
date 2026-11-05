@@ -14,7 +14,7 @@ test('v159 removes inline executable code while preserving canonical redirects o
 
   const configTag='<script src="./runtime-config.js"></script>';
   const redirectTag='<script src="./canonical-redirect.js"></script>';
-  const startupTag='<script src="./startup-watchdog-v321.js?v=348"></script>';
+  const startupTag='<script src="./startup-watchdog-v321.js?v=349"></script>';
   const configAt=html.indexOf(configTag),startupAt=html.indexOf(startupTag),redirectAt=html.indexOf(redirectTag);
   assert.ok(configAt>=0&&startupAt>configAt&&redirectAt>startupAt,
     'CSP-safe config, startup watchdog and canonical redirect must remain ordered');

@@ -10,7 +10,7 @@ test('configured devices hydrate the Firebase UID workspace before displaying ac
   assert.match(initialize,/const user=await waitForCloudUser\(\)/);
   assert.match(initialize,/await activateAccountStorage\(user\.uid\)/);
   assert.match(initialize,/let local=await getPlainWorkspace\(\)/);
-  assert.match(initialize,/await reconcilePlainCloudWorkspace\(user\.uid\)/);
+  assert.match(initialize,/await reconcilePlainCloudWorkspace\(user\.uid,read\)/);
   assert.match(initialize,/loading:false,firstRun:false,unlocked:true,vault/);
   assert.doesNotMatch(initialize,/resumeVaultSession\(|unlockVault\(|hasSecurity\(/);
 });

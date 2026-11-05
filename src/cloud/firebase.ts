@@ -106,24 +106,39 @@ function validMeta(data:any):data is CloudVaultMeta{
 
 export function cloudSupported():boolean{return typeof firebase!=='undefined';}
 export async function waitForCloudUser():Promise<CloudUser|null>{
-  ensureFirebase();
-  try{await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
-  const immediate=userFrom(auth().currentUser);if(immediate)return immediate;
+  // Restoration observes Firebase's existing persistence. Setting persistence
+  // here queues a storage migration behind auth initialization and can hang
+  // before the observer deadline even starts. Interactive sign-in owns writes
+  // to the persistence preference.
+  const instance=auth();
+  const immediate=userFrom(instance.currentUser);if(immediate)return immediate;
   let recent=false;try{recent=sessionStorage.getItem('lourex-auth-just-signed-in')==='1';}catch{}
   const timeoutMs=recent?10_000:5_000;
-  return new Promise(resolve=>{
+  return new Promise((resolve,reject)=>{
     let settled=false;let off:undefined|(()=>void);let nullTimer:number|undefined;
-    const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(nullTimer)window.clearTimeout(nullTimer);if(off)off();resolve(value);};
-    const timeout=window.setTimeout(()=>finish(userFrom(auth().currentUser)),timeoutMs);
-    off=auth().onAuthStateChanged((user:any)=>{
-      const resolved=userFrom(user);
-      if(resolved){window.clearTimeout(timeout);finish(resolved);return;}
-      if(nullTimer)window.clearTimeout(nullTimer);
-      nullTimer=window.setTimeout(()=>{
-        window.clearTimeout(timeout);
-        finish(userFrom(auth().currentUser));
-      },1200);
-    },()=>{window.clearTimeout(timeout);finish(null);});
+    const finish=(value:CloudUser|null)=>{
+      if(settled)return;
+      settled=true;
+      window.clearTimeout(timeout);
+      if(nullTimer!==undefined)window.clearTimeout(nullTimer);
+      off?.();
+      resolve(value);
+    };
+    const timeout=window.setTimeout(()=>finish(userFrom(instance.currentUser)),timeoutMs);
+    try{
+      off=instance.onAuthStateChanged((user:any)=>{
+        const resolved=userFrom(user);
+        if(resolved){finish(resolved);return;}
+        if(settled)return;
+        if(nullTimer!==undefined)window.clearTimeout(nullTimer);
+        nullTimer=window.setTimeout(()=>finish(userFrom(instance.currentUser)),1200);
+      },()=>finish(null));
+      if(settled)off?.();
+    }catch(error){
+      window.clearTimeout(timeout);
+      if(nullTimer!==undefined)window.clearTimeout(nullTimer);
+      reject(error);
+    }
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
