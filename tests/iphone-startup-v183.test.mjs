@@ -63,7 +63,8 @@ test('V2 account startup never performs an automatic watchdog reload or revives 
   const render=entry.indexOf('ReactDOM.render');
   assert.ok(auth>=0&&render>auth);
   assert.match(watchdog,/automaticReload=no/);
-  assert.match(watchdog,/startup-recovery-user-retry/);
+  assert.match(watchdog,/customerOverlay=no/);
+  assert.doesNotMatch(watchdog,/startup-recovery-user-retry|showRecovery/);
   assert.doesNotMatch(watchdog,/setTimeout\(\(\)=>window\.location\.reload\(\)/);
   assert.match(app,/reconcilePlainCloudWorkspace\(user\.uid\)/);
   assert.doesNotMatch(app,/<AuthScreenSelector|unlockVault\(/);
