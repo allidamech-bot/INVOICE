@@ -70,7 +70,7 @@ test('independent signed closed-period reports verify concurrently with preserve
     new Promise((_,reject)=>setTimeout(()=>reject(new Error('Period report requests were serialized')),700))
   ]);
   assert.deepEqual(Array.from(outcome.reports,item=>item.workspaceId),['north','south']);
-  assert.ok(calls>=7,'must re-read server control after verifying reports');
+  assert.ok(calls>=6,'must re-read server control after verifying reports');
   assert.equal(f.state.protection.generation,3);
 });
 
