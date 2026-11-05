@@ -1207,6 +1207,9 @@ export function renderConversationWorkspace(host:Host,tree:any):any {
 export function installConversationWorkspace(host:Host):void {
   if(host.__workspaceInstalled)return;host.__workspaceInstalled=true;
   const refresh=async()=>{
+    // A full account/thread refresh supersedes any in-memory mode snapshot.
+    // Internal tab switches own their own verified snapshots.
+    if(!host.__workspaceInternalModeSwitch)host.__workspaceReadyModeCache?.clear();
     const generation=(host.__workspaceLoadGeneration||0)+1;
     host.__workspaceLoadGeneration=generation;
     if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);
@@ -1288,6 +1291,30 @@ export function installConversationWorkspace(host:Host):void {
       if(arrived?.scope)host.setState({input:drafts.get(kernelScopeKey(arrived.scope))||''});
     };
   }
+  // Never cache across account/branch, remote refreshes, approval drafts, or
+  // active operations. A verified, read-only conversation can be revisited
+  // directly within this mounted UI without decrypting its entire history.
+  // Every mode keeps its own kernel and message snapshot; no permissions cross.
+  const readyModeCache=new Map<AiConversationMode,{
+    kernel:ConversationKernel;vault:VaultPayload;messages:any[];
+    threadId:string;summary:string;receipts:any[];scopeKey:string;
+  }>();
+  host.__workspaceReadyModeCache=readyModeCache;
+  const safeModeSnapshot=(kernel:ConversationKernel|undefined)=>{
+    const vault=host.__foundationVault as VaultPayload|undefined;
+    if(!kernel||!vault||kernel.scope.scope!=='business'||host.__intelligenceNeedsReopen||
+       host.__workspaceObservedProps!==host.props||
+       kernel.scope.accountId!==activeAccountStorageUid()||
+       kernel.scope.threadId!==host.__lourexAssistantThreadId||
+       host.state.proposal||host.state.review||kernel.artifact||
+       (kernel.missions||[]).some((mission:any)=>mission.steps?.some((step:any)=>step.status==='needs_approval'))||
+       host.state.busy||host.applying||host.__foundationTurnBusy)return null;
+    try{strictAiActor(vault);}catch{return null;}
+    const mode=normalizeAiConversationMode(kernel.mode);
+    return {kernel,vault,messages:[...(host.state.messages||[])],
+      threadId:kernel.scope.threadId,summary:host.__lourexAssistantSummary||'',
+      receipts:[...(host.__foundationReceipts||[])],scopeKey:kernelScopeKey(kernel.scope),mode};
+  };
   // Each mode opens its own scoped thread. Never relabel an existing turn.
   // Preserve the exact last-used thread separately for each mode and company.
   const recentModeThread=new Map<string,string>();
@@ -1296,12 +1323,52 @@ export function installConversationWorkspace(host:Host):void {
     if(disabled(host)||host.__workspaceModeSwitchBusy)return;
     const previous=host.__intelligenceKernel as ConversationKernel|undefined;
     if(!previous||previous.scope.scope!=='business'||normalizeAiConversationMode(previous.mode)===target)return;
+    const verified=safeModeSnapshot(previous);
     host.__workspaceModeSwitchBusy=true;host.__workspaceInternalModeSwitch=true;
     drafts.set(kernelScopeKey(previous.scope),String(host.state.input||''));
     const keyFor=(mode:AiConversationMode)=>JSON.stringify([previous.scope.accountId,previous.scope.workspaceId,previous.scope.branchId,mode]);
     recentModeThread.set(keyFor(normalizeAiConversationMode(previous.mode)),previous.scope.threadId);
+    if(verified)readyModeCache.set(verified.mode,verified);
+    else readyModeCache.clear();
     host.setState({__workspaceSwitching:true,error:''});
     try{
+      const cached=readyModeCache.get(target);
+      const selectedFromCache=(host.__businessThreads||[]).find((row:any)=>row.id===cached?.threadId&&row.mode===target);
+      // Only restore an already verified thread from this exact live account
+      // and vault. Do not reuse executable approvals or stale remote history.
+      if(cached&&verified&&selectedFromCache&&
+         cached.scopeKey===kernelScopeKey(cached.kernel.scope)&&
+         cached.kernel.scope.accountId===previous.scope.accountId&&
+         cached.kernel.scope.workspaceId===previous.scope.workspaceId&&
+         cached.kernel.scope.branchId===previous.scope.branchId&&
+         cached.kernel.scope.accountId===activeAccountStorageUid()&&
+         cached.vault===verified.vault&&host.__workspaceObservedProps===host.props&&
+         !cached.kernel.artifact&&!host.__intelligenceNeedsReopen&&
+         !(cached.kernel.missions||[]).some((mission:any)=>mission.steps?.some((step:any)=>step.status==='needs_approval'))){
+        // Keep the two existing kernels separate; invalidate pending async
+        // conversation loads before exposing the selected in-memory thread.
+        host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;
+        if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);
+        host.__workspaceLoadTimer=0;
+        clearConversationToolPresentation(host);
+        host.__intelligenceKernel=cached.kernel;
+        host.__foundationVault=cached.vault;
+        host.__foundationReceipts=[...cached.receipts];
+        host.__lourexAssistantThreadId=cached.threadId;
+        host.__lourexAssistantSummary=cached.summary;
+        host.__lourexLatestContext=undefined;
+        host.__lourexLastConversationSources=[];
+        host.__lourexLastConversationFiles=[];
+        host.__lourexLastConversationSourceScope='';
+        (globalThis as any).__lourexConversationSourcesV3=[];
+        recentModeThread.set(keyFor(target),cached.threadId);
+        host.setState({messages:[...cached.messages],input:drafts.get(cached.scopeKey)||'',
+          proposal:null,review:null,__workspaceReviewedProposal:null,
+          conversationAttachments:[],assistantEvidence:null,
+          __workspaceOpen:false,__workspacePane:'chat',__workspaceSettingsOpen:false,
+          __workspaceHistoryOpen:false,__workspaceLoadError:''});
+        return;
+      }
       const matching=(host.__businessThreads||[]).filter((row:any)=>row.mode===target).sort((a:any,b:any)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
       const selected=matching.find((row:any)=>row.id===recentModeThread.get(keyFor(target)))||matching[0];
       if(selected&&selected.id!==previous.scope.threadId)await host.__lourexOpenThread(selected.id);
@@ -1414,6 +1481,6 @@ function syncWorkspaceViewport():void {
 }
 export function updateConversationWorkspace(host:Host,previous:unknown):void {
   syncWorkspaceViewport();
-  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceComposerDrafts?.clear();host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
+  if(previous!==host.props){clearConversationToolPresentation(host);host.__workspaceComposerDrafts?.clear();host.__workspaceReadyModeCache?.clear();host.__workspaceObservedProps=undefined;host.__foundationVault=undefined;host.__businessMemories=[];host.__businessThreads=[];host.__workspaceRefresh?.();}
 }
-export function unmountConversationWorkspace(host:Host):void {host.__workspaceComposerDrafts?.clear();if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
+export function unmountConversationWorkspace(host:Host):void {host.__workspaceReadyModeCache?.clear();host.__workspaceComposerDrafts?.clear();if(host.__workspaceWorkflowHandoffHandler){window.removeEventListener('lourex-ai-workflow-advisor',host.__workspaceWorkflowHandoffHandler);host.__workspaceWorkflowHandoffHandler=undefined;}host.__workspaceLoadGeneration=(host.__workspaceLoadGeneration||0)+1;if(host.__workspaceLoadTimer)window.clearTimeout(host.__workspaceLoadTimer);host.__workspaceLoadTimer=0;window.visualViewport?.removeEventListener('resize',host.__workspaceViewport);window.visualViewport?.removeEventListener('scroll',host.__workspaceViewport);window.removeEventListener('resize',host.__workspaceViewport);}
