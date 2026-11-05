@@ -20,14 +20,15 @@ const cases=[
    try{
     await page.goto('http://127.0.0.1:4173/tests/visual/ux-rehab-startup-late-hydration-20261016.html');
     const original=await page.locator('#root').innerHTML();
-    await page.locator('#lourex-startup-recovery').waitFor({timeout:18000});
+    await page.waitForTimeout(12500);
+    assert.equal(await page.locator('#lourex-startup-recovery').count(),0,'customer startup must never render diagnostics overlay');
     assert.equal(await page.locator('#root').innerHTML(),original,'timeout must preserve React-owned host nodes');
     await page.evaluate(()=>window.finishStartup());
-    await page.locator('#lourex-startup-recovery').waitFor({state:'detached'});
+    assert.equal(await page.locator('#lourex-startup-recovery').count(),0,'late mount must remain free of diagnostics overlay');
     await page.getByRole('textbox',{name:'Test editor'}).fill('Late startup works');
     assert.equal(errors.length,0,'late React hydration must not throw '+errors.join(' | '));
     await page.screenshot({path:output+'/startup-late-hydration.png'});
-    console.log('PASS WebKit late React startup after recovery timeout');
+    console.log('PASS WebKit late React startup with silent telemetry');
    }finally{await page.close();}
   }
   for(const c of cases){
