@@ -7,46 +7,50 @@ import ts from 'typescript';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const watchdog=read('public/startup-watchdog-v321.js');
 
-// Execute the shipped watchdog, including its asynchronous cache cleanup.
-function startupFixture(){
-  const attrs=new Set(),buttons=[],navigation=[],timers=[];
-  let boot=true,release;
-  const cleanup=new Promise(resolve=>{release=resolve;});
-  class Element{
-    dataset={};style={};listeners={};children=[];
-    setAttribute(){}
-    addEventListener(name,fn){this.listeners[name]=fn;}
-    append(...items){this.children.push(...items);}
-    appendChild(item){this.children.push(item);}
-    replaceChildren(...items){this.children=items;}
+// The watchdog retains private metadata but never inserts customer-facing UI.
+function startupFixture({editor=false,ready=false}={}){
+  const attrs=new Set(),navigation=[],timers=[],events=[],bodyChildren=[];
+  if(editor)attrs.add('data-lourex-document-editor');
+  class Element {
+    querySelector(){return null;}
   }
   const loading=new Element();
-  const document={body:new Element(),documentElement:{dataset:{uiTheme:'dark'},hasAttribute:key=>attrs.has(key)},
-    getElementById:id=>id==='root'?{querySelector:()=>boot?loading:null}:null,
-    querySelector:selector=>selector==='.app-ui,.auth-page,.ta-auth-page,.app-recovery,.app-recovery-screen'&&!boot?{}:null,
-    createElement:tag=>{const el=new Element();if(tag==='button')buttons.push(el);return el;}};
-  const window={setTimeout:fn=>timers.push(fn),location:{href:'https://example.test/',replace:url=>navigation.push(url)},__LOUREX_DIAGNOSTICS__:{mark(){}}};
-  vm.runInNewContext(watchdog,{window,document,HTMLElement:Element,URL,MutationObserver:class{observe(){}disconnect(){}},navigator:{serviceWorker:{getRegistrations:()=>cleanup}}});
+  const document={
+    body:{appendChild:node=>bodyChildren.push(node)},
+    documentElement:{hasAttribute:key=>attrs.has(key)},
+    getElementById:id=>id==='root'?{querySelector:()=>ready?null:loading}:null,
+    querySelector:selector=>selector==='.app-ui,.auth-page,.ta-auth-page,.app-recovery,.app-recovery-screen'&&ready?{}:null
+  };
+  const window={
+    setTimeout:fn=>timers.push(fn),
+    location:{href:'https://example.test/',replace:url=>navigation.push(url)},
+    __LOUREX_DIAGNOSTICS__:{mark:(kind,detail)=>events.push({kind,detail})}
+  };
+  vm.runInNewContext(watchdog,{window,document,HTMLElement:Element,navigator:{onLine:true}});
+  assert.equal(timers.length,1,'watchdog installs one non-disruptive timeout');
   timers[0]();
-  assert.equal(buttons.length,1,'stalled boot offers a manual retry');
-  return {attrs,navigation,button:buttons[0],ready:()=>{boot=false;},release:async()=>{release([]);await new Promise(resolve=>setImmediate(resolve));}};
+  return {navigation,events,bodyChildren};
 }
 
-test('manual startup retry navigates only when boot remains stalled and no editor opened',async()=>{
+test('stalled startup emits internal telemetry without covering customers or navigating',()=>{
   const f=startupFixture();
-  assert.equal(f.navigation.length,0,'watchdog must never reload automatically');
-  f.button.listeners.click();await f.release();
-  assert.equal(f.navigation.length,1);
+  assert.deepEqual(f.navigation,[]);
+  assert.deepEqual(f.bodyChildren,[]);
+  assert.equal(f.events.length,1);
+  assert.equal(f.events[0].kind,'startup-watchdog-timeout');
+  assert.equal(f.events[0].detail,'automaticReload=no customerOverlay=no');
 });
-for(const attribute of ['data-lourex-document-editor','data-lourex-workspace-dirty']){
-  test('manual retry defers if '+attribute+' appears during async cleanup',async()=>{
-    const f=startupFixture();f.button.listeners.click();f.attrs.add(attribute);await f.release();
-    assert.equal(f.navigation.length,0);assert.equal(f.button.disabled,false);
-  });
-}
-test('manual startup retry cannot navigate over an application that finished loading',async()=>{
-  const f=startupFixture();f.button.listeners.click();f.ready();await f.release();
-  assert.equal(f.navigation.length,0);assert.equal(f.button.disabled,false);
+test('active editor bypasses the startup timeout without disturbing work',()=>{
+  const f=startupFixture({editor:true});
+  assert.deepEqual(f.events,[]);
+  assert.deepEqual(f.navigation,[]);
+  assert.deepEqual(f.bodyChildren,[]);
+});
+test('completed startup never displays timeout recovery',()=>{
+  const f=startupFixture({ready:true});
+  assert.deepEqual(f.events,[]);
+  assert.deepEqual(f.navigation,[]);
+  assert.deepEqual(f.bodyChildren,[]);
 });
 
 const safety=read('public/runtime-safety-v334.js');

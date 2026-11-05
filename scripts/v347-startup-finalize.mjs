@@ -29,7 +29,7 @@ html=html
 if(!html.includes(canonicalLightBoot)||!html.includes(canonicalDarkBoot))throw new Error('v351: canonical source boot palette is missing.');
 
 const oldWatchdog='./startup-watchdog-v321.js?v=321';
-const newWatchdog='./startup-watchdog-v321.js?v=347';
+const newWatchdog='./startup-watchdog-v321.js?v=348';
 html=html.replaceAll(oldWatchdog,newWatchdog);
 if(!html.includes(newWatchdog))throw new Error('v351: startup watchdog reference is missing.');
 

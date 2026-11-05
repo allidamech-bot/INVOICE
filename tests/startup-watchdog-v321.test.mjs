@@ -28,13 +28,11 @@ test('v321 production boot uses the vendorable ReactDOM runtime and a data-safe 
   assert.ok(appModule>watchdogScript,'startup watchdog must execute before the React application module');
 
   assert.match(watchdog,/CHECK_MS=12000/);
-  assert.match(watchdog,/navigator\.serviceWorker\.getRegistrations\(\)/);
-  assert.match(watchdog,/caches\.keys\(\)/);
-  assert.match(watchdog,/CACHE_PREFIX='lourex-invoice-'/);
-  assert.doesNotMatch(watchdog,/indexedDB\.deleteDatabase/);
-  assert.doesNotMatch(watchdog,/localStorage\.clear\(\)/);
-  assert.doesNotMatch(watchdog,/sessionStorage\.clear\(\)/);
-  assert.match(watchdog,/\.\/health\.html/);
+  assert.match(watchdog,/function bootStillVisible\(\)/);
+  assert.match(watchdog,/markDiagnostic\('startup-watchdog-timeout'/);
+  assert.match(watchdog,/automaticReload=no customerOverlay=no/);
+  assert.doesNotMatch(watchdog,/function showRecovery\(|lourex-startup-recovery|Retry safely|Diagnostics \/ التشخيص|refreshStaticRuntime|location\.replace/);
+  assert.doesNotMatch(watchdog,/indexedDB\.deleteDatabase|localStorage\.clear\(\)|sessionStorage\.clear\(\)/);
 
   assert.match(cacheRefresh,/RELEASE_GENERATION=\d+/);
   assert.ok(cacheRefresh.includes('v331-draft-scroll-recovery.css'),'scroll recovery must remain a managed release dependency');

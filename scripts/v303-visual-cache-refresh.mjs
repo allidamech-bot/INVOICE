@@ -27,7 +27,7 @@ const storageCleanup='./storage-cleanup-v347.js?v=351';
 const mobilePreviewOutput='./mobile-preview-output-v350.js?v=350';
 const homeRuntime='./home-final-closeout-v286.js?v=361';
 const documentRuntime='./document-entry-v302.js?v=361';
-const startupWatchdog='./startup-watchdog-v321.js?v=347';
+const startupWatchdog='./startup-watchdog-v321.js?v=348';
 const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=365-1';
 const criticalDocumentsRuntime='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
 const legacyDraftScrollRuntimes=['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2','./styles/v331-draft-scroll-recovery.css?v=337-3'];

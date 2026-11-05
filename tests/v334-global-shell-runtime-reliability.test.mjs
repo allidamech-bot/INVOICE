@@ -32,12 +32,12 @@ test('runtime guard has no encrypted business writes; continuity storage uses on
   assert.doesNotMatch(guard,/storage\.(?:setItem|removeItem)\((?!WORKSPACE_CONTINUITY_KEY)/i);
 });
 
-test('v351 startup watchdog never reloads automatically and only exposes explicit recovery while boot is alone',async()=>{
+test('v351 startup watchdog observes boot silently without creating a customer recovery overlay',async()=>{
   const watchdog=await read('public/startup-watchdog-v321.js');
   assert.match(watchdog,/function startupSurface\(\)/);
   assert.match(watchdog,/function bootStillVisible\(\)[\s\S]*startupSurface\(\)[\s\S]*!document\.querySelector\('\.app-ui,\.auth-page,\.ta-auth-page,\.app-recovery,\.app-recovery-screen'\)/);
-  assert.match(watchdog,/function recoverIfNeeded\(\)[\s\S]*automaticReload=no[\s\S]*showRecovery\(\)/);
-  assert.match(watchdog,/startup-recovery-user-retry/);
+  assert.match(watchdog,/function recoverIfNeeded\(\)[\s\S]*markDiagnostic\('startup-watchdog-timeout','automaticReload=no customerOverlay=no'\)/);
+  assert.doesNotMatch(watchdog,/startup-recovery-user-retry|showRecovery|lourex-startup-recovery/);
   assert.doesNotMatch(watchdog,/setTimeout\([^\n]*location\.(?:reload|replace)/);
 });
 
