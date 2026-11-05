@@ -76,7 +76,7 @@ test('current boot owns full dynamic viewport and theme palette before React mou
   assert.match(html,/id="lourex-boot-style"/);
   assert.match(html,/html\[data-lourex-booting="true"\]/);
   assert.match(html,/height:100dvh!important/);
-  assert.match(html,/#lourex-boot\.loading-screen\{position:fixed;inset:-2px;z-index:2147483000/);
+  assert.match(html,/#root > \.lourex-launch\.loading-screen \{/);
   assert.match(html,/background:var\(--boot-bg,#0a1826\)/);
   assert.match(html,/data-ui-theme="dark"/);
   assert.match(html,/data-ui-theme="light"/);
