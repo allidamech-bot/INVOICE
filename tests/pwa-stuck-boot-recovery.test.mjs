@@ -33,13 +33,13 @@ test('12-second timeout emits internal metadata only; DOM and client navigation 
     getElementById:id=>id==='root'?root:null,
     querySelector:()=>null,visibilityState:'visible'
   };
-  const window={
+  const window={addEventListener(){},
     setTimeout:(fn,ms)=>tasks.push({fn,ms}),
     __LOUREX_DIAGNOSTICS__:{mark:(type,detail)=>events.push({type,detail})},
     location:{replace:(url)=>navigation.push(url)}
   };
   vm.runInNewContext(source,{window,document,HTMLElement:Element,navigator:{onLine:true}});
-  assert.equal(tasks.length,1);
+  assert.equal(tasks.length,2);
   assert.equal(tasks[0].ms,12000);
   tasks[0].fn();
   assert.equal(events.length,1);
@@ -62,7 +62,7 @@ test('the watchdog skips timeouts once loading finishes or an editor is open',as
       getElementById:id=>id==='root'?root:null,
       querySelector:()=>null
     };
-    const window={setTimeout:(fn,ms)=>tasks.push(fn),__LOUREX_DIAGNOSTICS__:{mark:(type)=>events.push(type)}};
+    const window={addEventListener(){},setTimeout:(fn,ms)=>tasks.push(fn),__LOUREX_DIAGNOSTICS__:{mark:(type)=>events.push(type)}};
     vm.runInNewContext(source,{window,document,HTMLElement:Element,navigator:{onLine:true}});
     tasks[0]();
     assert.equal(events.length,0,mode);
