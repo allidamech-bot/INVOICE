@@ -37,7 +37,7 @@ test('successful and failed mode switches render the final unlocked controls aft
       setState(patch){Object.assign(this.state,patch);frames.push({busy:Boolean(this.__workspaceModeSwitchBusy),switching:this.state.__workspaceSwitching});},
       async __lourexOpenThread(){if(fail)throw new Error('storage unavailable');this.__intelligenceKernel={mode:'advisor',scope:{scope:'business',threadId:'advisor'}};},
     };
-    const switchContext=vm.createContext({host,drafts:new Map(),recentModeThread:new Map(),disabled:h=>Boolean(h.__workspaceModeSwitchBusy),normalizeAiConversationMode:m=>m,kernelScopeKey:s=>s.threadId,assignIntelligenceConversationMode:async()=>{}});
+    const switchContext=vm.createContext({host,drafts:new Map(),readyModeCache:new Map(),safeModeSnapshot:()=>null,recentModeThread:new Map(),disabled:h=>Boolean(h.__workspaceModeSwitchBusy),normalizeAiConversationMode:m=>m,kernelScopeKey:s=>s.threadId,assignIntelligenceConversationMode:async()=>{}});
     vm.runInContext(compiled.slice(start,end),switchContext);
     await host.__workspaceSwitchMode('advisor');
     assert.equal(frames.at(-1).busy,false);
@@ -70,4 +70,60 @@ test('localized draft controls preserve distinct approve/decline callbacks and h
   tree=context.InlineDocumentApproval({host,approval,ar:false});
   const confirm=buttons(tree).find(b=>b.props['aria-label']==='Confirm draft save');
   assert.equal(confirm.props.onClick,apply);
+});
+
+test('Controller and Advisor reopen instantly from verified same-account memory without repeated encrypted hydration',async()=>{
+  const start=compiled.indexOf('const readyModeCache = new Map();');
+  const end=compiled.indexOf('host.__workspaceSendAdvisorProposal = async',start);
+  assert.ok(start>=0&&end>start,'use shipped cache and switch handler');
+  const scope=id=>({accountId:'uid-1',scope:'business',workspaceId:'company-1',branchId:'main',threadId:id});
+  const vault={appSettings:{activeWorkspaceId:'company-1',activeBranchId:'main'}};
+  const props={language:'ar'};
+  let activeUid='uid-1',opens=0,newThreads=0;
+  const host={
+    mounted:true,props,__workspaceObservedProps:props,
+    __foundationVault:vault,__lourexAssistantThreadId:'controller-1',__lourexAssistantSummary:'C',
+    __intelligenceKernel:{scope:scope('controller-1'),mode:'controller',missions:[]},
+    __businessThreads:[{id:'controller-1',mode:'controller',updatedAt:'2026-11-05'}, {id:'advisor-1',mode:'advisor',updatedAt:'2026-11-05'}],
+    state:{input:'draft controller',messages:[{role:'user',text:'C'}],assistantScope:'business'},
+    setState(patch){Object.assign(this.state,patch);},
+    async __lourexOpenThread(id){
+      opens++;
+      this.__lourexAssistantThreadId=id;
+      this.__lourexAssistantSummary=id==='advisor-1'?'A':'C';
+      this.__intelligenceKernel={scope:scope(id),mode:id==='advisor-1'?'advisor':'controller',missions:[]};
+      this.state.messages=[{role:'user',text:id==='advisor-1'?'A':'C'}];
+      this.__foundationVault=vault;this.__workspaceObservedProps=props;
+    },
+    async __lourexNewConversation(){newThreads++;}
+  };
+  const context=vm.createContext({
+    host,drafts:new Map(),Map,Date,window:{clearTimeout(){}},
+    disabled:h=>Boolean(h.__workspaceModeSwitchBusy),
+    normalizeAiConversationMode:mode=>mode,
+    kernelScopeKey:row=>[row.accountId,row.workspaceId,row.branchId,row.threadId].join('|'),
+    activeAccountStorageUid:()=>activeUid,strictAiActor:()=>({role:'admin'}),
+    clearConversationToolPresentation:h=>{h.__foundationToolOutcomes=[];},
+    assignIntelligenceConversationMode:async()=>{throw Error('unexpected relabel')}
+  });
+  vm.runInContext(compiled.slice(start,end),context);
+  await host.__workspaceSwitchMode('advisor');
+  assert.equal(opens,1,'first Advisor entry performs a verified load');
+  host.state.input='draft advisor';
+  await host.__workspaceSwitchMode('controller');
+  assert.equal(opens,1,'Controller revisits the already verified in-memory thread');
+  assert.equal(host.__intelligenceKernel.mode,'controller');
+  assert.equal(host.state.messages[0].text,'C');
+  assert.equal(host.state.input,'draft controller');
+  await host.__workspaceSwitchMode('advisor');
+  assert.equal(opens,1,'Advisor revisits without second encrypted read');
+  assert.equal(host.state.messages[0].text,'A');
+  assert.equal(host.state.input,'draft advisor');
+  assert.equal(host.state.__workspaceSwitching,false);
+  assert.equal(newThreads,0);
+  // Switching active account must never reuse cached Controller or Advisor data.
+  activeUid='other-account';
+  await host.__workspaceSwitchMode('controller');
+  assert.equal(opens,2,'stale account identity must fall back to verified storage path');
+  assert.equal(host.__workspaceReadyModeCache.size,0);
 });
