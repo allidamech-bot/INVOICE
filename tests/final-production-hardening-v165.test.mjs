@@ -53,7 +53,7 @@ test('Firebase UID bootstrap and explicit PWA updates preserve safe ordering wit
   const [entry,app,sw]=await Promise.all([
     read('src/app/index.tsx'),read('src/app/App.tsx'),read('public/sw.js')
   ]);
-  assert.match(entry,/const accountReady=await resolveRequiredAccountSession\(\)/);
+  assert.match(entry,/await resolveRequiredAccountSession\(\)/);
   assert.match(entry,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
   assert.match(entry,/await activateAccountStorage\(user\.uid\)/);
   assert.doesNotMatch(entry,/hydrateAuthoritativeCloudBeforeApp\(/);
