@@ -1,3 +1,4 @@
+import {withHistoricalFixtureClock} from './helpers/historical-finance-fixture-clock.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyVault} from '../dist/src/lib/defaults.js';
@@ -53,7 +54,7 @@ function fixture(){
   return{vault,item,supplier,invoice,purchase:posted.purchase};
 }
 
-test('Alif merged-head business lifecycle: 200→180 stock, AR/AP, bank allocations and no phantom cash',()=>{
+test('Alif merged-head business lifecycle: 200→180 stock, AR/AP, bank allocations and no phantom cash',()=>withHistoricalFixtureClock(()=>{
   const f=fixture();
   const stock=v=>inventoryBalances(v.savedItems,v.inventoryMovements)
     .find(row=>row.item.id===f.item.id).quantity;
@@ -232,7 +233,7 @@ test('Alif merged-head business lifecycle: 200→180 stock, AR/AP, bank allocati
   assert.equal(internallyBalancedButUnauthenticated.productionReady,false);
   denyCycle(x=>x.treasuryAccounts[0].currency='EUR');
 
-});
+}));
 
 test('Alif merged-head: overselling fails closed; FX is explicit and never rewrites historical amounts',()=>{
   const f=fixture();

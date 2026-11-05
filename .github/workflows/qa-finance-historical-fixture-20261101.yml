@@ -1,0 +1,32 @@
+name: LOUREX historical Alif fixture QA (test-only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/finance-alif-integrated-20261026.test.mjs'
+      - 'tests/finance-voucher-treasury-reconciliation-alif.test.mjs'
+      - 'tests/helpers/historical-finance-fixture-clock.mjs'
+      - '.github/workflows/qa-finance-historical-fixture-20261101.yml'
+permissions:
+  contents: read
+jobs:
+  historical-finance-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Compile unchanged financial source for isolated test cases
+        run: |
+          npm run typecheck
+          ./node_modules/.bin/tsc -p tsconfig.json
+      - name: Verify all dated accounting cases from the normal wall clock
+        run: node --test --test-concurrency=1 tests/finance-alif-integrated-20261026.test.mjs tests/finance-voucher-treasury-reconciliation-alif.test.mjs
+      - name: Ensure no source, financial ledger or lockfile mutation
+        run: git diff --exit-code
