@@ -1,0 +1,48 @@
+name: LOUREX legacy Groq strict JSON and Free TPM preflight (offline)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/_ai/router.js'
+      - 'scripts/verify-deployment-isolation.mjs'
+      - 'tests/ai-staging-isolation-gates-20261017.test.mjs'
+      - 'api/_ai/lourex-dialogue.js'
+      - 'tests/ai-multi-provider-router.test.mjs'
+      - 'tests/ai-reliability-batch5.test.mjs'
+      - 'tests/ai-groq-structured-preflight-20261101.test.mjs'
+      - 'tests/ai-groq-completion-integrity-20261101.test.mjs'
+      - '.github/workflows/ai-legacy-groq-structured-preflight-20261101.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  structured-budget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Strict TypeScript and isolated production build
+        run: npm run typecheck && npm run build
+      - name: No-network Groq error, strict schema, free budget and dialogue regressions
+        run: >-
+          node --test --test-concurrency=1
+          tests/ai-groq-structured-preflight-20261101.test.mjs
+          tests/ai-groq-completion-integrity-20261101.test.mjs
+          tests/ai-groq-error-classification-20261101.test.mjs
+          tests/ai-multi-provider-router.test.mjs
+          tests/ai-provider-contract-v448.test.mjs
+          tests/ai-dialogue-negated-completion.test.mjs
+          tests/ai-reliability-batch5.test.mjs
+          tests/ai-staging-isolation-gates-20261017.test.mjs
+      - name: Production and finance isolation assertion
+        run: node scripts/verify-deployment-isolation.mjs

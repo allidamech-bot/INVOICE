@@ -89,9 +89,9 @@ test('Gemini metadata check reuses existing authenticated same-origin owner-only
   assert.ok(auth>0&&probe>auth&&owner>probe&&check>owner,'owner auth precedes Gemini metadata');
   assert.match(api,/if\(!sameOriginRequest\(request\)\)/);
   assert.match(api,/diagnosticRateAllowed\(request\.aiVerifiedUid,provider\)/);
-  assert.match(api,/mode==='key-check'&&!\['gemini','ollama'\]\.includes\(provider\)/);
+  assert.match(api,/mode==='key-check'&&!\['groq','gemini','ollama'\]\.includes\(provider\)/);
   assert.match(html,/data-provider-key-check="gemini"/);
-  assert.match(ui,/\['gemini','ollama'\]\.includes\(provider\)/);
+  assert.match(ui,/\['groq','gemini','ollama'\]\.includes\(provider\)/);
   assert.match(ui,/body:JSON\.stringify\(\{provider,mode:'key-check'\}\)/);
   assert.doesNotMatch(ui,/GEMINI_API_KEY/);
 });

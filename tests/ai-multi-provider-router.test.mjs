@@ -33,13 +33,13 @@ test('owner listener gets allowlisted Groq rejection fields rather than upstream
  assert.doesNotMatch(JSON.stringify(events),/PRIVATE/);
 });
 
-test('draft planner can opt into strict Groq decoding without changing other task schemas',async()=>{
+test('Groq selects strict decoding for closed compatible schemas, including ordinary dialogue',async()=>{
  configureAll();const bodies=[];
  globalThis.fetch=async(_url,options)=>{bodies.push(JSON.parse(options.body));return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});};
  await routeAiStructured({taskType:'business_copilot',prompt:'edit',schema:schema(),strictOutput:true});
  await routeAiStructured({taskType:'business_copilot',prompt:'discuss',schema:schema()});
  assert.equal(bodies[0].response_format.json_schema.strict,true);
- assert.equal(bodies[1].response_format.json_schema.strict,false);
+ assert.equal(bodies[1].response_format.json_schema.strict,true);
  assert.equal(bodies[0].response_format.json_schema.schema.additionalProperties,false);
 });
 
@@ -95,7 +95,7 @@ test('general requests use validated GPT-OSS text prior',async()=>{
   globalThis.fetch=async(url,options)=>{seen={url:String(url),body:JSON.parse(options.body)};return response(200,{choices:[{message:{content:'{"value":"ok"}'}}]});};
   const result=await routeAiStructured({taskType:'customer_capture',prompt:'extract',schema:schema()});
   assert.equal(result.success,true);assert.equal(result.provider,'groq');assert.equal(result.model,'openai/gpt-oss-120b');
-  assert.match(seen.url,/api\.groq\.com/);assert.equal(seen.body.model,'openai/gpt-oss-120b');assert.equal(seen.body.include_reasoning,false);assert.equal(seen.body.response_format.json_schema.strict,false);
+  assert.match(seen.url,/api\.groq\.com/);assert.equal(seen.body.model,'openai/gpt-oss-120b');assert.equal(seen.body.include_reasoning,false);assert.equal(seen.body.response_format.json_schema.strict,true);assert.equal(seen.body.tool_choice,'none');
 });
 
 test('429 falls through immediately from Groq to Cloudflare without paid substitution or retry storm',async()=>{

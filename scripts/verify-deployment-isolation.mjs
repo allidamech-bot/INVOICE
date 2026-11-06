@@ -16,7 +16,10 @@ const vercelEnvironment=process.env.VERCEL_ENV||'local';
 // all point to production. This gate runs as the FIRST build step and refuses
 // to create an unsafe Preview until those three sources are independently QA
 // configured. It never changes the production build path or runs for local CI.
-if(vercelEnvironment==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='fix/ai-audit-root-causes-20261017'){
+const previewBranch=process.env.VERCEL_GIT_COMMIT_REF||'';
+const guardedAiPreview=previewBranch==='fix/ai-audit-root-causes-20261017'||
+  /^ai-legacy\/groq-[a-z0-9-]+$/u.test(previewBranch);
+if(vercelEnvironment==='preview'&&guardedAiPreview){
   const qa=spawnSync(process.execPath,['scripts/verify-ai-staging-isolation.mjs'],{
     encoding:'utf8',env:process.env,timeout:10000
   });

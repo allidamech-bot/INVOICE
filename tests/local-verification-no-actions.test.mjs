@@ -14,7 +14,12 @@ test('GitHub QA uses only safe read-only free branch runners, never production d
     const pushBlock=yaml.match(/^  push:\s*\n([\s\S]*?)(?=^  [a-z_]+:|^permissions:|^jobs:|$(?![\s\S]))/m)?.[1];
     if(pushBlock)assert.match(pushBlock,/branches:\s*(?:\[[^\]]*(?:fix|feat)\/|\n\s+-\s+(?:fix|feat)\/)/,file+' must push only feature branches');
     assert.doesNotMatch(yaml,/^\s*(?:pull_request_target|deployment|release|schedule):/m,file);
-    assert.doesNotMatch(yaml,/^\s+-\s+main\s*$/m,file);
+    // PRs targeting main run read-only verification and are not production
+    // pushes. Only a main *push* can automatically deploy via Git integration;
+    // preserve the existing push-block feature-branch restriction above.
+    // Reject explicit main push targets in YAML block OR inline array forms,
+    // while allowing read-only pull_request checks targeting main.
+    if(pushBlock)assert.doesNotMatch(pushBlock,/^\s*(?:-\s*main\s*$|branches:\s*\[[^\]\r\n]*\bmain\b[^\]\r\n]*\])/m,file);
     assert.doesNotMatch(yaml,/\b(?:vercel\s+(?:deploy|promote|--prod)|gh\s+pr\s+merge|git\s+push\s+origin\s+main)\b/i,file);
     assert.doesNotMatch(yaml,/\b(?:secrets\.|environment:\s*production)/i,file);
   }
