@@ -82,7 +82,7 @@ test('oversized text request fails before any model call, without cutting user c
   groqOnly();let network=0;
   globalThis.fetch=async()=>{network++;throw Error('NETWORK_FORBIDDEN');};
   const run=await router();
-  const original='افتراضي '.repeat(1100);
+  const original='افتراضي '.repeat(1600);
   const result=await run(request(original));
   assert.equal(result.success,false);
   assert.equal(result.errorCode,'AI_REQUEST_TOO_LARGE');
@@ -94,7 +94,7 @@ test('oversized Groq request can use an already allowed free fallback, unchanged
   groqOnly();
   process.env.CLOUDFLARE_ACCOUNT_ID='offline-account';
   process.env.CLOUDFLARE_AI_API_TOKEN='offline-cloudflare-key';
-  const text='Arabic synthetic scenario '.repeat(450),urls=[],bodies=[];
+  const text='Arabic synthetic scenario '.repeat(900),urls=[],bodies=[];
   globalThis.fetch=async(url,options)=>{
     urls.push(String(url));bodies.push(JSON.parse(options.body));
     return mock(200,{answer:'safe synthetic response'});
@@ -114,8 +114,34 @@ test('Groq text preflight never switches to a paid provider or discards text',as
   process.env.LOUREX_AI_NEW_PROVIDERS_ENABLED='true';
   let calls=0;globalThis.fetch=async()=>{calls++;throw Error('NETWORK_FORBIDDEN');};
   const run=await router();
-  const result=await run(request('private example '.repeat(900)));
+  const result=await run(request('private example '.repeat(1600)));
   assert.equal(result.success,false);
   assert.equal(result.errorCode,'AI_REQUEST_TOO_LARGE');
   assert.equal(calls,0);
+});
+
+test('normal greeting with sizeable synthetic catalogue is not falsely blocked by UTF-8 byte length',async()=>{
+  groqOnly();let calls=0;
+  const {buildNaturalLourexPrompt}=await import('../api/_ai/lourex-dialogue.js');
+  const rows=Array.from({length:25},(_,i)=>({
+    name:'Synthetic catalogue item '+(i+1),sku:'ITEM-'+i,
+    price:100+i,currency:'USD',stock:i
+  }));
+  const prompt=buildNaturalLourexPrompt({
+    message:'السلام عليكم',
+    context:{language:'ar',screen:'home',
+      finance:{asOf:'2026-11-10',balance:0},
+      business:{products:{rows}},pricing:{rows},drafting:{},workingMemory:''}
+  });
+  assert.ok(Buffer.byteLength(prompt,'utf8')>8000,'repro: prompt uses more than 8K bytes but can still fit 8K tokens');
+  globalThis.fetch=async(_url,options)=>{
+    calls++;
+    assert.equal(JSON.parse(options.body).messages[0].content,prompt,
+      'no customer context or prompt is silently removed');
+    return mock(200,{answer:'وعليكم السلام'});
+  };
+  const result=await (await router())(request(prompt));
+  assert.equal(result.success,true);
+  assert.equal(result.data.answer,'وعليكم السلام');
+  assert.equal(calls,1);
 });
