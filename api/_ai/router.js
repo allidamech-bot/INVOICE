@@ -361,6 +361,54 @@ async function fetchWithTimeout(url,options,timeoutMs){
   })();
   try{return await Promise.race([request,timedOut]);}finally{clearTimeout(timeout);}
 }
+// R07X Groq legacy chat protection. Free-tier GPT-OSS/Qwen accounts have
+// a published 8K combined TPM ceiling. This conservative preflight only
+// covers text chat, not nested extraction/vision tokenization or shared quotas.
+// Never truncate user/customer context or silently switch to a paid model.
+const GROQ_TEXT_TPM_CEILING=8_000;
+const GROQ_PREFLIGHT_RESERVE=512;
+function groqTextBudgetFits(request){
+  if((request.attachments||[]).length)return true; // Image tokens need provider-specific measurement.
+  const schema=geminiSchemaToJsonSchema(request.schema);
+  const messages=normalizeMessages(request);
+  const inputBytes=Buffer.byteLength(JSON.stringify(messages),'utf8')+
+    Buffer.byteLength(JSON.stringify(schema??{}),'utf8');
+  const maxOutput=Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS);
+  return inputBytes+maxOutput+GROQ_PREFLIGHT_RESERVE<=GROQ_TEXT_TPM_CEILING;
+}
+// Strict output is safe only for a complete, closed schema using the
+// documented basic Groq subset. Partial/advanced schemas stay best-effort
+// with existing local validation; never fabricate missing properties.
+function groqAutoStrictCompatible(schema){
+  const types=new Set(['object','array','string','number','integer','boolean','null']);
+  const keys=new Set(['type','properties','required','additionalProperties',
+    'items','enum','description']);
+  const seen=new WeakSet();
+  function valid(node){
+    if(!node||typeof node!=='object'||Array.isArray(node)||seen.has(node))
+      return false;
+    seen.add(node);
+    if(Object.keys(node).some(key=>!keys.has(key)))return false;
+    const type=Array.isArray(node.type)?node.type:[node.type];
+    if(type.length===0||type.some(t=>!types.has(t)))return false;
+    if(type.includes('object')){
+      if(node.additionalProperties!==false||!node.properties||
+        typeof node.properties!=='object'||Array.isArray(node.properties)||
+        !Array.isArray(node.required))return false;
+      const properties=Object.keys(node.properties);
+      if(node.required.length!==properties.length||
+        new Set(node.required).size!==properties.length||
+        node.required.some(key=>!properties.includes(key)))return false;
+      for(const field of properties)if(!valid(node.properties[field]))return false;
+    }else if(node.properties!==undefined||node.required!==undefined||
+      node.additionalProperties!==undefined)return false;
+    if(type.includes('array')){
+      if(!node.items||!valid(node.items))return false;
+    }else if(node.items!==undefined)return false;
+    return node.enum===undefined||Array.isArray(node.enum);
+  }
+  return valid(schema);
+}
 function groqReasoningOptions(model,reasoningLevel){
   if(model.model.startsWith('openai/gpt-oss-'))return{reasoning_effort:reasoningLevel==='deep'?'medium':'low',include_reasoning:false};
   return{reasoning_format:'hidden',reasoning_effort:reasoningLevel==='deep'?'medium':'none'};
@@ -368,10 +416,37 @@ function groqReasoningOptions(model,reasoningLevel){
 async function callGroq(model,request){
   const apiKey=process.env.GROQ_API_KEY?.trim();if(!apiKey)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
   const schema=geminiSchemaToJsonSchema(request.schema);
-  const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:request.strictOutput===true||request.taskType==='supplier_purchase_extract',schema}},...groqReasoningOptions(model,request.reasoningLevel)};
+  const supportedStrict=['openai/gpt-oss-120b','openai/gpt-oss-20b',
+    'qwen/qwen3.8-27b'].includes(model.model);
+  const useStrict=request.strictOutput===true||
+    request.taskType==='supplier_purchase_extract'||
+    (supportedStrict&&groqAutoStrictCompatible(schema));
+  const body={model:model.model,messages:normalizeMessages(request),
+    // No executable tools are supplied by this structured-proposal router.
+    // Forbid a generated tool call, including when a prompt mentions tools.
+    tool_choice:'none',
+    temperature:0,max_completion_tokens:Math.min(
+      request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),
+    response_format:{type:'json_schema',json_schema:{
+      name:'lourex_result',strict:useStrict,schema}},
+    ...groqReasoningOptions(model,request.reasoningLevel)};
   const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
   if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,quotaScope:info.quotaScope,status:response.status,rejection:groqRejection(response.status,text),retryable:info.retryable,retryAfterMs:response.status===429?retryAfterDurationMs(response.headers?.get?.('retry-after')):undefined});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
+  // Valid JSON is not proof that Groq finished. A length-capped answer may
+  // parse cleanly but silently omit key details. Never accept a phantom tool
+  // call, an incomplete answer or content-filtered output as a success.
+  const choice=payload?.choices?.[0]||payload?.result?.choices?.[0];
+  const finish=choice?.finish_reason;
+  // A provider-side moderation stop must NOT be bypassed by retrying the
+  // same prompt on a different vendor. Fail closed with no fallback.
+  if(finish==='content_filter')
+    throw Object.assign(new Error('Groq response blocked'),{
+      routerCategory:'blocked',routerCode:'AI_OUTPUT_BLOCKED',retryable:false});
+  if(['length','max_tokens','tool_calls'].includes(finish)||
+    (Array.isArray(choice?.message?.tool_calls)&&choice.message.tool_calls.length>0))
+    throw Object.assign(new Error('incomplete Groq completion'),{
+      routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
 async function callCloudflare(model,request){
@@ -527,6 +602,22 @@ export async function routeAiStructured(options={}){
       const futureReserve=Math.min(Math.max(0,fairSlots-1)*PROVIDER_MIN_MS,Math.max(0,remaining-PROVIDER_MIN_MS-ROUTER_SETTLE_RESERVE_MS));
       const fairWindow=options.fairBudget===true?Math.max(PROVIDER_MIN_MS,Math.floor((remaining-ROUTER_SETTLE_RESERVE_MS)/fairSlots)):30_000;
       const perAttemptMs=Math.min(fairWindow,30_000,Math.max(PROVIDER_MIN_MS,Number(options.timeoutMs)||DEFAULT_TIMEOUT_MS),remaining-ROUTER_SETTLE_RESERVE_MS-futureReserve);
+      // Free-tier preflight before any inference attempt. Preserve exact
+      // user context; if oversized, try only an already authorized alternate.
+      // This is deliberately conservative (UTF-8 bytes >= usual text tokens).
+      // This budget is currently limited to text chat: extraction tasks
+      // have much larger nested schemas and separate source validation.
+      // Do not break established quote/supplier/product extraction on a
+      // conservative byte-based estimate; those still handle upstream 413.
+      if(model.provider==='groq'&&
+        ['business_copilot','workspace_help'].includes(taskType)&&
+        !groqTextBudgetFits({
+          messages:options.messages,prompt:options.prompt,
+          attachments,schema:options.schema,maxOutputTokens:options.maxOutputTokens,
+        })){
+        lastCode='AI_REQUEST_TOO_LARGE';
+        break;
+      }
       const startedAt=Date.now();
       attemptCount+=1;
       try{
@@ -542,6 +633,7 @@ export async function routeAiStructured(options={}){
       }catch(error){
         observe(model,bucket,false,Date.now()-startedAt);
         const category=error?.name==='AbortError'?'timeout':error?.routerCategory||'network',code=error?.name==='AbortError'?'AI_TIMEOUT':error?.routerCode||'AI_NETWORK_ERROR';lastCode=code;recordFailure(model.provider,model.model,category,error?.retryAfterMs,error?.status,error?.quotaScope);telemetry({requestId,taskType,provider:model.provider,model:model.model,status:'failed',category,quotaScope:error?.quotaScope,retryAfterMs:error?.retryAfterMs,rejection:error?.rejection,latencyMs:Date.now()-startedAt,fallbackIndex:index,attempt:attempt+1,schemaValid:false},options.onDiagnostic);
+        if(category==='blocked')break providerRoute;
         if(multiModelEnabled()&&category==='rate_limit'&&error?.quotaScope==='model'){
           const next=candidates.findIndex((candidate,i)=>i>index&&candidate.provider===model.provider&&circuitAvailable(candidate.provider,candidate.model));
           if(next>index+1)candidates.splice(index+1,0,candidates.splice(next,1)[0]);
@@ -569,6 +661,7 @@ export function aiRouterPublicError(result){
   if(code==='AI_PRIVATE_DOCUMENT_UNAVAILABLE')return{status:503,code,message:'No approved private-data provider is available for native PDF processing. The document was not sent.'};
   if(code==='AI_RATE_LIMITED')return{status:429,code,message:'LOUREX AI is temporarily at capacity. Please try again shortly.'};
   if(code==='AI_REQUEST_TOO_LARGE')return{status:413,code,message:'This request exceeds the current AI provider size or token allowance. Reduce the request size or split the task; nothing was changed.'};
+  if(code==='AI_OUTPUT_BLOCKED')return{status:422,code,message:'The AI response was blocked by the provider. No operation was executed.'};
   if(code==='AI_TOOL_GENERATION_FAILED')return{status:502,code,message:'The AI provider could not produce a valid structured action. No action was executed. Please reformulate the request.'};
   if(code==='AI_TIMEOUT')return{status:504,code,message:'LOUREX AI could not complete this request in time.'};
   if(code==='AI_NOT_CONFIGURED')return{status:503,code,message:'LOUREX AI is not configured yet.'};
