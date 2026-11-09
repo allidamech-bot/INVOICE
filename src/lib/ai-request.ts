@@ -13,6 +13,12 @@ function aiPublicErrorMessage(code:string,status:number,fallback:string):string{
   if(code==='AI_FREE_ONLY_REQUIRED')return t('The free-only AI routing requirement is not satisfied. No paid model was called and no data changed.','متطلبات تشغيل الموديلات المجانية فقط غير مستوفاة. لم يُستدعَ أي موديل مدفوع ولم تتغير أي بيانات.');
   if(code==='AI_QUOTE_RATE_LIMITED')return t('LOUREX quotation file-analysis request limit reached. Retry after the request window resets; no model was called and no data was changed.','وصلت إلى حد طلبات تحليل عروض الأسعار. أعد المحاولة بعد انتهاء فترة الحد؛ لم يتم استدعاء أي موديل ولم تتغير أي بيانات.');
   if(code==='AI_INBOX_RATE_LIMITED')return t('LOUREX file/conversation request limit reached. Try again after the request window resets; no provider was contacted and no data was changed.','وصلت إلى حد طلبات المحادثة والملفات في LOUREX. أعد المحاولة بعد انتهاء فترة الحد؛ لم يتم الاتصال بمزوّد AI ولم تتغير أي بيانات.');
+  // Preserve the server's actionable error code even when ai-core sends
+  // HTTP 503; generic temporary-outage text otherwise hides invalid output.
+  if(code==='AI_REQUEST_TOO_LARGE')return t('The request or its business context exceeds the current free model allowance. No data changed.','الطلب أو سياق الشركة يتجاوز حدود النموذج المجاني الحالي. لم تتغير أي بيانات.');
+  if(code==='AI_TOOL_GENERATION_FAILED')return t('The AI model could not produce a reliable structured response. No action was executed.','لم يستطع النموذج إنتاج رد منظّم موثوق. لم يُنفّذ أي إجراء.');
+  if(code==='AI_OUTPUT_BLOCKED')return t('The provider blocked this response. No action was executed.','أوقف المزوّد إنشاء هذا الرد. لم يُنفّذ أي إجراء.');
+  if(code==='AI_INVALID_RESULT')return t('The AI response was incomplete or invalid. No data changed.','كان رد الذكاء الاصطناعي ناقصًا أو غير صالح. لم تتغير أي بيانات.');
   if(code==='AI_RATE_LIMITED'||status===429)return t('AI providers are temporarily at capacity. Retry shortly. No data was changed.','مزوّدو الذكاء الاصطناعي مشغولون مؤقتًا. أعد المحاولة بعد قليل. لم تتغير أي بيانات.');
   if(code==='AI_TIMEOUT'||status===504)return t('AI took too long to respond. Retry with a shorter message or fewer files. No data was changed.','استغرق رد الذكاء الاصطناعي وقتًا أطول من المسموح. حاول برسالة أقصر أو ملفات أقل. لم تتغير أي بيانات.');
   if(status===401)return t('Your Firebase account session needs to be refreshed. Sign in again and retry.','تحتاج جلسة حساب Firebase إلى التحديث. سجّل الدخول مجددًا وأعد المحاولة.');
