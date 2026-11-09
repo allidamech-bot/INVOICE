@@ -361,20 +361,25 @@ async function fetchWithTimeout(url,options,timeoutMs){
   })();
   try{return await Promise.race([request,timedOut]);}finally{clearTimeout(timeout);}
 }
-// R07X Groq legacy chat protection. Free-tier GPT-OSS/Qwen accounts have
-// a published 8K combined TPM ceiling. This conservative preflight only
-// covers text chat, not nested extraction/vision tokenization or shared quotas.
-// Never truncate user/customer context or silently switch to a paid model.
+// R07X Groq free-chat guard. Published 8K TPM is an organization/model
+// limit, not an exact byte allowance; a 1-byte=1-token assumption rejected
+// ordinary greetings whenever the existing business context held many rows.
+// Estimate conservatively but imperfectly. The real upstream 413 is the
+// authoritative hard rejection, handled without retrying the same request.
+// Never truncate user/customer context or permit a paid fallback.
 const GROQ_TEXT_TPM_CEILING=8_000;
 const GROQ_PREFLIGHT_RESERVE=512;
+const GROQ_ESTIMATED_UTF8_BYTES_PER_TOKEN=3;
 function groqTextBudgetFits(request){
   if((request.attachments||[]).length)return true; // Image tokens need provider-specific measurement.
   const schema=geminiSchemaToJsonSchema(request.schema);
   const messages=normalizeMessages(request);
   const inputBytes=Buffer.byteLength(JSON.stringify(messages),'utf8')+
     Buffer.byteLength(JSON.stringify(schema??{}),'utf8');
+  // Heuristic for safe early rejection, not a tokenizer or quota guarantee.
+  const estimatedInputTokens=Math.ceil(inputBytes/GROQ_ESTIMATED_UTF8_BYTES_PER_TOKEN);
   const maxOutput=Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS);
-  return inputBytes+maxOutput+GROQ_PREFLIGHT_RESERVE<=GROQ_TEXT_TPM_CEILING;
+  return estimatedInputTokens+maxOutput+GROQ_PREFLIGHT_RESERVE<=GROQ_TEXT_TPM_CEILING;
 }
 // Strict output is safe only for a complete, closed schema using the
 // documented basic Groq subset. Partial/advanced schemas stay best-effort
