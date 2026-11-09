@@ -4,6 +4,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 
 const envKeys=[
   'GROQ_API_KEY','GEMINI_API_KEY','CLOUDFLARE_AI_API_TOKEN',
@@ -144,4 +145,16 @@ test('normal greeting with sizeable synthetic catalogue is not falsely blocked b
   assert.equal(result.success,true);
   assert.equal(result.data.answer,'وعليكم السلام');
   assert.equal(calls,1);
+});
+
+test('provider failure codes remain visible rather than collapsing into generic 503',()=>{
+  const client=readFileSync(new URL('../src/lib/ai-request.ts',import.meta.url),'utf8');
+  const generic=client.indexOf("if(code==='AI_TEMPORARILY_UNAVAILABLE'||status===503)");
+  assert.ok(generic>0);
+  for(const code of ['AI_REQUEST_TOO_LARGE','AI_TOOL_GENERATION_FAILED',
+    'AI_OUTPUT_BLOCKED','AI_INVALID_RESULT']){
+    const position=client.indexOf("if(code==='"+code+"')");
+    assert.ok(position>0&&position<generic,
+      code+' must be translated before the generic HTTP 503 fallback');
+  }
 });
