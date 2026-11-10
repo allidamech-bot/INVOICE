@@ -77,7 +77,12 @@ test('document editor explicitly awaits a persisted save before Save and Close',
   ]);
   const invoiceSave=invoice.slice(invoice.indexOf('private saveAndClose='),invoice.indexOf('private openReview=',invoice.indexOf('private saveAndClose=')));
   assert.match(invoiceSave,/await this\.props\.onSave\(snapshot,true\)/);
-  assert.ok(invoiceSave.indexOf('await this.props.onSave(snapshot,true)')<invoiceSave.indexOf('this.props.onClose()'),'close only after save');
+  // Already-saved drafts can close immediately; verify the UNSAVED branch,
+  // not the earlier explicit fast path for an already committed document.
+  const pendingSaveFlow=invoiceSave.slice(invoiceSave.indexOf('for(;;)'));
+  assert.ok(pendingSaveFlow.indexOf('await this.props.onSave(snapshot,true)')>=0);
+  assert.ok(pendingSaveFlow.indexOf('await this.props.onSave(snapshot,true)')<
+    pendingSaveFlow.indexOf('this.props.onClose()'),'unsaved document must close only after save');
   const draftSave=draft.slice(draft.indexOf('private saveAndClose='),draft.indexOf('private output=',draft.indexOf('private saveAndClose=')));
   assert.match(draftSave,/await this\.persistStable\(\)/);
   assert.match(invoice,/window\.addEventListener\('pagehide',this\.handlePageHide\)/);
