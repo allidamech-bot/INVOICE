@@ -382,7 +382,7 @@
   // Owner-only metadata checks. No prompts, inference or payment.
   for(const button of keyButtons)button.addEventListener('click',async()=>{
     const provider=button.getAttribute('data-provider-key-check');
-    if(probeRunning||!['gemini','ollama'].includes(provider))return;
+    if(probeRunning||!['groq','gemini','ollama'].includes(provider))return;
     probeRunning=true;allProbeButtons.forEach(item=>item.disabled=true);
     const result=document.querySelector('[data-provider-key-result="'+provider+'"]');
     if(result)result.textContent='Checking key only… / جارٍ فحص المفتاح فقط…';
@@ -400,9 +400,9 @@
         if(!response.ok)result.textContent=response.status===403?'Owner access required / يلزم حساب المالك':response.status===429?'Diagnostic limit reached / انتهى حد الفحص':'Key check unavailable / تعذر فحص المفتاح';
         else{
           const labels={
-            KEY_AUTHENTICATED:'Key authenticated — free allowance NOT verified / المفتاح صالح، مجانية الخطة غير مؤكدة',
+            KEY_AUTHENTICATED:'Metadata API accepted — inference, free allowance and billing NOT verified / قُبل فحص البيانات فقط؛ التوليد والمجانية والفوترة غير مؤكدة',
             METADATA_ACCESS_OK:'Gemini model lookup accepted — generation quota NOT checked / مفتاح Gemini مقبول لبيانات النموذج، حصة التوليد غير مفحوصة',
-            ACCESS_DENIED:'Gemini model access denied / الوصول إلى نموذج Gemini مرفوض',
+            ACCESS_DENIED:'Provider metadata access denied / الوصول إلى بيانات المزوّد مرفوض',
             INVALID_RESPONSE:'Unexpected model metadata / بيانات النموذج غير صالحة',
             KEY_REJECTED:'Key rejected / المفتاح مرفوض',
             NOT_CONFIGURED:'Key missing / المفتاح غير موجود',
