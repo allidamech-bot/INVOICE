@@ -22,7 +22,7 @@ function checkedBytes(value){if(!Buffer.isBuffer(value)||!value.length||value.le
 function unsignedText(bytes){
   const xml=new TextDecoder('utf-8',{fatal:true}).decode(checkedBytes(bytes));
   // Exact root from the existing UBL candidate writer; do not accept third-party XML.
-  if(!xml.startsWith(root)||!xml.endsWith('</Invoice>')||/<[!?]/.test(xml.slice(root.length))||/<\/?(?!cbc:|cac:|Invoice>)/.test(xml.slice(root.length))||/<cac:Signature\b|<cbc:ID>QR<\/cbc:ID>|xmlns(?::|\s*=)/.test(xml.slice(root.length)))throw Error('UNSUPPORTED_UNSIGNED_XML');
+  if(!xml.startsWith(root)||!xml.endsWith('</Invoice>')||/<[!?]/.test(xml.slice(root.length))||/<(?!\/?(?:cbc:|cac:|Invoice>))/.test(xml.slice(root.length))||/<cac:Signature\b|<cbc:ID>QR<\/cbc:ID>|xmlns(?::|\s*=)/.test(xml.slice(root.length)))throw Error('UNSUPPORTED_UNSIGNED_XML');
   if(!/<cbc:InvoiceTypeCode name="0200000">(?:388|381|383)<\/cbc:InvoiceTypeCode>/.test(xml))throw Error('SIMPLIFIED_CANDIDATE_ONLY');
   const marker='<cac:AccountingSupplierParty>';
   if(xml.split(marker).length!==2)throw Error('INVALID_SUPPLIER_POSITION');
