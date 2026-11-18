@@ -48,3 +48,15 @@ test('document commands return the reviewed source status and never infer approv
  assert.equal((await f.execute(owner,cmd('review',{...doc,invoiceType:'standard',supplyDate:'2026-11-18',paymentMeans:'30'}))).status,'reviewed');
  await assert.rejects(f.execute(owner,cmd('review',{...doc,invoiceType:'standard',supplyDate:'2026-11-18',paymentMeans:'30',seller:{}})));
 });
+
+test('recovery uses exact immutable issue version even after cloud source changes, not a second submit',async()=>{
+ let called=0;const f=fixture({recover:async(s,id,v)=>{called++;assert.deepEqual(s,scope);assert.equal(id,'doc');assert.equal(v,2);return {status:'uncertain',version:3};},responseStatus:async()=>({recoveryAvailable:true,hasReceipt:false})});
+ f.rows.set(base+'/issueIntents/doc',{...scope,...doc,state:'approved',sha256:'a'.repeat(64)});
+ f.rows.set(base+'/issues/doc',{...scope,...doc,status:'submitting',version:2,snapshotDigest:'a'.repeat(64)});
+ f.rows.set('users/owner/workspace/meta',{chunkStorage:'period-generations-v1',revision:'newer',sha256:'b'.repeat(64)});
+ assert.equal((await f.execute(owner,cmd('document-status',doc))).capabilities.recovery,true);
+ await assert.rejects(f.execute(owner,cmd('recover',{...doc,expectedVersion:1})),/STALE_ISSUE/);
+ await assert.rejects(f.execute(owner,cmd('recover',{...doc,expectedVersion:2,attemptId:'injected'})));
+ assert.deepEqual(await f.execute(owner,cmd('recover',{...doc,expectedVersion:2})),{environment:'simulation',documentId:'doc',status:'uncertain',version:3});
+ assert.equal(called,1);
+});

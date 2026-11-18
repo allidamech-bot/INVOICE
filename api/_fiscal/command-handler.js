@@ -7,7 +7,7 @@ async function read(req){
   let bytes;if(req.body!==undefined){const s=typeof req.body==='string'?req.body:JSON.stringify(req.body);if(typeof s!=='string'||Buffer.byteLength(s)>LIMIT)throw Error('REQUEST_TOO_LARGE');bytes=Buffer.from(s);}else{const chunks=[];let n=0;for await(const p of req){const b=Buffer.from(p);n+=b.length;if(n>LIMIT)throw Error('REQUEST_TOO_LARGE');chunks.push(b);}bytes=Buffer.concat(chunks);}
   return parseFiscalCommand(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
 }
-const conflicts=new Set(['FISCAL_REVIEW_REQUIRED','FISCAL_REVIEW_CHANGED','FISCAL_STALE_ISSUE','STALE_ONBOARDING','ONBOARDING_ATTEMPT_HELD','FISCAL_APPROVAL_ALREADY_BOUND','FISCAL_SOURCE_CHANGED','FISCAL_PERIOD_CLOSED']);
+const conflicts=new Set(['FISCAL_REVIEW_REQUIRED','FISCAL_REVIEW_CHANGED','FISCAL_STALE_ISSUE','STALE_ONBOARDING','ONBOARDING_ATTEMPT_HELD','FISCAL_APPROVAL_ALREADY_BOUND','FISCAL_SOURCE_CHANGED','FISCAL_PERIOD_CLOSED','FISCAL_RECOVERY_NOT_ELIGIBLE','FISCAL_RECONCILIATION_NOT_ELIGIBLE']);
 export function createFiscalCommandHandler({getRuntime}){
   return async(req,res)=>{
     if(req.method!=='POST'){res.setHeader('Allow','POST');send(res,405,{code:'METHOD_NOT_ALLOWED'});return;}

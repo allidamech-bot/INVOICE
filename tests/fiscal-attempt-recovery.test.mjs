@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createFiscalLedger} from '../api/_fiscal/ledger.js';
+import {createFiscalResponseStatus,projectAuthorityResponse} from '../api/_fiscal/response-status.js';
 import {createFiscalSimulationWorker} from '../api/_fiscal/simulation-worker.js';
 import {createZatcaSimulationClient} from '../api/_fiscal/zatca-simulation.js';
 import {FIRST_PREVIOUS_INVOICE_HASH} from '../dist/src/lib/fiscal-issuance.js';
@@ -19,7 +20,7 @@ function fixture({mode='clearance',raw=accepted,failJournal=false,verify=async()
   rows.set(base+'/egs/egs',{...scope,active:true,nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH});
   const ledger=createFiscalLedger(db),record={...scope,documentId:doc,uuid:payload.uuid,invoiceHash:payload.invoiceHash,icv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH,artifactDigest:sha(xml),snapshotDigest:sha(snapshot),generatedAt:at,mode};
   const worker=createFiscalSimulationWorker({ledger,resolveCredential:async()=>credential,verifyPrepared:async()=>true,verifyAuthorityResult:async args=>{checks++;assert.equal(rows.get(receiptPath)?.digest,sha(raw));return verify(args);},clock:()=>at,attemptId:()=>attempt,fetchImpl:async()=>{calls++;return new Response(raw,{status:200});}});
-  return {ledger,worker,prepare:()=>ledger.prepare(scope,record,xml,snapshot),read:p=>rows.get(p),calls:()=>calls,checks:()=>checks,seed:(p,v)=>rows.set(p,v)};
+  return {db,ledger,worker,prepare:()=>ledger.prepare(scope,record,xml,snapshot),read:p=>rows.get(p),calls:()=>calls,checks:()=>checks,seed:(p,v)=>rows.set(p,v)};
 }
 const metadata=(bytes,receivedAt=at)=>({httpStatus:200,bytes,digest:sha(bytes),receivedAt});
 test('worker commits receipt before verification, then accepted artifact and audit in real ledger',async()=>{
@@ -82,4 +83,27 @@ test('scope and immutable artifact integrity rechecked at final CAS; no negative
   const f=fixture();await hold(f,accepted);await assert.rejects(reconciler(f)({...scope,egsId:'other'},doc,3));await assert.rejects(reconciler(f)({...scope,environment:'production'},doc,3));
   await assert.rejects(f.ledger.transition(scope,doc,3,{kind:'confirmed-not-accepted',attemptId:attempt,at:later,evidenceDigest:sha(accepted)},accepted),/NEGATIVE_RECONCILIATION_NOT_CONFIGURED/);
   await assert.rejects(reconciler(f,{verifyAuthorityResult:async()=>{f.seed(path+'/artifacts/prepared',{sha256:sha(xml),bytes:Buffer.from('changed').toString('base64')});return true;}})(scope,doc,3),/artifact/);assert.equal(f.read(path).status,'uncertain');
+});
+
+test('status projection preserves authoritative warning result, exact HTTP code and no raw secrets',async()=>{
+ const raw=Buffer.from(JSON.stringify({reportingStatus:'REPORTED',validationResults:{status:'WARNING',errorMessages:[],warningMessages:[{code:'BR-KSA-01',message:'sensitive private details'}]}}));
+ const f=fixture({mode:'reporting',raw});await f.prepare();
+ let p=await f.db.runTransaction(tx=>createFiscalResponseStatus(f.db)(tx,scope,f.read(path),at));
+ assert.equal(p.hasReceipt,false);assert.equal(p.mode,'reporting');assert.equal(p.recoveryAvailable,false);
+ await hold({ ...f,prepare:async()=>{} },raw,202); // use the existing queued instance
+ p=await f.db.runTransaction(tx=>createFiscalResponseStatus(f.db)(tx,scope,f.read(path),later));
+ assert.equal(p.response.kind,'positive-response');assert.equal(p.acceptedWithWarnings,false);assert.equal(p.hasReceipt,true);
+ await reconciler(f)(scope,doc,3);
+ p=await f.db.runTransaction(tx=>createFiscalResponseStatus(f.db)(tx,scope,f.read(path),later));
+ assert.equal(p.response.httpStatus,202);assert.equal(p.acceptedWithWarnings,true);assert.deepEqual(p.response.warningCodes,['BR-KSA-01']);assert.doesNotMatch(JSON.stringify(p),/sensitive private details/);
+});
+test('interrupted recovery appears only after five minutes and exposes no unverified terminal rejection',async()=>{
+ const f=fixture();await f.prepare();await f.ledger.claim(scope,doc,1,attempt,at);
+ const read=now=>f.db.runTransaction(tx=>createFiscalResponseStatus(f.db)(tx,scope,f.read(path),now));
+ assert.equal((await read(at)).recoveryAvailable,false);assert.equal((await read(later)).recoveryAvailable,true);
+ const raw=Buffer.from(JSON.stringify({clearanceStatus:'NOT_CLEARED',clearedInvoice:null,validationResults:{status:'ERROR',errorMessages:[{code:'BR-KSA-28',message:'private invoice text'},{code:'<script>'}],warningMessages:[]}}));
+ await f.ledger.recordResponse(scope,doc,2,attempt,{...metadata(raw),httpStatus:400});
+ await f.ledger.recoverInterrupted(scope,doc,2,attempt,later);const p=await read(later);
+ assert.equal(p.response.kind,'validation-errors');assert.equal(p.response.errorCount,2);assert.deepEqual(p.response.errorCodes,['BR-KSA-28']);assert.equal(f.read(path).status,'uncertain');assert.equal(p.recoveryAvailable,false);assert.doesNotMatch(JSON.stringify(p),/private invoice text|<script>/);assert.equal(f.calls(),0);
+ assert.equal(projectAuthorityResponse({httpStatus:500,mode:'clearance',bytes:raw}).kind,'unresolved-response');
 });

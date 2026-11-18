@@ -11,14 +11,14 @@ const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].ever
 export function parseFiscalCommand(v){
   need(v&&typeof v==='object'&&!Array.isArray(v),'INVALID_COMMAND');
   const op=v.operation,keys=['operation','workspaceId'];
-  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
-  if(['document-status','review','approve','prepare','submit'].includes(op)){keys.push('documentId','documentRevision');need(id(v.documentId)&&version(v.documentRevision),'INVALID_COMMAND');}
+  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit','recover','reconcile'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
+  if(['document-status','review','approve','prepare','submit','recover','reconcile'].includes(op)){keys.push('documentId','documentRevision');need(id(v.documentId)&&version(v.documentRevision),'INVALID_COMMAND');}
   if(op==='review'){keys.push('invoiceType','supplyDate','paymentMeans');need(['standard','simplified'].includes(v.invoiceType)&&typeof v.supplyDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v.supplyDate)&&['10','30','42','48','1'].includes(v.paymentMeans),'INVALID_COMMAND');}
   if(op==='enroll'){keys.push('otp');need(typeof v.otp==='string'&&/^\d{6}$/.test(v.otp),'INVALID_COMMAND');}
-  if(['check','operational','submit'].includes(op)){keys.push('expectedVersion');need(version(v.expectedVersion),'INVALID_COMMAND');}
+  if(['check','operational','submit','recover','reconcile'].includes(op)){keys.push('expectedVersion');need(version(v.expectedVersion),'INVALID_COMMAND');}
   need(Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k)),'INVALID_COMMAND');return {...v};
 }
-export function createFiscalCommandService({db,approve,reviewDocument,enrollment,prepare,submit}){
+export function createFiscalCommandService({db,approve,reviewDocument,enrollment,prepare,submit,recover,reconcile,responseStatus,clock=()=>new Date().toISOString()}){
   need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&typeof approve==='function','FISCAL_COMMAND_UNAVAILABLE');
   return async function execute(identity,input){
     const cmd=parseFiscalCommand(input),op=cmd.operation;
@@ -46,7 +46,12 @@ export function createFiscalCommandService({db,approve,reviewDocument,enrollment
       const reviewed=Boolean(sourceMeta?.chunkStorage==='period-generations-v1'&&review?.sourceRevision===sourceMeta.revision&&review?.sourceSha256===sourceMeta.sha256&&same(review,s)&&review.state==='approved'&&review.documentId===cmd.documentId&&review.documentRevision===cmd.documentRevision);
       if(issue)need(issue.accountUid===s.accountUid&&issue.workspaceId===s.workspaceId&&issue.egsId===s.egsId&&issue.documentId===cmd.documentId&&statuses.has(issue.status),'FISCAL_COMMAND_UNAVAILABLE');
       if(intent)need(same(intent,s)&&intent.documentId===cmd.documentId&&intent.state==='approved','FISCAL_COMMAND_UNAVAILABLE');
-      return {s,unit,onboarding,reviewed,issue,intent,enrollmentHeld};
+      let response=null;
+      if(op==='document-status'&&issue&&typeof responseStatus==='function'){
+        need(intent&&intent.documentRevision===cmd.documentRevision&&intent.sha256===issue.snapshotDigest,'FISCAL_REVIEW_CHANGED');
+        response=await responseStatus(tx,s,issue,clock());
+      }
+      return {s,unit,onboarding,reviewed,issue,intent,enrollmentHeld,response};
     });
     const {s,unit}=c;
     if(op==='inspect')return {environment:'simulation',workspaceId:s.workspaceId,unitActive:unit.active,onboarding:c.onboarding,enrollmentHeld:c.enrollmentHeld,capabilities:{enrollment:!!enrollment,approval:unit.active,preparation:unit.active&&typeof prepare==='function',submission:unit.active&&typeof submit==='function'}};
@@ -57,7 +62,17 @@ export function createFiscalCommandService({db,approve,reviewDocument,enrollment
     }
     if(op==='document-status'){
       if(c.intent)need(c.intent.documentRevision===cmd.documentRevision,'FISCAL_REVIEW_CHANGED');
-      return {environment:'simulation',documentId:cmd.documentId,documentRevision:cmd.documentRevision,status:c.issue?.status||(c.intent?'approved':c.reviewed?'reviewed':'not-reviewed'),version:c.issue?.version??null,capabilities:{review:unit.active&&typeof reviewDocument==='function',approval:unit.active,preparation:unit.active&&typeof prepare==='function',submission:unit.active&&typeof submit==='function'}};
+      return {environment:'simulation',documentId:cmd.documentId,documentRevision:cmd.documentRevision,status:c.issue?.status||(c.intent?'approved':c.reviewed?'reviewed':'not-reviewed'),version:c.issue?.version??null,response:c.response,capabilities:{recovery:typeof recover==='function'&&c.response?.recoveryAvailable===true,reconciliation:typeof reconcile==='function'&&c.issue?.status==='uncertain'&&c.response?.hasReceipt===true,review:unit.active&&typeof reviewDocument==='function',approval:unit.active,preparation:unit.active&&typeof prepare==='function',submission:unit.active&&typeof submit==='function'}};
+    }
+    if(op==='recover'||op==='reconcile'){
+      // A previously submitted immutable issue must remain recoverable even
+      // if an unrelated edit has since advanced the workspace manifest.
+      need(c.issue&&c.intent&&c.intent.documentRevision===cmd.documentRevision&&c.intent.sha256===c.issue.snapshotDigest&&c.issue.version===cmd.expectedVersion,'FISCAL_STALE_ISSUE');
+      const fn=op==='recover'?recover:reconcile;
+      need(typeof fn==='function','FISCAL_VERIFICATION_UNAVAILABLE');
+      need(c.issue.status===(op==='recover'?'submitting':'uncertain'),'FISCAL_STALE_ISSUE');
+      const r=await fn(s,cmd.documentId,cmd.expectedVersion);
+      return {environment:'simulation',documentId:cmd.documentId,status:r.status,version:r.version};
     }
     if(op==='review'){
       need(unit.active&&typeof reviewDocument==='function','FISCAL_VERIFICATION_UNAVAILABLE');

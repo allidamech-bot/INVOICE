@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {fiscalQaInvoice,fiscalDocumentNextAction,validateFiscalDocumentState} from '../dist/src/lib/fiscal-document-client.js';
 const doc={id:'draft',revision:1,kind:'invoice',companySnapshot:{country:'SA',vatNumber:'300000000000003'}};
-const base={environment:'simulation',documentId:'draft',documentRevision:1,status:'not-reviewed',version:null,capabilities:{review:true,approval:true,preparation:false,submission:false}};
+const base={environment:'simulation',documentId:'draft',documentRevision:1,status:'not-reviewed',version:null,response:null,capabilities:{review:true,approval:true,preparation:false,submission:false,recovery:false,reconciliation:false}};
 test('fiscal dialog follows authoritative state, refuses automatic retries and cannot activate production',()=>{
  assert.equal(fiscalQaInvoice(doc),false);
  assert.equal(fiscalDocumentNextAction(validateFiscalDocumentState(base,doc)),'review');
@@ -19,4 +19,14 @@ test('editor routes the QA issue confirmation before commercial finalization, an
  assert.match(app,/doc.status==='final'&&\(fiscalQaInvoice\(doc\)/);
  assert.match(app,/private requestPrint=async[\s\S]*?if\(fiscalQaInvoice\(doc\)\)throw/);
  assert.match(app,/private publishFiscalDraft=async[\s\S]*?remote.meta.chunkStorage!=='period-generations-v1'/);
+});
+test('interrupted response recovery and reconciliation are distinct from submission',()=>{
+ const response={mode:'reporting',updatedAt:'2026-11-18T10:00:00.000Z',reportingDeadline:'2026-11-19T10:00:00.000Z',overdue:false,hasReceipt:false,recoveryAvailable:true,acceptedWithWarnings:false,response:null};
+ const state={...base,status:'submitting',version:2,response,capabilities:{...base.capabilities,recovery:true,submission:true}};
+ assert.equal(fiscalDocumentNextAction(validateFiscalDocumentState(state,doc)),'recover');
+ const receipt={httpStatus:400,kind:'validation-errors',warningCount:0,errorCount:1,warningCodes:[],errorCodes:['BR-KSA-01']};
+ const held={...state,status:'uncertain',version:3,response:{...response,hasReceipt:true,recoveryAvailable:false,response:receipt},capabilities:{...base.capabilities,reconciliation:true}};
+ assert.equal(fiscalDocumentNextAction(validateFiscalDocumentState(held,doc)),'reconcile');
+ assert.throws(()=>validateFiscalDocumentState({...held,response:{...held.response,response:{...receipt,errorCodes:['<script>']}}},doc));
+ assert.equal(fiscalDocumentNextAction({...held,capabilities:{...held.capabilities,reconciliation:false}}),null);
 });
