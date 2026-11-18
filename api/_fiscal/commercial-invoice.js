@@ -1,6 +1,6 @@
 import {assertFiscalIssuerIdentity} from '../../dist/src/lib/fiscal-issuer.js';
 import {resolveFiscalRoute} from '../../dist/src/lib/fiscal-routing.js';
-import {calculateTotals,normalizeDecimalInput,isFinancialDecimalInput} from '../../dist/src/lib/money.js';
+import {calculateTotals,normalizeDecimalInput,isFinancialDecimalInput,decimalToScaled} from '../../dist/src/lib/money.js';
 import {buildFiscalCandidate} from './ubl-draft.js';
 
 // Translate the existing commercial document, not a second editable invoice.
@@ -46,11 +46,11 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   });
   const a=d.adjustments;
   require(typeof a.discountEnabled==='boolean'&&typeof a.shippingEnabled==='boolean'&&typeof a.otherChargesEnabled==='boolean'&&(!a.discountEnabled||['fixed','percent'].includes(a.discountMode)),'INVALID_COMMERCIAL_ADJUSTMENTS');
-  if(a.discountEnabled){dec(a.discountValue,a.discountMode==='fixed'?2:4);if(a.discountMode==='percent')require(Number(dec(a.discountValue))<=100,'INVALID_COMMERCIAL_DISCOUNT');}
+  if(a.discountEnabled){dec(a.discountValue,a.discountMode==='fixed'?2:4);if(a.discountMode==='percent')require(decimalToScaled(dec(a.discountValue),4)<=1000000n,'INVALID_COMMERCIAL_DISCOUNT');}
   if(a.shippingEnabled)dec(a.shipping,2);
   if(a.otherChargesEnabled)require(dec(a.otherCharges,2)==='0','FISCAL_OTHER_CHARGE_REVIEW_REQUIRED');
   const commercial=calculateTotals(d.items,a),adjustments=[];
-  if(a.discountEnabled&&a.discountMode==='fixed')require(Number(dec(a.discountValue,2))<=Number(commercial.subtotal),'INVALID_COMMERCIAL_DISCOUNT');
+  if(a.discountEnabled&&a.discountMode==='fixed')require(decimalToScaled(dec(a.discountValue,2),2)<=decimalToScaled(commercial.subtotal,2),'INVALID_COMMERCIAL_DISCOUNT');
   if(commercial.discount!=='0.00')adjustments.push({kind:'allowance',amount:commercial.discount,category:'S',rate:'15',adjustmentReasonCode:'95',adjustmentReasonText:'Discount'});
   if(commercial.shipping!=='0.00')adjustments.push({kind:'charge',amount:commercial.shipping,category:'S',rate:'15',adjustmentReasonCode:'FC',adjustmentReasonText:'Freight'});
   const issueAt=new Date(identity.generatedAt);

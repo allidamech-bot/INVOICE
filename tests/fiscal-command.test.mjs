@@ -6,7 +6,7 @@ import {fiscalCommandConfig} from '../api/_fiscal/command-runtime.js';
 const scope={accountUid:'owner',workspaceId:'qa',egsId:'egs',environment:'simulation'},owner={uid:'owner',role:'owner'},base='fiscalPrivateV1/owner/workspaces/qa',doc={documentId:'doc',documentRevision:1};
 const cmd=(operation,extra={})=>({operation,workspaceId:'qa',...extra});
 function fixture(patch={}){
- const rows=new Map([[base,{...scope,syntheticOnly:true,commandsEnabled:true,selectedEgsId:'egs'}],[base+'/egs/egs',{...scope,active:true}],[base+'/issueReviews/doc',{...scope,...doc,state:'approved'}]]);
+ const rows=new Map([[base,{...scope,syntheticOnly:true,commandsEnabled:true,selectedEgsId:'egs'}],[base+'/egs/egs',{...scope,active:true}],[base+'/issueReviews/doc',{...scope,...doc,state:'approved',sourceRevision:'revision-one',sourceSha256:'a'.repeat(64)}],['users/owner/workspace/meta',{chunkStorage:'period-generations-v1',revision:'revision-one',sha256:'a'.repeat(64)}]]);
  const db={doc:path=>({path}),runTransaction:fn=>fn({get:async r=>({exists:rows.has(r.path),data:()=>structuredClone(rows.get(r.path))})})};
  const calls=[];const approve=async(i,c,options)=>{calls.push([i,c,options]);return {...doc,status:'approved'};};
  return {rows,calls,execute:createFiscalCommandService({db,approve,...patch})};
@@ -39,3 +39,12 @@ test('QA writer key cannot use production or reader identity',()=>{
 });
 
 test('held enrollment attempt is visible even before onboarding exists and prevents new remote commands',async()=>{const f=fixture({enrollment:{begin:async()=>{throw Error('must not call');}}});f.rows.set(base+'/egs/egs',{...scope,active:false});f.rows.set(base+'/egs/egs/enrollmentAttempts/compliance-csid',{...scope,state:'held'});const s=await f.execute(owner,cmd('inspect'));assert.equal(s.enrollmentHeld,true);assert.equal(s.onboarding,null);await assert.rejects(f.execute(owner,cmd('enroll',{otp:'123456'})),/ATTEMPT_HELD/);});
+
+test('document commands return the reviewed source status and never infer approval from a changed workspace',async()=>{
+ const f=fixture({reviewDocument:async(i,c)=>{assert.deepEqual(i,owner);assert.equal(c.egsId,'egs');assert.equal(c.invoiceType,'standard');return {...doc,status:'reviewed'};}});
+ const view=await f.execute(owner,cmd('document-status',doc));assert.equal(view.status,'reviewed');assert.equal(view.capabilities.preparation,false);
+ f.rows.set('users/owner/workspace/meta',{chunkStorage:'period-generations-v1',revision:'newer',sha256:'b'.repeat(64)});
+ assert.equal((await f.execute(owner,cmd('document-status',doc))).status,'not-reviewed');await assert.rejects(f.execute(owner,cmd('approve',doc)),/REVIEW_REQUIRED/);
+ assert.equal((await f.execute(owner,cmd('review',{...doc,invoiceType:'standard',supplyDate:'2026-11-18',paymentMeans:'30'}))).status,'reviewed');
+ await assert.rejects(f.execute(owner,cmd('review',{...doc,invoiceType:'standard',supplyDate:'2026-11-18',paymentMeans:'30',seller:{}})));
+});

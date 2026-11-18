@@ -110,7 +110,7 @@ test('normal PDF/print/share actions automatically attach QR without a share-dia
  const code=ts.transpileModule('globalThis.run='+initializer,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
  for(const mode of ['pdf','print','share']){
   const d=document();let ensured=0,printed=0;
-  const ctx={navigator:{userAgent:'test',platform:'test'},window:{__LOUREX_PREPARE_PDF__:()=>{}},document:{title:'',body:{classList:{add:()=>{}}}},structuredClone,validateDocument:()=>({}),validateStoredFinalForOutput:()=>({}),automaticElectronicDocument:domain.automaticElectronicDocument,
+  const ctx={fiscalQaInvoice:()=>false,navigator:{userAgent:'test',platform:'test'},window:{__LOUREX_PREPARE_PDF__:()=>{}},document:{title:'',body:{classList:{add:()=>{}}}},structuredClone,validateDocument:()=>({}),validateStoredFinalForOutput:()=>({}),automaticElectronicDocument:domain.automaticElectronicDocument,
    ensureDocumentElectronicCopy:async(target,options)=>{assert.equal(target.id,d.id);assert.equal(options.isCurrent(),true);ensured++;return {id:'x'.repeat(43)};},assertFinancialOutputParity:(a,b)=>assert.equal(a.items[0].quantity,b.items[0].quantity),safeFilename:s=>s,t:en=>en,
    accountEpoch:1,state:{unlocked:true,vault:{documents:[d]}},requireVault:()=>({documents:[d]}),setState:(patch,cb)=>{Object.assign(ctx.state,patch);cb?.();},launchPrint:async()=>{printed++;},showToast:()=>{}};
   vm.runInNewContext(code,ctx);await ctx.run(d,mode);
@@ -124,7 +124,7 @@ test('issuance connects QR only after protected accounting save and never bypass
  const code=ts.transpileModule('globalThis.run='+initializer,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
  for(const allowed of [true,false]){
   const d=document(),vault=emptyVault();vault.documents=[{...d,status:'draft'}];let persisted=0,connected=0,gated=0;
-  const ctx={Date,automaticElectronicDocument:domain.automaticElectronicDocument,ensureDocumentElectronicCopy:async(doc,options)=>{assert.equal(persisted,1,'QR publication follows accounting save');assert.equal(options.isCurrent(),true);connected++;return {};},salesOrderForQuotation:()=>null,isDeliveryLinkedInvoice:()=>false,
+  const ctx={fiscalQaInvoice:()=>false,Date,automaticElectronicDocument:domain.automaticElectronicDocument,ensureDocumentElectronicCopy:async(doc,options)=>{assert.equal(persisted,1,'QR publication follows accounting save');assert.equal(options.isCurrent(),true);connected++;return {};},salesOrderForQuotation:()=>null,isDeliveryLinkedInvoice:()=>false,
    approvalGate:()=>{gated++;return {allowed,created:false};},assertCustomerCreditLimit:()=>{},assertInvoicePaymentInvariant:()=>{},assertDocumentLifecycleInvariant:()=>{},assertDeliveryInvoiceIntegrity:()=>{},createDocumentEvent:(doc,type)=>({documentId:doc.id,type}),documentUsesCommercialDefaults:()=>true,t:en=>en,
    currentCloudUser:()=>({uid:'qa-issuer'}),activeAccountStorageUid:()=> 'qa-issuer',sameDocumentContent,
    accountEpoch:1,state:{unlocked:true,vault,cloudUser:{uid:'qa-issuer'}},requireVault:()=>ctx.state.vault,persist:async next=>{ctx.state.vault=next;persisted++;},setState:patch=>Object.assign(ctx.state,patch),showToast:()=>{}};

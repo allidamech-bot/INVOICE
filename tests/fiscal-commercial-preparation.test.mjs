@@ -6,6 +6,7 @@ import {createFiscalLedger} from '../api/_fiscal/ledger.js';
 import {mapCommercialFiscalInvoice} from '../api/_fiscal/commercial-invoice.js';
 import {createCommercialFiscalPreparation} from '../api/_fiscal/commercial-preparation.js';
 import {createCommercialIssueApproval} from '../api/_fiscal/commercial-approval.js';
+import {createCommercialReview} from '../api/_fiscal/commercial-review.js';
 import {reviewDigest} from '../api/_fiscal/commercial-source.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {encodeWorkspace} from '../api/_accounting/period-format.js';
@@ -41,7 +42,7 @@ function fixture({publish=true}={}){
  const ledger=createFiscalLedger(db);
  const make=(patch={})=>createCommercialFiscalPreparation({db,ledger,canonicalize:b=>b,validateOfficial:async()=>true,clock:()=>at,uuid:()=>identity.uuid,...patch});
  const approve=createCommercialIssueApproval({db,clock:()=>at});
- return {ledger,make,put,intent,source,approve,manifest,control,reviewPath,intentPath,read:p=>rows.get(p)};
+ return {db,ledger,make,put,intent,source,approve,manifest,control,reviewPath,intentPath,read:p=>rows.get(p)};
 }
 test('existing LOUREX invoice maps into one UBL candidate with identical discount freight VAT and total',()=>{
  const m=map();assert.equal(m.mode,'clearance');assert.equal(m.commercial.subtotal,'200.00');assert.equal(m.commercial.discount,'20.00');assert.equal(m.commercial.shipping,'15.00');assert.equal(m.commercial.tax,'29.25');assert.equal(m.candidate.totals.taxInclusiveTotal,'224.25');assert.match(m.candidate.bytes.toString(),/224\.25/);assert.equal(m.invoice.lines[0].unitCode,'PCE');
@@ -100,3 +101,22 @@ test('closed period or changed authoritative source blocks approval and atomic q
  await assert.rejects(f.make({validateOfficial:async()=>{f.put(f.control,{...control,generation:2,boundaries:[boundary]});return true;}})(scope,id),/REVIEW_REQUIRED|SOURCE_CHANGED|PERIOD_CLOSED/);
  assert.equal(f.read(base+'/egs/egs').nextIcv,'1');assert.equal(f.read(base+'/issues/doc'),undefined);
 });
+
+test('owner review uses approved statutory party profiles and protected published draft, then freezes and queues exactly that version',async()=>{
+ const f=fixture({publish:false}),draft={...document,companySnapshot:{...document.companySnapshot,addressAr:'عنوان الشركة'},customerSnapshot:{...document.customerSnapshot,sourceCustomerId:'customer',addressAr:'عنوان العميل'}};
+ f.source({...payload,document:draft});f.put(base,{...scope,syntheticOnly:true,commandsEnabled:true,selectedEgsId:'egs'});
+ f.put(base+'/egs/egs',{...f.read(base+'/egs/egs'),issuerVat:issuer.vatNumber,operationalCredentialRef:'operational-ref'});
+ f.put(base+'/egs/egs/enrollment/approved',{...scope,state:'approved',issuer});
+ f.put(base+'/sellerProfile/current',{...scope,state:'approved',party:seller,sourceAddress:'عنوان الشركة'});
+ f.put(base+'/buyerProfiles/customer',{...scope,state:'approved',customerId:'customer',party:buyer,sourceAddress:'عنوان العميل',allowedInvoiceTypes:['standard']});
+ f.put(f.reviewPath,{...f.read(f.reviewPath),state:'pending'});
+ const run=createCommercialReview({db:f.db,clock:()=>at}),request={...command,documentRevision:1,invoiceType:'standard',supplyDate:'2026-11-18',paymentMeans:'30'};
+ await assert.rejects(run(owner,{...request,invoiceType:'simplified'}));
+ await assert.rejects(run(owner,{...request,documentRevision:2}));
+ assert.deepEqual(await run(owner,request),{documentId:id,documentRevision:1,status:'reviewed'});
+ assert.equal(f.read(f.reviewPath).review.seller.vatNumber,seller.vatNumber);
+ await f.approve(owner,command,{expectedDocumentRevision:1,requireCommandEnabled:true});
+ await assert.rejects(run(owner,{...request,paymentMeans:'10'}),/APPROVAL_ALREADY_BOUND/);
+ assert.equal((await f.make()(scope,id)).status,'queued');
+});
+test('canonical review fingerprint is independent of Firestore map key iteration order',()=>assert.equal(reviewDigest({a:1,b:{c:2,d:3}}),reviewDigest({b:{d:3,c:2},a:1})));

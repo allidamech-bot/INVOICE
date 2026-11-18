@@ -62,7 +62,7 @@ export function createManagedEnrollmentLifecycle({db,resolveSigner,vault,resolve
         need(typeof ref==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(ref)&&/^[a-f0-9]{64}$/.test(current.operationalCertificateDigest));
         const envelope=data(await tx.get(r.credential(ref)));need(same(envelope,s)&&envelope.kind==='production'&&envelope.ref===ref&&envelope.version===1);
         if(unit.active===true){need(same(prior,s)&&prior.state==='active'&&prior.csrDigest===a.csrDigest&&prior.credentialRef===ref&&prior.onboardingVersion===current.version,'EGS_ACTIVATION_CONFLICT');}
-        else need(unit.active===false&&!prior&&(unit.nextIcv===undefined||unit.nextIcv===1)&&(unit.previousInvoiceHash===undefined||unit.previousInvoiceHash===FIRST_PREVIOUS_INVOICE_HASH),'EGS_ACTIVATION_CONFLICT');
+        else need(unit.active===false&&!prior&&(unit.nextIcv===undefined||unit.nextIcv==='1')&&(unit.previousInvoiceHash===undefined||unit.previousInvoiceHash===FIRST_PREVIOUS_INVOICE_HASH),'EGS_ACTIVATION_CONFLICT');
         return {unit,c,a,current,prior,ref,envelope};
       }
       const initial=await db.runTransaction(read);
@@ -85,7 +85,7 @@ export function createManagedEnrollmentLifecycle({db,resolveSigner,vault,resolve
         need(digest(v.c)===digest(initial.c)&&digest(v.a)===digest(initial.a)&&digest(v.current)===digest(initial.current)&&digest(v.envelope)===digest(initial.envelope),'EGS_CONFIG_CHANGED');
         if(v.prior)return {state:'active',environment:'simulation'};
         tx.create(r.activation,{...s,state:'active',csrDigest:v.a.csrDigest,credentialRef:v.ref,onboardingVersion:v.current.version,leafDigest:sha(leaf.raw),publicKeyDigest:v.a.keyBinding.publicKeyDigest,activatedAt:at});
-        tx.update(r.unit,{active:true,nextIcv:1,previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH,operationalCredentialRef:v.ref,certificateDigest:sha(leaf.raw),issuerVat:v.a.issuer.vatNumber});
+        tx.update(r.unit,{active:true,nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH,operationalCredentialRef:v.ref,certificateDigest:sha(leaf.raw),issuerVat:v.a.issuer.vatNumber});
         return {state:'active',environment:'simulation'};
       });
     }

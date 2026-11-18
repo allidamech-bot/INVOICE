@@ -9,12 +9,12 @@ export function fiscalCommandConfig(env){
 }
 export async function getFiscalQaCommandRuntime(){
   const {project,account}=fiscalCommandConfig(process.env);
-  const [{initializeApp,getApps,cert},{getFirestore},{getAuth},{createCommercialIssueApproval}]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('./commercial-approval.js')]);
+  const [{initializeApp,getApps,cert},{getFirestore},{getAuth},{createCommercialIssueApproval},{createCommercialReview}]=await Promise.all([import('firebase-admin/app'),import('firebase-admin/firestore'),import('firebase-admin/auth'),import('./commercial-approval.js'),import('./commercial-review.js')]);
   const name='lourex-fiscal-qa-command';let app=getApps().find(a=>a.name===name);
   if(app&&app.options.projectId!==project)throw Error('FISCAL_COMMAND_UNAVAILABLE');
   if(!app)app=initializeApp({projectId:project,credential:cert(account)},name);
   const db=getFirestore(app),auth=getAuth(app);
   // Actual preview configuration supports inspect and approval. Other operations
   // remain blocked until real independently verified adapters are composed.
-  return {verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db})})};
+  return {verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db})})};
 }

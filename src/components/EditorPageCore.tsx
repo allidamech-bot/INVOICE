@@ -14,6 +14,8 @@ import { applyCustomerCommercialDefaults, applyPaymentTermPreset, bankAccountIdF
 import { getUiLanguage, isArabic, t, translateValidation } from '../lib/i18n.js';
 import { blankCustomer, CustomerForm } from './CustomersPage.js';
 import { SavedItemsModal } from './SavedItemsModal.js';
+import {FiscalIssueDialog} from './FiscalIssueDialog.js';
+import {fiscalQaInvoice} from '../lib/fiscal-document-client.js';
 import { DocumentReviewModal, type ReviewMode } from './DocumentReviewModal.js';
 import { AutomaticDocumentPreview as TemplateRenderer } from './AutomaticDocumentPreview.js';
 import { TemplateThumbnails } from '../templates/TemplateThumbnails.js';
@@ -36,6 +38,7 @@ function EditorDateInput(props:{value:string;label:string;onChange:(value:string
 
 interface Props {
   document:LourexDocument; documents:LourexDocument[]; documentEvents?:DocumentEventRecord[]; customers:Customer[]; suppliers:Supplier[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; smartDefaults:AppSettings['smartDefaults'];
+  onFiscalPublish?:(doc:LourexDocument)=>Promise<LourexDocument>;
   onEditActivity?:()=>void; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
   onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
@@ -44,7 +47,7 @@ interface State {
   doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean;
   addCustomer:Customer|null; addCustomerError:string; mobilePreview:boolean; confirmClose:boolean; expandedItems:Record<string,boolean>;
   savedItemsOpen:boolean; itemToolsOpen:boolean; suggestingItemId:string; advancedOpen:boolean; reviewMode:ReviewMode|null; issuing:boolean; unlockConfirm:boolean;
-  previewDoc:LourexDocument; desktopPreview:boolean;
+  previewDoc:LourexDocument; desktopPreview:boolean; fiscalOpen:boolean;
 }
 
 function previewDocument(doc:LourexDocument):LourexDocument{
@@ -95,7 +98,7 @@ export class EditorPage extends React.Component<Props,State>{
   constructor(props:Props){
     super(props);
     const initial=draftWithLatestCompany(props.document,props.company);
-    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{},savedItemsOpen:false,itemToolsOpen:false,suggestingItemId:'',advancedOpen:false,reviewMode:null,issuing:false,unlockConfirm:false,previewDoc:previewDocument(initial),desktopPreview:typeof window==='undefined'||window.matchMedia('(min-width:1181px)').matches};
+    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{},savedItemsOpen:false,itemToolsOpen:false,suggestingItemId:'',advancedOpen:false,reviewMode:null,issuing:false,unlockConfirm:false,previewDoc:previewDocument(initial),fiscalOpen:false,desktopPreview:typeof window==='undefined'||window.matchMedia('(min-width:1181px)').matches};
   }
 
   componentDidMount():void{
@@ -248,6 +251,10 @@ export class EditorPage extends React.Component<Props,State>{
       while(this.state.saving)await new Promise<void>(resolve=>window.setTimeout(resolve,40));
       if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
       if(!this.validateCurrent()){this.setState({issuing:false,reviewMode:null});return;}
+      if(fiscalQaInvoice(this.state.doc)){
+        if(!this.props.onFiscalPublish||this.state.doc.status!=='draft')throw new Error(t('Fiscal output is unavailable.','المستند الضريبي غير متاح.'));
+        this.setState({reviewMode:null,issuing:false,fiscalOpen:true});return;
+      }
       const alreadyFinal=this.state.doc.status==='final';
       const finalDoc=alreadyFinal?this.state.doc:{...this.state.doc,status:'final' as const,updatedAt:new Date().toISOString()};
       if(!alreadyFinal){
@@ -401,6 +408,7 @@ export class EditorPage extends React.Component<Props,State>{
       <ConfirmDialog open={this.state.unlockConfirm} title={t('Create a safe revision?','إنشاء مراجعة آمنة؟')} message={t('The current Final is saved permanently in Document History before Revision '+String(d.revision+1)+' opens. The document number stays unchanged.','سيتم حفظ النسخة النهائية الحالية بشكل دائم في سجل المستند قبل فتح المراجعة '+String(d.revision+1)+'، وسيبقى رقم المستند كما هو.')} confirmLabel={t('Create Revision','إنشاء مراجعة')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm company={this.props.company} customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
       <SavedItemsModal open={this.state.savedItemsOpen} items={this.props.savedItems} currency={d.currency} onClose={()=>this.setState({savedItemsOpen:false})} onSelectMany={this.addSavedItems} onSave={this.props.onSaveSavedItem} onDelete={this.props.onDeleteSavedItem}/>
+      {this.state.fiscalOpen&&this.props.onFiscalPublish?<FiscalIssueDialog document={d} onPublish={this.props.onFiscalPublish} onClose={()=>this.setState({fiscalOpen:false})}/>:null}
       <DocumentReviewModal document={d} mode={this.state.reviewMode} issues={quality} working={this.state.issuing} onClose={()=>this.setState({reviewMode:null})} onConfirm={()=>void this.issueAndContinue()}/>
     </div>;
   }

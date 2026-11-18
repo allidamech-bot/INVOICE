@@ -5,9 +5,8 @@ const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const STATES=['checking','restart-required','checks-complete','operational-request-held','operational-recorded'];
 export interface FiscalQaStatus{environment:'simulation';workspaceId:string;unitActive:boolean;enrollmentHeld:boolean;onboarding:null|{state:string;version:number;passed:number;required:number};capabilities:{enrollment:boolean;approval:boolean;preparation:boolean;submission:boolean};}
 export type FiscalQaCommand={operation:'inspect'}|{operation:'enroll';otp:string}|{operation:'check'|'operational';expectedVersion:number};
-export function fiscalQaClientEnabled():boolean{
-  try{return typeof firebase.app().options.projectId==='string'&&/^[a-z][a-z0-9-]{0,18}-fiscal-qa$/.test(firebase.app().options.projectId)&&Boolean(currentCloudUser()?.uid)&&currentCloudUser()?.uid===activeAccountStorageUid();}catch{return false;}
-}
+export function fiscalQaProjectActive():boolean{try{return typeof firebase.app().options.projectId==='string'&&/^[a-z][a-z0-9-]{0,18}-fiscal-qa$/.test(firebase.app().options.projectId);}catch{return false;}}
+export function fiscalQaClientEnabled():boolean{return fiscalQaProjectActive()&&Boolean(currentCloudUser()?.uid)&&currentCloudUser()?.uid===activeAccountStorageUid();}
 export function validateFiscalQaStatus(value:any,workspaceId:string):FiscalQaStatus{
   const o=value?.onboarding,c=value?.capabilities;
   if(value?.environment!=='simulation'||value.workspaceId!==workspaceId||typeof value.unitActive!=='boolean'||typeof value.enrollmentHeld!=='boolean'||!c||['enrollment','approval','preparation','submission'].some(k=>typeof c[k]!=='boolean')||o!==null&&(!o||!STATES.includes(o.state)||!Number.isSafeInteger(o.version)||o.version<1||!Number.isSafeInteger(o.passed)||!Number.isSafeInteger(o.required)||o.passed<0||o.passed>o.required||![3,6].includes(o.required)))throw Error('FISCAL_INVALID_STATUS');

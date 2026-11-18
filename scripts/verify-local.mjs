@@ -450,6 +450,7 @@ const CONTRACTS=[
   'tests/fiscal-ubl-draft.test.mjs',
   'tests/fiscal-ui.test.mjs',
   'tests/fiscal-qa-client.test.mjs',
+  'tests/fiscal-document-client.test.mjs',
   'tests/fiscal-vat-report.test.mjs',
   'tests/fiscal-zatca-simulation.test.mjs',
   'tests/fiscal-onboarding-store.test.mjs',
