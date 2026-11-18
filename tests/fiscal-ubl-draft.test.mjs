@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildDomesticStandardInvoiceCandidate} from '../api/_fiscal/ubl-draft.js';
+import {buildDomesticStandardInvoiceCandidate,buildDomesticFiscalCandidate} from '../api/_fiscal/ubl-draft.js';
 import {FIRST_PREVIOUS_INVOICE_HASH} from '../dist/src/lib/fiscal-issuance.js';
 
 const party={country:'SA',vatNumber:'300000000000003',crn:'1000000000',building:'1234',postal:'12345',street:'شارع اختبار',district:'حي اختبار',city:'الرياض',name:'شركة & اختبار'};
@@ -31,4 +31,43 @@ test('subsequent invoice chain, multiple lines and immutable caller inputs',()=>
   const a=buildDomesticStandardInvoiceCandidate(request),b=buildDomesticStandardInvoiceCandidate(request);
   assert.deepEqual(a,b);assert.equal(a.totals.taxInclusiveTotal,'143.75');assert.equal(request.lines.length,2);
   assert.throws(()=>buildDomesticStandardInvoiceCandidate({...request,lines:[line,line]}));
+});
+
+test('all six domestic fiscal types have the required subtype, document code and correction fields',()=>{
+  for(const mode of ['standard','simplified']){
+    for(const [kind,code] of [['invoice','388'],['credit-note','381'],['debit-note','383']]){
+      const buyer=mode==='standard'?input.buyer:null;
+      const request={...input,mode,kind,buyer};
+      if(kind!=='invoice')Object.assign(request,{original:{number:'QA-ORIGINAL',uuid:'22222222-2222-4222-8222-222222222222',issueDate:'2026-11-17',mode,sellerVat:party.vatNumber,buyerVat:buyer?.vatNumber??null},correctionReason:'تصحيح كمية'});
+      const out=buildDomesticFiscalCandidate(request),xml=out.bytes.toString();
+      assert.equal(out.status,'unsigned-candidate');
+      assert.ok(xml.includes('name="'+(mode==='standard'?'0100000':'0200000')+'">'+code+'</cbc:InvoiceTypeCode>'));
+      assert.equal(out.totals.taxInclusiveTotal,'115.00');
+      if(kind==='invoice')assert.doesNotMatch(xml,/BillingReference|InstructionNote/);
+      else{
+        assert.match(xml,/<cac:BillingReference><cac:InvoiceDocumentReference><cbc:ID>QA-ORIGINAL<\/cbc:ID>/);
+        assert.match(xml,/<cbc:InstructionNote>تصحيح كمية<\/cbc:InstructionNote>/);
+        assert.ok(xml.indexOf('BillingReference')<xml.indexOf('AdditionalDocumentReference'));
+      }
+      if(mode==='simplified')assert.ok(xml.includes('<cac:AccountingCustomerParty><cac:Party/></cac:AccountingCustomerParty>'));
+    }
+  }
+});
+test('correction rejects mismatched references, future originals, missing reason and self-reference',()=>{
+  const original={number:'QA-ORIGINAL',uuid:'22222222-2222-4222-8222-222222222222',issueDate:'2026-11-17',mode:'standard',sellerVat:party.vatNumber,buyerVat:input.buyer.vatNumber};
+  const request={...input,kind:'credit-note',original,correctionReason:'تصحيح'};
+  for(const patch of [{mode:'simplified'},{sellerVat:'311111111111113'},{buyerVat:null},{number:input.number},{uuid:input.uuid},{issueDate:'2026-11-19'},{issueDate:'2026-02-30'},{number:''}]){
+    assert.throws(()=>buildDomesticFiscalCandidate({...request,original:{...original,...patch}}));
+  }
+  for(const patch of [{original:undefined},{correctionReason:''},{correctionReason:undefined},{kind:'invoice'},{buyer:null}]){
+    assert.throws(()=>buildDomesticFiscalCandidate({...request,...patch}));
+  }
+});
+test('simplified supports anonymous retail or a complete domestic party, without coercing other cases',()=>{
+  const q={...input,mode:'simplified',buyer:null};
+  assert.equal(buildDomesticFiscalCandidate(q).status,'unsigned-candidate');
+  assert.match(buildDomesticFiscalCandidate({...q,buyer:input.buyer}).bytes.toString(),/مشتري اختبار/);
+  for(const patch of [{buyer:undefined},{buyer:{}},{buyer:{...input.buyer,country:'TR'}},{mode:'standard'},{kind:'prepayment'},{currency:'USD'}]){
+    assert.throws(()=>buildDomesticFiscalCandidate({...q,...patch}));
+  }
 });
