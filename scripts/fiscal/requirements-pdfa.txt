@@ -1,0 +1,8 @@
+pypdf==5.9.0
+pypdfium2==5.8.0
+defusedxml==0.7.1
+opencv-python-headless==4.13.0.92
+numpy==2.3.5
+qrcode==8.2
+Pillow==12.3.0
+reportlab==4.4.9

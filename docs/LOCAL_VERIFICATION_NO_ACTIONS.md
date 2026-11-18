@@ -32,3 +32,7 @@ Feature branch → PR → final-head local verification → recorded manual sign
 Required status checks and branch protection were not audited by this change. If obsolete contexts block a verified merge, only an authorized repository admin should reconcile them; do not bypass an active, relevant required check.
 
 This release-gate fix does not modify Vercel deployment or domain settings and does not edit application behavior, Firebase rules or financial data.
+
+## Fiscal PDF/A verification prerequisites
+
+Install Python 3.11+ in an isolated virtual environment and run `python -m pip install -r scripts/fiscal/requirements-pdfa.txt`. Use the environment's Python via `LOUREX_FISCAL_PYTHON` (defaults to python3 on POSIX and python on Windows) when running the local verifier. The permanent fiscal PDF/A structural regression invokes the Python suite, so dependency absence fails the local gate. Actual PDF/A-3b verification also requires the official veraPDF CLI installed separately (absolute trusted path) and synthetic validated fiscal renderer fixtures; the structural test does not replace validation of the final PAdES-stamped output. Never use mock validator output as acceptance evidence. No paid or production infrastructure is implied.
