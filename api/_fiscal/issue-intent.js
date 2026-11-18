@@ -1,4 +1,5 @@
 import {hashArtifact} from './fiscal-artifacts.js';
+import {validateSourceBinding} from './commercial-source.js';
 
 const MAX=512*1024;
 function need(ok,code='FISCAL_PREPARATION_NOT_ELIGIBLE'){if(!ok)throw Error(code);}
@@ -9,5 +10,6 @@ export function readApprovedIntent(row,scope,documentId){
   need(bytes.length>0&&bytes.length<=MAX&&bytes.toString('base64')===v.bytes&&hashArtifact(bytes)===v.sha256);
   let payload;try{payload=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}catch{need(false);}
   need(payload&&payload.document?.id===documentId&&typeof payload.generatedAt==='string'&&payload.generatedAt===v.generatedAt&&payload.document.revision===v.documentRevision);
+  validateSourceBinding(payload.source);
   return {payload,bytes,digest:v.sha256};
 }

@@ -5,6 +5,10 @@ import {FIRST_PREVIOUS_INVOICE_HASH} from '../dist/src/lib/fiscal-issuance.js';
 import {createFiscalLedger} from '../api/_fiscal/ledger.js';
 import {mapCommercialFiscalInvoice} from '../api/_fiscal/commercial-invoice.js';
 import {createCommercialFiscalPreparation} from '../api/_fiscal/commercial-preparation.js';
+import {createCommercialIssueApproval} from '../api/_fiscal/commercial-approval.js';
+import {reviewDigest} from '../api/_fiscal/commercial-source.js';
+import {emptyVault} from '../dist/src/lib/defaults.js';
+import {encodeWorkspace} from '../api/_accounting/period-format.js';
 const scope={accountUid:'owner',workspaceId:'company',egsId:'egs',environment:'simulation'},id='doc';
 const base='fiscalPrivateV1/owner/workspaces/company',at='2026-11-18T10:00:00.000Z';
 const seller={country:'SA',vatNumber:'300000000000003',crn:'1000000000',building:'1234',postal:'12345',street:'شارع',district:'حي',city:'الرياض',name:'شركة اختبار'};
@@ -16,15 +20,28 @@ const identity={documentId:id,uuid:'11111111-1111-4111-8111-111111111111',icv:'1
 const payload={document,issuer,review,generatedAt:at};
 const map=(d=document,r=review,i=issuer)=>mapCommercialFiscalInvoice({scope,document:d,review:r,issuer:i,identity});
 const digest=b=>createHash('sha256').update(b).digest('hex');
-function fixture(){
+function fixture({publish=true}={}){
  let rows=new Map(),tail=Promise.resolve();
  const db={doc:path=>({path}),runTransaction(fn){const job=tail.then(async()=>{const staged=new Map(structuredClone([...rows]));let writing=false;const tx={async get(ref){assert.equal(writing,false,'read before write');return {exists:staged.has(ref.path),data:()=>structuredClone(staged.get(ref.path))};},create(ref,v){writing=true;assert.equal(staged.has(ref.path),false);staged.set(ref.path,structuredClone(v));},update(ref,v){writing=true;assert.ok(staged.has(ref.path));staged.set(ref.path,{...staged.get(ref.path),...structuredClone(v)});}};const r=await fn(tx);rows=staged;return r;});tail=job.catch(()=>{});return job;}};
  const put=(p,v)=>rows.set(p,structuredClone(v));
  put(base,{...scope,syntheticOnly:true});put(base+'/egs/egs',{...scope,active:true,nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH});
- function intent(p=payload){const bytes=Buffer.from(JSON.stringify(p));put(base+'/issueIntents/doc',{...scope,documentId:id,state:'approved',generatedAt:p.generatedAt,documentRevision:p.document.revision,sha256:digest(bytes),bytes:bytes.toString('base64')});}
- intent();const ledger=createFiscalLedger(db);
+ const root='users/owner',manifest=root+'/workspace/meta',control=root+'/accounting/control',reviewPath=base+'/issueReviews/doc',intentPath=base+'/issueIntents/doc';
+ const revision='a'.repeat(32);
+ function source(p=payload){
+   const v=emptyVault();v.documents=[p.document];v.workspaces[0].id=scope.workspaceId;v.branches[0].workspaceId=scope.workspaceId;
+   const encoded=encodeWorkspace(v,revision);const meta={...encoded.meta,chunkStorage:'period-generations-v1'};
+   put(manifest,meta);put(control,{format:'LOUREX_PERIOD_CONTROL_V1',version:1,ownerUid:scope.accountUid,generation:1,boundaries:[]});
+   for(const chunk of encoded.chunks)put(root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0'),chunk);
+   const verified={...scope,documentId:id,state:'approved',sourceRevision:revision,sourceSha256:meta.sha256,periodGeneration:1,documentRevision:p.document.revision,issuer:p.issuer,review:p.review};
+   put(reviewPath,verified);
+   return {revision,sha256:meta.sha256,generation:1,reviewDigest:reviewDigest(verified)};
+ }
+ function intent(p=payload){const binding=source(p);const bytes=Buffer.from(JSON.stringify({...p,source:binding}));put(intentPath,{...scope,documentId:id,state:'approved',generatedAt:p.generatedAt,documentRevision:p.document.revision,sha256:digest(bytes),bytes:bytes.toString('base64')});}
+ if(publish)intent();else source();
+ const ledger=createFiscalLedger(db);
  const make=(patch={})=>createCommercialFiscalPreparation({db,ledger,canonicalize:b=>b,validateOfficial:async()=>true,clock:()=>at,uuid:()=>identity.uuid,...patch});
- return {ledger,make,put,intent,read:p=>rows.get(p)};
+ const approve=createCommercialIssueApproval({db,clock:()=>at});
+ return {ledger,make,put,intent,source,approve,manifest,control,reviewPath,intentPath,read:p=>rows.get(p)};
 }
 test('existing LOUREX invoice maps into one UBL candidate with identical discount freight VAT and total',()=>{
  const m=map();assert.equal(m.mode,'clearance');assert.equal(m.commercial.subtotal,'200.00');assert.equal(m.commercial.discount,'20.00');assert.equal(m.commercial.shipping,'15.00');assert.equal(m.commercial.tax,'29.25');assert.equal(m.candidate.totals.taxInclusiveTotal,'224.25');assert.match(m.candidate.bytes.toString(),/224\.25/);assert.equal(m.invoice.lines[0].unitCode,'PCE');
@@ -52,4 +69,34 @@ test('no sequence reservation on unavailable SDK, unapproved intent or revision 
 test('simplified source cannot be queued without protected signing session',async()=>{
  const f=fixture();f.intent({...payload,document:{...document,customerSnapshot:null},review:{...review,invoiceType:'simplified',buyer:null}});
  await assert.rejects(f.make()(scope,id),/SIGNING_NOT_CONFIGURED/);assert.equal(f.read(base+'/egs/egs').nextIcv,'1');
+});
+
+const owner={uid:'owner',role:'owner'},command={workspaceId:'company',egsId:'egs',documentId:'doc'};
+test('approval reads the existing immutable LOUREX workspace, freezes reviewed draft, then prepares the same invoice',async()=>{
+ const f=fixture({publish:false});
+ const first=await f.approve(owner,command);assert.deepEqual(first,{documentId:id,status:'approved',documentRevision:1});
+ assert.deepEqual(await f.approve(owner,command),first);
+ const frozen=JSON.parse(Buffer.from(f.read(f.intentPath).bytes,'base64'));
+ assert.deepEqual(frozen.document,document);assert.equal(frozen.source.sha256,f.read(f.manifest).sha256);
+ assert.equal((await f.make()(scope,id)).status,'queued');
+});
+test('approval refuses injected amounts, wrong account, missing review and corrupt immutable generation',async()=>{
+ const f=fixture({publish:false});
+ await assert.rejects(f.approve(owner,{...command,total:1}));
+ await assert.rejects(f.approve({...owner,role:'viewer'},command));
+ await assert.rejects(f.approve({...owner,uid:'someone'},command));
+ const verified=f.read(f.reviewPath);f.put(f.reviewPath,{...verified,state:'pending'});await assert.rejects(f.approve(owner,command),/REVIEW_REQUIRED/);
+ f.put(f.reviewPath,verified);
+ const rev=f.read(f.manifest).revision;
+ const chunk='users/owner/periodGenerations/'+rev+'/chunks/chunk-'+rev+'-00000';
+ f.put(chunk,{...f.read(chunk),data:'e30='});await assert.rejects(f.approve(owner,command));
+ assert.equal(f.read(f.intentPath),undefined);
+});
+test('closed period or changed authoritative source blocks approval and atomic queue publication',async()=>{
+ const f=fixture({publish:false});const control=f.read(f.control);
+ const boundary={workspaceId:'company',through:'2026-11-18',reportId:'b'.repeat(32)};
+ f.put(f.control,{...control,boundaries:[boundary]});await assert.rejects(f.approve(owner,command),/PERIOD_CLOSED/);
+ f.put(f.control,control);await f.approve(owner,command);
+ await assert.rejects(f.make({validateOfficial:async()=>{f.put(f.control,{...control,generation:2,boundaries:[boundary]});return true;}})(scope,id),/REVIEW_REQUIRED|SOURCE_CHANGED|PERIOD_CLOSED/);
+ assert.equal(f.read(base+'/egs/egs').nextIcv,'1');assert.equal(f.read(base+'/issues/doc'),undefined);
 });

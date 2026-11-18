@@ -9,6 +9,7 @@ import {buildManagedSimplifiedQrReference} from './simplified-qr-reference.js';
 // The SDK adapter is mandatory; without it no issue is queued.
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 import {readApprovedIntent} from './issue-intent.js';
+import {assertCurrentApprovedSource} from './commercial-source.js';
 function need(ok,code='FISCAL_PREPARATION_NOT_ELIGIBLE'){if(!ok)throw Error(code);}
 export function createCommercialFiscalPreparation({db,ledger,canonicalize,validateOfficial,resolveProtectedSession,policy,clock=()=>new Date().toISOString(),uuid=randomUUID}){
   need(db?.runTransaction&&db?.doc&&typeof ledger?.prepare==='function'&&typeof canonicalize==='function'&&typeof validateOfficial==='function'&&typeof clock==='function'&&typeof uuid==='function','FISCAL_PREPARATION_NOT_CONFIGURED');
@@ -25,6 +26,7 @@ export function createCommercialFiscalPreparation({db,ledger,canonicalize,valida
         need(v.accountUid===scope.accountUid&&v.workspaceId===scope.workspaceId&&v.egsId===scope.egsId&&v.documentId===documentId&&v.snapshotDigest===intent.digest,'FISCAL_EXISTING_ISSUE_CONFLICT');
         return {existing:v};
       }
+      await assertCurrentApprovedSource(db,tx,scope,documentId,intent.payload);
       return {unit,intent};
     });
     const project=v=>({documentId:v.documentId,status:v.status,version:v.version});

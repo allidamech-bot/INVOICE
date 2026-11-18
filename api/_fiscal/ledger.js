@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
 import {readApprovedIntent} from './issue-intent.js';
+import {assertCurrentApprovedSource} from './commercial-source.js';
 import {writeAuthorityEvidence} from './authority-evidence.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {createAttemptResponseStore} from './attempt-response.js';
@@ -115,6 +116,7 @@ export function createFiscalLedger(db){
         if(approvedIntent){
           const intent=readApprovedIntent(await tx.get(db.doc(base+'/issueIntents/'+id(initial.documentId))),authorizedScope,initial.documentId);
           if(intent.digest!==initial.snapshotDigest||!intent.bytes.equals(snapshotBytes))throw Error('FISCAL_APPROVED_INTENT_CHANGED');
+          await assertCurrentApprovedSource(db,tx,authorizedScope,initial.documentId,intent.payload);
         }
         const existing=await tx.get(issue);
         if(existing.exists){
