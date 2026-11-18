@@ -451,6 +451,7 @@ const CONTRACTS=[
   'tests/fiscal-vat-report.test.mjs',
   'tests/fiscal-zatca-simulation.test.mjs',
   'tests/fiscal-onboarding-store.test.mjs',
+  'tests/fiscal-enrollment.test.mjs',
   'tests/fiscal-managed-kms.test.mjs',
   'tests/fiscal-onboarding-runtime.test.mjs',
   'tests/fiscal-xades-reference.test.mjs',
