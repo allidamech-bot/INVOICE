@@ -1,8 +1,8 @@
 import {calculateFiscalTax} from '../../dist/src/lib/fiscal-tax.js';
 import {FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
-// Restricted UBL candidate writer: domestic SAR, standard-rated sales and correction notes only,
-// without discounts, prepayments or shipping. No final signature.
+// Restricted unsigned UBL candidate writer for domestic SAR and supported VAT categories.
+// FX, exports, prepayments and final signature remain unsupported.
 // Never send its output to a buyer or authority before a trusted SDK gate.
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const VAT=/^3[0-9]{13}3$/;
@@ -13,7 +13,31 @@ function safe(value,max=256){
 const e=(name,value)=>'<cbc:'+name+'>'+safe(value)+'</cbc:'+name+'>';
 const amount=(name,value)=>'<cbc:'+name+' currencyID="SAR">'+safe(value)+'</cbc:'+name+'>';
 const scheme='<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>';
-function category(name){return '<cac:'+name+'><cbc:ID>S</cbc:ID><cbc:Percent>15</cbc:Percent>'+scheme+'</cac:'+name+'>';}
+// Explicitly restricted domestic subset of ZATCA v1.2 section 11.2.4.
+// Export, citizen-specific and other special transactions require distinct subtype mapping.
+const exemptionCodes=Object.freeze({Z:['VATEX-SA-35','VATEX-SA-36'],E:['VATEX-SA-29','VATEX-SA-29-7','VATEX-SA-30'],O:['VATEX-SA-OOS']});
+function validateClass(v){
+  if(v.category==='S'){
+    if(v.rate!=='15'||v.reasonCode!==undefined||v.reasonText!==undefined)throw Error('UNSUPPORTED_VAT_CLASS');
+  }else{
+    if(!Object.hasOwn(exemptionCodes,v.category)||v.rate!=='0'||!exemptionCodes[v.category].includes(v.reasonCode))throw Error('UNSUPPORTED_VAT_CLASS');
+    safe(v.reasonText);
+  }
+}
+function category(name,v,breakdown=false){
+  return '<cac:'+name+'>'+e('ID',v.category)+e('Percent',v.rate)
+    +(breakdown&&v.category!=='S'?e('TaxExemptionReasonCode',v.reasonCode)+e('TaxExemptionReason',v.reasonText):'')+scheme+'</cac:'+name+'>';
+}
+function decimalMoney(value){
+  if(typeof value!=='string'||!/^(?:0|[1-9][0-9]{0,17})(?:\.[0-9]{1,2})?$/.test(value))throw Error('INVALID_ADJUSTMENT_AMOUNT');
+  const [whole,fraction='']=value.split('.');return whole+'.'+fraction.padEnd(2,'0');
+}
+function allowanceCharge(kind,value,reasonCode,reasonText,cls){
+  const allowed=kind==='allowance'?['95']:kind==='charge'?['FC']:[];
+  if(!allowed.includes(reasonCode))throw Error('UNSUPPORTED_ADJUSTMENT_REASON');
+  const money=decimalMoney(value);if(money==='0.00')throw Error('ZERO_ADJUSTMENT');
+  return '<cac:AllowanceCharge>'+e('ChargeIndicator',kind==='charge'?'true':'false')+e('AllowanceChargeReasonCode',reasonCode)+e('AllowanceChargeReason',reasonText)+amount('Amount',money)+(cls?category('TaxCategory',cls):'')+'</cac:AllowanceCharge>';
+}
 function party(p,role){
   if(!p||p.country!=='SA'||Object.keys(p).some(key=>!['country','vatNumber','crn','building','postal','street','district','city','name'].includes(key))||typeof p.vatNumber!=='string'||!VAT.test(p.vatNumber)||typeof p.crn!=='string'||!/^[0-9]{10}$/.test(p.crn)
     ||typeof p.building!=='string'||!/^[0-9]{4}$/.test(p.building)||typeof p.postal!=='string'||!/^[0-9]{5}$/.test(p.postal))throw Error('INVALID_PARTY');
@@ -27,13 +51,38 @@ function date(value){
   return value;
 }
 export function buildDomesticFiscalCandidate(input){
-  if(!input||Object.keys(input).some(key=>!['currency','mode','kind','uuid','icv','previousInvoiceHash','number','issueDate','issueTime','supplyDate','paymentMeans','seller','buyer','lines','original','correctionReason'].includes(key))||input.currency!=='SAR'||!['standard','simplified'].includes(input.mode)||!['invoice','credit-note','debit-note'].includes(input.kind)||input.adjustments!==undefined||input.prepaid!==undefined||input.discount!==undefined||input.shipping!==undefined||input.fx!==undefined)throw Error('UNSUPPORTED_XML_CASE');
+  if(!input||Object.keys(input).some(key=>!['currency','mode','kind','uuid','icv','previousInvoiceHash','number','issueDate','issueTime','supplyDate','paymentMeans','seller','buyer','lines','original','correctionReason','adjustments'].includes(key))||input.currency!=='SAR'||!['standard','simplified'].includes(input.mode)||!['invoice','credit-note','debit-note'].includes(input.kind)||input.prepaid!==undefined||input.discount!==undefined||input.shipping!==undefined||input.fx!==undefined)throw Error('UNSUPPORTED_XML_CASE');
   if(typeof input.uuid!=='string'||!UUID.test(input.uuid)||typeof input.icv!=='string'||typeof input.previousInvoiceHash!=='string')throw Error('INVALID_XML_IDENTITY');
   if(!/^[1-9][0-9]{0,17}$/.test(input.icv)||(input.icv==='1'?input.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH:!/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(input.previousInvoiceHash)))throw Error('INVALID_CHAIN');
   date(input.issueDate);
   if(typeof input.issueTime!=='string'||!/^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(input.issueTime)||!['10','30','42','48','1'].includes(input.paymentMeans))throw Error('INVALID_ISSUE_DETAILS');
   if(date(input.supplyDate)>input.issueDate)throw Error('UNSUPPORTED_SUPPLY_DATE');
-  if(!Array.isArray(input.lines)||!input.lines.length||input.lines.length>500||input.lines.some(l=>!l||Object.keys(l).some(key=>!['id','name','quantity','unitNetPrice','unitCode','category','rate'].includes(key))||l.category!=='S'||l.rate!=='15'||l.allowance!==undefined||l.reasonCode!==undefined||typeof l.unitCode!=='string'||!['PCE','KGM','LTR','MTR','HUR','EA'].includes(l.unitCode)))throw Error('UNSUPPORTED_XML_LINE');
+  if(!Array.isArray(input.lines)||!input.lines.length||input.lines.length>500||input.lines.some(l=>!l||Object.keys(l).some(key=>!['id','name','quantity','unitNetPrice','unitCode','category','rate','reasonCode','reasonText','allowance','allowanceReasonCode','allowanceReasonText'].includes(key))||typeof l.unitCode!=='string'||!['PCE','KGM','LTR','MTR','HUR','EA'].includes(l.unitCode)))throw Error('UNSUPPORTED_XML_LINE');
+  const reasons=new Map(), classes=new Set();
+  function register(v){
+    validateClass(v);classes.add(v.category);
+    if(v.category!=='S'){
+      const old=reasons.get(v.category);
+      if(old&&(old.reasonCode!==v.reasonCode||old.reasonText!==v.reasonText))throw Error('CONFLICTING_VAT_REASONS');
+      reasons.set(v.category,{reasonCode:v.reasonCode,reasonText:v.reasonText});
+    }
+  }
+  const lineAllowances=input.lines.map(line=>{
+    register(line);
+    if(line.allowance===undefined){
+      if(line.allowanceReasonCode!==undefined||line.allowanceReasonText!==undefined)throw Error('UNEXPECTED_ALLOWANCE_REASON');
+      return '';
+    }
+    return allowanceCharge('allowance',line.allowance,line.allowanceReasonCode,line.allowanceReasonText);
+  });
+  if(input.adjustments!==undefined&&(!Array.isArray(input.adjustments)||!input.adjustments.length||input.adjustments.length>500))throw Error('INVALID_DOCUMENT_ADJUSTMENTS');
+  const adjustmentXml=(input.adjustments??[]).map(a=>{
+    if(!a||Object.keys(a).some(k=>!['kind','amount','category','rate','reasonCode','reasonText','adjustmentReasonCode','adjustmentReasonText'].includes(k)))throw Error('INVALID_DOCUMENT_ADJUSTMENT');
+    register(a);
+    return allowanceCharge(a.kind,a.amount,a.adjustmentReasonCode,a.adjustmentReasonText,a);
+  }).join('');
+  // Do not claim the more complex mixed out-of-scope scenario is supported.
+  if(classes.has('O')&&classes.size>1)throw Error('UNSUPPORTED_MIXED_OUT_OF_SCOPE');
   const sellerXml=party(input.seller,'AccountingSupplierParty');
   if(input.mode==='standard'&&input.buyer==null)throw Error('BUYER_REQUIRED');
   // The anonymous retail path deliberately accepts no incomplete buyer object.
@@ -56,15 +105,16 @@ export function buildDomesticFiscalCandidate(input){
   }
   const code=({invoice:'388','credit-note':'381','debit-note':'383'})[input.kind];
   const subtype=input.mode==='standard'?'0100000':'0200000';
-  const totals=calculateFiscalTax({lines:input.lines});
+  const totals=calculateFiscalTax({lines:input.lines,adjustments:input.adjustments});
   const lines=input.lines.map((line,i)=>{
     const t=totals.lines[i];
     const gross=BigInt(t.net.replace('.',''))+BigInt(t.vat.replace('.',''));
     const grossString=String(gross/100n)+'.'+String(gross%100n).padStart(2,'0');
-    return '<cac:InvoiceLine>'+e('ID',String(i+1))+'<cbc:InvoicedQuantity unitCode="'+line.unitCode+'">'+safe(line.quantity)+'</cbc:InvoicedQuantity>'+amount('LineExtensionAmount',t.net)
+    return '<cac:InvoiceLine>'+e('ID',String(i+1))+'<cbc:InvoicedQuantity unitCode="'+line.unitCode+'">'+safe(line.quantity)+'</cbc:InvoicedQuantity>'+amount('LineExtensionAmount',t.net)+lineAllowances[i]
       +'<cac:TaxTotal>'+amount('TaxAmount',t.vat)+amount('RoundingAmount',grossString)+'</cac:TaxTotal>'
-      +'<cac:Item>'+e('Name',line.name)+category('ClassifiedTaxCategory')+'</cac:Item><cac:Price>'+amount('PriceAmount',line.unitNetPrice)+'</cac:Price></cac:InvoiceLine>';
+      +'<cac:Item>'+e('Name',line.name)+category('ClassifiedTaxCategory',line)+'</cac:Item><cac:Price>'+amount('PriceAmount',line.unitNetPrice)+'</cac:Price></cac:InvoiceLine>';
   }).join('');
+  const subtotals=totals.breakdown.map(t=>'<cac:TaxSubtotal>'+amount('TaxableAmount',t.taxableAmount)+amount('TaxAmount',t.vat)+category('TaxCategory',{...t,...reasons.get(t.category)},true)+'</cac:TaxSubtotal>').join('');
   const xml='<?xml version="1.0" encoding="UTF-8"?>'
     +'<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">'
     +e('ProfileID','reporting:1.0')+e('ID',input.number)+e('UUID',input.uuid)+e('IssueDate',input.issueDate)+e('IssueTime',input.issueTime+'Z')+'<cbc:InvoiceTypeCode name="'+subtype+'">'+code+'</cbc:InvoiceTypeCode>'
@@ -74,9 +124,9 @@ export function buildDomesticFiscalCandidate(input){
     +sellerXml+buyerXml
     +'<cac:Delivery>'+e('ActualDeliveryDate',input.supplyDate)+'</cac:Delivery>'
     +'<cac:PaymentMeans>'+e('PaymentMeansCode',input.paymentMeans)+reason+'</cac:PaymentMeans>'
-    +'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+'</cac:TaxTotal>'
-    +'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+'<cac:TaxSubtotal>'+amount('TaxableAmount',totals.taxExclusiveTotal)+amount('TaxAmount',totals.vatTotal)+category('TaxCategory')+'</cac:TaxSubtotal></cac:TaxTotal>'
-    +'<cac:LegalMonetaryTotal>'+amount('LineExtensionAmount',totals.lineNetTotal)+amount('TaxExclusiveAmount',totals.taxExclusiveTotal)+amount('TaxInclusiveAmount',totals.taxInclusiveTotal)+amount('PayableAmount',totals.taxInclusiveTotal)+'</cac:LegalMonetaryTotal>'+lines+'</Invoice>';
+    +adjustmentXml+'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+'</cac:TaxTotal>'
+    +'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+subtotals+'</cac:TaxTotal>'
+    +'<cac:LegalMonetaryTotal>'+amount('LineExtensionAmount',totals.lineNetTotal)+amount('TaxExclusiveAmount',totals.taxExclusiveTotal)+amount('TaxInclusiveAmount',totals.taxInclusiveTotal)+(totals.documentAllowances!=='0.00'?amount('AllowanceTotalAmount',totals.documentAllowances):'')+(totals.documentCharges!=='0.00'?amount('ChargeTotalAmount',totals.documentCharges):'')+amount('PayableAmount',totals.taxInclusiveTotal)+'</cac:LegalMonetaryTotal>'+lines+'</Invoice>';
   const bytes=Buffer.from(xml,'utf8');
   if(bytes.length>512*1024)throw Error('XML_TOO_LARGE');
   return {status:'unsigned-candidate',bytes,totals};
