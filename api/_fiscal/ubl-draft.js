@@ -1,8 +1,10 @@
 import {calculateFiscalTax} from '../../dist/src/lib/fiscal-tax.js';
 import {FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
-// Restricted unsigned UBL candidate writer for domestic SAR and supported VAT categories.
-// FX, exports, prepayments and final signature remain unsupported.
+import {fiscalDocumentContext} from './fiscal-document-context.js';
+
+// Restricted unsigned UBL candidate writer; existing domestic API is unchanged.
+// Extended API requires trusted server-resolved FX/export context. Prepayments remain unsupported.
 // Never send its output to a buyer or authority before a trusted SDK gate.
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const VAT=/^3[0-9]{13}3$/;
@@ -11,7 +13,7 @@ function safe(value,max=256){
   return value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&apos;');
 }
 const e=(name,value)=>'<cbc:'+name+'>'+safe(value)+'</cbc:'+name+'>';
-const amount=(name,value)=>'<cbc:'+name+' currencyID="SAR">'+safe(value)+'</cbc:'+name+'>';
+const monetary=(name,value,currency)=>'<cbc:'+name+' currencyID="'+currency+'">'+safe(value)+'</cbc:'+name+'>';
 const scheme='<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>';
 // Explicitly restricted domestic subset of ZATCA v1.2 section 11.2.4.
 // Export, citizen-specific and other special transactions require distinct subtype mapping.
@@ -32,7 +34,7 @@ function decimalMoney(value){
   if(typeof value!=='string'||!/^(?:0|[1-9][0-9]{0,17})(?:\.[0-9]{1,2})?$/.test(value))throw Error('INVALID_ADJUSTMENT_AMOUNT');
   const [whole,fraction='']=value.split('.');return whole+'.'+fraction.padEnd(2,'0');
 }
-function allowanceCharge(kind,value,reasonCode,reasonText,cls){
+function allowanceCharge(kind,value,reasonCode,reasonText,cls,amount){
   const allowed=kind==='allowance'?['95']:kind==='charge'?['FC']:[];
   if(!allowed.includes(reasonCode))throw Error('UNSUPPORTED_ADJUSTMENT_REASON');
   const money=decimalMoney(value);if(money==='0.00')throw Error('ZERO_ADJUSTMENT');
@@ -46,21 +48,38 @@ function party(p,role){
     +'<cac:Country><cbc:IdentificationCode>SA</cbc:IdentificationCode></cac:Country></cac:PostalAddress>'
     +'<cac:PartyTaxScheme>'+e('CompanyID',p.vatNumber)+scheme+'</cac:PartyTaxScheme><cac:PartyLegalEntity>'+e('RegistrationName',p.name)+'</cac:PartyLegalEntity></cac:Party></cac:'+role+'>';
 }
+// Restricted ISO 3166-1 subset and buyer IDs for the standard export path.
+// No Saudi buyer VAT number or guessed other identification.
+function exportBuyer(p){
+  if(!p||!['TR','US','GB','AE','DE','FR','NL','CA','EG','JO','SY','QA','KW','BH','OM','CN','JP','IN'].includes(p.country)
+    ||Object.keys(p).some(k=>!['country','otherId','otherIdScheme','street','city','postal','name'].includes(k))
+    ||!['TIN','CRN','PAS','OTH'].includes(p.otherIdScheme)||typeof p.otherId!=='string'||!/^[A-Za-z0-9]{1,64}$/.test(p.otherId))throw Error('INVALID_EXPORT_BUYER');
+  return '<cac:AccountingCustomerParty><cac:Party><cac:PartyIdentification><cbc:ID schemeID="'+p.otherIdScheme+'">'+safe(p.otherId)+'</cbc:ID></cac:PartyIdentification>'
+    +'<cac:PostalAddress>'+e('StreetName',p.street)+e('CityName',p.city)+(p.postal===undefined?'':e('PostalZone',p.postal))
+    +'<cac:Country>'+e('IdentificationCode',p.country)+'</cac:Country></cac:PostalAddress>'
+    +'<cac:PartyLegalEntity>'+e('RegistrationName',p.name)+'</cac:PartyLegalEntity></cac:Party></cac:AccountingCustomerParty>';
+}
 function date(value){
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||!Number.isFinite(Date.parse(value))||new Date(value).toISOString().slice(0,10)!==value)throw Error('INVALID_DATE');
   return value;
 }
-export function buildDomesticFiscalCandidate(input){
-  if(!input||Object.keys(input).some(key=>!['currency','mode','kind','uuid','icv','previousInvoiceHash','number','issueDate','issueTime','supplyDate','paymentMeans','seller','buyer','lines','original','correctionReason','adjustments'].includes(key))||input.currency!=='SAR'||!['standard','simplified'].includes(input.mode)||!['invoice','credit-note','debit-note'].includes(input.kind)||input.prepaid!==undefined||input.discount!==undefined||input.shipping!==undefined||input.fx!==undefined)throw Error('UNSUPPORTED_XML_CASE');
+export function buildFiscalCandidate(input,context={}){
+  if(!input||Object.keys(input).some(key=>!['currency','mode','kind','uuid','icv','previousInvoiceHash','number','issueDate','issueTime','supplyDate','paymentMeans','seller','buyer','lines','original','correctionReason','adjustments'].includes(key))||!['standard','simplified'].includes(input.mode)||!['invoice','credit-note','debit-note'].includes(input.kind)||input.prepaid!==undefined||input.discount!==undefined||input.shipping!==undefined||input.fx!==undefined)throw Error('UNSUPPORTED_XML_CASE');
   if(typeof input.uuid!=='string'||!UUID.test(input.uuid)||typeof input.icv!=='string'||typeof input.previousInvoiceHash!=='string')throw Error('INVALID_XML_IDENTITY');
   if(!/^[1-9][0-9]{0,17}$/.test(input.icv)||(input.icv==='1'?input.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH:!/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(input.previousInvoiceHash)))throw Error('INVALID_CHAIN');
   date(input.issueDate);
+  const profile=fiscalDocumentContext(input,context);
+  const amount=(name,value)=>monetary(name,value,profile.currency);
   if(typeof input.issueTime!=='string'||!/^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(input.issueTime)||!['10','30','42','48','1'].includes(input.paymentMeans))throw Error('INVALID_ISSUE_DETAILS');
   if(date(input.supplyDate)>input.issueDate)throw Error('UNSUPPORTED_SUPPLY_DATE');
   if(!Array.isArray(input.lines)||!input.lines.length||input.lines.length>500||input.lines.some(l=>!l||Object.keys(l).some(key=>!['id','name','quantity','unitNetPrice','unitCode','category','rate','reasonCode','reasonText','allowance','allowanceReasonCode','allowanceReasonText'].includes(key))||typeof l.unitCode!=='string'||!['PCE','KGM','LTR','MTR','HUR','EA'].includes(l.unitCode)))throw Error('UNSUPPORTED_XML_LINE');
   const reasons=new Map(), classes=new Set();
   function register(v){
-    validateClass(v);classes.add(v.category);
+    if(profile.exportCode){
+      const approvedText=profile.exportCode==='VATEX-SA-32'?['Export of goods','صادرات السلع من المملكة']:['Export of services','صادرات الخدمات من المملكة'];
+      if(v.category!=='Z'||v.rate!=='0'||v.reasonCode!==profile.exportCode||!approvedText.includes(v.reasonText))throw Error('EXPORT_CLASSIFICATION_MISMATCH');
+    }else validateClass(v);
+    classes.add(v.category);
     if(v.category!=='S'){
       const old=reasons.get(v.category);
       if(old&&(old.reasonCode!==v.reasonCode||old.reasonText!==v.reasonText))throw Error('CONFLICTING_VAT_REASONS');
@@ -73,13 +92,13 @@ export function buildDomesticFiscalCandidate(input){
       if(line.allowanceReasonCode!==undefined||line.allowanceReasonText!==undefined)throw Error('UNEXPECTED_ALLOWANCE_REASON');
       return '';
     }
-    return allowanceCharge('allowance',line.allowance,line.allowanceReasonCode,line.allowanceReasonText);
+    return allowanceCharge('allowance',line.allowance,line.allowanceReasonCode,line.allowanceReasonText,undefined,amount);
   });
   if(input.adjustments!==undefined&&(!Array.isArray(input.adjustments)||!input.adjustments.length||input.adjustments.length>500))throw Error('INVALID_DOCUMENT_ADJUSTMENTS');
   const adjustmentXml=(input.adjustments??[]).map(a=>{
     if(!a||Object.keys(a).some(k=>!['kind','amount','category','rate','reasonCode','reasonText','adjustmentReasonCode','adjustmentReasonText'].includes(k)))throw Error('INVALID_DOCUMENT_ADJUSTMENT');
     register(a);
-    return allowanceCharge(a.kind,a.amount,a.adjustmentReasonCode,a.adjustmentReasonText,a);
+    return allowanceCharge(a.kind,a.amount,a.adjustmentReasonCode,a.adjustmentReasonText,a,amount);
   }).join('');
   // Do not claim the more complex mixed out-of-scope scenario is supported.
   if(classes.has('O')&&classes.size>1)throw Error('UNSUPPORTED_MIXED_OUT_OF_SCOPE');
@@ -88,7 +107,7 @@ export function buildDomesticFiscalCandidate(input){
   // The anonymous retail path deliberately accepts no incomplete buyer object.
   const buyerXml=input.buyer===null&&input.mode==='simplified'
     ? '<cac:AccountingCustomerParty><cac:Party/></cac:AccountingCustomerParty>'
-    : party(input.buyer,'AccountingCustomerParty');
+    : profile.exportCode?exportBuyer(input.buyer):party(input.buyer,'AccountingCustomerParty');
   let billing='',reason='';
   if(input.kind==='invoice'){
     if(input.original!==undefined||input.correctionReason!==undefined)throw Error('UNEXPECTED_CORRECTION');
@@ -104,8 +123,9 @@ export function buildDomesticFiscalCandidate(input){
     reason=e('InstructionNote',input.correctionReason);
   }
   const code=({invoice:'388','credit-note':'381','debit-note':'383'})[input.kind];
-  const subtype=input.mode==='standard'?'0100000':'0200000';
+  const subtype=profile.exportCode?'0100100':input.mode==='standard'?'0100000':'0200000';
   const totals=calculateFiscalTax({lines:input.lines,adjustments:input.adjustments});
+  const vatSar=profile.vatSar(totals.vatTotal);
   const lines=input.lines.map((line,i)=>{
     const t=totals.lines[i];
     const gross=BigInt(t.net.replace('.',''))+BigInt(t.vat.replace('.',''));
@@ -118,18 +138,24 @@ export function buildDomesticFiscalCandidate(input){
   const xml='<?xml version="1.0" encoding="UTF-8"?>'
     +'<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">'
     +e('ProfileID','reporting:1.0')+e('ID',input.number)+e('UUID',input.uuid)+e('IssueDate',input.issueDate)+e('IssueTime',input.issueTime+'Z')+'<cbc:InvoiceTypeCode name="'+subtype+'">'+code+'</cbc:InvoiceTypeCode>'
-    +e('DocumentCurrencyCode','SAR')+e('TaxCurrencyCode','SAR')+billing
+    +e('DocumentCurrencyCode',profile.currency)+e('TaxCurrencyCode','SAR')+billing
     +'<cac:AdditionalDocumentReference><cbc:ID>ICV</cbc:ID>'+e('UUID',input.icv)+'</cac:AdditionalDocumentReference>'
     +'<cac:AdditionalDocumentReference><cbc:ID>PIH</cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">'+safe(input.previousInvoiceHash)+'</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference>'
     +sellerXml+buyerXml
     +'<cac:Delivery>'+e('ActualDeliveryDate',input.supplyDate)+'</cac:Delivery>'
     +'<cac:PaymentMeans>'+e('PaymentMeansCode',input.paymentMeans)+reason+'</cac:PaymentMeans>'
-    +adjustmentXml+'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+'</cac:TaxTotal>'
+    +adjustmentXml+'<cac:TaxTotal>'+monetary('TaxAmount',vatSar,'SAR')+'</cac:TaxTotal>'
     +'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+subtotals+'</cac:TaxTotal>'
     +'<cac:LegalMonetaryTotal>'+amount('LineExtensionAmount',totals.lineNetTotal)+amount('TaxExclusiveAmount',totals.taxExclusiveTotal)+amount('TaxInclusiveAmount',totals.taxInclusiveTotal)+(totals.documentAllowances!=='0.00'?amount('AllowanceTotalAmount',totals.documentAllowances):'')+(totals.documentCharges!=='0.00'?amount('ChargeTotalAmount',totals.documentCharges):'')+amount('PayableAmount',totals.taxInclusiveTotal)+'</cac:LegalMonetaryTotal>'+lines+'</Invoice>';
   const bytes=Buffer.from(xml,'utf8');
   if(bytes.length>512*1024)throw Error('XML_TOO_LARGE');
-  return {status:'unsigned-candidate',bytes,totals};
+  return {status:'unsigned-candidate',bytes,totals,...(profile.currency!=='SAR'||profile.exportCode?{fiscalContext:{currency:profile.currency,vatSar,rate:context.rate?{...context.rate}:null,exportClassification:context.exportClassification?{...context.exportClassification}:null}}:{})};
+}
+
+// Preserve the original domestic contract and scope for existing signing callers.
+export function buildDomesticFiscalCandidate(input){
+  if(input?.currency!=='SAR')throw Error('UNSUPPORTED_XML_CASE');
+  return buildFiscalCandidate(input);
 }
 
 // Preserve the original narrow function contract for existing callers.

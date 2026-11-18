@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildDomesticStandardInvoiceCandidate,buildDomesticFiscalCandidate} from '../api/_fiscal/ubl-draft.js';
+import {buildDomesticStandardInvoiceCandidate,buildDomesticFiscalCandidate,buildFiscalCandidate} from '../api/_fiscal/ubl-draft.js';
 import {FIRST_PREVIOUS_INVOICE_HASH} from '../dist/src/lib/fiscal-issuance.js';
 
 const party={country:'SA',vatNumber:'300000000000003',crn:'1000000000',building:'1234',postal:'12345',street:'شارع اختبار',district:'حي اختبار',city:'الرياض',name:'شركة & اختبار'};
@@ -95,4 +95,36 @@ test('explicit classification, adjustment amounts and unsupported special cases 
   assert.throws(()=>buildDomesticFiscalCandidate({...input,lines:[z,{...z,id:'second',reasonText:'Different'}]}),/CONFLICTING_VAT_REASONS/);
   const a={kind:'allowance',amount:'5.00',category:'S',rate:'15',adjustmentReasonCode:'95',adjustmentReasonText:'Discount'};
   for(const patch of [{amount:'0'},{amount:'1000'},{amount:'1.001'},{amount:'-1'},{adjustmentReasonCode:'FC'},{unknown:'ignored'},{adjustmentReasonText:undefined}])assert.throws(()=>buildDomesticFiscalCandidate({...input,adjustments:[{...a,...patch}]}));
+});
+
+test('foreign-currency XML keeps commercial amounts in USD and separate VAT in SAR',()=>{
+  const req={...input,currency:'USD',adjustments:[{kind:'charge',amount:'10',category:'S',rate:'15',adjustmentReasonCode:'FC',adjustmentReasonText:'Freight'}]};
+  const rate={uuid:input.uuid,currency:'USD',sarPerUnit:'3.75',taxDueDate:input.issueDate,rateDate:input.issueDate,source:'SAMA',evidenceDigest:'a'.repeat(64)};
+  const out=buildFiscalCandidate(req,{rate}),xml=out.bytes.toString();
+  assert.equal(out.totals.taxInclusiveTotal,'126.50');assert.equal(out.fiscalContext.vatSar,'61.88');
+  assert.ok(xml.includes('<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode><cbc:TaxCurrencyCode>SAR</cbc:TaxCurrencyCode>'));
+  assert.ok(xml.includes('<cac:TaxTotal><cbc:TaxAmount currencyID="SAR">61.88</cbc:TaxAmount></cac:TaxTotal>'));
+  assert.ok(xml.includes('<cbc:TaxAmount currencyID="USD">16.50</cbc:TaxAmount><cac:TaxSubtotal>'));
+  assert.ok(xml.includes('<cbc:PayableAmount currencyID="USD">126.50</cbc:PayableAmount>'));
+  assert.equal((xml.match(/currencyID="SAR"/g)||[]).length,1);
+  assert.throws(()=>buildFiscalCandidate(req));
+  assert.throws(()=>buildDomesticFiscalCandidate(req));
+});
+test('explicit standard export classification emits legal subtype and non-Saudi buyer identity',()=>{
+  const buyer={country:'TR',otherId:'1234567890',otherIdScheme:'TIN',street:'Test street',city:'Istanbul',name:'Test buyer'};
+  for(const [kind,reasonCode,reasonText] of [['goods','VATEX-SA-32','Export of goods'],['services','VATEX-SA-33','Export of services']]){
+    const req={...input,buyer,lines:[{...line,category:'Z',rate:'0',reasonCode,reasonText}]};
+    const exportClassification={uuid:input.uuid,kind,buyerCountry:'TR',evidenceDigest:'b'.repeat(64)};
+    const out=buildFiscalCandidate(req,{exportClassification}),xml=out.bytes.toString();
+    assert.equal(out.totals.vatTotal,'0.00');assert.equal(out.fiscalContext.vatSar,'0.00');
+    assert.ok(xml.includes('<cbc:InvoiceTypeCode name="0100100">388</cbc:InvoiceTypeCode>'));
+    assert.ok(xml.includes('<cbc:ID schemeID="TIN">1234567890</cbc:ID>'));
+    assert.ok(xml.includes('<cbc:IdentificationCode>TR</cbc:IdentificationCode>'));
+    assert.ok(xml.includes('<cbc:TaxExemptionReasonCode>'+reasonCode+'</cbc:TaxExemptionReasonCode>'));
+    assert.equal((xml.match(/<cbc:CompanyID>/g)||[]).length,1);
+    assert.throws(()=>buildFiscalCandidate(req));
+    assert.throws(()=>buildFiscalCandidate({...req,buyer:{...buyer,vatNumber:party.vatNumber}},{exportClassification}));
+    assert.throws(()=>buildFiscalCandidate({...req,lines:[line]},{exportClassification}));
+    assert.throws(()=>buildFiscalCandidate({...req,mode:'simplified'},{exportClassification}));
+  }
 });
