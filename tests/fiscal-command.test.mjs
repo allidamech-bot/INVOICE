@@ -70,3 +70,11 @@ test('accounting routes allow only owner scoped identifiers and accepted immutab
  await f.execute(owner,cmd('post-sale',doc));
  assert.deepEqual(calls.map(x=>x[0]),['purchase','report','sale']);
 });
+
+test('approved cost correction command takes only a purchase ID from the owner',async()=>{
+ const calls=[];const f=fixture({accounting:{postPurchaseCost:async(s,id)=>{calls.push([s,id]);return {status:'posted',key:'purchase-cost-'+id};}}});
+ assert.deepEqual(await f.execute(owner,cmd('post-purchase-cost',{purchaseId:'p'})),{environment:'simulation',status:'posted',key:'purchase-cost-p'});
+ assert.deepEqual(calls,[[scope,'p']]);
+ for(const extra of [{purchaseId:'p',allocations:[]},{purchaseId:'p',deductibleVat:'15.00'},{purchaseId:'bad/path'}])await assert.rejects(f.execute(owner,cmd('post-purchase-cost',extra)));
+ await assert.rejects(f.execute({...owner,role:'viewer'},cmd('post-purchase-cost',{purchaseId:'p'})));assert.equal(calls.length,1);
+});
