@@ -460,6 +460,7 @@ const CONTRACTS=[
   'tests/fiscal-authority-certificate.test.mjs',
   'tests/fiscal-document-context.test.mjs',
   'tests/fiscal-prepayment.test.mjs',
+  'tests/fiscal-standard-clearance-crypto.test.mjs',
   // Production-critical regression contracts; mandatory even when unchanged in a PR.
   'tests/b07-sales-stock-issue.test.mjs',
   'tests/invoice-stock-ledger-20261015.test.mjs',
