@@ -5,7 +5,7 @@ import { resolveFiscalRoute } from '../dist/src/lib/fiscal-routing.js';
 const profile = (issuerCountry, saRegime) => ({ issuerCountry, saRegime });
 
 test('non-fiscal documents never enter the ZATCA submission path', () => {
-  for (const kind of ['quote','proforma','rfq','purchase-order','delivery-note','payment-receipt','draft']) {
+  for (const kind of ['quote','proforma','proforma-invoice','rfq','purchase-order','delivery-note','payment-receipt','draft']) {
     assert.deepEqual(resolveFiscalRoute(kind, profile('SA','phase-2')), {route:'non-fiscal'});
   }
 });
