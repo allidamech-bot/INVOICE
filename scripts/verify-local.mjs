@@ -465,6 +465,7 @@ const CONTRACTS=[
   'tests/fiscal-protected-signing.test.mjs',
   'tests/fiscal-pdfa.test.mjs',
   'tests/fiscal-accepted-issue.test.mjs',
+  'tests/fiscal-special-context.test.mjs',
   // Production-critical regression contracts; mandatory even when unchanged in a PR.
   'tests/b07-sales-stock-issue.test.mjs',
   'tests/invoice-stock-ledger-20261015.test.mjs',

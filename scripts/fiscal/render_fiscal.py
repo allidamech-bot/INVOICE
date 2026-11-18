@@ -67,10 +67,14 @@ def render_fiscal(xml):
     ar,en = {'388':('فاتورة ضريبية','Tax invoice'),'381':('إشعار دائن','Credit note'),'383':('إشعار مدين','Debit note'),'386':('فاتورة دفعة مقدمة','Advance payment invoice')}[code]
     if mode == 'simplified':
         ar += ' مبسطة'; en = 'Simplified '+en
+    subtype = one(root, CBC, 'InvoiceTypeCode').get('name')
+    flags = [(2,'بالنيابة عن المورد','Third-party'),(3,'توريد مفترض','Nominal supply'),(4,'تصدير','Export'),(5,'ملخصة','Summary'),(6,'فوترة ذاتية','Self-billed')]
+    for i, a, e in flags:
+        if subtype[i] == '1': ar += ' - '+a; en += ' - '+e
     meta = field('الرقم','Number',txt(root,CBC,'ID'))+field('المعرف الفريد','UUID',uuid)+field('تاريخ الإصدار','Issued',txt(root,CBC,'IssueDate')+' '+txt(root,CBC,'IssueTime'))+field('العملة','Currency',cur)
     delivery=opt(root,CAC,'Delivery')
     if delivery is not None:
-        meta+=field('تاريخ التوريد','Supply date',txt(delivery,CBC,'ActualDeliveryDate'))
+        meta+=field('تاريخ التوريد','Supply date',txt(delivery,CBC,'ActualDeliveryDate'))+field('نهاية التوريد','Supply end',txt(delivery,CBC,'LatestDeliveryDate',True))
     payment=one(root,CAC,'PaymentMeans')
     meta+=field('طريقة الدفع','Payment code',txt(payment,CBC,'PaymentMeansCode'))+field('سبب التصحيح','Correction reason',txt(payment,CBC,'InstructionNote',True))
     for ref in root.findall(f'{{{CAC}}}BillingReference'):

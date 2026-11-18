@@ -151,3 +151,23 @@ test('final 388 contains referenced zero supply line and reconciled prepaid/paya
   assert.ok(xml.includes('<cbc:TaxableAmount currencyID="SAR">86.96</cbc:TaxableAmount><cbc:TaxAmount currencyID="SAR">13.04</cbc:TaxAmount>'));
   assert.throws(()=>buildFiscalCandidate(req,{prepayment:{...prepayment,references:[ref,ref]}}));
 });
+
+test('special summary, authorized third-party and self-billed indicators map to UBL',()=>{
+  const summary={start:'2026-11-01',end:input.issueDate,evidenceDigest:'a'.repeat(64)};
+  const agency={kind:'third-party',approvalDigest:'b'.repeat(64),agreementDigest:'c'.repeat(64),issuerRef:'synthetic-agent'};
+  const req={...input,supplyDate:summary.start};
+  const out=buildFiscalCandidate(req,{special:{uuid:input.uuid,summary,agency}});
+  const xml=out.bytes.toString();
+  assert.ok(xml.includes('<cbc:InvoiceTypeCode name="0110010">388</cbc:InvoiceTypeCode>'));
+  assert.ok(xml.includes('<cbc:LatestDeliveryDate>2026-11-18</cbc:LatestDeliveryDate>'));
+  assert.ok(buildFiscalCandidate(req,{special:{uuid:input.uuid,agency:{...agency,kind:'self-billed'}}}).bytes.toString().includes('name="0100001"'));
+  assert.throws(()=>buildFiscalCandidate({...req,mode:'simplified',buyer:null},{special:{uuid:input.uuid,summary}}));
+});
+test('citizen healthcare and education exception require NAT without fake VAT number',()=>{
+  const buyer={country:'SA',nationalId:'1000000000',name:'Synthetic citizen',building:'1234',postal:'12345',street:'Synthetic street',district:'Synthetic district',city:'Riyadh'};
+  const req={...input,mode:'simplified',buyer,lines:[{...line,rate:'0',category:'Z',reasonCode:'VATEX-SA-HEA',reasonText:'Private healthcare to citizen'}]};
+  const special={uuid:input.uuid,exemptions:[{reasonCode:'VATEX-SA-HEA',evidenceDigest:'a'.repeat(64)}]};
+  const out=buildFiscalCandidate(req,{special});assert.equal(out.totals.vatTotal,'0.00');
+  const xml=out.bytes.toString();assert.ok(xml.includes('<cbc:ID schemeID="NAT">1000000000</cbc:ID>'));assert.ok(xml.includes('<cbc:TaxExemptionReasonCode>VATEX-SA-HEA</cbc:TaxExemptionReasonCode>'));assert.equal((xml.match(/<cbc:CompanyID>/g)||[]).length,1);
+  assert.throws(()=>buildFiscalCandidate(req));assert.throws(()=>buildFiscalCandidate({...req,buyer:{...buyer,vatNumber:party.vatNumber}},{special}));
+});

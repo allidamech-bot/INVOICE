@@ -3,6 +3,7 @@ import {FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js
 
 import {fiscalDocumentContext} from './fiscal-document-context.js';
 import {resolvePrepayment} from './prepayment.js';
+import {resolveSpecialFiscalContext} from './special-fiscal-context.js';
 
 // Restricted unsigned UBL candidate writer; existing domestic API is unchanged.
 // Extended API requires trusted server-resolved FX/export/prepayment context.
@@ -19,11 +20,11 @@ const scheme='<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>';
 // Explicitly restricted domestic subset of ZATCA v1.2 section 11.2.4.
 // Export, citizen-specific and other special transactions require distinct subtype mapping.
 const exemptionCodes=Object.freeze({Z:['VATEX-SA-35','VATEX-SA-36'],E:['VATEX-SA-29','VATEX-SA-29-7','VATEX-SA-30'],O:['VATEX-SA-OOS']});
-function validateClass(v){
+function validateClass(v, approvedExtra=[]){
   if(v.category==='S'){
     if(v.rate!=='15'||v.reasonCode!==undefined||v.reasonText!==undefined)throw Error('UNSUPPORTED_VAT_CLASS');
   }else{
-    if(!Object.hasOwn(exemptionCodes,v.category)||v.rate!=='0'||!exemptionCodes[v.category].includes(v.reasonCode))throw Error('UNSUPPORTED_VAT_CLASS');
+    if(!Object.hasOwn(exemptionCodes,v.category)||v.rate!=='0'||!(exemptionCodes[v.category].includes(v.reasonCode)||(v.category==='Z'&&approvedExtra.includes(v.reasonCode))))throw Error('UNSUPPORTED_VAT_CLASS');
     safe(v.reasonText);
   }
 }
@@ -51,6 +52,13 @@ function party(p,role){
 }
 // Restricted ISO 3166-1 subset and buyer IDs for the standard export path.
 // No Saudi buyer VAT number or guessed other identification.
+function citizenBuyer(p){
+  if(!p||p.country!=='SA'||Object.keys(p).some(k=>!['country','nationalId','name','building','postal','street','district','city'].includes(k))||typeof p.nationalId!=='string'||!/^1[0-9]{9}$/.test(p.nationalId)||!/^[0-9]{4}$/.test(p.building)||!/^[0-9]{5}$/.test(p.postal))throw Error('INVALID_CITIZEN_BUYER');
+  return '<cac:AccountingCustomerParty><cac:Party><cac:PartyIdentification><cbc:ID schemeID="NAT">'+safe(p.nationalId)+'</cbc:ID></cac:PartyIdentification>'
+    +'<cac:PostalAddress>'+e('StreetName',p.street)+e('BuildingNumber',p.building)+e('CitySubdivisionName',p.district)+e('CityName',p.city)+e('PostalZone',p.postal)
+    +'<cac:Country><cbc:IdentificationCode>SA</cbc:IdentificationCode></cac:Country></cac:PostalAddress>'
+    +'<cac:PartyLegalEntity>'+e('RegistrationName',p.name)+'</cac:PartyLegalEntity></cac:Party></cac:AccountingCustomerParty>';
+}
 function exportBuyer(p){
   if(!p||!['TR','US','GB','AE','DE','FR','NL','CA','EG','JO','SY','QA','KW','BH','OM','CN','JP','IN'].includes(p.country)
     ||Object.keys(p).some(k=>!['country','otherId','otherIdScheme','street','city','postal','name'].includes(k))
@@ -69,7 +77,7 @@ export function buildFiscalCandidate(input,context={}){
   if(typeof input.uuid!=='string'||!UUID.test(input.uuid)||typeof input.icv!=='string'||typeof input.previousInvoiceHash!=='string')throw Error('INVALID_XML_IDENTITY');
   if(!/^[1-9][0-9]{0,17}$/.test(input.icv)||(input.icv==='1'?input.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH:!/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(input.previousInvoiceHash)))throw Error('INVALID_CHAIN');
   date(input.issueDate);
-  const {prepayment,...fiscalContext}=context;
+  const {prepayment,special,...fiscalContext}=context;
   const profile=fiscalDocumentContext(input,fiscalContext);
   if(prepayment!==undefined&&profile.exportCode)throw Error('UNSUPPORTED_EXPORT_PREPAYMENT');
   const amount=(name,value)=>monetary(name,value,profile.currency);
@@ -77,12 +85,14 @@ export function buildFiscalCandidate(input,context={}){
   if(input.kind==='prepayment'){if(input.supplyDate!==undefined)throw Error('UNEXPECTED_SUPPLY_DATE');}
   else if(date(input.supplyDate)>input.issueDate)throw Error('UNSUPPORTED_SUPPLY_DATE');
   if(!Array.isArray(input.lines)||!input.lines.length||input.lines.length>500||input.lines.some(l=>!l||Object.keys(l).some(key=>!['id','name','quantity','unitNetPrice','unitCode','category','rate','reasonCode','reasonText','allowance','allowanceReasonCode','allowanceReasonText'].includes(key))||typeof l.unitCode!=='string'||!['PCE','KGM','LTR','MTR','HUR','EA'].includes(l.unitCode)))throw Error('UNSUPPORTED_XML_LINE');
+  if(special!==undefined&&prepayment!==undefined)throw Error('UNSUPPORTED_SPECIAL_PREPAYMENT');
+  const specialProfile=resolveSpecialFiscalContext(input,special,profile.exportCode);
   const reasons=new Map(), classes=new Set();
   function register(v){
     if(profile.exportCode){
       const approvedText=profile.exportCode==='VATEX-SA-32'?['Export of goods','صادرات السلع من المملكة']:['Export of services','صادرات الخدمات من المملكة'];
       if(v.category!=='Z'||v.rate!=='0'||v.reasonCode!==profile.exportCode||!approvedText.includes(v.reasonText))throw Error('EXPORT_CLASSIFICATION_MISMATCH');
-    }else validateClass(v);
+    }else validateClass(v,specialProfile.exemptionCodes);
     classes.add(v.category);
     if(v.category!=='S'){
       const old=reasons.get(v.category);
@@ -111,7 +121,7 @@ export function buildFiscalCandidate(input,context={}){
   // The anonymous retail path deliberately accepts no incomplete buyer object.
   const buyerXml=input.buyer===null&&input.mode==='simplified'
     ? '<cac:AccountingCustomerParty><cac:Party/></cac:AccountingCustomerParty>'
-    : profile.exportCode?exportBuyer(input.buyer):party(input.buyer,'AccountingCustomerParty');
+    : specialProfile.citizen?citizenBuyer(input.buyer):profile.exportCode?exportBuyer(input.buyer):party(input.buyer,'AccountingCustomerParty');
   let billing='',reason='';
   if(input.kind==='invoice'||input.kind==='prepayment'){
     if(input.original!==undefined||input.correctionReason!==undefined)throw Error('UNEXPECTED_CORRECTION');
@@ -127,7 +137,7 @@ export function buildFiscalCandidate(input,context={}){
     reason=e('InstructionNote',input.correctionReason);
   }
   const code=({invoice:'388','credit-note':'381','debit-note':'383',prepayment:'386'})[input.kind];
-  const subtype=profile.exportCode?'0100100':input.mode==='standard'?'0100000':'0200000';
+  const subtype=specialProfile.subtype;
   const totals=calculateFiscalTax({lines:input.lines,adjustments:input.adjustments});
   const vatSar=profile.vatSar(totals.vatTotal);
   const advance=resolvePrepayment(input,totals,prepayment);
@@ -153,14 +163,14 @@ export function buildFiscalCandidate(input,context={}){
     +'<cac:AdditionalDocumentReference><cbc:ID>ICV</cbc:ID>'+e('UUID',input.icv)+'</cac:AdditionalDocumentReference>'
     +'<cac:AdditionalDocumentReference><cbc:ID>PIH</cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">'+safe(input.previousInvoiceHash)+'</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference>'
     +sellerXml+buyerXml
-    +(input.kind==='prepayment'?'':'<cac:Delivery>'+e('ActualDeliveryDate',input.supplyDate)+'</cac:Delivery>')
+    +(input.kind==='prepayment'?'':'<cac:Delivery>'+e('ActualDeliveryDate',input.supplyDate)+(specialProfile.supplyEnd?e('LatestDeliveryDate',specialProfile.supplyEnd):'')+'</cac:Delivery>')
     +'<cac:PaymentMeans>'+e('PaymentMeansCode',input.paymentMeans)+reason+'</cac:PaymentMeans>'
     +adjustmentXml+'<cac:TaxTotal>'+monetary('TaxAmount',vatSar,'SAR')+'</cac:TaxTotal>'
     +'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+subtotals+'</cac:TaxTotal>'
     +'<cac:LegalMonetaryTotal>'+amount('LineExtensionAmount',totals.lineNetTotal)+amount('TaxExclusiveAmount',totals.taxExclusiveTotal)+amount('TaxInclusiveAmount',totals.taxInclusiveTotal)+(totals.documentAllowances!=='0.00'?amount('AllowanceTotalAmount',totals.documentAllowances):'')+(totals.documentCharges!=='0.00'?amount('ChargeTotalAmount',totals.documentCharges):'')+(advance?.kind==='adjustment'?amount('PrepaidAmount',advance.prepaid):'')+amount('PayableAmount',advance?.kind==='adjustment'?advance.payable:totals.taxInclusiveTotal)+'</cac:LegalMonetaryTotal>'+lines+advanceLines+'</Invoice>';
   const bytes=Buffer.from(xml,'utf8');
   if(bytes.length>512*1024)throw Error('XML_TOO_LARGE');
-  return {status:'unsigned-candidate',bytes,totals,...(advance?{prepaymentContext:advance}:{}),...(profile.currency!=='SAR'||profile.exportCode?{fiscalContext:{currency:profile.currency,vatSar,rate:context.rate?{...context.rate}:null,exportClassification:context.exportClassification?{...context.exportClassification}:null}}:{})};
+  return {status:'unsigned-candidate',bytes,totals,...(special?{specialContext:structuredClone(special)}:{}),...(advance?{prepaymentContext:advance}:{}),...(profile.currency!=='SAR'||profile.exportCode?{fiscalContext:{currency:profile.currency,vatSar,rate:context.rate?{...context.rate}:null,exportClassification:context.exportClassification?{...context.exportClassification}:null}}:{})};
 }
 
 // Preserve the original domestic contract and scope for existing signing callers.
