@@ -59,12 +59,41 @@ export function createFiscalLedger(db){
         return initial;
       });
     },
+    // Simulation worker: atomically read stored bytes, verify scope and claim one attempt.
+    async claim(authorizedScope,documentId,expectedVersion,attemptId,at){
+      if(authorizedScope.environment!=='simulation')throw Error('Simulation only.');
+      const base=scope(authorizedScope), issue=db.doc(base+'/issues/'+id(documentId));
+      const queue=db.doc(base+'/outbox/'+id(documentId));
+      const egs=db.doc(base+'/egs/'+id(authorizedScope.egsId));
+      return db.runTransaction(async tx=>{
+        const row=await tx.get(issue), job=await tx.get(queue), unit=await tx.get(egs);
+        const prepared=await tx.get(db.doc(issue.path+'/artifacts/prepared'));
+        const snapshot=await tx.get(db.doc(issue.path+'/artifacts/snapshot'));
+        const record=row.exists?row.data():null, state=unit.exists?unit.data():null;
+        assertScope(record,authorizedScope);assertScope(state,authorizedScope);
+        if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||state.egsId!==record.egsId||state.active!==true||state.environment!=='simulation')throw Error('Invalid simulation EGS.');
+        const expected=outbox(record), actual=job.exists?job.data():null;
+        if(!actual||expected.state!=='ready'||Object.keys(expected).some(k=>actual[k]!==expected[k]))throw Error('Fiscal queue not ready.');
+        function readBytes(stored,digest){
+          if(!stored.exists)throw Error('Fiscal artifact missing.');
+          const value=stored.data();if(typeof value.bytes!=='string'||value.bytes.length>Math.ceil(MAX_BYTES/3)*4||value.sha256!==digest)throw Error('Invalid fiscal artifact.');
+          const bytes=Buffer.from(value.bytes,'base64');
+          if(bytes.toString('base64')!==value.bytes)throw Error('Invalid fiscal artifact.');
+          artifact(bytes,digest);return bytes;
+        }
+        const xmlBytes=readBytes(prepared,record.artifactDigest), snapshotBytes=readBytes(snapshot,record.snapshotDigest);
+        const next=transitionFiscalIssue(record,expectedVersion,{kind:'start',attemptId,at});
+        tx.create(db.doc(issue.path+'/events/'+String(next.version)),{version:next.version,status:next.status,kind:'start',attemptId,at,resultDigest:null});
+        tx.update(issue,next);tx.update(queue,outbox(next));
+        return {record:next,xmlBytes,snapshotBytes};
+      });
+    },
     async transition(authorizedScope,documentId,expectedVersion,event,evidenceBytes,clearedBytes){
       const base=scope(authorizedScope), issue=db.doc(base+'/issues/'+id(documentId));
       return db.runTransaction(async tx=>{
         const snapshot=await tx.get(issue), record=snapshot.exists?snapshot.data():null;
         assertScope(record,authorizedScope);
-        if(record.documentId!==documentId)throw new Error('Fiscal document identity mismatch.');
+        if(record.documentId!==documentId||(authorizedScope.egsId!==undefined&&record.egsId!==authorizedScope.egsId))throw new Error('Fiscal document identity mismatch.');
         const next=transitionFiscalIssue(record,expectedVersion,event);
         const evidence=next.resultDigest?artifact(evidenceBytes,next.resultDigest):null;
         const cleared=next.clearedArtifactDigest?artifact(clearedBytes,next.clearedArtifactDigest):null;
