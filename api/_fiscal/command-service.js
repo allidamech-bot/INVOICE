@@ -31,16 +31,25 @@ export function createFiscalCommandService({db,approve,enrollment,prepare,submit
       const row=data(await tx.get(db.doc(base+'/egs/'+s.egsId+'/onboarding/current')));
       let onboarding=null;
       if(row){need(same(row.binding,s)&&states.has(row.state)&&version(row.version)&&Array.isArray(row.checks),'FISCAL_COMMAND_UNAVAILABLE');const required=requiredComplianceChecks(row.functionalityMap);need(row.checks.length<=required.length&&new Set(row.checks.map(x=>x.type)).size===row.checks.length&&row.checks.every(x=>required.includes(x.type)&&['verified-pass','verified-fail'].includes(x.outcome)),'FISCAL_COMMAND_UNAVAILABLE');onboarding={state:row.state,version:row.version,passed:row.checks.filter(x=>x.outcome==='verified-pass').length,required:required.length};}
+      // A successful remote request with a lost local response can leave an
+      // enrollment attempt held even before onboarding/current exists.
+      let enrollmentHeld=false;
+      if(op==='inspect'||['enroll','check','operational'].includes(op)){
+        for(const key of ['compliance-csid',...requiredComplianceChecks('1100').map(t=>'check-'+t),'operational-csid']){
+          const attempt=data(await tx.get(db.doc(base+'/egs/'+s.egsId+'/enrollmentAttempts/'+key)));
+          if(attempt){need(same(attempt,s)&&['held','completed'].includes(attempt.state),'FISCAL_COMMAND_UNAVAILABLE');if(attempt.state==='held')enrollmentHeld=true;}
+        }
+      }
       const review=cmd.documentId?data(await tx.get(db.doc(base+'/issueReviews/'+cmd.documentId))):null,issue=cmd.documentId?data(await tx.get(db.doc(base+'/issues/'+cmd.documentId))):null,intent=cmd.documentId?data(await tx.get(db.doc(base+'/issueIntents/'+cmd.documentId))):null;
       const reviewed=Boolean(same(review,s)&&review.state==='approved'&&review.documentId===cmd.documentId&&review.documentRevision===cmd.documentRevision);
       if(issue)need(issue.accountUid===s.accountUid&&issue.workspaceId===s.workspaceId&&issue.egsId===s.egsId&&issue.documentId===cmd.documentId&&statuses.has(issue.status),'FISCAL_COMMAND_UNAVAILABLE');
       if(intent)need(same(intent,s)&&intent.documentId===cmd.documentId&&intent.state==='approved','FISCAL_COMMAND_UNAVAILABLE');
-      return {s,unit,onboarding,reviewed,issue,intent};
+      return {s,unit,onboarding,reviewed,issue,intent,enrollmentHeld};
     });
     const {s,unit}=c;
-    if(op==='inspect')return {environment:'simulation',workspaceId:s.workspaceId,unitActive:unit.active,onboarding:c.onboarding,capabilities:{enrollment:!!enrollment,approval:unit.active,preparation:unit.active&&typeof prepare==='function',submission:unit.active&&typeof submit==='function'}};
+    if(op==='inspect')return {environment:'simulation',workspaceId:s.workspaceId,unitActive:unit.active,onboarding:c.onboarding,enrollmentHeld:c.enrollmentHeld,capabilities:{enrollment:!!enrollment,approval:unit.active,preparation:unit.active&&typeof prepare==='function',submission:unit.active&&typeof submit==='function'}};
     if(['enroll','check','operational'].includes(op)){
-      need(!unit.active);const method={enroll:'begin',check:'check',operational:'operational'}[op];need(typeof enrollment?.[method]==='function','FISCAL_VERIFICATION_UNAVAILABLE');
+      need(!unit.active);need(!c.enrollmentHeld,'ONBOARDING_ATTEMPT_HELD');const method={enroll:'begin',check:'check',operational:'operational'}[op];need(typeof enrollment?.[method]==='function','FISCAL_VERIFICATION_UNAVAILABLE');
       const r=await enrollment[method](identity,{workspaceId:s.workspaceId,egsId:s.egsId,...(op==='enroll'?{otp:cmd.otp}:{expectedVersion:cmd.expectedVersion})});
       return {environment:'simulation',state:r.state,version:r.version};
     }

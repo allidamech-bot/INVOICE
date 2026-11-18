@@ -3,18 +3,18 @@ import {activeAccountStorageUid} from '../storage/db.js';
 declare const firebase:any;
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const STATES=['checking','restart-required','checks-complete','operational-request-held','operational-recorded'];
-export interface FiscalQaStatus{environment:'simulation';workspaceId:string;unitActive:boolean;onboarding:null|{state:string;version:number;passed:number;required:number};capabilities:{enrollment:boolean;approval:boolean;preparation:boolean;submission:boolean};}
+export interface FiscalQaStatus{environment:'simulation';workspaceId:string;unitActive:boolean;enrollmentHeld:boolean;onboarding:null|{state:string;version:number;passed:number;required:number};capabilities:{enrollment:boolean;approval:boolean;preparation:boolean;submission:boolean};}
 export type FiscalQaCommand={operation:'inspect'}|{operation:'enroll';otp:string}|{operation:'check'|'operational';expectedVersion:number};
 export function fiscalQaClientEnabled():boolean{
   try{return typeof firebase.app().options.projectId==='string'&&/^[a-z][a-z0-9-]{0,18}-fiscal-qa$/.test(firebase.app().options.projectId)&&Boolean(currentCloudUser()?.uid)&&currentCloudUser()?.uid===activeAccountStorageUid();}catch{return false;}
 }
 export function validateFiscalQaStatus(value:any,workspaceId:string):FiscalQaStatus{
   const o=value?.onboarding,c=value?.capabilities;
-  if(value?.environment!=='simulation'||value.workspaceId!==workspaceId||typeof value.unitActive!=='boolean'||!c||['enrollment','approval','preparation','submission'].some(k=>typeof c[k]!=='boolean')||o!==null&&(!o||!STATES.includes(o.state)||!Number.isSafeInteger(o.version)||o.version<1||!Number.isSafeInteger(o.passed)||!Number.isSafeInteger(o.required)||o.passed<0||o.passed>o.required||![3,6].includes(o.required)))throw Error('FISCAL_INVALID_STATUS');
-  return {environment:'simulation',workspaceId,unitActive:value.unitActive,onboarding:o===null?null:{state:o.state,version:o.version,passed:o.passed,required:o.required},capabilities:{enrollment:c.enrollment,approval:c.approval,preparation:c.preparation,submission:c.submission}};
+  if(value?.environment!=='simulation'||value.workspaceId!==workspaceId||typeof value.unitActive!=='boolean'||typeof value.enrollmentHeld!=='boolean'||!c||['enrollment','approval','preparation','submission'].some(k=>typeof c[k]!=='boolean')||o!==null&&(!o||!STATES.includes(o.state)||!Number.isSafeInteger(o.version)||o.version<1||!Number.isSafeInteger(o.passed)||!Number.isSafeInteger(o.required)||o.passed<0||o.passed>o.required||![3,6].includes(o.required)))throw Error('FISCAL_INVALID_STATUS');
+  return {environment:'simulation',workspaceId,unitActive:value.unitActive,enrollmentHeld:value.enrollmentHeld,onboarding:o===null?null:{state:o.state,version:o.version,passed:o.passed,required:o.required},capabilities:{enrollment:c.enrollment,approval:c.approval,preparation:c.preparation,submission:c.submission}};
 }
 export function fiscalQaNextAction(value:FiscalQaStatus):'enroll'|'check'|'operational'|null{
-  if(value.unitActive||!value.capabilities.enrollment)return null;
+  if(value.unitActive||value.enrollmentHeld||!value.capabilities.enrollment)return null;
   if(!value.onboarding)return 'enroll';
   if(value.onboarding.state==='checking'&&value.onboarding.passed<value.onboarding.required)return 'check';
   if(value.onboarding.state==='checks-complete'&&value.onboarding.passed===value.onboarding.required)return 'operational';

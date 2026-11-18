@@ -12,7 +12,7 @@ function fixture(patch={}){
  return {rows,calls,execute:createFiscalCommandService({db,approve,...patch})};
 }
 test('status exposes no private artifacts and missing SDK blocks preparation before approval',async()=>{
- const f=fixture();assert.deepEqual(await f.execute(owner,cmd('inspect')),{environment:'simulation',workspaceId:'qa',unitActive:true,onboarding:null,capabilities:{enrollment:false,approval:true,preparation:false,submission:false}});
+ const f=fixture();assert.deepEqual(await f.execute(owner,cmd('inspect')),{environment:'simulation',workspaceId:'qa',unitActive:true,onboarding:null,enrollmentHeld:false,capabilities:{enrollment:false,approval:true,preparation:false,submission:false}});
  await assert.rejects(f.execute(owner,cmd('prepare',doc)),/VERIFICATION_UNAVAILABLE/);assert.equal(f.calls.length,0);
  assert.deepEqual(await f.execute(owner,cmd('approve',doc)),{environment:'simulation',...doc,status:'approved'});
  assert.equal(f.calls[0][1].egsId,'egs');assert.deepEqual(f.calls[0][2],{expectedDocumentRevision:1,requireCommandEnabled:true});
@@ -37,3 +37,5 @@ test('QA writer key cannot use production or reader identity',()=>{
  const project='lourex-fiscal-qa',reader={project_id:project,client_email:'reader@'+project+'.iam.gserviceaccount.com',private_key:'test'},writer={...reader,client_email:'writer@'+project+'.iam.gserviceaccount.com'},env={VERCEL_ENV:'preview',LOUREX_FISCAL_STATUS_ENABLED:'true',LOUREX_FISCAL_COMMANDS_ENABLED:'true',LOUREX_FISCAL_QA_PROJECT_ID:project,LOUREX_FISCAL_QA_SERVICE_ACCOUNT_JSON:JSON.stringify(reader),LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(writer)};
  assert.deepEqual(fiscalCommandConfig(env),{project,account:writer});for(const p of [{VERCEL_ENV:'production'},{LOUREX_FISCAL_COMMANDS_ENABLED:'false'},{LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(reader)}])assert.throws(()=>fiscalCommandConfig({...env,...p}));
 });
+
+test('held enrollment attempt is visible even before onboarding exists and prevents new remote commands',async()=>{const f=fixture({enrollment:{begin:async()=>{throw Error('must not call');}}});f.rows.set(base+'/egs/egs',{...scope,active:false});f.rows.set(base+'/egs/egs/enrollmentAttempts/compliance-csid',{...scope,state:'held'});const s=await f.execute(owner,cmd('inspect'));assert.equal(s.enrollmentHeld,true);assert.equal(s.onboarding,null);await assert.rejects(f.execute(owner,cmd('enroll',{otp:'123456'})),/ATTEMPT_HELD/);});

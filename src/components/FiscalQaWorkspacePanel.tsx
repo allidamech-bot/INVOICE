@@ -42,7 +42,7 @@ export class FiscalQaWorkspacePanel extends React.Component<Props,State>{
       {this.state.error?<p role="alert">{this.state.error}</p>:null}
       {s?<div>
         <div role="status" aria-live="polite"><p>{t('Invoicing unit','وحدة الفوترة')}: <strong>{s.unitActive?t('Test active','نشطة في الاختبار'):t('Inactive','غير نشطة')}</strong></p>
-        <p>{t('Registration','التسجيل')}: <strong>{stateLabel(o?.state||'')}</strong></p>
+        <p>{t('Registration','التسجيل')}: <strong>{s.enrollmentHeld?t('Request held for reconciliation','طلب معلق للمطابقة'):stateLabel(o?.state||'')}</strong></p>
         <p>{t('Compliance documents','مستندات الامتثال')}: <strong>{o?o.passed+' / '+o.required:'—'}</strong></p>
         <p>{t('Registration commands','أوامر التسجيل')}: {yesNo(s.capabilities.enrollment)}</p>
         <p>{t('Invoice preparation','تجهيز الفاتورة')}: {yesNo(s.capabilities.preparation)}</p>
@@ -51,6 +51,7 @@ export class FiscalQaWorkspacePanel extends React.Component<Props,State>{
         <Button disabled={this.state.busy||!/^\d{6}$/.test(this.state.otp)} onClick={()=>void this.run({operation:'enroll',otp:this.state.otp})}>{t('Request compliance certificate','طلب شهادة الامتثال')}</Button></div>:null}
         {action==='check'&&o?<Button disabled={this.state.busy} onClick={()=>void this.run({operation:'check',expectedVersion:o.version})}>{t('Run next compliance check','تشغيل فحص الامتثال التالي')}</Button>:null}
         {action==='operational'&&o?<Button disabled={this.state.busy} onClick={()=>void this.run({operation:'operational',expectedVersion:o.version})}>{t('Request operational certificate','طلب شهادة التشغيل')}</Button>:null}
+        {s.enrollmentHeld?<p role="alert">{t('An earlier request is unresolved. Contact the administrator to reconcile it before continuing.','يوجد طلب سابق غير محسوم. يجب على المسؤول مطابقته قبل المتابعة.')}</p>:null}
         {!s.capabilities.enrollment?<p className="commercial-empty-note">{t('Registration is blocked until the official verification services are configured.','التسجيل محظور حتى تهيئة خدمات التحقق الرسمية.')}</p>:null}
       </div>:null}
     </article>;
