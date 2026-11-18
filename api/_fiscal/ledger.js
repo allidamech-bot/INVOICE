@@ -6,6 +6,7 @@ import {writeAuthorityEvidence} from './authority-evidence.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {createAttemptResponseStore} from './attempt-response.js';
 import {classifyStoredSubmissionResponse} from './zatca-simulation.js';
+import {planFiscalCreditReservation} from './commercial-credit.js';
 import {prepareFiscalIssue,transitionFiscalIssue,FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
 // Internal Admin SDK service only. No browser endpoint or production activation.
@@ -113,10 +114,12 @@ export function createFiscalLedger(db){
       const queue=db.doc(base+'/outbox/'+id(initial.documentId));
       return db.runTransaction(async tx=>{
         const {unit:state}=await readSimulationContext(db,tx,authorizedScope,{active:true});
+        let approved;
         if(approvedIntent){
           const intent=readApprovedIntent(await tx.get(db.doc(base+'/issueIntents/'+id(initial.documentId))),authorizedScope,initial.documentId);
           if(intent.digest!==initial.snapshotDigest||!intent.bytes.equals(snapshotBytes))throw Error('FISCAL_APPROVED_INTENT_CHANGED');
           await assertCurrentApprovedSource(db,tx,authorizedScope,initial.documentId,intent.payload);
+          approved=intent.payload;
         }
         const existing=await tx.get(issue);
         if(existing.exists){
@@ -132,6 +135,8 @@ export function createFiscalLedger(db){
         if(initial.icv==='1'&&state.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH)throw new Error('Invalid EGS genesis.');
         const nextIcv=String(BigInt(initial.icv)+1n);
         if(nextIcv.length>18)throw new Error('Fiscal counter exhausted.');
+        const reservation=approved?.document.role==='credit-note'?await planFiscalCreditReservation(db,tx,authorizedScope,approved,initial):null;
+        if(reservation)reservation.write(tx);
         tx.create(issue,initial);
         tx.create(uuid,{workspaceId:initial.workspaceId,documentId:initial.documentId,egsId:initial.egsId});
         tx.create(db.doc(issue.path+'/artifacts/prepared'),xml);

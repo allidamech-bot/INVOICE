@@ -1,6 +1,7 @@
 import {readSimulationContext,simulationBase} from './simulation-scope.js';
 import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
+import {resolveFiscalCreditOriginal} from './commercial-credit.js';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].every(k=>row[k]===s[k]);
 const data=s=>s.exists?s.data():null;
@@ -35,7 +36,23 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
       let buyer=null;
       if(d.customerSnapshot){const customerId=d.customerSnapshot.sourceCustomerId;need(typeof customerId==='string'&&ID.test(customerId));const p=data(await tx.get(db.doc(base+'/buyerProfiles/'+customerId)));buyer=legalParty(p,d.customerSnapshot,s,false,cmd.invoiceType);}
       else need(cmd.invoiceType==='simplified'&&sellerProfile.allowAnonymousSimplified===true);
-      const review={...s,sourceDocumentId:d.id,branchId:d.branchId,documentRevision:d.revision,invoiceType:cmd.invoiceType,seller,buyer,taxCategory:'S',taxRate:'15',supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans};
+      // Zero-rate/exemption/out-of-scope classification is an independent,
+      // revision-bound private decision; never infer it from a disabled tax box.
+      const classification=data(await tx.get(db.doc(base+'/taxClassifications/'+d.id)));
+      let tax={taxCategory:'S',taxRate:'15'};
+      if(classification){
+        need(same(classification,s)&&classification.state==='approved'&&classification.documentId===d.id&&classification.documentRevision===d.revision&&classification.sourceRevision===meta.revision&&classification.sourceSha256===meta.sha256&&['Z','E','O'].includes(classification.category)&&classification.rate==='0'&&typeof classification.evidenceDigest==='string'&&/^[a-f0-9]{64}$/.test(classification.evidenceDigest),'FISCAL_TAX_REVIEW_REQUIRED');
+        tax={taxCategory:classification.category,taxRate:'0',reasonCode:classification.reasonCode,reasonText:classification.reasonText,classificationDigest:classification.evidenceDigest};
+      }
+      let correction={};
+      if(d.role==='credit-note'){
+        const original=await resolveFiscalCreditOriginal(db,tx,s,d);
+        const remarks=typeof d.terms?.remarks==='string'?d.terms.remarks:'';
+        const reasons=remarks.split('\n').filter(x=>x.startsWith('Reason / السبب: '));
+        need(reasons.length===1&&reasons[0].slice(15).trim()&&remarks.includes('VAT treatment: source invoice tax / المعالجة الضريبية: ضريبة الفاتورة الأصلية')&&!remarks.includes('VAT treatment: unchanged VAT'),'FISCAL_CORRECTION_REASON_REQUIRED');
+        correction={...original,correctionReason:reasons[0].slice('Reason / السبب: '.length).trim()};
+      }
+      const review={...s,sourceDocumentId:d.id,branchId:d.branchId,documentRevision:d.revision,invoiceType:cmd.invoiceType,seller,buyer,...tax,...correction,supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans};
       const ref=db.doc(base+'/issueReviews/'+d.id),prior=data(await tx.get(ref)),intent=data(await tx.get(db.doc(base+'/issueIntents/'+d.id))),issue=data(await tx.get(db.doc(base+'/issues/'+d.id)));
       const record={...s,state:'approved',documentId:d.id,sourceRevision:meta.revision,sourceSha256:meta.sha256,periodGeneration:source.control.generation,documentRevision:d.revision,issuer:profile.issuer,review};
       // Review classification and statutory details are verified against the

@@ -17,12 +17,12 @@ function artifact(row,digest){
 }
 export function createAcceptedFiscalReader(db){
   need(db&&typeof db.doc==='function'&&typeof db.runTransaction==='function');
-  return async function readAccepted(scope,documentId){
+  return async function readAccepted(scope,documentId,transaction){
     need(scope?.environment==='simulation'&&['accountUid','workspaceId','egsId'].every(k=>typeof scope[k]==='string'&&ID.test(scope[k]))&&typeof documentId==='string'&&ID.test(documentId));
     const {accountUid,workspaceId,egsId}=scope;
     const base='fiscalPrivateV1/'+accountUid+'/workspaces/'+workspaceId, path=base+'/issues/'+documentId;
     const get=(tx,p)=>tx.get(db.doc(p));
-    return db.runTransaction(async tx=>{
+    const read=async tx=>{
       await readSimulationContext(db,tx,scope);
       const r=data(await get(tx,path));
       need(r.accountUid===accountUid&&r.workspaceId===workspaceId&&r.egsId===egsId&&r.documentId===documentId&&typeof r.uuid==='string'&&UUID.test(r.uuid)&&Number.isSafeInteger(r.version)&&r.version>=3&&typeof r.resultDigest==='string'&&HEX.test(r.resultDigest)&&typeof r.warnings==='boolean');
@@ -39,6 +39,7 @@ export function createAcceptedFiscalReader(db){
       if(clearance){xml=artifact(await get(tx,path+'/artifacts/cleared'),r.clearedArtifactDigest);need(body.clearanceStatus==='CLEARED'&&body.clearedInvoice===xml.toString('base64'));}
       else need(body.reportingStatus==='REPORTED'&&r.clearedArtifactDigest===null);
       return {record:{...r},xml:Buffer.from(xml),submitted:Buffer.from(submitted),snapshot:Buffer.from(snapshot),evidence:Buffer.from(result)};
-    });
+    };
+    return transaction?read(transaction):db.runTransaction(read);
   };
 }

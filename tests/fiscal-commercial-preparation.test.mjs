@@ -8,6 +8,8 @@ import {createCommercialFiscalPreparation} from '../api/_fiscal/commercial-prepa
 import {createCommercialIssueApproval} from '../api/_fiscal/commercial-approval.js';
 import {createCommercialReview} from '../api/_fiscal/commercial-review.js';
 import {reviewDigest} from '../api/_fiscal/commercial-source.js';
+import {resolveFiscalCreditOriginal,planFiscalCreditReservation} from '../api/_fiscal/commercial-credit.js';
+import {createFiscalSimulationWorker} from '../api/_fiscal/simulation-worker.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {encodeWorkspace} from '../api/_accounting/period-format.js';
 const scope={accountUid:'owner',workspaceId:'company',egsId:'egs',environment:'simulation'},id='doc';
@@ -120,3 +122,33 @@ test('owner review uses approved statutory party profiles and protected publishe
  assert.equal((await f.make()(scope,id)).status,'queued');
 });
 test('canonical review fingerprint is independent of Firestore map key iteration order',()=>assert.equal(reviewDigest({a:1,b:{c:2,d:3}}),reviewDigest({b:{d:3,c:2},a:1})));
+test('approved zero-rated, exempt and out-of-scope domestic classifications preserve commercial totals without inferring eligibility',()=>{
+ const d={...document,adjustments:{...document.adjustments,taxEnabled:false,taxPercent:'0'}};
+ for(const [category,reasonCode,reasonText] of [['Z','VATEX-SA-35','Qualifying medicine'],['E','VATEX-SA-29','Exempt financial service'],['O','VATEX-SA-OOS','Out of scope']]){
+   const r={...review,taxCategory:category,taxRate:'0',reasonCode,reasonText,classificationDigest:'a'.repeat(64)};
+   const result=map(d,r);
+   assert.equal(result.commercial.tax,'0.00');assert.equal(result.candidate.totals.taxInclusiveTotal,'195.00');
+   assert.match(result.candidate.bytes.toString(),new RegExp(reasonCode));
+   assert.throws(()=>map(d,{...r,classificationDigest:undefined}));
+   assert.throws(()=>map(document,r));
+ }
+ assert.throws(()=>map(d));
+});
+test('credit references are resolved from accepted immutable original and pending credits atomically reserve net, VAT and gross',async()=>{
+ const f=fixture();await f.make()(scope,id);
+ const raw={clearanceStatus:'CLEARED',clearedInvoice:Buffer.from('<cleared/>').toString('base64'),validationResults:{status:'PASS',errorMessages:[],warningMessages:[]}};
+ const worker=createFiscalSimulationWorker({ledger:f.ledger,resolveCredential:async()=>({...scope,kind:'production',binarySecurityToken:Buffer.from('synthetic').toString('base64'),secret:'synthetic'}),verifyPrepared:async()=>true,verifyAuthorityResult:async()=>true,clock:()=>at,attemptId:()=> 'attempt',fetchImpl:async()=>new Response(JSON.stringify(raw),{status:200})});
+ assert.equal((await worker(scope,id,1)).status,'cleared');
+ const correction=(note)=>({...document,id:note,number:'CN-'+note,role:'credit-note',creditForId:id,creditForNumber:document.number,items:[{...document.items[0],unit:'Unit',quantity:'1',unitPrice:'100'}],adjustments:{...document.adjustments,discountEnabled:false,shippingEnabled:false}});
+ const draft=correction('note-one'),original=await f.db.runTransaction(tx=>resolveFiscalCreditOriginal(f.db,tx,scope,draft));
+ assert.equal(original.original.uuid,identity.uuid);assert.deepEqual(original.originalTotals,{net:'195.00',vat:'29.25',gross:'224.25'});
+ const creditReview={...review,...original,sourceDocumentId:draft.id,correctionReason:'Returned goods'};
+ const nextIdentity={...identity,documentId:draft.id,uuid:'22222222-2222-4222-8222-222222222222',icv:'2',previousInvoiceHash:f.read(base+'/egs/egs').previousInvoiceHash};
+ const m=mapCommercialFiscalInvoice({scope,document:draft,issuer,review:creditReview,identity:nextIdentity});assert.equal(m.invoice.kind,'credit-note');assert.match(m.candidate.bytes.toString(),/381<\/cbc:InvoiceTypeCode>/);
+ const reserve=(d,n)=>f.db.runTransaction(async tx=>{const plan=await planFiscalCreditReservation(f.db,tx,scope,{document:d,issuer,review:{...creditReview,sourceDocumentId:d.id}},{...nextIdentity,documentId:d.id,uuid:n,snapshotDigest:'a'.repeat(64)});plan.write(tx);});
+ const results=await Promise.allSettled([reserve(draft,nextIdentity.uuid),reserve(correction('note-two'),'33333333-3333-4333-8333-333333333333')]);
+ assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
+ assert.equal(results.filter(x=>x.status==='rejected').length,1);
+ assert.deepEqual(f.read(base+'/creditBalances/doc').reserved,{net:'100.00',vat:'15.00',gross:'115.00'});
+ await assert.rejects(f.db.runTransaction(tx=>resolveFiscalCreditOriginal(f.db,tx,scope,{...draft,creditForNumber:'unrelated'})));
+});
