@@ -1,3 +1,4 @@
+import {reconcileDomesticPurchase} from './purchase-reconciliation.mjs';
 import {createHash,randomBytes} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
@@ -238,6 +239,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
  }
  async function report(s,from,to){
    validateScope(s);need(day(from)&&day(to)&&from<=to);
+   const {purchaseTotals}=await loadCompiledFinance('operations');
    return db.runTransaction(async tx=>{
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,'report');
@@ -247,7 +249,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const rows=[],postedSales=new Set(),postedPurchases=new Set();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
      for(const item of snapshot.docs){
        const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment===s.environment&&r.key===item.id&&['sale','purchase'].includes(r.source)&&day(r.taxDate)&&r.taxDate>=from&&r.taxDate<=to&&HEX.test(r.evidenceDigest));journal(r.amount.lines);
-       const sign=signFor(r.amount.kind);
+       const sign=signFor(r.amount.kind);let reconciliation=null;
        if(r.source==='sale'){
          postedSales.add(r.sourceId);
          output+=sign*cents(r.amount.vatSar);
@@ -256,9 +258,13 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        }else{
          if(r.amount.kind==='invoice')postedPurchases.add(r.sourceId);
          input+=sign*cents(r.amount.vat);deductible+=sign*cents(r.amount.deductibleVat);const self=sign*cents(r.amount.selfAssessedVat??'0.00');output+=self;reverseCharge+=self;if(r.amount.treatment==='import')importVat+=sign*cents(r.amount.vat);
-         const p=source.payload.purchases.find(x=>x.id===r.sourceId);if(!p||p.status!=='posted'||reviewDigest(p)!==r.sourceFingerprint||cents(r.amount.deductibleVat)>0n||r.amount.kind!=='invoice'||r.amount.treatment!=='domestic')unmatched++;
+         const p=source.payload.purchases.find(x=>x.id===r.sourceId);
+         if(p&&p.status==='posted'&&reviewDigest(p)===r.sourceFingerprint&&r.amount.kind==='invoice'&&r.amount.treatment==='domestic'){
+           reconciliation=reconcileDomesticPurchase({purchase:p,amount:r.amount,landedTotal:purchaseTotals(p).landedTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
+         }
+         if(!reconciliation?.matched)unmatched++;
        }
-       rows.push({key:r.key,source:r.source,number:r.documentNumber,date:r.taxDate,category:r.category,rate:r.rate,currency:r.currency,kind:r.amount.kind,treatment:r.amount.treatment??'domestic',net:r.amount.recognizedNet??r.amount.net,vat:r.amount.vatSar??r.amount.vat,deductibleVat:r.amount.deductibleVat??'0.00'});
+       rows.push({key:r.key,source:r.source,number:r.documentNumber,date:r.taxDate,category:r.category,rate:r.rate,currency:r.currency,kind:r.amount.kind,treatment:r.amount.treatment??'domestic',net:r.amount.recognizedNet??r.amount.net,vat:r.amount.vatSar??r.amount.vat,deductibleVat:r.amount.deductibleVat??'0.00',reconciliation});
      }
      // The report must expose omitted entries rather than interpreting an
      // empty register as a zero-tax period. Commercial drafts are checked
