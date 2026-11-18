@@ -1,3 +1,4 @@
+import {stockCostCents,supplierAdjustmentProjection} from './fiscal-cost.mjs';
 import {reconcileDomesticPurchase} from './purchase-reconciliation.mjs';
 import {createHash,randomBytes} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
@@ -68,7 +69,7 @@ function postingRef(db,s,key){return db.doc(simulationBase(s)+'/accountingEntrie
 function signFor(kind){return kind==='credit-note'?-1n:1n;}
 async function planCommercialFinalization(db,tx,s,source,doc,model){
  const p=source.payload,final={...doc,status:'final'},before=p;
- const [{postIssuedInvoiceStock},{approvalGate},{assertCustomerCreditLimit},{assertDocumentLifecycleInvariant,createDocumentEvent},{assertInvoicePaymentInvariant},{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity},{lineTotal,isNonNegativeFinancialDecimalInput}]=await Promise.all(['stock','governance','commercial','lifecycle','payments','period','backup','money'].map(loadCompiledFinance));
+ const [{postIssuedInvoiceStock},{approvalGate},{assertCustomerCreditLimit},{assertDocumentLifecycleInvariant,createDocumentEvent},{assertInvoicePaymentInvariant},{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity},{isNonNegativeFinancialDecimalInput}]=await Promise.all(['stock','governance','commercial','lifecycle','payments','period','backup','money'].map(loadCompiledFinance));
  // Special fiscal subtypes must never be disguised as a commercial sale.
  need(!['prepayment','debit-note'].includes(model.kind),'FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
  const policy=approvalGate(p,{action:'issue-document',entityType:'document',entityId:doc.id,entityLabel:doc.number,entityUpdatedAt:doc.updatedAt||''});
@@ -85,7 +86,7 @@ async function planCommercialFinalization(db,tx,s,source,doc,model){
  let cost=0n;
  for(const m of newMovements){
    need(m.sourceId===doc.id&&m.currency===doc.currency&&typeof m.unitCost==='string'&&isNonNegativeFinancialDecimalInput(m.unitCost)&&typeof m.quantity==='string'&&m.quantity.startsWith('-'),'FISCAL_STOCK_COST_REVIEW_REQUIRED');
-   cost+=cents(lineTotal(m.quantity.slice(1),m.unitCost));
+   cost+=stockCostCents(m.quantity.slice(1),m.unitCost);
  }
  const accounting={...model,lines:journal([...model.lines,entry('cost-of-sales','debit',cost),entry('inventory','credit',cost)])};
  assertPostedStockRestoreContinuity(before,candidate);assertClosedPeriodUnchanged(before,candidate,source.control.boundaries);
@@ -246,7 +247,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const collection=db.collection(base+'/accountingEntries');
      const snapshot=await tx.get(collection.where('taxDate','>=',from).where('taxDate','<=',to).limit(1001));
      need(snapshot.docs.length<=1000,'FISCAL_REPORT_LIMIT');
-     const rows=[],postedSales=new Set(),postedPurchases=new Set();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
+     const rows=[],postedSales=new Set(),postedPurchases=new Set(),purchaseBalances=new Map();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
      for(const item of snapshot.docs){
        const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment===s.environment&&r.key===item.id&&['sale','purchase'].includes(r.source)&&day(r.taxDate)&&r.taxDate>=from&&r.taxDate<=to&&HEX.test(r.evidenceDigest));journal(r.amount.lines);
        const sign=signFor(r.amount.kind);let reconciliation=null;
@@ -259,8 +260,19 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
          if(r.amount.kind==='invoice')postedPurchases.add(r.sourceId);
          input+=sign*cents(r.amount.vat);deductible+=sign*cents(r.amount.deductibleVat);const self=sign*cents(r.amount.selfAssessedVat??'0.00');output+=self;reverseCharge+=self;if(r.amount.treatment==='import')importVat+=sign*cents(r.amount.vat);
          const p=source.payload.purchases.find(x=>x.id===r.sourceId);
-         if(p&&p.status==='posted'&&reviewDigest(p)===r.sourceFingerprint&&r.amount.kind==='invoice'&&r.amount.treatment==='domestic'){
-           reconciliation=reconcileDomesticPurchase({purchase:p,amount:r.amount,landedTotal:purchaseTotals(p).landedTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
+         if(p&&p.status==='posted'&&reviewDigest(p)===r.sourceFingerprint&&r.amount.treatment==='domestic'){
+           if(!purchaseBalances.has(p.id)){
+             const original=r.amount.kind==='invoice'?r:data(await tx.get(postingRef(db,s,'purchase-'+p.id)));
+             need(original&&original.source==='purchase'&&original.sourceId===p.id&&original.key==='purchase-'+p.id&&original.amount.kind==='invoice'&&original.amount.treatment==='domestic'&&original.accountUid===s.accountUid&&original.workspaceId===s.workspaceId&&original.environment===s.environment&&original.sourceFingerprint===reviewDigest(p)&&day(original.taxDate)&&original.taxDate<=to,'FISCAL_PURCHASE_ORIGINAL_REQUIRED');
+             const linked=await tx.get(collection.where('sourceId','==',p.id).limit(201));
+             need(linked.docs.length<=200,'FISCAL_REPORT_LIMIT');
+             const corrections=[];
+             for(const item of linked.docs){const x=item.data();if(x.source!=='purchase')continue;need(day(x.taxDate)&&x.key===item.id,'FISCAL_PURCHASE_SOURCE_MISMATCH');if(x.taxDate<=to&&x.key!==original.key){journal(x.amount.lines);corrections.push(x);}}
+             const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
+             const balance=supplierAdjustmentProjection(original,corrections,baseRecon.paid);
+             purchaseBalances.set(p.id,{...baseRecon,...balance,matched:baseRecon.matched&&corrections.length===0});
+           }
+           reconciliation=purchaseBalances.get(p.id);
          }
          if(!reconciliation?.matched)unmatched++;
        }

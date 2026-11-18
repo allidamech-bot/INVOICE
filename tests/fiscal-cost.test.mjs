@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {stockCostCents,supplierAdjustmentProjection} from '../api/_fiscal/fiscal-cost.mjs';
+const common={source:'purchase',sourceId:'p',accountUid:'u',workspaceId:'w',egsId:'e',environment:'simulation',issuerVat:'issuer',counterpartyVat:'supplier',sourceFingerprint:'hash',currency:'SAR',category:'S',rate:'15',taxDate:'2026-11-01'};
+const original={...common,key:'purchase-p',amount:{kind:'invoice',treatment:'domestic',net:'100.00',vat:'15.00',gross:'115.00',deductibleVat:'10.00'}};
+const correction=(kind,key='c')=>({...common,key,originalId:'p',taxDate:'2026-11-02',amount:{kind,treatment:'domestic',net:'20.00',vat:'3.00',gross:'23.00',deductibleVat:'2.00'}});
+test('stock cost retains twelve decimal precision',()=>{assert.equal(stockCostCents('10000','0.000049999999'),50n);assert.equal(stockCostCents('3','0.333333333333'),100n);assert.equal(stockCostCents('2.5000','12.345678901234'),3086n);});
+test('invalid or overprecision stock cost fails closed',()=>{for(const [q,c] of [['0','3'],['-2','3'],['1.00001','3'],['1','0.1234567890123'],['1','NaN']])assert.throws(()=>stockCostCents(q,c));});
+test('credit and debit adjust supplier balance without changing original payable',()=>{const r=supplierAdjustmentProjection(original,[correction('credit-note'),correction('debit-note','d')],'30.00');assert.equal(r.adjustedPayable,'115.00');assert.equal(r.adjustedOutstanding,'85.00');assert.equal(r.creditAdjustments,'23.00');assert.equal(r.debitAdjustments,'23.00');});
+test('overpayment after credit remains a supplier credit, not fabricated cash',()=>{const r=supplierAdjustmentProjection(original,[correction('credit-note')],'115.00');assert.equal(r.adjustedOutstanding,'-23.00');assert.equal(r.supplierCredit,'23.00');});
+test('rejects duplicates, different scope, original or evidence',()=>{const c=correction('credit-note');for(const rows of [[c,c],[{...c,workspaceId:'other'}],[{...c,originalId:'wrong'}],[{...c,sourceFingerprint:'wrong'}]])assert.throws(()=>supplierAdjustmentProjection(original,rows,'0.00'));});
+test('cumulative credit cannot exceed original net, VAT or deductible amounts',()=>{assert.throws(()=>supplierAdjustmentProjection(original,Array.from({length:6},(_,i)=>correction('credit-note','c'+i)),'0.00'));assert.throws(()=>supplierAdjustmentProjection(original,[{...correction('credit-note'),amount:{kind:'credit-note',treatment:'domestic',net:'100.00',vat:'15.00',gross:'115.00',deductibleVat:'0.00'}}],'0.00'));});
