@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {writeAuthorityEvidence} from './authority-evidence.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
+import {createAttemptResponseStore} from './attempt-response.js';
 import {prepareFiscalIssue,transitionFiscalIssue,FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
 // Internal Admin SDK service only. No browser endpoint or production activation.
@@ -26,8 +27,44 @@ function outbox(record){
 }
 export function createFiscalLedger(db){
   if(!db||typeof db.runTransaction!=='function'||typeof db.doc!=='function')throw new Error('Admin transaction store required.');
+  const receipts=createAttemptResponseStore(db);
+  async function applyTransition(tx,authorizedScope,base,issue,documentId,record,expectedVersion,event,evidenceBytes,clearedBytes){
+    const next=transitionFiscalIssue(record,expectedVersion,event);
+    if(authorizedScope.environment==='simulation'&&record.status==='submitting'&&['cleared','reported','uncertain'].includes(event.kind)){
+      const saved=await receipts.inspect(tx,authorizedScope,documentId,record.version,event.attemptId);
+      const expectedDigest=event.kind==='uncertain'?event.unverifiedEvidenceDigest:event.resultDigest;
+      if(saved.receipt){
+        if(expectedDigest!==saved.receipt.digest||!Buffer.isBuffer(evidenceBytes)||!saved.bytes.equals(evidenceBytes)||Date.parse(event.at)<Date.parse(saved.receipt.receivedAt))throw Error('FISCAL_RESPONSE_RECEIPT_MISMATCH');
+      }else if(expectedDigest!==undefined||evidenceBytes!==undefined||event.kind!=='uncertain')throw Error('FISCAL_RESPONSE_RECEIPT_REQUIRED');
+    }
+    const unverifiedDigest=event.kind==='uncertain'?event.unverifiedEvidenceDigest:undefined;
+    if(evidenceBytes!==undefined&&!next.resultDigest&&!unverifiedDigest)throw Error('Unbound authority evidence.');
+    const cleared=next.clearedArtifactDigest?artifact(clearedBytes,next.clearedArtifactDigest):null;
+    const eventRef=db.doc(issue.path+'/events/'+String(next.version));
+    // Evidence is write-once and ref-specific. No raw credentials are stored.
+    if(next.resultDigest)writeAuthorityEvidence(tx,db,db.doc(eventRef.path+'/artifacts/result'),evidenceBytes,next.resultDigest);
+    if(unverifiedDigest)writeAuthorityEvidence(tx,db,db.doc(eventRef.path+'/artifacts/unverified-response'),evidenceBytes,unverifiedDigest);
+    if(cleared)tx.create(db.doc(issue.path+'/artifacts/cleared'),cleared);
+    tx.create(eventRef,{version:next.version,status:next.status,kind:event.kind,attemptId:event.attemptId,at:event.at,resultDigest:next.resultDigest,...(unverifiedDigest?{unverifiedEvidenceDigest:unverifiedDigest}:{})});
+    tx.update(issue,next);
+    tx.update(db.doc(base+'/outbox/'+id(documentId)),outbox(next));
+    return next;
+  }
   return {
     readAccepted:createAcceptedFiscalReader(db),
+    recordResponse:receipts.recordResponse,
+    readResponse:receipts.readResponse,
+    // Explicit operator recovery only. After five minutes, move a crashed
+    // submission to uncertainty; never issue a second network request.
+    async recoverInterrupted(authorizedScope,documentId,expectedVersion,attemptId,at){
+      const base=scope(authorizedScope),issue=db.doc(base+'/issues/'+id(documentId));
+      return db.runTransaction(async tx=>{
+        const saved=await receipts.inspect(tx,authorizedScope,documentId,expectedVersion,attemptId);
+        if(saved.record.status!=='submitting'||saved.record.version!==expectedVersion||typeof at!=='string'||!Number.isFinite(Date.parse(at))||Date.parse(at)-Date.parse(saved.startedAt)<300000)throw Error('FISCAL_RECOVERY_NOT_ELIGIBLE');
+        const event={kind:'uncertain',attemptId,at,...(saved.receipt?{unverifiedEvidenceDigest:saved.receipt.digest}:{})};
+        return applyTransition(tx,authorizedScope,base,issue,documentId,saved.record,expectedVersion,event,saved.bytes??undefined,undefined);
+      });
+    },
     async prepare(authorizedScope,input,xmlBytes,snapshotBytes){
       const base=scope(authorizedScope), initial=prepareFiscalIssue(input);
       assertScope(initial,authorizedScope);
@@ -97,19 +134,7 @@ export function createFiscalLedger(db){
         const snapshot=await tx.get(issue), record=snapshot.exists?snapshot.data():null;
         assertScope(record,authorizedScope);
         if(record.documentId!==documentId||(authorizedScope.egsId!==undefined&&record.egsId!==authorizedScope.egsId))throw new Error('Fiscal document identity mismatch.');
-        const next=transitionFiscalIssue(record,expectedVersion,event);
-        const unverifiedDigest=event.kind==='uncertain'?event.unverifiedEvidenceDigest:undefined;
-        if(evidenceBytes!==undefined&&!next.resultDigest&&!unverifiedDigest)throw Error('Unbound authority evidence.');
-        const cleared=next.clearedArtifactDigest?artifact(clearedBytes,next.clearedArtifactDigest):null;
-        const eventRef=db.doc(issue.path+'/events/'+String(next.version));
-        // Evidence is write-once and ref-specific. No raw credentials are stored.
-        if(next.resultDigest)writeAuthorityEvidence(tx,db,db.doc(eventRef.path+'/artifacts/result'),evidenceBytes,next.resultDigest);
-        if(unverifiedDigest)writeAuthorityEvidence(tx,db,db.doc(eventRef.path+'/artifacts/unverified-response'),evidenceBytes,unverifiedDigest);
-        if(cleared)tx.create(db.doc(issue.path+'/artifacts/cleared'),cleared);
-        tx.create(eventRef,{version:next.version,status:next.status,kind:event.kind,attemptId:event.attemptId,at:event.at,resultDigest:next.resultDigest,...(unverifiedDigest?{unverifiedEvidenceDigest:unverifiedDigest}:{})});
-        tx.update(issue,next);
-        tx.update(db.doc(base+'/outbox/'+id(documentId)),outbox(next));
-        return next;
+        return applyTransition(tx,authorizedScope,base,issue,documentId,record,expectedVersion,event,evidenceBytes,clearedBytes);
       });
     }
   };

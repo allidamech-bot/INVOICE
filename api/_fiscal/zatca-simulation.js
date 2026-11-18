@@ -41,7 +41,7 @@ function issued(body,s,environment,kind){
   // Return to the trusted caller only, which must protect and verify the certificate.
   return record;
 }
-async function readJson(response){
+async function readJson(response,retainMalformed=false){
   if(!response?.body?.getReader)throw Error('INVALID_RESPONSE');
   const reader=response.body.getReader();let count=0;const chunks=[];
   try{
@@ -53,9 +53,12 @@ async function readJson(response){
       chunks.push(Buffer.from(part.value));
     }
     const bytes=Buffer.concat(chunks);
-    const value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
-    if(!value||typeof value!=='object'||Array.isArray(value))throw Error('INVALID_RESPONSE');
-    return {value,bytes};
+    if(!bytes.length)throw Error('INVALID_RESPONSE');
+    try{
+      const value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+      if(!value||typeof value!=='object'||Array.isArray(value))throw Error('INVALID_RESPONSE');
+      return {value,bytes};
+    }catch(error){if(!retainMalformed)throw error;return {value:null,bytes};}
   }finally{reader.releaseLock();}
 }
 function validation(body){
@@ -69,22 +72,22 @@ export function createZatcaSimulationClient({environment,authorizedScope,fetchIm
   if(typeof fetchImpl!=='function'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>30000)throw Error('INVALID_TRANSPORT');
   const s=scope(authorizedScope);
   const checkedAuth=(c,k)=>auth(c,s,environment,k);
-  async function post(path,body,headers={}){
-    const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),timeoutMs);
-    try{
+  async function post(path,body,headers={},retainMalformed=false){
+    const controller=new AbortController();let timer;
+    try{return await Promise.race([(async()=>{
       const res=await fetchImpl(ORIGIN+'simulation/'+path,{method:'POST',redirect:'error',signal:controller.signal,
         headers:{'Content-Type':'application/json','Accept':'application/json','Accept-Language':'en','Accept-Version':'V2',...headers},
         body:JSON.stringify(body)});
       if(!Number.isInteger(res.status)||res.status<100||res.status>599)throw Error('INVALID_RESPONSE');
-      const {value,bytes}=await readJson(res);
+      const {value,bytes}=await readJson(res,retainMalformed);
       return {status:res.status,value,bytes};
-    }catch{throw Error('ZATCA_TRANSPORT_UNCERTAIN');}
+    })(),new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(Error('ZATCA_TIMEOUT'));},timeoutMs);})]);}catch{throw Error('ZATCA_TRANSPORT_UNCERTAIN');}
     finally{clearTimeout(timer);}
   }
   function evidence(r){return {httpStatus:r.status,evidenceDigest:createHash('sha256').update(r.bytes).digest('hex'),evidenceBytes:r.bytes};}
   function outcome(r,mode,compliance=false){
     const info=evidence(r), v=validation(r.value);
-    const accepted=mode==='clearance'?r.value.clearanceStatus==='CLEARED':r.value.reportingStatus==='REPORTED';
+    const accepted=mode==='clearance'?r.value?.clearanceStatus==='CLEARED':r.value?.reportingStatus==='REPORTED';
     if(r.status===200||r.status===202){
       if(accepted&&v){
         if(mode==='clearance'&&!compliance){
@@ -121,7 +124,7 @@ export function createZatcaSimulationClient({environment,authorizedScope,fetchIm
     },
     async submit(credential,payload,mode){
       if(mode!=='clearance'&&mode!=='reporting')throw Error('INVALID_MODE');
-      const r=await post('invoices/'+mode+'/single',invoice(payload),{Authorization:checkedAuth(credential,'production'),...(mode==='clearance'?{'Clearance-Status':'1'}:{})});
+      const r=await post('invoices/'+mode+'/single',invoice(payload),{Authorization:checkedAuth(credential,'production'),...(mode==='clearance'?{'Clearance-Status':'1'}:{})},true);
       return outcome(r,mode);
     }
   });
