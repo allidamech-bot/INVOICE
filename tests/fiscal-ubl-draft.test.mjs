@@ -128,3 +128,26 @@ test('explicit standard export classification emits legal subtype and non-Saudi 
     assert.throws(()=>buildFiscalCandidate({...req,mode:'simplified'},{exportClassification}));
   }
 });
+
+test('trusted advance receipt produces unsigned 386 without invented delivery date',()=>{
+  const req={...input,kind:'prepayment',supplyDate:undefined};
+  const prepayment={kind:'receipt',uuid:input.uuid,receivedAt:input.issueDate,receivedGross:'115.00',evidenceDigest:'a'.repeat(64)};
+  const out=buildFiscalCandidate(req,{prepayment}),xml=out.bytes.toString();
+  assert.ok(xml.includes('<cbc:InvoiceTypeCode name="0100000">386</cbc:InvoiceTypeCode>'));
+  assert.doesNotMatch(xml,/ActualDeliveryDate|PrepaidAmount/);
+  assert.equal(out.prepaymentContext.kind,'receipt');
+  assert.throws(()=>buildFiscalCandidate(req));
+  assert.throws(()=>buildFiscalCandidate(req,{prepayment:{...prepayment,receivedGross:'100.00'}}));
+});
+test('final 388 contains referenced zero supply line and reconciled prepaid/payable totals',()=>{
+  const req={...input,lines:[{...line,quantity:'4'}]};
+  const ref={uuid:'22222222-2222-4222-8222-222222222222',number:'ADV-1',issueDate:'2026-11-17',issueTime:'10:00:00',typeCode:'386',currency:'SAR',mode:'standard',status:'cleared',sellerVat:party.vatNumber,buyerVat:input.buyer.vatNumber,artifactDigest:'a'.repeat(64),category:'S',rate:'15',net:'86.96',vat:'13.04',remainingNet:'86.96',remainingVat:'13.04'};
+  const prepayment={kind:'adjustment',uuid:input.uuid,references:[ref]};
+  const out=buildFiscalCandidate(req,{prepayment}),xml=out.bytes.toString();
+  assert.equal(out.totals.taxInclusiveTotal,'230.00');assert.equal(out.totals.vatTotal,'30.00');
+  assert.ok(xml.includes('<cbc:PrepaidAmount currencyID="SAR">100.00</cbc:PrepaidAmount><cbc:PayableAmount currencyID="SAR">130.00</cbc:PayableAmount>'));
+  assert.ok(xml.includes('<cbc:DocumentTypeCode>386</cbc:DocumentTypeCode>'));
+  assert.ok(xml.includes('<cbc:LineExtensionAmount currencyID="SAR">0.00</cbc:LineExtensionAmount><cac:DocumentReference>'));
+  assert.ok(xml.includes('<cbc:TaxableAmount currencyID="SAR">86.96</cbc:TaxableAmount><cbc:TaxAmount currencyID="SAR">13.04</cbc:TaxAmount>'));
+  assert.throws(()=>buildFiscalCandidate(req,{prepayment:{...prepayment,references:[ref,ref]}}));
+});
