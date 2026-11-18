@@ -1,3 +1,4 @@
+const {installPinlessWorkspace}=require('./pinless-workspace-fixture.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
@@ -11,7 +12,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
       const page=await browser.newPage({viewport:{width:c.width,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.goto(`http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=${c.lang}&theme=${c.theme}`,{waitUntil:'networkidle'});
       await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
-      await page.evaluate(async()=>{const [{setupVault},{emptyVault},{establishSession}]=await Promise.all([import('/dist/src/storage/vault.js'),import('/dist/src/lib/defaults.js'),import('/dist/src/storage/session.js')]);const initial=emptyVault();initial.company.nameEn='LOUREX Batch 4 QA';const {key}=await setupVault('2468',initial);if(!await establishSession(key))throw new Error('Unable to establish QA session');window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa-batch4'}}));});
+      await installPinlessWorkspace(page,{uid:'qa-batch4',companyName:'LOUREX Batch 4 QA',theme:c.theme});
       const ensurePanel=async()=>{const panel=page.locator('#lourex-ai-panel');if(!await panel.isVisible()){await page.locator('.lourex-ai-launcher').click();await panel.waitFor({state:'visible'});}return panel;};
       const labels=c.lang==='ar'?{inbox:'صندوق AI',memory:'الذاكرة والمهام',brief:'الموجز الصباحي',tools:'أدوات AI'}:{inbox:'AI Inbox',memory:'Memory & Tasks',brief:'Morning Brief',tools:'AI Tools'};
       const openTools=async()=>{

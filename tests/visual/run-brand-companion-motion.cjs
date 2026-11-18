@@ -1,3 +1,4 @@
+const {installPinlessWorkspace}=require('./pinless-workspace-fixture.cjs');
 const {chromium}=require(process.cwd()+'/node_modules/playwright');
 const fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict');
 (async()=>{
@@ -36,19 +37,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),assert=require('n
  await page.route('**/api/**',route=>route.fulfill({status:503,body:'No live provider in identity QA'}));
  await page.goto('http://localhost/tests/visual/contextual-ai-batch4.html?lang='+lang+'&theme=dark');
  await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
- await page.evaluate(async()=>{
-  const [{setupVault},{emptyVault},{establishSession},{setUiThemePreference}]=await Promise.all([
-   import('/dist/src/storage/vault.js'),
-   import('/dist/src/lib/defaults.js'),
-   import('/dist/src/storage/session.js'),
-   import('/dist/src/lib/ui-theme.js')
-  ]);
-  const vault=emptyVault();vault.company.nameEn='LOUREX Identity QA';
-  const {key}=await setupVault('2468',vault);
-  if(!await establishSession(key))throw new Error('Identity QA could not establish its encrypted synthetic session');
-  setUiThemePreference('dark');
-  window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa-brand-identity'}}));
- });
+ await installPinlessWorkspace(page,{uid:'qa-brand-identity',companyName:'LOUREX Identity QA',theme:'dark'});
  await page.locator('.lourex-ai-launcher').waitFor({state:'visible'});
  const button=page.locator('.lourex-ai-launcher'),box=await button.boundingBox();assert.ok(box.width<=64&&box.height<=64);assert.equal(await button.locator('.lxw-robot-eyes').count(),1);
  const glyphBox=await button.locator('.lxw-brand-glyph').boundingBox();

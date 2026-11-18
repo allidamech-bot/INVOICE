@@ -1,3 +1,4 @@
+const {installPinlessWorkspace}=require('./pinless-workspace-fixture.cjs');
 const {chromium,webkit}=require('playwright');
 const safari=process.env.LOUREX_QA_BROWSER==='webkit';
 const assert=require('node:assert/strict');
@@ -11,12 +12,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   await page.goto(`http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=${lang}&theme=${theme}`,{waitUntil:'networkidle'});
   const prepareUnlockedProductionAiRuntime=async()=>{
     const mount=page.locator('[data-lourex-proactive-assistant-mount]');await mount.waitFor({state:'attached'});
-    await page.evaluate(async()=>{
-      const [{setupVault},{emptyVault},{establishSession}]=await Promise.all([import('/dist/src/storage/vault.js'),import('/dist/src/lib/defaults.js'),import('/dist/src/storage/session.js')]);
-      const initial=emptyVault();initial.company.nameEn='LOUREX QA';
-      const {key}=await setupVault('2468',initial);const established=await establishSession(key);if(!established)throw new Error('QA could not establish encrypted Vault session');
-      window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa'}}));
-    });
+    await installPinlessWorkspace(page,{uid:'qa',companyName:'LOUREX QA',theme:theme});
   };
   await prepareUnlockedProductionAiRuntime();
   const bounds=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');

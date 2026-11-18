@@ -1,3 +1,4 @@
+const {installPinlessWorkspace}=require('./pinless-workspace-fixture.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
@@ -28,19 +29,7 @@ const report=[];
    // This is an intentionally hidden React portal mount, not visible UI.
    // Wait for attachment here; visible assertions follow on the opened panel.
    await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
-   await page.evaluate(async theme=>{
-    const [{setupVault},{emptyVault},{establishSession},{setUiThemePreference}]=await Promise.all([
-      import('/dist/src/storage/vault.js'),
-      import('/dist/src/lib/defaults.js'),
-      import('/dist/src/storage/session.js'),
-      import('/dist/src/lib/ui-theme.js')
-    ]);
-    const vault=emptyVault();vault.company.nameEn='LOUREX AI Current QA';
-    const {key}=await setupVault('2468',vault);
-    if(!await establishSession(key))throw new Error('Test-only account session was unavailable');
-    setUiThemePreference(theme);
-    window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa-current'}}));
-   },c.theme);
+   await installPinlessWorkspace(page,{uid:'qa-current',companyName:'LOUREX AI Current QA',theme:c.theme});
    await page.locator('.lourex-ai-launcher').click();
    const panel=page.locator('#lourex-ai-panel[data-lourex-workspace="2"]');
    await panel.waitFor({state:'visible'});
