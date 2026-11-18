@@ -61,3 +61,20 @@ test('fiscal supplier dispatch and original posted inbound receipt cannot be cha
  await assert.rejects(guard(tx,uid,before,{...before,inventoryMovements:[{...receipt,quantity:'3'},dispatch]},{operation:'commit'}),/FISCAL_PURCHASE_LOCKED/);
  await assert.rejects(guard(tx,uid,before,{...before,inventoryMovements:[receipt,dispatch,{...dispatch,id:'fiscal-purchase-return:another:l'}]},{operation:'commit'}),/FISCAL_PURCHASE_RETURN_LOCKED/);
 });
+
+
+test('fiscal payment publication validates adjusted liability with the same transaction as workspace commit',async()=>{
+ const uid='owner',workspaceId='qa',base='fiscalPrivateV1/owner/workspaces/qa',scope={accountUid:uid,workspaceId,egsId:'e',environment:'simulation',currency:'SAR',source:'purchase',sourceId:'p',issuerVat:'issuer',counterpartyVat:'supplier',category:'S',rate:'15'};
+ const {reviewDigest}=await import('../api/_fiscal/commercial-source.js');
+ const purchase={id:'p',workspaceId,branchId:'b',currency:'SAR',number:'P-1',status:'posted',date:'2026-11-01',supplierSnapshot:{sourceSupplierId:'s'}};
+ const original={...scope,key:'purchase-p',sourceFingerprint:reviewDigest(purchase),taxDate:'2026-11-01',amount:{kind:'invoice',treatment:'domestic',net:'100.00',vat:'15.00',gross:'115.00',deductibleVat:'0.00'}};
+ const credit={...original,key:'purchase-adjustment-a',originalId:'p',taxDate:'2026-11-10',amount:{kind:'credit-note',treatment:'domestic',net:'20.00',vat:'3.00',gross:'23.00',deductibleVat:'0.00'}};
+ const rows=new Map([[base,{...scope,syntheticOnly:true}],[base+'/accountingEntries/purchase-p',original]]),snap=v=>({exists:!!v,data:()=>v});
+ const db={doc:path=>({path}),collection:path=>({where(){return this;},limit(){return {path,query:true};}})};
+ const tx={get:async ref=>ref.query?{docs:[original,credit].map(v=>({id:v.key,data:()=>v}))}:snap(rows.get(ref.path))};
+ const guard=createFiscalPeriodGuard(db),payment={id:'pay',workspaceId,branchId:'b',purchaseId:'p',purchaseNumber:'P-1',currency:'SAR',supplierId:'s',date:'2026-11-11',amount:'92.00'};
+ const before={workspaces:[{id:workspaceId}],documents:[],purchases:[purchase],supplierPayments:[]};
+ await guard(tx,uid,before,{...before,supplierPayments:[payment]},{operation:'commit'});
+ await assert.rejects(guard(tx,uid,before,{...before,supplierPayments:[{...payment,amount:'100.00'}]},{operation:'commit'}),/FISCAL_SETTLEMENT_REVIEW_REQUIRED/);
+ await assert.rejects(guard(tx,uid,{...before,supplierPayments:[payment]},before,{operation:'commit'}),/FISCAL_SETTLEMENT_REVIEW_REQUIRED/);
+});

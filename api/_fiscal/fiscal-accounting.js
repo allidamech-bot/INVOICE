@@ -1,3 +1,6 @@
+import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
+import {assertFiscalCostContinuity} from './cost-continuity.js';
+import {supplierSettlementTimeline,commercialFiscalPostingPolicy} from './settlement-integrity.mjs';
 import {planPurchaseReturn,isFiscalPurchaseReturn} from './purchase-return.mjs';
 import {inspectReturnPostings} from './return-postings.js';
 import {planPurchaseCostCorrection} from './purchase-cost-correction.mjs';
@@ -71,11 +74,11 @@ function validateScope(s){simulationBase(s);}
 function availablePeriod(source,date){need(day(date)&&(!source.closedThrough||date>source.closedThrough),'FISCAL_PERIOD_CLOSED');}
 function postingRef(db,s,key){return db.doc(simulationBase(s)+'/accountingEntries/'+key);}
 function signFor(kind){return kind==='credit-note'?-1n:1n;}
-async function planCommercialFinalization(db,tx,s,source,doc,model){
+async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode){
  const p=source.payload,final={...doc,status:'final'},before=p;
  const [{postIssuedInvoiceStock},{approvalGate},{assertCustomerCreditLimit},{assertDocumentLifecycleInvariant,createDocumentEvent},{assertInvoicePaymentInvariant},{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity},{isNonNegativeFinancialDecimalInput}]=await Promise.all(['stock','governance','commercial','lifecycle','payments','period','backup','money'].map(loadCompiledFinance));
  // Special fiscal subtypes must never be disguised as a commercial sale.
- need(!['prepayment','debit-note'].includes(model.kind),'FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
+ need(policyMode==='ordinary'&&!['prepayment','debit-note'].includes(model.kind)||policyMode==='debit-service'&&model.kind==='debit-note'&&doc.items.every(l=>l.stockTreatment==='non-stock'),'FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
  const policy=approvalGate(p,{action:'issue-document',entityType:'document',entityId:doc.id,entityLabel:doc.number,entityUpdatedAt:doc.updatedAt||''});
  need(policy.allowed,'FISCAL_COMMERCIAL_APPROVAL_REQUIRED');
  assertCustomerCreditLimit(final,p.customers,p.documents,p.payments);
@@ -85,6 +88,7 @@ async function planCommercialFinalization(db,tx,s,source,doc,model){
  // Stock helper uses the active scope. Restore user's preferences afterwards.
  const working={...p,documents,documentEvents,appSettings:{...p.appSettings,activeWorkspaceId:s.workspaceId,activeBranchId:doc.branchId}};
  const result=postIssuedInvoiceStock(working,final),candidate={...result.vault,appSettings:p.appSettings};
+ await assertFiscalCostContinuity(db,tx,s,before,candidate);
  need(!result.legacyDelivery,'FISCAL_HISTORICAL_DELIVERY_RECONCILIATION_REQUIRED');
  const ids=new Set(p.inventoryMovements.map(x=>x.id)),newMovements=candidate.inventoryMovements.filter(x=>!ids.has(x.id));
  let cost=0n;
@@ -148,7 +152,9 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
          need(same(original,s)&&original.amount?.kind==='prepayment'&&original.source==='sale','FISCAL_ADVANCE_POSTING_REQUIRED');
        }
      }
-     const plan=!p.review.scenario&&p.document.currency==='SAR'?await planCommercialFinalization(db,tx,s,source,d,amount):null;
+     const policyMode=commercialFiscalPostingPolicy(d,amount,p.review.scenario);
+     const compatibleCost=d.currency==='SAR'||d.items.every(line=>line.stockTreatment==='non-stock'||(line.stockTreatment==='tracked'&&source.payload.savedItems.some(item=>item.id===line.savedItemId&&item.lastCostCurrency===d.currency)));
+     const plan=policyMode!=='private-only'&&compatibleCost?await planCommercialFinalization(db,tx,s,source,d,amount,policyMode):null;
      const row={...s,key,source:'sale',sourceId:id,sourceRevision:revision,documentNumber:p.document.number,issueDate:p.document.issueDate,taxDate:p.document.issueDate,currency:p.document.currency,category:p.review.taxCategory,rate:p.review.taxRate,counterpartyVat:p.review.buyer?.vatNumber??null,issuerVat:p.issuer.vatNumber,originalId:p.review.originalDocumentId??null,uuid:a.record.uuid,evidenceDigest:a.record.resultDigest,snapshotDigest:a.record.snapshotDigest,amount:plan?.accounting??amount,sourceFingerprint:reviewDigest(p.document),finalFingerprint:plan?.finalFingerprint??null,stockIds:plan?.stockIds??[],commercialPosted:!!plan};
      // Preserve the original immutable invoice even if the current draft is
      // missing or edited: posting is blocked, never silently reconstructed.
@@ -203,7 +209,38 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      }
      const correctionDate=clock().slice(0,10);need(review.effectiveDate===correctionDate,'FISCAL_COST_REVIEW_REQUIRED');availablePeriod(source,correctionDate);
      // Do not rewrite purchase history or post a second VAT journal.
-     const plan=planPurchaseCostCorrection({purchase:p,amount:original.amount,allocations:review.allocations,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems});
+     const args={purchase:p,amount:original.amount,allocations:review.allocations,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems};
+     const tracked=new Set(p.items.filter(l=>l.savedItemId).map(l=>l.savedItemId)),history=args.movements.filter(m=>tracked.has(m.itemId)).sort((a,b)=>a.id.localeCompare(b.id));
+     let plan;
+     if(review.mode==='reviewed-lots'){
+       need(Array.isArray(review.lotAssignments)&&HEX.test(review.lotAssignmentsDigest)&&review.lotAssignmentsDigest===reviewDigest(review.lotAssignments)&&HEX.test(review.movementDigest)&&review.movementDigest===reviewDigest(history),'FISCAL_LOT_ALLOCATION_REVIEW_REQUIRED');
+       plan=planReviewedLotCostBridge({...args,assignments:review.lotAssignments,through:correctionDate});
+       const map=new Map(history.map(m=>[m.id,m]));
+       const lotBindings=review.lotAssignments.map(a=>({movementId:a.movementId,digest:reviewDigest(a.lots.slice().sort((x,y)=>x.receiptId.localeCompare(y.receiptId)))}));
+       const previous=await tx.get(db.collection(base+'/purchaseCostCorrections').limit(201));need(previous.docs.length<=200,'FISCAL_REPORT_LIMIT');
+       for(const item of previous.docs){const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment==='simulation'&&r.purchaseId===item.id,'FISCAL_PURCHASE_COST_CONFLICT');for(const binding of r.plan?.lotBindings??[]){const next=lotBindings.find(x=>x.movementId===binding.movementId);if(next)need(next.digest===binding.digest,'FISCAL_LOT_ALLOCATION_CONFLICT');}}
+       const verified=new Set();
+       for(const claim of plan.claims){
+         const movement=map.get(claim.movementId);need(movement,'FISCAL_LOT_ALLOCATION_REVIEW_REQUIRED');
+         if(claim.account==='cost-of-sales'){
+           if(!verified.has(movement.sourceId)){
+             const posted=data(await tx.get(postingRef(db,s,'sale-'+movement.sourceId))),doc=source.payload.documents.find(d=>d.id===movement.sourceId);
+             need(posted&&posted.accountUid===s.accountUid&&posted.workspaceId===s.workspaceId&&posted.environment==='simulation'&&posted.commercialPosted===true&&posted.currency==='SAR'&&posted.finalFingerprint===reviewDigest(doc)&&posted.stockIds.includes(movement.id),'FISCAL_LOT_ALLOCATION_REVIEW_REQUIRED');
+             const verifiedIssue=await accepted({...s,egsId:posted.egsId},movement.sourceId,tx);need(verifiedIssue.record.resultDigest===posted.evidenceDigest&&verifiedIssue.record.snapshotDigest===posted.snapshotDigest,'FISCAL_LOT_ALLOCATION_REVIEW_REQUIRED');
+             verified.add(movement.sourceId);
+           }else{const posted=data(await tx.get(postingRef(db,s,'sale-'+movement.sourceId)));need(posted.stockIds.includes(movement.id),'FISCAL_LOT_ALLOCATION_REVIEW_REQUIRED');}
+         }else{
+           const {validateManualMovementEvidence}=await loadCompiledFinance('movementEvidence');validateManualMovementEvidence(movement);
+         }
+       }
+       plan={...plan,lotBindings};
+     }else{
+       need(review.mode===undefined,'FISCAL_COST_REVIEW_REQUIRED');plan=planPurchaseCostCorrection(args);
+       const inventory=plan.lines.filter(l=>l.itemId).reduce((sum,l)=>sum+cents(l.deductibleVat),0n);
+       plan={...plan,valuationBridge:{inventoryRelief:money(inventory),cogsRelief:'0.00',expenseRelief:money(cents(plan.deductibleVat)-inventory)}};
+     }
+     plan={...plan,historyBindings:history.map(m=>({movementId:m.id,digest:reviewDigest(m)}))};
+     need(Buffer.byteLength(JSON.stringify(plan))<=300000,'FISCAL_REPORT_LIMIT');
      const updates=new Map(plan.updates.map(x=>[x.itemId,x]));
      const candidate={...source.payload,savedItems:source.payload.savedItems.map(x=>updates.has(x.id)?{...x,lastUnitCost:updates.get(x.id).correctedUnitCost,updatedAt:clock()}:x)};
      const [{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity}]=await Promise.all(['period','backup'].map(loadCompiledFinance));
@@ -215,7 +252,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const revision=randomBytes(16).toString('hex'),encoded=encodeWorkspace(candidate,revision);need(encoded.chunks.length<=24,'FISCAL_SOURCE_SIZE_UNSUPPORTED');
      const meta={...encoded.meta,parentRevision:source.meta.revision,chunkStorage:'period-generations-v1'};
      // Write-once allocation and catalog basis publication in the same CAS.
-     tx.create(ref,{...s,purchaseId:id,originalEvidenceDigest:original.evidenceDigest,sourceFingerprint:original.sourceFingerprint,reviewDigest:reviewDigest(review),effectiveDate:correctionDate,sourceRevision:source.meta.revision,publishedRevision:revision,plan});
+     tx.create(ref,{...s,purchaseId:id,originalEvidenceDigest:original.evidenceDigest,sourceFingerprint:original.sourceFingerprint,reviewDigest:reviewDigest(review),effectiveDate:correctionDate,committedAt:clock(),sourceRevision:source.meta.revision,publishedRevision:revision,plan});
      for(const chunk of encoded.chunks)tx.create(db.doc(source.root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0')),chunk);
      tx.create(db.doc(source.root+'/workspaceHistory/'+source.meta.revision),{...source.meta,archivedAt:encoded.meta.updatedAt});
      tx.update(db.doc(source.root+'/workspace/meta'),meta);
@@ -247,6 +284,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      for(const item of previous.docs){const r=item.data();need(same(r,s)&&r.purchaseId===p.id&&r.adjustmentId===item.id&&r.originalEvidenceDigest===original.evidenceDigest&&Array.isArray(r.movements),'FISCAL_PURCHASE_RETURN_CONFLICT');for(const m of r.movements){need(source.payload.inventoryMovements.some(x=>x.id===m.id&&reviewDigest(x)===m.digest),'FISCAL_PURCHASE_RETURN_CONFLICT');priorMovementIds.push(m.id);}}
      const plan=planPurchaseReturn({purchase:p,original:original.amount,credit:credit.amount,lines:review.lines,movements:source.payload.inventoryMovements,warehouseId:review.warehouseId,date:review.date,adjustmentId:id,priorMovementIds});
      const movements=plan.movements.map(m=>({...m,createdAt:clock()})),candidate={...source.payload,inventoryMovements:[...source.payload.inventoryMovements,...movements]};
+     await assertFiscalCostContinuity(db,tx,s,source.payload,candidate);
      const [{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity}]=await Promise.all(['period','backup'].map(loadCompiledFinance));
      assertPostedStockRestoreContinuity(source.payload,candidate);assertClosedPeriodUnchanged(source.payload,candidate,source.control.boundaries);
      for(const b of source.control.boundaries){const r=data(await tx.get(db.doc(source.root+'/periodReports/'+b.reportId)));need(r?.workspaceId===b.workspaceId&&r.through===b.through&&r.sha256===sha(Buffer.from(JSON.stringify(closedPeriodState(source.payload,b)))),'FISCAL_CLOSED_REPORT_MISMATCH');}
@@ -345,15 +383,22 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
              const corrections=[];
              for(const item of linked.docs){const x=item.data();if(x.source!=='purchase')continue;need(day(x.taxDate)&&x.key===item.id,'FISCAL_PURCHASE_SOURCE_MISMATCH');if(x.taxDate<=to&&x.key!==original.key){journal(x.amount.lines);corrections.push(x);}}
              const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
-             const balance=supplierAdjustmentProjection(original,corrections,baseRecon.paid);
+             const balance=supplierSettlementTimeline({purchase:p,original,adjustments:corrections,payments:source.payload.supplierPayments,through:to});
+             need(balance.paid===baseRecon.paid,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
              const cost=data(await tx.get(db.doc(base+'/purchaseCostCorrections/'+p.id)));
-             let catalogCostCorrectionDate=null;
+             let catalogCostCorrectionDate=null,valuationBridge=null;
              if(cost){
                need(same(cost,original)&&cost.purchaseId===p.id&&cost.originalEvidenceDigest===original.evidenceDigest&&cost.sourceFingerprint===original.sourceFingerprint&&day(cost.effectiveDate)&&cost.plan?.grossPayable===original.amount.gross&&cost.plan?.deductibleVat===original.amount.deductibleVat&&cost.plan?.correctedCost===baseRecon.fiscalCost,'FISCAL_PURCHASE_COST_CONFLICT');
-               if(cost.effectiveDate<=to)catalogCostCorrectionDate=cost.effectiveDate;
+               if(cost.effectiveDate<=to){catalogCostCorrectionDate=cost.effectiveDate;
+                 if(cost.plan.valuationBridge){
+                   const v=cost.plan.valuationBridge;need(cents(v.inventoryRelief)+cents(v.cogsRelief)+cents(v.expenseRelief)===cents(original.amount.deductibleVat),'FISCAL_PURCHASE_COST_CONFLICT');
+                   for(const b of cost.plan.historyBindings??[]){const m=source.payload.inventoryMovements.find(x=>x.id===b.movementId);need(m&&reviewDigest(m)===b.digest,'FISCAL_COST_HISTORY_LOCKED');}
+                   valuationBridge=v;
+                 }
+               }
              }
              // The full legacy valuation/COGS bridge is not yet reconciled.
-             purchaseBalances.set(p.id,{...baseRecon,...balance,catalogCostCorrectionDate,matched:baseRecon.matched&&corrections.length===0});
+             purchaseBalances.set(p.id,{...baseRecon,...balance,catalogCostCorrectionDate,valuationBridge,paymentViolations:balance.violations,matched:baseRecon.matched&&corrections.length===0&&balance.violations.length===0});
            }
            reconciliation=purchaseBalances.get(p.id);
          }

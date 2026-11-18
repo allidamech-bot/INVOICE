@@ -15,7 +15,7 @@ const KNOWN=Object.freeze({
   defaults:'defaults.js',
   backup:'backup.js',
   id:'id.js',
-  period:'period-close.js',operations:'operations.js',stock:'invoice-stock.js',governance:'governance.js',commercial:'commercial-controls.js',lifecycle:'document-lifecycle.js',payments:'payments.js',money:'money.js',returns:'sales-returns.js'
+  period:'period-close.js',operations:'operations.js',stock:'invoice-stock.js',governance:'governance.js',commercial:'commercial-controls.js',lifecycle:'document-lifecycle.js',payments:'payments.js',money:'money.js',returns:'sales-returns.js',movementEvidence:'inventory-evidence.js'
 });
 
 // Keep the module URL behind a runtime function call. @vercel/nft can

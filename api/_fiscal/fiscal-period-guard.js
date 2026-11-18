@@ -1,3 +1,5 @@
+import {assertFiscalCostContinuity} from './cost-continuity.js';
+import {assertSupplierSettlementTransition} from './settlement-integrity.mjs';
 import {isFiscalPurchaseReturn} from './purchase-return.mjs';
 import {inspectReturnPostings,isReturnMovement} from './return-postings.js';
 import {reviewDigest} from './commercial-source.js';
@@ -51,6 +53,26 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
    for(const m of newStock)if(!same(m,oldStock.find(x=>x.id===m.id)))fiscalSources.add(m.sourceId);
    if(fiscalSources.size>100)fail(422,'FISCAL_CHANGE_LIMIT');
    for(const k of fiscalSources){if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');const posting=await tx.get(db.doc(base+'/accountingEntries/purchase-'+k)),claim=await tx.get(db.doc(base+'/purchaseTreatmentClaims/'+k));if(posting.exists||claim.exists)fail(409,'FISCAL_PURCHASE_LOCKED');}
+   // Revalidate adjusted supplier liability before publishing any new/edited cash
+   // payment. The original commercial gross remains immutable.
+   const beforePayments=(before.supplierPayments??[]).filter(p=>p.workspaceId===workspaceId),afterPayments=(candidate.supplierPayments??[]).filter(p=>p.workspaceId===workspaceId);
+   const oldPayments=new Map(beforePayments.map(p=>[p.id,p])),nextPayments=new Map(afterPayments.map(p=>[p.id,p]));
+   if(oldPayments.size!==beforePayments.length||nextPayments.size!==afterPayments.length)fail(422,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
+   const changedPurchases=new Set();
+   for(const k of new Set([...oldPayments.keys(),...nextPayments.keys()])){const old=oldPayments.get(k),next=nextPayments.get(k);if(same(old,next))continue;if(old)changedPurchases.add(old.purchaseId);if(next)changedPurchases.add(next.purchaseId);}
+   if(changedPurchases.size>100)fail(422,'FISCAL_CHANGE_LIMIT');
+   for(const k of changedPurchases){
+     if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');
+     const row=await tx.get(db.doc(base+'/accountingEntries/purchase-'+k));if(!row.exists)continue;
+     const original=row.data(),purchase=candidate.purchases.find(p=>p.id===k&&p.workspaceId===workspaceId);
+     if(!purchase||original.accountUid!==uid||original.workspaceId!==workspaceId||original.environment!=='simulation'||original.key!=='purchase-'+k||original.source!=='purchase'||original.amount?.kind!=='invoice'||original.amount?.treatment!=='domestic'||original.sourceFingerprint!==reviewDigest(purchase))fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
+     try{
+       const snapshot=await tx.get(db.collection(base+'/accountingEntries').where('sourceId','==',k).limit(201));if(snapshot.docs.length>200)fail(422,'FISCAL_CHANGE_LIMIT');
+       const adjustments=snapshot.docs.map(x=>{const r=x.data();if(r.key!==x.id)fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');return r;}).filter(x=>x.source==='purchase'&&x.key!==original.key);
+       assertSupplierSettlementTransition({purchase,original,adjustments,beforePayments,afterPayments,today:new Date().toISOString().slice(0,10)});
+     }catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
+   }
+   try{await assertFiscalCostContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_COST_HISTORY_LOCKED');}
    const oldReturns=(before.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m)),newReturns=(candidate.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m));
    const oldIds=new Set(oldReturns.map(m=>m.id)),newIds=new Set(newReturns.filter(m=>!oldIds.has(m.id)).map(m=>m.id));
    if(newIds.size&&scope.commandsEnabled!==true)fail(409,'FISCAL_RETURN_POSTING_REQUIRED');
