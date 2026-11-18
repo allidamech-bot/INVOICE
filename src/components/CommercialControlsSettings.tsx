@@ -2,6 +2,7 @@ import type { BankAccount, CompanySettings, PaymentTermPreset, PricingPolicy, Ta
 import { makeId } from '../lib/id.js';
 import { PRIMARY_BANK_ACCOUNT_ID, bankAccountsForCompany } from '../lib/commercial-controls.js';
 import { t } from '../lib/i18n.js';
+import { FiscalComplianceSettings } from './FiscalComplianceSettings.js';
 import { Button, Field, IconButton, Input, Select } from './UI.js';
 
 interface Props{company:CompanySettings;onChange:(company:CompanySettings)=>void;}
@@ -43,6 +44,8 @@ export function CommercialControlsSettings({company,onChange}:Props):any{
       <Field label={t('Default tax for new documents','الضريبة الافتراضية للمستندات الجديدة')}><Select value={commercial.defaultTaxPresetId} onChange={(e:any)=>updateCommercial({defaultTaxPresetId:e.target.value})}><option value="">{t('No default tax','بدون ضريبة افتراضية')}</option>{commercial.taxPresets.map(preset=><option key={preset.id} value={preset.id}>{preset.name} · {preset.rate}%</option>)}</Select></Field>
       {commercial.taxPresets.length?<div className="commercial-row-list compact">{commercial.taxPresets.map(preset=><article className="commercial-row-card preset-row" key={preset.id}><div className="form-grid two"><Field label={t('Tax name','اسم الضريبة')}><Input value={preset.name} onChange={(e:any)=>updateTax(preset.id,'name',e.target.value)}/></Field><Field label={t('Rate %','النسبة %')}><Input inputMode="decimal" value={preset.rate} onChange={(e:any)=>updateTax(preset.id,'rate',e.target.value)}/></Field></div><IconButton icon="trash" label={t('Remove tax preset','حذف إعداد الضريبة')} variant="danger" onClick={()=>removeTax(preset.id)}/></article>)}</div>:null}
     </section>
+
+    <FiscalComplianceSettings company={company}/>
 
     <section className="settings-section commercial-settings-section">
       <div className="commercial-section-heading"><div><h4>{t('Payment terms','شروط الدفع')}</h4><p>{t('Preset days automatically calculate invoice due dates. Customer-specific terms can override the company default.','تقوم الأيام المحفوظة بحساب تاريخ استحقاق الفاتورة تلقائيًا، ويمكن لشروط العميل أن تتجاوز الإعداد الافتراضي للشركة.')}</p></div><Button icon="plus" onClick={addTerm}>{t('Add Term','إضافة شرط')}</Button></div>
