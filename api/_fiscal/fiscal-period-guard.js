@@ -1,3 +1,4 @@
+import {isFiscalPurchaseReturn} from './purchase-return.mjs';
 import {inspectReturnPostings,isReturnMovement} from './return-postings.js';
 import {reviewDigest} from './commercial-source.js';
 import {fail} from '../_accounting/period-format.js';
@@ -38,6 +39,18 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
     const country=String(next?.companySnapshot?.country??'').trim().toUpperCase();
     if(next?.kind==='invoice'&&next.status==='final'&&(['SA','SAU','SAUDI ARABIA','KINGDOM OF SAUDI ARABIA','السعودية','المملكة العربية السعودية'].includes(country)||/^3\d{13}3$/.test(next.companySnapshot?.vatNumber??'')))fail(409,'FISCAL_DOCUMENT_LOCKED');
    }
+   // Only the trusted supplier-return command can introduce these movements.
+   // A stale browser or backup cannot delete, modify or inject one.
+   const oldSupplierReturns=(before.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isFiscalPurchaseReturn(m));
+   const newSupplierReturns=(candidate.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isFiscalPurchaseReturn(m));
+   if(oldSupplierReturns.length!==newSupplierReturns.length||oldSupplierReturns.some(m=>!same(m,newSupplierReturns.find(x=>x.id===m.id)))||new Set(newSupplierReturns.map(m=>m.id)).size!==newSupplierReturns.length)fail(409,'FISCAL_PURCHASE_RETURN_LOCKED');
+   const fiscalSources=new Set();
+   const purchaseMovements=rows=>(rows??[]).filter(m=>m.workspaceId===workspaceId&&['purchase','purchase-reversal'].includes(m.type));
+   const oldStock=purchaseMovements(before.inventoryMovements),newStock=purchaseMovements(candidate.inventoryMovements);
+   for(const m of oldStock)if(!same(m,newStock.find(x=>x.id===m.id)))fiscalSources.add(m.sourceId);
+   for(const m of newStock)if(!same(m,oldStock.find(x=>x.id===m.id)))fiscalSources.add(m.sourceId);
+   if(fiscalSources.size>100)fail(422,'FISCAL_CHANGE_LIMIT');
+   for(const k of fiscalSources){if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');const posting=await tx.get(db.doc(base+'/accountingEntries/purchase-'+k)),claim=await tx.get(db.doc(base+'/purchaseTreatmentClaims/'+k));if(posting.exists||claim.exists)fail(409,'FISCAL_PURCHASE_LOCKED');}
    const oldReturns=(before.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m)),newReturns=(candidate.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m));
    const oldIds=new Set(oldReturns.map(m=>m.id)),newIds=new Set(newReturns.filter(m=>!oldIds.has(m.id)).map(m=>m.id));
    if(newIds.size&&scope.commandsEnabled!==true)fail(409,'FISCAL_RETURN_POSTING_REQUIRED');

@@ -49,3 +49,15 @@ test('scope-locked purchases with imported tax evidence cannot be rewritten by o
  const before={workspaces:[{id:workspaceId}],documents:[],purchases:[{id:'p',workspaceId,status:'posted'}]};
  await assert.rejects(guard(tx,uid,before,{...before,purchases:[{...before.purchases[0],status:'reversed'}]},{operation:'commit'}),/FISCAL_PURCHASE_LOCKED/);
 });
+
+
+test('fiscal supplier dispatch and original posted inbound receipt cannot be changed through workspace sync',async()=>{
+ const uid='owner',workspaceId='qa',base='fiscalPrivateV1/owner/workspaces/qa',rows=new Map([[base,{accountUid:uid,workspaceId,environment:'simulation',syntheticOnly:true}],[base+'/accountingEntries/purchase-p',{}]]);
+ const guard=createFiscalPeriodGuard({doc:path=>({path})}),tx={get:async ref=>({exists:rows.has(ref.path),data:()=>rows.get(ref.path)})};
+ const receipt={id:'m',workspaceId,type:'purchase',sourceId:'p',quantity:'2'},dispatch={id:'fiscal-purchase-return:a:l',workspaceId,type:'purchase-reversal',sourceId:'p',quantity:'-1'};
+ const before={workspaces:[{id:workspaceId}],documents:[],purchases:[{id:'p',workspaceId,status:'posted'}],inventoryMovements:[receipt,dispatch]};
+ await guard(tx,uid,before,before,{operation:'commit'});
+ await assert.rejects(guard(tx,uid,before,{...before,inventoryMovements:[receipt]},{operation:'commit'}),/FISCAL_PURCHASE_RETURN_LOCKED/);
+ await assert.rejects(guard(tx,uid,before,{...before,inventoryMovements:[{...receipt,quantity:'3'},dispatch]},{operation:'commit'}),/FISCAL_PURCHASE_LOCKED/);
+ await assert.rejects(guard(tx,uid,before,{...before,inventoryMovements:[receipt,dispatch,{...dispatch,id:'fiscal-purchase-return:another:l'}]},{operation:'commit'}),/FISCAL_PURCHASE_RETURN_LOCKED/);
+});
