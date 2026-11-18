@@ -134,7 +134,7 @@ concurrency:
 jobs:
   validate:
     name: Typecheck · build · UX and full regression tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
@@ -169,13 +169,15 @@ jobs:
             tests/saved-items-picker-mobile-v232.test.mjs \
             tests/saved-items-v95.test.mjs \
             tests/saved-items-library-v102.test.mjs
+      - name: Prepare fiscal PDF regression dependencies (isolated QA)
+        run: bash scripts/fiscal/setup-qa-python.sh
       - name: All accounting, inventory and UI Node regressions
         run: node --test --test-concurrency=2 tests/*.test.mjs
 
   picker-webkit:
     name: WebKit synthetic iPhone picker smoke
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Same verified, pinned official browser image as the Controller E2E CI.
     # Avoid 35-minute browser/native-dependency installs on ephemeral runners.
     container:
@@ -250,7 +252,7 @@ jobs:
   pdf-output-chromium:
     name: Actual PDF · A4 and extracted accounting totals
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -266,7 +268,7 @@ jobs:
           npm run build
       - name: Install Chromium and PDF inspection tools (CI only)
         run: |
-          npm install --no-save --no-package-lock --no-audit --no-fund playwright
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.55.0
           npx playwright install --with-deps chromium
           sudo apt-get install -y poppler-utils
       - name: Generate real synthetic invoice PDF files and inspect text, totals and A4 dimensions
@@ -294,7 +296,7 @@ jobs:
 
   firestore-ai-emulator:
     name: Real Firestore UID isolation and AI multi-device recovery (local emulator)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
       contents: read

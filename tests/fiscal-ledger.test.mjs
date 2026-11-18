@@ -67,7 +67,7 @@ test('versioned transitions atomically store evidence, close queue and retain or
   assert.equal(started.version,2);assert.equal(f.read(base+'/outbox/qa-doc').state,'hold');
   await assert.rejects(f.ledger.transition(scope,'qa-doc',1,start),/Stale fiscal version/);
   const event={kind:'cleared',attemptId:'qa-attempt',at:later,resultDigest:digest(result),clearedArtifactDigest:digest(cleared),warnings:false};
-  await assert.rejects(f.ledger.transition(scope,'qa-doc',2,event,Buffer.from('bad'),cleared),/artifact/);
+  await assert.rejects(f.ledger.transition(scope,'qa-doc',2,event,Buffer.from('bad'),cleared),/AUTHORITY_EVIDENCE_MISMATCH/);
   assert.equal(f.read(base+'/issues/qa-doc').version,2);
   const final=await f.ledger.transition(scope,'qa-doc',2,event,result,cleared);
   assert.equal(final.status,'cleared');assert.equal(f.read(base+'/outbox/qa-doc').state,'closed');

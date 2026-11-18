@@ -158,7 +158,8 @@ test('Alif treasury: duplicate links, currency/amount and cross-branch inputs ar
     'rejected entries do not mutate stored records');
 });
 
-test('Alif treasury: cancellation restores unallocated movement, not AR/AP amounts',()=>{
+test('Alif treasury: cancellation restores unallocated movement, not AR/AP amounts',t=>{
+  t.mock.timers.enable({apis:['Date'],now:new Date('2026-10-20T10:00:00.000Z')});
   const f=fixture();
   const paid=appendTreasuryEntry(f.vault,
     movement('supplier-payment',f.bank,f.supplierPayment.id,'30.00','qa-paid'));
@@ -167,11 +168,16 @@ test('Alif treasury: cancellation restores unallocated movement, not AR/AP amoun
   const changed={...paid,treasuryEntries:paid.treasuryEntries.map(x=>x.id===voided.id?voided:x)};
   assert.equal(treasuryAccountBalance(f.bank.id,changed.treasuryEntries),'100.00');
   assert.equal(available(changed).filter(r=>r.id===f.supplierPayment.id).length,1);
+  const historical=treasuryProjection(changed.payments,changed.supplierPayments,changed.expenses,changed.treasuryEntries,changed.treasuryReconciliations,'USD','2026-10-19');
+  assert.equal(historical.filter(r=>r.id===f.supplierPayment.id&&!r.fromAccountId&&!r.toAccountId).length,0);
+  assert.equal(treasuryAccountBalance(f.bank.id,changed.treasuryEntries,'2026-10-19'),'70.00');
+  assert.equal(treasuryAccountBalance(f.bank.id,changed.treasuryEntries,'2026-10-20'),'100.00');
   assert.equal(purchasePayableSummary(f.purchase,changed.supplierPayments,asOf).remaining,'90.00');
   assert.equal(supplierPaymentVoucher(f.purchase,f.supplierPayment.id,changed.supplierPayments,f.vault.company).amount,'30.00');
 });
 
-test('Alif supplier: payment void is separate from voiding treasury allocation',()=>{
+test('Alif supplier: payment void is separate from voiding treasury allocation',t=>{
+  t.mock.timers.enable({apis:['Date'],now:new Date('2026-10-20T10:00:00.000Z')});
   const f=fixture();
   const paid=appendTreasuryEntry(f.vault,
     movement('supplier-payment',f.bank,f.supplierPayment.id,'30.00','qa-supp-linked'));
@@ -184,6 +190,8 @@ test('Alif supplier: payment void is separate from voiding treasury allocation',
   const cancelled=voidSupplierPayment(detached.supplierPayments[0],'Correct supplier settlement');
   const updated={...detached,supplierPayments:[cancelled]};
   assert.equal(purchasePayableSummary(f.purchase,updated.supplierPayments,asOf).remaining,'120.00');
+  assert.equal(purchasePayableSummary(f.purchase,updated.supplierPayments,'2026-10-19').remaining,'90.00');
+  assert.equal(purchasePayableSummary(f.purchase,updated.supplierPayments,'2026-10-20').remaining,'120.00');
   assert.throws(()=>supplierPaymentVoucher(f.purchase,cancelled.id,updated.supplierPayments,f.vault.company),/active linked/);
   assert.throws(()=>appendTreasuryEntry(updated,movement('supplier-payment',f.bank,cancelled.id,'30.00','qa-voided-repost')),
     /Voided supplier payments|ملغاة/);

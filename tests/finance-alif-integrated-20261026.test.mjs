@@ -53,8 +53,12 @@ function fixture(){
   return{vault,item,supplier,invoice,purchase:posted.purchase};
 }
 
-test('Alif merged-head business lifecycle: 200→180 stock, AR/AP, bank allocations and no phantom cash',()=>{
+test('Alif merged-head business lifecycle: 200→180 stock, AR/AP, bank allocations and no phantom cash',t=>{
+  // Use the actual posting clock within the synthetic reporting period.
+  t.mock.timers.enable({apis:['Date'],now:new Date('2026-10-01T09:00:00.000Z')});
   const f=fixture();
+  assert.equal(f.purchase.postedAt,'2026-10-01T09:00:00.000Z');
+  t.mock.timers.setTime(Date.parse(at));
   const stock=v=>inventoryBalances(v.savedItems,v.inventoryMovements)
     .find(row=>row.item.id===f.item.id).quantity;
   assert.equal(stock(f.vault),'200','purchase posts the physical stock once');
