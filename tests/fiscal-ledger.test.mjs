@@ -120,3 +120,37 @@ test('worker fails closed for production, wrong EGS and unconfirmed response',as
   await assert.rejects(f.worker({...simScope,egsId:'other'},'qa-doc',1));assert.equal(f.calls(),0);
   assert.equal((await f.worker(simScope,'qa-doc',1)).status,'uncertain');assert.equal(f.calls(),1);
 });
+
+import {createSimulationCredentialVault} from '../api/_fiscal/credential-vault.js';
+import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
+function credentialFixture(){
+  const f=fixture(), testKek=randomBytes(32);
+  const vault=createSimulationCredentialVault({db:f.db,wrapKey:async({key,context})=>{const nonce=randomBytes(12),cipher=createCipheriv('aes-256-gcm',testKek,nonce);cipher.setAAD(Buffer.from(JSON.stringify(context)));return {keyId:'test-only',wrappedKey:Buffer.concat([nonce,cipher.update(key),cipher.final(),cipher.getAuthTag()])};},unwrapKey:async({keyId,wrappedKey,context})=>{assert.equal(keyId,'test-only');const decipher=createDecipheriv('aes-256-gcm',testKek,wrappedKey.subarray(0,12));decipher.setAAD(Buffer.from(JSON.stringify(context)));decipher.setAuthTag(wrappedKey.subarray(-16));return Buffer.concat([decipher.update(wrappedKey.subarray(12,-16)),decipher.final()]);}});
+  const credential={...simScope,kind:'production',binarySecurityToken:Buffer.from('synthetic-cert').toString('base64'),secret:'synthetic-secret',requestId:123};
+  return {...f,vault,credential,credentialPath:base+'/egs/qa-egs/simulationCredentials/cred1'};
+}
+test('credential envelope encrypts secret and cert, binds scope and refuses overwrite',async()=>{
+  const f=credentialFixture(), m=await f.vault.store(simScope,'cred1',f.credential), stored=f.read(f.credentialPath);
+  assert.deepEqual(m,{ref:'cred1',kind:'production',environment:'simulation'});
+  assert.doesNotMatch(JSON.stringify(stored),/synthetic-secret|synthetic-cert/);assert.equal(stored.secret,undefined);assert.equal(stored.binarySecurityToken,undefined);
+  assert.deepEqual(await f.vault.load(simScope,'cred1','production'),f.credential);
+  await assert.rejects(f.vault.store(simScope,'cred1',f.credential),/CREDENTIAL_STORE_FAILED/);
+  assert.deepEqual(f.read(f.credentialPath),stored);
+  await assert.rejects(f.vault.load({...simScope,environment:'production'},'cred1','production'));
+  await assert.rejects(f.vault.load({...simScope,egsId:'other'},'cred1','production'));
+  await assert.rejects(f.vault.load(simScope,'cred1','compliance'));
+});
+test('envelope tampering, copied records and wrong credential scope fail closed',async()=>{
+  const f=credentialFixture();await f.vault.store(simScope,'cred1',f.credential);const stored=f.read(f.credentialPath);
+  const data=Buffer.from(stored.ciphertext,'base64');data[0]^=1;
+  f.seed(f.credentialPath,{...stored,ciphertext:data.toString('base64')});await assert.rejects(f.vault.load(simScope,'cred1','production'),/CREDENTIAL_LOAD_FAILED/);
+  f.seed(f.credentialPath,stored);f.seed(f.credentialPath.replace(/cred1$/,'cred2'),{...stored,ref:'cred2'});
+  await assert.rejects(f.vault.load(simScope,'cred2','production'),/CREDENTIAL_LOAD_FAILED/);
+  await assert.rejects(f.vault.store(simScope,'other',{...f.credential,workspaceId:'other'}),/CREDENTIAL_SCOPE_MISMATCH/);
+});
+test('worker resolves encrypted simulation credential without exposing it',async()=>{
+  const f=credentialFixture();f.seed(base+'/egs/qa-egs',{...scope,egsId:'qa-egs',active:true,environment:'simulation',nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH});
+  await f.vault.store(simScope,'cred1',f.credential);await f.prepare({mode:'reporting'});
+  const worker=createFiscalSimulationWorker({ledger:f.ledger,resolveCredential:s=>f.vault.load(s,'cred1','production'),verifyPrepared:async()=>true,verifyAuthorityResult:async()=>true,clock:()=>later,fetchImpl:async(url,options)=>{assert.equal(options.headers.Authorization,'Basic '+Buffer.from(f.credential.binarySecurityToken+':'+f.credential.secret).toString('base64'));return new Response(JSON.stringify({...valid,reportingStatus:'REPORTED'}),{status:200});}});
+  assert.deepEqual(await worker(simScope,'qa-doc',1),{documentId:'qa-doc',status:'reported',version:3});
+});
