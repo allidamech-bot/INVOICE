@@ -1,4 +1,5 @@
 import {hashAuthorityEvidence,writeAuthorityEvidence,readAuthorityEvidence} from './authority-evidence.js';
+import {readSimulationContext} from './simulation-scope.js';
 
 // Private simulation-only receipt journal. Persist complete response bytes
 // before running any verifier; a receipt is never acceptance evidence by itself.
@@ -18,6 +19,7 @@ export function createAttemptResponseStore(db){
   const get=(tx,p)=>tx.get(db.doc(p));
   async function binding(tx,scope,documentId,version,attemptId){
     const p=path(scope,documentId,attemptId);need(Number.isSafeInteger(version)&&version>=2);
+    await readSimulationContext(db,tx,scope);
     const r=data(await get(tx,p.issue)),q=data(await get(tx,p.queue)),start=data(await get(tx,p.issue+'/events/'+String(version)));
     need(r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId&&r.documentId===documentId&&r.attemptId===attemptId&&r.version>=version&&['submitting','uncertain'].includes(r.status)&&q.state==='hold'&&q.documentId===documentId&&q.uuid===r.uuid&&q.egsId===r.egsId&&q.version===r.version&&start.version===version&&start.kind==='start'&&start.status==='submitting'&&start.attemptId===attemptId);
     timestamp(start.at);return {p,r,start};

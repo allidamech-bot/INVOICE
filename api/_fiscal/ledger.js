@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {simulationBase,readSimulationContext} from './simulation-scope.js';
 import {writeAuthorityEvidence} from './authority-evidence.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {createAttemptResponseStore} from './attempt-response.js';
@@ -11,7 +12,7 @@ const NS='fiscalPrivateV1';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const MAX_BYTES=512*1024;
 function id(value){if(typeof value!=='string'||!ID.test(value))throw new Error('Invalid fiscal scope.');return value;}
-function scope(s){return NS+'/'+id(s.accountUid)+'/workspaces/'+id(s.workspaceId);}
+function scope(s){return simulationBase(s);}
 function artifact(bytes,digest){
   if(!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>MAX_BYTES||createHash('sha256').update(bytes).digest('hex')!==digest)
     throw new Error('Invalid or oversized fiscal artifact.');
@@ -27,7 +28,7 @@ function readBytes(stored,digest){
 function immutableMatch(record,prepared){
   return Object.keys(prepared).filter(k=>!['status','version','updatedAt','reportingDeadline','attemptId','attemptCount','usedAttemptIds','resultDigest','clearedArtifactDigest','warnings'].includes(k)).every(k=>record[k]===prepared[k]);
 }
-function assertScope(record,s){if(!record||record.accountUid!==s.accountUid||record.workspaceId!==s.workspaceId)throw new Error('Fiscal scope mismatch.');}
+function assertScope(record,s){if(!record||record.accountUid!==s.accountUid||record.workspaceId!==s.workspaceId||record.egsId!==s.egsId)throw new Error('Fiscal scope mismatch.');}
 function outbox(record){
   return {documentId:record.documentId,uuid:record.uuid,egsId:record.egsId,version:record.version,
     state:record.status==='queued'||record.status==='retryable'?'ready':record.status==='submitting'||record.status==='uncertain'?'hold':'closed',
@@ -38,7 +39,7 @@ export function createFiscalLedger(db){
   const receipts=createAttemptResponseStore(db);
   async function applyTransition(tx,authorizedScope,base,issue,documentId,record,expectedVersion,event,evidenceBytes,clearedBytes){
     const next=transitionFiscalIssue(record,expectedVersion,event);
-    if(authorizedScope.environment==='simulation'&&['submitting','uncertain'].includes(record.status)){
+    if(['submitting','uncertain'].includes(record.status)){
       // Negative decisions need an independent authority reconciliation source,
       // not an arbitrary error body or an operator-entered digest.
       if(['confirmed-not-accepted','rejected'].includes(event.kind))throw Error('FISCAL_NEGATIVE_RECONCILIATION_NOT_CONFIGURED');
@@ -79,6 +80,7 @@ export function createFiscalLedger(db){
       if(authorizedScope.environment!=='simulation'||!Number.isSafeInteger(expectedVersion)||expectedVersion<3)throw Error('FISCAL_RECONCILIATION_NOT_ELIGIBLE');
       const base=scope(authorizedScope),issue=db.doc(base+'/issues/'+id(documentId));
       return db.runTransaction(async tx=>{
+        await readSimulationContext(db,tx,authorizedScope);
         const row=await tx.get(issue),record=row.exists?row.data():null;
         assertScope(record,authorizedScope);
         if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||record.status!=='uncertain'||record.version!==expectedVersion)throw Error('FISCAL_RECONCILIATION_NOT_ELIGIBLE');
@@ -108,15 +110,15 @@ export function createFiscalLedger(db){
       const uuid=db.doc(NS+'/'+id(initial.accountUid)+'/uuidIndex/'+id(initial.uuid));
       const queue=db.doc(base+'/outbox/'+id(initial.documentId));
       return db.runTransaction(async tx=>{
+        const {unit:state}=await readSimulationContext(db,tx,authorizedScope,{active:true});
         const existing=await tx.get(issue);
         if(existing.exists){
           const stored=existing.data();assertScope(stored,authorizedScope);
           if(!immutableMatch(stored,initial))throw new Error('Fiscal document already bound to another immutable issue.');
           return stored;
         }
-        const chain=await tx.get(egs), duplicate=await tx.get(uuid);
+        const duplicate=await tx.get(uuid);
         if(duplicate.exists)throw new Error('Fiscal UUID already reserved.');
-        const state=chain.exists?chain.data():null;
         assertScope(state,authorizedScope);
         if(state.active!==true||state.egsId!==initial.egsId||state.nextIcv!==initial.icv||state.previousInvoiceHash!==initial.previousInvoiceHash)
           throw new Error('Fiscal EGS chain conflict or inactive unit.');
@@ -138,12 +140,12 @@ export function createFiscalLedger(db){
       if(authorizedScope.environment!=='simulation')throw Error('Simulation only.');
       const base=scope(authorizedScope), issue=db.doc(base+'/issues/'+id(documentId));
       const queue=db.doc(base+'/outbox/'+id(documentId));
-      const egs=db.doc(base+'/egs/'+id(authorizedScope.egsId));
       return db.runTransaction(async tx=>{
-        const row=await tx.get(issue), job=await tx.get(queue), unit=await tx.get(egs);
+        const {unit:state}=await readSimulationContext(db,tx,authorizedScope,{active:true});
+        const row=await tx.get(issue), job=await tx.get(queue);
         const prepared=await tx.get(db.doc(issue.path+'/artifacts/prepared'));
         const snapshot=await tx.get(db.doc(issue.path+'/artifacts/snapshot'));
-        const record=row.exists?row.data():null, state=unit.exists?unit.data():null;
+        const record=row.exists?row.data():null;
         assertScope(record,authorizedScope);assertScope(state,authorizedScope);
         if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||state.egsId!==record.egsId||state.active!==true||state.environment!=='simulation')throw Error('Invalid simulation EGS.');
         const expected=outbox(record), actual=job.exists?job.data():null;
@@ -157,7 +159,9 @@ export function createFiscalLedger(db){
     },
     async transition(authorizedScope,documentId,expectedVersion,event,evidenceBytes,clearedBytes){
       const base=scope(authorizedScope), issue=db.doc(base+'/issues/'+id(documentId));
+      if(event?.kind==='start')throw Error('Fiscal submission must use atomic claim.');
       return db.runTransaction(async tx=>{
+        await readSimulationContext(db,tx,authorizedScope);
         const snapshot=await tx.get(issue), record=snapshot.exists?snapshot.data():null;
         assertScope(record,authorizedScope);
         if(record.documentId!==documentId||(authorizedScope.egsId!==undefined&&record.egsId!==authorizedScope.egsId))throw new Error('Fiscal document identity mismatch.');

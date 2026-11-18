@@ -21,21 +21,23 @@ function store(){
   }};
   return {db,seed:(path,value)=>data.set(path,structuredClone(value)),read:path=>structuredClone(data.get(path)),size:()=>data.size};
 }
-const scope={accountUid:'qa-owner',workspaceId:'qa-company'};
+const scope={accountUid:'qa-owner',workspaceId:'qa-company',egsId:'qa-egs',environment:'simulation'};
 const base='fiscalPrivateV1/qa-owner/workspaces/qa-company';
-const xml=Buffer.from('synthetic xml'), snapshot=Buffer.from('synthetic snapshot'), result=Buffer.from('synthetic result'), cleared=Buffer.from('synthetic clearance');
+const xml=Buffer.from('synthetic xml'), snapshot=Buffer.from('synthetic snapshot'), cleared=Buffer.from('synthetic clearance');
+const result=Buffer.from(JSON.stringify({clearanceStatus:'CLEARED',clearedInvoice:cleared.toString('base64'),validationResults:{status:'PASS',errorMessages:[],warningMessages:[]}}));
 const digest=b=>createHash('sha256').update(b).digest('hex');
 const hash=Buffer.alloc(32,1).toString('base64');
 const at='2026-11-18T10:00:00.000Z', later='2026-11-18T10:01:00.000Z';
 const input={...scope,egsId:'qa-egs',documentId:'qa-doc',uuid:'11111111-1111-4111-8111-111111111111',icv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH,invoiceHash:hash,artifactDigest:digest(xml),snapshotDigest:digest(snapshot),generatedAt:at,mode:'clearance'};
 function fixture(){
   const s=store(), ledger=createFiscalLedger(s.db);
+  s.seed(base,{accountUid:scope.accountUid,workspaceId:scope.workspaceId,environment:'simulation',syntheticOnly:true});
   s.seed(base+'/egs/qa-egs',{...scope,egsId:'qa-egs',active:true,nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH});
   return {...s,ledger,prepare:(patch={})=>ledger.prepare(scope,{...input,...patch},xml,snapshot)};
 }
 test('atomic prepare reserves EGS sequence, UUID, artifacts, audit and outbox exactly once',async()=>{
   const f=fixture(), a=await f.prepare(), b=await f.prepare();
-  assert.deepEqual(a,b);assert.equal(f.size(),7);
+  assert.deepEqual(a,b);assert.equal(f.size(),8);
   assert.equal(f.read(base+'/egs/qa-egs').nextIcv,'2');
   assert.equal(f.read(base+'/egs/qa-egs').previousInvoiceHash,hash);
   assert.equal(f.read(base+'/outbox/qa-doc').state,'ready');
@@ -55,19 +57,21 @@ test('cross-scope, inactive EGS and changed artifacts fail without persisting re
   await assert.rejects(f.ledger.prepare({...scope,workspaceId:'other'},input,xml,snapshot),/scope mismatch/);
   await assert.rejects(f.ledger.prepare(scope,input,Buffer.from('changed'),snapshot),/artifact/);
   await assert.rejects(f.prepare({egsId:'absent'}),/scope mismatch/);
-  assert.equal(f.size(),1);
+  assert.equal(f.size(),2);
   await f.prepare();
   await assert.rejects(f.prepare({mode:'reporting'}),/already bound/);
-  assert.equal(f.size(),7);
+  assert.equal(f.size(),8);
 });
 test('versioned transitions atomically store evidence, close queue and retain original artifact',async()=>{
   const f=fixture();await f.prepare();
   const start={kind:'start',attemptId:'qa-attempt',at:later};
-  const started=await f.ledger.transition(scope,'qa-doc',1,start);
+  await assert.rejects(f.ledger.transition(scope,'qa-doc',1,start),/atomic claim/);
+  const {record:started}=await f.ledger.claim(scope,'qa-doc',1,start.attemptId,start.at);
   assert.equal(started.version,2);assert.equal(f.read(base+'/outbox/qa-doc').state,'hold');
-  await assert.rejects(f.ledger.transition(scope,'qa-doc',1,start),/Stale fiscal version/);
+  await assert.rejects(f.ledger.claim(scope,'qa-doc',1,start.attemptId,start.at),/queue not ready|Stale fiscal version/);
   const event={kind:'cleared',attemptId:'qa-attempt',at:later,resultDigest:digest(result),clearedArtifactDigest:digest(cleared),warnings:false};
-  await assert.rejects(f.ledger.transition(scope,'qa-doc',2,event,Buffer.from('bad'),cleared),/AUTHORITY_EVIDENCE_MISMATCH/);
+  await f.ledger.recordResponse(scope,'qa-doc',2,start.attemptId,{httpStatus:200,bytes:result,digest:digest(result),receivedAt:later});
+  await assert.rejects(f.ledger.transition(scope,'qa-doc',2,event,Buffer.from('bad'),cleared),/FISCAL_RESPONSE_RECEIPT_MISMATCH/);
   assert.equal(f.read(base+'/issues/qa-doc').version,2);
   const final=await f.ledger.transition(scope,'qa-doc',2,event,result,cleared);
   assert.equal(final.status,'cleared');assert.equal(f.read(base+'/outbox/qa-doc').state,'closed');
@@ -75,14 +79,34 @@ test('versioned transitions atomically store evidence, close queue and retain or
   assert.equal(f.read(base+'/issues/qa-doc/artifacts/cleared').sha256,digest(cleared));
   assert.equal(f.read(base+'/issues/qa-doc/artifacts/prepared').sha256,digest(xml));
 });
+test('mandatory persisted simulation context rejects missing environment, foreign EGS and non-synthetic workspace',async()=>{
+  const f=fixture();
+  for(const patch of [{environment:undefined},{environment:'production'},{egsId:'other'},{egsId:undefined}])
+    await assert.rejects(f.ledger.prepare({...scope,...patch},input,xml,snapshot),/scope mismatch/);
+  const original=f.read(base);
+  f.seed(base,{...original,syntheticOnly:false});
+  await assert.rejects(f.prepare(),/scope mismatch/);
+  assert.equal(f.size(),2);
+  f.seed(base,original);
+  await f.prepare();
+  f.seed(base,{...original,environment:'production'});
+  await assert.rejects(f.ledger.claim(scope,'qa-doc',1,'attempt',later),/scope mismatch/);
+  assert.equal(f.read(base+'/issues/qa-doc').status,'queued');
+  f.seed(base,original);
+  await f.ledger.claim(scope,'qa-doc',1,'attempt',later);
+  f.seed(base,{...original,syntheticOnly:false});
+  await assert.rejects(f.ledger.recordResponse(scope,'qa-doc',2,'attempt',{httpStatus:200,bytes:result,digest:digest(result),receivedAt:later}),/scope mismatch/);
+  await assert.rejects(f.ledger.transition(scope,'qa-doc',2,{kind:'uncertain',attemptId:'attempt',at:later}),/scope mismatch/);
+  assert.equal(f.read(base+'/issues/qa-doc').status,'submitting');
+});
 test('concurrent state transitions enforce version CAS; uncertain outbox stays on hold',async()=>{
   const f=fixture();await f.prepare();
-  const outcomes=await Promise.allSettled(['a','b'].map(attemptId=>f.ledger.transition(scope,'qa-doc',1,{kind:'start',attemptId,at:later})));
+  const outcomes=await Promise.allSettled(['a','b'].map(attemptId=>f.ledger.claim(scope,'qa-doc',1,attemptId,later)));
   assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1);
   const attemptId=f.read(base+'/issues/qa-doc').attemptId;
   await f.ledger.transition(scope,'qa-doc',2,{kind:'uncertain',attemptId,at:later});
   assert.equal(f.read(base+'/outbox/qa-doc').state,'hold');
-  await assert.rejects(f.ledger.transition(scope,'qa-doc',3,{kind:'start',attemptId:'c',at:later}),/eligible/);
+  await assert.rejects(f.ledger.claim(scope,'qa-doc',3,'c',later),/queue not ready|eligible/);
 });
 
 

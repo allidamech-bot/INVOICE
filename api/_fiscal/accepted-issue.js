@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {readAuthorityEvidence} from './authority-evidence.js';
+import {readSimulationContext} from './simulation-scope.js';
 
 // Server-only reader. The caller must authenticate and authorize the scope.
 // No re-enrollment, state transition, or new authority request occurs here.
@@ -22,6 +23,7 @@ export function createAcceptedFiscalReader(db){
     const base='fiscalPrivateV1/'+accountUid+'/workspaces/'+workspaceId, path=base+'/issues/'+documentId;
     const get=(tx,p)=>tx.get(db.doc(p));
     return db.runTransaction(async tx=>{
+      await readSimulationContext(db,tx,scope);
       const r=data(await get(tx,path));
       need(r.accountUid===accountUid&&r.workspaceId===workspaceId&&r.egsId===egsId&&r.documentId===documentId&&typeof r.uuid==='string'&&UUID.test(r.uuid)&&Number.isSafeInteger(r.version)&&r.version>=3&&typeof r.resultDigest==='string'&&HEX.test(r.resultDigest)&&typeof r.warnings==='boolean');
       const clearance=r.mode==='clearance'&&r.status==='cleared', reporting=r.mode==='reporting'&&r.status==='reported';need(clearance||reporting);
