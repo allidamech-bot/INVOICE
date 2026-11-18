@@ -71,3 +71,28 @@ test('simplified supports anonymous retail or a complete domestic party, without
     assert.throws(()=>buildDomesticFiscalCandidate({...q,...patch}));
   }
 });
+
+test('mixed domestic VAT categories and adjustments reconcile without double-counting',()=>{
+  const req={...input,lines:[{...line,allowance:'10.00',allowanceReasonCode:'95',allowanceReasonText:'Discount'},{...line,id:'medical',name:'Medical',quantity:'1',unitNetPrice:'40',category:'Z',rate:'0',reasonCode:'VATEX-SA-35',reasonText:'Eligible medical equipment'},{...line,id:'insurance',name:'Insurance',quantity:'1',unitNetPrice:'30',category:'E',rate:'0',reasonCode:'VATEX-SA-29-7',reasonText:'Life insurance'}],adjustments:[{kind:'allowance',amount:'5',category:'S',rate:'15',adjustmentReasonCode:'95',adjustmentReasonText:'Discount'},{kind:'charge',amount:'15',category:'S',rate:'15',adjustmentReasonCode:'FC',adjustmentReasonText:'Freight'}]};
+  const out=buildDomesticFiscalCandidate(req),xml=out.bytes.toString();
+  assert.equal(out.totals.lineNetTotal,'160.00');assert.equal(out.totals.documentAllowances,'5.00');assert.equal(out.totals.documentCharges,'15.00');assert.equal(out.totals.taxExclusiveTotal,'170.00');assert.equal(out.totals.vatTotal,'15.00');assert.equal(out.totals.taxInclusiveTotal,'185.00');
+  assert.equal((xml.match(/<cac:TaxSubtotal>/g)||[]).length,3);
+  for(const token of ['<cbc:TaxExemptionReasonCode>VATEX-SA-35','<cbc:TaxExemptionReasonCode>VATEX-SA-29-7','<cbc:AllowanceTotalAmount currencyID="SAR">5.00','<cbc:ChargeTotalAmount currencyID="SAR">15.00','<cbc:PayableAmount currencyID="SAR">185.00','<cbc:AllowanceChargeReasonCode>95','<cbc:AllowanceChargeReasonCode>FC'])assert.ok(xml.includes(token),token);
+  assert.ok(xml.indexOf('<cac:AllowanceCharge>')<xml.indexOf('<cac:TaxTotal>'));
+  assert.ok(xml.includes('<cbc:LineExtensionAmount currencyID="SAR">90.00</cbc:LineExtensionAmount><cac:AllowanceCharge>'));
+  assert.equal(out.status,'unsigned-candidate');
+});
+test('out-of-scope candidate requires explicit reason and stays separate from taxable categories',()=>{
+  const o={...line,category:'O',rate:'0',reasonCode:'VATEX-SA-OOS',reasonText:'Synthetic outside-scope reason'};
+  const out=buildDomesticFiscalCandidate({...input,lines:[o]});
+  assert.equal(out.totals.vatTotal,'0.00');assert.ok(out.bytes.toString().includes('<cbc:TaxExemptionReason>Synthetic outside-scope reason'));
+  assert.throws(()=>buildDomesticFiscalCandidate({...input,lines:[o,line].map((v,i)=>({...v,id:String(i)}))}),/UNSUPPORTED_MIXED_OUT_OF_SCOPE/);
+  assert.throws(()=>buildDomesticFiscalCandidate({...input,lines:[{...o,reasonText:''}]}));
+});
+test('explicit classification, adjustment amounts and unsupported special cases fail closed',()=>{
+  const z={...line,category:'Z',rate:'0',reasonCode:'VATEX-SA-35',reasonText:'Medical'};
+  for(const patch of [{reasonCode:'VATEX-SA-32'},{reasonCode:'VATEX-SA-29'},{rate:'15'},{reasonText:undefined},{reasonText:' '},{allowance:'1.00'},{allowanceReasonCode:'95'}])assert.throws(()=>buildDomesticFiscalCandidate({...input,lines:[{...z,...patch}]}));
+  assert.throws(()=>buildDomesticFiscalCandidate({...input,lines:[z,{...z,id:'second',reasonText:'Different'}]}),/CONFLICTING_VAT_REASONS/);
+  const a={kind:'allowance',amount:'5.00',category:'S',rate:'15',adjustmentReasonCode:'95',adjustmentReasonText:'Discount'};
+  for(const patch of [{amount:'0'},{amount:'1000'},{amount:'1.001'},{amount:'-1'},{adjustmentReasonCode:'FC'},{unknown:'ignored'},{adjustmentReasonText:undefined}])assert.throws(()=>buildDomesticFiscalCandidate({...input,adjustments:[{...a,...patch}]}));
+});
