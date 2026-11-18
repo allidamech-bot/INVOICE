@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {saleAccountingModel,purchaseAccountingModel} from '../api/_fiscal/fiscal-accounting.js';
+import {createFiscalPeriodGuard} from '../api/_fiscal/fiscal-period-guard.js';
+const totals={taxExclusiveTotal:'100.00',vatTotal:'15.00',taxInclusiveTotal:'115.00'};
+const mapped=(kind,extra={})=>({invoice:{kind,currency:'SAR'},candidate:{totals,...extra}});
+const by=(m,account)=>m.lines.find(l=>l.account===account);
+test('balanced ordinary invoice and reversed credit note preserve receivable and output VAT',()=>{
+ const m=saleAccountingModel(mapped('invoice')),c=saleAccountingModel(mapped('credit-note'));
+ assert.deepEqual(by(m,'accounts-receivable'),{account:'accounts-receivable',side:'debit',amount:'115.00'});
+ assert.deepEqual(by(m,'output-vat'),{account:'output-vat',side:'credit',amount:'15.00'});
+ assert.deepEqual(by(c,'output-vat'),{account:'output-vat',side:'debit',amount:'15.00'});
+});
+test('advance receipt and settlement do not recognize the same output VAT twice',()=>{
+ const a=saleAccountingModel(mapped('prepayment',{prepaymentContext:{kind:'receipt'}}));
+ assert.equal(by(a,'customer-advances').amount,'100.00');
+ const b=saleAccountingModel(mapped('invoice',{prepaymentContext:{kind:'adjustment',rows:[{net:'60.00',vat:'9.00'}],prepaid:'69.00',payable:'46.00'}}));
+ assert.equal(b.recognizedVat,'6.00');assert.equal(b.recognizedNet,'40.00');
+ assert.equal(by(b,'accounts-receivable').amount,'46.00');
+ assert.equal(by(b,'customer-advances').amount,'60.00');
+ assert.throws(()=>saleAccountingModel(mapped('invoice',{prepaymentContext:{kind:'adjustment',rows:[{net:'60.00',vat:'9.00'}],prepaid:'69.00',payable:'47.00'}})));
+});
+test('purchase cost, deductible and payable remain distinct; credit reverses them',()=>{
+ const r={kind:'invoice',net:'100.00',vat:'15.00',deductibleVat:'10.00',gross:'115.00',category:'S',rate:'15'};
+ const m=purchaseAccountingModel(r);assert.equal(by(m,'purchase-cost').amount,'105.00');assert.equal(by(m,'input-vat').amount,'10.00');assert.equal(by(m,'accounts-payable').amount,'115.00');
+ assert.equal(by(purchaseAccountingModel({...r,kind:'credit-note'}),'input-vat').side,'credit');
+ assert.throws(()=>purchaseAccountingModel({...r,deductibleVat:'16.00'}));assert.throws(()=>purchaseAccountingModel({...r,gross:'114.00'}));
+});
+test('QA period writer rejects edits, deletion, alternate finalization and fiscal close before reconciliation',async()=>{
+ const uid='owner',workspaceId='qa',base='fiscalPrivateV1/owner/workspaces/qa',rows=new Map([[base,{accountUid:uid,workspaceId,environment:'simulation',syntheticOnly:true}]]);
+ const guard=createFiscalPeriodGuard({doc:path=>({path})}),tx={get:async ref=>({exists:rows.has(ref.path),data:()=>rows.get(ref.path)})};
+ const d={id:'doc',workspaceId,kind:'invoice',status:'draft',companySnapshot:{country:'SA'}},before={workspaces:[{id:workspaceId}],documents:[d],purchases:[]};
+ await guard(tx,uid,before,before,{operation:'commit'});
+ await assert.rejects(guard(tx,uid,before,{...before,documents:[{...d,status:'final'}]},{operation:'commit'}),/FISCAL_DOCUMENT_LOCKED/);
+ rows.set(base+'/issueIntents/doc',{});await assert.rejects(guard(tx,uid,before,{...before,documents:[]},{operation:'commit'}),/FISCAL_DOCUMENT_LOCKED/);
+ await assert.rejects(guard(tx,uid,before,before,{operation:'close',workspaceId}),/FISCAL_PERIOD_RECONCILIATION_REQUIRED/);
+});

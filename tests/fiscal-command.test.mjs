@@ -60,3 +60,13 @@ test('recovery uses exact immutable issue version even after cloud source change
  assert.deepEqual(await f.execute(owner,cmd('recover',{...doc,expectedVersion:2})),{environment:'simulation',documentId:'doc',status:'uncertain',version:3});
  assert.equal(called,1);
 });
+test('accounting routes allow only owner scoped identifiers and accepted immutable sales',async()=>{
+ const calls=[];const accounting={report:async(s,from,to)=>{calls.push(['report',s,from,to]);return {environment:'simulation',readyForFiling:false};},postPurchase:async(s,id)=>{calls.push(['purchase',s,id]);return {status:'posted',key:'purchase-'+id};},postSale:async(s,id,revision)=>{calls.push(['sale',s,id,revision]);return {status:'posted',key:'sale-'+id};}};
+ const f=fixture({accounting});await assert.rejects(f.execute(owner,cmd('post-sale',doc)));
+ await assert.rejects(f.execute(owner,cmd('post-purchase',{purchaseId:'p',vat:'15.00'})));
+ await f.execute(owner,cmd('post-purchase',{purchaseId:'p'}));await f.execute(owner,cmd('vat-report',{from:'2026-01-01',to:'2026-11-18'}));
+ f.rows.set(base+'/issueIntents/doc',{...scope,...doc,state:'approved',sha256:'a'.repeat(64)});
+ f.rows.set(base+'/issues/doc',{...scope,...doc,status:'cleared',version:3,snapshotDigest:'a'.repeat(64)});
+ await f.execute(owner,cmd('post-sale',doc));
+ assert.deepEqual(calls.map(x=>x[0]),['purchase','report','sale']);
+});

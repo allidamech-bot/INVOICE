@@ -15,7 +15,10 @@ export function createWorkspaceCommitHandler({getService=getProductionPeriodServ
   return async function workspaceCommit(request,response){
     if(request.method!=='POST'){send(response,405,{code:'METHOD_NOT_ALLOWED'});return;}
     if(!sameOrigin(request)){send(response,403,{code:'PERIOD_ORIGIN_FORBIDDEN'});return;}
-    if(!await requireAiFirebaseAuth(request,response))return;
+    let qa=null;
+    if(process.env.VERCEL_ENV==='preview'&&process.env.LOUREX_FISCAL_QA_PERIOD_ENABLED==='true'){
+      try{const {getFiscalQaCommandRuntime}=await import('../_fiscal/command-runtime.js');qa=await getFiscalQaCommandRuntime();const token=String(request.headers.authorization||'').match(/^Bearer ([A-Za-z0-9._~-]{100,8192})$/)?.[1];if(!token)throw Error('auth');const identity=await qa.verifyIdentity(token);request.aiVerifiedUid=identity.uid;request.aiVerifiedRole=identity.role;}catch{send(response,403,{code:'PERIOD_QA_AUTH_REQUIRED'});return;}
+    }else if(!await requireAiFirebaseAuth(request,response))return;
     if(request.aiVerifiedRole!=='owner'){send(response,403,{code:'PERIOD_OWNER_REQUIRED'});return;}
     try{
       let bytes=0,parts=[];
@@ -24,7 +27,7 @@ export function createWorkspaceCommitHandler({getService=getProductionPeriodServ
         if(Buffer.byteLength(text)>16_000)fail(413,'REQUEST_TOO_LARGE');parts=[text];
       }else for await(const part of request){bytes+=Buffer.byteLength(part);if(bytes>16_000)fail(413,'REQUEST_TOO_LARGE');parts.push(Buffer.from(part));}
       let parsed;try{parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(parts.map(p=>Buffer.from(p)))));}catch{fail(400,'INVALID_COMMAND');}
-      const command=validatePeriodCommand(parsed),service=getService();
+      const command=validatePeriodCommand(parsed),service=qa?qa.periodService:getService();
       const result=await service.execute({uid:request.aiVerifiedUid,role:request.aiVerifiedRole},command);
       send(response,200,result);
     }catch(error){

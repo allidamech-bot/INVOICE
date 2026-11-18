@@ -38,7 +38,7 @@ export class FiscalIssueDialog extends React.Component<Props,State>{
   render():any{
     const s=this.state.status,response=s?.response,receipt=response?.response,action=s?fiscalDocumentNextAction(s):null,l=s?labels[s.status]:null,ready=this.state.invoiceType&&this.state.supplyDate&&this.state.paymentMeans;
     return <Modal open={true} title={t('Saudi e-invoicing · test issuance','الفوترة السعودية · إصدار تجريبي')} onClose={()=>{if(!this.state.busy)this.props.onClose();}} footer={<Button disabled={this.state.busy} onClick={this.props.onClose}>{t('Close','إغلاق')}</Button>}>
-      <div aria-busy={this.state.busy}><p>{t('This is an isolated simulation. The commercial invoice stays a draft; no accounting or stock movement is posted here.','هذه محاكاة معزولة. تبقى الفاتورة التجارية مسودة، ولا تُسجّل هنا قيود محاسبية أو حركة مخزون.')}</p>
+      <div aria-busy={this.state.busy}><p>{t('This is an isolated simulation. Accepted ordinary domestic invoices can be posted to the protected workspace once.','هذه محاكاة معزولة. يمكن ترحيل الفاتورة المحلية العادية المقبولة مرة واحدة إلى مساحة العمل المحمية.')}</p>
       {this.state.busy?<p role="status">{t('Working…','جارٍ التنفيذ…')}</p>:null}
       {this.state.error?<p role="alert">{this.state.error}</p>:null}
       {l?<p role="status"><strong>{t(l[0],l[1])}</strong></p>:null}
@@ -66,6 +66,7 @@ export class FiscalIssueDialog extends React.Component<Props,State>{
       {action==='submit'&&s?.version?<Button variant="primary" disabled={this.state.busy} onClick={()=>{if(s.version)void this.run({operation:'submit',expectedVersion:s.version});}}>{t('Submit in simulation','إرسال في المحاكاة')}</Button>:null}
       {action==='recover'&&s?.version?<Button disabled={this.state.busy} onClick={()=>{if(s.version)void this.run({operation:'recover',expectedVersion:s.version});}}>{t('Recover interrupted attempt','استعادة محاولة منقطعة')}</Button>:null}
       {action==='reconcile'&&s?.version?<Button disabled={this.state.busy} onClick={()=>{if(s.version)void this.run({operation:'reconcile',expectedVersion:s.version});}}>{t('Verify stored response without resending','تحقق من الاستجابة المحفوظة دون إعادة إرسال')}</Button>:null}
+      {s?.artifacts.xml?<Button variant="primary" disabled={this.state.busy} onClick={()=>void this.run({operation:'post-sale'})}>{t('Post accepted invoice to accounting','ترحيل المستند المقبول محاسبياً')}</Button>:null}
       {s?.artifacts.xml?<div className="commercial-row-card"><strong>{t('Verified fiscal artifacts','المستندات الضريبية المتحقق منها')}</strong>
         <Button disabled={this.state.busy} icon="download" onClick={()=>void this.download('xml')}>{t('Download accepted XML','تنزيل XML المقبول')}</Button>
         {s.artifacts.pdf?<Button icon="download" disabled={this.state.busy} onClick={()=>void this.download('pdf')}>{t('Download verified PDF','تنزيل PDF المتحقق منه')}</Button>:<p>{t('PDF unavailable until independent PDF/A and signature verification is complete.','PDF غير متاح حتى اكتمال التحقق المستقل من PDF/A والتوقيع.')}</p>}

@@ -5,7 +5,7 @@ import {fiscalQaClientEnabled,fiscalQaProjectActive} from './fiscal-qa-client.js
 const STATUSES=['not-reviewed','reviewed','approved','queued','submitting','uncertain','retryable','rejected','cleared','reported'] as const;
 export type FiscalDocumentStatus=typeof STATUSES[number];
 export interface FiscalReviewFields{invoiceType:'standard'|'simplified';supplyDate:string;paymentMeans:'10'|'30'|'42'|'48'|'1';}
-export type FiscalDocumentAction={operation:'document-status'|'approve'|'prepare'}|{operation:'review';fields:FiscalReviewFields}|{operation:'submit'|'recover'|'reconcile';expectedVersion:number};
+export type FiscalDocumentAction={operation:'document-status'|'approve'|'prepare'|'post-sale'}|{operation:'review';fields:FiscalReviewFields}|{operation:'submit'|'recover'|'reconcile';expectedVersion:number};
 export interface FiscalAuthorityResponse{httpStatus:number;kind:'positive-response'|'validation-errors'|'unresolved-response';warningCount:number;errorCount:number;warningCodes:string[];errorCodes:string[];}
 export interface FiscalResponseStatus{mode:'clearance'|'reporting';updatedAt:string;reportingDeadline:string|null;overdue:boolean;hasReceipt:boolean;recoveryAvailable:boolean;acceptedWithWarnings:boolean;response:FiscalAuthorityResponse|null;}
 export interface FiscalDocumentState{status:FiscalDocumentStatus;version:number|null;response:FiscalResponseStatus|null;artifacts:{xml:boolean;pdf:boolean};capabilities:{review:boolean;approval:boolean;preparation:boolean;submission:boolean;recovery:boolean;reconciliation:boolean};}

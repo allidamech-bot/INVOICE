@@ -39,7 +39,7 @@ async function assertNoLostAuthority(root,readQuery){
 }
 
 /** db is a server Firestore instance. No browser reference/token supplies authority. */
-export function createPeriodService(db){
+export function createPeriodService(db,{fiscalGuard}={}){
   async function readPayload(root,meta,staged=false){
     validateMeta(meta);const chunks=[];
     for(let start=0;start<meta.chunkCount;start+=8){
@@ -145,11 +145,12 @@ export function createPeriodService(db){
     // Enrolled accounts have immutable published chunks. The final transaction
     // rechecks both control generation and manifest, avoiding long read locks.
     const before=await readPayload(root,meta);
+    let candidateForGuard=before;
     let nextMeta=meta,boundaries=control.boundaries.map(b=>({...b})),report=null;
     if(input.operation==='commit'){
       const stageRef=root.collection('periodStaging').doc(input.opId),stageDoc=await stageRef.get(),stageMeta=validateMeta(stageDoc.data());
       if(stageMeta.revision!==input.opId)fail(422,'INVALID_STAGE_IDENTITY');
-      const candidate=await readPayload(stageRef,stageMeta,true);
+      const candidate=await readPayload(stageRef,stageMeta,true);candidateForGuard=candidate;
       try{assertPostedStockRestoreContinuity(before,candidate);assertClosedPeriodUnchanged(before,candidate,boundaries);}
       catch(error){if(error instanceof PeriodError)throw error;fail(422,'PERIOD_CHANGED');}
       await assertPublishedState(root,candidate,boundaries);
@@ -185,6 +186,7 @@ export function createPeriodService(db){
       }
       const verifiedControl=controlValue(latestControl,identity.uid),verifiedMeta=validateMeta(latestMeta.data());
       if(verifiedControl.generation!==control.generation||verifiedMeta.revision!==meta.revision||verifiedMeta.sha256!==meta.sha256)fail(409,'REVISION_CONFLICT');
+      if(fiscalGuard)await fiscalGuard(tx,identity.uid,before,candidateForGuard,input);
       if(input.operation==='commit'){
         tx.create(root.collection('workspaceHistory').doc(meta.revision),{...meta,archivedAt:FieldValue.serverTimestamp()});
         tx.set(metaRef,nextMeta);
