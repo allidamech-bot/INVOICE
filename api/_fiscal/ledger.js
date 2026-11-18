@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {simulationBase,readSimulationContext} from './simulation-scope.js';
+import {readApprovedIntent} from './issue-intent.js';
 import {writeAuthorityEvidence} from './authority-evidence.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {createAttemptResponseStore} from './attempt-response.js';
@@ -101,7 +102,7 @@ export function createFiscalLedger(db){
         return applyTransition(tx,authorizedScope,base,issue,documentId,saved.record,expectedVersion,event,saved.bytes??undefined,undefined);
       });
     },
-    async prepare(authorizedScope,input,xmlBytes,snapshotBytes){
+    async prepare(authorizedScope,input,xmlBytes,snapshotBytes,{approvedIntent=false}={}){
       const base=scope(authorizedScope), initial=prepareFiscalIssue(input);
       assertScope(initial,authorizedScope);
       const xml=artifact(xmlBytes,initial.artifactDigest), snapshot=artifact(snapshotBytes,initial.snapshotDigest);
@@ -111,6 +112,10 @@ export function createFiscalLedger(db){
       const queue=db.doc(base+'/outbox/'+id(initial.documentId));
       return db.runTransaction(async tx=>{
         const {unit:state}=await readSimulationContext(db,tx,authorizedScope,{active:true});
+        if(approvedIntent){
+          const intent=readApprovedIntent(await tx.get(db.doc(base+'/issueIntents/'+id(initial.documentId))),authorizedScope,initial.documentId);
+          if(intent.digest!==initial.snapshotDigest||!intent.bytes.equals(snapshotBytes))throw Error('FISCAL_APPROVED_INTENT_CHANGED');
+        }
         const existing=await tx.get(issue);
         if(existing.exists){
           const stored=existing.data();assertScope(stored,authorizedScope);
