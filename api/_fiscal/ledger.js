@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {writeAuthorityEvidence} from './authority-evidence.js';
 import {prepareFiscalIssue,transitionFiscalIssue,FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
 // Internal Admin SDK service only. No browser endpoint or production activation.
@@ -95,13 +96,15 @@ export function createFiscalLedger(db){
         assertScope(record,authorizedScope);
         if(record.documentId!==documentId||(authorizedScope.egsId!==undefined&&record.egsId!==authorizedScope.egsId))throw new Error('Fiscal document identity mismatch.');
         const next=transitionFiscalIssue(record,expectedVersion,event);
-        const evidence=next.resultDigest?artifact(evidenceBytes,next.resultDigest):null;
+        const unverifiedDigest=event.kind==='uncertain'?event.unverifiedEvidenceDigest:undefined;
+        if(evidenceBytes!==undefined&&!next.resultDigest&&!unverifiedDigest)throw Error('Unbound authority evidence.');
         const cleared=next.clearedArtifactDigest?artifact(clearedBytes,next.clearedArtifactDigest):null;
         const eventRef=db.doc(issue.path+'/events/'+String(next.version));
         // Evidence is write-once and ref-specific. No raw credentials are stored.
-        if(evidence)tx.create(db.doc(eventRef.path+'/artifacts/result'),evidence);
+        if(next.resultDigest)writeAuthorityEvidence(tx,db,db.doc(eventRef.path+'/artifacts/result'),evidenceBytes,next.resultDigest);
+        if(unverifiedDigest)writeAuthorityEvidence(tx,db,db.doc(eventRef.path+'/artifacts/unverified-response'),evidenceBytes,unverifiedDigest);
         if(cleared)tx.create(db.doc(issue.path+'/artifacts/cleared'),cleared);
-        tx.create(eventRef,{version:next.version,status:next.status,kind:event.kind,attemptId:event.attemptId,at:event.at,resultDigest:next.resultDigest});
+        tx.create(eventRef,{version:next.version,status:next.status,kind:event.kind,attemptId:event.attemptId,at:event.at,resultDigest:next.resultDigest,...(unverifiedDigest?{unverifiedEvidenceDigest:unverifiedDigest}:{})});
         tx.update(issue,next);
         tx.update(db.doc(base+'/outbox/'+id(documentId)),outbox(next));
         return next;

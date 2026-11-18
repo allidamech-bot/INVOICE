@@ -26,7 +26,7 @@ export interface FiscalIssueRecord extends PreparedFiscalIssue {
 }
 export type FiscalIssueEvent =
   | { kind: 'start'; attemptId: string; at: string }
-  | { kind: 'uncertain'; attemptId: string; at: string }
+  | { kind: 'uncertain'; attemptId: string; at: string; unverifiedEvidenceDigest?: string }
   | { kind: 'confirmed-not-accepted'; attemptId: string; at: string; evidenceDigest: string }
   | { kind: 'rejected'; attemptId: string; at: string; resultDigest: string }
   | { kind: 'cleared'; attemptId: string; at: string; resultDigest: string; clearedArtifactDigest: string; warnings: boolean }
@@ -84,6 +84,7 @@ export function transitionFiscalIssue(record: FiscalIssueRecord, expectedVersion
   if ((record.status !== 'submitting' && record.status !== 'uncertain') || record.attemptId !== event.attemptId) throw new Error('Uncorrelated or terminal fiscal result.');
   switch(event.kind) {
     case 'uncertain':
+      if (event.unverifiedEvidenceDigest !== undefined) digest(event.unverifiedEvidenceDigest);
       if (record.status !== 'submitting') throw new Error('Already uncertain.');
       return {...next,status:'uncertain'};
     case 'confirmed-not-accepted':

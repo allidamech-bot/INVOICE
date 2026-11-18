@@ -154,3 +154,14 @@ test('worker resolves encrypted simulation credential without exposing it',async
   const worker=createFiscalSimulationWorker({ledger:f.ledger,resolveCredential:s=>f.vault.load(s,'cred1','production'),verifyPrepared:async()=>true,verifyAuthorityResult:async()=>true,clock:()=>later,fetchImpl:async(url,options)=>{assert.equal(options.headers.Authorization,'Basic '+Buffer.from(f.credential.binarySecurityToken+':'+f.credential.secret).toString('base64'));return new Response(JSON.stringify({...valid,reportingStatus:'REPORTED'}),{status:200});}});
   assert.deepEqual(await worker(simScope,'qa-doc',1),{documentId:'qa-doc',status:'reported',version:3});
 });
+
+test('worker archives unverified response without accepting it or replaying',async()=>{
+  const body={...valid,clearanceStatus:'CLEARED',clearedInvoice:cleared.toString('base64'),padding:'x'.repeat(700000)};
+  const f=simulationFixture(body,async()=>true,async()=>false);await f.prepare();
+  const outcome=await f.worker(simScope,'qa-doc',1);assert.equal(outcome.status,'uncertain');
+  const event=f.read(base+'/issues/qa-doc/events/3');const raw=Buffer.from(JSON.stringify(body));
+  assert.equal(event.resultDigest,null);assert.equal(event.unverifiedEvidenceDigest,digest(raw));
+  const manifest=f.read(base+'/issues/qa-doc/events/3/artifacts/unverified-response');assert.equal(manifest.chunkCount,2);
+  assert.equal(f.read(base+'/issues/qa-doc/artifacts/cleared'),undefined);
+  await assert.rejects(f.worker(simScope,'qa-doc',3));assert.equal(f.calls(),1);
+});
