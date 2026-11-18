@@ -1,3 +1,4 @@
+import {planPurchaseCostCorrection} from './purchase-cost-correction.mjs';
 import {fiscalSalesCoverage} from './fiscal-coverage.mjs';
 import {stockCostCents,supplierAdjustmentProjection} from './fiscal-cost.mjs';
 import {reconcileDomesticPurchase} from './purchase-reconciliation.mjs';
@@ -185,6 +186,41 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      if(!number)tx.create(numberRef,{...s,key,digest:row.evidenceDigest});return result;
    });
  }
+ async function postPurchaseCost(s,id){
+   validateScope(s);need(typeof id==='string'&&ID.test(id));
+   return db.runTransaction(async tx=>{
+     const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
+     const base=simulationBase(s),source=await published(db,tx,s,id),p=source.payload.purchases.find(x=>x.id===id);
+     const original=data(await tx.get(postingRef(db,s,'purchase-'+id))),review=data(await tx.get(db.doc(base+'/purchaseCostReviews/'+id)));
+     need(p&&p.workspaceId===s.workspaceId&&p.status==='posted'&&same(original,s)&&original.source==='purchase'&&original.sourceId===id&&original.amount.kind==='invoice'&&original.amount.treatment==='domestic'&&original.sourceFingerprint===reviewDigest(p),'FISCAL_PURCHASE_SOURCE_MISMATCH');
+     need(same(review,s)&&review.state==='approved'&&review.purchaseId===id&&review.originalEvidenceDigest===original.evidenceDigest&&review.sourceFingerprint===original.sourceFingerprint&&day(review.effectiveDate)&&review.effectiveDate>=original.taxDate&&Array.isArray(review.allocations)&&HEX.test(review.allocationDigest)&&review.allocationDigest===reviewDigest(review.allocations),'FISCAL_COST_REVIEW_REQUIRED');
+     const ref=db.doc(base+'/purchaseCostCorrections/'+id),prior=data(await tx.get(ref));
+     if(prior){
+       need(same(prior,s)&&prior.purchaseId===id&&prior.originalEvidenceDigest===original.evidenceDigest&&prior.sourceFingerprint===original.sourceFingerprint&&prior.reviewDigest===reviewDigest(review),'FISCAL_PURCHASE_COST_CONFLICT');
+       return {status:'posted',key:'purchase-cost-'+id};
+     }
+     const correctionDate=clock().slice(0,10);need(review.effectiveDate===correctionDate,'FISCAL_COST_REVIEW_REQUIRED');availablePeriod(source,correctionDate);
+     // Do not rewrite purchase history or post a second VAT journal.
+     const plan=planPurchaseCostCorrection({purchase:p,amount:original.amount,allocations:review.allocations,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems});
+     const updates=new Map(plan.updates.map(x=>[x.itemId,x]));
+     const candidate={...source.payload,savedItems:source.payload.savedItems.map(x=>updates.has(x.id)?{...x,lastUnitCost:updates.get(x.id).correctedUnitCost,updatedAt:clock()}:x)};
+     const [{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity}]=await Promise.all(['period','backup'].map(loadCompiledFinance));
+     assertPostedStockRestoreContinuity(source.payload,candidate);assertClosedPeriodUnchanged(source.payload,candidate,source.control.boundaries);
+     for(const b of source.control.boundaries){
+       const r=data(await tx.get(db.doc(source.root+'/periodReports/'+b.reportId)));
+       need(r?.workspaceId===b.workspaceId&&r.through===b.through&&r.sha256===sha(Buffer.from(JSON.stringify(closedPeriodState(source.payload,b)))),'FISCAL_CLOSED_REPORT_MISMATCH');
+     }
+     const revision=randomBytes(16).toString('hex'),encoded=encodeWorkspace(candidate,revision);need(encoded.chunks.length<=24,'FISCAL_SOURCE_SIZE_UNSUPPORTED');
+     const meta={...encoded.meta,parentRevision:source.meta.revision,chunkStorage:'period-generations-v1'};
+     // Write-once allocation and catalog basis publication in the same CAS.
+     tx.create(ref,{...s,purchaseId:id,originalEvidenceDigest:original.evidenceDigest,sourceFingerprint:original.sourceFingerprint,reviewDigest:reviewDigest(review),effectiveDate:correctionDate,sourceRevision:source.meta.revision,publishedRevision:revision,plan});
+     for(const chunk of encoded.chunks)tx.create(db.doc(source.root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0')),chunk);
+     tx.create(db.doc(source.root+'/workspaceHistory/'+source.meta.revision),{...source.meta,archivedAt:encoded.meta.updatedAt});
+     tx.update(db.doc(source.root+'/workspace/meta'),meta);
+     tx.update(db.doc(source.root+'/accounting/control'),{generation:source.control.generation+1,updatedAt:encoded.meta.updatedAt});
+     return {status:'posted',key:'purchase-cost-'+id};
+   });
+ }
  async function postPurchaseAdjustment(s,id){
    validateScope(s);need(typeof id==='string'&&ID.test(id));
    const {purchaseTotals,purchaseAccountingIsValid}=await loadCompiledFinance('operations');
@@ -270,7 +306,14 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
              for(const item of linked.docs){const x=item.data();if(x.source!=='purchase')continue;need(day(x.taxDate)&&x.key===item.id,'FISCAL_PURCHASE_SOURCE_MISMATCH');if(x.taxDate<=to&&x.key!==original.key){journal(x.amount.lines);corrections.push(x);}}
              const baseRecon=reconcileDomesticPurchase({purchase:p,amount:original.amount,landedTotal:purchaseTotals(p).landedTotal,movements:source.payload.inventoryMovements,payments:source.payload.supplierPayments,through:to});
              const balance=supplierAdjustmentProjection(original,corrections,baseRecon.paid);
-             purchaseBalances.set(p.id,{...baseRecon,...balance,matched:baseRecon.matched&&corrections.length===0});
+             const cost=data(await tx.get(db.doc(base+'/purchaseCostCorrections/'+p.id)));
+             let catalogCostCorrectionDate=null;
+             if(cost){
+               need(same(cost,original)&&cost.purchaseId===p.id&&cost.originalEvidenceDigest===original.evidenceDigest&&cost.sourceFingerprint===original.sourceFingerprint&&day(cost.effectiveDate)&&cost.plan?.grossPayable===original.amount.gross&&cost.plan?.deductibleVat===original.amount.deductibleVat&&cost.plan?.correctedCost===baseRecon.fiscalCost,'FISCAL_PURCHASE_COST_CONFLICT');
+               if(cost.effectiveDate<=to)catalogCostCorrectionDate=cost.effectiveDate;
+             }
+             // The full legacy valuation/COGS bridge is not yet reconciled.
+             purchaseBalances.set(p.id,{...baseRecon,...balance,catalogCostCorrectionDate,matched:baseRecon.matched&&corrections.length===0});
            }
            reconciliation=purchaseBalances.get(p.id);
          }
@@ -324,5 +367,5 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
    return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
- return Object.freeze({postSale,postPurchase,postPurchaseAdjustment,report,closeProof});
+ return Object.freeze({postSale,postPurchase,postPurchaseCost,postPurchaseAdjustment,report,closeProof});
 }

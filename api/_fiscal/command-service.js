@@ -11,10 +11,10 @@ const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].ever
 export function parseFiscalCommand(v){
   need(v&&typeof v==='object'&&!Array.isArray(v),'INVALID_COMMAND');
   const op=v.operation,keys=['operation','workspaceId'];
-  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale','post-purchase','post-purchase-adjustment','vat-report'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
+  need(['inspect','enroll','check','operational','document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale','post-purchase','post-purchase-cost','post-purchase-adjustment','vat-report'].includes(op)&&id(v.workspaceId),'INVALID_COMMAND');
   if(['document-status','review','approve','prepare','submit','recover','reconcile','download','post-sale'].includes(op)){keys.push('documentId','documentRevision');need(id(v.documentId)&&version(v.documentRevision),'INVALID_COMMAND');}
   if(op==='post-purchase-adjustment'){keys.push('adjustmentId');need(id(v.adjustmentId),'INVALID_COMMAND');}
-  if(op==='post-purchase'){keys.push('purchaseId');need(id(v.purchaseId),'INVALID_COMMAND');}
+  if(op==='post-purchase'||op==='post-purchase-cost'){keys.push('purchaseId');need(id(v.purchaseId),'INVALID_COMMAND');}
   if(op==='vat-report'){keys.push('from','to');need(typeof v.from==='string'&&typeof v.to==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v.from)&&/^\d{4}-\d{2}-\d{2}$/.test(v.to),'INVALID_COMMAND');}
   if(op==='download'){keys.push('format');need(['xml','pdf'].includes(v.format),'INVALID_COMMAND');}
   if(op==='review'){keys.push('invoiceType','supplyDate','paymentMeans');need(['standard','simplified'].includes(v.invoiceType)&&typeof v.supplyDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v.supplyDate)&&['10','30','42','48','1'].includes(v.paymentMeans),'INVALID_COMMAND');}
@@ -65,10 +65,11 @@ export function createFiscalCommandService({db,approve,reviewDocument,enrollment
       const r=await enrollment[method](identity,{workspaceId:s.workspaceId,egsId:s.egsId,...(op==='enroll'?{otp:cmd.otp}:{expectedVersion:cmd.expectedVersion})});
       return {environment:'simulation',state:r.state,version:r.version};
     }
-    if(op==='vat-report'||op==='post-purchase'||op==='post-purchase-adjustment'||op==='post-sale'){
+    if(op==='vat-report'||op==='post-purchase'||op==='post-purchase-cost'||op==='post-purchase-adjustment'||op==='post-sale'){
       need(accounting,'FISCAL_ACCOUNTING_UNAVAILABLE');
       if(op==='vat-report')return accounting.report(s,cmd.from,cmd.to);
       if(op==='post-purchase-adjustment')return {environment:'simulation',...await accounting.postPurchaseAdjustment(s,cmd.adjustmentId)};
+      if(op==='post-purchase-cost')return {environment:'simulation',...await accounting.postPurchaseCost(s,cmd.purchaseId)};
       if(op==='post-purchase')return {environment:'simulation',...await accounting.postPurchase(s,cmd.purchaseId)};
       need(c.issue&&c.intent&&c.intent.documentRevision===cmd.documentRevision&&c.intent.sha256===c.issue.snapshotDigest&&['cleared','reported'].includes(c.issue.status),'FISCAL_POSTING_NOT_ELIGIBLE');
       return {environment:'simulation',documentId:cmd.documentId,...await accounting.postSale(s,cmd.documentId,cmd.documentRevision)};
