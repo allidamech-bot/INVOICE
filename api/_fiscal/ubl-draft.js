@@ -1,8 +1,8 @@
 import {calculateFiscalTax} from '../../dist/src/lib/fiscal-tax.js';
 import {FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
-// Restricted UBL candidate writer: domestic SAR, standard-rated sales only,
-// without discounts, prepayments, shipping or corrections. No final signature.
+// Restricted UBL candidate writer: domestic SAR, standard-rated sales and correction notes only,
+// without discounts, prepayments or shipping. No final signature.
 // Never send its output to a buyer or authority before a trusted SDK gate.
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const VAT=/^3[0-9]{13}3$/;
@@ -26,14 +26,36 @@ function date(value){
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||!Number.isFinite(Date.parse(value))||new Date(value).toISOString().slice(0,10)!==value)throw Error('INVALID_DATE');
   return value;
 }
-export function buildDomesticStandardInvoiceCandidate(input){
-  if(!input||Object.keys(input).some(key=>!['currency','mode','kind','uuid','icv','previousInvoiceHash','number','issueDate','issueTime','supplyDate','paymentMeans','seller','buyer','lines'].includes(key))||input.currency!=='SAR'||input.mode!=='standard'||input.kind!=='invoice'||input.adjustments!==undefined||input.prepaid!==undefined||input.discount!==undefined||input.shipping!==undefined||input.fx!==undefined)throw Error('UNSUPPORTED_XML_CASE');
+export function buildDomesticFiscalCandidate(input){
+  if(!input||Object.keys(input).some(key=>!['currency','mode','kind','uuid','icv','previousInvoiceHash','number','issueDate','issueTime','supplyDate','paymentMeans','seller','buyer','lines','original','correctionReason'].includes(key))||input.currency!=='SAR'||!['standard','simplified'].includes(input.mode)||!['invoice','credit-note','debit-note'].includes(input.kind)||input.adjustments!==undefined||input.prepaid!==undefined||input.discount!==undefined||input.shipping!==undefined||input.fx!==undefined)throw Error('UNSUPPORTED_XML_CASE');
   if(typeof input.uuid!=='string'||!UUID.test(input.uuid)||typeof input.icv!=='string'||typeof input.previousInvoiceHash!=='string')throw Error('INVALID_XML_IDENTITY');
   if(!/^[1-9][0-9]{0,17}$/.test(input.icv)||(input.icv==='1'?input.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH:!/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(input.previousInvoiceHash)))throw Error('INVALID_CHAIN');
   date(input.issueDate);
   if(typeof input.issueTime!=='string'||!/^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(input.issueTime)||!['10','30','42','48','1'].includes(input.paymentMeans))throw Error('INVALID_ISSUE_DETAILS');
   if(date(input.supplyDate)>input.issueDate)throw Error('UNSUPPORTED_SUPPLY_DATE');
   if(!Array.isArray(input.lines)||!input.lines.length||input.lines.length>500||input.lines.some(l=>!l||Object.keys(l).some(key=>!['id','name','quantity','unitNetPrice','unitCode','category','rate'].includes(key))||l.category!=='S'||l.rate!=='15'||l.allowance!==undefined||l.reasonCode!==undefined||typeof l.unitCode!=='string'||!['PCE','KGM','LTR','MTR','HUR','EA'].includes(l.unitCode)))throw Error('UNSUPPORTED_XML_LINE');
+  const sellerXml=party(input.seller,'AccountingSupplierParty');
+  if(input.mode==='standard'&&input.buyer==null)throw Error('BUYER_REQUIRED');
+  // The anonymous retail path deliberately accepts no incomplete buyer object.
+  const buyerXml=input.buyer===null&&input.mode==='simplified'
+    ? '<cac:AccountingCustomerParty><cac:Party/></cac:AccountingCustomerParty>'
+    : party(input.buyer,'AccountingCustomerParty');
+  let billing='',reason='';
+  if(input.kind==='invoice'){
+    if(input.original!==undefined||input.correctionReason!==undefined)throw Error('UNEXPECTED_CORRECTION');
+  }else{
+    // Original is an immutable reference supplied by the trusted future ledger.
+    // Structural matching does not verify ownership or remaining credit balance.
+    const o=input.original;
+    if(!o||Object.keys(o).some(k=>!['number','uuid','issueDate','mode','sellerVat','buyerVat'].includes(k))
+      ||typeof o.uuid!=='string'||!UUID.test(o.uuid)||o.uuid===input.uuid||o.number===input.number
+      ||o.mode!==input.mode||o.sellerVat!==input.seller.vatNumber||o.buyerVat!==(input.buyer?.vatNumber??null)
+      ||date(o.issueDate)>input.issueDate)throw Error('INVALID_ORIGINAL_REFERENCE');
+    billing='<cac:BillingReference><cac:InvoiceDocumentReference>'+e('ID',o.number)+e('IssueDate',o.issueDate)+'</cac:InvoiceDocumentReference></cac:BillingReference>';
+    reason=e('InstructionNote',input.correctionReason);
+  }
+  const code=({invoice:'388','credit-note':'381','debit-note':'383'})[input.kind];
+  const subtype=input.mode==='standard'?'0100000':'0200000';
   const totals=calculateFiscalTax({lines:input.lines});
   const lines=input.lines.map((line,i)=>{
     const t=totals.lines[i];
@@ -45,17 +67,23 @@ export function buildDomesticStandardInvoiceCandidate(input){
   }).join('');
   const xml='<?xml version="1.0" encoding="UTF-8"?>'
     +'<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">'
-    +e('ProfileID','reporting:1.0')+e('ID',input.number)+e('UUID',input.uuid)+e('IssueDate',input.issueDate)+e('IssueTime',input.issueTime+'Z')+'<cbc:InvoiceTypeCode name="0100000">388</cbc:InvoiceTypeCode>'
-    +e('DocumentCurrencyCode','SAR')+e('TaxCurrencyCode','SAR')
+    +e('ProfileID','reporting:1.0')+e('ID',input.number)+e('UUID',input.uuid)+e('IssueDate',input.issueDate)+e('IssueTime',input.issueTime+'Z')+'<cbc:InvoiceTypeCode name="'+subtype+'">'+code+'</cbc:InvoiceTypeCode>'
+    +e('DocumentCurrencyCode','SAR')+e('TaxCurrencyCode','SAR')+billing
     +'<cac:AdditionalDocumentReference><cbc:ID>ICV</cbc:ID>'+e('UUID',input.icv)+'</cac:AdditionalDocumentReference>'
     +'<cac:AdditionalDocumentReference><cbc:ID>PIH</cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">'+safe(input.previousInvoiceHash)+'</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference>'
-    +party(input.seller,'AccountingSupplierParty')+party(input.buyer,'AccountingCustomerParty')
+    +sellerXml+buyerXml
     +'<cac:Delivery>'+e('ActualDeliveryDate',input.supplyDate)+'</cac:Delivery>'
-    +'<cac:PaymentMeans>'+e('PaymentMeansCode',input.paymentMeans)+'</cac:PaymentMeans>'
+    +'<cac:PaymentMeans>'+e('PaymentMeansCode',input.paymentMeans)+reason+'</cac:PaymentMeans>'
     +'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+'</cac:TaxTotal>'
     +'<cac:TaxTotal>'+amount('TaxAmount',totals.vatTotal)+'<cac:TaxSubtotal>'+amount('TaxableAmount',totals.taxExclusiveTotal)+amount('TaxAmount',totals.vatTotal)+category('TaxCategory')+'</cac:TaxSubtotal></cac:TaxTotal>'
     +'<cac:LegalMonetaryTotal>'+amount('LineExtensionAmount',totals.lineNetTotal)+amount('TaxExclusiveAmount',totals.taxExclusiveTotal)+amount('TaxInclusiveAmount',totals.taxInclusiveTotal)+amount('PayableAmount',totals.taxInclusiveTotal)+'</cac:LegalMonetaryTotal>'+lines+'</Invoice>';
   const bytes=Buffer.from(xml,'utf8');
   if(bytes.length>512*1024)throw Error('XML_TOO_LARGE');
   return {status:'unsigned-candidate',bytes,totals};
+}
+
+// Preserve the original narrow function contract for existing callers.
+export function buildDomesticStandardInvoiceCandidate(input){
+  if(!input||input.mode!=='standard'||input.kind!=='invoice')throw Error('UNSUPPORTED_XML_CASE');
+  return buildDomesticFiscalCandidate(input);
 }
