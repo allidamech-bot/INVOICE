@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {writeAuthorityEvidence} from './authority-evidence.js';
+import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {prepareFiscalIssue,transitionFiscalIssue,FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
 // Internal Admin SDK service only. No browser endpoint or production activation.
@@ -26,6 +27,7 @@ function outbox(record){
 export function createFiscalLedger(db){
   if(!db||typeof db.runTransaction!=='function'||typeof db.doc!=='function')throw new Error('Admin transaction store required.');
   return {
+    readAccepted:createAcceptedFiscalReader(db),
     async prepare(authorizedScope,input,xmlBytes,snapshotBytes){
       const base=scope(authorizedScope), initial=prepareFiscalIssue(input);
       assertScope(initial,authorizedScope);
