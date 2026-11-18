@@ -451,6 +451,8 @@ const CONTRACTS=[
   'tests/fiscal-vat-report.test.mjs',
   'tests/fiscal-zatca-simulation.test.mjs',
   'tests/fiscal-onboarding-store.test.mjs',
+  'tests/fiscal-managed-kms.test.mjs',
+  'tests/fiscal-onboarding-runtime.test.mjs',
   // Production-critical regression contracts; mandatory even when unchanged in a PR.
   'tests/b07-sales-stock-issue.test.mjs',
   'tests/invoice-stock-ledger-20261015.test.mjs',
