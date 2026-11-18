@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {assertReadyForProductionCsid} from './onboarding.js';
 
 // Internal transport only. No public route and no live production traffic.
 // Never log request/response bodies: onboarding responses contain secrets.
@@ -110,8 +111,9 @@ export function createZatcaSimulationClient({environment,authorizedScope,fetchIm
       const r=await post('compliance/invoices',invoice(payload),{Authorization:checkedAuth(credential,'compliance')});
       return outcome(r,mode,true);
     },
-    async requestProductionCsid(credential){
+    async requestProductionCsid(credential,onboarding){
       const authorization=checkedAuth(credential,'compliance');
+      assertReadyForProductionCsid(onboarding,credential);
       if(!Number.isSafeInteger(credential.requestId)||credential.requestId<=0)throw Error('INVALID_REQUEST_ID');
       const r=await post('production/csids',{compliance_request_id:String(credential.requestId)},{Authorization:authorization});
       if(r.status!==200&&r.status!==201)throw Error('PRODUCTION_CSID_NOT_CONFIRMED');
