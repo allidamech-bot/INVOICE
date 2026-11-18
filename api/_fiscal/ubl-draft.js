@@ -15,7 +15,7 @@ const amount=(name,value)=>'<cbc:'+name+' currencyID="SAR">'+safe(value)+'</cbc:
 const scheme='<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>';
 function category(name){return '<cac:'+name+'><cbc:ID>S</cbc:ID><cbc:Percent>15</cbc:Percent>'+scheme+'</cac:'+name+'>';}
 function party(p,role){
-  if(!p||!VAT.test(p.vatNumber)||typeof p.vatNumber!=='string'||typeof p.crn!=='string'||!/^[0-9]{10}$/.test(p.crn)
+  if(!p||p.country!=='SA'||Object.keys(p).some(key=>!['country','vatNumber','crn','building','postal','street','district','city','name'].includes(key))||typeof p.vatNumber!=='string'||!VAT.test(p.vatNumber)||typeof p.crn!=='string'||!/^[0-9]{10}$/.test(p.crn)
     ||typeof p.building!=='string'||!/^[0-9]{4}$/.test(p.building)||typeof p.postal!=='string'||!/^[0-9]{5}$/.test(p.postal))throw Error('INVALID_PARTY');
   return '<cac:'+role+'><cac:Party><cac:PartyIdentification><cbc:ID schemeID="CRN">'+safe(p.crn)+'</cbc:ID></cac:PartyIdentification>'
     +'<cac:PostalAddress>'+e('StreetName',p.street)+e('BuildingNumber',p.building)+e('CitySubdivisionName',p.district)+e('CityName',p.city)+e('PostalZone',p.postal)
@@ -29,9 +29,9 @@ function date(value){
 export function buildDomesticStandardInvoiceCandidate(input){
   if(!input||Object.keys(input).some(key=>!['currency','mode','kind','uuid','icv','previousInvoiceHash','number','issueDate','issueTime','supplyDate','paymentMeans','seller','buyer','lines'].includes(key))||input.currency!=='SAR'||input.mode!=='standard'||input.kind!=='invoice'||input.adjustments!==undefined||input.prepaid!==undefined||input.discount!==undefined||input.shipping!==undefined||input.fx!==undefined)throw Error('UNSUPPORTED_XML_CASE');
   if(typeof input.uuid!=='string'||!UUID.test(input.uuid)||typeof input.icv!=='string'||typeof input.previousInvoiceHash!=='string')throw Error('INVALID_XML_IDENTITY');
-  if(!/^[1-9][0-9]{0,17}$/.test(input.icv)|| (input.icv==='1'?input.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH:! /^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(input.previousInvoiceHash)))throw Error('INVALID_CHAIN');
+  if(!/^[1-9][0-9]{0,17}$/.test(input.icv)||(input.icv==='1'?input.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH:!/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(input.previousInvoiceHash)))throw Error('INVALID_CHAIN');
   date(input.issueDate);
-  if(typeof input.issueTime!=='string'||! /^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(input.issueTime)||!['10','30','42','48','1'].includes(input.paymentMeans))throw Error('INVALID_ISSUE_DETAILS');
+  if(typeof input.issueTime!=='string'||!/^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(input.issueTime)||!['10','30','42','48','1'].includes(input.paymentMeans))throw Error('INVALID_ISSUE_DETAILS');
   if(date(input.supplyDate)>input.issueDate)throw Error('UNSUPPORTED_SUPPLY_DATE');
   if(!Array.isArray(input.lines)||!input.lines.length||input.lines.length>500||input.lines.some(l=>!l||Object.keys(l).some(key=>!['id','name','quantity','unitNetPrice','unitCode','category','rate'].includes(key))||l.category!=='S'||l.rate!=='15'||l.allowance!==undefined||l.reasonCode!==undefined||typeof l.unitCode!=='string'||!['PCE','KGM','LTR','MTR','HUR','EA'].includes(l.unitCode)))throw Error('UNSUPPORTED_XML_LINE');
   const totals=calculateFiscalTax({lines:input.lines});
