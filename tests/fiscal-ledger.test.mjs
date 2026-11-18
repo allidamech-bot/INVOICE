@@ -84,3 +84,39 @@ test('concurrent state transitions enforce version CAS; uncertain outbox stays o
   assert.equal(f.read(base+'/outbox/qa-doc').state,'hold');
   await assert.rejects(f.ledger.transition(scope,'qa-doc',3,{kind:'start',attemptId:'c',at:later}),/eligible/);
 });
+
+
+import {createFiscalSimulationWorker} from '../api/_fiscal/simulation-worker.js';
+const simScope={...scope,egsId:'qa-egs',environment:'simulation'};
+function simulationFixture(response,verifyPrepared=async()=>true,verifyAuthorityResult=async()=>true){
+  const f=fixture();f.seed(base+'/egs/qa-egs',{...scope,egsId:'qa-egs',active:true,environment:'simulation',nextIcv:'1',previousInvoiceHash:FIRST_PREVIOUS_INVOICE_HASH});
+  let calls=0, attempts=0;
+  const worker=createFiscalSimulationWorker({ledger:f.ledger,resolveCredential:async()=>({...simScope,kind:'production',binarySecurityToken:Buffer.from('qa-cert').toString('base64'),secret:'qa-secret'}),verifyPrepared,verifyAuthorityResult,clock:()=>later,attemptId:()=>`attempt-${++attempts}`,fetchImpl:async(url,req)=>{calls++;assert.match(url,/\/simulation\/invoices\//);assert.equal(JSON.parse(req.body).invoice,xml.toString('base64'));return new Response(JSON.stringify(response),{status:200});}});
+  return {...f,worker,calls:()=>calls};
+}
+const valid={validationResults:{status:'PASS',errorMessages:[],warningMessages:[]}};
+test('integrated worker claims once, sends immutable bytes and persists verified clearance',async()=>{
+  const f=simulationFixture({...valid,clearanceStatus:'CLEARED',clearedInvoice:cleared.toString('base64')});await f.prepare();
+  const outcomes=await Promise.allSettled([f.worker(simScope,'qa-doc',1),f.worker(simScope,'qa-doc',1)]);
+  assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1);assert.equal(f.calls(),1);
+  assert.equal(f.read(base+'/issues/qa-doc').status,'cleared');assert.equal(f.read(base+'/outbox/qa-doc').state,'closed');
+  assert.equal(f.read(base+'/issues/qa-doc/artifacts/cleared').sha256,digest(cleared));
+});
+test('integrated reporting confirms only verified authority response',async()=>{
+  const f=simulationFixture({...valid,reportingStatus:'REPORTED'});await f.prepare({mode:'reporting'});
+  assert.equal((await f.worker(simScope,'qa-doc',1)).status,'reported');assert.equal(f.calls(),1);
+  const g=simulationFixture({...valid,reportingStatus:'REPORTED'},async()=>true,async()=>false);await g.prepare({mode:'reporting'});
+  assert.equal((await g.worker(simScope,'qa-doc',1)).status,'uncertain');assert.equal(g.read(base+'/outbox/qa-doc').state,'hold');
+  await assert.rejects(g.worker(simScope,'qa-doc',3));assert.equal(g.calls(),1);
+});
+test('failed artifact verification and corrupted storage never reach transport',async()=>{
+  const f=simulationFixture({},async()=>false);await f.prepare();assert.equal((await f.worker(simScope,'qa-doc',1)).status,'uncertain');assert.equal(f.calls(),0);
+  const g=simulationFixture({});await g.prepare();g.seed(base+'/issues/qa-doc/artifacts/prepared',{sha256:digest(xml),bytes:Buffer.from('corrupt').toString('base64')});
+  await assert.rejects(g.worker(simScope,'qa-doc',1),/artifact/);assert.equal(g.calls(),0);assert.equal(g.read(base+'/issues/qa-doc').status,'queued');
+});
+test('worker fails closed for production, wrong EGS and unconfirmed response',async()=>{
+  const f=simulationFixture({});await f.prepare();
+  await assert.rejects(f.worker({...simScope,environment:'production'},'qa-doc',1),/PRODUCTION_DISABLED/);
+  await assert.rejects(f.worker({...simScope,egsId:'other'},'qa-doc',1));assert.equal(f.calls(),0);
+  assert.equal((await f.worker(simScope,'qa-doc',1)).status,'uncertain');assert.equal(f.calls(),1);
+});
