@@ -49,10 +49,30 @@ class CanonicalInvoice {
     }
     public static void main(String[] args)throws Exception {
         try {
-            if(args.length!=1||!"invoice".equals(args[0]))throw new IllegalArgumentException();
+            if(args.length!=1||!Set.of("invoice","signed-info","signed-properties").contains(args[0]))throw new IllegalArgumentException();
             byte[] bytes=System.in.readNBytes(524289);if(bytes.length==0||bytes.length>524288)throw new IllegalArgumentException();
             Document d=parse(bytes);if(!named(d.getDocumentElement(),UBL,"Invoice"))throw new IllegalArgumentException();
-            List<Node> nodes=new ArrayList<>();collect(d,nodes,true,0);
+            List<Node> nodes=new ArrayList<>();
+            if("invoice".equals(args[0]))collect(d,nodes,true,0);
+            else {
+                String ds="http://www.w3.org/2000/09/xmldsig#", xa="http://uri.etsi.org/01903/v1.3.2#";
+                var sig=d.getElementsByTagNameNS(ds,"Signature");
+                if(sig.getLength()!=1)throw new IllegalArgumentException();
+                Element signature=(Element)sig.item(0);
+                String ns="signed-info".equals(args[0])?ds:xa;
+                String name="signed-info".equals(args[0])?"SignedInfo":"SignedProperties";
+                var target=d.getElementsByTagNameNS(ns,name);
+                if(target.getLength()!=1)throw new IllegalArgumentException();
+                Element e=(Element)target.item(0);
+                if("signed-info".equals(args[0])){
+                    if(e.getParentNode()!=signature)throw new IllegalArgumentException();
+                }else{
+                    if(!"xadesSignedProperties".equals(e.getAttribute("Id"))||!named(e.getParentNode(),xa,"QualifyingProperties")
+                        ||!named(e.getParentNode().getParentNode(),ds,"Object")||e.getParentNode().getParentNode().getParentNode()!=signature
+                        ||!("#"+signature.getAttribute("Id")).equals(((Element)e.getParentNode()).getAttribute("Target")))throw new IllegalArgumentException();
+                }
+                collect(e,nodes,false,0);
+            }
             NodeSetData<Node> data=()->nodes.iterator();
             TransformService service=TransformService.getInstance(C14N,"DOM");service.init((TransformParameterSpec)null);
             Document holder=parse("<Transform/>".getBytes(java.nio.charset.StandardCharsets.UTF_8));
