@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fiscalProfileFieldChecks,FiscalComplianceSettings} from '../dist/src/components/FiscalComplianceSettings.js';
 import {setUiLanguage} from '../dist/src/lib/i18n.js';
 
-globalThis.React={createElement:(tag,props,...children)=>({tag,props,children})};
+globalThis.React={Component:class {},createElement:(tag,props,...children)=>({tag,props,children})};
+const {fiscalProfileFieldChecks,FiscalComplianceSettings}=await import('../dist/src/components/FiscalComplianceSettings.js');
 const company={country:'SA',nameAr:'منشأة اختبار',vatNumber:'300000000000003',commercialRegistration:'1000000000',addressAr:'عنوان اختبار',city:'الرياض'};
 const text=node=>Array.isArray(node)?node.map(text).join(' '):node&&typeof node==='object'?text(node.children):typeof node==='string'?node:'';
 const elements=node=>Array.isArray(node)?node.flatMap(elements):node&&typeof node==='object'?[node,...elements(node.children)]:[];
