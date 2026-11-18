@@ -43,3 +43,11 @@ The public site at https://invoice-three-puce.vercel.app/ responded to read-only
 - https://zatca.gov.sa/en/E-Invoicing/SystemsDevelopers/Pages/default.aspx
 
 SDK validation does not establish live ZATCA acceptance. Recheck the current technical standards, data dictionary, security specifications and API contracts before building the adapter.
+
+## TAX-04 increment — Phase-2 lifecycle contract
+
+Added src/lib/fiscal-issuance.ts and executable tests. It models prepared, queued, submitting, uncertain, retryable, rejected, cleared and reported states, with version checks, per-attempt correlation, immutable invoice identifiers, artifact and snapshot digests, fixed reporting deadline and output selection. First previous-invoice hash follows BR-KSA-26; later hashes use canonical SHA-256 base64. This is a pure transition module, not a server endpoint or proof of actual clearance. The caller must persist the verified artifact, EGS chain, document binding, outbox and state atomically, authenticate the actor, verify authority responses and perform version CAS in storage. State checks alone cannot prevent concurrent requests. No live API calls, new UI, rules or production changes.
+
+Uncertain transport does not automatically replay; future adapter must reconcile and govern safe retry of the same immutable UUID/hash using authority behavior. Rejected records stay retained. Corrective re-issuance with distinct identifiers, simplified rejection remediation, clearance-disabled contingency (303), late reporting audit, phase-1 issuance, durable queue and actual cryptographic/SDK validation remain explicit release blockers. Reference: ZATCA detailed technical guideline and XML implementation standard BR-KSA-26.
+
+Verification at f87701afcc4167a2b8f20ad6b610b05e75f234e0: standalone strict TypeScript compilation with noUncheckedIndexedAccess, all 26 focused fiscal tests passed on Node 22.16; all seven tested source/test GitHub blob hashes matched local test copies. Full project Node 24 release verifier and browser/Firestore emulator checks remain unexecuted. Keep draft unmerged.
