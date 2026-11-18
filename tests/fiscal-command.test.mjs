@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createFiscalCommandService} from '../api/_fiscal/command-service.js';
+import {createFiscalCommandHandler} from '../api/_fiscal/command-handler.js';
+import {fiscalCommandConfig} from '../api/_fiscal/command-runtime.js';
+const scope={accountUid:'owner',workspaceId:'qa',egsId:'egs',environment:'simulation'},owner={uid:'owner',role:'owner'},base='fiscalPrivateV1/owner/workspaces/qa',doc={documentId:'doc',documentRevision:1};
+const cmd=(operation,extra={})=>({operation,workspaceId:'qa',...extra});
+function fixture(patch={}){
+ const rows=new Map([[base,{...scope,syntheticOnly:true,commandsEnabled:true,selectedEgsId:'egs'}],[base+'/egs/egs',{...scope,active:true}],[base+'/issueReviews/doc',{...scope,...doc,state:'approved'}]]);
+ const db={doc:path=>({path}),runTransaction:fn=>fn({get:async r=>({exists:rows.has(r.path),data:()=>structuredClone(rows.get(r.path))})})};
+ const calls=[];const approve=async(i,c,options)=>{calls.push([i,c,options]);return {...doc,status:'approved'};};
+ return {rows,calls,execute:createFiscalCommandService({db,approve,...patch})};
+}
+test('status exposes no private artifacts and missing SDK blocks preparation before approval',async()=>{
+ const f=fixture();assert.deepEqual(await f.execute(owner,cmd('inspect')),{environment:'simulation',workspaceId:'qa',unitActive:true,onboarding:null,capabilities:{enrollment:false,approval:true,preparation:false,submission:false}});
+ await assert.rejects(f.execute(owner,cmd('prepare',doc)),/VERIFICATION_UNAVAILABLE/);assert.equal(f.calls.length,0);
+ assert.deepEqual(await f.execute(owner,cmd('approve',doc)),{environment:'simulation',...doc,status:'approved'});
+ assert.equal(f.calls[0][1].egsId,'egs');assert.deepEqual(f.calls[0][2],{expectedDocumentRevision:1,requireCommandEnabled:true});
+});
+test('wrong account, revision, injected EGS/amount and disabled commands fail closed',async()=>{
+ const f=fixture();for(const [i,c] of [[{...owner,uid:'other'},cmd('inspect')],[{...owner,role:'viewer'},cmd('inspect')],[owner,cmd('approve',{...doc,documentRevision:2})],[owner,cmd('approve',{...doc,egsId:'foreign'})],[owner,cmd('approve',{...doc,total:1})]])await assert.rejects(f.execute(i,c));
+ f.rows.set(base,{...f.rows.get(base),commandsEnabled:false});await assert.rejects(f.execute(owner,cmd('inspect')));assert.equal(f.calls.length,0);
+});
+test('trusted preparation and exact queue version are composed without client totals',async()=>{
+ const calls=[];const f=fixture({prepare:async(s,id)=>{calls.push(['prepare',s,id]);return {documentId:id,status:'queued',version:1};},submit:async(s,id,v)=>{calls.push(['submit',s,id,v]);return {documentId:id,status:'reported',version:3};}});
+ assert.equal((await f.execute(owner,cmd('prepare',doc))).status,'queued');
+ f.rows.set(base+'/issues/doc',{...scope,...doc,status:'queued',version:1});await assert.rejects(f.execute(owner,cmd('submit',{...doc,expectedVersion:2})),/STALE_ISSUE/);
+ assert.equal((await f.execute(owner,cmd('submit',{...doc,expectedVersion:1}))).status,'reported');assert.equal(calls.length,2);
+});
+async function http(handler,patch={}){const out={};await handler({method:'POST',headers:{host:'qa.test',origin:'https://qa.test','x-requested-with':'LOUREX-Invoice','content-type':'application/json',authorization:'Bearer '+'a'.repeat(128)},body:cmd('inspect'),...patch},{set statusCode(v){out.status=v;},setHeader(){},end(v){out.body=JSON.parse(v);}});return out;}
+test('HTTP verifies origin and identity and returns only bounded public errors',async()=>{
+ const f=fixture();const h=createFiscalCommandHandler({getRuntime:async()=>({verifyIdentity:async()=>owner,execute:f.execute})});
+ assert.equal((await http(h)).status,200);assert.equal((await http(h,{body:{...cmd('inspect'),secret:'x'}})).status,400);assert.equal((await http(h,{method:'GET'})).status,405);assert.equal((await http(h,{body:cmd('prepare',doc)})).status,503);
+ const revoked=createFiscalCommandHandler({getRuntime:async()=>({verifyIdentity:async()=>{throw Error('private');},execute:f.execute})});assert.deepEqual(await http(revoked),{status:401,body:{code:'FISCAL_AUTH_INVALID'}});
+});
+test('QA writer key cannot use production or reader identity',()=>{
+ const project='lourex-fiscal-qa',reader={project_id:project,client_email:'reader@'+project+'.iam.gserviceaccount.com',private_key:'test'},writer={...reader,client_email:'writer@'+project+'.iam.gserviceaccount.com'},env={VERCEL_ENV:'preview',LOUREX_FISCAL_STATUS_ENABLED:'true',LOUREX_FISCAL_COMMANDS_ENABLED:'true',LOUREX_FISCAL_QA_PROJECT_ID:project,LOUREX_FISCAL_QA_SERVICE_ACCOUNT_JSON:JSON.stringify(reader),LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(writer)};
+ assert.deepEqual(fiscalCommandConfig(env),{project,account:writer});for(const p of [{VERCEL_ENV:'production'},{LOUREX_FISCAL_COMMANDS_ENABLED:'false'},{LOUREX_FISCAL_COMMAND_SERVICE_ACCOUNT_JSON:JSON.stringify(reader)}])assert.throws(()=>fiscalCommandConfig({...env,...p}));
+});

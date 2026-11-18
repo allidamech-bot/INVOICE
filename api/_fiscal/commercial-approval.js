@@ -10,7 +10,7 @@ function need(ok,code='FISCAL_APPROVAL_FORBIDDEN'){if(!ok)throw Error(code);}
 // A request can identify a draft, never supply totals, issuer or approval.
 export function createCommercialIssueApproval({db,clock=()=>new Date().toISOString()}){
   need(typeof db?.runTransaction==='function'&&typeof db?.doc==='function'&&typeof clock==='function','FISCAL_APPROVAL_UNAVAILABLE');
-  return async function approve(identity,command){
+  return async function approve(identity,command,{expectedDocumentRevision,requireCommandEnabled=false}={}){
     need(identity?.role==='owner'&&typeof identity.uid==='string'&&ID.test(identity.uid));
     need(command&&Object.keys(command).length===3&&['workspaceId','egsId','documentId'].every(k=>typeof command[k]==='string'&&ID.test(command[k])));
     const {documentId}=command,scope=Object.freeze({environment:'simulation',accountUid:identity.uid,workspaceId:command.workspaceId,egsId:command.egsId});
@@ -19,7 +19,8 @@ export function createCommercialIssueApproval({db,clock=()=>new Date().toISOStri
     need(typeof at==='string'&&Number.isFinite(Date.parse(at))&&new Date(at).toISOString()===at,'FISCAL_ISSUE_TIME_INVALID');
     const {validateMeta,decodeWorkspace}=await import('../_accounting/period-format.js');
     return db.runTransaction(async tx=>{
-      const {unit}=await readSimulationContext(db,tx,scope,{active:true});
+      const {unit,workspace}=await readSimulationContext(db,tx,scope,{active:true});
+      if(requireCommandEnabled)need(workspace.commandsEnabled===true&&workspace.selectedEgsId===scope.egsId);
       const source=await currentFiscalSource(db,tx,scope,documentId);
       const meta=validateMeta(source.meta);
       // Bound the preview transaction to ~4.3 MB. Never silently truncate.
@@ -37,7 +38,7 @@ export function createCommercialIssueApproval({db,clock=()=>new Date().toISOStri
       need(!source.closedThrough||doc.issueDate>source.closedThrough,'FISCAL_PERIOD_CLOSED');
       // Require exact persisted source revision and reviewed draft; an altered
       // workspace cannot be substituted with a client-provided document.
-      need(doc.revision===source.review.documentRevision&&doc.revision===review.documentRevision,'FISCAL_REVIEW_CHANGED');
+      need(doc.revision===source.review.documentRevision&&doc.revision===review.documentRevision&&(expectedDocumentRevision===undefined||doc.revision===expectedDocumentRevision),'FISCAL_REVIEW_CHANGED');
       const ref=db.doc(base+'/issueIntents/'+documentId),prior=await tx.get(ref),issued=await tx.get(db.doc(base+'/issues/'+documentId));
       if(prior.exists){
         const old=readApprovedIntent(prior,scope,documentId);

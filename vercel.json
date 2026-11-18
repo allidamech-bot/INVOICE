@@ -13,6 +13,10 @@
       "destination": "/api/ai-core?lourexPeriod=1"
     },
     {
+      "source": "/api/fiscal-command",
+      "destination": "/api/ai-core?lourexFiscalCommand=1"
+    },
+    {
       "source": "/api/fiscal-status",
       "destination": "/api/ai-core?lourexFiscalStatus=1"
     },

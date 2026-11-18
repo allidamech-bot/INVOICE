@@ -446,6 +446,7 @@ const CONTRACTS=[
   'tests/fiscal-ledger.test.mjs',
   'tests/fiscal-routing.test.mjs',
   'tests/fiscal-status.test.mjs',
+  'tests/fiscal-command.test.mjs',
   'tests/fiscal-ubl-draft.test.mjs',
   'tests/fiscal-ui.test.mjs',
   'tests/fiscal-vat-report.test.mjs',
