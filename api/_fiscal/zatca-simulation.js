@@ -67,6 +67,29 @@ function validation(body){
   if(v.errorMessages.length||!['PASS','WARNING'].includes(v.status))return null;
   return {warnings:v.status==='WARNING'||v.warningMessages.length>0};
 }
+function evidence(r){return {httpStatus:r.status,evidenceDigest:createHash('sha256').update(r.bytes).digest('hex'),evidenceBytes:r.bytes};}
+function outcome(r,mode,compliance=false){
+  const info=evidence(r), v=validation(r.value);
+  const accepted=mode==='clearance'?r.value?.clearanceStatus==='CLEARED':r.value?.reportingStatus==='REPORTED';
+  if(r.status===200||r.status===202){
+    if(accepted&&v){
+      if(mode==='clearance'&&!compliance){
+        try{const clearedBytes=base64(r.value.clearedInvoice,MAX_INVOICE);
+          return {...info,status:'clearance-response',warnings:v.warnings,clearedBytes};
+        }catch{return {...info,status:'uncertain'};}
+      }
+      return {...info,status:compliance?'compliance-response':'reporting-response',warnings:v.warnings};
+    }
+  }
+  // Never follow redirects, reroute 303, or retry a potentially accepted request.
+  return {...info,status:'uncertain'};
+}
+// Reconstruct a submission result from an immutable raw receipt. No HTTP call.
+export function classifyStoredSubmissionResponse({httpStatus,bytes,mode}){
+  if(!['clearance','reporting'].includes(mode)||!Number.isInteger(httpStatus)||httpStatus<100||httpStatus>599||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>MAX_RESPONSE)throw Error('INVALID_STORED_RESPONSE');
+  let value=null;try{const parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))value=parsed;}catch{}
+  return outcome({status:httpStatus,value,bytes:Buffer.from(bytes)},mode);
+}
 export function createZatcaSimulationClient({environment,authorizedScope,fetchImpl=fetch,timeoutMs=15000}){
   if(environment!=='simulation')throw Error('PRODUCTION_DISABLED');
   if(typeof fetchImpl!=='function'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>30000)throw Error('INVALID_TRANSPORT');
@@ -83,23 +106,6 @@ export function createZatcaSimulationClient({environment,authorizedScope,fetchIm
       return {status:res.status,value,bytes};
     })(),new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(Error('ZATCA_TIMEOUT'));},timeoutMs);})]);}catch{throw Error('ZATCA_TRANSPORT_UNCERTAIN');}
     finally{clearTimeout(timer);}
-  }
-  function evidence(r){return {httpStatus:r.status,evidenceDigest:createHash('sha256').update(r.bytes).digest('hex'),evidenceBytes:r.bytes};}
-  function outcome(r,mode,compliance=false){
-    const info=evidence(r), v=validation(r.value);
-    const accepted=mode==='clearance'?r.value?.clearanceStatus==='CLEARED':r.value?.reportingStatus==='REPORTED';
-    if(r.status===200||r.status===202){
-      if(accepted&&v){
-        if(mode==='clearance'&&!compliance){
-          try{const clearedBytes=base64(r.value.clearedInvoice,MAX_INVOICE);
-            return {...info,status:'clearance-response',warnings:v.warnings,clearedBytes};
-          }catch{return {...info,status:'uncertain'};}
-        }
-        return {...info,status:compliance?'compliance-response':'reporting-response',warnings:v.warnings};
-      }
-    }
-    // Never follow redirects, reroute 303, or retry a potentially accepted request.
-    return {...info,status:'uncertain'};
   }
   return Object.freeze({
     async requestCompliance({otp,csr}){
@@ -125,7 +131,7 @@ export function createZatcaSimulationClient({environment,authorizedScope,fetchIm
     async submit(credential,payload,mode){
       if(mode!=='clearance'&&mode!=='reporting')throw Error('INVALID_MODE');
       const r=await post('invoices/'+mode+'/single',invoice(payload),{Authorization:checkedAuth(credential,'production'),...(mode==='clearance'?{'Clearance-Status':'1'}:{})},true);
-      return outcome(r,mode);
+      return classifyStoredSubmissionResponse({httpStatus:r.status,bytes:r.bytes,mode});
     }
   });
 }

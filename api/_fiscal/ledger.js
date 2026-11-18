@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {writeAuthorityEvidence} from './authority-evidence.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {createAttemptResponseStore} from './attempt-response.js';
+import {classifyStoredSubmissionResponse} from './zatca-simulation.js';
 import {prepareFiscalIssue,transitionFiscalIssue,FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
 // Internal Admin SDK service only. No browser endpoint or production activation.
@@ -15,6 +16,13 @@ function artifact(bytes,digest){
   if(!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>MAX_BYTES||createHash('sha256').update(bytes).digest('hex')!==digest)
     throw new Error('Invalid or oversized fiscal artifact.');
   return {sha256:digest,bytes:bytes.toString('base64')};
+}
+function readBytes(stored,digest){
+  if(!stored.exists)throw Error('Fiscal artifact missing.');
+  const value=stored.data();if(typeof value.bytes!=='string'||value.bytes.length>Math.ceil(MAX_BYTES/3)*4||value.sha256!==digest)throw Error('Invalid fiscal artifact.');
+  const bytes=Buffer.from(value.bytes,'base64');
+  if(bytes.toString('base64')!==value.bytes)throw Error('Invalid fiscal artifact.');
+  artifact(bytes,digest);return bytes;
 }
 function immutableMatch(record,prepared){
   return Object.keys(prepared).filter(k=>!['status','version','updatedAt','reportingDeadline','attemptId','attemptCount','usedAttemptIds','resultDigest','clearedArtifactDigest','warnings'].includes(k)).every(k=>record[k]===prepared[k]);
@@ -30,12 +38,25 @@ export function createFiscalLedger(db){
   const receipts=createAttemptResponseStore(db);
   async function applyTransition(tx,authorizedScope,base,issue,documentId,record,expectedVersion,event,evidenceBytes,clearedBytes){
     const next=transitionFiscalIssue(record,expectedVersion,event);
-    if(authorizedScope.environment==='simulation'&&record.status==='submitting'&&['cleared','reported','uncertain'].includes(event.kind)){
-      const saved=await receipts.inspect(tx,authorizedScope,documentId,record.version,event.attemptId);
-      const expectedDigest=event.kind==='uncertain'?event.unverifiedEvidenceDigest:event.resultDigest;
-      if(saved.receipt){
-        if(expectedDigest!==saved.receipt.digest||!Buffer.isBuffer(evidenceBytes)||!saved.bytes.equals(evidenceBytes)||Date.parse(event.at)<Date.parse(saved.receipt.receivedAt))throw Error('FISCAL_RESPONSE_RECEIPT_MISMATCH');
-      }else if(expectedDigest!==undefined||evidenceBytes!==undefined||event.kind!=='uncertain')throw Error('FISCAL_RESPONSE_RECEIPT_REQUIRED');
+    if(authorizedScope.environment==='simulation'&&['submitting','uncertain'].includes(record.status)){
+      // Negative decisions need an independent authority reconciliation source,
+      // not an arbitrary error body or an operator-entered digest.
+      if(['confirmed-not-accepted','rejected'].includes(event.kind))throw Error('FISCAL_NEGATIVE_RECONCILIATION_NOT_CONFIGURED');
+      if(['cleared','reported','uncertain'].includes(event.kind)){
+        const startVersion=record.status==='uncertain'?record.version-1:record.version;
+        const saved=await receipts.inspect(tx,authorizedScope,documentId,startVersion,event.attemptId);
+        const expectedDigest=event.kind==='uncertain'?event.unverifiedEvidenceDigest:event.resultDigest;
+        if(saved.receipt){
+          if(expectedDigest!==saved.receipt.digest||!Buffer.isBuffer(evidenceBytes)||!saved.bytes.equals(evidenceBytes)||Date.parse(event.at)<Date.parse(saved.receipt.receivedAt))throw Error('FISCAL_RESPONSE_RECEIPT_MISMATCH');
+        }else if(expectedDigest!==undefined||evidenceBytes!==undefined||event.kind!=='uncertain')throw Error('FISCAL_RESPONSE_RECEIPT_REQUIRED');
+        if(event.kind!=='uncertain'){
+          const result=classifyStoredSubmissionResponse({httpStatus:saved.receipt.httpStatus,bytes:saved.bytes,mode:record.mode});
+          if(result.status!==(record.mode==='clearance'?'clearance-response':'reporting-response')||result.warnings!==event.warnings||(record.mode==='clearance'&&(!Buffer.isBuffer(clearedBytes)||!result.clearedBytes.equals(clearedBytes))))throw Error('FISCAL_RESPONSE_NOT_ACCEPTED');
+          // Re-check immutable artifacts at the final CAS, not only before verification.
+          readBytes(await tx.get(db.doc(issue.path+'/artifacts/prepared')),record.artifactDigest);
+          readBytes(await tx.get(db.doc(issue.path+'/artifacts/snapshot')),record.snapshotDigest);
+        }
+      }
     }
     const unverifiedDigest=event.kind==='uncertain'?event.unverifiedEvidenceDigest:undefined;
     if(evidenceBytes!==undefined&&!next.resultDigest&&!unverifiedDigest)throw Error('Unbound authority evidence.');
@@ -54,6 +75,19 @@ export function createFiscalLedger(db){
     readAccepted:createAcceptedFiscalReader(db),
     recordResponse:receipts.recordResponse,
     readResponse:receipts.readResponse,
+    async readHeldForReconciliation(authorizedScope,documentId,expectedVersion){
+      if(authorizedScope.environment!=='simulation'||!Number.isSafeInteger(expectedVersion)||expectedVersion<3)throw Error('FISCAL_RECONCILIATION_NOT_ELIGIBLE');
+      const base=scope(authorizedScope),issue=db.doc(base+'/issues/'+id(documentId));
+      return db.runTransaction(async tx=>{
+        const row=await tx.get(issue),record=row.exists?row.data():null;
+        assertScope(record,authorizedScope);
+        if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||record.status!=='uncertain'||record.version!==expectedVersion)throw Error('FISCAL_RECONCILIATION_NOT_ELIGIBLE');
+        const saved=await receipts.inspect(tx,authorizedScope,documentId,expectedVersion-1,record.attemptId);
+        const xmlBytes=readBytes(await tx.get(db.doc(issue.path+'/artifacts/prepared')),record.artifactDigest);
+        const snapshotBytes=readBytes(await tx.get(db.doc(issue.path+'/artifacts/snapshot')),record.snapshotDigest);
+        return {...saved,xmlBytes,snapshotBytes};
+      });
+    },
     // Explicit operator recovery only. After five minutes, move a crashed
     // submission to uncertainty; never issue a second network request.
     async recoverInterrupted(authorizedScope,documentId,expectedVersion,attemptId,at){
@@ -114,13 +148,6 @@ export function createFiscalLedger(db){
         if(record.documentId!==documentId||record.egsId!==authorizedScope.egsId||state.egsId!==record.egsId||state.active!==true||state.environment!=='simulation')throw Error('Invalid simulation EGS.');
         const expected=outbox(record), actual=job.exists?job.data():null;
         if(!actual||expected.state!=='ready'||Object.keys(expected).some(k=>actual[k]!==expected[k]))throw Error('Fiscal queue not ready.');
-        function readBytes(stored,digest){
-          if(!stored.exists)throw Error('Fiscal artifact missing.');
-          const value=stored.data();if(typeof value.bytes!=='string'||value.bytes.length>Math.ceil(MAX_BYTES/3)*4||value.sha256!==digest)throw Error('Invalid fiscal artifact.');
-          const bytes=Buffer.from(value.bytes,'base64');
-          if(bytes.toString('base64')!==value.bytes)throw Error('Invalid fiscal artifact.');
-          artifact(bytes,digest);return bytes;
-        }
         const xmlBytes=readBytes(prepared,record.artifactDigest), snapshotBytes=readBytes(snapshot,record.snapshotDigest);
         const next=transitionFiscalIssue(record,expectedVersion,{kind:'start',attemptId,at});
         tx.create(db.doc(issue.path+'/events/'+String(next.version)),{version:next.version,status:next.status,kind:'start',attemptId,at,resultDigest:null});

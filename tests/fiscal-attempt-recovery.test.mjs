@@ -51,3 +51,34 @@ test('terminal transition requires the stored raw response; tamper and cross-sco
 test('transport enforces bounded deadline even if mock ignores AbortSignal',async()=>{
   let calls=0;const client=createZatcaSimulationClient({environment:'simulation',authorizedScope:scope,timeoutMs:100,fetchImpl:async()=>{calls++;return new Promise(()=>{});}});await assert.rejects(client.submit(credential,payload,'clearance'),/ZATCA_TRANSPORT_UNCERTAIN/);assert.equal(calls,1);
 });
+
+import {createFiscalReconciler} from '../api/_fiscal/reconciliation.js';
+function reconciler(f,patch={}){
+  return createFiscalReconciler({ledger:f.ledger,resolveCredential:async()=>credential,verifyPrepared:async({xml:x,snapshot:s})=>x.equals(xml)&&s.equals(snapshot),verifyAuthorityResult:async()=>true,clock:()=>later,...patch});
+}
+async function hold(f,raw,status=200,late=false){
+  await f.prepare();await f.ledger.claim(scope,doc,1,attempt,at);
+  if(raw&&!late)await f.ledger.recordResponse(scope,doc,2,attempt,{...metadata(raw),httpStatus:status});
+  await f.ledger.recoverInterrupted(scope,doc,2,attempt,later);
+  if(raw&&late)await f.ledger.recordResponse(scope,doc,2,attempt,{...metadata(raw,later),httpStatus:status});
+}
+test('late clearance receipt is reconciled against original without another submission',async()=>{
+  const f=fixture();await hold(f,accepted,200,true);assert.deepEqual(await reconciler(f)(scope,doc,3),{documentId:doc,status:'cleared',version:4});
+  assert.equal(f.calls(),0);assert.equal(f.read(path+'/events/3').status,'uncertain');assert.equal(f.read(path+'/events/4').resultDigest,sha(accepted));assert.deepEqual((await f.ledger.readAccepted(scope,doc)).xml,cleared);
+});
+test('reporting warning recovered; only one competing verifier can commit',async()=>{
+  const raw=Buffer.from(JSON.stringify({reportingStatus:'REPORTED',validationResults:{status:'WARNING',errorMessages:[],warningMessages:[{}]}}));const f=fixture({mode:'reporting'});await hold(f,raw,202);
+  const reconcile=reconciler(f);const results=await Promise.allSettled([reconcile(scope,doc,3),reconcile(scope,doc,3)]);assert.equal(results.filter(x=>x.status==='fulfilled').length,1);assert.equal(f.read(path).status,'reported');assert.equal(f.read(path).warnings,true);assert.deepEqual((await f.ledger.readAccepted(scope,doc)).xml,xml);assert.equal(f.calls(),0);
+});
+test('missing, malformed and non-success receipts stay held without invoking verifiers',async()=>{
+  for(const [raw,status] of [[null,200],[Buffer.from('malformed'),200],[accepted,400],[accepted,303]]){const f=fixture();await hold(f,raw,status);let checks=0;const r=reconciler(f,{verifyPrepared:async()=>{checks++;return true;}});assert.equal((await r(scope,doc,3)).status,'uncertain');assert.equal(checks,0);assert.equal(f.calls(),0);}
+});
+test('verification failure stays held; recovery cannot accept a receipt with a forged artifact',async()=>{
+  const f=fixture();await hold(f,accepted);for(const patch of [{verifyPrepared:async()=>false},{verifyAuthorityResult:async()=>false},{resolveCredential:async()=>{throw Error('unavailable');}}])assert.equal((await reconciler(f,patch)(scope,doc,3)).status,'uncertain');
+  const other=Buffer.from('<other/>');await assert.rejects(f.ledger.transition(scope,doc,3,{kind:'cleared',attemptId:attempt,at:later,resultDigest:sha(accepted),clearedArtifactDigest:sha(other),warnings:false},accepted,other),/NOT_ACCEPTED/);assert.equal(f.read(path).status,'uncertain');
+});
+test('scope and immutable artifact integrity rechecked at final CAS; no negative decision without evidence integration',async()=>{
+  const f=fixture();await hold(f,accepted);await assert.rejects(reconciler(f)({...scope,egsId:'other'},doc,3));await assert.rejects(reconciler(f)({...scope,environment:'production'},doc,3));
+  await assert.rejects(f.ledger.transition(scope,doc,3,{kind:'confirmed-not-accepted',attemptId:attempt,at:later,evidenceDigest:sha(accepted)},accepted),/NEGATIVE_RECONCILIATION_NOT_CONFIGURED/);
+  await assert.rejects(reconciler(f,{verifyAuthorityResult:async()=>{f.seed(path+'/artifacts/prepared',{sha256:sha(xml),bytes:Buffer.from('changed').toString('base64')});return true;}})(scope,doc,3),/artifact/);assert.equal(f.read(path).status,'uncertain');
+});
