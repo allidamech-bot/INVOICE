@@ -6,3 +6,4 @@ numpy==2.3.5
 qrcode==8.2
 Pillow==12.3.0
 reportlab==4.4.9
+weasyprint==68.0
