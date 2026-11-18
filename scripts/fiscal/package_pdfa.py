@@ -110,7 +110,11 @@ def embed_invoice(pdf, xml, uuid, at):
 
 
 def check_attachment(pdf, xml, uuid):
-    root = checked_reader(pdf).trailer["/Root"]
+    check_attachment_root(checked_reader(pdf).trailer["/Root"], xml, uuid)
+
+
+def check_attachment_root(root, xml, uuid):
+    """Use only with an independently checked unsigned or signed PDF root."""
     af = root["/AF"]
     names = root["/Names"]["/EmbeddedFiles"]["/Names"]
     name = uuid + ".xml"

@@ -6,7 +6,7 @@ const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const QA=/^[a-z][a-z0-9-]{0,18}-fiscal-qa$/;
 const KEY=/^projects\/([a-z][a-z0-9-]+)\/locations\/[a-z0-9-]+\/keyRings\/[A-Za-z0-9_-]+\/cryptoKeys\/[A-Za-z0-9_-]+\/cryptoKeyVersions\/[1-9][0-9]*$/;
 const HEX=/^[a-f0-9]{64}$/;
-const PURPOSES=new Set(['csr','xades-signed-info','simplified-qr']);
+const PURPOSES=new Set(['csr','xades-signed-info','simplified-qr','pades-signed-attributes']);
 const HSM=new Set(['HSM','HSM_SINGLE_TENANT']);
 const sha=b=>createHash('sha256').update(b).digest();
 const checksum=b=>String(crc32c(b));

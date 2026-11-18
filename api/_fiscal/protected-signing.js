@@ -27,7 +27,7 @@ export async function createProtectedSigningSession({projectId,scope,credential,
   const session=Object.freeze({
     at,issuerVat:credential.issuerVat,scope:s,get chainDer(){return chain.map(b=>Buffer.from(b));},
     async sign(purpose,bytes){
-      if(!['xades-signed-info','simplified-qr'].includes(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024)throw Error('PROTECTED_SIGNING_INPUT_INVALID');
+      if(!['xades-signed-info','simplified-qr','pades-signed-attributes'].includes(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024)throw Error('PROTECTED_SIGNING_INPUT_INVALID');
       const original=Buffer.from(bytes);checkTrust();
       const signature=await signer.sign(s,{purpose,bytes:original,encoding:'ieee-p1363'});
       checkTrust();if(!verify('sha256',original,{key:leaf.publicKey,dsaEncoding:'ieee-p1363'},signature))throw Error('EGS_SIGNATURE_MISMATCH');

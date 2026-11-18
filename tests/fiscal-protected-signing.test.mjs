@@ -31,7 +31,7 @@ function fixture(patch={}){
 test('operational EGS certificate and non-exportable signer bind both signatures',async()=>{
   const s=await fixture().create();assert.equal(requireProtectedSigningSession(s),s);assert.equal(s.issuerVat,credential.issuerVat);assert.deepEqual(s.scope,scope);assert.throws(()=>requireProtectedSigningSession({...s}));
   const copied=s.chainDer;copied[0].fill(0);assert.deepEqual(s.chainDer,chainDer);
-  for(const purpose of ['xades-signed-info','simplified-qr'])assert.ok(verify('sha256',bytes,{key:leaf.publicKey,dsaEncoding:'ieee-p1363'},await s.sign(purpose,bytes)));
+  for(const purpose of ['xades-signed-info','simplified-qr','pades-signed-attributes'])assert.ok(verify('sha256',bytes,{key:leaf.publicKey,dsaEncoding:'ieee-p1363'},await s.sign(purpose,bytes)));
   await assert.rejects(s.sign('csr',bytes));
 });
 test('wrong enrollment, issuer trust, key or missing CRL never contacts KMS',async()=>{
