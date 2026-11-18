@@ -8,7 +8,7 @@ export interface FiscalReviewFields{invoiceType:'standard'|'simplified';supplyDa
 export type FiscalDocumentAction={operation:'document-status'|'approve'|'prepare'}|{operation:'review';fields:FiscalReviewFields}|{operation:'submit'|'recover'|'reconcile';expectedVersion:number};
 export interface FiscalAuthorityResponse{httpStatus:number;kind:'positive-response'|'validation-errors'|'unresolved-response';warningCount:number;errorCount:number;warningCodes:string[];errorCodes:string[];}
 export interface FiscalResponseStatus{mode:'clearance'|'reporting';updatedAt:string;reportingDeadline:string|null;overdue:boolean;hasReceipt:boolean;recoveryAvailable:boolean;acceptedWithWarnings:boolean;response:FiscalAuthorityResponse|null;}
-export interface FiscalDocumentState{status:FiscalDocumentStatus;version:number|null;response:FiscalResponseStatus|null;capabilities:{review:boolean;approval:boolean;preparation:boolean;submission:boolean;recovery:boolean;reconciliation:boolean};}
+export interface FiscalDocumentState{status:FiscalDocumentStatus;version:number|null;response:FiscalResponseStatus|null;artifacts:{xml:boolean;pdf:boolean};capabilities:{review:boolean;approval:boolean;preparation:boolean;submission:boolean;recovery:boolean;reconciliation:boolean};}
 const iso=(v:unknown):v is string=>typeof v==='string'&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v;
 const codeList=(v:any):v is string[]=>Array.isArray(v)&&v.length<=20&&v.every(x=>typeof x==='string'&&/^[A-Za-z][A-Za-z0-9_.:-]{0,79}$/.test(x));
 function validateResponseStatus(r:any):FiscalResponseStatus|null{
@@ -36,8 +36,9 @@ export function fiscalDocumentNextAction(state:FiscalDocumentState):'review'|'ap
 export function validateFiscalDocumentState(v:any,doc:Pick<LourexDocument,'id'|'revision'>):FiscalDocumentState{
   if(v?.environment!=='simulation'||v.documentId!==doc.id||v.documentRevision!==doc.revision||!STATUSES.includes(v.status)||!v.capabilities||['review','approval','preparation','submission','recovery','reconciliation'].some(k=>typeof v.capabilities[k]!=='boolean')||(['not-reviewed','reviewed','approved'].includes(v.status)?v.version!==null:!Number.isSafeInteger(v.version)||v.version<1))throw Error('FISCAL_INVALID_DOCUMENT_STATUS');
   const response=validateResponseStatus(v.response);
+  if(!v.artifacts||typeof v.artifacts.xml!=='boolean'||typeof v.artifacts.pdf!=='boolean'||v.artifacts.pdf&&!v.artifacts.xml||(v.artifacts.xml&&!['cleared','reported'].includes(v.status)))throw Error('FISCAL_INVALID_OUTPUT_STATUS');
   if(v.version===null&&response!==null||v.version!==null&&response===null||response?.acceptedWithWarnings&&!['cleared','reported'].includes(v.status))throw Error('FISCAL_INVALID_RESPONSE_STATUS');
-  return {status:v.status,version:v.version,response,capabilities:{review:v.capabilities.review,approval:v.capabilities.approval,preparation:v.capabilities.preparation,submission:v.capabilities.submission,recovery:v.capabilities.recovery,reconciliation:v.capabilities.reconciliation}};
+  return {status:v.status,version:v.version,response,artifacts:{xml:v.artifacts.xml,pdf:v.artifacts.pdf},capabilities:{review:v.capabilities.review,approval:v.capabilities.approval,preparation:v.capabilities.preparation,submission:v.capabilities.submission,recovery:v.capabilities.recovery,reconciliation:v.capabilities.reconciliation}};
 }
 export async function requestFiscalDocument(doc:LourexDocument,action:FiscalDocumentAction,signal?:AbortSignal):Promise<FiscalDocumentState|null>{
   const uid=currentCloudUser()?.uid;
@@ -57,5 +58,26 @@ export async function requestFiscalDocument(doc:LourexDocument,action:FiscalDocu
       if(!response.ok||v?.environment!=='simulation'||v.documentId!==doc.id)throw Error('FISCAL_DOCUMENT_NOT_CONFIRMED');
       return action.operation==='document-status'?validateFiscalDocumentState(v,doc):null;
     })();return await Promise.race([work,stopped]);
+  }finally{window.clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
+}
+
+export async function fetchFiscalArtifact(doc:LourexDocument,format:'xml'|'pdf',signal?:AbortSignal):Promise<File>{
+  const uid=currentCloudUser()?.uid;
+  if(!uid||!fiscalQaInvoice(doc)||!fiscalQaClientEnabled()||!doc.workspaceId||!['xml','pdf'].includes(format))throw Error('FISCAL_DOCUMENT_UNAVAILABLE');
+  const controller=new AbortController(),cancel=()=>controller.abort();
+  if(signal?.aborted)throw Error('FISCAL_REQUEST_INTERRUPTED');
+  signal?.addEventListener('abort',cancel,{once:true});
+  const timer=window.setTimeout(cancel,30000);
+  const check=()=>{if(controller.signal.aborted||uid!==currentCloudUser()?.uid||uid!==activeAccountStorageUid()||!fiscalQaClientEnabled())throw Error('FISCAL_ACCOUNT_CHANGED');};
+  try{
+    check();const token=await currentCloudIdToken(controller.signal);check();
+    const response=await fetch('/api/fiscal-command',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice',Authorization:'Bearer '+token},body:JSON.stringify({operation:'download',workspaceId:doc.workspaceId,documentId:doc.id,documentRevision:doc.revision,format}),signal:controller.signal,cache:'no-store'});
+    const v=await response.json();check();
+    if(!response.ok||v?.environment!=='simulation'||v.documentId!==doc.id||v.documentRevision!==doc.revision||v.format!==format||typeof v.bytes!=='string'||v.bytes.length>Math.ceil(2*1024*1024/3)*4||typeof v.filename!=='string'||!new RegExp('^LOUREX-[a-f0-9-]{36}\\.'+format+'$').test(v.filename)||typeof v.sha256!=='string'||!/^[a-f0-9]{64}$/.test(v.sha256))throw Error('FISCAL_INVALID_OUTPUT');
+    const decoded=atob(v.bytes);if(!decoded.length||decoded.length>2*1024*1024||btoa(decoded)!==v.bytes)throw Error('FISCAL_INVALID_OUTPUT');
+    const bytes=Uint8Array.from(decoded,c=>c.charCodeAt(0));
+    const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');check();
+    if(digest!==v.sha256||format==='pdf'&&decoded.slice(0,5)!=='%PDF-')throw Error('FISCAL_INVALID_OUTPUT');
+    return new File([bytes],v.filename,{type:format==='xml'?'application/xml':'application/pdf'});
   }finally{window.clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
 }

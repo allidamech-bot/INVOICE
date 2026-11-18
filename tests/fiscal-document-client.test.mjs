@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {fiscalQaInvoice,fiscalDocumentNextAction,validateFiscalDocumentState} from '../dist/src/lib/fiscal-document-client.js';
 const doc={id:'draft',revision:1,kind:'invoice',companySnapshot:{country:'SA',vatNumber:'300000000000003'}};
-const base={environment:'simulation',documentId:'draft',documentRevision:1,status:'not-reviewed',version:null,response:null,capabilities:{review:true,approval:true,preparation:false,submission:false,recovery:false,reconciliation:false}};
+const base={environment:'simulation',documentId:'draft',documentRevision:1,status:'not-reviewed',version:null,response:null,artifacts:{xml:false,pdf:false},capabilities:{review:true,approval:true,preparation:false,submission:false,recovery:false,reconciliation:false}};
 test('fiscal dialog follows authoritative state, refuses automatic retries and cannot activate production',()=>{
  assert.equal(fiscalQaInvoice(doc),false);
  assert.equal(fiscalDocumentNextAction(validateFiscalDocumentState(base,doc)),'review');
@@ -30,3 +30,5 @@ test('interrupted response recovery and reconciliation are distinct from submiss
  assert.throws(()=>validateFiscalDocumentState({...held,response:{...held.response,response:{...receipt,errorCodes:['<script>']}}},doc));
  assert.equal(fiscalDocumentNextAction({...held,capabilities:{...held.capabilities,reconciliation:false}}),null);
 });
+
+test('only verified terminal artifacts are downloadable',()=>{assert.throws(()=>validateFiscalDocumentState({...base,artifacts:{xml:true,pdf:true}},doc));assert.throws(()=>validateFiscalDocumentState({...base,artifacts:{xml:false,pdf:true}},doc));});

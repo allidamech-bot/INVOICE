@@ -4,6 +4,7 @@ import {createFiscalResponseStatus} from './response-status.js';
 import {createFiscalLedger} from './ledger.js';
 import {createFiscalSimulationWorker} from './simulation-worker.js';
 import {createFiscalReconciler} from './reconciliation.js';
+import {createFiscalOutputService} from './fiscal-output.js';
 export function fiscalCommandConfig(env){
   const project=fiscalQaProject(env);
   if(env.LOUREX_FISCAL_COMMANDS_ENABLED!=='true')throw Error('FISCAL_COMMAND_UNAVAILABLE');
@@ -32,5 +33,5 @@ export async function getFiscalQaCommandRuntime({submissionVerifiers}={}){
   // submission is enabled by default.
   const submit=submissionVerifiers?createFiscalSimulationWorker({ledger,...submissionVerifiers}):undefined;
   const reconcile=submissionVerifiers?createFiscalReconciler({ledger,resolveCredential:submissionVerifiers.resolveCredential,verifyPrepared:submissionVerifiers.verifyPrepared,verifyAuthorityResult:submissionVerifiers.verifyAuthorityResult}):undefined;
-  return {verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),recover,reconcile,submit})};
+  return {verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),output:createFiscalOutputService({db}),recover,reconcile,submit})};
 }

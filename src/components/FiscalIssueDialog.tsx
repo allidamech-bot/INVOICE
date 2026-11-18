@@ -1,6 +1,6 @@
 import type {LourexDocument} from '../types.js';
 import {t} from '../lib/i18n.js';
-import {fiscalDocumentNextAction,requestFiscalDocument} from '../lib/fiscal-document-client.js';
+import {fiscalDocumentNextAction,requestFiscalDocument,fetchFiscalArtifact} from '../lib/fiscal-document-client.js';
 import type {FiscalDocumentState,FiscalDocumentAction,FiscalReviewFields} from '../lib/fiscal-document-client.js';
 import {Button,Field,Input,Modal,Select} from './UI.js';
 interface Props{document:LourexDocument;onPublish:(doc:LourexDocument)=>Promise<LourexDocument>;onClose:()=>void;}
@@ -21,6 +21,18 @@ export class FiscalIssueDialog extends React.Component<Props,State>{
       const status=action.operation==='document-status'?result:await requestFiscalDocument(doc,{operation:'document-status'},controller.signal);
       if(this.pending===controller&&!controller.signal.aborted)this.setState({status});
     }catch{if(this.pending===controller&&!controller.signal.aborted)this.setState({status:null,error:t('Fiscal action was not confirmed. Verify approved party profiles and cloud synchronization, then refresh status. Never repeat an uncertain submission.','لم يتأكد إجراء الفوترة. تحقق من ملفات الأطراف المعتمدة والمزامنة السحابية ثم حدّث الحالة. لا تكرر إرسالًا غير محسوم.')});}
+    finally{if(this.pending===controller){this.pending=null;this.setState({busy:false});}}
+  };
+  private download=async(format:'xml'|'pdf')=>{
+    if(this.pending||!this.published)return;
+    const controller=new AbortController();this.pending=controller;this.setState({busy:true,error:''});
+    try{
+      const file=await fetchFiscalArtifact(this.published,format,controller.signal);
+      if(this.pending!==controller||controller.signal.aborted)return;
+      const url=URL.createObjectURL(file),anchor=window.document.createElement('a');
+      anchor.href=url;anchor.download=file.name;anchor.rel='noopener';window.document.body.appendChild(anchor);
+      try{anchor.click();}finally{anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);}
+    }catch{if(this.pending===controller&&!controller.signal.aborted)this.setState({error:t('The verified artifact could not be retrieved.','تعذر استرداد المستند المتحقق منه.')});}
     finally{if(this.pending===controller){this.pending=null;this.setState({busy:false});}}
   };
   render():any{
@@ -54,6 +66,10 @@ export class FiscalIssueDialog extends React.Component<Props,State>{
       {action==='submit'&&s?.version?<Button variant="primary" disabled={this.state.busy} onClick={()=>{if(s.version)void this.run({operation:'submit',expectedVersion:s.version});}}>{t('Submit in simulation','إرسال في المحاكاة')}</Button>:null}
       {action==='recover'&&s?.version?<Button disabled={this.state.busy} onClick={()=>{if(s.version)void this.run({operation:'recover',expectedVersion:s.version});}}>{t('Recover interrupted attempt','استعادة محاولة منقطعة')}</Button>:null}
       {action==='reconcile'&&s?.version?<Button disabled={this.state.busy} onClick={()=>{if(s.version)void this.run({operation:'reconcile',expectedVersion:s.version});}}>{t('Verify stored response without resending','تحقق من الاستجابة المحفوظة دون إعادة إرسال')}</Button>:null}
+      {s?.artifacts.xml?<div className="commercial-row-card"><strong>{t('Verified fiscal artifacts','المستندات الضريبية المتحقق منها')}</strong>
+        <Button disabled={this.state.busy} icon="download" onClick={()=>void this.download('xml')}>{t('Download accepted XML','تنزيل XML المقبول')}</Button>
+        {s.artifacts.pdf?<Button icon="download" disabled={this.state.busy} onClick={()=>void this.download('pdf')}>{t('Download verified PDF','تنزيل PDF المتحقق منه')}</Button>:<p>{t('PDF unavailable until independent PDF/A and signature verification is complete.','PDF غير متاح حتى اكتمال التحقق المستقل من PDF/A والتوقيع.')}</p>}
+      </div>:null}
       {s&&!action&&!['cleared','reported'].includes(s.status)?<p className="commercial-empty-note">{t('Further action is unavailable until verification or reconciliation is complete.','الإجراء التالي غير متاح حتى اكتمال التحقق أو المطابقة.')}</p>:null}
       <Button icon="refresh" disabled={this.state.busy} onClick={()=>void this.run({operation:'document-status'})}>{t('Refresh status','تحديث الحالة')}</Button></div>
     </Modal>;

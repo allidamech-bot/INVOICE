@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {fiscalQaInvoice} from '../dist/src/lib/fiscal-document-client.js';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
@@ -16,7 +17,7 @@ function draftFixture({deferredState=false,commercial=false}={}){
   }).outputText;
   const timers=[],updates=[],calls=[],outputs=[];
   const document={visibilityState:'visible'};
-  const context={exports:{},Error,document,t:en=>en,IOS_WEBKIT:false,clearTimeout(){},validateDocument:()=>({}),validateStoredFinalForOutput:()=>({}),attachmentBytes:()=>0,previewDocument:doc=>doc,
+  const context={exports:{},fiscalQaInvoice,Error,document,t:en=>en,IOS_WEBKIT:false,clearTimeout(){},validateDocument:()=>({}),validateStoredFinalForOutput:()=>({}),attachmentBytes:()=>0,previewDocument:doc=>doc,
     window:{clearTimeout(){},setTimeout:fn=>{timers.push(fn);return timers.length;}}};
   vm.runInNewContext(compiled,context);
   const h=new context.exports.Harness();let closes=0;
