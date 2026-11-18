@@ -1,6 +1,7 @@
 import {createHash,X509Certificate} from 'node:crypto';
 import {verifyFiscalCertificateBinding,signCertificateBoundCandidate} from './certificate-binding.js';
 import {verifyFiscalCanonicalBytes} from './fiscal-ecdsa.js';
+import {requireProtectedSigningSession} from './protected-signing.js';
 import {hashCanonicalInvoice,hashArtifact} from './fiscal-artifacts.js';
 
 // Offline reference only. Never pass these candidates to the ledger/transport.
@@ -87,4 +88,21 @@ export function verifySimplifiedXadesReference({unsigned,bytes,chain,at,policy,c
     if(signature.toString('base64')!==value||!bytes.equals(assemble(p.xml,chain,p.props,p.info,value)))return false;
     return p.original.equals(p.canonical(bytes,'invoice'))&&p.propertiesDigest===hash(p.canonical(bytes,'signed-properties'))&&p.signedBytes.equals(p.canonical(bytes,'signed-info'))&&verifyFiscalCanonicalBytes(p.signedBytes,signature,new X509Certificate(chain[0]).publicKey,'ieee-p1363');
   }catch{return false;}
+}
+
+// Managed alternative to the local-key reference. The protected session is
+// created only after enrollment key, certificate policy and CRL checks.
+export async function buildManagedSimplifiedXadesReference({unsigned,session,policy,canonicalize}){
+  const protectedSession=requireProtectedSigningSession(session),chain=protectedSession.chainDer,at=protectedSession.at;
+  const p=referenceParts(unsigned,chain,at,policy,canonicalize);
+  // The known domestic UBL writer emits one supplier VAT identity. Reject
+  // a mismatched supplier before requesting any managed signature.
+  const supplier=p.xml.split('<cac:AccountingSupplierParty>');
+  const seller=supplier.length===2?supplier[1].split('</cac:AccountingSupplierParty>')[0]:'';
+  const vat=seller.match(/<cac:PartyTaxScheme><cbc:CompanyID>(3[0-9]{13}3)<\/cbc:CompanyID>/g);
+  if(!vat||vat.length!==1||vat[0]!=='<cac:PartyTaxScheme><cbc:CompanyID>'+protectedSession.issuerVat+'</cbc:CompanyID>')throw Error('EGS_ISSUER_MISMATCH');
+  const signature=await protectedSession.sign('xades-signed-info',p.signedBytes);
+  const bytes=assemble(p.xml,chain,p.props,p.info,signature.toString('base64'));
+  if(!verifySimplifiedXadesReference({unsigned,bytes,chain,at,policy,canonicalize}))throw Error('MANAGED_XADES_VERIFICATION_FAILED');
+  return {status:'offline-xades-reference',bytes,invoiceHash:p.invoiceHash,propertiesDigest:p.propertiesDigest,artifactDigest:hashArtifact(bytes)};
 }

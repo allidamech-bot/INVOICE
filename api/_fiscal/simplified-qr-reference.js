@@ -1,6 +1,7 @@
 import {X509Certificate} from 'node:crypto';
 import {buildDomesticFiscalCandidate} from './ubl-draft.js';
-import {buildSimplifiedXadesReference,verifySimplifiedXadesReference} from './xades-reference.js';
+import {buildSimplifiedXadesReference,buildManagedSimplifiedXadesReference,verifySimplifiedXadesReference} from './xades-reference.js';
+import {requireProtectedSigningSession} from './protected-signing.js';
 import {verifyFiscalCertificateBinding} from './certificate-binding.js';
 import {signFiscalCanonicalBytes,verifyFiscalCanonicalBytes} from './fiscal-ecdsa.js';
 import {phase2QrCandidate,decodeFiscalQr,hashCanonicalInvoice,hashArtifact} from './fiscal-artifacts.js';
@@ -65,4 +66,19 @@ export function verifySimplifiedQrReference({invoice,bytes,chain,at,policy,canon
     const expected=phase2QrCandidate(fields,{mode:'simplified',invoiceHash:Buffer.from(hashCanonicalInvoice(canonical),'base64'),signature,publicKey,caSignature});
     return expected===payload&&bytes.equals(insert(signed,expected));
   }catch{return false;}
+}
+
+// Same canonical XML and QR model, without an application-held private key.
+// The representation is still the explicit offline reference profile.
+export async function buildManagedSimplifiedQrReference({invoice,session,policy,canonicalize}){
+  const protectedSession=requireProtectedSigningSession(session),chain=protectedSession.chainDer;
+  const {unsigned,fields}=model(invoice);
+  if(fields.vatNumber!==protectedSession.issuerVat)throw Error('EGS_ISSUER_MISMATCH');
+  const stamped=await buildManagedSimplifiedXadesReference({unsigned,session:protectedSession,policy,canonicalize});
+  const canonical=canonicalize(stamped.bytes,'invoice'),{publicKey,caSignature}=certParts(chain);
+  const signature=await protectedSession.sign('simplified-qr',canonical);
+  const payload=phase2QrCandidate(fields,{mode:'simplified',invoiceHash:Buffer.from(stamped.invoiceHash,'base64'),signature,publicKey,caSignature});
+  const bytes=insert(stamped.bytes,payload);
+  if(!verifySimplifiedQrReference({invoice,bytes,chain,at:protectedSession.at,policy,canonicalize}))throw Error('MANAGED_QR_VERIFICATION_FAILED');
+  return {status:'offline-xades-qr-reference',bytes,payload,invoiceHash:stamped.invoiceHash,artifactDigest:hashArtifact(bytes)};
 }
