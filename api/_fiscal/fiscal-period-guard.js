@@ -1,3 +1,4 @@
+import {inspectReturnPostings,isReturnMovement} from './return-postings.js';
 import {reviewDigest} from './commercial-source.js';
 import {fail} from '../_accounting/period-format.js';
 // Invoked only by isolated QA period writer, inside its final CAS. Every
@@ -6,6 +7,7 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
  const id=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
  const same=(a,b)=>a&&b&&reviewDigest(a)===reviewDigest(b);
  return async function guard(tx,uid,before,candidate,input){
+  const returnWrites=[];
   const workspaces=new Set([...before.workspaces,...candidate.workspaces].map(w=>w.id));
   for(const workspaceId of workspaces){
    if(!id(workspaceId))fail(422,'FISCAL_SCOPE_INVALID');
@@ -36,8 +38,16 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
     const country=String(next?.companySnapshot?.country??'').trim().toUpperCase();
     if(next?.kind==='invoice'&&next.status==='final'&&(['SA','SAU','SAUDI ARABIA','KINGDOM OF SAUDI ARABIA','السعودية','المملكة العربية السعودية'].includes(country)||/^3\d{13}3$/.test(next.companySnapshot?.vatNumber??'')))fail(409,'FISCAL_DOCUMENT_LOCKED');
    }
+   const oldReturns=(before.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m)),newReturns=(candidate.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m));
+   const oldIds=new Set(oldReturns.map(m=>m.id)),newIds=new Set(newReturns.filter(m=>!oldIds.has(m.id)).map(m=>m.id));
+   if(newIds.size&&scope.commandsEnabled!==true)fail(409,'FISCAL_RETURN_POSTING_REQUIRED');
+   if(oldReturns.length||newReturns.length){
+     try{const result=await inspectReturnPostings(db,tx,{accountUid:uid,workspaceId},candidate,{newMovementIds:newIds});if(result.missing.length)fail(409,'FISCAL_RETURN_POSTING_REQUIRED');returnWrites.push(...result.writes);}
+     catch{fail(409,'FISCAL_RETURN_POSTING_REQUIRED');}
+   }
    const oldPurchase=new Map(before.purchases.filter(p=>p.workspaceId===workspaceId).map(p=>[p.id,p])),newPurchase=new Map(candidate.purchases.filter(p=>p.workspaceId===workspaceId).map(p=>[p.id,p]));
    for(const [k,v] of oldPurchase){if(same(v,newPurchase.get(k)))continue;if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');const posting=await tx.get(db.doc(base+'/accountingEntries/purchase-'+k)),claim=await tx.get(db.doc(base+'/purchaseTreatmentClaims/'+k));if(posting.exists||claim.exists)fail(409,'FISCAL_PURCHASE_LOCKED');}
   }
+  for(const w of returnWrites)tx.create(w.ref,w.record);
  };
 }

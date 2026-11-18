@@ -1,3 +1,4 @@
+import {inspectReturnPostings} from './return-postings.js';
 import {planPurchaseCostCorrection} from './purchase-cost-correction.mjs';
 import {fiscalSalesCoverage} from './fiscal-coverage.mjs';
 import {stockCostCents,supplierAdjustmentProjection} from './fiscal-cost.mjs';
@@ -354,11 +355,14 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
        if(direct||claim){const entry=direct??data(await tx.get(postingRef(db,s,claim.key)));need(entry&&entry.sourceId===p.id&&entry.sourceFingerprint===reviewDigest(p),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(strictClose)unreviewedPurchases++;}
        else unreviewedPurchases++;
      }
+     const returnPosting=await inspectReturnPostings(db,tx,s,source.payload,{through:to});
+     unmatched+=returnPosting.missing.length;
+     const returnCosts=returnPosting.confirmed.filter(r=>r.date>=from).map(r=>({movementId:r.movementId,date:r.date,kind:r.kind,amount:r.amount}));
      const approvedAdjustments=await tx.get(db.collection(base+'/purchaseAdjustments').limit(201));
      need(approvedAdjustments.docs.length<=200,'FISCAL_REPORT_LIMIT');
      const pendingAdjustments=[];
      for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
-     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
+     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
  async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}
  async function closeProof(tx,s,through){
