@@ -455,6 +455,7 @@ const CONTRACTS=[
   'tests/fiscal-accounting.test.mjs',
   'tests/fiscal-purchase-reconciliation.test.mjs',
   'tests/fiscal-cost.test.mjs',
+  'tests/fiscal-coverage.test.mjs',
   'tests/fiscal-zatca-simulation.test.mjs',
   'tests/fiscal-onboarding-store.test.mjs',
   'tests/fiscal-enrollment.test.mjs',

@@ -69,6 +69,10 @@ export function createPeriodService(db,{fiscalGuard}={}){
         for(const doc of await db.getAll(...refs))chunks.push(doc.exists?doc.data():null);
       }
       decodeReport(report,chunks,boundary);
+      if(report.fiscalProof){
+        const p=report.fiscalProof;
+        if(p.format!=='LOUREX_FISCAL_CLOSE_V1'||p.environment!=='simulation'||p.workspaceId!==boundary.workspaceId||p.through!==boundary.through||p.snapshot?.to!==boundary.through||p.snapshot?.readyForFiling!==false||hash(Buffer.from(JSON.stringify(p.snapshot)))!==p.sha256)fail(422,'INVALID_PUBLISHED_REPORT');
+      }
       let candidate;try{candidate=closedPeriodState(payload,boundary);}catch{fail(422,'PERIOD_CHANGED');}
       if(hash(Buffer.from(JSON.stringify(candidate)))!==report.sha256)fail(422,'PERIOD_CHANGED');
     }
@@ -186,12 +190,12 @@ export function createPeriodService(db,{fiscalGuard}={}){
       }
       const verifiedControl=controlValue(latestControl,identity.uid),verifiedMeta=validateMeta(latestMeta.data());
       if(verifiedControl.generation!==control.generation||verifiedMeta.revision!==meta.revision||verifiedMeta.sha256!==meta.sha256)fail(409,'REVISION_CONFLICT');
-      if(fiscalGuard)await fiscalGuard(tx,identity.uid,before,candidateForGuard,input);
+      const fiscalProof=fiscalGuard?await fiscalGuard(tx,identity.uid,before,candidateForGuard,input):null;
       if(input.operation==='commit'){
         tx.create(root.collection('workspaceHistory').doc(meta.revision),{...meta,archivedAt:FieldValue.serverTimestamp()});
         tx.set(metaRef,nextMeta);
       }
-      if(report)tx.create(root.collection('periodReports').doc(report.reportId),{...report,actorUid:identity.uid,reason:input.reason,publishedAt:FieldValue.serverTimestamp()});
+      if(report)tx.create(root.collection('periodReports').doc(report.reportId),{...report,...(fiscalProof?{fiscalProof}:{}),actorUid:identity.uid,reason:input.reason,publishedAt:FieldValue.serverTimestamp()});
       tx.set(controlRef,{...verifiedControl,generation:result.generation,boundaries,updatedAt:FieldValue.serverTimestamp()});
       tx.create(operationRef,{fingerprint,operation:input.operation,actorUid:identity.uid,reason:input.reason||'',workspaceId:input.workspaceId||'',at:FieldValue.serverTimestamp(),result});
       return result;

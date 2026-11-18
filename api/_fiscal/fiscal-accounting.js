@@ -1,3 +1,4 @@
+import {fiscalSalesCoverage} from './fiscal-coverage.mjs';
 import {stockCostCents,supplierAdjustmentProjection} from './fiscal-cost.mjs';
 import {reconcileDomesticPurchase} from './purchase-reconciliation.mjs';
 import {createHash,randomBytes} from 'node:crypto';
@@ -238,21 +239,20 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      return result;
    });
  }
- async function report(s,from,to){
-   validateScope(s);need(day(from)&&day(to)&&from<=to);
-   const {purchaseTotals}=await loadCompiledFinance('operations');
-   return db.runTransaction(async tx=>{
+ async function reportInTransaction(tx,s,from,to,{strictClose=false}={}){
+     validateScope(s);need(day(from)&&day(to)&&from<=to);
+     const {purchaseTotals}=await loadCompiledFinance('operations');
      const {workspace}=await readSimulationContext(db,tx,s);need(workspace.commandsEnabled===true);
      const base=simulationBase(s),source=await published(db,tx,s,'report');
      const collection=db.collection(base+'/accountingEntries');
      const snapshot=await tx.get(collection.where('taxDate','>=',from).where('taxDate','<=',to).limit(1001));
      need(snapshot.docs.length<=1000,'FISCAL_REPORT_LIMIT');
-     const rows=[],postedSales=new Set(),postedPurchases=new Set(),purchaseBalances=new Map();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
+     const rows=[],salePostings=[],postedPurchases=new Set(),purchaseBalances=new Map();let output=0n,input=0n,deductible=0n,reverseCharge=0n,importVat=0n,unmatched=0;
      for(const item of snapshot.docs){
        const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment===s.environment&&r.key===item.id&&['sale','purchase'].includes(r.source)&&day(r.taxDate)&&r.taxDate>=from&&r.taxDate<=to&&HEX.test(r.evidenceDigest));journal(r.amount.lines);
        const sign=signFor(r.amount.kind);let reconciliation=null;
        if(r.source==='sale'){
-         postedSales.add(r.sourceId);
+         salePostings.push(r);
          output+=sign*cents(r.amount.vatSar);
          const doc=source.payload.documents.find(d=>d.id===r.sourceId);
          if(!r.commercialPosted||!doc||doc.status!=='final'||doc.lifecycleStatus==='voided'||doc.revision!==r.sourceRevision||reviewDigest(doc)!==r.finalFingerprint||!r.stockIds.every(id=>source.payload.inventoryMovements.some(m=>m.id===id&&m.sourceId===r.sourceId)))unmatched++;
@@ -282,21 +282,47 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      // empty register as a zero-tax period. Commercial drafts are checked
      // against accepted authority records, and posted purchases without a
      // tax decision remain unresolved. These checks are bounded.
-     const drafts=source.payload.documents.filter(d=>d.workspaceId===s.workspaceId&&d.kind==='invoice'&&d.issueDate>=from&&d.issueDate<=to);
+     const documents=source.payload.documents.filter(d=>d.workspaceId===s.workspaceId&&d.kind==='invoice');
+     const intentsSnapshot=await tx.get(db.collection(base+'/issueIntents').limit(1001)),issuesSnapshot=await tx.get(db.collection(base+'/issues').limit(1001));
+     need(documents.length<=1000&&intentsSnapshot.docs.length<=1000&&issuesSnapshot.docs.length<=1000,'FISCAL_REPORT_LIMIT');
+     const intents=intentsSnapshot.docs.map(item=>{
+       const v=item.data();need(typeof v.egsId==='string'&&ID.test(v.egsId),'FISCAL_COVERAGE_INVALID');
+       const a=readApprovedIntent(item,{...s,egsId:v.egsId},item.id),d=a.payload.document;
+       need(d.workspaceId===s.workspaceId&&d.kind==='invoice'&&day(d.issueDate)&&d.issueDate===a.payload.generatedAt.slice(0,10),'FISCAL_COVERAGE_INVALID');
+       return {accountUid:v.accountUid,workspaceId:v.workspaceId,egsId:v.egsId,documentId:item.id,date:d.issueDate,revision:d.revision,snapshotDigest:a.digest};
+     });
+     const issues=issuesSnapshot.docs.map(item=>{
+       const v=item.data();need(v.documentId===item.id&&typeof v.egsId==='string'&&ID.test(v.egsId)&&typeof v.generatedAt==='string'&&day(v.generatedAt.slice(0,10)),'FISCAL_COVERAGE_INVALID');
+       return {...v,date:v.generatedAt.slice(0,10)};
+     });
+     const coverage=fiscalSalesCoverage({scope:s,from,to,documents,intents,issues,postings:salePostings});
+     if(strictClose){
+       need(coverage.blockers.length===0,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
+       for(const r of salePostings){
+         const a=await accepted({...s,egsId:r.egsId},r.sourceId,tx);
+         need(a.record.snapshotDigest===r.snapshotDigest&&a.record.resultDigest===r.evidenceDigest&&a.record.uuid===r.uuid,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
+       }
+     }
      const purchases=source.payload.purchases.filter(p=>p.workspaceId===s.workspaceId&&p.status==='posted'&&p.date>=from&&p.date<=to);
-     need(drafts.length+purchases.length<=1000,'FISCAL_REPORT_LIMIT');
-     let unpostedSales=0,unreviewedPurchases=0;
-     for(const d of drafts){if(postedSales.has(d.id))continue;const issue=data(await tx.get(db.doc(base+'/issues/'+d.id)));if(issue&&['cleared','reported'].includes(issue.status))unpostedSales++;else if(d.status==='final'&&d.lifecycleStatus!=='voided')unpostedSales++;}
+     need(documents.length+purchases.length<=1000,'FISCAL_REPORT_LIMIT');
+     let unreviewedPurchases=0;
+     if(strictClose)need(!source.payload.purchases.some(p=>p.workspaceId===s.workspaceId&&p.status==='reversed'&&p.date<=to),'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
      for(const p of purchases){if(postedPurchases.has(p.id))continue;const direct=data(await tx.get(postingRef(db,s,'purchase-'+p.id))),claim=data(await tx.get(db.doc(base+'/purchaseTreatmentClaims/'+p.id)));
-       if(direct||claim){const entry=direct??data(await tx.get(postingRef(db,s,claim.key)));need(entry&&entry.sourceId===p.id&&entry.sourceFingerprint===reviewDigest(p),'FISCAL_PURCHASE_SOURCE_MISMATCH');}
+       if(direct||claim){const entry=direct??data(await tx.get(postingRef(db,s,claim.key)));need(entry&&entry.sourceId===p.id&&entry.sourceFingerprint===reviewDigest(p),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(strictClose)unreviewedPurchases++;}
        else unreviewedPurchases++;
      }
      const approvedAdjustments=await tx.get(db.collection(base+'/purchaseAdjustments').limit(201));
      need(approvedAdjustments.docs.length<=200,'FISCAL_REPORT_LIMIT');
      const pendingAdjustments=[];
-     for(const item of approvedAdjustments.docs){const a=item.data();if(!same(a,s)||a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
-     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales,unreviewedPurchases,pendingAdjustments,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
-   });
+     for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
+     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
- return Object.freeze({postSale,postPurchase,postPurchaseAdjustment,report});
+ async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}
+ async function closeProof(tx,s,through){
+   const snapshot=await reportInTransaction(tx,s,'0001-01-01',through,{strictClose:true});
+   need(snapshot.unmatched===0&&snapshot.unpostedSales===0&&snapshot.pendingSales===0&&snapshot.unreviewedPurchases===0&&snapshot.pendingAdjustments.length===0&&snapshot.salesBlockers.length===0,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
+   const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
+   return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshot};
+ }
+ return Object.freeze({postSale,postPurchase,postPurchaseAdjustment,report,closeProof});
 }

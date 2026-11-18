@@ -2,7 +2,7 @@ import {reviewDigest} from './commercial-source.js';
 import {fail} from '../_accounting/period-format.js';
 // Invoked only by isolated QA period writer, inside its final CAS. Every
 // changed invoice is checked against the immutable server approval/issue.
-export function createFiscalPeriodGuard(db){
+export function createFiscalPeriodGuard(db,{closeProof}={}){
  const id=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
  const same=(a,b)=>a&&b&&reviewDigest(a)===reviewDigest(b);
  return async function guard(tx,uid,before,candidate,input){
@@ -15,9 +15,11 @@ export function createFiscalPeriodGuard(db){
    const scope=w.data();
    if(scope.environment!=='simulation'||scope.syntheticOnly!==true||scope.accountUid!==uid||scope.workspaceId!==workspaceId)fail(422,'FISCAL_SCOPE_INVALID');
    if(input.operation==='close'&&input.workspaceId===workspaceId){
-    // Explicitly block commercial period closure while fiscal acceptance and
-    // posting reconciliation remain incomplete, rather than freeze a gap.
-    fail(409,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
+    if(typeof closeProof!=='function'||typeof scope.selectedEgsId!=='string'||!id(scope.selectedEgsId)||scope.commandsEnabled!==true)fail(409,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
+    // The proof must be evaluated inside the same transaction as the close.
+    // Missing evidence, unsupported scenarios and any discrepancy fail closed.
+    try{return await closeProof(tx,{accountUid:uid,workspaceId,egsId:scope.selectedEgsId,environment:'simulation'},input.through);}
+    catch{fail(409,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');}
    }
    if(input.operation!=='commit')continue;
    const a=new Map(before.documents.filter(d=>d.workspaceId===workspaceId).map(d=>[d.id,d]));

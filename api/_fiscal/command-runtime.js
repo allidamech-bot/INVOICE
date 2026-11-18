@@ -21,8 +21,8 @@ export async function getFiscalQaCommandRuntime({submissionVerifiers}={}){
   if(app&&app.options.projectId!==project)throw Error('FISCAL_COMMAND_UNAVAILABLE');
   if(!app)app=initializeApp({projectId:project,credential:cert(account)},name);
   const db=getFirestore(app),auth=getAuth(app);
-  const ledger=createFiscalLedger(db);
-  const periodService=process.env.LOUREX_FISCAL_QA_PERIOD_ENABLED==='true'&&process.env.LOUREX_PERIOD_RULES_VERSION==='1'? (await import('../_accounting/period-store.js')).createPeriodService(db,{fiscalGuard:createFiscalPeriodGuard(db)}):null;
+  const ledger=createFiscalLedger(db),accounting=createFiscalAccounting({db});
+  const periodService=process.env.LOUREX_FISCAL_QA_PERIOD_ENABLED==='true'&&process.env.LOUREX_PERIOD_RULES_VERSION==='1'? (await import('../_accounting/period-store.js')).createPeriodService(db,{fiscalGuard:createFiscalPeriodGuard(db,{closeProof:accounting.closeProof})}):null;
   // Recovery never sends anything. A held attempt is transitioned only via the
   // ledger's versioned, five-minute recovery transaction.
   const recover=async(scope,documentId,version)=>{
@@ -36,5 +36,5 @@ export async function getFiscalQaCommandRuntime({submissionVerifiers}={}){
   // submission is enabled by default.
   const submit=submissionVerifiers?createFiscalSimulationWorker({ledger,...submissionVerifiers}):undefined;
   const reconcile=submissionVerifiers?createFiscalReconciler({ledger,resolveCredential:submissionVerifiers.resolveCredential,verifyPrepared:submissionVerifiers.verifyPrepared,verifyAuthorityResult:submissionVerifiers.verifyAuthorityResult}):undefined;
-  return {periodService,verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),output:createFiscalOutputService({db}),accounting:createFiscalAccounting({db}),recover,reconcile,submit})};
+  return {periodService,verifyIdentity:async token=>fiscalQaIdentity(await auth.verifyIdToken(token,true),project),execute:createFiscalCommandService({db,approve:createCommercialIssueApproval({db}),reviewDocument:createCommercialReview({db}),responseStatus:createFiscalResponseStatus(db),output:createFiscalOutputService({db}),accounting,recover,reconcile,submit})};
 }
