@@ -6,7 +6,7 @@
  */
 export type SaudiRegime = 'unresolved' | 'out-of-scope' | 'phase-1' | 'phase-2';
 export type FiscalDocumentKind = 'invoice' | 'credit-note' | 'debit-note'
-  | 'quote' | 'proforma' | 'rfq' | 'purchase-order' | 'delivery-note'
+  | 'quote' | 'proforma' | 'proforma-invoice' | 'rfq' | 'purchase-order' | 'delivery-note'
   | 'payment-receipt' | 'draft';
 export type SaudiInvoiceType = 'standard' | 'simplified';
 export interface VerifiedFiscalProfile {
@@ -19,7 +19,7 @@ export type FiscalRoute =
   | { route: 'blocked'; reason: 'unknown-document' | 'unresolved-issuer' | 'unresolved-invoice-type' };
 
 const NON_FISCAL = new Set<FiscalDocumentKind>([
-  'quote', 'proforma', 'rfq', 'purchase-order', 'delivery-note', 'payment-receipt', 'draft'
+  'quote', 'proforma', 'proforma-invoice', 'rfq', 'purchase-order', 'delivery-note', 'payment-receipt', 'draft'
 ]);
 const FISCAL = new Set<FiscalDocumentKind>(['invoice', 'credit-note', 'debit-note']);
 
