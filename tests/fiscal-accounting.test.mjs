@@ -35,3 +35,17 @@ test('QA period writer rejects edits, deletion, alternate finalization and fisca
  rows.set(base+'/issueIntents/doc',{});await assert.rejects(guard(tx,uid,before,{...before,documents:[]},{operation:'commit'}),/FISCAL_DOCUMENT_LOCKED/);
  await assert.rejects(guard(tx,uid,before,before,{operation:'close',workspaceId}),/FISCAL_PERIOD_RECONCILIATION_REQUIRED/);
 });
+
+test('import and reverse charge use a distinct tax-only journal without recording the supplier purchase twice',()=>{
+ const r={kind:'invoice',net:'100.00',vat:'15.00',deductibleVat:'10.00',gross:'115.00',category:'S',rate:'15'};
+ const i=purchaseAccountingModel({...r,treatment:'import'}),c=purchaseAccountingModel({...r,treatment:'reverse-charge'});
+ assert.equal(by(i,'customs-vat-clearing').amount,'15.00');assert.equal(by(i,'purchase-tax-cost').amount,'5.00');assert.equal(by(i,'accounts-payable'),undefined);
+ assert.equal(by(c,'output-vat').amount,'15.00');assert.equal(c.selfAssessedVat,'15.00');assert.equal(i.selfAssessedVat,'0.00');
+ assert.throws(()=>purchaseAccountingModel({...r,treatment:'reverse-charge',kind:'credit-note'}));assert.throws(()=>purchaseAccountingModel({...r,treatment:'import',vat:'16.00',gross:'116.00'}));
+});
+test('scope-locked purchases with imported tax evidence cannot be rewritten by ordinary workspace publication',async()=>{
+ const uid='owner',workspaceId='qa',base='fiscalPrivateV1/owner/workspaces/qa',rows=new Map([[base,{accountUid:uid,workspaceId,environment:'simulation',syntheticOnly:true}],[base+'/purchaseTreatmentClaims/p',{key:'purchase-adjustment-a'}]]);
+ const guard=createFiscalPeriodGuard({doc:path=>({path})}),tx={get:async ref=>({exists:rows.has(ref.path),data:()=>rows.get(ref.path)})};
+ const before={workspaces:[{id:workspaceId}],documents:[],purchases:[{id:'p',workspaceId,status:'posted'}]};
+ await assert.rejects(guard(tx,uid,before,{...before,purchases:[{...before.purchases[0],status:'reversed'}]},{operation:'commit'}),/FISCAL_PURCHASE_LOCKED/);
+});

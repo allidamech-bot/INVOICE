@@ -35,7 +35,7 @@ export function createFiscalPeriodGuard(db){
     if(next?.kind==='invoice'&&next.status==='final'&&(['SA','SAU','SAUDI ARABIA','KINGDOM OF SAUDI ARABIA','السعودية','المملكة العربية السعودية'].includes(country)||/^3\d{13}3$/.test(next.companySnapshot?.vatNumber??'')))fail(409,'FISCAL_DOCUMENT_LOCKED');
    }
    const oldPurchase=new Map(before.purchases.filter(p=>p.workspaceId===workspaceId).map(p=>[p.id,p])),newPurchase=new Map(candidate.purchases.filter(p=>p.workspaceId===workspaceId).map(p=>[p.id,p]));
-   for(const [k,v] of oldPurchase){if(same(v,newPurchase.get(k)))continue;if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');const posting=await tx.get(db.doc(base+'/accountingEntries/purchase-'+k));if(posting.exists)fail(409,'FISCAL_PURCHASE_LOCKED');}
+   for(const [k,v] of oldPurchase){if(same(v,newPurchase.get(k)))continue;if(!id(k))fail(422,'FISCAL_SCOPE_INVALID');const posting=await tx.get(db.doc(base+'/accountingEntries/purchase-'+k)),claim=await tx.get(db.doc(base+'/purchaseTreatmentClaims/'+k));if(posting.exists||claim.exists)fail(409,'FISCAL_PURCHASE_LOCKED');}
   }
  };
 }
