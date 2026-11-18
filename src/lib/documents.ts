@@ -239,7 +239,8 @@ export function duplicateDocument(source: LourexDocument, number: string): Loure
   // every payload just to duplicate the surrounding document object. Metadata is
   // still copied and the duplicate intentionally keeps the same attachment files.
   const attachmentRefs=(source.attachments??[]).map(attachment=>({...attachment}));
-  const clone=structuredClone({...source,attachments:[]}) as LourexDocument;
+  const {fiscalAdvance:_advance,...draftSource}=source;
+  const clone=structuredClone({...draftSource,attachments:[]}) as LourexDocument;
   return { ...clone, attachments:attachmentRefs, id: makeId('doc'), number, issueDate, dueDate, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...i, id: makeId('item') })) };
 }
 

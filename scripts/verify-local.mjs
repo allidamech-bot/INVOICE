@@ -462,6 +462,7 @@ const CONTRACTS=[
   'tests/fiscal-settlement-integrity.test.mjs',
   'tests/fiscal-lot-cost-bridge.test.mjs',
   'tests/fiscal-cost-continuity.test.mjs',
+  'tests/fiscal-advance-commercial.test.mjs',
   'tests/fiscal-zatca-simulation.test.mjs',
   'tests/fiscal-onboarding-store.test.mjs',
   'tests/fiscal-enrollment.test.mjs',

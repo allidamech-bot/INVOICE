@@ -28,7 +28,7 @@ function sameParty(source,verified,seller){
 export function mapCommercialFiscalInvoice({scope,document,issuer,review,identity}){
   const d=document,r=review;
   require(scope?.environment==='simulation'&&d?.id===identity?.documentId&&d.workspaceId===scope.workspaceId&&d.branchId===r?.branchId&&Number.isSafeInteger(d.revision)&&d.revision>=1&&d.revision===r.documentRevision,'FISCAL_DOCUMENT_SCOPE_MISMATCH');
-  require(d.kind==='invoice'&&['standard','credit-note'].includes(d.role)&&d.status==='draft'&&d.lifecycleStatus==='active'&&!d.voidedAt&&typeof d.currency==='string'&&!d.letter,'FISCAL_COMMERCIAL_CASE_UNSUPPORTED');
+  require(!d.fiscalAdvance&&d.kind==='invoice'&&['standard','credit-note'].includes(d.role)&&d.status==='draft'&&d.lifecycleStatus==='active'&&!d.voidedAt&&typeof d.currency==='string'&&!d.letter,'FISCAL_COMMERCIAL_CASE_UNSUPPORTED');
   require(r?.sourceDocumentId===d.id&&r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId,'FISCAL_REVIEW_SCOPE_MISMATCH');
   assertFiscalIssuerIdentity(issuer,scope,d.issueDate);
   require(issuer.issuerCountry==='SA'&&issuer.saRegime==='phase-2'&&issuer.vatNumber===r.seller?.vatNumber&&trim(issuer.legalName)===trim(r.seller?.name),'FISCAL_ISSUER_NOT_VERIFIED');

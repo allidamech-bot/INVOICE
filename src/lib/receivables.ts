@@ -1,3 +1,4 @@
+import {fiscalAdvanceAppliedCents,fiscalReceivableCents,isFiscalAdvanceReceipt} from './fiscal-advance-commercial.js';
 import type { Customer, LourexDocument, PaymentRecord } from '../types.js';
 import { calculateTotals, decimalToScaled } from './money.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments, invoicePaymentSummary } from './payments.js';
@@ -35,7 +36,7 @@ export function receivableCustomerId(doc:LourexDocument):string{
 }
 export function daysOverdue(dueDate:string,today=todayIso()):number{if(!isIsoDate(dueDate)||!isIsoDate(today)||dueDate>=today)return 0;return Math.max(0,dayNumber(today)-dayNumber(dueDate));}
 export function agingBucketFor(dueDate:string,today=todayIso()):AgingBucket{const days=daysOverdue(dueDate,today);if(days<=0)return'current';if(days<=30)return'days1to30';if(days<=60)return'days31to60';if(days<=90)return'days61to90';return'days90plus';}
-function activeInvoices(documents:LourexDocument[],asOf=''):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(!asOf||(isIsoDate(asOf)&&isIsoDate(doc.issueDate)&&doc.issueDate<=asOf)));}
+function activeInvoices(documents:LourexDocument[],asOf=''):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&!isFiscalAdvanceReceipt(doc)&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(!asOf||(isIsoDate(asOf)&&isIsoDate(doc.issueDate)&&doc.issueDate<=asOf)));}
 function customerName(doc:LourexDocument):string{return (doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr||'').trim();}
 
 export function receivablesByCurrency(documents:LourexDocument[],payments:PaymentRecord[],today=todayIso(),customerId=''):CurrencyReceivableSummary[]{
@@ -45,7 +46,7 @@ export function receivablesByCurrency(documents:LourexDocument[],payments:Paymen
     const summary=invoicePaymentSummary(invoice,payments,today,documents);
     const currency=currencyKey(invoice.currency);
     const row=map.get(currency)??{billed:0n,credits:0n,paid:0n,outstanding:0n,overdue:0n,aging:{current:0n,days1to30:0n,days31to60:0n,days61to90:0n,days90plus:0n},openInvoices:0,overdueInvoices:0};
-    row.billed+=decimalToScaled(summary.total,2);row.credits+=decimalToScaled(summary.credits,2);row.paid+=decimalToScaled(summary.paid,2);row.outstanding+=decimalToScaled(summary.remaining,2);
+    row.billed+=decimalToScaled(summary.total,2)-fiscalAdvanceAppliedCents(invoice);row.credits+=decimalToScaled(summary.credits,2);row.paid+=decimalToScaled(summary.paid,2);row.outstanding+=decimalToScaled(summary.remaining,2);
     if(decimalToScaled(summary.remaining,2)>0n){row.openInvoices+=1;const bucket=agingBucketFor(invoice.dueDate,today);row.aging[bucket]+=decimalToScaled(summary.remaining,2);if(summary.status==='overdue'){row.overdue+=decimalToScaled(summary.remaining,2);row.overdueInvoices+=1;}}
     map.set(currency,row);
   }
@@ -64,8 +65,8 @@ export function customerStatement(customerId:string,documents:LourexDocument[],p
   const push=(currency:string,row:{date:string;reference:string;type:StatementEntryType;description:string;debit:bigint;credit:bigint;relatedInvoiceNumber:string;order:number})=>{const key=currencyKey(currency);const list=rows.get(key)??[];list.push(row);rows.set(key,list);};
   const invoices=activeInvoices(documents,today).filter(invoice=>receivableCustomerId(invoice)===customerId);
   for(const invoice of invoices){
-    const total=decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2);
-    push(invoice.currency,{date:invoice.issueDate,reference:invoice.number,type:'invoice',description:customerName(invoice),debit:total,credit:0n,relatedInvoiceNumber:invoice.number,order:1});
+    const total=fiscalReceivableCents(invoice,decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2));
+    push(invoice.currency,{date:invoice.issueDate,reference:invoice.number,type:'invoice',description:customerName(invoice)+(invoice.fiscalAdvance?.kind==='settlement'?` · Advance applied: ${invoice.fiscalAdvance.gross}`:''),debit:total,credit:0n,relatedInvoiceNumber:invoice.number,order:1});
     for(const credit of accountedInvoiceCreditNotes(invoice,documents,today)){
       const amount=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);
       push(invoice.currency,{date:credit.issueDate,reference:credit.number,type:'credit-note',description:`Credit against ${invoice.number}`,debit:0n,credit:amount,relatedInvoiceNumber:invoice.number,order:2});

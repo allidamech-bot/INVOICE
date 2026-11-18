@@ -1,3 +1,4 @@
+import {assertAdvanceContinuity} from './advance-commercial.js';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
 import {assertSupplierSettlementTransition} from './settlement-integrity.mjs';
 import {isFiscalPurchaseReturn} from './purchase-return.mjs';
@@ -27,6 +28,7 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
     catch{fail(409,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');}
    }
    if(input.operation!=='commit')continue;
+   try{await assertAdvanceContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_ADVANCE_LOCKED');}
    const a=new Map(before.documents.filter(d=>d.workspaceId===workspaceId).map(d=>[d.id,d]));
    const b=new Map(candidate.documents.filter(d=>d.workspaceId===workspaceId).map(d=>[d.id,d]));
    const changed=[...new Set([...a.keys(),...b.keys()])].filter(k=>!same(a.get(k),b.get(k)));

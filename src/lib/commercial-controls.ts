@@ -1,3 +1,4 @@
+import {fiscalReceivableCents,isFiscalAdvanceReceipt} from './fiscal-advance-commercial.js';
 import type { BankAccount, BankDetails, CompanySettings, Customer, LourexDocument, PaymentRecord, PaymentTermPreset, PricingPolicy, TaxPreset } from '../types.js';
 import { addDaysIso, todayIso } from './id.js';
 import { calculateTotals, decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from './money.js';
@@ -91,7 +92,7 @@ export interface CustomerCreditStatus{
 }
 
 export function customerCreditStatus(document:LourexDocument,customers:Customer[],documents:LourexDocument[],payments:PaymentRecord[],asOf=todayIso()):CustomerCreditStatus|null{
-  if(document.kind!=='invoice'||document.role==='credit-note'||document.lifecycleStatus==='voided')return null;
+  if(document.kind!=='invoice'||document.role==='credit-note'||document.lifecycleStatus==='voided'||isFiscalAdvanceReceipt(document))return null;
   const customerId=document.customerSnapshot?.sourceCustomerId||'';const customer=customers.find(item=>item.id===customerId);if(!customer)return null;
   const limitRaw=customer.creditLimit.trim();if(!limitRaw||!isNonNegativeDecimalInput(limitRaw))return null;
   const currency=cleanCurrency(document.currency);const creditCurrency=cleanCurrency(customer.creditCurrency||customer.preferredCurrency||currency,currency);
@@ -100,7 +101,7 @@ export function customerCreditStatus(document:LourexDocument,customers:Customer[
   const baseDocuments=alreadyFinal?documents:documents.filter(item=>item.id!==document.id);
   const receivable=receivablesByCurrency(baseDocuments,payments,asOf,customer.id).find(item=>cleanCurrency(item.currency)===currency);
   const outstandingCents=decimalToScaled(receivable?.outstanding||'0.00',2);
-  const candidateCents=alreadyFinal?0n:decimalToScaled(calculateTotals(document.items,document.adjustments).grandTotal,2);
+  const candidateCents=alreadyFinal?0n:fiscalReceivableCents(document,decimalToScaled(calculateTotals(document.items,document.adjustments).grandTotal,2));
   const limitCents=decimalToScaled(limitRaw,2);
   const comparable=currency===creditCurrency;
   const projectedCents=outstandingCents+candidateCents;

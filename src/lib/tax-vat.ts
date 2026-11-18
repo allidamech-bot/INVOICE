@@ -1,3 +1,4 @@
+import {fiscalRecognizedTax} from './fiscal-advance-commercial.js';
 import type { LourexDocument } from '../types.js';
 import { calculateTotals, decimalToScaled, normalizeDecimalInput } from './money.js';
 import { accountedInvoiceCreditNotes } from './payments.js';
@@ -95,9 +96,11 @@ export function outputVatReport(documents:LourexDocument[],from='',to=todayIso()
     if(!dateInRange(doc.issueDate,period.from,period.to)||!doc.adjustments.taxEnabled)continue;
     const totals=calculateTotals(doc.items,doc.adjustments);
     const sign=doc.role==='credit-note'?-1n:1n;
-    const tax=decimalToScaled(totals.tax,2)*sign;
-    const grand=decimalToScaled(totals.grandTotal,2)*sign;
-    const taxable=grand-tax;
+    const gross=decimalToScaled(totals.grandTotal,2),fullTax=decimalToScaled(totals.tax,2);
+    const recognized=fiscalRecognizedTax(doc,gross-fullTax,fullTax);
+    const tax=recognized.vat*sign;
+    const taxable=recognized.net*sign;
+    const grand=taxable+tax;
     rows.push({
       documentId:doc.id,number:doc.number,issueDate:doc.issueDate,customerName:customerName(doc),currency:currencyOf(doc),taxRate:taxRateKey(doc),
       taxableAmount:centsString(taxable),outputVat:centsString(tax),grandTotal:centsString(grand),creditNote:doc.role==='credit-note'

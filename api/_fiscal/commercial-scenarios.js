@@ -1,3 +1,4 @@
+import {reserveAdvanceCash} from './advance-commercial.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {readApprovedIntent} from './issue-intent.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
@@ -46,8 +47,8 @@ export async function resolveCommercialScenario(db,tx,s,d,r,instruction){
   if(instruction.kind==='advance-receipt'){
     need(fields(instruction,['kind','evidenceDigest']));
     const row=await evidence(db,tx,s,d,'advance-receipt',instruction.evidenceDigest);
-    need(row.receivedAt===d.issueDate);
-    return {scenario:{...instruction,receivedAt:row.receivedAt,gross:row.gross}};
+    need(row.receivedAt===d.issueDate&&typeof row.treasuryEntryId==='string'&&ID.test(row.treasuryEntryId)&&typeof row.treasuryEntryDigest==='string'&&HEX.test(row.treasuryEntryDigest)&&d.items.every(l=>l.stockTreatment==='non-stock'));
+    return {scenario:{...instruction,receivedAt:row.receivedAt,gross:row.gross,treasuryEntryId:row.treasuryEntryId,treasuryEntryDigest:row.treasuryEntryDigest}};
   }
   need(fields(instruction,['kind','allocations'])&&instruction.kind==='advance-settlement'&&Array.isArray(instruction.allocations)&&instruction.allocations.length>0&&instruction.allocations.length<=10);
   need(new Set(instruction.allocations.map(x=>x.documentId)).size===instruction.allocations.length,'FISCAL_DUPLICATE_ADVANCE');
@@ -67,7 +68,8 @@ export async function planCommercialScenario(db,tx,s,payload,issue){
   if(v.kind!=='advance-settlement'){
     const ref=db.doc('fiscalPrivateV1/'+s.accountUid+'/scenarioClaims/'+v.evidenceDigest);
     need(!(await tx.get(ref)).exists,'FISCAL_SCENARIO_EVIDENCE_ALREADY_RESERVED');
-    return {write(tx){tx.create(ref,{...s,kind:v.kind,documentId:d.id,uuid:issue.uuid,snapshotDigest:issue.snapshotDigest,gross:v.gross,state:'reserved'});}};
+    const cashReservation=v.kind==='advance-receipt'?await reserveAdvanceCash(db,tx,s,d,v,issue):null;
+    return {write(tx){if(cashReservation)cashReservation.write(tx);tx.create(ref,{...s,kind:v.kind,documentId:d.id,uuid:issue.uuid,snapshotDigest:issue.snapshotDigest,gross:v.gross,state:'reserved'});}};
   }
   const plans=[];
   for(const a of v.allocations){

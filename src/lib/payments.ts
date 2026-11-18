@@ -1,3 +1,4 @@
+import {fiscalAdvanceAppliedCents,fiscalReceivableCents,isFiscalAdvanceReceipt} from './fiscal-advance-commercial.js';
 import type { LourexDocument, PaymentMethod, PaymentRecord, PaymentStatus } from '../types.js';
 import { calculateTotals, decimalToScaled, isDecimalInput, isFinancialDecimalInput } from './money.js';
 import { isIsoDate, todayIso } from './id.js';
@@ -14,7 +15,7 @@ function sameFinancialScope(invoice:{workspaceId?:string;branchId?:string},linke
   return (invoice.workspaceId||'default')===(linked.workspaceId||'default')
     &&(invoice.branchId||'main')===(linked.branchId||'main');
 }
-function paymentMatchesInvoice(invoice:LourexDocument,payment:PaymentRecord):boolean{return sameFinancialScope(invoice,payment)&&payment.invoiceId===invoice.id&&payment.currency===invoice.currency&&payment.customerId===(invoice.customerSnapshot?.sourceCustomerId||'')&&settlementDateIsValid(invoice,payment.date);}
+function paymentMatchesInvoice(invoice:LourexDocument,payment:PaymentRecord):boolean{return !isFiscalAdvanceReceipt(invoice)&&sameFinancialScope(invoice,payment)&&payment.invoiceId===invoice.id&&payment.currency===invoice.currency&&payment.customerId===(invoice.customerSnapshot?.sourceCustomerId||'')&&settlementDateIsValid(invoice,payment.date);}
 function creditMatchesInvoice(invoice:LourexDocument,credit:LourexDocument):boolean{return sameFinancialScope(invoice,credit)&&credit.role==='credit-note'&&credit.creditForId===invoice.id&&credit.status==='final'&&credit.lifecycleStatus!=='voided'&&credit.currency===invoice.currency&&(credit.customerSnapshot?.sourceCustomerId||'')===(invoice.customerSnapshot?.sourceCustomerId||'')&&creditAmountCents(credit)!==null&&settlementDateIsValid(invoice,credit.issueDate);}
 function assertInvoiceIssueDate(invoice:LourexDocument):void{if(!isIsoDate(invoice.issueDate))throw new Error('Invoice issue date is invalid. Correct the invoice before recording or changing settlements.');}
 function assertPaymentRecordIntegrity(invoice:LourexDocument,payment:PaymentRecord):bigint{
@@ -52,7 +53,7 @@ export function invoiceCreditAmount(invoiceId:string,documents:LourexDocument[],
 }
 export function invoicePaymentSummary(invoice:LourexDocument,payments:PaymentRecord[],today=todayIso(),documents:LourexDocument[]=[]):{status:PaymentStatus;total:string;credits:string;netTotal:string;paid:string;remaining:string}{
   const total=calculateTotals(invoice.items,invoice.adjustments).grandTotal;
-  const totalCents=decimalToScaled(total,2);
+  const totalCents=fiscalReceivableCents(invoice,decimalToScaled(total,2));
   let creditCents=0n;for(const credit of accountedInvoiceCreditNotes(invoice,documents,today))creditCents+=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);
   const credits=centsString(creditCents);
   const netCents=totalCents>creditCents?totalCents-creditCents:0n;
@@ -62,11 +63,11 @@ export function invoicePaymentSummary(invoice:LourexDocument,payments:PaymentRec
   let status:PaymentStatus='unpaid';
   if(remainingCents===0n&&netCents>=0n)status='paid';
   else if(invoice.dueDate&&isIsoDate(invoice.dueDate)&&invoice.dueDate<today)status='overdue';
-  else if(paidCents>0n||creditCents>0n)status='partially-paid';
-  return{status,total:centsString(totalCents),credits,netTotal:centsString(netCents),paid,remaining:centsString(remainingCents)};
+  else if(paidCents>0n||creditCents>0n||fiscalAdvanceAppliedCents(invoice)>0n)status='partially-paid';
+  return{status,total:centsString(decimalToScaled(total,2)),credits,netTotal:centsString(netCents),paid,remaining:centsString(remainingCents)};
 }
 export function normalizePaymentRecord(invoice:LourexDocument,payments:PaymentRecord[],source:PaymentRecord,documents:LourexDocument[]=[]):PaymentRecord{
-  if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided')throw new Error('Payments can only be recorded against an active final invoice.');
+  if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided'||isFiscalAdvanceReceipt(invoice))throw new Error('Payments can only be recorded against an active final invoice.');
   if(!isFinancialDecimalInput(source.amount)||decimalToScaled(source.amount,2)<=0n)throw new Error('Payment amount must be greater than 0.');
   if(!isIsoDate(source.date))throw new Error('Payment date is invalid.');
   assertInvoiceIssueDate(invoice);
@@ -74,7 +75,7 @@ export function normalizePaymentRecord(invoice:LourexDocument,payments:PaymentRe
   const amountCents=decimalToScaled(source.amount,2);
   let otherCents=0n;
   for(const payment of payments)if(payment.invoiceId===invoice.id&&payment.id!==source.id)otherCents+=assertPaymentRecordIntegrity(invoice,payment);
-  const totalCents=decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2);
+  const totalCents=fiscalReceivableCents(invoice,decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2));
   let creditCents=0n;for(const credit of documents.filter(document=>document.role==='credit-note'&&document.creditForId===invoice.id&&document.status==='final'&&document.lifecycleStatus!=='voided'))creditCents+=assertCreditNoteRecordIntegrity(invoice,credit);
   const collectibleCents=totalCents>creditCents?totalCents-creditCents:0n;
   if(otherCents+amountCents>collectibleCents)throw new Error('Payment cannot exceed the remaining invoice balance after credit notes.');
@@ -85,9 +86,10 @@ export function assertInvoicePaymentInvariant(invoice:LourexDocument,payments:Pa
   const linked=payments.filter(payment=>payment.invoiceId===invoice.id);
   const credits=documents.filter(document=>document.role==='credit-note'&&document.creditForId===invoice.id&&document.status==='final'&&document.lifecycleStatus!=='voided');
   if(!linked.length&&!credits.length)return;
+  if(isFiscalAdvanceReceipt(invoice)||invoice.fiscalAdvance&&credits.length)throw new Error('Advance receipts and applications require their dedicated correction workflow.');
   if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided')throw new Error('An invoice with payments or issued credit notes must remain an active final invoice.');
   assertInvoiceIssueDate(invoice);
-  const totalCents=decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2);
+  const totalCents=fiscalReceivableCents(invoice,decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2));
   let creditCents=0n;for(const credit of credits)creditCents+=assertCreditNoteRecordIntegrity(invoice,credit);
   let paidCents=0n;for(const payment of linked)paidCents+=assertPaymentRecordIntegrity(invoice,payment);
   if(paidCents+creditCents>totalCents)throw new Error('Invoice balance cannot fall below payments plus issued credit notes.');

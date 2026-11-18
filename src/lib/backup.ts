@@ -1,3 +1,5 @@
+import {assertFiscalAdvanceIntegrity} from './fiscal-advance-commercial.js';
+import {calculateTotals} from './money.js';
 import {validatePeriodArchive,type PeriodArchive} from './period-archive.js';
 import type { EncryptedBackupFile, VaultPayload } from '../types.js';
 import { createEncryptedBackup, decryptBackup } from '../crypto/crypto.js';
@@ -82,6 +84,10 @@ export function assertRestorableBackupVault(value:unknown):asserts value is Vaul
   }
   if(!Array.isArray(raw.workspaces)&&required)throw new Error('Backup workspaces are missing.');
   if(!Array.isArray(raw.branches)&&required)throw new Error('Backup branches are missing.');
+  if((raw.documents as VaultPayload['documents']).some(d=>d.fiscalAdvance!==undefined)){
+    try{assertFiscalAdvanceIntegrity(value as VaultPayload,d=>calculateTotals(d.items,d.adjustments));}
+    catch(error){throw new Error('Backup advance receipt or application evidence is invalid. No existing workspace data was changed.',{cause:error});}
+  }
   // A structurally valid JSON file can still contain forged, orphaned or
   // partially removed STOCK ledger entries. This guard runs before accepting
   // a local import AND before hydrating a cloud snapshot. Historical vaults

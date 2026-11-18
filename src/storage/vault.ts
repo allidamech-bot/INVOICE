@@ -1,3 +1,5 @@
+import {calculateTotals} from '../lib/money.js';
+import {assertFiscalAdvanceIntegrity} from '../lib/fiscal-advance-commercial.js';
 import type { DocumentKind, EncryptedVaultRecord, SecurityMetadata, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION, companySnapshotFrom, emptyVault } from '../lib/defaults.js';
 import { normalizeValidityDays } from '../lib/id.js';
@@ -235,6 +237,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       signatureDataUrl:stringValue(companySnapshot.signatureDataUrl,fallbackCompanySnapshot.signatureDataUrl), stampDataUrl:stringValue(companySnapshot.stampDataUrl,fallbackCompanySnapshot.stampDataUrl), footerText:stringValue(companySnapshot.footerText,fallbackCompanySnapshot.footerText)
     };
     return {
+      ...(document?.fiscalAdvance!==undefined?{fiscalAdvance:structuredClone(document.fiscalAdvance)}:{}),
       id:stringValue(document?.id), kind:documentKindValue(document?.kind), role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason), bankAccountId:stringValue(document?.bankAccountId), paymentTermPresetId:stringValue(document?.paymentTermPresetId),
       number:stringValue(document?.number), issueDate:stringValue(document?.issueDate), dueDate:stringValue(document?.dueDate), currency:cleanCurrency(document?.currency,migrated.appSettings.smartDefaults.currency || migrated.company.defaultCurrency || 'USD'),
       language:languageValue(document?.language,migrated.appSettings.smartDefaults.language),
@@ -353,6 +356,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.payments.map(p => p.id), 'payment');
   unique(migrated.savedItems.map(i=>i.id),'saved item');
   for (const document of migrated.documents) unique(document.items.map(i => i.id), 'item');
+  assertFiscalAdvanceIntegrity(migrated,d=>calculateTotals(d.items,d.adjustments));
   return migrated;
 }
 

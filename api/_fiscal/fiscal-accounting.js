@@ -1,3 +1,4 @@
+import {planAdvanceCommercial,verifyAdvanceReport} from './advance-commercial.js';
 import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
 import {supplierSettlementTimeline,commercialFiscalPostingPolicy} from './settlement-integrity.mjs';
@@ -74,11 +75,11 @@ function validateScope(s){simulationBase(s);}
 function availablePeriod(source,date){need(day(date)&&(!source.closedThrough||date>source.closedThrough),'FISCAL_PERIOD_CLOSED');}
 function postingRef(db,s,key){return db.doc(simulationBase(s)+'/accountingEntries/'+key);}
 function signFor(kind){return kind==='credit-note'?-1n:1n;}
-async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode){
- const p=source.payload,final={...doc,status:'final'},before=p;
+async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode,advance){
+ const p=source.payload,final={...doc,status:'final',...(advance?{fiscalAdvance:advance.binding}:{})},before=p;
  const [{postIssuedInvoiceStock},{approvalGate},{assertCustomerCreditLimit},{assertDocumentLifecycleInvariant,createDocumentEvent},{assertInvoicePaymentInvariant},{assertClosedPeriodUnchanged,closedPeriodState},{assertPostedStockRestoreContinuity},{isNonNegativeFinancialDecimalInput}]=await Promise.all(['stock','governance','commercial','lifecycle','payments','period','backup','money'].map(loadCompiledFinance));
  // Special fiscal subtypes must never be disguised as a commercial sale.
- need(policyMode==='ordinary'&&!['prepayment','debit-note'].includes(model.kind)||policyMode==='debit-service'&&model.kind==='debit-note'&&doc.items.every(l=>l.stockTreatment==='non-stock'),'FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
+ need(policyMode==='ordinary'&&!['prepayment','debit-note'].includes(model.kind)||policyMode==='debit-service'&&model.kind==='debit-note'&&doc.items.every(l=>l.stockTreatment==='non-stock')||policyMode==='advance-receipt'&&advance?.binding.kind==='receipt'&&model.kind==='prepayment'||policyMode==='advance-settlement'&&advance?.binding.kind==='settlement'&&model.kind==='invoice','FISCAL_SPECIAL_COMMERCIAL_POSTING_REQUIRED');
  const policy=approvalGate(p,{action:'issue-document',entityType:'document',entityId:doc.id,entityLabel:doc.number,entityUpdatedAt:doc.updatedAt||''});
  need(policy.allowed,'FISCAL_COMMERCIAL_APPROVAL_REQUIRED');
  assertCustomerCreditLimit(final,p.customers,p.documents,p.payments);
@@ -96,7 +97,9 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode){
    need(m.sourceId===doc.id&&m.currency===doc.currency&&typeof m.unitCost==='string'&&isNonNegativeFinancialDecimalInput(m.unitCost)&&typeof m.quantity==='string'&&m.quantity.startsWith('-'),'FISCAL_STOCK_COST_REVIEW_REQUIRED');
    cost+=stockCostCents(m.quantity.slice(1),m.unitCost);
  }
- const accounting={...model,lines:journal([...model.lines,entry('cost-of-sales','debit',cost),entry('inventory','credit',cost)])};
+ if(advance){const [{assertFiscalAdvanceIntegrity},{calculateTotals}]=await Promise.all(['advance','money'].map(loadCompiledFinance));assertFiscalAdvanceIntegrity(candidate,d=>calculateTotals(d.items,d.adjustments));}
+ const modelLines=policyMode==='advance-receipt'?model.lines.map(l=>l.account==='advance-receipt-clearing'?{...l,account:'cash-bank'}:l):model.lines;
+ const accounting={...model,lines:journal([...modelLines,entry('cost-of-sales','debit',cost),entry('inventory','credit',cost)])};
  assertPostedStockRestoreContinuity(before,candidate);assertClosedPeriodUnchanged(before,candidate,source.control.boundaries);
  // Check retained closed report digests as well as the before/after guard.
  for(const b of source.control.boundaries){
@@ -107,6 +110,7 @@ async function planCommercialFinalization(db,tx,s,source,doc,model,policyMode){
  need(e.chunks.length<=24,'FISCAL_SOURCE_SIZE_UNSUPPORTED');
  const meta={...e.meta,parentRevision:source.meta.revision,chunkStorage:'period-generations-v1'};
  return {accounting,finalFingerprint:reviewDigest(final),stockIds:newMovements.map(m=>m.id),write(tx){
+   if(advance)advance.write(tx);
    for(const chunk of e.chunks)tx.create(db.doc(source.root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0')),chunk);
    tx.create(db.doc(source.root+'/workspaceHistory/'+source.meta.revision),{...source.meta,archivedAt:e.meta.updatedAt});
    tx.update(db.doc(source.root+'/workspace/meta'),meta);
@@ -152,10 +156,11 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
          need(same(original,s)&&original.amount?.kind==='prepayment'&&original.source==='sale','FISCAL_ADVANCE_POSTING_REQUIRED');
        }
      }
-     const policyMode=commercialFiscalPostingPolicy(d,amount,p.review.scenario);
+     const scenario=p.review.scenario,advance=['advance-receipt','advance-settlement'].includes(scenario?.kind)?await planAdvanceCommercial(db,tx,s,source,p,a,m,amount):null;
+     const policyMode=advance?scenario.kind:commercialFiscalPostingPolicy(d,amount,scenario);
      const compatibleCost=d.currency==='SAR'||d.items.every(line=>line.stockTreatment==='non-stock'||(line.stockTreatment==='tracked'&&source.payload.savedItems.some(item=>item.id===line.savedItemId&&item.lastCostCurrency===d.currency)));
-     const plan=policyMode!=='private-only'&&compatibleCost?await planCommercialFinalization(db,tx,s,source,d,amount,policyMode):null;
-     const row={...s,key,source:'sale',sourceId:id,sourceRevision:revision,documentNumber:p.document.number,issueDate:p.document.issueDate,taxDate:p.document.issueDate,currency:p.document.currency,category:p.review.taxCategory,rate:p.review.taxRate,counterpartyVat:p.review.buyer?.vatNumber??null,issuerVat:p.issuer.vatNumber,originalId:p.review.originalDocumentId??null,uuid:a.record.uuid,evidenceDigest:a.record.resultDigest,snapshotDigest:a.record.snapshotDigest,amount:plan?.accounting??amount,sourceFingerprint:reviewDigest(p.document),finalFingerprint:plan?.finalFingerprint??null,stockIds:plan?.stockIds??[],commercialPosted:!!plan};
+     const plan=policyMode!=='private-only'&&compatibleCost?await planCommercialFinalization(db,tx,s,source,d,amount,policyMode,advance):null;
+     const row={...s,key,source:'sale',sourceId:id,sourceRevision:revision,documentNumber:p.document.number,issueDate:p.document.issueDate,taxDate:p.document.issueDate,currency:p.document.currency,category:p.review.taxCategory,rate:p.review.taxRate,counterpartyVat:p.review.buyer?.vatNumber??null,issuerVat:p.issuer.vatNumber,originalId:p.review.originalDocumentId??null,uuid:a.record.uuid,evidenceDigest:a.record.resultDigest,snapshotDigest:a.record.snapshotDigest,amount:plan?.accounting??amount,sourceFingerprint:reviewDigest(p.document),finalFingerprint:plan?.finalFingerprint??null,stockIds:plan?.stockIds??[],commercialPosted:!!plan,...(advance?{advanceBinding:advance.binding}:{})};
      // Preserve the original immutable invoice even if the current draft is
      // missing or edited: posting is blocked, never silently reconstructed.
      need(d&&d.revision===revision&&equal(d,p.document),'FISCAL_COMMERCIAL_SOURCE_DIVERGED');
@@ -451,11 +456,12 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      for(const m of source.payload.inventoryMovements.filter(x=>x.workspaceId===s.workspaceId&&isFiscalPurchaseReturn(x)))need(returnMovementIds.has(m.id),'FISCAL_PURCHASE_RETURN_CONFLICT');
      for(const item of dispatchReviews.docs){const r=item.data();need(r.accountUid===s.accountUid&&r.workspaceId===s.workspaceId&&r.environment==='simulation'&&r.adjustmentId===item.id&&day(r.date),'FISCAL_PURCHASE_RETURN_CONFLICT');if(r.state==='approved'&&r.date>=from&&r.date<=to&&!dispatches.docs.some(x=>x.id===item.id))pendingPurchaseReturns.push({adjustmentId:item.id,date:r.date});}
      unmatched+=pendingPurchaseReturns.length;
+     const advanceBalances=await verifyAdvanceReport(db,tx,s,source.payload,to);
      const approvedAdjustments=await tx.get(db.collection(base+'/purchaseAdjustments').limit(201));
      need(approvedAdjustments.docs.length<=200,'FISCAL_REPORT_LIMIT');
      const pendingAdjustments=[];
      for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
-     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
+     return {environment:'simulation',format:'fiscal-accounting-preview-v1',from,to,currency:'SAR',outputVat:money(output),inputVat:money(input),deductibleVat:money(deductible),netVat:money(output-deductible),reverseChargeVat:money(reverseCharge),importVat:money(importVat),unmatched,unpostedSales:coverage.unpostedSales,pendingSales:coverage.pendingSales,salesBlockers:coverage.blockers,unreviewedPurchases,pendingAdjustments,purchaseReturns,pendingPurchaseReturns,advanceBalances,returnCosts,unpostedReturns:returnPosting.missing.length,rows:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.key.localeCompare(b.key)),readyForFiling:false};
  }
  async function report(s,from,to){return db.runTransaction(tx=>reportInTransaction(tx,s,from,to));}
  async function closeProof(tx,s,through){

@@ -453,7 +453,13 @@ export interface DocumentAppearance {
   watermark: DocumentWatermark;
 }
 
+/** Immutable fiscal cash receipt or allocation; created by the trusted QA writer. */
+export type FiscalAdvanceBinding =
+  | {kind:'receipt';net:string;vat:string;gross:string;evidenceDigest:string;treasuryEntryId:string}
+  | {kind:'settlement';net:string;vat:string;gross:string;evidenceDigest:string;allocations:{receiptId:string;net:string;vat:string;gross:string}[]};
+
 export interface LourexDocument extends WorkspaceScopeFields {
+  fiscalAdvance?: FiscalAdvanceBinding;
   id: string;
   kind: DocumentKind;
   role: DocumentRole;
