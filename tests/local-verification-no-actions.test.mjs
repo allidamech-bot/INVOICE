@@ -103,3 +103,13 @@ test('read-only QA can target main via pull_request but cannot run on a direct m
   assert.doesNotThrow(()=>assertQaRunnerAndPushBranches(pr+'  push:\n    branches: [feat/safe, fix/other]\n'+base,'safe'));
   assert.throws(()=>assertQaRunnerAndPushBranches(pr+base.replace('ubuntu-24.04','self-hosted'),'untrusted'));
 });
+
+test('only the two documented historical integration branches remain eligible',()=>{
+  const base='permissions:\n  contents: read\njobs:\n  check:\n    runs-on: ubuntu-24.04\n';
+  const workflow='lourex-ai-batches1-7-free-qa.yml';
+  const yaml=branches=>'on:\n  push:\n    branches: ['+branches+']\n'+base;
+  const historical='integration/ai-batches1-7-qa-20261012, integration/ai-parallel-streams-safe-20261013';
+  assert.doesNotThrow(()=>assertQaRunnerAndPushBranches(yaml(historical+', fix/safe'),workflow));
+  assert.throws(()=>assertQaRunnerAndPushBranches(yaml(historical),'another.yml'));
+  for(const branch of ['main','integration/main','integration/*','integration/unapproved','release/production'])assert.throws(()=>assertQaRunnerAndPushBranches(yaml(historical+', '+branch),workflow));
+});
