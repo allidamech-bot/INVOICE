@@ -2,6 +2,7 @@ import {readSimulationContext,simulationBase} from './simulation-scope.js';
 import {currentPublishedFiscalSource,reviewDigest} from './commercial-source.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
 import {resolveFiscalCreditOriginal} from './commercial-credit.js';
+import {resolveCommercialScenario} from './commercial-scenarios.js';
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const same=(row,s)=>row&&['accountUid','workspaceId','egsId','environment'].every(k=>row[k]===s[k]);
 const data=s=>s.exists?s.data():null;
@@ -47,8 +48,8 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
       const contextRecord=data(await tx.get(db.doc(base+'/documentContexts/'+d.id)));
       let extra={};
       if(contextRecord){
-        need(same(contextRecord,s)&&contextRecord.state==='approved'&&contextRecord.documentId===d.id&&contextRecord.documentRevision===d.revision&&contextRecord.sourceRevision===meta.revision&&contextRecord.sourceSha256===meta.sha256&&contextRecord.context&&typeof contextRecord.context==='object','FISCAL_CONTEXT_REVIEW_REQUIRED');
-        extra={fiscalContext:structuredClone(contextRecord.context)};
+        need(same(contextRecord,s)&&contextRecord.state==='approved'&&contextRecord.documentId===d.id&&contextRecord.documentRevision===d.revision&&contextRecord.sourceRevision===meta.revision&&contextRecord.sourceSha256===meta.sha256&&(contextRecord.context||contextRecord.scenario),'FISCAL_CONTEXT_REVIEW_REQUIRED');
+        if(contextRecord.context)extra={fiscalContext:structuredClone(contextRecord.context)};
       }
       let correction={};
       if(d.role==='credit-note'){
@@ -59,6 +60,7 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
         correction={...original,correctionReason:reasons[0].slice('Reason / السبب: '.length).trim()};
       }
       const review={...s,sourceDocumentId:d.id,branchId:d.branchId,documentRevision:d.revision,invoiceType:cmd.invoiceType,seller,buyer,...tax,...extra,...correction,supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans};
+      if(contextRecord?.scenario)Object.assign(review,await resolveCommercialScenario(db,tx,s,d,review,contextRecord.scenario));
       const ref=db.doc(base+'/issueReviews/'+d.id),prior=data(await tx.get(ref)),intent=data(await tx.get(db.doc(base+'/issueIntents/'+d.id))),issue=data(await tx.get(db.doc(base+'/issues/'+d.id)));
       const record={...s,state:'approved',documentId:d.id,sourceRevision:meta.revision,sourceSha256:meta.sha256,periodGeneration:source.control.generation,documentRevision:d.revision,issuer:profile.issuer,review};
       // Review classification and statutory details are verified against the

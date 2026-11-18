@@ -38,6 +38,10 @@ jobs:
         run: node --test tests/fx-signed-rounding-vat-characterization.test.mjs tests/tax-vat-batch10.test.mjs tests/financial-e2e-v145.test.mjs tests/accounting-foundation-batch7.test.mjs tests/customer-return-void-saved-cycle.test.mjs
       - run: npm run typecheck
       - run: npm run build
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Prepare isolated fiscal PDF test dependencies
         run: bash scripts/fiscal/setup-qa-python.sh
       - name: Entire current regression suite - no exclusions or expected failures

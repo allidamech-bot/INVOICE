@@ -32,9 +32,11 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   require(r?.sourceDocumentId===d.id&&r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId,'FISCAL_REVIEW_SCOPE_MISMATCH');
   assertFiscalIssuerIdentity(issuer,scope,d.issueDate);
   require(issuer.issuerCountry==='SA'&&issuer.saRegime==='phase-2'&&issuer.vatNumber===r.seller?.vatNumber&&trim(issuer.legalName)===trim(r.seller?.name),'FISCAL_ISSUER_NOT_VERIFIED');
-  const kind=d.role==='credit-note'?'credit-note':'invoice';
-  require(kind==='credit-note'?typeof d.creditForId==='string'&&d.creditForId!==d.id&&r.originalDocumentId===d.creditForId&&r.original?.number===d.creditForNumber&&typeof r.correctionReason==='string'&&r.correctionReason.trim().length>0:!d.creditForId&&!r.original&&!r.originalDocumentId&&!r.correctionReason,'FISCAL_ORIGINAL_REQUIRED');
-  const route=resolveFiscalRoute(kind,issuer,r.invoiceType);
+  const scenario=r.scenario;
+  require(scenario===undefined||d.role==='standard'&&scenario&&['debit-note','advance-receipt','advance-settlement'].includes(scenario.kind)&&d.currency==='SAR'&&r.invoiceType==='standard'&&r.fiscalContext===undefined,'FISCAL_SPECIAL_SCENARIO_INVALID');
+  const kind=d.role==='credit-note'?'credit-note':scenario?.kind==='debit-note'?'debit-note':scenario?.kind==='advance-receipt'?'prepayment':'invoice';
+  require(kind==='debit-note'?!!r.original&&r.originalDocumentId===scenario.originalDocumentId&&typeof r.correctionReason==='string'&&r.correctionReason.trim().length>0&&!d.creditForId:kind==='credit-note'?typeof d.creditForId==='string'&&d.creditForId!==d.id&&r.originalDocumentId===d.creditForId&&r.original?.number===d.creditForNumber&&typeof r.correctionReason==='string'&&r.correctionReason.trim().length>0:!d.creditForId&&!r.original&&!r.originalDocumentId&&!r.correctionReason,'FISCAL_ORIGINAL_REQUIRED');
+  const route=resolveFiscalRoute(kind==='prepayment'?'invoice':kind,issuer,r.invoiceType);
   require(route.route==='sa-clearance'||route.route==='sa-reporting','FISCAL_ROUTE_NOT_ELIGIBLE');
   sameParty(d.companySnapshot,r.seller,true);
   const context={};
@@ -55,7 +57,7 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   }else sameParty(d.customerSnapshot,r.buyer,false);
   const cls={category:r.taxCategory,rate:r.taxRate,...(r.taxCategory==='S'?{}:{reasonCode:r.reasonCode,reasonText:r.reasonText})};
   require(r.taxCategory==='S'?r.taxRate==='15'&&d.adjustments?.taxEnabled===true&&dec(d.adjustments.taxPercent)==='15': ['Z','E','O'].includes(r.taxCategory)&&r.taxRate==='0'&&typeof r.classificationDigest==='string'&&/^[a-f0-9]{64}$/.test(r.classificationDigest)&&(!d.adjustments?.taxEnabled||dec(d.adjustments.taxPercent)==='0'),'FISCAL_TAX_REVIEW_REQUIRED');
-  if(kind==='credit-note')require(r.original?.mode===r.invoiceType&&r.originalTax?.category===r.taxCategory&&r.originalTax?.rate===r.taxRate&&(r.taxCategory==='S'||r.originalTax.reasonCode===r.reasonCode),'FISCAL_CORRECTION_TAX_MISMATCH');
+  if(kind==='credit-note'||kind==='debit-note')require(r.original?.mode===r.invoiceType&&r.originalTax?.category===r.taxCategory&&r.originalTax?.rate===r.taxRate&&(r.taxCategory==='S'||r.originalTax.reasonCode===r.reasonCode),'FISCAL_CORRECTION_TAX_MISMATCH');
   require(Array.isArray(d.items)&&d.items.length>0&&d.items.length<=500,'INVALID_COMMERCIAL_LINES');
   const lines=d.items.map(l=>{
     const code=unitCodes[trim(l.unit).toUpperCase()];
@@ -73,7 +75,18 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   if(commercial.shipping!=='0.00')adjustments.push({kind:'charge',amount:commercial.shipping,...cls,adjustmentReasonCode:'FC',adjustmentReasonText:'Freight'});
   const issueAt=new Date(identity.generatedAt);
   require(Number.isFinite(issueAt.getTime())&&issueAt.toISOString()===identity.generatedAt&&d.issueDate===identity.generatedAt.slice(0,10),'FISCAL_ISSUE_DATE_MISMATCH');
-  const invoice={currency:d.currency,mode:r.invoiceType,kind,uuid:identity.uuid,icv:identity.icv,previousInvoiceHash:identity.previousInvoiceHash,number:d.number,issueDate:d.issueDate,issueTime:identity.generatedAt.slice(11,19),supplyDate:r.supplyDate,paymentMeans:r.paymentMeans,seller:structuredClone(r.seller),buyer:structuredClone(r.buyer),lines,...(adjustments.length?{adjustments}:{}),...(kind==='credit-note'?{original:structuredClone(r.original),correctionReason:r.correctionReason}:{})};
+  const invoice={currency:d.currency,mode:r.invoiceType,kind,uuid:identity.uuid,icv:identity.icv,previousInvoiceHash:identity.previousInvoiceHash,number:d.number,issueDate:d.issueDate,issueTime:identity.generatedAt.slice(11,19),supplyDate:r.supplyDate,paymentMeans:r.paymentMeans,seller:structuredClone(r.seller),buyer:structuredClone(r.buyer),lines,...(adjustments.length?{adjustments}:{}),...(['credit-note','debit-note'].includes(kind)?{original:structuredClone(r.original),correctionReason:r.correctionReason}:{})};
+  if(scenario?.kind==='debit-note'||scenario?.kind==='advance-receipt'){
+    require(typeof scenario.evidenceDigest==='string'&&/^[a-f0-9]{64}$/.test(scenario.evidenceDigest)&&scenario.gross===commercial.grandTotal&&commercial.grandTotal!=='0.00','FISCAL_SCENARIO_EVIDENCE_MISMATCH');
+  }
+  if(scenario?.kind==='advance-receipt'){
+    delete invoice.supplyDate;
+    context.prepayment={kind:'receipt',uuid:identity.uuid,receivedAt:scenario.receivedAt,receivedGross:scenario.gross,evidenceDigest:scenario.evidenceDigest};
+  }
+  if(scenario?.kind==='advance-settlement'){
+    require(Array.isArray(scenario.references)&&scenario.references.length>0&&scenario.references.every(x=>x.category===r.taxCategory&&x.rate===r.taxRate),'FISCAL_ADVANCE_CLASS_MISMATCH');
+    context.prepayment={kind:'adjustment',uuid:identity.uuid,references:structuredClone(scenario.references)};
+  }
   const candidate=buildFiscalCandidate(invoice,context);
   const t=candidate.totals;
   require(t.lineNetTotal===commercial.subtotal&&t.documentAllowances===commercial.discount&&t.documentCharges===commercial.shipping&&t.vatTotal===commercial.tax&&t.taxInclusiveTotal===commercial.grandTotal,'FISCAL_COMMERCIAL_TOTAL_MISMATCH');

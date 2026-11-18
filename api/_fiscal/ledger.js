@@ -7,6 +7,7 @@ import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {createAttemptResponseStore} from './attempt-response.js';
 import {classifyStoredSubmissionResponse} from './zatca-simulation.js';
 import {planFiscalCreditReservation} from './commercial-credit.js';
+import {planCommercialScenario} from './commercial-scenarios.js';
 import {prepareFiscalIssue,transitionFiscalIssue,FIRST_PREVIOUS_INVOICE_HASH} from '../../dist/src/lib/fiscal-issuance.js';
 
 // Internal Admin SDK service only. No browser endpoint or production activation.
@@ -135,7 +136,7 @@ export function createFiscalLedger(db){
         if(initial.icv==='1'&&state.previousInvoiceHash!==FIRST_PREVIOUS_INVOICE_HASH)throw new Error('Invalid EGS genesis.');
         const nextIcv=String(BigInt(initial.icv)+1n);
         if(nextIcv.length>18)throw new Error('Fiscal counter exhausted.');
-        const reservation=approved?.document.role==='credit-note'?await planFiscalCreditReservation(db,tx,authorizedScope,approved,initial):null;
+        const reservation=approved?.document.role==='credit-note'?await planFiscalCreditReservation(db,tx,authorizedScope,approved,initial):approved?.review.scenario?await planCommercialScenario(db,tx,authorizedScope,approved,initial):null;
         if(reservation)reservation.write(tx);
         tx.create(issue,initial);
         tx.create(uuid,{workspaceId:initial.workspaceId,documentId:initial.documentId,egsId:initial.egsId});

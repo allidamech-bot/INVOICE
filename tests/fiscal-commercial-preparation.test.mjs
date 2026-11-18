@@ -9,6 +9,7 @@ import {createCommercialIssueApproval} from '../api/_fiscal/commercial-approval.
 import {createCommercialReview} from '../api/_fiscal/commercial-review.js';
 import {reviewDigest} from '../api/_fiscal/commercial-source.js';
 import {resolveFiscalCreditOriginal,planFiscalCreditReservation} from '../api/_fiscal/commercial-credit.js';
+import {resolveCommercialScenario,planCommercialScenario} from '../api/_fiscal/commercial-scenarios.js';
 import {createFiscalSimulationWorker} from '../api/_fiscal/simulation-worker.js';
 import {emptyVault} from '../dist/src/lib/defaults.js';
 import {encodeWorkspace} from '../api/_accounting/period-format.js';
@@ -166,4 +167,53 @@ test('standard foreign currency and export use independently approved context an
  const x=map(exportDoc,exported);assert.equal(x.candidate.fiscalContext.vatSar,'0.00');assert.equal(x.candidate.totals.taxInclusiveTotal,'195.00');assert.match(x.candidate.bytes.toString(),/name="0100100"/);
  assert.throws(()=>map(exportDoc,{...exported,fiscalContext:{rate}}));
  assert.throws(()=>map(exportDoc,{...exported,buyer:{...exportBuyer,otherId:'other'}}));
+});
+
+function specialDraft(docId,number,amount='100'){
+ return {...document,id:docId,number,customerSnapshot:{...document.customerSnapshot,sourceCustomerId:'customer'},items:[{...document.items[0],quantity:'1',unitPrice:amount}],adjustments:{...document.adjustments,discountEnabled:false,shippingEnabled:false}};
+}
+const specialReview=d=>({...review,sourceDocumentId:d.id,supplyDate:d.issueDate});
+async function acceptOriginal(f){
+ const worker=createFiscalSimulationWorker({ledger:f.ledger,resolveCredential:async()=>({...scope,kind:'production',binarySecurityToken:Buffer.from('synthetic').toString('base64'),secret:'synthetic'}),verifyPrepared:async()=>true,verifyAuthorityResult:async()=>true,clock:()=>at,attemptId:()=> 'attempt',fetchImpl:async()=>new Response(JSON.stringify({clearanceStatus:'CLEARED',clearedInvoice:Buffer.from('<cleared/>').toString('base64'),validationResults:{status:'PASS',errorMessages:[],warningMessages:[]}}),{status:200})});
+ await f.make()(scope,id);assert.equal((await worker(scope,id,1)).status,'cleared');
+}
+function evidence(f,d,kind,hash,gross,extra={}){
+ f.put(base+'/scenarioEvidence/'+hash,{...scope,state:'approved',kind,documentId:d.id,documentRevision:d.revision,evidenceDigest:hash,currency:'SAR',customerId:'customer',gross,...extra});
+}
+function scenarioIssue(f,d,uuid){
+ return {...identity,documentId:d.id,uuid,icv:f.read(base+'/egs/egs').nextIcv,previousInvoiceHash:f.read(base+'/egs/egs').previousInvoiceHash,generatedAt:'2026-11-18T10:01:00.000Z',snapshotDigest:'d'.repeat(64)};
+}
+test('advance receipt is issued once from approved exact payment evidence; concurrent settlements cannot overspend it',async()=>{
+ const f=fixture({publish:false}),receipt=specialDraft(id,'ADV-1'),hash='e'.repeat(64);
+ evidence(f,receipt,'advance-receipt',hash,'115.00',{receivedAt:receipt.issueDate});
+ const rr={...specialReview(receipt),...await f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,receipt,specialReview(receipt),{kind:'advance-receipt',evidenceDigest:hash}))};
+ const m=mapCommercialFiscalInvoice({scope,document:receipt,issuer,review:rr,identity});
+ assert.equal(m.invoice.kind,'prepayment');assert.match(m.candidate.bytes.toString(),/386<\/cbc:InvoiceTypeCode>/);assert.equal(m.invoice.supplyDate,undefined);
+ f.intent({...payload,document:receipt,review:rr});await acceptOriginal(f);
+ const claim=f.read('fiscalPrivateV1/owner/scenarioClaims/'+hash);assert.equal(claim.kind,'advance-receipt');assert.equal(claim.gross,'115.00');
+ const duplicate=specialDraft('duplicate','ADV-2');await assert.rejects(f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,duplicate,specialReview(duplicate),{kind:'advance-receipt',evidenceDigest:hash})));
+ async function settle(d,uuid){
+   const instruction={kind:'advance-settlement',allocations:[{documentId:id,net:'60.00',vat:'9.00'}]};
+   const r={...specialReview(d),...await f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,d,specialReview(d),instruction))};
+   const next=scenarioIssue(f,d,uuid),mapped=mapCommercialFiscalInvoice({scope,document:d,issuer,review:r,identity:next});
+   assert.equal(mapped.candidate.prepaymentContext.prepaid,'69.00');assert.equal(mapped.candidate.prepaymentContext.payable,'46.00');
+   return f.db.runTransaction(async tx=>{const plan=await planCommercialScenario(f.db,tx,scope,{document:d,issuer,review:r},next);plan.write(tx);});
+ }
+ const results=await Promise.allSettled([settle(specialDraft('settle-1','INV-2'),'22222222-2222-4222-8222-222222222222'),settle(specialDraft('settle-2','INV-3'),'33333333-3333-4333-8333-333333333333')]);
+ assert.equal(results.filter(x=>x.status==='fulfilled').length,1);assert.equal(results.filter(x=>x.status==='rejected').length,1);
+ assert.deepEqual(f.read(base+'/advanceBalances/'+id).reserved,{net:'60.00',vat:'9.00'});
+});
+test('debit note references a real accepted original, exact approved adjustment and one evidence claim',async()=>{
+ const f=fixture({publish:false}),original=specialDraft(id,'INV-1');f.intent({...payload,document:original,review:specialReview(original)});await acceptOriginal(f);
+ const d=specialDraft('debit','DN-1','20'),hash='f'.repeat(64);
+ evidence(f,d,'debit-note',hash,'23.00',{originalDocumentId:id,reason:'Price correction'});
+ const instruction={kind:'debit-note',originalDocumentId:id,originalNumber:original.number,evidenceDigest:hash};
+ const r={...specialReview(d),...await f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,d,specialReview(d),instruction))};
+ const next=scenarioIssue(f,d,'22222222-2222-4222-8222-222222222222'),m=mapCommercialFiscalInvoice({scope,document:d,issuer,review:r,identity:next});
+ assert.equal(m.invoice.kind,'debit-note');assert.match(m.candidate.bytes.toString(),/383<\/cbc:InvoiceTypeCode>/);
+ assert.equal(m.candidate.totals.taxInclusiveTotal,'23.00');
+ await assert.rejects(f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,d,specialReview(d),{...instruction,originalNumber:'foreign'})));
+ const run=()=>f.db.runTransaction(async tx=>{const plan=await planCommercialScenario(f.db,tx,scope,{document:d,issuer,review:r},next);plan.write(tx);});
+ await run();await assert.rejects(run(),/EVIDENCE_ALREADY_RESERVED/);
+ assert.equal(f.read('fiscalPrivateV1/owner/scenarioClaims/'+hash).documentId,d.id);
 });
