@@ -465,6 +465,8 @@ const CONTRACTS=[
   'tests/fiscal-prepayment.test.mjs',
   'tests/fiscal-standard-clearance-crypto.test.mjs',
   'tests/fiscal-managed-signing.test.mjs',
+  'tests/fiscal-managed-csr.test.mjs',
+  'tests/fiscal-managed-enrollment.test.mjs',
   'tests/fiscal-protected-signing.test.mjs',
   'tests/fiscal-pdfa.test.mjs',
   'tests/fiscal-accepted-issue.test.mjs',

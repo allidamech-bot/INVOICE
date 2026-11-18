@@ -79,6 +79,7 @@ export function createSimulationEnrollment({db,vault,onboarding,verifyCsr,verify
       const s=commandScope(identity,command,['expectedVersion']);
       const {p,current}=await load(s);
       need(current?.state==='checking'&&Number.isSafeInteger(command.expectedVersion)&&command.expectedVersion===current.version,'STALE_ONBOARDING');
+      need(await verifyCsr({scope:s,issuer:structuredClone(p.issuer),keyBinding:structuredClone(p.keyBinding),csr:decode(p.csr),functionalityMap:p.functionalityMap})===true,'ONBOARDING_CSR_NOT_VERIFIED');
       const type=requiredComplianceChecks(p.functionalityMap).find(t=>!current.checks.some(c=>c.type===t));need(type,'COMPLIANCE_ALREADY_COMPLETE');
       const credential=await vault.load(s,current.credentialRef,'compliance');
       need(same(credential,s)&&sha(credential.binarySecurityToken)===current.binding.certificateDigest,'COMPLIANCE_BINDING_MISMATCH');
@@ -97,6 +98,7 @@ export function createSimulationEnrollment({db,vault,onboarding,verifyCsr,verify
     async operational(identity,command){
       const s=commandScope(identity,command,['expectedVersion']),{p,current}=await load(s);
       need(current?.state==='checks-complete'&&Number.isSafeInteger(command.expectedVersion)&&command.expectedVersion===current.version,'STALE_ONBOARDING');
+      need(await verifyCsr({scope:s,issuer:structuredClone(p.issuer),keyBinding:structuredClone(p.keyBinding),csr:decode(p.csr),functionalityMap:p.functionalityMap})===true,'ONBOARDING_CSR_NOT_VERIFIED');
       const attempt=id(),ref=await hold(s,'operational-csid',p,current.version,attempt);
       const claimed=await onboarding.claimOperational(s,current.version,attempt);
       const compliance=await vault.load(s,claimed.record.credentialRef,'compliance');
