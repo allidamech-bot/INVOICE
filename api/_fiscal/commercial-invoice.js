@@ -28,7 +28,7 @@ function sameParty(source,verified,seller){
 export function mapCommercialFiscalInvoice({scope,document,issuer,review,identity}){
   const d=document,r=review;
   require(scope?.environment==='simulation'&&d?.id===identity?.documentId&&d.workspaceId===scope.workspaceId&&d.branchId===r?.branchId&&Number.isSafeInteger(d.revision)&&d.revision>=1&&d.revision===r.documentRevision,'FISCAL_DOCUMENT_SCOPE_MISMATCH');
-  require(d.kind==='invoice'&&['standard','credit-note'].includes(d.role)&&d.status==='draft'&&d.lifecycleStatus==='active'&&!d.voidedAt&&d.currency==='SAR'&&!d.letter,'FISCAL_COMMERCIAL_CASE_UNSUPPORTED');
+  require(d.kind==='invoice'&&['standard','credit-note'].includes(d.role)&&d.status==='draft'&&d.lifecycleStatus==='active'&&!d.voidedAt&&typeof d.currency==='string'&&!d.letter,'FISCAL_COMMERCIAL_CASE_UNSUPPORTED');
   require(r?.sourceDocumentId===d.id&&r.accountUid===scope.accountUid&&r.workspaceId===scope.workspaceId&&r.egsId===scope.egsId,'FISCAL_REVIEW_SCOPE_MISMATCH');
   assertFiscalIssuerIdentity(issuer,scope,d.issueDate);
   require(issuer.issuerCountry==='SA'&&issuer.saRegime==='phase-2'&&issuer.vatNumber===r.seller?.vatNumber&&trim(issuer.legalName)===trim(r.seller?.name),'FISCAL_ISSUER_NOT_VERIFIED');
@@ -37,8 +37,22 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   const route=resolveFiscalRoute(kind,issuer,r.invoiceType);
   require(route.route==='sa-clearance'||route.route==='sa-reporting','FISCAL_ROUTE_NOT_ELIGIBLE');
   sameParty(d.companySnapshot,r.seller,true);
+  const context={};
+  if(r.fiscalContext!==undefined){
+    require(kind==='invoice'&&r.invoiceType==='standard'&&r.fiscalContext&&typeof r.fiscalContext==='object'&&Object.keys(r.fiscalContext).length>0&&Object.keys(r.fiscalContext).every(k=>['rate','exportClassification','special'].includes(k)),'UNSUPPORTED_COMMERCIAL_FISCAL_CONTEXT');
+    for(const key of Object.keys(r.fiscalContext)){
+      const value=r.fiscalContext[key];require(value&&typeof value==='object'&&!Array.isArray(value)&&!Object.hasOwn(value,'uuid'),'INVALID_COMMERCIAL_FISCAL_CONTEXT');
+      context[key]={...structuredClone(value),uuid:identity.uuid};
+    }
+  }
+  require(d.currency==='SAR'||(kind==='invoice'&&r.invoiceType==='standard'&&context.rate),'FISCAL_FX_EVIDENCE_REQUIRED');
   if(r.buyer===null){require(r.invoiceType==='simplified'&&d.customerSnapshot===null,'FISCAL_BUYER_REQUIRED');}
-  else sameParty(d.customerSnapshot,r.buyer,false);
+  else if(context.exportClassification){
+    const customer=d.customerSnapshot,verified=r.buyer,legal=trim(customer?.companyNameAr)||trim(customer?.companyNameEn);
+    // Match the original structured foreign party. A foreign country or
+    // foreign currency alone never establishes export classification.
+    require(customer&&verified.country!=='SA'&&trim(customer.country).toUpperCase()===verified.country&&legal&&legal===trim(verified.name)&&trim(customer.city)===trim(verified.city)&&['TIN','CRN'].includes(verified.otherIdScheme)&&trim(verified.otherId)===(verified.otherIdScheme==='TIN'?trim(customer.vatTaxNumber):trim(customer.commercialRegistration)),'FISCAL_PARTY_MISMATCH');
+  }else sameParty(d.customerSnapshot,r.buyer,false);
   const cls={category:r.taxCategory,rate:r.taxRate,...(r.taxCategory==='S'?{}:{reasonCode:r.reasonCode,reasonText:r.reasonText})};
   require(r.taxCategory==='S'?r.taxRate==='15'&&d.adjustments?.taxEnabled===true&&dec(d.adjustments.taxPercent)==='15': ['Z','E','O'].includes(r.taxCategory)&&r.taxRate==='0'&&typeof r.classificationDigest==='string'&&/^[a-f0-9]{64}$/.test(r.classificationDigest)&&(!d.adjustments?.taxEnabled||dec(d.adjustments.taxPercent)==='0'),'FISCAL_TAX_REVIEW_REQUIRED');
   if(kind==='credit-note')require(r.original?.mode===r.invoiceType&&r.originalTax?.category===r.taxCategory&&r.originalTax?.rate===r.taxRate&&(r.taxCategory==='S'||r.originalTax.reasonCode===r.reasonCode),'FISCAL_CORRECTION_TAX_MISMATCH');
@@ -59,10 +73,10 @@ export function mapCommercialFiscalInvoice({scope,document,issuer,review,identit
   if(commercial.shipping!=='0.00')adjustments.push({kind:'charge',amount:commercial.shipping,...cls,adjustmentReasonCode:'FC',adjustmentReasonText:'Freight'});
   const issueAt=new Date(identity.generatedAt);
   require(Number.isFinite(issueAt.getTime())&&issueAt.toISOString()===identity.generatedAt&&d.issueDate===identity.generatedAt.slice(0,10),'FISCAL_ISSUE_DATE_MISMATCH');
-  const invoice={currency:'SAR',mode:r.invoiceType,kind,uuid:identity.uuid,icv:identity.icv,previousInvoiceHash:identity.previousInvoiceHash,number:d.number,issueDate:d.issueDate,issueTime:identity.generatedAt.slice(11,19),supplyDate:r.supplyDate,paymentMeans:r.paymentMeans,seller:structuredClone(r.seller),buyer:structuredClone(r.buyer),lines,...(adjustments.length?{adjustments}:{}),...(kind==='credit-note'?{original:structuredClone(r.original),correctionReason:r.correctionReason}:{})};
-  const candidate=buildFiscalCandidate(invoice);
+  const invoice={currency:d.currency,mode:r.invoiceType,kind,uuid:identity.uuid,icv:identity.icv,previousInvoiceHash:identity.previousInvoiceHash,number:d.number,issueDate:d.issueDate,issueTime:identity.generatedAt.slice(11,19),supplyDate:r.supplyDate,paymentMeans:r.paymentMeans,seller:structuredClone(r.seller),buyer:structuredClone(r.buyer),lines,...(adjustments.length?{adjustments}:{}),...(kind==='credit-note'?{original:structuredClone(r.original),correctionReason:r.correctionReason}:{})};
+  const candidate=buildFiscalCandidate(invoice,context);
   const t=candidate.totals;
   require(t.lineNetTotal===commercial.subtotal&&t.documentAllowances===commercial.discount&&t.documentCharges===commercial.shipping&&t.vatTotal===commercial.tax&&t.taxInclusiveTotal===commercial.grandTotal,'FISCAL_COMMERCIAL_TOTAL_MISMATCH');
   require(decimalToScaled(t.taxInclusiveTotal,2)>0n||kind==='invoice','FISCAL_ZERO_CORRECTION');
-  return {invoice,candidate,commercial,mode:route.route==='sa-clearance'?'clearance':'reporting'};
+  return {invoice,candidate,commercial,context,mode:route.route==='sa-clearance'?'clearance':'reporting'};
 }

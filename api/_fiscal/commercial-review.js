@@ -44,15 +44,21 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
         need(same(classification,s)&&classification.state==='approved'&&classification.documentId===d.id&&classification.documentRevision===d.revision&&classification.sourceRevision===meta.revision&&classification.sourceSha256===meta.sha256&&['Z','E','O'].includes(classification.category)&&classification.rate==='0'&&typeof classification.evidenceDigest==='string'&&/^[a-f0-9]{64}$/.test(classification.evidenceDigest),'FISCAL_TAX_REVIEW_REQUIRED');
         tax={taxCategory:classification.category,taxRate:'0',reasonCode:classification.reasonCode,reasonText:classification.reasonText,classificationDigest:classification.evidenceDigest};
       }
+      const contextRecord=data(await tx.get(db.doc(base+'/documentContexts/'+d.id)));
+      let extra={};
+      if(contextRecord){
+        need(same(contextRecord,s)&&contextRecord.state==='approved'&&contextRecord.documentId===d.id&&contextRecord.documentRevision===d.revision&&contextRecord.sourceRevision===meta.revision&&contextRecord.sourceSha256===meta.sha256&&contextRecord.context&&typeof contextRecord.context==='object','FISCAL_CONTEXT_REVIEW_REQUIRED');
+        extra={fiscalContext:structuredClone(contextRecord.context)};
+      }
       let correction={};
       if(d.role==='credit-note'){
         const original=await resolveFiscalCreditOriginal(db,tx,s,d);
         const remarks=typeof d.terms?.remarks==='string'?d.terms.remarks:'';
         const reasons=remarks.split('\n').filter(x=>x.startsWith('Reason / السبب: '));
-        need(reasons.length===1&&reasons[0].slice(15).trim()&&remarks.includes('VAT treatment: source invoice tax / المعالجة الضريبية: ضريبة الفاتورة الأصلية')&&!remarks.includes('VAT treatment: unchanged VAT'),'FISCAL_CORRECTION_REASON_REQUIRED');
+        need(reasons.length===1&&reasons[0].slice('Reason / السبب: '.length).trim()&&remarks.includes('VAT treatment: source invoice tax / المعالجة الضريبية: ضريبة الفاتورة الأصلية')&&!remarks.includes('VAT treatment: unchanged VAT'),'FISCAL_CORRECTION_REASON_REQUIRED');
         correction={...original,correctionReason:reasons[0].slice('Reason / السبب: '.length).trim()};
       }
-      const review={...s,sourceDocumentId:d.id,branchId:d.branchId,documentRevision:d.revision,invoiceType:cmd.invoiceType,seller,buyer,...tax,...correction,supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans};
+      const review={...s,sourceDocumentId:d.id,branchId:d.branchId,documentRevision:d.revision,invoiceType:cmd.invoiceType,seller,buyer,...tax,...extra,...correction,supplyDate:cmd.supplyDate,paymentMeans:cmd.paymentMeans};
       const ref=db.doc(base+'/issueReviews/'+d.id),prior=data(await tx.get(ref)),intent=data(await tx.get(db.doc(base+'/issueIntents/'+d.id))),issue=data(await tx.get(db.doc(base+'/issues/'+d.id)));
       const record={...s,state:'approved',documentId:d.id,sourceRevision:meta.revision,sourceSha256:meta.sha256,periodGeneration:source.control.generation,documentRevision:d.revision,issuer:profile.issuer,review};
       // Review classification and statutory details are verified against the

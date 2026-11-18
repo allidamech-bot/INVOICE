@@ -152,3 +152,18 @@ test('credit references are resolved from accepted immutable original and pendin
  assert.deepEqual(f.read(base+'/creditBalances/doc').reserved,{net:'100.00',vat:'15.00',gross:'115.00'});
  await assert.rejects(f.db.runTransaction(tx=>resolveFiscalCreditOriginal(f.db,tx,scope,{...draft,creditForNumber:'unrelated'})));
 });
+
+test('standard foreign currency and export use independently approved context and source buyer identity',()=>{
+ const rate={currency:'USD',sarPerUnit:'3.75',taxDueDate:'2026-11-18',rateDate:'2026-11-18',source:'SAMA',evidenceDigest:'a'.repeat(64)};
+ const foreign={...document,currency:'USD'};
+ const mapped=map(foreign,{...review,fiscalContext:{rate}});
+ assert.equal(mapped.invoice.currency,'USD');assert.equal(mapped.candidate.fiscalContext.vatSar,'109.69');
+ assert.throws(()=>map(foreign));assert.throws(()=>map(foreign,{...review,fiscalContext:{rate:{...rate,source:'browser'}}}));
+ assert.throws(()=>map(foreign,{...review,invoiceType:'simplified',fiscalContext:{rate}}));
+ const exportDoc={...foreign,customerSnapshot:{...document.customerSnapshot,country:'TR',vatTaxNumber:'1234567890'},adjustments:{...document.adjustments,taxEnabled:false,taxPercent:'0'}};
+ const exportBuyer={country:'TR',otherId:'1234567890',otherIdScheme:'TIN',street:'Street',city:buyer.city,name:buyer.name};
+ const exported={...review,buyer:exportBuyer,taxCategory:'Z',taxRate:'0',reasonCode:'VATEX-SA-32',reasonText:'Export of goods',classificationDigest:'b'.repeat(64),fiscalContext:{rate,exportClassification:{kind:'goods',buyerCountry:'TR',evidenceDigest:'c'.repeat(64)}}};
+ const x=map(exportDoc,exported);assert.equal(x.candidate.fiscalContext.vatSar,'0.00');assert.equal(x.candidate.totals.taxInclusiveTotal,'195.00');assert.match(x.candidate.bytes.toString(),/name="0100100"/);
+ assert.throws(()=>map(exportDoc,{...exported,fiscalContext:{rate}}));
+ assert.throws(()=>map(exportDoc,{...exported,buyer:{...exportBuyer,otherId:'other'}}));
+});

@@ -47,7 +47,7 @@ export function createCommercialFiscalPreparation({db,ledger,canonicalize,valida
       need(signed.invoiceHash===invoiceHash,'FISCAL_SIGNED_HASH_MISMATCH');
       bytes=Buffer.from(signed.bytes);
     }
-    need(await validateOfficial({scope,mode:mapped.mode,invoice:structuredClone(mapped.invoice),bytes:Buffer.from(bytes),invoiceHash})===true,'FISCAL_OFFICIAL_VALIDATION_REQUIRED');
+    need(await validateOfficial({scope,mode:mapped.mode,invoice:structuredClone(mapped.invoice),context:structuredClone(mapped.context),bytes:Buffer.from(bytes),invoiceHash})===true,'FISCAL_OFFICIAL_VALIDATION_REQUIRED');
     const result=await ledger.prepare(scope,{...scope,...identity,mode:mapped.mode,invoiceHash,artifactDigest:hashArtifact(bytes),snapshotDigest:intent.digest},bytes,intent.bytes,{approvedIntent:true});
     return project(result);
   };
