@@ -16,6 +16,10 @@ node scripts/verify-local.mjs
 A local signoff may take significantly longer than the former parallel hosted matrix because all required suites now run serially. On Linux install Playwright system libraries with `npx playwright install-deps chromium webkit` if missing.
 Playwright is installed without changing package.json or the lockfile. It is NOT uploaded as a GitHub artifact.
 
+## Fiscal QA prerequisites
+
+The permanent local contract manifest includes all fiscal tests (not just changed files). Install JDK 17+ (`java` and `javac`) and OpenSSL on PATH for the offline canonicalization and certificate tests. These tests do not establish official SDK, live Firestore/KMS or actual FATOORA simulation acceptance. Fiscal PR release requires separately recorded official SDK and six-document simulation results, isolated Firebase auth/rules and transaction acceptance, and all statutory/application integration gates in `docs/TAX_00_FISCAL_INTEGRATION.md`. No production credentials or paid infrastructure are required for the focused offline tests.
+
 ## Mandatory before merge
 
 Default verification runs the safe-workflow preflight, `npm audit --audit-level=high`, `scripts/security-check.mjs`, TypeScript, production build, every changed PR top-level test contract, the Batch 7 tests, and ten permanent stock-issue, invoice-void, sales-return, accounting, reporting, AI-isolation and two-device cloud-race contracts. It also runs the current Chromium/WebKit QA shards and iPad/mobile/editor stability suites. A failure or missing dependency blocks local signoff. Keep full console output and the tested commit SHA in the Pull Request.
