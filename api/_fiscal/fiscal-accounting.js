@@ -322,7 +322,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
    const snapshot=await reportInTransaction(tx,s,'0001-01-01',through,{strictClose:true});
    need(snapshot.unmatched===0&&snapshot.unpostedSales===0&&snapshot.pendingSales===0&&snapshot.unreviewedPurchases===0&&snapshot.pendingAdjustments.length===0&&snapshot.salesBlockers.length===0,'FISCAL_PERIOD_RECONCILIATION_REQUIRED');
    const bytes=Buffer.from(JSON.stringify(snapshot));need(bytes.length<=350000,'FISCAL_REPORT_LIMIT');
-   return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshot};
+   return {format:'LOUREX_FISCAL_CLOSE_V1',environment:'simulation',workspaceId:s.workspaceId,through,sha256:sha(bytes),snapshotJson:bytes.toString('utf8')};
  }
  return Object.freeze({postSale,postPurchase,postPurchaseAdjustment,report,closeProof});
 }

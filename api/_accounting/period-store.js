@@ -71,7 +71,9 @@ export function createPeriodService(db,{fiscalGuard}={}){
       decodeReport(report,chunks,boundary);
       if(report.fiscalProof){
         const p=report.fiscalProof;
-        if(p.format!=='LOUREX_FISCAL_CLOSE_V1'||p.environment!=='simulation'||p.workspaceId!==boundary.workspaceId||p.through!==boundary.through||p.snapshot?.to!==boundary.through||p.snapshot?.readyForFiling!==false||hash(Buffer.from(JSON.stringify(p.snapshot)))!==p.sha256)fail(422,'INVALID_PUBLISHED_REPORT');
+        if(p.format!=='LOUREX_FISCAL_CLOSE_V1'||p.environment!=='simulation'||p.workspaceId!==boundary.workspaceId||p.through!==boundary.through||typeof p.snapshotJson!=='string'||Buffer.byteLength(p.snapshotJson)>350000||hash(Buffer.from(p.snapshotJson))!==p.sha256)fail(422,'INVALID_PUBLISHED_REPORT');
+        let snapshot;try{snapshot=JSON.parse(p.snapshotJson);}catch{fail(422,'INVALID_PUBLISHED_REPORT');}
+        if(snapshot?.to!==boundary.through||snapshot?.readyForFiling!==false||snapshot?.unmatched!==0||snapshot?.unpostedSales!==0||snapshot?.pendingSales!==0||snapshot?.unreviewedPurchases!==0||snapshot?.pendingAdjustments?.length!==0||snapshot?.salesBlockers?.length!==0)fail(422,'INVALID_PUBLISHED_REPORT');
       }
       let candidate;try{candidate=closedPeriodState(payload,boundary);}catch{fail(422,'PERIOD_CHANGED');}
       if(hash(Buffer.from(JSON.stringify(candidate)))!==report.sha256)fail(422,'PERIOD_CHANGED');
