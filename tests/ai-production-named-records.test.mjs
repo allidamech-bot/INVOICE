@@ -217,7 +217,8 @@ test('invoice-number reads do not trust stale UI entities, other branches or a m
  const out=await read(v,exactInvoiceQuestion,'ar',ctx);
  assert.equal(out.results[0].data.id,'qa-issued-invoice');
  assert.equal(out.results[1].data.receivables[0].outstanding,'3000.00');
- assert.doesNotMatch(JSON.stringify(out.results),/99999|different-branch-doc/);
+ assert.equal(out.results[0].data.items[0].unitPrice,v.documents[0].items[0].unitPrice);
+ assert.doesNotMatch(JSON.stringify(out.results),/different-branch-doc/);
 });
 test('invoice details fail closed when exact number is absent or duplicated in scope',()=>{
  const v=numberedInvoiceFixture(),rt=createAiToolRuntime(v,context());
@@ -263,7 +264,10 @@ test('quotation local read is strict about missing numbers, branches and permiss
  assert.equal(executeAiToolPlan(rt,missing).results[0].ok,false);
  const elsewhere=structuredClone(v.documents.at(-1));elsewhere.id='other-branch-quote';elsewhere.branchId='other-branch';elsewhere.items[0].unitPrice='99999';v.documents.push(elsewhere);
  const local=await read(v,quoteQuestion,'ar',ctx);
- assert.equal(local.results[0].data.id,'saved-quotation-qa');assert.doesNotMatch(JSON.stringify(local.results),/99999/);
+ assert.equal(local.results[0].data.id,'saved-quotation-qa');
+ assert.equal(local.results[0].data.items[0].unitPrice,'185');
+ assert.equal(local.results[0].data.totals.grandTotal,'370.00');
+ assert.doesNotMatch(JSON.stringify(local.results),/other-branch-quote/);
  const current=createAiToolRuntime(v,ctx);
  for(const patch of [{scope:'personal'},{scope:'temporary'},{workspaceId:'different'},{branchId:'other-branch'}])
   assert.equal(namedRecordReadPlan(quoteQuestion,{...current,...patch}),null);
