@@ -517,14 +517,14 @@ const args=new Set(process.argv.slice(2));
 for(const arg of args)if(!['--quick','--legacy','--help'].includes(arg))throw Error('Unknown argument '+arg);
 if(args.has('--help')){
   console.log('Usage: node scripts/verify-local.mjs [--quick] [--legacy]');
-  console.log('Default: security, typecheck, production build, PR+B07 contracts and mandatory Chromium/WebKit QA.');
-  console.log('--quick: developer-only; skips browsers, NOT a merge signoff.');
+  console.log('Default: security, typecheck, production build, PR+B07 contracts, real local Firestore emulator and mandatory Chromium/WebKit QA.');
+  console.log('--quick: developer-only; skips emulator and browsers, NOT a merge signoff.');
   console.log('--legacy: include historical NON-BLOCKING diagnostics.');
   process.exit(0);
 }
 const npm=process.platform==='win32'?'npm.cmd':'npm';
-function run(cmd,argv,timeout=600000){
-  const result=spawnSync(cmd,argv,{cwd:ROOT,stdio:'inherit',encoding:'utf8',timeout,windowsHide:true,shell:process.platform==='win32'&&cmd===npm});
+function run(cmd,argv,timeout=600000,env=process.env){
+  const result=spawnSync(cmd,argv,{cwd:ROOT,stdio:'inherit',encoding:'utf8',timeout,env,windowsHide:true,shell:process.platform==='win32'&&cmd===npm});
   if(result.error)throw Error('Command failed: '+cmd+' '+argv.join(' ')+' / '+result.error.message);
   if(result.status!==0)throw Error('Command failed ('+result.status+'): '+cmd+' '+argv.join(' '));
 }
@@ -593,9 +593,25 @@ function runLocalChecks(){
   for(const file of tests)if(!existsSync(path.join(ROOT,file)))throw Error('Mandatory contract missing: '+file);
   run(process.execPath,['--test','--test-concurrency=2',...tests],900000);
 }
+function runFirestoreQa(){
+  // Same pinned CLI, rules and isolated demo project IDs as the existing
+  // branch QA workflows. No cloud project, credentials or paid runner needed.
+  const env={...process.env};
+  for(const key of Object.keys(env)){
+    if(/^(GOOGLE_APPLICATION_CREDENTIALS|GOOGLE_CLOUD_PROJECT|GCLOUD_PROJECT|CLOUDSDK_.*|FIREBASE_.*|FIRESTORE_EMULATOR_HOST|GOOGLE_OAUTH_ACCESS_TOKEN|GOOGLE_CLOUD_ACCESS_TOKEN)$/i.test(key)||/^LOUREX_FISCAL_.*(?:ACCOUNT_JSON|KMS_KEY)$/i.test(key))delete env[key];
+  }
+  env.CI='true';
+  for(const [project,files] of [
+    ['demo-lourex-gl-qa',['tests/finance-gl-emulator-atomic-22bc.integration.mjs']],
+    ['demo-lourex-period',['tests/period-server-emulator.integration.mjs','tests/period-server-publication-acceptance.integration.mjs','tests/firebase-firestore-rules-emulator.integration.mjs']]
+  ]){
+    run(npm,['exec','--yes','--package=firebase-tools@14.12.1','--','firebase','emulators:exec','--only','firestore','--project',project,'--config','firebase.ai-ci.json','node --test '+files.join(' ')],1200000,env);
+  }
+}
 async function main(){
-  if(args.has('--quick'))console.warn('DEVELOPMENT ONLY: --quick skips mandatory browser QA; not a merge signoff.');
+  if(args.has('--quick'))console.warn('DEVELOPMENT ONLY: --quick skips mandatory emulator and browser QA; not a merge signoff.');
   runLocalChecks();
+  if(!args.has('--quick'))runFirestoreQa();
   if(!args.has('--quick')||args.has('--legacy')){
     assertBrowserReady();
     const server=await startServer();
@@ -625,6 +641,6 @@ async function main(){
     try{run(process.execPath,['--test',...files],1800000);}
     catch(error){console.warn('NON-BLOCKING historical unit baseline failed: '+error.message);}
   }
-  console.log(args.has('--quick')?'Quick checks PASS; browser QA NOT RUN.':'Mandatory LOUREX local QA PASS including Chromium/WebKit.');
+  console.log(args.has('--quick')?'Quick checks PASS; Firestore emulator and browser QA NOT RUN.':'Mandatory LOUREX local QA PASS including local Firestore emulator and Chromium/WebKit.');
 }
 main().catch(error=>{console.error('LOUREX QA FAILED: '+error.message);process.exitCode=1;});

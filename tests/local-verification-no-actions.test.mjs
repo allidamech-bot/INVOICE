@@ -113,3 +113,15 @@ test('only the two documented historical integration branches remain eligible',(
   assert.throws(()=>assertQaRunnerAndPushBranches(yaml(historical),'another.yml'));
   for(const branch of ['main','integration/main','integration/*','integration/unapproved','release/production'])assert.throws(()=>assertQaRunnerAndPushBranches(yaml(historical+', '+branch),workflow));
 });
+
+
+test('final local signoff includes real isolated Firestore GL, period and security-rule acceptance',async()=>{
+  const source=await readFile(new URL('scripts/verify-local.mjs',root),'utf8');
+  const block=source.slice(source.indexOf('function runFirestoreQa(){'),source.indexOf('async function main(){'));
+  for(const fragment of ['firebase-tools@14.12.1','emulators:exec','demo-lourex-gl-qa','demo-lourex-period','firebase.ai-ci.json','tests/finance-gl-emulator-atomic-22bc.integration.mjs','tests/period-server-emulator.integration.mjs','tests/period-server-publication-acceptance.integration.mjs','tests/firebase-firestore-rules-emulator.integration.mjs','GOOGLE_APPLICATION_CREDENTIALS','FIREBASE_.*'])assert.ok(block.includes(fragment),fragment);
+  assert.ok(source.includes("if(!args.has('--quick'))runFirestoreQa();"));
+  const config=JSON.parse(await readFile(new URL('firebase.ai-ci.json',root),'utf8'));
+  assert.equal(config.emulators.firestore.host,'127.0.0.1');
+  assert.equal(config.emulators.firestore.port,8080);
+  assert.equal(config.firestore.rules,'firestore.rules');
+});

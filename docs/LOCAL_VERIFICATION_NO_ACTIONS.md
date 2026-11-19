@@ -24,7 +24,7 @@ The permanent local contract manifest includes all fiscal tests (not just change
 
 Default verification runs the safe-workflow preflight, `npm audit --audit-level=high`, `scripts/security-check.mjs`, TypeScript, production build, every changed PR top-level test contract, the Batch 7 tests, and ten permanent stock-issue, invoice-void, sales-return, accounting, reporting, AI-isolation and two-device cloud-race contracts. It also runs the current Chromium/WebKit QA shards and iPad/mobile/editor stability suites. A failure or missing dependency blocks local signoff. Keep full console output and the tested commit SHA in the Pull Request.
 
-`node scripts/verify-local.mjs --quick` is for development ONLY and does not run browsers. Do not merge based on a quick pass.
+`node scripts/verify-local.mjs --quick` is for development ONLY and does not run the Firestore emulator or browsers. Do not merge based on a quick pass.
 `node scripts/verify-local.mjs --legacy` also runs old diagnostic suites (reported separately and historically non-blocking).
 
 Feature branch → PR → final-head local verification → recorded manual signoff → merge. Do not bypass or weaken security, WebKit, iPad or mobile tests.
@@ -52,3 +52,8 @@ The configured simulation preparation bundle now requires `preparation.sdk` rath
 
 
 Actual R4.0.0 validation requires FATOORA_HOME pointing to the launcher directory. The validator supplies it automatically. It copies the pinned configuration into private per-invocation temporary storage, replaces privateKeyPath with an intentionally absent path for validation-only, and for simplified documents derives certPath from the exact single embedded public X509Certificate. This is a validation profile, not an authority trust decision. The protected signing session still verifies trust and revocation independently. Do not place real private keys inside an SDK installation. The six basic domestic synthetic cases have now passed official SDK 4.0.0 through this corrected adapter; other statutory scenarios and actual simulation enrollment/acceptance are separate gates.
+
+
+## Mandatory free local Firestore acceptance
+
+The default local verifier now invokes the existing pinned Firebase CLI 14.12.1 emulator suites after the production build/contracts, using the fixed local-only demo projects `demo-lourex-gl-qa` and `demo-lourex-period`, `firebase.ai-ci.json` and the checked-in Firestore rules. Java 21, Node 24 and initial npm/emulator download access (or cached dependencies) are required. No billing account, real Firebase project, Google login or production credentials are required. Cloud credential and project environment overrides are removed from these child invocations. A nonzero exit or unavailable emulator blocks signoff. The four existing integration files cover GL transactions, period controls/publication and tenant isolation. Passing them does not authorize production GL posting or establish actual ZATCA Simulation acceptance. The browser and other release checks remain mandatory. 
