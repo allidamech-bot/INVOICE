@@ -2,7 +2,7 @@
   'use strict';
   const PENDING='__lourexAiPendingSource';
   let mount=null,procurementMount=null,memoryMount=null,searchMount=null,dailyMount=null,collectionsMount=null,cfoMount=null;
-  let mounting=false,handoffBusy=false,productReviewMount=null;
+  let mounting=false,handoffBusy=false,productReviewMount=null,failedPanel=null,syncFrame=0;
   let guardianReviewMount=null,guardianInFlight=false,guardianBypass=false;
 
   function validPending(){const value=window[PENDING];if(!value||!value.file||!value.route||Date.now()-Number(value.createdAt||0)>10*60*1000){if(value)delete window[PENDING];return null;}return value;}
@@ -87,7 +87,7 @@
     if(dailyMount&&!dailyMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(dailyMount);}catch{}dailyMount=null;}
     if(collectionsMount&&!collectionsMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(collectionsMount);}catch{}collectionsMount=null;}
     if(cfoMount&&!cfoMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(cfoMount);}catch{}cfoMount=null;}
-    const panel=document.getElementById('lourex-ai-panel');if(!panel||mount||mounting)return;const compose=panel.querySelector('.lourex-ai-compose');const form=compose?.querySelector('form');if(!compose||!form||!window.React||!window.ReactDOM)return;
+    const panel=document.getElementById('lourex-ai-panel');if(!panel||mount||mounting||failedPanel===panel)return;const compose=panel.querySelector('.lourex-ai-compose');const form=compose?.querySelector('form');if(!compose||!form||!window.React||!window.ReactDOM)return;
     installContextBridge(compose);
     mounting=true;const node=document.createElement('div');node.dataset.lourexAiWorkflowMount='true';compose.insertBefore(node,form);
     try{
@@ -100,9 +100,10 @@
       const dailyNode=document.createElement('div');dailyNode.dataset.lourexDailyCommandCenterMount='true';compose.insertBefore(dailyNode,form);window.ReactDOM.render(window.React.createElement(daily.DailyCommandCenterTool,hiddenProps),dailyNode);dailyMount=dailyNode;
       const collectionsNode=document.createElement('div');collectionsNode.dataset.lourexCollectionsAiMount='true';compose.insertBefore(collectionsNode,form);window.ReactDOM.render(window.React.createElement(collections.CollectionsAiTool,hiddenProps),collectionsNode);collectionsMount=collectionsNode;
       const cfoNode=document.createElement('div');cfoNode.dataset.lourexCfoScenarioMount='true';compose.insertBefore(cfoNode,form);window.ReactDOM.render(window.React.createElement(cfo.CfoScenarioTool,hiddenProps),cfoNode);cfoMount=cfoNode;
-    }catch(error){console.warn('[LOUREX AI workflows] mount skipped',error);node.remove();}finally{mounting=false;}
+    }catch(error){failedPanel=panel;console.warn('[LOUREX AI workflows] mount skipped',error);node.remove();}finally{mounting=false;}
   }
   function sync(){void syncMount();syncHandoff();installQuoteCustomerBridge();}
   document.addEventListener('click',event=>{void interceptPurchasePost(event);},true);
-  new MutationObserver(sync).observe(document.documentElement,{childList:true,subtree:true});window.addEventListener('lourex-language-change',sync);sync();
+  function scheduleSync(){if(syncFrame)return;syncFrame=requestAnimationFrame(()=>{syncFrame=0;sync();});}
+  new MutationObserver(scheduleSync).observe(document.documentElement,{childList:true,subtree:true});window.addEventListener('lourex-language-change',scheduleSync);scheduleSync();
 })();

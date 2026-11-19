@@ -423,3 +423,6 @@ Posted cost reports now replay the exact approved cost allocation, original hash
 
 ### Combined Batch 2 acceptance candidate
 The explicit invoice-type branch is merged into the fiscal integration candidate, not main. The shared vault, backup, lifecycle and local QA changes retain both purchase and invoice mode policies. Explicit ordinary invoices are refused by the private government review and mapping pipeline even if a zero-rate classification is supplied; historic unclassified fiscal documents remain eligible for the independently approved process. All authority and release gates remain required; no deployment.
+
+### Release-gate diagnostics
+Updated the mobile purchase audit to explicitly select ordinary purchase in the mandatory type picker before inspecting editor geometry. Updated legacy template fallback verification to require the actual Executive SVG artwork geometry, not the removed pre-redesign CSS class. Coalesced global assistant mount observers to one animation frame and blocked recursive mount attempts after import errors; a browser rerun is required to establish whether this resolves the observed crashes. No gate removed or relaxed.

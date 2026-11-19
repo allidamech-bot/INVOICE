@@ -69,7 +69,7 @@ async function inspect(page,testCase){
       tableSize:tableCell?parseFloat(getComputedStyle(tableCell).fontSize):0,titleGlyphHeight:titleGlyphBox?.height||0,titleGlyphWidth:titleGlyphBox?.width||0,
       termLabelColor:termLabel?getComputedStyle(termLabel).color:'',termValueColor:termValue?getComputedStyle(termValue).color:'',partyNameColor:partyName?getComputedStyle(partyName).color:'',
       signaturePixels,stampPixels,signatureSurface:signatureMedia?getComputedStyle(signatureMedia).backgroundColor:'',signatureFilter:signature?getComputedStyle(signature).filter:'',stampFilter:stamp?getComputedStyle(stamp).filter:'',
-      headerExecutive:Boolean(sheet?.querySelector('.header-executive')),
+      headerExecutive:Boolean(sheet?.querySelector('.header-graphic .template-artwork-header path[d="M0 0H1000V253H0Z"]'))&&Boolean(sheet?.querySelector('.header-graphic .template-artwork-header path[d="M700 0H1000V253H500Z"]')),
       pageCount:document.querySelectorAll('.invoice-page').length,
       width:box?.width||0,height:box?.height||0,
       overflow:sheet?{x:sheet.scrollWidth-sheet.clientWidth,y:sheet.scrollHeight-sheet.clientHeight}:{x:999,y:999},

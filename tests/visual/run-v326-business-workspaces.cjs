@@ -201,6 +201,10 @@ async function deepMobileAudit(page,surface,scenario,lang,engineName,failures){
       const trigger=page.locator('.ta-ops-panel-head .btn-primary').first();
       await assertPrimaryAccent(page,trigger,`${label} add`,failures);
       if(await trigger.isVisible().catch(()=>false))await trigger.click();
+      if(fileToken==='purchase-editor'){
+        const picker=page.locator('.purchase-choice-ordinary');await picker.waitFor({state:'visible'});await picker.click();
+        await picker.waitFor({state:'hidden'});
+      }
       await auditOpenSurface(page,'.ta-ops-split>.ta-ops-editor','.ta-ops-editor-scroll','.ta-ops-editor-actions',scenario,label,failures);
       const save=page.locator('.ta-ops-split>.ta-ops-editor .btn-primary').last();
       await assertPrimaryAccent(page,save,`${label} save`,failures);
