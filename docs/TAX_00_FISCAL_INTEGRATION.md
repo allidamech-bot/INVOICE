@@ -418,3 +418,5 @@ The existing credit-note launcher and dialog now prepare an inert owner-only fis
 AP replay independently verifies original and adjustment journal lines plus actual dated payments/voids and posted refund/offsets against the existing authoritative supplier timeline. No synthetic cash entry or duplicate accounting journal is posted.
 
 The existing Supplier Payables page in fiscal QA reads the same verified AP journals for balances, aging and statements, including separate supplier credit and payment/void/refund/offset entries. If verification is unavailable, payment is held. Ordinary workspaces are unchanged. Debit adjustments exceeding the original commercial payment limit still need a trusted payment workflow; legacy GL and valuation close blockers remain until reconciled.
+
+Posted cost reports now replay the exact approved cost allocation, original hashed movement history, lot assignments, per-line relief and catalog basis instead of accepting a matching aggregate VAT total alone. New subsequent movements are identified but never assumed to consume the reviewed lot. This verification does not remove the independent production GL/valuation-cutover blocker.

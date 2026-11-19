@@ -1,7 +1,7 @@
 import {projectSupplierAPJournal} from './supplier-ap-reconciliation.mjs';
 import {postSupplierSettlement as postSupplierSettlementJournal,readSupplierSettlements,assertSupplierSettlementContinuity,mergeSupplierSettlementReconciliation} from './supplier-settlement-posting.mjs';
 import {planAdvanceCommercial,planAdvanceRefundCommercial,verifyAdvanceReport} from './advance-commercial.js';
-import {planReviewedLotCostBridge} from './lot-cost-bridge.mjs';
+import {planReviewedLotCostBridge,replayPostedCostAllocation} from './lot-cost-bridge.mjs';
 import {assertFiscalCostContinuity} from './cost-continuity.js';
 import {supplierSettlementTimeline,commercialFiscalPostingPolicy} from './settlement-integrity.mjs';
 import {planPurchaseReturn,isFiscalPurchaseReturn} from './purchase-return.mjs';
@@ -414,7 +414,10 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
                  if(cost.plan.valuationBridge){
                    const v=cost.plan.valuationBridge;need(cents(v.inventoryRelief)+cents(v.cogsRelief)+cents(v.expenseRelief)===cents(original.amount.deductibleVat),'FISCAL_PURCHASE_COST_CONFLICT');
                    for(const b of cost.plan.historyBindings??[]){const m=source.payload.inventoryMovements.find(x=>x.id===b.movementId);need(m&&reviewDigest(m)===b.digest,'FISCAL_COST_HISTORY_LOCKED');}
-                   valuationBridge=v;
+                   const review=data(await tx.get(db.doc(base+'/purchaseCostReviews/'+p.id)));
+                   need(same(review,original)&&review.originalEvidenceDigest===original.evidenceDigest&&review.sourceFingerprint===original.sourceFingerprint,'FISCAL_PURCHASE_COST_CONFLICT');
+                   const replay=replayPostedCostAllocation({purchase:p,amount:original.amount,record:cost,review,movements:source.payload.inventoryMovements,savedItems:source.payload.savedItems,digest:reviewDigest});
+                   valuationBridge=replay.valuationBridge;
                  }
                }
              }
