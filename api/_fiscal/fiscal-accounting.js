@@ -489,7 +489,7 @@ export function createFiscalAccounting({db,clock=()=>new Date().toISOString()}){
      const pendingAdjustments=[];
      for(const item of approvedAdjustments.docs){const a=item.data();need(a.accountUid===s.accountUid&&a.workspaceId===s.workspaceId&&a.environment==='simulation'&&typeof a.egsId==='string'&&ID.test(a.egsId),'FISCAL_PURCHASE_SOURCE_MISMATCH');if(a.state!=='approved')continue;need(a.adjustmentId===item.id&&ID.test(item.id)&&typeof a.documentNumber==='string'&&a.documentNumber.length<=128&&day(a.taxDate)&&['domestic','import','reverse-charge'].includes(a.treatment));if(a.taxDate<from||a.taxDate>to)continue;const existing=data(await tx.get(postingRef(db,s,'purchase-adjustment-'+item.id)));if(!existing)pendingAdjustments.push({id:item.id,number:a.documentNumber,treatment:a.treatment,date:a.taxDate});}
      const supplierSettlementHistory=await readSupplierSettlements(db,tx,s,source.payload,'0001-01-01',to);
-     const supplierSettlements={...supplierSettlementHistory,journals:supplierSettlementHistory.journals.filter(j=>j.date>=from)};
+     const supplierSettlements={...supplierSettlementHistory,journals:supplierSettlementHistory.journals.filter(j=>j.date>=from),vouchers:supplierSettlementHistory.vouchers.filter(v=>v.date>=from)};
      const settledByPurchase=new Map(supplierSettlements.balances.map(b=>[b.purchaseId,b]));
      need(settledByPurchase.size===supplierSettlements.balances.length,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
      const supplierPayableJournals=[...apSources.values()].map(a=>projectSupplierAPJournal({...a,settledBalance:settledByPurchase.get(a.purchase.id),settlementJournals:supplierSettlementHistory.journals}));

@@ -2,7 +2,8 @@ import type {CompanySettings,LourexDocument,PaymentRecord,PurchaseRecord,Supplie
 import {isIsoDate} from './id.js';
 import {decimalToScaled,isDecimalInput} from './money.js';
 import {accountedInvoicePayments} from './payments.js';
-import {normalizeSupplierPayment,postedOnOrBefore} from './payables.js';
+import {normalizeSupplierPayment,postedOnOrBefore,purchasePayableSummary} from './payables.js';
+import type {FiscalAdjustedPaymentVoucher,FiscalSupplierPayableJournal} from './fiscal-accounting-client.js';
 
 /** Output-only proof of one persisted financial payment, never a second posting. */
 export interface PaymentVoucher {
@@ -21,6 +22,7 @@ export interface PaymentVoucher {
   companyNameEn:string;
   companyNameAr:string;
   companyLogo:string;
+  simulationSettlement?:{treasuryEntryId:string;accountKind:'cash'|'bank'};
 }
 function sameScope(source:{workspaceId?:string;branchId?:string},payment:{workspaceId?:string;branchId?:string}):boolean{
   // Match the persistence/merge interpretation of legacy records. A missing
@@ -67,4 +69,14 @@ export function supplierPaymentVoucher(purchase:PurchaseRecord,paymentId:string,
     partyNameAr:purchase.supplierSnapshot?.nameAr||payment.supplierNameAr,
     companyNameEn:company.nameEn,companyNameAr:company.nameAr,companyLogo:company.logoDataUrl
   };
+}
+
+/** Output-only simulation voucher; never creates a SupplierPaymentRecord. */
+export function adjustedSupplierPaymentVoucher(purchase:PurchaseRecord,row:FiscalAdjustedPaymentVoucher,journal:FiscalSupplierPayableJournal,payments:SupplierPaymentRecord[],company:CompanySettings,today:string):PaymentVoucher{
+  const fail=()=>{throw new Error('Adjusted supplier voucher requires active verified settlement evidence.');};
+  if(!row||!journal||purchase.status!=='posted'||!postedOnOrBefore(purchase,row.date)||row.currency!=='SAR'||purchase.currency!==row.currency||row.purchaseId!==purchase.id||row.workspaceId!==purchase.workspaceId||row.branchId!==purchase.branchId||row.supplierId!==purchase.supplierSnapshot?.sourceSupplierId||!purchase.number.trim()||!isIsoDate(row.date)||row.date>today||!storedMoney(row.amount)||row.reversalId!==null||row.reversalDate!==null||!/^[A-Za-z0-9_-]{1,128}$/.test(row.id)||!/^[A-Za-z0-9_-]{1,128}$/.test(row.treasuryEntryId)||!['bank','cash'].includes(row.accountKind))fail();
+  purchasePayableSummary(purchase,payments,today,journal);
+  const matches=journal.entries.filter(e=>e.id==='settlement:'+row.id);
+  if(matches.length!==1||matches[0].type!=='adjusted-payment'||matches[0].reference!==row.id||matches[0].date!==row.date||matches[0].debit!==row.amount||matches[0].credit!=='0.00')fail();
+  return {kind:'supplier-disbursement',recordId:'settlement:'+row.id,sourceId:purchase.id,sourceNumber:purchase.number,paymentReference:row.treasuryEntryId,amount:row.amount,currency:row.currency,date:row.date,method:row.accountKind==='cash'?'cash':'other',notes:'',partyNameEn:purchase.supplierSnapshot?.nameEn||'',partyNameAr:purchase.supplierSnapshot?.nameAr||'',companyNameEn:company.nameEn,companyNameAr:company.nameAr,companyLogo:company.logoDataUrl,simulationSettlement:{treasuryEntryId:row.treasuryEntryId,accountKind:row.accountKind}};
 }

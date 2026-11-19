@@ -91,6 +91,23 @@ export async function postSupplierSettlement(db,tx,s,source,id,today){
  if(cashRef)tx.create(cashRef,{...s,key,cashDigest:approval.cashDigest});
  return {status:'posted',key};
 }
+// Output-only voucher facts, exclusively from the already validated AP/cash replay.
+function adjustedPaymentVouchers(posted,result,payload,from,to){
+ const applied=new Set(result.journals.map(j=>j.id)),out=[];
+ for(const {approval:a} of posted){
+  if(a.kind!=='adjusted-payment'||a.date<from||a.date>to)continue;
+  need(applied.has(a.id),'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+  const cash=payload.treasuryEntries.filter(e=>e.id===a.treasuryEntryId);
+  need(cash.length===1&&cash[0].type==='withdrawal'&&cash[0].amount===a.amount&&reviewDigest(supplierRefundCashFacts(cash[0]))===a.cashDigest,'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+  const accounts=payload.treasuryAccounts.filter(e=>e.id===cash[0].fromAccountId);
+  need(accounts.length===1&&['cash','bank'].includes(accounts[0].kind),'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+  const reversed=posted.map(x=>x.approval).filter(r=>r.kind==='adjusted-payment-reversal'&&r.reversesSettlementId===a.id&&r.date<=to);
+  need(reversed.length<=1&&reversed.every(r=>applied.has(r.id)&&r.amount===a.amount&&r.sourcePurchaseId===a.sourcePurchaseId),'FISCAL_SETTLEMENT_POSTING_CONFLICT');
+  const r=reversed[0];
+  out.push({id:a.id,purchaseId:a.sourcePurchaseId,workspaceId:a.workspaceId,branchId:a.branchId,supplierId:a.supplierId,currency:a.currency,date:a.date,amount:a.amount,treasuryEntryId:a.treasuryEntryId,accountKind:accounts[0].kind,reversalId:r?.id??null,reversalDate:r?.date??null});
+ }
+ return out.sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id));
+}
 export async function readSupplierSettlements(db,tx,s,payload,from,to){
  const posted=await loadPosted(db,tx,s),result=await allProjections(db,tx,s,payload,posted,null,to);
  const rows=await collectionRows(db,tx,simulationBase(s)+'/supplierSettlementReviews'),ids=new Set(posted.map(x=>x.approval.id)),pending=[];
@@ -99,7 +116,7 @@ export async function readSupplierSettlements(db,tx,s,payload,from,to){
   need(ID.test(id)&&row.id===id&&sameWorkspace(row,s)&&day(row.date)&&['refund','offset','adjusted-payment','adjusted-payment-reversal'].includes(row.kind));
   if(!ids.has(id)&&row.date<=to)pending.push({id,date:row.date,kind:row.kind,selectedIssuer:row.egsId===s.egsId});
  }
- return {balances:result.balances,journals:result.journals.filter(j=>j.date>=from),pending:pending.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id))};
+ return {balances:result.balances,journals:result.journals.filter(j=>j.date>=from),vouchers:adjustedPaymentVouchers(posted,result,payload,from,to),pending:pending.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id))};
 }
 export async function assertSupplierSettlementContinuity(db,tx,s,payload,extraAdjustment){
  const posted=await loadPosted(db,tx,s);

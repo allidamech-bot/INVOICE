@@ -33,6 +33,7 @@ export class PaymentVoucherModal extends React.Component<Props>{
           <div className="lx-payment-voucher-brand">{v.companyLogo?<img src={v.companyLogo} alt="" />:null}<div><strong>{company}</strong><small>{t('Recorded financial transaction','عملية مالية مسجلة')}</small></div></div>
           <div className="lx-payment-voucher-title"><h2>{receipt?t('Receipt Voucher','سند قبض'):t('Payment Voucher','سند دفع')}</h2><small>{t('Record ID','معرف السجل')}</small><bdi>{v.recordId}</bdi></div>
         </header>
+        {v.simulationSettlement?<p className="lx-payment-voucher-disclaimer" role="status">{t('SIMULATION ONLY — verified adjusted supplier settlement; not a production payment receipt.','محاكاة فقط — تسوية مورد معدلة متحقق منها؛ ليست سند دفع إنتاجيًا.')}</p>:null}
         {!receipt?<p className="lx-payment-voucher-disclaimer" data-voucher-company-current>{t('Company name and logo use current settings; historical issuer details were not saved with this payment.','اسم الشركة وشعارها من الإعدادات الحالية؛ لم تُحفظ هوية المُصدر التاريخية مع هذه الدفعة.')}</p>:null}
         {future?<p className="lx-payment-voucher-disclaimer" data-voucher-future role="status">{t('Future-dated payment. It is excluded from today’s balance until its effective date.','دفعة مؤرخة بتاريخ مستقبلي. لا تُحتسب في رصيد اليوم حتى حلول تاريخها.')}</p>:null}
         <div className="lx-payment-voucher-amount"><small>{receipt?t('Amount received','المبلغ المقبوض'):t('Amount paid','المبلغ المدفوع')}</small><strong data-voucher-amount><bdi>{formatMoney(v.amount,v.currency)}</bdi></strong></div>
@@ -40,7 +41,7 @@ export class PaymentVoucherModal extends React.Component<Props>{
           {row(receipt?t('Received from','استلمنا من'):t('Paid to','دُفع إلى'),name)}
           {row(t('Payment date','تاريخ الدفعة'),displayDate(v.date,getUiLanguage()))}
           {row(receipt?t('Invoice number','رقم الفاتورة'):t('Posted purchase','عملية الشراء المرحلة'),v.sourceNumber)}
-          {row(t('Method','طريقة الدفع'),methodLabel(v.method))}
+          {v.simulationSettlement?row(t('Treasury account type','نوع حساب الخزينة'),v.simulationSettlement.accountKind==='cash'?t('Cash','نقدي'):t('Bank','بنكي')):row(t('Method','طريقة الدفع'),methodLabel(v.method))}
           {row(t('Payment reference','مرجع الدفعة'),v.paymentReference)}
           {row(t('Currency','العملة'),v.currency)}
         </section>

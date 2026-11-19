@@ -23,7 +23,7 @@ function fixture(){
  const db={doc:path=>({path}),collection:path=>({where(k,o,v){return {limit:n=>({path,field:k,value:v,n})};},limit:n=>({path,n})})};
  function run(fn){const writes=[];let written=false;return Promise.resolve(fn({get:async ref=>{assert.equal(written,false,'all reads precede writes');if(ref.n){const prefix=ref.path+'/';return {docs:[...rows].filter(([key,x])=>key.startsWith(prefix)&&!key.slice(prefix.length).includes('/')&&(!ref.field||x[ref.field]===ref.value)).slice(0,ref.n).map(([key,x])=>({id:key.slice(prefix.length),data:()=>structuredClone(x)}))};}return {exists:rows.has(ref.path),data:()=>structuredClone(rows.get(ref.path))};},create:(ref,row)=>{written=true;assert.ok(!rows.has(ref.path)&&!writes.some(x=>x[0]===ref.path));writes.push([ref.path,structuredClone(row)]);}})).then(r=>{for(const [k,v] of writes)rows.set(k,v);return r;});}
  const post=(id,closedThrough=null)=>run(tx=>postSupplierSettlement(db,tx,s,{payload,closedThrough},id,'2026-11-19'));
- return {rows,payload,db,run,post,b,pay,cash};
+ return {rows,payload,db,run,post,b,pay,cash,approve};
 }
 test('posts offset and refund atomically, idempotently and reconstructs adjusted supplier balances',async()=>{
  const f=fixture();await f.post('offset');await f.post('refund');const count=f.rows.size;await f.post('refund');assert.equal(f.rows.size,count);
@@ -62,4 +62,27 @@ test('existing purchase reconciliation shows real net outstanding and credit aft
  assert.throws(()=>mergeSupplierSettlementReconciliation(r,{...b,supplierCredit:'1.00'}));
  const credit={adjustedPayable:'69.00',paid:'115.00',adjustedOutstanding:'-46.00',matched:false};
  assert.equal(mergeSupplierSettlementReconciliation(credit,{adjustedPayable:'69.00',paid:'115.00',settlementDelta:'30.00',outstanding:'0.00',supplierCredit:'16.00'}).settledSupplierCredit,'16.00');
+});
+
+test('adjusted payment voucher follows posted cash evidence and exact historical reversal',async()=>{
+ const f=fixture(),original=f.rows.get(base+'/accountingEntries/purchase-b');
+ f.rows.set(base+'/accountingEntries/debit-b',{...original,key:'debit-b',originalId:'b',taxDate:'2026-11-10',amount:{kind:'debit-note',treatment:'domestic',net:'20.00',vat:'3.00',deductibleVat:'0.00',gross:'23.00'}});
+ f.payload.treasuryAccounts[0].kind='bank';
+ const withdrawal={...f.cash,id:'withdrawal',type:'withdrawal',fromAccountId:'bank',toAccountId:'',amount:'23.00'};
+ const deposit={...f.cash,id:'return',date:'2026-11-15',amount:'23.00'};
+ f.payload.treasuryEntries.push(withdrawal,deposit);
+ const facts={...s,state:'approved',branchId:'b',currency:'SAR',supplierId:'supplier',sourcePurchaseId:'b',sourceFingerprint:original.sourceFingerprint};
+ f.approve({...facts,id:'pay-adjusted',kind:'adjusted-payment',date:withdrawal.date,amount:withdrawal.amount,treasuryEntryId:withdrawal.id,cashDigest:reviewDigest(supplierRefundCashFacts(withdrawal))});
+ f.approve({...facts,id:'reverse-adjusted',kind:'adjusted-payment-reversal',date:deposit.date,amount:deposit.amount,treasuryEntryId:deposit.id,cashDigest:reviewDigest(supplierRefundCashFacts(deposit)),reversesSettlementId:'pay-adjusted'});
+ const read=(from,to)=>f.run(tx=>readSupplierSettlements(f.db,tx,s,f.payload,from,to));
+ assert.deepEqual((await read('2026-11-01','2026-11-19')).vouchers,[]);
+ await f.post('pay-adjusted');const before=f.rows.size;
+ const active=(await read('2026-11-01','2026-11-19')).vouchers;
+ assert.deepEqual(active,[{id:'pay-adjusted',purchaseId:'b',workspaceId:'w',branchId:'b',supplierId:'supplier',currency:'SAR',date:withdrawal.date,amount:'23.00',treasuryEntryId:'withdrawal',accountKind:'bank',reversalId:null,reversalDate:null}]);
+ assert.equal(f.rows.size,before);assert.equal((await read('2026-11-14','2026-11-19')).vouchers.length,0);
+ await f.post('reverse-adjusted');
+ assert.equal((await read('2026-11-01','2026-11-14')).vouchers[0].reversalId,null);
+ const reversed=(await read('2026-11-01','2026-11-19')).vouchers[0];assert.equal(reversed.reversalId,'reverse-adjusted');assert.equal(reversed.reversalDate,deposit.date);
+ const altered={...f.payload,treasuryEntries:f.payload.treasuryEntries.map(e=>e.id==='withdrawal'?{...e,amount:'24.00'}:e)};
+ await assert.rejects(f.run(tx=>readSupplierSettlements(f.db,tx,s,altered,'2026-11-01','2026-11-19')));
 });
