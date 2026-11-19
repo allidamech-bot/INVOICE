@@ -83,5 +83,12 @@ jobs:
             tests/audit-treasury-offline-branch-posting.test.mjs \
             tests/audit-voided-treasury-account-identity.test.mjs
 
+      - name: Install fiscal PDF verification dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-venv libpango-1.0-0 libpangoft2-1.0-0 fonts-noto-core libharfbuzz-subset0
+          python3 -m venv "$RUNNER_TEMP/lourex-fiscal-python"
+          "$RUNNER_TEMP/lourex-fiscal-python/bin/python" -m pip install -r scripts/fiscal/requirements-pdfa.txt
+          echo "LOUREX_FISCAL_PYTHON=$RUNNER_TEMP/lourex-fiscal-python/bin/python" >> "$GITHUB_ENV"
       - name: Full Node regression suite for accounting policy changes
         run: node --test --test-concurrency=2 tests/*.test.mjs

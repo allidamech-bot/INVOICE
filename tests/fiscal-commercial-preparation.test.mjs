@@ -8,6 +8,7 @@ import {createCommercialFiscalPreparation} from '../api/_fiscal/commercial-prepa
 import {createCommercialIssueApproval} from '../api/_fiscal/commercial-approval.js';
 import {createCommercialReview} from '../api/_fiscal/commercial-review.js';
 import {reviewDigest} from '../api/_fiscal/commercial-source.js';
+import {advanceCashFacts,reserveAdvanceCash} from '../api/_fiscal/advance-commercial.js';
 import {resolveFiscalCreditOriginal,planFiscalCreditReservation} from '../api/_fiscal/commercial-credit.js';
 import {resolveCommercialScenario,planCommercialScenario} from '../api/_fiscal/commercial-scenarios.js';
 import {createFiscalSimulationWorker} from '../api/_fiscal/simulation-worker.js';
@@ -24,7 +25,7 @@ const identity={documentId:id,uuid:'11111111-1111-4111-8111-111111111111',icv:'1
 const payload={document,issuer,review,generatedAt:at};
 const map=(d=document,r=review,i=issuer)=>mapCommercialFiscalInvoice({scope,document:d,review:r,issuer:i,identity});
 const digest=b=>createHash('sha256').update(b).digest('hex');
-function fixture({publish=true}={}){
+function fixture({publish=true,treasuryEntries=[],treasuryAccounts=[]}={}){
  let rows=new Map(),tail=Promise.resolve();
  const db={doc:path=>({path}),runTransaction(fn){const job=tail.then(async()=>{const staged=new Map(structuredClone([...rows]));let writing=false;const tx={async get(ref){assert.equal(writing,false,'read before write');return {exists:staged.has(ref.path),data:()=>structuredClone(staged.get(ref.path))};},create(ref,v){writing=true;assert.equal(staged.has(ref.path),false);staged.set(ref.path,structuredClone(v));},update(ref,v){writing=true;assert.ok(staged.has(ref.path));staged.set(ref.path,{...staged.get(ref.path),...structuredClone(v)});}};const r=await fn(tx);rows=staged;return r;});tail=job.catch(()=>{});return job;}};
  const put=(p,v)=>rows.set(p,structuredClone(v));
@@ -32,7 +33,7 @@ function fixture({publish=true}={}){
  const root='users/owner',manifest=root+'/workspace/meta',control=root+'/accounting/control',reviewPath=base+'/issueReviews/doc',intentPath=base+'/issueIntents/doc';
  const revision='a'.repeat(32);
  function source(p=payload){
-   const v=emptyVault();v.documents=[p.document];v.workspaces[0].id=scope.workspaceId;v.branches[0].workspaceId=scope.workspaceId;
+   const v=emptyVault();v.documents=[p.document];v.treasuryEntries=structuredClone(treasuryEntries);v.treasuryAccounts=structuredClone(treasuryAccounts);v.workspaces[0].id=scope.workspaceId;v.branches[0].workspaceId=scope.workspaceId;
    const encoded=encodeWorkspace(v,revision);const meta={...encoded.meta,chunkStorage:'period-generations-v1'};
    put(manifest,meta);put(control,{format:'LOUREX_PERIOD_CONTROL_V1',version:1,ownerUid:scope.accountUid,generation:1,boundaries:[]});
    for(const chunk of encoded.chunks)put(root+'/periodGenerations/'+revision+'/chunks/chunk-'+revision+'-'+String(chunk.index).padStart(5,'0'),chunk);
@@ -184,12 +185,24 @@ function scenarioIssue(f,d,uuid){
  return {...identity,documentId:d.id,uuid,icv:f.read(base+'/egs/egs').nextIcv,previousInvoiceHash:f.read(base+'/egs/egs').previousInvoiceHash,generatedAt:'2026-11-18T10:01:00.000Z',snapshotDigest:'d'.repeat(64)};
 }
 test('advance receipt is issued once from approved exact payment evidence; concurrent settlements cannot overspend it',async()=>{
- const f=fixture({publish:false}),receipt=specialDraft(id,'ADV-1'),hash='e'.repeat(64);
- evidence(f,receipt,'advance-receipt',hash,'115.00',{receivedAt:receipt.issueDate});
+ const draft=specialDraft(id,'ADV-1'),receipt={...draft,items:draft.items.map(l=>({...l,stockTreatment:'non-stock'}))},hash='e'.repeat(64);
+ const cash={workspaceId:scope.workspaceId,branchId:'main',id:'cash-advance',date:receipt.issueDate,type:'deposit',sourceType:'manual',sourceId:'',currency:'SAR',amount:'115.00',fromAccountId:'',toAccountId:'bank',reference:'ADV-1',notes:'Verified synthetic deposit',createdAt:at,voidedAt:''};
+ const bank={workspaceId:scope.workspaceId,branchId:'main',id:'bank',currency:'SAR',active:true};
+ const f=fixture({publish:false,treasuryEntries:[cash],treasuryAccounts:[bank]});
+ const treasuryEntryDigest=reviewDigest(advanceCashFacts(cash));
+ evidence(f,receipt,'advance-receipt',hash,'115.00',{receivedAt:receipt.issueDate,treasuryEntryId:cash.id,treasuryEntryDigest});
  const rr={...specialReview(receipt),...await f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,receipt,specialReview(receipt),{kind:'advance-receipt',evidenceDigest:hash}))};
  const m=mapCommercialFiscalInvoice({scope,document:receipt,issuer,review:rr,identity});
  assert.equal(m.invoice.kind,'prepayment');assert.match(m.candidate.bytes.toString(),/386<\/cbc:InvoiceTypeCode>/);assert.equal(m.invoice.supplyDate,undefined);
- f.intent({...payload,document:receipt,review:rr});await acceptOriginal(f);
+ f.intent({...payload,document:receipt,review:rr});
+ const reservedPath='fiscalPrivateV1/owner/advanceTreasuryReservations/'+reviewDigest(cash.id);
+ const scenario=rr.scenario,next=scenarioIssue(f,receipt,identity.uuid);
+ await assert.rejects(f.db.runTransaction(tx=>reserveAdvanceCash(f.db,tx,scope,receipt,{...scenario,treasuryEntryDigest:'0'.repeat(64)},next)));
+ assert.equal(f.read(reservedPath),undefined);
+ await acceptOriginal(f);
+ assert.equal(f.read(reservedPath).treasuryEntryId,cash.id);
+ assert.equal(f.read(reservedPath).cashDigest,treasuryEntryDigest);
+ await assert.rejects(f.db.runTransaction(tx=>reserveAdvanceCash(f.db,tx,scope,receipt,scenario,next)),/FISCAL_ADVANCE_CASH_ALREADY_CLAIMED/);
  const claim=f.read('fiscalPrivateV1/owner/scenarioClaims/'+hash);assert.equal(claim.kind,'advance-receipt');assert.equal(claim.gross,'115.00');
  const duplicate=specialDraft('duplicate','ADV-2');await assert.rejects(f.db.runTransaction(tx=>resolveCommercialScenario(f.db,tx,scope,duplicate,specialReview(duplicate),{kind:'advance-receipt',evidenceDigest:hash})));
  async function settle(d,uuid){
