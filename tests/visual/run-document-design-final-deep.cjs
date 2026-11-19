@@ -25,7 +25,8 @@ async function inspect(page,testCase){
   await page.waitForFunction(()=>document.documentElement.dataset.ready==='true');
   await page.waitForFunction(()=>document.querySelector('.invoice-pages')?.dataset.paginationReady==='true');
   await page.evaluate(()=>document.fonts?.ready);
-  const metrics=await page.evaluate(()=>{
+  await page.waitForFunction(()=>document.querySelectorAll('[data-signing-ready="false"]').length===0);
+  const metrics=await page.evaluate(async()=>{
     const sheet=document.querySelector('.invoice-page');
     const pages=document.querySelector('.invoice-pages');
     const tableCell=sheet?.querySelector('.items-table tbody td');
@@ -40,6 +41,24 @@ async function inspect(page,testCase){
     const css=sheet?getComputedStyle(sheet):null;
     const box=sheet?.getBoundingClientRect();
     const titleGlyphBox=titleGlyph?.getBoundingClientRect();
+    let signaturePixels=null,stampPixels=null;
+    const pixels=async(img)=>{
+      if(!(img instanceof HTMLImageElement))return null;
+      await img.decode();
+      const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+      const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
+      const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+      let ink=0,light=0,red=0,transparent=0;
+      for(let i=0;i<data.length;i+=4){
+        if(data[i+3]===0){transparent++;continue;}
+        if(data[i+3]<200)continue;
+        ink++;
+        if(data[i]>=180&&data[i+1]>=180&&data[i+2]>=180)light++;
+        if(data[i]>data[i+1]+35&&data[i]>data[i+2]+35)red++;
+      }
+      return {ink,light,red,transparent,src:img.getAttribute('src')||''};
+    };
+    if(sheet?.dataset.tone==='dark'){signaturePixels=await pixels(signature);stampPixels=await pixels(stamp);}
     return{
       ready:pages?.dataset.paginationReady||'',
       template:sheet?.dataset.template||'',tone:sheet?.dataset.tone||'',palette:sheet?.dataset.palette||'',
@@ -49,7 +68,7 @@ async function inspect(page,testCase){
       latin:css?.getPropertyValue('--font-latin').trim()||'',arabic:css?.getPropertyValue('--font-arabic').trim()||'',
       tableSize:tableCell?parseFloat(getComputedStyle(tableCell).fontSize):0,titleGlyphHeight:titleGlyphBox?.height||0,titleGlyphWidth:titleGlyphBox?.width||0,
       termLabelColor:termLabel?getComputedStyle(termLabel).color:'',termValueColor:termValue?getComputedStyle(termValue).color:'',partyNameColor:partyName?getComputedStyle(partyName).color:'',
-      signatureSurface:signatureMedia?getComputedStyle(signatureMedia).backgroundColor:'',signatureFilter:signature?getComputedStyle(signature).filter:'',stampFilter:stamp?getComputedStyle(stamp).filter:'',
+      signaturePixels,stampPixels,signatureSurface:signatureMedia?getComputedStyle(signatureMedia).backgroundColor:'',signatureFilter:signature?getComputedStyle(signature).filter:'',stampFilter:stamp?getComputedStyle(stamp).filter:'',
       headerExecutive:Boolean(sheet?.querySelector('.header-executive')),
       pageCount:document.querySelectorAll('.invoice-page').length,
       width:box?.width||0,height:box?.height||0,
@@ -86,7 +105,11 @@ async function inspect(page,testCase){
           assert.match(metrics.arabic,/Cairo/i,`${label}: Arabic font token`);
         }
         if(testCase.name==='obsidian-custom-unsafe-ar'){
-          assert.equal(metrics.signatureSurface,'rgb(255, 255, 255)',`${label}: signature surface must stay light for preview/PDF parity`);
+          // Current renderer creates a light-ink raster preserving the original
+          // pen silhouette on dark paper, not an obsolete white CSS panel.
+          assert.equal(metrics.signatureSurface,'rgba(0, 0, 0, 0)',`${label}: no artificial signature panel`);
+          assert.ok(metrics.signaturePixels?.src.startsWith('data:image/png')&&metrics.signaturePixels.ink>10&&metrics.signaturePixels.light/metrics.signaturePixels.ink>.95&&metrics.signaturePixels.transparent>0,`${label}: prepared signature must have visible light ink and transparent exterior`);
+          assert.ok(metrics.stampPixels?.src.startsWith('data:image/png')&&metrics.stampPixels.red>10&&metrics.stampPixels.transparent>0,`${label}: prepared stamp must preserve its red ink and transparent exterior`);
           assert.equal(metrics.signatureFilter,'none',`${label}: signature must not depend on a CSS-only recolor`);
           assert.ok(!/invert\(/i.test(metrics.stampFilter),`${label}: stamp must preserve source color`);
         }

@@ -165,6 +165,9 @@ async function runCase(name,browserType,viewport,lang){
   try{
     const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},isMobile:viewport.isMobile,hasTouch:viewport.hasTouch});
     const page=await context.newPage();
+    page.on('crash',()=>console.error('[QA browser crash]',page.url()));
+    browser.on('disconnected',()=>{if(page.isClosed()===false)console.error('[QA browser unexpectedly disconnected]',page.url());});
+    page.on('pageerror',error=>console.error('[QA pageerror]',String(error?.message||error)));
     const failures=[];
     page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
     await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});

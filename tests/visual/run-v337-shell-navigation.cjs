@@ -16,6 +16,9 @@ async function runCase(name,browserType,viewport,lang){
   try{
     const context=await browser.newContext({viewport,isMobile:true,hasTouch:true});
     const page=await context.newPage();
+    page.on('crash',()=>console.error('[QA browser crash]',page.url()));
+    browser.on('disconnected',()=>{if(page.isClosed()===false)console.error('[QA browser unexpectedly disconnected]',page.url());});
+    page.on('pageerror',error=>console.error('[QA pageerror]',String(error?.message||error)));
     const failures=[];
     let mainFrameNavigations=0;
     page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));

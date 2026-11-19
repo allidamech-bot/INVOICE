@@ -39,7 +39,13 @@ async function inspect(page,template){
       const chain=[];
       while(node instanceof Element){chain.push(node);node=node.parentElement;}
       for(let i=chain.length-1;i>=0;i--){
-        const c=rgba(getComputedStyle(chain[i]).backgroundColor);
+        const css=getComputedStyle(chain[i]);
+        // Footer text sits on the authored SVG/footer gradient rather than the
+        // transparent background-color of its parent. Resolve the same paired
+        // artwork palette used by the production renderer.
+        const paper=chain[i].matches('.doc-footer')?css.getPropertyValue('--footer-paper').trim():'';
+        const hex=paper.match(/^#([a-f0-9]{6})$/i);
+        const c=hex?{r:parseInt(hex[1].slice(0,2),16),g:parseInt(hex[1].slice(2,4),16),b:parseInt(hex[1].slice(4,6),16),a:1}:rgba(css.backgroundColor);
         if(c&&c.a>0)bg=c.a>=.999?c:mix(c,bg);
       }
       return bg;
@@ -71,7 +77,8 @@ async function inspect(page,template){
         sample('term-value','.terms-block .term-row>span'),
         sample('totals-label','.totals-block span'),
         sample('totals-value','.totals-block strong'),
-        sample('footer','.doc-footer')
+        sample('footer-text','.doc-footer>span:first-of-type'),
+        sample('footer-page-number','.doc-footer>span:last-of-type')
       ],
       rowBorder:tdCss?{color:rgba(tdCss.borderBottomColor),width:parseFloat(tdCss.borderBottomWidth)||0,style:tdCss.borderBottomStyle,background:background(td)}:null,
       overflow:sheet?{x:sheet.scrollWidth-sheet.clientWidth,y:sheet.scrollHeight-sheet.clientHeight}:{x:999,y:999},

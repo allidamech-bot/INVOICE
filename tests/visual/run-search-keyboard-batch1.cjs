@@ -8,6 +8,9 @@ const {mkdirSync}=require('node:fs');
     const browser=await engine.launch({headless:true});
     try{
       const page=await browser.newPage({viewport:{width,height:844},isMobile:true,hasTouch:true});
+      page.on('crash',()=>console.error('[QA browser crash]',page.url()));
+      browser.on('disconnected',()=>{if(page.isClosed()===false)console.error('[QA browser unexpectedly disconnected]',page.url());});
+      page.on('pageerror',error=>console.error('[QA pageerror]',String(error?.message||error)));
       const errors=[];page.on('pageerror',error=>errors.push(error.message));
       await page.addInitScript(()=>{
         const viewport=new EventTarget();window.keyboardViewport={height:844,offsetTop:0};
