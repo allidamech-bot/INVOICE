@@ -6,7 +6,7 @@ const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const QA=/^[a-z][a-z0-9-]{0,18}-fiscal-qa$/;
 const KEY=/^projects\/([a-z][a-z0-9-]+)\/locations\/[a-z0-9-]+\/keyRings\/[A-Za-z0-9_-]+\/cryptoKeys\/[A-Za-z0-9_-]+\/cryptoKeyVersions\/[1-9][0-9]*$/;
 const HEX=/^[a-f0-9]{64}$/;
-const PURPOSES=new Set(['csr','xades-signed-info','simplified-qr','pades-signed-attributes']);
+const PURPOSES=new Set(['csr','xades-signed-info','simplified-qr','pades-signed-attributes','sdk4-invoice-hash']);
 const HSM=new Set(['HSM','HSM_SINGLE_TENANT']);
 const sha=b=>createHash('sha256').update(b).digest();
 const checksum=b=>String(crc32c(b));
@@ -60,7 +60,7 @@ export function createQaManagedSigner({projectId,binding,getAccessToken,fetchImp
   return Object.freeze({
     async getPublicKey(c){authorized(c);return Buffer.from((await publicKey()).spki);},
     async sign(c,{purpose,bytes,encoding}){
-      authorized(c);if(!PURPOSES.has(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024||!['der','ieee-p1363'].includes(encoding))throw Error('SIGNING_INPUT_INVALID');
+      authorized(c);if(!PURPOSES.has(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024||!['der','ieee-p1363'].includes(encoding)||(purpose==='sdk4-invoice-hash'&&(bytes.length!==32||encoding!=='der')))throw Error('SIGNING_INPUT_INVALID');
       const original=Buffer.from(bytes),key=await publicKey(),digest=sha(original);
       const r=await request(':asymmetricSign',{digest:{sha256:digest.toString('base64')},digestCrc32c:checksum(digest)});
       if(r?.name!==keyVersion||r.protectionLevel!==protectionLevel||r.verifiedDigestCrc32c!==true)throw Error('SIGNING_RESULT_INVALID');

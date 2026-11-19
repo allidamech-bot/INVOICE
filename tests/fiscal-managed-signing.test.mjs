@@ -11,13 +11,13 @@ const bytes=Buffer.from('synthetic canonical signed info'),sha=b=>createHash('sh
 const binding={...scope,keyVersion,publicKeyDigest:sha(spki).toString('hex'),protectionLevel:'HSM'};
 const publicResult={name:keyVersion,pem,pemCrc32c:crc(Buffer.from(pem)),algorithm:'EC_SIGN_SECP256K1_SHA256',protectionLevel:'HSM'};
 const signature=sign('sha256',bytes,privateKey),signResult={name:keyVersion,signature:signature.toString('base64'),signatureCrc32c:crc(signature),verifiedDigestCrc32c:true,protectionLevel:'HSM'};
-function fixture({pub={},sig={},patch={}}={}){
+function fixture({pub={},sig={},patch={},message=bytes}={}){
   const calls=[];const signer=createQaManagedSigner({projectId,binding,getAccessToken:async()=>'test-token',fetchImpl:async(url,options)=>{
     calls.push(url);assert.equal(options.redirect,'error');assert.equal(options.headers.Authorization,'Bearer test-token');
     if(url.endsWith('/publicKey')){assert.equal(options.method,'GET');return new Response(JSON.stringify({...publicResult,...pub}));}
     assert.equal(url,'https://cloudkms.googleapis.com/v1/'+keyVersion+':asymmetricSign');assert.equal(options.method,'POST');
-    assert.deepEqual(JSON.parse(options.body),{digest:{sha256:sha(bytes).toString('base64')},digestCrc32c:crc(sha(bytes))});
-    return new Response(JSON.stringify({...signResult,...sig}));
+    assert.deepEqual(JSON.parse(options.body),{digest:{sha256:sha(message).toString('base64')},digestCrc32c:crc(sha(message))});
+    return new Response(JSON.stringify({...signResult,...(message===bytes?{}:(()=>{const actual=sign('sha256',message,privateKey);return {signature:actual.toString('base64'),signatureCrc32c:crc(actual)};})()),...sig}));
   },...patch});return {signer,calls};
 }
 test('pinned HSM signer hashes once, returns locally verified DER or P1363',async()=>{
@@ -41,4 +41,13 @@ test('reject corrupted signature or a valid signature over different bytes',asyn
 test('bounded timeout does not retry an ambiguous remote request',async()=>{
   let calls=0;const {signer}=fixture({patch:{timeoutMs:100,fetchImpl:async()=>{calls++;return new Promise(()=>{});}}});
   await assert.rejects(signer.getPublicKey(scope),/SIGNING_REQUEST_FAILED/);assert.equal(calls,1);
+});
+
+test('SDK4 purpose signs exactly the decoded 32-byte invoice hash and permits DER only',async()=>{
+  const digest=sha(bytes),{signer,calls}=fixture({message:digest});
+  for(const [value,encoding] of [[digest,'ieee-p1363'],[Buffer.alloc(31),'der'],[Buffer.alloc(33),'der'],[digest.toString('base64'),'der']])await assert.rejects(signer.sign(scope,{purpose:'sdk4-invoice-hash',bytes:value,encoding}),/SIGNING_INPUT_INVALID/);
+  assert.equal(calls.length,0);
+  const der=await signer.sign(scope,{purpose:'sdk4-invoice-hash',bytes:digest,encoding:'der'});
+  assert.ok(verify('sha256',digest,{key:publicKey,dsaEncoding:'der'},der));
+  assert.equal(verify('sha256',bytes,{key:publicKey,dsaEncoding:'der'},der),false);
 });

@@ -27,10 +27,14 @@ export async function createProtectedSigningSession({projectId,scope,credential,
   const session=Object.freeze({
     at,issuerVat:credential.issuerVat,scope:s,get chainDer(){return chain.map(b=>Buffer.from(b));},
     async sign(purpose,bytes){
-      if(!['xades-signed-info','simplified-qr','pades-signed-attributes'].includes(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024)throw Error('PROTECTED_SIGNING_INPUT_INVALID');
+      // SDK4 signs the decoded invoice hash as message bytes, not as a prehashed input.
+      // Keep DER confined to this purpose; all existing consumers retain P1363.
+      const sdk4=purpose==='sdk4-invoice-hash';
+      if(!['xades-signed-info','simplified-qr','pades-signed-attributes','sdk4-invoice-hash'].includes(purpose)||!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>512*1024||(sdk4&&bytes.length!==32))throw Error('PROTECTED_SIGNING_INPUT_INVALID');
+      const encoding=sdk4?'der':'ieee-p1363';
       const original=Buffer.from(bytes);checkTrust();
-      const signature=await signer.sign(s,{purpose,bytes:original,encoding:'ieee-p1363'});
-      checkTrust();if(!verify('sha256',original,{key:leaf.publicKey,dsaEncoding:'ieee-p1363'},signature))throw Error('EGS_SIGNATURE_MISMATCH');
+      const signature=await signer.sign(s,{purpose,bytes:original,encoding});
+      checkTrust();if(!verify('sha256',original,{key:leaf.publicKey,dsaEncoding:encoding},signature))throw Error('EGS_SIGNATURE_MISMATCH');
       return signature;
     }
   });sessions.add(session);return session;

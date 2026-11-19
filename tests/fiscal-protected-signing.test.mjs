@@ -22,10 +22,10 @@ const projectId='test-fiscal-qa',scope={environment:'simulation',accountUid:'own
 const sha=b=>createHash('sha256').update(b).digest(),hex=b=>sha(b).toString('hex'),crc=b=>String(crc32c(b));
 const binding={...scope,keyVersion,publicKeyDigest:hex(spki),protectionLevel:'HSM'},credential={...scope,kind:'operational',issuerVat:'300000000000003',keyVersion,publicKeyDigest:hex(spki),leafDigest:hex(chainDer[0])};
 const trust={environment:'simulation',rootDigest:hex(chainDer[1]),egsPolicyOid:oid},bytes=Buffer.from('canonical test bytes');
-function fixture(patch={}){
+function fixture(patch={},message=bytes){
   let calls=0;const args={projectId,scope,binding,credential,chainDer,crlsDer:[read('good.der')],trust,getAccessToken:async()=>'qa-token',fetchImpl:async(url,options)=>{
     calls++;if(url.endsWith('/publicKey'))return new Response(JSON.stringify({name:keyVersion,pem,pemCrc32c:crc(Buffer.from(pem)),algorithm:'EC_SIGN_SECP256K1_SHA256',protectionLevel:'HSM'}));
-    assert.deepEqual(JSON.parse(options.body).digest,{sha256:sha(bytes).toString('base64')});const signature=sign('sha256',bytes,key);return new Response(JSON.stringify({name:keyVersion,protectionLevel:'HSM',verifiedDigestCrc32c:true,signature:signature.toString('base64'),signatureCrc32c:crc(signature)}));
+    assert.deepEqual(JSON.parse(options.body).digest,{sha256:sha(message).toString('base64')});const signature=sign('sha256',message,key);return new Response(JSON.stringify({name:keyVersion,protectionLevel:'HSM',verifiedDigestCrc32c:true,signature:signature.toString('base64'),signatureCrc32c:crc(signature)}));
   },...patch};return {create:()=>createProtectedSigningSession(args),calls:()=>calls};
 }
 test('operational EGS certificate and non-exportable signer bind both signatures',async()=>{
@@ -33,12 +33,18 @@ test('operational EGS certificate and non-exportable signer bind both signatures
   const copied=s.chainDer;copied[0].fill(0);assert.deepEqual(s.chainDer,chainDer);
   for(const purpose of ['xades-signed-info','simplified-qr','pades-signed-attributes'])assert.ok(verify('sha256',bytes,{key:leaf.publicKey,dsaEncoding:'ieee-p1363'},await s.sign(purpose,bytes)));
   await assert.rejects(s.sign('csr',bytes));
+  const digest=sha(bytes),f=fixture({},digest),sdk=await f.create();
+  const der=await sdk.sign('sdk4-invoice-hash',digest);
+  assert.ok(verify('sha256',digest,{key:leaf.publicKey,dsaEncoding:'der'},der));
+  assert.equal(verify('sha256',bytes,{key:leaf.publicKey,dsaEncoding:'der'},der),false);
+  const before=f.calls();for(const bad of [Buffer.alloc(31),Buffer.alloc(33),digest.toString('base64')])await assert.rejects(sdk.sign('sdk4-invoice-hash',bad),/PROTECTED_SIGNING_INPUT_INVALID/);
+  assert.equal(f.calls(),before);
 });
 test('wrong enrollment, issuer trust, key or missing CRL never contacts KMS',async()=>{
   for(const patch of [{credential:{...credential,leafDigest:'0'.repeat(64)}},{credential:{...credential,keyVersion:keyVersion+'0'}},{credential:{...credential,workspaceId:'other'}},{credential:{...credential,issuerVat:'invalid'}},{credential:{...credential,privateKey:key}},{trust:{...trust,egsPolicyOid:'1.2.3.4'}},{crlsDer:[]},{binding:{...binding,publicKeyDigest:'0'.repeat(64)}}]){const f=fixture(patch);await assert.rejects(f.create());assert.equal(f.calls(),0);}
 });
 test('revoked EGS and expired signing session cannot sign',async()=>{
-  let now=new Date().toISOString();const f=fixture({clock:()=>now}),s=await f.create(),before=f.calls();now=new Date(Date.parse(now)+301000).toISOString();await assert.rejects(s.sign('simplified-qr',bytes),/EGS_CERTIFICATE_NOT_VERIFIED/);assert.equal(f.calls(),before);
+  let now=new Date().toISOString();const f=fixture({clock:()=>now}),s=await f.create(),before=f.calls();now=new Date(Date.parse(now)+301000).toISOString();await assert.rejects(s.sign('simplified-qr',bytes),/EGS_CERTIFICATE_NOT_VERIFIED/);await assert.rejects(s.sign('sdk4-invoice-hash',sha(bytes)),/EGS_CERTIFICATE_NOT_VERIFIED/);assert.equal(f.calls(),before);
   ssl('ca','-config','ca.cnf','-revoke','leaf.pem');ssl('ca','-gencrl','-config','ca.cnf','-out','revoked.pem');ssl('crl','-in','revoked.pem','-outform','DER','-out','revoked.der');
   const g=fixture({crlsDer:[read('revoked.der')]});await assert.rejects(g.create());assert.equal(g.calls(),0);
 });
