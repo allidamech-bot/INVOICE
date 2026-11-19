@@ -63,6 +63,6 @@ export function projectSupplierCommercialSettlements({scope,sources,settlements,
    }else journals.push({id:r.id,date:d,kind:r.kind,treasuryEntryId:r.treasuryEntryId,lines:[{account:'cash-bank',side:'debit',amount:r.amount},credit]});
   }
  }
- const balances=[...byId].map(([key,s])=>{const b=raw(s,through),out=cents(b.adjustedOutstanding)+delta.get(key);return {purchaseId:key,number:s.purchase.number,supplierId:s.purchase.supplierSnapshot.sourceSupplierId,currency:s.purchase.currency,adjustedPayable:b.adjustedPayable,paid:b.paid,settlementDelta:money(delta.get(key)),outstanding:money(out>0n?out:0n),supplierCredit:money(out<0n?-out:0n)};});
+ const balances=[...byId].filter(([,s])=>s.purchase.date<=through&&s.original.taxDate<=through).map(([key,s])=>{const b=raw(s,through),out=cents(b.adjustedOutstanding)+delta.get(key);return {purchaseId:key,number:s.purchase.number,supplierId:s.purchase.supplierSnapshot.sourceSupplierId,currency:s.purchase.currency,adjustedPayable:b.adjustedPayable,paid:b.paid,settlementDelta:money(delta.get(key)),outstanding:money(out>0n?out:0n),supplierCredit:money(out<0n?-out:0n)};});
  return {balances,journals};
 }

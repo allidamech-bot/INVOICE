@@ -71,7 +71,7 @@ test('fiscal payment publication validates adjusted liability with the same tran
  const credit={...original,key:'purchase-adjustment-a',originalId:'p',taxDate:'2026-11-10',amount:{kind:'credit-note',treatment:'domestic',net:'20.00',vat:'3.00',gross:'23.00',deductibleVat:'0.00'}};
  const rows=new Map([[base,{...scope,syntheticOnly:true}],[base+'/accountingEntries/purchase-p',original]]),snap=v=>({exists:!!v,data:()=>v});
  const db={doc:path=>({path}),collection:path=>({where(){return this;},limit(){return {path,query:true};}})};
- const tx={get:async ref=>ref.query?{docs:[original,credit].map(v=>({id:v.key,data:()=>v}))}:snap(rows.get(ref.path))};
+ const tx={get:async ref=>ref.query?{docs:(ref.path.endsWith('/supplierSettlementPostings')?[]:[original,credit]).map(v=>({id:v.key,data:()=>v}))}:snap(rows.get(ref.path))};
  const guard=createFiscalPeriodGuard(db),payment={id:'pay',workspaceId,branchId:'b',purchaseId:'p',purchaseNumber:'P-1',currency:'SAR',supplierId:'s',date:'2026-11-11',amount:'92.00'};
  const before={workspaces:[{id:workspaceId}],documents:[],purchases:[purchase],supplierPayments:[]};
  await guard(tx,uid,before,{...before,supplierPayments:[payment]},{operation:'commit'});

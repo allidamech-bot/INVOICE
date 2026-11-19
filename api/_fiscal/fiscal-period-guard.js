@@ -77,8 +77,7 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
      }catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
    }
    if(changedPurchases.size){
-     if(!id(scope.selectedEgsId))fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');
-     try{await assertSupplierSettlementContinuity(db,tx,{accountUid:uid,workspaceId,egsId:scope.selectedEgsId,environment:'simulation'},candidate);}catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
+     try{await assertSupplierSettlementContinuity(db,tx,{accountUid:uid,workspaceId,egsId:id(scope.selectedEgsId)?scope.selectedEgsId:'unselected',environment:'simulation'},candidate);}catch{fail(409,'FISCAL_SETTLEMENT_REVIEW_REQUIRED');}
    }
    try{await assertFiscalCostContinuity(db,tx,{accountUid:uid,workspaceId},before,candidate);}catch{fail(409,'FISCAL_COST_HISTORY_LOCKED');}
    const oldReturns=(before.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m)),newReturns=(candidate.inventoryMovements??[]).filter(m=>m.workspaceId===workspaceId&&isReturnMovement(m));
