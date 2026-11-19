@@ -4,6 +4,7 @@ import { companySnapshotFrom } from './defaults.js';
 import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
 import { decimalToScaled, isDecimalInput, isFinancialDecimalInput, isNonNegativeDecimalInput, isNonNegativeFinancialDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
+import { invoiceModeValid } from './invoice-mode.js';
 import { defaultLetterData, defaultWatermark } from './document-extras.js';
 import { documentBankAllowed, documentCanConvertToInvoice, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
 
@@ -198,6 +199,7 @@ export function validateDocument(doc: LourexDocument, financialFormat: 'new-entr
   if (doc.adjustments.shippingEnabled && !nonNegative(doc.adjustments.shipping)) errors.shipping = 'Shipping must be 0 or greater.';
   if (doc.adjustments.otherChargesEnabled && !nonNegative(doc.adjustments.otherCharges)) errors.otherCharges = 'Other charges must be 0 or greater.';
   if (doc.adjustments.taxEnabled && !nonNegative(doc.adjustments.taxPercent)) errors.tax = 'Tax must be 0 or greater.';
+  if(!invoiceModeValid(doc))errors.tax=t('Invoice type and VAT settings do not match.','نوع الفاتورة لا يتطابق مع إعدادات الضريبة.');
   return errors;
 }
 

@@ -1,3 +1,4 @@
+import {assertInvoiceMode} from '../lib/invoice-mode.js';
 import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, SupplierPaymentRecord, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
 import { decimalToScaled, isDecimalInput, isExactStockQuantityInput, isFinancialDecimalInput, isNonNegativeDecimalInput, isNonNegativeFinancialDecimalInput } from '../lib/money.js';
@@ -764,7 +765,7 @@ function issuedInvoiceFinancialFacts(doc:LourexDocument):unknown{
     items:doc.items,adjustments:doc.adjustments,internalCosts:doc.internalCosts,
     terms:doc.terms,creditForId:doc.creditForId,creditForNumber:doc.creditForNumber,
     convertedFromId:doc.convertedFromId,bankAccountId:doc.bankAccountId,
-    paymentTermPresetId:doc.paymentTermPresetId,...(doc.fiscalAdvance!==undefined?{fiscalAdvance:doc.fiscalAdvance}:{})
+    paymentTermPresetId:doc.paymentTermPresetId,...(doc.invoiceMode!==undefined?{invoiceMode:doc.invoiceMode}:{}),...(doc.fiscalAdvance!==undefined?{fiscalAdvance:doc.fiscalAdvance}:{})
   };
 }
 function guardIssuedInvoiceContinuity(base:VaultPayload,candidate:VaultPayload):void{
@@ -1289,6 +1290,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   // item references: never let fresh same-ID imports collapse their identities.
   // Customer and supplier IDs are long-lived foreign keys for commercial
   // documents and settlements. Never let fresh same-ID records collapse.
+  const modes=new Map(base.documents.map(doc=>[doc.id,doc]));
+  for(const doc of [...intended.documents,...latest.documents])assertInvoiceMode(doc,modes.get(doc.id));
   guardNewOperationalRecordIds(base.documents,intended.documents,'document');
   guardNewOperationalRecordIds(base.documents,latest.documents,'document');
   guardNewOperationalRecordIds(base.customers,intended.customers,'customer');

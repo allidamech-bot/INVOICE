@@ -147,7 +147,7 @@ function LogoBlock({ document: doc, inverse = false, fallback = true }: { docume
   </div>;
 }
 function DocumentTitle({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
-  const title=documentKindTitle(doc.kind,doc.role);
+  const title=documentKindTitle(doc.kind,doc.role,doc.invoiceMode);
   const typeEn=title.en;
   const typeAr=title.ar;
   return <div className={`doc-title ${inverse ? 'inverse' : ''}`}>{doc.language === 'en' ? englishFragment(typeEn) : doc.language === 'ar' ? <span className="doc-title-primary-ar bidi-fragment bidi-ar" lang="ar" dir="rtl">{typeAr}</span> : <>{englishFragment(typeEn)}<em className="bidi-fragment bidi-ar" lang="ar" dir="rtl">{typeAr}</em></>}</div>;
