@@ -1,4 +1,4 @@
-import {reserveAdvanceCash} from './advance-commercial.js';
+import {reserveAdvanceCash,planSharedAdvanceCapacity} from './advance-commercial.js';
 import {createAcceptedFiscalReader} from './accepted-issue.js';
 import {readApprovedIntent} from './issue-intent.js';
 import {mapCommercialFiscalInvoice} from './commercial-invoice.js';
@@ -10,7 +10,6 @@ const data=s=>s.exists?s.data():null;
 const same=(r,s)=>r&&['accountUid','workspaceId','egsId','environment'].every(k=>r[k]===s[k]);
 const need=(ok,c='FISCAL_SCENARIO_EVIDENCE_REQUIRED')=>{if(!ok)throw Error(c);};
 const cents=v=>{need(typeof v==='string'&&/^(?:0|[1-9][0-9]{0,17})\.\d{2}$/.test(v),'FISCAL_ADVANCE_AMOUNT_INVALID');return BigInt(v.replace('.',''));};
-const money=n=>String(n/100n)+'.'+String(n%100n).padStart(2,'0');
 const fields=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));
 const equal=(a,b)=>reviewDigest(a)===reviewDigest(b);
 async function evidence(db,tx,s,d,kind,digest){
@@ -74,12 +73,7 @@ export async function planCommercialScenario(db,tx,s,payload,issue){
   const plans=[];
   for(const a of v.allocations){
     const {binding,cap}=await advance(db,tx,s,d,r,a);
-    const ref=db.doc(simulationBase(s)+'/advanceBalances/'+a.documentId),claim=db.doc(ref.path+'/reservations/'+d.id),prior=data(await tx.get(ref)),existing=data(await tx.get(claim));
-    need(!existing,'FISCAL_ADVANCE_ALREADY_RESERVED');
-    if(prior)need(same(prior,s)&&equal(prior.binding,binding)&&equal(prior.cap,cap)&&prior.originalDocumentId===a.documentId,'FISCAL_ADVANCE_BALANCE_INVALID');
-    const reserved={};
-    for(const k of ['net','vat']){const n=cents(prior?prior.reserved[k]:'0.00')+cents(a[k]);need(n<=cents(cap[k]),'FISCAL_ADVANCE_CAPACITY_EXCEEDED');reserved[k]=money(n);}
-    plans.push({ref,claim,prior,row:{...s,originalDocumentId:a.documentId,binding,cap,reserved},entry:{...s,documentId:d.id,uuid:issue.uuid,snapshotDigest:issue.snapshotDigest,net:a.net,vat:a.vat,state:'reserved'}});
+    plans.push(await planSharedAdvanceCapacity(db,tx,s,{receiptId:a.documentId,binding,cap,documentId:d.id,uuid:issue.uuid,snapshotDigest:issue.snapshotDigest,net:a.net,vat:a.vat}));
   }
-  return {write(tx){for(const p of plans){if(p.prior)tx.update(p.ref,p.row);else tx.create(p.ref,p.row);tx.create(p.claim,p.entry);}}};
+  return {write(tx){for(const p of plans)p.write(tx);}};
 }

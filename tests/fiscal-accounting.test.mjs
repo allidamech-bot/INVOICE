@@ -100,3 +100,42 @@ test('advance deposit reservation protects its treasury account identity even wh
  rows.clear();
  await assertAdvanceContinuity(db,tx,scope,before,candidate([{...bank,active:false}]));
 });
+
+test('applications and refunds reserve the same receipt capacity and refund withdrawals are globally unique',async()=>{
+ const {planSharedAdvanceCapacity,assertAdvanceContinuity}=await import('../api/_fiscal/advance-commercial.js');
+ const {reviewDigest}=await import('../api/_fiscal/commercial-source.js');
+ const s={accountUid:'owner',workspaceId:'qa',egsId:'e',environment:'simulation'},base='fiscalPrivateV1/owner/workspaces/qa/advanceBalances/r';
+ const binding={uuid:'original',version:3,snapshotDigest:'a'.repeat(64),resultDigest:'b'.repeat(64),artifactDigest:'c'.repeat(64)},cap={net:'100.00',vat:'15.00'};
+ const common={receiptId:'r',binding,cap,snapshotDigest:'d'.repeat(64)};
+ const rows=new Map(),db={doc:path=>({path})};
+ async function run(args){let writes=[];const tx={get:async ref=>{assert.equal(writes.length,0);return {exists:rows.has(ref.path),data:()=>rows.get(ref.path)}},create:(ref,row)=>{assert.ok(!rows.has(ref.path));writes.push([ref.path,row])},update:(ref,row)=>{assert.ok(rows.has(ref.path));writes.push([ref.path,row])}};const p=await planSharedAdvanceCapacity(db,tx,s,args);p.write(tx);for(const [k,v] of writes)rows.set(k,v);}
+ await assert.rejects(run({...common,documentId:undefined,uuid:'application-uuid',net:'60.00',vat:'9.00'}));
+ await assert.rejects(run({...common,documentId:'application',uuid:binding.uuid,net:'60.00',vat:'9.00'}));
+ await run({...common,documentId:'application',uuid:'application-uuid',net:'60.00',vat:'9.00'});
+ const refund={treasuryEntryId:'withdrawal',cashDigest:'e'.repeat(64),evidenceDigest:'f'.repeat(64)};
+ await assert.rejects(run({...common,documentId:'refund',uuid:'refund-uuid',net:'41.00',vat:'6.00',refund}),/FISCAL_ADVANCE_CAPACITY_EXCEEDED/);
+ const ref='fiscalPrivateV1/owner/advanceTreasuryReservations/'+reviewDigest(refund.treasuryEntryId);
+ assert.equal(rows.has(ref),false);
+ await run({...common,documentId:'refund',uuid:'refund-uuid',net:'30.00',vat:'4.50',refund});
+ assert.deepEqual(rows.get(base).reserved,{net:'90.00',vat:'13.50'});
+ assert.equal(rows.get(base+'/reservations/refund').kind,'advance-refund');
+ assert.equal(rows.get(ref).documentId,'refund');
+ await assert.rejects(run({...common,documentId:'other',uuid:'other-uuid',net:'10.00',vat:'1.50',refund}),/FISCAL_ADVANCE_CASH_ALREADY_CLAIMED/);
+ await assert.rejects(run({...common,documentId:'refund',uuid:'refund-uuid',net:'10.00',vat:'1.50'}),/FISCAL_ADVANCE_ALREADY_RESERVED/);
+ const bank={id:'bank',workspaceId:'qa',branchId:'b',currency:'SAR',active:true},withdrawal={id:'withdrawal',workspaceId:'qa',branchId:'b',currency:'SAR',type:'withdrawal',fromAccountId:'bank',amount:'34.50'};
+ const before={documents:[],treasuryAccounts:[bank],treasuryEntries:[withdrawal]},tx={get:async ref=>({exists:rows.has(ref.path)})};
+ await assert.rejects(assertAdvanceContinuity(db,tx,s,before,{...before,treasuryAccounts:[]}),/FISCAL_ADVANCE_CASH_LOCKED/);
+ await assert.rejects(assertAdvanceContinuity(db,tx,s,before,{...before,treasuryEntries:[{...withdrawal,amount:'1.00'}]}),/FISCAL_ADVANCE_CASH_LOCKED/);
+});
+test('advance posting and report reject corrupted shared application reservation and original posting',async()=>{
+ const {assertAdvanceAllocationClaim}=await import('../api/_fiscal/advance-commercial.js');
+ const {reviewDigest}=await import('../api/_fiscal/commercial-source.js');
+ const s={accountUid:'owner',workspaceId:'qa',egsId:'e',environment:'simulation'},receipt={id:'r',fiscalAdvance:{kind:'receipt',net:'100.00',vat:'15.00'}};
+ const posting={...s,source:'sale',key:'sale-r',sourceId:'r',commercialPosted:true,amount:{kind:'prepayment'},finalFingerprint:reviewDigest(receipt),advanceBinding:receipt.fiscalAdvance,uuid:'receipt',snapshotDigest:'a'.repeat(64),evidenceDigest:'b'.repeat(64)};
+ const settlement={documentId:'a',uuid:'application',snapshotDigest:'c'.repeat(64)},allocation={net:'60.00',vat:'9.00'};
+ const claim={...s,...settlement,...allocation,state:'reserved'},balance={...s,originalDocumentId:'r',binding:{uuid:posting.uuid,snapshotDigest:posting.snapshotDigest,resultDigest:posting.evidenceDigest,artifactDigest:'d'.repeat(64)},cap:{net:'100.00',vat:'15.00'},reserved:{net:'70.00',vat:'10.50'}};
+ assertAdvanceAllocationClaim(s,receipt,posting,settlement,claim,balance,allocation);
+ for(const bad of [{...claim,kind:'advance-refund'},{...claim,net:'59.00'},{...claim,egsId:'other'},{...claim,snapshotDigest:'e'.repeat(64)},null])assert.throws(()=>assertAdvanceAllocationClaim(s,receipt,posting,settlement,bad,balance,allocation));
+ for(const bad of [{...balance,reserved:{net:'59.00',vat:'9.00'}},{...balance,reserved:{net:'101.00',vat:'15.00'}},{...balance,binding:{...balance.binding,artifactDigest:'bad'}}])assert.throws(()=>assertAdvanceAllocationClaim(s,receipt,posting,settlement,claim,bad,allocation));
+ assert.throws(()=>assertAdvanceAllocationClaim(s,receipt,{...posting,commercialPosted:false},settlement,claim,balance,allocation));
+});

@@ -35,6 +35,37 @@ async function verifyReceiptCash(db,tx,s,payload,doc,binding,proof,expectedDiges
   if(expectedDigest!==undefined)need(expectedDigest===proof.treasuryEntryDigest);
   return {entry:e,account:accounts[0],cashDigest:proof.treasuryEntryDigest};
 }
+// The receipt has ONE capacity ledger, shared by applications and refunds.
+// Prepare all reads before the caller atomically commits the issue and ICV.
+export async function planSharedAdvanceCapacity(db,tx,s,{receiptId,binding,cap,documentId,uuid,snapshotDigest,net,vat,refund}){
+ const identifier=v=>typeof v==='string'&&ID.test(v);
+ need(s?.environment==='simulation'&&identifier(receiptId)&&identifier(documentId)&&receiptId!==documentId&&identifier(uuid)&&typeof snapshotDigest==='string'&&HEX.test(snapshotDigest)&&identifier(binding?.uuid)&&uuid!==binding.uuid&&Number.isSafeInteger(binding.version)&&binding.version>=3&&HEX.test(binding.snapshotDigest)&&HEX.test(binding.resultDigest)&&HEX.test(binding.artifactDigest)&&cap&&Object.keys(cap).length===2&&cents(cap.net)>0n&&cents(cap.vat)>=0n&&cents(net)>0n&&cents(vat)>=0n);
+ const ref=db.doc(simulationBase(s)+'/advanceBalances/'+receiptId),claim=db.doc(ref.path+'/reservations/'+documentId),prior=data(await tx.get(ref)),existing=data(await tx.get(claim));
+ need(!existing,'FISCAL_ADVANCE_ALREADY_RESERVED');
+ if(prior)need(same(prior,s)&&prior.originalDocumentId===receiptId&&equal(prior.binding,binding)&&equal(prior.cap,cap),'FISCAL_ADVANCE_BALANCE_INVALID');
+ const reserved={};
+ for(const k of ['net','vat']){
+   const n=cents(prior?prior.reserved[k]:'0.00')+cents(k==='net'?net:vat);
+   need(n<=cents(cap[k]),'FISCAL_ADVANCE_CAPACITY_EXCEEDED');reserved[k]=money(n);
+ }
+ const row={...s,originalDocumentId:receiptId,binding,cap,reserved};
+ let cashRef,cashRecord;
+ const entry={...s,documentId,uuid,snapshotDigest,net,vat,state:'reserved'};
+ if(refund!==undefined){
+   need(refund&&Object.keys(refund).length===3&&identifier(refund.treasuryEntryId)&&HEX.test(refund.cashDigest)&&HEX.test(refund.evidenceDigest));
+   cashRef=reservationIndex(db,s,refund.treasuryEntryId);
+   need(!(await tx.get(cashRef)).exists&&!(await tx.get(receiptIndex(db,s,refund.treasuryEntryId))).exists&&!(await tx.get(settlementCashClaim(db,s,refund.treasuryEntryId))).exists,'FISCAL_ADVANCE_CASH_ALREADY_CLAIMED');
+   Object.assign(entry,{kind:'advance-refund',receiptId,treasuryEntryId:refund.treasuryEntryId,cashDigest:refund.cashDigest});
+   cashRecord={...s,kind:'advance-refund',receiptId,documentId,uuid,snapshotDigest,evidenceDigest:refund.evidenceDigest,treasuryEntryId:refund.treasuryEntryId,cashDigest:refund.cashDigest};
+ }
+ return {write(tx){if(prior)tx.update(ref,row);else tx.create(ref,row);tx.create(claim,entry);if(cashRef)tx.create(cashRef,cashRecord);}};
+}
+// Reuse an issuance reservation; never add capacity again when posting or
+// reporting. The commercial journal and accepted receipt must agree.
+export function assertAdvanceAllocationClaim(s,receipt,posting,settlement,claim,balance,allocation){
+ need(same(posting,s)&&posting.commercialPosted===true&&posting.source==='sale'&&posting.key==='sale-'+receipt.id&&posting.sourceId===receipt.id&&posting.amount?.kind==='prepayment'&&posting.finalFingerprint===reviewDigest(receipt)&&equal(posting.advanceBinding,receipt.fiscalAdvance));
+ need(same(claim,s)&&claim.kind===undefined&&claim.state==='reserved'&&claim.documentId===settlement.documentId&&claim.uuid===settlement.uuid&&claim.snapshotDigest===settlement.snapshotDigest&&claim.net===allocation.net&&claim.vat===allocation.vat&&same(balance,s)&&balance.originalDocumentId===receipt.id&&balance.binding?.uuid===posting.uuid&&balance.binding?.snapshotDigest===posting.snapshotDigest&&balance.binding?.resultDigest===posting.evidenceDigest&&HEX.test(balance.binding.artifactDigest)&&balance.cap?.net===receipt.fiscalAdvance.net&&balance.cap?.vat===receipt.fiscalAdvance.vat&&cents(balance.reserved.net)<=cents(balance.cap.net)&&cents(balance.reserved.vat)<=cents(balance.cap.vat)&&cents(balance.reserved.net)>=cents(allocation.net)&&cents(balance.reserved.vat)>=cents(allocation.vat),'FISCAL_ADVANCE_BALANCE_INVALID');
+}
 export async function planAdvanceCommercial(db,tx,s,source,p,a,m,model){
  const doc=p.document,v=p.review.scenario,base=simulationBase(s),payload=source.payload;
  need(!doc.fiscalAdvance&&v&&['advance-receipt','advance-settlement'].includes(v.kind)&&doc.currency==='SAR'&&doc.role==='standard');
@@ -59,7 +90,7 @@ export async function planAdvanceCommercial(db,tx,s,source,p,a,m,model){
    need(d?.fiscalAdvance?.kind==='receipt'&&d.status==='final'&&d.lifecycleStatus==='active'&&d.branchId===doc.branchId&&d.workspaceId===doc.workspaceId&&d.currency===doc.currency&&d.issueDate<=doc.issueDate&&d.customerSnapshot?.sourceCustomerId===doc.customerSnapshot?.sourceCustomerId&&same(posting,s)&&posting.commercialPosted===true&&posting.amount?.kind==='prepayment'&&posting.finalFingerprint===reviewDigest(d)&&posting.sourceId===d.id);
    const original=await createAcceptedFiscalReader(db)(s,d.id,tx);need(original.record.uuid===posting.uuid&&original.record.resultDigest===posting.evidenceDigest&&original.record.snapshotDigest===posting.snapshotDigest);
    const claim=data(await tx.get(db.doc(base+'/advanceBalances/'+d.id+'/reservations/'+doc.id))),balance=data(await tx.get(db.doc(base+'/advanceBalances/'+d.id)));
-   need(same(claim,s)&&claim.state==='reserved'&&claim.documentId===doc.id&&claim.uuid===a.record.uuid&&claim.snapshotDigest===a.record.snapshotDigest&&claim.net===alloc.net&&claim.vat===alloc.vat&&same(balance,s)&&balance.originalDocumentId===d.id&&balance.binding?.uuid===posting.uuid&&balance.binding?.snapshotDigest===posting.snapshotDigest&&balance.binding?.resultDigest===posting.evidenceDigest&&balance.cap?.net===d.fiscalAdvance.net&&balance.cap?.vat===d.fiscalAdvance.vat&&cents(balance.reserved.net)<=cents(balance.cap.net)&&cents(balance.reserved.vat)<=cents(balance.cap.vat)&&cents(balance.reserved.net)>=cents(alloc.net)&&cents(balance.reserved.vat)>=cents(alloc.vat));
+   assertAdvanceAllocationClaim(s,d,posting,{documentId:doc.id,uuid:a.record.uuid,snapshotDigest:a.record.snapshotDigest},claim,balance,alloc);
    const proof=data(await tx.get(db.doc(base+'/scenarioEvidence/'+d.fiscalAdvance.evidenceDigest))),index=data(await tx.get(receiptIndex(db,s,d.fiscalAdvance.treasuryEntryId)));
    need(same(index,s)&&index.documentId===d.id&&index.uuid===posting.uuid&&index.evidenceDigest===d.fiscalAdvance.evidenceDigest&&index.treasuryEntryId===d.fiscalAdvance.treasuryEntryId);
    await verifyReceiptCash(db,tx,s,payload,d,d.fiscalAdvance,proof,index.cashDigest);
@@ -81,17 +112,18 @@ export async function assertAdvanceContinuity(db,tx,{accountUid,workspaceId},bef
    const matches=nextAccounts.filter(x=>x.id===a.id);
    return matches.length!==1||matches[0].workspaceId!==a.workspaceId||matches[0].branchId!==a.branchId||matches[0].currency!==a.currency||a.active===true&&matches[0].active!==true;
  }).map(a=>a.id));
- const impacted=[...priorCash.values()].filter(e=>e.type==='deposit'&&changedDestinations.has(e.toAccountId));
+ const impacted=[...priorCash.values()].filter(e=>e.type==='deposit'&&changedDestinations.has(e.toAccountId)||e.type==='withdrawal'&&changedDestinations.has(e.fromAccountId));
  need(impacted.length<=100,'FISCAL_CHANGE_LIMIT');
  for(const e of impacted){
    need(ID.test(e.id));
    const claim=await tx.get(reservationIndex(db,{accountUid},e.id));
    if(!claim.exists)continue;
-   const old=priorAccounts.find(x=>x.id===e.toAccountId),matches=nextAccounts.filter(x=>x.id===e.toAccountId);
+   const accountId=e.type==='deposit'?e.toAccountId:e.fromAccountId;
+   const old=priorAccounts.find(x=>x.id===accountId),matches=nextAccounts.filter(x=>x.id===accountId);
    need(old&&matches.length===1&&matches[0].workspaceId===old.workspaceId&&matches[0].branchId===old.branchId&&matches[0].currency===old.currency,'FISCAL_ADVANCE_CASH_LOCKED');
    // A posted historical receipt may keep an inactive account, but an
    // unresolved reservation must still be able to finalize its receipt.
-   const posted=await tx.get(receiptIndex(db,{accountUid},e.id));
+   const posted=await tx.get(e.type==='deposit'?receiptIndex(db,{accountUid},e.id):settlementCashClaim(db,{accountUid},e.id));
    need(posted.exists||matches[0].active===true,'FISCAL_ADVANCE_CASH_LOCKED');
  }
  const beforeDocs=(before.documents??[]).filter(d=>d.workspaceId===workspaceId&&d.fiscalAdvance!==undefined),afterDocs=(candidate.documents??[]).filter(d=>d.workspaceId===workspaceId&&d.fiscalAdvance!==undefined);
@@ -103,15 +135,30 @@ export async function verifyAdvanceReport(db,tx,s,payload,through){
  const docs=payload.documents.filter(d=>d.workspaceId===s.workspaceId&&d.fiscalAdvance!==undefined),base=simulationBase(s);need(docs.length<=200);
  if(!docs.length)return [];
  const [{assertFiscalAdvanceIntegrity,fiscalAdvanceBalances},{calculateTotals}]=await Promise.all(['advance','money'].map(loadCompiledFinance));assertFiscalAdvanceIntegrity(payload,d=>calculateTotals(d.items,d.adjustments));
+ const postings=new Map(),used=new Map();
  for(const d of docs.filter(d=>d.issueDate<=through)){
    const posting=data(await tx.get(db.doc(base+'/accountingEntries/sale-'+d.id))),b=d.fiscalAdvance;
    need(posting&&posting.accountUid===s.accountUid&&posting.workspaceId===s.workspaceId&&posting.environment==='simulation'&&posting.sourceId===d.id&&posting.commercialPosted===true&&posting.finalFingerprint===reviewDigest(d)&&equal(posting.advanceBinding,b));
+   postings.set(d.id,posting);
    const issuerScope={...s,egsId:posting.egsId};
    if(b.kind==='receipt'){
      const idx=data(await tx.get(receiptIndex(db,s,b.treasuryEntryId))),proof=data(await tx.get(db.doc(base+'/scenarioEvidence/'+b.evidenceDigest)));
      need(same(idx,issuerScope)&&idx.documentId===d.id&&idx.uuid===posting.uuid&&idx.evidenceDigest===b.evidenceDigest&&idx.treasuryEntryId===b.treasuryEntryId);
      await verifyReceiptCash(db,tx,issuerScope,payload,d,b,proof,idx.cashDigest);
    }else need(b.evidenceDigest===posting.evidenceDigest);
+ }
+ for(const d of docs.filter(d=>d.issueDate<=through&&d.fiscalAdvance.kind==='settlement')){
+   const posting=postings.get(d.id),issuerScope={...s,egsId:posting.egsId};
+   for(const a of d.fiscalAdvance.allocations){
+     const receipt=docs.find(x=>x.id===a.receiptId),original=postings.get(a.receiptId);
+     need(receipt&&original&&receipt.fiscalAdvance.kind==='receipt');
+     const path=base+'/advanceBalances/'+a.receiptId;
+     const balance=data(await tx.get(db.doc(path))),claim=data(await tx.get(db.doc(path+'/reservations/'+d.id)));
+     assertAdvanceAllocationClaim(issuerScope,receipt,original,{documentId:d.id,uuid:posting.uuid,snapshotDigest:posting.snapshotDigest},claim,balance,a);
+     const prior=used.get(a.receiptId)??{net:0n,vat:0n},next={net:prior.net+cents(a.net),vat:prior.vat+cents(a.vat)};
+     need(next.net<=cents(balance.reserved.net)&&next.vat<=cents(balance.reserved.vat),'FISCAL_ADVANCE_BALANCE_INVALID');
+     used.set(a.receiptId,next);
+   }
  }
  return fiscalAdvanceBalances(docs,through);
 }
