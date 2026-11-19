@@ -29,6 +29,7 @@ export function createCommercialReview({db,clock=()=>new Date().toISOString()}){
       const payload=decodeWorkspace(meta,chunks),docs=payload.documents.filter(d=>d.id===cmd.documentId);
       need(docs.length===1,'FISCAL_DOCUMENT_NOT_FOUND');const d=docs[0];
       need(d.revision===cmd.documentRevision&&payload.workspaces.some(w=>w.id===s.workspaceId)&&payload.branches.some(b=>b.id===d.branchId&&b.workspaceId===s.workspaceId&&b.active===true),'FISCAL_REVIEW_CHANGED');
+      need(d.invoiceMode===undefined||d.invoiceMode==='tax','FISCAL_ORDINARY_INVOICE_NOT_ELIGIBLE');
       need(!source.closedThrough||d.issueDate>source.closedThrough,'FISCAL_PERIOD_CLOSED');
       const profile=data(await tx.get(db.doc(base+'/egs/'+s.egsId+'/enrollment/approved'))),sellerProfile=data(await tx.get(db.doc(base+'/sellerProfile/current')));
       need(same(profile,s)&&profile.state==='approved'&&profile.issuer&&unit.issuerVat===profile.issuer.vatNumber&&unit.operationalCredentialRef,'FISCAL_ISSUER_NOT_VERIFIED');

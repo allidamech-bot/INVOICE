@@ -276,3 +276,9 @@ test('isolated refund uses private withdrawal proof, shared reservation, accepte
  assert.deepEqual((await run(true)).binding,plan.binding);
  assert.deepEqual(f.read(base+'/advanceBalances/'+id).reserved,{net:'40.00',vat:'6.00'});
 });
+
+test('explicit ordinary invoices cannot be reclassified by an approved fiscal tax review; legacy tax drafts still map',()=>{
+ assert.throws(()=>map({...document,invoiceMode:'ordinary'}),/FISCAL_ORDINARY_INVOICE_NOT_ELIGIBLE/);
+ assert.throws(()=>map({...document,invoiceMode:'ordinary',adjustments:{...document.adjustments,taxEnabled:false,taxPercent:'0'}},{...review,taxCategory:'Z',taxRate:'0',classificationDigest:'a'.repeat(64)}),/FISCAL_ORDINARY_INVOICE_NOT_ELIGIBLE/);
+ assert.equal(map({...document,invoiceMode:'tax'}).candidate.totals.taxInclusiveTotal,map().candidate.totals.taxInclusiveTotal);
+});
