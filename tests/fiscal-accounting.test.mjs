@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {saleAccountingModel,purchaseAccountingModel} from '../api/_fiscal/fiscal-accounting.js';
-import {createFiscalPeriodGuard} from '../api/_fiscal/fiscal-period-guard.js';
+import {createFiscalPeriodGuard,assertFiscalWorkspacePublication} from '../api/_fiscal/fiscal-period-guard.js';
 const totals={taxExclusiveTotal:'100.00',vatTotal:'15.00',taxInclusiveTotal:'115.00'};
 const mapped=(kind,extra={})=>({invoice:{kind,currency:'SAR'},candidate:{totals,...extra}});
 const by=(m,account)=>m.lines.find(l=>l.account===account);
@@ -138,4 +138,18 @@ test('advance posting and report reject corrupted shared application reservation
  for(const bad of [{...claim,kind:'advance-refund'},{...claim,net:'59.00'},{...claim,egsId:'other'},{...claim,snapshotDigest:'e'.repeat(64)},null])assert.throws(()=>assertAdvanceAllocationClaim(s,receipt,posting,settlement,bad,balance,allocation));
  for(const bad of [{...balance,reserved:{net:'59.00',vat:'9.00'}},{...balance,reserved:{net:'101.00',vat:'15.00'}},{...balance,binding:{...balance.binding,artifactDigest:'bad'}}])assert.throws(()=>assertAdvanceAllocationClaim(s,receipt,posting,settlement,claim,bad,allocation));
  assert.throws(()=>assertAdvanceAllocationClaim(s,receipt,{...posting,commercialPosted:false},settlement,claim,balance,allocation));
+});
+
+test('server-enrolled fiscal scope cannot be bypassed by seller country, currency, ordinary mode or missing tax number',()=>{
+ const scope={environment:'simulation',syntheticOnly:true};
+ const draft={kind:'invoice',status:'draft',invoiceMode:'ordinary',companySnapshot:{country:'Türkiye',vatNumber:''},currency:'USD'};
+ for(const next of [{...draft,status:'final'},{...draft,status:'final',currency:'SAR'},{...draft,status:'final',invoiceMode:'tax'},{...draft,status:'final',invoiceMode:undefined,companySnapshot:{}},{...draft,status:'final',role:'credit-note'}]) {
+  assert.throws(()=>assertFiscalWorkspacePublication(scope,draft,next),/FISCAL_DOCUMENT_LOCKED/);
+  assert.throws(()=>assertFiscalWorkspacePublication(scope,next,undefined),/FISCAL_DOCUMENT_LOCKED/);
+  assert.throws(()=>assertFiscalWorkspacePublication(scope,next,draft),/FISCAL_DOCUMENT_LOCKED/);
+ }
+ assert.doesNotThrow(()=>assertFiscalWorkspacePublication(scope,undefined,draft));
+ assert.doesNotThrow(()=>assertFiscalWorkspacePublication(scope,draft,undefined));
+ assert.doesNotThrow(()=>assertFiscalWorkspacePublication(scope,undefined,{kind:'proforma',status:'final'}));
+ assert.throws(()=>assertFiscalWorkspacePublication({environment:'production',syntheticOnly:false},draft,draft),/FISCAL_SCOPE_INVALID/);
 });

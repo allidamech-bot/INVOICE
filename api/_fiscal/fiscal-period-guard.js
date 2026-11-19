@@ -6,6 +6,11 @@ import {isFiscalPurchaseReturn} from './purchase-return.mjs';
 import {inspectReturnPostings,isReturnMovement} from './return-postings.js';
 import {reviewDigest} from './commercial-source.js';
 import {fail} from '../_accounting/period-format.js';
+// Reject ordinary publication inside the dedicated fiscal QA workspace.
+export function assertFiscalWorkspacePublication(scope,old,next){
+ if(scope?.environment!=='simulation'||scope.syntheticOnly!==true)fail(422,'FISCAL_SCOPE_INVALID');
+ if(next?.kind==='invoice'&&next.status==='final'||old?.kind==='invoice'&&old.status==='final')fail(409,'FISCAL_DOCUMENT_LOCKED');
+}
 // Invoked only by isolated QA period writer, inside its final CAS. Every
 // changed invoice is checked against the immutable server approval/issue.
 export function createFiscalPeriodGuard(db,{closeProof}={}){
@@ -41,9 +46,12 @@ export function createFiscalPeriodGuard(db,{closeProof}={}){
     const intent=await tx.get(db.doc(base+'/issueIntents/'+k));
     const issue=await tx.get(db.doc(base+'/issues/'+k));
     if(intent.exists||issue.exists)fail(409,'FISCAL_DOCUMENT_LOCKED');
-    // Commercial finalization of Saudi test invoices cannot bypass the server.
-    const country=String(next?.companySnapshot?.country??'').trim().toUpperCase();
-    if(next?.kind==='invoice'&&next.status==='final'&&(['SA','SAU','SAUDI ARABIA','KINGDOM OF SAUDI ARABIA','السعودية','المملكة العربية السعودية'].includes(country)||/^3\d{13}3$/.test(next.companySnapshot?.vatNumber??'')))fail(409,'FISCAL_DOCUMENT_LOCKED');
+    // The server-owned synthetic fiscal workspace, not a mutable seller
+    // snapshot or invoice mode, controls the commercial publication barrier.
+    // All final invoices in this enrolled scope require trusted issuance.
+    // International/non-fiscal workspaces without this private scope remain
+    // on their existing commercial path. No phase or tax liability is inferred.
+    assertFiscalWorkspacePublication(scope,old,next);
    }
    // Only the trusted supplier-return command can introduce these movements.
    // A stale browser or backup cannot delete, modify or inject one.

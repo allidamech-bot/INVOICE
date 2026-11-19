@@ -459,6 +459,8 @@ const CONTRACTS=[
   'tests/fiscal-vat-report.test.mjs',
   'tests/fiscal-accounting.test.mjs',
   'tests/fiscal-purchase-reconciliation.test.mjs',
+  'tests/finance-gl-fiscal-cost-bridge.test.mjs',
+  'tests/fiscal-stock-gl-review.test.mjs',
   'tests/fiscal-cost.test.mjs',
   'tests/fiscal-coverage.test.mjs',
   'tests/fiscal-purchase-cost-correction.test.mjs',
